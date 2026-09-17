@@ -413,7 +413,8 @@ export async function attemptCleanup(actor, tokenId, {
 
     // Somebody is watching. Cover it before you do it - and learn the answer
     // while there is still a choice about how to behave afterwards.
-    if (!await concealFromWitnesses(actor)) return null;
+    const cover = await concealFromWitnesses(actor);
+    if (!cover) return refundResolution(actor);
 
     const { rollTrait } = await import("./action-rolls.mjs");
     const calls = await import("./call-effects.mjs");
@@ -448,7 +449,7 @@ export async function attemptCleanup(actor, tokenId, {
     } finally {
         calls.clearSituational();
     }
-    if (!roll) return null;
+    if (!roll) return refundResolution(actor, { rolled: cover === "rolled" });
 
     // One crime scene, one set of gloves - and Despair is what wears them out
     // early. The reference was taken before the dice; see `breakOnDespair`.
@@ -1150,16 +1151,19 @@ function witnessesTo(actor, present) {
 }
 
 async function concealFromWitnesses(actor) {
+    // Three answers, not two (ACT-04): "alone" nothing was rolled, "rolled" a
+    // concealment roll landed and paid out, null its window was closed. The
+    // caller refunds the action for the first and the last, never the middle.
     const def = CLEANUP.conceal;
-    if (!def) return true;
+    if (!def) return "alone";
 
     const { othersInRoom } = await import("./movement.mjs");
-    if (!witnessesTo(actor, othersInRoom(actor)).length) return true;
+    if (!witnessesTo(actor, othersInRoom(actor)).length) return "alone";
 
     const { rollTrait } = await import("./action-rolls.mjs");
     const roll = await rollTrait(actor, def.trait,
         { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
-    if (!roll) return false;
+    if (!roll) return null;
 
     const hidden = roll.isCritical || roll.total >= def.threshold;
     const band = roll.isCritical ? "critical" : (roll.withHope ? "hope" : "despair");
@@ -1262,6 +1266,28 @@ async function spendResolutionAction(actor) {
     return spendAction(actor, 1);
 }
 
+/**
+ * Give back what `spendResolutionAction` took when a roll window is closed, and
+ * stop.
+ *
+ * ACT-04, 17.09: closing the concealment roll or the main one used to lose the
+ * action, where Sabotage, Work on Project and Palm give it back. Not after a
+ * concealment roll has landed, though - that roll has paid its Hope or a
+ * Monokuma's Despair, and a refund then would be ACT-05's generator again.
+ *
+ * @returns {Promise<null>}
+ */
+async function refundResolution(actor, { rolled = false } = {}) {
+    if (isCleaner(actor)) return null;
+    if (rolled) {
+        ui.notifications.info(game.i18n.localize("DRPG.Actions.keptAfterRoll"));
+        return null;
+    }
+    const { refundAction } = await import("./actions.mjs");
+    await refundAction(actor, 1);
+    return null;
+}
+
 /** Common guard for the two below. @returns {object|null} the action def. */
 function stageSixDef(actor, key, { viaAction = false } = {}) {
     const def = CLEANUP.actions?.[key];
@@ -1338,7 +1364,8 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
     // action already announces itself by leaving an Evident trace every single
     // time. Two rolls to move one body, where the first could stop the second
     // from happening at all, was a stack the stage does not need.
-    if (key !== "moveBody" && !await concealFromWitnesses(actor)) return null;
+    const cover = key === "moveBody" ? "alone" : await concealFromWitnesses(actor);
+    if (!cover) return refundResolution(actor);
 
     const { rollTrait } = await import("./action-rolls.mjs");
     const calls = await import("./call-effects.mjs");
@@ -1367,7 +1394,7 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
     } finally {
         calls.clearSituational();
     }
-    if (!roll) return null;
+    if (!roll) return refundResolution(actor, { rolled: cover === "rolled" });
 
     // Including "move the body", where the tool lowers the threshold instead of
     // granting advantage: it is still the thing in their hands.
