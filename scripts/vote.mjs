@@ -785,6 +785,17 @@ export async function applyVerdict({
 } = {}) {
     if (!game.user.isGM) return null;
 
+    // MARKED BEFORE ANYTHING IS ASKED (17.09, review of F2). The record used to be written
+    // at the very end, after every Level Up window and the Blackened's rule had closed -
+    // minutes in which the console, another GM or the API could start a second verdict.
+    // Written first, the lock holds for the whole of it; the same check stands here for
+    // every caller that does not come through `openVerdictDialog`.
+    if (trialProgress().verdictApplied) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Vote.verdictAlreadyApplied"));
+        return null;
+    }
+    await setTrialProgress({ verdictApplied: true });
+
     // Both shapes accepted: the dialog sends lists, and anything older - a
     // macro, the console - sends the single ids this used to take.
     const executed = (executedIds ?? [executedId]).filter(Boolean)
