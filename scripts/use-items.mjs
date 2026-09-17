@@ -582,9 +582,14 @@ async function confirmUse(item, preview, pointless) {
 async function restore(actor, amounts) {
     const update = {};
     const done = {};
+    // Under the Despair darkening a Hope write is stripped; reporting it as
+    // restored would be the card lying (CALL-05).
+    const { overflowBlocksHope } = await import("./overflow.mjs");
+    const hopeBlocked = overflowBlocksHope();
 
     for (const [key, amount] of Object.entries(amounts)) {
         if (key === "hope") {
+            if (hopeBlocked) continue;
             const max = resourceMax(actor, "hope") || STARTING.hopeMax;
             const held = resourceValue(actor, "hope");
             const next = Math.min(max, held + amount);

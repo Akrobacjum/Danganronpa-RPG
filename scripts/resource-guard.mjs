@@ -28,6 +28,15 @@ import { debug } from "./utils.mjs";
 export const SYSTEM_WRITE = "drpgAutomated";
 
 /**
+ * Marks a write that GIVES BACK Hope somebody was just charged, rather than
+ * Hope anybody earned. The Despair darkening strips every Hope increase (see
+ * `onPreUpdateActor` in overflow.mjs) and has to let this one through, or a
+ * refused Call keeps its price while its card says the price was returned
+ * (CALL-05).
+ */
+export const HOPE_REFUND = "drpgHopeRefund";
+
+/**
  * Paths players may not set by hand.
  *
  * `hope.value` is deliberately NOT here. Daggerheart's own roll pipeline awards
@@ -158,6 +167,6 @@ function prune(node) {
  * Update an actor as automation, bypassing the guard.
  * Every automated resource change in this module goes through here.
  */
-export function automatedUpdate(actor, data) {
-    return actor.update(data, { [SYSTEM_WRITE]: true });
+export function automatedUpdate(actor, data, options = {}) {
+    return actor.update(data, { ...options, [SYSTEM_WRITE]: true });
 }

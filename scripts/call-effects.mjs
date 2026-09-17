@@ -213,6 +213,15 @@ export async function applyCall(actor, key, kind, choice = {}) {
         // credits the Hope. Routing it through `convertDespairToHope` would take
         // the Despair a second time - the exchange rate is the Call's own cost.
         if (call.grantsHope && choice.target) {
+            // No Hope is earned under the Despair darkening, and this is Hope
+            // earned: the write would be stripped and the Call would still
+            // report "gains 1 Hope" and keep its Despair (CALL-05). Refused
+            // before the write, so the throw hands the price back.
+            const { overflowBlocksHope } = await import("./overflow.mjs");
+            if (overflowBlocksHope()) {
+                ui.notifications.warn(game.i18n.localize("DRPG.Overflow.noHopeNow"));
+                throw new Error("No Hope can be granted while the Despair darkening runs");
+            }
             const max = resourceMax(choice.target, "hope") || STARTING.hopeMax;
             const held = resourceValue(choice.target, "hope");
             const next = Math.min(max, held + call.grantsHope);

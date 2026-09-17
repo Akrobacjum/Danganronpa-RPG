@@ -1887,6 +1887,7 @@
       "oneOffHint": "These happen once, the moment the overflow fires, instead of lasting the time of day.",
       "emptyPool": "Nothing is ticked, so the overflow will never fire and never spend the counter. That is a real setting - the counter as pure atmosphere - but nothing will happen until you tick something.",
       "silenced": "Silence. Nobody is spending Hope Calls this time of day.",
+      "noHopeNow": "Despair. No Hope is earned this time of day.",
       "name": {
         "darkness": "Darkness",
         "shift": "Shift",

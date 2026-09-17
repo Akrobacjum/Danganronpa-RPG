@@ -16,7 +16,7 @@
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, callEffect } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
-import { automatedUpdate } from "./resource-guard.mjs";
+import { automatedUpdate, HOPE_REFUND } from "./resource-guard.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { announce, whisperToOwner, log, error, esc} from "./utils.mjs";
 
@@ -172,7 +172,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             const max = resourceMax(actor, "hope") || STARTING.hopeMax;
             await automatedUpdate(actor, {
                 "system.resources.hope.value": Math.min(max, now + call.cost)
-            });
+            }, { [HOPE_REFUND]: true });
             ui.notifications.warn(game.i18n.format("DRPG.Calls.refunded", {
                 call: call.label, cost: call.cost
             }));

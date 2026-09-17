@@ -331,6 +331,14 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
         return 0;
     }
 
+    // Checked before the pool is charged: under the Despair darkening the Hope
+    // write below would be stripped and the Despair gone for nothing (CALL-05).
+    const { overflowBlocksHope } = await import("./overflow.mjs");
+    if (overflowBlocksHope()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Overflow.noHopeNow"));
+        return 0;
+    }
+
     const { hopeMax } = await import("./calls.mjs");
     const hope = resourceValue(actor, "hope");
     const granted = Math.min(amount, hopeMax(actor) - hope);

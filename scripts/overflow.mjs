@@ -26,6 +26,7 @@
 import { MODULE_ID, OVERFLOW, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { announce, log, error, esc} from "./utils.mjs";
+import { HOPE_REFUND } from "./resource-guard.mjs";
 
 /* ==========================================================================
  * THE RULES - config, then the GM's edits on top
@@ -711,10 +712,12 @@ export function overflowStatus() {
  * go through untouched: this stops the tap, not the drain. And only while the
  * draw is Despair - every other hour this hook costs one comparison.
  */
-function onPreUpdateActor(actor, changes) {
+function onPreUpdateActor(actor, changes, options) {
     try {
         if (!overflowBlocksHope()) return true;
         if (actor?.type !== "character") return true;
+        // Giving back Hope a refused Call took is not earning it (CALL-05).
+        if (options?.[HOPE_REFUND]) return true;
 
         const next = foundry.utils.getProperty(changes, "system.resources.hope.value");
         if (next === undefined) return true;

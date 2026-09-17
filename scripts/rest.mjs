@@ -226,11 +226,22 @@ async function choosePicks(kind, count) {
      * interface agreeing with it in advance.
      */
     const single = count === 1;
+    // Breath is Hope, and under the Despair darkening no Hope is earned - so it
+    // is offered greyed with the reason rather than taken and turned into
+    // nothing (CALL-05).
+    const { overflowBlocksHope } = await import("./overflow.mjs");
+    const noBreath = overflowBlocksHope();
     const options = Object.entries(REST.options)
-        .map(([key, opt]) => `<label class="drpg-rest-option">
-                <input type="${single ? "radio" : "checkbox"}" name="pick" value="${key}" />
-                <span><strong>${opt.label}</strong> - ${kind === "long" ? opt.long : opt.short}</span>
-            </label>`).join("");
+        .map(([key, opt]) => {
+            const off = key === "breath" && noBreath;
+            return `<label class="drpg-rest-option"${off
+                ? ` title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Overflow.noHopeNow"))}"` : ""}>
+                <input type="${single ? "radio" : "checkbox"}" name="pick" value="${key}"${off ? " disabled" : ""} />
+                <span><strong>${opt.label}</strong> - ${off
+                    ? game.i18n.localize("DRPG.Overflow.noHopeNow")
+                    : (kind === "long" ? opt.long : opt.short)}</span>
+            </label>`;
+        }).join("");
 
     const picks = await DialogV2.wait({
         window: { title: kindLabel(kind) },
@@ -293,6 +304,8 @@ async function applyRest(actor, kind, picks) {
     const full = kind === "long";
     const update = {};
     const applied = [];
+    const { overflowBlocksHope } = await import("./overflow.mjs");
+    const hopeBlocked = overflowBlocksHope();
 
     for (const pick of picks) {
         const opt = REST.options[pick];
@@ -311,7 +324,11 @@ async function applyRest(actor, kind, picks) {
             applied.push(`${opt.label}: ${cleared} Sanity cleared`);
         }
 
-        if (pick === "breath") {
+        if (pick === "breath" && hopeBlocked) {
+            // The picker greys Breath under the Despair darkening; this is the
+            // authority for a pick that got past it (CALL-05).
+            applied.push(`${opt.label}: ${game.i18n.localize("DRPG.Overflow.noHopeNow")}`);
+        } else if (pick === "breath") {
             const gain = full ? 2 : 1;
             const max = resourceMax(actor, "hope") || STARTING.hopeMax;
             const next = Math.min(max, resourceValue(actor, "hope") + gain);
