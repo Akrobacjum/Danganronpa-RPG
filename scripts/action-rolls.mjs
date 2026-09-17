@@ -907,10 +907,10 @@ async function chooseTrait(actor, def, { intro = "" } = {}) {
  * spend was refused. Charging before the roll makes the second window stop at
  * "not enough actions", and a closed roll window gets its action back here.
  */
-async function abort(actor, cost, { rolled = false } = {}) {
-    if (cost <= 0) return null;
+async function abort(actor, paid, { rolled = false } = {}) {
+    if (!paid) return null;
     if (rolled) ui.notifications.info(game.i18n.localize("DRPG.Actions.keptAfterRoll"));
-    else await refundAction(actor, cost);
+    else await refundAction(actor, paid.amount, paid);
     return null;
 }
 
@@ -1004,7 +1004,8 @@ async function performSearch(actor, def, options) {
     if (hindersCategory(room, category)) situational -= 1;
     if (stashLoot.length && stashConcealed) situational -= 1;
 
-    if (cost > 0 && !await spendAction(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
 
     const calls = await import("./call-effects.mjs");
     if (situational) calls.armSituational(situational);
@@ -1030,7 +1031,7 @@ async function performSearch(actor, def, options) {
         // roll would silently attach itself to the next unrelated one.
         calls.clearSituational();
     }
-    if (!roll) return abort(actor, cost);
+    if (!roll) return abort(actor, paid);
 
     // The token is claimed only once the dice are actually on the table.
     // Spending it up front meant backing out of the trait picker or the roll
@@ -1069,7 +1070,7 @@ async function performSearch(actor, def, options) {
         // generator, and it still costs - while an unanswered request is the
         // module failing the player, not the player gaming it.
         const reallyEmpty = SearchTokens.left(room) <= 0;
-        if (!reallyEmpty && cost > 0) await refundAction(actor, cost);
+        if (!reallyEmpty && paid) await refundAction(actor, cost, paid);
 
         await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null });
         await report(actor, def, roll, {
@@ -1930,7 +1931,8 @@ async function workOnProject(actor, def, options, chosen = null) {
     // Monokuma. With the charge sitting after the main roll, backing out of that
     // roll left the conceal roll's winnings in place at no cost, which is a Hope
     // generator anyone could run all day.
-    if (cost > 0 && !await spendAction(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
 
     // Guide: with someone else in the room, the killer must hide their intent
     // first; alone, the project simply gains +1 progress.
@@ -1938,7 +1940,7 @@ async function workOnProject(actor, def, options, chosen = null) {
         if (witnesses.length) {
             const conceal = await rollTrait(actor, INDIRECT_MURDER.concealIntent.trait,
                 { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
-            if (!conceal) return abort(actor, cost);
+            if (!conceal) return abort(actor, paid);
             const ok = conceal.isCritical || conceal.total >= INDIRECT_MURDER.concealIntent.threshold;
             lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> - ${conceal.total}: ${
                 ok ? (conceal.withFear
@@ -1988,7 +1990,7 @@ async function workOnProject(actor, def, options, chosen = null) {
         // outlived its roll would attach itself to the next unrelated one.
         calls.clearSituational();
     }
-    if (!roll) return abort(actor, cost, { rolled: Boolean(indirect && witnesses.length) });
+    if (!roll) return abort(actor, paid, { rolled: Boolean(indirect && witnesses.length) });
 
     await breakOnDespair(actor, tool, roll);
 
@@ -2019,7 +2021,10 @@ async function workOnProject(actor, def, options, chosen = null) {
         relief,
         // Whether the critical's free action has already been handed back, so a
         // reroll that loses the critical knows there is one to take away again.
-        refunded: Boolean(hit?.refundAction && cost > 0)
+        refunded: Boolean(hit?.refundAction && cost > 0),
+        // What paid for it, so a Reroll that takes the critical back takes back
+        // the same thing - a Burst stays a Burst (review of ACT-07).
+        burst: Boolean(paid?.grant)
     });
 
     // Guide: every project action also rolls to hide the traces it leaves.
@@ -2067,7 +2072,7 @@ async function workOnProject(actor, def, options, chosen = null) {
 
     // A critical on a project hands the action back. Applied here, where the
     // action was spent, rather than inside `report()`.
-    if (hit?.refundAction && cost > 0) await refundAction(actor, cost);
+    if (hit?.refundAction && paid) await refundAction(actor, cost, paid);
 
     const outcome = {
         success: progress > 0,
@@ -2309,12 +2314,13 @@ async function performSabotage(actor, def, options) {
     // Paid before the concealment roll, for the same reason as Work on Project:
     // that roll grants Hope and feeds a Despair pool, and an uncharged cancel
     // afterwards turned it into free resources.
-    if (cost > 0 && !await spendAction(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
 
     if (witnesses.length) {
         const conceal = await rollTrait(actor, SABOTAGE_CONCEAL.trait,
             { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
-        if (!conceal) return abort(actor, cost);
+        if (!conceal) return abort(actor, paid);
 
         const hidden = conceal.isCritical || conceal.total >= SABOTAGE_CONCEAL.threshold;
         if (hidden && conceal.withFear) penalty = SABOTAGE_CONCEAL.despairPenalty;
@@ -2346,7 +2352,7 @@ async function performSabotage(actor, def, options) {
             // gave them the information has happened, but the sabotage has not,
             // so the action is returned.
             if (!carryOn) {
-                await abort(actor, cost);
+                await abort(actor, paid);
                 return { aborted: true, seen: true };
             }
         }
@@ -2380,7 +2386,7 @@ async function performSabotage(actor, def, options) {
     } finally {
         calls.clearSituational();
     }
-    if (!roll) return abort(actor, cost, { rolled: witnesses.length > 0 });
+    if (!roll) return abort(actor, paid, { rolled: witnesses.length > 0 });
 
     await breakOnDespair(actor, tool, roll);
 
@@ -2895,19 +2901,20 @@ async function performPalm(actor, def, options) {
     // Paid before the first roll, like Sabotage and for the same reason: these
     // rolls grant Hope and feed the Despair pool, and a cancel afterwards with
     // nothing charged is a resource generator.
-    if (cost > 0 && !await spendAction(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
 
     const unseen = def.unseen;
     const shadow = await rollTrait(actor, unseen.trait, {
         remember: false, title: game.i18n.localize("DRPG.Steal.unseenRoll")
     });
-    if (!shadow) return abort(actor, cost);
+    if (!shadow) return abort(actor, paid);
 
     const hand = await rollTrait(actor, def.traits[0], {
         actionKey: "steal",
         context: { room, victimId: victim.id, unseenTotal: shadow.total }
     });
-    if (!hand) return abort(actor, cost, { rolled: true });
+    if (!hand) return abort(actor, paid, { rolled: true });
 
     /*
      * A PLANT IS AN EASIER HAND THAN A STEAL (D10a), on both axes.
@@ -3125,9 +3132,10 @@ async function performGmAction(actor, actionKey, def, options) {
     if ((def.traits?.length ?? 0) && !trait) return null;
 
     // Paid before the dice - see `abort` and ACT-07 above it.
-    if (cost > 0 && !await spendAction(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
     const roll = await rollTrait(actor, trait, { actionKey });
-    if (!roll) return abort(actor, cost);
+    if (!roll) return abort(actor, paid);
 
     const body = buildGmBody(actionKey, def, roll);
 
@@ -3255,9 +3263,10 @@ async function observeRanked(actor, def, cost, options, declaration) {
     }
 
     // Paid before the dice - see `abort` and ACT-07 above it.
-    if (cost > 0 && !await spendAction(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
     const roll = await rollTrait(actor, "eye", { actionKey: "observe" });
-    if (!roll) return abort(actor, cost);
+    if (!roll) return abort(actor, paid);
 
     return settleObserveRoll(actor, def, roll, target.key, declaration);
 }
@@ -3291,9 +3300,10 @@ async function observeSpecific(actor, def, cost, request = "") {
     if (!request) ui.notifications.info(game.i18n.localize("DRPG.Observe.requestSkipped"));
 
     // Paid before the dice - see `abort` and ACT-07 above it.
-    if (cost > 0 && !await spendAction(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
     const roll = await rollTrait(actor, "eye", { actionKey: "observe" });
-    if (!roll) return abort(actor, cost);
+    if (!roll) return abort(actor, paid);
 
     const { requestObserveTarget } = await import("./gm-bridge.mjs");
     const target = await requestObserveTarget({ actorId: actor.id, declaration, request });
@@ -3301,7 +3311,7 @@ async function observeSpecific(actor, def, cost, request = "") {
     // Nobody answered - no GM is listening. `requestObserveTarget` has already
     // said so, and the action stays in the player's pocket: there is nobody to
     // rule on it either, so charging for it would be charging for silence.
-    if (!target) return abort(actor, cost);
+    if (!target) return abort(actor, paid);
 
     // Refused, empty room, no room at all: the GM rules on the roll that has
     // already been thrown. Calling `performGmAction` here would roll a second
@@ -3358,9 +3368,10 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
  */
 async function observeAnything(actor, def, cost, request = "") {
     // Paid before the dice - see `abort` and ACT-07 above it.
-    if (cost > 0 && !await spendAction(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
     const roll = await rollTrait(actor, "eye", { actionKey: "observe" });
-    if (!roll) return abort(actor, cost);
+    if (!roll) return abort(actor, paid);
 
     // Not the button's own label: "Ask the GM" is clear on a button the player is
     // pressing and meaningless as the title of the window it arrives in. The GM
@@ -3515,9 +3526,10 @@ async function performAnalyze(actor, def, options) {
     if (!ruled && !subject) return null;
 
     // Paid before the dice - see `abort` and ACT-07 above it.
-    if (cost > 0 && !await spendAction(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
     const roll = await rollTrait(actor, "head", { actionKey: "analyze" });
-    if (!roll) return abort(actor, cost);
+    if (!roll) return abort(actor, paid);
 
     if (choice === "stash") return locateStash(actor, def, roll, asked?.request ?? "");
     return subject
@@ -3778,12 +3790,13 @@ async function performListen(actor, def, options) {
     if (!target || target === "cancel") return null;
 
     // Paid before the dice - see `abort` and ACT-07 above it.
-    if (cost > 0 && !await spendAction(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
     const roll = await rollTrait(actor, "shadow", {
         actionKey: "listen",
         context: { room: here, target }
     });
-    if (!roll) return abort(actor, cost);
+    if (!roll) return abort(actor, paid);
 
     // Listen produces information and nothing else, so Reroll has nothing to
     // undo - it simply asks the walls again with the new number.
@@ -3968,7 +3981,8 @@ async function performDirectMurder(actor, def, options) {
      * The action is spent here either way, which is the guide's rule and does
      * not change. What the player does not get here is the outcome.
      */
-    if (cost > 0 && !await spendAction(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
 
     const note = await promptForNote(actor, {
         title: def.label,
@@ -4033,9 +4047,10 @@ async function performGeneric(actor, actionKey, def, options) {
     if (!trait) return null;
 
     // Paid before the dice - see `abort` and ACT-07 above it.
-    if (cost > 0 && !await spendAction(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
     const roll = await rollTrait(actor, trait, { actionKey });
-    if (!roll) return abort(actor, cost);
+    if (!roll) return abort(actor, paid);
 
     const hit = roll.isCritical ? def.critical : resolveThreshold(roll.total, def.thresholds ?? []);
     const outcome = {
@@ -4101,12 +4116,13 @@ async function performDynamic(actor, options) {
     if (!band) return null;
     // Paid before the dice - see `abort` and ACT-07 above it.
     const cost = options.free ? 0 : 1;
-    if (cost > 0 && !await spendAction(actor, cost)) return null;
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
     const roll = await rollTrait(actor, picked.trait, {
         actionKey: "dynamic",
         context: { bandIndex: picked.tier, description, room: roomOfActor(actor) }
     });
-    if (!roll) return abort(actor, cost);
+    if (!roll) return abort(actor, paid);
 
     const success = roll.isCritical || roll.total >= band.range[0];
     const visibility = success ? band.remnant : null;

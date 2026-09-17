@@ -1019,7 +1019,7 @@ async function settleActionRefund(actor, bookmark, shouldRefund, done) {
     const { refundAction, spendAction } = await import("./actions.mjs");
 
     if (shouldRefund) {
-        await refundAction(actor, 1);
+        await refundAction(actor, 1, bookmark.burst ? { grant: true, amount: 1 } : null);
         done.push(game.i18n.localize("DRPG.Action.actionReturned"));
         return true;
     }

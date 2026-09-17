@@ -1891,9 +1891,12 @@ const REGRESSIONS = [
         ok(!/if\s*\(!options\.free\)\s*await spendAction\(/.test(rolls),
             "a Dynamic action charges without reading whether the charge went through");
         for (const m of rolls.matchAll(/spendAction\(actor,\s*cost\)/g)) {
-            ok(/!\s*await\s*$/.test(rolls.slice(Math.max(0, m.index - 30), m.index)),
+            ok(/^[^;]*;\s*if\s*\(cost\s*>\s*0\s*&&\s*!paid\)\s*return null;/.test(rolls.slice(m.index, m.index + 120)),
                 `a spendAction(actor, cost) at offset ${m.index} ignores its answer`);
         }
+        // And what a closed window refunds is the receipt it paid with.
+        ok(!/abort\(actor,\s*cost\b/.test(rolls.replace(/async function abort\(/, "")),
+            "an abort refunds by amount again instead of by the receipt of what paid");
     }],
 
     ["R34 - a planted item is taken only by a Search that found something", async () => {
@@ -4497,15 +4500,31 @@ const SCENARIOS = [
         ok(!again, "one Burst paid for two separate spends");
 
         // A refund gives back what was taken, not an action out of thin air
-        // (trap 98). The bookkeeping is per-spend, so this rebuilds the state.
+        // (trap 98). The receipt is per spend, so this rebuilds the state.
         await grantFreeActions(who, 1);
-        await spendAction(who, 1);
+        const burst = await spendAction(who, 1);
         await settle();
-        await refundAction(who, 1);
+        await refundAction(who, 1, burst);
         await settle();
         equal(freeActionsLeft(who), 1, "the refund did not give the Burst back");
         equal(who.system.resources.actions.value, 0,
             "the refund turned a Burst into an action out of nowhere");
+
+        // TWO SPENDS OPEN AT ONCE, REFUNDED IN THE OTHER ORDER (review of ACT-07).
+        // Paying before the roll leaves a roll window open between a spend and its
+        // refund, and the old one-slot bookkeeping gave the first refund whatever
+        // the last spend had been.
+        await who.update({ "system.resources.actions.value": 1 });
+        await settle();
+        const first = await spendAction(who, 1);      // the banked Burst pays
+        const second = await spendAction(who, 1);     // an action pays
+        await settle();
+        ok(first?.grant && second && !second.grant, "the two spends were not a Burst and then an action");
+        await refundAction(who, 1, first);
+        await refundAction(who, 1, second);
+        await settle();
+        equal(freeActionsLeft(who), 1, "refunding in the other order lost the Burst");
+        equal(who.system.resources.actions.value, 1, "refunding in the other order lost the action");
 
         // And the time of day takes both counters with it.
         await actions.grantFreeMoves(who, 2);
