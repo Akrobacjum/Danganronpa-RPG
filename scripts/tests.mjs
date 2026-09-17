@@ -1859,6 +1859,11 @@ const REGRESSIONS = [
         ok(/action:\s*"discoverAll",\s*type:\s*"button"/.test(open)
             && /action:\s*"hideAll",\s*type:\s*"button"/.test(open),
             "Discover all / Hide all submit the window again, which throws away the other tabs' edits");
+        // `type: "button"` is not enough on its own: DialogV2 makes every entry in
+        // `buttons` an action, so the click has to stop before the window hears it.
+        const bulk = open.slice(open.indexOf("fogButtons"), open.indexOf("wireDashboardTabs(root"));
+        ok(/stopPropagation\(\)/.test(bulk),
+            "Discover all / Hide all let the click reach DialogV2, which closes the window on it");
     }],
 
     ["R32 - the case dashboard saves the rows on screen, and a plan row only when it was edited", async () => {

@@ -2061,7 +2061,13 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             showFogButtons(initial);
             for (const button of fogButtons) {
                 button.addEventListener("click", ev => {
+                    // Both, and the second is the one that matters: DialogV2 turns
+                    // every button in `buttons` into an action whatever its `type`,
+                    // and the application's own click listener sits above this one.
+                    // Without it the boxes ticked and the window closed anyway,
+                    // with every edit on it (measured 17.09, review of ROOM-03).
                     ev.preventDefault();
+                    ev.stopPropagation();
                     const value = button.dataset.action === "discoverAll";
                     for (const box of root.querySelectorAll('input[type="checkbox"][name^="fog:"]')) {
                         box.checked = value;
