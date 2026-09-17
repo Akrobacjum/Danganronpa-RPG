@@ -47,6 +47,9 @@ async function onCloseApplication(app) {
         const actor = actorOf(app);
         if (!actor?.isOwner) return;
 
+        // A Loaded Die waits for the roll that can load it - see `grantsFor`.
+        if (pendingGrants(actor) === "critical" && !grantsFor(app, actor)) return;
+
         const { consumeCall } = await import("./call-effects.mjs");
         await consumeCall(actor);
     } catch {
@@ -88,7 +91,7 @@ function onRenderApplication(app, element) {
         // sanctioned exception to "red means the GM" (Dawid, 26.08): this is
         // the rarest, most expensive thing a player can buy, and the six Hope
         // deserve a window that does not look like every other roll.
-        if (actor && pendingGrants(actor) === "critical") {
+        if (grantsFor(app, actor) === "critical") {
             root.classList.add("drpg-forced-critical");
         }
 
@@ -300,7 +303,7 @@ function stripExperienceCosts(app) {
  */
 function lockControls(root, app) {
     const actor = actorOf(app);
-    const armed = actor ? pendingGrants(actor) : null;
+    const armed = grantsFor(app, actor);
 
     // Dice size: fixed by the rules, always - the advantage die INCLUDED.
     // This used to skip the advantage selects while advantage was armed, on
@@ -510,6 +513,22 @@ function pendingGrants(actor) {
     } catch {
         return null;
     }
+}
+
+/**
+ * The Call THIS window carries - which is not always the one the actor holds.
+ *
+ * A LOADED DIE IS LOADED BY AN ACTION ROLL ONLY (CALL-03, 17.09). `throwDice`
+ * arms the 12 (see `armOneMaximum` in forced-roll.mjs), and nothing else does.
+ * A statistic clicked on the sheet still opened the red window with "one die is
+ * set to 12", rolled honest dice, and the close hook used the Call up: six Hope
+ * for a banner. Outside an action roll the Loaded Die is not this window's, so
+ * it is neither shown nor spent, and waits for the action it was bought for.
+ */
+function grantsFor(app, actor) {
+    const grants = actor ? pendingGrants(actor) : null;
+    if (grants === "critical" && !app?.config?.[DRPG_ACTION_ROLL]) return null;
+    return grants;
 }
 
 /** The magnitude behind a `grants: "bonus"` Call - see armCall's `amount`. */
