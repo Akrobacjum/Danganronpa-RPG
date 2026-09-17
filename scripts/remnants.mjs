@@ -1520,7 +1520,7 @@ export async function confirmClearFaint() {
  * @returns {Promise<boolean|object|null>}
  */
 export async function retuneRemnant(sceneId, tokenId,
-    { visibility = null, type = null, remove = false, tiedToCrime = null } = {}) {
+    { visibility = null, type = null, remove = false, tiedToCrime = null, describes = null } = {}) {
     if (!tokenId) return null;
 
     if (!game.user.isGM) {
@@ -1541,7 +1541,7 @@ export async function retuneRemnant(sceneId, tokenId,
         return true;
     }
 
-    if (!visibility && !type && tiedToCrime === null) return null;
+    if (!visibility && !type && tiedToCrime === null && !describes) return null;
 
     /*
      * THE LEDGER, AND NOTHING ELSE (audit A8, Dawid Q13).
@@ -1577,6 +1577,18 @@ export async function retuneRemnant(sceneId, tokenId,
      * false is a field somebody will work around later.
      */
     if (tiedToCrime !== null) secret.tiedToCrime = Boolean(tiedToCrime);
+    /*
+     * WHAT THE TRACE IS OF, when a Reroll changed it (review of ACT-11, 17.09).
+     * A rerolled Search that found a different object kept the first object's
+     * identity on its trace, so using the new one never tied the trace to the
+     * crime. GM-side only, like the tie above, and for the same reason: off the
+     * bridge's allow-list, so no player can rename what a trace is evidence of.
+     */
+    if (describes) {
+        for (const field of ["itemIdentity", "subject", "note"]) {
+            if (field in describes) secret[field] = describes[field] ?? null;
+        }
+    }
     await setRemnantSecret(token, secret);
     return true;
 }

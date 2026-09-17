@@ -973,7 +973,14 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
         return { remnantId: null, remnantScene: null };
     }
 
-    const retuned = await retuneRemnant(bookmark.remnantScene, bookmark.remnantId, { visibility });
+    // A Search's trace is OF the object it found, and a Reroll may have found a
+    // different one: the identity, subject and note follow it (review of ACT-11).
+    // Only a drop that names an identity says so - the other actions' traces are
+    // of the same thing whatever the dice say.
+    const describes = drop && "itemIdentity" in drop
+        ? { itemIdentity: drop.itemIdentity, subject: drop.subject, note: drop.note }
+        : null;
+    const retuned = await retuneRemnant(bookmark.remnantScene, bookmark.remnantId, { visibility, describes });
     if (traceFeedback(gate, retuned)) done.push(game.i18n.localize("DRPG.Reroll.remnantRetuned"));
     return {};
 }
