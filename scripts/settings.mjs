@@ -1550,7 +1550,8 @@ Hooks.on("renderSettingsConfig", (_app, element) => {
     };
     const sync = () => {
         const glass = (themeField?.value ?? getSetting(SETTINGS.theme)) === "stainedGlass";
-        for (const key of [SETTINGS.glassPulse, SETTINGS.hudTicker, SETTINGS.reducedMotion])
+        // Reduced motion is shown under both themes (W-3, 16.09) - see look.mjs.
+        for (const key of [SETTINGS.glassPulse, SETTINGS.hudTicker])
             show(key, glass);
         show(SETTINGS.pixelFont, !glass);
     };

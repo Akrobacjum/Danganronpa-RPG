@@ -34,18 +34,20 @@ function lookFieldset() {
     const check = (key, setting, on) => `<label><span>${t(key)}</span>
             <input type="checkbox" name="look:${setting}"${on ? " checked" : ""}></label>`;
     const pixel = legacy ? check("pixelFont", SETTINGS.pixelFont, getSetting(SETTINGS.pixelFont) !== false) : "";
-    /* The glass's own switches are shown to the browsers that have glass, and nothing else
-       is left in this group. Reduced motion joined it on 08.09 (Dawid): what it damps down
-       is the curtain, the pulse and the panes turning, all of which Monokuma Legacy does
-       not have - so under that theme it was a third switch that changed nothing.
+    /* The glass's own switches are shown to the browsers that have glass.
        The messenger sounds went the other way, to the Volume fieldset above (sfx.mjs),
        which is where a sound switch is looked for.
-       Foundry's own settings window hides the same three through `renderSettingsConfig`
-       in settings.mjs; the two windows show the same set. */
+       Foundry's own settings window hides the same two through `renderSettingsConfig`
+       in settings.mjs; the two windows show the same set.
+
+       REDUCED MOTION IS FOR EVERY THEME AGAIN (Dawid, 16.09, W-3). It sat in this group from
+       08.09 on the grounds that Legacy had nothing for it to damp. Legacy has windows that
+       grow in and fade out, and an accessibility switch should not depend on which look a
+       player picked - so it stands outside the group, in both windows. */
     const glassOnly = legacy ? "" :
         check("pulse", SETTINGS.glassPulse, getSetting(SETTINGS.glassPulse) !== false)
-        + check("ticker", SETTINGS.hudTicker, getSetting(SETTINGS.hudTicker) !== false)
-        + check("reducedMotion", SETTINGS.reducedMotion, getSetting(SETTINGS.reducedMotion) === true);
+        + check("ticker", SETTINGS.hudTicker, getSetting(SETTINGS.hudTicker) !== false);
+    const motion = check("reducedMotion", SETTINGS.reducedMotion, getSetting(SETTINGS.reducedMotion) === true);
     const opt = (value, label) => `<option value="${value}"${theme === value ? " selected" : ""}>${
         foundry.utils.escapeHTML(game.i18n.localize(label))}</option>`;
     return `<fieldset class="drpg-look">
@@ -58,6 +60,7 @@ function lookFieldset() {
             <output>${Math.round(scale * 100)}%</output></label>
         <p class="notes" data-drpg-scale-note>${game.i18n.format("DRPG.Look.uiScaleAuto", { auto: Math.round(autoScale() * 100), total: Math.round(effectiveScale() * 100), w: innerWidth, h: innerHeight })}</p>
         ${glassOnly}
+        ${motion}
         <p class="notes">${t("note")}</p>
     </fieldset>`;
 }
