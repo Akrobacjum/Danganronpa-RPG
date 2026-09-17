@@ -6265,6 +6265,32 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.overflow, stored);
             await settle();
         }
+    }],
+
+    ["a darkening ends with its time of day, not with the Eclipse after it", async () => {
+        /*
+         * Found in review, 17.09: the clock does not move until an Eclipse ends, so the
+         * stamp of the time of day just finished went on matching through the Eclipse
+         * after it - a Panic drawn for Noon cut the Afternoon refill. Written straight
+         * to the settings, so no Eclipse card or refill runs.
+         */
+        const o = await import("./overflow.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
+        const stamp = { session: clock.session, day: clock.day ?? 1, timeOfDay: clock.timeOfDay };
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: false });
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { count: 0, active: { ...stamp, effect: "panic" } });
+            await settle();
+            equal(o.overflowEffect(), "panic", "could not set up a darkening for this time of day");
+            await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
+            await settle();
+            equal(o.overflowEffect(), null, "the Eclipse after a darkened time of day is still darkened by it");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, stored);
+            await settle();
+        }
     }]
 ];
 

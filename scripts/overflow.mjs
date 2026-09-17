@@ -239,10 +239,15 @@ export async function resetOverflow({ reason = "the verdict" } = {}) {
  * clocks even though they are the same event.
  *
  * So a darkening is STAMPED with the time of day it is for, and is active while
- * either of two things is true: the clock has reached that stamp, or an Eclipse
- * is running and that stamp is the one it will open. Nothing has to clear it -
- * the stamp simply stops matching. Which also means a rewound clock un-darkens
- * itself, and that is right: the time of day was undone.
+ * the clock is at that stamp with no Eclipse running, or while the Eclipse that
+ * opens it is. Nothing has to clear it - the stamp simply stops matching. Which
+ * also means a rewound clock un-darkens itself, and that is right: the time of
+ * day was undone.
+ *
+ * NOT DURING THE ECLIPSE THAT CLOSES IT (review, 17.09). The clock does not move
+ * until an Eclipse ends, so the stamp of the time of day just finished went on
+ * matching through the Eclipse after it: a Panic drawn for Noon cut the refill
+ * the Afternoon Eclipse hands out, and a Darkness shortened two Eclipses.
  *
  * THE BOUNDARY IS CHECKED TWICE AND PAYS ONCE. `startEclipse` asks, so a
  * darkening can shorten the crossings of the very Eclipse that triggered it;
@@ -294,11 +299,10 @@ export function overflowEffect() {
         const { active } = state();
         if (!active?.effect) return null;
         const clock = getClock();
-        if (same(active, stampOf(clock))) return active.effect;
-        // The Eclipse half: the clock has not moved yet, so compare against the
-        // time of day this Eclipse is about to open.
-        if (clock.eclipse && same(active, upcoming(clock))) return active.effect;
-        return null;
+        // During an Eclipse the clock has not moved yet, so the only stamp that
+        // counts is the time of day this Eclipse is about to open.
+        const stamp = clock.eclipse ? upcoming(clock) : stampOf(clock);
+        return same(active, stamp) ? active.effect : null;
     } catch {
         // Asked on every action, every search and every crossing - a throw here
         // would break the game rather than the feature.
