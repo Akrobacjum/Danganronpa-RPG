@@ -12,7 +12,7 @@
  * them Calls rather than free checkboxes - see roll-dialog.mjs.
  */
 
-import { MODULE_ID, FLAGS, HOPE_CALLS, DESPAIR_CALLS, MOTIVE, STARTING } from "./config.mjs";
+import { MODULE_ID, FLAGS, HOPE_CALLS, DESPAIR_CALLS, MOTIVE, STARTING, callEffect } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
@@ -836,7 +836,7 @@ let pendingHeader = "";
 function callHeader(call, kind) {
     return `<div class="drpg-call-header">
         <h3>${esc(call.label)}</h3>
-        <p>${esc(call.effect)}</p>
+        <p>${esc(callEffect(call))}</p>
         <p class="notes">${game.i18n.format(
             kind === "hope" ? "DRPG.Calls.costsHopeShort" : "DRPG.Calls.costsDespairShort",
             { cost: call.cost })}</p>
