@@ -64,8 +64,8 @@ the scene stops, and nobody is owed an explanation.
 
 Every point of Fear a Daggerheart GM would bank becomes Despair in a Monokuma's
 pool, and it buys things: an obstacle, pain, paranoia, a sealed room, a silenced
-student, a confiscated item, an announcement over the intercom - and at nine, a
-**Motive** or a **New Rule**, which is how a season turns.
+student, a confiscated item, an announcement over the intercom - and at six a
+**Motive**, at nine a **New Rule**, which is how a season turns.
 
 A pool holds twelve. Despair earned past that used to evaporate; it collects in
 a shared **overflow** counter instead, and when the counter fills, one thing is
@@ -145,6 +145,11 @@ Developed and played on [The Forge](https://forge-vtt.com/); it works the same
 on any Foundry v14 host.
 
 ## Starting a season
+
+Every student feeds the Despair pool of one Monokuma, and the game is written
+for GMs who share the table: two is the usual number and four works. One GM can
+run it too, but then carries every pool, the GM panel and each murder alone.
+Split the students evenly between the Monokumas.
 
 1. Make a world on the **Daggerheart** system and enable the module and its
    dependencies.

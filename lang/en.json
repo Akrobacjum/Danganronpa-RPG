@@ -2646,7 +2646,7 @@
       "step.cast": "The cast exists",
       "hint.cast": "One character per student. Monokumas are separate and do not count here.",
       "step.monokumas": "At least one Monokuma",
-      "hint.monokumas": "A Monokuma holds a Despair pool. With none, Despair has nowhere to go.",
+      "hint.monokumas": "A Monokuma holds a Despair pool. With none, Despair has nowhere to go. The game is written for more than one GM - split the students evenly between the Monokumas.",
       "step.resources": "Starting Health, Sanity and Hope",
       "hint.resources": "Until this is set, a character counts as Wounded AND in Breakdown: one action instead of two, and disadvantage on every roll.",
       "step.ultimate": "Everybody has an Ultimate",
