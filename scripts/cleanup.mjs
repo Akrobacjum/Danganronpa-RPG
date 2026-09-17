@@ -779,26 +779,15 @@ export async function resolveCleanup({
     }
 
     /*
-     * THE ACTION MAY ONLY UNDO ITSELF.
+     * NOT "ONLY YOUR OWN" ANY MORE (ACT-02, 17.09).
      *
-     * Verified here rather than trusted from the picker, for the same reason
-     * everything else in this file is: the list went out over a socket and what
-     * comes back is a token id. A packet naming somebody else's trace would
-     * otherwise erase it, which would turn a one-action tile into a way of
-     * scrubbing the crime scene of a murder you had nothing to do with.
+     * This guard used to refuse any trace somebody else had left. The picker
+     * stopped asking that on 31.08 - seeing a trace is the entitlement, not
+     * having left it, see `cleanableTracesForPlayer` - and this half was never
+     * told: an investigator erasing a trace they had found paid the action and
+     * the roll and was always refused. The one rule both halves keep is below.
      *
-     * Stage 6 is deliberately exempt. A killer cleaning their own scene may
-     * wipe whatever is in the room - including the traces of whoever else was
-     * standing there - and that is the stage working as written.
-     */
-    if (viaAction && data.sourceActor !== actor.id) {
-        error(`Refused a Tamper by ${actor.name}: that trace is not theirs.`);
-        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Tamper.notYours")}</p>`);
-        return { removed: false, notYours: true };
-    }
-
-    /*
-     * AND ONLY ONE THEY HAVE FOUND. The same rule the picker was built from,
+     * ONLY ONE THEY HAVE FOUND. The same rule the picker was built from,
      * re-asked here because the picker travelled over a socket and what came
      * back is a token id. A packet naming a trace they left and never found
      * would otherwise erase it blind - which is the whole leak, arriving by the
@@ -818,7 +807,7 @@ export async function resolveCleanup({
      * state a rule twice, and stating it twice is still right: one of them is
      * a menu and the other is a socket boundary.
      */
-    const watchedItHappen = data.type === "incident" && data.sourceActor === actor.id;
+    const watchedItHappen = data.type === "incident" && incidentParticipant(actor);
     if (viaAction && !watchedItHappen && !copiedRemnants(actor).has(token.id)) {
         error(`Refused a Tamper by ${actor.name}: they have not found that trace.`);
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Tamper.notFound")}</p>`);

@@ -3918,7 +3918,7 @@ const LITERAL_KEYS = [
     // E12. Every one of these is said on a client that did not decide it - a
     // GM-side refusal, a victim's whisper, a row that outlived its item - so a
     // missing key here renders as a raw string in front of a player.
-    "DRPG.Tamper.notYours", "DRPG.Tamper.nothingOfYours", "DRPG.Tamper.onlyReinforced",
+    "DRPG.Tamper.notFound", "DRPG.Tamper.nothingOfYours", "DRPG.Tamper.onlyReinforced",
     "DRPG.Steal.caughtTaking", "DRPG.Steal.caughtTrying", "DRPG.Steal.nobodyHere",
     "DRPG.Steal.cardSeen", "DRPG.Steal.cardUnseen", "DRPG.Steal.cardHandsFull",
     "DRPG.Items.rowGone",
