@@ -196,6 +196,32 @@ export async function refundAction(actor, amount = 1, receipt = null) {
 }
 
 /**
+ * Take back a refund a Reroll has just made untrue - the mirror of `refundAction`.
+ *
+ * A critical on Work on Project hands its action back; a Reroll that loses the
+ * critical takes it again, and `spendAction` would spend a banked Burst first
+ * whatever had been refunded (review of ACT-07's receipts, 17.09). This takes
+ * what the receipt says was given back, and only falls back to an ordinary spend
+ * when that is no longer there.
+ *
+ * @returns {Promise<object|false>}  A receipt, or false when nothing could be taken.
+ */
+export async function takeBackRefund(actor, amount = 1, receipt = null) {
+    if (!actor || amount <= 0) return false;
+    if (receipt?.grant && freeActionsLeft(actor) > 0) {
+        await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, freeActionsLeft(actor) - 1);
+        playSfx("actionSpent");
+        return { grant: true, amount };
+    }
+    if (!receipt?.grant && actionsLeft(actor) >= amount) {
+        await automatedUpdate(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: actionsLeft(actor) - amount });
+        playSfx("actionSpent");
+        return { grant: false, amount };
+    }
+    return spendAction(actor, amount);
+}
+
+/**
  * Set the remaining actions directly. GM only - the pips on the sheet are a
  * correction tool for the GM, not a dial for the player. Players spend actions
  * by taking actions.

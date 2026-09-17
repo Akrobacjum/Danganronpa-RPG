@@ -995,17 +995,18 @@ async function settleActionRefund(actor, bookmark, shouldRefund, done) {
     const wasRefunded = Boolean(bookmark.refunded);
     if (wasRefunded === shouldRefund) return wasRefunded;
 
-    const { refundAction, spendAction } = await import("./actions.mjs");
+    const { refundAction, takeBackRefund } = await import("./actions.mjs");
+    const receipt = bookmark.burst ? { grant: true, amount: 1 } : { grant: false, amount: 1 };
 
     if (shouldRefund) {
-        await refundAction(actor, 1, bookmark.burst ? { grant: true, amount: 1 } : null);
+        await refundAction(actor, 1, receipt);
         done.push(game.i18n.localize("DRPG.Action.actionReturned"));
         return true;
     }
 
     // The crit is gone, so the free action goes with it. If they have already
     // spent it there is nothing to take, and saying so beats a silent failure.
-    const taken = await spendAction(actor, 1);
+    const taken = await takeBackRefund(actor, 1, receipt);
     done.push(game.i18n.localize(taken
         ? "DRPG.Reroll.actionTakenBack"
         : "DRPG.Reroll.actionOwed"));
