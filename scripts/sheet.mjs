@@ -3387,10 +3387,30 @@ async function runCall(actor, key, kind) {
         return;
     }
 
+    // Hope granted under the Despair darkening lands nowhere - said before the
+    // picker rather than after it and the confirmation (review of CALL-05).
+    if (despair && call.grantsHope) {
+        const { overflowBlocksHope } = await import("./overflow.mjs");
+        if (overflowBlocksHope()) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Overflow.noHopeNow"));
+            return;
+        }
+    }
+
     // Point it at something first: a player, a project, a room, an item.
-    const { pickTarget } = await import("./call-effects.mjs");
+    const { pickTarget, refusalBeforePaying } = await import("./call-effects.mjs");
     const choice = await pickTarget(actor, call, despair ? "despair" : "hope");
     if (choice === null) return;
+
+    // And the target-specific refusals before the confirmation, not after it.
+    // `spendDespairCallFor` asks again: the world can move while a window is open.
+    if (despair) {
+        const refusal = refusalBeforePaying(call, choice);
+        if (refusal) {
+            ui.notifications.warn(refusal);
+            return;
+        }
+    }
 
     const note = await confirmCall(call, { kind: despair ? "despair" : "hope", held, choice });
     if (note === null) return;
