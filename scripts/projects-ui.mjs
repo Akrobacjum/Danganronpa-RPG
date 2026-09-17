@@ -474,11 +474,18 @@ export async function openProjectManager() {
     if (!result || result === "cancel") return;
 
     let deleted = 0;
+    // A sabotage pair goes together (F5), so a row can be gone by the time the
+    // loop reaches it. Asked of the world, not of the list the window opened with:
+    // writing metadata for a project deleted two rows up leaves an orphan row, and
+    // a second Delete on it would not be counted.
+    const exists = id => allProjects().some(p => p.id === id);
     for (const entry of result) {
         if (entry.delete) {
+            if (!exists(entry.id)) { deleted += 1; continue; }
             if (await deleteProject(entry.id)) deleted += 1;
             continue;
         }
+        if (!exists(entry.id)) continue;
 
         const before = projects.find(p => p.id === entry.id);
         if (entry.img && entry.img !== before?.img) await setProjectImage(entry.id, entry.img);
