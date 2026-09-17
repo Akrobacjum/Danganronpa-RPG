@@ -410,9 +410,12 @@ export async function applyCall(actor, key, kind, choice = {}) {
             });
             // Backing out of the "what do you want back" picker is a real
             // cancel: nothing was restored, so the five Hope come back.
-            // NothingToDo, not a fault: the player chose not to (live check, 17.09 -
-            // the refund arrived under a "Tell the GM" error toast).
-            if (!rested) throw new NothingToDo("the rest was not taken");
+            // NothingToDo, not a fault, when the player chose not to (live check,
+            // 17.09 - the refund arrived under a "Tell the GM" error toast). A rest
+            // that FAILED still says so: `takeRest` answers false for the first
+            // and null for the second.
+            if (rested === false) throw new NothingToDo("the rest was not taken");
+            if (!rested) throw new Error("the rest failed");
             done.push(...(rested.applied ?? []));
         }
 

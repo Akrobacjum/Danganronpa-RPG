@@ -178,8 +178,10 @@ export async function takeRest(actor, kind = "short", {
             return null;
         }
 
+        // `false`, not null: a player who backed out is not a rest that failed,
+        // and Relief refunds the two differently (review, 17.09).
         const picks = await choosePicks(kind, rules.picks);
-        if (!picks) return null;
+        if (!picks) return false;
 
         if (cost > 0 && !await spendAction(actor, cost)) return null;
 
