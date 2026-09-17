@@ -66,7 +66,67 @@ async function rerollKeepingDice(original) {
     const clone = original.clone();
     clone.advantageNumber = wanted;
     clone.constructFormula(clone.options);
-    return clone.evaluate({ liveRoll: true });
+    const rerolled = await clone.evaluate();
+    await settleDualityReroll(original, rerolled);
+    return rerolled;
+}
+
+/**
+ * What `DualityRoll#reroll` does after the dice, for the branch that cannot go
+ * through it.
+ *
+ * CALL-08, 17.09. `liveRoll` is read by `DualityRoll#reroll` and by nothing
+ * else - `Roll#evaluate` ignores it - so the multi-dice branch above showed no
+ * dice and settled no resources: a Hope result rerolled into a Fear result kept
+ * the Hope, the reverse gave none, and a critical's cleared Sanity mark was
+ * never put back or taken. `settleCritHope` below assumes the system paid its
+ * one point on a reroll, so it was short as well.
+ *
+ * A port of `updateResourcesForDualityReroll` (daggerheart.js, 2.6.5), which
+ * the system does not export, ending in the same `modifyResource` the system's
+ * own resource map calls. Dice So Nice shows the dice without the system's
+ * colour presets, which it does not export either.
+ */
+async function settleDualityReroll(original, rerolled) {
+    try {
+        if (game.modules.get("dice-so-nice")?.active) await game.dice3d?.showForRoll(rerolled, game.user, true);
+        else foundry.audio.AudioHelper.play({ src: CONFIG.sounds.dice });
+    } catch (err) {
+        error("Could not show the rerolled dice", err);
+    }
+
+    if (original.options?.actionType === "reaction") return;
+
+    try {
+        const duality = roll => roll.withHope ? 1 : roll.withFear ? -1 : 0;
+        const was = duality(original);
+        const now = duality(rerolled);
+        const hope = (now >= 0 ? 1 : 0) - (was >= 0 ? 1 : 0);
+        const stress = (now === 0 ? 1 : 0) - (was === 0 ? 1 : 0);
+        const fear = (now === -1 ? 1 : 0) - (was === -1 ? 1 : 0);
+
+        const { hopeFear, countdownAutomation } =
+            game.settings.get(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Automation);
+
+        if (game.user.isGM ? hopeFear.gm : hopeFear.players) {
+            const updates = [];
+            if (hope) updates.push({ key: "hope", value: hope, enabled: true });
+            if (stress) updates.push({ key: "stress", value: -1 * stress, enabled: true });
+            if (fear) updates.push({ key: "fear", value: fear, enabled: true });
+            const actor = await foundry.utils.fromUuid(original.options?.source?.actor ?? "");
+            const target = actor?.system?.partner ?? actor;
+            if (updates.length && target?.modifyResource) await target.modifyResource(updates);
+        }
+
+        if (countdownAutomation && fear) {
+            game.system.api.applications.ui.DhCountdowns.updateCountdowns({
+                type: CONFIG.DH.GENERAL.countdownProgressionTypes.fear.id,
+                undo: fear !== 1
+            });
+        }
+    } catch (err) {
+        error("Could not settle Hope and Sanity after a reroll with extra dice", err);
+    }
 }
 
 /**
