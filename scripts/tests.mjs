@@ -1836,6 +1836,116 @@ const REGRESSIONS = [
         ok(apply.indexOf("trialProgress().verdictApplied") > 0
             && apply.indexOf("trialProgress().verdictApplied") < lock,
             "applyVerdict no longer refuses a second verdict itself");
+    }],
+    ["R31 - Room Setup's Apply writes only what the GM changed, and refuses before writing", async () => {
+        /*
+         * ROOM-01, ROOM-02 and ROOM-03 (17.09). Apply wrote the Fog tab's open-time
+         * snapshot over the scene's whole ledger, so rooms found while the window was
+         * open fogged over again; the one-bedroom check ran after that write and then
+         * dropped every other edit; and Discover all / Hide all wrote at once from any
+         * tab. What they did was verified in the sandbox; this keeps the wiring.
+         */
+        const sources = new Map(await otherSources());
+        const vault = stripComments(sources.get("vault.mjs") ?? "");
+        const fog = stripComments(sources.get("fog.mjs") ?? "");
+        const open = vault.slice(vault.indexOf("export async function openRoomSetupDialog"));
+        ok(open.length > 1000, "openRoomSetupDialog is gone");
+        ok(!/saveDiscoveryMatrix/.test(vault + fog), "the whole-matrix fog write is back");
+        ok(/defaultChecked/.test(open),
+            "the Fog tab no longer compares a box with what the window drew, so every box is a decision again");
+        const claim = open.indexOf("claimed.set(");
+        const write = open.indexOf("applyDiscoveryChanges(scene");
+        ok(claim > 0 && write > claim, "the fog is written before the one-bedroom check can refuse the Apply");
+        ok(/action:\s*"discoverAll",\s*type:\s*"button"/.test(open)
+            && /action:\s*"hideAll",\s*type:\s*"button"/.test(open),
+            "Discover all / Hide all submit the window again, which throws away the other tabs' edits");
+    }],
+
+    ["R32 - the case dashboard saves the rows on screen, and a plan row only when it was edited", async () => {
+        /*
+         * F1: a trace the filter hides has no inputs, and Save wrote its blanks over it.
+         * F6: Save pushed the Key plan's old name back over a rename on the Traces tab.
+         */
+        const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
+        ok(/if\s*\(!q\(`name\.\$\{key\}`\)\)\s*return null;/.test(inv),
+            "the dashboard's Save reads a row the filter is hiding as blanks again");
+        const plan = inv.slice(inv.indexOf("async function saveKeyPlan"), inv.indexOf("function stripDraft"));
+        ok(plan.length > 200, "saveKeyPlan is gone or has moved past stripDraft");
+        ok(/repointed/.test(plan) && /stored\.name/.test(plan),
+            "a Key plan row is pushed onto its trace whether or not anybody edited it");
+    }],
+
+    ["R33 - no action pays for its roll after the dice", async () => {
+        /*
+         * ACT-07 (17.09). Seven actions charged after the roll and ignored a refused
+         * charge, so one action bought as many results as there were windows open.
+         */
+        const rolls = stripComments(new Map(await otherSources()).get("action-rolls.mjs") ?? "");
+        ok(!/if\s*\(cost\s*>\s*0\)\s*await spendAction\(/.test(rolls),
+            "an action charges without reading whether the charge went through");
+        ok(!/if\s*\(!options\.free\)\s*await spendAction\(/.test(rolls),
+            "a Dynamic action charges without reading whether the charge went through");
+        for (const m of rolls.matchAll(/spendAction\(actor,\s*cost\)/g)) {
+            ok(/!\s*await\s*$/.test(rolls.slice(Math.max(0, m.index - 30), m.index)),
+                `a spendAction(actor, cost) at offset ${m.index} ignores its answer`);
+        }
+    }],
+
+    ["R34 - a planted item is taken only by a Search that found something", async () => {
+        /*
+         * ACT-03 (17.09). The GM took the plant out of the room on every token spend,
+         * before anybody knew what the dice said; a failed Search used it up and the
+         * next successful one in any room was handed it.
+         */
+        const sources = new Map(await otherSources());
+        const tokens = stripComments(sources.get("search-tokens.mjs") ?? "");
+        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        const from = tokens.indexOf("payload.action === ACTION_SPEND");
+        const to = tokens.indexOf("payload.action === ACTION_TAKE_PLANT");
+        ok(from > 0 && to > from, "the spend and plant socket branches are gone or reordered");
+        ok(!/takePlant/.test(tokens.slice(from, to)), "the token spend takes the plant out of the room again");
+        ok(/searchedBy\.get\(/.test(tokens.slice(to, to + 800)),
+            "a player can ask for a plant in a room they never spent a token in");
+        const search = rolls.slice(rolls.indexOf("async function performSearch"));
+        const take = search.indexOf("SearchTokens.takePlant(");
+        ok(take > 0, "the Search no longer asks for a plant");
+        for (const marker of ['goalKey === "specific"', "!hit && !roll.isCritical", "if (stashLoot.length)"]) {
+            const at = search.indexOf(marker);
+            ok(at > 0 && at < take, `the plant is taken before the ${marker} branch can end the Search`);
+        }
+    }],
+
+    ["R35 - the Eclipse ends what was bought for the time of day, and the refill box only refills", async () => {
+        /*
+         * CALL-09: seals, chains and Silence outlived the Eclipse that ends their time of
+         * day. GMP-02: "Also refill actions and search tokens" ran the whole boundary -
+         * the motive, the seals, the overflow and a public card.
+         */
+        const sources = new Map(await otherSources());
+        const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
+        const at = eclipse.indexOf("export async function startEclipse");
+        const start = eclipse.slice(at, eclipse.indexOf("\nexport ", at + 10));
+        ok(at > 0 && /clearSeals\(\)/.test(start), "the Eclipse opens with the seals and restrictions still on");
+        const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
+        ok(!/setTimeOfDay\(/.test(panel), "Edit campaign runs the whole time-of-day boundary again");
+    }],
+
+    ["R36 - the GM side judges a plant and a Tamper by the rules the player's menu used", async () => {
+        /*
+         * ACT-01: the plant was judged against the steal thresholds. ACT-02: Tamper
+         * refused every trace somebody else had left, after the menu offered it.
+         */
+        const sources = new Map(await otherSources());
+        const vault = stripComments(sources.get("vault.mjs") ?? "");
+        const at = vault.indexOf("export async function plantOnPerson");
+        const plant = vault.slice(at, vault.indexOf("\nexport ", at + 10));
+        ok(at > 0 && /def\.plant\?\.threshold/.test(plant) && /def\.plant\?\.unseen/.test(plant),
+            "a plant is judged against the steal thresholds again");
+        const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
+        ok(!/viaAction\s*&&\s*data\.sourceActor\s*!==\s*actor\.id/.test(cleanup),
+            "Tamper refuses a trace somebody else left again, after its menu offered it");
+        ok(/data\.type\s*===\s*"incident"\s*&&\s*incidentParticipant\(actor\)/.test(cleanup),
+            "the resolver's incident exemption no longer matches the menu's");
     }]
 ];
 
@@ -5940,6 +6050,157 @@ const SCENARIOS = [
             equal(answer, null, "the verdict window opened for a trial whose verdict is already in");
         } finally {
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+        }
+    }],
+    ["deleting either half of a sabotage leaves nothing frozen", async () => {
+        /*
+         * F5 (17.09): deleting "Repair: X" in the Project Manager left X frozen by a
+         * project that no longer existed, out of every list and past any GM control.
+         */
+        const P = await import("./projects.mjs");
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const made = [];
+        try {
+            const target = await P.createProject({ name: "SUITE F5 target" });
+            ok(target?.id, "could not create a project to sabotage");
+            made.push(target.id);
+            const first = await P.sabotageProject(target.id, 3);
+            if (first?.repair?.id) made.push(first.repair.id);
+            ok(P.isFrozen(target.id), "the sabotage did not freeze its target, so this proves nothing");
+
+            await P.deleteProject(first.repair.id);
+            ok(!P.isFrozen(target.id), "deleting the repair left its target frozen");
+
+            const second = await P.sabotageProject(target.id, 3);
+            if (second?.repair?.id) made.push(second.repair.id);
+            ok(second?.repair?.id, "could not sabotage the thawed project again");
+            await P.deleteProject(target.id);
+            ok(!P.allProjects().some(p => p.id === second.repair.id),
+                "deleting the broken project left its repair on the board");
+            ok(!(second.repair.id in P.projectMeta()), "the orphaned repair left a metadata row behind");
+        } finally {
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+    }],
+
+    ["a sealed project keeps its builder in and the rest of the table out", async () => {
+        /*
+         * F3: an approved trap with nobody under "Also visible to" was sealed away from
+         * the student who built it. F4: re-sealing a revealed project kept everybody in.
+         */
+        const P = await import("./projects.mjs");
+        const owner = game.users.find(u => !u.isGM
+            && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const builder = owner && game.actors.find(a => a.type === "character" && a.testUserPermission(owner, "OWNER"));
+        ok(builder, "need a character a player owns");
+        const others = game.users.filter(u => !u.isGM && !builder.testUserPermission(u, "OWNER"));
+        ok(others.length, "need a second player to be kept out");
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        let made = null;
+        try {
+            made = await P.createProject({ name: "SUITE F3 trap", indirectMurder: true, by: builder.id });
+            ok(P.canSee(made.id, owner), "an approved trap is sealed away from the student who built it");
+            equal(P.metaFor(made.id).killerId, builder.id, "the builder is not recorded as the trap's killer");
+            ok(!others.some(u => P.canSee(made.id, u)), "a new trap is visible to a player who did not build it");
+
+            await P.revealProject(made.id);
+            ok(others.every(u => P.canSee(made.id, u)), "revealing the project did not reveal it");
+            await P.makeSecret(made.id, P.sealAudience(made.id));
+            ok(P.isSecret(made.id), "the re-seal did not mark the project secret");
+            ok(!others.some(u => P.canSee(made.id, u)), "re-sealing a revealed project kept the rest of the table in");
+            ok(P.canSee(made.id, owner), "re-sealing shut the builder out of their own project");
+        } finally {
+            if (made?.id) await P.deleteProject(made.id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+    }],
+
+    ["Room Setup's fog edit keeps the rooms found while the window was open", async () => {
+        /*
+         * ROOM-01 (17.09), at the layer Apply now ends in: a GM ticking one box lays that
+         * box onto the ledger as it stands, not the ledger as the window first read it.
+         */
+        const { applyDiscoveryChanges, discoveredFor } = await import("./fog.mjs");
+        const scene = canvas.scene;
+        const [student] = cast();
+        const rooms = Array.from(new Set([...(scene?.regions ?? [])].map(r => r.name).filter(Boolean)));
+        ok(student && rooms.length >= 3, "need a student and three named rooms");
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.discoveredRooms) ?? {});
+        const write = async list => {
+            const all = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.discoveredRooms) ?? {});
+            all[scene.id] = { ...(all[scene.id] ?? {}), [student.id]: list };
+            await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, all);
+        };
+        try {
+            await write([rooms[0]]);                 // what the window drew
+            await write([rooms[0], rooms[1]]);       // found while it was open
+            const wrote = await applyDiscoveryChanges(scene, [{ actorId: student.id, room: rooms[2], value: true }]);
+            ok(wrote, "the box the GM ticked was not written");
+            const now = discoveredFor(scene.id, student.id);
+            ok(now.includes(rooms[1]), "a room found while Room Setup was open fogged over on Apply");
+            ok(now.includes(rooms[2]), "the box the GM ticked was not saved");
+            equal(await applyDiscoveryChanges(scene, [{ actorId: student.id, room: rooms[2], value: true }]),
+                false, "an Apply that changes nothing still writes the ledger, and resyncs everyone's fog");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, stored);
+            await settle();
+        }
+    }],
+
+    ["a Despair Call that would change nothing hands its price back", async () => {
+        /*
+         * CALL-15 (17.09). Sealing a room that was already sealed charged a second time
+         * for nothing. The refund itself is `failed: true`, which is what the caller pays
+         * back on.
+         */
+        const { applyCall, sealedRooms } = await import("./call-effects.mjs");
+        const room = [...(canvas.scene?.regions ?? [])].map(r => r.name).find(Boolean);
+        ok(room, "need a named room");
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? []);
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, []);
+            const first = await applyCall(null, "behindClosedDoors", "despair", { room });
+            ok(!first.failed && sealedRooms().includes(room), "the first seal did not land, so this proves nothing");
+            const second = await applyCall(null, "behindClosedDoors", "despair", { room });
+            ok(second.failed, "sealing a room that was already sealed kept its price");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, stored);
+            await settle();
+        }
+    }],
+
+    ["a darkening running now outlasts the counter filling again", async () => {
+        /*
+         * CALL-06 (17.09). The overflow holds one stamp, and a spill that reached X in a
+         * darkened time of day armed the next one over it, ending this one on the spot.
+         * Only Fog is left in the hat while this runs, so a regression announces a Fog
+         * and changes nobody's sheet.
+         */
+        const o = await import("./overflow.mjs");
+        const clock = getClock();
+        if (clock.eclipse) return;               // the Eclipse half reads another stamp
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
+        const rules = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {});
+        try {
+            const effects = Object.fromEntries(Object.keys(o.overflowRules().effects)
+                .map(key => [key, { on: key === "fog" }]));
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, { ...rules, effects });
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, {
+                count: 0,
+                active: { session: clock.session, day: clock.day ?? 1, timeOfDay: clock.timeOfDay, effect: "fog" }
+            });
+            equal(o.overflowEffect(), "fog", "could not set up a darkening for this time of day");
+            await o.addOverflow(o.overflowThreshold() + 1, { reason: "suite" });
+            await settle();
+            equal(o.overflowEffect(), "fog", "the counter filling again ended the darkening running now");
+            ok(o.overflowCount() >= o.overflowThreshold(), "the counter paid for a darkening it did not fire");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, rules);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, stored);
+            await settle();
         }
     }]
 ];
