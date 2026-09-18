@@ -2032,7 +2032,8 @@ const REGRESSIONS = [
             "the Loaded Die is armed for the whole client again");
         ok(/function onConfigured\(roll,\s*config\)[\s\S]{0,80}LOADED_DIE/.test(forced),
             "the dice hook no longer asks the roll whether it carries the Loaded Die");
-        ok(/\[LOADED_DIE\]:\s*armed\.nonce/.test(rolls), "throwDice no longer marks the roll with the purchase it was bought with");
+        ok(/\[LOADED_DIE\]:\s*armed\??\.nonce/.test(rolls),
+            "throwDice no longer marks the roll with the purchase it was bought with");
         ok(/spent\.has\(mark\)/.test(forced), "one Loaded Die can load every roll window opened while it was held");
         const grants = dialog.slice(dialog.indexOf("function grantsFor"));
         ok(/LOADED_DIE/.test(grants.slice(0, 400)),
@@ -3410,18 +3411,44 @@ const INVARIANTS = [
             "the safeword shown is not the one this world stores");
     }],
 
-    ["the three time Calls stay out of the armed-Call slot", () => {
+    ["the three time Calls stay out of the armed-Call list", () => {
         // Sprint, Burst and Relief buy a state of the time of day, not a
-        // modifier on the next roll. `FLAGS.pendingCall` holds exactly ONE
-        // armed Call, so any of the three carrying `grants` would silently
-        // delete a Support armed a moment earlier - the architectural note E13
-        // opens with, stated as a test because it is one edit away from being
-        // untrue.
+        // modifier on the next roll. Since CALL-02 the armed list holds several
+        // Calls, so one of these carrying `grants` would no longer evict a
+        // Support - it would be SPENT by whatever roll happened next, which is
+        // worse: four Hope of Burst gone to a statistic somebody clicked.
         for (const key of ["sprint", "burst", "relief"]) {
             const call = HOPE_CALLS[key];
             ok(call, `${key} is gone from the Hope Calls`);
-            ok(!call.grants, `${key} would park itself in pendingCall and evict what is there`);
+            ok(!call.grants, `${key} would park itself in the armed list and be spent by the next roll`);
         }
+    }],
+
+    ["R41 - armed Calls stack, and the same one twice is refused", async () => {
+        /*
+         * CALL-02, Dawid 17.09. One slot meant a Monokuma's Obstacle silently ate the
+         * Support a player had just paid for, with nothing refunded. They stack now:
+         * the dice ones sum, the rest all apply, and a second copy of the same Call is
+         * refused before the price is paid.
+         */
+        const sources = new Map(await otherSources());
+        const effects = stripComments(sources.get("call-effects.mjs") ?? "");
+        const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
+        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+
+        ok(/export function pendingCalls\(/.test(effects), "the armed Calls are a single slot again");
+        ok(/Array\.isArray\(stored\)/.test(effects),
+            "a world armed before the change holds one object, and nothing reads that shape");
+        ok(/export function alreadyArmed\(/.test(effects)
+            && /alreadyArmed\(target, call\)/.test(effects),
+            "a second copy of the same Call is not refused before it is paid for");
+        ok(!/setFlag\([^)]*FLAGS\.pendingCall/.test(bridge),
+            "the bridge writes the armed slot directly again, so arming on somebody's behalf evicts");
+        ok(/appendArmedCall\(/.test(bridge), "the bridge no longer appends to the armed list");
+        ok(/function callDice\(/.test(dialog) && /callDice\(actor\)/.test(dialog),
+            "the roll window counts one Call's die instead of adding them up");
+        ok(/consumeCalls\(actor\)/.test(rolls), "an action roll spends only one of the armed Calls");
     }],
 
     ["every trait a definition names actually exists", () => {
@@ -6307,6 +6334,37 @@ const SCENARIOS = [
         } finally {
             await game.settings.set(MODULE_ID, SETTINGS.overflowRules, rules);
             await game.settings.set(MODULE_ID, SETTINGS.overflow, stored);
+            await settle();
+        }
+    }],
+
+    ["two Calls armed on one student both apply, and the same one twice does not", async () => {
+        /*
+         * CALL-02 live: one slot used to mean a Monokuma's Obstacle silently ate the
+         * Support a player had just paid a Hope for. Written straight through
+         * `appendArmedCall`, which is the one writer both roads end in.
+         */
+        const { pendingCalls, appendArmedCall, alreadyArmed, consumeCalls } =
+            await import("./call-effects.mjs");
+        const [who] = cast();
+        const before = foundry.utils.deepClone(who.getFlag(MODULE_ID, FLAGS.pendingCall) ?? null);
+        try {
+            await who.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            await appendArmedCall(who, { key: "support", kind: "hope", grants: "advantage" });
+            await appendArmedCall(who, { key: "obstacle", kind: "despair", grants: "disadvantage" });
+            await settle();
+            equal(pendingCalls(who).length, 2, "the second armed Call replaced the first");
+            await appendArmedCall(who, { key: "freeCrit", kind: "hope", grants: "critical" });
+            await settle();
+            ok(alreadyArmed(who, { key: "freeCrit", grants: "critical" }),
+                "a second Loaded Die is not recognised as one already armed");
+            ok(!alreadyArmed(who, { key: "support", grants: "advantage" }),
+                "a second advantage Call is refused, and those are meant to stack");
+            equal((await consumeCalls(who)).length, 3, "spending the armed Calls left some behind");
+            equal(pendingCalls(who).length, 0, "the armed list survived being spent");
+        } finally {
+            if (before) await who.setFlag(MODULE_ID, FLAGS.pendingCall, before);
+            else await who.unsetFlag(MODULE_ID, FLAGS.pendingCall);
             await settle();
         }
     }],

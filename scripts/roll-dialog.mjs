@@ -18,7 +18,7 @@ import { MODULE_ID, TRAITS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 // Statically imported: the lock runs inside a synchronous render hook and has no
 // opportunity to await. Neither module reaches back here, so no cycle.
-import { pendingCall, situationalAdvantage } from "./call-effects.mjs";
+import { pendingCalls, situationalAdvantage } from "./call-effects.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isBrokenDown } from "./character.mjs";
 import { debug } from "./utils.mjs";
@@ -48,11 +48,11 @@ async function onCloseApplication(app) {
         const actor = actorOf(app);
         if (!actor?.isOwner) return;
 
-        // A Loaded Die waits for the roll that can load it - see `grantsFor`.
-        if (pendingGrants(actor) === "critical" && !grantsFor(app, actor)) return;
-
-        const { consumeCall } = await import("./call-effects.mjs");
-        await consumeCall(actor);
+        // Everything this window could use is spent on it; a Loaded Die it could
+        // not load waits for the action it was bought for - see `grantsFor`.
+        const keepDie = pendingGrants(actor).has("critical") && !grantsFor(app, actor).has("critical");
+        const { consumeCallsExcept } = await import("./call-effects.mjs");
+        await consumeCallsExcept(actor, keepDie ? "critical" : null);
     } catch {
         // Never let bookkeeping break a roll.
     }
@@ -92,7 +92,7 @@ function onRenderApplication(app, element) {
         // sanctioned exception to "red means the GM" (Dawid, 26.08): this is
         // the rarest, most expensive thing a player can buy, and the six Hope
         // deserve a window that does not look like every other roll.
-        if (grantsFor(app, actor) === "critical") {
+        if (grantsFor(app, actor).has("critical")) {
             root.classList.add("drpg-forced-critical");
         }
 
@@ -324,7 +324,7 @@ function lockControls(root, app) {
     /*
      * Trait: chosen before this window opened - with two exceptions.
      *
-     *   Determination (`armed === "trait"`) buys the whole picker. That is what
+     *   Determination (`armed.has("trait")`) buys the whole picker. That is what
      *   the Call is FOR, so nothing is narrowed.
      *
      *   An action may open the door part-way: Search offers Eye or Hand and
@@ -338,7 +338,7 @@ function lockControls(root, app) {
     const trait = root.querySelector('select[name="trait"]');
     const allowed = traitChoiceFor(app);
 
-    if (trait && armed === "trait") {
+    if (trait && armed.has("trait")) {
         unlock(trait, "DRPG.RollDialog.unlockedByCall");
     } else if (trait && allowed?.length) {
         /*
@@ -382,7 +382,7 @@ function lockControls(root, app) {
     const adv = root.querySelectorAll(".advantage-chip");
     const dis = root.querySelectorAll(".disadvantage-chip");
 
-    const { sign, count, capped, sources } = advantageSources(actor, armed);
+    const { sign, count, capped, sources } = advantageSources(actor);
 
     if (sign !== 0) {
         forceAdvantage(app, sign, count);
@@ -433,7 +433,7 @@ function lockControls(root, app) {
     // Experiences: always visible, greyed out, and selectable only while the
     // Experience Call is armed - at which point they are selected and frozen.
     const chips = root.querySelectorAll('[data-action="selectExperience"]');
-    if (armed === "experience") {
+    if (armed.has("experience")) {
         // The Call buys ONE experience, and which one is the player's choice:
         // "the subject of the roll must be connected to the experience". The
         // chips are therefore unlocked, not force-selected - selecting every
@@ -449,7 +449,7 @@ function lockControls(root, app) {
     // been paid for, so the cost block is meaningless here - remove it.
     hideCostSection(root);
 
-    if (armed === "critical") announceFreeCritical(root);
+    if (armed.has("critical")) announceFreeCritical(root);
 
     // Free-text bonus. Ordinarily a back door around everything above, so it
     // stays disabled - except for `grants: "bonus"`, the one Call that IS a
@@ -458,7 +458,7 @@ function lockControls(root, app) {
     // edit or clear.
     const extra = root.querySelector('input[name="extraFormula"]');
     if (extra) {
-        const amount = armed === "bonus" ? pendingAmount(actor) : null;
+        const amount = armed.has("bonus") ? pendingAmount(actor) : null;
         if (amount) {
             // Unlike advantage, a flat bonus only ever comes from a Call -
             // `situationalAdvantage()` deals in advantage/disadvantage, not
@@ -510,9 +510,9 @@ function lockControls(root, app) {
  */
 function pendingGrants(actor) {
     try {
-        return pendingCall(actor)?.grants ?? null;
+        return new Set(pendingCalls(actor).map(entry => entry.grants));
     } catch {
-        return null;
+        return new Set();
     }
 }
 
@@ -527,17 +527,28 @@ function pendingGrants(actor) {
  * it is neither shown nor spent, and waits for the action it was bought for.
  */
 function grantsFor(app, actor) {
-    const grants = actor ? pendingGrants(actor) : null;
+    const grants = actor ? pendingGrants(actor) : new Set();
     // The roll the 12 was put on, not merely an action roll: a supporting roll
-    // of the same action carries no Loaded Die (review of CALL-03).
-    if (grants === "critical" && !app?.config?.[LOADED_DIE]) return null;
+    // of the same action carries no Loaded Die (review of CALL-03). Everything
+    // else a stack of Calls bought applies to whatever roll is open (CALL-02).
+    if (grants.has("critical") && !app?.config?.[LOADED_DIE]) grants.delete("critical");
     return grants;
 }
 
-/** The magnitude behind a `grants: "bonus"` Call - see armCall's `amount`. */
+/**
+ * The flat modifier the armed Calls come to - see armCall's `amount`.
+ *
+ * Summed, because they stack (CALL-02): two Confusions pulling the same way are
+ * +2, and one each way cancel out. `null` when no Call carries a number, which is
+ * what keeps the extra-formula field locked.
+ */
 function pendingAmount(actor) {
     try {
-        return pendingCall(actor)?.amount ?? null;
+        const bonuses = pendingCalls(actor)
+            .filter(entry => entry.grants === "bonus" && Number.isFinite(Number(entry.amount)))
+            .map(entry => Number(entry.amount));
+        if (!bonuses.length) return null;
+        return bonuses.reduce((sum, value) => sum + value, 0);
     } catch {
         return null;
     }
@@ -597,20 +608,30 @@ function stateGrant(actor) {
 /** The most dice any one roll can be given, in either direction. */
 const ADVANTAGE_CAP = 3;
 
+/** Advantage minus disadvantage across every armed Call (CALL-02). */
+function callDice(actor) {
+    try {
+        return pendingCalls(actor).reduce((sum, entry) =>
+            sum + (entry.grants === "advantage" ? 1 : entry.grants === "disadvantage" ? -1 : 0), 0);
+    } catch {
+        return 0;
+    }
+}
+
 /**
  * Everything pushing on this roll, added up.
  *
  * @param {Actor}  actor
- * @param {string|null} armed  What the pending Call grants, if any.
  * @returns {{net:number, sign:number, count:number, capped:boolean, sources:object[]}}
  */
-function advantageSources(actor, armed) {
+function advantageSources(actor) {
     const sources = [];
 
-    // A Call somebody paid Hope or Despair for. Always one die: a Call is a
-    // purchase, and two purchases are two Calls, which sum here like anything
-    // else.
-    const fromCall = armed === "advantage" ? 1 : armed === "disadvantage" ? -1 : 0;
+    // The Calls somebody paid Hope or Despair for. One die each, and they sum:
+    // a Call is a purchase, and two purchases are two Calls (CALL-02). An
+    // Obstacle against a Support is therefore nothing, which is the arithmetic
+    // both players paid for.
+    const fromCall = callDice(actor);
     if (fromCall) sources.push({ key: "call", value: fromCall });
 
     // The situation, already summed by whoever armed it - see armSituational.

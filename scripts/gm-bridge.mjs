@@ -1066,8 +1066,10 @@ async function onSocket(payload, senderId) {
             return refuse(ACTION_ARM, `"${payload.call?.key}" does not grant "${payload.call?.grants}"`);
         }
 
-        const { MODULE_ID: id, FLAGS } = await import("./config.mjs");
-        await actor.setFlag(id, FLAGS.pendingCall, payload.call);
+        // Appended, not written over: Calls stack (CALL-02), and this path is
+        // how a player's Support reaches somebody else's sheet.
+        const { appendArmedCall } = await import("./call-effects.mjs");
+        await appendArmedCall(actor, payload.call);
         debug(`Armed ${payload.call?.key} on ${actor.name} on behalf of a player.`);
         // The beneficiary is not the buyer: tell them what they have been given,
         // or they will meet a locked roll dialog with no idea why it opened up.
@@ -1158,8 +1160,8 @@ export async function requestArmCall(actorId, call) {
     if (game.user.isGM) {
         const actor = game.actors.get(actorId);
         if (!actor) return null;
-        const { MODULE_ID: id, FLAGS } = await import("./config.mjs");
-        await actor.setFlag(id, FLAGS.pendingCall, call);
+        const { appendArmedCall } = await import("./call-effects.mjs");
+        await appendArmedCall(actor, call);
         return true;
     }
     if (!hasGm()) return null;

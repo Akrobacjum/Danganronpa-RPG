@@ -1798,6 +1798,7 @@
       "noItems": "Nobody carries anything that can be destroyed.",
       "onTheBody": "{name}'s body - {item}",
       "armed": "{name} may now use {what} on their next roll.",
+      "alreadyArmed": "{name} is already holding {call} for their next roll. A second one would add nothing.",
       "damaged": "{name} takes {what}.",
       "nothingToMark": "{name} has nothing left to mark there.",
       "sealed": "{room} is sealed for this time of day.",

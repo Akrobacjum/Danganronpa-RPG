@@ -99,10 +99,44 @@ export function situationalAdvantage() {
     return shielded ? 0 : situational;
 }
 
-/** The Call currently armed on this character, if any. */
+/**
+ * Every Call armed on this character, oldest first.
+ *
+ * THEY STACK (CALL-02, Dawid 17.09). It was one slot, and arming a second Call
+ * silently deleted the first with nothing refunded: a Monokuma's Obstacle ate
+ * the Support a player had just paid a Hope for, and six Hope of Loaded Die went
+ * the same way. A Call is a purchase, and two purchases are two Calls - so
+ * advantage and disadvantage add up on the dice, and the ones that are not dice
+ * (a Loaded Die, an Experience, Determination, a Confusion's flat bonus) all
+ * apply to the same roll. A second copy of the SAME Call is refused before
+ * anything is paid; see `refusalBeforePaying`.
+ *
+ * A world armed before this change holds one payload object rather than a list,
+ * so that shape is still read.
+ */
+export function pendingCalls(actor) {
+    if (shielded) return [];
+    const stored = actor?.getFlag?.(MODULE_ID, FLAGS.pendingCall) ?? null;
+    if (!stored) return [];
+    return (Array.isArray(stored) ? stored : [stored]).filter(entry => entry?.grants);
+}
+
+/** The first Call armed on this character, for the readers that want just one. */
 export function pendingCall(actor) {
-    if (shielded) return null;
-    return actor?.getFlag?.(MODULE_ID, FLAGS.pendingCall) ?? null;
+    return pendingCalls(actor)[0] ?? null;
+}
+
+/**
+ * Which grants a Call rides on the dice. Everything else is a permission or a
+ * flat number, and two of those on one roll are two different things happening -
+ * two of the SAME are one purchase made twice, which is what gets refused.
+ */
+const DICE_GRANTS = new Set(["advantage", "disadvantage"]);
+
+/** Is this Call already armed on this character, in a way a second copy adds nothing to? */
+export function alreadyArmed(actor, call) {
+    if (!call?.grants || DICE_GRANTS.has(call.grants)) return false;
+    return pendingCalls(actor).some(entry => entry.key === call.key || entry.grants === call.grants);
 }
 
 /**
@@ -133,7 +167,7 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
         return true;
     }
 
-    await actor.setFlag(MODULE_ID, FLAGS.pendingCall, payload);
+    await appendArmedCall(actor, payload);
     log(`${actor.name} has ${key} armed (${grants}).`);
 
     // Tell the beneficiary, when they are not the buyer.
@@ -155,18 +189,69 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
     return true;
 }
 
-/** Spend the armed Call. Called by the roll pipeline once it has been used. */
-export async function consumeCall(actor) {
-    if (shielded) return null;
-    const pending = actor?.getFlag?.(MODULE_ID, FLAGS.pendingCall) ?? null;
-    if (!pending) return null;
+/**
+ * The armed list as stored, shield and all - the one reader that must see what is
+ * really on the actor, because it is about to write the list back.
+ */
+function pendingCallsRaw(actor) {
+    const stored = actor?.getFlag?.(MODULE_ID, FLAGS.pendingCall) ?? null;
+    if (!stored) return [];
+    return (Array.isArray(stored) ? stored : [stored]).filter(entry => entry?.grants);
+}
+
+/**
+ * Add one ready payload to the armed list. GM-side, and the one writer: the
+ * bridge arms Support and Approval on somebody else's sheet through here, so
+ * stacking (CALL-02) holds on that road too.
+ */
+export async function appendArmedCall(actor, payload) {
+    if (!actor || !payload?.grants) return null;
+    await actor.setFlag(MODULE_ID, FLAGS.pendingCall, [...pendingCallsRaw(actor), payload]);
+    return true;
+}
+
+/**
+ * Spend the armed Calls. Called by the roll pipeline once they have been used.
+ *
+ * All of them, because all of them applied: they were bought for the next roll
+ * and the next roll has happened (CALL-02).
+ */
+export async function consumeCalls(actor) {
+    if (shielded) return [];
+    const pending = pendingCallsRaw(actor);
+    if (!pending.length) return [];
     await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
     return pending;
 }
 
+/**
+ * Spend every armed Call except the ones granting `keep`.
+ *
+ * One window, two fates (CALL-02 with CALL-03): a statistic rolled off the sheet
+ * while a Loaded Die is held uses the Support armed beside it and cannot use the
+ * 12, so the Support is spent and the Loaded Die waits for the action it was
+ * bought for. Returns what was spent.
+ */
+export async function consumeCallsExcept(actor, keep = null) {
+    if (shielded) return [];
+    const pending = pendingCallsRaw(actor);
+    if (!pending.length) return [];
+    const kept = keep ? pending.filter(entry => entry.grants === keep) : [];
+    const spent = pending.filter(entry => !kept.includes(entry));
+    if (!spent.length) return [];
+    if (kept.length) await actor.setFlag(MODULE_ID, FLAGS.pendingCall, kept);
+    else await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+    return spent;
+}
+
+/** Kept for the one caller that only wants to know whether anything was spent. */
+export async function consumeCall(actor) {
+    return (await consumeCalls(actor))[0] ?? null;
+}
+
 /** Does this character have permission for a given roll control right now? */
 export function grants(actor, what) {
-    return pendingCall(actor)?.grants === what;
+    return pendingCalls(actor).some(entry => entry.grants === what);
 }
 
 /* ==========================================================================
@@ -221,6 +306,11 @@ export function refusalBeforePaying(call, choice = {}) {
             return i18n.localize("DRPG.Project.noneToMove");
         }
     }
+    // A second copy of the same Call adds nothing, and the first is still there
+    // to be used (CALL-02). Dice Calls are exempt: those stack by design.
+    if (call?.grants && target && alreadyArmed(target, call)) {
+        return i18n.format("DRPG.Calls.alreadyArmed", { name: target.name, call: call.label });
+    }
     if (call?.grantsHope && target) {
         if (overflowBlocksHope()) return i18n.localize("DRPG.Overflow.noHopeNow");
         const max = resourceMax(target, "hope") || STARTING.hopeMax;
@@ -248,6 +338,13 @@ export async function applyCall(actor, key, kind, choice = {}) {
         if (call.grants) {
             // Support and Approval arm someone else; the rest arm the caller.
             const beneficiary = choice.target ?? actor;
+            // The boundary for CALL-02: the picker refuses this before paying, and
+            // a world that moved in between refuses here and hands the price back.
+            if (alreadyArmed(beneficiary, call)) {
+                ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadyArmed",
+                    { name: beneficiary.name, call: call.label }));
+                throw new NothingToDo(`${beneficiary.name} already holds ${call.key}`);
+            }
             const armed = await armCall(beneficiary, { key, kind, grants: call.grants, from: actor.id });
 
             // `armCall` returns null when the flag could not be written - no GM

@@ -1285,6 +1285,8 @@ function injectActionBar(app, element, fresh = false) {
         stack.append(badge);
     }
 
+    // One badge per armed Call: they stack (CALL-02), and the sheet has drawn a
+    // list here since before they did.
     const pending = actor.getFlag(MODULE_ID, FLAGS.pendingCall);
     for (const entry of (Array.isArray(pending) ? pending : [pending]).filter(p => p?.grants)) {
         const despair = entry.kind === "despair";

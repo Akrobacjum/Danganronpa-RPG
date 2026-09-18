@@ -465,8 +465,11 @@ export async function rollTrait(actor, drpgTrait,
 async function throwDice(actor, drpgTrait, { remember, actionKey, context, title = null }) {
     const dhTrait = TRAITS[drpgTrait]?.dh ?? drpgTrait;
 
-    const { pendingCall, consumeCall } = await import("./call-effects.mjs");
-    const armed = pendingCall(actor);
+    const { pendingCalls, consumeCalls } = await import("./call-effects.mjs");
+    // Every Call armed for this roll, because they stack (CALL-02). The Loaded
+    // Die is the one this roll has to be marked with.
+    const armedCalls = pendingCalls(actor);
+    const armed = armedCalls.find(entry => entry.grants === "critical") ?? null;
 
     // A Free Critical still throws the dice - it just decides in advance what
     // they will say. See forced-roll.mjs for why a real roll matters.
@@ -521,7 +524,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         [DRPG_ACTION_ROLL]: true,
         // The roll the Loaded Die was bought for, marked on the roll itself -
         // see `LOADED_DIE` in forced-roll.mjs.
-        ...(free ? { [LOADED_DIE]: armed.nonce ?? foundry.utils.randomID() } : {}),
+        ...(free ? { [LOADED_DIE]: armed?.nonce ?? foundry.utils.randomID() } : {}),
         // Say what the roll is FOR.
         //
         // Left alone, Daggerheart titles the window from the trait - "Body
@@ -539,8 +542,8 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     if (typeof total !== "number") return null;
 
     await commitResources(result);
-    // Whatever the Call bought, it bought it for this roll and no other.
-    if (armed) await consumeCall(actor);
+    // Whatever the Calls bought, they bought it for this roll and no other.
+    if (armedCalls.length) await consumeCalls(actor);
 
     const outcome = {
         total,

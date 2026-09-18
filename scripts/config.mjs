@@ -151,9 +151,10 @@ export const FLAGS = {
      *
      * COUNTERS, NOT BOOLEANS, and not `pendingCall`. Sprint and Burst are the
      * first two Hope Calls that buy something lasting rather than something the
-     * next roll consumes, and `pendingCall` holds exactly ONE armed Call - a
-     * Sprint parked there would have quietly eaten a Support armed beside it.
-     * These are a state of the time of day, not a modifier on a roll.
+     * next roll consumes: they are a state of the time of day, not a modifier on
+     * a roll, and a Sprint parked in the armed list would be spent by whatever
+     * roll happened next. (That list holds several Calls since CALL-02 on 17.09;
+     * before it, one, and a Sprint there quietly ate a Support.)
      *
      * Counters rather than flags so buying twice means having two. Both are
      * cleared by `resetActionsFor`, which is what makes "until the end of this
