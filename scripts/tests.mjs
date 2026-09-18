@@ -2252,6 +2252,60 @@ const REGRESSIONS = [
             await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(r => r.text()));
         ok(!floorSrc.includes("payPrice("),
             "openObjection charges for itself, so every macro and fixture that calls it now pays");
+    }],
+
+    ["R46 - Analyze pays the chain before the dice, and every road gives it back", async () => {
+        /*
+         * T-1. Three things at once, and all three are about ORDER or about who is
+         * allowed to claim what: the price is taken before the dice, a road that
+         * ends with a GM is refused before the price when there is no GM, and the
+         * ruling card that offers a refund carries the NAME of the step rather than
+         * an amount - because that card is authored on the player's own client.
+         */
+        const src = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(r => r.text()));
+        const analyze = src.slice(src.indexOf("async function performAnalyze"),
+            src.indexOf("async function analyseBullet"));
+        ok(analyze.length > 500, "performAnalyze moved or vanished");
+
+        ok(!analyze.includes("canAfford("),
+            "performAnalyze is back to counting pips instead of quoting the chain");
+        ok(analyze.includes("quotePrice(") && analyze.includes("payPrice("),
+            "performAnalyze stopped asking or stopped paying the chain");
+        ok(analyze.indexOf("payPrice(") < analyze.indexOf("rollTrait("),
+            "the price is taken after the dice again");
+        ok(analyze.indexOf("gmOnline()") < analyze.indexOf("payPrice("),
+            "a road with no GM on it is paid for before anybody notices");
+        ok(/options\.free\)? *&& *game\.user\.isGM|game\.user\.isGM *&& *Boolean\(options\.free/.test(analyze)
+            || /const free = Boolean\(options\.free\) && game\.user\.isGM;/.test(analyze),
+            "the free bypass is reachable from a player's macro, and it now skips Hope and Sanity");
+        ok(analyze.includes("refundPrice("),
+            "a closed roll window keeps the price it never rolled for");
+
+        for (const road of ["analyseBullet", "askForHint", "locateStash"]) {
+            const slice = src.slice(src.indexOf(`async function ${road}`));
+            const body = slice.slice(0, slice.indexOf("\nasync function ", 10) + 1 || undefined);
+            ok(body.includes("refundPrice("),
+                `${road} cannot hand the price back when the road turns out to be empty`);
+        }
+
+        // Both call sites hand over a RECEIPT. A number would write
+        // `data-paid="undefined"`, the far side would fall back, and a Burst-paid
+        // ruling would come back as an action.
+        for (const at of [...src.matchAll(/gmRulingActions\(actor,\s*([^)]*)\)/g)]) {
+            const argument = at[1].trim();
+            ok(!/^\d+$/.test(argument) && argument !== "cost",
+                `gmRulingActions is still being handed a bare cost: ${argument}`);
+        }
+
+        const messenger = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(r => r.text()));
+        const decline = messenger.slice(messenger.indexOf('if (action === "decline")'));
+        const body = decline.slice(0, decline.indexOf('if (action === "createItem")'));
+        ok(body.includes("PRICE_CHAINS"),
+            "the refund no longer takes its amount from the table, so a card can name its own");
+        ok(!body.includes("Number(data.cost)"),
+            "the refund reads an amount off a card the player authored");
     }]
 ];
 
@@ -7411,6 +7465,55 @@ const SCENARIOS = [
             await other.update({
                 "system.resources.actions.max": before.otherMax,
                 "system.resources.actions.value": before.otherActions
+            });
+            await settle();
+        }
+    }],
+
+    ["Analyze outside a Class Trial still costs exactly one action", async () => {
+        /*
+         * The other half of T-1's Analyze rule, and the one a table meets most: in
+         * Daily Life the chain is one step long, so a student with no actions and a
+         * pocket full of Hope cannot analyse. Driven through `performAction`, which
+         * refuses at the quote before it opens anything.
+         */
+        const [who] = cast();
+        const rolls = await import("./action-rolls.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const before = {
+            actions: who.system.resources.actions.value,
+            max: who.system.resources.actions.max,
+            hope: who.system.resources.hope.value,
+            stress: who.system.resources.stress.value,
+            grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0
+        };
+
+        try {
+            await setClock({ ...clock, phase: "dailyLife" });
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await who.update({
+                "system.resources.actions.max": 2,
+                "system.resources.actions.value": 0,
+                "system.resources.hope.value": 5,
+                "system.resources.stress.value": 0
+            });
+            await settle();
+
+            equal(await rolls.performAction(who, "analyze"), null,
+                "Analyze in Daily Life with no actions left was allowed");
+            await settle();
+            equal(who.system.resources.hope.value, 5,
+                "Analyze outside a trial took Hope, which is a trial-only step");
+            equal(who.system.resources.stress.value, 0,
+                "Analyze outside a trial marked Sanity, which is a trial-only step");
+        } finally {
+            await setClock(clock);
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await who.update({
+                "system.resources.actions.max": before.max,
+                "system.resources.actions.value": before.actions,
+                "system.resources.hope.value": before.hope,
+                "system.resources.stress.value": before.stress
             });
             await settle();
         }

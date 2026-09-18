@@ -15,7 +15,7 @@
 
 import {
     MODULE_ID, FLAGS, ACTIONS, TRAITS, DYNAMIC_THRESHOLDS, INDIRECT_MURDER,
-    PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND
+    PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND, PRICE_CHAINS
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
@@ -23,6 +23,9 @@ import { isEclipse } from "./eclipse.mjs";
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
 // the whole trial floor into the action pipeline.
 import { getClock } from "./settings.mjs";
+// The chains, and the one payer (T-1). Static, and safe to be: price.mjs imports
+// nothing but leaves and never reaches back into the action pipeline.
+import { quotePrice, payPrice, refundPrice, priceLine } from "./price.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
@@ -319,6 +322,17 @@ function briefingFacts(actor, actionKey, def) {
         // choice made further down the same window, and the two rows below it
         // already price Short and Long separately against what you have - a
         // summary above them would be the same sentence twice.
+    } else if (PRICE_CHAINS[actionKey]) {
+        /*
+         * A PRICED ACTION SAYS WHAT IT WILL TAKE, NOT WHAT IT COSTS (T-1).
+         *
+         * "Costs 1 action. You have 0" is a true sentence that answers the wrong
+         * question once the price is a chain: what the player needs to know is
+         * that this one is about to be paid in Hope, or in a Sanity mark, and
+         * that the mark is their last. `priceLine` is that sentence, and it comes
+         * from the same quote the tile and the payer read.
+         */
+        facts.push(priceLine(actor, quotePrice(actor, actionKey)));
     } else if (cost > 0) {
         facts.push(game.i18n.format("DRPG.Action.willCost", { n: cost, left: actionsLeft(actor) }));
     }
@@ -3175,8 +3189,10 @@ async function performGmAction(actor, actionKey, def, options) {
         body,
         // Nothing mechanical to apply - Think and Listen end in a sentence - so
         // the card carries the two answers that ARE the ruling: say it, or say
-        // there is nothing and hand the action back.
-        actions: gmRulingActions(actor, cost)
+        // there is nothing and hand the action back. Receipt-shaped (T-1), so a
+        // Burst-paid ruling comes back as a Burst.
+        actions: gmRulingActions(actor,
+            cost > 0 ? { key: actionKey, pay: "action", amount: cost, grant: Boolean(paid?.grant) } : null)
     });
 
     // Ruled by a human. Reroll cannot undo a ruling, so it re-asks - see
@@ -3194,10 +3210,17 @@ async function performGmAction(actor, actionKey, def, options) {
  * The two buttons every ruling gets when there is nothing mechanical to apply.
  *
  * "Reply" posts the GM's sentence into the thread the question arrived in;
- * "There is nothing" hands the action back, because a question that is never
+ * "There is nothing" hands the price back, because a question that is never
  * answered has not been paid for. Both are handled in `runCallAction`.
+ *
+ * THE STEP TRAVELS, THE AMOUNT DOES NOT (T-1). This card is authored on the
+ * PLAYER's client - `callGm` posts it into their own thread - so anything written
+ * here can be rewritten there before a GM presses it. `data-cost` used to be read
+ * back verbatim and handed to `refundAction`, which would have bought five Sanity
+ * of healing from any GM pressing "There is nothing". The far side now takes the
+ * amount from `PRICE_CHAINS` and accepts only a step name the table knows.
  */
-function gmRulingActions(actor, cost = 0) {
+function gmRulingActions(actor, receipt = null) {
     return [
         {
             action: "reply",
@@ -3207,7 +3230,13 @@ function gmRulingActions(actor, cost = 0) {
         {
             action: "decline",
             label: game.i18n.localize("DRPG.Bridge.nothingThere"),
-            data: { by: actor.id, cost: String(cost) }
+            data: {
+                by: actor.id,
+                paid: receipt?.pay ?? "",
+                // A Burst comes back as a Burst, which is the one thing the far
+                // side cannot work out for itself.
+                grant: String(Boolean(receipt?.grant))
+            }
         }
     ];
 }
@@ -3525,8 +3554,24 @@ async function askDeclaration(actor, def) {
  * pretending to recompute it.
  */
 async function performAnalyze(actor, def, options) {
-    const cost = options.free ? 0 : def.cost;
-    if (!canAfford(actor, cost)) return null;
+    /*
+     * ANALYZE PAYS A CHAIN (T-1, Dawid 17.09): an action, and inside a Class
+     * Trial a Hope or a Sanity mark once the actions are gone. That the later
+     * steps exist only in a trial is `stepsBeyondFirst` in PRICE_CHAINS, not a
+     * question this function asks the clock - one table, one answer.
+     *
+     * `free` is a GM's bypass only. It used to skip an action; it would now skip
+     * Hope and Sanity too, and `performAction` is on the API, so a player's macro
+     * could analyse for nothing all trial.
+     */
+    const free = Boolean(options.free) && game.user.isGM;
+    if (!free) {
+        const quote = quotePrice(actor, "analyze");
+        if (quote.blocked) {
+            ui.notifications.warn(quote.blocked);
+            return null;
+        }
+    }
 
     // Only bullets there is still something to learn about. An identified one is
     // finished, and one this character already burned an attempt on this chapter
@@ -3553,16 +3598,34 @@ async function performAnalyze(actor, def, options) {
     const subject = ruled ? null : (bullets.find(b => b.id === choice) ?? null);
     if (!ruled && !subject) return null;
 
-    // Paid before the dice - see `abort` and ACT-07 above it.
-    const paid = cost > 0 ? await spendAction(actor, cost) : null;
-    if (cost > 0 && !paid) return null;
-    const roll = await rollTrait(actor, "head", { actionKey: "analyze" });
-    if (!roll) return abort(actor, paid);
+    /*
+     * ALL THREE ROADS END WITH A HUMAN, so a road with nobody on it is refused
+     * BEFORE the price and before the dice (T-1). Without this the action was
+     * paid for, the dice were thrown, and the packet was dropped on the way out.
+     */
+    const { gmOnline } = await import("./gm-bridge.mjs");
+    if (!gmOnline()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Analyze.needGm"));
+        return null;
+    }
 
-    if (choice === "stash") return locateStash(actor, def, roll, asked?.request ?? "");
+    // Paid before the dice - see `abort` and ACT-07 above it. `payPrice` quotes
+    // again for itself, so a second window opened over this one pays the next
+    // step in the chain rather than this step twice.
+    const charge = free ? null : await payPrice(actor, "analyze");
+    if (!free && !charge) return null;
+    const roll = await rollTrait(actor, "head", { actionKey: "analyze" });
+    if (!roll) {
+        // The window was closed. Whatever the chain took, it gives back - the
+        // step that paid, and a Burst as a Burst.
+        if (charge) await refundPrice(actor, charge);
+        return null;
+    }
+
+    if (choice === "stash") return locateStash(actor, def, roll, asked?.request ?? "", charge);
     return subject
-        ? analyseBullet(actor, def, roll, subject)
-        : askForHint(actor, def, roll, asked?.request ?? "");
+        ? analyseBullet(actor, def, roll, subject, charge)
+        : askForHint(actor, def, roll, asked?.request ?? "", charge);
 }
 
 /**
@@ -3570,8 +3633,21 @@ async function performAnalyze(actor, def, options) {
  * the difficulty depends on what the bullet really is - which is precisely what
  * the roll is trying to find out. See analyze.mjs.
  */
-async function analyseBullet(actor, def, roll, subject) {
-    const { requestAnalyzeResolve } = await import("./gm-bridge.mjs");
+async function analyseBullet(actor, def, roll, subject, charge = null) {
+    const { requestAnalyzeResolve, gmOnline } = await import("./gm-bridge.mjs");
+
+    /*
+     * THE LAST GM CAN LEAVE WHILE THE DICE ARE IN THE AIR, and then there is
+     * nobody to score this against the answer key. Refunded on THAT and nothing
+     * else: `requestAnalyzeResolve` returns the resolver's own value on a GM's
+     * client, which may legitimately be null, so a refund keyed on falsiness
+     * would hand the price back for a resolution that happened (T-1).
+     */
+    if (!gmOnline()) {
+        if (charge) await refundPrice(actor, charge);
+        ui.notifications.warn(game.i18n.localize("DRPG.Analyze.needGm"));
+        return null;
+    }
 
     // No `gmRuled` here, unlike the hint branch: this outcome follows from a
     // table, so a Reroll can genuinely replay it rather than re-ask a human.
@@ -3600,7 +3676,7 @@ async function analyseBullet(actor, def, roll, subject) {
 }
 
 /** The other half of the action: no evidence, just a nudge from the GM. */
-async function askForHint(actor, def, roll, request = "") {
+async function askForHint(actor, def, roll, request = "", charge = null) {
     const rows = def.hintThresholds.map(t =>
         `<li>${t.min}+ - ${foundry.utils.escapeHTML(t.result)}</li>`).join("");
     const body = `<ul class="drpg-gm-reference">${rows}
@@ -3611,17 +3687,26 @@ async function askForHint(actor, def, roll, request = "") {
 
     // The question was typed in the variant window, with the two branches in
     // front of the player - see "THE SENTENCE COMES FIRST".
-    await callGm(actor, {
+    const sent = await callGm(actor, {
         title,
         request,
         roll,
         room: roomOfActor(actor),
         body,
         // The hint IS the answer, so it goes back down the thread the question
-        // came up. The action has already been spent by the time this runs, so
-        // the refusal hands it back - see `decline` in `runCallAction`.
-        actions: gmRulingActions(actor, def.cost ?? 1)
+        // came up. The price has already been paid by the time this runs, so the
+        // refusal hands back the STEP that paid - see `decline` in
+        // `runCallAction`.
+        actions: gmRulingActions(actor, charge)
     });
+
+    // Nobody to ask. `callGm` answers false for that, which is a real refusal
+    // rather than a ruling, so the price comes back (T-1).
+    if (!sent) {
+        if (charge) await refundPrice(actor, charge);
+        ui.notifications.warn(game.i18n.localize("DRPG.Analyze.needGm"));
+        return null;
+    }
 
     await noteRollContext(actor, {
         actionKey: "analyze", gmRuled: true, request, label: title, room: roomOfActor(actor)
@@ -3652,7 +3737,7 @@ async function askForHint(actor, def, roll, request = "") {
  * from the GM. In practice: they lift the padlock in the Stashes tab for that
  * one player, or simply tell them what is in it.
  */
-async function locateStash(actor, def, roll, request = "") {
+async function locateStash(actor, def, roll, request = "", charge = null) {
     const room = roomOfActor(actor);
     const title = game.i18n.localize("DRPG.Analyze.findStash");
 
@@ -3672,7 +3757,16 @@ async function locateStash(actor, def, roll, request = "") {
      */
     Hooks.callAll("drpgStashHunted", { actor, room, total: roll.total });
 
-    const { requestStashSearch } = await import("./gm-bridge.mjs");
+    const { requestStashSearch, gmOnline } = await import("./gm-bridge.mjs");
+
+    // The same rule as `analyseBullet`: only a road with nobody left on it hands
+    // the price back (T-1).
+    if (!gmOnline()) {
+        if (charge) await refundPrice(actor, charge);
+        ui.notifications.warn(game.i18n.localize("DRPG.Analyze.needGm"));
+        return null;
+    }
+
     await requestStashSearch({
         actorId: actor.id,
         total: roll.total,

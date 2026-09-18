@@ -624,6 +624,7 @@
     },
     "Analyze": {
       "analyseBullet": "Identify a Truth Bullet",
+      "needGm": "This road ends with the Gamemaster, and none is connected. Nothing was spent.",
       "askHint": "Fixate on a specific matter",
       "whichBullet": "Which Truth Bullet?",
       "onBullet": "Analyze: {name}",

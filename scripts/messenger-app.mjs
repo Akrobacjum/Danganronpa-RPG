@@ -18,7 +18,7 @@
  * reason - one way of building markup, not two.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, PRICE_CHAINS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, ownerOf, whisperToGms, error } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
@@ -722,10 +722,30 @@ async function runCallAction(action, data) {
         const actor = game.actors.get(data.by);
         if (!actor) return null;
 
-        const cost = Number(data.cost) || 0;
-        if (cost > 0) {
+        /*
+         * WHAT CAME BACK IS WHAT THE TABLE SAYS, NOT WHAT THE CARD CLAIMS (T-1).
+         *
+         * This card is authored on the player's own client, so `data` is theirs to
+         * rewrite. It used to carry an amount, read back with `Number(data.cost)`
+         * and handed to `refundAction` - so a card edited to say 5 would have
+         * bought five actions from any GM pressing this button. Now it carries the
+         * NAME of the step that paid, the amount comes from `PRICE_CHAINS`, and a
+         * name the table does not know buys nothing at all.
+         */
+        const step = (PRICE_CHAINS.analyze?.steps ?? []).find(s => s.pay === data.paid);
+        if (step) {
+            const { refundPrice } = await import("./price.mjs");
+            await refundPrice(actor, {
+                key: "analyze",
+                pay: step.pay,
+                amount: step.amount,
+                grant: data.grant === "true"
+            });
+        } else if (!data.paid) {
+            // A card posted before this release carries no step. One action is
+            // what every one of them was paid with.
             const { refundAction } = await import("./actions.mjs");
-            await refundAction(actor, cost);
+            await refundAction(actor, 1);
         }
 
         const { postToThread } = await import("./messenger.mjs");
