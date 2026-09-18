@@ -15,7 +15,7 @@ import {
     MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
     ECLIPSE_MOVES,
     EQUIPPABLE,
-    BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS } from "./config.mjs";
+    BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS, PRICE_CHAINS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
@@ -48,7 +48,10 @@ import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf }
 import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 // `bodyIsHere` moved with the three Stage 6 actions - the Tamper menu asks it
 // now (action-rolls.mjs), because that is where the body tile lives.
-import { isCleaner } from "./cleanup.mjs";
+import { isCleaner, tamperPriceSkip, witnessesTo } from "./cleanup.mjs";
+// The price a tile is about to charge, quoted from the same table the charge
+// reads (T-1). Synchronous by design - this file calls it from a render path.
+import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
 import { roomOfActor, neighbouringRooms, othersInRoom } from "./movement.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // `sabotageTargetsIn` used to be imported here for the tile that no longer
@@ -611,10 +614,42 @@ function repaintInPlace(actor, element) {
     // a photograph, and no way to tell them apart from the outside.
     refreshCallsPanels(actor, element);
 
+    // AND THE PRICED TILES, FOR THE SAME REASON (T-1). Since the chains exist,
+    // a Hope-only or Sanity-only change moves what the Objection, Analyze and
+    // Tamper tiles cost - so a repaint that redrew the drawers and left the grid
+    // alone would show a price that stopped being true one pip ago.
+    refreshPricedTiles(actor, element);
+
     // AFTER the glyphs, because the mark is counted off them. A repaint stands
     // in for a render and owes what the render owed - including saying that
     // something moved. See `markHopeChange`.
     markHopeChange(actor, element);
+}
+
+/**
+ * Rebuild the tiles whose price depends on a resource that just moved.
+ *
+ * Safe to replace the node because the grid is wired by ONE delegated listener
+ * on the sheet root rather than by per-button handlers - see
+ * `attachActionDelegate`.
+ *
+ * EXCEPT A TILE THAT IS IN FLIGHT. That same listener sets `disabled` for the
+ * duration of an action, and a roll's Hope write lands while it is still true -
+ * so a blind replacement would re-enable the tile mid-action and a second click
+ * would fire the same action again.
+ */
+function refreshPricedTiles(actor, element) {
+    for (const node of element.querySelectorAll("[data-drpg-action]")) {
+        const key = node.dataset.drpgAction;
+        if (!PRICE_CHAINS[key] || node.disabled) continue;
+        const def = key === "dynamic" ? null : ACTIONS[key];
+        if (!def) continue;
+        try {
+            node.replaceWith(actionButton(actor, key, def));
+        } catch (err) {
+            debug("Could not repaint a priced action tile", err);
+        }
+    }
 }
 
 /**
@@ -3578,16 +3613,22 @@ function tamperBlock(actor) {
     // before this. Reaching here means the character is standing in a room.
 
     /*
-     * NOTHING TO PAY WITH IS THE FIRST ANSWER, and it is free (Dawid, 29.08).
+     * BEING WATCHED WITH A FULL TRACK IS THE FIRST ANSWER, and it is free
+     * (Dawid, 17.09, correcting 29.08).
      *
-     * Every Tamper action costs a point of Sanity now, so a character on an
-     * empty track cannot take any of them - and that is knowable on this client
-     * without asking the GM anything. Asked before the ledger, because a tile
-     * that waits on a socket round trip to say "you have nothing left" makes the
-     * player press it to find out.
+     * A full Sanity track used to refuse every Tamper outright, which was the old
+     * double price showing through: the attempt is paid for by the chain now, and
+     * an action pays it perfectly well. What a full track cannot pay for is the
+     * CONCEALMENT - so the refusal is about who can see you, and it exempts a
+     * killer's accomplices exactly as `witnessesTo` does for the roll.
+     *
+     * Asked before the ledger, because a tile that waits on a socket round trip to
+     * say "you have nothing left" makes the player press it to find out. The
+     * PRICE's own refusal is not here at all: `actionButton` has the quote.
      */
-    if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
-        return game.i18n.localize("DRPG.Cleanup.noStressForThis");
+    if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")
+        && witnessesTo(actor, othersInRoom(actor)).length) {
+        return game.i18n.localize("DRPG.Tamper.watchedNoSanity");
     }
 
     const key = tamperKey(actor);
@@ -3670,9 +3711,18 @@ function actionButton(actor, key, def) {
     // and still opens its briefing, because knowing what an action would do is
     // half of deciding whether to save an action for it.
     const cost = costOf(actor, key, def);
-    // The stripe still says "1 action" - that IS what it costs - but a banked
-    // Burst is what will pay it, so the tile must not be dimmed. See `canPayFor`.
-    const affordable = canPayFor(actor, cost);
+    /*
+     * CAN THIS BE PAID FOR AT ALL - and for a priced action that is the whole
+     * chain, not the action step (T-1). A student with no actions and one Hope
+     * can still object and still analyse in a trial, so the tile must not be
+     * dimmed; the same student with nothing at all is dimmed with the chain's own
+     * sentence under it.
+     *
+     * The stripe still says "1 action" when an action is what pays, even with a
+     * banked Burst covering it - that IS what it costs. See `canPayFor`.
+     */
+    const priced = PRICE_CHAINS[key] ? priceQuoteFor(actor, key) : null;
+    const affordable = priced ? !priced.blocked : canPayFor(actor, cost);
     const eclipse = isEclipse();
 
     // Nothing here to do it to - a separate state from "cannot pay for it",
@@ -3778,7 +3828,13 @@ function actionButton(actor, key, def) {
     // Derived from the definition rather than listed here, so an action whose
     // cost or GM involvement changes in config.mjs brings its stripe with it.
     const callsGm = callsGmFor(actor, def);
-    button.dataset.drpgCostKind = cost === 0 ? "free" : callsGm ? "gm" : "action";
+    // Four kinds and no fifth: a Sanity step takes the "stress" stripe both
+    // stylesheets already carry, and a Hope step keeps whatever this tile would
+    // have had - there is no `hope` stripe, and adding one means a new rule in
+    // danganronpa.css AND in stained-glass.css for a colour a player meets once a
+    // season (T-1).
+    const ordinary = cost === 0 ? "free" : callsGm ? "gm" : "action";
+    button.dataset.drpgCostKind = priced ? stripeKindFor(priced, ordinary) : ordinary;
 
     const costLabel = costLabelFor(actor, key, def);
     // Order matters: an Eclipse stops everything, so it is said first; not
@@ -3799,7 +3855,12 @@ function actionButton(actor, key, def) {
         ? `<br><em>${game.i18n.localize(lockReason)}</em>`
         : affordable
             ? ""
-            : `<br><em>${plural("DRPG.Action.cannotAfford", { left: actionsLeft(actor), needed: cost }, "left")}</em>`;
+            // The chain's own sentence when there is one: "no action, no Hope and
+            // no Sanity left" is a different refusal from "you have 0 of 1 action",
+            // and it is the one that tells the player what to do about it.
+            : `<br><em>${priced?.blocked
+                ?? plural("DRPG.Action.cannotAfford",
+                    { left: actionsLeft(actor), needed: cost }, "left")}</em>`;
     const why = blocked ? `<br><em>${foundry.utils.escapeHTML(blocked)}</em>` : "";
     // The light says "press this"; this says why it is free, because a discount
     // nobody can read is a discount nobody counts on (D3 + D12). Last, because
@@ -3882,25 +3943,33 @@ function callsGmFor(actor, def) {
  */
 function costOf(actor, key, def) {
     /*
-     * THE KILLER'S OWN NIGHT IS FREE (D3), AND THE TILE HAS TO SAY SO.
+     * A PRICED ACTION IS QUOTED, NOT COUNTED (T-1).
      *
-     * Found on the E23 live round: the glow and the tooltip both announced the
-     * discount while the cost stripe underneath still read "1 action". A label
-     * that contradicts the rule is the defect this module calls "the sentence
-     * says one thing and the code does another" - and here the code was right
-     * and the sentence was wrong, which is the harder half to notice.
-     *
-     * Answered HERE because this function is the one place a tile's price is
-     * decided: the label, the free/action stripe and the affordability test all
-     * read it, so one edit puts all three in step. `performTamper` keeps its own
-     * check for the same rule - that one governs whether the action is refused
-     * for want of a budget, which is a different question in a different file.
+     * The killer's own night still skips the action step (D3) - but that is now
+     * `tamperPriceSkip`, the same list `chargeTamper` reads, rather than a
+     * separate `isCleaner` test in this file that had to be kept in step by hand.
+     * What comes back is the step that will really pay, so a Tamper about to cost
+     * a Sanity mark no longer reads "1 action".
      */
-    if (key === "tamper" && isCleaner(actor)) return 0;
+    if (PRICE_CHAINS[key]) {
+        const quote = priceQuoteFor(actor, key);
+        return quote.pay === "action" ? quote.amount : 0;
+    }
 
     if (key !== "move") return def.cost ?? 1;
     if (isEclipse()) return 0;
     return hasFreeMove(actor) ? 0 : 1;
+}
+
+/**
+ * One quote per tile, per render, from the table the charge reads.
+ *
+ * The skip list is what expresses D3 - the killer's own clean-up pays no action
+ * step - and it lives in cleanup.mjs beside the charge, so the tile and the
+ * charge cannot disagree about the price the way they did on the E23 round.
+ */
+function priceQuoteFor(actor, key) {
+    return quotePrice(actor, key, { skip: key === "tamper" ? tamperPriceSkip(actor) : [] });
 }
 
 /**
@@ -3911,6 +3980,14 @@ function costOf(actor, key, def) {
  * left, and it was only visible in a whisper after each one.
  */
 function costLabelFor(actor, key, def) {
+    // The step that will pay, in words: "1 action", "1 Hope", "1 Sanity" (T-1).
+    if (PRICE_CHAINS[key]) {
+        const quote = priceQuoteFor(actor, key);
+        return quote.blocked
+            ? game.i18n.localize("DRPG.Action.costFree")
+            : priceLabel(quote);
+    }
+
     if (key === "move" && isEclipse()) {
         const left = eclipseMovesLeft(actor);
         return left === null

@@ -2306,6 +2306,128 @@ const REGRESSIONS = [
             "the refund no longer takes its amount from the table, so a card can name its own");
         ok(!body.includes("Number(data.cost)"),
             "the refund reads an amount off a card the player authored");
+    }],
+
+    ["R47 - Tamper pays one price, on the client, after the concealment", async () => {
+        /*
+         * T-1. Tamper used to cost an action AND a Sanity mark: the action on the
+         * player's client, the mark on the GM's. This reads the three rules that
+         * make it one price without opening a hole:
+         *
+         *   the charge sits between the concealment and the dice, because the
+         *   concealment's own Sanity can take the point the price needed;
+         *   the GM side charges the Sanity only when no valid step arrived, which
+         *   is what keeps a forged packet paying something;
+         *   and the critical hands back the STEP that paid.
+         */
+        const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
+
+        for (const fn of ["attemptCleanup", "attemptStageSix"]) {
+            const at = cleanup.indexOf(`export async function ${fn}`);
+            ok(at > 0, `${fn} has moved`);
+            const body = cleanup.slice(at, cleanup.indexOf("\nexport ", at + 10));
+            const conceal = body.indexOf("concealFromWitnesses(");
+            const charge = body.indexOf("chargeTamper(");
+            const dice = body.indexOf("rollTrait(");
+            ok(conceal > 0 && charge > 0 && dice > 0,
+                `${fn} no longer conceals, charges and rolls in one place`);
+            ok(charge > conceal, `${fn} charges before the concealment can take the same point`);
+            ok(charge < dice, `${fn} charges after the dice`);
+            ok(body.includes("tamperWatchBlock("),
+                `${fn} stopped refusing a watched attempt on a full Sanity track`);
+            ok(body.includes("cleanupPrice"),
+                `${fn} does not tell the GM's side which step paid`);
+        }
+
+        // Every GM-side charge is the no-claim fallback, and the only other writer
+        // of the Sanity track in a refund path is `handBack`.
+        for (const at of [...cleanup.matchAll(/await spendStress\(actor\)/g)].map(m => m.index)) {
+            const before = cleanup.slice(Math.max(0, at - 260), at);
+            ok(/validPrice\(|!paidStep|for \(let i = 0/.test(before),
+                "a GM-side Sanity charge is back that no missing price claim explains");
+        }
+        ok(/function validPrice\(/.test(cleanup),
+            "nothing bounds the step a Tamper packet claims to have paid");
+        ok(/async function handBack\(/.test(cleanup),
+            "the critical is back to healing Sanity the attempt may never have spent");
+        const conceal = cleanup.slice(cleanup.indexOf("async function concealFromWitnesses"));
+        ok(/restoreStress\(/.test(conceal.slice(0, 1600)),
+            "the concealment's own refund is gone - that one is not the attempt's price");
+
+        // The step travels: the roll context, both sides of the bridge, the replay.
+        const bridge = stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? "");
+        const socket = bridge.slice(bridge.indexOf("payload?.action === ACTION_CLEANUP"),
+            bridge.indexOf("payload?.action === ACTION_MEDDLE"));
+        ok((socket.match(/price: payload\.price/g) ?? []).length >= 2,
+            "the socket branch drops the price claim for one of the two resolvers, "
+            + "so every remote Tamper on that road pays twice");
+        const reroll = stripComments(new Map(await otherSources()).get("reroll.mjs") ?? "");
+        const replay = reroll.slice(reroll.indexOf("async function settleCleanup"));
+        ok(/price: bookmark\.cleanupPrice/.test(replay.slice(0, 2400)),
+            "a rerolled clean-up forgets which step it paid, so the GM charges it again");
+    }],
+
+    ["R48 - a tile shows the price it is about to charge", async () => {
+        /*
+         * T-1, and the defect it closes is one this module has met before: on the
+         * E23 round the Tamper tile's glow announced the killer's discount while
+         * the stripe under it still read "1 action". Since the price is a chain,
+         * there are three more ways for a tile to lie - a Hope step read as an
+         * action, a Sanity step read as free, and a student dimmed for having no
+         * actions when they can still pay with Hope.
+         *
+         * So the tile reads the QUOTE, from the same table and through the same
+         * skip list the charge reads.
+         */
+        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+
+        const cost = sheet.slice(sheet.indexOf("function costOf("),
+            sheet.indexOf("function costLabelFor("));
+        ok(cost.includes("priceQuoteFor("),
+            "costOf is back to counting a flat cost for a priced action");
+        ok(!/key === "tamper" && isCleaner\(actor\)/.test(cost),
+            "costOf carries its own copy of D3 again, beside the skip list that already says it");
+
+        const label = sheet.slice(sheet.indexOf("function costLabelFor("),
+            sheet.indexOf("function costLabelFor(") + 900);
+        ok(label.includes("priceLabel("),
+            "the tile's price label no longer says which step will pay");
+
+        const button = sheet.slice(sheet.indexOf("function actionButton("),
+            sheet.indexOf("function actionButton(") + 6000);
+        ok(/const affordable = priced \? !priced\.blocked/.test(button),
+            "a priced tile is dimmed by its action step rather than by the whole chain");
+        ok(button.includes("stripeKindFor("),
+            "the stripe no longer follows the step that pays");
+        ok(button.includes("priced?.blocked"),
+            "the tile's refusal is back to counting pips instead of printing the chain's reason");
+
+        // The killer's own night, said once: the skip list, shared with the charge.
+        ok(sheet.includes("tamperPriceSkip("),
+            "the sheet decides the killer's discount for itself again");
+
+        // A full Sanity track only stops a WATCHED attempt (Dawid, 17.09).
+        const tamper = sheet.slice(sheet.indexOf("function tamperBlock("),
+            sheet.indexOf("async function askTamper("));
+        ok(tamper.includes("witnessesTo(") && tamper.includes("DRPG.Tamper.watchedNoSanity"),
+            "the Tamper tile refuses every attempt on a full Sanity track again");
+        ok(!tamper.includes("DRPG.Cleanup.noStressForThis"),
+            "the tile still says Tamper costs Sanity and you have none, which is no longer the rule");
+
+        /*
+         * AND A PRICED TILE REPAINTS WITH THE NUMBER. The render that would have
+         * redrawn it is the one deliberately skipped to stop the sidebar
+         * flickering, so the repaint owes what the render owed - minus a tile that
+         * is in flight, whose `disabled` the delegate is still holding.
+         */
+        const repaint = sheet.slice(sheet.indexOf("function repaintInPlace("),
+            sheet.indexOf("function refreshPricedTiles("));
+        ok(repaint.includes("refreshPricedTiles("),
+            "a Hope or Sanity change leaves the priced tiles showing yesterday's price");
+        const tiles = sheet.slice(sheet.indexOf("function refreshPricedTiles("),
+            sheet.indexOf("function refreshPricedTiles(") + 900);
+        ok(/node\.disabled/.test(tiles),
+            "the repaint re-enables a tile mid-action, so the same action can be fired twice");
     }]
 ];
 
