@@ -22,7 +22,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { getClock, timeOfDayLabel } from "./clock.mjs";
 import { error, plural } from "./utils.mjs";
-import { remaining } from "./character.mjs";
+import { marksOf } from "./character.mjs";
 import { motive } from "./rules.mjs";
 import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor } from "./movement.mjs";
@@ -137,9 +137,9 @@ function incidentCard() {
             turn: state.turn ?? 1,
             side: game.i18n.localize(`DRPG.Murder.side.${state.turnSide}`)
         });
-    const left = game.i18n.format("DRPG.Murder.victimLeft", {
-        hp: remaining(victim, "hitPoints"),
-        stress: remaining(victim, "stress")
+    const left = game.i18n.format("DRPG.Murder.victimMarks", {
+        hp: marksOf(victim, "hitPoints"),
+        stress: marksOf(victim, "stress")
     });
 
     let room = null;

@@ -192,11 +192,23 @@ export function resourceValue(actor, key) {
 }
 
 /**
- * Remaining Health/Sanity as the players read it on the sheet. Both are reverse
- * resources, so "how much is left" is max minus marks.
+ * Remaining Health/Sanity. Both are reverse resources, so "how much is left" is
+ * max minus marks.
+ *
+ * FOR RULES, NOT FOR SCREENS (W-1, Dawid 16.09). The sheet, and Daggerheart,
+ * count marks UP: 0/6 is untouched and 6/6 is the wound. Three places used to
+ * print this number instead, so the same victim read "2 Health left" in the
+ * incident tracker and "4/6" on their own sheet, and a GM reading both had to
+ * subtract to know which way either was going. Use `marksOf` for anything a
+ * person reads; this stays for the thresholds that are about what is left.
  */
 export function remaining(actor, key) {
     return resourceMax(actor, key) - resourceValue(actor, key);
+}
+
+/** Marks over maximum, the way the sheet shows them: `2/6` (W-1). */
+export function marksOf(actor, key) {
+    return `${resourceValue(actor, key)}/${resourceMax(actor, key)}`;
 }
 
 /** True when the character has taken every point of Sanity (Daggerheart: vulnerable). */

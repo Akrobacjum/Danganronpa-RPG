@@ -25,7 +25,7 @@ import { isPrimaryGm, error, plural } from "./utils.mjs";
 // private copies here "for the cycle" (audit C3) - the cycle was real, the
 // copies were the wrong cure.
 import { incomingTimeOfDay, bodyDiscovery } from "./settings.mjs";
-import { remaining } from "./character.mjs";
+import { marksOf } from "./character.mjs";
 // Static, and checked before adding: this file avoids static imports because it
 // sits on the render path the clock itself calls back into, so a cycle here
 // would be a load-order problem rather than a lint complaint. None of these
@@ -1139,9 +1139,9 @@ function buildIncident() {
     // making decisions against them too, and that is the whole shape of Stage 5.
     const left = document.createElement("div");
     left.className = "drpg-hud-incident-left";
-    left.textContent = game.i18n.format("DRPG.Murder.victimLeft", {
-        hp: remaining(victim, "hitPoints"),
-        stress: remaining(victim, "stress")
+    left.textContent = game.i18n.format("DRPG.Murder.victimMarks", {
+        hp: marksOf(victim, "hitPoints"),
+        stress: marksOf(victim, "stress")
     });
     el.append(left);
 

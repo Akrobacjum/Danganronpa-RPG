@@ -1133,7 +1133,7 @@
       "ranOut": "{name} is out of Health and out of Sanity. The incident ends and they are dead - no Finishing Blow was needed, and none was earned.",
       "rerollLost": "A Reroll arrived for a crisis action with no record here. Nothing was replayed, so the first result stands. Score the new number by hand.",
       "trackerState": "{stage} · turn {turn} · {side} to act",
-      "victimLeft": "Victim: {hp} Health, {stress} Sanity left.",
+      "victimMarks": "Victim: Health {hp} marked, Sanity {stress} marked.",
       "thirdIs": "{name} walked in",
       "passTurn": "Pass the turn",
       "addThird": "Somebody walks in",

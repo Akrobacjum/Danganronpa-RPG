@@ -50,7 +50,7 @@ import {
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
-import { resourceValue, resourceMax } from "./character.mjs";
+import { resourceValue, resourceMax, marksOf } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { carriedFor, ITEM_FLAGS, isBroken } from "./inventory.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
@@ -3801,9 +3801,8 @@ export async function openIncidentTracker() {
         const killer = game.actors.get(now.killerId);
         const victim = game.actors.get(now.victimId);
         const third = now.thirdId ? game.actors.get(now.thirdId) : null;
-        const left = res => victim
-            ? `${resourceMax(victim, res) - resourceValue(victim, res)} / ${resourceMax(victim, res)}`
-            : "?";
+        // Marks, the sheet's own direction (W-1): 0/6 is untouched.
+        const left = res => victim ? marksOf(victim, res) : "?";
         return { killer, victim, third, left };
     };
 
@@ -3845,7 +3844,7 @@ export async function openIncidentTracker() {
                     turn: now.turn,
                     side: game.i18n.localize(`DRPG.Murder.side.${now.turnSide}`)
                 })}</p>
-            <p>${game.i18n.format("DRPG.Murder.victimLeft", {
+            <p>${game.i18n.format("DRPG.Murder.victimMarks", {
                 hp: left("hitPoints"), stress: left("stress")
             })}</p>
             <p>${game.i18n.format("DRPG.Murder.keyCount", { n: now.keyRemnants })}</p>
