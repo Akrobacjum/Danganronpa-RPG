@@ -17,6 +17,7 @@ import { SETTINGS } from "./settings.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
+import { allProjects, isComplete, isFrozen } from "./projects.mjs";
 import {
     announce, whisperToOwner, dialogContent, log, error, plural, cardHead, isPrimaryGm, esc} from "./utils.mjs";
 
@@ -211,6 +212,14 @@ export function refusalBeforePaying(call, choice = {}) {
     if (call?.damage && target && Object.keys(call.damage)
         .every(resource => resourceValue(target, resource) >= resourceMax(target, resource))) {
         return i18n.format("DRPG.Calls.nothingToMark", { name: target.name });
+    }
+    // The API and a stale picker can both name a project that cannot move
+    // (CALL-10): the list already leaves those out, this is the boundary.
+    if (call?.progress && choice.project) {
+        const project = allProjects().find(p => p.id === choice.project);
+        if (!project || isComplete(project) || isFrozen(project.id)) {
+            return i18n.localize("DRPG.Project.noneToMove");
+        }
     }
     if (call?.grantsHope && target) {
         if (overflowBlocksHope()) return i18n.localize("DRPG.Overflow.noHopeNow");
@@ -916,7 +925,7 @@ export async function pickTarget(actor, call, kind) {
         switch (call.target) {
             case "player": return await pickPlayer(actor, call, kind);
             case "monocub": return await pickMonocub();
-            case "project": return await pickProject(actor);
+            case "project": return await pickProject(actor, call);
             case "room": return await pickRoom();
             case "item": return await pickItem();
             default: return {};
@@ -1110,10 +1119,26 @@ async function pickProject(actor) {
     // table - the same leak as Work on Project, one dialog further along.
     const room = roomOfActor(actor);
     const here = projectsAvailableIn(room);
-    const pool = here.length ? here : visibleProjects();
+    const listed = here.length ? here : visibleProjects();
+
+    /*
+     * A CALL THAT MOVES PROGRESS NEEDS PROGRESS TO MOVE (CALL-10, Dawid 17.09).
+     *
+     * Game Integrity and Patronage used to be offered every project the reader
+     * could see, finished and sabotage-frozen ones included. A finished project
+     * has nothing left to take and taking from it would reopen something whose
+     * completion has already armed a trap or thawed a repair; a frozen one is the
+     * thing a repair exists to fix, and both Work on Project and Sabotage already
+     * leave it out (projects.mjs). So the two Calls that carry `progress` see the
+     * same list those actions do.
+     */
+    const pool = call?.progress
+        ? listed.filter(p => !isComplete(p) && !isFrozen(p.id))
+        : listed;
 
     if (!pool.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Project.none"));
+        ui.notifications.warn(game.i18n.localize(call?.progress
+            ? "DRPG.Project.noneToMove" : "DRPG.Project.none"));
         return null;
     }
 
