@@ -208,6 +208,72 @@ export async function startFloor({ seconds = TRIAL.speakSeconds } = {}) {
 }
 
 /**
+ * Why nobody may object right now, whoever they are and whoever they aim at.
+ *
+ * THE ADMISSION RULE IS TWO QUESTIONS, ASKED AT TWO MOMENTS (T-1). This half is
+ * everything knowable before a target exists - no floor, or somebody's minute
+ * already running - and it is the half a window may ask while it is still being
+ * built. `targetRefusal` below is the other half, and it can only be asked of a
+ * submitted form.
+ *
+ * Splitting them is not tidiness. A single combined refusal, asked with an empty
+ * target, answers "you named nobody" - so the button would be greyed for a
+ * rebuttal cut-in Dawid ruled legal on 28.08, and the player would be told the
+ * move is illegal when it is not.
+ *
+ * @returns {string|null} a localised reason, or null.
+ */
+export function floorRefusal(floor = trialFloor()) {
+    if (!floor) return game.i18n.localize("DRPG.Trial.objectionNoFloor");
+    /*
+     *   during an objection   somebody has ONE minute alone. A second objection
+     *                         inside it would reset the clock onto a new pair and
+     *                         the rebuttal the first one bought would never
+     *                         happen at all.
+     */
+    if (floor.mode === FLOOR_MODES.objection) {
+        return game.i18n.localize("DRPG.Trial.objectionDuringObjection");
+    }
+    return null;
+}
+
+/**
+ * Why this objector may not aim at this target.
+ *
+ * The submit-time half: it needs both names, so it cannot grey a button in
+ * advance without refusing the legal cut-in described above.
+ *
+ * @returns {string|null} a localised reason, or null.
+ */
+export function targetRefusal(objectorId, targetId, floor = trialFloor()) {
+    if (!objectorId || !targetId) return game.i18n.localize("DRPG.Trial.objectionNobody");
+    if (objectorId === targetId) return game.i18n.localize("DRPG.Trial.objectionSelf");
+
+    /*
+     * AND DURING A REBUTTAL, ONLY THE TWO IN IT MAY BE AIMED AT (Dawid, 28.08,
+     * correcting the reading of the ruling in `openObjection`).
+     *
+     * The two rules are about different people and it is worth saying which is
+     * which, because they were read as one and the wrong half was lifted. WHO
+     * MAY SPEAK is anybody: the moment somebody listening sees the hole is the
+     * moment interrupting is worth anything. WHO MAY BE SPOKEN AT is the pair,
+     * because an objection RE-POINTS the floor - aiming a bystander at another
+     * bystander would take a rebuttal two people earned and hand it to two who
+     * have not said a word, which is not an interruption but a change of
+     * subject.
+     *
+     * So a third party cutting in joins THIS argument rather than starting their
+     * own. The picker in trial.mjs offers exactly these two; this is the rule
+     * that holds when something reaches here by another road.
+     */
+    if (floor?.mode === FLOOR_MODES.rebuttal
+        && ![floor.holderId, floor.targetId].includes(targetId)) {
+        return game.i18n.localize("DRPG.Trial.objectionRebuttalOutsider");
+    }
+    return null;
+}
+
+/**
  * An OBJECTION: the objector takes the floor for one minute, aimed at
  * somebody in particular.
  *
@@ -226,11 +292,12 @@ export async function startFloor({ seconds = TRIAL.speakSeconds } = {}) {
  * @returns {object|null} the new state, or `null` when refused.
  */
 export async function openObjection(objectorId, targetId) {
+    // STAYS HERE, and does not move into either helper: the two refusals are
+    // asked by the player's own window as well, and a client-side isGM test
+    // would refuse every player in the game.
     if (!game.user.isGM) return null;
 
     const floor = trialFloor();
-    if (!floor) return null;
-    if (!objectorId || !targetId || objectorId === targetId) return null;
 
     // WHICH MODES AN OBJECTION MAY INTERRUPT.
     //
@@ -255,37 +322,18 @@ export async function openObjection(objectorId, targetId) {
     //   objection   never, and this is the one that stays. Somebody has ONE
     //               minute alone; a second objection inside it would reset the
     //               clock onto a new pair and the rebuttal the first one
-    //               bought would never happen at all. Cutting in costs nothing
-    //               during a rebuttal precisely because the rebuttal is what
-    //               it becomes.
+    //               bought would never happen at all. Cutting in during a
+    //               rebuttal costs the objector the same as objecting in a
+    //               debate (T-1, Dawid 17.09) - what is free about it is the
+    //               floor, not the price.
     //
-    // Checked again on the caller's side before the card is posted (see
-    // `presentDialog`), so a player is told why rather than watching their
-    // objection land as an ordinary card. This is the rule; that is the
-    // courtesy.
-    if (floor.mode === FLOOR_MODES.objection) return null;
-
-    /*
-     * AND DURING A REBUTTAL, ONLY THE TWO IN IT MAY BE AIMED AT (Dawid, 28.08,
-     * correcting the reading of the ruling above).
-     *
-     * The two rules are about different people and it is worth saying which is
-     * which, because they were read as one and the wrong half was lifted. WHO
-     * MAY SPEAK is anybody: the moment somebody listening sees the hole is the
-     * moment interrupting is worth anything. WHO MAY BE SPOKEN AT is the pair,
-     * because an objection RE-POINTS the floor - aiming a bystander at another
-     * bystander would take a rebuttal two people earned and hand it to two who
-     * have not said a word, which is not an interruption but a change of
-     * subject.
-     *
-     * So a third party cutting in joins THIS argument rather than starting
-     * their own. The picker in trial.mjs offers exactly these two; this is the
-     * rule that holds when something reaches here by another road.
-     */
-    if (floor.mode === FLOOR_MODES.rebuttal
-        && ![floor.holderId, floor.targetId].includes(targetId)) {
-        return null;
-    }
+    // THE RULES THEMSELVES ARE THE TWO FUNCTIONS ABOVE, asked here and asked
+    // again by the player's window before the card is posted, so a player is
+    // told why rather than watching their objection land as an ordinary card.
+    // This is the rule; that is the courtesy. They are one pair of functions so
+    // the two cannot drift.
+    const refusal = floorRefusal(floor) ?? targetRefusal(objectorId, targetId, floor);
+    if (refusal) return null;
 
     const opened = await writeFloor({
         mode: FLOOR_MODES.objection,

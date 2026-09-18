@@ -33,7 +33,13 @@ import { MODULE_ID, TRUTH_BULLET_TYPES, TRIAL } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { truthBulletData, isTruthBullet } from "./truth-bullets.mjs";
 import { showPopup } from "./popup.mjs";
-import { announce, dialogContent, isPrimaryGm, log, error, tableDialog } from "./utils.mjs";
+import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
+    whisperToOwner } from "./utils.mjs";
+// The price of an interruption, quoted where it is about to be shown (T-1).
+import { quotePrice, priceLine, payPrice, refundPrice, paidLine } from "./price.mjs";
+// The question alone, with no toast: this decides a button, and a window that
+// opens with no GM connected must not warn every player who opens it (audit A16).
+import { gmOnline } from "./gm-bridge.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
 import { contentOf } from "./secret.mjs";
@@ -56,6 +62,18 @@ export const TRIAL_FLAGS = {
     target: "objectionTarget",
     /** The name to print for that target, for the same reason as `presenter`. */
     targetName: "objectionTargetName",
+    /**
+     * Set by the primary GM when the floor turned this card down (T-1). The card
+     * stays where it is - the evidence really was shown - and the log says the
+     * interruption did not happen rather than counting one that did not.
+     */
+    refused: "objectionRefused",
+    /**
+     * Which Truth Bullet the card is about. Read by the GM, because the card is
+     * authored on the player's client and nothing else on it proves there was any
+     * evidence at all.
+     */
+    item: "presentItem",
     chapter: "chapter"
 };
 
@@ -89,11 +107,12 @@ export function inClassTrial() {
  *   debate       the floor is open. Evidence takes it - an Objection.
  *   rebuttal     an Objection too, and the escalation the mode is for: the
  *                pair are arguing, and evidence produced inside that argument
- *                re-points the floor at whoever produced it. Only the two on
- *                the floor may; a third party is not in this exchange.
+ *                re-points the floor at whoever produced it. Anybody may cut
+ *                in (Dawid, 28.08) and only the two already on the floor may
+ *                be aimed at - see `targetRefusal`.
  *   objection    somebody has one minute alone. The button is the Objection it
  *                would be, and it is refused with the reason on the window -
- *                see `objectionBlockedReason`.
+ *                see `floorRefusal` in trial-floor.mjs.
  *
  * The target picker only appears when the button is an Objection, because it is
  * the only case that has one. An objection is aimed: the person named is
@@ -113,7 +132,7 @@ export async function presentDialog(actor, item) {
 
     const data = truthBulletData(item);
 
-    const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
+    const { trialFloor, FLOOR_MODES, floorRefusal } = await import("./trial-floor.mjs");
     const { livingStudents } = await import("./chapter.mjs");
 
     const floor = trialFloor();
@@ -122,12 +141,32 @@ export async function presentDialog(actor, item) {
     // is simply shown.
     const asObjection = Boolean(floor);
 
-    // Refused before the card is ever posted, so the player is told why rather
-    // than watching an objection land as an ordinary card because the floor
-    // quietly turned it down. `openObjection` checks this again on the GM's
-    // side - this is the courtesy, that is the rule.
-    const blocked = asObjection
-        ? objectionBlockedReason(actor, floor, FLOOR_MODES)
+    /*
+     * TWO CLASSES OF REFUSAL, AND THE CLASS DECIDES WHAT IS OFFERED INSTEAD
+     * (T-1, Dawid 17.09: "Darmowe Present pojawia sie tylko wtedy, gdy sprzeciw
+     * blokuje cena, a nie tryb podlogi").
+     *
+     * THE FLOOR class - no floor, somebody else's minute running, nobody to aim
+     * at, or a character who is never offered these prices at all - is greyed
+     * with nothing offered: the trial has not got room for this interruption, and
+     * a free Present in its place would be a different act nobody asked for.
+     *
+     * THE PRICE class - an empty pocket, or no GM connected to hand the floor
+     * over - is greyed and answered: you may still put the evidence on the table
+     * for nothing, and it does not take the floor.
+     *
+     * Refused HERE as a courtesy, so the player is told before the card is
+     * posted rather than watching an objection land as an ordinary card.
+     * `floorRefusal` and `targetRefusal` in trial-floor.mjs are the rule, asked
+     * again on the GM's side.
+     */
+    const floorBlock = asObjection ? floorRefusal(floor) : null;
+    const quote = asObjection ? quotePrice(actor, "objection") : null;
+    const noGm = asObjection && !gmOnline()
+        ? game.i18n.localize("DRPG.Trial.objectionNoGm")
+        : null;
+    const priceBlock = asObjection
+        ? (quote.blockedKind === "nothingLeft" ? quote.blocked : null) ?? noGm
         : null;
 
     const targets = livingStudents()
@@ -181,7 +220,14 @@ export async function presentDialog(actor, item) {
     const readTarget = d => d.element.querySelector("[name=target]")?.value ?? "";
 
     // Nothing to aim at is as good a refusal as a rule refusing you.
-    const stopped = asObjection && (Boolean(blocked) || !choices.length);
+    const stopped = asObjection && Boolean(
+        floorBlock || priceBlock || !choices.length || quote.blockedKind === "noPrice");
+
+    // The fallback, and only for the class of refusal that earns it: somebody
+    // alive, with a floor to interrupt and somebody to aim at, who simply has
+    // nothing left to pay with.
+    const offerPresent = asObjection && !floorBlock && Boolean(choices.length)
+        && quote.blockedKind !== "noPrice" && Boolean(priceBlock);
 
     const choice = await DialogV2.wait({
         window: { title: game.i18n.format("DRPG.Trial.presentTitle", { name: item.name }) },
@@ -204,11 +250,57 @@ export async function presentDialog(actor, item) {
                     objection: TRIAL.objectionSeconds,
                     rebuttal: TRIAL.rebuttalSeconds
                 })}</p>
-                ${blocked ? `<p class="notes">${blocked}</p>` : targetField}
+                <p class="notes">${priceLine(actor, quote)}</p>
+                ${floorBlock ? `<p class="notes">${floorBlock}</p>` : ""}
+                ${offerPresent
+                    ? `<p class="notes">${game.i18n.localize(
+                        "DRPG.Trial.objectionFreePresentNote")}</p>` : ""}
+                ${floorBlock ? "" : targetField}
             </fieldset>`
             : `<p class="notes">${game.i18n.localize("DRPG.Trial.presentNote")}</p>`}
         </form>`),
-        buttons: [
+        /*
+         * BUTTON ORDER IS A RULE HERE, NOT A LAYOUT (T-1). There are two Enter
+         * paths into a DialogV2 and they aim at different buttons:
+         *
+         *   focus on a button    Enter presses THAT button - the one carrying
+         *                        `default: true`, which is where DialogV2 puts
+         *                        `autofocus`.
+         *   focus in a field     HTML implicit submission, whose target is the
+         *                        FIRST submit button in tree order. DialogV2
+         *                        renders every footer button as a submit.
+         *
+         * A disabled first submit is not a valid target and the browser does
+         * nothing at all - Enter dies rather than falling through to the next
+         * button. The `<textarea>` swallows Enter, so the only field that can
+         * fire implicit submission is the target `<select>`, which is rendered
+         * whenever the FLOOR is fine.
+         *
+         * SO: the first entry is always enabled and always carries
+         * `default: true`. With nothing blocking, that is the Objection. With a
+         * price blocking it, that is the free Present - which is exactly what
+         * Enter from the select should do - and the greyed Objection still shows,
+         * second, so the player can see it exists and read why. With the FLOOR
+         * blocking, no select is rendered and Enter cannot fire at all.
+         */
+        buttons: (offerPresent ? [
+            {
+                action: "freePresent",
+                label: game.i18n.localize("DRPG.Trial.objectionFreePresent"),
+                default: true,
+                callback: (e, b, d) => ({
+                    objection: false,
+                    targetId: "",
+                    comment: d.element.querySelector("[name=comment]").value.trim()
+                })
+            },
+            {
+                action: "objection",
+                label: game.i18n.localize("DRPG.Trial.objection"),
+                disabled: true
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ] : [
             {
                 action: asObjection ? "objection" : "present",
                 label: game.i18n.localize(asObjection
@@ -225,7 +317,7 @@ export async function presentDialog(actor, item) {
                 })
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: stopped }
-        ],
+        ]),
         rejectClose: false
     });
 
@@ -233,27 +325,13 @@ export async function presentDialog(actor, item) {
     return presentBullet(actor, item, choice);
 }
 
-/**
- * Why this player may not object right now, or `null` when they may.
- *
- * ONE CASE NOW. A rebuttal stopped being one of them on 28.08 - see the rule
- * in `openObjection`, which this mirrors and must go on mirroring: that
- * function is the RULE (the floor refuses) and this one is the COURTESY (the
- * player is told why). A courtesy that refuses what the rule allows is worse
- * than no courtesy at all, because then the only thing standing between a
- * player and a legal move is a window telling them no.
- *
- *   during an objection   somebody has one minute alone. A second objection
- *                         would reset the clock onto a new pair, and the
- *                         rebuttal the first one bought would never happen.
+/*
+ * `objectionBlockedReason` lived here until T-1 (18.09). It was this file's copy
+ * of half a rule that lives in trial-floor.mjs, kept in step by hand and
+ * described in its own comment as having to "go on mirroring" the other one.
+ * `floorRefusal` and `targetRefusal` are that rule, exported once and asked by
+ * both sides.
  */
-function objectionBlockedReason(actor, floor, FLOOR_MODES) {
-    if (!floor) return game.i18n.localize("DRPG.Trial.objectionNoFloor");
-    if (floor.mode === FLOOR_MODES.objection) {
-        return game.i18n.localize("DRPG.Trial.objectionDuringObjection");
-    }
-    return null;
-}
 
 /**
  * Post the card. Built and sent by the presenter's own client - everything on
@@ -268,6 +346,31 @@ export async function presentBullet(actor, item, {
 
     const target = objection && targetId ? (game.actors.get(targetId) ?? null) : null;
 
+    /*
+     * THE LAST CHEAP PLACE TO STOP AN OBJECTION THAT CANNOT HAPPEN (T-1).
+     *
+     * The window can stand open while the floor moves under it: somebody else's
+     * objection starts, the trial ends, the last GM disconnects, a Monokuma takes
+     * the Hope the price was going to use. Past this line the card is posted, and
+     * an objection card raises a sticky OBJECTION! popup on every screen in the
+     * game before the GM's side can turn it down - so the refusal is worth
+     * repeating here even though the dialog already asked.
+     *
+     * A free Present is not an objection and skips all of it.
+     */
+    if (objection) {
+        const { floorRefusal, targetRefusal } = await import("./trial-floor.mjs");
+        const why = !inClassTrial() ? game.i18n.localize("DRPG.Trial.notInTrial")
+            : floorRefusal()
+            ?? targetRefusal(actor.id, targetId)
+            ?? (gmOnline() ? null : game.i18n.localize("DRPG.Trial.objectionNoGm"))
+            ?? quotePrice(actor, "objection").blocked;
+        if (why) {
+            ui.notifications.warn(why);
+            return false;
+        }
+    }
+
     try {
         await announce({
             content: buildCard(actor, data, { objection, comment, target }),
@@ -277,6 +380,9 @@ export async function presentBullet(actor, item, {
                     [TRIAL_FLAGS.present]: true,
                     [TRIAL_FLAGS.objection]: objection,
                     [TRIAL_FLAGS.presenter]: actor.name,
+                    // What the GM checks the objector is still holding - see
+                    // `seizeFloor`.
+                    [TRIAL_FLAGS.item]: item.id,
                     [TRIAL_FLAGS.target]: target?.id ?? null,
                     [TRIAL_FLAGS.targetName]: target?.name ?? null,
                     [TRIAL_FLAGS.chapter]: getClock().chapter,
@@ -380,11 +486,131 @@ export function registerTrial() {
         // evidence still lands, the floor simply does not move.
         if (!objectorId || !targetId) return;
 
-        import("./trial-floor.mjs")
-            .then(m => m.openObjection(objectorId, targetId))
+        // Serialised rather than fired and forgotten, and paid for inside - see
+        // `seizeFloor` below, which is where every rule about an interruption that
+        // costs something lives.
+        seizing = seizing
+            .then(() => seizeFloor(message, objectorId, targetId))
             .catch(err => error("Could not open the objection", err));
     });
 }
+
+/*
+ * ONE SEIZURE AT A TIME (T-1).
+ *
+ * Two objection cards can land in the same tick - two players pressing at once,
+ * or a player and a macro. Run in parallel they would both read a debate, both
+ * pay, and both write the floor: one of them would have bought a minute the other
+ * one is holding. Chained, the second runs after the first `writeFloor`, and
+ * `floorRefusal` then turns it down on `mode === objection` before anything is
+ * charged.
+ */
+let seizing = Promise.resolve();
+
+/**
+ * Take the floor for an objection card, and charge for it.
+ *
+ * ON THE PRIMARY GM ONLY, and for somebody else's character - which is what
+ * shapes every decision in here.
+ *
+ * WHY THE CHARGE IS HERE AND NOT IN `openObjection` (Dawid, 17.09: "pobranie na
+ * glownym MG w hooku karty, tylko gdy openObjection faktycznie odda glos"). That
+ * function is on the API and is called by the suite, the harness and macros, and
+ * all of those must stay free. This is the one road a player's press travels.
+ *
+ * WHY IT PAYS BEFORE IT OPENS, AND REFUNDS IF THE FLOOR DID NOT MOVE. Opening the
+ * floor awaits a world settings write plus a music refresh, so "quote, then open,
+ * then charge" leaves a window in which the price can change under the quote - and
+ * an objection that took the floor and charged nothing is the one outcome nobody
+ * can undo. `refundPrice` is exact: it hands back the step that paid, a Burst as a
+ * Burst, and Hope marked as a refund so the darkening lets it through. So paying
+ * first still satisfies "charged only when it really gets the floor", with no human
+ * adjudicating anything.
+ *
+ * THE TWO CHECKS FOUNDRY DOES NOT DO. A chat message's create rule tests only the
+ * AUTHOR, so anybody can post a card whose speaker is somebody else's character -
+ * and the card body is built entirely client-side, so a bare `ChatMessage.create`
+ * with three flags would buy the floor with no evidence at all. Showing the
+ * evidence is what earns the interruption (the rule at the top of this file), so
+ * the objector must own the character and must still hold the Truth Bullet named on
+ * the card.
+ *
+ * A REFUSED CARD IS MARKED AND STAYS (Dawid, 17.09). The evidence really was
+ * shown, and the log says the interruption was turned down rather than quietly
+ * counting it as one that happened.
+ */
+async function seizeFloor(message, objectorId, targetId) {
+    // Inside the function as well as in the hook: this is where the rule lives,
+    // and a second GM reaching it by any other road must not write the floor.
+    if (!isPrimaryGm()) return null;
+
+    const actor = game.actors.get(objectorId);
+    if (!actor) return null;
+
+    const { floorRefusal, targetRefusal, openObjection, trialFloor } =
+        await import("./trial-floor.mjs");
+
+    /** Mark the card and tell the objector why their minute did not happen. */
+    const refuse = async why => {
+        try {
+            await message.setFlag(MODULE_ID, TRIAL_FLAGS.refused, true);
+            if (why) {
+                await whisperToOwner(actor, `<p>${game.i18n.format(
+                    "DRPG.Trial.objectionRefusedWhisper", { why })}</p>`);
+            }
+        } catch (err) {
+            error("Could not mark an objection as refused", err);
+        }
+        return null;
+    };
+
+    if (!message.author || !actor.testUserPermission(message.author, "OWNER")) {
+        return refuse(game.i18n.format("DRPG.Trial.objectionNotYours", { name: actor.name }));
+    }
+
+    const itemId = message.getFlag(MODULE_ID, TRIAL_FLAGS.item);
+    const item = itemId ? actor.items.get(itemId) : null;
+    if (!item || !isTruthBullet(item)) {
+        return refuse(game.i18n.localize("DRPG.Trial.objectionNoItem"));
+    }
+
+    const blocked = floorRefusal() ?? targetRefusal(objectorId, targetId);
+    if (blocked) return refuse(blocked);
+
+    const receipt = await payPrice(actor, "objection", { quiet: true });
+    if (!receipt) {
+        // Nothing moved: `payPrice` re-quotes and charges nothing when the chain
+        // has run out. The free Present is offered by the player's own window.
+        return refuse(quotePrice(actor, "objection").blocked
+            ?? game.i18n.localize("DRPG.Price.noPrice"));
+    }
+
+    let opened = null;
+    try {
+        opened = await openObjection(objectorId, targetId);
+    } catch (err) {
+        error("Could not open the objection", err);
+    }
+
+    /*
+     * RE-READ THE FLOOR, don't trust the answer. `writeFloor` merges a patch and
+     * returns the merged object, so a floor another GM closed in the same breath
+     * comes back truthy. What matters is who is holding it now.
+     */
+    if (!opened || trialFloor()?.holderId !== objectorId) {
+        await refundPrice(actor, receipt, { quiet: true });
+        return refuse(floorRefusal() ?? game.i18n.localize("DRPG.Trial.objectionNoFloor"));
+    }
+
+    // The sound travels as a flag on the whisper rather than being played here:
+    // this is the GM's client, and the pip that just moved is the objector's.
+    await whisperToOwner(actor,
+        `<p>${game.i18n.format("DRPG.Trial.objectionPaid", { what: paidLine(receipt) })}</p>`,
+        receipt.pay === "action" ? { flags: { [MODULE_ID]: { sfx: "actionSpent" } } } : {});
+
+    return opened;
+}
+
 
 /* ==========================================================================
  * THE GM'S LOG
@@ -415,6 +641,9 @@ export function presentedThisChapter({ objectionsOnly = false, chapter = null } 
             // presentation - the log prints a dash for both rather than
             // pretending an old objection had a target it never recorded.
             target: m.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) ?? null,
+            // An objection the floor turned down (T-1). False on every card from
+            // before that release, which is what it was in effect.
+            refused: Boolean(m.getFlag(MODULE_ID, TRIAL_FLAGS.refused)),
             chapter: m.getFlag(MODULE_ID, TRIAL_FLAGS.chapter) ?? null,
             timestamp: m.timestamp
         }))
@@ -458,7 +687,9 @@ export async function openObjectionLog() {
         const entries = presentedThisChapter();
         const rows = entries.map(e => `<tr>
             <td>${e.objection
-                ? `<strong>${game.i18n.localize("DRPG.Trial.objectionShort")}</strong>`
+                ? `<strong>${game.i18n.localize("DRPG.Trial.objectionShort")}</strong>${
+                    e.refused
+                        ? ` <em>${game.i18n.localize("DRPG.Trial.logRefused")}</em>` : ""}`
                 : game.i18n.localize("DRPG.Trial.presentShort")}</td>
             <td>${foundry.utils.escapeHTML(e.presenter)}</td>
             <td>${e.target ? foundry.utils.escapeHTML(e.target) : "-"}</td>
@@ -468,7 +699,10 @@ export async function openObjectionLog() {
         return `<div class="drpg-objection-live">
             <p>${game.i18n.format("DRPG.Trial.logSummary", {
                 total: entries.length,
-                objections: entries.filter(e => e.objection).length
+                // The ones that actually took the floor. A refused card is listed
+                // in the table below and says so, so the count and the rows do not
+                // have to mean the same thing.
+                objections: entries.filter(e => e.objection && !e.refused).length
             })}</p>
             <table class="drpg-objection-log"><thead><tr>
                 <th>${game.i18n.localize("DRPG.Trial.logKind")}</th>

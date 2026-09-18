@@ -2130,6 +2130,128 @@ const REGRESSIONS = [
         const setPhase = clockSrc.slice(clockSrc.indexOf("export async function setPhase"));
         ok(!setPhase.slice(0, setPhase.indexOf("\nexport ")).includes("openTrialBudget"),
             "setPhase hands out a trial budget, so editing the campaign window pays everybody");
+    }],
+
+    ["R44 - one admission rule, two questions, and every reader asks it", async () => {
+        /*
+         * THE RULE USED TO EXIST TWICE (T-1). trial.mjs carried
+         * `objectionBlockedReason`, a copy of half of `openObjection`'s rules, with
+         * a comment saying it "must go on mirroring" the other one - which is a
+         * promise, not a mechanism. It is now one pair of exported functions, and
+         * the split is load-bearing: a single combined refusal asked with an empty
+         * target greys the button for the rebuttal cut-in Dawid ruled legal on
+         * 28.08.
+         */
+        const floorSrc = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(r => r.text()));
+        ok(/export function floorRefusal\(/.test(floorSrc), "floorRefusal is not exported any more");
+        ok(/export function targetRefusal\(/.test(floorSrc), "targetRefusal is not exported any more");
+
+        const open = floorSrc.slice(floorSrc.indexOf("export async function openObjection"),
+            floorSrc.indexOf("export async function openRebuttal"));
+        ok(open.includes("floorRefusal(") && open.includes("targetRefusal("),
+            "openObjection stopped asking the two refusals");
+        ok(!/floor\.mode === FLOOR_MODES\.objection/.test(open),
+            "openObjection kept its own inline copy of the mode rule");
+        ok(/if \(!game\.user\.isGM\) return null;/.test(open),
+            "openObjection lost its own isGM guard, which the player's window must not have");
+
+        const trialSrc = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/trial.mjs`).then(r => r.text()));
+        ok(!trialSrc.includes("objectionBlockedReason("),
+            "trial.mjs is carrying its own copy of the admission rule again");
+        ok((trialSrc.match(/floorRefusal\(/g) ?? []).length >= 2,
+            "the window or the card stopped asking the floor rule");
+        ok(trialSrc.includes("targetRefusal("),
+            "nothing on the player's side asks who may be aimed at");
+
+        /*
+         * AND THE FALLBACK IS OFFERED ONLY TO THE LIVING, AND ONLY ON A PRICE.
+         * A corpse or a Monokuma is refused with nothing offered, because a free
+         * Present in place of an impossible Objection is a different act nobody
+         * asked for (Dawid, 17.09).
+         */
+        const dialog = trialSrc.slice(trialSrc.indexOf("export async function presentDialog"),
+            trialSrc.indexOf("export async function presentBullet"));
+        const offer = dialog.slice(dialog.indexOf("const offerPresent"),
+            dialog.indexOf(";", dialog.indexOf("const offerPresent")));
+        ok(/!floorBlock/.test(offer), "the free Present is offered while the floor itself is blocked");
+        ok(offer.includes('"noPrice"'),
+            "the free Present is offered to characters who are quoted no price at all");
+
+        /*
+         * ENTER MUST HAVE SOMEWHERE TO GO. DialogV2 renders every footer button as a
+         * submit, and implicit submission from the target select aims at the FIRST
+         * one in tree order - a disabled first button kills Enter outright rather
+         * than falling through to the next.
+         *
+         * So the array that answers a price block leads with the free Present: it is
+         * enabled, it carries `default: true`, and it is what Enter from the select
+         * should do anyway. The ordinary array's first button is `disabled: stopped`
+         * and that is right - every case that sets `stopped` there renders the
+         * "nobody to aim at" note or no fieldset at all, so there is no select for
+         * Enter to come from.
+         */
+        const at = dialog.indexOf("buttons: (offerPresent ? [");
+        ok(at > 0, "the buttons array changed shape: the offerPresent branch is gone");
+        const firstButton = dialog.slice(at, dialog.indexOf("}", at));
+        ok(!/disabled:/.test(firstButton),
+            "the free Present is disabled, which kills Enter from the target select");
+        ok(/default: true/.test(firstButton),
+            "the free Present is not the default, so Enter presses a greyed OBJECTION");
+
+        // The question alone, never the one that toasts: a window opening with no
+        // GM connected must not warn every player who opens it (audit A16).
+        ok(trialSrc.includes("gmOnline("), "the Objection stopped asking whether a GM is connected");
+        for (const file of ["trial", "sheet", "action-rolls", "cleanup"]) {
+            const src = stripComments(
+                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text()));
+            ok(!/[^A-Za-z]hasGm\(/.test(src),
+                `${file}.mjs calls hasGm to decide something, which toasts every reader`);
+        }
+    }],
+
+    ["R45 - the floor is seized once, paid for, and never by a card with nothing behind it", async () => {
+        /*
+         * T-1. The charge lives in the card hook and not in `openObjection`, which
+         * the API, the suite and the harness all call and all must keep free. What
+         * this reads is the shape that makes that safe.
+         */
+        const src = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/trial.mjs`).then(r => r.text()));
+        const seize = src.slice(src.indexOf("async function seizeFloor"));
+        ok(seize.length > 500, "seizeFloor is gone, so an objection is free again");
+
+        ok(/let seizing = Promise\.resolve\(\);/.test(src),
+            "the seizures are no longer serialised, so two cards can both buy the same minute");
+        ok(/seizing = seizing\s*\n?\s*\.then\(/.test(src),
+            "the hook no longer chains onto the serialising promise");
+
+        ok(seize.includes("payPrice(") && seize.includes("refundPrice("),
+            "the seizure stopped paying, or stopped handing it back when the floor did not move");
+        ok(seize.indexOf("payPrice(") < seize.indexOf("openObjection("),
+            "the price is taken after the floor moves, which cannot be undone if it fails");
+        ok(seize.includes("testUserPermission("),
+            "anybody can post an objection in somebody else's name again");
+        ok(seize.includes("TRIAL_FLAGS.item"),
+            "the card no longer has to name evidence the objector holds");
+        ok(seize.includes("isPrimaryGm()"),
+            "seizeFloor is safe to call from anywhere, so it needs its own primary-GM guard");
+
+        /*
+         * THE SOUND TRAVELS AS A FLAG, and R5 cannot see this one: it only flags a
+         * `playSfx` inside a function guarded by `if (!game.user.isGM) return`, and
+         * this one guards on `isPrimaryGm()` instead. So the rule is read here.
+         */
+        ok(!seize.includes("playSfx("),
+            "seizeFloor plays a sound on the GM's client for somebody else's spend");
+        ok(/sfx:/.test(seize), "the objector is never told, by sound, that they paid");
+
+        // The charge is NOT in openObjection, which is what keeps the API free.
+        const floorSrc = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(r => r.text()));
+        ok(!floorSrc.includes("payPrice("),
+            "openObjection charges for itself, so every macro and fixture that calls it now pays");
     }]
 ];
 
@@ -6891,6 +7013,7 @@ const SCENARIOS = [
             actions: who.system.resources.actions.value,
             max: who.system.resources.actions.max,
             hurtActions: hurt.system.resources.actions.value,
+            hurtMax: hurt.system.resources.actions.max,
             health: hurt.system.resources.hitPoints.value,
             grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0,
             moves: who.getFlag(MODULE_ID, FLAGS.freeMoveGrants) ?? 0
@@ -6943,7 +7066,351 @@ const SCENARIOS = [
             });
             await hurt.update({
                 "system.resources.actions.value": before.hurtActions,
+                // The MAXIMUM too: `resetActionsFor` rewrites it, so a Wounded
+                // fixture left behind a max of 1 and every later scenario's attempt
+                // to set two actions was silently clamped to one.
+                "system.resources.actions.max": before.hurtMax,
                 "system.resources.hitPoints.value": before.health
+            });
+            await settle();
+        }
+    }],
+
+    ["a rebuttal cut-in is not greyed, and a card with nothing behind it is refused", async () => {
+        /*
+         * THE REGRESSION THIS SPLIT EXISTS FOR (T-1, correcting the first draft).
+         * A third party cutting into a rebuttal is legal (Dawid, 28.08). Asked as
+         * one combined refusal with no target yet, the rule answers "you named
+         * nobody" - and the window would grey the button for a move the floor would
+         * have allowed.
+         */
+        const [who, other, third] = cast();
+        const floorMod = await import("./trial-floor.mjs");
+        const trial = await import("./trial.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const messagesBefore = game.messages.size;
+
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await floorMod.startFloor({});
+            await settle();
+            ok(await floorMod.openObjection(who.id, other.id), "the fixture objection took no floor");
+            await floorMod.openRebuttal();
+            await settle();
+
+            equal(floorMod.floorRefusal(), null,
+                "a rebuttal greys the Objection button for everybody, which is the bug this split fixes");
+            ok(floorMod.targetRefusal(third.id, ""),
+                "a submitted objection with no target was accepted");
+            ok(floorMod.targetRefusal(third.id, third.id),
+                "an objection aimed at oneself was accepted");
+            ok(floorMod.targetRefusal(third.id, who.id) === null,
+                "a cut-in aimed at somebody already on the floor was refused");
+
+            /*
+             * AND THE CARD IS REFUSED WHEN THE FLOOR CANNOT TAKE IT. The window can
+             * stand open while the trial moves; this is the last stop before a card
+             * raises a sticky OBJECTION! on every screen in the game.
+             */
+            const bullets = await import("./truth-bullets.mjs");
+            const item = await bullets.createTruthBullet(third, {
+                name: "Suite fixture - objection price",
+                realType: "neutral", visibility: "obvious"
+            });
+            ok(item, "could not make a fixture Truth Bullet");
+            try {
+                // No target at all.
+                equal(await trial.presentBullet(third, item, { objection: true, targetId: "" }),
+                    false, "an objection with no target posted a card");
+                // Somebody's minute is running: a second objection is refused.
+                await floorMod.openObjection(third.id, who.id);
+                await settle();
+                equal(await trial.presentBullet(other, item, { objection: true, targetId: who.id }),
+                    false, "an objection during somebody else's minute posted a card");
+                equal(game.messages.size, messagesBefore,
+                    "a refused objection still put a card on the table");
+            } finally {
+                await item.delete();
+            }
+        } finally {
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await settle();
+        }
+    }],
+
+    ["a student with nothing left gets a free Present, and it is logged as a Present", async () => {
+        /*
+         * The other half of T-1's two refusals: an empty pocket is answered rather
+         * than simply refused. The free Present costs nothing, takes no floor, and
+         * the log counts it as a Present - which is the whole of the fallback, and
+         * is asserted here through `presentBullet` because that is what the window's
+         * first button calls.
+         */
+        const [who, other] = cast();
+        const floorMod = await import("./trial-floor.mjs");
+        const trial = await import("./trial.mjs");
+        const price = await import("./price.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const before = {
+            actions: who.system.resources.actions.value,
+            hope: who.system.resources.hope.value,
+            stress: who.system.resources.stress.value,
+            grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0
+        };
+        let item = null;
+
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await floorMod.startFloor({});
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await who.update({
+                "system.resources.actions.value": 0,
+                "system.resources.hope.value": 0,
+                "system.resources.stress.value": who.system.resources.stress.max
+            });
+            await settle();
+
+            equal(price.quotePrice(who, "objection").blockedKind, "nothingLeft",
+                "the fixture is not actually broke");
+
+            const bullets = await import("./truth-bullets.mjs");
+            item = await bullets.createTruthBullet(who, {
+                name: `Suite fixture - free present ${Date.now() % 100000}`,
+                realType: "neutral", visibility: "obvious"
+            });
+            ok(item, "could not make a fixture Truth Bullet");
+
+            const was = game.messages.size;
+            ok(await trial.presentBullet(who, item, { objection: false, comment: "free" }),
+                "the free Present was refused");
+            await settle();
+            equal(game.messages.size, was + 1, "the free Present posted no card");
+
+            const logged = trial.presentedThisChapter()
+                .find(e => e.presenter === who.name && !e.objection);
+            ok(logged, "the free Present is not in the log as a Present");
+
+            equal(who.system.resources.actions.value, 0, "the free Present found an action to spend");
+            equal(who.system.resources.hope.value, 0, "the free Present spent Hope");
+            equal(who.system.resources.stress.value, who.system.resources.stress.max,
+                "the free Present marked Sanity");
+            equal(floorMod.trialFloor()?.holderId ?? null, null,
+                "the free Present took the floor, which is the one thing it must not do");
+        } finally {
+            if (item) await item.delete();
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await who.update({
+                "system.resources.actions.value": before.actions,
+                "system.resources.hope.value": before.hope,
+                "system.resources.stress.value": before.stress
+            });
+            await settle();
+        }
+    }],
+
+    ["an Objection is paid when it takes the floor, refunded when it does not", async () => {
+        /*
+         * THE WHOLE OF C6 (T-1), driven the way a player drives it: post the card,
+         * and let the primary GM's hook decide. `openObjection` is deliberately not
+         * called here - that road is free and is asserted separately below.
+         */
+        const [who, other, third] = cast();
+        const trial = await import("./trial.mjs");
+        const floorMod = await import("./trial-floor.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { TRIAL_FLAGS } = trial;
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const before = {
+            actions: who.system.resources.actions.value,
+            hope: who.system.resources.hope.value,
+            stress: who.system.resources.stress.value,
+            grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0,
+            max: who.system.resources.actions.max,
+            otherActions: other.system.resources.actions.value,
+            otherMax: other.system.resources.actions.max
+        };
+        const made = [];
+        const cards = [];
+
+        /** The card a player's window posts, with whatever is being tested left out. */
+        const card = async (actor, targetId, { itemId, author = null } = {}) => {
+            const data = {
+                content: `<p>suite objection ${Date.now() % 100000}</p>`,
+                speaker: ChatMessage.getSpeaker({ actor }),
+                flags: { [MODULE_ID]: {
+                    [TRIAL_FLAGS.present]: true,
+                    [TRIAL_FLAGS.objection]: true,
+                    [TRIAL_FLAGS.presenter]: actor.name,
+                    [TRIAL_FLAGS.item]: itemId ?? null,
+                    [TRIAL_FLAGS.target]: targetId,
+                    [TRIAL_FLAGS.targetName]: game.actors.get(targetId)?.name ?? null,
+                    [TRIAL_FLAGS.chapter]: getClock().chapter,
+                    popupKind: "none"
+                } }
+            };
+            if (author) data.author = author;
+            const message = await ChatMessage.create(data);
+            cards.push(message);
+            return message;
+        };
+
+        try {
+            for (const actor of [who, other, third]) {
+                const item = await bullets.createTruthBullet(actor, {
+                    name: `Suite fixture - objection ${actor.name}`,
+                    realType: "neutral", visibility: "obvious"
+                });
+                ok(item, `no fixture bullet for ${actor.name}`);
+                made.push(item);
+            }
+            const [whoItem, otherItem, thirdItem] = made;
+
+            await setClock({ ...clock, phase: "classTrial" });
+            await floorMod.startFloor({});
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            // Both fields, because a value is clamped to the maximum on the way in
+            // and these two fixtures have been through a Wound in another scenario.
+            await who.update({
+                "system.resources.actions.value": 1,
+                "system.resources.actions.max": 2
+            });
+            await other.update({
+                "system.resources.actions.value": 2,
+                "system.resources.actions.max": 2
+            });
+            await settle();
+
+            // ---- it takes the floor, and it is paid for ---------------------
+            await card(who, other.id, { itemId: whoItem.id });
+            await until(() => floorMod.trialFloor()?.holderId === who.id);
+            await settle();
+            equal(floorMod.trialFloor()?.holderId, who.id, "the objection card took no floor");
+            equal(who.system.resources.actions.value, 0, "the objection was free");
+
+            // ---- a second card inside that minute pays nothing --------------
+            const second = await card(other, who.id, { itemId: otherItem.id });
+            await until(() => second.getFlag(MODULE_ID, TRIAL_FLAGS.refused));
+            await settle();
+            equal(floorMod.trialFloor()?.holderId, who.id,
+                "a second objection took the minute out from under the first");
+            equal(other.system.resources.actions.value, 2,
+                "a refused objection still charged its objector");
+            ok(cards[1].getFlag(MODULE_ID, TRIAL_FLAGS.refused),
+                "the refused card is not marked as refused");
+
+            // ---- and the log says so ---------------------------------------
+            const logged = trial.presentedThisChapter({ objectionsOnly: true });
+            ok(logged.some(e => e.presenter === other.name && e.refused),
+                "the log does not record the refused objection as refused");
+            ok(logged.some(e => e.presenter === who.name && !e.refused),
+                "the log lost the objection that did take the floor");
+
+            // ---- a card naming no evidence buys nothing ---------------------
+            await floorMod.returnToDebate({});
+            await settle();
+            const noItem = await card(third, who.id, {});
+            await until(() => noItem.getFlag(MODULE_ID, TRIAL_FLAGS.refused));
+            await settle();
+            equal(floorMod.trialFloor()?.holderId ?? null, null,
+                "a card naming no evidence took the floor");
+            ok(noItem.getFlag(MODULE_ID, TRIAL_FLAGS.refused),
+                "a card naming no evidence was not marked refused");
+
+            // ---- nor one naming evidence the objector does not hold ---------
+            const notHis = await card(third, who.id, { itemId: whoItem.id });
+            await until(() => notHis.getFlag(MODULE_ID, TRIAL_FLAGS.refused));
+            await settle();
+            equal(floorMod.trialFloor()?.holderId ?? null, null,
+                "a card naming somebody else's evidence took the floor");
+            ok(notHis.getFlag(MODULE_ID, TRIAL_FLAGS.refused),
+                "a card naming somebody else's evidence was not marked refused");
+
+            /*
+             * ---- nor one whose author does not own the speaker ---------------
+             *
+             * Only if this world lets a card carry an author other than the user
+             * creating it. Where it does not, Foundry has already closed the hole
+             * this check exists for and there is nothing to assert.
+             */
+            const stranger = game.users.find(u => !u.isGM && !who.testUserPermission(u, "OWNER"));
+            if (stranger) {
+                const forged = await card(who, other.id, { itemId: whoItem.id, author: stranger.id });
+                await until(() => forged.getFlag(MODULE_ID, TRIAL_FLAGS.refused));
+                await settle();
+                if (forged.author?.id === stranger.id) {
+                    equal(floorMod.trialFloor()?.holderId ?? null, null,
+                        "a card posted in somebody else's name took the floor");
+                    ok(forged.getFlag(MODULE_ID, TRIAL_FLAGS.refused),
+                        "a card posted in somebody else's name was not marked refused");
+                }
+            }
+
+            // ---- an objector with nothing left keeps their nothing -----------
+            await who.update({
+                "system.resources.actions.value": 0,
+                "system.resources.hope.value": 0,
+                "system.resources.stress.value": who.system.resources.stress.max
+            });
+            await settle();
+            const broke = await card(who, other.id, { itemId: whoItem.id });
+            await until(() => broke.getFlag(MODULE_ID, TRIAL_FLAGS.refused));
+            await settle();
+            equal(floorMod.trialFloor()?.holderId ?? null, null,
+                "an objector with nothing to pay with took the floor anyway");
+            ok(broke.getFlag(MODULE_ID, TRIAL_FLAGS.refused),
+                "the card of an objector with nothing left was not marked refused");
+            equal(who.system.resources.stress.value, who.system.resources.stress.max,
+                "a refused objection moved the Sanity track");
+
+            /*
+             * ---- AND CALLING openObjection DIRECTLY CHARGES NOBODY -----------
+             * The road api.mjs, the suite and the harness all take.
+             */
+            await who.update({ "system.resources.actions.value": 2,
+                "system.resources.hope.value": 3,
+                "system.resources.stress.value": before.stress });
+            await settle();
+            const snapshot = {
+                actions: who.system.resources.actions.value,
+                hope: who.system.resources.hope.value,
+                stress: who.system.resources.stress.value
+            };
+            await floorMod.returnToDebate({});
+            await floorMod.openObjection(who.id, other.id);
+            await settle();
+            equal(who.system.resources.actions.value, snapshot.actions,
+                "openObjection charged an action by itself");
+            equal(who.system.resources.hope.value, snapshot.hope, "openObjection charged Hope by itself");
+            equal(who.system.resources.stress.value, snapshot.stress,
+                "openObjection marked Sanity by itself");
+        } finally {
+            for (const message of cards) {
+                try { await message.delete(); } catch { /* already gone */ }
+            }
+            for (const item of made) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await who.update({
+                "system.resources.actions.max": before.max,
+                "system.resources.actions.value": before.actions,
+                "system.resources.hope.value": before.hope,
+                "system.resources.stress.value": before.stress
+            });
+            await other.update({
+                "system.resources.actions.max": before.otherMax,
+                "system.resources.actions.value": before.otherActions
             });
             await settle();
         }
