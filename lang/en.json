@@ -1307,6 +1307,7 @@
       "pickRoom": "- create in -",
       "createHere": "Create on the map",
       "createNote": "Pick a room on any row not already on the map. Apply places that Key Remnant there: reinforced, tied to the crime, at the centre of the region. Rows already pointing at a token are left alone.",
+      "keyDcNote": "A Key Remnant is the easiest thing in a room to notice, and how easy depends on where you put it, not on the scale above: {list}. Ordinary evidence in the same band is three to six harder. The scale is how much a clue gives away.",
       "plannerCreated": {
         "one": "Plan saved; {n} Key Remnant placed on the map.",
         "other": "Plan saved; {n} Key Remnants placed on the map."

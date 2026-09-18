@@ -22,7 +22,7 @@
  */
 
 import {
-    MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES,
+    MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC,
     REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
@@ -1177,6 +1177,15 @@ export async function openInvestigationDashboard() {
                     <th>${game.i18n.localize("DRPG.Investigation.foundBy")}</th>
                 </tr></thead><tbody>${keyRows}</tbody></table>
                 <p class="notes">${game.i18n.localize("DRPG.Investigation.createNote")}</p>
+                <p class="notes">${game.i18n.format("DRPG.Investigation.keyDcNote", {
+                    // Read off OBSERVE_DC so the sentence cannot drift from the rule
+                    // it describes (S-5): the numbers are already there, and the
+                    // first audit read them as a proposal because nothing said so.
+                    list: REMNANT_VISIBILITY
+                        .map(band => `${REMNANT_VISIBILITY_LABELS[band] ?? band} ${
+                            OBSERVE_DC[band]?.key ?? "?"}`)
+                        .join(", ")
+                })}</p>
                 <p class="notes">${game.i18n.localize("DRPG.Investigation.keyPublicNote")}</p>
                 ${(() => {
                     /* THE COUNT THE PLANNER COULD NOT SEE. Its rows reset with the chapter and
