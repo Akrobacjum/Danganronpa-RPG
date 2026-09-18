@@ -3249,6 +3249,27 @@ body.drpg-pixel-font [contenteditable] {
     white-space: nowrap;
 }
 
+/* WHO KNOWS ABOUT A PROJECT, as a list of names rather than one dropdown (P-1).
+   A fieldset so the group has a title of its own in the project window, and a
+   wrapping row so eight players do not stretch the manager's column. */
+.drpg-viewer-list {
+    border: 1px solid var(--drpg-line, rgba(255, 255, 255, .25));
+    padding: .35rem .5rem;
+}
+.drpg-viewer-list legend {
+    padding: 0 .35rem;
+}
+.drpg-viewer-list,
+.drpg-viewer-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .15rem .6rem;
+}
+.drpg-viewer-cell {
+    justify-content: center;
+    text-align: left;
+}
+
 /* The pool list on a table row's "where does this live" window.
    --------------------------------------------------------------------------
    Columns rather than a wrapped inline run: there are twenty-five tier pools

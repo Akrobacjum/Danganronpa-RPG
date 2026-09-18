@@ -1993,8 +1993,11 @@ const REGRESSIONS = [
         const sabotage = rolls.slice(rolls.indexOf("async function performSabotage"),
             rolls.indexOf("async function performTamper"));
         ok(sabotage.length > 400, "performSabotage is gone or has moved past Tamper");
-        ok(!/abort\(actor, paid\);/.test(sabotage.slice(0, sabotage.indexOf("const relief"))),
-            "a watched Sabotage hands the action back again before it has rolled");
+        // Only the branch the room watched. The concealment roll's own cancel still
+        // refunds - nothing was rolled there - and that is `abort` further up.
+        const watched = sabotage.slice(sabotage.indexOf("sabotageWatched"));
+        ok(!/^[\s\S]{0,700}?abort\(/.test(watched),
+            "a watched Sabotage hands the action back again instead of going ahead");
     }],
 
     ["R39 - the unfound-Key charge counts every Key Remnant that was found", async () => {

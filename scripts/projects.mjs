@@ -1083,6 +1083,16 @@ export async function revealProject(countdownId) {
 }
 
 /**
+ * The owners of whoever is building this project - the people a seal may never
+ * shut out (F3). Exported for the pickers that set the viewer list by hand
+ * (P-1): the GM ticks who else knows, and this is added whatever they tick.
+ */
+export function builderIds(countdownId) {
+    const meta = metaFor(countdownId);
+    return ownerIdsOf(meta.killerId ?? meta.by ?? null);
+}
+
+/**
  * Who should see a project if it is sealed now: its viewers, and the student
  * whose project it is.
  *

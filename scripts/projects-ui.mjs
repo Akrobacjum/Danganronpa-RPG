@@ -10,7 +10,7 @@ import { MODULE_ID, PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_
 import { SETTINGS } from "./settings.mjs";
 import {
     allProjects, setProjectMeta, metaFor, roomOf, isIndirectMurder, isSecret,
-    makeSecret, shareWith, unshareWith, revealProject, viewersOf, sealAudience,
+    makeSecret, shareWith, unshareWith, revealProject, viewersOf, sealAudience, builderIds,
     createProject, deleteProject, setProjectImage, updateProject
 } from "./projects.mjs";
 import { allRooms } from "./movement.mjs";
@@ -352,9 +352,10 @@ export async function openProjectManager() {
         ...rooms.map(r => `<option value="${foundry.utils.escapeHTML(r)}"${roomOf(id) === r ? " selected" : ""}>${foundry.utils.escapeHTML(r)}</option>`)
     ].join("");
 
+    const players = game.users.filter(u => !u.isGM);
     const rows = projects.map(p => {
         const secret = isSecret(p.id);
-        const viewers = viewersOf(p.id).map(u => u.name).join(", ");
+        const knows = viewersOf(p.id).map(u => u.id);
         return `<tr data-project="${p.id}">
             <td>
                 <img src="${foundry.utils.escapeHTML(p.img ?? "")}" alt="" class="drpg-project-portrait"
@@ -369,7 +370,11 @@ export async function openProjectManager() {
             </td>
             <td style="text-align:center">
                 <input type="checkbox" name="secret.${p.id}" ${secret ? "checked" : ""} />
-                ${viewers ? `<br><small>${foundry.utils.escapeHTML(viewers)}</small>` : ""}
+            </td>
+            <td class="drpg-viewer-cell">
+                ${players.length
+                    ? viewerBoxes(players, knows, p.id)
+                    : `<small class="notes">${game.i18n.localize("DRPG.Project.noPlayers")}</small>`}
             </td>
             <td style="text-align:center">
                 <button type="button" class="drpg-mini-button" data-drpg-edit="${p.id}"
@@ -392,6 +397,7 @@ export async function openProjectManager() {
                     <th>${game.i18n.localize("DRPG.Project.room")}</th>
                     <th>${game.i18n.localize("DRPG.Project.indirect")}</th>
                     <th>${game.i18n.localize("DRPG.Project.secret")}</th>
+                    <th>${game.i18n.localize("DRPG.Project.visibleTo")}</th>
                     <th>${game.i18n.localize("DRPG.Project.edit")}</th>
                     <th>${game.i18n.localize("DRPG.Project.delete")}</th>
                 </tr></thead>
@@ -503,11 +509,9 @@ export async function openProjectManager() {
         // came out as `secret || murder`, and an indirect murder flipped between
         // sealed and revealed on every other save.
         const shouldBeSecret = entry.secret || newlyMurder;
-        if (shouldBeSecret && !isSecret(entry.id)) {
-            await makeSecret(entry.id, sealAudience(entry.id));
-        } else if (!shouldBeSecret && isSecret(entry.id)) {
-            await revealProject(entry.id);
-        }
+        // The row's own list of who knows (P-1), or nothing to say when this
+        // window had no list to read.
+        await applySecrecy(entry.id, shouldBeSecret, entry.viewers);
     }
 
     ui.notifications.info(deleted
@@ -700,8 +704,11 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                 <input type="checkbox" name="secret"${
                     editing && isSecret(project.id) ? " checked" : ""} /> ${
                     game.i18n.localize("DRPG.Project.secret")}</label>
-            ${(!editing && players.length) ? `<label>${game.i18n.localize("DRPG.Project.visibleTo")}
-                <select name="viewer"><option value="">-</option>${playerOptions}</select></label>` : ""}
+            ${players.length ? `<fieldset class="drpg-viewer-list">
+                <legend>${game.i18n.localize("DRPG.Project.visibleTo")}</legend>
+                ${viewerBoxes(players, editing ? viewersOf(project.id).map(u => u.id) : [])}
+                <small class="notes">${game.i18n.localize("DRPG.Project.visibleToNote")}</small>
+            </fieldset>` : ""}
             ${editing ? `<p class="notes">${game.i18n.format("DRPG.Project.editProgressNote", {
                 current: project.current, target: project.start
             })}</p>` : ""}
@@ -729,7 +736,11 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                         notBuilder: f.notBuilder.checked
                     },
                     secret: f.secret.checked,
-                    viewer: f.viewer?.value || null,
+                    // Everyone ticked, in one list (P-1). `querySelectorAll`
+                    // rather than the form's named collection: one checkbox and
+                    // many checkboxes read differently through that name.
+                    viewers: [...d.element.querySelectorAll('[name="viewers"]:checked')]
+                        .map(box => box.value),
                     img: f.img.value || null,
                     // A RadioNodeList's `.value` is the checked one, and the
                     // default cell's value is "" - so an untouched grid reads
@@ -799,7 +810,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                     condition: result.condition }
                 : null
         });
-        await applySecrecy(project.id, result.secret || result.murder);
+        await applySecrecy(project.id, result.secret || result.murder, result.viewers);
         ui.notifications.info(game.i18n.localize("DRPG.Project.saved"));
         return { id: project.id, name: result.name };
     }
@@ -819,26 +830,50 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         secret: result.secret || result.murder,
         img: result.img,
         glyph: result.glyph,
-        viewers: result.viewer ? [result.viewer] : [],
+        viewers: result.viewers ?? [],
         // Whose trap it is: the student who proposed it, and only when there is
-        // no proposer - a project the GM made from the panel - the player it was
-        // made visible to. The proposer used to be ignored here, so an approved
-        // trap with "Also visible to" left at "-" had no killer and no viewer,
-        // and its own builder could not see it (F3, 17.09).
-        killerId: start?.by ?? (result.viewer
-            ? game.actors.find(a => a.type === "character"
-                && a.testUserPermission(game.users.get(result.viewer), "OWNER"))?.id ?? null
-            : null)
+        // no proposer - a project the GM made from the panel - the character of
+        // the first player they ticked. The proposer used to be ignored here, so
+        // an approved trap with nobody named had no killer and no viewer, and its
+        // own builder could not see it (F3, 17.09). The list replaced the single
+        // name on 18.09 (P-1), and the first entry is the one that stands in.
+        killerId: start?.by ?? characterOf(result.viewers?.[0])
     });
 
     if (created) ui.notifications.info(game.i18n.format("DRPG.Project.created", { name: created.name }));
     return created;
 }
 
+/** The character a player owns, for the one place a viewer stands in for a builder. */
+function characterOf(userId) {
+    const user = userId ? game.users.get(userId) : null;
+    if (!user) return null;
+    return game.actors.find(a => a.type === "character" && a.testUserPermission(user, "OWNER"))?.id ?? null;
+}
+
 /** Keep the ownership map in step with one boolean. */
-async function applySecrecy(id, wanted) {
-    if (wanted && !isSecret(id)) await makeSecret(id, sealAudience(id));
-    else if (!wanted && isSecret(id)) await revealProject(id);
+async function applySecrecy(id, wanted, viewers = null) {
+    /*
+     * A TICKED LIST IS AN ANSWER, NOT AN ADDITION (P-1, Dawid 18.09).
+     *
+     * With no list - the old callers, and the manager rows of a world with no
+     * players - secrecy follows `sealAudience`, which keeps whoever already knew
+     * and the builder. With a list, that list IS who knows: unticking somebody
+     * takes them off. The builder is added either way, because a seal that shuts
+     * the person building it out is F3 coming back.
+     */
+    const audience = viewers ? [...new Set([...viewers, ...builderIds(id)])] : sealAudience(id);
+    if (wanted) {
+        // Re-sealed when the list moved even if the checkbox did not - and not
+        // written when neither did: a Save that changes nothing must not rewrite
+        // the ownership of every secret project at the table.
+        const now = new Set(viewersOf(id).map(u => u.id));
+        const same = isSecret(id) && now.size === audience.length
+            && audience.every(userId => now.has(userId));
+        if (!same) await makeSecret(id, audience);
+        return;
+    }
+    if (isSecret(id)) await revealProject(id);
 }
 
 /** Kept as its own name - the manager and the empty state both call it. */
@@ -854,8 +889,32 @@ function readManager(dialog, projects) {
         murder: form.querySelector(`[name="murder.${p.id}"]`)?.checked ?? false,
         secret: form.querySelector(`[name="secret.${p.id}"]`)?.checked ?? false,
         img: form.querySelector(`[name="img.${p.id}"]`)?.value ?? "",
+        // Who the GM says knows about it, for the rows where that list is shown
+        // (P-1). `null` when this window had no list to read, so a save cannot
+        // mistake "no checkboxes here" for "nobody knows".
+        viewers: form.querySelector(`[name="viewers.${p.id}"]`)
+            ? [...form.querySelectorAll(`[name="viewers.${p.id}"]:checked`)].map(box => box.value)
+            : null,
         delete: form.querySelector(`[name="delete.${p.id}"]`)?.checked ?? false
     }));
+}
+
+/**
+ * The one list of players, drawn twice: in the project window and in a manager
+ * row (P-1, Dawid 18.09).
+ *
+ * It replaced a single "Also visible to" dropdown, which could only ever name
+ * one person and only when the project was being created - so a second
+ * conspirator had to be added through the Share window afterwards, and taken off
+ * through nothing at all. GMs only see this; players are named, never GMs, and
+ * the builder is added by `builderIds` whatever is ticked here.
+ */
+function viewerBoxes(players, checked, projectId = null) {
+    const name = projectId ? `viewers.${projectId}` : "viewers";
+    const known = new Set(checked);
+    return players.map(user => `<label class="drpg-inline-check">
+        <input type="checkbox" name="${name}" value="${user.id}"${known.has(user.id) ? " checked" : ""} />
+        ${foundry.utils.escapeHTML(user.name)}</label>`).join(" ");
 }
 
 /* ==========================================================================
