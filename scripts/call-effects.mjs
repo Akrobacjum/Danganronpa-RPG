@@ -1106,8 +1106,8 @@ async function pickPlayer(actor, call, kind) {
     return { target: pool.find(a => a.id === id) };
 }
 
-async function pickProject(actor) {
-    const { visibleProjects, projectsAvailableIn } = await import("./projects.mjs");
+async function pickProject(actor, call = null) {
+    const { visibleProjects, projectsAvailableIn, isComplete, isFrozen } = await import("./projects.mjs");
     const { roomOfActor } = await import("./movement.mjs");
 
     // Hope's Contribution is "a project being run in your current room";
@@ -1160,12 +1160,34 @@ async function pickRoom() {
 }
 
 async function pickItem() {
+    /*
+     * WHOSE THINGS CONTRABAND CAN REACH (CALL-14, Dawid 17.09).
+     *
+     * A body's belongings: yes. They stay on the corpse as evidence since 27.08,
+     * and destroying one is exactly the kind of interference four Despair should
+     * buy - the Monokuma reaching into a crime scene the cast has not searched yet.
+     * A Truth Bullet: never. The price is written for "one object out of three
+     * carried slots, replaceable by one Search", and knowledge is neither carried
+     * nor replaceable. A Monokuma's or a Monocub's own sheet: no - the Call is
+     * interference with the cast, and their own props are theirs to describe.
+     */
+    const { isMonokuma } = await import("./monokuma.mjs");
+    const { isMonocub } = await import("./monocub.mjs");
+    const { isDeceased } = await import("./chapter.mjs");
+
     const entries = [];
     for (const actor of game.actors) {
         if (actor.type !== "character") continue;
+        if (isMonokuma(actor) || isMonocub(actor)) continue;
         for (const item of actor.items) {
-            if (!item.getFlag(MODULE_ID, "category")) continue;
-            entries.push({ value: item.uuid, label: `${actor.name} - ${item.name}` });
+            const category = item.getFlag(MODULE_ID, "category");
+            if (!category || category === "truthBullet") continue;
+            entries.push({
+                value: item.uuid,
+                label: isDeceased(actor)
+                    ? game.i18n.format("DRPG.Calls.onTheBody", { name: actor.name, item: item.name })
+                    : `${actor.name} - ${item.name}`
+            });
         }
     }
     if (!entries.length) {
