@@ -1051,7 +1051,13 @@
       "title": "Cleaning up",
       "action": "Clean up a trace",
       "intro": "Wiping a trace costs an action and {n} Sanity.",
-      "keptSanity": "The attempt still costs its Sanity: the cover story was already told.",
+      "needGm": "No Gamemaster is connected, so nothing can be scored. Nothing was spent.",
+      "priceGone": "Covering yourself took what this attempt was going to cost. Nothing else was spent.",
+      "actionBack": {
+        "one": "{n} action back.",
+        "other": "{n} actions back."
+      },
+      "keptSanity": "The attempt keeps its price: the cover story was already told.",
       "which": "Which trace?",
       "confirm": "Scrub at it",
       "withTool": "{item} (Tier {tier}) in hand - advantage, and that much off the threshold.",
@@ -2471,6 +2477,7 @@
       "trailAction": "Misleading trail",
       "notFound": "You have not found that trace.",
       "actionSpent": "1 action spent.",
+      "watchedNoSanity": "Somebody is watching, and covering what you are doing costs Sanity you no longer have.",
       "watched": {
         "one": "{n} other person is in this room. You will have to cover what you are doing first, and being caught at it costs Sanity.",
         "other": "{n} other people are in this room. You will have to cover what you are doing first, and being caught at it costs Sanity."

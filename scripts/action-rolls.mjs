@@ -26,6 +26,10 @@ import { getClock } from "./settings.mjs";
 // The chains, and the one payer (T-1). Static, and safe to be: price.mjs imports
 // nothing but leaves and never reaches back into the action pipeline.
 import { quotePrice, payPrice, refundPrice, priceLine } from "./price.mjs";
+// The killer's skipped step and who actually counts as a witness. Static,
+// because `briefingFacts` is synchronous and R8 renders it for every action;
+// cleanup.mjs reaches back into this file only through a dynamic import.
+import { tamperPriceSkip, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
@@ -332,7 +336,10 @@ function briefingFacts(actor, actionKey, def) {
          * that the mark is their last. `priceLine` is that sentence, and it comes
          * from the same quote the tile and the payer read.
          */
-        facts.push(priceLine(actor, quotePrice(actor, actionKey)));
+        facts.push(priceLine(actor, quotePrice(actor, actionKey,
+            // The killer on their own night pays no action step (D3), and the
+            // briefing has to say the price the charge will really take.
+            { skip: actionKey === "tamper" ? tamperPriceSkip(actor) : [] })));
     } else if (cost > 0) {
         facts.push(game.i18n.format("DRPG.Action.willCost", { n: cost, left: actionsLeft(actor) }));
     }
@@ -373,11 +380,15 @@ function briefingFacts(actor, actionKey, def) {
      * cleaning up - but walking into the next room first is a real alternative,
      * and a player can only choose it if they know it is one.
      *
-     * Counted from the canvas, like the roll itself, so it is the same answer
-     * `concealFromWitnesses` will reach a second later.
+     * Counted from the canvas, like the roll itself, AND THROUGH THE SAME FILTER
+     * (T-1): `witnessesTo` exempts a killer's accomplices, so counting everybody
+     * in the room told a killer with a partner standing next to them that the
+     * concealment would cost Sanity when no concealment was going to happen at
+     * all. The comment above has claimed the two answers agree since the line was
+     * written; now they do.
      */
     if (actionKey === "tamper") {
-        const watching = othersInRoom(actor).length;
+        const watching = witnessesTo(actor, othersInRoom(actor)).length;
         if (watching) {
             facts.push(plural("DRPG.Tamper.watched", { n: watching }));
         }
@@ -2589,19 +2600,31 @@ async function performSabotage(actor, def, options) {
  */
 async function performTamper(actor, def, options) {
     /*
-     * FREE FOR THE KILLER, ON THEIR OWN NIGHT (D3).
+     * WHAT THE CHAIN WOULD TAKE, ASKED BEFORE THE MENU OPENS (T-1).
      *
-     * The action is not actually spent here - `spendResolutionAction` inside
-     * `attemptCleanup` does that, on both roads - so all this line does is
-     * decide whether to REFUSE for want of one. Left as it was, a killer with
-     * an empty budget would be turned away at the tile from an action that was
-     * about to cost them nothing: the rule would exist and never be reachable
-     * by the people it is for.
+     * Nothing is charged here - `chargeTamper` inside cleanup.mjs does that,
+     * after the concealment roll, on both roads. All this decides is whether to
+     * refuse, and it asks the same two questions the charge will: what the chain
+     * can pay, with the killer's own night skipping the action step (D3), and
+     * whether a full Sanity track makes a WATCHED attempt impossible.
+     *
+     * `free` is a GM's bypass only: `performAction` is on the API, and the chain
+     * it skips is no longer only an action.
      */
-    const { isCleaner } = await import("./cleanup.mjs");
-    const freeForKiller = isCleaner(actor);
-    const cost = (options.free || freeForKiller) ? 0 : def.cost;
-    if (!canAfford(actor, cost)) return null;
+    const { tamperPriceSkip, tamperWatchBlock } = await import("./cleanup.mjs");
+    const free = Boolean(options.free) && game.user.isGM;
+    if (!free) {
+        const quote = quotePrice(actor, "tamper", { skip: tamperPriceSkip(actor) });
+        if (quote.blocked) {
+            ui.notifications.warn(quote.blocked);
+            return null;
+        }
+        const watched = await tamperWatchBlock(actor);
+        if (watched) {
+            ui.notifications.warn(watched);
+            return null;
+        }
+    }
 
     const room = roomOfActor(actor);
     if (!room) {
@@ -2738,8 +2761,9 @@ async function performTamper(actor, def, options) {
     if (picked.value === "cover") {
         const traceId = picked.form?.querySelector("[name=trace]")?.value ?? erasable[0]?.id;
         if (!traceId) return null;
-        // The action is charged inside - `spendResolutionAction` is one action
-        // on both routes, and charging here as well would take two.
+        // The price is charged inside - `chargeTamper` takes one step of the
+        // chain on both routes, after the concealment roll, and charging here as
+        // well would take two (T-1).
         return cleanup.attemptCleanup(actor, traceId, { viaAction });
     }
 

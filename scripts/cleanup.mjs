@@ -58,6 +58,10 @@
  * on this side against the ledger the sender cannot read.
  */
 
+import { PRICE_CHAINS } from "./config.mjs";
+// The chain, and the one payer (T-1). Tamper's price is an action, or a Sanity
+// mark when there is no action - never both, which is what this file used to do.
+import { quotePrice, payPrice, refundPrice, paidLine } from "./price.mjs";
 import { MODULE_ID, FLAGS, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY }
     from "./config.mjs";
 import { getClock } from "./clock.mjs";
@@ -394,28 +398,53 @@ export async function attemptCleanup(actor, tokenId, {
     if (!viaAction && !isCleaner(actor)) return refuseCleanup(actor);
 
     /*
-     * HAVING SOMETHING TO PAY WITH IS BOTH ROADS' QUESTION (Dawid, 29.08).
+     * ONE PRICE ON BOTH ROADS, AND ONLY ONE (T-1, Dawid 17.09).
      *
-     * Tamper used to cost an action and nothing else, which made it the CHEAPER
-     * way to clean your own scene - so the stage rule was subsidising going
-     * round it. One price on both roads settles that, and it settles it in the
-     * direction the season run wanted: sprinkling costs something, everywhere.
+     * Tamper used to cost an action AND a Sanity mark - the action here, the mark
+     * on the GM's side - which made the tile more expensive than the stage rule
+     * it was standing in for. It is a chain now: an action, or a Sanity mark when
+     * there is no action, and the killer on their own night starts at the mark.
      *
-     * Refused before the dice rather than after, because an action that takes a
-     * cost it cannot take either forgives it silently or kills somebody, and
-     * both answers are worse than saying no.
+     * THE ORDER IS THE RULE. Refused before the dice, because an action that
+     * takes a price it cannot take either forgives it silently or breaks somebody
+     * down; and PAID AFTER the concealment, because the concealment's own Sanity
+     * can take the very point the price was going to use - which `payPrice`
+     * notices, because it quotes again for itself.
      */
-    if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.noStressForThis"));
+    const { gmOnline } = await import("./gm-bridge.mjs");
+    if (!gmOnline()) {
+        // Nothing scores this without a GM: the roll would be thrown and the
+        // packet dropped, and since T-1 there is no GM-side charge left to be the
+        // backstop either.
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.needGm"));
         return null;
     }
-    const charge = await spendResolutionAction(actor);
-    if (!charge) return null;
+
+    const watched = await tamperWatchBlock(actor);
+    if (watched) {
+        ui.notifications.warn(watched);
+        return null;
+    }
+
+    const quote = quotePrice(actor, "tamper", { skip: tamperPriceSkip(actor) });
+    if (quote.blocked) {
+        ui.notifications.warn(quote.blocked);
+        return null;
+    }
 
     // Somebody is watching. Cover it before you do it - and learn the answer
-    // while there is still a choice about how to behave afterwards.
+    // while there is still a choice about how to behave afterwards. Nothing has
+    // been charged yet, so a closed concealment window costs nothing (ACT-04).
     const cover = await concealFromWitnesses(actor);
-    if (!cover) return refundResolution(actor, charge);
+    if (!cover) return null;
+
+    const charge = await chargeTamper(actor);
+    if (!charge) {
+        // The cover story took the point this attempt was going to cost. The
+        // concealment's Sanity stays spent - that is the price of being watched.
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.priceGone"));
+        return null;
+    }
 
     const { rollTrait } = await import("./action-rolls.mjs");
     const calls = await import("./call-effects.mjs");
@@ -441,7 +470,11 @@ export async function attemptCleanup(actor, tokenId, {
                 // nothing to apply and quietly do nothing - the exact failure
                 // `cleanupKey` was added to stop, one road further along.
                 cleanupChange: change,
-                cleanupVia: viaAction
+                cleanupVia: viaAction,
+                // WHICH STEP PAID, so a critical hands back the same one and a
+                // Reroll replays the same claim (T-1).
+                cleanupPrice: charge.pay,
+                cleanupGrant: Boolean(charge.grant)
             },
             title: game.i18n.localize(mode === "transform"
                 ? "DRPG.Cleanup.transformAction"
@@ -450,7 +483,7 @@ export async function attemptCleanup(actor, tokenId, {
     } finally {
         calls.clearSituational();
     }
-    if (!roll) return refundResolution(actor, charge, { rolled: cover === "rolled" });
+    if (!roll) return releaseTamper(actor, charge, { rolled: cover === "rolled" });
 
     // One crime scene, one set of gloves - and Despair is what wears them out
     // early. The reference was taken before the dice; see `breakOnDespair`.
@@ -477,7 +510,11 @@ export async function attemptCleanup(actor, tokenId, {
         transform,
         key: mode === "transform" ? "transformTrace" : "eraseTrace",
         change,
-        viaAction
+        viaAction,
+        // What paid, so the GM's side does not charge a second time and a critical
+        // gives back the step that was really taken (T-1).
+        price: charge.pay,
+        grant: Boolean(charge.grant)
     });
 
     return { roll };
@@ -747,7 +784,11 @@ export async function resolveCleanup({
     // Bounded here like everything else that crossed a socket.
     mode = "erase",
     change = null,
-    viaAction = false
+    viaAction = false,
+    // T-1: which step of `PRICE_CHAINS.tamper` the client paid, and whether a
+    // Burst paid it. Bounded on arrival by `validPrice` - a packet may claim any
+    // string, and only a step the table knows is honoured.
+    price = null, grant = false
 } = {}) {
     if (!game.user.isGM) return null;
 
@@ -773,9 +814,10 @@ export async function resolveCleanup({
     const data = token ? remnantData(token) : null;
     if (!data) {
         // The trace is gone - another attempt got it, or the GM removed it by
-        // hand between the player picking and the dice landing. The Sanity is
-        // still spent: they scrubbed at something.
-        await spendStress(actor);
+        // hand between the player picking and the dice landing. The price is
+        // still spent: they scrubbed at something. Charged here only when no
+        // step arrived to say it was paid on the client (T-1).
+        if (!validPrice(price)) await spendStress(actor);
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
         return { removed: false, gone: true };
     }
@@ -864,9 +906,11 @@ export async function resolveCleanup({
         transformed: null
     };
 
-    // One point, both roads (Dawid, 29.08). It used to be Stage 6's price alone,
-    // which made the tile the cheaper way to do the same thing.
-    await spendStress(actor);
+    // THE SERVER-SIDE PRICE - see the long note in `resolveStageSix`. A client
+    // that paid the chain and says which step is not charged again; a packet with
+    // no claim pays the Sanity here, as every packet used to.
+    const paidStep = validPrice(price);
+    if (!paidStep) await spendStress(actor);
 
     const done = [];
 
@@ -943,11 +987,13 @@ export async function resolveCleanup({
 
         const back = CLEANUP.transformAction?.refundStress?.[band];
         if (back) {
-            await restoreStress(actor, back);
-            done.push(game.i18n.format("DRPG.Cleanup.stressBack", { n: back }));
+            const gave = await handBack(actor, paidStep?.pay ?? null, back, receipt);
+            done.push(game.i18n.format(gave === "action"
+                ? "DRPG.Cleanup.actionBack" : "DRPG.Cleanup.stressBack", { n: back }));
         }
 
-        await report(actor, data, { band, success, total, dc, done, viaAction });
+        await report(actor, data, { band, success, total, dc, done, viaAction,
+            charged: paidStep ? { pay: paidStep.pay, amount: paidStep.amount, grant } : null });
         lastAttempt.set(actorId, receipt);
         log(`Transform: ${actor.name} rolled ${total} against DC ${dc} on a ${
             data.visibility} ${data.type} - ${band}.`);
@@ -1076,11 +1122,13 @@ export async function resolveCleanup({
     // the state a Reroll has to restore.
     // Handed back on both roads now, because both roads paid.
     if (outcome.refundStress) {
-        await restoreStress(actor, outcome.refundStress);
-        done.push(game.i18n.format("DRPG.Cleanup.stressBack", { n: outcome.refundStress }));
+        const gave = await handBack(actor, paidStep?.pay ?? null, outcome.refundStress, receipt);
+        done.push(game.i18n.format(gave === "action"
+            ? "DRPG.Cleanup.actionBack" : "DRPG.Cleanup.stressBack", { n: outcome.refundStress }));
     }
 
-    await report(actor, data, { band, success, total, dc, done, viaAction });
+    await report(actor, data, { band, success, total, dc, done, viaAction,
+        charged: paidStep ? { pay: paidStep.pay, amount: paidStep.amount, grant } : null });
     lastAttempt.set(actorId, receipt);
 
     log(`Cleanup: ${actor.name} rolled ${total} against DC ${dc} on a ${data.visibility} ${data.type} - ${band}${
@@ -1145,10 +1193,47 @@ export async function resolveCleanup({
  * The dead are already gone from `othersInRoom` (`countsAsPresent` drops them),
  * so the victim never had to be handled here.
  */
-function witnessesTo(actor, present) {
+export function witnessesTo(actor, present) {
     if (!isCleaner(actor)) return present;
     const partners = new Set(killerIds(murderState()));
     return present.filter(other => !partners.has(other?.id));
+}
+
+/**
+ * Which step of Tamper's chain this character has already settled.
+ *
+ * D3 SURVIVES T-1 (Dawid, 17.09: "Zabojca w swoim Stage 6 placi za Tamper bez
+ * kroku akcji, 1 Zdrowia psychicznego - jak dzis"). The killer's own clean-up is
+ * free of the action economy from the victim's death to the end of that time of
+ * day, so their chain starts at its Sanity step.
+ *
+ * ONE HELPER, THREE READERS - this file's charge, the Tamper tile's refusal and
+ * the sheet's price label - so the tile cannot advertise a price the charge does
+ * not take.
+ */
+export function tamperPriceSkip(actor) {
+    return isCleaner(actor) ? ["action"] : [];
+}
+
+/**
+ * Why a WATCHED attempt is refused on a full Sanity track, or null.
+ *
+ * The unconditional refusal that used to stand here - no Sanity, no Tamper - was
+ * the old double price showing through: the attempt itself is paid for by the
+ * chain now, and an action is a perfectly good way to pay for it. What a full
+ * track really stops is the CONCEALMENT (Dawid, review line 112): being watched
+ * costs Sanity on top of the price, `spendStress` silently does nothing at a full
+ * track, and a watched Tamper would otherwise be free of the one cost that is
+ * supposed to make being seen matter.
+ *
+ * `conceals: false` for moving a body, which rolls no concealment at all.
+ */
+export async function tamperWatchBlock(actor, { conceals = true } = {}) {
+    if (!conceals) return null;
+    if (resourceValue(actor, "stress") < resourceMax(actor, "stress")) return null;
+    const { othersInRoom } = await import("./movement.mjs");
+    if (!witnessesTo(actor, othersInRoom(actor)).length) return null;
+    return game.i18n.localize("DRPG.Tamper.watchedNoSanity");
 }
 
 async function concealFromWitnesses(actor) {
@@ -1268,44 +1353,32 @@ async function concealFromWitnesses(actor) {
  *   asking `isCleaner` again after a roll window a GM could have changed the
  *   incident under (review of ACT-04).
  */
-async function spendResolutionAction(actor) {
-    if (isCleaner(actor)) return { receipt: null };
-    const { spendAction } = await import("./actions.mjs");
-    const receipt = await spendAction(actor, 1);
-    return receipt ? { receipt } : null;
+async function chargeTamper(actor) {
+    return payPrice(actor, "tamper", { skip: tamperPriceSkip(actor) });
 }
 
 /**
- * Give back what `spendResolutionAction` took when a roll window is closed, and
- * stop.
+ * Give the price back when a roll window is closed, and stop.
  *
  * ACT-04, 17.09: closing the concealment roll or the main one used to lose the
- * action, where Sabotage, Work on Project and Palm give it back. Not after a
- * concealment roll has landed, though - that roll has paid its Hope or a
- * Monokuma's Despair, and a refund then would be ACT-05's generator again.
+ * action, where Sabotage, Work on Project and Palm give it back.
  *
- * AND A KILLER ON THEIR OWN NIGHT PAYS SOMETHING TOO (review, 17.09). Stage 6
- * charges no action, and its Sanity is taken GM-side only when an attempt is
- * resolved - so a concealment roll followed by a closed window cost the killer
- * nothing at all, and could be run for Hope all night. Once that roll has paid
- * out, the attempt's Sanity is taken here instead.
+ * NOT AFTER A CONCEALMENT ROLL HAS LANDED. That roll has paid its Hope or a
+ * Monokuma's Despair and has told a room full of people what it saw; a refund
+ * then would be ACT-05's generator again. The price is KEPT and the player is
+ * told it was kept - and nothing else happens, because the price was taken after
+ * the concealment (T-1) and the receipt is the whole of what there is to keep.
  *
- * @param {{receipt: object|null}} charge  What `spendResolutionAction` returned.
+ * @param {object|null} charge  What `chargeTamper` returned.
  * @returns {Promise<null>}
  */
-async function refundResolution(actor, charge, { rolled = false } = {}) {
+async function releaseTamper(actor, charge, { rolled = false } = {}) {
     if (rolled) {
-        if (charge?.receipt) {
-            ui.notifications.info(game.i18n.localize("DRPG.Actions.keptAfterRoll"));
-        } else {
-            await spendStress(actor);
-            ui.notifications.info(game.i18n.localize("DRPG.Cleanup.keptSanity"));
-        }
+        ui.notifications.info(game.i18n.localize(charge?.pay === "action"
+            ? "DRPG.Actions.keptAfterRoll" : "DRPG.Cleanup.keptSanity"));
         return null;
     }
-    if (!charge?.receipt) return null;
-    const { refundAction } = await import("./actions.mjs");
-    await refundAction(actor, 1, charge.receipt);
+    if (charge) await refundPrice(actor, charge);
     return null;
 }
 
@@ -1325,10 +1398,12 @@ function stageSixDef(actor, key, { viaAction = false } = {}) {
         refuseCleanup(actor);
         return null;
     }
-    if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.noStressForThis"));
-        return null;
-    }
+    /*
+     * THE FULL-TRACK REFUSAL MOVED (T-1). It is `tamperWatchBlock` now, asked by
+     * the two attempts below: a full track only stops an attempt somebody is
+     * WATCHING, because that is the cost a full track cannot pay. The attempt
+     * itself is paid for by the chain, and an action pays it perfectly well.
+     */
     return def;
 }
 
@@ -1374,8 +1449,25 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
         return null;
     }
 
-    const charge = await spendResolutionAction(actor);
-    if (!charge) return null;
+    const { gmOnline } = await import("./gm-bridge.mjs");
+    if (!gmOnline()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.needGm"));
+        return null;
+    }
+
+    // Moving a body rolls no concealment, so a full Sanity track does not stop it
+    // - there is nothing for the full track to fail to pay.
+    const watched = await tamperWatchBlock(actor, { conceals: key !== "moveBody" });
+    if (watched) {
+        ui.notifications.warn(watched);
+        return null;
+    }
+
+    const quote = quotePrice(actor, "tamper", { skip: tamperPriceSkip(actor) });
+    if (quote.blocked) {
+        ui.notifications.warn(quote.blocked);
+        return null;
+    }
 
     // The guide's concealment roll covers "akcje rozwiązania" as a whole -
     // planting a false trail or dragging a body past a witness is if anything
@@ -1387,7 +1479,14 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
     // time. Two rolls to move one body, where the first could stop the second
     // from happening at all, was a stack the stage does not need.
     const cover = key === "moveBody" ? "alone" : await concealFromWitnesses(actor);
-    if (!cover) return refundResolution(actor, charge);
+    if (!cover) return null;
+
+    // After the concealment, for the reason argued in `attemptCleanup`.
+    const charge = await chargeTamper(actor);
+    if (!charge) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.priceGone"));
+        return null;
+    }
 
     const { rollTrait } = await import("./action-rolls.mjs");
     const calls = await import("./call-effects.mjs");
@@ -1407,7 +1506,9 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
             actionKey: "cleanup",
             context: {
                 cleanup: key, cleanupKey: key,
-                cleanupTarget: targetId, cleanupVia: viaAction
+                cleanupTarget: targetId, cleanupVia: viaAction,
+                cleanupPrice: charge.pay,
+                cleanupGrant: Boolean(charge.grant)
             },
             title: game.i18n.localize(key === "moveBody"
                 ? "DRPG.Cleanup.moveAction"
@@ -1416,7 +1517,7 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
     } finally {
         calls.clearSituational();
     }
-    if (!roll) return refundResolution(actor, charge, { rolled: cover === "rolled" });
+    if (!roll) return releaseTamper(actor, charge, { rolled: cover === "rolled" });
 
     // Including "move the body", where the tool lowers the threshold instead of
     // granting advantage: it is still the thing in their hands.
@@ -1431,7 +1532,9 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
         withHope: Boolean(roll.withHope),
-        viaAction
+        viaAction,
+        price: charge.pay,
+        grant: Boolean(charge.grant)
     });
     return { roll };
 }
@@ -1439,7 +1542,10 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
 /** Score a misleading trail or a body move. GM side. */
 export async function resolveStageSix({
     actorId, key, targetId = null, total = 0, isCritical = false, withHope = false,
-    viaAction = false
+    viaAction = false,
+    // Which step of the chain the client says it paid, and whether a Burst paid
+    // it. Bounded here, like every other field that crossed a socket (T-1).
+    price = null, grant = false
 } = {}) {
     if (!game.user.isGM) return null;
     const actor = game.actors.get(actorId);
@@ -1466,8 +1572,19 @@ export async function resolveStageSix({
     const success = isCritical || total >= threshold;
     const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
 
-    // One point, both roads - see `attemptCleanup`.
-    await spendStress(actor);
+    /*
+     * THE SERVER-SIDE PRICE, AND IT IS THE ONE THAT REPLACED THE OLD DOUBLE
+     * CHARGE (T-1).
+     *
+     * A legitimate client has already paid the chain and says which step, so
+     * charging here would be the second price this commit exists to delete. But
+     * `requestCleanup`'s socket branch checks only that the sender owns the actor,
+     * so a forged packet can simply omit the step - and then the Sanity is taken
+     * here, exactly as it was before. One price per attempt, and the GM decides
+     * which when the claim is missing.
+     */
+    const paidStep = validPrice(price);
+    if (!paidStep) await spendStress(actor);
     const done = [];
 
     if (key === "misleadingTrail") await applyMisleadingTrail(actor, def, targetId, success, band, done);
@@ -1475,8 +1592,9 @@ export async function resolveStageSix({
 
     const refund = success ? def.refundStress?.[band] : null;
     if (refund) {
-        await restoreStress(actor, refund);
-        done.push(game.i18n.format("DRPG.Cleanup.stressBack", { n: refund }));
+        const gave = await handBack(actor, paidStep?.pay ?? null, refund);
+        done.push(game.i18n.format(gave === "action"
+            ? "DRPG.Cleanup.actionBack" : "DRPG.Cleanup.stressBack", { n: refund }));
     }
 
     // Three shapes for one idea lived here: this card led with an `<h3>`, the
@@ -1753,8 +1871,68 @@ async function undoLastCleanup(actor, tokenId) {
         }
     }
 
+    /*
+     * AND AN ACTION THE CRITICAL HANDED BACK (T-1).
+     *
+     * `stressBefore` rewinds the Sanity track and nothing else, so every replay
+     * of an action-paid critical erase would have minted one action. `takeBackRefund`
+     * takes what was given rather than spending afresh, which is the same tool the
+     * Reroll's own action settlement drives.
+     */
+    if (receipt.handedBack?.pay === "action") {
+        try {
+            const { takeBackRefund } = await import("./actions.mjs");
+            await takeBackRefund(actor, receipt.handedBack.amount, receipt.handedBack);
+        } catch (err) {
+            error("Could not take back the action a rerolled critical handed over", err);
+        }
+    }
+
     lastAttempt.delete(actor.id);
     return true;
+}
+
+/**
+ * The step of Tamper's chain a packet claims, or null.
+ *
+ * BOUNDED BECAUSE IT CROSSED A SOCKET. The amount comes from the table rather
+ * than from the packet - there is nothing to gain by claiming "stress" and a lot
+ * to gain by claiming five of it.
+ */
+function validPrice(price) {
+    return PRICE_CHAINS.tamper.steps.find(step => step.pay === price) ?? null;
+}
+
+/**
+ * Give back what the attempt paid: the step, not "a Sanity mark".
+ *
+ * The critical's own line is "Morderca odzyskuje 1 stres", and until T-1 that was
+ * literally what happened - so a critical Tamper paid for with an action cleared
+ * a Sanity mark the attempt never made, healing the killer for cleaning up.
+ *
+ * WRITTEN FOR A BAND TABLE, not for `critical`. Two of the three callers read
+ * `refundStress?.[band]`, so a rebalance that hands something back on an ordinary
+ * success arrives here unchanged.
+ *
+ * A BURST COMES BACK AS AN ACTION, not as a Burst. This runs on the GM's client
+ * on a claim it cannot verify, and a Burst pays for a whole call however much it
+ * costs - so it is worth more than the action it replaced. The exposure is capped
+ * at one action per critical, which is the cheaper of the two mistakes.
+ *
+ * @returns {Promise<"action"|"stress">} what was handed back.
+ */
+async function handBack(actor, price, amount = 1, receipt = null) {
+    if (price === "action") {
+        const { refundAction } = await import("./actions.mjs");
+        await refundAction(actor, amount);
+        // Recorded so a Reroll can take it back: `stressBefore` rewinds Sanity
+        // and nothing else, so an action handed back once per replay would be
+        // minted out of nothing.
+        if (receipt) receipt.handedBack = { pay: "action", amount, grant: false };
+        return "action";
+    }
+    await restoreStress(actor, amount);
+    return "stress";
 }
 
 async function spendStress(actor) {
@@ -1793,7 +1971,11 @@ async function restoreStress(actor, amount = 1) {
  * threshold it was measured against, because that number is the answer key and
  * the killer must not learn how visible their own traces are by subtraction.
  */
-async function report(actor, data, { band, success, total, dc, done, viaAction = false }) {
+async function report(actor, data, {
+    band, success, total, dc, done, viaAction = false,
+    /** What the attempt paid, as a price receipt, or null when nothing said. */
+    charged = null
+}) {
     const summary = done.map(line => `<li>${line}</li>`).join("");
 
     /*
@@ -1810,8 +1992,12 @@ async function report(actor, data, { band, success, total, dc, done, viaAction =
         <h3>${game.i18n.localize("DRPG.Cleanup.title")}</h3>
         <p><strong>${game.i18n.localize(`DRPG.Cleanup.band.${band}`)}</strong></p>
         ${summary ? `<ul>${summary}</ul>` : ""}
-        ${viaAction
-            ? `<p><small>${game.i18n.localize("DRPG.Tamper.actionSpent")}</small></p>`
+        ${charged
+            // What was really taken, rather than which door the attempt came
+            // through: since T-1 the two no longer decide each other (a killer
+            // pays Sanity from the tile, and an investigator in Stage 6's window
+            // pays an action).
+            ? `<p><small>${paidLine(charged)}</small></p>`
             : `<p><small>${game.i18n.format("DRPG.Cleanup.stressSpent", {
                 n: RESOLUTION_STRESS_COST })}</small></p>`}`,
         success ? {} : { flags: { [MODULE_ID]: { sfx: "cleanupFailed" } } });

@@ -751,7 +751,11 @@ async function onSocket(payload, senderId) {
                 total: Number(payload.total) || 0,
                 isCritical: Boolean(payload.isCritical),
                 withHope: Boolean(payload.withHope),
-                viaAction: Boolean(payload.viaAction)
+                viaAction: Boolean(payload.viaAction),
+                // Which step the client paid. Bounded on arrival against
+                // PRICE_CHAINS, like `transform` and `change` (T-1).
+                price: payload.price ?? null,
+                grant: Boolean(payload.grant)
             });
             return;
         }
@@ -771,6 +775,9 @@ async function onSocket(payload, senderId) {
             mode: payload.key === "transformTrace" ? "transform" : "erase",
             change: payload.change ?? null,
             undo: Boolean(payload.undo),
+            // T-1, same contract: sent as given, bounded on arrival.
+            price: payload.price ?? null,
+            grant: Boolean(payload.grant),
             // A claim that WAIVES Stage 6's guards and ADDS one of its own: the
             // trace has to belong to the sender. Forging it costs them the
             // right to touch anybody else's trace, which is the only thing the
@@ -1576,8 +1583,12 @@ export function requestCleanup({
     // original one, so every existing caller keeps working unchanged.
     key = "eraseTrace", targetId = null,
     // Which door this came through: the Tamper tile, or Stage 6's own panel.
-    // It decides what is charged and which guard runs - see cleanup.mjs.
-    viaAction = false
+    // It decides which guard runs - see cleanup.mjs.
+    viaAction = false,
+    // T-1: which step of Tamper's price chain the client already paid, and
+    // whether a Burst paid it. Absent means "nothing was paid on the client",
+    // and the resolver charges the Sanity itself.
+    price = null, grant = false
 }) {
     // The two that aim at a TRACE go to `resolveCleanup`; the two that roll
     // against a flat threshold go to `resolveStageSix`. Naming the first pair
@@ -1589,10 +1600,11 @@ export function requestCleanup({
         return import("./cleanup.mjs").then(m => aimed
             ? m.resolveCleanup({
                 actorId, tokenId, total, isCritical, withHope, undo, transform,
-                mode, change, viaAction
+                mode, change, viaAction, price, grant
             })
             : m.resolveStageSix({
-                actorId, key, targetId, total, isCritical, withHope, viaAction
+                actorId, key, targetId, total, isCritical, withHope, viaAction,
+                price, grant
             }));
     }
     if (!hasGm()) return null;
@@ -1602,7 +1614,7 @@ export function requestCleanup({
         userId: game.user.id,
         requestId: expectAck("Clean-up"),
         actorId, tokenId, total, isCritical, withHope, undo, key, targetId, transform,
-        change, viaAction
+        change, viaAction, price, grant
     });
     return { pending: true };
 }

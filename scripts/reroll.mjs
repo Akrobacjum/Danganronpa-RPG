@@ -810,9 +810,13 @@ async function settleCleanup(actor, bookmark, after, done) {
         // would reshape nothing and report a success.
         key,
         change: bookmark.cleanupChange ?? null,
-        // The Tamper route pays in actions and the Stage 6 route pays in
-        // Sanity; a replay that forgot which would refund the wrong currency.
+        // Which door it came through, and - since T-1 - which STEP of the price
+        // chain it really paid. A replay that forgot the step would be charged
+        // the GM-side Sanity as though nothing had been paid on the client, and a
+        // critical would hand back the wrong currency.
         viaAction: Boolean(bookmark.cleanupVia),
+        price: bookmark.cleanupPrice ?? null,
+        grant: Boolean(bookmark.cleanupGrant),
         undo: true
     });
 

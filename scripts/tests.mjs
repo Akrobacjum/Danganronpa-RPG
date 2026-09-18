@@ -1961,17 +1961,37 @@ const REGRESSIONS = [
          * Review of ACT-04 (17.09). `concealFromWitnesses` ended with `return true`, the
          * callers refused a refund only for "rolled", and so the concealment roll's Hope
          * came with the action back. A killer on their own night paid nothing at all.
+         *
+         * REWRITTEN FOR T-1's SHAPE. The price is taken AFTER the concealment now, so
+         * the rule is no longer "charge the Sanity in the refund" - it is "keep what was
+         * paid and take nothing else". Written against the old names this test passed
+         * vacuously: `indexOf` returned -1, `slice(-1)` handed it one character, and
+         * both assertions were about an empty string.
          */
         const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
         const at = cleanup.indexOf("async function concealFromWitnesses");
         const conceal = cleanup.slice(at, cleanup.indexOf("\nasync function ", at + 10));
         ok(at > 0 && /return "rolled";/.test(conceal) && !/return true;/.test(conceal),
             "concealFromWitnesses no longer tells its callers a concealment roll landed");
-        const refund = cleanup.slice(cleanup.indexOf("async function refundResolution"));
-        ok(/spendStress\(actor\)/.test(refund.slice(0, 900)),
-            "a killer's closed window after a landed concealment roll costs nothing again");
-        ok(!/isCleaner\(/.test(refund.slice(0, 900)),
-            "the refund asks isCleaner again instead of reading what was paid");
+
+        const from = cleanup.indexOf("async function releaseTamper");
+        ok(from > 0, "nothing releases a Tamper price when its window is closed");
+        /*
+         * Bounded by the next DECLARATION, not by a character count and not by a
+         * comment: `stripComments` blanks a comment to spaces rather than deleting
+         * it, so there is no "/**" left to look for - and 900 characters runs into
+         * `stageSixDef`, which asks `isCleaner` for its own good reasons.
+         */
+        const rest = cleanup.slice(from + 10);
+        const next = rest.search(/\n(?:export |async function |function )/);
+        const release = rest.slice(0, next < 0 ? 900 : next);
+        const kept = release.slice(release.indexOf("if (rolled)"), release.indexOf("if (charge)"));
+        ok(kept.length > 20 && !/refundPrice\(/.test(kept),
+            "a closed window after a landed concealment roll hands the price back again");
+        ok(!/spendStress\(/.test(release),
+            "the kept charge is charged a second time - the price was taken before the roll");
+        ok(!/isCleaner\(/.test(release),
+            "the release asks isCleaner again instead of reading what was paid");
     }],
 
     ["R40 - no action can be withdrawn from after the roll for who can see you", async () => {
@@ -7635,6 +7655,139 @@ const SCENARIOS = [
                 "system.resources.actions.max": before.max,
                 "system.resources.actions.value": before.actions,
                 "system.resources.hope.value": before.hope,
+                "system.resources.stress.value": before.stress
+            });
+            await settle();
+        }
+    }],
+
+    ["a critical Tamper hands back the step that paid, and a forged packet still pays", async () => {
+        /*
+         * T-1's refund, driven through the resolver the way the socket drives it -
+         * which is also the only way to test the bound on a claim that crossed it.
+         *
+         * THREE CLAIMS. "action": the action comes back and the Sanity track does
+         * not move, which is the bug this commit exists for - a critical used to
+         * clear a mark the attempt had never made. "stress": one mark cleared.
+         * "health": a step the table does not know, so the packet is treated as
+         * having paid nothing on the client and the GM charges the Sanity itself,
+         * exactly as every packet used to.
+         */
+        const [who] = cast();
+        const cleanup = await import("./cleanup.mjs");
+        const remnants = await import("./remnants.mjs");
+        const scene = game.scenes.active ?? canvas?.scene;
+        ok(scene, "no active scene to place a fixture trace on");
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const before = {
+            actions: who.system.resources.actions.value,
+            max: who.system.resources.actions.max,
+            stress: who.system.resources.stress.value
+        };
+        const placed = [];
+        const made = [];
+
+        /*
+         * A trace this character has FOUND, which is what the resolver requires of
+         * the Tamper road: `copiedRemnants` is the register, and a Truth Bullet
+         * copied off the trace is what puts it there.
+         */
+        const bullets = await import("./truth-bullets.mjs");
+        const fixture = async () => {
+            const token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident",
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "test fixture - T-1 tamper price"
+            });
+            ok(token, "could not place a fixture trace");
+            placed.push(token);
+            const item = await bullets.createTruthBullet(who, {
+                name: `Suite fixture - tamper ${placed.length}`,
+                realType: "neutral", visibility: "obvious",
+                remnantId: token.id, sceneId: scene.id
+            });
+            ok(item, "could not copy the fixture trace onto a bullet");
+            made.push(item);
+            await settle();
+            return token;
+        };
+
+        try {
+            await who.update({
+                "system.resources.actions.max": 2,
+                "system.resources.actions.value": 1,
+                "system.resources.stress.value": 2
+            });
+            await settle();
+
+            // ---- paid with an action --------------------------------------
+            let token = await fixture();
+            await cleanup.resolveCleanup({
+                actorId: who.id, tokenId: token.id, total: 30,
+                isCritical: true, withHope: true, viaAction: true, price: "action"
+            });
+            await settle();
+            equal(who.system.resources.stress.value, 2,
+                "a critical paid with an action healed a Sanity mark nobody spent");
+            equal(who.system.resources.actions.value, 2, "the action was not handed back");
+
+            // ---- paid with a Sanity mark ----------------------------------
+            await who.update({
+                "system.resources.actions.value": 1,
+                "system.resources.stress.value": 2
+            });
+            await settle();
+            token = await fixture();
+            await cleanup.resolveCleanup({
+                actorId: who.id, tokenId: token.id, total: 30,
+                isCritical: true, withHope: true, viaAction: true, price: "stress"
+            });
+            await settle();
+            equal(who.system.resources.stress.value, 1, "the Sanity mark was not lifted");
+            equal(who.system.resources.actions.value, 1,
+                "a critical paid with Sanity handed back an action as well");
+
+            // ---- a claim the table does not know --------------------------
+            await who.update({
+                "system.resources.actions.value": 1,
+                "system.resources.stress.value": 2
+            });
+            await settle();
+            token = await fixture();
+            await cleanup.resolveCleanup({
+                actorId: who.id, tokenId: token.id, total: 30,
+                isCritical: true, withHope: true, viaAction: true, price: "health"
+            });
+            await settle();
+            // Charged one mark as the fallback, then handed one back for the
+            // critical: the net is where it started, and the point is that the
+            // forged claim bought no free attempt and no free action.
+            equal(who.system.resources.actions.value, 1,
+                "a forged price claim bought an action");
+            equal(who.system.resources.stress.value, 2,
+                "a forged price claim did not pay the GM-side Sanity");
+
+            // ---- and a packet with no claim at all pays it ----------------
+            await who.update({ "system.resources.stress.value": 0 });
+            await settle();
+            token = await fixture();
+            await cleanup.resolveCleanup({
+                actorId: who.id, tokenId: token.id, total: 30,
+                isCritical: false, withHope: true, viaAction: true
+            });
+            await settle();
+            equal(who.system.resources.stress.value, 1,
+                "a packet claiming nothing was not charged the Sanity the client never paid");
+        } finally {
+            for (const item of made) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const token of placed) {
+                try { await token.delete(); } catch { /* already gone */ }
+            }
+            await who.update({
+                "system.resources.actions.max": before.max,
+                "system.resources.actions.value": before.actions,
                 "system.resources.stress.value": before.stress
             });
             await settle();
