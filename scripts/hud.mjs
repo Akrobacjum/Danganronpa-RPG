@@ -1481,9 +1481,10 @@ function paintElapsed(el) {
     // A DEBATE'S CLOCK OUTRANKS THE TIME OF DAY'S.
     //
     // The minutes readout is pacing advice about spending two actions inside
-    // half an hour, and a Class Trial has no actions to spend - so during one it
-    // is a number that means nothing sitting where the number that means
-    // everything should be.
+    // half an hour. A trial has actions of its own now (T-1) - Analyze and an
+    // Objection, out of the budget the trial hands out - but the seconds the room
+    // is actually watching are the debate's, and a readout about the afternoon
+    // sitting where those should be is a number nobody in the room is counting.
     //
     // Only while a floor is actually open. A trial in session with nobody
     // holding the floor has no clock running, and inventing one - a stopwatch on

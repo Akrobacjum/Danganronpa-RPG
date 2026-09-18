@@ -169,7 +169,23 @@ export async function startFloor({ seconds = TRIAL.speakSeconds } = {}) {
     // file is imported by the widget on every client.
     try {
         const { getClock, setPhase } = await import("./clock.mjs");
-        if (getClock().phase !== "classTrial") await setPhase("classTrial");
+        if (getClock().phase !== "classTrial") {
+            await setPhase("classTrial");
+            /*
+             * THE OTHER ROAD INTO A TRIAL (T-1).
+             *
+             * `openDebate` never asks the phase, so a table that opens a debate
+             * without pressing "Start Class Trial" gets here - and would otherwise
+             * find every tile, crossing, Despair Call and Confusion locked against
+             * whatever actions people happened to be holding. The budget belongs to
+             * the phase moving, not to the window that moved it.
+             *
+             * Inside the `if`, so the second and third debate of the same trial
+             * refill nothing.
+             */
+            const { openTrialBudget } = await import("./actions.mjs");
+            await openTrialBudget();
+        }
     } catch (err) {
         // A phase that did not move is a cosmetic problem; a floor that did
         // not open is not. Never let the first prevent the second.

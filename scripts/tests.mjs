@@ -2098,6 +2098,39 @@ const REGRESSIONS = [
             "a Despair Call is no longer refused during a Class Trial");
     }],
 
+    ["R43 - the trial's budget follows the phase, not the window", async () => {
+        /*
+         * TWO ROADS INTO A CLASS TRIAL, and only one of them has a window (T-1).
+         * `openDebate` calls `startFloor`, which moves the phase itself, so a
+         * refill written only into `startClassTrial` leaves a real road where
+         * everything is locked and nobody was paid.
+         *
+         * And NOT in `setPhase`: a GM correcting the campaign window by hand, or a
+         * chapter advancing, is not a trial opening.
+         */
+        const ui2 = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor-ui.mjs`).then(r => r.text()));
+        const start = ui2.slice(ui2.indexOf("export async function startClassTrial"),
+            ui2.indexOf("export async function openDebate"));
+        ok(start.includes("openTrialBudget("),
+            "starting a Class Trial no longer hands out the time of day's actions");
+
+        const floor = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/trial-floor.mjs`).then(r => r.text()));
+        const opening = floor.slice(floor.indexOf("export async function startFloor"),
+            floor.indexOf("export async function openObjection"));
+        ok(opening.includes("openTrialBudget("),
+            "opening a debate straight from the GM panel leaves the trial unpaid");
+        const branch = opening.slice(opening.indexOf('!== "classTrial"'));
+        ok(branch.indexOf("openTrialBudget(") < branch.indexOf("return writeFloor"),
+            "the refill left the branch that only runs when the phase actually moves");
+
+        const clockSrc = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/clock.mjs`).then(r => r.text()));
+        const setPhase = clockSrc.slice(clockSrc.indexOf("export async function setPhase"));
+        ok(!setPhase.slice(0, setPhase.indexOf("\nexport ")).includes("openTrialBudget"),
+            "setPhase hands out a trial budget, so editing the campaign window pays everybody");
+    }]
 ];
 
 /* ==========================================================================
@@ -6841,6 +6874,80 @@ const SCENARIOS = [
         }
     }],
 
+    ["opening a trial hands out the time of day's actions and keeps what Hope bought", async () => {
+        /*
+         * T-1, Dawid 17.09 (answer 3). Driven through `startFloor` rather than
+         * `startClassTrial`, because that one opens a DialogV2 the suite cannot
+         * press - and because `startFloor` is the road that matters here: it sets
+         * the phase itself, so a refill written only into the window would leave
+         * this one locked against whatever actions people were holding.
+         */
+        const [who, hurt] = cast();
+        const actions = await import("./actions.mjs");
+        const { startFloor, endFloor } = await import("./trial-floor.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const before = {
+            actions: who.system.resources.actions.value,
+            max: who.system.resources.actions.max,
+            hurtActions: hurt.system.resources.actions.value,
+            health: hurt.system.resources.hitPoints.value,
+            grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0,
+            moves: who.getFlag(MODULE_ID, FLAGS.freeMoveGrants) ?? 0
+        };
+
+        try {
+            await setClock({ ...clock, phase: "dailyLife" });
+            await who.update({ "system.resources.actions.value": 0 });
+            await hurt.update({
+                "system.resources.actions.value": 0,
+                "system.resources.hitPoints.value": hurt.system.resources.hitPoints.max
+            });
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 1);
+            await who.setFlag(MODULE_ID, FLAGS.freeMoveGrants, 1);
+            await settle();
+            ok(actions.actionBudget(hurt).wounded, "the second fixture is not Wounded");
+
+            await startFloor({});
+            await settle();
+
+            equal(getClock().phase, "classTrial", "the floor opened without moving the phase");
+            equal(who.system.resources.actions.value, actions.actionBudget(who).total,
+                "the trial did not hand out the time of day's actions");
+            equal(hurt.system.resources.actions.value, actions.actionBudget(hurt).total,
+                "a Wounded student got somebody else's allowance for the trial");
+            equal(actions.freeActionsLeft(who), 1, "the trial expired a Burst bought with Hope");
+            equal(actions.freeMovesLeft(who), 1, "the trial expired a Sprint bought with Hope");
+
+            /*
+             * AND THE SECOND DEBATE REFILLS NOTHING. A trial holds several, and a
+             * budget handed out per debate would be an Objection for every one the
+             * GM opens.
+             */
+            await who.update({ "system.resources.actions.value": 0 });
+            await endFloor();
+            await settle();
+            await startFloor({});
+            await settle();
+            equal(who.system.resources.actions.value, 0,
+                "the trial's second debate handed out a fresh budget");
+        } finally {
+            await endFloor();
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await who.setFlag(MODULE_ID, FLAGS.freeMoveGrants, before.moves);
+            await who.update({
+                "system.resources.actions.value": before.actions,
+                "system.resources.actions.max": before.max
+            });
+            await hurt.update({
+                "system.resources.actions.value": before.hurtActions,
+                "system.resources.hitPoints.value": before.health
+            });
+            await settle();
+        }
+    }]
 ];
 
 /* ==========================================================================

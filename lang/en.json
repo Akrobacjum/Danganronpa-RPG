@@ -827,6 +827,10 @@
       "startTrialIntro": "A Class Trial opens in discussion: everybody talks, and evidence goes on the table without taking the floor. The Nonstop Debate is something you open inside it.",
       "startTrialStepPhase": "The campaign moves to Class Trial.",
       "startTrialStepAnnounce": "The trial is announced in chat and the music follows.",
+      "trialBudget": {
+        "one": "{n} student has this time of day's actions for the trial.",
+        "other": "{n} students have this time of day's actions for the trial."
+      },
       "trialOpened": "The Class Trial is in session. Talk it through; the debate opens when the GM says so.",
       "endTrial": "End the trial",
       "endTrialConfirm": "This closes the debate, ends the Class Trial and returns the campaign to Daily Life.",

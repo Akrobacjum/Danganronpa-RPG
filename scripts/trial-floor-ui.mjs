@@ -97,6 +97,13 @@ export async function startClassTrial() {
     // the middle of the turn-over animation the first one started.
     await setClock({ phase: "classTrial", timeOfDayStartedAt: Date.now() });
 
+    // THE BUDGET FOLLOWS THE PHASE (T-1). Immediately after the write that moves
+    // it, because from this moment the sheet offers Analyze and the row offers an
+    // Objection, and both are paid for. The early return at the top of this
+    // function is what keeps it to once per trial.
+    const { openTrialBudget } = await import("./actions.mjs");
+    const refilled = await openTrialBudget();
+
     // A fresh trial has not voted and has not delivered a verdict, whatever the
     // last one did. Stamped with this chapter, so the two cannot be confused.
     const { resetTrialProgress } = await import("./vote.mjs");
@@ -109,11 +116,16 @@ export async function startClassTrial() {
     const { chargeForUnfoundKeys } = await import("./investigation.mjs");
     await chargeForUnfoundKeys();
 
-    const { announce } = await import("./utils.mjs");
+    // The refill is announced rather than done quietly: a rule the table cannot
+    // see is a rule the table does not use, and "you have your actions again" is
+    // the difference between an Objection somebody dares to make and one they
+    // assume they cannot afford.
+    const { announce, plural } = await import("./utils.mjs");
     await announce({
         content: `<div class="drpg-card"><h3>${
             game.i18n.localize("DRPG.Floor.startTrial")}</h3><p>${
-            game.i18n.localize("DRPG.Floor.trialOpened")}</p></div>`
+            game.i18n.localize("DRPG.Floor.trialOpened")}</p><p>${
+            plural("DRPG.Floor.trialBudget", { n: refilled.length })}</p></div>`
     });
 
     return true;
@@ -210,10 +222,13 @@ export async function closeDebate() {
  *
  * THIS IS THE HALF THAT WAS MISSING. It closed the floor and opened the vote,
  * and never touched the campaign phase - so the trial "ended" while every
- * screen in the game went on saying Class Trial, the action economy stayed
- * shut, and Daily Life had to be restored by hand from Edit Campaign. Ending a
- * trial is the campaign going back to ordinary play, and that is what this
- * does.
+ * screen in the game went on saying Class Trial and Daily Life had to be
+ * restored by hand from Edit Campaign. Ending a trial is the campaign going
+ * back to ordinary play, and that is what this does.
+ *
+ * Since T-1 that is a bigger thing than it was: a trial in session shuts every
+ * action tile except Analyze, every room crossing, every Despair Call and
+ * Confusion. This is what reopens all of them.
  *
  * It no longer opens the vote either. The vote is a step of the trial with its
  * own button above this one - running it on the way out put it after the thing

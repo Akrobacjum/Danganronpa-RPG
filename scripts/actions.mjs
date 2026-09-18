@@ -359,14 +359,35 @@ export async function resetActionsFor(actor, { keepGrants = false } = {}) {
  * Refill every character. GM only - players cannot write to other actors.
  * @returns {Promise<Array<{actor: Actor, total: number, wounded: boolean}>>}
  */
-export async function resetAllActions() {
+export async function resetAllActions({ keepGrants = false } = {}) {
     if (!game.user.isGM) return [];
 
     const results = [];
     for (const actor of game.actors) {
         if (actor.type !== "character") continue;
-        const result = await resetActionsFor(actor);
+        const result = await resetActionsFor(actor, { keepGrants });
         if (result) results.push(result);
     }
     return results;
+}
+
+/**
+ * The allowance a Class Trial opens with (T-1, Dawid 17.09).
+ *
+ * A trial is a seam in play, and since T-1 there are two things to spend actions
+ * on inside one - Analyze and an Objection - both paid out of a real budget. So
+ * the trial hands out the time of day's allowance: two, minus a Wound, minus a
+ * darkened hour, exactly what `actionBudget` computes for everyone else.
+ *
+ * `keepGrants`, because this is the one refill in the module that is NOT a new
+ * time of day. A Burst and a Sprint were bought with four Hope each and "until the
+ * end of this time of day" has not arrived - the trial is inside it.
+ *
+ * Called from the two places the phase moves to `classTrial` and nowhere else,
+ * both already guarded by "the phase was not classTrial": `startClassTrial` and
+ * `startFloor`. That guard is what makes it idempotent, so a trial's second and
+ * third debate refill nothing.
+ */
+export async function openTrialBudget() {
+    return resetAllActions({ keepGrants: true });
 }
