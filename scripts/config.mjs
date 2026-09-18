@@ -1888,10 +1888,15 @@ export const DESPAIR_CALLS = {
     },
     thisWillHurt: {
         /*
-         * THREE, NOT TWO (Z9) - the only rise in this pass, and the reason is
-         * that it was the cheapest damage on the board while doing the most.
-         * Two Health for two Despair, against Paranoia's two Sanity for the
-         * same, in a game where Health is four and Sanity is six.
+         * FOUR NOW (S-6, Dawid 17.09). It was two in the guide, three after Z9,
+         * and this is the answer to a different question: the review asked
+         * whether a Wound should cost the player less, and the answer was to
+         * leave the Wound alone and make the Call that inflicts it dearer.
+         *
+         * Two Health is half a student's track, against Paranoia's two Sanity out
+         * of six, and Health is the one that kills. At four it sits above Chained
+         * and Game Integrity and level with Silence, which is the company it
+         * belongs in: the Calls a Monokuma has to save up for.
          *
          * The season run makes the case sharper than the ratio does: roughly
          * two thirds of a Monokuma's income spills over the cap of twelve, so a
@@ -1899,7 +1904,7 @@ export const DESPAIR_CALLS = {
          * most of the time. The Calls that hurt are the ones that have to be
          * worth the wait.
          */
-        label: "Pain", icon: "fa-heart-crack", cost: 3, target: "player", damage: { hitPoints: 2 },
+        label: "Pain", icon: "fa-heart-crack", cost: 4, target: "player", damage: { hitPoints: 2 },
         effect: "A player loses {hp} Health."
     },
     paranoia: {
