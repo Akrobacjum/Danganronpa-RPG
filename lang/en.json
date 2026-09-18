@@ -2671,6 +2671,8 @@
       "hint.experiences": "The first roll that wants an Experience is the moment a missing one is noticed, and that is mid-scene.",
       "step.items": "Everybody carries something",
       "hint.items": "The opening item. A student with an empty bag has nothing to search with, nothing to give away and nothing to kill with.",
+      "step.despairSplit": "The students are split evenly between the pools",
+      "hint.despairSplit": "Whatever the number of Monokumas, the living cast should be shared out evenly - at most one student apart. Advisory: a cast that will not divide, or a Monokuma who is meant to watch the dangerous half, is a decision, not a mistake.",
       "step.assignments": "Every student has a Monokuma watching",
       "hint.assignments": "Despair from a student's rolls goes to their Monokuma's pool. Unwatched, it goes nowhere.",
       "step.sound": "Sound files",

@@ -162,6 +162,27 @@ function steps() {
         },
         {
             /*
+             * EVENLY, AND THAT IS ALL IT SAYS (S-4, Dawid 17.09).
+             *
+             * The review asked for a rule about how many students one Despair pool
+             * may watch; his answer was that the number of Monokumas is the table's
+             * business - one, two or four - and what matters is that the living cast
+             * is split evenly between whatever pools exist. Evenly here means the
+             * fullest and the emptiest pool differ by at most one living student.
+             *
+             * Advisory, never a cross: a season with four students and three
+             * Monokumas cannot be even, and a table that wants one Monokuma watching
+             * the dangerous half is allowed to want that. It reports, and its button
+             * opens the screen where it is changed.
+             */
+            key: "despairSplit",
+            optional: true,
+            done: despairSplitEven(),
+            missing: () => despairSplitCounts().map(p => `${p.name}: ${p.n}`),
+            open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
+        },
+        {
+            /*
              * THE MODULE SHIPS NO AUDIO AND ASSIGNS NONE (Dawid, 28.08).
              *
              * Which makes this row necessary rather than decorative: without it
@@ -295,6 +316,40 @@ function steps() {
             open: async () => (await import("./mastermind.mjs")).openMastermindDialog()
         }
     ];
+}
+
+/**
+ * Living students per Despair pool, biggest first - the numbers the split row
+ * reports. A student deliberately watched by nobody (`NO_MONOKUMA`) is nobody's
+ * weight and is left out.
+ */
+function despairSplitCounts() {
+    const counts = new Map();
+    for (const user of monokumas()) counts.set(user.id, { name: user.name, n: 0 });
+    for (const actor of studentActors()) {
+        if (isDeceasedForSplit(actor)) continue;
+        const pool = monokumaFor(actor);
+        if (!pool) continue;
+        const row = counts.get(pool.id);
+        if (row) row.n += 1;
+    }
+    return [...counts.values()].sort((a, b) => b.n - a.n);
+}
+
+/** Is the living cast split evenly between the pools that exist? */
+function despairSplitEven() {
+    const counts = despairSplitCounts();
+    if (counts.length < 2) return true;
+    return counts[0].n - counts[counts.length - 1].n <= 1;
+}
+
+/**
+ * The dead do not roll, so they are not weight on a pool. Read through a local
+ * helper because chapter.mjs is imported lazily everywhere else in this file and
+ * `steps()` is synchronous.
+ */
+function isDeceasedForSplit(actor) {
+    return Boolean(actor?.getFlag?.(MODULE_ID, "deceased"));
 }
 
 /** Open the sheet of the first character a row is waiting on. */
