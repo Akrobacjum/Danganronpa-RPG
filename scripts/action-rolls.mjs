@@ -2323,7 +2323,17 @@ async function performSabotage(actor, def, options) {
                 : SABOTAGE_CONCEAL.failure
         }</p>`);
 
-        // A failure is public: the room saw enough to describe it.
+        /*
+         * A FAILURE IS PUBLIC, AND THERE IS NO WALKING AWAY FROM IT (Dawid 18.09).
+         *
+         * The room saw enough to describe it, and the question that used to follow
+         * - "carry on anyway? nothing is spent yet" - handed the action back. That
+         * made the concealment roll a free look: it had already paid out its Hope,
+         * or a Monokuma's Despair, and the player kept the action too. His rule is
+         * that no action may be withdrawn from once the roll for who can see you
+         * has been made. Nothing else in the module asks such a question; the test
+         * for it is R40.
+         */
         if (!hidden) {
             await announce({
                 content: `<p><em>${game.i18n.format("DRPG.Action.sabotageWatched", {
@@ -2332,21 +2342,8 @@ async function performSabotage(actor, def, options) {
                     project: foundry.utils.escapeHTML(project.name)
                 })}</em></p>`
             });
-
-            const carryOn = await DialogV2.confirm({
-                classes: ["drpg-panel"],
-                window: { title: def.label },
-                content: `<p>${SABOTAGE_CONCEAL.failure}</p>
-                          <p>${game.i18n.localize("DRPG.Action.sabotageCarryOn")}</p>`,
-                rejectClose: false
-            });
-            // Walking away is a real choice, not a wasted turn: the roll that
-            // gave them the information has happened, but the sabotage has not,
-            // so the action is returned.
-            if (!carryOn) {
-                await abort(actor, paid);
-                return { aborted: true, seen: true };
-            }
+            await whisperToOwner(actor, `<p>${SABOTAGE_CONCEAL.failure}</p>
+                <p>${game.i18n.localize("DRPG.Action.sabotageSeenOn")}</p>`);
         }
     } else {
         lines.push(`<p><em>${SABOTAGE_CONCEAL.aloneNote}</em></p>`);

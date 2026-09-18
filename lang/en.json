@@ -560,7 +560,7 @@
       "progressOn": "+{n} progress on {project}",
       "sabotageSeen": "{actor} is seen doing something to a project in {room}.",
       "sabotageWatched": "{actor} is doing something to {project} in {room}, and everyone here can see roughly what.",
-      "sabotageCarryOn": "Carry on anyway? Nothing is spent yet.",
+      "sabotageSeenOn": "You are doing it in front of them. The action is already spent, so it goes ahead.",
       "costCrossings": "{left} / {max} crossings",
       "costAnyRoom": "any room",
       "tierShort": "Tier {tier}",

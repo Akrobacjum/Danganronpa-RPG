@@ -1974,6 +1974,29 @@ const REGRESSIONS = [
             "the refund asks isCleaner again instead of reading what was paid");
     }],
 
+    ["R40 - no action can be withdrawn from after the roll for who can see you", async () => {
+        /*
+         * Dawid, 18.09. Sabotage used to ask "carry on anyway? nothing is spent yet"
+         * after a failed, public concealment roll and hand the action back - while that
+         * roll had already paid out its Hope, or a Monokuma's Despair. No action may
+         * offer that question now, and none may refund an action once a roll for it
+         * has landed (see `abort`'s `rolled`).
+         */
+        const sources = new Map(await otherSources());
+        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
+        for (const [file, src] of [["action-rolls.mjs", rolls], ["cleanup.mjs", cleanup]]) {
+            ok(!/DialogV2\.confirm\([\s\S]{0,400}?(carryOn|CarryOn)/.test(src),
+                `${file} asks whether to carry on after a concealment roll again`);
+        }
+        ok(!/sabotageCarryOn/.test(rolls), "the walk-away question is back in Sabotage");
+        const sabotage = rolls.slice(rolls.indexOf("async function performSabotage"),
+            rolls.indexOf("async function performTamper"));
+        ok(sabotage.length > 400, "performSabotage is gone or has moved past Tamper");
+        ok(!/abort\(actor, paid\);/.test(sabotage.slice(0, sabotage.indexOf("const relief"))),
+            "a watched Sabotage hands the action back again before it has rolled");
+    }],
+
     ["R39 - the unfound-Key charge counts every Key Remnant that was found", async () => {
         /*
          * F18, Dawid 17.09. "No slot" is the only option once five rows are filled, and
