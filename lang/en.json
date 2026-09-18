@@ -2398,6 +2398,10 @@
       },
       "how": "Install or enable them in Manage Modules - on the Forge, in the game's module list - then reload the world. Nothing has been changed here, so that is the whole of the repair.",
       "understood": "Understood",
+      "recommendTitle": "Danganronpa RPG is running without two things it asks for",
+      "recommendIntro": "Everything works without these. They are how this game was built to be played, and here is what each one does:",
+      "recommendSilence": "Do not mention this again on this computer",
+      "recommendNotice": "Danganronpa RPG runs better with {modules}. Nothing is broken without them.",
       "playerNotice": "Danganronpa RPG is not running: it needs {modules}. Ask your GM to enable what is missing."
     },
     "Tamper": {

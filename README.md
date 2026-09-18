@@ -126,20 +126,20 @@ https://github.com/Akrobacjum/Danganronpa-RPG/releases/latest/download/module.js
 ```
 
 Then install the Daggerheart system and the modules below the same way, from
-their own package pages. The module refuses to start without them and says
-which one is missing.
+their own package pages. The module refuses to start without Dice So Nice and
+says so; the other two it asks for once, and then runs either way.
 
 | Needs | Version |
 |---|---|
 | Foundry VTT | 14.364+ (verified on 14.365) |
 | [Daggerheart (Foundryborne)](https://foundryvtt.com/packages/daggerheart) | 2.6.0+ (verified on 2.6.5) |
 
-| Module | Why |
-|---|---|
-| [Dice So Nice!](https://foundryvtt.com/packages/dice-so-nice) | The duality dice you actually watch roll |
-| [Isometric Perspective](https://foundryvtt.com/packages/isometric-perspective) | The school is drawn isometrically |
-| [LiveKit AVClient](https://foundryvtt.com/packages/avclient-livekit) | Per-room voice, and eavesdropping |
-| [libWrapper](https://foundryvtt.com/packages/lib-wrapper) | Required by Isometric Perspective |
+| Module | Why | |
+|---|---|---|
+| [Dice So Nice!](https://foundryvtt.com/packages/dice-so-nice) | The duality dice you actually watch roll | required |
+| [Isometric Perspective](https://foundryvtt.com/packages/isometric-perspective) | The school is drawn isometrically | recommended |
+| [LiveKit AVClient](https://foundryvtt.com/packages/avclient-livekit) | Per-room voice, and eavesdropping | recommended |
+| [libWrapper](https://foundryvtt.com/packages/lib-wrapper) | Required by Isometric Perspective | with the above |
 
 Developed and played on [The Forge](https://forge-vtt.com/); it works the same
 on any Foundry v14 host.

@@ -72,7 +72,8 @@ import { SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerGlass } from "./glass.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
-import { requirementsMet, announceMissingRequirements } from "./requirements.mjs";
+import { requirementsMet, announceMissingRequirements, announceMissingRecommendations }
+    from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
 import { log, error, injectSelectPickerSkin, registerTextGuard, isPrimaryGm } from "./utils.mjs";
 
@@ -98,15 +99,18 @@ function safely(label, fn) {
 }
 
 Hooks.once("init", () => {
-    // FOUR MODULES ARE NOT OPTIONAL - see requirements.mjs, and the
+    // ONE MODULE IS NOT OPTIONAL - see requirements.mjs, and the
     // `relationships.requires` block in module.json that this reads.
     //
-    // Nothing registers when one of them is missing or switched off. Half of
-    // this layer on isometric maps that are not being projected, with dice
-    // nobody can see, is worse than an honest stop: the table would spend the
-    // evening working around symptoms rather than ticking one checkbox.
-    // Nothing is written on this path, so enabling them and reloading is the
-    // whole of the repair.
+    // Dice So Nice: nothing registers without it. Every roll in this game is
+    // thrown in front of the table, and dice nobody can see are worse than an
+    // honest stop - the table would spend the evening working around symptoms
+    // rather than ticking one checkbox. Nothing is written on this path, so
+    // enabling it and reloading is the whole of the repair.
+    //
+    // Isometric Perspective and LiveKit moved to `recommends` on 17.09 (M-1):
+    // they are how this table plays, not what the rules need, and the warning
+    // for them is a window the GM can silence rather than a closed door.
     if (!requirementsMet()) {
         log("Not starting: a required module is missing or disabled.");
         return;
@@ -222,6 +226,11 @@ Hooks.once("ready", () => {
             error("Could not announce the missing modules", err));
         return;
     }
+
+    // And the two the game asks for but runs without (M-1). Not awaited: it is
+    // a window the GM reads while the rest of this hook gets on with the world.
+    announceMissingRecommendations().catch(err =>
+        error("Could not mention the recommended modules", err));
 
     // First, and before anything below reads a saved shape: bring this world's
     // data up to the shape this build expects. Primary GM only, silent when

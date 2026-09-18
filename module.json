@@ -29,18 +29,20 @@
         "type": "module",
         "manifest": "https://gitlab.com/riccisi/foundryvtt-dice-so-nice/-/raw/master/module/module.json",
         "reason": "Every roll in this game is thrown in front of the table. Dice So Nice is how they are seen."
-      },
+      }
+    ],
+    "recommends": [
       {
         "id": "isometric-perspective",
         "type": "module",
         "manifest": "https://github.com/arlosmolten/isometric-perspective/releases/latest/download/module.json",
-        "reason": "The academy maps are drawn isometric. Without it the scenes, tokens and Remnants are laid out on a grid the art was never made for."
+        "reason": "The academy maps are drawn isometric. Without it the scenes, tokens and Remnants are laid out on a grid the art was never made for, and the demo scene will not look like its pictures."
       },
       {
         "id": "avclient-livekit",
         "type": "module",
         "manifest": "https://github.com/bekriebel/fvtt-module-avclient-livekit/releases/latest/download/module.json",
-        "reason": "Per-room voice: regions become LiveKit breakout rooms, and moving between rooms moves who can hear you."
+        "reason": "Per-room voice: regions become LiveKit breakout rooms, and moving between rooms moves who can hear you. Without it the whole school talks on one channel."
       }
     ]
   },

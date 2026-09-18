@@ -10,6 +10,8 @@ import { MODULE_ID, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS } from "./config.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
 export const SETTINGS = {
+    /** This browser has been told which recommended modules are missing (M-1). */
+    recommendsSilenced: "recommendsSilenced",
     forcePrivateRolls: "forcePrivateRolls",
     enforceAnonymity: "enforceAnonymity",
     searchTokensPerRoom: "searchTokensPerRoom",
@@ -534,6 +536,17 @@ export function registerSettings() {
        below reads it only under Monokuma Legacy. Legacy therefore keeps Press
        Start 2P as its default face with nothing to turn on, and Stained Glass
        is VT323 and Special Elite for everybody. */
+    /* THE ADVICE IS PER BROWSER, AND CAN BE TURNED OFF (M-1, 17.09).
+       Isometric Perspective and LiveKit are recommended rather than required, so
+       the module says once what is missing and what it does. `config: false`: it
+       is not a dial anybody sets on purpose, it is the checkbox in that window. */
+    game.settings.register(MODULE_ID, SETTINGS.recommendsSilenced, {
+        scope: "client",
+        config: false,
+        type: Boolean,
+        default: false
+    });
+
     game.settings.register(MODULE_ID, SETTINGS.pixelFont, {
         name: "DRPG.Settings.pixelFont.name",
         hint: "DRPG.Settings.pixelFont.hint",

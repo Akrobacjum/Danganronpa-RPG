@@ -1,13 +1,16 @@
 /**
- * Danganronpa RPG - the modules this one cannot do without.
+ * Danganronpa RPG - the modules this one asks for.
  * ---------------------------------------------------------------------------
- * Four modules are not optional here: the dice everyone watches, the isometric
- * projection the maps are drawn in, the library those patches go through, and
- * the voice layer the rooms are wired to. A world missing any of them is not a
- * slightly reduced version of this game - it is a game whose maps are laid out
- * wrong, whose rolls happen invisibly and whose rooms are silent.
+ * ONE IS NOT OPTIONAL, TWO ARE RECOMMENDED (M-1, Dawid 17.09). The dice
+ * everyone watches are the module's own idea of a roll, so a world without
+ * Dice So Nice still stops. The isometric projection and the voice layer are
+ * how Dawid's own table plays, but a table on a square map with one open
+ * channel is playing the same game - and refusing to start over a scene format
+ * was the module telling somebody their table was wrong. They warn once now,
+ * with what each one does, and the warning can be silenced.
  *
- * So the layer refuses to start, and says which ones and what to do about it.
+ * For what is required the layer refuses to start, and says which ones and
+ * what to do about it.
  * It does NOT install anything, and deliberately: what is installed on a server
  * is the person's decision, and a module that reaches for the internet on
  * someone's behalf is a different kind of thing from a module that says what it
@@ -21,6 +24,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
 import { error, esc} from "./utils.mjs";
 
 /** Every module the manifest marks as required, whatever their state. */
@@ -118,5 +122,94 @@ export async function announceMissingRequirements() {
         ui.notifications.error(
             game.i18n.format("DRPG.Requirements.playerNotice", { modules: names }),
             { permanent: true });
+    }
+}
+
+
+/* ==========================================================================
+ * THE TWO THIS GAME ASKS FOR BUT DOES NOT DEMAND (M-1, Dawid 17.09)
+ * ========================================================================== */
+
+/** Every module the manifest marks as recommended, whatever their state. */
+function recommended() {
+    const rel = game.modules.get(MODULE_ID)?.relationships?.recommends;
+    if (!rel) return [];
+    return [...rel].filter(entry => (entry?.type ?? "module") === "module" && entry?.id);
+}
+
+/** Which of them are not there to help, and why each one was asked for. */
+export function missingRecommendations() {
+    return recommended().reduce((out, entry) => {
+        const installed = game.modules.get(entry.id);
+        if (installed?.active) return out;
+        out.push({
+            id: entry.id,
+            title: installed?.title ?? entry.id,
+            state: installed ? "disabled" : "absent",
+            reason: entry.reason ?? ""
+        });
+        return out;
+    }, []);
+}
+
+/**
+ * Say what is missing that the game would rather have, once, to the GM.
+ *
+ * A warning, not a stop: everything in the module runs without these two. The
+ * window carries the reason each was asked for, because "install this" without
+ * "here is what you are playing without" is a demand rather than advice - and a
+ * checkbox that silences it for good, because a table that has decided to play
+ * on square maps should not be asked again every reload.
+ */
+export async function announceMissingRecommendations() {
+    if (!game.user.isGM) return;
+
+    let silenced = false;
+    try {
+        silenced = Boolean(game.settings.get(MODULE_ID, SETTINGS.recommendsSilenced));
+    } catch {
+        // A world where the setting never registered still gets the warning.
+        silenced = false;
+    }
+    if (silenced) return;
+
+    const missing = missingRecommendations();
+    if (!missing.length) return;
+
+    const rows = missing.map(m => `
+        <li>
+            <strong>${esc(m.title)}</strong>
+            <span class="notes">${game.i18n.localize(`DRPG.Requirements.state.${m.state}`)}</span>
+            ${m.reason ? `<div class="notes">${esc(m.reason)}</div>` : ""}
+        </li>`).join("");
+
+    try {
+        const DialogV2 = foundry.applications.api.DialogV2;
+        const answer = await DialogV2.wait({
+            window: { title: game.i18n.localize("DRPG.Requirements.recommendTitle") },
+            classes: ["drpg-panel"],
+            content: `<form class="drpg-requirements">
+                <p>${game.i18n.localize("DRPG.Requirements.recommendIntro")}</p>
+                <ul>${rows}</ul>
+                <p class="notes">${game.i18n.localize("DRPG.Requirements.how")}</p>
+                <label class="drpg-inline-check"><input type="checkbox" name="silence" />
+                    ${game.i18n.localize("DRPG.Requirements.recommendSilence")}</label>
+            </form>`,
+            buttons: [{
+                action: "ok",
+                label: game.i18n.localize("DRPG.Requirements.understood"),
+                default: true,
+                callback: (event, button, dialog) => ({
+                    silence: Boolean(dialog.element.querySelector("[name=silence]")?.checked)
+                })
+            }],
+            rejectClose: false
+        });
+        if (answer?.silence) await game.settings.set(MODULE_ID, SETTINGS.recommendsSilenced, true);
+    } catch (err) {
+        // The advice is worth less than the session: say it in one line and move on.
+        error("Could not show the recommended-modules window", err);
+        ui.notifications.warn(game.i18n.format("DRPG.Requirements.recommendNotice",
+            { modules: missing.map(m => m.title).join(", ") }));
     }
 }
