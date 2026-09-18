@@ -1292,6 +1292,10 @@
       "notFound": "Nobody has found it",
       "dashboardTitle": "Investigation",
       "keySummary": "{found} of {total} found, {placed} on the map.",
+      "keyOffPlan": {
+        "one": "One more found Key Remnant is not on the plan and counts toward the four: {names}.",
+        "other": "{n} more found Key Remnants are not on the plan and count toward the four: {names}."
+      },
       "foundBy": "Found by",
       "tooThin": "Only {found} Key Remnants have been found. The minimum is {min} - below that the trial has no honest answer. Point the players at what is left, or let it stand and pay for it at the vote.",
       "whoHasWhat": "Who has what",

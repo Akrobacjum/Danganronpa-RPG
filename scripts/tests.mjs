@@ -1974,6 +1974,23 @@ const REGRESSIONS = [
             "the refund asks isCleaner again instead of reading what was paid");
     }],
 
+    ["R39 - the unfound-Key charge counts every Key Remnant that was found", async () => {
+        /*
+         * F18, Dawid 17.09. "No slot" is the only option once five rows are filled, and
+         * such a trace is a real Key clue - but the count that bills Despair read the
+         * plan's rows only, so a table that found one off the plan was billed as though
+         * it had never reached the trial.
+         */
+        const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
+        const status = inv.slice(inv.indexOf("export function keyPlanStatus"), inv.indexOf("export async function chargeForUnfoundKeys"));
+        ok(status.length > 400, "keyPlanStatus is gone or has moved past the charge");
+        ok(/offPlan/.test(status) && /foundAny/.test(status),
+            "keyPlanStatus counts the plan's rows only again");
+        const charge = inv.slice(inv.indexOf("export async function chargeForUnfoundKeys"));
+        ok(/unfoundBar - status\.foundAny/.test(charge),
+            "the charge reads the plan's own rows instead of every Key Remnant found");
+    }],
+
     ["R38 - the Loaded Die rides the roll it was bought for", async () => {
         /*
          * CALL-03 and its review (17.09). The 12 was armed for the whole client, so a

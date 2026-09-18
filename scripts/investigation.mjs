@@ -159,12 +159,18 @@ function findersByRemnant() {
 /**
  * The plan, scored against reality.
  *
- * @returns {{entries: Array, placed: number, found: number, missing: number}}
+ * `found` counts the plan's own rows, because that is what the planner's table
+ * is about. `foundAny` adds the Key Remnants of this chapter that somebody found
+ * and the plan never knew about - see below.
+ *
+ * @returns {{entries: Array, placed: number, found: number, offPlan: Array,
+ *   foundAny: number, missing: number}}
  */
 export function keyPlanStatus() {
     const plan = keyPlan();
     const finders = findersByRemnant();
-    const onMap = new Set(placedKeyRemnants().map(r => r.token.id));
+    const placedKeys = placedKeyRemnants();
+    const onMap = new Set(placedKeys.map(r => r.token.id));
 
     const entries = plan.entries.map(entry => {
         const placed = Boolean(entry.tokenId && onMap.has(entry.tokenId));
@@ -172,10 +178,38 @@ export function keyPlanStatus() {
         return { ...entry, placed, finders: who, found: who.length > 0 };
     });
 
+    /*
+     * A KEY REMNANT OFF THE PLAN IS STILL A KEY REMNANT (F18, Dawid 17.09).
+     *
+     * "No slot" is the only option once five rows are filled, and it is also what
+     * a GM picks when a clue occurs to them mid-investigation. Such a trace is a
+     * real Key clue that the cast can find and argue from - and the count that
+     * bills Despair for an investigation nobody finished could not see it, so a
+     * table that found six Key Remnants, one of them off the plan, was billed as
+     * though five had reached the trial.
+     *
+     * This chapter's only: `deathRecord`-style dating, the same rule the body
+     * discovery uses, so last chapter's leftovers cannot pay for this one.
+     */
+    const planned = new Set(plan.entries.map(e => e.tokenId).filter(Boolean));
+    const chapter = getClock().chapter;
+    const offPlan = placedKeys
+        .filter(r => !planned.has(r.token.id)
+            && (r.data?.chapter ?? chapter) === chapter
+            && (finders.get(r.token.id)?.size ?? 0) > 0)
+        .map(r => ({
+            tokenId: r.token.id,
+            name: r.data?.public?.name ?? "",
+            finders: Array.from(finders.get(r.token.id) ?? [])
+        }));
+
+    const found = entries.filter(e => e.found).length;
     return {
         entries,
         placed: entries.filter(e => e.placed).length,
-        found: entries.filter(e => e.found).length,
+        found,
+        offPlan,
+        foundAny: found + offPlan.length,
         missing: entries.filter(e => !e.found).length
     };
 }
@@ -235,7 +269,9 @@ export async function chargeForUnfoundKeys() {
     }
 
     const status = keyPlanStatus();
-    const short = Math.max(0, KEY_REMNANTS.unfoundBar - status.found);
+    // `foundAny`: every Key Remnant of this chapter somebody found, on the plan
+    // or off it (F18). The bar is about what reached the trial.
+    const short = Math.max(0, KEY_REMNANTS.unfoundBar - status.foundAny);
 
     // Stamped even at zero. "Nothing was owed" and "this has not been asked
     // yet" have to stay different states, or a second press would re-ask a
@@ -258,7 +294,7 @@ export async function chargeForUnfoundKeys() {
         // number they are actually being told about is how much of the case reached the
         // trial. `short` still drives the plural, because it is what the Despair is for.
         await whisperToGms(`<p>${plural("DRPG.Investigation.unfoundKeys", {
-            n: short, found: status.found, despair: amount,
+            n: short, found: status.foundAny, despair: amount,
             who: foundry.utils.escapeHTML(paid.join(", "))
         })}</p>`);
     }
@@ -1021,7 +1057,7 @@ export async function openInvestigationDashboard() {
         // The guide's floor is three Key Remnants; the plan's own warning threshold
         // is one above it, so a GM is told the trial is getting thin BEFORE it is
         // actually unsolvable rather than at the moment it already is.
-        const thin = status.found < KEY_REMNANTS.minimum + 1;
+        const thin = status.foundAny < KEY_REMNANTS.minimum + 1;
 
         return `<div class="drpg-case-live"><form>
             <h4>${game.i18n.localize("DRPG.Investigation.whoHasWhat")}</h4>
@@ -1119,8 +1155,12 @@ export async function openInvestigationDashboard() {
                 <p>${game.i18n.format("DRPG.Investigation.keySummary", {
                     found: status.found, placed: status.placed, total: status.entries.length
                 })}</p>
+                ${status.offPlan.length ? `<p class="notes">${plural("DRPG.Investigation.keyOffPlan", {
+                    n: status.offPlan.length,
+                    names: esc(status.offPlan.map(r => r.name || game.i18n.localize("DRPG.Remnant.cardTitle")).join(", "))
+                })}</p>` : ""}
                 ${thin ? `<p class="drpg-warning">${game.i18n.format("DRPG.Investigation.tooThin", {
-                    found: status.found, min: KEY_REMNANTS.minimum
+                    found: status.foundAny, min: KEY_REMNANTS.minimum
                 })}</p>` : ""}
                 ${limit !== null ? `<p class="notes">${game.i18n.format("DRPG.Investigation.keyLimitLine", {
                     used: Math.min(plan.entries.length, limit), limit, min: KEY_REMNANTS.minimum
