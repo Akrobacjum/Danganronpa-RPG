@@ -1001,6 +1001,67 @@ export const KEY_REMNANTS = {
 };
 
 /* ==========================================================================
+ * WHAT AN INTERRUPTION COSTS, IN THE ORDER IT IS PAID (T-1, Dawid 17.09)
+ * --------------------------------------------------------------------------
+ * Three things in this game are priced as a CHAIN rather than as one cost: you
+ * pay the first step you can still pay, and if you cannot pay any of them you
+ * cannot do it. Dawid's rule, in his order:
+ *
+ *   an Objection   1 action, else 1 Hope, else 1 Sanity
+ *   Analyze        the same three - but only inside a Class Trial; anywhere
+ *                  else it costs its action or nothing happens
+ *   Tamper         1 action, else 1 Sanity. No Hope step, deliberately: an
+ *                  Objection buys a moment of the trial's attention, and this
+ *                  buys the destruction of evidence - Hope is the wrong currency
+ *                  for it, and Tamper was the one action already priced twice.
+ *
+ * ARRAY ORDER IS PAYMENT ORDER, and `steps[0].amount` is also the action cost
+ * the tile shows, so `ACTIONS.<key>.cost` and this table must agree - there is a
+ * test for it.
+ *
+ * "stress" IS SANITY, AND IT IS A REVERSE TRACK: paying it ADDS a mark, and the
+ * last mark is a Breakdown. Every reader of this table has to know which way it
+ * counts, which is why the amount is `RESOLUTION_STRESS_COST` by reference and
+ * not a retyped 1 - `spendStress` in cleanup.mjs charges the concealment from the
+ * same constant, and two numbers for one price is how they drift apart.
+ *
+ * HEALTH NEVER PAYS. The desperation rule at `INCIDENT.desperation` is the one
+ * place in this game where Health stands in for Sanity, and it is a way out of a
+ * deadlock in a fight, not a currency.
+ *
+ * `stepsBeyondFirst` names the phase in which the steps after the first exist at
+ * all. That is the whole of "the chain applies only in the trial", said once here
+ * rather than three times in three callers.
+ * ========================================================================== */
+
+/** Resolution actions cost Sanity rather than actions. */
+export const RESOLUTION_STRESS_COST = 1;
+
+export const PRICE_CHAINS = {
+    objection: {
+        steps: [
+            { pay: "action", amount: 1 },
+            { pay: "hope", amount: 1 },
+            { pay: "stress", amount: RESOLUTION_STRESS_COST }
+        ]
+    },
+    analyze: {
+        steps: [
+            { pay: "action", amount: 1 },
+            { pay: "hope", amount: 1 },
+            { pay: "stress", amount: RESOLUTION_STRESS_COST }
+        ],
+        stepsBeyondFirst: "classTrial"
+    },
+    tamper: {
+        steps: [
+            { pay: "action", amount: 1 },
+            { pay: "stress", amount: RESOLUTION_STRESS_COST }
+        ]
+    }
+};
+
+/* ==========================================================================
  * ACTIONS
  * --------------------------------------------------------------------------
  * Actions are implemented as character abilities, not as GM calls. Each entry
@@ -1082,6 +1143,8 @@ export const ACTIONS = {
      */
     analyze: {
         kind: "universal",
+        // `cost` is the first step of `PRICE_CHAINS.analyze`, and inside a Class
+        // Trial the chain carries on into Hope and then Sanity (T-1).
         label: "Analyze",
         icon: "fa-brain",
         traits: ["head"],
@@ -1287,10 +1350,14 @@ export const ACTIONS = {
      * unreachable, and made planting a false trail a privilege of the one
      * person who least needs to be believed.
      *
-     * TWO ROUTES, TWO PRICES, ONE IMPLEMENTATION. This tile costs an action and
-     * no Sanity; the crisis window in Stage 6 still costs what it costs. Both
-     * end in `attemptCleanup` / `attemptStageSix` with a flag saying which door
-     * they came through - see `viaAction` in cleanup.mjs.
+     * ONE PRICE ON BOTH ROADS, AND IT IS A CHAIN (T-1, Dawid 17.09). An attempt
+     * costs 1 action, and only with no action left 1 Sanity - see
+     * `PRICE_CHAINS.tamper`. It used to cost an action AND a Sanity mark on this
+     * tile (the paragraph here said otherwise from 29.08 until T-1, and the code
+     * charged both), which made Tamper the one action priced twice. The killer on
+     * their own night pays no action, so for them the chain starts at the Sanity.
+     * Both roads end in `attemptCleanup` / `attemptStageSix` with a flag saying
+     * which door they came through - see `viaAction` in cleanup.mjs.
      */
     tamper: {
         kind: "universal",
@@ -3078,8 +3145,9 @@ export const TRIAL = {
     }
 };
 
-/** Resolution actions cost Sanity rather than actions. */
-export const RESOLUTION_STRESS_COST = 1;
+/* `RESOLUTION_STRESS_COST` moved up beside `PRICE_CHAINS` on 18.09 (T-1): the
+   chains are declared before this point in the file and one of their amounts IS
+   that constant, so it has to exist by then. */
 
 /**
  * What a way out costs when there is no Sanity left to pay with (Z3).
@@ -3857,7 +3925,7 @@ export const SFX_EVENTS = {
     },
     cleanupFailed: {
         label: "Cleaning up fails",
-        hint: "Heard by the killer. The Sanity is spent either way, and a failure with Despair adds an Obvious trace to the one they were trying to remove.",
+        hint: "Heard by the killer. The price is spent either way, and a failure with Despair adds an Obvious trace to the one they were trying to remove.",
         category: "incident"
     },
     breakdown: {
