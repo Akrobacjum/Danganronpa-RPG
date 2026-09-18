@@ -37,7 +37,7 @@ import { OVERFLOW } from "./config.mjs";
 import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, TRAITS,
     ITEM_CATEGORIES, LIMIT_GROUPS, EQUIPPABLE, SFX_EVENTS, SFX_CATEGORIES,
     HOPE_CALLS, DESPAIR_CALLS, OBSERVE_DC, ANALYZE_DC, CLEANUP, CRITICAL, KEY_REMNANTS,
-    FLAGS
+    FLAGS, PHASES, PRICE_CHAINS, RESOLUTION_STRESS_COST
 } from "./config.mjs";
 import { rolesOf } from "./inventory.mjs";
 import { vaultContents, stashRoomOfItem, stashIn, allVaults } from "./vault.mjs";
@@ -2077,6 +2077,75 @@ const INVARIANTS = [
             if (def.deferred) continue;
             ok(def.label, `${key} has no label`);
             ok(typeof def.cost === "number", `${key} has no numeric cost`);
+        }
+    }],
+
+    ["the three prices are one table", () => {
+        /*
+         * T-1. Three chains, one shape, and a table that has to agree with the
+         * action costs beside it: `steps[0].amount` IS what the tile charges, and
+         * `briefingFacts`, `costOf` and the invariant above all read `def.cost`.
+         * Two numbers for one price is how a tile and its payer drift apart.
+         */
+        const kinds = ["action", "hope", "stress"];
+        for (const [key, chain] of Object.entries(PRICE_CHAINS)) {
+            ok(Array.isArray(chain.steps) && chain.steps.length, `${key} has no steps`);
+            for (const step of chain.steps) {
+                ok(kinds.includes(step.pay), `${key} pays with "${step.pay}"`);
+                ok(Number.isInteger(step.amount) && step.amount > 0,
+                    `${key} has a step costing ${step.amount}`);
+            }
+            if (chain.stepsBeyondFirst) {
+                ok(chain.stepsBeyondFirst in PHASES,
+                    `${key} gates its later steps on "${chain.stepsBeyondFirst}", which is no phase`);
+            }
+        }
+
+        const order = key => PRICE_CHAINS[key].steps.map(step => step.pay).join(" -> ");
+        equal(order("objection"), "action -> hope -> stress", "the Objection's chain changed order");
+        equal(order("analyze"), "action -> hope -> stress", "Analyze's chain changed order");
+        ok(!PRICE_CHAINS.tamper.steps.some(step => step.pay === "hope"),
+            "Tamper grew a Hope step - Dawid's decision on 17.09 was action, then Sanity");
+        equal(PRICE_CHAINS.tamper.steps[1].amount, RESOLUTION_STRESS_COST,
+            "the Tamper price and the concealment no longer read the same constant");
+        for (const key of ["analyze", "tamper"]) {
+            equal(ACTIONS[key].cost, PRICE_CHAINS[key].steps[0].amount,
+                `the ${key} tile and its chain disagree about the action step`);
+        }
+
+        /*
+         * AND THE COPY, BOTH DIRECTIONS. R1 only reads double-quoted literals, and
+         * every one of these keys is composed in a template literal from the table
+         * itself - so nothing else in the suite would notice a chain whose refusal
+         * has no sentence, or a sentence for a currency that no longer exists.
+         */
+        for (const kind of kinds) {
+            ok(game.i18n.has(`DRPG.Price.label.${kind}.other`), `no plural label for ${kind}`);
+            ok(game.i18n.has(`DRPG.Price.paid.${kind}`), `no "paid" line for ${kind}`);
+        }
+        for (const key of Object.keys(PRICE_CHAINS)) {
+            ok(game.i18n.has(`DRPG.Price.nothingLeft.${key}`),
+                `${key} has no sentence for running out of everything`);
+        }
+        for (const name of ["action", "burst", "hope", "stressAfterHope",
+            "stressAfterAction", "breakdown", "free"]) {
+            ok(game.i18n.has(`DRPG.Price.will.${name}`), `DRPG.Price.will.${name} is missing`);
+        }
+        for (const name of ["label.free", "paid.burst", "refunded", "refundLost", "noPrice"]) {
+            ok(game.i18n.has(`DRPG.Price.${name}`), `DRPG.Price.${name} is missing`);
+        }
+        for (const family of ["label", "will", "nothingLeft", "paid"]) {
+            const block = game.i18n.translations?.DRPG?.Price?.[family] ?? {};
+            for (const name of Object.keys(block)) {
+                const known = family === "label" || family === "paid"
+                    ? [...kinds, "free", "burst"]
+                    : family === "nothingLeft"
+                        ? Object.keys(PRICE_CHAINS)
+                        : ["action", "burst", "hope", "stressAfterHope",
+                            "stressAfterAction", "breakdown", "free"];
+                ok(known.includes(name),
+                    `DRPG.Price.${family}.${name} is a sentence nothing can reach`);
+            }
         }
     }],
 
@@ -4642,6 +4711,257 @@ const SCENARIOS = [
         await settle();
         equal(freeActionsLeft(who), 0, "a Burst survived the reset");
         equal(actions.freeMovesLeft(who), 0, "a Sprint survived the reset");
+
+        /*
+         * UNLESS THE REFILL SAYS OTHERWISE (T-1). One caller refills a budget
+         * without ending the time of day, and a Burst bought with four Hope must
+         * not expire because the actions came back.
+         */
+        await actions.grantFreeActions(who, 1);
+        await actions.grantFreeMoves(who, 1);
+        await actions.resetActionsFor(who, { keepGrants: true });
+        await settle();
+        equal(freeActionsLeft(who), 1, "keepGrants still took the Burst");
+        equal(actions.freeMovesLeft(who), 1, "keepGrants still took the Sprint");
+        await actions.resetActionsFor(who);
+        await settle();
+    }],
+
+    ["a price walks action, then Hope, then Sanity, and then stops", async () => {
+        /*
+         * T-1's whole rule, in one actor. The chain is walked from the top every
+         * time it is asked, so what a player can pay decides what they pay - and
+         * when they can pay nothing, the refusal says WHICH kind of nothing it is,
+         * because C5 offers a free Present for one of them and not for the other.
+         */
+        const [who] = cast();
+        const P = await import("./price.mjs");
+        const { grantFreeActions } = await import("./actions.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const before = {
+            actions: who.system.resources.actions.value,
+            hope: who.system.resources.hope.value,
+            stress: who.system.resources.stress.value,
+            grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0
+        };
+        const sanityMax = who.system.resources.stress.max;
+
+        try {
+            await setClock({ ...clock, phase: "dailyLife" });
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await who.update({
+                "system.resources.actions.value": 1,
+                "system.resources.hope.value": 2,
+                "system.resources.stress.value": 0
+            });
+            await settle();
+            equal(P.quotePrice(who, "objection").pay, "action",
+                "an Objection with an action left did not cost the action");
+
+            // No actions, one Burst: still the action step, and the quote says a
+            // Burst is what would pay it.
+            await who.update({ "system.resources.actions.value": 0 });
+            await grantFreeActions(who, 1);
+            await settle();
+            const burst = P.quotePrice(who, "objection");
+            equal(burst.pay, "action", "a banked Burst did not cover the action step");
+            ok(burst.grant, "the quote did not say the Burst is what pays");
+
+            // No actions, no Burst, two Hope: the second step.
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await settle();
+            const hope = P.quotePrice(who, "objection");
+            equal(hope.pay, "hope", "an Objection with no actions did not fall through to Hope");
+            equal(hope.held, 2, "the quote did not say how much Hope is held");
+
+            // No actions, no Hope, one point of Sanity left: the last step, and it
+            // is the last mark.
+            await who.update({
+                "system.resources.hope.value": 0,
+                "system.resources.stress.value": sanityMax - 1
+            });
+            await settle();
+            const sanity = P.quotePrice(who, "objection");
+            equal(sanity.pay, "stress", "an Objection with no actions and no Hope did not reach Sanity");
+            ok(sanity.lastSanity, "the quote did not warn that this is the last mark");
+            ok(P.priceLine(who, sanity).includes(
+                game.i18n.localize("DRPG.Price.will.breakdown")),
+                "the sentence does not say that paying it breaks them down");
+
+            // Nothing at all left.
+            await who.update({ "system.resources.stress.value": sanityMax });
+            await settle();
+            const stuck = P.quotePrice(who, "objection");
+            equal(stuck.pay, null, "a full Sanity track still quoted a price");
+            equal(stuck.blockedKind, "nothingLeft", "an empty pocket was not reported as one");
+            ok(stuck.blocked && !stuck.blocked.includes("DRPG."),
+                `the refusal is a key rather than a sentence: ${stuck.blocked}`);
+
+            // Tamper has no Hope step, deliberately (Dawid, 17.09).
+            await who.update({
+                "system.resources.hope.value": 5,
+                "system.resources.stress.value": 0
+            });
+            await settle();
+            equal(P.quotePrice(who, "tamper").pay, "stress",
+                "Tamper took Hope, which is the one currency it must not take");
+
+            // The killer in their own Stage 6 skips the action step and still pays.
+            await who.update({ "system.resources.actions.value": 2 });
+            await settle();
+            equal(P.quotePrice(who, "tamper", { skip: ["action"] }).pay, "stress",
+                "skipping the action step did not start the chain at its Sanity step");
+
+            // Analyze's later steps exist only inside a Class Trial.
+            await who.update({ "system.resources.actions.value": 0 });
+            await settle();
+            const daytime = P.quotePrice(who, "analyze");
+            equal(daytime.pay, null, "Analyze outside a trial fell through to Hope");
+            equal(daytime.blockedKind, "nothingLeft", "the daytime refusal was the wrong kind");
+            await setClock({ ...clock, phase: "classTrial" });
+            equal(P.quotePrice(who, "analyze").pay, "hope",
+                "Analyze inside a trial did not fall through to Hope");
+        } finally {
+            await setClock(clock);
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await who.update({
+                "system.resources.actions.value": before.actions,
+                "system.resources.hope.value": before.hope,
+                "system.resources.stress.value": before.stress
+            });
+        }
+    }],
+
+    ["payPrice writes one field, refundPrice puts it back", async () => {
+        const [who] = cast();
+        const P = await import("./price.mjs");
+        const actions = await import("./actions.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const before = {
+            actions: who.system.resources.actions.value,
+            hope: who.system.resources.hope.value,
+            stress: who.system.resources.stress.value,
+            grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0
+        };
+
+        try {
+            await setClock({ ...clock, phase: "dailyLife" });
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+
+            // The action step: one field moves, and only one.
+            await who.update({
+                "system.resources.actions.value": 2,
+                "system.resources.hope.value": 3,
+                "system.resources.stress.value": 1
+            });
+            await settle();
+            const paidAction = await P.payPrice(who, "objection");
+            await settle();
+            equal(paidAction?.pay, "action", "the action step did not pay");
+            equal(who.system.resources.actions.value, 1, "the action was not spent");
+            equal(who.system.resources.hope.value, 3, "paying an action moved the Hope");
+            equal(who.system.resources.stress.value, 1, "paying an action marked Sanity");
+            ok(await P.refundPrice(who, paidAction), "the action refund refused");
+            await settle();
+            equal(who.system.resources.actions.value, 2, "the action did not come back");
+
+            // The Hope step.
+            await who.update({ "system.resources.actions.value": 0 });
+            await settle();
+            const paidHope = await P.payPrice(who, "objection");
+            await settle();
+            equal(paidHope?.pay, "hope", "the Hope step did not pay");
+            equal(who.system.resources.hope.value, 2, "the Hope was not spent");
+            equal(who.system.resources.stress.value, 1, "paying Hope marked Sanity");
+            ok(await P.refundPrice(who, paidHope), "the Hope refund refused");
+            await settle();
+            equal(who.system.resources.hope.value, 3, "the Hope did not come back");
+
+            // The Sanity step. Paying ADDS a mark; the refund lifts that same mark.
+            await who.update({ "system.resources.hope.value": 0 });
+            await settle();
+            const paidSanity = await P.payPrice(who, "objection");
+            await settle();
+            equal(paidSanity?.pay, "stress", "the Sanity step did not pay");
+            equal(who.system.resources.stress.value, 2, "the Sanity mark was not made");
+            ok(await P.refundPrice(who, paidSanity), "the Sanity refund refused");
+            await settle();
+            equal(who.system.resources.stress.value, 1, "the Sanity mark was not lifted");
+
+            /*
+             * A BURST COMES BACK AS A BURST (trap 98), which is the whole reason the
+             * receipt exists: a critical Tamper paid for with four Hope of Burst must
+             * not turn into an action nobody had.
+             */
+            await actions.grantFreeActions(who, 1);
+            await who.update({ "system.resources.hope.value": 3 });
+            await settle();
+            const paidBurst = await P.payPrice(who, "objection");
+            await settle();
+            equal(paidBurst?.pay, "action", "the Burst did not pay the action step");
+            ok(paidBurst?.grant, "the receipt did not record that a Burst paid");
+            equal(actions.freeActionsLeft(who), 0, "the Burst was not consumed");
+            ok(await P.refundPrice(who, paidBurst), "the Burst refund refused");
+            await settle();
+            equal(actions.freeActionsLeft(who), 1, "the refund did not give the Burst back");
+            equal(who.system.resources.actions.value, 0,
+                "the refund turned a Burst into an action out of nowhere");
+            ok(P.paidLine(paidBurst).includes(game.i18n.localize("DRPG.Price.paid.burst")),
+                "the card would not say a Burst paid for it");
+        } finally {
+            await setClock(clock);
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await who.update({
+                "system.resources.actions.value": before.actions,
+                "system.resources.hope.value": before.hope,
+                "system.resources.stress.value": before.stress
+            });
+        }
+    }],
+
+    ["the dead, a Monocub and a Monokuma are quoted no price at all", async () => {
+        /*
+         * A refusal that offers a fallback and one that must not (T-1). C5 answers
+         * "nothingLeft" with a free Present; answering "noPrice" with one would hand
+         * a corpse the floor of a Class Trial.
+         *
+         * Every flag is restored to a real `false` rather than deleted: `-=key` does
+         * nothing in this Foundry without a forced replacement, so a fixture that
+         * "cleaned up" that way would leave the world dirty for every test after it.
+         */
+        const [who] = cast();
+        const P = await import("./price.mjs");
+        const before = {
+            deceased: Boolean(who.getFlag(MODULE_ID, FLAGS.deceased)),
+            monocub: Boolean(who.getFlag(MODULE_ID, FLAGS.monocub)),
+            monokuma: Boolean(who.getFlag(MODULE_ID, FLAGS.monokuma))
+        };
+
+        try {
+            for (const flag of [FLAGS.deceased, FLAGS.monocub, FLAGS.monokuma]) {
+                await who.setFlag(MODULE_ID, FLAGS.deceased, false);
+                await who.setFlag(MODULE_ID, FLAGS.monocub, false);
+                await who.setFlag(MODULE_ID, FLAGS.monokuma, false);
+                await who.setFlag(MODULE_ID, flag, true);
+                await settle();
+                for (const key of Object.keys(PRICE_CHAINS)) {
+                    const quote = P.quotePrice(who, key);
+                    equal(quote.blockedKind, "noPrice",
+                        `${flag} was quoted a ${key} price of the wrong kind`);
+                    equal(quote.pay, null, `${flag} was quoted a ${key} price`);
+                }
+            }
+
+            // And a key with no chain at all is the same kind of refusal.
+            await who.setFlag(MODULE_ID, FLAGS.monokuma, false);
+            await settle();
+            equal(P.quotePrice(who, "longRest").blockedKind, "noPrice",
+                "an action with no chain was reported as an empty pocket");
+        } finally {
+            await who.setFlag(MODULE_ID, FLAGS.deceased, before.deceased);
+            await who.setFlag(MODULE_ID, FLAGS.monocub, before.monocub);
+            await who.setFlag(MODULE_ID, FLAGS.monokuma, before.monokuma);
+        }
     }],
 
     ["the accomplice is offered the betrayal, and only them", async () => {

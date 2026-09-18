@@ -120,7 +120,7 @@ export async function grantFreeMoves(actor, n = 1) {
  * Burst came back as an action, an action as a Burst, or the second refund found
  * nothing. The receipt travels with the action that holds it instead.
  */
-export async function spendAction(actor, amount = 1) {
+export async function spendAction(actor, amount = 1, { quiet = false } = {}) {
     if (!actor || amount <= 0) return false;
 
     /*
@@ -141,18 +141,29 @@ export async function spendAction(actor, amount = 1) {
         // covers this branch: the pips do NOT move here. What the player is
         // listening for is the cost being paid, and on the one turn they spent
         // four Hope to skip it, silence would read as "did my Burst fire?".
-        playSfx("actionSpent");
+        if (!quiet) playSfx("actionSpent");
         debug(`${actor.name} spent a Burst instead of ${amount} action(s).`);
         return { grant: true, amount };
     }
 
     const left = actionsLeft(actor);
     if (left < amount) {
-        ui.notifications.warn(plural("DRPG.Actions.notEnough", {
-            actor: actor.name,
-            left,
-            needed: amount
-        }, "left"));
+        /*
+         * QUIET IS FOR A SPEND MADE ON SOMEBODY ELSE'S BEHALF (T-1).
+         *
+         * An Objection is charged to the objector's sheet by the primary GM's
+         * client, because that is the only client allowed to write it. A pip
+         * sound on the GM's speakers and a toast on the GM's screen say nothing
+         * to the player who clicked, and that player is told in the whisper
+         * `price.mjs` sends instead.
+         */
+        if (!quiet) {
+            ui.notifications.warn(plural("DRPG.Actions.notEnough", {
+                actor: actor.name,
+                left,
+                needed: amount
+            }, "left"));
+        }
         return false;
     }
 
@@ -173,7 +184,7 @@ export async function spendAction(actor, amount = 1) {
      * somebody's budget by hand - where a click is honest feedback that the
      * write landed.
      */
-    playSfx("actionSpent");
+    if (!quiet) playSfx("actionSpent");
 
     debug(`${actor.name} spent ${amount} action(s); ${left - amount} left.`);
     return { grant: false, amount };
@@ -294,8 +305,14 @@ export function restoreFreeMove(actor) {
 /**
  * Refill one character for a new time of day. The max is rewritten too, so a
  * wounded character reads "1 / 1" rather than a misleading "1 / 2".
+ *
+ * `keepGrants` leaves the free Move and the banked Sprints and Bursts where they
+ * are, for a caller that refills the budget without ending the time of day: a GM
+ * correcting a roster, and a season reset where the GM ticked the grants as an
+ * exception (R-1). The default is still to clear them, because clearing them is
+ * what makes them expire.
  */
-export async function resetActionsFor(actor) {
+export async function resetActionsFor(actor, { keepGrants = false } = {}) {
     if (!actor || actor.type !== "character") return null;
 
     // A Monokuma has no action economy - `setMonokuma` zeroes the budget on
@@ -322,14 +339,17 @@ export async function resetActionsFor(actor) {
     await automatedUpdate(actor, {
         [`system.resources.${ACTIONS_RESOURCE}.value`]: total,
         [`system.resources.${ACTIONS_RESOURCE}.max`]: total,
-        [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: false,
-        // What makes Sprint and Burst last "until the end of this time of day"
-        // without anything measuring time - see the note above `freeActionsLeft`.
-        // Zeroed rather than deleted: `-=key` does nothing in this Foundry
-        // without a forced replacement, and a grant that survived its own
-        // expiry is a Call the player gets to spend twice.
-        [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0,
-        [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0
+        ...(keepGrants ? {} : {
+            [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: false,
+            // What makes Sprint and Burst last "until the end of this time of
+            // day" without anything measuring time - see the note above
+            // `freeActionsLeft`. Zeroed rather than deleted: `-=key` does
+            // nothing in this Foundry without a forced replacement, and a grant
+            // that survived its own expiry is a Call the player gets to spend
+            // twice.
+            [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0,
+            [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0
+        })
     });
 
     return { actor, total, wounded };

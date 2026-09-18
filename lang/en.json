@@ -398,6 +398,37 @@
       },
       "eclipseFreePlacement": "place anywhere"
     },
+    "Price": {
+      "label": {
+        "action": { "one": "{n} action", "other": "{n} actions" },
+        "hope": { "one": "{n} Hope", "other": "{n} Hope" },
+        "stress": { "one": "{n} Sanity", "other": "{n} Sanity" },
+        "free": "free"
+      },
+      "will": {
+        "action": "Costs {n} action. You have {left}.",
+        "burst": "Costs {n} action - your banked Burst pays it.",
+        "hope": "No actions left, so this costs {n} Hope. You hold {held}.",
+        "stressAfterHope": "No actions and no Hope left, so this costs {n} Sanity.",
+        "stressAfterAction": "No actions left, so this costs {n} Sanity.",
+        "breakdown": "That is your last point of Sanity. Paying it breaks you down.",
+        "free": "This costs nothing."
+      },
+      "nothingLeft": {
+        "objection": "No action, no Hope and no Sanity left, so you cannot object.",
+        "analyze": "No action, no Hope and no Sanity left, so there is nothing to pay for Analyze with.",
+        "tamper": "No action left, and no Sanity to give instead."
+      },
+      "paid": {
+        "action": "Paid with {n} action.",
+        "hope": "Paid with {n} Hope.",
+        "stress": "Paid with {n} Sanity.",
+        "burst": "Paid with a banked Burst."
+      },
+      "refunded": "You get {what} back.",
+      "refundLost": "Your {what} could not come back while Despair is running. Tell the GM.",
+      "noPrice": "This is not something you can do."
+    },
     "Assign": {
       "title": "Whose Despair feeds which Monokuma",
       "intro": "A roll that lands with Despair feeds that student's Monokuma.",
