@@ -630,7 +630,7 @@ function refreshCallsPanels(actor, element) {
         const monokuma = panel.classList.contains("drpg-despair-panel");
         const held = monokuma ? monokumaPool(actor) : hopeHeld(actor);
         const max = monokuma ? STARTING.despairMax : hopeMax(actor);
-        const locked = isEclipse();
+        const lockNote = callLockNote(monokuma);
 
         panel.classList.toggle("drpg-silenced", callSilenced(actor));
 
@@ -641,7 +641,7 @@ function refreshCallsPanels(actor, element) {
         if (!grid) continue;
         grid.replaceChildren(
             ...(monokuma ? despairCallsFor(held) : affordableHopeCalls(actor))
-                .map(call => callButton(call, monokuma, locked)));
+                .map(call => callButton(call, monokuma, lockNote)));
     }
 }
 
@@ -3187,10 +3187,13 @@ function injectCallsPanel(tab, actor, monokuma) {
 
     // A Call is not a room crossing either - see spendHopeCall/spendDespairCallFor
     // in calls.mjs, which refuse it outright while the Eclipse is running.
-    const locked = isEclipse();
+    //
+    // And a Despair Call is shut for the length of a Class Trial (T-1), which a
+    // Hope Call is not - so the note is per drawer rather than per sheet.
+    const lockNote = callLockNote(monokuma);
 
     const calls = monokuma ? despairCallsFor(held) : affordableHopeCalls(actor);
-    for (const call of calls) grid.append(callButton(call, monokuma, locked));
+    for (const call of calls) grid.append(callButton(call, monokuma, lockNote));
 
     panel.append(grid);
     tab.append(panel);
@@ -3201,7 +3204,19 @@ function injectCallsPanel(tab, actor, monokuma) {
  * top, name, price underneath. Only the colour and the icon differ, so a player
  * reads the whole sheet the same way rather than learning two layouts.
  */
-function callButton(call, monokuma, locked = false) {
+/**
+ * Why every Call on one drawer is grey right now, or null.
+ *
+ * One reader for the injection and the repaint, so the two cannot disagree about
+ * a drawer the player is looking at.
+ */
+function callLockNote(monokuma) {
+    if (isEclipse()) return game.i18n.localize("DRPG.Eclipse.callsLocked");
+    if (monokuma && inClassTrial()) return game.i18n.localize("DRPG.Trial.callsLocked");
+    return null;
+}
+
+function callButton(call, monokuma, lockNote = null) {
     const button = document.createElement("button");
     button.type = "button";
 
@@ -3237,9 +3252,12 @@ function callButton(call, monokuma, locked = false) {
      * warns against. Bone plus the pulsing dot reads as "this is standing and
      * about to go off", which is what it is.
      */
+    // `drpg-locked-eclipse` whatever shut it: the class is the LOOK of a Call
+    // that is closed until something ends, and the reason is in the note. A
+    // second class would be a second stylesheet rule for the same grey.
     button.className = `drpg-action-button drpg-call-button${
         pending ? " drpg-call-pending"
-            : locked ? " drpg-locked-eclipse"
+            : lockNote ? " drpg-locked-eclipse"
             : call.affordable ? "" : " unaffordable"}`;
     button.dataset.drpgCall = call.key;
     button.dataset.drpgCallKind = monokuma ? "despair" : "hope";
@@ -3252,8 +3270,8 @@ function callButton(call, monokuma, locked = false) {
         );
     const note = pending
         ? `<br><em>${game.i18n.localize("DRPG.Calls.gatherNoRefund")}</em>`
-        : locked
-        ? `<br><em>${game.i18n.localize("DRPG.Eclipse.callsLocked")}</em>`
+        : lockNote
+        ? `<br><em>${foundry.utils.escapeHTML(lockNote)}</em>`
         : call.affordable ? "" : `<br><em>${game.i18n.localize("DRPG.Calls.cannotAfford")}</em>`;
     const summary = pending
         ? game.i18n.format("DRPG.Calls.gatherBody", {
@@ -3699,9 +3717,20 @@ function actionButton(actor, key, def) {
      */
     const canBetray = key === "directMurder" && Boolean(betrayalTarget(actor));
 
+    /*
+     * AND IN A CLASS TRIAL, ONE TILE (T-1, Dawid 17.09).
+     *
+     * Analyze. The other nine are shut, Move included, and the reason the player
+     * reads is the trial rather than the Eclipse - the same rule `performAction`
+     * enforces, said here in advance so nobody presses a tile to be told no.
+     * Direct Murder keeps its inverted rule and needs no branch: it is open only
+     * in an Eclipse, a fight or a betrayal, none of which a trial is.
+     */
+    const inTrial = inClassTrial();
+
     const locked = key === "directMurder"
         ? (!eclipse && !inIncident && !canBetray)
-        : (inIncident || (key !== "move" && eclipse));
+        : (inIncident || (key !== "move" && eclipse) || (inTrial && key !== "analyze"));
 
     /*
      * AND THE OTHER HALF: WHICH TILE IS THE MOVE (D12, Dawid 29.08).
@@ -3756,11 +3785,18 @@ function actionButton(actor, key, def) {
     // being able to pay comes next; and "nothing here" is the one worth adding
     // even when something else already applies, because it is the only reason
     // that will still be true after the Eclipse ends.
+    // The trial reason comes after the two that outrank it and before the
+    // Eclipse's, so a trial running inside an Eclipse still says "the lights are
+    // out" - that is the one the player can do something about.
+    const lockReason = inIncident
+        ? "DRPG.Murder.actionsLocked"
+        : key === "directMurder"
+            ? "DRPG.Eclipse.murderOnlyInEclipse"
+            : inTrial && !eclipse
+                ? "DRPG.Trial.actionsLocked"
+                : "DRPG.Eclipse.actionsLocked";
     const note = locked
-        ? `<br><em>${game.i18n.localize(inIncident
-            ? "DRPG.Murder.actionsLocked"
-            : key === "directMurder"
-                ? "DRPG.Eclipse.murderOnlyInEclipse" : "DRPG.Eclipse.actionsLocked")}</em>`
+        ? `<br><em>${game.i18n.localize(lockReason)}</em>`
         : affordable
             ? ""
             : `<br><em>${plural("DRPG.Action.cannotAfford", { left: actionsLeft(actor), needed: cost }, "left")}</em>`;

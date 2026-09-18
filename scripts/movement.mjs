@@ -194,6 +194,18 @@ function canCross(actor, from, to) {
     if (blocked) return blocked;
 
     const clock = game.settings.get(MODULE_ID, SETTINGS.clock);
+
+    /*
+     * NOBODY LEAVES THE COURTROOM (T-1, Dawid 17.09).
+     *
+     * Above the free-placement branch, above the Eclipse allowance and a long way
+     * above `SETTINGS.chargeMovement`, because this is absolute: a GM who turned
+     * the movement cost off did not turn off the trial. The Monokuma early-out at
+     * the top of this function still wins, which is right - they are the ones
+     * running it.
+     */
+    if (clock?.phase === "classTrial") return game.i18n.localize("DRPG.Trial.moveLocked");
+
     const eclipse = clock?.eclipse === true;
 
     // A Morning or Night Eclipse places freely: any room, no budget, no

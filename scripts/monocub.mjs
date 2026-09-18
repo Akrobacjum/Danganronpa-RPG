@@ -202,7 +202,7 @@ async function rollFlat() {
  */
 export async function performMeddle(actor, targetId, help) {
     if (!isMonocub(actor)) return null;
-    if (await eclipseLocksMeddle()) return null;
+    if (await meddleLocked()) return null;
 
     const def = MONOCUB.meddle;
     if (actionsLeft(actor) < def.cost) {
@@ -255,7 +255,7 @@ export async function performMeddle(actor, targetId, help) {
 /** Who to Meddle with, and Help or Hinder. The player's own picker. */
 export async function meddleDialog(actor) {
     if (!isMonocub(actor)) return null;
-    if (await eclipseLocksMeddle()) return null;
+    if (await meddleLocked()) return null;
 
     const targets = await meddleTargets(actor);
     if (!targets.length) {
@@ -297,18 +297,29 @@ export async function meddleDialog(actor) {
 }
 
 /**
- * The Eclipse locks Confusion like every other spend (CALL-16, 17.09).
+ * The two windows in which Confusion is shut.
  *
- * The Monocub's tile calls `meddleDialog` directly, not through `performAction`,
- * so it missed the Eclipse guard every action and Call goes through - and the
- * actions refilled when the lights went out could be spent arming advantage and
- * disadvantage before the time of day had started.
+ * The Eclipse (CALL-16, 17.09): the Monocub's tile calls `meddleDialog` directly,
+ * not through `performAction`, so it missed the guard every action and Call goes
+ * through - and the actions refilled when the lights went out could be spent
+ * arming advantage and disadvantage before the time of day had started.
+ *
+ * The Class Trial (T-1, 17.09): Confusion IS the Monocub's Meddle, and Dawid's
+ * decision named it beside the Despair Calls. Everything the trial leaves open
+ * belongs to the students arguing in it.
  */
-async function eclipseLocksMeddle() {
+async function meddleLocked() {
     const { isEclipse } = await import("./eclipse.mjs");
-    if (!isEclipse()) return false;
-    ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
-    return true;
+    if (isEclipse()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
+        return true;
+    }
+    const { getClock } = await import("./settings.mjs");
+    if (getClock().phase === "classTrial") {
+        ui.notifications.warn(game.i18n.localize("DRPG.Trial.callsLocked"));
+        return true;
+    }
+    return false;
 }
 
 /** Score and apply a Meddle. GM-side: it writes to another player's sheet. */

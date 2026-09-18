@@ -18,6 +18,7 @@ import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, callEffect } from "./co
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate, HOPE_REFUND } from "./resource-guard.mjs";
 import { isEclipse } from "./eclipse.mjs";
+import { getClock } from "./settings.mjs";
 import { announce, whisperToOwner, log, error, esc} from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -239,6 +240,19 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
         // Same placement-only rule as a Hope Call - see the note above.
         if (isEclipse()) {
             ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
+            return null;
+        }
+
+        /*
+         * AND A CLASS TRIAL SHUTS THEM TOO (T-1, Dawid 17.09).
+         *
+         * The trial is an argument between students, and a Monokuma who can arm a
+         * disadvantage on the next Objection is arguing for them. Hope Calls stay
+         * open, deliberately, and that asymmetry is the decision: see
+         * `hopeCallBarred` above, which is NOT given a trial branch.
+         */
+        if (getClock().phase === "classTrial") {
+            ui.notifications.warn(game.i18n.localize("DRPG.Trial.callsLocked"));
             return null;
         }
 

@@ -19,6 +19,10 @@ import {
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
+// The phase, from the file that owns the clock setting and imports nothing but
+// config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
+// the whole trial floor into the action pipeline.
+import { getClock } from "./settings.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
@@ -188,6 +192,38 @@ export async function performAction(actor, actionKey, options = {}) {
             ui.notifications.warn(game.i18n.format("DRPG.Chapter.deadCannotAct", {
                 name: actor.name
             }));
+            return null;
+        }
+
+        /*
+         * A CLASS TRIAL IS NOT A TIME OF DAY (T-1, Dawid 17.09, answers 2 and 99).
+         *
+         * In session, the sheet's ten tiles come down to one. What stays open:
+         * Analyze, because the trial is where a Truth Bullet is finally read; the
+         * Objection, which is not an action tile at all; every Hope Call, because
+         * those are what a cornered player reaches for and are bought with Hope;
+         * and items. What closes: the other nine tiles, room crossings
+         * (movement.mjs), Despair Calls and Confusion (calls.mjs, monocub.mjs).
+         *
+         * LAST, NOT FIRST. Every refusal above this one is TRUER: somebody in a
+         * fight, somebody mid-Eclipse and a corpse are all in a situation the
+         * trial does not describe, and telling them "the Class Trial is in
+         * session" would answer a question they did not ask. So this is the last
+         * word before dispatch.
+         *
+         * Move is refused here too, even though the crossing itself is judged in
+         * movement.mjs: pressing Move opens a briefing for a crossing that cannot
+         * happen, and a briefing for something impossible is worse than a grey
+         * tile.
+         *
+         * WHAT THIS DOES NOT COVER, on purpose: `game.drpg.cleanupDialog`,
+         * `attemptCleanup` and `attemptStageSix` are their own entry points on the
+         * API, called directly by the suite and the harness. The PRICE still
+         * applies to them - only the phase lock does not, and a GM who calls a
+         * clean-up by hand during a trial has decided to.
+         */
+        if (actionKey !== "analyze" && getClock().phase === "classTrial") {
+            ui.notifications.warn(game.i18n.localize("DRPG.Trial.actionsLocked"));
             return null;
         }
 

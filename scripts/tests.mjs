@@ -2038,7 +2038,66 @@ const REGRESSIONS = [
         const grants = dialog.slice(dialog.indexOf("function grantsFor"));
         ok(/LOADED_DIE/.test(grants.slice(0, 400)),
             "the roll window shows or spends the Loaded Die on a roll that does not carry it");
-    }]
+    }],
+
+    ["R42 - the trial gate sits below the guards that outrank it", async () => {
+        /*
+         * ORDER IS THE RULE HERE, not the presence of a line (T-1). A trial gate
+         * placed beside the Eclipse refusal would tell somebody in a fight, and a
+         * corpse, that the Class Trial is why they cannot act - a true sentence
+         * answering a question nobody asked. The first draft of the spec for this
+         * had it that way round, so the order is pinned here rather than left to a
+         * reader's memory.
+         *
+         * Comments are stripped first, or this would read its own subject out of
+         * the paragraph that explains it.
+         */
+        const src = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(r => r.text()));
+        const start = src.indexOf("export async function performAction");
+        ok(start > 0, "performAction is no longer where this test looks for it");
+        const body = src.slice(start, src.indexOf("const def =", start) + 40);
+
+        const gate = body.indexOf('"classTrial"');
+        const fight = body.indexOf("DRPG.Murder.actionsLocked");
+        const dead = body.indexOf("DRPG.Chapter.deadCannotAct");
+        const dispatch = body.indexOf("const def =");
+        ok(gate > 0, "performAction no longer refuses anything during a Class Trial");
+        ok(/actionKey !== "analyze" && getClock\(\)\.phase === "classTrial"/.test(body),
+            "the trial gate no longer keeps Analyze open, which is the one tile it must");
+        ok(fight > 0 && dead > 0, "the fight or the death refusal moved out of performAction");
+        ok(gate > fight && gate > dead,
+            "the trial gate rose above the fight or the death check, which outrank it");
+        ok(gate < dispatch, "the trial gate fell below the dispatch it is there to stop");
+
+        // The courtroom is locked ABOVE the movement economy: a GM who turned the
+        // crossing cost off did not turn off the trial.
+        const move = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(r => r.text()));
+        const cross = move.slice(move.indexOf("function canCross"));
+        const locked = cross.indexOf('"classTrial"');
+        const charged = cross.indexOf("SETTINGS.chargeMovement");
+        ok(locked > 0, "a crossing is no longer refused during a Class Trial");
+        ok(locked < charged,
+            "the courtroom lock fell below `chargeMovement`, so turning the cost off opens the door");
+
+        /*
+         * AND THE ASYMMETRY IS THE DECISION (Dawid, 17.09): Despair Calls wait for
+         * the trial to end, Hope Calls do not. Read from the source because
+         * `hopeCallBarred` is private, and because one day somebody will "fix" the
+         * inconsistency by adding the branch it deliberately does not have.
+         */
+        const callsSrc = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/calls.mjs`).then(r => r.text()));
+        const hopeGate = callsSrc.slice(callsSrc.indexOf("function hopeCallBarred"),
+            callsSrc.indexOf("export async function spendHopeCall"));
+        ok(hopeGate.length > 100 && !hopeGate.includes("classTrial"),
+            "Hope Calls are barred during a trial now, which is the opposite of the decision");
+        const despairGate = callsSrc.slice(callsSrc.indexOf("export async function spendDespairCallFor"));
+        ok(despairGate.includes("classTrial"),
+            "a Despair Call is no longer refused during a Class Trial");
+    }],
+
 ];
 
 /* ==========================================================================
@@ -4046,9 +4105,10 @@ const INVARIANTS = [
     ["closing the trial puts the room back into Daily Life", async () => {
         /*
          * The one route back, exercised rather than read. A trial that ends without
-         * this leaves the campaign in `classTrial` - which shuts the action economy,
-         * holds every HUD on "Class Trial", and cannot be undone from anywhere except
-         * Edit Campaign by hand.
+         * this leaves the campaign in `classTrial` - which since T-1 means every
+         * action tile but Analyze, every room crossing, every Despair Call and
+         * Confusion stay shut; it holds every HUD on "Class Trial"; and it cannot be
+         * undone from anywhere except Edit Campaign by hand.
          *
          * The elapsed clock is restarted too, and that is not decoration: the Daily
          * Life that follows a trial is measured from the trial ending, not from the
@@ -6713,7 +6773,74 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.overflow, stored);
             await settle();
         }
-    }]
+    }],
+
+    ["the trial shuts everything but Analyze and the Objection", async () => {
+        /*
+         * T-1, Dawid 17.09. One tile, the Objection, the Hope Calls and the items.
+         * Asserted through the real entry points rather than off the sheet, because
+         * the grey on a tile is a courtesy and these are the boundaries - and by the
+         * SENTENCE each refusal gives, because "it returned null" is also what an
+         * action with nothing to do returns.
+         */
+        const [who, other] = cast();
+        const rolls = await import("./action-rolls.mjs");
+        const calls = await import("./calls.mjs");
+        const monocub = await import("./monocub.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const actionsBefore = who.system.resources.actions.value;
+        const wasCub = Boolean(other.getFlag(MODULE_ID, FLAGS.monocub));
+
+        const locked = game.i18n.localize("DRPG.Trial.actionsLocked");
+        const callsLocked = game.i18n.localize("DRPG.Trial.callsLocked");
+        const seen = [];
+        const warn = ui.notifications.warn.bind(ui.notifications);
+        ui.notifications.warn = text => { seen.push(String(text)); return null; };
+
+        try {
+            await who.update({ "system.resources.actions.value": 2 });
+            await setClock({ ...clock, phase: "classTrial" });
+            await settle();
+
+            for (const key of ["search", "tamper", "palm", "observe", "rest",
+                "listen", "project", "move", "dynamic", "sabotage"]) {
+                seen.length = 0;
+                const out = await rolls.performAction(who, key);
+                equal(out, null, `${key} was allowed during a Class Trial`);
+                ok(seen.includes(locked), `${key} was refused for some reason other than the trial`);
+            }
+            equal(who.system.resources.actions.value, 2,
+                "a tile the trial refused still charged for itself");
+
+            // A Despair Call waits for the trial. The refusal comes before the pool
+            // is even looked up, so any actor proves the gate.
+            seen.length = 0;
+            equal(await calls.spendDespairCallFor(who, "obstacle", { choice: { target: other } }), null,
+                "a Despair Call went through during a Class Trial");
+            ok(seen.includes(callsLocked), "the Despair Call was refused for some other reason");
+
+            // Confusion is the Monocub's Meddle, and it is named in the decision.
+            seen.length = 0;
+            await other.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            equal(await monocub.meddleDialog(other), null,
+                "Confusion opened its picker during a Class Trial");
+            ok(seen.includes(callsLocked), "Confusion was refused for some other reason");
+
+            /*
+             * ANALYZE IS THE ONE TILE THE TRIAL KEEPS OPEN, and it is asserted in
+             * R42 rather than here: `performAnalyze` opens a picker for which bullet
+             * to read, and a scenario that presses it waits for an answer nobody is
+             * there to give.
+             */
+        } finally {
+            ui.notifications.warn = warn;
+            await other.setFlag(MODULE_ID, FLAGS.monocub, wasCub);
+            await setClock(clock);
+            await who.update({ "system.resources.actions.value": actionsBefore });
+        }
+    }],
+
 ];
 
 /* ==========================================================================
