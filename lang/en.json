@@ -290,6 +290,10 @@
         "name": "Glass pulse",
         "hint": "The slow darkening that travels around the frame. Turn it off to keep the glass and stop it breathing. This client only."
       },
+      "highContrast": {
+        "name": "High contrast",
+        "hint": "Brighter fine print, solid hairlines, opaque panels and no blur behind the chrome. Text sizes belong to the Interface scale rather than to this switch, and the map is left alone. On by itself when your system asks for more contrast. This client only."
+      },
       "reducedMotion": {
         "name": "Reduced motion",
         "hint": "Hold the interface still on this browser, whatever the operating system says. This client only."
@@ -900,6 +904,8 @@
       "pixelFont": "Pixel font",
       "pulse": "Glass pulse",
       "reducedMotion": "Reduced motion",
+      "contrast": "High contrast",
+      "contrastAuto": "Your system already asks for more contrast, so this is on whatever the switch says.",
       "ticker": "State name behind the clock",
       "messengerSound": "Messenger sounds",
       "stepUp": "One more",
@@ -1050,7 +1056,7 @@
     "Cleanup": {
       "title": "Cleaning up",
       "action": "Clean up a trace",
-      "intro": "Wiping a trace costs an action and {n} Sanity.",
+      "intro": "Wiping a trace costs {n} Sanity.",
       "needGm": "No Gamemaster is connected, so nothing can be scored. Nothing was spent.",
       "priceGone": "Covering yourself took what this attempt was going to cost. Nothing else was spent.",
       "actionBack": {
@@ -1084,7 +1090,6 @@
       "reinforced": "The {what} will not come off. Whatever left it, left it for good.",
       "vanished": "The trace you were working on is already gone. The effort still cost you.",
       "removed": "The {what} is gone.",
-      "noStressForThis": "This costs 1 Sanity and you have none left.",
       "freeTonight": "Your own scene, tonight: no action, 1 Sanity each.",
       "stillThere": "The trace is still there.",
       "leftTrace": "Your cleaning left a trace of its own.",
@@ -1121,7 +1126,7 @@
       "bodyNote": "{name}'s body was dragged out of here towards {room}.",
       "seenCleaning": "{actor} is doing something in {room}, and not hiding it well.",
       "moveTitle": "Move the body",
-      "moveIntro": "The body is in {room}. Choose where you are dragging it. Costs an action and {n} Sanity.",
+      "moveIntro": "The body is in {room}. Choose where you are dragging it. Costs {n} Sanity.",
       "moveAlwaysTrace": "This always leaves an Evident trace behind, whatever the dice say. You cannot drag a corpse quietly. Bedrooms are not on the list: a body behind somebody's locked door names a suspect for you.",
       "moveWhere": "Take it to",
       "moveConfirm": "Carry it there",
@@ -2478,7 +2483,6 @@
       "coverAction": "Cover your tracks",
       "trailAction": "Misleading trail",
       "notFound": "You have not found that trace.",
-      "actionSpent": "1 action spent.",
       "watchedNoSanity": "Somebody is watching, and covering what you are doing costs Sanity you no longer have.",
       "watched": {
         "one": "{n} other person is in this room. You will have to cover what you are doing first, and being caught at it costs Sanity.",

@@ -48,6 +48,14 @@ function lookFieldset() {
         check("pulse", SETTINGS.glassPulse, getSetting(SETTINGS.glassPulse) !== false)
         + check("ticker", SETTINGS.hudTicker, getSetting(SETTINGS.hudTicker) !== false);
     const motion = check("reducedMotion", SETTINGS.reducedMotion, getSetting(SETTINGS.reducedMotion) === true);
+    /* HIGH CONTRAST STANDS WITH REDUCED MOTION, and for the same reason (W-7): it is
+       an accessibility switch, not a theme effect, so it is offered whichever look a
+       player picked. The note under it is for the one case a switch cannot explain
+       itself - the system already asking for more contrast, which turns it on
+       whatever the box says. */
+    const contrast = check("contrast", SETTINGS.highContrast, getSetting(SETTINGS.highContrast) === true)
+        + (systemWantsContrast()
+            ? `<p class="notes">${t("contrastAuto")}</p>` : "");
     const opt = (value, label) => `<option value="${value}"${theme === value ? " selected" : ""}>${
         foundry.utils.escapeHTML(game.i18n.localize(label))}</option>`;
     return `<fieldset class="drpg-look">
@@ -61,8 +69,24 @@ function lookFieldset() {
         <p class="notes" data-drpg-scale-note>${game.i18n.format("DRPG.Look.uiScaleAuto", { auto: Math.round(autoScale() * 100), total: Math.round(effectiveScale() * 100), w: innerWidth, h: innerHeight })}</p>
         ${glassOnly}
         ${motion}
+        ${contrast}
         <p class="notes">${t("note")}</p>
     </fieldset>`;
+}
+
+/**
+ * Is the SYSTEM asking for more contrast, whatever this client's switch says?
+ *
+ * Asked here only to decide whether to print the note - `highContrastOn` in
+ * settings.mjs is what decides the class, and this window must not grow a second
+ * opinion about that.
+ */
+function systemWantsContrast() {
+    try {
+        return Boolean(window.matchMedia?.("(prefers-contrast: more)")?.matches);
+    } catch {
+        return false;
+    }
 }
 
 function wireLook(root) {
@@ -94,7 +118,8 @@ function wireLook(root) {
         [SETTINGS.pixelFont, SETTINGS.pixelFont, "the pixel font"],
         [SETTINGS.glassPulse, SETTINGS.glassPulse, "the glass pulse"],
         [SETTINGS.hudTicker, SETTINGS.hudTicker, "the clock's ticker"],
-        [SETTINGS.reducedMotion, SETTINGS.reducedMotion, "reduced motion"]
+        [SETTINGS.reducedMotion, SETTINGS.reducedMotion, "reduced motion"],
+        [SETTINGS.highContrast, SETTINGS.highContrast, "high contrast"]
     ]) {
         root.querySelector(`[name='look:${name}']`)?.addEventListener("change", ev =>
             setSetting(setting, ev.currentTarget.checked).catch(err => error(`Could not change ${label}`, err)));

@@ -710,9 +710,8 @@ export function fitWindowToTable(dialog) {
                 widest = Math.max(0, content.scrollWidth - pad);
             }
 
-            const settled = fitted.has(dialog);
             fitted.add(dialog);
-            const width = windowWidthFor(root, content, widest, settled);
+            const width = windowWidthFor(root, content, widest);
 
             // Nothing to do when we are already there - `setPosition` triggers
             // a re-render, and re-rendering on every open for no change is how
@@ -739,16 +738,16 @@ export function fitWindowToTable(dialog) {
 /**
  * The window width that shows a table of `widest` pixels without clipping.
  *
- * `settled` is "this window has been fitted before, so somebody may have put it
- * somewhere". See the note on `fitted` above: it caps the answer at the width
- * that fits from the window's current left edge, because a wider request is one
- * Foundry can only honour by moving the window.
- *
- * The cap can never shrink a window below what it already is. Foundry keeps the
- * right edge on screen, so `left` is never more than `viewport - width` - which
- * makes the space to the right of `left` at least the current width, always.
+ * IT USED TO TAKE A `settled` FLAG - "this window has been fitted before, so
+ * somebody may have put it somewhere" - and cap the answer at the room to the
+ * right of the window's current left edge. That term is gone (W-9):
+ * ApplicationV2 re-clamps `left` to `clientWidth - width` on every width change,
+ * so a window that grows is moved back onto the screen for free, and all the
+ * term did was make a window opened near the right edge permanently narrower
+ * than the same window opened in the middle. `fitted` still decides whether a
+ * window is re-measured at all; it no longer decides how wide it may be.
  */
-function windowWidthFor(root, content, widest, settled = false) {
+function windowWidthFor(root, content, widest) {
     const styles = getComputedStyle(content);
     const padding = (parseFloat(styles.paddingLeft) || 0)
         + (parseFloat(styles.paddingRight) || 0)
@@ -765,11 +764,27 @@ function windowWidthFor(root, content, widest, settled = false) {
     // does not round into a scrollbar it does not need.
     const wanted = Math.ceil(widest + padding + frame) + 2;
     const viewport = window.innerWidth || 1200;
-    const ceiling = Math.round(viewport * 0.94);
-    if (!settled) return Math.min(wanted, ceiling);
 
-    const here = Math.max(0, Math.round(root.getBoundingClientRect().left));
-    return Math.min(wanted, ceiling, Math.max(0, viewport - here));
+    /*
+     * TWO CEILINGS, AND THE SECOND ONE IS NEW (W-9, Dawid 18.09).
+     *
+     * 94 % of the viewport was the only one, so on a 5120x1440 screen the case
+     * dashboard opened 4813px wide with its cells stretched across the whole of
+     * it. The absolute cap is read from the stylesheet rather than written here,
+     * because the stylesheet is what `.drpg-table-window` is capped by too and
+     * two copies of one number is how they part company.
+     *
+     * AND THE LEFT EDGE IS NOT PART OF THE ANSWER ANY MORE. `viewport - here`
+     * measured the room to the right of where the window happened to be - but
+     * ApplicationV2 re-clamps `left` to `clientWidth - width` on every width
+     * change, so a window that is about to grow is about to be moved back onto
+     * the screen anyway. All that term did was make a window opened near the
+     * right edge permanently narrower than the same window opened in the middle.
+     */
+    const cap = parseFloat(getComputedStyle(document.body)
+        .getPropertyValue("--drpg-window-max")) || 1400;
+    const ceiling = Math.min(Math.round(viewport * 0.94), Math.round(cap));
+    return Math.min(wanted, ceiling);
 }
 
 /**
@@ -842,9 +857,8 @@ export function fitWindowToTabs(dialog) {
 
             if (!widest) return;
 
-            const settled = fitted.has(dialog);
             fitted.add(dialog);
-            const width = windowWidthFor(root, content, widest, settled);
+            const width = windowWidthFor(root, content, widest);
             const capped = parseFloat(getComputedStyle(content).maxHeight);
             const chrome = Math.max(0, root.getBoundingClientRect().height - content.clientHeight);
             const height = Math.round(

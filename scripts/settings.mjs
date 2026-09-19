@@ -62,6 +62,8 @@ export const SETTINGS = {
     uiScale: "uiScale",
     /** This browser's own "reduced motion", independent of what the system says. */
     reducedMotion: "reducedMotion",
+    /** This client's own high contrast, on top of whatever `prefers-contrast` says. */
+    highContrast: "highContrast",
     /** The state's name running as an outline behind the clock. */
     hudTicker: "hudTicker",
     /** The three messenger sounds, muted for this browser alone. */
@@ -591,6 +593,23 @@ export function registerSettings() {
     game.settings.register(MODULE_ID, SETTINGS.reducedMotion, {
         name: "DRPG.Settings.reducedMotion.name",
         hint: "DRPG.Settings.reducedMotion.hint",
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: false,
+        onChange: () => applyTheme()
+    });
+
+    /*
+     * HIGH CONTRAST IS THE READER'S, NOT THE TABLE'S (W-7, Dawid 18.09).
+     *
+     * Client-scoped for the same stated reason as reduced motion: what one player
+     * can read is not a thing a GM decides for everybody. It is offered under both
+     * themes, because dim fine print is dim in both.
+     */
+    game.settings.register(MODULE_ID, SETTINGS.highContrast, {
+        name: "DRPG.Settings.highContrast.name",
+        hint: "DRPG.Settings.highContrast.hint",
         scope: "client",
         config: true,
         type: Boolean,
@@ -1436,6 +1455,44 @@ export function effectiveScale() {
 /* The screen's factor changes when the window does; the theme follows once the resize has
    settled, and only when the factor actually differs. */
 let screenWatched = false, screenTimer = 0, screenFactor = 0;
+/**
+ * Is this client asking for more contrast?
+ *
+ * The switch, or the system asking through `prefers-contrast: more`. READ IN JS
+ * rather than in a second CSS block, so the token overrides below exist once
+ * instead of twice - fog.mjs reads `prefers-reduced-motion` the same way and for
+ * the same reason.
+ */
+export function highContrastOn() {
+    try {
+        if (getSetting(SETTINGS.highContrast) === true) return true;
+        return Boolean(window.matchMedia?.("(prefers-contrast: more)")?.matches);
+    } catch {
+        return false;
+    }
+}
+
+let contrastWatched = false;
+
+/**
+ * Follow the system's own contrast preference while the game is open.
+ *
+ * One listener, registered once, exactly as `watchScreen` does it - a player who
+ * turns high contrast on in Windows mid-session gets it here without reloading.
+ */
+function watchContrast() {
+    if (contrastWatched) return;
+    try {
+        const query = window.matchMedia?.("(prefers-contrast: more)");
+        if (!query?.addEventListener) return;
+        contrastWatched = true;
+        query.addEventListener("change", () => applyTheme());
+    } catch {
+        // A browser without the query is a browser that never asks for it.
+        contrastWatched = true;
+    }
+}
+
 function watchScreen() {
     screenFactor = autoScale();
     if (screenWatched) return;
@@ -1454,6 +1511,10 @@ export function applyTheme() {
     document.body.classList.toggle("drpg-no-pulse", getSetting(SETTINGS.glassPulse) === false);
     document.body.classList.toggle("drpg-no-ticker", getSetting(SETTINGS.hudTicker) === false);
     document.body.classList.toggle("drpg-reduced-motion", getSetting(SETTINGS.reducedMotion) === true);
+    // W-7. Deliberately NOT in the pulse/ticker group above: those two are one
+    // theme's effects, and this one is about being able to read the other 235
+    // sizes in the stylesheet, whichever theme is drawing them.
+    document.body.classList.toggle("drpg-high-contrast", highContrastOn());
     // On the body, where the theme's own rules live: a value on <html> was shadowed by
     // the sheet's default on body (v1.2.15), so the scale never applied.
     const total = String(effectiveScale());
@@ -1477,6 +1538,7 @@ export function applyTheme() {
         if (el) { delete el.dataset.drpgScaled; scaleWindow(app, el); }
     }
     watchScreen();
+    watchContrast();
     import("./glass.mjs").then(m => m.refreshGlass()).catch(() => {});
     import("./sfx.mjs").then(m => m.renderSoundLauncher?.()).catch(() => {});
     // The clock carries the theme's ticker and, under Monokuma Legacy, the three

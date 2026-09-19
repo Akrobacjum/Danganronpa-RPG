@@ -2577,6 +2577,106 @@ const REGRESSIONS = [
             "the exceptions are no longer remembered for the next reset");
         const order = setup.indexOf("rememberExceptions(plan.keep)") < setup.indexOf("return wipeSeason(plan)");
         ok(order, "the exceptions are remembered after the wipe, which is a decision the wipe could lose");
+    }],
+
+    ["R51 - no vw ceiling stands without an absolute cap", async () => {
+        /*
+         * W-9, Dawid 18.09. Every size in this stylesheet was chosen at 16:9, and a
+         * dozen of them are stated in `vw` - which on a 5120x1440 screen means a HUD
+         * stretched across three feet of glass and a table window whose columns sit
+         * a hand's width apart. A relative ceiling with no absolute one beside it is
+         * the shape of that defect, so it is the shape this test hunts.
+         */
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        /*
+         * COMMENTS BLANKED, NOT DELETED, and both halves matter. Blanked, because
+         * the notes beside these rules quote the shapes this test hunts - the one
+         * above the foreign-sheet rule says "96vw" in prose. And blanked rather than
+         * stripped, so the line numbers it reports still point at the declaration.
+         */
+        const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
+        const lines = css.split("\n");
+        const bare = [];
+        lines.forEach((line, i) => {
+            const at = line.match(/max-width:\s*[\d.]+vw/);
+            if (!at || line.includes("min(")) return;
+            /*
+             * The one allowed exception: a repair for windows the module does not
+             * own, where an absolute cap could hide a control rather than reveal
+             * one. Recognised by the RULE it sits in - the selector is five lines up
+             * behind its own comment, and a blanked comment still takes up its
+             * lines, so counting lines was never going to find it.
+             */
+            const opened = lines.slice(0, i + 1).join("\n").lastIndexOf("{");
+            const rule = lines.slice(0, i + 1).join("\n").slice(Math.max(0, opened - 200), opened);
+            if (rule.includes('.application.sheet:not([class*="drpg-"])')) return;
+            bare.push(`danganronpa.css:${i + 1}`);
+        });
+        ok(!bare.length,
+            `these relative ceilings have no absolute cap beside them: ${bare.join(", ")}`);
+
+        for (const token of ["--drpg-overlay-max", "--drpg-window-max"]) {
+            ok(css.includes(`${token}:`), `${token} is gone, so the caps have no home`);
+        }
+
+        // And the JavaScript reads the cap rather than keeping a second copy of it.
+        const utils = stripComments(new Map(await otherSources()).get("utils.mjs") ?? "");
+        const fit = utils.slice(utils.indexOf("function windowWidthFor"),
+            utils.indexOf("function windowWidthFor") + 2000);
+        ok(fit.includes("--drpg-window-max"),
+            "the measured-window fit no longer reads the cap out of the stylesheet");
+        ok(!/viewport - here/.test(fit),
+            "the fit measures from the window's left edge again, which Foundry re-clamps anyway");
+        ok(/Math\.min\(Math\.round\(viewport \* 0\.94\), Math\.round\(cap\)\)/.test(fit),
+            "the fit no longer takes the smaller of the relative and the absolute ceiling");
+
+        // The wide tier asks about the RATIO, because that is what is different
+        // about these screens - 1920x1080 and 2560x1440 are both 1.78 and take none
+        // of it.
+        ok(/@media \(min-aspect-ratio: 2\/1\)/.test(css),
+            "the ultrawide tier is gone, or asks about width instead of shape");
+    }],
+
+    ["R52 - the high-contrast switch states no type size", async () => {
+        /*
+         * W-7. The copy promises a player that this switch changes how legible the
+         * interface is and NOT how big it is - text size belongs to the Interface
+         * scale, and two controls fighting over one number is how a slider stops
+         * meaning anything. A declaration in this block is the only way that promise
+         * can be broken, so the block is read.
+         */
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
+        const at = css.indexOf("body.drpg-high-contrast");
+        ok(at > 0, "the high-contrast block is gone, so the switch changes nothing");
+        const block = css.slice(at);
+
+        ok(!/font-size/.test(block), "the high-contrast block sets a font size");
+        ok(!/line-height/.test(block), "the high-contrast block sets a line height");
+
+        /*
+         * AND THE CHROME GROUND IS STATED TWICE, which is not a mistake:
+         * stained-glass.css forces those boxes transparent for the curtain and wins
+         * on source order, so the plain selector answers Monokuma Legacy and the
+         * curtain-on one answers the glass.
+         */
+        ok(block.includes("body.drpg-high-contrast.drpg-curtain-on .drpg-panel"),
+            "the glass keeps its transparent panels under high contrast, and wins on source order");
+        ok(/body\.drpg-high-contrast \.drpg-panel/.test(block),
+            "Monokuma Legacy's panels are not given an opaque ground");
+
+        // The class is decided in JS, so the block exists once - and the switch is
+        // not one of the theme-only effects.
+        const settings = stripComments(new Map(await otherSources()).get("settings.mjs") ?? "");
+        ok(/export function highContrastOn\(/.test(settings),
+            "nothing decides whether high contrast is on");
+        ok(/prefers-contrast: more/.test(settings),
+            "the system's own contrast preference is no longer read");
+        ok(/toggle\("drpg-high-contrast", highContrastOn\(\)\)/.test(settings),
+            "applyTheme no longer puts the class on the body");
+        const look = stripComments(new Map(await otherSources()).get("look.mjs") ?? "");
+        ok(look.includes("SETTINGS.highContrast"),
+            "the Look window lost the switch, so only Foundry's settings page has it");
     }]
 ];
 
@@ -8083,6 +8183,133 @@ const SCENARIOS = [
                 "an empty plan does not treat every group as an exception");
         } finally {
             await game.settings.set(MODULE_ID, SETTINGS.seasonExceptions, before);
+            await settle();
+        }
+    }],
+
+    ["no module window is wider than the cap, and they open on the centre", async () => {
+        /*
+         * W-9. Trivially true at this viewport and the whole point at 5120x1440 -
+         * which is exactly why it is written here rather than left to a screenshot
+         * on one GM's monitor. What it really holds is the SHAPE: a module window
+         * that states an explicit `left`, or one whose width beats the cap, fails
+         * here on any screen.
+         */
+        const { openLookDialog } = await import("./look.mjs");
+        const cap = parseFloat(getComputedStyle(document.body)
+            .getPropertyValue("--drpg-window-max")) || 1400;
+        const ceiling = Math.min(0.96 * window.innerWidth, cap) + 4;
+
+        let app = null;
+        /*
+         * HELD, NOT AWAITED. `openLookDialog` awaits its own `DialogV2.wait`, which
+         * resolves when the window CLOSES - and the only thing that will close it is
+         * the end of this test. Awaiting the opener hangs the suite against its own
+         * window (measured: fifteen minutes of silence, 19.09).
+         */
+        const opening = openLookDialog();
+        try {
+            await until(() => [...foundry.applications.instances.values()]
+                .some(a => a.element?.matches?.('.application.dialog[class*="drpg-"]')));
+            await settle();
+            app = [...foundry.applications.instances.values()]
+                .find(a => a.element?.matches?.('.application.dialog[class*="drpg-"]'));
+            ok(app, "the Look window did not open, so nothing could be measured");
+
+            for (const instance of foundry.applications.instances.values()) {
+                const el = instance.element;
+                if (!el?.matches?.('.application.dialog[class*="drpg-"]')) continue;
+                const box = el.getBoundingClientRect();
+                if (!box.width) continue;
+                ok(box.width <= ceiling,
+                    `${instance.constructor.name} is ${Math.round(box.width)}px wide, over the ${
+                        Math.round(ceiling)}px cap`);
+                const centre = box.left + box.width / 2;
+                ok(Math.abs(centre - window.innerWidth / 2) <= 2,
+                    `${instance.constructor.name} opened off-centre - something states an explicit left`);
+            }
+        } finally {
+            try { await app?.close(); } catch { /* already gone */ }
+            // And let the opener settle, so nothing is left pending behind the suite.
+            try { await opening; } catch { /* closed rather than answered */ }
+            await settle();
+        }
+    }],
+
+    ["high contrast raises the ink and moves no size", async () => {
+        /*
+         * W-7, driven rather than read. Two promises: every type size is exactly
+         * where it was, and the fine print is actually brighter. The second one is
+         * measured as relative luminance, because "brighter" is the whole feature
+         * and a token swap that made it darker would pass any test that only checked
+         * the value changed.
+         */
+        const was = document.body.classList.contains("drpg-high-contrast");
+        const probe = document.createElement("div");
+        probe.className = "drpg-panel";
+        probe.style.position = "fixed";
+        probe.style.left = "-9999px";
+        probe.innerHTML = `<p class="notes">fine print</p>
+            <span class="drpg-tb-badge type neutral">badge</span>
+            <button class="drpg-action-button"><span class="drpg-action-name">name</span></button>`;
+        document.body.append(probe);
+
+        /** Relative luminance of a computed colour, for "is this brighter". */
+        const luminance = value => {
+            const parts = String(value).match(/[\d.]+/g)?.map(Number) ?? [];
+            if (parts.length < 3) return null;
+            const [r, g, b] = parts.map(n => {
+                const c = n / 255;
+                return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+            });
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const dimNow = () => {
+            const holder = document.createElement("span");
+            holder.style.color = "var(--drpg-dim)";
+            probe.append(holder);
+            const value = getComputedStyle(holder).color;
+            holder.remove();
+            return luminance(value);
+        };
+        const sizes = () => [...probe.querySelectorAll("*")]
+            .map(el => getComputedStyle(el).fontSize).join("|");
+
+        try {
+            document.body.classList.remove("drpg-high-contrast");
+            await settle();
+            const plainSizes = sizes();
+            const plainDim = dimNow();
+
+            document.body.classList.add("drpg-high-contrast");
+            await settle();
+            equal(sizes(), plainSizes, "high contrast moved a type size");
+            const brightDim = dimNow();
+
+            ok(plainDim !== null && brightDim !== null, "the dim ink could not be measured");
+            ok(brightDim >= plainDim * 2,
+                `the fine print is not twice as bright: ${plainDim?.toFixed(3)} -> ${brightDim?.toFixed(3)}`);
+
+            /*
+             * AND IT SURVIVES A THEME CHANGE. It is an accessibility switch, not one
+             * of the glass effects, so `applyTheme` must put it back on rather than
+             * treat it as the other theme's business.
+             */
+            const settings = await import("./settings.mjs");
+            const wasSetting = getSetting(SETTINGS.highContrast);
+            try {
+                await game.settings.set(MODULE_ID, SETTINGS.highContrast, true);
+                settings.applyTheme();
+                await settle();
+                ok(document.body.classList.contains("drpg-high-contrast"),
+                    "a theme change took the high-contrast switch off");
+            } finally {
+                await game.settings.set(MODULE_ID, SETTINGS.highContrast, wasSetting ?? false);
+                settings.applyTheme();
+            }
+        } finally {
+            probe.remove();
+            document.body.classList.toggle("drpg-high-contrast", was);
             await settle();
         }
     }]

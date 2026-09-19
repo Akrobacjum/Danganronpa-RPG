@@ -853,7 +853,9 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     align-items: center;
     gap: 3px;
     width: max-content;
-    max-width: 96vw;
+    /* Capped as well as relative (W-9): this strip is centred in `#ui-top`, so a
+       ceiling is all that was missing. */
+    max-width: min(96vw, var(--drpg-overlay-max));
     margin: 2px auto 0;
     padding: 4px 12px;
     border-radius: 6px;
@@ -1011,7 +1013,8 @@ body.drpg-hide-system-fear #resource-fear {
 
 #resources {
     width: max-content !important;
-    max-width: 96vw !important;
+    /* W-9. `!important` kept: this is a repair of the system's own row. */
+    max-width: min(96vw, var(--drpg-overlay-max)) !important;
 }
 
 /* ==========================================================================
@@ -3986,7 +3989,9 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    without `!important`, so it bounds the measurement instead of replacing it,
    and a table wider than the screen scrolls inside `.window-content`. */
 .application.dialog.drpg-table-window {
-    max-width: 96vw;
+    /* W-9: the same ceiling `windowWidthFor` reads, so the measurement and the
+       stylesheet cannot disagree about how wide a table may get. */
+    max-width: min(96vw, var(--drpg-window-max));
 }
 
 /* A table window is MEASURED and sized in JavaScript, not here.
@@ -7048,6 +7053,18 @@ html body {
        sheet. Wide is for a table with columns to line up - nothing else. */
     --drpg-popup: 34rem;         /* 544px - every window with prose in it */
     --drpg-popup-wide: 44rem;    /* 704px - the GM panel and the managers */
+
+    /* AN ABSOLUTE CEILING, BECAUSE `vw` HAS NONE (W-9, Dawid 18.09).
+
+       Every size in this sheet was chosen at 16:9, and a dozen of them are
+       stated in `vw`. On a 5120x1440 screen 96vw is 4915px: a HUD stretched
+       across three feet of glass, and a measured table window whose five columns
+       sit a hand's width apart. These two are the ceilings the full-width
+       overlays and the measured windows share, and utils.mjs READS the second
+       one rather than keeping its own copy of the number - so the stylesheet
+       stays the authority on how wide anything may be. */
+    --drpg-overlay-max: 1280px;
+    --drpg-window-max: 1400px;
 }
 
 /* --- the font takes everything ------------------------------------------ */
@@ -13523,6 +13540,10 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:ho
 }
 
 .application.sheet:not([class*="drpg-"]):not(.actor) {
+    /* DELIBERATELY UNCAPPED (W-9). This rule is a repair for windows the module
+       does not own, and an absolute ceiling on somebody else's sheet can hide a
+       control rather than reveal one. 96vw keeps it on the screen and nothing
+       more. */
     max-width: 96vw;
 }
 
@@ -14978,3 +14999,126 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
    be dimmed here through `.drpg-setting-inert`; they are hidden now, in the one window that
    still showed them, and the class went with the rule - see `renderSettingsConfig` in
    settings.mjs for why. */
+
+/* ==========================================================================
+   ULTRAWIDE (W-9, Dawid 18.09)
+   --------------------------------------------------------------------------
+   TRIGGERED BY ASPECT RATIO, NOT BY WIDTH, because the thing that is different
+   about these screens is that they are not 16:9. 3440x1440 is 2.39 and
+   5120x1440 is 3.56; the 2560x1440 this theme was drawn for is 1.78 and the
+   1920x1080 control is 1.78, so neither of them takes any of this - which is
+   the whole point of choosing the ratio as the question.
+
+   Two changes and nothing else. A table window may use more of the glass,
+   because a case dashboard with nine columns is the one thing here that really
+   wants the room. And the GM panel gets a wider box: it is the one window in
+   the module that cannot size itself (see the note above
+   `.drpg-gm-panel-window`), its grid is `repeat(auto-fit, minmax(15rem, 1fr))`,
+   and on an ultrawide screen the standard 704px box leaves two thirds of the
+   screen empty beside a three-column grid.
+
+   Everything else keeps its 16:9 size. A window is a thing you read, and a
+   dialog stretched to 3000px is not more readable for being bigger. */
+@media (min-aspect-ratio: 2/1) {
+    :root {
+        --drpg-window-max: 1700px;
+    }
+
+    .application.dialog.drpg-gm-panel-window {
+        width: min(60rem, 46vw) !important;
+        max-width: min(60rem, 46vw) !important;
+    }
+}
+
+/* ==========================================================================
+   HIGH CONTRAST (W-7, Dawid 18.09)
+   --------------------------------------------------------------------------
+   ONE SWITCH, ONE CLASS, ONE BLOCK. `highContrastOn` in settings.mjs puts
+   `body.drpg-high-contrast` on when the client's switch is on OR when the
+   system asks through `prefers-contrast: more` - decided in JavaScript so this
+   block exists once rather than twice.
+
+   WHAT IT MOVES: the dim inks, the hairlines, the chrome grounds, the disabled
+   step, the focus ring, and the glass's blur.
+
+   WHAT IT NEVER MOVES: a type size. Not one declaration in here states
+   `font-size` or `line-height`, and a test holds that - text size belongs to the
+   Interface scale, and a switch that quietly grew the type would make the two
+   controls fight. Nor does it move a colour that CARRIES something: Hope's gold,
+   Despair's violet, a Truth Bullet's type colour and the map are all left
+   exactly as they are, because a reader who has turned this on still has to be
+   able to tell them apart from each other rather than from the background.
+   ========================================================================== */
+
+body.drpg-high-contrast {
+    /* The fine print. 4.84:1 was inside AA for body text and nowhere near it for
+       the 11px `.notes` line, which is where most of it is read. */
+    --drpg-dim: #cfc9d6;
+
+    /* Hairlines that are actually lines. At 0.18 alpha a table's rules vanish on
+       a bright room's monitor - measured on Dawid's screen, 1.2.40. */
+    --drpg-line: rgba(var(--drpg-bone-rgb), 0.55);
+    --drpg-line-strong: rgba(var(--drpg-bone-rgb), 0.9);
+    --drpg-fill: rgba(var(--drpg-bone-rgb), 0.12);
+
+    /* The two badge greys nobody could read: 3.2:1 and 4.1:1 on the panel. */
+    --drpg-tb-neutral: #c6c6c6;
+    --drpg-tb-faint: #b5b5b5;
+
+    /* The token's own comment says it: this is the red for when it must be read. */
+    --drpg-eye: var(--drpg-eye-light);
+
+    /* A window's edge, solid rather than a suggestion of one. */
+    --drpg-window-edge: var(--drpg-bone);
+}
+
+/* Stained Glass keeps its own bone at 0.62 alpha for every `.notes` and `small`
+   in the theme, which is the same sentence as `--drpg-dim` in the other theme
+   and has to answer the same switch. */
+body.drpg-high-contrast.drpg-theme-stained-glass {
+    --drpg-sg-bone-dim: var(--drpg-sg-bone);
+}
+
+/* THE GROUNDS, TWICE, AND THAT IS NOT A MISTAKE.
+   stained-glass.css forces these boxes transparent so the curtain shows through,
+   and it wins on source order - so the plain selector answers Monokuma Legacy and
+   the curtain-on selector answers the glass. Stated as two rules rather than one
+   long list, because the two are about different sheets. */
+body.drpg-high-contrast .drpg-panel,
+body.drpg-high-contrast .application.dialog[class*="drpg-"] .window-content,
+body.drpg-high-contrast #drpg-hud,
+body.drpg-high-contrast #drpg-despair {
+    background: var(--drpg-ink, #15121a) !important;
+}
+
+body.drpg-high-contrast.drpg-curtain-on .drpg-panel,
+body.drpg-high-contrast.drpg-curtain-on .application.dialog[class*="drpg-"] .window-content,
+body.drpg-high-contrast.drpg-curtain-on #drpg-hud,
+body.drpg-high-contrast.drpg-curtain-on #drpg-despair {
+    background: var(--drpg-ink, #15121a) !important;
+    /* No blur behind the chrome: it is the one effect that makes text on glass
+       harder to read rather than prettier. */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* The disabled step. 0.35 on a stripe and 0.55 on a tile were chosen to say
+   "not now" quietly; this says it audibly. */
+body.drpg-high-contrast .unaffordable,
+body.drpg-high-contrast button:disabled,
+body.drpg-high-contrast .drpg-locked-eclipse {
+    opacity: 0.75 !important;
+}
+
+body.drpg-high-contrast .drpg-action-button.unaffordable::before,
+body.drpg-high-contrast .drpg-action-button:disabled::before {
+    opacity: 0.75 !important;
+}
+
+/* And the focus ring, which is the one piece of chrome a keyboard reader steers
+   by. Thicker and in bone rather than in the accent, so it is visible on every
+   ground this module draws. */
+body.drpg-high-contrast :focus-visible {
+    outline: 3px solid var(--drpg-bone) !important;
+    outline-offset: 2px !important;
+}
