@@ -1358,6 +1358,8 @@
       "tabKeyRemnants": "Key Remnants",
       "traceName": "Name",
       "traceText": "Player description",
+      "traceAnalysis": "After analysis",
+      "traceAnalysisPlaceholder": "What the player is told once they analyse this - leave empty for the generic line.",
       "traceTags": "Tags",
       "traceTagsPlaceholder": "comma, separated",
       "noTraces": "No traces anywhere yet.",

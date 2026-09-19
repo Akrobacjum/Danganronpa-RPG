@@ -21,6 +21,9 @@
 
 import { MODULE_ID, analyzeDc, TRUTH_BULLET_TYPES } from "./config.mjs";
 import { TRUTH_BULLET_FLAGS, secretOf, isTruthBullet } from "./truth-bullets.mjs";
+// The trace's own ledger entry, for the sentence a bullet's secret may have been
+// minted without (T-2). Static: remnants.mjs does not import this file.
+import { remnantData } from "./remnants.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, article } from "./utils.mjs";
 
 /**
@@ -59,10 +62,12 @@ export async function resolveAnalyze({
         const patch = {
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: "neutral",
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: false,
-            // The two facts `identify` published go back into the secret with
-            // the rest of the truth - an un-analysed bullet knows nothing.
+            // The three facts `identify` published go back into the secret with
+            // the rest of the truth - an un-analysed bullet knows nothing. The
+            // sentence goes back as "", which is what creation writes.
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: null,
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: null
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: null,
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analysisText}`]: ""
         };
         if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.lockedChapter) === chapter) {
             patch[`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.lockedChapter}`] = null;
@@ -121,18 +126,35 @@ async function lockOut(item, actor, chapter, total) {
 
 /** Success converts the bullet: what it really is becomes what the player sees. */
 async function identify(item, actor, realType, isCritical, dc, total) {
-    // The moment of analysis is when two more facts go public - which action
-    // left the source trace (the Remnant token's icon on this player's map)
-    // and whether it belongs to the murder (the pack's sort). Both were
-    // waiting in the bullet's secret since creation, so a trace the killer
-    // has since wiped still identifies completely.
+    // The moment of analysis is when three more facts go public - which action
+    // left the source trace (the Remnant token's icon on this player's map),
+    // whether it belongs to the murder (the pack's sort), and what the GM wrote
+    // about this trace for the moment somebody read it (T-2). All three were
+    // waiting in the bullet's secret since creation, so a trace the killer has
+    // since wiped still identifies completely.
     const secret = secretOf(item.uuid);
+
+    /*
+     * THE TRACE IS THE SOURCE OF TRUTH, THE SECRET IS THE FAST PATH (T-2, 18.09).
+     *
+     * The secret gets `analysis` at creation and from `propagateAnalysis`, which
+     * covers every route - but only if every route was reached. A bullet minted
+     * before the GM wrote the sentence, or on a second GM whose ledger request
+     * went unanswered, has a secret with nothing in it. `identify` only ever runs
+     * on a GM's client, so the trace itself can answer here: one line instead of
+     * an audit trail across four creation sites.
+     */
+    const said = secret.analysis
+        || remnantData(game.scenes.get(secret.sceneId)?.tokens?.get(secret.remnantId))?.analysis
+        || "";
+
     try {
         await item.update({
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: secret.sourceAction ?? null,
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: secret.tiedToCrime ?? null
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: secret.tiedToCrime ?? null,
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analysisText}`]: said
         });
     } catch (err) {
         error("Could not identify the Truth Bullet after a successful Analyze", err);
@@ -140,7 +162,11 @@ async function identify(item, actor, realType, isCritical, dc, total) {
     }
 
     const label = TRUTH_BULLET_TYPES[realType]?.label ?? realType;
-    const hint = TRUTH_BULLET_TYPES[realType]?.hint ?? "";
+    // THE TRACE'S OWN SENTENCE IF THERE IS ONE (T-2). The per-type line is the
+    // same for every Prep trace in the season; a GM who wrote about THIS one said
+    // something the type sentence cannot. A trace with nothing written keeps the
+    // generic line, which is what this has always printed.
+    const hint = said || TRUTH_BULLET_TYPES[realType]?.hint || "";
 
     /*
      * THE SOUND RIDES THE CARD, AND IT USED NOT TO - a bug this file carried

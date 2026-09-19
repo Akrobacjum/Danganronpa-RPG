@@ -865,7 +865,11 @@ const REGRESSIONS = [
          * slip - `secret` was specified as hiding the UI - and it is written
          * down here so the next reader does not think it got past this test.
          */
-        const FORBIDDEN = ["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime"];
+        // `analysis` is T-2's secret half. The published copy on an item is
+        // spelled `analysisText` on purpose, so this name can be forbidden in
+        // world data outright - and the one place it would land by accident is
+        // the world-scoped Key Remnant plan.
+        const FORBIDDEN = ["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime", "analysis"];
         const found = [];
         for (const [full, def] of game.settings.settings) {
             if (!full.startsWith(`${MODULE_ID}.`)) continue;
@@ -2448,6 +2452,69 @@ const REGRESSIONS = [
             sheet.indexOf("function refreshPricedTiles(") + 900);
         ok(/node\.disabled/.test(tiles),
             "the repaint re-enables a tile mid-action, so the same action can be fired twice");
+    }],
+
+    ["R49 - a bullet whose badge says Neutral is not treated as identified", async () => {
+        /*
+         * T-2's precondition, and a defect on its own. A Key or Final trace found
+         * on an ordinary success arrived `analyzed: true` under a badge reading
+         * Neutral: un-analysable, already wearing the real action's glyph, and -
+         * once T-2 exists - carrying the GM's sentence about a clue nobody had
+         * read. Both call sites forced the literal "neutral" over a self-evident
+         * type instead of letting the rules decide.
+         */
+        const sources = new Map(await otherSources());
+        const obs = stripComments(sources.get("observe.mjs") ?? "");
+        ok(/shownType: isCritical \? data\.type : null/.test(obs),
+            "createFind forces the literal neutral over a self-evident type again");
+
+        const gmi = stripComments(sources.get("gm-items.mjs") ?? "");
+        equal((gmi.match(/analyzed: result\.shown === "neutral"/g) ?? []).length, 2,
+            "the give dialog lost one of its two explicit-Neutral guards");
+
+        /*
+         * AND THE SENTENCE ITSELF: one field on the trace, one flag on the item,
+         * two spellings on purpose - so R9 can forbid the secret one in world data
+         * without forbidding the published one.
+         */
+        const tb = stripComments(sources.get("truth-bullets.mjs") ?? "");
+        ok(/analysisText: "analysisText"/.test(tb), "the published spelling is gone");
+        ok(/export async function propagateAnalysis\(/.test(tb),
+            "a GM editing the sentence no longer reaches the copies already in packs");
+        const create = tb.slice(tb.indexOf("export async function createTruthBullet"),
+            tb.indexOf("export function truthBulletData"));
+        ok(/analysisText\]: identified \? analysis : ""/.test(create),
+            "a bullet publishes the sentence before it is identified, or never");
+        ok(/sourceAction, tiedToCrime, analysis \}/.test(create),
+            "the sentence is not filed in the bullet's secret at creation");
+
+        const analyze = stripComments(sources.get("analyze.mjs") ?? "");
+        const identify = analyze.slice(analyze.indexOf("async function identify("));
+        ok(/secret\.analysis\s*\n?\s*\|\|\s*remnantData\(/.test(identify),
+            "identify no longer falls back to the trace when a bullet's secret is empty");
+        ok(/analysisText\}`\]: said/.test(identify),
+            "the moment of analysis does not publish the sentence");
+        const undo = analyze.slice(0, analyze.indexOf("async function identify("));
+        ok(/analysisText\}`\]: ""/.test(undo),
+            "a rerolled Analyze leaves the sentence published on an un-analysed bullet");
+
+        // Every route that copies a trace carries it, or one kind of bullet is
+        // born with nothing to say.
+        for (const [file, count] of [["observe.mjs", 1], ["gm-items.mjs", 1], ["handover.mjs", 2]]) {
+            const src = stripComments(sources.get(file) ?? "");
+            ok((src.match(/analysis: /g) ?? []).length >= count,
+                `${file} copies a trace onto a bullet without the sentence analysing it buys`);
+        }
+
+        // And the Traces tab is where a GM writes it, for every type of trace.
+        const inv = stripComments(sources.get("investigation.mjs") ?? "");
+        ok(inv.includes("setRemnantAnalysis("),
+            "the dashboard's Save no longer writes the after-analysis description");
+        ok(/name="analysis\.\$\{key\}"/.test(inv),
+            "the Traces table lost its After analysis column");
+        const read = inv.slice(inv.indexOf("traces: traces.map("));
+        ok(read.indexOf("analysis.${key}") > read.indexOf("if (!q(`name.${key}`)) return null;"),
+            "the new column is read before the guard that stops a hidden row being saved as blank");
     }]
 ];
 
@@ -7790,6 +7857,117 @@ const SCENARIOS = [
                 "system.resources.actions.value": before.actions,
                 "system.resources.stress.value": before.stress
             });
+            await settle();
+        }
+    }],
+
+    ["an after-analysis description reaches a holder at the moment of analysis and no sooner", async () => {
+        /*
+         * T-2, Dawid 17.09. The GM writes a sentence about a trace; a player is
+         * told it when they analyse their copy, and not one moment earlier. Four
+         * different stores could leak it, so all four are asked.
+         */
+        const [one, two] = cast();
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const analyze = await import("./analyze.mjs");
+        const scene = game.scenes.active ?? canvas?.scene;
+        ok(scene, "no active scene to place a fixture trace on");
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const said = `Fixture analysis ${Date.now() % 100000}`;
+        const second = `${said} (corrected)`;
+        let token = null;
+        const made = [];
+
+        try {
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident",
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "test fixture - T-2"
+            });
+            ok(token, "could not place the fixture trace");
+
+            await remnants.setRemnantAnalysis(token, said);
+            await settle();
+            equal(remnants.remnantData(token).analysis, said,
+                "the trace did not remember what analysing it says");
+            ok(!("analysis" in (remnants.remnantData(token).public ?? {})),
+                "the sentence landed in the trace's PUBLIC half, which goes onto the token name");
+            ok(!JSON.stringify(token.toObject()).includes(said),
+                "the sentence is written on the token document, which every client can read");
+
+            // One holder who has not analysed it, one born knowing.
+            const plain = await bullets.createTruthBullet(one, {
+                name: `Suite fixture - unread ${Date.now() % 100000}`,
+                realType: "prep", visibility: "evident",
+                remnantId: token.id, sceneId: scene.id, analysis: said
+            });
+            ok(plain, "could not copy the trace for the holder who has not read it");
+            made.push(plain);
+            const known = await bullets.createTruthBullet(two, {
+                name: `Suite fixture - read ${Date.now() % 100000}`,
+                realType: "prep", shownType: "prep", analyzed: true,
+                visibility: "evident",
+                remnantId: token.id, sceneId: scene.id, analysis: said
+            });
+            ok(known, "could not copy the trace for the holder who has read it");
+            made.push(known);
+            await settle();
+
+            ok(!JSON.stringify(plain.toObject()).includes(said),
+                "an unidentified bullet carries the sentence where its holder can read it");
+            equal(known.getFlag(MODULE_ID, "analysisText"), said,
+                "a bullet born identified did not publish the sentence");
+
+            // The moment of analysis.
+            await analyze.resolveAnalyze({ actorId: one.id, itemId: plain.id, total: 30 });
+            await settle();
+            equal(plain.getFlag(MODULE_ID, "analysisText"), said,
+                "analysing the bullet did not publish the sentence");
+
+            // And a Reroll that loses it takes it back.
+            await analyze.resolveAnalyze({ actorId: one.id, itemId: plain.id, total: 2, undo: true });
+            await settle();
+            equal(plain.getFlag(MODULE_ID, "analysisText") ?? "", "",
+                "a rerolled Analyze left the sentence published");
+            ok(!JSON.stringify(plain.toObject()).includes(said),
+                "a rerolled Analyze left the sentence somewhere on the item");
+
+            /*
+             * A LATER EDIT REACHES THE HOLDER WHO HAS EARNED IT, AND ONLY THEM.
+             */
+            await remnants.setRemnantAnalysis(token, second);
+            await settle();
+            equal(known.getFlag(MODULE_ID, "analysisText"), second,
+                "an edited sentence never reached the holder who had analysed the trace");
+            ok(!JSON.stringify(plain.toObject()).includes(second),
+                "an edited sentence reached a holder who has not analysed the trace");
+
+            // The idle guard: an unchanged write writes nothing at all.
+            const stamp = remnants.remnantData(token).updated;
+            await remnants.setRemnantAnalysis(token, second);
+            await settle();
+            equal(remnants.remnantData(token).updated, stamp,
+                "writing the same sentence again pushed a new version to every GM");
+
+            /*
+             * AND THE FALLBACK. A bullet minted before the GM wrote anything has a
+             * secret with nothing in it; `identify` reads the trace itself.
+             */
+            await bullets.setSecret(plain.uuid, { analysis: "" });
+            await settle();
+            await analyze.resolveAnalyze({ actorId: one.id, itemId: plain.id, total: 30 });
+            await settle();
+            equal(plain.getFlag(MODULE_ID, "analysisText"), second,
+                "a bullet whose secret was empty published nothing, instead of asking the trace");
+        } finally {
+            for (const item of made) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            if (token) {
+                try { await remnants.dropRemnantSecret(token); } catch { /* nothing filed */ }
+                try { await token.delete(); } catch { /* already gone */ }
+            }
             await settle();
         }
     }]

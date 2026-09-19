@@ -28,7 +28,7 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
     remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
-    confirmClearFaint, difficultyTag,
+    setRemnantAnalysis, confirmClearFaint, difficultyTag,
     traceContextLine
 } from "./remnants.mjs";
 import { bulletsOf, secretOf, truthBulletData } from "./truth-bullets.mjs";
@@ -983,6 +983,9 @@ export async function openInvestigationDashboard() {
                     <div class="notes drpg-trace-context">${esc(traceContextLine(data))}</div>
                 </td>
                 <td><textarea name="text.${key}" rows="2">${esc(data.public?.playerText || "")}</textarea></td>
+                <td><textarea name="analysis.${key}" rows="2"
+                    placeholder="${game.i18n.localize("DRPG.Investigation.traceAnalysisPlaceholder")}"
+                    >${esc(data.analysis || "")}</textarea></td>
                 <td><input type="text" name="tags.${key}" value="${esc(manualTags.join(", "))}"
                     placeholder="${game.i18n.localize("DRPG.Investigation.traceTagsPlaceholder")}" /></td>
                 <td style="text-align:center"><input type="checkbox" name="faint.${key}" ${data.faint ? "checked" : ""} /></td>
@@ -1137,6 +1140,7 @@ export async function openInvestigationDashboard() {
                 ${shown.length ? `<table class="drpg-vault-table"><thead><tr>
                     <th>${game.i18n.localize("DRPG.Investigation.traceName")}</th>
                     <th>${game.i18n.localize("DRPG.Investigation.traceText")}</th>
+                    <th>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}</th>
                     <th>${game.i18n.localize("DRPG.Investigation.traceTags")}</th>
                     <th>${game.i18n.localize("DRPG.Remnant.faintColumn")}</th>
                     <th>${game.i18n.localize("DRPG.Remnant.crimeColumn")}</th>
@@ -1302,6 +1306,10 @@ export async function openInvestigationDashboard() {
                                 img: q(`img.${key}`)?.value ?? "",
                                 name: q(`name.${key}`)?.value.trim() ?? "",
                                 text: q(`text.${key}`)?.value.trim() ?? "",
+                                // T-2. Read after the `name.${key}` guard above, so
+                                // a row the filter is hiding is not read as a GM
+                                // clearing the sentence.
+                                analysis: q(`analysis.${key}`)?.value.trim() ?? "",
                                 tags: (q(`tags.${key}`)?.value ?? "")
                                     .split(",").map(t => t.trim()).filter(Boolean),
                                 faint: q(`faint.${key}`)?.checked ?? false,
@@ -1479,6 +1487,23 @@ async function applyDashboardSave(result, { traces, plan }) {
             // copying it later raises no separate whisper - it goes in the
             // digest with the rest (E7).
             await markRemnantEdited(token);
+            tracesChanged++;
+        }
+
+        /*
+         * WHAT ANALYSING IT SAYS (T-2), on the same Save as the name and the text.
+         *
+         * Compared against the LIVE ledger rather than against a baseline field: the
+         * traces loop is the first writer in this Save and `allTraces()` was read a
+         * moment ago at the call site, so the ledger is what the row was rendered
+         * from. `setRemnantAnalysis` carries the idle guard anyway, and it is what
+         * decides whether anything is written and propagated.
+         *
+         * Deliberately NOT counted as an edit for `markRemnantEdited`: that mark is
+         * about what a finder reads on pickup (E7), and this is not that.
+         */
+        if ((row.analysis ?? "") !== (data.analysis ?? "")) {
+            await setRemnantAnalysis(token, row.analysis ?? "");
             tracesChanged++;
         }
 

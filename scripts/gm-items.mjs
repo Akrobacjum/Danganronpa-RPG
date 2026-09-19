@@ -987,6 +987,15 @@ async function giveTruthBulletDialog(actor) {
         payload = {
             name: result.name,
             realType: data.type,
+            /*
+             * THE GM'S EXPLICIT "HAND IT OVER AS NEUTRAL" HAS TO BEAT
+             * `SELF_EVIDENT` (T-2, 18.09). Without this a Key or Final realType
+             * handed over as Neutral still came out `analyzed: true`, so it
+             * published `sourceAction`, `tiedToCrime` and now T-2's sentence on a
+             * bullet the GM deliberately withheld. `null` everywhere else keeps
+             * the rules' own answer.
+             */
+            analyzed: result.shown === "neutral" ? false : null,
             shownType: result.shown === "auto" ? null
                 : (result.shown === "real" ? data.type : "neutral"),
             visibility: data.visibility,
@@ -1000,15 +1009,19 @@ async function giveTruthBulletDialog(actor) {
             // Passed explicitly for the reason Observe passes it: the room
             // lookup is canvas-bound, and this may not be the scene on screen.
             room: data.room ?? null,
-            // Both into the bullet's secret; public on the item only once it is
-            // identified, like every other tie.
+            // All three into the bullet's secret; public on the item only once it
+            // is identified, like every other tie.
             sourceAction: data.action ?? null,
-            tiedToCrime: Boolean(data.tiedToCrime)
+            tiedToCrime: Boolean(data.tiedToCrime),
+            analysis: data.analysis ?? ""
         };
     } else {
         payload = {
             name: result.name,
             realType: result.realType,
+            // As in the branch above: a deliberate Neutral is not identified,
+            // whatever the real type would otherwise entitle it to (T-2).
+            analyzed: result.shown === "neutral" ? false : null,
             // "auto" means "let the rules decide" - Key, Autopsy and Final
             // bullets arrive identified, everything else starts Neutral. See
             // createTruthBullet.

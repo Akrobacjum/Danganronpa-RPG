@@ -3249,6 +3249,23 @@ body.drpg-pixel-font [contenteditable] {
     white-space: nowrap;
 }
 
+/* WHAT ANALYSING A TRACE TOLD YOU (T-2).
+
+   Two places, one look: the line under the badges in an item window, and the
+   same sentence on the player's own Remnant card. Italic and quieter than the
+   player description above it, because it is a different KIND of sentence - the
+   description is what the thing looks like, this is what it means. */
+.drpg-item-analysis,
+.drpg-remnant-analysis {
+    margin: .25rem 0 0;
+    font-size: var(--font-size-12, 12px);
+    line-height: 1.35;
+    color: var(--drpg-bone, inherit);
+}
+.drpg-item-analysis {
+    font-style: italic;
+}
+
 /* WHO KNOWS ABOUT A PROJECT, as a list of names rather than one dropdown (P-1).
    A fieldset so the group has a title of its own in the project window, and a
    wrapping row so eight players do not stretch the manager's column. */

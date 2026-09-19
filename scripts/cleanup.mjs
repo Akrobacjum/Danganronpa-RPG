@@ -671,6 +671,17 @@ async function reshapeTrace(token, data, {
      */
     if (tie && !data.tiedToCrime) patch.tiedToCrime = true;
 
+    /*
+     * THE AFTER-ANALYSIS SENTENCE IS NOT TOUCHED, AND THAT IS THE DECISION (T-2).
+     *
+     * A reshape changes what a trace IS - an Incident Remnant becomes a Tamper
+     * Remnant - and what a finder reads about it. It does not change the object,
+     * and the GM's sentence about the object goes on being true: a killer who
+     * rewrote a smear has not altered what analysing it would reveal. So there is
+     * nothing here to snapshot and nothing for a Reroll to put back, and a reader
+     * who finds `analysis` missing from this patch has found the rule rather than
+     * an oversight.
+     */
     if (receipt) {
         receipt.transformed = {
             id: token.id,

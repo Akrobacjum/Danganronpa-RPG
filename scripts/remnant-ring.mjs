@@ -316,6 +316,9 @@ function playerRemnantCard(tokenOrActor, esc) {
     const shownType = flag(TRUTH_BULLET_FLAGS.shownType) ?? "neutral";
     const known = isIdentified(bullet);
     const playerText = flag(TRUTH_BULLET_FLAGS.playerText) ?? "";
+    // What the analysis told them, if it has happened. "" before that, because
+    // the flag itself is "" until `identify` publishes it (T-2).
+    const said = flag(TRUTH_BULLET_FLAGS.analysisText) ?? "";
     const tags = flag(TRUTH_BULLET_FLAGS.tags) ?? [];
     const visibility = flag(TRUTH_BULLET_FLAGS.visibility) ?? null;
 
@@ -340,8 +343,9 @@ function playerRemnantCard(tokenOrActor, esc) {
                 <div class="drpg-tb-badges">${badges}</div>
             </div>
         </header>
-        ${playerText || !known ? `<section class="drpg-remnant-box">
+        ${playerText || said || !known ? `<section class="drpg-remnant-box">
             ${playerText ? `<p class="drpg-remnant-text">${esc(playerText)}</p>` : ""}
+            ${said ? `<p class="drpg-remnant-analysis"><em>${esc(said)}</em></p>` : ""}
             ${known ? "" : `<p class="notes">${esc(game.i18n.localize("DRPG.Remnant.cardUnanalyzed"))}</p>`}
         </section>` : ""}
         ${tags.length ? `<div class="drpg-remnant-tagrow">${tags.map(x =>

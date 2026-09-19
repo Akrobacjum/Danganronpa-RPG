@@ -1214,6 +1214,16 @@ export function remnantData(tokenDoc) {
         action: entry.action,
         subject: entry.subject,
         note: entry.note,
+        /*
+         * THE SENTENCE THE ANALYSIS BUYS (T-2, Dawid 17.09).
+         *
+         * GM-side, beside the type, because a trace's meaning has never been in
+         * the world. It is deliberately NOT inside `public`: `propagatePublic`
+         * copies that onto the token's name and texture and down onto every
+         * copied bullet's `playerText`, which is the one thing this must not do
+         * before somebody has analysed the trace.
+         */
+        analysis: entry.analysis ?? "",
         pointsAt: entry.pointsAt,
         sourceActor: entry.sourceActor,
         sourceName: entry.sourceName,
@@ -1408,6 +1418,40 @@ export async function setRemnantFlags(tokenDoc, { faint = null, tiedToCrime = nu
         } catch (err) {
             error("Could not propagate the crime tie to the copied bullets", err);
         }
+    }
+    return tokenDoc;
+}
+
+/**
+ * Write what analysing this trace tells a player (T-2, Dawid 17.09).
+ *
+ * THE IDLE GUARD LIVES HERE, ONCE. Three callers write this field - the
+ * dashboard's Save, `createKeyRemnant` and the Final Remnant form - and each of
+ * them would otherwise grow its own test for "is there anything to do". A write is
+ * never free: `setRemnantSecret` bumps `updated` and pushes to every other GM, and
+ * `propagateAnalysis` walks every character's bullets.
+ *
+ * It deliberately does NOT call `markRemnantEdited`. That mark means "a human
+ * decided what a FINDER reads" (E7), and this sentence is not what a finder reads
+ * on pickup - it is what somebody is told when they analyse it.
+ */
+export async function setRemnantAnalysis(tokenDoc, text = "") {
+    if (!game.user.isGM || !tokenDoc) return null;
+    const key = keyOf(tokenDoc);
+    if (!key) return null;
+
+    const said = String(text ?? "").trim();
+    if (said === (readRemnantLedger()[key]?.analysis ?? "")) return tokenDoc;
+
+    await setRemnantSecret(tokenDoc, { analysis: said });
+
+    // Onto the copies already in packs: the secret half always, the published
+    // flag only where the holder has earned it. Same two halves as the crime tie.
+    try {
+        const { propagateAnalysis } = await import("./truth-bullets.mjs");
+        await propagateAnalysis(tokenDoc.id, said);
+    } catch (err) {
+        error("Could not propagate the after-analysis description to the copied bullets", err);
     }
     return tokenDoc;
 }

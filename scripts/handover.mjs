@@ -263,7 +263,9 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
         // onto the copy only if it is born identified, so handing over an
         // unidentified bullet still hands over nothing the giver cannot see.
         sourceAction: secret.sourceAction ?? null,
-        tiedToCrime: secret.tiedToCrime ?? null
+        tiedToCrime: secret.tiedToCrime ?? null,
+        // And the sentence analysing it buys (T-2), under the same rule.
+        analysis: secret.analysis ?? ""
     });
 
     if (!copy) {
@@ -460,7 +462,14 @@ async function mintLootBullet(taker, body, item, name, category, trace) {
             sourceAction: "loot",
             tiedToCrime: incriminating ? true : null,
             remnantId: trace?.tokenId ?? null,
-            sceneId: trace?.sceneId ?? null
+            sceneId: trace?.sceneId ?? null,
+            /*
+             * THE ROUTE THAT COULD ALREADY BE WRONG (T-2). The trace a second
+             * looter's bullet is minted from exists before the minting, so a GM
+             * may have written its sentence hours ago - and without this the copy
+             * would be the one bullet in the game whose analysis said nothing.
+             */
+            analysis: trace?.analysis ?? ""
         });
     } catch (err) {
         // The object moved; the record of it did not. Worth saying out loud,

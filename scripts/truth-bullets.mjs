@@ -85,7 +85,7 @@ export const TRUTH_BULLET_FLAGS = {
      */
     lockedChapter: "lockedChapter",
     /**
-     * TWO FACTS THAT GO PUBLIC AT THE MOMENT OF ANALYSIS, and not before
+     * THREE FACTS THAT GO PUBLIC AT THE MOMENT OF ANALYSIS, and not before
      * (Dawid, 26.08: "to o czym piszę wchodzi w życie do truth bullets które
      * gracz przeanalizował"). Both live in the bullet's SECRET from creation -
      * `secretOf(uuid).sourceAction` / `.tiedToCrime` - and are copied onto
@@ -97,7 +97,15 @@ export const TRUTH_BULLET_FLAGS = {
     /** Which action left the source trace - drives the Remnant token's icon. */
     sourceAction: "sourceAction",
     /** Whether the source trace belongs to the murder - drives the sort. */
-    tiedToCrime: "tiedToCrime"
+    tiedToCrime: "tiedToCrime",
+    /**
+     * The GM's own sentence about THIS trace, published on analysis (T-2, Dawid
+     * 17.09). It lives in the trace's ledger entry as `analysis` and in this
+     * bullet's secret as `analysis`; the ITEM carries it under a different name
+     * on purpose, so the R9 sweep can forbid the secret spelling in world data
+     * outright without forbidding the published one. "" until identified.
+     */
+    analysisText: "analysisText"
 };
 
 /** Socket actions, all addressed to GMs only. */
@@ -458,7 +466,12 @@ export async function createTruthBullet(actor, {
     faint = false, playerText = "", img = null, tags = [], gmNote = "",
     remnantId = null, sceneId = null,
     room = null, analyzed = null, stamp = null,
-    sourceAction = null, tiedToCrime = null
+    sourceAction = null, tiedToCrime = null,
+    /**
+     * What the player is told when this bullet is identified (T-2). Secret until
+     * then - the same rule `sourceAction` follows.
+     */
+    analysis = ""
 } = {}) {
     if (!actor || !name) return null;
 
@@ -515,6 +528,8 @@ export async function createTruthBullet(actor, {
             [TRUTH_BULLET_FLAGS.remnantRef]: remnantId && sceneId ? `${sceneId}.${remnantId}` : null,
             [TRUTH_BULLET_FLAGS.sourceAction]: identified ? sourceAction : null,
             [TRUTH_BULLET_FLAGS.tiedToCrime]: identified ? tiedToCrime : null,
+            // "" rather than null, so every reader can `?? ""` without a branch.
+            [TRUTH_BULLET_FLAGS.analysisText]: identified ? analysis : "",
             // Never inherited. A failed analysis is a fact about the person who
             // failed, not about the evidence - guide, Stage 3.
             [TRUTH_BULLET_FLAGS.lockedChapter]: null
@@ -523,7 +538,8 @@ export async function createTruthBullet(actor, {
 
     if (!item) return null;
 
-    await setSecret(item.uuid, { realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime });
+    await setSecret(item.uuid,
+        { realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime, analysis });
 
     /*
      * AFTER THE SECRET IS FILED, so the sound cannot arrive before the thing it
@@ -564,6 +580,16 @@ export function truthBulletData(item) {
         shownType,
         shownLabel: TRUTH_BULLET_TYPES[shownType]?.label ?? shownType,
         shownHint: TRUTH_BULLET_TYPES[shownType]?.hint ?? "",
+        /* "" until identified - see TRUTH_BULLET_FLAGS. */
+        analysisText: flag(TRUTH_BULLET_FLAGS.analysisText) ?? "",
+        /*
+         * WHAT TO PRINT AS THIS BULLET'S SENTENCE, decided in one place (T-2).
+         * The GM's own words about this trace once they have been earned, and the
+         * generic line for the type until then - and for a trace nobody wrote
+         * anything about. `shownHint` above stays exactly what it was: the
+         * generic sentence, for the one caller that wants only that.
+         */
+        hint: (flag(TRUTH_BULLET_FLAGS.analysisText) || TRUTH_BULLET_TYPES[shownType]?.hint) ?? "",
         visibility,
         visibilityLabel: REMNANT_VISIBILITY_LABELS[visibility] ?? visibility,
         faint: !!flag(TRUTH_BULLET_FLAGS.faint),
@@ -664,6 +690,42 @@ export async function propagateCrimeTie(remnantTokenId, tied) {
                 touched++;
             } catch (err) {
                 error(`Could not move the crime tie onto "${item.name}"`, err);
+            }
+        }
+    }
+    return touched;
+}
+
+/**
+ * Move a GM's after-analysis sentence onto the copies already in packs (T-2).
+ *
+ * TWO HALVES, AND THAT IS THE POINT. The secret gets it always, so a holder who
+ * analyses the trace tomorrow gets the words the GM wrote today. The published
+ * flag gets it only where the holder has already earned it - a GM editing the
+ * sentence must reach the person who has analysed this trace, and must not reach
+ * the person who has not.
+ *
+ * The same shape as `propagateCrimeTie` above, for the same reason.
+ */
+export async function propagateAnalysis(remnantTokenId, text = "") {
+    if (!game.user.isGM || !remnantTokenId) return 0;
+    const said = String(text ?? "");
+
+    let touched = 0;
+    for (const actor of game.actors) {
+        if (actor.type !== "character") continue;
+        for (const item of bulletsOf(actor)) {
+            if (secretOf(item.uuid).remnantId !== remnantTokenId) continue;
+            try {
+                await setSecret(item.uuid, { analysis: said });
+                if (isIdentified(item)) {
+                    await item.update({
+                        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analysisText}`]: said
+                    });
+                }
+                touched++;
+            } catch (err) {
+                error(`Could not move the after-analysis description onto "${item.name}"`, err);
             }
         }
     }

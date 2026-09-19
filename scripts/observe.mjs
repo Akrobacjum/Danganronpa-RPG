@@ -444,9 +444,19 @@ async function createFind(actor, entry, isCritical) {
     const item = await createTruthBullet(actor, {
         name: pub?.name || written?.name || fallbackName,
         realType: data.type,
-        // A critical identifies the category outright - guide, p. 30: "Truth
-        // Bullet ze zidentyfikowaną kategorią i duża podpowiedź od DMa."
-        shownType: isCritical ? data.type : "neutral",
+        /*
+         * A critical identifies the category outright - guide, p. 30: "Truth
+         * Bullet ze zidentyfikowaną kategorią i duża podpowiedź od DMa."
+         *
+         * `null` FOR EVERYONE ELSE MEANS "LET THE RULES DECIDE", which is what
+         * `createTruthBullet` does with it: Neutral for an analysable type, the
+         * real type for Key, Final and Autopsy. It used to force the literal
+         * "neutral", so a Key trace found on an ordinary success arrived
+         * `analyzed: true` under a badge reading Neutral - un-analysable, already
+         * wearing the real action's glyph, and now about to carry T-2's sentence
+         * about a clue nobody had read (T-2, 18.09).
+         */
+        shownType: isCritical ? data.type : null,
         visibility: data.visibility,
         faint: Boolean(data.faint),
         playerText: pub?.playerText ?? written?.playerText ?? "",
@@ -455,6 +465,9 @@ async function createFind(actor, entry, isCritical) {
         gmNote: data.note ?? "",
         remnantId: entry.tokenId,
         sceneId: entry.sceneId,
+        // What analysing it will say, from the record this function has already
+        // read. Secret until the bullet is identified (T-2).
+        analysis: data.analysis ?? "",
         // Passed explicitly: this is the GM's client, which may be looking at a
         // different scene entirely, so the canvas-bound default would stamp null.
         room: entry.room,

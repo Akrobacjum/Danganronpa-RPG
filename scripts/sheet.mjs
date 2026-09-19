@@ -338,6 +338,23 @@ function labelItemKind(root, item) {
             badges.className = "drpg-tb-badges";
             badges.innerHTML = bulletBadges(data);
             line.append(badges);
+
+            /*
+             * AND THE SENTENCE ITSELF, VISIBLE (T-2, Dawid 17.09).
+             *
+             * A tooltip on a badge is where a player looks for what a badge means,
+             * not for what the GM wrote about this specific trace. On the one
+             * screen that shows the evidence in full, the sentence is a line.
+             *
+             * INSIDE the element the idempotence guard at the top of this function
+             * names, so a re-render cannot stack two copies of it.
+             */
+            if (data.hint) {
+                const said = document.createElement("p");
+                said.className = "drpg-item-analysis";
+                said.textContent = data.hint;
+                line.append(said);
+            }
         }
     }
 
@@ -2638,7 +2655,9 @@ export function bulletBadges(data) {
         }>${foundry.utils.escapeHTML(text)}</span>`;
 
     const badges = [
-        badge(data.shownLabel, `type ${data.shownType}`, data.shownHint),
+        // The GM's own words once they have been earned, the type's generic line
+        // until then - `hint` is that decision, made in truthBulletData (T-2).
+        badge(data.shownLabel, `type ${data.shownType}`, data.hint),
         badge(data.visibilityLabel, "visibility",
             game.i18n.localize("DRPG.TruthBullet.visibilityTooltip"))
     ];
