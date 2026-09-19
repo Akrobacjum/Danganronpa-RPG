@@ -2786,9 +2786,56 @@
       "resetDoors": "every door back to how the season opened",
       "resetState": "the incident, the Mastermind, the trial queue, the search tokens, every Despair Call still in force, and the clock back to Chapter 1, Day 1, Morning",
       "resetKeeps": "This stays: the cast with their names, portraits and Ultimates, the maps, the rooms and who owns them, who watches whom, the Monokuma team, and the campaign name.",
-      "resetChat": {
-        "one": "Also delete the rest of the chat log - {n} message this module did not write",
-        "other": "Also delete the rest of the chat log - {n} messages this module did not write"
+      "resetGroupsTitle": "What goes, and what stays",
+      "resetGroupsNote": "Untick anything this reset should leave alone. The choice is remembered for the next reset, and comes back unticked - tick it again and it goes.",
+      "resetRemembered": {
+        "one": "1 exception is remembered from the last reset and is unticked below.",
+        "other": "{n} exceptions are remembered from the last reset and are unticked below."
+      },
+      "resetForgotten": {
+        "one": "1 remembered exception is no longer part of a reset and was dropped.",
+        "other": "{n} remembered exceptions are no longer part of a reset and were dropped."
+      },
+      "resetNothing": "Nothing is ticked, so there is nothing to reset.",
+      "resetDoneKept": {
+        "one": "The season has been reset, with 1 exception left as it was.",
+        "other": "The season has been reset, with {n} exceptions left as they were."
+      },
+      "section": {
+        "case": "The case",
+        "cast": "The cast",
+        "board": "The board",
+        "log": "The log",
+        "world": "The world"
+      },
+      "group": {
+        "remnants": "Remnants on the maps, and what each one really was",
+        "bullets": "Truth Bullets in the cast's packs",
+        "incident": "The incident, the blackened and any murder declared in the dark",
+        "trialFloor": "The trial floor",
+        "trialProgress": "The trial's progress and its vote",
+        "keyPlan": "The Key Remnant plan",
+        "searchTokens": "Search tokens spent in each room",
+        "discovered": "Which rooms have been discovered",
+        "bodyFound": "The body waiting to be answered",
+        "deaths": "Deaths and Monocubs - the dead come back",
+        "items": "What the cast is carrying",
+        "advancement": "Advancement - back to the starting sheet",
+        "actions": "The action budget, refilled",
+        "preNotes": "The Gamemasters' pre-session notes",
+        "sheetNotes": "The notes the cast wrote on their own sheets",
+        "projects": "Projects, repairs and their countdowns",
+        "mastermind": "The Mastermind",
+        "seals": "Despair Calls still in force",
+        "motive": "The motive",
+        "rules": "Monokuma's standing rules",
+        "doors": "Locked doors, back to how the season opened",
+        "eclipseMoves": "Eclipse placements",
+        "cards": "This module's own cards and the messenger",
+        "chatRest": "The rest of the chat log, which this module did not write",
+        "despair": "Despair pools, and every Hope back to the start",
+        "overflow": "The Despair overflow and its darkening",
+        "clock": "The clock, back to Chapter 1, Day 1, Morning"
       },
       "resetType": "Type {word} to confirm",
       "resetWord": "RESET",

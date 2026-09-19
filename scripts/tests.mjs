@@ -2515,6 +2515,68 @@ const REGRESSIONS = [
         const read = inv.slice(inv.indexOf("traces: traces.map("));
         ok(read.indexOf("analysis.${key}") > read.indexOf("if (!q(`name.${key}`)) return null;"),
             "the new column is read before the guard that stops a hidden row being saved as blank");
+    }],
+
+    ["R50 - every step of the season reset is a group a GM can except", async () => {
+        /*
+         * R-1, Dawid 18.09. The reset is a list of ticks now, and the promise the
+         * window makes is that unticking a box leaves that group alone. A step
+         * nobody named in the table would be ungated - it would run whatever the GM
+         * ticked - so the table and the steps are held equal here, both ways round.
+         */
+        const sources = new Map(await otherSources());
+        const table = stripComments(sources.get("season-exceptions.mjs") ?? "");
+        ok(table.length > 500,
+            "season-exceptions.mjs is not in the module's own source list - is it imported by a literal path?");
+
+        const groups = [...table.matchAll(/\{ key: "(\w+)", section: "(\w+)" \}/g)]
+            .map(m => ({ key: m[1], section: m[2] }));
+        ok(groups.length >= 20, `only ${groups.length} reset groups - the table lost rows`);
+
+        const setup = stripComments(sources.get("season-setup.mjs") ?? "");
+        const wipe = setup.slice(setup.indexOf("async function wipeSeason"));
+        const named = new Set([
+            ...[...wipe.matchAll(/await step\("(\w+)"/g)].map(m => m[1]),
+            ...[...wipe.matchAll(/\["(\w+)", "[^"]+", SETTINGS\./g)].map(m => m[1])
+        ]);
+
+        for (const { key } of groups) {
+            ok(named.has(key), `the reset has no step for the group "${key}", so its tick does nothing`);
+        }
+        for (const key of named) {
+            ok(groups.some(group => group.key === key),
+                `the reset clears "${key}" and no group offers it, so it cannot be excepted`);
+        }
+
+        // Every row says something in both languages the window speaks: its own
+        // label and its section's heading.
+        const sections = new Set(groups.map(group => group.section));
+        for (const { key } of groups) {
+            ok(game.i18n.has(`DRPG.Season.group.${key}`), `the reset group "${key}" has no label`);
+        }
+        for (const section of sections) {
+            ok(game.i18n.has(`DRPG.Season.section.${section}`),
+                `the reset section "${section}" has no heading`);
+        }
+        for (const name of ["resetGroupsTitle", "resetGroupsNote", "resetNothing"]) {
+            ok(game.i18n.has(`DRPG.Season.${name}`), `DRPG.Season.${name} is missing`);
+        }
+        for (const name of ["resetRemembered", "resetForgotten", "resetDoneKept"]) {
+            ok(game.i18n.has(`DRPG.Season.${name}.other`), `DRPG.Season.${name} is not a counted pair`);
+        }
+
+        /*
+         * AND THE WIPE IS NEVER RUN WITHOUT A PLAN. `wipeSeason(plan)` reads
+         * `plan.groups`, so a caller that forgot the argument would throw on the
+         * first step and leave the season half-cleared.
+         */
+        ok(/async function wipeSeason\(plan\)/.test(wipe),
+            "wipeSeason no longer takes the plan that decides what it may touch");
+        ok(!/wipeSeason\(\s*\)/.test(setup), "something calls wipeSeason with no plan at all");
+        ok(/rememberExceptions\(plan\.keep\)/.test(setup),
+            "the exceptions are no longer remembered for the next reset");
+        const order = setup.indexOf("rememberExceptions(plan.keep)") < setup.indexOf("return wipeSeason(plan)");
+        ok(order, "the exceptions are remembered after the wipe, which is a decision the wipe could lose");
     }]
 ];
 
@@ -2541,7 +2603,7 @@ const STANDING = [
     "openRulesManager", "openMonocubDialog", "openGmTeamDialog",
     "openItemManager", "openGmPanel", "openWhoIsAliveDialog",
     "openFailureLog", "openClockDialog", "openIncidentTracker",
-    "openEavesdropDialog", "openObjectionLog"
+    "openEavesdropDialog", "openObjectionLog", "resetSeason"
 ];
 
 const INVARIANTS = [
@@ -3777,7 +3839,11 @@ const INVARIANTS = [
             // Every exported opener in the file, and what its body looks like
             // up to the next one. Crude on purpose: a regex that can only ever
             // report a window as unguarded is a regex that fails loudly.
-            const openers = [...text.matchAll(/^export (?:async )?function (open[A-Z]\w*|manage[A-Z]\w*)\s*\(/gm)];
+            // `resetSeason` by name: it is a window a GM ticks twenty-seven boxes
+            // in (R-1), which is exactly what this list is for, and it is the one
+            // such window whose name does not begin with "open" or "manage".
+            const openers = [...text.matchAll(
+                /^export (?:async )?function (open[A-Z]\w*|manage[A-Z]\w*|resetSeason)\s*\(/gm)];
             for (let i = 0; i < openers.length; i++) {
                 const name = openers[i][1];
                 if (EXEMPT.has(name)) continue;
@@ -7968,6 +8034,55 @@ const SCENARIOS = [
                 try { await remnants.dropRemnantSecret(token); } catch { /* nothing filed */ }
                 try { await token.delete(); } catch { /* already gone */ }
             }
+            await settle();
+        }
+    }],
+
+    ["the reset's exceptions are remembered, and come back unticked", async () => {
+        /*
+         * R-1. The memory, not the wipe: no scenario runs a real season reset, for
+         * the reason the suite's contract gives - a wipe takes advancement and items
+         * off a live cast, and what is put back is a fixture rather than a season.
+         * What is driven here is every function the window leans on.
+         */
+        const ex = await import("./season-exceptions.mjs");
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.seasonExceptions) ?? []);
+
+        try {
+            // A plan is what is TICKED; the exceptions are the rest, in table order.
+            const all = ex.RESET_GROUPS.map(group => group.key);
+            const plan = ex.planFrom(all.filter(key => key !== "advancement" && key !== "rules"));
+            equal(plan.keep.join(","), "advancement,rules",
+                "the plan's exceptions are not the unticked groups in table order");
+            ok(!plan.groups.has("advancement"), "an unticked group is still in the plan");
+
+            await ex.rememberExceptions(plan.keep);
+            await settle();
+            const back = ex.rememberedExceptions();
+            equal([...back.keys].sort().join(","), "advancement,rules",
+                "the exceptions did not survive being remembered");
+            equal(back.dropped, 0, "a remembered exception was dropped that this version still knows");
+
+            /*
+             * A KEY THIS VERSION NO LONGER KNOWS IS DROPPED, not carried into a
+             * plan - otherwise a group renamed in a later release leaves a world
+             * with an exception nothing can untick.
+             */
+            await game.settings.set(MODULE_ID, SETTINGS.seasonExceptions,
+                ["advancement", "somethingWeRenamed"]);
+            await settle();
+            const bounded = ex.rememberedExceptions();
+            equal([...bounded.keys].join(","), "advancement",
+                "an unknown remembered key was carried into the plan");
+            equal(bounded.dropped, 1, "the window would not be able to say what it dropped");
+
+            // And nothing ticked is not a reset: `planFrom` says so by being empty,
+            // which is what `resetSeason` refuses on.
+            equal(ex.planFrom([]).groups.size, 0, "an empty plan claims to clear something");
+            equal(ex.planFrom([]).keep.length, ex.RESET_GROUPS.length,
+                "an empty plan does not treat every group as an exception");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.seasonExceptions, before);
             await settle();
         }
     }]

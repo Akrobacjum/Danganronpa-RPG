@@ -214,6 +214,8 @@ export const SETTINGS = {
      * case stays solvable.
      */
     keyRemnantPlan: "keyRemnantPlan",
+    /** Which groups the last season reset was told to leave alone (R-1). */
+    seasonExceptions: "seasonExceptions",
     /** Monokuma's standing rules - see rules.mjs. Public by design. */
     killingGameRules: "killingGameRules",
     /**
@@ -809,6 +811,21 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+
+    /*
+     * THE EXCEPTIONS THE LAST RESET WAS GIVEN (R-1, Dawid 18.09).
+     *
+     * World-scoped, because a reset is a decision about the world and the next one
+     * may be run by a different GM at the same table. It holds group KEYS and
+     * nothing about the season itself, so there is nothing here a player learns
+     * anything from - which is the test D6 asks of every world setting.
+     */
+    game.settings.register(MODULE_ID, SETTINGS.seasonExceptions, {
+        scope: "world",
+        config: false,
+        type: Array,
+        default: []
     });
 
     // Monokuma's standing rules. World-scoped and deliberately public - a rule
