@@ -451,6 +451,21 @@ async function mintLootBullet(taker, body, item, name, category, trace) {
         const { servesAs } = await import("./inventory.mjs");
         const incriminating = ["crimeTool", "cleaningTool"].some(role => servesAs(item, role));
 
+        /*
+         * WHAT ANALYSING THE TRACE WILL SAY (T-2), off the LEDGER.
+         *
+         * `trace` is the bookmark on the body - a scene id, a token id and what has
+         * been taken - not a ledger entry, so it has no sentence of its own. The
+         * second looter's trace already exists and a GM may have written about it
+         * hours ago, which makes this the one copy route that could be wrong without
+         * anybody changing anything.
+         */
+        const { remnantData } = await import("./remnants.mjs");
+        const traceToken = trace?.sceneId && trace?.tokenId
+            ? game.scenes.get(trace.sceneId)?.tokens?.get(trace.tokenId)
+            : null;
+        const said = traceToken ? (remnantData(traceToken)?.analysis ?? "") : "";
+
         await createTruthBullet(taker, {
             name: game.i18n.format("DRPG.Loot.bulletName", { item: name }),
             realType: "neutral",
@@ -463,13 +478,7 @@ async function mintLootBullet(taker, body, item, name, category, trace) {
             tiedToCrime: incriminating ? true : null,
             remnantId: trace?.tokenId ?? null,
             sceneId: trace?.sceneId ?? null,
-            /*
-             * THE ROUTE THAT COULD ALREADY BE WRONG (T-2). The trace a second
-             * looter's bullet is minted from exists before the minting, so a GM
-             * may have written its sentence hours ago - and without this the copy
-             * would be the one bullet in the game whose analysis said nothing.
-             */
-            analysis: trace?.analysis ?? ""
+            analysis: said
         });
     } catch (err) {
         // The object moved; the record of it did not. Worth saying out loud,
