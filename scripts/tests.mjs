@@ -2677,6 +2677,33 @@ const REGRESSIONS = [
         const look = stripComments(new Map(await otherSources()).get("look.mjs") ?? "");
         ok(look.includes("SETTINGS.highContrast"),
             "the Look window lost the switch, so only Foundry's settings page has it");
+    }],
+
+    ["R53 - the Tamper tile's late answer does not eat the reason it is locked", async () => {
+        /*
+         * MEASURED ON A PLAYER'S SHEET IN A CLASS TRIAL (19.09). Every tile carried
+         * "The Class Trial is in session..."; a second later, when the GM's ledger
+         * answered whether Tamper has anything to work on, the Tamper tile alone lost
+         * its reason and sat there dimmed and silent. `paintTamper` was cutting the
+         * LAST `<br><em>` off the tooltip and putting its own back - which ate
+         * whatever the last line happened to be, the Eclipse's and the fight's
+         * included.
+         *
+         * The shape that cannot come back: the repaint composes from the two halves
+         * the tile kept, and never edits the string it finds.
+         */
+        const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
+        const paint = sheet.slice(sheet.indexOf("function paintTamper"),
+            sheet.indexOf("function actionButton("));
+        ok(paint.length > 200, "paintTamper has moved or gone");
+        ok(!/\.replace\(/.test(paint),
+            "paintTamper edits the tooltip it finds again, so it can eat another line");
+        ok(paint.includes("drpgTipHead") && paint.includes("drpgTipTail"),
+            "paintTamper no longer rebuilds the tooltip from the halves the tile kept");
+
+        const button = sheet.slice(sheet.indexOf("function actionButton("));
+        ok(/dataset\.drpgTipHead =/.test(button) && /dataset\.drpgTipTail =/.test(button),
+            "the tile stopped keeping the two halves the repaint needs");
     }]
 ];
 

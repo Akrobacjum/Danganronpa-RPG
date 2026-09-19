@@ -3712,11 +3712,27 @@ function paintTamper(actor, blocked) {
     for (const app of sheetsFor(actor)) {
         for (const tile of app.element.querySelectorAll('[data-drpg-action="tamper"]')) {
             tile.classList.toggle("drpg-no-subject", Boolean(blocked));
-            const tip = tile.dataset.tooltip ?? "";
-            const bare = tip.replace(/<br><em>[^<]*<\/em>$/, "");
-            tile.dataset.tooltip = blocked
-                ? `${bare}<br><em>${foundry.utils.escapeHTML(blocked)}</em>`
-                : bare;
+
+            /*
+             * REBUILT FROM THE TWO HALVES THE TILE KEPT, NOT BY CUTTING THE LAST
+             * LINE OFF WHAT IS THERE.
+             *
+             * It used to strip the final `<br><em>…</em>` and put its own back -
+             * which ate whatever the last line happened to be. Measured on the
+             * player's sheet in a Class Trial (19.09): every tile carried "The
+             * Class Trial is in session…", and a second after the ledger answered,
+             * the Tamper tile alone lost its reason and sat there dimmed and
+             * silent. The same cut would have eaten the Eclipse's line, and the
+             * fight's.
+             *
+             * `actionButton` stores the head (the hint plus whatever locks the
+             * tile) and the tail (the killer's free-tonight line) so this can put
+             * its own sentence between them, which is where it belongs.
+             */
+            const head = tile.dataset.drpgTipHead ?? tile.dataset.tooltip ?? "";
+            const tail = tile.dataset.drpgTipTail ?? "";
+            const why = blocked ? `<br><em>${foundry.utils.escapeHTML(blocked)}</em>` : "";
+            tile.dataset.tooltip = `${head}${why}${tail}`;
         }
     }
 }
@@ -3899,8 +3915,14 @@ function actionButton(actor, key, def) {
      * is nothing here to do it to, and why it is free tonight. Those appear one
      * at a time and only when they apply, so the ordinary hover is one line.
      */
-    button.dataset.tooltip =
-        `${foundry.utils.escapeHTML(def.hint ?? "")}${note}${why}${bonus}`;
+    /*
+     * KEPT IN TWO HALVES as well as composed, because `paintTamper` writes the
+     * middle line a second later when the GM's ledger answers - see the note
+     * there. Without these it cut off whatever the last line was.
+     */
+    button.dataset.drpgTipHead = `${foundry.utils.escapeHTML(def.hint ?? "")}${note}`;
+    button.dataset.drpgTipTail = bonus;
+    button.dataset.tooltip = `${button.dataset.drpgTipHead}${why}${bonus}`;
 
     // Say what the stripe means, or the stripe means nothing.
     //
