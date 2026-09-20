@@ -166,7 +166,14 @@ async function identify(item, actor, realType, isCritical, dc, total) {
     // same for every Prep trace in the season; a GM who wrote about THIS one said
     // something the type sentence cannot. A trace with nothing written keeps the
     // generic line, which is what this has always printed.
-    const hint = said || TRUTH_BULLET_TYPES[realType]?.hint || "";
+    /* AND A BULLET THAT CAME OUT NEUTRAL GETS THE SENTENCE FOR THAT (ACT-10). The
+       per-type `hint` is the UN-analysed line, and for neutral it reads "analysis
+       turns it into a real category" - printed, until now, on the card announcing
+       the analysis that did not. */
+    const line = realType === "neutral"
+        ? (TRUTH_BULLET_TYPES.neutral.analysedHint ?? TRUTH_BULLET_TYPES.neutral.hint)
+        : TRUTH_BULLET_TYPES[realType]?.hint;
+    const hint = said || line || "";
 
     /*
      * THE SOUND RIDES THE CARD, AND IT USED NOT TO - a bug this file carried

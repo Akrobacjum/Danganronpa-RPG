@@ -4055,6 +4055,33 @@ const REGRESSIONS = [
             "the gate is below the dead test, which is where it could not do its job");
         ok(!/dispatchable\.includes\("meddle"\)/.test(rolls),
             "Confusion was added to a list of ACTIONS keys, and it is not one");
+    }],
+
+    ["R87 - a trace of unstated origin is not a free Analyze", async () => {
+        /*
+         * ACT-10, 20.09. `ANALYZE_DC` has no neutral column, so `analyzeDc` fell
+         * through to `null` for a bullet whose REAL type is itself neutral - a red
+         * herring, or a GM who never picked a category - and `null` is read one line
+         * later as the guide's "Bez rzutu". Every such bullet identified itself on any
+         * roll at all and closed for ever: the action was spent, the evidence was
+         * shut, and nothing was learned.
+         *
+         * The note that said this file wants no alias table was half right: it is the
+         * DISPLAYED type that is normally neutral, and this lookup takes the real one.
+         * The case it missed is the real one being neutral too. `OBSERVE_TYPE_ALIAS`
+         * is the module's existing answer - "a trace of unstated origin is priced like
+         * the ordinary evidence it stands in for" - so no second number is invented.
+         */
+        const cfg = stripComments(new Map(await otherSources()).get("config.mjs") ?? "");
+        const fn = cfg.slice(cfg.indexOf("export function analyzeDc"),
+            cfg.indexOf("export function analyzeDc") + 300);
+        ok(/OBSERVE_TYPE_ALIAS\[realType\] \?\? realType/.test(fn),
+            "Analyze still has no answer for a trace whose real type is neutral");
+
+        const analyze = stripComments(new Map(await otherSources()).get("analyze.mjs") ?? "");
+        ok(/realType === "neutral"/.test(analyze) && /analysedHint/.test(analyze),
+            "the card announcing an analysis still prints the un-analysed sentence - "
+            + "\"analysis turns it into a real category\" - about an analysis that did not");
     }]
 ];
 
@@ -5695,6 +5722,28 @@ const INVARIANTS = [
         for (const name of ["DRPG Tools - Tier 9", "DRPG Murder Weapons (Healing) - Tier 2",
             "DRPG Truth Bullets - Tier 2", "Kitchen cupboard"]) {
             equal(t.classifyTableName(name), null, `"${name}" was filed as a module table`);
+        }
+    }],
+
+    ["Analyze prices a neutral trace like the evidence it stands in for", async () => {
+        /*
+         * ACT-10's other half, measured against the tables rather than the source:
+         * every visibility band has to answer for a neutral trace, and the answer has
+         * to be the prep column - the same alias Observe has used since the tables
+         * were written. `null` here is what made an Analyze free.
+         */
+        const { analyzeDc, ANALYZE_DC, OBSERVE_TYPE_ALIAS } = await import("./config.mjs");
+        equal(OBSERVE_TYPE_ALIAS.neutral, "prep", "the alias stopped pointing at prep");
+        for (const band of Object.keys(ANALYZE_DC)) {
+            const dc = analyzeDc(band, "neutral");
+            equal(dc, ANALYZE_DC[band].prep,
+                `a neutral trace in the ${band} band is priced at ${dc}`);
+            ok(Number.isFinite(dc), `a neutral trace in the ${band} band is still a free pass`);
+        }
+        // And the three that are meant to be free stay free: the guide prints
+        // "Bez rzutu" for Key, and Autopsy and Final have no column at all.
+        for (const band of Object.keys(ANALYZE_DC)) {
+            equal(analyzeDc(band, "key"), null, `Key in the ${band} band is being asked to roll`);
         }
     }],
 

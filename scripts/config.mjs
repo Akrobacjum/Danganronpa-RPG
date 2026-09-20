@@ -712,7 +712,18 @@ export const REMNANT_TYPES = {
     },
     neutral: {
         label: "Neutral Remnant",
-        hint: "Undetermined origin. Analysis turns it into a real category."
+        hint: "Undetermined origin. Analysis turns it into a real category.",
+        /*
+         * THE SENTENCE FOR A BULLET THAT HAS BEEN ANALYSED AND IS STILL NEUTRAL
+         * (ACT-10, 20.09).
+         *
+         * `hint` is the un-analysed line - "analysis turns it into a real
+         * category" - and the card announcing an analysis printed it, which is a
+         * promise the analysis has just failed to keep. A trace whose real type IS
+         * neutral is a red herring or a GM who never picked a category; either way
+         * the honest sentence is that there is nothing more in it.
+         */
+        analysedHint: "Nothing in it points anywhere. Either it was left by nobody in particular, or its origin was never written down."
     },
     faint: {
         label: "Faint Remnant",
@@ -951,12 +962,21 @@ export const ANALYZE_DC = {
  * those states is converted outright instead of being asked to beat a number
  * that was never written down.
  *
- * No alias table here, unlike `observeDc`: a bullet showing "neutral" is the
- * normal, expected state of something waiting to be analysed, and its REAL type
- * is what this looks up.
+ * THE ALIASES ARE HERE TOO NOW (ACT-10, 20.09), AND THE NOTE THAT SAID THEY WERE
+ * NOT WAS HALF RIGHT. It said a bullet SHOWING "neutral" is the normal state of
+ * something waiting to be analysed and that the REAL type is what this looks up -
+ * both true, and neither is the case this missed: a trace whose real type is
+ * ITSELF neutral. `ANALYZE_DC` has no neutral column, so the lookup fell through
+ * to `null`, and `null` is read one line later as the guide's "Bez rzutu": every
+ * such bullet identified itself on any roll at all, and closed for ever.
+ *
+ * A trace of unstated origin is priced like the ordinary evidence it stands in
+ * for - which is the same sentence `OBSERVE_TYPE_ALIAS` is written under, and the
+ * same table it points at. One answer, not a second number invented here.
  */
 export function analyzeDc(visibility, realType) {
-    return ANALYZE_DC[visibility]?.[realType] ?? null;
+    const column = OBSERVE_TYPE_ALIAS[realType] ?? realType;
+    return ANALYZE_DC[visibility]?.[column] ?? null;
 }
 
 /** How many Key Remnants the GM prepares, and the floor after the opening roll. */
