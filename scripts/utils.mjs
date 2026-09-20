@@ -540,9 +540,13 @@ const TEXT_FIELD = 'input[type="text"], input[type="search"], input:not([type]),
  * `data-drpg-field` saves itself, and those rows sit inside the dialog's own
  * form - so Enter submitted whatever the footer lists first ("Add an item", in
  * the window this was reported from) and threw the text away. There, Enter
- * means the field. Everywhere else Enter is left exactly as it was: the browser
- * already fires `change` before the submit, and stealing Enter from a one-field
- * prompt would break the thing it is trying to protect.
+ * means the field.
+ *
+ * THE THIRD RULE IS A FIELD THAT NAMES A BUTTON (`data-drpg-enter`, MM-02,
+ * 20.09) - see the note on it below. A field carrying neither marker is still
+ * left exactly as it was: the browser already fires `change` before the submit,
+ * and stealing Enter from a one-field prompt would break the thing it is trying
+ * to protect.
  */
 export function guardTextFields(root) {
     if (!root || root.dataset.drpgTextGuard) return false;
@@ -567,6 +571,46 @@ export function guardTextFields(root) {
         if (!field || field.tagName === "TEXTAREA") return;
         ev.preventDefault();
         field.blur();
+    });
+
+    /*
+     * AND THE THIRD RULE: A FIELD MAY NAME THE BUTTON ENTER MEANS (MM-02, 20.09).
+     *
+     * The Mastermind window is the case. Its give-Hope fieldset is a select, a
+     * number and a `type="button"` button, and the window's footer starts with
+     * Apply - so Enter in the amount pressed APPLY. DialogV2 renders every footer
+     * button as a submit (`_renderHTML` puts the content and the footer in one
+     * form, and the footer's buttons carry no `type`), and HTML implicit
+     * submission picks the FIRST submit in tree order whatever carries `default`,
+     * which is the trap this module has already paid for twice.
+     *
+     * So: the field says which button Enter is for, and this presses that one.
+     * `data-drpg-enter` holds the selector, looked up inside the field's own
+     * fieldset or form first so two copies of a row cannot press each other's
+     * button, and then across the window for a field that sits in neither.
+     *
+     * FOCUS MOVES TO THE BUTTON BEFORE THE CLICK, and that is not tidiness.
+     * `keepLive` defers a rebuild while focus is inside the region it is about to
+     * replace (see `isEditing`), so pressing the button with the caret still in
+     * the number would have written the Hope and left the readout showing the old
+     * figure until the GM clicked away - a donation that looks like it did
+     * nothing, and invites a second press.
+     *
+     * A disabled button is left alone: that is a window saying "not now", and
+     * Enter is not a way around it.
+     */
+    root.addEventListener("keydown", ev => {
+        if (ev.key !== "Enter") return;
+        const field = ev.target?.closest?.("[data-drpg-enter]");
+        if (!field || field.tagName === "TEXTAREA") return;
+        const selector = field.dataset.drpgEnter;
+        if (!selector) return;
+        const near = field.closest("fieldset") ?? field.closest("form") ?? root;
+        const button = near.querySelector(selector) ?? root.querySelector(selector);
+        if (!button || button.disabled) return;
+        ev.preventDefault();
+        button.focus();
+        button.click();
     });
 
     return true;

@@ -418,12 +418,30 @@ export async function openMastermindDialog() {
         `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))} (${getDespair(u.id)})</option>`
     ).join("");
 
+    /*
+     * ENTER IN THIS FIELDSET MEANS GIVE, NOT APPLY (MM-02, 20.09).
+     *
+     * The note above covers both builders; this is about the two fields in this
+     * one. They sit inside the dialog's form, and this window's footer starts
+     * with Apply - so Enter here pressed Apply, which saves the role and the
+     * lair, CLOSES the window and gives no Hope at all. Read from source rather
+     * than measured: DialogV2 puts the content and the footer in one form and its
+     * footer buttons carry no `type`, so they are submits, and implicit
+     * submission takes the first one in tree order however `default` is set. The
+     * marker is the third rule in `guardTextFields` (utils.mjs), which presses
+     * the named button instead.
+     *
+     * ON BOTH FIELDS, because Enter in a select submits exactly like Enter in a
+     * number, and a GM who picks the pool with the keyboard is in the select when
+     * they press it.
+     */
     const buildHopeBox = () => `
         <p class="notes">${game.i18n.format("DRPG.Mastermind.hopeReadout", {
             held: mastermindActor()?.system?.resources?.hope?.value ?? 0
         })}</p>
-        <select name="donor">${buildDonors()}</select>
-        <input type="number" name="amount" min="1" value="1" style="width:4em" />
+        <select name="donor" data-drpg-enter="[data-drpg-give]">${buildDonors()}</select>
+        <input type="number" name="amount" min="1" value="1" style="width:4em"
+            data-drpg-enter="[data-drpg-give]" />
         <button type="button" class="drpg-mini-button" data-drpg-give>
             ${game.i18n.localize("DRPG.Monocub.give")}</button>`;
 
@@ -502,7 +520,18 @@ export async function openMastermindDialog() {
                         const donorId = dialog.element.querySelector("[name=donor]")?.value;
                         const amount = Number(
                             dialog.element.querySelector("[name=amount]")?.value) || 0;
-                        if (!donorId || amount <= 0 || !current) return;
+                        if (!donorId || !current) return;
+                        // SAYS WHY (MM-02, 20.09). This bailed silently on 0 or a
+                        // blank, and the "At least 1" hint beside the stepper is
+                        // painted by chrome.mjs, which dresses this window under
+                        // one theme only - so under Monokuma Legacy the button
+                        // simply did nothing. Now that Enter presses this button,
+                        // an empty field is a keystroke away rather than a
+                        // deliberate click.
+                        if (amount <= 0) {
+                            ui.notifications.warn(game.i18n.format("DRPG.Monocub.giveAtLeast", { n: 1 }));
+                            return;
+                        }
 
                         const { convertDespairToHope } = await import("./despair.mjs");
                         await convertDespairToHope(donorId, current, amount);

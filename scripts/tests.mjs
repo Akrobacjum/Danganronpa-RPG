@@ -3377,6 +3377,49 @@ const REGRESSIONS = [
             + "not time");
     }],
 
+    ["R70 - Enter in a field that names a button presses that button", async () => {
+        /*
+         * MM-02, 20.09. The Mastermind window's give-Hope row sits inside the
+         * dialog's form and the footer starts with Apply, so Enter in the amount
+         * pressed APPLY: the window saved the role and the lair, closed, and gave no
+         * Hope at all. DialogV2 renders every footer button as a submit and implicit
+         * submission takes the first one in tree order however `default` is set -
+         * the trap this module has paid for twice already.
+         */
+        const sources = new Map(await otherSources());
+        const utils = stripComments(sources.get("utils.mjs") ?? "");
+        const guard = utils.slice(utils.indexOf("export function guardTextFields"),
+            utils.indexOf("export function registerTextGuard"));
+        ok(guard.length > 200, "guardTextFields has moved or gone");
+        ok(/data-drpg-enter/.test(guard), "nothing reads the marker, so Enter still submits");
+        ok(/button\.focus\(\)[\s\S]{0,60}button\.click\(\)/.test(guard),
+            "the button is clicked with the caret still in the field, so keepLive defers the "
+            + "redraw and the donation looks as if it did nothing");
+        ok(/if \(!button \|\| button\.disabled\) return;/.test(guard),
+            "Enter presses a disabled button, which is a window's way of saying not now");
+        ok(guard.indexOf("data-drpg-field") < guard.indexOf("data-drpg-enter"),
+            "the field rule moved below the button rule - R44 reads the first one's position");
+
+        const mm = stripComments(sources.get("mastermind.mjs") ?? "");
+        const box = mm.slice(mm.indexOf("const buildHopeBox"), mm.indexOf("const { allRooms }"));
+        ok((box.match(/data-drpg-enter="\[data-drpg-give\]"/g) ?? []).length === 2,
+            "both fields in the give-Hope row have to name the button - Enter in a select "
+            + "submits exactly like Enter in a number");
+        ok(/<button[^>]*type="button"[^>]*data-drpg-give/.test(box),
+            "the give button is gone or stopped being type=button, so Enter has nothing to "
+            + "press or it submits on its own");
+        ok(/DRPG\.Monocub\.giveAtLeast/.test(mm),
+            "an amount of zero is refused in silence, and the hint beside the stepper is "
+            + "painted by one theme only");
+
+        // NOT NARROWED TO THE WINDOW IT WAS FOUND IN. The Sound window's cue picker
+        // is the same shape - a select and a button in one fieldset - where Enter was
+        // merely dead rather than destructive.
+        const music = stripComments(sources.get("music.mjs") ?? "");
+        ok(/name="playTrack"[\s\S]{0,80}data-drpg-enter="\[data-drpg-play\]"/.test(music),
+            "the cue picker's Enter still does nothing");
+    }],
+
     ["R71 - the cue pane is built on every redraw, not baked when the window opened", async () => {
         /*
          * F17, 20.09. The Play pane was three constants and a template read once, so
@@ -5873,6 +5916,9 @@ const LITERAL_KEYS = [
     // TEAM-01 and SEASON-02. Both are printed on a road a GM reaches rarely - a
     // pool somebody else revoked first, a cursor repair that found nothing.
     "DRPG.Despair.poolGone", "DRPG.Despair.removePoolAsk",
+    // MM-02. Said by a button that now answers Enter, so an empty field is a
+    // keystroke away rather than a deliberate click.
+    "DRPG.Monocub.giveAtLeast",
     // F8 and F11. Both of these are printed only in a state a GM reaches rarely -
     // a debate past its budget, a window refused at the door - which is exactly
     // when a raw key on screen goes unreported.
