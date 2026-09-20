@@ -3102,6 +3102,81 @@ const REGRESSIONS = [
             ok(!css.includes("var(--drpg-type-scale"),
                 `${sheet} reads the screen-term factor, which has no business in a sheet drawn at one size`);
         }
+    }],
+
+    ["R63 - the window box follows the slider, and the sheet's stated size is still the glass's", async () => {
+        /*
+         * W-2b. The two width tokens are what decide a window's width in both themes
+         * - the sheet states them with `!important`, which outranks the inline width
+         * `setPosition` writes - so a box follows the slider there or nowhere.
+         *
+         * AND THE ORDER OF THE TWO GUARDS IS THE RULE: the theme test belongs in the
+         * actor branch, not in the door. 1120 x 1160 is a statement about VT323 at
+         * 17px under the glass, and handing it to a pixel-font sheet opens a window
+         * two thirds empty with its resize handle taken away.
+         */
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
+        ok(/--drpg-popup: calc\(34rem \* var\(--drpg-legacy-scale/.test(css),
+            "the prose window's width stopped following the slider");
+        ok(/--drpg-popup-wide: calc\(44rem \* var\(--drpg-legacy-scale/.test(css),
+            "the wide window's width stopped following the slider");
+        const wide = css.slice(css.indexOf("@media (min-aspect-ratio: 2/1)"));
+        ok(wide.includes("--drpg-legacy-scale"),
+            "on an ultrawide screen the GM panel is the one window whose box ignores the slider");
+
+        const settings = stripComments(new Map(await otherSources()).get("settings.mjs") ?? "");
+        const body = settings.slice(settings.indexOf("function scaleWindow"),
+            settings.indexOf('Hooks.on("renderApplicationV2"'));
+        ok(body.length > 400, "scaleWindow has moved or gone");
+        ok(body.includes("if (!el) return;"), "scaleWindow's door is not the element test");
+        ok(!/if \(!el \|\|[^\n]*stained-glass/.test(body),
+            "the theme test is back in the door, so Legacy loses its window box again");
+        equal((body.match(/want\.width = 1120/g) ?? []).length, 1,
+            "the sheet's stated size is declared more than once, or not at all");
+        ok(/drpg-theme-stained-glass[\s\S]{0,400}want\.width = 1120/.test(body),
+            "the 1120 x 1160 sheet is handed to whichever theme is on");
+    }],
+
+    ["R64 - every stylesheet's comments are closed, and its braces balance", async () => {
+        /*
+         * PAID FOR IN W-2b, 20.09. A paragraph added to the note above the two window
+         * widths landed OUTSIDE the comment, with a stray terminator after it - so the
+         * browser read four lines of English as a declaration, swallowed the `;` that
+         * ended `--drpg-popup` along with it, and that token resolved to nothing. Every
+         * prose window in the module lost its width, while `--drpg-popup-wide` on the
+         * next line was fine. No test could see it: tier 0 blanks comments before it
+         * reads anything, which is exactly the assumption the defect breaks.
+         *
+         * CSS COMMENTS DO NOT NEST, which is what makes this decidable: the markers
+         * have to alternate, strictly, from the first character of a sheet to the last.
+         * The brace count is the same class of defect one level up - a rule that never
+         * closes takes every rule after it with it.
+         */
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const sheets = manifest.styles ?? [];
+        ok(sheets.length >= 5, `module.json lists ${sheets.length} stylesheets`);
+
+        for (const href of sheets) {
+            const raw = await fetch(`/modules/${MODULE_ID}/${href}`).then(r => r.text());
+            let open = 0;
+            for (const m of raw.matchAll(/\/\*|\*\//g)) {
+                const line = raw.slice(0, m.index).split("\n").length;
+                if (m[0] === "/*") {
+                    ok(!open, `${href}:${line} a comment opens inside a comment`);
+                    open = 1;
+                } else {
+                    ok(open, `${href}:${line} a comment closes with nothing open - `
+                        + "the lines above it are being read as CSS");
+                    open = 0;
+                }
+            }
+            ok(!open, `${href} leaves a comment open, so the rest of the sheet is a comment`);
+
+            const code = raw.replace(/\/\*[\s\S]*?\*\//g, " ");
+            equal((code.match(/{/g) ?? []).length, (code.match(/}/g) ?? []).length,
+                `${href} does not balance its braces`);
+        }
     }]
 ];
 
@@ -9164,6 +9239,77 @@ const SCENARIOS = [
         } finally {
             probe.remove();
             box.remove();
+            await game.settings.set(MODULE_ID, SETTINGS.theme, was.theme);
+            await game.settings.set(MODULE_ID, SETTINGS.uiScale, was.scale ?? 1);
+            settings.applyTheme();
+            await settle();
+        }
+    }],
+
+    ["a prose window's box follows the slider under Monokuma Legacy", async () => {
+        /*
+         * W-2b, and the reason this is not left to R63's source read: that read proves
+         * the two tokens carry the factor, not that the RULE still bites. The width is
+         * stated on `.application.dialog:is(.drpg-panel, ...)` with `!important`, and a
+         * window that stops carrying one of those classes - or a `:not()` added to the
+         * list - loses the box silently, at whatever width ApplicationV2 felt like.
+         *
+         * BUILT DIRECTLY, NOT THROUGH `DialogV2.wait`, whose promise settles only when
+         * the window closes: awaiting it here is the deadlock W-9's scenario already
+         * paid for. And `close()` is awaited because ApplicationV2 waits on a
+         * transition that never fires on the frame itself, which is a second per
+         * window and the reason this measures two settings rather than five.
+         */
+        const settings = await import("./settings.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const was = { scale: getSetting(SETTINGS.uiScale), theme: getSetting(SETTINGS.theme) };
+
+        const widthAt = async slider => {
+            await game.settings.set(MODULE_ID, SETTINGS.uiScale, slider);
+            settings.applyTheme();
+            await settle();
+            const dialog = new foundry.applications.api.DialogV2({
+                window: { title: "W-2 width probe" },
+                // `drpg-panel` because that is the class the width rule reads, and a
+                // second one of its own so the close below cannot sweep somebody else's
+                // window: `closeOpen("drpg-panel")` would take the GM panel with it.
+                classes: ["drpg-panel", "drpg-window-w2-probe"],
+                content: "<p>W-2</p>",
+                buttons: [{ action: "ok", label: "OK" }]
+            });
+            await dialog.render({ force: true });
+            await settle();
+            /*
+             * THE USED WIDTH, NOT THE RECTANGLE ON SCREEN. `getBoundingClientRect`
+             * reports the TRANSFORMED box, and this module opens a window from
+             * `scale(0.96)`: the first of these two measurements caught the tail of
+             * that animation and read 522.4 where the window is 544, which is a
+             * 1.458x ratio and a failure about nothing. `getComputedStyle().width` is
+             * the used value, which no transform touches.
+             */
+            const width = dialog.element
+                ? parseFloat(getComputedStyle(dialog.element).width) : null;
+            await dialog.close();
+            return width;
+        };
+
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.theme, "monokumaLegacy");
+            settings.applyTheme();
+            await settle();
+
+            const one = await widthAt(1);
+            const up = await widthAt(1.4);
+            ok(one !== null && up !== null, "the window could not be measured");
+            // 92vw caps it, so this only means anything on a screen with room for it.
+            if (one < innerWidth * 0.9) {
+                const ratio = up / one;
+                ok(Math.abs(ratio - 1.4) < 0.03,
+                    `the box measured ${ratio.toFixed(3)}x at 140 % - the width rule no longer `
+                    + `reaches this window, or the token lost the factor`);
+            }
+        } finally {
+            closeOpen("drpg-window-w2-probe");
             await game.settings.set(MODULE_ID, SETTINGS.theme, was.theme);
             await game.settings.set(MODULE_ID, SETTINGS.uiScale, was.scale ?? 1);
             settings.applyTheme();

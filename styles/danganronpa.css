@@ -7070,9 +7070,19 @@ html body {
        Both are deliberately NARROWER than the character sheet's 850px
        default. The sheet is the thing you work in; these are the things you
        answer and dismiss, and a dialog as wide as the sheet reads as another
-       sheet. Wide is for a table with columns to line up - nothing else. */
-    --drpg-popup: 34rem;         /* 544px - every window with prose in it */
-    --drpg-popup-wide: 44rem;    /* 704px - the GM panel and the managers */
+       sheet. Wide is for a table with columns to line up - nothing else.
+
+       AND THEY ARE WHAT THE SLIDER HAS TO REACH (W-2, Dawid 19.09). The first one
+       is stated with `!important` further down this sheet, which outranks the
+       inline width `setPosition` writes, and the glass uses both as the floor and
+       the cap of a `fit-content` window. So a window box follows the slider here
+       or nowhere. `--drpg-legacy-scale` and not the type factor, for the same
+       reason as the type rungs - and because `scaleWindow` already scales boxes
+       by the slider alone: one number, two places, no drift. Under Stained Glass
+       the token is 1, so that theme's floor, cap and prose measure stay exactly
+       where they are. */
+    --drpg-popup: calc(34rem * var(--drpg-legacy-scale, 1));        /* 544px at 100 % - every window with prose in it */
+    --drpg-popup-wide: calc(44rem * var(--drpg-legacy-scale, 1));   /* 704px at 100 % - the GM panel and the managers */
 
     /* AN ABSOLUTE CEILING, BECAUSE `vw` HAS NONE (W-9, Dawid 18.09).
 
@@ -15045,8 +15055,13 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
     }
 
     .application.dialog.drpg-gm-panel-window {
-        width: min(60rem, 46vw) !important;
-        max-width: min(60rem, 46vw) !important;
+        /* The slider reaches this too (W-2): the wide tier states this box itself,
+           so without the factor the GM panel would be the one window in the module
+           whose type grows and whose box does not - on the only screens with room
+           for it to. `46vw` still keeps it under half the screen, which is what
+           stops it becoming the wall of buttons the tile grid exists to avoid. */
+        width: min(calc(60rem * var(--drpg-legacy-scale, 1)), 46vw) !important;
+        max-width: min(calc(60rem * var(--drpg-legacy-scale, 1)), 46vw) !important;
     }
 }
 

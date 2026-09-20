@@ -1612,7 +1612,17 @@ export function applyTheme() {
    `auto` is left alone: a window that measures itself is already right. */
 function scaleWindow(app, element) {
     const el = element instanceof HTMLElement ? element : element?.[0];
-    if (!el || !document.body.classList.contains("drpg-theme-stained-glass")) return;
+    /*
+     * THE BOX IS BOTH THEMES' NOW (W-2, Dawid 19.09).
+     *
+     * It was the glass's alone, so on a Legacy client 140 % grew the type inside a
+     * box that did not move and 80 % moved nothing at all - and because the
+     * sheet's box never changed, the ResizeObserver in sheet.mjs never fired and
+     * the action tiles were never re-measured either. At 100 % this writes the
+     * numbers the window already has, and the `drpgScaled` memo below swallows
+     * the repeat.
+     */
+    if (!el) return;
     const s = sliderScale();
     const key = String(s);
     if (el.dataset.drpgScaled === key) return;
@@ -1626,8 +1636,15 @@ function scaleWindow(app, element) {
        - the audit page's proportions, one grid wide and one deep - and the interface scale
        multiplies it like everything else, so 140 % opens a bigger sheet rather than the same
        box with bigger text in it. */
-    if (/actor/i.test(app?.constructor?.name ?? "") || app?.element?.classList?.contains("actor")
-        || app?.document?.documentName === "Actor") {
+    /* AND IT IS A STATEMENT ABOUT THIS THEME ONLY (W-2, 19.09). 1120 x 1160 is
+       VT323 at 17px and a five-tile grid under the glass; handing it to Monokuma
+       Legacy would open a pixel-font sheet two thirds empty and take its resize
+       handle away for a size nobody measured. Legacy keeps Daggerheart's own
+       850 x 800 multiplied by the slider, and keeps the handle, because `fixed`
+       stays false there. */
+    if (document.body.classList.contains("drpg-theme-stained-glass")
+        && (/actor/i.test(app?.constructor?.name ?? "") || app?.element?.classList?.contains("actor")
+            || app?.document?.documentName === "Actor")) {
         want.width = 1120;
         /* 1160, NOT 940. Measured on the sheet: the tallest tab wants 820 px of room and was
            given 607, so the last row of Hope Calls was simply below the fold - the window was
