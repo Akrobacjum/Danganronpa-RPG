@@ -1663,6 +1663,8 @@
       "describeIntro": "{actor} found something in {room}. Name it as they would, and say what they see.",
       "critPrompt": "Critical - the category is identified for them, and they have earned a substantial hint.",
       "describeConfirm": "Hand it over",
+      "resolveLost": "{name} rolled {total} on an Observe and this browser has no record of what they were looking at. Nothing was found and nothing was charged - the action is gone. Ask them what they declared, and hand the find over by hand if there was one.",
+      "resolveLostOwner": "Your Observe could not be scored: the Gamemaster's browser has no record of what you were looking at. Nothing was found and nothing was marked. Tell them what you declared.",
       "rerollLost": "A Reroll arrived for an Observe with no record here. Score the new number against the same trace by hand, and take back the Truth Bullet if it no longer fits.",
       "alreadyDescribed": "This trace already has a name, and every observer is told the same one - two names for one object is a contradiction the trial has to spend itself resolving. A critical buys a bigger hint, not a new name: add it below.",
       "generalHint": "Take whatever is easiest to spot in this room. Settled by the dice.",

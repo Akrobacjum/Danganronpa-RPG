@@ -487,6 +487,9 @@ async function onSocket(payload, senderId) {
         const { resolveObserve } = await import("./observe.mjs");
         await resolveObserve({
             key: payload.key,
+            // Carried so a resolve that finds no record can still name who is
+            // waiting for it (ACT-08). Already checked against the sender above.
+            actorId: payload.actorId,
             total: Number(payload.total) || 0,
             isCritical: Boolean(payload.isCritical),
             undo: Boolean(payload.undo)
@@ -1511,7 +1514,7 @@ export function requestCleanableTraces(actorId, { mine = false } = {}, timeoutMs
 export function requestObserveResolve({ actorId, key, total, isCritical, undo = false }) {
     if (game.user.isGM) {
         return import("./observe.mjs")
-            .then(m => m.resolveObserve({ key, total, isCritical, undo }));
+            .then(m => m.resolveObserve({ key, total, isCritical, undo, actorId }));
     }
     if (!hasGm()) return null;
 

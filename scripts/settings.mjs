@@ -182,6 +182,20 @@ export const SETTINGS = {
      */
     remnantSecrets: "remnantSecrets",
     /**
+     * Observe targets declared but not yet scored (ACT-08, 20.09).
+     *
+     * CLIENT-SCOPED, on the GM's browser, for the same reason `remnantSecrets` is:
+     * every entry holds the Remnant's real type and the difficulty it will be
+     * scored against - the answer the player is paying to find out - and a world
+     * setting reaches every client, where any player can read it from their own
+     * console.
+     *
+     * It exists because the two halves of an Observe are minutes apart and the
+     * declaration used to live in one browser's memory: a GM who reloaded in
+     * between left the player having paid an action and rolled for nothing.
+     */
+    observePending: "observePending",
+    /**
      * The words of every private card this browser is a recipient of.
      *
      * CLIENT-SCOPED, and that is the entire point - see secret.mjs. A whisper
@@ -796,6 +810,13 @@ export function registerSettings() {
     });
 
     game.settings.register(MODULE_ID, SETTINGS.remnantSecrets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.observePending, {
         scope: "client",
         config: false,
         type: Object,

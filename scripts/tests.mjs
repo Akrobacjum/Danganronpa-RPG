@@ -4136,6 +4136,56 @@ const REGRESSIONS = [
             "the miss refunds the action - the character looked, on either road");
         ok(/data\.paid === "none"/.test(app),
             "a card for a free action still refunds an action that was never spent");
+    }],
+
+    ["R89 - an Observe declaration outlives the browser that made it", async () => {
+        /*
+         * ACT-08, 20.09. The two halves of an Observe are minutes apart - the GM
+         * fixes the target, the player rolls, the answer comes back - and the
+         * declaration lived in one browser's memory. A GM who reloaded in between
+         * came back to an empty Map, and `resolveObserve` returned null: the player
+         * had already paid the action and thrown the dice, and got no Truth Bullet,
+         * no Sanity, no card and nothing said on either screen.
+         *
+         * CLIENT-SCOPED, and that is not negotiable: every entry holds the Remnant's
+         * real type and its difficulty, which is the answer being bought, and a world
+         * setting reaches every client.
+         *
+         * WHAT IT STILL DOES NOT DO is reach a second GM - the primary can change
+         * between the two halves - and the road that cannot answer now says so on
+         * both screens instead of returning null in silence.
+         */
+        const sources = new Map(await otherSources());
+        const settings = stripComments(sources.get("settings.mjs") ?? "");
+        ok(/observePending: "observePending"/.test(settings), "the store has no setting");
+        const reg = settings.slice(settings.indexOf("SETTINGS.observePending"),
+            settings.indexOf("SETTINGS.observePending") + 400);
+        ok(/scope: "client"/.test(reg),
+            "the pending Observes are world-scoped, so every player can read the answer key");
+
+        const observe = stripComments(sources.get("observe.mjs") ?? "");
+        ok(/function readPending\(/.test(observe) && /async function writePending\(/.test(observe),
+            "the Map is not written through to anything");
+        // Every mutation of the Map goes through the writer: the mint, the two
+        // results, the undo, the sweep and the console's repair tool.
+        ok((observe.match(/await writePending\(\)/g) ?? []).length >= 5,
+            "some mutation of the store is not written through, which is the half-fix "
+            + "that keeps a Reroll broken");
+
+        const resolve = observe.slice(observe.indexOf("export async function resolveObserve"),
+            observe.indexOf("async function undoPrevious"));
+        ok(resolve.indexOf("readPending()") < resolve.indexOf("sweepPending()"),
+            "the sweep runs over an unloaded cache, and then writes that nothing back");
+        ok(/resolveLost/.test(resolve) && /resolveLostOwner/.test(resolve),
+            "a resolve with no record is still silent on one screen or both");
+        ok(!/refundAction/.test(resolve),
+            "the lost road refunds an action on a socket payload's word, which is ACT-12 "
+            + "with the names changed");
+
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        ok(/actorId: payload\.actorId/.test(bridge),
+            "the resolve packet's actor never reaches the resolver, so a lost record "
+            + "cannot name who is waiting");
     }]
 ];
 
@@ -6487,6 +6537,8 @@ const LITERAL_KEYS = [
     "DRPG.Calls.gatherRoomGone",
     // ACT-13: said to a Monocub who reached a tile that is not theirs.
     "DRPG.Monocub.onlyTwoActions",
+    // ACT-08: both halves of an Observe nobody can score.
+    "DRPG.Observe.resolveLost", "DRPG.Observe.resolveLostOwner",
     // MM-02. Said by a button that now answers Enter, so an empty field is a
     // keystroke away rather than a deliberate click.
     "DRPG.Monocub.giveAtLeast",

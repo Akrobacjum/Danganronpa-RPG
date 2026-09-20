@@ -29,7 +29,10 @@ import { rankForObserve } from "./remnants.mjs";
 import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
-import { dialogContent, whisperToOwner, whisperToGms, log, warn, error } from "./utils.mjs";
+import { dialogContent, whisperToOwner, whisperToGms, log, warn, error, debug } from "./utils.mjs";
+// The store the declarations are written through (ACT-08). settings.mjs imports
+// config.mjs and nothing else, so this closes no cycle.
+import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -46,18 +49,77 @@ export const DECLARATIONS = {
  *
  * Kept after the roll rather than consumed by it, because a Reroll has to be
  * judged against the same Remnant - the dice are taken back, not the search.
- * Entries are swept on age so a session's worth of abandoned declarations
- * cannot pile up.
+ * Entries are swept on age so a session's worth of abandoned declarations cannot
+ * pile up.
+ *
+ * WRITTEN THROUGH TO A SETTING, AND THAT IS ACT-08 (20.09). This was a Map in one
+ * browser's memory, and the two halves of an Observe are minutes apart: the GM
+ * declares the target, the player rolls, and the answer comes back. A GM who
+ * reloaded in between - F5, a crash, a closed tab - came back with an empty Map,
+ * and `resolveObserve` then found nothing and returned null. The player had
+ * already paid the action and thrown the dice: no Truth Bullet, no Sanity, no
+ * card, one action lighter, and nothing said on either screen. At the table that
+ * reads as "the module ate my action".
+ *
+ * CLIENT-SCOPED, not world-scoped, and that is not negotiable: every entry holds
+ * the Remnant's REAL type and its difficulty - the answer being bought - and a
+ * world setting reaches every client, where any player can read it from their own
+ * console. The note beside `SETTINGS.remnantSecrets` records the same decision for
+ * the same reason.
+ *
+ * The Map stays as the read cache, exactly as the Remnant ledger's does; the
+ * setting is the copy that survives the browser.
+ *
+ * WHAT THIS DOES NOT DO, said plainly: it does not reach a SECOND GM. Both halves
+ * of the round trip are handled by whoever `primaryGmId()` names at that moment,
+ * and that can change - a GM joining with a lower-sorted id, the primary
+ * disconnecting, a reload - so a declaration minted on one GM's browser can be
+ * asked of another's. The module already carries that mechanism twice (see the
+ * three-message sync in truth-bullets.mjs), and bolting a third copy on here is
+ * its own round of work. The road that cannot answer now says so on both screens,
+ * which is the half that matters at the table.
  */
 const pending = new Map();
 const PENDING_TTL_MS = 60 * 60 * 1000;
+/** True once the setting has been folded into the cache on this client. */
+let pendingLoaded = false;
 
-function sweepPending() {
-    const cutoff = Date.now() - PENDING_TTL_MS;
-    for (const [key, entry] of pending) {
-        if (entry.at < cutoff) pending.delete(key);
+/** Fill the cache from the setting, once per client. GM only; players hold none. */
+function readPending() {
+    if (pendingLoaded || !game.user?.isGM) return;
+    pendingLoaded = true;
+    try {
+        const stored = getSetting(SETTINGS.observePending) ?? {};
+        for (const [key, entry] of Object.entries(stored)) {
+            if (entry && typeof entry === "object") pending.set(key, entry);
+        }
+    } catch (err) {
+        debug("Could not read the pending Observes back", err);
     }
 }
+
+/** Write the cache through. Every mutation of `pending` goes through here. */
+async function writePending() {
+    if (!game.user?.isGM) return;
+    try {
+        await setSetting(SETTINGS.observePending, Object.fromEntries(pending));
+    } catch (err) {
+        debug("Could not store the pending Observes", err);
+    }
+}
+
+async function sweepPending() {
+    const cutoff = Date.now() - PENDING_TTL_MS;
+    let dropped = 0;
+    for (const [key, entry] of pending) {
+        if (entry.at < cutoff) {
+            pending.delete(key);
+            dropped++;
+        }
+    }
+    if (dropped) await writePending();
+}
+
 
 /* ==========================================================================
  * PHASE 1 - WHAT ARE THEY LOOKING AT
@@ -145,6 +207,7 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
     }
 
     const key = foundry.utils.randomID();
+    readPending();
     pending.set(key, {
         at: Date.now(),
         actorId,
@@ -156,6 +219,10 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
         dc: chosen.dc,
         data: chosen.data
     });
+
+    // Written through at once: the roll that answers this arrives minutes later,
+    // and a GM who reloads in between used to lose the declaration (ACT-08).
+    await writePending();
 
     log(`Observe: ${actor.name} is looking at a ${chosen.data.visibility} ${chosen.data.type} in ${room} (DC ${chosen.dc}).`);
     return { ok: true, key };
@@ -256,29 +323,45 @@ async function askWhichRemnant(actor, room, request, candidates) {
  * @param {boolean} options.isCritical
  * @param {boolean} [options.undo]     A Reroll replacing an earlier result.
  */
-export async function resolveObserve({ key, total, isCritical = false, undo = false } = {}) {
+export async function resolveObserve({ key, total, isCritical = false, undo = false,
+    actorId = null } = {}) {
     if (!game.user.isGM) return null;
-    sweepPending();
+    // THE CACHE FIRST, THEN THE SWEEP. A sweep over an unloaded cache is a sweep
+    // over nothing, and it would then write that nothing back (ACT-08).
+    readPending();
+    await sweepPending();
 
     const entry = pending.get(key);
     if (!entry) {
-        // The declaration is gone from this browser's memory.
-        //
-        // `pending` is deliberately not persisted - it holds the answer key's
-        // half of an Observe - so it does not survive the GM reloading, a
-        // different GM becoming primary, or the hour-long sweep. That is
-        // acceptable for a fresh Observe, which simply gets declared again.
-        //
-        // It is NOT acceptable for a Reroll: the player has already paid three
-        // Hope, the dice have already been rewritten, and this side quietly
-        // doing nothing leaves the FIRST roll's Truth Bullet in place with the
-        // second roll's number on the card. A console warning is not enough for
-        // something a human now has to put right by hand.
+        /*
+         * NO RECORD, AND BOTH SCREENS ARE TOLD (ACT-08, 20.09).
+         *
+         * The store outlives a reload now, so what is left here is the hour-long
+         * sweep and the case this cannot reach: a declaration minted on one GM's
+         * browser and asked of another's, which happens when the primary changes.
+         *
+         * IT USED TO SAY NOTHING AT ALL FOR A FRESH OBSERVE. The comment here called
+         * that acceptable "because it simply gets declared again", and read from
+         * source it is not: `observeRanked` and `observeSpecific` both spend the
+         * action BEFORE the roll, and `settleObserveRoll` never reads this function's
+         * answer - so the action was gone, the dice were thrown, and nobody was told
+         * anything. On a General or Non-obvious sweep the player is not even asked to
+         * wait, so there is no moment at which the silence starts looking wrong.
+         *
+         * DELIBERATELY NO AUTOMATIC REFUND: the action was spent on the player's
+         * client and Observe is not in `PRICE_CHAINS`, so there is no receipt for this
+         * side to hand back. A refund driven from a socket payload's claim about what
+         * was paid is ACT-12 with the names changed.
+         */
         warn(`Observe: no pending target for key ${key}.`);
-        if (undo) {
-            await whisperToGms(`<p class="drpg-warning">${
-                game.i18n.localize("DRPG.Observe.rerollLost")
-            }</p>`);
+        const stranded = actorId ? game.actors.get(actorId) : null;
+        await whisperToGms(`<p class="drpg-warning">${game.i18n.format(
+            undo ? "DRPG.Observe.rerollLost" : "DRPG.Observe.resolveLost",
+            { name: stranded?.name ?? "?", total }
+        )}</p>`);
+        if (stranded) {
+            await whisperToOwner(stranded, `<p class="drpg-warning">${
+                game.i18n.localize("DRPG.Observe.resolveLostOwner")}</p>`);
         }
         return null;
     }
@@ -301,11 +384,13 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
            an undo that trusted the constant handed back Sanity nobody had spent. */
         const marked = await applyFailure(actor, total, entry);
         entry.result = { success: false, bulletId: null, stress: marked };
+        await writePending();
         return { success: false, key };
     }
 
     const item = await createFind(actor, entry, isCritical);
     entry.result = { success: true, bulletId: item?.id ?? null, stress: 0 };
+    await writePending();
     return { success: true, key };
 }
 
@@ -341,7 +426,11 @@ async function undoPrevious(actor, entry) {
         }
     }
 
+    /* The undo is a mutation of the store like any other (ACT-08): a Reroll that
+       wound the first throw back and then lost the browser would otherwise come
+       back to a record claiming the first result still stands. */
     entry.result = null;
+    await writePending();
 }
 
 /**
@@ -588,8 +677,12 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
 }
 
 /** Forget every pending target. A console tool for a stuck declaration. */
-export function clearPendingObserves() {
+export async function clearPendingObserves() {
+    readPending();
     const n = pending.size;
     pending.clear();
+    // The setting too, or the console's repair tool repairs nothing: the next read
+    // would fold the same entries straight back in (ACT-08).
+    await writePending();
     return n;
 }
