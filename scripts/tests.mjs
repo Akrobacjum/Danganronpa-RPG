@@ -9666,6 +9666,20 @@ const SCENARIOS = [
         try {
             await setClock({ ...clock, phase: "classTrial" });
             await settle();
+            /*
+             * THE CONSOLE THE SCENARIO BEFORE THIS ONE OPENED HAS TO BE GONE FIRST,
+             * and this is what the last three failures actually were.
+             *
+             * That scenario closes its console in a `finally`, but ApplicationV2's
+             * close is asynchronous and waits on a transition; this one started while
+             * it was still on screen, `alreadyOpen` refused to open a second copy, and
+             * every reading below then measured the OUTGOING window - which never
+             * rebuilds again. It reported a missing `watch.hooks` three times on
+             * wiring a direct probe showed working: refreshes 0 -> 1 on the hook, one
+             * listener registered, focus outside the region (20.09).
+             */
+            closeOpen("drpg-window-trial");
+            await until(() => !document.querySelector(".drpg-window-trial"), 5000);
             ui2.manageClassTrial().catch(() => {});
 
             /*
@@ -9676,15 +9690,39 @@ const SCENARIOS = [
              * out and never rebuilds again, which reads exactly like a missing hook:
              * this failed twice in a row on an unchanged `watch.hooks`.
              */
-            const refreshesOf = () => diagnoseLive()
-                .filter(r => r.region === ".drpg-trial-console")
-                .sort((a, b) => a.openMs - b.openMs)[0]?.refreshes ?? -1;
+            /*
+             * AND A DEFERRED REBUILD COUNTS (F8, and the third time this test lied).
+             *
+             * `keepLive` defers a rebuild while focus is inside the region it is about
+             * to replace - that is Rule 1, and it is what stops a window swapping a
+             * field out from under somebody typing in it. A DialogV2 autofocuses, so
+             * on some runs focus sits inside this console and every hook-driven
+             * rebuild is deferred rather than performed: `refreshes` never moves,
+             * `deferred` does, and the test reported a missing `watch.hooks` on wiring
+             * that was working exactly as designed.
+             *
+             * What this scenario is about is whether the HOOK REACHES THE REGION, so
+             * that is what is measured: a rebuild or a deferral, either one. The
+             * scenario above it, which forces its refresh through `live.refresh()`,
+             * is the one that proves a rebuild actually lands.
+             */
+            const wokenOf = () => {
+                const row = diagnoseLive()
+                    .filter(r => r.region === ".drpg-trial-console")
+                    .sort((a, b) => a.openMs - b.openMs)[0];
+                return row ? row.refreshes + row.deferred : -1;
+            };
+            const refreshesOf = wokenOf;
             // Polled for the same reason as the scenario above: the region does not
             // exist until the window has rendered, and 600 ms is not a promise.
             await until(() => refreshesOf() >= 0, 6000);
             const before = refreshesOf();
             ok(before >= 0, "the trial console is not a live region any more");
 
+            /* Nobody is typing in it, which is the state this is about - and on a
+               headless client the console's own autofocus is what would otherwise
+               put focus inside the region. */
+            document.activeElement?.blur?.();
             Hooks.callAll("drpgVoteChanged", { in: 1 });
             // POLLED, NOT WAITED FOR. `keepLive` debounces by 120 ms and the rebuild is
             // a DOM replacement; a fixed 400 ms passed eight runs and failed the ninth
