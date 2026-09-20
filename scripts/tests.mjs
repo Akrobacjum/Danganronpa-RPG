@@ -2864,6 +2864,102 @@ const REGRESSIONS = [
         ok(restored < after,
             "keepLive calls `after` before it puts back what the person had typed, so every "
             + "re-wire reads the markup's values instead of theirs");
+    }],
+
+    ["R58 - the trial console counts the seconds, a ballot is an event, and +30 s means thirty", async () => {
+        /*
+         * F8 and F9, 19.09. Two kinds of change and neither reached this window: the
+         * seconds are the passage of time, which no document hook will ever report,
+         * and a ballot is a Map in the GM's own memory - deliberately out of the
+         * world, so `updateSetting` cannot see it either. And "+30 s" added thirty
+         * seconds to `startedAt` flat, which on a debate 137 s over its budget made
+         * it 107 s over: the one moment a GM presses that button is the one moment it
+         * did nothing they could see.
+         */
+        const sources = new Map(await otherSources());
+        const ui2 = stripComments(sources.get("trial-floor-ui.mjs") ?? "");
+        const manage = ui2.slice(ui2.indexOf("export async function manageClassTrial"),
+            ui2.indexOf("export async function openVoteDialog"));
+        ok(manage.length > 500, "manageClassTrial is gone or has moved past the vote window");
+
+        ok(manage.includes("setInterval("), "the trial console stopped counting the debate down");
+        ok(/\}, 1000\)/.test(manage), "the console's tick is no longer once a second");
+        ok(manage.includes("live.refresh("),
+            "the tick paints something of its own instead of going through the live region");
+        const tick = manage.slice(manage.indexOf("setInterval("), manage.indexOf("}, 1000)"));
+        ok(tick.includes("isConnected") && tick.includes("clearInterval("),
+            "the console's tick outlives the window");
+        ok(tick.includes("trialFloor()"), "the tick runs while no floor is open");
+
+        ok(/hooks: \["drpgVoteChanged"\]/.test(manage), "the console stopped watching for a ballot");
+        ok(!/watch: \{[^}]*settings:/.test(manage),
+            "the console's watch was narrowed to a list of settings, so the floor and the trial "
+            + "record no longer wake it");
+
+        ok(manage.includes("DRPG.Floor.holdingDiscussionOver") && manage.includes("Math.max(left, 0)"),
+            "an overrun mode prints a clock running backwards again");
+
+        const vote = stripComments(sources.get("vote.mjs") ?? "");
+        ok((vote.match(/voteChanged\(\);/g) ?? []).length >= 3,
+            "one of the three vote events stopped being reported");
+        const cast = vote.slice(vote.indexOf("function onBallotCast"), vote.indexOf("function refuseBallot"));
+        ok(cast.indexOf("ballots.set(") < cast.indexOf("voteChanged()"),
+            "the ballot is reported before it is in the tally, so a listener redraws the stale list");
+        const close = vote.slice(vote.indexOf("export async function closeVote"));
+        ok(close.indexOf("ballots = null") < close.indexOf("voteChanged()"),
+            "the vote is reported closed before the tally is cleared");
+        ok(close.indexOf("voteChanged()") < close.indexOf("DRPG.Vote.nobodyVoted"),
+            "the closing is reported after the road that returns early, so a vote nobody answered "
+            + "leaves the console printing its voters");
+
+        const floorSrc = stripComments(sources.get("trial-floor.mjs") ?? "");
+        const extend = floorSrc.slice(floorSrc.indexOf("export async function extendFloor"),
+            floorSrc.indexOf("export async function endFloor"));
+        ok(extend.includes("secondsLeft("),
+            "extendFloor stopped asking how much is left, so an overrun mode stays overrun");
+        ok(extend.includes("Math.max("), "extendFloor no longer clamps an expired clock at zero");
+        ok(!/startedAt \?\? Date\.now\(\)\) \+ extraSeconds/.test(extend),
+            "the flat push on `startedAt` is back");
+    }],
+
+    ["R59 - the murder window asks the Eclipse before it asks the GM anything", async () => {
+        /*
+         * F10 and F11, 19.09. `openMurder` has always refused during placement and
+         * says it is "the backstop for anyone who gets here anyway" - but the trap
+         * card's "fire the trap" button is a road with no guard on it, so the GM
+         * filled the form in and was refused at Confirm, then told a second time that
+         * no murder was running. And because the tracker returns null on every road,
+         * this window answered falsy even when a murder DID open, so a fired trap's
+         * ruling card was never settled.
+         */
+        const murderSrc = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
+        const dialog = murderSrc.slice(murderSrc.indexOf("export async function openMurderDialog"),
+            murderSrc.indexOf("async function rollOpening"));
+        ok(dialog.length > 500, "openMurderDialog is gone or has moved past rollOpening");
+
+        ok(dialog.includes("isEclipse("),
+            "the murder window opens during an Eclipse and only refuses at Confirm");
+        ok(dialog.indexOf("isEclipse(") < dialog.indexOf("DialogV2.wait("),
+            "the Eclipse is asked after the GM has already filled the form in");
+        ok(dialog.indexOf("murderState()") < dialog.indexOf("isEclipse("),
+            "the Eclipse guard now hides the tracker of an incident that is already running");
+
+        ok(!/armed\.has\(killerId\)/.test(dialog) && /armed\.has\(defaultKiller\)/.test(dialog),
+            "the trap checkbox asks about the killer the caller named instead of the one the "
+            + "dropdown shows");
+        ok(/isComplete\(/.test(dialog),
+            "the armed set went back to hand-rolled arithmetic and counts a project with no target");
+
+        const tail = dialog.slice(dialog.indexOf("await openMurder("));
+        ok(/const opened = await openMurder\(/.test(dialog) && /if \(!opened\) return null;/.test(tail),
+            "a refused murder still opens the tracker and warns the GM twice");
+        ok(tail.indexOf("if (!opened)") < tail.indexOf("openIncidentTracker()"),
+            "the tracker is opened before the answer is read");
+        ok(/return true;/.test(tail),
+            "the window answers null even when a murder opened, so the trap's ruling card is "
+            + "never settled");
+        ok(/"drpg-window-murder"/.test(dialog),
+            "the murder window has no class of its own, so nothing can close it");
     }]
 ];
 
@@ -5141,7 +5237,11 @@ const LITERAL_KEYS = [
     "DRPG.Steal.cardSeen", "DRPG.Steal.cardUnseen", "DRPG.Steal.cardHandsFull",
     "DRPG.Items.rowGone",
     "DRPG.Reroll.stealStands", "DRPG.Reroll.trailStands",
-    "DRPG.Analyze.findStash", "DRPG.Analyze.stashSent"
+    "DRPG.Analyze.findStash", "DRPG.Analyze.stashSent",
+    // F8 and F11. Both of these are printed only in a state a GM reaches rarely -
+    // a debate past its budget, a window refused at the door - which is exactly
+    // when a raw key on screen goes unreported.
+    "DRPG.Floor.holdingDiscussionOver", "DRPG.Eclipse.murderWindowLocked"
 ];
 
 /* ==========================================================================
@@ -8622,6 +8722,208 @@ const SCENARIOS = [
         } finally {
             ui.notifications.warn = warned;
             await setClock(was);
+            await settle();
+        }
+    }],
+
+    ["the trial console counts a debate down while it stands open", async () => {
+        /*
+         * F8's first half, driven: a source test can see the tick exists and cannot
+         * see it reach the DOM.
+         */
+        const floorMod = await import("./trial-floor.mjs");
+        const ui2 = await import("./trial-floor-ui.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await floorMod.startFloor({ seconds: 180 });
+            await settle();
+
+            // Not awaited: these openers resolve when the person closes the window.
+            ui2.manageClassTrial().catch(() => {});
+            const consoleApp = () => [...foundry.applications.instances.values()]
+                .find(a => a.rendered && a.options?.classes?.includes("drpg-window-trial"));
+            // POLLED, NOT WAITED FOR. A fixed delay here is a race this suite has
+            // already lost once: two dynamic imports and a render stand between the
+            // call above and an element, and on a loaded machine that is more than
+            // 600 ms. `until` returns as soon as the window is there.
+            await until(() => consoleApp()?.element, 6000);
+            const app = consoleApp();
+            ok(app?.element, "the trial console did not open");
+
+            const secondsOf = () => Number(app.element.querySelector(".drpg-trial-console")
+                ?.textContent.match(/(\d+)\s*s/)?.[1] ?? NaN);
+            const first = secondsOf();
+            ok(Number.isFinite(first) && first > 150,
+                `the console is not showing the debate's clock (read ${first})`);
+            ok(await until(() => secondsOf() < first, 4000),
+                "the console's debate clock is the same after four seconds - it is a photograph");
+        } finally {
+            closeOpen("drpg-window-trial");
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await settle();
+        }
+    }],
+
+    ["the trial console hears a ballot land", async () => {
+        /*
+         * F8's second half. With NO floor open the one-second tick returns early, so
+         * any rebuild counted here is the hook's - which is what makes the
+         * measurement honest. The real ballot cannot be driven headless
+         * (`eligibleVoters` wants a second connected player), so this pins the wiring
+         * and the live check proves the end to end.
+         */
+        const ui2 = await import("./trial-floor-ui.mjs");
+        const { closeOpen, diagnoseLive } = await import("./live.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await settle();
+            ui2.manageClassTrial().catch(() => {});
+
+            const refreshesOf = () => diagnoseLive()
+                .find(r => r.region === ".drpg-trial-console")?.refreshes ?? -1;
+            // Polled for the same reason as the scenario above: the region does not
+            // exist until the window has rendered, and 600 ms is not a promise.
+            await until(() => refreshesOf() >= 0, 6000);
+            const before = refreshesOf();
+            ok(before >= 0, "the trial console is not a live region any more");
+
+            Hooks.callAll("drpgVoteChanged", { in: 1 });
+            await wait(400);
+            ok(refreshesOf() > before,
+                "the trial console does not listen for a ballot - `watch.hooks` is missing or misspelled");
+
+            // And the idle tick really is idle while no floor is open.
+            const quiet = refreshesOf();
+            await wait(1400);
+            equal(refreshesOf(), quiet,
+                "the console rebuilds itself every second with no floor open");
+        } finally {
+            closeOpen("drpg-window-trial");
+            await setClock(clock);
+            await settle();
+        }
+    }],
+
+    ["+30 seconds on an overrun debate leaves thirty seconds on the clock", async () => {
+        /*
+         * F9. The overrun is written by hand rather than waited for: three minutes of
+         * real time in a suite is three minutes nobody gets back.
+         */
+        const floorMod = await import("./trial-floor.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+
+        try {
+            await setClock({ ...clock, phase: "classTrial" });
+            await floorMod.startFloor({ seconds: 60 });
+            await settle();
+
+            const floor = getSetting(SETTINGS.trialQueue);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue,
+                { ...floor, startedAt: Date.now() - 180_000 });
+            await settle();
+            ok(floorMod.secondsLeft() < -100, "the fixture is not actually overrun");
+
+            await floorMod.extendFloor(30);
+            await settle();
+            const left = floorMod.secondsLeft();
+            ok(left > 25 && left <= 30,
+                `+30 s left the debate at ${left} s - an overrun debate is still overrun`);
+
+            // And the case that must not regress: a debate with time on it.
+            await floorMod.returnToDebate({ seconds: 120 });
+            await settle();
+            const was = floorMod.secondsLeft();
+            await floorMod.extendFloor(30);
+            await settle();
+            const now = floorMod.secondsLeft();
+            ok(Math.abs((now - was) - 30) <= 3,
+                `thirty more seconds on a running debate measured as ${now - was}`);
+        } finally {
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await settle();
+        }
+    }],
+
+    ["the murder window refuses at the door during an Eclipse", async () => {
+        /*
+         * F11. The measurement is that the promise SETTLES: a window that opened
+         * would keep its DialogV2 pending and this would come back "hung".
+         */
+        const murder = await import("./murder.mjs");
+        const eclipse = await import("./eclipse.mjs");
+        const { closeOpen } = await import("./live.mjs");
+
+        equal(murder.murderState(), null, "an incident was already running when this scenario started");
+        try {
+            await eclipse.startEclipse();
+            await settle();
+            ok(eclipse.isEclipse(), "the Eclipse did not start");
+
+            const answer = await Promise.race([
+                murder.openMurderDialog(),
+                wait(800).then(() => "hung")
+            ]);
+            equal(answer, null,
+                "the murder window opened during an Eclipse and sat there waiting for the GM");
+        } finally {
+            closeOpen("drpg-window-murder");
+            try { await eclipse.endEclipse({ advance: false }); } catch { /* nothing to end */ }
+            await settle();
+        }
+    }],
+
+    ["the murder window opens with the finished trap of the killer it is showing already ticked", async () => {
+        /*
+         * F10. Through the PANEL's road - no killerId - because that is the one where
+         * `armed.has(killerId)` asked about null and the box stayed unticked for a
+         * killer whose trap was finished.
+         */
+        const murder = await import("./murder.mjs");
+        const P = await import("./projects.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const killer = livingStudents()[0];
+        ok(killer, "no living student to arm a trap for");
+
+        let made = null;
+        try {
+            // `createProject` answers with the whole row, and everything else in
+            // projects.mjs takes the id.
+            made = (await P.createProject({
+                name: "SUITE F10 trap", target: 3, indirectMurder: true,
+                killerId: killer.id, by: killer.id
+            }))?.id ?? null;
+            ok(made, "could not create the fixture trap");
+            await P.addProgress(made, 3);
+            await settle();
+            ok(P.isComplete(P.allProjects().find(p => p.id === made)),
+                "the fixture trap is not finished");
+
+            murder.openMurderDialog().catch(() => {});
+            await wait(700);
+            const app = [...foundry.applications.instances.values()]
+                .find(a => a.rendered && a.options?.classes?.includes("drpg-window-murder"));
+            ok(app?.element, "the murder window did not open");
+
+            const form = app.element.querySelector("form");
+            equal(form.killer.value, killer.id, "the window is not proposing the killer this fixture armed");
+            ok(form.indirect.checked,
+                "the window opened with a finished trap and the box unticked - the GM has to "
+                + "remember the trap themselves");
+        } finally {
+            closeOpen("drpg-window-murder");
+            if (made) { try { await P.deleteProject(made); } catch { /* already gone */ } }
             await settle();
         }
     }]

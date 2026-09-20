@@ -3391,6 +3391,34 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
 
     if (murderState()) return openIncidentTracker();
 
+    /*
+     * THE ECLIPSE IS ASKED HERE, NOT AT CONFIRM (F11).
+     *
+     * `openMurder` refuses during placement and always has, but it is the last
+     * line of the form: the GM picked a killer, a victim and a checkbox, pressed
+     * "Open it", and was told the Eclipse is a placement window - then told a
+     * second time that no murder is running, because the tracker was opened
+     * whether or not anything had opened. The GM panel's tile has been greyed with
+     * a tooltip for exactly this reason; the road that was left is the trap card's
+     * "fire the trap" button, which prefills the killer and cannot grey itself
+     * while a chat card sits in the log.
+     *
+     * AFTER the running-incident shortcut above, on purpose. That branch is not
+     * about opening anything - a GM who presses this mid-incident wants the
+     * tracker, and the Eclipse has no opinion about a fight already in progress.
+     * And before `livingStudents()`, so nothing is read for a window that is not
+     * going to open.
+     *
+     * Returning null is what keeps the trap's ruling card usable: `fireTrap`
+     * settles the card only on a truthy answer, so the button stays there for when
+     * the lights come up.
+     */
+    const { isEclipse } = await import("./eclipse.mjs");
+    if (isEclipse()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.murderWindowLocked"));
+        return null;
+    }
+
     const { livingStudents } = await import("./chapter.mjs");
     const alive = livingStudents();
     // One is enough, now that a student can be both sides of it. The old floor
@@ -3432,15 +3460,21 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
     // Which killers have a finished trap waiting. The checkbox follows the
     // dropdown from this, so "indirect" stops being a box a GM has to remember
     // to tick - or remember NOT to tick on a murder that had no project.
-    const { allProjects } = await import("./projects.mjs");
+    const { allProjects, isComplete } = await import("./projects.mjs");
     const armed = new Set(allProjects()
-        .filter(p => p.indirectMurder && p.current >= p.start)
+        // `isComplete` rather than `current >= start` written out again: the
+        // hand-rolled version was missing its `start > 0` half, so an indirect
+        // murder countdown with no target at all counted as a finished trap.
+        .filter(p => p.indirectMurder && isComplete(p))
         .map(p => p.killerId ?? null)
         .filter(Boolean));
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Murder.openTitle") },
-        classes: ["drpg-panel"],
+        // Named so it can be addressed - the diagnostics count it and the suite
+        // closes it - and deliberately WITHOUT an `alreadyOpen` guard, exactly
+        // like the incident tracker's own class.
+        classes: ["drpg-panel", "drpg-window-murder"],
         content: dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.Murder.openIntro")}</p>
             <label>${game.i18n.localize("DRPG.Murder.killer")}
@@ -3449,7 +3483,19 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
                 <select name="victim">${options}</select></label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="indirect"${
-                    indirect || armed.has(killerId) ? " checked" : ""} />
+                    /*
+                     * THE KILLER THE DROPDOWN IS SHOWING, NOT THE ONE THE CALLER
+                     * NAMED (F10). `killerId` is this function's argument and the
+                     * GM panel passes none, so `armed.has(null)` was false on the
+                     * one road where the question is worth asking - and the box
+                     * stayed unticked for a killer whose trap is finished until the
+                     * GM touched a dropdown they had no reason to touch. The
+                     * `change` listener below has always asked
+                     * `armed.has(form.killer.value)`; this is the same question at
+                     * first render. On the trap road `defaultKiller` IS `killerId`,
+                     * so nothing there changes.
+                     */
+                    indirect || armed.has(defaultKiller) ? " checked" : ""} />
                 ${game.i18n.localize("DRPG.Murder.indirect")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Murder.indirectCost")}</p>
             <p class="notes drpg-warning" data-drpg-self hidden>${
@@ -3509,11 +3555,30 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
 
     if (!result || result === "cancel") return null;
 
-    // One name in both seats no longer needs confirming twice. It was refused
-    // here; the window now says what it is while the GM is still looking at it,
-    // and `openMurder` is the one place that decides what such an incident does.
-    await openMurder(result);
-    return openIncidentTracker();
+    /*
+     * One name in both seats no longer needs confirming twice. It was refused
+     * here; the window now says what it is while the GM is still looking at it,
+     * and `openMurder` is the one place that decides what such an incident does.
+     *
+     * AND ITS ANSWER IS READ (F11). This used to be `await openMurder(result);`
+     * followed unconditionally by the tracker, which has two consequences and both
+     * were shipped. A refusal - the Eclipse, an incident already running, a missing
+     * actor - warned once from `openMurder` and again from the tracker ("No murder
+     * is running"). And because `openIncidentTracker` returns null on every road,
+     * THIS function always resolved falsy: `fireTrap` in messenger-app.mjs settles
+     * the trap's ruling card only on a truthy answer, so a trap that really did
+     * become an incident left "Awaiting a ruling" and a live button on the thread
+     * for the rest of the chapter.
+     *
+     * The tracker stays AWAITED. The GM panel reopens itself when a tile's `run()`
+     * resolves, on the stated assumption that every tile awaits its own dialog -
+     * returning early here would drop the panel on top of a live incident.
+     */
+    const opened = await openMurder(result);
+    if (!opened) return null;
+
+    await openIncidentTracker();
+    return true;
 }
 
 /**

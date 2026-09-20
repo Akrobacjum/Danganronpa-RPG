@@ -851,6 +851,7 @@
         "rebuttal": "Rebuttal"
       },
       "discussionNote": "The debate's clock is your budget for it, not a limit: running past it turns the clock red and nothing else. An OBJECTION is what takes the debate away from the table.",
+      "holdingDiscussionOver": "Open discussion - {seconds} s over your budget. Everyone may speak; +30 seconds puts half a minute back on the clock.",
       "holdingDiscussion": "Open discussion - {seconds} s left on your budget. Everyone may speak.",
       "holdingObjection": "{who} holds the debate, objecting to {target} - {seconds} s. Nobody else may speak; the rebuttal follows automatically.",
       "holdingRebuttal": "Rebuttal: {who} and {target}, {seconds} s. Only those two; it returns to open discussion by itself.",
@@ -2020,6 +2021,7 @@
       "murderOnlyInEclipse": "Only during an Eclipse. The lights are out and everyone is crossing the map - that is the one moment you can be alone with somebody.",
       "actionsMurderOnly": "Placement is running. The only thing an action buys right now is a Direct Murder.",
       "callsLocked": "Locked while the Eclipse runs. Every Call unlocks with the next time of day - this is not about what you hold.",
+      "murderWindowLocked": "The Eclipse is a placement window - nobody has finished moving yet. Open the incident once the lights come up; a trap's card waits on the thread until you do.",
       "murderLocked": "The Eclipse is a placement window - nobody has finished moving yet. A Direct Murder declared now waits for the Eclipse to end on its own.",
       "bodyLocked": "The Eclipse is running. A body cannot be discovered - by hand or automatically - until everyone has finished placing.",
       "panelLocked": "Locked while the Eclipse runs - nobody has finished placing yet."

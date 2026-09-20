@@ -3092,8 +3092,10 @@ export const TRIAL = {
      * bound; the trial now opens as a free discussion that anyone may speak
      * in, and this is the GM's default budget for it, editable every time
      * they open the floor. It stays 180 because that is the length the table
-     * is used to, and because overrunning it is a red bar rather than a
-     * hard stop - see `overrun` in trial-floor.mjs.
+     * is used to, and because overrunning it is a red bar rather than a hard
+     * stop - see `paintFloorClock` in hud.mjs, which is where the red mark is put
+     * on, and `extendFloor` in trial-floor.mjs, which is the "+30 s" that answers
+     * it.
      */
     speakSeconds: 180,
     /**

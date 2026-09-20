@@ -192,10 +192,31 @@ function onBallotCast(payload, senderId) {
     // adding to the tally - a resend must never double a vote.
     ballots.set(senderId, clean);
     log(`Ballot received with ${clean.length} name(s) (${ballots.size} so far).`);
+    // LAST, after the Map has the ballot in it: a listener that read
+    // `pendingVoters()` first would redraw the same stale list (F8).
+    voteChanged();
 }
 
 function refuseBallot(senderId, why) {
     warn(`Refused a ballot from ${game.users.get(senderId)?.name ?? senderId}: ${why}.`);
+}
+/*
+ * THE VOTE IS THE ONE THING THIS MODULE KEEPS OUT OF THE WORLD, so the one
+ * mechanism every live window relies on cannot see it (F8).
+ *
+ * `ballots` is a Map in this GM's memory - deliberately, see the note on it -
+ * and a Map fires no `updateSetting`. Measured on 19.09: the trial console read
+ * "3 still to vote" and went on reading it after all three had answered, with no
+ * rebuild of `.drpg-trial-console` at all. Nothing in the world had changed,
+ * because nothing about a ballot IS in the world.
+ *
+ * `Hooks.callAll` runs on THIS client only, so the names never leave the GM's
+ * browser - the same reason the tally is a Map - and `keepLive` already takes
+ * `watch.hooks`. The payload is a count, not a list: a window that wants to know
+ * who is outstanding asks `pendingVoters()` itself.
+ */
+function voteChanged() {
+    Hooks.callAll("drpgVoteChanged", { in: ballots?.size ?? null });
 }
 
 /** Everyone who can be accused, from the perspective of one voter. */
@@ -259,6 +280,10 @@ export async function openVote({ picks = null } = {}) {
     }
 
     sendBallots(voters);
+    // After the emit, so a send that threw for one player is still reported as a
+    // vote that is now running - and before the card, so the console is true by
+    // the time it lands (F8).
+    voteChanged();
 
     await announce({
         flags: { [MODULE_ID]: { sfx: { key: "voteOpen", gm: true } } },
@@ -488,6 +513,10 @@ export async function closeVote() {
     const silent = pendingVoters()?.length ?? 0;
     const issued = returned + silent;
     ballots = null;
+    // ABOVE the nobody-answered return, which writes no setting at all: a hook
+    // placed after it would leave the console printing a list of voters for a
+    // vote that no longer exists (F8).
+    voteChanged();
 
     if (!returned) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vote.nobodyVoted"));

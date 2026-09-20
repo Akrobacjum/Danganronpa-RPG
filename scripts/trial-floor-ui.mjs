@@ -359,6 +359,22 @@ export async function manageClassTrial() {
     const buildConsole = () => {
         const { floor, running, restrictive, finalNow, progress, pending, afterwards } = read();
         const left = floor ? secondsLeft(floor) : 0;
+
+        /*
+         * OVERRUN IS A DEBATE'S STATE, NOT A NEGATIVE NUMBER (F8).
+         *
+         * `secondsLeft` goes negative past the budget, and this line printed it
+         * raw: "Open discussion - -137 s left on your budget". Only a debate can
+         * sit there - the other two modes end themselves at zero - so for THEM a
+         * negative reading is a transition that has not landed yet: one tick in
+         * the ordinary case, up to a minute when the primary GM's tab is in the
+         * background and the browser has throttled its timers. Printed as 0 s
+         * rather than as a clock running backwards.
+         *
+         * The red is what `DRPG.Floor.discussionNote` already promises the table:
+         * running past the budget turns the clock red and does nothing else.
+         */
+        const over = floor?.mode === FLOOR_MODES.debate && left < 0;
         const holder = floorHolder(floor);
         const target = floorTarget(floor);
 
@@ -366,13 +382,18 @@ export async function manageClassTrial() {
             ? `<p class="notes">${game.i18n.localize(running
                 ? "DRPG.Floor.inDiscussion" : "DRPG.Floor.noDebate")}</p>`
             : floor.mode === FLOOR_MODES.debate
-                ? `<p>${game.i18n.format("DRPG.Floor.holdingDiscussion", { seconds: left })}</p>`
+                ? (over
+                    ? `<p class="drpg-warning">${game.i18n.format(
+                        "DRPG.Floor.holdingDiscussionOver", { seconds: Math.abs(left) })}</p>`
+                    : `<p>${game.i18n.format("DRPG.Floor.holdingDiscussion", { seconds: left })}</p>`)
                 : floor.mode === FLOOR_MODES.objection
                     ? `<p>${game.i18n.format("DRPG.Floor.holdingObjection", {
-                        who: esc(holder?.name ?? "-"), target: esc(target?.name ?? "-"), seconds: left
+                        who: esc(holder?.name ?? "-"), target: esc(target?.name ?? "-"),
+                        seconds: Math.max(left, 0)
                     })}</p>`
                     : `<p>${game.i18n.format("DRPG.Floor.holdingRebuttal", {
-                        who: esc(holder?.name ?? "-"), target: esc(target?.name ?? "-"), seconds: left
+                        who: esc(holder?.name ?? "-"), target: esc(target?.name ?? "-"),
+                        seconds: Math.max(left, 0)
                     })}</p>`;
 
         // Who has not voted yet, if a vote is open at all. Names only: who has
@@ -505,28 +526,73 @@ export async function manageClassTrial() {
                 ? "DRPG.Mastermind.endFinalTrial" : "DRPG.Mastermind.startFinalTrial") },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
-        render: (event, dialog) => keepLive(dialog, {
-            region: ".drpg-trial-console",
-            build: buildConsole,
-            after: () => {
-                if (reopening || signature() === openedWith) return;
-                reopening = true;
+        render: (event, dialog) => {
+            const live = keepLive(dialog, {
+                region: ".drpg-trial-console",
+                build: buildConsole,
                 /*
-                 * AWAITED, and the first run of this closed the window and left
-                 * nothing behind. `close()` is asynchronous and `alreadyOpen`
-                 * refuses a second copy - so reopening in the same tick asked
-                 * for a window while the old one was still there, was correctly
-                 * refused, and the GM was left looking at the scene.
+                 * A BALLOT IS NOT IN THE WORLD, so `updateSetting` cannot report
+                 * one (F8). See `voteChanged` in vote.mjs: the tally is a Map in
+                 * this GM's memory on purpose, and this hook is the only thing
+                 * that says it moved.
                  *
-                 * Closing resolves the `DialogV2.wait` above with null, which
-                 * the handler below already returns for - so the reopen belongs
-                 * here rather than smuggled into the action chain.
+                 * AND NOTHING IS NARROWED BY ADDING IT. Naming `settings` here
+                 * would turn "every setting of ours, plus this hook" into "this
+                 * hook and the settings I remembered" - and this console prints
+                 * the floor, the trial record and the Final Trial flag, all of
+                 * which are settings.
                  */
-                dialog.close()
-                    .then(() => manageClassTrial())
-                    .catch(err => error("Could not reopen the trial console", err));
-            }
-        }),
+                watch: { hooks: ["drpgVoteChanged"] },
+                after: () => {
+                    if (reopening || signature() === openedWith) return;
+                    reopening = true;
+                    /*
+                     * AWAITED, and the first run of this closed the window and left
+                     * nothing behind. `close()` is asynchronous and `alreadyOpen`
+                     * refuses a second copy - so reopening in the same tick asked
+                     * for a window while the old one was still there, was correctly
+                     * refused, and the GM was left looking at the scene.
+                     *
+                     * Closing resolves the `DialogV2.wait` above with null, which
+                     * the handler below already returns for - so the reopen belongs
+                     * here rather than smuggled into the action chain.
+                     */
+                    dialog.close()
+                        .then(() => manageClassTrial())
+                        .catch(err => error("Could not reopen the trial console", err));
+                }
+            });
+
+            /*
+             * AND THE SECONDS, WHICH ARE NOBODY'S EVENT (F8).
+             *
+             * The clock is derived from `startedAt` (see `secondsLeft`), so a
+             * debate running down writes nothing and wakes nothing: a 180 s debate
+             * still read "180 s left" two minutes in, while the HUD's own readout
+             * beside it counted correctly.
+             *
+             * One second, and only while a floor is open - the period the HUD's
+             * elapsed readout already runs on, for the reason written there: a
+             * tick that changes nothing on screen is sixty rebuilds a minute for
+             * nothing.
+             *
+             * Through `live.refresh()` rather than a painter of its own, so the
+             * clock, the vote line and the gate note come from one builder and
+             * cannot disagree. That is the FORCED rebuild path, which is right
+             * while this region is a read-out: the day somebody puts a field in
+             * this console, this tick has to stop forcing or it will rebuild under
+             * the GM's cursor.
+             */
+            const ticker = setInterval(() => {
+                // Closed, or replaced by a newer console: so is the interval.
+                if (!dialog.element?.isConnected) {
+                    clearInterval(ticker);
+                    return;
+                }
+                if (!trialFloor()) return;
+                live.refresh();
+            }, 1000);
+        },
         rejectClose: false
     });
 

@@ -418,12 +418,32 @@ export async function extendFloor(extraSeconds = 30) {
     const floor = trialFloor();
     if (!floor) return null;
 
-    // Pushing `startedAt` forward rather than growing a stored duration: the
-    // duration of `objection` and `rebuttal` is a constant (see TRIAL), and
-    // the clock everybody is reading is `now - startedAt`. Moving the start is
-    // what "thirty more seconds" means to every client at once, with no extra
-    // field for anyone to disagree about.
-    return writeFloor({ startedAt: (floor.startedAt ?? Date.now()) + extraSeconds * 1000 });
+    /*
+     * Pushing `startedAt` rather than growing a stored duration: the duration of
+     * `objection` and `rebuttal` is a constant (see TRIAL), and the clock
+     * everybody is reading is `now - startedAt`. Moving the start is what "thirty
+     * more seconds" means to every client at once, with no extra field for anyone
+     * to disagree about.
+     *
+     * FROM NOW, NOT FROM A CLOCK THAT HAS ALREADY RUN OUT (F9).
+     *
+     * It used to add thirty seconds to `startedAt` flat, and `secondsLeft` is
+     * `modeSeconds - (now - startedAt)`: on a debate 137 s over its budget the
+     * press moved it to 107 s over, which is the one moment a GM ever reaches for
+     * this button and the one moment it did nothing they could see. config.mjs
+     * says it out loud beside `objectionSeconds` - "a GM who needs a longer one
+     * has +30 s" - and they did not have it.
+     *
+     * Written as how much should be LEFT, so one line covers all three modes:
+     * clamped at zero it is thirty seconds from now, above zero it is exactly the
+     * old behaviour. It is not only a debate that can be found expired - only the
+     * primary GM's one-second heartbeat advances an objection, and a browser
+     * throttles that tab in the background, so a minute can sit forty seconds
+     * past zero. Before this, +30 there wrote left = -10 and the next tick threw
+     * it away.
+     */
+    const want = Math.max(secondsLeft(floor), 0) + extraSeconds;
+    return writeFloor({ startedAt: Date.now() - (modeSeconds(floor) - want) * 1000 });
 }
 
 /**
