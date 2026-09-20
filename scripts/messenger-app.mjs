@@ -20,7 +20,7 @@
 
 import { MODULE_ID, PRICE_CHAINS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, ownerOf, whisperToGms, error } from "./utils.mjs";
+import { gmIds, ownerOf, whisperToGms, error, debug } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -714,6 +714,33 @@ async function runCallAction(action, data) {
         return settled("DRPG.Bridge.settledAnswered");
     }
 
+    /*
+     * "NOTHING WAS THERE" IS AN OBSERVE'S RESULT, NOT A REFUSAL (ACT-17, 20.09).
+     *
+     * The scored road charges `OBSERVE_FAIL_STRESS` for this outcome and the tile's
+     * briefing prints the figure before the roll; the GM-ruled road sent the generic
+     * refusal, which refunded the action and charged nothing. So asking a human
+     * rather than rolling against a table made looking free - and the one branch
+     * where a person decides there is nothing to find was the branch with no price
+     * on it.
+     *
+     * The action is NOT refunded here, for the same reason it is not refunded on the
+     * scored road: the character looked.
+     */
+    if (action === "observeMiss") {
+        const { chargeObserveMiss } = await import("./observe.mjs");
+        await chargeObserveMiss(actor);
+
+        const { postToThread } = await import("./messenger.mjs");
+        const owner = ownerOf(actor);
+        if (owner) {
+            await postToThread(owner.id, `<p><em>${foundry.utils.escapeHTML(
+                game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>`);
+        }
+        ui.notifications.info(game.i18n.format("DRPG.Bridge.declinedGm", { name: actor.name }));
+        return settled("DRPG.Bridge.settledDeclined");
+    }
+
     if (action === "decline") {
         // The action comes BACK. Same reasoning as `declineMurder`: a refusal
         // here is the GM overruling the declaration rather than the rules
@@ -732,15 +759,34 @@ async function runCallAction(action, data) {
          * NAME of the step that paid, the amount comes from `PRICE_CHAINS`, and a
          * name the table does not know buys nothing at all.
          */
+        /*
+         * WHAT COMES BACK IS WHAT THE CARD SAYS WAS PAID (ACT-14, 20.09).
+         *
+         * Four cases, and the third one is the finding: a chain step, a plain action
+         * with its own amount, an action that cost NOTHING, and a card posted before
+         * any of this was written. The two hand-written cards carried `{ by, cost }`
+         * and no receipt, so every refusal of a Search or an Observe fell into the
+         * legacy branch and handed back one action - whatever had really been spent,
+         * and however many. `"none"` is what a free action writes now, because an
+         * empty string was indistinguishable from an absent attribute.
+         */
         const step = (PRICE_CHAINS.analyze?.steps ?? []).find(s => s.pay === data.paid);
+        const grant = data.grant === "true";
         if (step) {
             const { refundPrice } = await import("./price.mjs");
             await refundPrice(actor, {
                 key: "analyze",
                 pay: step.pay,
                 amount: step.amount,
-                grant: data.grant === "true"
+                grant
             });
+        } else if (data.paid === "action") {
+            const { refundAction } = await import("./actions.mjs");
+            await refundAction(actor, Number(data.amount) || 1, { grant });
+        } else if (data.paid === "none") {
+            // Nothing was paid, so nothing comes back. Said out loud because the
+            // silence used to be a refund.
+            debug("A refused ruling had nothing to refund: the action was free.");
         } else if (!data.paid) {
             // A card posted before this release carries no step. One action is
             // what every one of them was paid with.

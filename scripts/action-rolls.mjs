@@ -1214,11 +1214,7 @@ async function performSearch(actor, def, options) {
                     label: game.i18n.localize("DRPG.Bridge.giveItem"),
                     data: { by: actor.id }
                 },
-                {
-                    action: "decline",
-                    label: game.i18n.localize("DRPG.Bridge.nothingThere"),
-                    data: { by: actor.id, cost: String(cost) }
-                }
+                declineAction(actor, paid)
             ]
         });
 
@@ -3295,6 +3291,59 @@ async function performGmAction(actor, actionKey, def, options) {
  * of healing from any GM pressing "There is nothing". The far side now takes the
  * amount from `PRICE_CHAINS` and accepts only a step name the table knows.
  */
+/**
+ * The refusal button every GM ruling card ends with, and the receipt that makes
+ * the refund honest (ACT-14, 20.09).
+ *
+ * THE DATA SHAPE IS THE FIX. The refund on the far side reads `data.paid` to find
+ * which step of a price chain to hand back, and two of the three cards that carry
+ * this button were hand-written with `{ by, cost }` and no receipt at all - so the
+ * far side fell into its legacy branch and refunded ONE ACTION, whatever had
+ * actually been paid. A Burst spent on the action came back as an ordinary action,
+ * which is a downgrade nobody chose, and a Hope or a Sanity mark came back as an
+ * action, which is worse.
+ *
+ * `"none"` RATHER THAN AN EMPTY STRING, and that is the other half. An absent
+ * attribute reads as `undefined` on the far side and means "a card posted before
+ * this release"; an empty string was what a FREE action produced, and the two were
+ * indistinguishable - so a card for an action that cost nothing refunded an action
+ * that was never spent. `options.free` reaches this through `performGmAction` and
+ * through `askForHint`, so that is not a hypothetical.
+ */
+function declineAction(actor, receipt = null) {
+    return {
+        action: "decline",
+        label: game.i18n.localize("DRPG.Bridge.nothingThere"),
+        data: {
+            by: actor.id,
+            paid: receipt ? (receipt.pay ?? "action") : "none",
+            amount: String(receipt?.amount ?? 0),
+            // A Burst comes back as a Burst, which is the one thing the far side
+            // cannot work out for itself.
+            grant: String(Boolean(receipt?.grant))
+        }
+    };
+}
+
+/**
+ * The Observe card's third answer, which is not a refusal at all (ACT-17, 20.09).
+ *
+ * "Nothing was there" IS THE RESULT OF AN OBSERVE, not a refusal to rule on one.
+ * The scored road charges `OBSERVE_FAIL_STRESS` for exactly this outcome - the
+ * tile's own briefing prints the figure before the roll - and the GM-ruled road
+ * sent the generic `decline`, which REFUNDED the action and charged nothing. So
+ * the one branch where a human decides there is nothing to find was the branch
+ * where looking cost nothing at all, and a player who asked the GM rather than
+ * rolling against a table was better off for it.
+ */
+function missAction(actor) {
+    return {
+        action: "observeMiss",
+        label: game.i18n.localize("DRPG.Bridge.nothingThere"),
+        data: { by: actor.id }
+    };
+}
+
 function gmRulingActions(actor, receipt = null) {
     return [
         {
@@ -3302,17 +3351,7 @@ function gmRulingActions(actor, receipt = null) {
             label: game.i18n.localize("DRPG.Bridge.reply"),
             data: { by: actor.id }
         },
-        {
-            action: "decline",
-            label: game.i18n.localize("DRPG.Bridge.nothingThere"),
-            data: {
-                by: actor.id,
-                paid: receipt?.pay ?? "",
-                // A Burst comes back as a Burst, which is the one thing the far
-                // side cannot work out for itself.
-                grant: String(Boolean(receipt?.grant))
-            }
-        }
+        declineAction(actor, receipt)
     ];
 }
 
@@ -3549,11 +3588,7 @@ async function ruleObserve(actor, def, roll, request, title = null, cost = 0) {
                 label: game.i18n.localize("DRPG.Bridge.reply"),
                 data: { by: actor.id }
             },
-            {
-                action: "decline",
-                label: game.i18n.localize("DRPG.Bridge.nothingThere"),
-                data: { by: actor.id, cost: String(cost) }
-            }
+            missAction(actor)
         ]
     });
 

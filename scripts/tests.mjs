@@ -4082,6 +4082,60 @@ const REGRESSIONS = [
         ok(/realType === "neutral"/.test(analyze) && /analysedHint/.test(analyze),
             "the card announcing an analysis still prints the un-analysed sentence - "
             + "\"analysis turns it into a real category\" - about an analysis that did not");
+    }],
+
+    ["R88 - a refusal hands back what was paid, and an Observe miss is not a refusal", async () => {
+        /*
+         * ACT-14 and ACT-17, 20.09.
+         *
+         * ACT-14: the refund reads `data.paid` off the card, and two of the three
+         * cards carrying that button were hand-written with `{ by, cost }` and no
+         * receipt - so every refusal of a Search or an Observe fell into the legacy
+         * branch and handed back ONE ACTION, whatever had really been spent. A Burst
+         * came back as an ordinary action. `"none"` is what a free action writes now,
+         * because an empty string was indistinguishable from an absent attribute, and
+         * `options.free` reaches that builder from two places.
+         *
+         * ACT-17: "nothing was there" is an Observe's RESULT. The scored road charges
+         * the Sanity its own briefing prints before the roll; the GM-ruled road sent
+         * the generic refusal, which refunded the action and charged nothing - so
+         * asking a human was the cheaper way to look.
+         */
+        const sources = new Map(await otherSources());
+        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+
+        const builder = rolls.slice(rolls.indexOf("function declineAction"),
+            rolls.indexOf("function missAction"));
+        ok(builder.length > 200, "the refusal button is hand-written again");
+        ok(/paid: receipt \? \(receipt\.pay \?\? "action"\) : "none"/.test(builder),
+            "a free action's card is indistinguishable from a card with no receipt");
+        ok(/amount: String\(receipt\?\.amount \?\? 0\)/.test(builder),
+            "the card does not say how much was paid, so two actions come back as one");
+
+        // No hand-written refusal anywhere else: the builder is the only one.
+        const outside = rolls.replace(builder, "");
+        ok(!/action: "decline"/.test(outside),
+            "a card still writes its own refusal button, which is how two of them lost "
+            + "their receipts");
+        ok(/missAction\(actor\)/.test(rolls), "the Observe card still sends a refusal");
+
+        const observe = stripComments(sources.get("observe.mjs") ?? "");
+        ok(/export async function chargeObserveMiss\(/.test(observe),
+            "there is no single writer of an Observe miss");
+        ok(/bulletId: null, stress: marked/.test(observe),
+            "the miss bookmarks the figure the rule asks for rather than the marks it made");
+        ok(!/bulletId: null, stress: OBSERVE_FAIL_STRESS/.test(observe),
+            "a character already at their maximum takes no mark, and an undo that trusts "
+            + "the constant hands back Sanity nobody spent");
+
+        const app = stripComments(sources.get("messenger-app.mjs") ?? "");
+        const miss = app.slice(app.indexOf('action === "observeMiss"'), app.indexOf('action === "decline"'));
+        ok(miss.length > 200, "the GM's \"nothing was there\" has no handler of its own");
+        ok(/chargeObserveMiss\(actor\)/.test(miss), "the miss charges nothing");
+        ok(!/refundAction/.test(miss),
+            "the miss refunds the action - the character looked, on either road");
+        ok(/data\.paid === "none"/.test(app),
+            "a card for a free action still refunds an action that was never spent");
     }]
 ];
 

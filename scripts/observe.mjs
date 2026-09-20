@@ -296,8 +296,11 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
     const success = isCritical || total >= entry.dc;
 
     if (!success) {
-        await applyFailure(actor, total, entry);
-        entry.result = { success: false, bulletId: null, stress: OBSERVE_FAIL_STRESS };
+        /* THE BOOKMARK RECORDS WHAT WAS MARKED, NOT WHAT THE RULE ASKS FOR
+           (ACT-17, 20.09). A character already at their maximum takes no mark, and
+           an undo that trusted the constant handed back Sanity nobody had spent. */
+        const marked = await applyFailure(actor, total, entry);
+        entry.result = { success: false, bulletId: null, stress: marked };
         return { success: false, key };
     }
 
@@ -345,12 +348,26 @@ async function undoPrevious(actor, entry) {
  * A failed Observe costs 2 Sanity. Sanity is a reverse resource in Daggerheart:
  * marks count up towards the maximum, so a failure raises the value.
  */
-async function applyFailure(actor, total, entry) {
+/**
+ * What a failed Observe costs, wherever it was decided (ACT-17, 20.09).
+ *
+ * Extracted from `applyFailure` so there is ONE writer of an Observe miss: the
+ * scored road calls it through that function, and a GM who rules "nothing was
+ * there" on the ask-the-GM road calls it from the card. Before this the second
+ * road charged nothing and refunded the action, which made asking a human the
+ * cheaper way to look.
+ *
+ * Sanity is a reverse resource in Daggerheart: marks count up towards the
+ * maximum, so a failure raises the value.
+ */
+export async function chargeObserveMiss(actor, { total = null, dc = null } = {}) {
+    if (!actor) return 0;
     const marks = resourceValue(actor, "stress");
     const max = resourceMax(actor, "stress");
     const next = Math.min(max, marks + OBSERVE_FAIL_STRESS);
+    const marked = next - marks;
 
-    if (next !== marks) {
+    if (marked > 0) {
         try {
             await automatedUpdate(actor, { "system.resources.stress.value": next });
         } catch (err) {
@@ -362,16 +379,24 @@ async function applyFailure(actor, total, entry) {
      * It costs 2 Sanity and looks exactly like a success until the card is read.
      *
      * ON THE CARD. This said "local, on the observer's client" and was wrong the
-     * same way `identify` in analyze.mjs was: `resolveObserve` is GM-only, so
-     * every failed Observe since E5 has beeped at the GM and left the observer -
-     * the one person the catalogue names - in silence.
+     * same way `identify` in analyze.mjs was: `resolveObserve` is GM-only, so every
+     * failed Observe since E5 beeped at the GM and left the observer - the one
+     * person the catalogue names - in silence.
      */
     await whisperToOwner(actor, `
         <p><strong>${game.i18n.localize("DRPG.Observe.failedTitle")}</strong></p>
         <p>${game.i18n.format("DRPG.Observe.failed", { stress: OBSERVE_FAIL_STRESS })}</p>`,
         { flags: { [MODULE_ID]: { sfx: "observeFail" } } });
 
-    log(`Observe: ${actor.name} rolled ${total} against DC ${entry.dc} and found nothing.`);
+    log(total === null
+        ? `Observe: ${actor.name} was told there was nothing there.`
+        : `Observe: ${actor.name} rolled ${total} against DC ${dc} and found nothing.`);
+    return marked;
+}
+
+/** The scored road's miss: the same charge, with the roll in the log line. */
+async function applyFailure(actor, total, entry) {
+    return chargeObserveMiss(actor, { total, dc: entry.dc });
 }
 
 /**
