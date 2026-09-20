@@ -45,7 +45,7 @@ import { SETTINGS, getSetting, bodyDiscoveryFresh } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { trialFloor, FLOOR_MODES } from "./trial-floor.mjs";
 import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, keepLive } from "./live.mjs";
 
 /**
  * How deep we are inside THIS file changing playback.
@@ -1263,23 +1263,43 @@ export async function openSoundDialog() {
     // the state-to-playlist table below is the other half of this window and
     // works perfectly well without it - so it is reported in place rather than
     // refused at the door.
-    const situational = situationalPlaylist();
-    // An empty cue playlist is the same to this button as a missing one.
-    const canPlay = Boolean(situational?.sounds.size);
-
+    //
     // Three tabs, Play first (Dawid, 26.08): the cue controls a GM reaches
     // for mid-scene, then the state-to-playlist mapping they set up once, then
     // the sound-effect files. Apply still reads the mapping selects whichever
     // tab is showing - panes are hidden by class, never removed; see
     // `panelTabs` in utils.mjs.
-    const playPane = `
+    /*
+     * THE CUE PANE IS BUILT, NOT BAKED (F17, 20.09).
+     *
+     * This was three constants and a template read once when the window opened, so
+     * a track dragged into the cue playlist in the Playlists sidebar - which is
+     * exactly what a GM does next, with this window still open beside it - did not
+     * appear in the picker until the window was closed and opened again. The
+     * picker went on saying "this playlist has no tracks" over a playlist that had
+     * some.
+     *
+     * THREE STATES, because there are three: no cue playlist, one that is empty,
+     * and one with tracks in it. The middle one used to exist only as a sentence
+     * the make-cue handler wrote into the DOM by hand; now it is a state the
+     * builder can reach on its own, which is what lets that hand-written DOM
+     * surgery go.
+     */
+    const buildPlayPane = () => {
+        const cue = situationalPlaylist();
+        // An empty cue playlist is the same to this button as a missing one.
+        const playable = Boolean(cue?.sounds.size);
+        return `
             <fieldset class="drpg-music-now">
                 <legend>${game.i18n.localize("DRPG.Music.playNow")}</legend>
                 <p class="notes">${game.i18n.format("DRPG.Music.playNowNote",
                     { name: SITUATIONAL_PLAYLIST })}</p>
-                ${situational
-                    ? `<label>${game.i18n.localize("DRPG.Music.track")}
-                    <select name="playTrack">${trackOptions(situational)}</select></label>`
+                ${cue
+                    ? `${playable ? "" : `<p class="notes" data-drpg-no-cue>${
+                        game.i18n.format("DRPG.Music.situationalMade", { name: cue.name })}</p>`}
+                    <label>${game.i18n.localize("DRPG.Music.track")}
+                    <select name="playTrack" data-drpg-enter="[data-drpg-play]"
+                        >${trackOptions(cue)}</select></label>`
                     // MADE FROM HERE, NOT DESCRIBED FROM HERE.
                     //
                     // This said "make one in the Playlists sidebar" and left the
@@ -1291,18 +1311,20 @@ export async function openSoundDialog() {
                     //
                     // So the module spells it. The button exists only while the
                     // playlist is missing, and it disappears the moment there is
-                    // one.
+                    // one - which the rebuild above now does by itself.
                     : `<p class="notes drpg-warning" data-drpg-no-cue>${game.i18n.format(
                         "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST })}</p>
                     <button type="button" class="drpg-mini-button" data-drpg-make-cue>${
                         game.i18n.format("DRPG.Music.makeSituational",
                             { name: SITUATIONAL_PLAYLIST })}</button>`}
                 <button type="button" class="drpg-mini-button" data-drpg-play${
-                    canPlay ? "" : " disabled"}>${
+                    playable ? "" : " disabled"}>${
                     game.i18n.localize("DRPG.Music.play")}</button>
                 <button type="button" class="drpg-mini-button" data-drpg-reset-music>${
                     game.i18n.localize("DRPG.Music.reset")}</button>
             </fieldset>`;
+    };
+
 
     const playlistsPane = `
             <p>${game.i18n.localize("DRPG.Music.intro")}</p>
@@ -1331,7 +1353,7 @@ export async function openSoundDialog() {
         content: dialogContent(`<form>
             ${document.body.classList.contains("drpg-theme-stained-glass") ? "" : soundSlidersHtml()}
             ${panelTabs([
-                { key: "play", label: game.i18n.localize("DRPG.Sound.tabPlay"), html: playPane },
+                { key: "play", label: game.i18n.localize("DRPG.Sound.tabPlay"), html: buildPlayPane() },
                 { key: "music", label: game.i18n.localize("DRPG.Sound.tabMusic"), html: playlistsPane },
                 { key: "effects", label: game.i18n.localize("DRPG.Sound.tabEffects"),
                   html: soundEffectsHtml() }
@@ -1372,67 +1394,84 @@ export async function openSoundDialog() {
                 always: ["close"]
             });
             wireSoundPanel(root);
-            const track = root.querySelector("[name=playTrack]");
-
-            root.querySelector("[data-drpg-play]")?.addEventListener("click", async () => {
-                const sound = await playTrack(track?.value);
-                if (sound) {
-                    ui.notifications.info(game.i18n.format("DRPG.Music.playing",
-                        { track: sound.name }));
-                }
-            });
-
-            root.querySelector("[data-drpg-reset-music]")?.addEventListener("click", async () => {
-                await resetMusic();
-                ui.notifications.info(game.i18n.localize("DRPG.Music.wasReset"));
-            });
-
             /*
-             * Make the cue playlist, and swap the fieldset over IN PLACE.
+             * THE CUE PANE'S LISTENERS, REWIRED AFTER EVERY REDRAW (F17).
              *
-             * Not by reopening the window, which is the obvious way and the
-             * wrong one: the Playlists tab beside this holds a table of selects
-             * the GM may already have changed, and Apply has not run yet.
-             * Reopening would throw that away to save a redraw.
-             *
-             * The Play button deliberately stays disabled. A playlist made this
-             * second has no tracks in it, and a button that says it will play
-             * something is lying until the GM has put something there - which
-             * is what the replacement note asks for.
+             * `keepLive` replaces the fieldset's nodes, and a listener goes with the
+             * button it was on - the same reason the Mastermind window's give-Hope
+             * row has its own `wireGive`. The track select is read INSIDE the
+             * handler rather than captured beside it, so a redraw between opening
+             * the window and pressing Play cannot leave this pointing at a detached
+             * node or at a sound that has since been deleted.
              */
-            root.querySelector("[data-drpg-make-cue]")?.addEventListener("click", async event => {
-                const button = event.currentTarget;
-                button.disabled = true;
-                try {
-                    const made = situationalPlaylist()
-                        ?? await Playlist.create({ name: SITUATIONAL_PLAYLIST });
-                    if (!made) throw new Error("Playlist.create returned nothing");
-
-                    const note = root.querySelector("[data-drpg-no-cue]");
-                    if (note) {
-                        note.classList.remove("drpg-warning");
-                        note.textContent = game.i18n.format("DRPG.Music.situationalMade",
-                            { name: made.name });
+            const wirePlay = () => {
+                root.querySelector("[data-drpg-play]")?.addEventListener("click", async () => {
+                    const sound = await playTrack(root.querySelector("[name=playTrack]")?.value);
+                    if (sound) {
+                        ui.notifications.info(game.i18n.format("DRPG.Music.playing",
+                            { track: sound.name }));
                     }
+                });
 
-                    // The track picker the fieldset would have been built with.
-                    const label = document.createElement("label");
-                    label.textContent = `${game.i18n.localize("DRPG.Music.track")} `;
-                    const select = document.createElement("select");
-                    select.name = "playTrack";
-                    select.innerHTML = trackOptions(made);
-                    label.append(select);
-                    note?.after(label);
+                root.querySelector("[data-drpg-reset-music]")?.addEventListener("click", async () => {
+                    await resetMusic();
+                    ui.notifications.info(game.i18n.localize("DRPG.Music.wasReset"));
+                });
 
-                    button.remove();
-                    ui.notifications.info(game.i18n.format("DRPG.Music.situationalMade",
-                        { name: made.name }));
-                } catch (err) {
-                    button.disabled = false;
-                    error("Could not create the cue playlist", err);
-                    ui.notifications.error(game.i18n.localize("DRPG.Music.makeFailed"));
-                }
+                /*
+                 * Make the cue playlist. The fieldset swaps itself over now: the
+                 * builder above has a state for "made but empty", and `createPlaylist`
+                 * is one of the hooks below, so there is nothing left for this handler
+                 * to do to the DOM.
+                 *
+                 * NOT BY REOPENING THE WINDOW, which is the obvious way and the wrong
+                 * one: the Playlists tab beside this holds a table of selects the GM
+                 * may already have changed, and Apply has not run yet.
+                 *
+                 * The Play button stays disabled, because a playlist made this second
+                 * has no tracks in it and a button that says it will play something is
+                 * lying until the GM has put something there.
+                 */
+                root.querySelector("[data-drpg-make-cue]")?.addEventListener("click", async event => {
+                    const button = event.currentTarget;
+                    button.disabled = true;
+                    try {
+                        const made = situationalPlaylist()
+                            ?? await Playlist.create({ name: SITUATIONAL_PLAYLIST });
+                        if (!made) throw new Error("Playlist.create returned nothing");
+                        ui.notifications.info(game.i18n.format("DRPG.Music.situationalMade",
+                            { name: made.name }));
+                    } catch (err) {
+                        button.disabled = false;
+                        error("Could not create the cue playlist", err);
+                        ui.notifications.error(game.i18n.localize("DRPG.Music.makeFailed"));
+                    }
+                });
+            };
+
+            wirePlay();
+            /*
+             * WHAT WAKES IT: THE PLAYLIST HOOKS (F17).
+             *
+             * Nothing this pane prints is in a setting, and the tracks it lists are
+             * documents - so the hooks are named here rather than relying on the
+             * world hooks `keepLive` always adds. `settings: []` is an empty array,
+             * which is TRUTHY, so live.mjs's filter rejects every module setting key:
+             * this pane has no reason to redraw because a preference was saved. The
+             * two world hooks still fire and are harmless.
+             */
+            keepLive(dialog, {
+                region: ".drpg-music-now",
+                build: buildPlayPane,
+                watch: {
+                    settings: [],
+                    hooks: ["createPlaylistSound", "deletePlaylistSound", "updatePlaylistSound",
+                        "createPlaylist", "deletePlaylist", "updatePlaylist"]
+                },
+                after: wirePlay
             });
+
+
         },
         rejectClose: false
     });

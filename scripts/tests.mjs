@@ -3375,6 +3375,106 @@ const REGRESSIONS = [
         ok(!/before\.session/.test(win) && !/before\.phase/.test(win),
             "the session counter or the phase joined the comparison - they are bookkeeping, "
             + "not time");
+    }],
+
+    ["R71 - the cue pane is built on every redraw, not baked when the window opened", async () => {
+        /*
+         * F17, 20.09. The Play pane was three constants and a template read once, so
+         * a track dragged into the cue playlist in the Playlists sidebar - which is
+         * what a GM does next, with this window open beside it - did not appear until
+         * the window was closed and opened again.
+         *
+         * The hooks are the mechanism and they are named: nothing this pane prints
+         * lives in a setting, so `settings: []` (an empty array, which is truthy)
+         * makes live.mjs reject every module setting key, and the playlist documents
+         * are what it actually listens to.
+         */
+        const music = stripComments(new Map(await otherSources()).get("music.mjs") ?? "");
+        ok(/const buildPlayPane = \(\) =>/.test(music),
+            "the cue pane is a constant again, so the picker cannot see a new track");
+        ok(/html: buildPlayPane\(\)/.test(music),
+            "the window is built from something other than the builder");
+        const live = music.slice(music.indexOf("keepLive(dialog, {"),
+            music.indexOf("keepLive(dialog, {") + 600);
+        ok(/region: "\.drpg-music-now"/.test(live), "the cue pane is not the live region");
+        ok(/build: buildPlayPane/.test(live), "the live region is built by something else");
+        ok(/after: wirePlay/.test(live),
+            "the pane's buttons are not rewired after a redraw, so they stop answering");
+        for (const hook of ["createPlaylistSound", "deletePlaylistSound", "createPlaylist"]) {
+            ok(live.includes(hook), `the pane no longer wakes on ${hook}`);
+        }
+        ok(/settings: \[\]/.test(live),
+            "the pane redraws on every module setting - an empty array is the filter that "
+            + "says none of them");
+
+        // The make-cue handler used to build a label and a select by hand and put
+        // them in the DOM, because there was no rebuild to do it. There is now.
+        const made = music.slice(music.indexOf("data-drpg-make-cue"));
+        ok(!/document\.createElement\("select"\)/.test(made),
+            "the make-cue handler still sews a picker into the DOM by hand");
+        ok(/situationalMade/.test(music),
+            "the made-but-empty state lost its sentence, so the picker reads as broken");
+    }],
+
+    ["R72 - a tier pool a GM makes is filed like the installer's own", async () => {
+        /*
+         * TABLES-01, 20.09. The Tier pools tab and the Room pools tab share one create
+         * path, and it wrote `roomPool: true` with no category, tier or goal for both.
+         * So a tier a GM added was a table the module could not file: its items showed
+         * up unfiled in the index, and a usable drawn from it had no kind - which
+         * since 26.08 is not cosmetic but the rules, because the kind IS what the item
+         * does.
+         */
+        const tables = stripComments(new Map(await otherSources()).get("tables.mjs") ?? "");
+        const at = tables.indexOf("export function classifyTableName");
+        ok(at > 0, "classifyTableName is gone, so a created pool is filed by guesswork");
+        const body = tables.slice(at, tables.indexOf("\nexport ", at + 10));
+        ok(/ITEM_TIERS\.includes\(tier\)/.test(body),
+            "the tier is unbounded, so \"DRPG Tools - Tier 9\" would be recognised as a tier "
+            + "nothing draws from");
+        ok(/tableNameCandidates\(/.test(body),
+            "the classifier does not ask the same machinery the lookups use, so the two can "
+            + "disagree about what a table is called");
+        ok(/category: "usable", goal/.test(body),
+            "a goal can be paired with any category, which would make "
+            + "\"DRPG Murder Weapons (Healing) - Tier 2\" a legal answer");
+
+        const create = tables.slice(tables.indexOf("typeof action.newPool === \"string\""));
+        ok(/const known = classifyTableName\(name\)/.test(create),
+            "the create path does not read the name back, so both tabs write the same flags");
+        ok(/roomPool: true/.test(create),
+            "a name this module does not recognise must still get the room receipt - that is "
+            + "what the Room pools tab is for");
+        ok(/tierPoolCreated/.test(create),
+            "the GM is told the same sentence whichever family they just made");
+    }],
+
+    ["R73 - a window reopened from its own answer closes the old copy first", async () => {
+        /*
+         * LIVE-REOPEN-01, 20.09, and the measurement is the whole finding: at the first
+         * statement after `await DialogV2.wait(...)` the window is still rendered and
+         * still connected, so `alreadyOpen` refuses. A branch that awaits anything
+         * first is safe; the validation paths - a warning, then straight back to the
+         * window - are not, and they opened nothing at all.
+         */
+        const sources = new Map(await otherSources());
+        const live = stripComments(sources.get("live.mjs") ?? "");
+        const at = live.indexOf("export async function reopen");
+        ok(at > 0, "reopen is gone from live.mjs");
+        const body = live.slice(at, live.indexOf("\nexport ", at + 10));
+        ok(/await app\.close\(\{ animate: false \}\)/.test(body),
+            "reopen does not wait for the old copy to go, or it waits on a transition that "
+            + "may never come");
+        ok(body.indexOf("app.close(") < body.indexOf("opener()"),
+            "reopen opens before it closes, which is the defect with an extra window");
+
+        const tables = stripComments(sources.get("tables.mjs") ?? "");
+        const tail = tables.slice(tables.indexOf("typeof action.newPool === \"string\""));
+        equal((tail.match(/reopen\("drpg-window-tables"/g) ?? []).length, 3,
+            "the three paths that warn and go straight back to the window do not all use "
+            + "reopen");
+        ok(!/^\s*return openItemTables\(\{ preset \}\);/m.test(tail),
+            "one of those paths reopens directly again, so it opens nothing");
     }]
 ];
 
@@ -4978,6 +5078,44 @@ const INVARIANTS = [
         ok(strike.damage?.critical?.choice, "Strike's critical no longer offers a choice");
         ok(typeof strike.damage.criticalAmount === "number",
             "Strike offers a choice but does not say how many marks it moves");
+    }],
+
+    ["every table name the installer builds is one classifyTableName can read back", async () => {
+        /*
+         * TABLES-01. The classifier is the create path's only way of knowing what a GM
+         * just made, and it answers by asking `tableNameCandidates` - so this walks the
+         * same set the installer builds and requires the round trip, then the four
+         * shapes that must come back null.
+         */
+        const t = await import("./tables.mjs");
+        const { ITEM_TIERS } = await import("./config.mjs");
+
+        for (const category of Object.keys(t.ITEM_POOLS)) {
+            for (const tier of ITEM_TIERS) {
+                const name = t.tableName(category, tier);
+                const read = t.classifyTableName(name);
+                ok(read, `"${name}" is not recognised at all`);
+                equal(read.category, category, `"${name}" was read as ${read?.category}`);
+                equal(read.tier, tier, `"${name}" was read as tier ${read?.tier}`);
+                equal(read.goal, null, `"${name}" came back with a goal on it`);
+            }
+        }
+        for (const goal of Object.keys(t.USABLE_GOALS)) {
+            for (const tier of ITEM_TIERS) {
+                const name = t.tableName("usable", tier, goal);
+                const read = t.classifyTableName(name);
+                ok(read?.goal === goal && read?.category === "usable",
+                    `"${name}" was read as ${JSON.stringify(read)}`);
+            }
+        }
+
+        // The four that must not be recognised, and each says something different:
+        // a tier nothing draws from, a goal on a category that has none, a prefix
+        // without a family, and a room pool's ordinary name.
+        for (const name of ["DRPG Tools - Tier 9", "DRPG Murder Weapons (Healing) - Tier 2",
+            "DRPG Truth Bullets - Tier 2", "Kitchen cupboard"]) {
+            equal(t.classifyTableName(name), null, `"${name}" was filed as a module table`);
+        }
     }],
 
     ["every string the code asks for exists in the language file", () => {
@@ -9515,6 +9653,54 @@ const SCENARIOS = [
         }
     }],
 
+    ["a window still answers for one tick after it was answered", async () => {
+        /*
+         * LIVE-REOPEN-01's measurement, kept as a test because the whole finding rests
+         * on it and it is a fact about Foundry rather than about this module: if a
+         * future version closes before resolving, `reopen` becomes unnecessary and
+         * this is where that shows up.
+         *
+         * Built with `DialogV2.wait` and answered by clicking the footer button, which
+         * is the path a person takes - not `dialog.close()`, which resolves through the
+         * other branch entirely.
+         */
+        const { alreadyOpen, reopen, closeOpen } = await import("./live.mjs");
+        const DialogV2 = foundry.applications.api.DialogV2;
+        const CLASS = "drpg-window-reopen-probe";
+
+        const waiting = DialogV2.wait({
+            window: { title: "reopen probe" },
+            classes: ["drpg-panel", CLASS],
+            content: "<p>probe</p>",
+            buttons: [{ action: "ok", label: "OK" }],
+            rejectClose: false
+        });
+
+        try {
+            ok(await until(() => document.querySelector(`.${CLASS}`), 4000),
+                "the probe window did not open");
+            document.querySelector(`.${CLASS} button[data-action="ok"]`).click();
+            const answer = await waiting;
+            equal(answer, "ok", "the probe answered something else");
+
+            // THE INSTANT THAT DECIDES IT.
+            ok(alreadyOpen(CLASS),
+                "the window had already gone by the next statement - `reopen` is no longer "
+                + "needed and the notes on it are out of date");
+
+            // And `reopen` gets a window anyway, which is the point of it.
+            let opened = null;
+            await reopen(CLASS, async () => {
+                opened = alreadyOpen(CLASS) ? "refused" : "clear";
+                return null;
+            });
+            equal(opened, "clear", "reopen ran the opener while the old copy was still there");
+        } finally {
+            closeOpen(CLASS);
+            await settle();
+        }
+    }],
+
     ["a repair moves somebody to dead without announcing a death", async () => {
         /*
          * F16 and F15 driven. The dropdown half of the Players window is a repair
@@ -9651,6 +9837,28 @@ async function runSuite(tier) {
         for (const [name, fn] of INVARIANTS) {
             try { await fn(); record(name, null); } catch (err) { record(name, err); }
         }
+    }
+
+    /*
+     * TIER 2 WILL NOT START ON TOP OF AN INCIDENT (20.09).
+     *
+     * Every scenario's `finally` ends the murder and restores the fixtures, which is
+     * right for the ones it opened and wrong for one a table is in the middle of: a
+     * suite run started during a fight closes that fight, and the world it puts back
+     * is the one the suite recorded a moment ago rather than the one the incident had
+     * moved on from. Paid for in the QA world, where a run that died left an incident
+     * behind and the next run cheerfully closed it.
+     *
+     * Tier 0 and tier 1 are unaffected - they read and never write - so this refuses
+     * the scenarios only, and says which state it found.
+     */
+    if (tier >= 2 && game.drpg?.murderState?.()) {
+        lines.push("");
+        lines.push("TIER 2 - REFUSED: an incident is open in this world.");
+        lines.push("        Close it from the incident tracker (End the murder) and run again.");
+        lines.push("        The scenarios end every incident they find, so this one would go with them.");
+        failed++;
+        tier = 1;
     }
 
     if (tier >= 2) {

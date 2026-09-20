@@ -18,7 +18,7 @@ import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, TIER_EFFECTS, USABL
 import { dialogContent, wirePortraitPickers, panelTabs, wirePanelTabs, whisperToGms, log, error, plural, esc}
     from "./utils.mjs";
 import { pickableCategories } from "./inventory.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, reopen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -77,6 +77,52 @@ export function tableNameCandidates(category, tier, goal = null) {
         for (const suffix of suffixes) names.push(`DRPG ${base}${suffix} - Tier ${tier}`);
     }
     return names;
+}
+
+
+/**
+ * Which table a name IS, read back off the name (TABLES-01, 20.09).
+ *
+ * The Tier pools tab created its table with `roomPool: true` and no category,
+ * tier or goal - the same flags a ROOM pool gets - because one code path serves
+ * both tabs. A GM who added a tier of their own therefore got a table the module
+ * could not file: `tableIndex` put its contents under the room-pool branch, so
+ * `classifyEntryName` showed every item in it unfiled, and `usableKindFor` reads
+ * the goal flag, so a usable drawn from it had no kind at all - which since 26.08
+ * is not cosmetic but the rules, because the kind IS what the item does.
+ *
+ * The name is the only thing there is to go on, and it is enough: the whole module
+ * already finds its tables BY NAME (see `tableNameCandidates` and the aliases
+ * above it), so asking that machinery in reverse cannot disagree with the lookup.
+ *
+ * THE TIER IS BOUNDED BY ITEM_TIERS. `tableNameCandidates` interpolates whatever
+ * number it is handed, so an unbounded parse would happily "recognise"
+ * "DRPG Tools - Tier 9" - a tier nothing draws from - and file a table under it.
+ *
+ * AND A GOAL ONLY EVER PAIRS WITH `usable`. The name builder appends the goal
+ * suffix for any category it is given, so iterating the cross product would make
+ * "DRPG Murder Weapons (Healing) - Tier 2" a legal answer. The two goals belong to
+ * the usable pool and nowhere else.
+ *
+ * Returns `{ category, tier, goal }` with the tier as a number, or null for a name
+ * this module does not own - which is not an error: a room pool's name is meant to
+ * be anything the table likes.
+ */
+export function classifyTableName(name) {
+    const text = String(name ?? "");
+    const tail = text.match(/ - Tier (\d+)$/);
+    if (!tail) return null;
+    const tier = Number(tail[1]);
+    if (!ITEM_TIERS.includes(tier)) return null;
+
+    const shapes = [
+        ...Object.keys(ITEM_POOLS).map(category => ({ category, goal: null })),
+        ...Object.keys(USABLE_GOALS).map(goal => ({ category: "usable", goal }))
+    ];
+    for (const { category, goal } of shapes) {
+        if (tableNameCandidates(category, tier, goal).includes(text)) return { category, tier, goal };
+    }
+    return null;
 }
 
 /** The one that actually exists in this world, if any - else today's name. */
@@ -2055,24 +2101,59 @@ export async function openItemTables({ preset = null } = {}) {
         } else if (game.tables.getName(name)) {
             ui.notifications.warn(game.i18n.format("DRPG.Tables.newPoolExists", { name }));
         } else {
+            /*
+             * THE FLAGS SAY WHICH FAMILY IT IS IN (TABLES-01, 20.09).
+             *
+             * Both tabs came through here and both got `roomPool: true` with no
+             * category, tier or goal - so a tier pool a GM made was a table the
+             * module could not file: its items showed up unfiled in the index, and a
+             * usable drawn from it had no kind, which is what decides whether it
+             * restores Health or Sanity.
+             *
+             * READ BACK OFF THE NAME, because the name is what every lookup in this
+             * file searches on. A name this module does not recognise keeps
+             * `roomPool: true` and the room receipt - that is honest rather than a
+             * guess, and it is what the Room pools tab is for.
+             */
+            const known = classifyTableName(name);
             await RollTable.create({
                 name,
                 formula: "1d1",
-                flags: { [MODULE_ID]: { roomPool: true } }
+                flags: {
+                    [MODULE_ID]: known
+                        ? { category: known.category, tier: known.tier, goal: known.goal }
+                        : { roomPool: true }
+                }
             });
-            ui.notifications.info(game.i18n.format("DRPG.Tables.poolCreated", { name }));
-            log(`Item tables: room pool "${name}" created.`);
+            ui.notifications.info(game.i18n.format(known
+                ? "DRPG.Tables.tierPoolCreated"
+                : "DRPG.Tables.poolCreated", { name }));
+            log(`Item tables: ${known
+                ? `tier pool "${name}" created (${known.category}, tier ${known.tier}${
+                    known.goal ? `, ${known.goal}` : ""})`
+                : `room pool "${name}" created`}.`);
         }
-        return openItemTables({ preset });
+        /*
+         * THROUGH `reopen`, BECAUSE THREE OF THE FOUR PATHS ABOVE AWAIT NOTHING
+         * (LIVE-REOPEN-01, 20.09).
+         *
+         * A warning - no name, a name that does not match the tab, a name already
+         * taken - lands here in the same microtask the wait resolved in, and the
+         * window it is trying to reopen is still on screen for one more tick. So
+         * `alreadyOpen` refused, this returned null, the old copy closed a moment
+         * later, and the GM was left with no window and their typed name gone. See
+         * the note on `reopen` for the measurement.
+         */
+        return reopen("drpg-window-tables", () => openItemTables({ preset }));
     }
 
     if (!action.name) {
         ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsName"));
-        return openItemTables({ preset });
+        return reopen("drpg-window-tables", () => openItemTables({ preset }));
     }
     if (!action.tables.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsTable"));
-        return openItemTables({ preset });
+        return reopen("drpg-window-tables", () => openItemTables({ preset }));
     }
 
     let added = 0;

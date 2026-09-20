@@ -2279,6 +2279,7 @@
       "newPoolNote": "A room table is what a room stocks - point a room at it in Room Setup's “Draws from”. Tier tables answer dice rolls and cannot be assigned to rooms. A table named “«Room» - Tier N” answers that roll in that room first.",
       "newPoolTierName": "That name matches the tier-table pattern (“DRPG … - Tier N”) - a room table needs its own name.",
       "newPoolExists": "A table called “{name}” already exists.",
+      "tierPoolCreated": "\"{name}\" is ready, and the module recognised it: items in it are filed by its category and tier, so a usable drawn from it knows what it does.",
       "poolCreated": "Room table “{name}” created. Point a room at it in Room Setup.",
       "renameTable": "Rename table",
       "deleteTable": "Delete table",

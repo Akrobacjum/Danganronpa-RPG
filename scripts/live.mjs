@@ -453,6 +453,42 @@ export function alreadyOpen(className) {
 }
 
 
+
+/**
+ * Open a window again from inside its own answer (LIVE-REOPEN-01, 20.09).
+ *
+ * MEASURED ON 14.365, because the whole thing turns on one microtask. Foundry's
+ * `_onSubmit` awaits the submit handler - which is where `DialogV2.wait` resolves -
+ * and calls `close()` on the NEXT line. So at the first statement after
+ * `await DialogV2.wait(...)` the window is still `rendered`, its element is still
+ * connected, and `alreadyOpen` refuses: a probe read `rendered: true`,
+ * `isConnected: true`, `alreadyOpen: refuses`, and one tick later `refuses: false`.
+ *
+ * A branch that awaits ANYTHING first - a world write, another window, an import -
+ * is therefore safe, and almost every reopen in this module does. The ones that do
+ * not are the validation paths: a warning, then straight back to the window. Those
+ * opened nothing and the old copy then closed, so the GM pressed a button, read a
+ * warning and was left looking at the scene with their work gone.
+ *
+ * `animate: false` is deliberate: `close()` otherwise waits for a transition that
+ * this module's own exit rule may not give it, which is a second per window for
+ * nothing (see the ApplicationV2 note in the release history).
+ *
+ * The old copy is closed rather than reused, because the caller's whole reason for
+ * reopening is that the window must be rebuilt from a world that has moved.
+ */
+export async function reopen(className, opener) {
+    for (const app of [...foundry.applications.instances.values()]) {
+        if (!app?.options?.classes?.includes(className)) continue;
+        try {
+            await app.close({ animate: false });
+        } catch (err) {
+            debug(`live: a window refusing to close before reopening "${className}"`, err);
+        }
+    }
+    return opener();
+}
+
 /**
  * A window that closes in order to come back, as ONE promise (F7, 20.09).
  *
