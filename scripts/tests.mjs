@@ -3791,6 +3791,161 @@ const REGRESSIONS = [
         ok(/if \(!game\.user\.isGM && !offer\) return;/.test(button),
             "the button is on every player's sheet whether or not anything was offered");
         ok(/is-offered/.test(button), "nothing lights the button up, so nobody notices it");
+    }],
+
+    ["R80 - an empty request is refused before the window starts closing", async () => {
+        /*
+         * CALL-12, 20.09. The empty note box was refused by returning `null` from the
+         * button's callback, which is not a refusal:
+         * `(await button?.callback?.(...)) ?? button?.action` reads null as the
+         * button's own name, and the window closes whatever the callback returned. So
+         * the player was warned, the window shut, and the GM received an approval
+         * request whose entire body was the word "spend" - on the one pair of Calls
+         * where the sentence IS the request.
+         *
+         * THE THREE STOPS ARE THE TEST. A capture listener on the button is what runs
+         * before ApplicationV2's delegated click and before DialogV2's own submit
+         * listener; without `preventDefault` the submit button still submits, and
+         * without both propagation stops the delegated handler still fires.
+         */
+        const calls = stripComments(new Map(await otherSources()).get("calls.mjs") ?? "");
+        const gate = calls.slice(calls.indexOf("function wireNoteGate"),
+            calls.indexOf("export async function confirmCall"));
+        ok(gate.length > 200, "nothing refuses an empty note before the submit starts");
+        ok(/\{ capture: true \}/.test(gate),
+            "the refusal listens in the bubble phase, where the window is already closing");
+        for (const stop of ["preventDefault()", "stopPropagation()", "stopImmediatePropagation()"]) {
+            ok(gate.includes(stop), `the refusal does not call ${stop}`);
+        }
+
+        const confirm = calls.slice(calls.indexOf("export async function confirmCall"),
+            calls.indexOf("export async function askHopeCallApproval"));
+        ok(/render: \(event, dialog\) => wireNoteGate\(dialog, call\)/.test(confirm),
+            "the gate is never wired to the window");
+        ok(!/return null;\s*\}\s*return written;/.test(confirm),
+            "the callback still tries to cancel by returning null");
+        ok(/if \(call\.needsGm && !String\(result\)\.trim\(\)\) return null;/.test(confirm),
+            "an empty note can still reach the GM as an empty request - the gate lives in "
+            + "the interface, and the boundary has to ask again");
+    }],
+
+    ["R81 - one purchase posts one card, after the effect", async () => {
+        /*
+         * CALL-13, 20.09. `spendDespairCall` charged the pool and posted a public card
+         * one line later, BEFORE `applyCall` had run - and the road through
+         * `spendDespairCallFor` posts its own card afterwards with the same label. So
+         * every Despair Call bought from a sheet posted two, the first before anybody
+         * knew whether it had landed: on a failure the pool is handed back and the
+         * Monokuma warned privately, and the table kept a public receipt for a
+         * purchase that did not happen.
+         *
+         * THE ORDER ASSERTIONS BELOW ALREADY PASSED ON THE DEFECT and are kept as
+         * guards, not as evidence. What fails on it is the flag: the parameter, the
+         * gate around the card, the `false` at the call site, and the price sentence
+         * arriving on the card that survives.
+         */
+        const sources = new Map(await otherSources());
+        const despair = stripComments(sources.get("despair.mjs") ?? "");
+        const spend = despair.slice(despair.indexOf("export async function spendDespairCall"),
+            despair.indexOf("export function renderDespairBar"));
+        ok(spend.length > 300, "spendDespairCall has moved or gone");
+        ok(/\{ announce: post = true \} = \{\}/.test(spend),
+            "the card cannot be turned off, so the road that posts its own posts two");
+        ok(/if \(!post\) return true;/.test(spend),
+            "the flag is read somewhere other than in front of the card");
+        ok(spend.indexOf("adjustDespair(userId, -call.cost)") < spend.indexOf("if (!post)"),
+            "the pool is charged after the card, so a failed card would keep the Despair");
+
+        const calls = stripComments(sources.get("calls.mjs") ?? "");
+        const road = calls.slice(calls.indexOf("export async function spendDespairCallFor"),
+            calls.indexOf("export async function confirmCall"));
+        ok(/spendDespairCall\(user\.id, key, \{ announce: false \}\)/.test(road),
+            "the sheet's road still lets the purchase announce itself");
+        ok(/DRPG\.Despair\.spent/.test(road),
+            "the price is not on the card that survives, so nobody is told what it cost");
+        ok(road.indexOf("applyCall(") < road.indexOf("announce({"),
+            "the card is posted before the effect has run");
+        ok(road.indexOf("DRPG.Calls.refunded") < road.indexOf("announce({"),
+            "the refund branch is below the card, so a failure still posts a receipt");
+    }],
+
+    ["R82 - what shuts the whole Calls menu is asked at the door", async () => {
+        /*
+         * CALL-17, 20.09. An Eclipse, the overflow's Silence, a Class Trial for a
+         * Monokuma and a dead student were all asked INSIDE the two spenders, which
+         * the sheet reaches after the target picker and the confirmation. So a player
+         * chose a victim, read a price, pressed Spend, and only then learned the menu
+         * had been shut all along: three windows to be told no.
+         *
+         * ASKED TWICE ON PURPOSE. The sheet is one road in and `game.drpg` is
+         * another, and the world can move between the question and the purchase - so
+         * the spenders go on asking. What this test pins is that the sheet asks
+         * BEFORE the picker, which is the half that was missing.
+         */
+        const sources = new Map(await otherSources());
+        const calls = stripComments(sources.get("calls.mjs") ?? "");
+        const barred = calls.slice(calls.indexOf("export async function callBarred"),
+            calls.indexOf("async function hopeCallBarred"));
+        ok(barred.length > 200, "there is no one reader for what shuts a Call");
+        ok(/isEclipse\(\)/.test(barred) && /overflowBlocksCalls\(\)/.test(barred),
+            "the shared reader does not know about the Eclipse or the overflow's Silence");
+        ok(/if \(despair\)[\s\S]{0,200}classTrial/.test(barred),
+            "the Class Trial rule is not the despair side's alone - that asymmetry is T-1's "
+            + "decision");
+        ok(/isDeceased\(actor\)/.test(barred), "the dead can still spend");
+
+        const sheet = stripComments(sources.get("sheet.mjs") ?? "");
+        // To the next top-level function, not a fixed number of characters: the
+        // confirmation is a hundred lines down and a 3000-character window stopped
+        // short of it, so the order assertions below compared against -1.
+        const run = sheet.slice(sheet.indexOf("async function runCall"),
+            sheet.indexOf("function roomBlockFor"));
+        ok(/const barred = await callBarred\(actor, \{ despair \}\);/.test(run),
+            "the sheet does not ask before it starts asking the player questions");
+        ok(run.indexOf("callBarred(actor") < run.indexOf("confirmCall("),
+            "the menu is asked after the confirmation, which is where it was");
+        ok(run.indexOf("callBarred(actor") < run.indexOf("monokumaPool(actor"),
+            "the price is read before the question that can make it irrelevant");
+    }],
+
+    ["R83 - a deferred assembly remembers its scene, and is not cleared until it can be held", async () => {
+        /*
+         * CALL-18, 20.09. `runPendingGather` cleared the order first - deliberately,
+         * so a throw could not fire it twice - and then called `gatherEveryone`, which
+         * looked the room up on `canvas.scene`: the CURRENT map of whichever GM is
+         * primary when the order ripens. That is not necessarily the GM who called it.
+         * When the region was not found the call warned, returned 0, and the order was
+         * already gone: six Despair for an assembly that never happened, and there is
+         * no repair anywhere in the module - `gatherEveryone` is not on `game.drpg`.
+         */
+        const effects = stripComments(new Map(await otherSources()).get("call-effects.mjs") ?? "");
+
+        const schedule = effects.slice(effects.indexOf("export async function scheduleGather"),
+            effects.indexOf("export async function runPendingGather"));
+        ok(/sceneId: scene\.id/.test(schedule),
+            "the order does not remember which scene its room is on");
+
+        const run = effects.slice(effects.indexOf("export async function runPendingGather"),
+            effects.indexOf("export async function gatherEveryone"));
+        ok(/game\.scenes\.get\(order\.sceneId\)/.test(run),
+            "the order is carried out on whichever scene this GM is looking at");
+        // `lastIndexOf`: the refusal branch does its own clear, and the one that
+        // matters here is the last - the clear standing in front of the work.
+        ok(run.indexOf("if (!region)") < run.lastIndexOf("writeGather(null)"),
+            "the order is cleared before anybody has checked that it can be held");
+        ok(/gatherRoomGone/.test(run),
+            "a room that has gone is cleared in silence, so the GM never learns why nothing "
+            + "happened");
+        ok(/gatherEveryone\(order\.room, scene\)/.test(run),
+            "the scene is worked out and then not passed on");
+
+        const gather = effects.slice(effects.indexOf("export async function gatherEveryone"));
+        ok(/gatherEveryone\(room, onScene = null\)/.test(gather),
+            "the scene cannot be handed to it, so a deferred assembly has no way to say where");
+        ok(/\[\.\.\.scene\.tokens\]/.test(gather),
+            "the cast is read off the canvas, which only holds the scene somebody is looking at");
+        ok(!/canvas\.tokens\.placeables/.test(gather),
+            "the canvas reading is back");
     }]
 ];
 
@@ -6116,6 +6271,8 @@ const LITERAL_KEYS = [
     // handed to the player - none of which a GM ever sees.
     "DRPG.Hud.nowPlaying", "DRPG.Advance.offerTitle", "DRPG.Advance.offered",
     "DRPG.Advance.offerTooltip", "DRPG.Advance.offerFailed",
+    // CALL-18: said on the one road where an assembly cannot be held at all.
+    "DRPG.Calls.gatherRoomGone",
     // MM-02. Said by a button that now answers Enter, so an empty field is a
     // keystroke away rather than a deliberate click.
     "DRPG.Monocub.giveAtLeast",

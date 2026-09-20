@@ -3430,11 +3430,28 @@ function attachActionDelegate(app, element) {
 /** Confirm and pay for a Hope Call or a Despair Call. */
 async function runCall(actor, key, kind) {
     const { HOPE_CALLS, DESPAIR_CALLS } = await import("./config.mjs");
-    const { confirmCall, spendHopeCall, spendDespairCallFor, hopeHeld } = await import("./calls.mjs");
+    const { confirmCall, spendHopeCall, spendDespairCallFor, hopeHeld, callBarred } =
+        await import("./calls.mjs");
 
     const despair = kind === "despair";
     const call = despair ? DESPAIR_CALLS[key] : HOPE_CALLS[key];
     if (!call) return;
+
+    /*
+     * WHAT SHUTS THE WHOLE MENU IS ASKED FIRST (CALL-17, 20.09).
+     *
+     * An Eclipse, the overflow's Silence, a Class Trial for a Monokuma, a dead
+     * student: all four were only asked inside the spenders, which this function
+     * reaches after the target picker and the confirmation. So the answer to "may I
+     * do this at all" arrived three windows late, and the player had by then chosen
+     * a victim and read a price. `callBarred` is the same reader the spenders use -
+     * see the note on it for why they go on asking as well.
+     */
+    const barred = await callBarred(actor, { despair });
+    if (barred) {
+        ui.notifications.warn(barred);
+        return;
+    }
 
     /*
      * TRAP 102, AND IT HAS TO BE THE FIRST THING IN THIS FUNCTION.

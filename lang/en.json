@@ -1923,6 +1923,7 @@
         "other": "The motive is announced. {n} times of day on the clock."
       },
       "freeShort": "Free",
+      "gatherRoomGone": "The assembly could not be held: \"{room}\" is not a room on that scene any more. The order has been cleared - the Despair it cost is not coming back, and the cast will have to be moved by hand.",
       "gatherTitle": "Public Announcement",
       "gatherBanner": "AN ANNOUNCEMENT FROM MONOKUMA",
       "gatherBody": "Everyone to {room}, at the start of the next time of day.",

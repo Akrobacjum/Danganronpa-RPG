@@ -366,7 +366,7 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
  * @param {string} userId  Which Monokuma is paying.
  * @param {string} callKey Key from DESPAIR_CALLS.
  */
-export async function spendDespairCall(userId, callKey) {
+export async function spendDespairCall(userId, callKey, { announce: post = true } = {}) {
     const call = DESPAIR_CALLS[callKey];
     if (!call) {
         ui.notifications.error(game.i18n.format("DRPG.Despair.unknownCall", { key: callKey }));
@@ -382,6 +382,29 @@ export async function spendDespairCall(userId, callKey) {
     }
 
     await adjustDespair(userId, -call.cost);
+
+    /*
+     * ONE PURCHASE, ONE CARD, AND IT COMES AFTER THE EFFECT (CALL-13, 20.09).
+     *
+     * This card used to be posted unconditionally, one line after the pool was
+     * charged and BEFORE `applyCall` had run - while `spendDespairCallFor` posts
+     * its own public card afterwards with the same label on it. So every Despair
+     * Call bought from a sheet posted two cards, the first of them out before
+     * anybody knew whether the Call had landed; on a failure the pool is handed
+     * back and the Monokuma warned privately, and the table kept a public receipt
+     * for a purchase that did not happen. `refusalBeforePaying` removed the common
+     * causes and cannot remove the class: `applyCall` can still throw, which is
+     * what the catch two files over is for.
+     *
+     * A FLAG, NOT A SECOND FUNCTION, AND IT DEFAULTS TO TRUE.
+     * `game.drpg.spendDespairCall` is a documented API that pays and tells the
+     * table, and a bare API spend has no second card to carry the price. The road
+     * through `spendDespairCallFor` passes false and folds the price sentence into
+     * the card it already posts - the one that has always carried the Blood popup
+     * and the despairCall sound, so the silent copy of it was what the table saw
+     * first.
+     */
+    if (!post) return true;
 
     // The announcement must never be able to swallow the effect. Despair has
     // already been paid at this point; if the chat card fails, the caller still

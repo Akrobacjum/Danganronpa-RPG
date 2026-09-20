@@ -19,7 +19,8 @@ import { resourceValue, resourceMax } from "./character.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
 import { allProjects, isComplete, isFrozen } from "./projects.mjs";
 import {
-    announce, whisperToOwner, dialogContent, log, error, plural, cardHead, isPrimaryGm, esc} from "./utils.mjs";
+    announce, whisperToOwner, dialogContent, log, warn, error, plural, cardHead, isPrimaryGm,
+    esc} from "./utils.mjs";
 
 /** Let the victim of a Call know what has been done to them. */
 async function tell(actor, key) {
@@ -791,7 +792,14 @@ async function writeGather(record) {
 export async function scheduleGather(room, by = null) {
     if (!game.user.isGM) return null;
 
-    if (!canvas?.scene?.regions?.find(r => r.name === room)) {
+    /* THE ORDER REMEMBERS ITS SCENE (CALL-18, 20.09). The room is a REGION on one
+       scene, and the order is carried out later by whichever GM is primary then -
+       who may be looking at another scene entirely. Without this the assembly was
+       looked for on that GM's current map, was not found, and the order had already
+       been cleared. Resolved here, where the room has just been checked against the
+       map the GM is actually working on. */
+    const scene = canvas?.scene ?? null;
+    if (!scene?.regions?.find(r => r.name === room)) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room }));
         return null;
     }
@@ -800,6 +808,7 @@ export async function scheduleGather(room, by = null) {
     const clock = getClock();
     const record = {
         room,
+        sceneId: scene.id,
         by: String(by ?? ""),
         chapter: clock.chapter,
         session: clock.session,
@@ -892,9 +901,35 @@ export async function runPendingGather() {
     // would hand them the assembly and then a free window to walk out of it.
     if (clock.eclipse === true) return null;
 
+    /*
+     * NOTHING IS CLEARED UNTIL IT CAN BE DONE (CALL-18, 20.09).
+     *
+     * This cleared the order first, on purpose - an order that throws half way
+     * through must not fire again on the next time of day - and then called
+     * `gatherEveryone`, which looks the room up on `canvas.scene`: THIS GM's current
+     * map. The order is carried out by whoever is primary when it ripens, and that
+     * is not necessarily the GM who called it, nor a GM looking at the right scene.
+     * When the region was not found the call warned, returned 0, and the order was
+     * already gone: six Despair for an assembly that never happened, with no repair
+     * anywhere in the module.
+     *
+     * So the scene is resolved from the order and checked BEFORE the clear. A scene
+     * or a region that has been deleted since is the one case where the order cannot
+     * be carried out at all; it is cleared and said out loud rather than left to
+     * fire into nothing every time of day for the rest of the season.
+     */
+    const scene = order.sceneId ? game.scenes.get(order.sceneId) : (canvas?.scene ?? null);
+    const region = scene?.regions?.find(r => r.name === order.room) ?? null;
+    if (!region) {
+        await writeGather(null);
+        ui.notifications.warn(game.i18n.format("DRPG.Calls.gatherRoomGone", { room: order.room }));
+        warn(`Assembly in "${order.room}" could not be held: the room is not on that scene any more.`);
+        return null;
+    }
+
     await writeGather(null);
 
-    const moved = await gatherEveryone(order.room);
+    const moved = await gatherEveryone(order.room, scene);
     await announce({
         flags: { [MODULE_ID]: {
             sfx: { key: "publicAnnouncement", gm: true },
@@ -921,10 +956,16 @@ export async function runPendingGather() {
  * inside the region with no path to block, which is exactly what Monokuma's
  * announcement does to the cast.
  */
-export async function gatherEveryone(room) {
-    if (!game.user.isGM || !canvas?.scene) return 0;
+export async function gatherEveryone(room, onScene = null) {
+    /* THE SCENE IS AN ARGUMENT NOW (CALL-18, 20.09), and it defaults to this
+       client's own. The two callers that pass nothing - the immediate branch of
+       Public Announcement, and a body discovery - both run on the client that has
+       just chosen the room or found the body, so their own view IS the right answer.
+       A DEFERRED assembly is the case that is not: see `runPendingGather`. */
+    const scene = onScene ?? canvas?.scene ?? null;
+    if (!game.user.isGM || !scene) return 0;
 
-    const region = canvas.scene.regions.find(r => r.name === room);
+    const region = scene.regions.find(r => r.name === room);
     if (!region) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room }));
         return 0;
@@ -939,10 +980,12 @@ export async function gatherEveryone(room) {
     // front of the whole cast - reproduced on 16.09 - and the body discovery itself moved
     // the victim, and every earlier chapter's dead, off the spot they were found on. A
     // Monocub is dead and back on the board, so a Monocub still comes.
-    const tokens = canvas.tokens.placeables
+    /* FROM THE SCENE'S DOCUMENTS, NOT FROM THE CANVAS (CALL-18). `canvas.tokens`
+       only holds the scene this client is LOOKING at, which is the whole defect one
+       level up; `scene.tokens` is the same cast whether or not anybody is looking. */
+    const tokens = [...scene.tokens]
         .filter(t => t.actor?.type === "character" && !isMonokuma(t.actor))
-        .filter(t => !isDeceased(t.actor) || isMonocub(t.actor))
-        .map(t => t.document);
+        .filter(t => !isDeceased(t.actor) || isMonocub(t.actor));
 
     if (!tokens.length) return 0;
 

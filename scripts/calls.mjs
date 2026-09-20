@@ -42,6 +42,46 @@ export function hopeHeld(actor) {
  *
  * @returns {Promise<boolean>}
  */
+/**
+ * Is this Call shut before anything is chosen or paid for (CALL-17, 20.09)?
+ *
+ * THE SAME ANSWER, ASKED AT THE DOOR AND AT THE BOUNDARY. These rules were only
+ * ever asked inside `spendHopeCall` and `spendDespairCallFor`, which the sheet
+ * reaches AFTER the target picker and the confirmation - so a player under an
+ * Eclipse, a Monokuma in a Class Trial or a dead student picked a target, read the
+ * price, pressed Spend, and only then learned the menu had been shut all along.
+ * Three windows to be told no.
+ *
+ * Exported so the sheet can ask it first. The two spenders go on asking it too, and
+ * that is not belt and braces: the sheet is one road in, `game.drpg` is another, and
+ * the world can move between the question and the purchase.
+ *
+ * WHICH RULES ARE WHOSE. The Eclipse and death fall on both kinds. Overflow's
+ * Silence is the weather and falls on everybody, so it is asked for both. The Class
+ * Trial shuts DESPAIR Calls only - that asymmetry is T-1's decision, written out in
+ * `spendDespairCallFor` - and a Monokuma is deceased by definition, which is why the
+ * dead test is not asked of one.
+ *
+ * @returns {Promise<string|null>} the sentence to say, or null when nothing bars it.
+ */
+export async function callBarred(actor, { despair = false } = {}) {
+    if (isEclipse()) return game.i18n.localize("DRPG.Eclipse.actionsLocked");
+
+    const { overflowBlocksCalls } = await import("./overflow.mjs");
+    if (overflowBlocksCalls()) return game.i18n.localize("DRPG.Overflow.silenced");
+
+    if (despair) {
+        if (getClock().phase === "classTrial") return game.i18n.localize("DRPG.Trial.callsLocked");
+        return null;
+    }
+
+    const { isDeceased } = await import("./chapter.mjs");
+    if (isDeceased(actor)) {
+        return game.i18n.format("DRPG.Chapter.deadCannotAct", { name: actor?.name ?? "?" });
+    }
+    return null;
+}
+
 async function hopeCallBarred(actor) {
     // The Eclipse is placement-only - see the guard in action-rolls.mjs's
     // `performAction` for the full reasoning. A Call is not a room
@@ -272,8 +312,10 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
             return null;
         }
 
-        const { spendDespairCall } = await import("./despair.mjs");
-        const ok = await spendDespairCall(user.id, key);
+        const { spendDespairCall, getDespair, poolLabel } = await import("./despair.mjs");
+        // `{ announce: false }`: this road posts its own card after the effect, and
+        // two cards for one purchase is what CALL-13 was.
+        const ok = await spendDespairCall(user.id, key, { announce: false });
         if (!ok) return null;
 
         // Despair is now spent. Applying the effect is separated from the
@@ -318,8 +360,17 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
          * an empty card cannot happen. It wears Blood, because a Despair Call
          * is spent Despair.
          */
+        /* AND THE PRICE IS ON THIS CARD NOW (CALL-13). It used to be on a second,
+           silent card posted by `spendDespairCall` before the effect ran - see the
+           note there. Read where the card is built, which is after the refund
+           branch above, so the figure is the pool as it stands once the purchase
+           has actually held. `poolLabel` rather than the account's name, because
+           that is what the Despair bar calls it. */
         const body = `${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
-                      ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}`;
+                      ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
+                      <p><em>${game.i18n.format("DRPG.Despair.spent", {
+                          name: esc(poolLabel(user)), cost: call.cost, left: getDespair(user.id)
+                      })}</em></p>`;
         await announce({
             content: `<h3>${esc(call.label)}</h3>${body}`,
             flags: { [MODULE_ID]: { popupTone: "fear", sfx: { key: "despairCall", gm: true } } }
@@ -338,16 +389,60 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
  * ========================================================================== */
 
 /**
- * Confirm a call before paying for it, with room to say what it is aimed at.
- * @returns {Promise<string|null>} the note, or null if cancelled.
- */
-/**
- * Confirm a Call. Just the effect, the price, and what it will be applied to -
- * no free-text box. The Call does the thing; explaining it is what the table is
- * for.
+ * Refuse a Call whose note is empty, before the window can start closing (CALL-12).
  *
- * @returns {Promise<""|null>} "" when confirmed, null when cancelled. The empty
- *   string keeps the caller's `note` plumbing intact without asking for one.
+ * A BUTTON CALLBACK CANNOT SAY NO. Read from Foundry 14.365's own source,
+ * client/applications/api/dialog.mjs:273:
+ *
+ *     const result = (await button?.callback?.(event, target, this)) ?? button?.action;
+ *
+ * so a callback returning `null` comes back as the button's own name - the player's
+ * note arrived at the GM as the word "spend" - and line 276 closes the window
+ * whatever the callback returned, because DEFAULT_OPTIONS sets
+ * `form: { closeOnSubmit: true }`. The player was warned, the window shut, and the
+ * GM got an approval request whose entire body was one machine word, on the one
+ * pair of Calls where the sentence IS the request.
+ *
+ * THE ONLY WAY TO KEEP THE WINDOW OPEN IS TO STOP THE SUBMIT FROM STARTING.
+ * ApplicationV2 delegates every `[data-action]` click from one listener on the app
+ * root in the bubble phase, and DialogV2 also listens for `submit` on the form; a
+ * capture listener on the button itself runs before both. All three stops are
+ * load-bearing: `stopImmediatePropagation` for anything else on this button,
+ * `stopPropagation` for the root's delegated listener, and `preventDefault` for the
+ * implicit submission a submit button performs by itself.
+ *
+ * `type: "button"` IS NOT THE ANSWER - it still closes the window, because the
+ * action dispatch calls `_onSubmit` whatever the button's type. Throwing is not the
+ * answer either: a throw inside submit leaves the window refusing every button
+ * including its own X, which investigation.mjs has already paid for.
+ */
+function wireNoteGate(dialog, call) {
+    if (!call.needsGm) return;
+    const spend = dialog.element?.querySelector('button[data-action="spend"]');
+    const box = dialog.element?.querySelector("[name=callNote]");
+    if (!spend || !box) return;
+
+    spend.addEventListener("click", event => {
+        if (box.value.trim()) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        ui.notifications.warn(game.i18n.localize("DRPG.Calls.needNote"));
+        box.focus();
+    }, { capture: true });
+}
+
+/**
+ * Confirm a Call: the effect, the price, what it will be applied to - and, for the
+ * two that wait for a ruling, the sentence that IS the request.
+ *
+ * Two doc blocks used to stand here saying different things, one of them from
+ * before the note box existed ("no free-text box"). This is the contract:
+ *
+ * @returns {Promise<string|null>} the note for a Call that needs one, `""` for
+ *   every other Call, and `null` for a cancel - which now includes a needsGm Call
+ *   whose box is empty, because a request nobody can rule on and no request are
+ *   the same thing (Dawid, 29.08).
  */
 export async function confirmCall(call, { kind = "hope", held = 0, choice = {} } = {}) {
     const affordable = held >= call.cost;
@@ -384,33 +479,30 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {} }
                 // meant the only way to learn you could not pay was to press it.
                 disabled: !affordable,
                 /*
-                 * THE NOTE IS THE REQUEST (Dawid, 29.08).
-                 *
-                 * For a Call that waits for a ruling, an empty box is not a
-                 * request - it is a player asking the GM to guess what they
-                 * meant. Returning `null` here cancels rather than sends, which
-                 * is the same answer pressing Cancel gives, because a request
-                 * nobody can rule on and no request are the same thing.
+                 * THE NOTE IS THE REQUEST (Dawid, 29.08), and this is only the
+                 * READER of it now - `wireNoteGate` above refuses an empty box
+                 * before the submit starts, because a callback cannot refuse
+                 * anything. See the note on it for what was measured.
                  */
-                callback: (event, button, dialog) => {
-                    if (!call.needsGm) return "";
-                    const written = dialog.element
-                        .querySelector("[name=callNote]")?.value.trim() ?? "";
-                    if (!written) {
-                        ui.notifications.warn(game.i18n.localize("DRPG.Calls.needNote"));
-                        return null;
-                    }
-                    return written;
-                }
+                callback: (event, button, dialog) => call.needsGm
+                    ? (dialog.element.querySelector("[name=callNote]")?.value.trim() ?? "")
+                    : ""
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: !affordable }
         ],
+        render: (event, dialog) => wireNoteGate(dialog, call),
         rejectClose: false
     });
 
-    // `null` from the callback above means "they left the box empty", which is
-    // a cancel. Anything else is the note, and for every other Call it is "".
-    return (result === "cancel" || result === null || result === undefined) ? null : result;
+    if (result === "cancel" || result === null || result === undefined) return null;
+    /* AND ASKED AGAIN WHERE NOTHING ABOUT THE WINDOW CAN LIE TO IT (CALL-12). The
+       gate above lives in the interface, and an empty string does not trip
+       `?? button.action` - that operator fires on null and undefined only - so
+       without this line an empty note could still travel to the GM as an empty
+       blockquote. A needsGm Call with nothing written is the same answer Cancel
+       gives. */
+    if (call.needsGm && !String(result).trim()) return null;
+    return result;
 }
 
 /**
