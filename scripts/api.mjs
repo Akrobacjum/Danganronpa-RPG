@@ -71,6 +71,7 @@ import {
     diagnoseWindows, traceClicks, fileSizes,
 } from "./diagnostics.mjs";
 import { diagnoseLive } from "./live.mjs";
+import { diagnoseOwnRings } from "./own-ring.mjs";
 import { unregisterCriticalRule } from "./critical.mjs";
 import {
     openStateExplainer, openDespairExplainer, openStatusExplainer, openProjectsExplainer
@@ -969,6 +970,7 @@ export const DrpgApi = {
      *  rebuild is being held back by a field somebody is typing in. Written for
      *  the diagnostics window and reachable from nowhere until this line. */
     diagnoseLive,
+    diagnoseOwnRings,
 
     /** Point at a pixel on the map and be told what drew it: the room
      *  outline (and how long that piece of it is), the doorway glow (and its

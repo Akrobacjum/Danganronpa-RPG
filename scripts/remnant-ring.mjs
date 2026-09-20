@@ -30,7 +30,7 @@ import { TRUTH_BULLET_FLAGS, isIdentified } from "./truth-bullets.mjs";
 // there - see `myTruthBulletFor`. visibility.mjs does not reach back into this
 // file, so the static import is safe.
 import { myBulletForRemnant } from "./visibility.mjs";
-import { debug, error, esc} from "./utils.mjs";
+import { debug, error, esc, cssColour } from "./utils.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 /* The room border's own hairline. A ring under this theme is the same seam as the
    border the token is standing inside, so it takes the same number from the same place
@@ -377,15 +377,14 @@ function myTruthBulletFor(tokenDoc) {
 function colourOf(type) {
     const name = TYPE_TOKEN[type];
     if (!name) return FALLBACK;
-    try {
-        const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-        if (!raw) return FALLBACK;
-        // `Color.from` handles "#rrggbb" and "rgb(r, g, b)" alike, which matters
-        // because the palette holds both.
-        return foundry.utils.Color.from(raw).valueOf();
-    } catch {
-        return FALLBACK;
-    }
+    /* THROUGH `cssColour`, AND THE NOTE THAT USED TO BE HERE WAS WRONG (20.09). It
+       said `Color.from` handles "#rrggbb" and "rgb(r, g, b)" alike; measured on
+       14.365 it returns NaN for `rgb(...)`, for a named colour and for a hex string
+       with a space on it, and it reads "#f82" as 0xf82. This module's palette is
+       six-digit hex throughout, so these rings have been drawing the right colours -
+       but the claim was load-bearing for the next token somebody adds. See the note
+       on `cssColour` for what was measured. */
+    return cssColour(name, FALLBACK);
 }
 
 function repaintAll() {

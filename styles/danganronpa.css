@@ -2457,7 +2457,6 @@ body.drpg-pixel-font [contenteditable] {
     background-image: none;
     filter: drop-shadow(0 0 3px lightgray);
 }
-
 /* "This character has not been set up yet."
    ------------------------------------------------------------------------
    The only one of the name-row buttons that appears because something is
@@ -15220,4 +15219,41 @@ body.drpg-theme-monokuma-legacy {
     --font-size-48: calc(3rem * var(--drpg-legacy-scale, 1));
     --font-size-64: calc(4rem * var(--drpg-legacy-scale, 1));
     --font-size-80: calc(5rem * var(--drpg-legacy-scale, 1));
+}
+
+/* ==========================================================================
+   YOUR OWN TOKEN WEARS THE HOUR (W-6, Dawid 18.09)
+   --------------------------------------------------------------------------
+   "Zeton gracza ginie w pokoju" - a bedroom holds a bed, a desk, two Remnants
+   and four students, all drawn at the same size out of the same tileset, and
+   the one token you may move looks exactly like the three you may not. So the
+   viewer's own token is ringed, in the colour of the time of day (own-ring.mjs).
+
+   THE HOUR IS DECLARED HERE FOR MONOKUMA LEGACY, and that is the whole reason
+   this block exists: `--drpg-glass-accent` is derived from `data-drpg-time` only
+   under Stained Glass (see stained-glass.css), so on a Legacy client it holds
+   the afternoon gold all day. The five values are the glass's own hours -
+   `--drpg-sg-morning` and its four siblings - written out rather than read,
+   because those tokens are declared inside that theme's own body rule and do
+   not resolve here.
+
+   UNDER THE GLASS THE RING READS THE ACCENT INSTEAD, and the rule below says so
+   in CSS as well as in the JS: same colour as the border of the room the token
+   is standing in, Eclipse included, with no second copy of that logic.
+   Equal specificity to the five above, so it wins on source order - which is
+   why it is written after them and must stay there.
+   ========================================================================== */
+body[data-drpg-time="morning"] { --drpg-own-ring: #bfe3ff; }
+body[data-drpg-time="noon"] { --drpg-own-ring: #7fe4ff; }
+body[data-drpg-time="afternoon"] { --drpg-own-ring: #ffd38f; }
+body[data-drpg-time="evening"] { --drpg-own-ring: #ff8245; }
+body[data-drpg-time="night"] { --drpg-own-ring: #7f8cff; }
+/* An Eclipse is not an hour, and on this map it is the loudest thing there is. */
+body.drpg-eclipse { --drpg-own-ring: #a678ff; }
+body.drpg-theme-stained-glass { --drpg-own-ring: var(--drpg-glass-accent); }
+/* A name that stands still is still a name you can read, which is the whole
+   point of the line; the scroll is how a long one finishes its sentence. */
+body.drpg-reduced-motion .drpg-hud-track > span { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+    .drpg-hud-track > span { animation: none; }
 }

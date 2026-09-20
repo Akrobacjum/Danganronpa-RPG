@@ -3627,6 +3627,65 @@ const REGRESSIONS = [
             "the warning is worked out after the markup it belongs in");
         ok(/now\.selfInflicted \?[\s\S]{0,120}side\.killer/.test(body),
             "a self-inflicted death is reported as missing a killer, which it never had");
+    }],
+
+    ["R77 - your own token is ringed, and only yours", async () => {
+        /*
+         * W-6 (Dawid, 18.09): a player's token is lost in a room - a bedroom holds a
+         * bed, a desk, two Remnants and four students, all drawn at the same size out
+         * of the same tileset, and the one token you may move looks like the three you
+         * may not.
+         *
+         * A CIRCLE, and that is the one thing this test is really about: the Remnant
+         * markers are SQUARE pixel frames, so round means "yours" and square means
+         * "evidence" with no legend to read. A ring that became a rectangle would
+         * duplicate the other marker exactly.
+         */
+        const sources = new Map(await otherSources());
+        const own = stripComments(sources.get("own-ring.mjs") ?? "");
+        ok(own.length > 500, "own-ring.mjs is gone, so nothing marks the viewer's token");
+        ok(/drawCircle\(/.test(own), "the own-token ring is not a circle any more");
+        ok(!/drawRect\(/.test(own),
+            "the ring draws a rectangle, which is the Remnant marker's own shape");
+
+        const mine = own.slice(own.indexOf("function isMine"), own.indexOf("function hourColour"));
+        ok(/game\.user\?\.character/.test(mine),
+            "the ring no longer prefers the character the viewer is playing");
+        ok(/!game\.user\?\.isGM && actor\.isOwner/.test(mine),
+            "a Gamemaster owns the whole cast, so ownership alone would ring every token "
+            + "on their screen");
+
+        ok(/data-drpg-time/.test(own),
+            "the ring does not follow the hour, which is the colour it is drawn in");
+        ok(/seamWidth\(\)/.test(own),
+            "the glass ring is not the curtain's own hairline, so it fattens as you zoom");
+        ok(/addChildAt\(new PIXI\.Container\(\), 0\)/.test(own),
+            "the ring is not the token's bottom overlay any more");
+
+        const module = stripComments(sources.get("module.mjs") ?? "");
+        ok(/registerOwnRing/.test(module), "the ring is never registered");
+        ok(module.indexOf("registerRemnantRings") < module.indexOf("registerOwnRing"),
+            "the own-token ring registers before the Remnant rings");
+
+        /*
+         * AND THE FIVE HOURS ARE DECLARED FOR MONOKUMA LEGACY, because
+         * `--drpg-glass-accent` is derived from the hour only under Stained Glass - on
+         * a Legacy client it holds the afternoon gold all day. The glass rule has the
+         * same specificity as the five, so it wins on SOURCE ORDER: that is read here
+         * rather than trusted, because moving it up is a one-line edit that would pin
+         * every Stained Glass ring to whatever the last hour rule said.
+         */
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()))
+            .replace(/\/\*[\s\S]*?\*\//g, " ");
+        for (const hour of ["morning", "noon", "afternoon", "evening", "night"]) {
+            ok(css.includes(`body[data-drpg-time="${hour}"] { --drpg-own-ring:`),
+                `Monokuma Legacy has no ring colour for the ${hour}`);
+        }
+        const glassRule = css.indexOf("body.drpg-theme-stained-glass { --drpg-own-ring:");
+        const lastHour = css.indexOf('body[data-drpg-time="night"] { --drpg-own-ring:');
+        ok(glassRule > lastHour,
+            "the glass's own accent is overridden by the hour rules - it has to come after "
+            + "them, since they have the same specificity");
     }]
 ];
 

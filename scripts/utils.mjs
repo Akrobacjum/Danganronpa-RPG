@@ -616,6 +616,65 @@ export function guardTextFields(root) {
     return true;
 }
 
+
+/**
+ * One palette token, as a number PIXI can be handed (W-6, 20.09).
+ *
+ * `foundry.utils.Color.from` IS NOT THE ANSWER, and the comment that said it was
+ * cost this the first time it was measured. On 14.365, asked directly:
+ *
+ *     "#ff8245"              -> 0xff8245      correct
+ *     "#f82"                 -> 0xf82         WRONG, and silently: three-digit hex
+ *                                             is not expanded, so it comes out as a
+ *                                             near-black blue
+ *     "rgb(255, 130, 69)"    -> NaN
+ *     "rgba(255, 130, 69, 1)"-> NaN
+ *     "  #ff8245  "          -> NaN           a trailing space is enough
+ *     "orange"               -> NaN
+ *
+ * A NaN reaches PIXI as a colour and draws something nobody chose. The module's
+ * palette happens to be six-digit hex throughout, which is why nothing has gone
+ * wrong yet - but `--drpg-glass-accent` resolves to `rgb(87, 182, 255)` on a live
+ * client, because the browser serialises a computed colour its own way, and that is
+ * the token the Remnant rings and the own-token ring both want.
+ *
+ * READ OFF `body` FIRST, AND THAT ORDER IS THE SECOND THING THIS COST (20.09).
+ * Custom properties inherit, so `body` already carries everything `:root` declares -
+ * but the reverse is not true, and the palette is declared in both places: `:root`
+ * holds the defaults and `body` holds the overrides. `--drpg-glass-accent` is the
+ * case. Measured on a live client during an Investigation: `html` said
+ * `rgb(255, 211, 143)`, the afternoon default from `:root`, while `body` said
+ * `rgb(87, 182, 255)`, the phase the table was actually in. A reader that asked the
+ * document element first drew every ring in yesterday's colour and looked right
+ * doing it. `documentElement` stays as the fallback for a token somebody declares
+ * there and nowhere else.
+ */
+export function cssColour(name, fallback = 0x8a8296) {
+    try {
+        const raw = (getComputedStyle(document.body).getPropertyValue(name)
+            || getComputedStyle(document.documentElement).getPropertyValue(name)).trim();
+        if (!raw) return fallback;
+
+        const hex = raw.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+        if (hex) {
+            const digits = hex[1].length === 3
+                ? hex[1].split("").map(c => c + c).join("")
+                : hex[1];
+            return Number.parseInt(digits, 16);
+        }
+
+        const rgb = raw.match(/^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i);
+        if (rgb) {
+            const [r, g, b] = rgb.slice(1, 4).map(n => Math.max(0, Math.min(255, Math.round(Number(n)))));
+            return (r << 16) + (g << 8) + b;
+        }
+
+        return fallback;
+    } catch {
+        return fallback;
+    }
+}
+
 /**
  * Put the guard on every window this module opens.
  *
