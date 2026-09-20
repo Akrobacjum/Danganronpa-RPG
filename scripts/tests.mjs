@@ -3177,6 +3177,204 @@ const REGRESSIONS = [
             equal((code.match(/{/g) ?? []).length, (code.match(/}/g) ?? []).length,
                 `${href} does not balance its braces`);
         }
+    }],
+
+    ["R65 - a window that closes to come back does not answer its opener first", async () => {
+        /*
+         * F7, 20.09. `DialogV2.wait` resolves the moment its window closes, whoever
+         * closed it - so a row button that closed the Players window, ran a
+         * procedure and opened the window again did all of it OUTSIDE the promise
+         * the GM panel was holding. The panel came back over the death dialog the
+         * row had just opened.
+         *
+         * "The row reopens the window" is TRUE on the defect, which is why this
+         * reads the SHAPE: one promise, built with no `await` in front of it, and
+         * returned by the function that owns the window.
+         */
+        const sources = new Map(await otherSources());
+        const live = stripComments(sources.get("live.mjs") ?? "");
+        const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
+
+        const at = live.indexOf("export function handOff");
+        ok(at > 0, "handOff is gone from live.mjs, so every round trip is hand-rolled again");
+        const body = live.slice(at, live.indexOf("\nexport ", at + 10));
+        ok(body.length > 100, "handOff's body could not be read");
+        ok(!/\bawait\b/.test(body),
+            "handOff awaits the close, so the opener's promise resolves before the round "
+            + "trip is registered - which is the whole defect");
+        ok(/\.then\(/.test(body) && /\.catch\(/.test(body),
+            "handOff no longer builds the round trip in the same turn, or it can reject");
+
+        const row = panel.slice(panel.indexOf("const wireRow ="),
+            panel.indexOf("const chosen = await tableDialog"));
+        ok(row.length > 200, "wireRow has moved or gone");
+        ok(row.includes("handOff("), "the row buttons do not hand over");
+        ok(!/dialog\.close\(\)/.test(row),
+            "a row button still closes the window itself, so the close resolves the opener");
+
+        const tail = panel.slice(panel.indexOf("const chosen = await tableDialog"));
+        ok(tail.indexOf("if (roundTrip) return roundTrip;") > 0,
+            "the round trip is not returned, so the GM panel reopens itself over it");
+        ok(tail.indexOf("if (roundTrip)") < tail.indexOf('chosen === "items"'),
+            "the answer is read before the handover, so a row press falls into the apply path");
+    }],
+
+    ["R66 - the Players window writes what it was told, and offers the Despair that is left", async () => {
+        /*
+         * F15, 20.09. Two halves of one mistake - reading the world once and using
+         * it later.
+         *
+         * The apply loop walked the roster the window OPENED with while the answer
+         * was built from the roster at the moment of Apply, so a character created
+         * while the window stood open got a row, was read, and was then skipped.
+         * And the donation controls were built from a string read once, so every
+         * redraw put back the figures of a pool that had already paid.
+         *
+         * `watch: { actors: true }` IS NOT NARROWED HERE, deliberately. live.mjs
+         * adds its `updateSetting` listener unconditionally and filters only when
+         * `watch.settings` is given, so an omitted filter is the WIDE net - and this
+         * window is built out of several of the module's settings.
+         */
+        const panel = stripComments(new Map(await otherSources()).get("gm-panel.mjs") ?? "");
+        const at = panel.indexOf("export async function applyAliveStates");
+        ok(at > 0, "applyAliveStates is gone, so the apply loop is back inside the window");
+        const body = panel.slice(at, panel.indexOf("\nasync function", at + 10));
+        ok(/Object\.entries\(chosen\)/.test(body),
+            "the apply loop is driven by something other than the answer it was given");
+        ok(!/\bstudents\b/.test(body),
+            "the apply loop reads the roster the window opened with again");
+        ok(/"silenced" in want/.test(body),
+            "a missing silence key reads as `false`, so a caller that only moves a state "
+            + "lifts a silence it was never asked about");
+        ok(/markDeceased\(/.test(body) && !/killCharacter\(/.test(body),
+            "the repair dropdown runs the whole death procedure again (F16)");
+
+        // The whole opener, not its head: `keepLive` is an argument to the
+        // `tableDialog` call, so a slice that stops at that call cannot see the watch.
+        const window = panel.slice(panel.indexOf("async function openWhoIsAliveDialog"),
+            panel.indexOf("export async function applyAliveStates"));
+        ok(/const buildDonors = \(\) =>/.test(window),
+            "the donation controls are built from a string read once");
+        ok(/const donors = buildDonors\(\);/.test(window),
+            "buildDonors exists but the rows do not call it, so nothing changed");
+        ok(/watch: \{ actors: true \}/.test(window),
+            "this window's live watch was narrowed - an omitted settings filter is the wide "
+            + "net, and the table is built out of several settings");
+    }],
+
+    ["R67 - a repair moves the flags and says nothing", async () => {
+        /*
+         * F16, 20.09. The Players window's dropdown is documented as the tool that
+         * "moves the two flags and nothing else" and it called `killCharacter` - the
+         * whole death procedure: the "A student is dead" card whispered to every GM
+         * and to the owners of everyone in a running incident, the death chapter
+         * stamped, this chapter's traces tied off, Stage 6 offered. And clearing the
+         * Monocub flag announced "X is no longer a Monocub" about students who never
+         * were one.
+         *
+         * THE ORDER INSIDE `killCharacter` IS READ TOO. Nothing else guards it, and
+         * the extraction is only reviewable if the sequence is stated: the bullets
+         * perish while the items still exist to be read, then the record, then who
+         * is told, then the chapter's traces, then Stage 6.
+         */
+        const sources = new Map(await otherSources());
+        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const cub = stripComments(sources.get("monocub.mjs") ?? "");
+
+        ok(/export async function markDeceased\(/.test(chapter),
+            "markDeceased is gone, so a repair has nothing quiet to call");
+        const mark = chapter.slice(chapter.indexOf("export async function markDeceased"),
+            chapter.indexOf("export async function killCharacter"));
+        ok(/FLAGS\.deceased/.test(mark) && /toggleStatusEffect\("dead"/.test(mark),
+            "markDeceased does not write the record and the token marker");
+        for (const loud of ["whisperToGms", "tieChapterTraces", "offerStageSix", "bulletsOf"]) {
+            ok(!mark.includes(loud), `markDeceased ${loud}s - it is meant to be the quiet half`);
+        }
+
+        const kill = chapter.slice(chapter.indexOf("export async function killCharacter"),
+            chapter.indexOf("export async function reviveCharacter"));
+        ok(kill.length > 400, "killCharacter has moved or gone");
+        ok(/await markDeceased\(actor\)/.test(kill),
+            "killCharacter writes the deceased flag itself again, so there are two answers "
+            + "to what deceased means");
+        const order = ["bulletsOf(", "markDeceased(", "whisperToGms(", "tieChapterTraces("];
+        for (let i = 1; i < order.length; i++) {
+            const before = kill.indexOf(order[i - 1]);
+            const after = kill.indexOf(order[i]);
+            ok(before > 0 && after > before,
+                `killCharacter's order broke: ${order[i - 1]} no longer comes before ${order[i]}`);
+        }
+
+        const set = cub.slice(cub.indexOf("export async function setMonocub"),
+            cub.indexOf("export async function setSilenced"));
+        ok(/const was = isMonocub\(actor\)/.test(set),
+            "setMonocub does not read what it is about to change");
+        ok(/if \(was === Boolean\(value\)\)/.test(set),
+            "setMonocub still announces a change it did not make");
+        ok(set.indexOf("unsetFlag") < set.indexOf("was === Boolean(value)"),
+            "the silence flag is now cleared only on a real change - a cub who stopped being "
+            + "one keeps their silence");
+    }],
+
+    ["R68 - Edit campaign offers the chapter the clock is actually on", async () => {
+        /*
+         * GMP-03, 20.09. Six options, 1 to 6, and ending chapter 6 writes chapter 7 -
+         * so with no option matching the browser reported the FIRST one, and Apply
+         * wrote it: a GM who opened this window to fix a typo in the campaign name
+         * rewound the campaign five chapters.
+         *
+         * The weaker assertions all pass on the defect: the options already carry
+         * `selected` when they match (it simply never matched), and
+         * CHAPTERS_PER_SEASON already appears. Only the widening and the coercion
+         * tell the fix from the bug.
+         */
+        const sources = new Map(await otherSources());
+        const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
+        const clockWin = panel.slice(panel.indexOf("export async function openClockDialog"));
+        const list = clockWin.slice(clockWin.indexOf("const stated"), clockWin.indexOf("const result"));
+        ok(list.length > 80, "the chapter list has moved or gone");
+        ok(/Math\.max\(CHAPTERS_PER_SEASON/.test(list),
+            "the chapter list is six long whatever the clock says, so a campaign past "
+            + "chapter 6 opens this window on chapter 1 and Apply writes it");
+        ok(/Number\.isFinite/.test(list),
+            "the length of that array comes straight out of a world setting");
+        ok(/n === now \?/.test(list),
+            "the selected test compares against the raw setting, so a chapter stored as a "
+            + "string widens nothing and matches nothing");
+
+        // AND THE RULE REACHES THE OTHER WINDOW WITH THE SAME CAP. A number input
+        // whose value is out of range fails constraint validation, so Apply there
+        // submitted nothing at all.
+        const season = stripComments(sources.get("season-setup.mjs") ?? "");
+        const field = season.slice(season.indexOf('name="chapter"'), season.indexOf('name="chapter"') + 240);
+        ok(/max="\$\{Math\.max\(CHAPTERS_PER_SEASON/.test(field),
+            "the Season setup window still caps its chapter field at six");
+    }],
+
+    ["R69 - the Eclipse warning fires on a clock that moved", async () => {
+        /*
+         * GMP-04, 20.09. The gate was `result.timeOfDay !== undefined`, and
+         * `timeOfDay` is a select this form always submits - so it was true on every
+         * Apply. A GM renaming the campaign during an Eclipse was told the clock had
+         * moved. That sentence is the module's only sign of an Eclipse silently
+         * refusing every murder, and a warning that cries on every Apply is one
+         * nobody reads.
+         */
+        const panel = stripComments(new Map(await otherSources()).get("gm-panel.mjs") ?? "");
+        const win = panel.slice(panel.indexOf("export async function openClockDialog"));
+        ok(!/result\.timeOfDay\s*!==\s*undefined/.test(win),
+            "the Eclipse warning is gated on a field the form always fills");
+        ok(/before\.timeOfDay/.test(win),
+            "the warning does not compare the time of day it wrote with the one it replaced");
+        const read = win.indexOf("const before = getClock()");
+        const write = win.indexOf("await setClock(");
+        const warn = win.indexOf("eclipseStillOn");
+        ok(read > 0 && write > read && warn > write,
+            "the clock is read for the comparison after it was written, or the warning moved "
+            + "in front of the write");
+        ok(!/before\.session/.test(win) && !/before\.phase/.test(win),
+            "the session counter or the phase joined the comparison - they are bookkeeping, "
+            + "not time");
     }]
 ];
 
@@ -9313,6 +9511,51 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.theme, was.theme);
             await game.settings.set(MODULE_ID, SETTINGS.uiScale, was.scale ?? 1);
             settings.applyTheme();
+            await settle();
+        }
+    }],
+
+    ["a repair moves somebody to dead without announcing a death", async () => {
+        /*
+         * F16 and F15 driven. The dropdown half of the Players window is a repair
+         * tool, and the two things a repair must not do are the two things it did:
+         * post the death card to the table and say "X is no longer a Monocub" about
+         * somebody who never was one.
+         *
+         * `applyAliveStates` is called directly - the window cannot be driven from
+         * here, and the function is exported for exactly this.
+         */
+        const panel = await import("./gm-panel.mjs");
+        const { isDeceased } = await import("./chapter.mjs");
+        const victim = studentActors()[0];
+        ok(victim, "no student to repair");
+
+        const wasDead = isDeceased(victim);
+        const said = [];
+        const info = ui.notifications.info.bind(ui.notifications);
+        ui.notifications.info = text => { said.push(String(text)); return null; };
+        const before = game.messages.size;
+
+        try {
+            if (wasDead) await (await import("./chapter.mjs")).reviveCharacter(victim);
+            const changed = await panel.applyAliveStates({ [victim.id]: { state: "dead" } });
+            await settle();
+
+            equal(changed, 1, "the repair reported no change");
+            ok(isDeceased(victim), "the repair did not mark the student dead");
+            equal(game.messages.size, before,
+                "the repair posted a card - a dropdown is not a death announcement");
+            ok(!said.some(t => /Monocub/i.test(t)),
+                `the repair talked about Monocubs: ${said.join(" | ")}`);
+
+            // AND THE BULLETS STAY. This is the half the window's own header
+            // promises: "moves the two flags and nothing else".
+            const { bulletsOf } = await import("./truth-bullets.mjs");
+            ok(Array.isArray(bulletsOf(victim)), "the bullets could not be read");
+        } finally {
+            ui.notifications.info = info;
+            const { reviveCharacter } = await import("./chapter.mjs");
+            if (!wasDead && isDeceased(victim)) await reviveCharacter(victim);
             await settle();
         }
     }]

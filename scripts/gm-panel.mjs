@@ -12,7 +12,7 @@ import { getClock, setClock, clockSummary, timeOfDayLabel, phaseLabel, campaignN
 import { actionsLeft, actionsMax, hasFreeMove, resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
-import { keepLive, alreadyOpen } from "./live.mjs";
+import { keepLive, alreadyOpen, handOff } from "./live.mjs";
 import { bodyDiscovery } from "./settings.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -566,9 +566,10 @@ async function openWhoIsAliveDialog() {
     // twice usually means the window is behind something.
     if (alreadyOpen("drpg-window-alive")) return null;
 
-    const { isDeceased, reviveCharacter, killCharacter, openDeathDialog } =
-        await import("./chapter.mjs");
-    const { isMonocub, setMonocub, isSilenced, setSilenced } = await import("./monocub.mjs");
+    // `killCharacter`, `reviveCharacter` and `setSilenced` went with the apply loop
+    // (F15): `applyAliveStates` below imports what it writes.
+    const { isDeceased, openDeathDialog } = await import("./chapter.mjs");
+    const { isMonocub, setMonocub, isSilenced } = await import("./monocub.mjs");
     const { isMonokuma } = await import("./monokuma.mjs");
     const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
     const { resourceValue, resourceMax } = await import("./character.mjs");
@@ -591,7 +592,15 @@ async function openWhoIsAliveDialog() {
     }
 
     const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : "alive";
-    const donors = monokumas().map(u =>
+    /*
+     * CALLED, NOT READ ONCE (F15, 20.09). This was a string, built when the
+     * window opened, and the table rebuilds itself on every actor change - so
+     * every redraw put the same figures back: a pool that had just paid for a
+     * donation went on offering the Despair it no longer had, and a Monokuma who
+     * opted in while the window stood open never appeared in the list at all. The
+     * row above it made exactly this mistake with `anyCub` and says so.
+     */
+    const buildDonors = () => monokumas().map(u =>
         `<option value="${u.id}">${esc(poolLabel(u))} (${getDespair(u.id)})</option>`).join("");
 
     /*
@@ -622,6 +631,7 @@ async function openWhoIsAliveDialog() {
          * heading above calls it properly, so for four releases a table with no
          * Monocub in it had three columns of heading over six columns of row.
          */
+        const donors = buildDonors();
         const cubCells = !anyCub() ? "" : `
             <td>${cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : "-"}</td>
             <td>${cub && donors ? `
@@ -694,19 +704,42 @@ async function openWhoIsAliveDialog() {
      * on `updateActor`. So `keepOpen` leaves the window alone and lets the live
      * region do what it is for.
      */
+    /*
+     * A WINDOW THAT CLOSES IN ORDER TO COME BACK HAS NOT FINISHED (F7, 20.09).
+     *
+     * `tableDialog` is `DialogV2.wait`, which resolves the moment this window
+     * closes, whoever closed it - so the reopen below happened OUTSIDE the promise
+     * the caller is holding. The GM panel awaits `item.run()`, that resolved on
+     * the close, and `openGmPanel()` ran before the GM had answered the death
+     * dialog the row had just opened: three windows on screen for one action, and
+     * the panel in front of the one being asked a question.
+     *
+     * So the whole round trip - close, do the thing, open the table again - is ONE
+     * promise, recorded here and returned below. See `handOff` (live.mjs) for why
+     * it cannot be written with an `await` in front of it. The footer's Items
+     * button has always had this shape; the row buttons did not.
+     */
+    let roundTrip = null;
     const wireRow = (dialog, attribute, run, { keepOpen = false } = {}) => {
         for (const button of dialog.element.querySelectorAll(`[${attribute}]`)) {
             button.addEventListener("click", async ev => {
                 ev.preventDefault();
                 const actor = game.actors.get(button.getAttribute(attribute));
                 if (!actor) return;
-                if (!keepOpen) await dialog.close();
-                try {
-                    await run(actor, dialog);
-                } catch (err) {
-                    error(`GM panel: "${attribute}" failed`, err);
-                }
-                if (!keepOpen) await openWhoIsAliveDialog();
+                const work = async () => {
+                    try {
+                        await run(actor, dialog);
+                    } catch (err) {
+                        error(`GM panel: "${attribute}" failed`, err);
+                    }
+                };
+                // A row that opens nothing leaves the window alone and lets the
+                // live region redraw it - see the note above.
+                if (keepOpen) return void await work();
+                roundTrip = handOff(dialog, async () => {
+                    await work();
+                    return openWhoIsAliveDialog();
+                });
             });
         }
     };
@@ -795,6 +828,11 @@ async function openWhoIsAliveDialog() {
         rejectClose: false
     });
 
+    // A row button's round trip, if one is running: this window did not answer,
+    // it handed over (F7). Returned rather than awaited-and-dropped so the GM
+    // panel's tile stays in front of it.
+    if (roundTrip) return roundTrip;
+
     if (chosen === "items") {
         // The same round trip the row's Kill makes (E6): this window closed
         // when the button was pressed, the hub runs for as long as the GM
@@ -806,44 +844,74 @@ async function openWhoIsAliveDialog() {
     }
     if (!chosen || chosen === "cancel") return;
 
+    const changed = await applyAliveStates(chosen);
+
+    ui.notifications.info(changed
+        ? plural("DRPG.Panel.stateSaved", { n: changed })
+        : game.i18n.localize("DRPG.Panel.stateUnchanged"));
+}
+
+/**
+ * Write what the Players window was told, row by row (F15, 20.09).
+ *
+ * DRIVEN BY THE ANSWER, NOT BY THE ROSTER THE WINDOW OPENED WITH. The loop used to
+ * walk `students`, read once when the window opened, while the answer was built
+ * from `roster()` at the moment of Apply - so a character created while the window
+ * stood open got a row, got read, and was then skipped by the loop. Nothing said
+ * so: the count at the end only counts what the loop wrote.
+ *
+ * Exported because it is the part of this window that can be checked without a
+ * window, now that it is driven by a plain object rather than by a form.
+ *
+ * `"silenced" in want` RATHER THAN ITS TRUTHINESS. The dialog always sends the
+ * key, but a caller that only means to move a state must not be read as asking for
+ * a silence to be lifted - a function driven by an answer has to tell "they said
+ * no" from "they were not asked".
+ */
+export async function applyAliveStates(chosen = {}) {
+    if (!game.user.isGM) return 0;
+
+    const { isDeceased, reviveCharacter, markDeceased } = await import("./chapter.mjs");
+    const { isMonocub, setMonocub, isSilenced, setSilenced } = await import("./monocub.mjs");
+    const { isMonokuma } = await import("./monokuma.mjs");
+    const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : "alive";
+
     let changed = 0;
-    for (const actor of students) {
-        const want = chosen[actor.id];
-        if (!want?.state) continue;
+    for (const [id, want] of Object.entries(chosen)) {
+        const actor = game.actors.get(id);
+        if (!actor || actor.type !== "character" || isMonokuma(actor) || !want?.state) continue;
 
         // Order matters: a Monocub is a dead student with a second flag, so the
         // flags are set from the outside in - deceased first, then Monocub.
         //
-        // Dying through the DROPDOWN keeps the inventory. This half of the
-        // window is the repair tool: nobody expects a select to empty a bag,
-        // and the row's own Kill button is the one that runs the real
-        // procedure, warning and all.
+        // Dying through the DROPDOWN keeps the inventory AND stays quiet (F16).
+        // This half of the window is the repair tool: nobody expects a select to
+        // empty a bag or to announce a death to the table, and the row's own Kill
+        // button is the one that runs the real procedure, warning and all.
         if (want.state !== stateOf(actor)) {
             if (want.state === "alive") {
                 await setMonocub(actor, false);
                 await reviveCharacter(actor);
             } else if (want.state === "dead") {
                 await setMonocub(actor, false);
-                if (!isDeceased(actor)) await killCharacter(actor, { keepBullets: true });
+                if (!isDeceased(actor)) await markDeceased(actor);
             } else {
-                if (!isDeceased(actor)) await killCharacter(actor, { keepBullets: true });
+                if (!isDeceased(actor)) await markDeceased(actor);
                 await setMonocub(actor, true);
             }
             changed++;
         }
 
-        // Silence only means anything for a cub, and only after the state above
-        // has settled - a student promoted to Monocub in this same pass can be
-        // silenced in it too.
-        if (isMonocub(actor) && want.silenced !== isSilenced(actor)) {
+        // Silence only means anything for a cub, and only after the state above has
+        // settled - a student promoted to Monocub in this same pass can be silenced
+        // in it too.
+        if (isMonocub(actor) && "silenced" in want && want.silenced !== isSilenced(actor)) {
             await setSilenced(actor, want.silenced);
             changed++;
         }
     }
 
-    ui.notifications.info(changed
-        ? plural("DRPG.Panel.stateSaved", { n: changed })
-        : game.i18n.localize("DRPG.Panel.stateUnchanged"));
+    return changed;
 }
 
 async function toggleEclipse() {
@@ -1105,8 +1173,36 @@ export async function openClockDialog() {
         .map(([key, p]) => `<option value="${key}"${key === clock.phase ? " selected" : ""}>${p.label}</option>`)
         .join("");
 
-    const chapters = Array.from({ length: CHAPTERS_PER_SEASON }, (_, i) => i + 1)
-        .map(n => `<option value="${n}"${n === clock.chapter ? " selected" : ""}>${n}</option>`)
+    /*
+     * THE LIST HAS TO CONTAIN THE CHAPTER THE CLOCK IS ON (GMP-03, 20.09).
+     *
+     * Six options, 1 to 6, and a season does not stop at 6: ending chapter 6
+     * writes chapter 7 (`applyChapterEnd`, chapter.mjs, uncapped on purpose).
+     * WITH NO OPTION MATCHING, THE BROWSER REPORTS THE FIRST ONE - so this window
+     * opened reading "Chapter 1" while the HUD read 7, and Apply, which is the
+     * bookkeeping a GM presses to fix a typo in the campaign name, rewound the
+     * campaign five chapters without a word. Everything keyed to the chapter
+     * follows it down: Silence stops being true, this chapter's Key Remnants and
+     * traces stop counting as this chapter's, and the death records written since
+     * say 7 for a world that says 1.
+     *
+     * The rule is general: a select that edits a stored value must CONTAIN that
+     * value, or the form reports its first option as the person's answer and
+     * writes it back on submit. The other two selects here are safe for a reason
+     * rather than by luck - the time of day and the phase are closed sets written
+     * only from TIMES_OF_DAY and PHASES. The chapter is the one field the world
+     * can put outside its own list. The same cap is on the Season setup window's
+     * chapter field (season-setup.mjs), widened there in the same pass.
+     *
+     * COERCED ONCE AND USED TWICE. `n === clock.chapter` is a strict compare, so
+     * a world holding the string "7" would widen nothing and match nothing - the
+     * worst of both. Anything below 1 or unreadable falls back to 1 rather than
+     * building a list of length NaN out of a world setting.
+     */
+    const stated = Number(clock.chapter);
+    const now = Number.isFinite(stated) && stated >= 1 ? Math.round(stated) : 1;
+    const chapters = Array.from({ length: Math.max(CHAPTERS_PER_SEASON, now) }, (_, i) => i + 1)
+        .map(n => `<option value="${n}"${n === now ? " selected" : ""}>${n}</option>`)
         .join("");
 
     const result = await DialogV2.wait({
@@ -1178,8 +1274,24 @@ export async function openClockDialog() {
      * protect them from a state they may well want is the kind of help nobody
      * asked for. So: the write goes through, and they are told. The summary line
      * now carries the Eclipse too, so this is a nudge rather than the only sign.
+     *
+     * ONLY WHEN THE WRITE ACTUALLY MOVED THE CLOCK (GMP-04, 20.09).
+     *
+     * The condition below was `result.timeOfDay !== undefined`, and `timeOfDay` is
+     * a select this form always submits - SO IT WAS TRUE ON EVERY APPLY. A GM who
+     * opened this window during an Eclipse to fix the campaign name was told the
+     * clock had moved and the Eclipse was still running; it had not moved. This
+     * sentence is the module's only sign of an Eclipse that is silently refusing
+     * every murder and handing out free placement, and a warning that fires when
+     * nothing happened is a warning a GM stops reading.
+     *
+     * Compared against the clock as it stands at the moment of the write, not the
+     * one this window was built from: it is not a live window, and a GM may leave
+     * it open while somebody starts an Eclipse or the time of day turns. The
+     * session counter and the phase are deliberately not in the comparison - they
+     * are bookkeeping, not time.
      */
-    const wasEclipse = getClock().eclipse;
+    const before = getClock();
 
     await setClock({
         campaignName: result.campaignName,
@@ -1190,7 +1302,10 @@ export async function openClockDialog() {
         timeOfDay: result.timeOfDay
     });
 
-    if (wasEclipse && result.timeOfDay !== undefined) {
+    const moved = result.timeOfDay !== before.timeOfDay
+        || result.day !== (before.day ?? 1)
+        || result.chapter !== before.chapter;
+    if (before.eclipse && moved) {
         ui.notifications.warn(game.i18n.localize("DRPG.Clock.eclipseStillOn"));
     }
 

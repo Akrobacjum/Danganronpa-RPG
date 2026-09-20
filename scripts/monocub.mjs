@@ -76,8 +76,25 @@ export async function setMonocub(actor, value = true) {
         return null;
     }
 
+    const was = isMonocub(actor);
     await actor.setFlag(MODULE_ID, FLAGS.monocub, Boolean(value));
+    // Unconditional on purpose: clearing the flag is also the repair for a
+    // silence left behind by a cub who is no longer one.
     if (!value) await actor.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+
+    /*
+     * ONLY ON A REAL CHANGE (F16, 20.09), which is the rule `setSilenced` below
+     * has always followed. The Players window's repair dropdown clears the
+     * Monocub flag on its way to "dead" or "alive" whether or not anybody was a
+     * Monocub, so a GM straightening out one row was told "X is no longer a
+     * Monocub" about a student who never was one - a sentence that describes an
+     * event that did not happen, in the one window whose job is to correct the
+     * record. The writes above stay unconditional; only the telling is gated.
+     */
+    if (was === Boolean(value)) {
+        actor.sheet?.render(false);
+        return actor;
+    }
 
     log(`${actor.name} is ${value ? "now" : "no longer"} a Monocub.`);
     ui.notifications.info(game.i18n.format(

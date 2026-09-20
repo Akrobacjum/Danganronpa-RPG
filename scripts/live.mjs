@@ -452,6 +452,43 @@ export function alreadyOpen(className) {
     return null;
 }
 
+
+/**
+ * A window that closes in order to come back, as ONE promise (F7, 20.09).
+ *
+ * `DialogV2.wait` resolves the moment its window closes, whoever closed it - so a
+ * row button that closes the window, runs a procedure and opens the window again
+ * did all of that OUTSIDE the promise its caller was holding. The GM panel awaits
+ * `item.run()`, that resolved on the close, and `openGmPanel()` ran while the GM
+ * was still answering the dialog the row had opened: three windows for one action.
+ *
+ * NO `await` IN HERE, and that is the whole mechanism. The opener's continuation
+ * is a microtask queued inside `close()`, so a round trip registered after an
+ * `await` is registered too late - it has to be built in the same synchronous turn
+ * as the close, which is why this takes the work as a callback instead of being
+ * two lines at the call site.
+ *
+ * The work still runs AFTER the close resolves. That order is load-bearing:
+ * `alreadyOpen` refuses a window whose element is still connected, so reopening
+ * before the old copy has gone raises the dying window and opens nothing.
+ *
+ * It never rejects. A caller that forgets to hold the promise cannot produce an
+ * unhandled rejection, and a window that failed to come back is a logged error
+ * rather than a broken console.
+ *
+ * The precedent is `openIncidentTracker`'s own refresh (murder.mjs), which has
+ * had this shape by hand since 11.09; this is that, named, so the next window can
+ * have it in one line.
+ */
+export function handOff(dialog, work) {
+    const closing = Promise.resolve(dialog?.close?.())
+        .catch(err => debug("A window handing over could not close", err));
+    return closing.then(work).catch(err => {
+        error("A window that closed to hand over never came back", err);
+        return null;
+    });
+}
+
 /**
  * Keep something true WITHOUT replacing it.
  *

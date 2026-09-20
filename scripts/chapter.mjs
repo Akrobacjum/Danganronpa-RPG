@@ -82,15 +82,55 @@ export function livingStudents() {
  *   somebody's conclusions away would just be destructive. The belongings stay
  *   either way.
  */
+/**
+ * Mark somebody dead and say nothing (F16, 20.09).
+ *
+ * The counterpart to `reviveCharacter`, and the reason it exists: the Players
+ * window's dropdown is a REPAIR tool - its own header says it "moves the two
+ * flags and nothing else" - and it was calling `killCharacter`, which is the
+ * whole death procedure. A GM straightening out a row that had got out of step
+ * whispered "A student is dead" to the GMs and to the owners of everyone in a
+ * running incident, stamped the death chapter, tied this chapter's traces off and
+ * offered Stage 6. None of that is a repair.
+ *
+ * What is left here is the record and the token marker, which IS the state both
+ * halves have to write. `killCharacter` keeps its order and calls this in the
+ * middle of it, so there is one place that knows what "deceased" means.
+ *
+ * Returns the record it wrote, or null if the flag would not take - which is what
+ * `killCharacter` reads to decide whether the rest of the procedure should run.
+ */
+export async function markDeceased(actor) {
+    if (!game.user.isGM || !actor) return null;
+
+    const clock = getClock();
+    const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay };
+
+    try {
+        await actor.setFlag(MODULE_ID, FLAGS.deceased, record);
+    } catch (err) {
+        error(`Could not mark ${actor.name} as deceased`, err);
+        return null;
+    }
+
+    // Foundry's own dead marker, so the token reads as a body on any client
+    // without this module having to draw anything. Wrapped: it is a convenience,
+    // not the record - `FLAGS.deceased` is what the rules read.
+    try {
+        await actor.toggleStatusEffect("dead", { active: true, overlay: true });
+    } catch (err) {
+        log(`Could not apply the "dead" status to ${actor.name}; the flag is set regardless.`);
+    }
+
+    return record;
+}
+
 export async function killCharacter(actor, { keepBullets = false } = {}) {
     if (!game.user.isGM || !actor) return null;
     if (isDeceased(actor)) {
         ui.notifications.warn(game.i18n.format("DRPG.Chapter.alreadyDead", { name: actor.name }));
         return null;
     }
-
-    const clock = getClock();
-    const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay };
 
     /*
      * WHAT DIES WITH THEM, AND WHAT DOES NOT (Dawid, 27.08).
@@ -122,21 +162,10 @@ export async function killCharacter(actor, { keepBullets = false } = {}) {
         }
     }
 
-    try {
-        await actor.setFlag(MODULE_ID, FLAGS.deceased, record);
-    } catch (err) {
-        error(`Could not mark ${actor.name} as deceased`, err);
-        return null;
-    }
-
-    // Foundry's own dead marker, so the token reads as a body on any client
-    // without this module having to draw anything. Wrapped: it is a convenience,
-    // not the record - `FLAGS.deceased` is what the rules read.
-    try {
-        await actor.toggleStatusEffect("dead", { active: true, overlay: true });
-    } catch (err) {
-        log(`Could not apply the "dead" status to ${actor.name}; the flag is set regardless.`);
-    }
+    // The record and the token marker, which the Players window's repair
+    // dropdown writes on its own (F16) - one place decides what deceased means.
+    const record = await markDeceased(actor);
+    if (!record) return null;
 
     /*
      * WHO IS TOLD A STUDENT DIED (Dawid, 28.08 - widen it).
