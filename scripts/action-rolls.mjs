@@ -16,7 +16,7 @@
 import {
     MODULE_ID, FLAGS, ACTIONS, TRAITS, DYNAMIC_THRESHOLDS, INDIRECT_MURDER,
     PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND, PRICE_CHAINS,
-    CLEANUP
+    CLEANUP, MONOCUB
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
@@ -136,6 +136,37 @@ export async function performAction(actor, actionKey, options = {}) {
             ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
             return null;
         }
+        /*
+         * A MONOCUB HAS TWO ACTIONS, AND THIS IS WHERE THAT IS TRUE (ACT-13, 20.09).
+         *
+         * The dead gate below lets a Monocub through - correctly, a Monocub does act -
+         * and that was the whole of it: past that line every tile in the module was
+         * dispatchable by one, and `performAction` is reachable from an evidence row's
+         * Analyze button and from `game.drpg` without a sheet at all. The panel offers
+         * Move and Confusion, so nothing on screen suggested otherwise, and nothing
+         * refused the rest.
+         *
+         * ABOVE THE BETRAYAL AND THE ECLIPSE DECLARATION ON PURPOSE, and that is not
+         * a detail: a betrayal is reached before the Eclipse rule, so a gate placed
+         * with the dead test - which is further down - would have left the loudest
+         * action in the game open to a Monocub.
+         *
+         * BELOW the in-fight shortcut above, equally deliberately. A fight is its own
+         * economy with its own entry point (`takeCrisisAction`), and somebody already
+         * in one pressing this tile means "open the fight's menu" whoever they are;
+         * refusing them there would be this gate answering a question it was not
+         * asked.
+         *
+         * Confusion is NOT in the list, because it is not an ACTIONS key: it is
+         * `MONOCUB.meddle`, with its own entry point and its own refusals in
+         * monocub.mjs.
+         */
+        const { isMonocub: cubCheck } = await import("./monocub.mjs");
+        if (cubCheck(actor) && !MONOCUB.dispatchable.includes(actionKey)) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Monocub.onlyTwoActions"));
+            return null;
+        }
+
         /*
          * TURNING ON YOUR PARTNER IS A DIRECT MURDER (Dawid, 29.08).
          *

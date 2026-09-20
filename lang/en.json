@@ -752,6 +752,7 @@
       "meddleCost": "{hope} Hope, {actions} action.",
       "cannotMeddle": "Not enough action, or not enough Hope.",
       "mustBeDead": "Only a character who has already died becomes a Monocub.",
+      "onlyTwoActions": "A Monocub has two things to do: cross a room, and Confusion. The rest of the grid belongs to the living.",
       "opted": "{name} has joined the GMs as a Monocub.",
       "unopted": "{name} is no longer a Monocub.",
       "nobodyDead": "Nobody has died yet.",

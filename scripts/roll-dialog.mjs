@@ -109,20 +109,60 @@ function onRenderApplication(app, element) {
             return;
         }
 
-        // Locking is OFF, and that is a decision about the interface, not about
-        // the rules.
-        //
-        // "Let the players drive their own roll window" is what this setting
-        // says. It cannot also mean "Breakdown stops existing" - the guide's
-        // "przy utracie całego stresu dostaje disadvantage na każdy rzut" is a
-        // penalty, and a penalty nobody applies to themselves is a penalty that
-        // is not in the game. So the state modifier is imposed either way; only
-        // the chips stay clickable.
-        const fromState = stateGrant(actor);
-        // One die, explicitly: Breakdown is a single standing penalty, and the
-        // stacking above is about sources this branch deliberately ignores.
-        if (fromState !== 0) forceAdvantage(app, fromState, 1);
+        /*
+         * LOCKING IS OFF, AND THAT IS A DECISION ABOUT THE INTERFACE, NOT ABOUT THE
+         * RULES (CALL-11, 20.09).
+         *
+         * "Let the players drive their own roll window" is what that setting says. It
+         * cannot also mean "a Call you paid for stops applying" - and that is what it
+         * meant: this branch imposed Breakdown and nothing else, so with the lock off
+         * a bought advantage was spent, armed, and then did nothing at all. The dice
+         * still had to be clicked by hand, the Experience chips still charged Hope for
+         * something already paid for, and the purchase was consumed either way.
+         *
+         * So the terms of the purchase are imposed here too, and only the things that
+         * are the PLAYER's are left alone: which trait, which experience, the roll
+         * mode, the free-text bonus. What a Call bought is not one of those.
+         *
+         * BOTH CHIPS ARE LOCKED WHENEVER THERE IS A NET MODIFIER. Locking only the
+         * matching pair leaves the opposite one live, and one click on it makes
+         * Daggerheart cancel the modifier the Call just bought - which is the defect
+         * with an extra step. This is the same shape `lockControls` uses, which is why
+         * it reads like it.
+         */
+        const { sign, count, capped, sources } = advantageSources(actor);
+        if (sign !== 0) {
+            forceAdvantage(app, sign, count);
+
+            const reason = explainAdvantage(sign, count, capped, sources);
+            const adv = root.querySelectorAll(".advantage-chip");
+            const dis = root.querySelectorAll(".disadvantage-chip");
+            for (const chip of [...adv, ...dis]) {
+                const mine = chip.classList.contains(sign === 1 ? "advantage-chip" : "disadvantage-chip");
+                chip.classList.toggle("selected", mine);
+                lockChip(chip, mine ? reason : "DRPG.RollDialog.lockedByCall");
+                if (mine) {
+                    chip.classList.add("drpg-call-unlocked");
+                    markChipCount(chip, count);
+                }
+            }
+        }
+
+        /*
+         * AND AN EXPERIENCE A CALL BOUGHT IS NOT PAID FOR TWICE. The Call has already
+         * been paid; with the lock off the window went on offering the Hope cost
+         * beside every experience, and Daggerheart charges it. Two removals, because
+         * they are two different things: the cost is taken out of the roll's config,
+         * and the `<li>` that draws it is taken off the screen.
+         */
+        const armed = grantsFor(app, actor);
+        if (armed.has("experience")) {
+            stripExperienceCosts(app);
+            capExperiences(app);
+            hideCostSection(root);
+        }
     } catch {
+
         // Never break the roll dialog itself.
     }
 }

@@ -2508,6 +2508,21 @@ export const LEVEL_UP = {
 export const MONOCUB = {
     /** Same as a living student's. Refilled by the same reset pass. */
     actions: STARTING.actions,
+    /**
+     * The only ACTIONS keys a Monocub may dispatch through `performAction`
+     * (ACT-13, Dawid's list, 20.09).
+     *
+     * Moving is how a Monocub is anywhere at all, and it is what their own panel
+     * offers beside Confusion. Everything else on the grid belongs to the living:
+     * a Monocub searching a room, working a project or analysing evidence is a
+     * dead student playing the game they are out of.
+     *
+     * CONFUSION IS NOT HERE, and that is not an oversight. It is `MONOCUB.meddle`
+     * rather than an ACTIONS key - its own entry point, its own refusals - so a
+     * list of ACTIONS keys is the wrong place to name it. `meddleLocked` in
+     * monocub.mjs is where its two windows are shut.
+     */
+    dispatchable: ["move"],
     meddle: {
         // Key stays `meddle` throughout the code; the Player Handbook names this
         // action "Confusion", so that is the label every player and GM sees.

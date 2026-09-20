@@ -3987,6 +3987,74 @@ const REGRESSIONS = [
         ok(!/either way/i.test(hint),
             "the hint still promises a trace either way - a miss with Despair leaves none");
         ok(hint.includes("{n}"), "the hint no longer takes the threshold");
+    }],
+
+    ["R85 - a Call still applies when the roll window is unlocked", async () => {
+        /*
+         * CALL-11, 20.09. With `lockRollDialog` off, `onRenderApplication` imposed
+         * Breakdown and returned: so an advantage a Monokuma or a player had PAID for
+         * was armed, spent, and then did nothing. The dice had to be clicked by hand,
+         * and the Experience chips went on charging Hope for something already bought.
+         *
+         * "Let the players drive their own roll window" is a decision about the
+         * interface. It cannot also mean "a purchase stops applying".
+         *
+         * BOTH CHIPS, and that is the assertion that matters: locking only the
+         * matching pair leaves the opposite one live, and one click on it makes
+         * Daggerheart cancel the modifier the Call just bought - the same defect with
+         * an extra step.
+         */
+        const dialog = stripComments(new Map(await otherSources()).get("roll-dialog.mjs") ?? "");
+        const open = dialog.slice(dialog.indexOf("function onRenderApplication"),
+            dialog.indexOf("function forceReaction"));
+        ok(open.length > 400, "the render hook has moved or gone");
+        ok(/advantageSources\(actor\)/.test(open),
+            "the unlocked road reads Breakdown alone again, so a bought die is lost");
+        ok(!/const fromState = stateGrant\(actor\);/.test(open),
+            "the state-only reader is back");
+        ok(/\[\.\.\.adv, \.\.\.dis\]/.test(open),
+            "only one pair of chips is locked, so the other one can cancel the purchase");
+        ok(/stripExperienceCosts\(app\)/.test(open) && /hideCostSection\(root\)/.test(open),
+            "an experience a Call paid for is charged again when the lock is off");
+        ok(open.indexOf("locking()") < open.indexOf("advantageSources(actor)"),
+            "the unlocked branch now runs for everybody, including the locked road");
+    }],
+
+    ["R86 - a Monocub may cross a room, and that is the list", async () => {
+        /*
+         * ACT-13, 20.09. The dead gate lets a Monocub through - correctly, a Monocub
+         * acts - and that was the whole of it: past that line every tile in the module
+         * was dispatchable by one, and `performAction` is reachable from an evidence
+         * row's Analyze button and from `game.drpg` with no sheet at all.
+         *
+         * ABOVE THE `directMurder` BRANCHES, and that is what this test is really
+         * about: a betrayal is reached BEFORE the Eclipse rule, so a gate placed with
+         * the dead test further down would have left the loudest action in the game
+         * open to a Monocub. The order here is the fix.
+         */
+        const sources = new Map(await otherSources());
+        const cfg = stripComments(sources.get("config.mjs") ?? "");
+        ok(/dispatchable: \["move"\]/.test(cfg),
+            "the list of what a Monocub may dispatch is gone, or it has grown");
+
+        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        const perform = rolls.slice(rolls.indexOf("export async function performAction"),
+            rolls.indexOf("async function performBetrayal"));
+        ok(/MONOCUB\.dispatchable\.includes\(actionKey\)/.test(perform),
+            "nothing refuses a Monocub the rest of the grid");
+        const gate = perform.indexOf("MONOCUB.dispatchable");
+        ok(gate > 0 && gate < perform.indexOf("betrayalTarget(actor)"),
+            "the Monocub gate sits below the betrayal, which is reached before the Eclipse "
+            + "rule - so the loudest action in the game walks straight past it");
+        // And deliberately below the in-fight shortcut: a fight is its own economy
+        // with its own entry point, and this gate is not the thing that answers it.
+        ok(gate > perform.indexOf("inFight && actionKey"),
+            "the gate moved above the in-fight branch, where it answers a question nobody "
+            + "asked it");
+        ok(perform.indexOf("MONOCUB.dispatchable") < perform.indexOf("isDeceased(actor) && !isMonocub"),
+            "the gate is below the dead test, which is where it could not do its job");
+        ok(!/dispatchable\.includes\("meddle"\)/.test(rolls),
+            "Confusion was added to a list of ACTIONS keys, and it is not one");
     }]
 ];
 
@@ -6314,6 +6382,8 @@ const LITERAL_KEYS = [
     "DRPG.Advance.offerTooltip", "DRPG.Advance.offerFailed",
     // CALL-18: said on the one road where an assembly cannot be held at all.
     "DRPG.Calls.gatherRoomGone",
+    // ACT-13: said to a Monocub who reached a tile that is not theirs.
+    "DRPG.Monocub.onlyTwoActions",
     // MM-02. Said by a button that now answers Enter, so an empty field is a
     // keystroke away rather than a deliberate click.
     "DRPG.Monocub.giveAtLeast",
