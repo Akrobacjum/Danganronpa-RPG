@@ -757,10 +757,30 @@ export function fitWindowToTable(dialog) {
             fitted.add(dialog);
             const width = windowWidthFor(root, content, widest);
 
-            // Nothing to do when we are already there - `setPosition` triggers
-            // a re-render, and re-rendering on every open for no change is how
-            // a window ends up flickering.
-            if (Math.abs(root.getBoundingClientRect().width - width) < 2) {
+            /*
+             * Nothing to do when we are already there - `setPosition` triggers a
+             * re-render, and re-rendering on every open for no change is how a window
+             * ends up flickering.
+             *
+             * AND "ALREADY THERE" IS A BAND, NOT A POINT (LAT-05, 20.09). The width
+             * above is the content plus two pixels of slack, so a window sitting at
+             * exactly the width its table needs differs from the target by exactly 2 -
+             * and `Math.abs(...) < 2` is false at exactly 2. The band is "wide enough
+             * for the content, and no wider than the target", which is what the slack
+             * was for in the first place.
+             *
+             * WHAT THE MEASUREMENT ACTUALLY FOUND, 20.09, because the audit's note on
+             * this said every open forces a reflow and that is not what happens: a
+             * fresh window opens at its stated width and is resized ONCE, which is the
+             * fit doing its job - Item tables 0 resizes past the CSS width, Room setup
+             * 1 (to 1259), the GM panel 0. Two frames after render the window carries
+             * the identity transform and no running animation, so the rect below is the
+             * layout width and measuring it is sound. This is the off-by-one on the
+             * path where a window IS already at its target - a re-fit, or a tabbed
+             * window sized from its widest tab - and nothing more than that.
+             */
+            const now = root.getBoundingClientRect().width;
+            if (now >= width - 2 && now <= width) {
                 return pinFooterAcrossScroll(dialog);
             }
 
