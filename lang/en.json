@@ -474,6 +474,8 @@
       "sessionTooltip": "Session {session}",
       "endEclipse": "End the Eclipse and begin the next time of day",
       "rewind": "Step back one time of day. A correction - it refills nothing",
+      "controlFailed": "That clock control did not finish. The GM panel's Debug log says why.",
+      "rewindEclipse": "An Eclipse is running, so there is no time of day to step back to. End it from the GM panel first.",
       "elapsed": "{minutes} min in",
       "elapsedUnknown": "not started",
       "elapsedTooltip": "How long this time of day has run. Amber at 15 minutes, red at 30.",
@@ -2287,6 +2289,7 @@
     "Clock": {
       "summary": "Chapter {chapter} · Day {day} · Session {session} · {time}",
       "summaryEclipse": "{summary} · ECLIPSE",
+      "rewindDuringEclipse": "An Eclipse is running, so the clock has not moved yet and there is nothing to step back to. End the Eclipse from the GM panel - it can end without advancing.",
       "eclipseStillOn": "The clock moved, but the Eclipse is still running. End it from the GM panel when you are ready - until then tokens place freely and murders are refused.",
       "campaignName": "Campaign name",
       "chapter": "Chapter",

@@ -11,7 +11,7 @@
  *      Hope's Peak: Drowned Summer      <- campaign name
  *              Chapter 2
  *              Daily Life
- *          ◀   Afternoon   ▶  ⚙        <- GM-only controls
+ *          ◀   Afternoon   ▶            <- GM-only controls
  *
  * Players see the same four lines without the controls.
  */
@@ -19,7 +19,7 @@
 import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
 import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
-import { isPrimaryGm, error, plural } from "./utils.mjs";
+import { isPrimaryGm, error, debug, plural } from "./utils.mjs";
 // Leaves, both: settings.mjs imports config.mjs and nothing else, and
 // character.mjs reaches config and utils. These two readers used to be
 // private copies here "for the cycle" (audit C3) - the cycle was real, the
@@ -933,10 +933,17 @@ function buildTimeRow(clock, isGM) {
         return row;
     }
 
+    // Read HERE rather than with the label below, because the left chevron's
+    // tooltip needs it too: while an Eclipse runs the clock has not moved yet, so
+    // there is no time of day to step back to (HUD-02).
+    const running = clock.eclipse === true;
+
     if (isGM) {
-        row.append(control("fa-chevron-left", "DRPG.Hud.rewind", async () => {
-            await rewindTimeOfDay();
-        }));
+        row.append(control("fa-chevron-left",
+            running ? "DRPG.Hud.rewindEclipse" : "DRPG.Hud.rewind",
+            async () => {
+                await rewindTimeOfDay();
+            }));
     }
 
     // While an Eclipse runs, the clock has NOT moved yet - it still reads the
@@ -949,7 +956,9 @@ function buildTimeRow(clock, isGM) {
     // So during an Eclipse the row names the Eclipse instead. The sequence then
     // reads on screen exactly as it does in the rules: Morning Eclipse, Morning,
     // Noon Eclipse, Noon, and so on.
-    const running = clock.eclipse === true;
+    //
+    // `running` itself is read above the controls now - the rewind chevron's
+    // tooltip needs the same answer (HUD-02).
     const time = document.createElement("div");
     time.className = `drpg-hud-time${running ? " is-eclipse" : ""}`;
     time.textContent = running
@@ -1549,6 +1558,82 @@ function paintFloorClock(el, floor) {
     el.dataset.tooltip = game.i18n.localize("DRPG.Hud.trialClockTooltip");
 }
 
+
+/* ==========================================================================
+ * ONE PRESS AT A TIME, AND THE LATCH CANNOT LIVE ON THE BUTTON
+ * --------------------------------------------------------------------------
+ * HUD-01, 19.09: double-clicking the Eclipse chevron opened the Eclipse and
+ * closed it again. The handler below already disabled its own button first, and
+ * that guard cannot work HERE: the first thing `startEclipse` does is write the
+ * clock, the setting's `onChange` reaches `renderHud` through sync.mjs, and
+ * `renderHud` calls `hud.replaceChildren()`. A few milliseconds into a press
+ * that is still awaiting its chat cards, the button it disabled has been thrown
+ * away and a fresh, enabled one stands in exactly the same pixels - `fitTimeSlot`
+ * sizes the slot to the widest label the clock can ever hold, so the row
+ * deliberately does not move when "Evening" becomes "Night Eclipse". The second
+ * click lands on the replacement, whose handler reads `isEclipse()` as true and
+ * ends the Eclipse that is still opening.
+ *
+ * What that leaves behind is world damage rather than pixels: the placement
+ * window's crossings are cleared, search tokens restock, seals clear, the motive
+ * ticks and a public time-of-day card is posted for a window nobody used.
+ *
+ * NO WORLD STATE CAN TELL "STILL OPENING" FROM "OPEN", so the guard has to be
+ * about the PRESS. A module variable, like `slide` above: this is a fact about
+ * this client's pending work, not something the DOM knows.
+ *
+ * REFUSED, NOT QUEUED - the same answer `runTests` gives a second suite. A press
+ * the GM did not know was landing on a busy widget is not a press they want
+ * honoured a second later.
+ *
+ * THE SETTLE WINDOW COVERS THE TAIL: held only while the handler runs, a fast
+ * handler releases inside the double-click interval and the second click gets
+ * through after all. 400 ms past the handler is longer than any double-click a
+ * hand produces and short enough that a GM stepping back two times of day does
+ * not notice it.
+ *
+ * AND A CEILING, because a handler can wait for a person: ending an Eclipse asks
+ * about a parked murder, and a dialog nobody answers must not leave the chevrons
+ * dead for the rest of the session. Ten seconds is far past any double-click, so
+ * releasing early cannot reopen the defect.
+ * ========================================================================== */
+
+const CONTROL_SETTLE_MS = 400;
+const CONTROL_CEILING_MS = 10_000;
+
+let controlToken = 0;
+let controlHeld = 0;
+
+function controlsBusy() {
+    return controlHeld !== 0;
+}
+
+/** Take the latch, and hand back the token that can release it. */
+function holdControls() {
+    controlHeld = ++controlToken;
+    const mine = controlHeld;
+    setTimeout(() => releaseControls(mine), CONTROL_CEILING_MS);
+    return mine;
+}
+
+/**
+ * Let go - unless a later press already owns the latch. One press's ceiling
+ * timer can fire while the next press is running, and a release that did not
+ * check would re-enable the row under it.
+ *
+ * THE ROW THAT IS ON SCREEN, not the button the handler captured: by the time a
+ * press finishes, the element it disabled is usually detached. Re-enabling only
+ * that one is how this fix would become a worse bug than the one it closes - a
+ * clock whose chevrons never come back.
+ */
+function releaseControls(token) {
+    if (controlHeld !== token) return;
+    controlHeld = 0;
+    for (const button of document.querySelectorAll(`#${HUD_ID} .drpg-hud-button`)) {
+        button.disabled = false;
+    }
+}
+
 /**
  * @param {string} tooltipKey  An i18n key, or already-localised text when
  *   `literal` is set - the Eclipse control builds its own from the time of day
@@ -1562,14 +1647,41 @@ function control(icon, tooltipKey, handler, { literal = false } = {}) {
     button.dataset.tooltip = label;
     button.setAttribute("aria-label", label);
     button.innerHTML = `<i class="fa-solid ${icon}" inert></i>`;
+    // Born disabled if a press is still in flight: this render may BE the one
+    // that press triggered.
+    if (controlsBusy()) button.disabled = true;
     button.addEventListener("click", async event => {
         event.preventDefault();
         event.stopPropagation();
+        /*
+         * AFTER the two above, on purpose: a refused click must still be
+         * stopped, or it bubbles past the widget to the canvas.
+         *
+         * Only reachable on a control built after the latch was taken and
+         * before it was released, so there is nothing to tell the GM - the row
+         * went dim under their cursor - and a notification would be noise.
+         */
+        if (controlsBusy()) return void debug("hud: a clock control is already working");
+        const token = holdControls();
         button.disabled = true;
         try {
             await handler();
+        } catch (err) {
+            /*
+             * HUD-03, 19.09. This was a bare try/finally, so a throwing handler
+             * became an unhandled rejection: no notification, no Debug log row,
+             * and the only trace in a console nobody has open during a session.
+             * The Eclipse chevron alone can throw out of `checkOverflow`, out of
+             * its announcement and out of every whisper it sends.
+             */
+            error(`The clock control "${icon}" failed`, err);
+            ui.notifications.error(game.i18n.localize("DRPG.Hud.controlFailed"));
         } finally {
-            button.disabled = false;
+            // NOT `button.disabled = false` here: `releaseControls` is the one
+            // place that re-enables, and it re-enables the row that is on
+            // screen. Doing it here as well would light this button up while the
+            // latch still refuses it for the settle window.
+            setTimeout(() => releaseControls(token), CONTROL_SETTLE_MS);
         }
     });
     return button;

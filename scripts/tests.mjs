@@ -2704,6 +2704,166 @@ const REGRESSIONS = [
         const button = sheet.slice(sheet.indexOf("function actionButton("));
         ok(/dataset\.drpgTipHead =/.test(button) && /dataset\.drpgTipTail =/.test(button),
             "the tile stopped keeping the two halves the repaint needs");
+    }],
+
+    ["R54 - the clock's chevrons hold one press at a time, and report a failure", async () => {
+        /*
+         * HUD-01 and HUD-03, 19.09. Double-clicking the Eclipse chevron opened the
+         * Eclipse and closed it again: the handler disabled its own button, and the
+         * clock write it made rebuilt the whole row a few milliseconds later, so the
+         * second click landed on a fresh enabled button whose handler read
+         * `isEclipse()` as true.
+         *
+         * READ RATHER THAN DRIVEN, on purpose, and the reason belongs here so
+         * nobody "improves" it later: reproducing it in a world means winning a race
+         * between a rebuild and a dispatched click. Two clicks in the same tick hit
+         * the same still-disabled button and pass WITHOUT the fix; two clicks a
+         * `settle()` apart land after the handler has finished and the answer depends
+         * on how fast the browser did its chat round trips. What can be stated
+         * exactly is the shape of the code, which is what this tier is for.
+         */
+        const hud = stripComments(new Map(await otherSources()).get("hud.mjs") ?? "");
+        ok(hud.length > 1000, "hud.mjs did not load");
+        const at = hud.indexOf("function control(");
+        ok(at > 0, "hud.mjs no longer builds its clock controls in one place");
+        const body = hud.slice(at);
+
+        const born = body.indexOf("controlsBusy()");
+        const listener = body.indexOf("addEventListener");
+        const awaited = body.indexOf("await handler()");
+        ok(born > 0 && listener > born,
+            "a control built while a press is in flight is no longer born disabled");
+        const guard = body.indexOf("controlsBusy()", listener);
+        ok(guard > listener && guard < awaited,
+            "the clock's controls no longer refuse a second press before running the first");
+
+        const caught = body.slice(body.indexOf("catch", awaited), body.indexOf("finally", awaited));
+        ok(/\berror\(/.test(caught) && /ui\.notifications\.error\(/.test(caught),
+            "a clock control that throws is silent again");
+
+        const release = hud.slice(hud.indexOf("function releaseControls"));
+        ok(/querySelectorAll/.test(release) && /drpg-hud-button/.test(release),
+            "the latch releases only the button it captured, so a rebuilt row stays dim");
+    }],
+
+    ["R55 - a rewind is refused before it cancels anything", async () => {
+        /*
+         * HUD-02, 19.09. An Eclipse sits BEFORE the next time of day, so the clock
+         * still holds the one just finished - stepping it back renamed the running
+         * Eclipse rather than undoing anything, and on the Night Eclipse that turned
+         * free placement into a two-crossing budget with every crossing already made
+         * counting against it.
+         *
+         * ORDER IS THE RULE. The refusal has to come before `cancelGather()`, or the
+         * fix destroys a pending assembly and then declines to do the thing it
+         * destroyed it for. Comments are stripped, so the paragraph above the guard
+         * cannot satisfy this on its own.
+         */
+        const clock = stripComments(new Map(await otherSources()).get("clock.mjs") ?? "");
+        ok(clock.length > 1000, "clock.mjs did not load");
+        const body = clock.slice(clock.indexOf("export async function rewindTimeOfDay"),
+            clock.indexOf("export async function setTimeOfDay"));
+        ok(body.length > 200, "rewindTimeOfDay has moved or gone");
+
+        const guard = body.indexOf("eclipse");
+        const gather = body.indexOf("cancelGather");
+        const write = body.indexOf("setClock(");
+        ok(guard > 0, "a rewind no longer asks whether an Eclipse is running");
+        ok(guard < gather && guard < write,
+            "the Eclipse is checked after the rewind has already cancelled the assembly or moved the clock");
+        ok(/DRPG\.Clock\.rewindDuringEclipse/.test(body), "the refusal no longer says why");
+    }],
+
+    ["R56 - the body discovery refuses the dark before it asks anything, and the button says so", async () => {
+        /*
+         * F12, 19.09. "A body is discovered" moved from a GM panel tile into the case
+         * dashboard's footer and the Eclipse greying stayed behind with the tile, so
+         * the one route a GM uses was lit through a whole Eclipse - and the refusal
+         * that did exist ran only after the room and the victim had been chosen.
+         *
+         * ORDER IS THE RULE in both halves: who may press this, then when it may be
+         * pressed, then what the map happens to have.
+         */
+        const sources = new Map(await otherSources());
+        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const inv = stripComments(sources.get("investigation.mjs") ?? "");
+
+        const open = chapter.slice(chapter.indexOf("export async function openBodyDiscoveryDialog"),
+            chapter.indexOf("function allBullets"));
+        ok(open.length > 200, "openBodyDiscoveryDialog is gone or has moved past allBullets");
+        const gm = open.indexOf("game.user.isGM");
+        const dark = open.indexOf("isEclipse()");
+        const rooms = open.indexOf("allRooms()");
+        ok(gm > 0 && dark > 0 && rooms > 0, "the body-discovery window lost one of its three guards");
+        ok(gm < dark, "the body-discovery window asks about the Eclipse before it asks who is pressing");
+        ok(dark < rooms,
+            "the window builds its room list before it refuses an Eclipse, so a GM fills in a form "
+            + "that cannot be submitted");
+
+        ok(inv.includes('button[data-action="bodyFound"]'),
+            "the dashboard no longer greys the button that reaches the discovery");
+        ok(inv.includes("DRPG.Eclipse.bodyLocked"),
+            "the greyed body button gives no reason, or gives one of its own instead of the refusal's");
+        const save = inv.indexOf('action: "save"');
+        const body = inv.indexOf('action: "bodyFound"');
+        ok(save > 0 && body > save,
+            "the footer leads with the body button - Enter presses the first submit, and this is "
+            + "the one that gets disabled");
+
+        const wire = inv.slice(inv.indexOf("const wireAll = () => {"), inv.indexOf("wireAll();"));
+        ok(!wire.includes("bodyFound"),
+            "the greying rides `wireAll`, which keepLive defers while the GM is typing; it belongs "
+            + "on `keepFresh`");
+        ok(/keepFresh\(dialog/.test(inv),
+            "the dashboard stopped keeping its footer in step with the Eclipse");
+    }],
+
+    ["R57 - the case dashboard keeps what the GM did to it across a redraw", async () => {
+        /*
+         * F13 and F14, 19.09, and they are one rule: a live window rebuilds itself,
+         * `keepLive` carries the fields somebody touched and redraws everything else
+         * from the world - so anything applied by an EVENT is applied exactly once,
+         * and anything captured as a NODE is detached a moment later.
+         */
+        const sources = new Map(await otherSources());
+        const utils = stripComments(sources.get("utils.mjs") ?? "");
+        const picker = utils.slice(utils.indexOf("export function wirePortraitPickers"),
+            utils.indexOf("export function panelTabs"));
+        ok(picker.length > 300, "wirePortraitPickers is gone or has moved past panelTabs");
+        const cb = picker.indexOf("callback:");
+        ok(cb > 0, "wirePortraitPickers no longer hands the FilePicker a callback");
+        ok(picker.slice(cb).includes("querySelector"),
+            "the picker's callback writes to the nodes it captured before the picker opened; a "
+            + "live window has replaced both by the time somebody chooses a file");
+        const insync = picker.indexOf('getAttribute("src")');
+        ok(insync > 0 && insync < cb,
+            "nothing puts the picture back in step with the hidden field after a rebuild");
+
+        const inv = stripComments(sources.get("investigation.mjs") ?? "");
+        const helper = inv.slice(inv.indexOf("export function wireKeyLimitOverride"),
+            inv.indexOf("export async function openInvestigationDashboard"));
+        ok(helper.length > 200,
+            "wireKeyLimitOverride is gone or has moved past openInvestigationDashboard");
+        ok(/addEventListener\("change", apply\)/.test(helper),
+            "the override no longer follows the tick box at all");
+        ok(helper.indexOf("apply();") > helper.indexOf("addEventListener"),
+            "the override is wired but never applied, so a redraw that restores the tick leaves "
+            + "the rows disabled");
+        const wire = inv.slice(inv.indexOf("const wireAll = () => {"), inv.indexOf("wireAll();"));
+        ok(wire.includes("wireKeyLimitOverride("),
+            "the dashboard stopped re-wiring the Key Remnant limit override after a rebuild");
+
+        // The order both halves of this depend on, one file up.
+        const live = stripComments(sources.get("live.mjs") ?? "");
+        const rebuild = live.slice(live.indexOf("const rebuild = (force = false)"),
+            live.indexOf("const schedule ="));
+        const restored = rebuild.indexOf("restore(next, carried)");
+        const after = rebuild.indexOf("after(next)");
+        ok(restored > 0 && after > 0,
+            "keepLive no longer restores what it carried, or no longer calls its `after` hook");
+        ok(restored < after,
+            "keepLive calls `after` before it puts back what the person had typed, so every "
+            + "re-wire reads the markup's values instead of theirs");
     }]
 ];
 
@@ -8337,6 +8497,41 @@ const SCENARIOS = [
         } finally {
             probe.remove();
             document.body.classList.toggle("drpg-high-contrast", was);
+            await settle();
+        }
+    }],
+
+    ["the clock's rewind is refused while an Eclipse is running", async () => {
+        /*
+         * HUD-02 driven, which this one can be: the refused path writes nothing, so
+         * it cannot leave the sealed rooms, a pending assembly or the motive dirty.
+         * "evening" is chosen so the Eclipse under test is the NIGHT one - the free
+         * placement window whose allowance flips, which is the worst version of the
+         * bug - and spreading the old clock keeps `timeOfDayStartedAt`, so this does
+         * not re-stamp the elapsed readout.
+         */
+        const was = foundry.utils.deepClone(getClock());
+        const refusal = game.i18n.localize("DRPG.Clock.rewindDuringEclipse");
+        const seen = [];
+        const warned = ui.notifications.warn.bind(ui.notifications);
+        ui.notifications.warn = text => { seen.push(String(text)); return null; };
+
+        try {
+            const { rewindTimeOfDay } = await import("./clock.mjs");
+            await setClock({ ...was, timeOfDay: "evening", eclipse: true });
+            await settle();
+
+            equal(await rewindTimeOfDay(), null, "the rewind went through during an Eclipse");
+            ok(seen.includes(refusal), "the rewind was refused silently, or for some other reason");
+
+            const now = getClock();
+            equal(now.timeOfDay, "evening", "the rewind moved the time of day anyway");
+            equal(now.eclipse, true, "the rewind ended the Eclipse instead of refusing");
+            equal(now.session, was.session, "the rewind rolled the session back");
+            equal(now.day ?? 1, was.day ?? 1, "the rewind rolled the day back");
+        } finally {
+            ui.notifications.warn = warned;
+            await setClock(was);
             await settle();
         }
     }]

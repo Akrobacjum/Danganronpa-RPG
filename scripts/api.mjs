@@ -320,14 +320,14 @@ export const DrpgApi = {
     /** Move to the next time of day: refills actions, free Moves, search tokens. */
     advanceTimeOfDay,
 
-    /** Step back one time of day. A correction - refills nothing. */
+    /** Step back one time of day. A correction - refills nothing, and refused while an Eclipse runs. */
     rewindTimeOfDay,
     setTimeOfDay,
 
     /** Open the GM panel (also on the token toolbar as a clock icon). */
     gmPanel: openGmPanel,
 
-    /** Open the clock editor (also the gear on the HUD). */
+    /** Open the clock editor (also a tile on the GM panel). */
     editClock: openClockDialog,
 
     /** Force the top-of-screen HUD to redraw. */

@@ -211,6 +211,35 @@ export async function rewindTimeOfDay() {
     if (!game.user.isGM) return null;
 
     /*
+     * AND NOT WHILE AN ECLIPSE RUNS (HUD-02, 19.09).
+     *
+     * The Eclipse has not moved the clock yet - it sits BEFORE the next time of
+     * day - so `clock.timeOfDay` still holds the one that just finished while the
+     * HUD names the one being placed for. Stepping the clock back therefore undid
+     * nothing: it RENAMED the running Eclipse. On the Night Eclipse, the one
+     * free-placement window there is, that turns `eclipseAllowance()` from null
+     * into two - so the crossing judge starts enforcing a budget and adjacency on
+     * a table that was just told to pick any room on the map, with every crossing
+     * already recorded counting against it, and anybody who had placed twice
+     * refused outright. From the Noon Eclipse the same press also takes the
+     * session and the day back a whole day.
+     *
+     * BEFORE `cancelGather()` BELOW, and that order is the rule: a refusal placed
+     * after it would destroy a pending assembly and then decline to do the thing
+     * it destroyed it for.
+     *
+     * A REFUSAL, not a warning and a write. "Edit campaign" warns and writes on
+     * purpose - it is a deliberate correction with every field in front of the GM
+     * - and this is one click on the main screen, the only control on that row
+     * that could do this by accident. Ending an Eclipse without advancing is the
+     * GM panel's job and it has a button for it.
+     */
+    if (getClock().eclipse === true) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Clock.rewindDuringEclipse"));
+        return null;
+    }
+
+    /*
      * THE ASSEMBLY GOES FIRST, BEFORE THE CLOCK MOVES.
      *
      * A called assembly fires when the time of day is no longer the one it was
