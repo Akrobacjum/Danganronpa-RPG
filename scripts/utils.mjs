@@ -996,23 +996,67 @@ export function injectSelectPickerSkin() {
  * for a single-image form) beside `<input type="hidden" name="img.{id}">`
  * (or `name="img"`) - the same markup `projects-ui.mjs` and
  * `investigation.mjs` both build their portrait cells from.
+ *
+ * THE HIDDEN FIELD IS THE RECORD; THE `<img>` IS A VIEW OF IT. Both are written
+ * when somebody picks a file, and the field is what a Save reads - so in a live
+ * window, where a rebuild carries the field and redraws the picture, this puts
+ * the picture back in step every time it is called. A caller in a live window
+ * must call it again after each rebuild.
  */
 export function wirePortraitPickers(root, { defaultImg = null } = {}) {
     for (const portrait of root.querySelectorAll("[data-drpg-portrait]")) {
-        if (portrait.dataset.drpgWired) continue;
-        portrait.dataset.drpgWired = "1";
-
         const id = portrait.dataset.drpgPortrait || null;
         const hiddenSelector = id ? `[name="img.${CSS.escape(id)}"]` : '[name="img"]';
 
+        /*
+         * THE HIDDEN FIELD IS THE RECORD AND THE PICTURE FOLLOWS IT (F13).
+         *
+         * In a live window the two disagree after every rebuild. `keepLive`
+         * carries a field the person has touched across a redraw, and the hidden
+         * field IS touched - so the chosen path survives, while the `<img>` beside
+         * it is markup, redrawn from the ledger. The picture went back to the
+         * hazard icon over a field that still held the new path, and a GM reads
+         * that as "it did not take" and picks again.
+         *
+         * Before the wiring guard below, because this runs again after every
+         * rebuild (`wireAll` in investigation.mjs) and that is the moment the two
+         * have drifted apart.
+         *
+         * ONLY WHEN THE FIELD SAYS SOMETHING. tables.mjs draws its new-item
+         * thumbnail from a default while `img.new` is deliberately EMPTY, so an
+         * unguarded copy would blank a picture that is doing its job.
+         *
+         * `setAttribute` rather than `.src =`, so the comparison is between two
+         * strings of the same kind: reading `.src` gives a resolved absolute URL
+         * and the guard would fire on every call.
+         */
+        const stored = root.querySelector(hiddenSelector)?.value;
+        if (stored && portrait.getAttribute("src") !== stored) {
+            portrait.setAttribute("src", stored);
+        }
+
+        if (portrait.dataset.drpgWired) continue;
+        portrait.dataset.drpgWired = "1";
+
         portrait.addEventListener("click", () => {
-            const hidden = root.querySelector(hiddenSelector);
             new foundry.applications.apps.FilePicker.implementation({
                 type: "image",
-                current: hidden?.value || defaultImg || "",
+                current: root.querySelector(hiddenSelector)?.value || defaultImg || "",
                 callback: path => {
-                    portrait.src = path;
-                    if (hidden) hidden.value = path;
+                    /*
+                     * LOOKED UP WHEN THE ANSWER ARRIVES, NOT WHEN THE PICKER
+                     * OPENED (F13). A picker stands open for as long as somebody
+                     * takes to browse, and a live window rebuilds in that time -
+                     * so the nodes captured on click are usually detached by now,
+                     * and writing to them threw the choice away silently. `root`
+                     * is the dialog element and outlives every rebuild.
+                     */
+                    const live = root.querySelector(hiddenSelector);
+                    if (live) live.value = path;
+                    const shown = id
+                        ? root.querySelector(`[data-drpg-portrait="${CSS.escape(id)}"]`)
+                        : root.querySelector("[data-drpg-portrait]");
+                    if (shown) shown.setAttribute("src", path);
                 }
             }).render(true);
         });

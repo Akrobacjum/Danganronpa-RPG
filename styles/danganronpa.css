@@ -3480,10 +3480,12 @@ body.drpg-pixel-font [contenteditable] {
     hyphens: auto;
 }
 
-/* A panel tile that refuses right now - an Eclipse running, for the murder and
-   body-discovery tiles. Greyed with a native tooltip (the `title` attribute)
-   instead of doing nothing on click, so the GM learns why before pressing it,
-   not after. */
+/* A panel tile that refuses right now - an Eclipse running, for the murder tile.
+   Greyed with a native tooltip (the `title` attribute) instead of doing nothing
+   on click, so the GM learns why before pressing it, not after. The
+   body-discovery half of the same rule is a footer button on the case dashboard
+   now (F12) and is greyed by Foundry's own `:disabled` styling, so it needs
+   nothing here. */
 .drpg-gmp-button.drpg-disabled,
 .drpg-gmp-button:disabled {
     opacity: 0.45;

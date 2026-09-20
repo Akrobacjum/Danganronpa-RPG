@@ -448,8 +448,10 @@ async function runDiscovery({ room, victim = null } = {}) {
     if (!game.user.isGM || !room) return null;
 
     // The Eclipse is a placement window nobody has finished crossing yet - see
-    // the note on `maybeBodyFound`. The panel tile that reaches this is greyed
-    // out with a tooltip while an Eclipse runs (see gm-panel.mjs); this is the
+    // the note on `maybeBodyFound`. Two things refuse before this now:
+    // `openBodyDiscoveryDialog` asks before it opens its form, and the case
+    // dashboard greys the footer button that reaches it (F12 - it used to be a GM
+    // panel tile, and the greying stayed behind with the tile). This is the
     // backstop for anyone who gets here anyway, `game.drpg` console access
     // included.
     const { isEclipse } = await import("./eclipse.mjs");
@@ -601,10 +603,31 @@ async function checkBodyFound(tokenDoc) {
     return await runDiscovery({ room, victim: bodyHere.actor });
 }
 
-/** The body-discovery announcement, from the GM panel. */
+/** The body-discovery announcement, from the case dashboard's footer. */
 export async function openBodyDiscoveryDialog() {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    /*
+     * REFUSED BEFORE THE FORM, NOT AFTER IT (F12).
+     *
+     * `runDiscovery` has always refused an Eclipse and is still the backstop for
+     * anything that reaches the work directly - but it refuses AFTER the GM has
+     * chosen a room and a victim and pressed Announce, so the answer arrived as a
+     * warning over work that was then thrown away. Asked here, the window never
+     * opens, on every route at once: the case dashboard's footer, the
+     * post-incident window's first button, and the console.
+     *
+     * SECOND IN THE ORDER, deliberately. Who may press this comes before when it
+     * may be pressed, and both come before what the map happens to have: a GM told
+     * "this scene has no room regions" mid-Eclipse would go and draw some for a
+     * window that was going to refuse anyway.
+     */
+    const { isEclipse } = await import("./eclipse.mjs");
+    if (isEclipse()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.bodyLocked"));
         return null;
     }
 

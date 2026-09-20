@@ -24,7 +24,7 @@
 import {
     MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC,
     REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, isEclipse } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
     remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
@@ -37,7 +37,7 @@ import { isDeceased, sweepTruthBullets } from "./chapter.mjs";
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log,
     workingScene, esc, wireDashboardTabs } from "./utils.mjs";
-import { alreadyOpen, keepLive } from "./live.mjs";
+import { alreadyOpen, keepLive, keepFresh } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -811,6 +811,42 @@ export async function confirmSweepBullets() {
     return removed;
 }
 
+/**
+ * The Key Remnant limit's override: wired, AND applied as it currently stands.
+ *
+ * The opening roll decides how many Key Remnants a chapter gets, so rows past
+ * that number are drawn disabled and the tick box is the GM's explicit "yes, I
+ * mean it" rather than a silent cap.
+ *
+ * BOTH HALVES, BECAUSE A REDRAW ONLY RESTORES ONE OF THEM (F14). This used to be
+ * a `change` listener and nothing else, which is right exactly once - on the
+ * markup the window opened with. `keepLive` rebuilds this region from
+ * `buildCase`, which draws every over-limit row `disabled` again, and then
+ * `restore` puts the GM's ticked box back by SETTING `checked` - a property
+ * write, which fires no `change` event. So after any redraw at all (a trace
+ * found, an actor written, an Eclipse starting) the box read yes and the rows it
+ * was the yes for were locked again, and the only way out was to untick and
+ * retick.
+ *
+ * Called from `wireAll`, which `keepLive` runs from its `after` hook - and
+ * `after` runs AFTER `restore`, so the state read here is the GM's and not the
+ * markup's. That order is load-bearing; see `rebuild` in live.mjs.
+ *
+ * @param {HTMLElement} root  The dialog element.
+ * @returns {boolean} Whether there was an override to wire at all.
+ */
+export function wireKeyLimitOverride(root) {
+    const override = root?.querySelector('[name="keyOverride"]');
+    // No limit line means no murder has set one yet, and then no row is over it.
+    if (!override) return false;
+
+    const limited = root.querySelectorAll(".drpg-key-limited");
+    const apply = () => { for (const el of limited) el.disabled = !override.checked; };
+    override.addEventListener("change", apply);
+    apply();
+    return true;
+}
+
 export async function openInvestigationDashboard() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
@@ -1361,13 +1397,11 @@ export async function openInvestigationDashboard() {
 
                 wireDashboardTabs(root);
 
-                // Rows past the opening roll's limit start disabled; the checkbox
-                // is the GM's explicit "yes, I mean it" rather than a silent cap.
-                const override = root.querySelector('[name="keyOverride"]');
-                const limited = root.querySelectorAll(".drpg-key-limited");
-                override?.addEventListener("change", () => {
-                    for (const el of limited) el.disabled = !override.checked;
-                });
+                // Rows past the opening roll's limit, and the GM's explicit
+                // override of it - applied as well as wired, because a redraw
+                // restores the tick and not what it unlocked. See
+                // `wireKeyLimitOverride`.
+                wireKeyLimitOverride(root);
             };
 
             wireAll();
@@ -1391,6 +1425,42 @@ export async function openInvestigationDashboard() {
                 }
             };
             wireFilters();
+
+            /*
+             * THE BODY BUTTON IS GREYED WHILE AN ECLIPSE RUNS (F12).
+             *
+             * "A body is discovered" was a GM panel tile until it moved into this
+             * footer, and the greying stayed behind with the tile: the murder tile
+             * beside it has carried `disabled: () => isEclipse()` since 28.08, and
+             * this button - the other half of the same rule - was lit through an
+             * entire Eclipse. `openBodyDiscoveryDialog` refuses the call either way
+             * now, but a GM should see WHY before pressing rather than after, which
+             * is the reason the murder tile greys instead of refusing on click.
+             *
+             * NOT IN `wireAll`, AND THAT IS THE POINT. The footer sits outside
+             * `.drpg-case-live`, so a rebuild never replaces these nodes - and
+             * `keepLive` DEFERS a rebuild while focus is inside the region, so
+             * hanging the paint on `after` would leave the button lit for as long
+             * as somebody was mid-sentence when the Eclipse started. `keepFresh` is
+             * the subscription for exactly this shape: a node nobody edits, written
+             * in place, with no focus rule.
+             *
+             * SAFE TO DISABLE because `save` is the first entry in `buttons` and
+             * carries `default: true`. Enter in a field presses the FIRST submit in
+             * DOM order and a disabled first submit kills Enter outright, so the one
+             * button that may never be greyed is the first one.
+             */
+            const paintBodyButton = () => {
+                const button = dialog.element
+                    ?.querySelector('footer.form-footer button[data-action="bodyFound"]');
+                if (!button) return;
+                const locked = isEclipse();
+                button.disabled = locked;
+                if (locked) button.title = game.i18n.localize("DRPG.Eclipse.bodyLocked");
+                else button.removeAttribute("title");
+            };
+            paintBodyButton();
+            keepFresh(dialog, { run: paintBodyButton });
             /*
              * `watch: { actors: true }` as well as the settings, because a Truth
              * Bullet arriving in somebody's bag is an item on an actor, and the

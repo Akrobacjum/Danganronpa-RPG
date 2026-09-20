@@ -4255,6 +4255,96 @@ const INVARIANTS = [
         }
     }],
 
+    ["a portrait chosen in a live window survives the window redrawing itself", async () => {
+        /*
+         * F13. The hidden field is the record and the `<img>` is a view of it - and a
+         * rebuild carries the field while redrawing the picture, so the two came out
+         * of it disagreeing: the hazard icon over a path the GM had just chosen,
+         * which reads as "it did not take".
+         */
+        const { wirePortraitPickers } = await import("./utils.mjs");
+
+        const host = document.createElement("div");
+        host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
+        host.innerHTML = `
+            <img data-drpg-portrait="s1__t1" src="icons/svg/hazard.svg">
+            <input type="hidden" name="img.s1__t1" value="icons/svg/hazard.svg">
+            <img data-drpg-portrait="new" src="icons/svg/item-bag.svg">
+            <input type="hidden" name="img.new" value="">`;
+        document.body.appendChild(host);
+
+        try {
+            // Exactly what a rebuild leaves behind: `restore` has put the GM's pick
+            // back into the hidden field, and the picture was drawn from the ledger,
+            // which has not been saved yet.
+            host.querySelector('[name="img.s1__t1"]').value = "worlds/x/knife.webp";
+            wirePortraitPickers(host, { defaultImg: "icons/svg/hazard.svg" });
+
+            equal(host.querySelector('[data-drpg-portrait="s1__t1"]').getAttribute("src"),
+                "worlds/x/knife.webp",
+                "a redrawn row shows the ledger's picture over the path the GM had just chosen");
+            // A window whose hidden field is deliberately empty keeps its default.
+            equal(host.querySelector('[data-drpg-portrait="new"]').getAttribute("src"),
+                "icons/svg/item-bag.svg",
+                "an empty hidden field blanked a thumbnail that was showing a default");
+        } finally {
+            host.remove();
+        }
+    }],
+
+    ["the Key Remnant limit's override still means yes after a redraw", async () => {
+        /*
+         * F14, driven over a REAL `keepLive`, because the bug is in the handover
+         * between the two: the rows are drawn disabled again by the rebuild, and
+         * `restore` puts the tick back with a property write - which fires no
+         * `change`, so the listener that was the whole mechanism never ran.
+         */
+        const { keepLive } = await import("./live.mjs");
+        const { wireKeyLimitOverride } = await import("./investigation.mjs");
+
+        const build = () => `<div class="drpg-t-keys">
+            <label><input type="checkbox" name="keyOverride"> more</label>
+            <select name="room:4" class="drpg-key-limited" disabled>
+                <option value="">-</option><option value="Kitchen">Kitchen</option></select>
+            <select name="vis:4" class="drpg-key-limited" disabled>
+                <option value="evident">evident</option></select>
+        </div>`;
+        const host = document.createElement("div");
+        host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";
+        host.innerHTML = build();
+        document.body.appendChild(host);
+
+        const app = { element: host, options: { window: { title: "test" } } };
+        const stop = keepLive(app, {
+            region: ".drpg-t-keys", build, delay: 0,
+            after: () => wireKeyLimitOverride(host)
+        });
+
+        try {
+            ok(wireKeyLimitOverride(host), "the override was not found in the markup");
+            const box = () => host.querySelector('[name="keyOverride"]');
+            const rows = () => [...host.querySelectorAll(".drpg-key-limited")];
+            ok(rows().length === 2 && rows().every(el => el.disabled),
+                "a row past the limit did not start out of reach");
+
+            box().checked = true;
+            box().dispatchEvent(new Event("change", { bubbles: true }));
+            ok(rows().every(el => !el.disabled), "ticking the override did not free the rows");
+
+            // The event every live window listens to.
+            Hooks.callAll("drpgTimeOfDayChanged", {}, {});
+            await wait(140);
+
+            ok(box().checked === true, "the redraw unticked the override");
+            ok(rows().every(el => !el.disabled),
+                "the redraw put the rows back out of reach while the override was still ticked");
+        } finally {
+            stop();
+            host.remove();
+        }
+    }]
+,
+
     ["every setting that promises a redraw gets one", async () => {
         /*
          * `onChange: () => onWorldChange(SETTINGS.x)` says "when this changes,
