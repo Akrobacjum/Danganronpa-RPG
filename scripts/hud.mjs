@@ -38,6 +38,7 @@ import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 // Static, and safe: nothing imports hud.mjs, so no path leads back here.
 import { murderState, participantIds } from "./murder.mjs";
 import { motive } from "./rules.mjs";
+import { nowPlayingHere } from "./music.mjs";
 import { pendingGather } from "./call-effects.mjs";
 import { renderEvents, eventsWindowActive } from "./events.mjs";
 // The fifth, added when the trial's own bar was folded into this widget. Walked
@@ -49,8 +50,73 @@ import { trialFloor, secondsLeft, floorHolder, floorTarget, FLOOR_MODES } from "
 
 const HUD_ID = "drpg-hud";
 
+
+/**
+ * The name of the track this client is hearing, as a band under the clock (N-1).
+ *
+ * Dawid, 20.09: a scrolling bar on the clock with the name of what is playing.
+ *
+ * NOT THE TICKER ABOVE IT. `.drpg-hud-ticker` is the PHASE's name as a 22 % outline
+ * behind the clock's rows, Stained Glass only, decoration by design and switched off
+ * with `hudTicker`. This is a line somebody is meant to read, in both themes.
+ *
+ * READ FROM THE LOCAL AUDIO STATE - see `nowPlayingHere` in music.mjs for why that
+ * is the only safe reading: what the GM hears while they set a scene up is not what
+ * the table hears, and a murder is exactly when that difference matters.
+ *
+ * TWO COPIES OF THE TEXT, like the ticker, because a marquee that scrolls one copy
+ * shows a gap. Under reduced motion the animation is off in the stylesheet and the
+ * line simply sits there, clipped at the end, which is a name you can still read.
+ */
+function paintTrackLine(hud) {
+    const host = hud ?? document.getElementById(HUD_ID);
+    if (!host) return;
+
+    const now = nowPlayingHere();
+    const existing = host.querySelector(".drpg-hud-track");
+
+    if (!now) {
+        existing?.remove();
+        lastTrackName = null;
+        return;
+    }
+    // A repaint that says the same thing would restart the scroll from the left,
+    // which on a two-minute track is a jolt every time anything else redraws.
+    if (existing && lastTrackName === now.track) return;
+    lastTrackName = now.track;
+
+    const band = existing ?? document.createElement("div");
+    band.className = "drpg-hud-track";
+    band.dataset.tooltip = game.i18n.format("DRPG.Hud.nowPlaying", { track: now.track });
+    band.replaceChildren();
+    const run = document.createElement("span");
+    run.textContent = `${now.track} · `;
+    band.append(run, run.cloneNode(true));
+    if (!existing) host.append(band);
+}
+
+/** What the band is showing, so a redraw that changes nothing leaves it running. */
+let lastTrackName = null;
+
 export function registerHud() {
     Hooks.once("ready", () => renderHud());
+
+    /* WHAT IS PLAYING IS NOT THE CLOCK'S BUSINESS TO REDRAW FOR (N-1). The band is
+       repainted on its own, from the four document events that mean a track started
+       or stopped, because a full `renderHud()` rebuilds the time-of-day slide and
+       the room block for a change neither of them can see.
+
+       AND A SLOW TICK BEHIND THEM, because the document update arrives before this
+       client's own audio node has started: the reading is local by design, so it can
+       be a second behind the event that caused it. Three seconds, and a repaint that
+       would say the same thing returns without touching the DOM. */
+    for (const hook of ["updatePlaylist", "updatePlaylistSound",
+        "createPlaylistSound", "deletePlaylistSound"]) {
+        Hooks.on(hook, () => paintTrackLine());
+    }
+    Hooks.once("ready", () => setInterval(() => {
+        try { paintTrackLine(); } catch (err) { debug("Could not repaint the track band", err); }
+    }, 3000));
 
     // Foundry rebuilds parts of the interface on scene changes; re-assert.
     Hooks.on("canvasReady", () => renderHud());
@@ -396,6 +462,11 @@ export function renderHud() {
         // on a widget that otherwise describes the whole world.
         const room = buildRoom();
         if (room) hud.append(room);
+
+        // And under that, what you are hearing (N-1). Rebuilt here because the whole
+        // clock has just been replaced; it keeps itself up to date after that.
+        lastTrackName = null;
+        paintTrackLine(hud);
 
         if (hud.parentElement !== host) host.append(hud);
         alignRightColumn(hud);

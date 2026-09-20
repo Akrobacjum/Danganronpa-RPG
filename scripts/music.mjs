@@ -1491,6 +1491,53 @@ export async function openSoundDialog() {
     return result;
 }
 
+
+/**
+ * The track THIS CLIENT is hearing, if any (N-1, Dawid 20.09).
+ *
+ * WHAT IS PLAYING HERE, NOT WHAT THE WORLD SAYS IS PLAYING, and that distinction is
+ * the whole reason this function exists rather than a read of `playlist.playing`.
+ * Playback is driven by the primary GM through `playAll()`, which is a document
+ * update, so in the ordinary case every client hears the same thing - but not in
+ * every case: a sound can be started on one client alone (the module's own effects
+ * do it, addressed to a side), and a GM listening to something while they set a
+ * scene up must not have the name of it appear on a player's clock. A
+ * `PlaylistSound`'s `sound` is the CLIENT's own audio node: if it is playing here,
+ * this browser is hearing it, and if it is not, this browser is not.
+ *
+ * WHICH ONE, WHEN THERE ARE TWO. A cue over an ambient bed is two sounds at once,
+ * and the one a person would name is the cue - so the cue playlist wins, then
+ * anything that is not one of ours (a GM's own pick, which is what an interruption
+ * is), and the module's own bed last.
+ *
+ * @returns {{track: string, playlist: string}|null}
+ */
+export function nowPlayingHere() {
+    try {
+        const cueId = situationalPlaylist()?.id ?? null;
+        const mine = new Set(ours().map(p => p.id));
+        let best = null;
+        let bestRank = -1;
+
+        for (const playlist of game.playlists ?? []) {
+            for (const sound of playlist.sounds ?? []) {
+                // `sound.sound` is this client's audio node; `sound.playing` is the
+                // document's opinion, which is the thing that can differ.
+                if (!sound.sound?.playing) continue;
+                const rank = playlist.id === cueId ? 2 : (mine.has(playlist.id) ? 0 : 1);
+                if (rank > bestRank) {
+                    bestRank = rank;
+                    best = { track: sound.name ?? "", playlist: playlist.name ?? "" };
+                }
+            }
+        }
+        return best?.track ? best : null;
+    } catch (err) {
+        debug("Could not read what this client is playing", err);
+        return null;
+    }
+}
+
 /** The sounds inside one playlist, as <option>s. Empty when it has none. */
 function trackOptions(playlist) {
     const sounds = Array.from(playlist?.sounds ?? [])

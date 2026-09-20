@@ -477,6 +477,7 @@
       "endEclipse": "End the Eclipse and begin the next time of day",
       "rewind": "Step back one time of day. A correction - it refills nothing",
       "controlFailed": "That clock control did not finish. The GM panel's Debug log says why.",
+      "nowPlaying": "Playing here: {track}. This is what your own browser is playing, which is not always what somebody else's is.",
       "rewindEclipse": "An Eclipse is running, so there is no time of day to step back to. End it from the GM panel first.",
       "elapsed": "{minutes} min in",
       "elapsedUnknown": "not started",

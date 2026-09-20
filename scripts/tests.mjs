@@ -3686,6 +3686,48 @@ const REGRESSIONS = [
         ok(glassRule > lastHour,
             "the glass's own accent is overridden by the hour rules - it has to come after "
             + "them, since they have the same specificity");
+    }],
+
+    ["R78 - the clock names what THIS client is hearing", async () => {
+        /*
+         * N-1 (Dawid, 20.09): a scrolling band on the clock with the name of the
+         * track that is playing.
+         *
+         * THE READING IS LOCAL, AND THAT IS THE ONLY PART THAT MATTERS FOR SAFETY.
+         * Playback is driven by the primary GM through `playAll()`, a document
+         * update, so in the ordinary case every client hears the same thing - but a
+         * sound can be started on one client alone, and what a GM listens to while
+         * they set a murder up must not have its name appear on a player's clock.
+         * `sound.sound` is this browser's own audio node; `sound.playing` is the
+         * document's opinion, and reading the second one is the defect.
+         */
+        const sources = new Map(await otherSources());
+        const music = stripComments(sources.get("music.mjs") ?? "");
+        const at = music.indexOf("export function nowPlayingHere");
+        ok(at > 0, "nothing reads what this client is playing");
+        const body = music.slice(at, music.indexOf("\n/**", at + 10));
+        ok(/sound\.sound\?\.playing/.test(body),
+            "the reader asks the document what is playing instead of this browser");
+        ok(!/playlist\.playing/.test(body),
+            "the reader is back on the world's opinion, which is the leak");
+
+        const hud = stripComments(sources.get("hud.mjs") ?? "");
+        ok(/function paintTrackLine\(/.test(hud), "the clock has no band to paint");
+        ok(/drpg-hud-track/.test(hud), "the band has no class, so the stylesheet cannot reach it");
+        const wiring = hud.slice(hud.indexOf("export function registerHud"),
+            hud.indexOf("export function registerHud") + 2000);
+        for (const hook of ["updatePlaylistSound", "deletePlaylistSound"]) {
+            ok(wiring.includes(hook), `the band does not wake on ${hook}`);
+        }
+        ok(!/Hooks\.on\("updatePlaylistSound", \(\) => renderHud/.test(hud),
+            "a track change rebuilds the whole clock, which slides the time of day for "
+            + "something neither it nor the room block can see");
+
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()))
+            .replace(/\/\*[\s\S]*?\*\//g, " ");
+        ok(/\.drpg-hud-track \{/.test(css), "the band has no rule of its own");
+        ok(/drpg-reduced-motion .drpg-hud-track > span \{\s*animation: none/.test(css),
+            "the band goes on scrolling under reduced motion");
     }]
 ];
 
@@ -6007,6 +6049,9 @@ const LITERAL_KEYS = [
     "DRPG.Despair.poolGone", "DRPG.Despair.removePoolAsk",
     // The tracker's own explanation for an incident nobody can finish.
     "DRPG.Murder.trackerCastGone",
+    // N-1 and N-2: a tooltip on the clock, and the four sentences of a Level Up
+    // handed to the player - none of which a GM ever sees.
+    "DRPG.Hud.nowPlaying", "DRPG.Advance.offerTitle", "DRPG.Advance.offered",
     // MM-02. Said by a button that now answers Enter, so an empty field is a
     // keystroke away rather than a deliberate click.
     "DRPG.Monocub.giveAtLeast",

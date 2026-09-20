@@ -15251,6 +15251,46 @@ body[data-drpg-time="night"] { --drpg-own-ring: #7f8cff; }
 /* An Eclipse is not an hour, and on this map it is the loudest thing there is. */
 body.drpg-eclipse { --drpg-own-ring: #a678ff; }
 body.drpg-theme-stained-glass { --drpg-own-ring: var(--drpg-glass-accent); }
+
+/* ==========================================================================
+   WHAT IS PLAYING, UNDER THE CLOCK (N-1, Dawid 20.09)
+   --------------------------------------------------------------------------
+   A band with the name of the track this client is hearing. The name comes from
+   the LOCAL audio state (`nowPlayingHere` in music.mjs), never from the world's
+   idea of what is playing - what a GM listens to while they set a scene up is
+   not what the table hears, and a murder is when that difference matters.
+
+   NOT `.drpg-hud-ticker`, WHICH IS SOMETHING ELSE. That one is the phase's name
+   as a 22 % outline BEHIND the clock's rows, Stained Glass only, decoration by
+   design and switched off with the `hudTicker` client setting. This is a line
+   somebody is meant to read, in both themes, under the room block.
+
+   TWO COPIES AND A MASK, the marquee this module already uses above: one copy
+   scrolling leaves a gap behind it, and a hard cut at the edge reads as a
+   rendering fault where a fade reads as depth.
+   ========================================================================== */
+.drpg-hud-track {
+    display: flex;
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid var(--drpg-line);
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: max(10px, calc(0.68rem * var(--drpg-legacy-scale, 1)));
+    letter-spacing: 0.04em;
+    color: var(--drpg-dim);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.drpg-hud-track > span {
+    flex: 0 0 auto;
+    padding-right: 1.5em;
+    animation: drpg-track-scroll 16s linear infinite;
+}
+@keyframes drpg-track-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-100%); }
+}
 /* A name that stands still is still a name you can read, which is the whole
    point of the line; the scroll is how a long one finishes its sentence. */
 body.drpg-reduced-motion .drpg-hud-track > span { animation: none; }
