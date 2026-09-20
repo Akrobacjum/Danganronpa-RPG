@@ -3888,7 +3888,31 @@ export async function openIncidentTracker() {
                 game.i18n.localize("DRPG.Murder.trackerOver")}</p></div>`;
         }
         const { killer, victim, third, left } = bodyFor(now);
+
+        /*
+         * AN INCIDENT WHOSE CAST IS GONE SAYS SO (20.09).
+         *
+         * The state is a world setting and the cast is two actor ids in it, so an
+         * actor deleted while an incident stands open - a fixture from a suite run
+         * that died, a character removed between sessions - leaves the world
+         * insisting a fight is running and this window reading "? -> ?". Every
+         * control on it then acts on a side that does not exist: passing the turn
+         * writes a turn nobody owns, and the tracker is the only screen that could
+         * have explained it.
+         *
+         * It cannot repair itself - which actor was meant is not recoverable - so it
+         * names what is missing and points at the one button that helps. The stage
+         * and the count below stay: they are what a GM needs to decide whether
+         * anything of this incident is worth writing down before it goes.
+         */
+        const lost = [
+            !killer && !now.selfInflicted ? game.i18n.localize("DRPG.Murder.side.killer") : null,
+            !victim ? game.i18n.localize("DRPG.Murder.side.victim") : null
+        ].filter(Boolean);
+
         return `<div class="drpg-incident-live">
+            ${lost.length ? `<p class="drpg-warning">${game.i18n.format(
+                "DRPG.Murder.trackerCastGone", { who: lost.join(", ") })}</p>` : ""}
             <p>${now.selfInflicted
                 // One name, and an arrow pointing at itself would be the only
                 // thing on this line that is not true.

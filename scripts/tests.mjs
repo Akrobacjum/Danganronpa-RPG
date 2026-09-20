@@ -3597,6 +3597,36 @@ const REGRESSIONS = [
             "the three buttons that act at once do not all bring the form back with them");
         ok(/openGmTeamDialog\(\{ draft: carried \}\)/.test(team),
             "the carried draft never reaches the copy that comes back");
+    }],
+
+    ["R76 - an incident whose cast is gone says so", async () => {
+        /*
+         * A lesson from this suite, 20.09. The incident state is a world setting and
+         * the cast is two actor ids in it, so an actor deleted while an incident
+         * stands open - a fixture from a run that died, a character removed between
+         * sessions - leaves the world insisting a fight is running and the tracker
+         * reading "? -> ?", with every control acting on a side that does not exist.
+         *
+         * The tracker cannot repair it: which actor was meant is not recoverable. It
+         * names what is missing and points at the one button that helps.
+         *
+         * The other half of the lesson - tier 2 refusing to start while an incident is
+         * open - is in this file's own runner, and is deliberately not read from here:
+         * a test that reads the runner it is running inside proves nothing about the
+         * run that is happening.
+         */
+        const murder = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
+        const body = murder.slice(murder.indexOf("const trackerBody = () =>"),
+            murder.indexOf("const signature = () =>"));
+        ok(body.length > 400, "the tracker's body builder has moved or gone");
+        ok(/const lost = \[/.test(body), "nothing notices that the cast cannot be found");
+        ok(/trackerCastGone/.test(body), "the missing cast is not reported to the GM");
+        // `lastIndexOf`: the first `drpg-incident-live` in this builder is the
+        // "this incident is over" branch above, which has no cast to report.
+        ok(body.indexOf("const lost") < body.lastIndexOf("drpg-incident-live"),
+            "the warning is worked out after the markup it belongs in");
+        ok(/now\.selfInflicted \?[\s\S]{0,120}side\.killer/.test(body),
+            "a self-inflicted death is reported as missing a killer, which it never had");
     }]
 ];
 
@@ -5916,6 +5946,8 @@ const LITERAL_KEYS = [
     // TEAM-01 and SEASON-02. Both are printed on a road a GM reaches rarely - a
     // pool somebody else revoked first, a cursor repair that found nothing.
     "DRPG.Despair.poolGone", "DRPG.Despair.removePoolAsk",
+    // The tracker's own explanation for an incident nobody can finish.
+    "DRPG.Murder.trackerCastGone",
     // MM-02. Said by a button that now answers Enter, so an empty field is a
     // keystroke away rather than a deliberate click.
     "DRPG.Monocub.giveAtLeast",

@@ -1181,6 +1181,7 @@
       "afterIntroSelf": "{name}, by their own hand. Everything below follows from what just happened, and the module has stopped tracking the incident itself.",
       "dayNote": "Not night, so the opening roll is unmodified.",
       "keyCount": "This case will leave {n} Key Remnants.",
+      "trackerCastGone": "This incident names somebody the world does not have any more ({who}). Nothing can move it on - End the murder closes it.",
       "trackerTitle": "Incident tracker",
       "trackerOver": "This incident is over.",
       "ranOutTitle": "They ran out",
