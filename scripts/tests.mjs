@@ -9500,8 +9500,17 @@ const SCENARIOS = [
             await settle();
             ui2.manageClassTrial().catch(() => {});
 
+            /*
+             * THE YOUNGEST RECORD, NOT THE FIRST. `diagnoseLive` lists every live
+             * region this client holds, and a console from the scenario before this
+             * one can still be in that set while it closes - ApplicationV2's close
+             * waits on a transition. `.find` then measured a window that is on its way
+             * out and never rebuilds again, which reads exactly like a missing hook:
+             * this failed twice in a row on an unchanged `watch.hooks`.
+             */
             const refreshesOf = () => diagnoseLive()
-                .find(r => r.region === ".drpg-trial-console")?.refreshes ?? -1;
+                .filter(r => r.region === ".drpg-trial-console")
+                .sort((a, b) => a.openMs - b.openMs)[0]?.refreshes ?? -1;
             // Polled for the same reason as the scenario above: the region does not
             // exist until the window has rendered, and 600 ms is not a promise.
             await until(() => refreshesOf() >= 0, 6000);
@@ -9509,8 +9518,10 @@ const SCENARIOS = [
             ok(before >= 0, "the trial console is not a live region any more");
 
             Hooks.callAll("drpgVoteChanged", { in: 1 });
-            await wait(400);
-            ok(refreshesOf() > before,
+            // POLLED, NOT WAITED FOR. `keepLive` debounces by 120 ms and the rebuild is
+            // a DOM replacement; a fixed 400 ms passed eight runs and failed the ninth
+            // on a loaded machine, which is a flake rather than a finding.
+            ok(await until(() => refreshesOf() > before, 3000),
                 "the trial console does not listen for a ballot - `watch.hooks` is missing or misspelled");
 
             // And the idle tick really is idle while no floor is open.
