@@ -308,7 +308,7 @@
       },
       "uiScale": {
         "name": "Interface scale",
-        "hint": "One factor on the module's own type and panels, 80% to 140%, on top of the screen's own factor (2560 x 1440 is 100%; a smaller screen draws smaller, down to 70%). The map, Foundry's own windows and the 11px floor are never scaled. This client only."
+        "hint": "One factor on the interface, 80% to 140%, this client only. Under Stained Glass the screen's own factor rides under it - 2560 x 1440 is 100%, and a smaller screen draws smaller, down to 70%. Under Monokuma Legacy the slider is the whole factor. It moves this module's type, its panels and its window boxes, and with them Foundry's own chrome and the character sheet; the map is never scaled, and the smallest type stops at 10px."
       },
       "debug": {
         "name": "Verbose console logging",
@@ -904,6 +904,7 @@
       "theme": "Theme",
       "uiScale": "Interface scale",
       "uiScaleAuto": "This screen ({w} x {h}) is drawn at {auto}% of 1440p on its own; with the slider, {total}%.",
+      "uiScaleSlider": "This screen is {w} x {h}. Monokuma Legacy takes the slider on its own: {slider}%.",
       "pixelFont": "Pixel font",
       "pulse": "Glass pulse",
       "reducedMotion": "Reduced motion",

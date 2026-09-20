@@ -2649,7 +2649,17 @@ const REGRESSIONS = [
         const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
         const at = css.indexOf("body.drpg-high-contrast");
         ok(at > 0, "the high-contrast block is gone, so the switch changes nothing");
-        const block = css.slice(at);
+        /*
+         * THE SWITCH'S OWN RULES AND NOTHING ELSE. This used to read from the first
+         * mention of the class to the END OF THE FILE, so every rule that happened to
+         * sit below the block counted as part of it - and W-2's type ladder, appended
+         * at the foot of the sheet on 20.09, failed the `font-size` assertion below
+         * while being none of this switch's business. Seven rules, 4.3 kB.
+         */
+        const block = css.split("}")
+            .filter(chunk => /drpg-high-contrast/.test(chunk.includes("{") ? chunk.split("{")[0] : ""))
+            .join("}\n") + "}";
+        ok(block.length > 2000, "the high-contrast rules could not be isolated");
 
         ok(!/font-size/.test(block), "the high-contrast block sets a font size");
         ok(!/line-height/.test(block), "the high-contrast block sets a line height");
@@ -2960,6 +2970,138 @@ const REGRESSIONS = [
             + "never settled");
         ok(/"drpg-window-murder"/.test(dialog),
             "the murder window has no class of its own, so nothing can close it");
+    }],
+
+    ["R60 - every size this module states follows the Interface scale", async () => {
+        /*
+         * W-2, Dawid 19.09. danganronpa.css read NEITHER scale token - 234 font-size
+         * declarations, zero uses - so Monokuma Legacy kept one size whatever the
+         * slider said. This is the test that keeps the 235th declaration honest.
+         *
+         * FIVE SHAPES ARE ALLOWED and everything else is a finding: `0` (a hidden
+         * label), a read of one of the module's rungs or of Foundry's ladder, a bare
+         * `em` (it inherits, so it already follows its parent), a `clamp()` (the
+         * pause caption, whose container is the viewport), and a literal inside a
+         * `calc()` that carries the factor.
+         */
+        const sheets = ["danganronpa.css", "messenger.css"];
+        const bad = [];
+        let factored = 0;
+        let clamped = 0;
+        let rungs = 0;
+
+        for (const sheet of sheets) {
+            const raw = await fetch(`/modules/${MODULE_ID}/styles/${sheet}`).then(r => r.text());
+            // Comments blanked rather than deleted, so a reported line number still
+            // points at the declaration - the rule R51 already follows.
+            const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
+            css.split("\n").forEach((line, i) => {
+                const m = line.match(/font-size:\s*([^;]+);/);
+                if (!m) return;
+                const value = m[1].trim();
+                if (/^0(\s*!important)?$/.test(value)) return;
+                if (value.includes("var(--drpg-text-") || value.includes("var(--font-size-")) {
+                    rungs++;
+                    return;
+                }
+                if (/^[\d.]+em(\s*!important)?$/.test(value)) return;
+                if (value.includes("clamp(")) {
+                    clamped++;
+                    return;
+                }
+                if (value.includes("var(--drpg-legacy-scale")) {
+                    factored++;
+                    return;
+                }
+                bad.push(`${sheet}:${i + 1} ${value}`);
+            });
+        }
+
+        ok(!bad.length, `these sizes do not follow the Interface scale: ${bad.join(", ")}`);
+        // Counted as well, so nobody satisfies the sweep by deleting the token.
+        ok(factored >= 22, `only ${factored} stated sizes carry the factor`);
+        equal(clamped, 2, "the pause caption is no longer the only size with a viewport container");
+        ok(rungs >= 140, `only ${rungs} declarations read a rung - 164 of them did, so some have been unwired`);
+    }],
+
+    ["R61 - Monokuma Legacy states the whole ladder, and no rung is floored above its own size", async () => {
+        /*
+         * W-2. Foundry sizes its chrome from `--font-size-*` and Daggerheart's sheet
+         * reads the same ladder 223 times, so the ladder is what this theme
+         * redeclares. Every rung is N/16 rem, which is what both of them already
+         * state - that is why the block changes nothing at 100 %.
+         *
+         * AND THE FLOOR IS PER RUNG. A flat 10px floor would GROW rungs 8 and 9,
+         * which carry the pixel face's trait names and a tile's cost, and break the
+         * one promise this makes: a client who never touched the slider sees no
+         * change.
+         */
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
+
+        const at = css.indexOf("body.drpg-theme-monokuma-legacy {");
+        ok(at > 0, "Monokuma Legacy no longer states a ladder of its own");
+        const block = css.slice(at, css.indexOf("}", at));
+        ok(block.includes("--font-size-8:"), "the ladder block is not the one that states the rungs");
+
+        const WANT = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 28, 30, 32, 36, 40, 48, 64, 80];
+        for (const n of WANT) {
+            const line = block.match(new RegExp(`--font-size-${n}:([^;]+);`));
+            ok(line, `the ladder lost rung ${n}, so it silently falls off the slider`);
+            const value = line[1];
+            ok(value.includes("var(--drpg-legacy-scale"), `rung ${n} does not follow the slider`);
+            const rem = value.match(/([\d.]+)rem/);
+            ok(rem, `rung ${n} is not stated in rem`);
+            const px = Math.round(Number(rem[1]) * 16 * 10000) / 10000;
+            equal(px, n, `rung ${n} is stated as ${rem[1]}rem, which is ${px}px at 100 %`);
+            const floor = value.match(/max\((\d+)px/);
+            if (floor) {
+                ok(Number(floor[1]) <= n,
+                    `rung ${n} is floored at ${floor[1]}px, so 100 % GROWS it`);
+            }
+        }
+
+        const root = css.slice(css.indexOf("--drpg-text-xs:"), css.indexOf("--drpg-text-xl:") + 120);
+        for (const rung of ["xs", "sm", "md", "base", "lg", "xl"]) {
+            const line = root.match(new RegExp(`--drpg-text-${rung}:([^;]+);`));
+            ok(line && line[1].includes("var(--drpg-legacy-scale"),
+                `--drpg-text-${rung} stopped following the slider`);
+            const floored = line[1].includes("max(");
+            equal(floored, rung === "xs",
+                `--drpg-text-${rung} ${floored ? "has" : "lost"} a floor - only xs can reach one`);
+        }
+    }],
+
+    ["R62 - the scale factor is published once, on both roots, and the glass is pinned at 1", async () => {
+        /*
+         * W-2. Three factors now, and they are not interchangeable: geometry takes
+         * the slider times the screen, type under the glass takes the slider times a
+         * clamped screen term, and this sheet takes the slider ALONE - because it was
+         * drawn at one size for every screen, so wiring in the screen term would have
+         * shrunk every Legacy label by 15 % at 1080p the day it shipped.
+         */
+        const settings = stripComments(new Map(await otherSources()).get("settings.mjs") ?? "");
+        const apply = settings.slice(settings.indexOf("export function applyTheme"),
+            settings.indexOf("function scaleWindow"));
+        ok(apply.length > 400, "applyTheme has moved or gone");
+
+        ok(/document\.body\.style\.setProperty\("--drpg-legacy-scale"/.test(apply)
+            && /document\.documentElement\.style\.setProperty\("--drpg-legacy-scale"/.test(apply),
+            "the factor is not published on both roots - the `:root` rungs need the second one");
+        ok(/theme === "stainedGlass" \? 1 : sliderScale\(\)/.test(apply),
+            "the factor is no longer the slider alone under Legacy and 1 under the glass");
+        ok(!/legacyScale[^;]*typeScale/.test(apply),
+            "the factor was wired to the type scale, which carries the screen term");
+
+        for (const token of ["--drpg-ui-scale", "--drpg-type-scale"]) {
+            ok(apply.includes(token), `${token} stopped being published - three factors, three writes`);
+        }
+
+        for (const sheet of ["danganronpa.css", "messenger.css"]) {
+            const css = await fetch(`/modules/${MODULE_ID}/styles/${sheet}`).then(r => r.text());
+            ok(!css.includes("var(--drpg-type-scale"),
+                `${sheet} reads the screen-term factor, which has no business in a sheet drawn at one size`);
+        }
     }]
 ];
 
@@ -8924,6 +9066,107 @@ const SCENARIOS = [
         } finally {
             closeOpen("drpg-window-murder");
             if (made) { try { await P.deleteProject(made); } catch { /* already gone */ } }
+            await settle();
+        }
+    }],
+
+    ["the slider moves the type under Monokuma Legacy and moves nothing under the glass", async () => {
+        /*
+         * W-2, measured rather than read - and this is the only test that would catch
+         * an invalid `calc()`, which makes a declaration invalid at computed-value
+         * time and silently falls back to the inherited size.
+         *
+         * RATIOS, NEVER ABSOLUTE PIXELS. Foundry's own Font Size setting moves every
+         * rem, so "11px" is a fact about one client's settings rather than about this
+         * module - except at the floor, which is stated in px on purpose.
+         */
+        const settings = await import("./settings.mjs");
+        const was = { scale: getSetting(SETTINGS.uiScale), theme: getSetting(SETTINGS.theme) };
+
+        const probe = document.createElement("span");
+        probe.style.cssText = "position:fixed;left:-9999px;top:0;display:block";
+        const box = document.createElement("div");
+        box.style.cssText = "position:fixed;left:-9999px;top:0;display:block";
+        document.body.append(probe, box);
+
+        const read = async slider => {
+            await game.settings.set(MODULE_ID, SETTINGS.uiScale, slider);
+            settings.applyTheme();
+            await settle();
+            const size = token => {
+                probe.style.fontSize = `var(${token})`;
+                return parseFloat(getComputedStyle(probe).fontSize);
+            };
+            box.style.width = "var(--drpg-popup)";
+            return {
+                nine: size("--font-size-9"),
+                eleven: size("--font-size-11"),
+                xs: size("--drpg-text-xs"),
+                lg: size("--drpg-text-lg"),
+                popup: parseFloat(getComputedStyle(box).width),
+                type: parseFloat(getComputedStyle(document.body)
+                    .getPropertyValue("--drpg-type-scale")) || 1
+            };
+        };
+
+        try {
+            for (const theme of ["monokumaLegacy", "stainedGlass"]) {
+                await game.settings.set(MODULE_ID, SETTINGS.theme, theme);
+                settings.applyTheme();
+                await settle();
+
+                const one = await read(1);
+                const up = await read(1.4);
+                const down = await read(0.8);
+                const legacy = theme === "monokumaLegacy";
+
+                for (const [key, factor] of [["lg", 1.4], ["popup", 1.4]]) {
+                    const ratio = up[key] / one[key];
+                    ok(Math.abs(ratio - (legacy ? factor : 1)) < 0.02,
+                        `${theme}: ${key} at 140 % measured ${ratio.toFixed(3)}x`);
+                }
+                const downLg = down.lg / one.lg;
+                ok(Math.abs(downLg - (legacy ? 0.8 : 1)) < 0.02,
+                    `${theme}: the large rung at 80 % measured ${downLg.toFixed(3)}x`);
+
+                if (legacy) {
+                    // The floor, which is the one absolute number in this test.
+                    ok(Math.abs(down.eleven - 10) < 0.1,
+                        `the 11px rung fell to ${down.eleven}px at 80 % instead of stopping at 10`);
+                    ok(Math.abs(down.xs - 10) < 0.1,
+                        `the module's smallest rung fell to ${down.xs}px at 80 %`);
+                    ok(Math.abs(down.nine - one.nine) < 0.1,
+                        "the 9px rung moved at 80 % - its floor is its own size, so it must not");
+                } else {
+                    /*
+                     * AND THE GLASS'S CHROME STILL COMES OFF THE GLASS'S OWN FACTOR.
+                     *
+                     * This first asserted that the ladder does not move at all under the
+                     * glass, and it failed - correctly. That theme flattens rungs 8 to 17
+                     * to `--drpg-sg-floor`, which is `21px * --drpg-sg-scale`, which is
+                     * `--drpg-type-scale`: it has followed the slider since 07.09 and is
+                     * none of W-2's business. So what is pinned here is WHICH factor it
+                     * follows - the screen-term one, not the new one - which is the thing
+                     * that would break if somebody "tidied" the three tokens into one.
+                     */
+                    const moved = up.eleven / one.eleven;
+                    const own = up.type / one.type;
+                    ok(Math.abs(own - 1) > 0.05,
+                        "the glass's own type factor did not move, so this proves nothing");
+                    ok(Math.abs(moved - own) < 0.02,
+                        `the glass's chrome measured ${moved.toFixed(3)}x while its own factor `
+                        + `moved ${own.toFixed(3)}x`);
+                    ok(Math.abs(one.xs - down.xs) < 0.1,
+                        "the module's own smallest rung moved under the glass, where the factor "
+                        + "is pinned at 1");
+                }
+            }
+        } finally {
+            probe.remove();
+            box.remove();
+            await game.settings.set(MODULE_ID, SETTINGS.theme, was.theme);
+            await game.settings.set(MODULE_ID, SETTINGS.uiScale, was.scale ?? 1);
+            settings.applyTheme();
             await settle();
         }
     }]

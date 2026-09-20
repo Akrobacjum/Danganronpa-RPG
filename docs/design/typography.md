@@ -57,3 +57,45 @@ between 0.7 and 1 - so a 1280 x 800 tablet draws the panes at 70 % of the
 monitor's and a 1080p screen at 75 %, while the 11 px floor keeps the type
 readable at every factor. The Look window shows both numbers. Streaks and
 veins on a coloured pane run parallel to the pane's longest edge.
+
+## Monokuma Legacy takes the slider too
+
+Until 1.2.43 the Interface scale moved nothing at all on a Legacy client:
+`danganronpa.css` read neither `--drpg-ui-scale` nor `--drpg-type-scale`, so its
+234 stated sizes were fixed and the only thing the slider changed was the number
+in the Look window's own note. Measured at 80 / 100 / 140 %, every probe read the
+same 28 / 15 / 11 px.
+
+The factor that sheet takes is `--drpg-legacy-scale`, and it is **the slider
+alone** - not the slider times the screen. That sheet was drawn at one size for
+every screen, so wiring in the screen term would have shrunk every Legacy label
+by 15 % at 1080p the day it shipped. Three factors now, one per job: geometry
+takes `--drpg-ui-scale`, the glass's type takes `--drpg-type-scale`, and this
+sheet takes `--drpg-legacy-scale`, which `applyTheme()` pins at 1 under the glass
+so that theme does not move twice. It is published on `body` **and** on
+`documentElement`, because the six `--drpg-text-*` rungs are declared on `:root`
+and a custom property is substituted against the element its declaration sits on.
+
+What the theme redeclares is Foundry's own ladder, `--font-size-8` ...
+`--font-size-80`, because Daggerheart's sheet reads it 223 times and half of what
+a player looks at on the character sheet is sized by Daggerheart, not by us.
+The consequence is deliberate: under Legacy the slider now also moves Foundry's
+sidebar, chat and settings windows, exactly as it has always done under the
+glass. Every rung is N/16 rem, which is the value Foundry and Daggerheart already
+state, so at 100 % the block changes nothing.
+
+## Legacy's floor is 10px, and it is per rung
+
+The 11px above is VT323's floor and the glass's. Press Start 2P is a bitmap face
+drawn on an 8px grid, and the smallest size this module states for it is 10px -
+`--drpg-text-xs`, which is 11px at 100 % - so 10px is where Legacy's shrinking
+stops. Twelve of the 22 literals in the sheet and the rungs from 10 to 14 carry
+`max(10px, ...)`; the rest cannot reach it at 80 % and state no floor, because a
+floor a declaration cannot reach is a comment pretending to be code.
+
+**The floor is per rung and not flat.** A flat 10px would have *grown* rungs 8
+and 9 at 100 %, and rung 9 carries the pixel face's trait names, the sheet tabs
+and a tile's cost. A rung already under 10px therefore floors at its own size: it
+stops shrinking rather than starts growing. Rungs 15 and up need no floor at all
+(15 x 0.8 is 12). Floors are stated in px on purpose - a bitmap face dies at a
+real pixel size, not at a relative one.

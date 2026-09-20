@@ -14,13 +14,37 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, getSetting, setSetting, autoScale, effectiveScale } from "./settings.mjs";
+import { SETTINGS, getSetting, setSetting, autoScale } from "./settings.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { error } from "./utils.mjs";
 
 /** True when this browser wears the Stained Glass theme. */
 export function isStainedGlass() {
     try { return getSetting(SETTINGS.theme) === "stainedGlass"; } catch { return false; }
+}
+
+/**
+ * The note under the slider, which is a different sentence in each theme (W-2).
+ *
+ * The glass carries the screen's own factor under the slider, so it says both
+ * numbers. Monokuma Legacy does not - it takes the slider and nothing else - and
+ * the old note told a Legacy player their screen was "drawn at 85 % of 1440p"
+ * when neither factor touched one pixel of their interface. Built here rather
+ * than twice, because the live handler below rebuilt the same string from the
+ * same three numbers and the two were one edit away from drifting.
+ */
+function scaleNote(slider) {
+    const where = { w: innerWidth, h: innerHeight };
+    if (isStainedGlass()) {
+        return game.i18n.format("DRPG.Look.uiScaleAuto", {
+            ...where,
+            auto: Math.round(autoScale() * 100),
+            total: Math.round(slider * autoScale() * 100)
+        });
+    }
+    return game.i18n.format("DRPG.Look.uiScaleSlider", {
+        ...where, slider: Math.round(slider * 100)
+    });
 }
 
 function lookFieldset() {
@@ -66,7 +90,7 @@ function lookFieldset() {
         <label><span>${t("uiScale")}</span>
             <input type="range" name="look:uiScale" min="0.8" max="1.4" step="0.05" value="${scale}">
             <output>${Math.round(scale * 100)}%</output></label>
-        <p class="notes" data-drpg-scale-note>${game.i18n.format("DRPG.Look.uiScaleAuto", { auto: Math.round(autoScale() * 100), total: Math.round(effectiveScale() * 100), w: innerWidth, h: innerHeight })}</p>
+        <p class="notes" data-drpg-scale-note>${scaleNote(scale)}</p>
         ${glassOnly}
         ${motion}
         ${contrast}
@@ -130,7 +154,7 @@ function wireLook(root) {
         const note = root.querySelector("[data-drpg-scale-note]");
         range.addEventListener("input", () => {
             if (out) out.textContent = `${Math.round(range.valueAsNumber * 100)}%`;
-            if (note) note.textContent = game.i18n.format("DRPG.Look.uiScaleAuto", { auto: Math.round(autoScale() * 100), total: Math.round(range.valueAsNumber * autoScale() * 100), w: innerWidth, h: innerHeight });
+            if (note) note.textContent = scaleNote(range.valueAsNumber);
         });
         range.addEventListener("change", () =>
             setSetting(SETTINGS.uiScale, Math.round(range.valueAsNumber * 20) / 20).catch(err => error("Could not change the interface scale", err)));

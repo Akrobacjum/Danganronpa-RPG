@@ -2935,7 +2935,10 @@ body.drpg-pixel-font [contenteditable] {
 }
 
 .drpg-tb-badge {
-    font-size: 0.7rem;
+    /* W-2, Dawid 19.09: every bare size in this sheet takes the Interface scale,
+       and the ones 80 % would push under 10px keep a floor. The other eighteen
+       follow this pattern with no comment of their own. */
+    font-size: max(10px, calc(0.7rem * var(--drpg-legacy-scale, 1)));
     line-height: 1;
     padding: 2px 5px;
     border-radius: 3px;
@@ -3248,7 +3251,7 @@ body.drpg-pixel-font [contenteditable] {
     align-items: center;
     gap: 3px;
     margin-right: 8px;
-    font-size: 0.8rem;
+    font-size: calc(0.8rem * var(--drpg-legacy-scale, 1));
     white-space: nowrap;
 }
 
@@ -3395,7 +3398,7 @@ body.drpg-pixel-font [contenteditable] {
 
 .drpg-gm-panel .drpg-gmp-section h4 {
     margin: 0 0 4px;
-    font-size: 0.78rem;
+    font-size: max(10px, calc(0.78rem * var(--drpg-legacy-scale, 1)));
     letter-spacing: 0.08em;
     text-transform: uppercase;
     opacity: 0.65;
@@ -3473,7 +3476,7 @@ body.drpg-pixel-font [contenteditable] {
 .drpg-gmp-button span {
     flex: 1 1 auto;
     min-width: 0;
-    font-size: 0.84rem;
+    font-size: calc(0.84rem * var(--drpg-legacy-scale, 1));
     /* Long labels wrap between words and break only as a last resort, instead
        of spilling out of the tile. */
     overflow-wrap: anywhere;
@@ -3761,7 +3764,7 @@ body.drpg-pixel-font [contenteditable] {
    control, the checkbox and selects are. */
 .drpg-mini-button {
     padding: 2px 8px;
-    font-size: 0.78rem;
+    font-size: max(10px, calc(0.78rem * var(--drpg-legacy-scale, 1)));
     border-radius: 3px;
     cursor: pointer;
     background: rgba(var(--drpg-bone-rgb), 0.18);
@@ -3820,13 +3823,13 @@ body.drpg-pixel-font [contenteditable] {
 }
 
 .drpg-evidence-who {
-    font-size: 0.8rem;
+    font-size: calc(0.8rem * var(--drpg-legacy-scale, 1));
     opacity: 0.75;
 }
 
 .drpg-evidence-name {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: calc(1.05rem * var(--drpg-legacy-scale, 1));
 }
 
 .drpg-evidence-text {
@@ -3835,7 +3838,7 @@ body.drpg-pixel-font [contenteditable] {
 
 .drpg-evidence-hint {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: calc(0.85rem * var(--drpg-legacy-scale, 1));
     opacity: 0.8;
 }
 
@@ -5739,7 +5742,7 @@ body.drpg-pixel-font #drpg-player-status .drpg-status-label {
 }
 
 body.drpg-pixel-font #drpg-player-status .drpg-status-value {
-    font-size: 0.72rem;
+    font-size: max(10px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
 }
 
 body.drpg-pixel-font .drpg-hud-elapsed {
@@ -5862,7 +5865,7 @@ body.drpg-pixel-font .drpg-hud-incident {
 
 /* One footprint, not a track - there is only ever one free Move. */
 #drpg-player-status .drpg-free-move {
-    font-size: 0.72rem;
+    font-size: max(10px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
     color: var(--drpg-eye);
 }
 
@@ -7035,12 +7038,27 @@ html body {
    ========================================================================== */
 
 :root {
-    --drpg-text-xs: 0.6875rem;   /* 11px - the floor, never smaller */
-    --drpg-text-sm: 0.8125rem;   /* 13px */
-    --drpg-text-md: 0.9375rem;   /* 15px */
-    --drpg-text-base: 1rem;      /* 16px */
-    --drpg-text-lg: 1.25rem;     /* 20px */
-    --drpg-text-xl: 1.75rem;     /* 28px */
+    /* THE SLIDER REACHES THESE SIX (W-2, Dawid 19.09). 95 of this sheet's 234
+       font-size declarations read them, which makes this the cheapest 95 in the
+       file. `--drpg-legacy-scale` is the slider under Monokuma Legacy and 1 under
+       Stained Glass (see `applyTheme`), so this moves Legacy and leaves the glass
+       exactly where it is.
+
+       THE FLOOR IS ON `xs` AND NOWHERE ELSE, because it is the only rung the
+       slider can push under it: 13px x 0.8 is 10.4. 10px rather than the 11px the
+       typography doc states, because 11 IS the value at 100 % and 0.8 x 11 is 8.8
+       - either the floor gives up a pixel or the bottom of the slider goes quiet
+       for this one rung.
+
+       `--drpg-tile-text` still multiplies BELOW the floor on a cramped action
+       grid. That multiply happens at the use site, not here, and it is deliberate
+       and only there. */
+    --drpg-text-xs: max(10px, calc(0.6875rem * var(--drpg-legacy-scale, 1)));   /* 11px at 100 % - the floor, never smaller */
+    --drpg-text-sm: calc(0.8125rem * var(--drpg-legacy-scale, 1));   /* 13px at 100 % */
+    --drpg-text-md: calc(0.9375rem * var(--drpg-legacy-scale, 1));   /* 15px at 100 % */
+    --drpg-text-base: calc(1rem * var(--drpg-legacy-scale, 1));      /* 16px at 100 % */
+    --drpg-text-lg: calc(1.25rem * var(--drpg-legacy-scale, 1));     /* 20px at 100 % */
+    --drpg-text-xl: calc(1.75rem * var(--drpg-legacy-scale, 1));     /* 28px at 100 % */
 
     /* Two window widths, and no third.
        --------------------------------------------------------------------
@@ -7663,7 +7681,7 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-shee
 
 .application.sheet.actor .character-sidebar-sheet
     .status-value:has(.drpg-resource-bar) > * {
-    font-size: 0.78rem !important;
+    font-size: max(10px, calc(0.78rem * var(--drpg-legacy-scale, 1))) !important;
     line-height: 1.15 !important;
     height: auto !important;
     min-width: 0 !important;
@@ -10876,7 +10894,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    font-size: 1.25rem;
+    font-size: calc(1.25rem * var(--drpg-legacy-scale, 1));
     line-height: 1.2;
     letter-spacing: 0.02em;
     white-space: nowrap;
@@ -11112,7 +11130,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     padding: 2px 7px;
     border: 1px solid var(--drpg-line);
     border-radius: 2px;
-    font-size: 0.72rem;
+    font-size: max(10px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
     letter-spacing: 0.02em;
     color: rgba(var(--drpg-bone-rgb), 0.85);
 }
@@ -11166,7 +11184,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     margin: 0 0 2px;
     padding-bottom: 2px;
     border-bottom: 1px solid var(--drpg-line);
-    font-size: 0.82rem;
+    font-size: calc(0.82rem * var(--drpg-legacy-scale, 1));
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
@@ -11178,7 +11196,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 .drpg-room-group > h5 .notes,
 .drpg-room-tier > h6 .notes {
     font-variant-numeric: tabular-nums;
-    font-size: 0.75rem;
+    font-size: max(10px, calc(0.75rem * var(--drpg-legacy-scale, 1)));
 }
 
 .drpg-room-tier {
@@ -11190,7 +11208,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     align-items: baseline;
     gap: 8px;
     margin: 4px 0 0;
-    font-size: 0.72rem;
+    font-size: max(10px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
     font-weight: 600;
     letter-spacing: 0.05em;
     color: var(--drpg-dim);
@@ -11205,7 +11223,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     padding: 0 4px;
     border: 1px solid var(--drpg-line);
     border-radius: 2px;
-    font-size: 0.66rem;
+    font-size: max(10px, calc(0.66rem * var(--drpg-legacy-scale, 1)));
     font-variant-numeric: tabular-nums;
     color: var(--drpg-dim);
     cursor: help;
@@ -11892,7 +11910,7 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
     /* `--drpg-font` never existed - the caption was inheriting by accident. The chrome
        token is the one it meant, and it resolves under both themes. */
     font-family: var(--drpg-font-ui, inherit);
-    font-size: 11px;
+    font-size: max(10px, calc(11px * var(--drpg-legacy-scale, 1)));
     letter-spacing: 0.04em;
     text-align: center;
     /* Under the pools (29.08), so the space goes above it rather than below,
@@ -11934,7 +11952,7 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
 */
 
 .drpg-overflow-badge {
-    font-size: 10px;
+    font-size: max(10px, calc(10px * var(--drpg-legacy-scale, 1)));
     text-transform: uppercase;
     letter-spacing: 0.08em;
     opacity: 0.9;
@@ -15123,4 +15141,68 @@ body.drpg-high-contrast .drpg-action-button:disabled::before {
 body.drpg-high-contrast :focus-visible {
     outline: 3px solid var(--drpg-bone) !important;
     outline-offset: 2px !important;
+}
+
+/* ==========================================================================
+   MONOKUMA LEGACY TAKES THE INTERFACE SCALE (W-2, Dawid 19.09)
+   --------------------------------------------------------------------------
+   "Suwak Interface scale rusza tylko czcionke pod Stained Glass" - and it did:
+   this sheet read neither scale token, so on a Legacy client the slider moved
+   nothing at all except the number in the Look window's own note. Measured at
+   three settings before this commit: every probe flat at 28 / 15 / 11 px.
+
+   THE VARIABLES, NOT A SELECTOR WAR. Foundry sizes its chrome from
+   `--font-size-8` ... `--font-size-80` and Daggerheart's sheet reads the same
+   ladder 223 times, so the ladder is what is redeclared - no `!important`, no
+   specificity fight, and a rule further down that wants a different size still
+   gets it. This is the mechanism stained-glass.css has used since 07.09; it
+   works because Foundry states the ladder on `body` in its `variables` layer and
+   this sheet is imported into the `modules` layer, which is later.
+
+   ON THE BODY AND NOT ON A LIST OF OUR OWN SURFACES, because half of what a
+   player reads on the character sheet is sized by Daggerheart and none of it is
+   ours to name. The consequence is deliberate and it is the thing to look at
+   first: under Monokuma Legacy the slider now also moves Foundry's sidebar, chat
+   and settings windows, exactly as it has always done under the glass.
+
+   EVERY RUNG IS N/16 rem, WHICH IS WHAT FOUNDRY AND DAGGERHEART ALREADY STATE,
+   so at 100 % this block changes nothing: 10-20, 24-40, 48, 64 and 80 come from
+   Foundry, and 8, 9, 22 and 30 from Daggerheart. The 21 declared here are that
+   set and nothing else.
+
+   NO FLATTENING. The glass states one chrome size and that is that theme's
+   decision; Legacy's ladder keeps its steps, because a pixel face with one size
+   for a label and a heading has no hierarchy left to read.
+
+   THE FLOOR IS PER RUNG, AND THAT IS NOT FUSSINESS. A flat 10px floor would have
+   GROWN rungs 8 and 9 at 100 % - rung 9 is 9px and carries the pixel face's
+   trait names, the sheet tabs and a tile's cost - which would break the one
+   promise this commit makes, that a client who never touched the slider sees no
+   change. A rung already under 10px therefore floors at ITS OWN size: it stops
+   shrinking rather than starts growing. Rungs 15 and up need no floor at all
+   (15 x 0.8 is 12). The floor is stated in px on purpose: a bitmap face dies at
+   a real pixel size, not at a relative one.
+   ========================================================================== */
+body.drpg-theme-monokuma-legacy {
+    --font-size-8: max(8px, calc(0.5rem * var(--drpg-legacy-scale, 1)));
+    --font-size-9: max(9px, calc(0.5625rem * var(--drpg-legacy-scale, 1)));
+    --font-size-10: max(10px, calc(0.625rem * var(--drpg-legacy-scale, 1)));
+    --font-size-11: max(10px, calc(0.6875rem * var(--drpg-legacy-scale, 1)));
+    --font-size-12: max(10px, calc(0.75rem * var(--drpg-legacy-scale, 1)));
+    --font-size-13: max(10px, calc(0.8125rem * var(--drpg-legacy-scale, 1)));
+    --font-size-14: max(10px, calc(0.875rem * var(--drpg-legacy-scale, 1)));
+    --font-size-15: calc(0.9375rem * var(--drpg-legacy-scale, 1));
+    --font-size-16: calc(1rem * var(--drpg-legacy-scale, 1));
+    --font-size-18: calc(1.125rem * var(--drpg-legacy-scale, 1));
+    --font-size-20: calc(1.25rem * var(--drpg-legacy-scale, 1));
+    --font-size-22: calc(1.375rem * var(--drpg-legacy-scale, 1));
+    --font-size-24: calc(1.5rem * var(--drpg-legacy-scale, 1));
+    --font-size-28: calc(1.75rem * var(--drpg-legacy-scale, 1));
+    --font-size-30: calc(1.875rem * var(--drpg-legacy-scale, 1));
+    --font-size-32: calc(2rem * var(--drpg-legacy-scale, 1));
+    --font-size-36: calc(2.25rem * var(--drpg-legacy-scale, 1));
+    --font-size-40: calc(2.5rem * var(--drpg-legacy-scale, 1));
+    --font-size-48: calc(3rem * var(--drpg-legacy-scale, 1));
+    --font-size-64: calc(4rem * var(--drpg-legacy-scale, 1));
+    --font-size-80: calc(5rem * var(--drpg-legacy-scale, 1));
 }

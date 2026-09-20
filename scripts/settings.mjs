@@ -1532,6 +1532,39 @@ export function applyTheme() {
        trap cannot come back. */
     document.body.style.setProperty("--drpg-type-scale", String(typeScale()));
     document.documentElement.style.setProperty("--drpg-type-scale", String(typeScale()));
+
+    /*
+     * THE SLIDER ON ITS OWN, FOR THE SIZES danganronpa.css STATES ITSELF (W-2,
+     * Dawid 19.09).
+     *
+     * That sheet read NEITHER of the two tokens above - 234 font-size
+     * declarations, zero uses - so Monokuma Legacy kept one size whatever the
+     * slider said, and the only thing a Legacy client's slider moved was the
+     * number in the Look window's own note. Measured at three settings: every
+     * probe flat at 28 / 15 / 11 px.
+     *
+     * NOT `--drpg-type-scale`: that carries the screen term, which is 0.85 at
+     * 1080p, and this sheet was drawn at one size for every screen - wiring it in
+     * would have shrunk every Legacy label by 15 % the day it shipped.
+     *
+     * PINNED AT 1 UNDER THE GLASS, because that theme states its own sizes and
+     * scales them with `--drpg-sg-scale`. One factor per sheet: a second multiply
+     * on the same declaration is not a bug anybody sees, it is a bug somebody
+     * measures a month later. Decided here rather than with a CSS gate because
+     * five stylesheets read it and only one of them would have carried the gate.
+     *
+     * ON THE DOCUMENT AS WELL AS THE BODY, and that is load-bearing: the six
+     * `--drpg-text-*` rungs are declared on `:root`, and a custom property is
+     * substituted against the element its declaration sits on - a token that only
+     * reached `body` would leave all six on their fallback of 1 and nothing would
+     * move. The mirror of the v1.2.15 trap in the note above.
+     *
+     * At 100 % it is 1.00 in both themes, so a player who never touched the
+     * slider sees no difference at all.
+     */
+    const legacyScale = String(theme === "stainedGlass" ? 1 : sliderScale());
+    document.body.style.setProperty("--drpg-legacy-scale", legacyScale);
+    document.documentElement.style.setProperty("--drpg-legacy-scale", legacyScale);
     // the windows standing open when the slider moved, which will not render again on their own
     for (const app of foundry.applications.instances.values()) {
         const el = app.element instanceof HTMLElement ? app.element : app.element?.[0];
