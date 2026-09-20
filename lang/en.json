@@ -2503,7 +2503,7 @@
       "nothingOfYours": "You know of no trace in this room.",
       "onlyReinforced": "Every trace you know of here is too deeply set to remove.",
       "frame": "Misleading trail",
-      "frameHint": "Leave something that points at somebody else. Needs 18 or more, and it plants a trace either way.",
+      "frameHint": "Leave something that points at somebody else. Needs {n} or more. A miss with Hope still plants a Faint, Hidden trace; a miss with Despair leaves nothing behind.",
       "whichTrace": "Which trace",
       "coverAction": "Cover your tracks",
       "trailAction": "Misleading trail",

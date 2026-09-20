@@ -2077,6 +2077,18 @@ export async function promptAndCallGm(actor, {
 
     if (text === "cancel" || text === null || text === undefined) return null;
 
-    await callGm(actor, { title, roll, request: text, room, body, actions });
-    return text;
+    /*
+     * NULL MEANS NOTHING WAS SENT, AND IT HAS TO MEAN IT IN BOTH CASES (ACT-15,
+     * 20.09).
+     *
+     * This returned the text whatever `callGm` answered, so every caller had two
+     * roads to "the request never went" and could only see one of them: the player
+     * closed the second window, or there was no GM connected to take it. Both left
+     * the caller going on to whisper "your proposal has been sent". `callGm` already
+     * answers false without throwing for the second - one caller in action-rolls.mjs
+     * checks it by hand, which is what made this worth fixing here rather than at
+     * three call sites.
+     */
+    const sent = await callGm(actor, { title, roll, request: text, room, body, actions });
+    return sent === false ? null : text;
 }

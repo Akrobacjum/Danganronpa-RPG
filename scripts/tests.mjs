@@ -3946,6 +3946,47 @@ const REGRESSIONS = [
             "the cast is read off the canvas, which only holds the scene somebody is looking at");
         ok(!/canvas\.tokens\.placeables/.test(gather),
             "the canvas reading is back");
+    }],
+
+    ["R84 - a request that never went is not reported as sent, and a tile states the rule", async () => {
+        /*
+         * ACT-15 and ACT-16, 20.09.
+         *
+         * ACT-15: `promptAndCallGm` opens a SECOND window - the sentence that goes to
+         * the GM - and a player who backs out of it has proposed nothing. The caller
+         * whispered "your proposal has been sent" anyway, and the GM had no card. The
+         * fix is in the helper rather than at the call site, because there are two
+         * roads to "nothing went" and callers could only see one: `callGm` answers
+         * false without throwing when no GM is connected.
+         *
+         * ACT-16: the Misleading trail tile said 18 and the threshold has been 15
+         * since D7, measured in E18c. It also said a trace is planted "either way",
+         * which is true of a miss with Hope and not of a miss with Despair.
+         */
+        const sources = new Map(await otherSources());
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const prompt = bridge.slice(bridge.indexOf("export async function promptAndCallGm"));
+        ok(/const sent = await callGm\(/.test(prompt),
+            "promptAndCallGm throws away what callGm answered");
+        ok(/return sent === false \? null : text;/.test(prompt),
+            "a request nobody was there to take is still reported as sent");
+
+        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        const proposal = rolls.slice(rolls.indexOf("DRPG.Project.proposalTitle") - 400,
+            rolls.indexOf("DRPG.Project.proposalSent"));
+        ok(/const sent = await promptAndCallGm\(/.test(proposal),
+            "the proposal does not read the answer");
+        ok(/if \(sent === null\) return null;/.test(proposal),
+            "a cancelled proposal still whispers that it was sent - and `!sent` would be "
+            + "wrong, because an empty string is a proposal with no sentence on it");
+
+        ok(/n: CLEANUP\.actions\.misleadingTrail\.threshold/.test(rolls),
+            "the Misleading trail tile states a number of its own instead of the rule's");
+        const hint = game.i18n.localize("DRPG.Tamper.frameHint");
+        ok(!/18/.test(hint), `the hint still says 18: "${hint}"`);
+        ok(!/either way/i.test(hint),
+            "the hint still promises a trace either way - a miss with Despair leaves none");
+        ok(hint.includes("{n}"), "the hint no longer takes the threshold");
     }]
 ];
 

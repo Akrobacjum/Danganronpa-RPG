@@ -15,7 +15,8 @@
 
 import {
     MODULE_ID, FLAGS, ACTIONS, TRAITS, DYNAMIC_THRESHOLDS, INDIRECT_MURDER,
-    PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND, PRICE_CHAINS
+    PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND, PRICE_CHAINS,
+    CLEANUP
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
@@ -1893,7 +1894,17 @@ async function startProject(actor) {
         result.trait ? (TRAITS[result.trait]?.label ?? result.trait) : game.i18n.localize("DRPG.Project.anyTrait")
     ].join(" · ");
 
-    await promptAndCallGm(actor, {
+    /*
+     * AND THE ANSWER IS READ (ACT-15, 20.09).
+     *
+     * `promptAndCallGm` opens a SECOND window - the sentence that goes to the GM -
+     * and a player who backs out of it has proposed nothing. The whisper below said
+     * "your proposal has been sent" anyway, and the GM had no card: the player
+     * believed a project was waiting for a ruling that nobody had been asked for.
+     * `=== null` rather than a truthiness test, because an empty string is a
+     * proposal with no sentence on it, not a cancel.
+     */
+    const sent = await promptAndCallGm(actor, {
         title: game.i18n.localize("DRPG.Project.proposalTitle"),
         prompt: game.i18n.localize("DRPG.Project.proposalPrompt"),
         placeholder: game.i18n.localize("DRPG.Project.proposalPlaceholder"),
@@ -1925,6 +1936,7 @@ async function startProject(actor) {
             }
         ]
     });
+    if (sent === null) return null;
 
     await whisperToOwner(actor, `${cardHead({
         action: game.i18n.localize("DRPG.Project.startNew")
@@ -2699,7 +2711,15 @@ async function performTamper(actor, def, options) {
             {
                 value: "frame", icon: "fa-signs-post",
                 label: game.i18n.localize("DRPG.Tamper.frame"),
-                hint: game.i18n.localize("DRPG.Tamper.frameHint"),
+                /* THE NUMBER COMES OFF THE RULE (ACT-16, 20.09). The sentence said
+                   18 and the threshold has been 15 since D7 - measured in E18c, and
+                   written out beside `misleadingTrail` in config.mjs. It also said a
+                   trace is planted "either way", which is true of a miss with Hope
+                   and not of a miss with Despair. A tile that states a price is the
+                   one place a stale number is read as the rule. */
+                hint: game.i18n.format("DRPG.Tamper.frameHint", {
+                    n: CLEANUP.actions.misleadingTrail.threshold
+                }),
                 disabled: !candidates.length,
                 why: game.i18n.localize("DRPG.Cleanup.trailNobody")
             },
