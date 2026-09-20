@@ -18,7 +18,8 @@
  */
 
 import {
-    monokumas, poolLabel, setPoolLabel, poolCandidates, extraPoolUserIds, addPool, removePool
+    monokumas, poolLabel, setPoolLabel, poolCandidates, extraPoolUserIds, addPool, removePool,
+    getDespair
 } from "./despair.mjs";
 import { isMonokuma, setMonokuma, poolFor, setPools } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
@@ -28,8 +29,93 @@ import { overflowStatus, setOverflowRules, overflowSection, overflowNowLine,
 import { alreadyOpen, keepFresh } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
 
+const DialogV2 = foundry.applications.api.DialogV2;
+
 /** Open the combined panel. GM only. */
-export async function openGmTeamDialog() {
+
+/**
+ * What the GM has typed here but not applied (TEAM-01, 20.09).
+ *
+ * Add a pool, Revoke a pool and Split evenly all act at once and then open this
+ * window again so the rows are current - and the copy that comes back is built
+ * from the WORLD, so a pool renamed in the box above, a Monokuma ticked and an
+ * overflow threshold nudged all went back to what they were. Nothing said so.
+ *
+ * THE ASSIGNMENTS ARE DELIBERATELY NOT CARRIED. Those three buttons change which
+ * pools exist and who feeds whom, which is exactly what that table lists: putting
+ * a stale set of assignments back over a roster that has just been re-divided
+ * would be worse than rebuilding it, so it is rebuilt.
+ */
+function readTeamDraft(root, gms, actors) {
+    if (!root) return null;
+    const pools = {};
+    for (const user of gms) {
+        const field = root.querySelector(`[name="poolName.${CSS.escape(user.id)}"]`);
+        if (field) pools[user.id] = field.value;
+    }
+    const monokumas = {};
+    for (const actor of actors) {
+        const box = root.querySelector(`[name="mk.${CSS.escape(actor.id)}"]`);
+        if (box) monokumas[actor.id] = box.checked;
+    }
+    return { pools, monokumas, overflow: readOverflowForm(root) };
+}
+
+/** Put a carried draft back, once the new copy has rendered. */
+function paintTeamDraft(root, draft) {
+    if (!root || !draft) return;
+    for (const [id, value] of Object.entries(draft.pools ?? {})) {
+        const field = root.querySelector(`[name="poolName.${CSS.escape(id)}"]`);
+        // Whatever they typed, including a box they emptied on purpose.
+        if (field) field.value = value;
+    }
+    for (const [id, on] of Object.entries(draft.monokumas ?? {})) {
+        const box = root.querySelector(`[name="mk.${CSS.escape(id)}"]`);
+        if (box) box.checked = on;
+    }
+    const rules = draft.overflow;
+    if (!rules) return;
+    const threshold = root.querySelector('[name="ovf-threshold"]');
+    if (threshold && Number.isFinite(rules.threshold)) threshold.value = rules.threshold;
+    for (const [key, effect] of Object.entries(rules.effects ?? {})) {
+        const on = root.querySelector(`[name="ovf-${key}-on"]`);
+        if (on) on.checked = Boolean(effect.on);
+        const by = root.querySelector(`[name="ovf-${key}-by"]`);
+        if (by && Number.isFinite(effect.by)) by.value = effect.by;
+    }
+}
+
+/**
+ * Ask before a pool's Despair goes with it (TEAM-01, 20.09).
+ *
+ * `removePool` drops the account from the opted-in list, deletes its entry from
+ * the Despair store and clears its name - so the pool's Despair is gone, and the
+ * button that did it sat in a four-button footer one place along from Save with
+ * nothing asked. Every other destruction in this module asks first.
+ *
+ * NOT `DialogV2.confirm`: that puts Yes FIRST in the footer, and Enter presses the
+ * first submit in DOM order whatever carries `default` - so the keyboard answer to
+ * "shall I destroy this" would have been yes. Cancel is first and default here,
+ * the shape `openFinalVerdictDialog` settled on for the same reason.
+ */
+async function confirmRemovePool(user) {
+    const held = getDespair(user.id) ?? 0;
+    const answer = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Despair.removePool") },
+        classes: ["drpg-panel", "drpg-narrow", "drpg-window-removepool"],
+        content: `<p>${game.i18n.format("DRPG.Despair.removePoolAsk", {
+            name: foundry.utils.escapeHTML(poolLabel(user)), n: held
+        })}</p>`,
+        buttons: [
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
+            { action: "remove", label: game.i18n.localize("DRPG.Despair.removePool") }
+        ],
+        rejectClose: false
+    });
+    return answer === "remove";
+}
+
+export async function openGmTeamDialog({ draft = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
@@ -83,7 +169,8 @@ export async function openGmTeamDialog() {
             label: game.i18n.localize("DRPG.Despair.addPool"),
             callback: (event, button, dialog) => ({
                 op: "add",
-                userId: dialog.element.querySelector('[name="newPoolCandidate"]')?.value
+                userId: dialog.element.querySelector('[name="newPoolCandidate"]')?.value,
+                draft: readTeamDraft(dialog.element, gms, actors)
             })
         });
     }
@@ -93,11 +180,23 @@ export async function openGmTeamDialog() {
             label: game.i18n.localize("DRPG.Despair.removePool"),
             callback: (event, button, dialog) => ({
                 op: "remove",
-                userId: dialog.element.querySelector('[name="removePoolCandidate"]')?.value
+                userId: dialog.element.querySelector('[name="removePoolCandidate"]')?.value,
+                draft: readTeamDraft(dialog.element, gms, actors)
             })
         });
     }
-    if (roster.length) buttons.push({ action: "auto", label: game.i18n.localize("DRPG.Assign.splitEvenly") });
+    if (roster.length) {
+        buttons.push({
+            action: "auto",
+            label: game.i18n.localize("DRPG.Assign.splitEvenly"),
+            // A callback of its own, only so the form comes back with the answer
+            // (TEAM-01) - `auto` used to be a bare action, which returns a string.
+            callback: (event, button, dialog) => ({
+                op: "auto",
+                draft: readTeamDraft(dialog.element, gms, actors)
+            })
+        });
+    }
     buttons.push({ action: "cancel", label: game.i18n.localize("DRPG.Panel.close") });
 
     const result = await tableDialog({
@@ -112,6 +211,9 @@ export async function openGmTeamDialog() {
         buttons,
         render: (event, dialog) => {
             wirePanelTabs(dialog.element);
+            // Anything typed in the copy that closed to add, revoke or re-divide a
+            // pool (TEAM-01). After the tabs, so the panes exist to be painted.
+            paintTeamDraft(dialog.element, draft);
             wireMonokumaLive(dialog);
             if (roster.length) wireAssignmentLive(dialog, gms);
 
@@ -137,22 +239,46 @@ export async function openGmTeamDialog() {
         rejectClose: false
     });
 
-    if (result === "auto") {
+    /*
+     * THE THREE BUTTONS THAT ACT AT ONCE CARRY THE FORM WITH THEM (TEAM-01, 20.09).
+     *
+     * Each of them writes the world and opens this window again so the rows are
+     * current; the copy that comes back is built from the world, so everything typed
+     * and not applied used to go with it. `carried` is read from the answer these
+     * callbacks now bring - see `readTeamDraft` for what is carried and what is
+     * deliberately rebuilt.
+     */
+    const carried = result?.draft ?? null;
+
+    if (result === "auto" || result?.op === "auto") {
         await autoAssign();
         ui.notifications.info(game.i18n.localize("DRPG.Assign.splitDone"));
-        return openGmTeamDialog();
+        return openGmTeamDialog({ draft: carried });
     }
     if (result?.op === "add") {
         if (result.userId && await addPool(result.userId)) {
             ui.notifications.info(game.i18n.localize("DRPG.Despair.poolAdded"));
         }
-        return openGmTeamDialog();
+        return openGmTeamDialog({ draft: carried });
     }
     if (result?.op === "remove") {
-        if (result.userId && await removePool(result.userId)) {
-            ui.notifications.info(game.i18n.localize("DRPG.Despair.poolRemoved"));
+        /*
+         * ASKED, AND THE ID RE-CHECKED AGAINST THE LIST AS IT IS NOW. The select was
+         * built when this window opened, and a second GM can opt somebody in or out
+         * while it stands there; a revoke is destructive, so it is checked against
+         * the opted-in extras at the moment it is pressed rather than against the
+         * list it was offered from. A refusal says so rather than doing nothing.
+         */
+        const user = result.userId ? game.users.get(result.userId) : null;
+        const stillExtra = user && extraPoolUserIds().includes(user.id);
+        if (!stillExtra) {
+            if (result.userId) ui.notifications.warn(game.i18n.localize("DRPG.Despair.poolGone"));
+        } else if (await confirmRemovePool(user)) {
+            if (await removePool(user.id)) {
+                ui.notifications.info(game.i18n.localize("DRPG.Despair.poolRemoved"));
+            }
         }
-        return openGmTeamDialog();
+        return openGmTeamDialog({ draft: carried });
     }
     if (!result || result === "cancel") return null;
 

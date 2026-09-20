@@ -3475,6 +3475,85 @@ const REGRESSIONS = [
             + "reopen");
         ok(!/^\s*return openItemTables\(\{ preset \}\);/m.test(tail),
             "one of those paths reopens directly again, so it opens nothing");
+    }],
+
+    ["R74 - a Season setup row hands over instead of answering", async () => {
+        /*
+         * SEASON-02, 20.09. A row button ran its step and then did
+         * `await dialog.close(); openSeasonSetup();` - and that close resolves the
+         * `DialogV2.wait` this window sits in, so `openSeasonSetup` returned and the
+         * GM panel tile awaiting it opened the PANEL over the window as it came back.
+         * Two windows for one press. And the copy that came back was built from the
+         * world, so the campaign name, the chapter and the safeword the GM had typed
+         * went with the reopen.
+         *
+         * A row that opens nothing offers nothing, too: "The cast exists" carried an
+         * "Open" button and no `open`, so pressing it threw, was logged, and closed
+         * and reopened the window for nothing.
+         */
+        const season = stripComments(new Map(await otherSources()).get("season-setup.mjs") ?? "");
+        ok(/function readDraft\(/.test(season) && /function paintDraft\(/.test(season),
+            "the window cannot carry what was typed across a reopen");
+        ok(/openSeasonSetup\(\{ draft = null \} = \{\}\)/.test(season),
+            "the opener cannot be handed a draft");
+        ok(/paintDraft\(dialog\.element, draft\)/.test(season),
+            "a carried draft is never painted back");
+
+        const rows = season.slice(season.indexOf(".drpg-setup-do\")"),
+            season.indexOf("rejectClose: false"));
+        ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft \}\)\)/.test(rows),
+            "the row still closes and reopens on its own, so the close answers the caller");
+        ok(!/await dialog\.close\(\)/.test(rows),
+            "the row awaits the close itself, which is what resolves the opener early");
+        ok(/step\.fixedKey \?\? "DRPG\.Season\.fixed"/.test(rows),
+            "every fix row reports the same sentence, which counts characters");
+
+        const builder = season.slice(season.indexOf("const rows = list.map"),
+            season.indexOf("const outstanding"));
+        ok(/!\(step\.fix \|\| step\.open\)/.test(builder),
+            "a row with nothing to fix and nothing to open still offers a button");
+
+        const tail = season.slice(season.indexOf("rejectClose: false"));
+        ok(/if \(roundTrip\) return roundTrip;/.test(tail),
+            "the round trip is not returned, so the GM panel reopens itself over it");
+    }],
+
+    ["R75 - revoking a Despair pool is asked first, and the form survives it", async () => {
+        /*
+         * TEAM-01, 20.09. Remove pool destroyed the pool's Despair and its name with
+         * nothing asked, from a four-button footer one place along from Save. And Add,
+         * Revoke and Split evenly each reopened this window, which is built from the
+         * world - so a pool renamed in the box above, a Monokuma ticked and an
+         * overflow threshold nudged all went back to what they were.
+         *
+         * NOT `DialogV2.confirm` FOR THE QUESTION. It unshifts Yes first, and Enter
+         * presses the first submit in DOM order whatever carries `default` - so the
+         * keyboard answer to "shall I destroy this" would have been yes. This module
+         * has paid for that trap twice.
+         */
+        const team = stripComments(new Map(await otherSources()).get("gm-team-dialog.mjs") ?? "");
+        const ask = team.slice(team.indexOf("async function confirmRemovePool"),
+            team.indexOf("export async function openGmTeamDialog"));
+        ok(ask.length > 200, "nothing asks before a pool is revoked");
+        ok(!/DialogV2\.confirm\(/.test(ask),
+            "the question is asked with DialogV2.confirm, whose Yes is the first submit");
+        ok(ask.indexOf('action: "cancel"') < ask.indexOf('action: "remove"'),
+            "the destructive answer is the first button, so Enter presses it");
+        ok(/removePoolAsk/.test(ask) && /getDespair\(/.test(ask),
+            "the question does not say how much Despair goes with the pool");
+
+        const remove = team.slice(team.indexOf('result?.op === "remove"'));
+        ok(/confirmRemovePool\(/.test(remove), "the revoke path does not ask");
+        ok(/extraPoolUserIds\(\)\.includes/.test(remove),
+            "the id from a select built when the window opened is used without re-checking");
+        ok(/poolGone/.test(remove), "a refused revoke says nothing at all");
+
+        ok(/function readTeamDraft\(/.test(team) && /paintTeamDraft\(dialog\.element, draft\)/.test(team),
+            "the window cannot carry what was typed across a reopen");
+        equal((team.match(/draft: readTeamDraft\(/g) ?? []).length, 3,
+            "the three buttons that act at once do not all bring the form back with them");
+        ok(/openGmTeamDialog\(\{ draft: carried \}\)/.test(team),
+            "the carried draft never reaches the copy that comes back");
     }]
 ];
 
@@ -5791,6 +5870,9 @@ const LITERAL_KEYS = [
     "DRPG.Items.rowGone",
     "DRPG.Reroll.stealStands", "DRPG.Reroll.trailStands",
     "DRPG.Analyze.findStash", "DRPG.Analyze.stashSent",
+    // TEAM-01 and SEASON-02. Both are printed on a road a GM reaches rarely - a
+    // pool somebody else revoked first, a cursor repair that found nothing.
+    "DRPG.Despair.poolGone", "DRPG.Despair.removePoolAsk",
     // F8 and F11. Both of these are printed only in a state a GM reaches rarely -
     // a debate past its budget, a window refused at the door - which is exactly
     // when a raw key on screen goes unreported.

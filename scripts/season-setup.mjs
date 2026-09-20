@@ -45,7 +45,7 @@ import { mastermindActor } from "./mastermind.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc} from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { NOTE_FLAG } from "./pre-session-note.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, handOff } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -113,7 +113,11 @@ function steps() {
         {
             key: "monokumas",
             done: monokumas().length > 0,
-            missing: () => []
+            missing: () => [],
+            // The window the two Despair rows further down already open: opting
+            // somebody in is what it is for, and a row that says "at least one
+            // Monokuma" with no way to make one reports rather than helps (SEASON-02).
+            open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
         },
         {
             key: "resources",
@@ -305,7 +309,11 @@ function steps() {
                 perms.SHOW_CURSOR = after;
                 await game.settings.set("core", "permissions", perms);
                 return before.length - after.length;
-            }
+            },
+            // ITS OWN SENTENCE (SEASON-02). `DRPG.Season.fixed` counts characters
+            // given their starting resources, which is the other `fix` row; this one
+            // counts GM roles that have stopped broadcasting their pointer.
+            fixedKey: "DRPG.Season.fixedCursor"
         },
         {
             key: "mastermind",
@@ -368,7 +376,36 @@ function openFirstSheet(names) {
  * THE WINDOW
  * ========================================================================== */
 
-export async function openSeasonSetup() {
+/**
+ * The three fields this window collects, as they stand on screen (SEASON-02, 20.09).
+ *
+ * A checklist row that acts closes this window and opens it again so the marks are
+ * current, and the copy that comes back is built from the WORLD - so anything typed
+ * and not yet applied was thrown away by the act of fixing the row above it. Read
+ * before the close, painted back after the reopen.
+ *
+ * Only these three, by name: everything else in the window is a read-out, and the
+ * reset panel is its own window with its own confirmation.
+ */
+function readDraft(root) {
+    if (!root) return null;
+    const value = name => root.querySelector(`[name="${name}"]`)?.value ?? null;
+    return { campaignName: value("campaignName"), chapter: value("chapter"), safeword: value("safeword") };
+}
+
+/** Put a carried draft back on the fields, once the new copy has rendered. */
+function paintDraft(root, draft) {
+    if (!root || !draft) return;
+    for (const [name, value] of Object.entries(draft)) {
+        if (value === null) continue;
+        const field = root.querySelector(`[name="${name}"]`);
+        // The value the GM typed, including a deliberately emptied field - which is
+        // why this writes whatever came back rather than only non-empty strings.
+        if (field) field.value = value;
+    }
+}
+
+export async function openSeasonSetup({ draft = null } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
@@ -389,7 +426,12 @@ export async function openSeasonSetup() {
         const detail = names.length
             ? `<div class="drpg-setup-missing">${esc(names.join(", "))}</div>`
             : "";
-        const button = step.done || step.inline
+        // A ROW THAT OPENS NOTHING OFFERS NOTHING (SEASON-02, 20.09). "The cast
+        // exists" carried an "Open" button and no `open`, so pressing it threw inside
+        // the handler, was logged, and closed and reopened the window for nothing -
+        // and brought the GM panel with it. Its hint already says what to do, and
+        // creating characters is Foundry's own sidebar rather than a window of ours.
+        const button = step.done || step.inline || !(step.fix || step.open)
             ? ""
             : `<button type="button" class="drpg-setup-do" data-step="${step.key}">${
                 esc(game.i18n.localize(step.fix ? "DRPG.Season.doIt" : "DRPG.Season.openIt"))}</button>`;
@@ -412,6 +454,10 @@ export async function openSeasonSetup() {
     }).join("");
 
     const outstanding = list.filter(s => !s.done && !s.optional).length;
+
+    // A row button's round trip, if one is running: this window did not answer, it
+    // handed over (SEASON-02). Set inside the render below and read after the wait.
+    let roundTrip = null;
 
     const result = await DialogV2.wait({
         classes: ["drpg-panel", "drpg-wide", "drpg-window-season"],
@@ -470,6 +516,8 @@ export async function openSeasonSetup() {
         // to the detached content element never reaches the page. Same reason
         // projects-ui.mjs wires its portrait pickers from `render`.
         render: (event, dialog) => {
+            // A draft carried over from the copy that closed to fix a row (SEASON-02).
+            paintDraft(dialog.element, draft);
             /*
              * The room check reports INTO THE WINDOW, not only to the console.
              * The person who has to act on "this room overlaps that one" is a GM
@@ -507,28 +555,51 @@ export async function openSeasonSetup() {
                     try {
                         if (step.fix) {
                             const n = await step.fix();
-                            ui.notifications.info(plural("DRPG.Season.fixed", { n }));
+                            ui.notifications.info(plural(step.fixedKey ?? "DRPG.Season.fixed", { n }));
                         } else {
                             await step.open(step.missing());
                         }
                     } catch (err) {
                         error(`Could not act on the "${step.key}" setup step`, err);
                     }
-                    // Reopen so the marks are current: every one of these can
-                    // change what another row reports.
-                    await dialog.close();
-                    openSeasonSetup();
+
+                    /*
+                     * THE REOPEN IS PART OF THE SAME ERRAND (SEASON-02, 20.09).
+                     *
+                     * The window still closes and comes back, because every one of these
+                     * rows can change what ANOTHER row reports and the checklist is built
+                     * from the world. What changed is the two things that made one press
+                     * look like two:
+                     *
+                     * `await dialog.close(); openSeasonSetup();` resolved the
+                     * `DialogV2.wait` this window is sitting in - so `openSeasonSetup`
+                     * returned, and the GM panel tile awaiting it opened the PANEL over
+                     * the window as it came back. `handOff` keeps the whole round trip in
+                     * one promise, returned below, so the tile waits for the real end of
+                     * it. See the note on `handOff` in live.mjs for why it cannot be
+                     * written with an `await` in front of it.
+                     *
+                     * And the new copy is built from the world, so the campaign name, the
+                     * chapter and the safeword the GM had typed but not applied went with
+                     * the reopen. They are read here, BEFORE the close, and painted back.
+                     */
+                    const draft = readDraft(dialog.element);
+                    roundTrip = handOff(dialog, () => openSeasonSetup({ draft }));
                 });
             }
         },
         rejectClose: false
     });
 
+    if (roundTrip) return roundTrip;
     if (!result || result === "close") return null;
 
     if (result === "checks") {
+        // The checks are a read-out, so the fields come back with the window.
+        const carried = { campaignName: result.campaignName, chapter: String(result.chapter),
+            safeword: result.safeword };
         await runPreSessionChecks();
-        return openSeasonSetup();
+        return openSeasonSetup({ draft: carried });
     }
 
     await setClock({ campaignName: result.campaignName, chapter: result.chapter });

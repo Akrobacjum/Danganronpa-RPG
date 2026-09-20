@@ -462,6 +462,8 @@
       "addPool": "Add pool",
       "grantTo": "Grant a pool to",
       "noCandidates": "No Assistant GM to grant a pool to. Full Gamemasters have one already.",
+      "removePoolAsk": "Revoke \"{name}\"? The {n} Despair in that pool goes with it, and so does the name. The account keeps every other right it has.",
+      "poolGone": "That pool is not an opted-in extra any more - somebody else has already changed it. Nothing was revoked.",
       "removePool": "Remove pool",
       "revokeFrom": "Revoke the pool from",
       "poolAdded": "Pool granted.",
@@ -2728,6 +2730,10 @@
       "note": "Nothing here is done for you that you would not have done yourself. What it does is say what there is to do, in the order a season is actually built.",
       "doIt": "Do it",
       "openIt": "Open",
+      "fixedCursor": {
+        "one": "Stopped sharing the cursor for {n} role.",
+        "other": "Stopped sharing the cursor for {n} roles."
+      },
       "fixed": {
         "one": "Set up {n} character with the starting resources.",
         "other": "Set up {n} characters with the starting resources."
