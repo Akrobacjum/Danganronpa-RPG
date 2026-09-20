@@ -135,6 +135,27 @@ export function keepLive(app, { region, build, watch = {}, delay = 120, after = 
             restore(next, carried);
             record.refreshes++;
             if (after) after(next);
+
+            /*
+             * AND THE NEW NODES ARE DRESSED (LAT-14, 20.09).
+             *
+             * chrome.mjs decorates a window at render: the select glyphs, the
+             * numeric column alignment, the table rules. It has listened for
+             * `drpgWindowUpdated` since it was written - "a window that redraws part
+             * of itself keeps its decorations, because the pass is idempotent and
+             * marks what it has done" - and NOTHING IN THE MODULE HAS EVER FIRED
+             * THAT HOOK. Read from source, 20.09: one listener, zero callers.
+             *
+             * So every live region in the module came back undressed: the case
+             * dashboard after a filter change, the trial console on every tick, the
+             * Players table after a death. That is what LAT-14 reported on one window,
+             * and it is one line for all of them.
+             *
+             * After `after`, so a region that wires its own controls has done it
+             * before anything decorates them, and the decoration sees the finished
+             * DOM.
+             */
+            Hooks.callAll("drpgWindowUpdated", next);
         } catch (err) {
             // A region that cannot rebuild itself must not take the window down
             // with it, and must not keep trying every 120ms forever.

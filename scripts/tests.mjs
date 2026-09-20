@@ -4186,6 +4186,33 @@ const REGRESSIONS = [
         ok(/actorId: payload\.actorId/.test(bridge),
             "the resolve packet's actor never reaches the resolver, so a lost record "
             + "cannot name who is waiting");
+    }],
+
+    ["R90 - a region that redraws itself comes back dressed", async () => {
+        /*
+         * LAT-14, 20.09, and it is one line for every live region rather than one
+         * window's bug. chrome.mjs decorates a window at render - the select glyphs,
+         * the numeric column alignment, the table rules - and has listened for
+         * `drpgWindowUpdated` since it was written, under a comment explaining that a
+         * window redrawing part of itself keeps its decorations because the pass is
+         * idempotent. NOTHING HAS EVER FIRED THAT HOOK: one listener, zero callers.
+         *
+         * So the case dashboard came back undressed after a filter change, and so did
+         * the trial console on every tick and the Players table after a death.
+         */
+        const sources = new Map(await otherSources());
+        const live = stripComments(sources.get("live.mjs") ?? "");
+        const rebuild = live.slice(live.indexOf("const rebuild = (force = false)"),
+            live.indexOf("const schedule ="));
+        ok(rebuild.length > 200, "keepLive's rebuild has moved or gone");
+        ok(/Hooks\.callAll\("drpgWindowUpdated", next\)/.test(rebuild),
+            "a rebuilt region is never announced, so nothing can dress it");
+        ok(rebuild.indexOf("if (after) after(next)") < rebuild.indexOf("drpgWindowUpdated"),
+            "the region is dressed before it has wired its own controls");
+
+        const chrome = stripComments(sources.get("chrome.mjs") ?? "");
+        ok(/Hooks\.on\("drpgWindowUpdated"/.test(chrome),
+            "the listener this hook exists for is gone, so firing it decorates nothing");
     }]
 ];
 
