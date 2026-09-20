@@ -44,6 +44,8 @@ const ACTION_OBSERVE_RESOLVE = "observe.resolve";
 const ACTION_CLEANUP_TRACES = "cleanup.traces";
 const ACTION_CLEANUP_TRACES_RESULT = "cleanup.tracesResult";
 const ACTION_ANALYZE_RESOLVE = "analyze.resolve";
+/* N-2: the player picked their own Level Up and the GM's client writes it. */
+const ACTION_ADVANCEMENT = "advancement.apply";
 const ACTION_SHARE_BULLET = "handover.bullet";
 const ACTION_GIVE_ITEM = "handover.item";
 const ACTION_VAULT_STEAL = "vault.steal";
@@ -489,6 +491,50 @@ async function onSocket(payload, senderId) {
             isCritical: Boolean(payload.isCritical),
             undo: Boolean(payload.undo)
         });
+        return;
+    }
+
+
+    /*
+     * A LEVEL UP THE PLAYER CHOSE, APPLIED BY THE GM WHO OFFERED IT (N-2).
+     *
+     * EVERY FIELD OF THIS PACKET IS A CLAIM. The sender says which character, which
+     * kind and which options; a player who can open a console can say anything. So:
+     * the sender has to own the character, the character has to be CARRYING an
+     * offer, the kind comes off THE OFFER rather than off the packet, the number of
+     * picks has to be the number that kind buys, and every option has to be one of
+     * the five. Nothing here trusts the claim except the picks themselves, which
+     * are the one thing the offer was made to let them choose.
+     *
+     * The offer is cleared by `applyAdvancement`, so a second packet finds nothing
+     * standing and is refused by the same test that admitted the first.
+     */
+    if (payload?.action === ACTION_ADVANCEMENT) {
+        const sender = senderOf(senderId);
+        if (!sender) return refuse(ACTION_ADVANCEMENT, "unknown sender");
+        if (!ownsActor(sender, payload.actorId)) {
+            return refuse(ACTION_ADVANCEMENT, "sender does not own that character");
+        }
+
+        const actor = game.actors.get(payload.actorId);
+        if (!actor) return refuse(ACTION_ADVANCEMENT, "no such character");
+
+        const { pendingAdvance, applyAdvancement } = await import("./level-up.mjs");
+        const offer = pendingAdvance(actor);
+        if (!offer) return refuse(ACTION_ADVANCEMENT, "no Level Up is on offer for that character");
+
+        const { LEVEL_UP, LEVEL_UP_OPTIONS } = await import("./config.mjs");
+        const wanted = LEVEL_UP[offer.kind]?.picks ?? 0;
+        const picks = Array.isArray(payload.picks) ? payload.picks : [];
+        if (picks.length !== wanted) {
+            return refuse(ACTION_ADVANCEMENT,
+                `that offer buys ${wanted} pick(s), the packet carried ${picks.length}`);
+        }
+        if (picks.some(p => !LEVEL_UP_OPTIONS[p?.option])) {
+            return refuse(ACTION_ADVANCEMENT, "a pick names something that is not an option");
+        }
+
+        await applyAdvancement(actor, picks, offer.kind);
         return;
     }
 
@@ -1496,6 +1542,32 @@ export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo
         userId: game.user.id,
         requestId: expectAck("Analyze"),
         actorId, itemId, total, isCritical, undo
+    });
+    return { pending: true };
+}
+
+
+/**
+ * A player's Level Up picks, sent to the GM who offered it (N-2, Dawid 20.09).
+ *
+ * `applyAdvancement` writes through `automatedUpdate`, which bypasses the resource
+ * guard on purpose - so it is GM-only, and it has to stay that way. The player
+ * picks; the GM's client checks the offer again and writes.
+ */
+export function requestAdvancement({ actorId, picks, kind }) {
+    if (game.user.isGM) {
+        return import("./level-up.mjs").then(m => {
+            const actor = game.actors.get(actorId);
+            return actor ? m.applyAdvancement(actor, picks, kind) : null;
+        });
+    }
+    if (!hasGm()) return null;
+
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_ADVANCEMENT,
+        userId: game.user.id,
+        requestId: expectAck("Level Up"),
+        actorId, picks, kind
     });
     return { pending: true };
 }

@@ -3728,6 +3728,69 @@ const REGRESSIONS = [
         ok(/\.drpg-hud-track \{/.test(css), "the band has no rule of its own");
         ok(/drpg-reduced-motion .drpg-hud-track > span \{\s*animation: none/.test(css),
             "the band goes on scrolling under reduced motion");
+    }],
+
+    ["R79 - a Level Up may be handed over, and the writing stays the GM's", async () => {
+        /*
+         * N-2 (Dawid, 20.09). The GM chooses WHAT was earned; who picks the buff is a
+         * second question, and the answer can be the player.
+         *
+         * THE APPLY DOES NOT MOVE. `applyAdvancement` writes through
+         * `automatedUpdate`, which bypasses the resource guard by design, so a player
+         * who could call it could raise their own maxima from the console. The player
+         * PICKS; their picks go to the GM's client, which checks the offer again and
+         * writes. Every assertion here is about that boundary.
+         */
+        const sources = new Map(await otherSources());
+        const level = stripComments(sources.get("level-up.mjs") ?? "");
+
+        ok(/export async function offerAdvancement\(/.test(level),
+            "nothing can hand a Level Up to the player");
+        const offer = level.slice(level.indexOf("export async function offerAdvancement"),
+            level.indexOf("export function pendingAdvance"));
+        ok(/if \(!game\.user\.isGM\)/.test(offer), "anybody can offer themselves a Level Up");
+        ok(/setFlag\(MODULE_ID, FLAGS\.pendingAdvance/.test(offer),
+            "the offer is not written to the character, so nothing can read it back");
+        ok(/whisperToOwner\(/.test(offer) && !/announce\(/.test(offer),
+            "the offer is announced to the table - which advancement somebody earned "
+            + "also says how they voted");
+
+        const picker = level.slice(level.indexOf("export async function openAdvancement"),
+            level.indexOf("function buildContent"));
+        ok(/const offer = !game\.user\.isGM \? pendingAdvance\(actor\) : null;/.test(picker),
+            "the picker decides whether a player may open it by something other than the offer");
+        ok(/if \(asPlayer\) kind = offer\.kind;/.test(picker),
+            "a player's own argument decides which kind they are picking, which is the "
+            + "forgery this offer exists to prevent");
+        ok(/requestAdvancement\(\{ actorId: actor\.id, picks: result, kind \}\)/.test(picker),
+            "a player's picks are applied on their own client");
+
+        const applied = level.slice(level.indexOf("export async function applyAdvancement"));
+        ok(/if \(!game\.user\.isGM\)/.test(applied), "the apply is no longer the GM's alone");
+        ok(/unsetFlag\(MODULE_ID, FLAGS\.pendingAdvance\)/.test(applied),
+            "the offer is not spent by being taken, so it can be taken twice");
+
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const handler = bridge.slice(bridge.indexOf("payload?.action === ACTION_ADVANCEMENT"),
+            bridge.indexOf("ACTION_ANALYZE_RESOLVE) {"));
+        ok(handler.length > 300, "the GM side of the handover is gone");
+        ok(/ownsActor\(sender, payload\.actorId\)/.test(handler),
+            "the packet's character is taken on trust");
+        ok(/pendingAdvance\(actor\)/.test(handler),
+            "the GM applies a Level Up nobody offered");
+        ok(/applyAdvancement\(actor, picks, offer\.kind\)/.test(handler),
+            "the kind comes off the packet rather than off the offer");
+        ok(/picks\.length !== wanted/.test(handler),
+            "three picks can be claimed for a standard Level Up");
+        ok(/LEVEL_UP_OPTIONS\[p\?\.option\]/.test(handler),
+            "a pick may name something that is not an option");
+
+        const sheet = stripComments(sources.get("sheet.mjs") ?? "");
+        const button = sheet.slice(sheet.indexOf("function injectAdvanceButton"),
+            sheet.indexOf("function injectItemButton"));
+        ok(/if \(!game\.user\.isGM && !offer\) return;/.test(button),
+            "the button is on every player's sheet whether or not anything was offered");
+        ok(/is-offered/.test(button), "nothing lights the button up, so nobody notices it");
     }]
 ];
 
@@ -6052,6 +6115,7 @@ const LITERAL_KEYS = [
     // N-1 and N-2: a tooltip on the clock, and the four sentences of a Level Up
     // handed to the player - none of which a GM ever sees.
     "DRPG.Hud.nowPlaying", "DRPG.Advance.offerTitle", "DRPG.Advance.offered",
+    "DRPG.Advance.offerTooltip", "DRPG.Advance.offerFailed",
     // MM-02. Said by a button that now answers Enter, so an empty field is a
     // keystroke away rather than a deliberate click.
     "DRPG.Monocub.giveAtLeast",

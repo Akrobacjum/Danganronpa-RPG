@@ -2415,6 +2415,18 @@
         "reinforced": "The Blackened walked out of a wrong vote."
       },
       "buttonTooltip": "Level Up",
+      "whoPicks": "Who chooses what {actor} takes?",
+      "who": {
+        "gm": "I will pick",
+        "gmHint": "The window opens here and you choose for them, which is how this has always worked.",
+        "player": "The player picks",
+        "playerHint": "They are told, the button on their own sheet lights up, and they choose. You still decide which Level Up it is."
+      },
+      "offerTitle": "A Level Up is yours to spend",
+      "offered": "{kind}. Press the button beside your name on your sheet and choose - you have {n} pick(s).",
+      "offerSent": "{name} has been told; the choice is theirs now.",
+      "offerFailed": "The offer could not be written to that character.",
+      "offerTooltip": "{kind} - press to choose what you take.",
       "whichKind": "Which Level Up did <strong>{actor}</strong> earn?",
       "kind": {
         "standard": "Level Up (pick 1)",

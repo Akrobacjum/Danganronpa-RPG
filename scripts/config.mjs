@@ -58,6 +58,15 @@ export const SOCKET = `module.${MODULE_ID}`;
  * Never spell these out inline - a typo in a flag name fails silently.
  */
 export const FLAGS = {
+    /**
+     * A Level Up the GM has handed to the player (N-2, Dawid 20.09).
+     *
+     * `{ kind, by, at }`. It is an OFFER, not an advancement: nothing is written
+     * to the character until they choose, and the GM's client checks this flag
+     * again before it applies anything, because the player's picks arrive over a
+     * socket and a socket carries claims rather than facts.
+     */
+    pendingAdvance: "pendingAdvance",
     /** Character: the student's Ultimate talent, shown under their name. */
     ultimate: "ultimate",
     /**

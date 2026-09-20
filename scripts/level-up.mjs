@@ -67,8 +67,95 @@ export async function openAdvancementFor(actor) {
     });
 
     if (!picked) return null;
+
+    /*
+     * WHO PICKS (N-2, Dawid 20.09).
+     *
+     * The GM decides WHAT was earned - standard or reinforced - and that stays
+     * theirs; who chooses the buff is a separate question, and at most tables the
+     * answer is the player. Asked as a second menu rather than as four options in
+     * the first, because the two questions are not the same kind of question: the
+     * first is a ruling about what happened, the second is about who is at the
+     * keyboard next.
+     */
+    const who = await chooseVariant({
+        actor,
+        title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }),
+        prompt: game.i18n.format("DRPG.Advance.whoPicks", {
+            actor: foundry.utils.escapeHTML(actor.name)
+        }),
+        options: [
+            { value: "gm", icon: "fa-user-pen",
+              label: game.i18n.localize("DRPG.Advance.who.gm"),
+              hint: game.i18n.localize("DRPG.Advance.who.gmHint") },
+            { value: "player", icon: "fa-paper-plane",
+              label: game.i18n.localize("DRPG.Advance.who.player"),
+              hint: game.i18n.localize("DRPG.Advance.who.playerHint") }
+        ]
+    });
+    if (!who) return null;
+
+    if (who.value === "player") return offerAdvancement(actor, picked.value);
     return openAdvancement(actor, picked.value);
 }
+
+/**
+ * Hand the choice to the player (N-2).
+ *
+ * The flag is the whole mechanism: it is what lights the button on their sheet,
+ * what the picker reads to know which kind was earned, and what the GM's client
+ * checks before it applies anything. Nothing is written to the character until
+ * they have chosen - an offer is not an advancement.
+ *
+ * WHISPERED, NOT ANNOUNCED. Which advancement somebody earned is between them and
+ * the GM until they spend it; a public card would also tell the table who voted
+ * correctly, which is the one thing a trial keeps quiet.
+ */
+export async function offerAdvancement(actor, kind = "standard") {
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+    if (!actor || actor.type !== "character") {
+        ui.notifications.warn(game.i18n.localize("DRPG.Character.notACharacter"));
+        return null;
+    }
+    if (!LEVEL_UP[kind]?.picks) {
+        ui.notifications.error(game.i18n.format("DRPG.Advance.unknownKind", { kind }));
+        return null;
+    }
+
+    const offer = { kind, by: game.user.id, at: Date.now() };
+    try {
+        await actor.setFlag(MODULE_ID, FLAGS.pendingAdvance, offer);
+    } catch (err) {
+        error(`Could not offer ${actor.name} a Level Up`, err);
+        ui.notifications.error(game.i18n.localize("DRPG.Advance.offerFailed"));
+        return null;
+    }
+
+    const { whisperToOwner } = await import("./utils.mjs");
+    const line = game.i18n.format("DRPG.Advance.offered", {
+        kind: game.i18n.localize(`DRPG.Advance.kind.${kind}`),
+        n: LEVEL_UP[kind].picks
+    });
+    await whisperToOwner(actor, `<p><strong>${
+        game.i18n.localize("DRPG.Advance.offerTitle")}</strong></p><p>${line}</p>`);
+
+    // The sheet is what lights up, and it is open in front of them right now as
+    // often as not.
+    actor.sheet?.render(false);
+    log(`${actor.name} was offered a ${kind} Level Up; the choice is theirs.`);
+    ui.notifications.info(game.i18n.format("DRPG.Advance.offerSent", { name: actor.name }));
+    return offer;
+}
+
+/** The offer standing on this character, if any (N-2). */
+export function pendingAdvance(actor) {
+    const offer = actor?.getFlag?.(MODULE_ID, FLAGS.pendingAdvance) ?? null;
+    return offer && LEVEL_UP[offer.kind]?.picks ? offer : null;
+}
+
 
 /**
  * Open the advancement dialog for an actor.
@@ -77,13 +164,30 @@ export async function openAdvancementFor(actor) {
  * @param {"standard"|"reinforced"} kind
  */
 export async function openAdvancement(actor, kind = "standard") {
-    // Advancement is the GM's to award. The sheet button is already GM-only, but
-    // this is also on `game.drpg`, so without the check any player could call it
-    // from the console and raise their own max Health and traits.
-    if (!game.user.isGM) {
+    /*
+     * THE PICKER IS THE PLAYER'S TOO NOW (N-2), AND THE APPLY IS STILL NOT.
+     *
+     * Advancement is the GM's to award, and this is on `game.drpg` - so without a
+     * check any player could call it from the console and raise their own maxima.
+     * What opens that door exactly as far as it needs to go is the OFFER: a player
+     * may open this window for their own character when the GM has left an offer
+     * on it, and what they press sends their picks to the GM's client, which
+     * checks the offer again and does the writing. `applyAdvancement` below stays
+     * GM-only, because it is the thing that writes.
+     */
+    const offer = !game.user.isGM ? pendingAdvance(actor) : null;
+    const asPlayer = Boolean(offer);
+    if (!game.user.isGM && !asPlayer) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    if (asPlayer && !actor.isOwner) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+    // The GM's argument, or the kind the offer was made for - never a kind the
+    // player chose, which is the half of this a forged call would reach for.
+    if (asPlayer) kind = offer.kind;
 
     if (!actor || actor.type !== "character") {
         ui.notifications.warn(game.i18n.localize("DRPG.Character.notACharacter"));
@@ -119,6 +223,18 @@ export async function openAdvancement(actor, kind = "standard") {
     });
 
     if (!result || result === "cancel") return null;
+
+    /*
+     * A PLAYER'S PICKS GO TO THE GM, WHO CHECKS THEM AGAINST THE OFFER. The picks
+     * are a claim: the count, the options and the character are all checked again
+     * on the GM's client before anything is written - see `requestAdvancement` and
+     * its handler in gm-bridge.mjs. The offer is cleared by the apply, so pressing
+     * twice cannot buy two.
+     */
+    if (asPlayer) {
+        const { requestAdvancement } = await import("./gm-bridge.mjs");
+        return requestAdvancement({ actorId: actor.id, picks: result, kind });
+    }
     return applyAdvancement(actor, result, kind);
 }
 
@@ -329,6 +445,14 @@ export async function applyAdvancement(actor, picks, kind = "standard") {
         await automatedUpdate(actor, update);
         const taken = (actor.getFlag(MODULE_ID, FLAGS.advances) ?? 0) + 1;
         await actor.setFlag(MODULE_ID, FLAGS.advances, taken);
+        /* AN OFFER IS SPENT BY BEING TAKEN (N-2). Cleared here rather than at the
+           three call sites - the GM's own picker, a player's picks arriving over the
+           socket, and the API - because this is the one place that writes an
+           advancement. `unsetFlag`, not a `-=key` in an update: that form silently
+           does nothing in this world, which the season reset's notes record. */
+        if (actor.getFlag(MODULE_ID, FLAGS.pendingAdvance)) {
+            await actor.unsetFlag(MODULE_ID, FLAGS.pendingAdvance);
+        }
 
         log(`Advancement (${kind}) applied to ${actor.name}: ${summary.join(", ")}`);
         await tellPlayer(actor, kind, summary, taken);

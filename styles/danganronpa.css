@@ -2457,6 +2457,34 @@ body.drpg-pixel-font [contenteditable] {
     background-image: none;
     filter: drop-shadow(0 0 3px lightgray);
 }
+
+/* A LEVEL UP WAITING TO BE SPENT (N-2, Dawid 20.09).
+   -------------------------------------------------------------------------
+   The GM has handed the choice to the player, and a player does not watch the
+   top of their own sheet for new controls. Hope's own gold, because that is
+   what this module already uses for "something good is yours to take", and a
+   slow pulse rather than a bright one: it has to be noticed on a sheet that is
+   open anyway, not compete with a Despair Call landing.
+
+   The pulse stops under reduced motion and leaves the gold behind it - the
+   colour is the message, the movement is only how it is noticed. */
+.character-header-sheet .name-row .drpg-advance-button.is-offered {
+    border-color: var(--drpg-hope);
+    color: var(--drpg-hope);
+    animation: drpg-advance-offered 2.4s ease-in-out infinite;
+}
+@keyframes drpg-advance-offered {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--drpg-hope) 55%, transparent); }
+    50% { box-shadow: 0 0 6px 2px color-mix(in srgb, var(--drpg-hope) 45%, transparent); }
+}
+body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.is-offered {
+    animation: none;
+    box-shadow: 0 0 6px 1px color-mix(in srgb, var(--drpg-hope) 45%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+    .character-header-sheet .name-row .drpg-advance-button.is-offered { animation: none; }
+}
+
 /* "This character has not been set up yet."
    ------------------------------------------------------------------------
    The only one of the name-row buttons that appears because something is

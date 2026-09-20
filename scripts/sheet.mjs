@@ -20,6 +20,7 @@ import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
 import { resourceMax, resourceValue, initCharacter, needsStartingResources } from "./character.mjs";
+import { pendingAdvance as pendingAdvanceFor } from "./level-up.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { getDespair } from "./despair.mjs";
 import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
@@ -1479,26 +1480,55 @@ function injectInitButton(app, element) {
  * ========================================================================== */
 
 function injectAdvanceButton(app, element) {
-    if (!game.user.isGM) return;
+    /*
+     * THE PLAYER GETS THIS BUTTON TOO, WHEN ONE IS WAITING FOR THEM (N-2, 20.09).
+     *
+     * It was the GM's alone, because advancement is the GM's to award. It still is:
+     * what a player can reach is an OFFER the GM left on their character, and even
+     * then the picks they make are sent to the GM's client to be checked and
+     * written (see `openAdvancement` and `requestAdvancement`). No offer, no button.
+     *
+     * LIT UP RATHER THAN MERELY PRESENT. A player does not watch the top of their
+     * own sheet for new controls; the class below is what makes it read as
+     * something waiting to be answered, and the tooltip says which kind was earned.
+     */
+    const offer = game.user.isGM ? null : pendingAdvanceFor(app.document);
+    if (!game.user.isGM && !offer) return;
 
     const nameRow = element.querySelector(".character-header-sheet .name-row");
-    if (!nameRow || nameRow.querySelector("[data-drpg-advance]")) return;
+    if (!nameRow) return;
+    const standing = nameRow.querySelector("[data-drpg-advance]");
+    if (standing) {
+        // A sheet re-rendered after the offer was taken must not keep the glow.
+        standing.classList.toggle("is-offered", Boolean(offer));
+        return;
+    }
 
     const button = document.createElement("button");
     button.type = "button";
     button.className = "drpg-advance-button";
+    if (offer) button.classList.add("is-offered");
     button.dataset.drpgAdvance = "";
-    button.dataset.tooltip = game.i18n.localize("DRPG.Advance.buttonTooltip");
-    button.setAttribute("aria-label", game.i18n.localize("DRPG.Advance.buttonTooltip"));
+    const tip = offer
+        ? game.i18n.format("DRPG.Advance.offerTooltip", {
+            kind: game.i18n.localize(`DRPG.Advance.kind.${offer.kind}`)
+        })
+        : game.i18n.localize("DRPG.Advance.buttonTooltip");
+    button.dataset.tooltip = tip;
+    button.setAttribute("aria-label", tip);
     button.innerHTML = `<i class="fa-solid fa-angles-up" inert></i>`;
 
     button.addEventListener("click", async () => {
-        const { openAdvancementFor } = await import("./level-up.mjs");
-        await openAdvancementFor(app.document);
+        const { openAdvancementFor, openAdvancement } = await import("./level-up.mjs");
+        // The GM is asked which kind and who picks; the player is not asked
+        // anything - the offer already says which kind, and they are the who.
+        if (game.user.isGM) await openAdvancementFor(app.document);
+        else await openAdvancement(app.document);
     });
 
     nameRow.append(button);
 }
+
 
 /* ==========================================================================
  * GIVE / TAKE ITEMS
