@@ -1031,6 +1031,23 @@ export async function migrateTruthBullets() {
 const FROM_REMNANT = "drpgFromRemnant";
 
 /**
+ * A write the MODULE makes to a bullet as bookkeeping, which is not anybody
+ * describing the object - so the edit sync below must not carry it up to the trace.
+ *
+ * Measured 21.09, on 1.2.47 as shipped: a rerolled Analyze that loses clears the
+ * reading it had published (`analyzedText: ""`), `watchBulletEdits` took that for
+ * a GM rewriting the bullet, wrote the empty string onto the TRACE, and the trace
+ * sent it down to every copy. One player's failed reroll erased the GM's sentence
+ * for the whole table. `identify` had the quieter half of the same hole: it
+ * publishes the reading from the bullet's secret, and a secret older than the
+ * trace would have been pushed up over the GM's newer words.
+ *
+ * On the OPTIONS rather than in the data, like `FROM_REMNANT`, and for the same
+ * reason: it is a fact about who is writing, not about what is written.
+ */
+export const NOT_AN_EDIT = "drpgNotAnEdit";
+
+/**
  * A bullet edited anywhere writes back to the trace it came from.
  *
  * Dawid, 28.08: "the synchronisation is to be full, continuous, regardless of
@@ -1069,6 +1086,7 @@ function watchBulletEdits() {
              */
             if (!isPrimaryGm()) return;
             if (options?.[FROM_REMNANT]) return;              // the trace talking
+            if (options?.[NOT_AN_EDIT]) return;               // the module keeping books
             if (!isTruthBullet(item)) return;
 
             const ref = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.remnantRef);

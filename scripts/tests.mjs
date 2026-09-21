@@ -11688,6 +11688,13 @@ const SCENARIOS = [
             await settle();
             equal(plain.getFlag(MODULE_ID, F.analyzedText) ?? "", "",
                 "a rerolled Analyze left the sentence published");
+            /* THE BUG THIS SCENARIO FOUND ON 21.09, in 1.2.47 as shipped: the undo's
+               cleared reading was carried UP by the edit sync and erased the GM's own
+               sentence from the trace - and from there, from every copy. */
+            equal(remnants.remnantPublic(token)?.analyzedText, said,
+                "a rerolled Analyze erased the GM's sentence from the trace itself");
+            equal(plain.getFlag(MODULE_ID, F.faint) ?? null, null,
+                "a rerolled Analyze left the Faint badge the first throw published");
             ok(!JSON.stringify(plain.toObject()).includes(said),
                 "a rerolled Analyze left the sentence somewhere on the item");
 

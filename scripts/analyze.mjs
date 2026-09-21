@@ -21,7 +21,7 @@
 
 import { MODULE_ID, analyzeDc, TRUTH_BULLET_TYPES } from "./config.mjs";
 import {
-    TRUTH_BULLET_FLAGS, secretOf, isTruthBullet, bulletDescription, faintOf
+    TRUTH_BULLET_FLAGS, secretOf, isTruthBullet, bulletDescription, faintOf, NOT_AN_EDIT
 } from "./truth-bullets.mjs";
 // The trace's own `public` record, for a reading a bullet's secret was minted
 // without (T-2). Static: remnants.mjs does not import this file.
@@ -68,6 +68,11 @@ export async function resolveAnalyze({
             // the rest of the truth - an un-analysed bullet knows nothing.
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: null,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: null,
+            // And Faint, which `identify` joined to this list in 1.2.47 and this
+            // undo was never told about: a rerolled Analyze that lost left the
+            // doubtful-trace badge the first throw had published. `faintOf` reads
+            // the secret first, so taking the flag off the item loses nothing.
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: null,
             // The reading goes back too, ITEM AND DESCRIPTION BOTH. Clearing the
             // flag and leaving the rendered paragraph would hand the reroll for
             // free: the player reads the sentence off their own sheet while the
@@ -81,7 +86,9 @@ export async function resolveAnalyze({
             patch[`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.lockedChapter}`] = null;
         }
         try {
-            await item.update(patch);
+            // NOT_AN_EDIT: see truth-bullets.mjs. Without it this cleared reading
+            // travelled up to the trace and wiped it for every holder.
+            await item.update(patch, { [NOT_AN_EDIT]: true });
         } catch (err) {
             error("Could not wind back the Analyze a reroll undid", err);
         }
@@ -178,7 +185,7 @@ async function identify(item, actor, realType, isCritical, dc, total) {
             // would start to disagree.
             "system.description": bulletDescription(
                 item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "", analyzedText)
-        });
+        }, { [NOT_AN_EDIT]: true });
     } catch (err) {
         error("Could not identify the Truth Bullet after a successful Analyze", err);
         return;
