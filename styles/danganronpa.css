@@ -13670,6 +13670,20 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
     font-size: var(--drpg-text-sm);
 }
 
+/* THE TWO GROUPING BUTTONS ARE WORDS, NOT GLYPHS (Dawid, 22.09: "przyciski filtrowania truth
+   bullets sa za waskie na napis"). The rules above take every button in an inventory group,
+   and "Chapter" and "Location" stand in the Truth Bullets group: squared to 26 px with no
+   padding, they read "HAPTE" and "OCATIO". Measured on Player A's sheet. */
+.application.sheet.actor .drpg-inventory-group .drpg-bullet-sort-button {
+    width: auto;
+    height: auto;
+    min-height: 0 !important;
+    padding: 3px 8px !important;
+    margin-left: 0;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
 /* The row grows with them, or the taller buttons push its own padding out of
    shape and the list starts to look loose. */
 .application.sheet.actor .drpg-inventory-list > li {
