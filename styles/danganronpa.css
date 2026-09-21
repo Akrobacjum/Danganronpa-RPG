@@ -15805,3 +15805,73 @@ body.drpg-reduced-motion .drpg-hud-track > span { animation: none; }
        none - and keyboard is the way most people in this mode are working. */
     :focus-visible { outline: 2px solid Highlight !important; outline-offset: 2px; }
 }
+
+/* ==========================================================================
+   THE STATS SCALE WITH THE MODULE (Dawid, 22.09: "statystyki postaci nie skaluja sie z
+   modulem")
+   --------------------------------------------------------------------------
+   Measured at 100 % and 140 % on Player A's sheet under the glass: every word on the
+   sheet grew by 1.4, and the boxes around the numbers did not - the six trait frames
+   (52 x 46) and their name plates (16 high), the Health and Sanity blocks (110 wide,
+   their plates 22 high, the numerals' boxes 30 wide, the track 86 x 10), the Hope and
+   action pips (17) and the Hope row (30 high). At 140 % the trait names spilled out of
+   their plates and the numerals out of their boxes. They are drawn in rem and px by
+   Daggerheart and by this sheet, and nothing the slider moves reaches either.
+
+   The window already grows with the slider (`scaleWindow`); these boxes are its
+   contents, so they take the same factor - `--drpg-slider-scale`, the slider on its
+   own, 1 at 100 % in both themes, so a table that never touched it sees nothing change.
+   `body` leads each selector so they outrank the theme's own later rules of the same
+   shape; `!important` only where the property is already stated that way.
+   ========================================================================== */
+/* The rail the Health and Sanity blocks stand in, and the portrait above them: 275 px at
+   100 % (the grid note further up), and a rail that stayed 275 while its blocks grew cut the
+   second block at its edge. */
+body .application.sheet.actor.character .window-content {
+    grid-template-columns: minmax(0, calc(275px * var(--drpg-slider-scale, 1))) minmax(0, 1fr) !important;
+}
+body .application.sheet.actor.character .character-header-sheet .character-traits {
+    max-width: calc(38.5rem * var(--drpg-slider-scale, 1));
+}
+body .application.sheet.actor.character .character-header-sheet .character-traits .trait {
+    min-width: calc(4.375rem * var(--drpg-slider-scale, 1));
+}
+body .application.sheet.actor.character .character-header-sheet .character-traits .trait .trait-name {
+    height: calc(1rem * var(--drpg-slider-scale, 1));
+    line-height: calc(1rem * var(--drpg-slider-scale, 1));
+}
+body .application.sheet.actor.character .character-header-sheet .character-traits .trait .trait-value-area,
+body .application.sheet.actor.character .drpg-trait-frame {
+    width: calc(3.25rem * var(--drpg-slider-scale, 1));
+    height: calc(2.875rem * var(--drpg-slider-scale, 1));
+}
+body .application.sheet.actor.character .character-header-sheet .hope-section .hope-value,
+body .application.sheet.actor.character .character-header-sheet .drpg-action-pip {
+    width: calc(1.05rem * var(--drpg-slider-scale, 1));
+    height: calc(1.05rem * var(--drpg-slider-scale, 1));
+}
+body .application.sheet.actor.character .character-header-sheet .hope-section {
+    height: auto;
+    min-height: calc(30px * var(--drpg-slider-scale, 1));
+}
+body .application.sheet.actor.character .character-sidebar-sheet .resources-section .status-bar {
+    width: calc(110px * var(--drpg-slider-scale, 1));
+}
+body .application.sheet.actor.character .character-sidebar-sheet .resources-section .status-label {
+    height: calc(22px * var(--drpg-slider-scale, 1)) !important;
+}
+body .application.sheet.actor.character .character-sidebar-sheet .resources-section .status-label h4 {
+    line-height: calc(18px * var(--drpg-slider-scale, 1)) !important;
+}
+body .application.sheet.actor.character .character-sidebar-sheet .resources-section .status-value {
+    width: calc(100px * var(--drpg-slider-scale, 1));
+}
+body .application.sheet.actor.character .character-sidebar-sheet
+    .status-value:has(.drpg-resource-bar) > :is(.bar-input, .bar-label) {
+    width: calc(1.9rem * var(--drpg-slider-scale, 1)) !important;
+}
+body .application.sheet.actor.character .character-sidebar-sheet .drpg-resource-bar,
+body .application.sheet.actor.character .character-sidebar-sheet
+    .status-value:has(.drpg-resource-bar) > .drpg-resource-bar {
+    height: calc(0.62rem * var(--drpg-slider-scale, 1)) !important;
+}

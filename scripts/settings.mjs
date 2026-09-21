@@ -1891,6 +1891,13 @@ export function applyTheme() {
     const legacyScale = String(theme === "stainedGlass" ? 1 : sliderScale());
     document.body.style.setProperty("--drpg-legacy-scale", legacyScale);
     document.documentElement.style.setProperty("--drpg-legacy-scale", legacyScale);
+    /* THE SLIDER ON ITS OWN, IN BOTH THEMES (22.09) - the factor a window's size is already
+       multiplied by in `scaleWindow`, for the boxes inside it that are drawn in rem or px
+       rather than around their text: the character sheet's trait frames, its Health and
+       Sanity blocks and its pips (see the end of danganronpa.css). 1 at 100 %. */
+    const slider = String(sliderScale());
+    document.body.style.setProperty("--drpg-slider-scale", slider);
+    document.documentElement.style.setProperty("--drpg-slider-scale", slider);
     // the windows standing open when the slider moved, which will not render again on their own
     for (const app of foundry.applications.instances.values()) {
         const el = app.element instanceof HTMLElement ? app.element : app.element?.[0];
