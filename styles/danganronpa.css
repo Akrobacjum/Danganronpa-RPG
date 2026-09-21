@@ -7828,6 +7828,17 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-shee
     color: var(--drpg-bone) !important;
 }
 
+/* ...AND THE NUMERALS, which the note above promised and nothing delivered (22.09). The
+   re-inking rule a few lines up takes every descendant of the rail but the bar itself, and
+   the count - its input, the slash, the maximum - sits on the chip's Ink block: measured,
+   rgb(29, 26, 33) on rgb(29, 26, 33), so Health and Sanity read as a blank plate. One
+   `.status-bar` more than that rule, so this wins without a second `!important` war. */
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .status-bar .status-value,
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .status-bar
+    .status-value *:not(:where(.drpg-resource-bar, .drpg-resource-fill, .drpg-resource-delta)) {
+    color: var(--drpg-bone) !important;
+}
+
 /* The safeword keeps its own colour - it is the one control that must not
    blend into whatever it is sitting on. */
 body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .drpg-safeword-button,
