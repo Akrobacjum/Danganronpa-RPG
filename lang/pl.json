@@ -1512,7 +1512,8 @@
       "newTraceBadType": "Ten moduł nie zna takiego rodzaju śladu.",
       "newTraceDone": "{type} jest teraz w: {room}.",
       "noRooms": "Na tej scenie nie ma jeszcze pokoi, więc nie ma gdzie postawić śladu. Najpierw narysuj regiony - Ustawienia pokoi wyjaśniają, jak.",
-      "keyDcNote": "Key Remnant to najłatwiejsza do zauważenia rzecz w pokoju, a jak łatwo go zauważyć, zależy od tego, gdzie go postawisz, a nie od skali powyżej: {list}. Zwykły dowód na tym samym stopniu widoczności jest trudniejszy o trzy do sześciu. Skala mówi, ile trop zdradza."
+      "keyDcNote": "Key Remnant to najłatwiejsza do zauważenia rzecz w pokoju, a jak łatwo go zauważyć, zależy od tego, gdzie go postawisz, a nie od skali powyżej: {list}. Zwykły dowód na tym samym stopniu widoczności jest trudniejszy o trzy do sześciu. Skala mówi, ile trop zdradza.",
+      "newTraceUnfindable": "Nic nie znajdzie śladu tego rodzaju przy tej trudności - Observe nie ma dla niego progu."
     },
     "Vault": {
       "foundStashPending": "Znajdujesz czyjąś skrytkę. Co z niej wyjdzie, rozstrzygnie się za chwilę.",

@@ -25,7 +25,7 @@
 
 import {
     MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES,
-    REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY } from "./config.mjs";
+    REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY, observeDc } from "./config.mjs";
 import { SETTINGS, isEclipse } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
@@ -493,9 +493,16 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
        A GM repairing a case - a Key Remnant lost with its plan row, a Final Remnant
        that has to move - has nowhere else to say so, and refusing them here would
        send them back to editing token flags by hand, which is the thing this window
-       exists to stop. */
-    const typeOptions = Object.entries(REMNANT_TYPES).map(([key, def]) =>
-        `<option value="${key}"${key === "prep" ? " selected" : ""}>${
+       exists to stop.
+
+       EXCEPT A KIND OBSERVE HAS NO NUMBER FOR (review of stage D). An Autopsy
+       Remnant is handed over from the GM panel (Issue Autopsy Truth Bullet, D2) and
+       never found, so one placed here sat in the room behind a difficulty nothing
+       rolls against. Asked of the Observe table rather than named, so a kind that
+       gains a column appears and one that loses it goes. */
+    const typeOptions = Object.entries(REMNANT_TYPES)
+        .filter(([key]) => REMNANT_VISIBILITY.some(v => observeDc(v, key) !== null))
+        .map(([key, def]) => `<option value="${key}"${key === "prep" ? " selected" : ""}>${
             esc(def.label ?? key)}</option>`).join("");
     const visOptions = REMNANT_VISIBILITY.map(v =>
         `<option value="${v}"${v === "evident" ? " selected" : ""}>${
@@ -555,6 +562,11 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
     if (!result || result === "cancel" || !result.room) return null;
     if (!REMNANT_TYPES[result.type]) {
         ui.notifications.warn(game.i18n.localize("DRPG.Investigation.newTraceBadType"));
+        return null;
+    }
+    // A form is a claim too: the list above is not the only road to a kind.
+    if (observeDc(result.visibility, result.type) === null) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Investigation.newTraceUnfindable"));
         return null;
     }
 

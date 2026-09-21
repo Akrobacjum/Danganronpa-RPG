@@ -4375,6 +4375,8 @@ const REGRESSIONS = [
             + "is an ordinary one whatever the GM ticked");
         ok(/if \(!REMNANT_TYPES\[result\.type\]\)/.test(body),
             "the kind comes back off a form and is written without being checked");
+        ok(/observeDc\(v, key\) !== null/.test(body) && /observeDc\(result\.visibility, result\.type\) === null/.test(body),
+            "a kind Observe has no number for can be placed, and then nobody can ever find it");
         ok(/placeRemnant\(/.test(body),
             "the trace is built by hand instead of through the one writer that owns "
             + "the flags, the art and the name");
@@ -9056,6 +9058,51 @@ const SCENARIOS = [
             for (const app of [...foundry.applications.instances.values()]) {
                 if (before.has(app.id)) continue;
                 try { await app.close({ animate: false }); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["an incident's trace keeps the public word on its token until somebody finds it", async () => {
+        /*
+         * D11 creates an incident's traces un-hidden so a participant's client can
+         * draw them, and every client reads a token's name. Writing a trace's public
+         * name onto that token the moment it was set published it before anybody had
+         * looked - reached from the case panel's "New trace" (N-4), review of stage D.
+         */
+        const [one] = cast();
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const said = `Kettle, still warm ${Date.now() % 100000}`;
+        const word = game.i18n.localize("DRPG.Remnant.tokenName");
+        let token = null, copy = null;
+        try {
+            token = await remnants.placeRemnant({
+                type: "incident", visibility: "evident", tiedToCrime: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, note: "test fixture - incident name"
+            });
+            ok(token, "could not place the fixture trace");
+            equal(token.hidden, false, "incident traces are created hidden now - this test measures nothing");
+            await remnants.setRemnantPublic(token, { name: said });
+            await settle();
+            equal(scene.tokens.get(token.id)?.name, word,
+                "an incident trace nobody has found carries its public name on the token every client reads");
+            equal(remnants.remnantPublic(token)?.name, said, "the ledger did not keep the name");
+
+            copy = await bullets.createTruthBullet(one, {
+                name: said, realType: "incident", visibility: "evident",
+                remnantId: token.id, sceneId: scene.id
+            });
+            await remnants.setRemnantPublic(token, { name: said });
+            await settle();
+            equal(scene.tokens.get(token.id)?.name, said, "a found incident trace never shows its name");
+        } finally {
+            try { await copy?.delete(); } catch { /* already gone */ }
+            if (token) {
+                try { await remnants.dropRemnantSecret(token); } catch { /* nothing filed */ }
+                try { await token.delete(); } catch { /* already gone */ }
             }
             await settle();
         }

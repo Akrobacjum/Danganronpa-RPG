@@ -1007,22 +1007,35 @@ export async function setRemnantPublic(tokenDoc, patch = {}) {
  * copy would desync the moment either one changed without the other.
  */
 async function propagatePublic(tokenDoc, pub) {
+    // The copies first: how many there are is the answer to "has anybody found it".
+    let copies = 0;
+    try {
+        const { propagateRemnantPublic } = await import("./truth-bullets.mjs");
+        copies = await propagateRemnantPublic(tokenDoc.id, pub);
+    } catch (err) {
+        error("Could not propagate `public` to the Truth Bullets copied from this trace", err);
+    }
+
     if (tokenDoc && !tokenDoc.hidden) {
+        /*
+         * UN-HIDDEN IS NOT FOUND, for an incident's own traces (D11). `placeRemnant`
+         * creates them un-hidden so a participant's client can draw them - and this
+         * wrote the public name onto that token the moment one was set, where every
+         * client reads it. A GM placing an Incident Remnant by hand from the case
+         * panel (N-4) and naming it "Kettle, still warm - matches the burn" published
+         * that sentence to the table before anybody had looked (review of stage D).
+         * Until a bullet has been copied from one, the token keeps the public word
+         * and the plain icon; a name an earlier write left there is put back.
+         */
+        const unfound = Boolean(tokenDoc.getFlag(MODULE_ID, REMNANT_FLAGS.fromIncident)) && !copies;
         try {
             await tokenDoc.update({
-                name: pub.name || game.i18n.localize("DRPG.Remnant.tokenName"),
-                "texture.src": pub.img || ICON
+                name: (!unfound && pub.name) || game.i18n.localize("DRPG.Remnant.tokenName"),
+                "texture.src": (!unfound && pub.img) || ICON
             });
         } catch (err) {
             error("Could not copy `public` onto the Remnant token", err);
         }
-    }
-
-    try {
-        const { propagateRemnantPublic } = await import("./truth-bullets.mjs");
-        await propagateRemnantPublic(tokenDoc.id, pub);
-    } catch (err) {
-        error("Could not propagate `public` to the Truth Bullets copied from this trace", err);
     }
 }
 
