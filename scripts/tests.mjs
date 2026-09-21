@@ -4517,6 +4517,32 @@ const REGRESSIONS = [
         const firstRead = body.search(/\bpub\./);
         ok(firstRead < 0 || (declared >= 0 && declared < firstRead),
             "gmRemnantCard reads `pub` before declaring it, so every GM's trace card throws");
+    }],
+
+    ["R95 - a window under glass arrives frosted, not sharp and then frosted", async () => {
+        /*
+         * Dawid, 21.09: "the blur behind the window appears with a visible delay".
+         * The glass is `backdrop-filter` on the window's children, and an ancestor
+         * with opacity below 1 is a Backdrop Root - so while the WINDOW faded in, the
+         * glass had nothing to blur and drew the map sharp, snapping to frosted on
+         * the frame the opacity reached 1. Measured on a paused entrance: header
+         * sharpness 22.5 / 23.1 / 24.2 at 50 / 90 / 99 percent, 17.3 at the end;
+         * after, 17.2 / 18.8 / 18.0 / 16.7.
+         *
+         * The rule is structural, so it is read: under glass nothing may fade the
+         * window element itself.
+         */
+        const src = stripComments(new Map(await otherSources()).get("motion.mjs") ?? "");
+        const at = src.indexOf("function animateWindowIn(");
+        ok(at > 0, "animateWindowIn has moved or gone");
+        const fn = src.slice(at, src.indexOf("\nfunction ", at + 20));
+        const glass = fn.slice(fn.indexOf("if (glassOn())"), fn.indexOf("return;", fn.indexOf("if (glassOn())")));
+        ok(glass.length > 40, "the entrance no longer has a glass branch");
+        const onWindow = glass.slice(glass.indexOf("play(el,"), glass.indexOf("ARRIVE())", glass.indexOf("play(el,")));
+        ok(onWindow.length > 0 && !/opacity/.test(onWindow),
+            "the window itself fades in under glass, so its glass is blind until the last frame");
+        ok(/for \(const child of el\.children\)[\s\S]{0,80}opacity: 0/.test(glass),
+            "nothing fades the window's contents in, so they appear all at once");
     }]
 ];
 

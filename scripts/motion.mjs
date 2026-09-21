@@ -343,6 +343,42 @@ function animateWindowIn(app, _element, _context, options) {
     const scale = getComputedStyle(tokenSource())
         .getPropertyValue("--drpg-scale-in").trim() || "0.96";
 
+    /*
+     * UNDER GLASS THE WINDOW GROWS AND ITS CONTENTS FADE - NOT THE WINDOW
+     * (Dawid, 21.09: "the blur behind the window appears with a visible delay").
+     *
+     * The glass is `backdrop-filter` on the window's children - the header band and
+     * `.window-content`. An ancestor with `opacity` below 1 is a Backdrop Root, and a
+     * backdrop filter can only see what lies inside its root: while the WINDOW was
+     * fading in, its glass had nothing behind it to blur and drew the map sharp. It
+     * snapped to frosted on the one frame the opacity reached 1. Measured on a
+     * paused entrance, header sharpness 22.5 at 50%, 23.1 at 90%, 24.2 at 99% with
+     * the window's opacity at 0.99999, and 17.3 on the last frame.
+     *
+     * An element's OWN opacity does not make it a Backdrop Root, and `transform` is
+     * not one of the properties that does. So the window keeps its growth, and each
+     * child fades itself, glass included, frosted from the first frame.
+     *
+     * THE WINDOW'S OWN FRAME fades by its colours instead: it draws a 1px border and
+     * an inset light, and left alone they would be there at full strength from the
+     * first frame while everything inside them faded in. The end values are read off
+     * the window so the last frame is exactly its resting style, and `play` does not
+     * fill forwards, so an hour that recolours the border later is not overridden.
+     *
+     * Legacy has no backdrop filter and keeps the one animation it always had.
+     */
+    if (glassOn()) {
+        const rest = getComputedStyle(el);
+        play(el, [
+            { transform: `scale(${scale})`, borderColor: "transparent", boxShadow: "none" },
+            { transform: "scale(1)", borderColor: rest.borderTopColor, boxShadow: rest.boxShadow }
+        ], ENTER(), ARRIVE());
+        for (const child of el.children) {
+            play(child, [{ opacity: 0 }, { opacity: 1 }], ENTER(), ARRIVE());
+        }
+        return;
+    }
+
     play(el, [
         { transform: `scale(${scale})`, opacity: 0 },
         { transform: "scale(1)", opacity: 1 }
