@@ -5882,8 +5882,10 @@ body.drpg-pixel-font .drpg-camera-dock .camera-view .name {
 
 /* The empty state that replaces it. Without this, hiding the system rows left
    a titled box with nothing in it. */
+/* 10 px in from the rail's edge, where the Experience rows under it stand (7 px) and a
+   little more - at 2 px the sentence ran against the window's own frame (22.09). */
 .drpg-equipped-empty {
-    padding: 4px 2px;
+    padding: 4px 10px;
     font-size: var(--font-size-11, 0.72rem);
     line-height: 1.35;
     opacity: 0.65;
