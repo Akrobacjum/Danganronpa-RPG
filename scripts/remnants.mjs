@@ -1275,16 +1275,11 @@ export function remnantData(tokenDoc) {
         action: entry.action,
         subject: entry.subject,
         note: entry.note,
-        /*
-         * THE SENTENCE THE ANALYSIS BUYS (T-2, Dawid 17.09).
-         *
-         * GM-side, beside the type, because a trace's meaning has never been in
-         * the world. It is deliberately NOT inside `public`: `propagatePublic`
-         * copies that onto the token's name and texture and down onto every
-         * copied bullet's `playerText`, which is the one thing this must not do
-         * before somebody has analysed the trace.
-         */
-        analysis: entry.analysis ?? "",
+        /* No `analysis` here any more. The review's own T-2 filed the reading
+           beside the type; the merge with 1.2.47 kept 1.2.47's `public.analyzedText`
+           (a world running it already holds that) and removed the writer, and this
+           reader outlived it - a field nothing wrote, read by nothing, promising
+           the sentence lived somewhere it does not. See `remnantPublic`. */
         pointsAt: entry.pointsAt,
         sourceActor: entry.sourceActor,
         sourceName: entry.sourceName,
