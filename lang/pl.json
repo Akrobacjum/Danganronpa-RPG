@@ -3491,7 +3491,8 @@
         },
         "neutral": {
           "label": "Neutral Truth Bullet",
-          "hint": "Ślad nieustalonego pochodzenia. Użyj Analyze, by ustalić, czym naprawdę jest."
+          "hint": "Ślad nieustalonego pochodzenia. Użyj Analyze, by ustalić, czym naprawdę jest.",
+          "analysedHint": "Nic w nim nigdzie nie prowadzi. Albo zostawił go nikt w szczególności, albo jego pochodzenia nigdy nie zapisano."
         },
         "faint": {
           "label": "Faint Truth Bullet",

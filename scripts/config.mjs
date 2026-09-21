@@ -761,18 +761,7 @@ export const REMNANT_TYPES = {
     },
     neutral: {
         label: "Neutral Remnant",
-        hint: "Undetermined origin. Analysis turns it into a real category.",
-        /*
-         * THE SENTENCE FOR A BULLET THAT HAS BEEN ANALYSED AND IS STILL NEUTRAL
-         * (ACT-10, 20.09).
-         *
-         * `hint` is the un-analysed line - "analysis turns it into a real
-         * category" - and the card announcing an analysis printed it, which is a
-         * promise the analysis has just failed to keep. A trace whose real type IS
-         * neutral is a red herring or a GM who never picked a category; either way
-         * the honest sentence is that there is nothing more in it.
-         */
-        analysedHint: "Nothing in it points anywhere. Either it was left by nobody in particular, or its origin was never written down."
+        hint: "Undetermined origin. Analysis turns it into a real category."
     },
     faint: {
         label: "Faint Remnant",
@@ -830,7 +819,22 @@ export const TRUTH_BULLET_TYPES = {
     },
     neutral: {
         label: "Neutral Truth Bullet",
-        hint: "A trace of undetermined origin. Analyze it to find out what it really is."
+        hint: "A trace of undetermined origin. Analyze it to find out what it really is.",
+        /*
+         * THE SENTENCE FOR A BULLET THAT HAS BEEN ANALYSED AND IS STILL NEUTRAL
+         * (ACT-10, 20.09).
+         *
+         * `hint` is the un-analysed line - "Analyze it to find out what it really
+         * is" - and the card announcing an analysis printed it, which is a promise
+         * the analysis has just failed to keep. A trace whose real type IS neutral
+         * is a red herring or a GM who never picked a category; either way the
+         * honest sentence is that there is nothing more in it.
+         *
+         * ON THIS TABLE, the one `identify` reads (review of stage D). ACT-10 put it
+         * on REMNANT_TYPES.neutral, a table analyze.mjs never asks, so the reader
+         * fell through to `hint` every time and the fix never took effect.
+         */
+        analysedHint: "Nothing in it points anywhere. Either it was left by nobody in particular, or its origin was never written down."
     },
     faint: {
         label: "Faint Truth Bullet",

@@ -30,6 +30,7 @@ export const PROSE_KEYS = new Set([
     "hope", "despair", "critical", "success", "successWithDespair", "long", "help", "hinder",
     "helpTarget", "hinderTarget",
     "aloneNote", "chip", "note", "when", "hintFailure", "instruction", "name", "difficulty",
+    "analysedHint",
     "morning", "noon", "afternoon", "evening", "night",
     "obvious", "evident", "subtle", "hidden", "trivial", "standard", "complex", "desperate",
     "0", "1", "2", "3"

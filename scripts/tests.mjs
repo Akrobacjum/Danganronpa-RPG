@@ -4477,6 +4477,23 @@ const REGRESSIONS = [
         }
     }],
 
+    ["R103 - an analysed neutral bullet says there is nothing more in it", async () => {
+        /*
+         * ACT-10 wrote the sentence for a bullet analysed and still neutral onto
+         * REMNANT_TYPES.neutral; `identify` reads TRUTH_BULLET_TYPES.neutral, fell
+         * through to the un-analysed `hint`, and the card went on promising what the
+         * analysis had just failed to deliver. Review of stage D.
+         */
+        const { TRUTH_BULLET_TYPES, REMNANT_TYPES } = await import("./config.mjs");
+        ok(TRUTH_BULLET_TYPES.neutral?.analysedHint,
+            "the analysed sentence is not on the table analysis reads");
+        ok(TRUTH_BULLET_TYPES.neutral.analysedHint !== TRUTH_BULLET_TYPES.neutral.hint,
+            "the analysed sentence is the un-analysed one");
+        ok(!REMNANT_TYPES.neutral?.analysedHint, "the sentence is still on the table nobody reads");
+        const { PROSE_KEYS } = await import("./i18n-config.mjs");
+        ok(PROSE_KEYS.has("analysedHint"), "the sentence is never offered to the Polish file");
+    }],
+
     ["R102 - the sheet's handle follows the theme, and the track band fits its clock", async () => {
         /*
          * Review of stage D. scaleWindow took the character sheet's resize handle out
