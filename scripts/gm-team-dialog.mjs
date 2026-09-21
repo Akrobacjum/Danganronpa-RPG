@@ -341,6 +341,7 @@ function buildContent(actors, gms, roster, candidates, removable) {
         <tr>
             <td>${foundry.utils.escapeHTML(u.name)}</td>
             <td><input type="text" name="poolName.${u.id}" value="${foundry.utils.escapeHTML(poolLabel(u))}"
+                       aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Despair.poolName")}: ${u.name}`)}"
                        placeholder="${foundry.utils.escapeHTML(u.name)}" /></td>
         </tr>`).join("");
 
@@ -385,10 +386,12 @@ function buildContent(actors, gms, roster, candidates, removable) {
                 ${foundry.utils.escapeHTML(actor.name)}
             </td>
             <td style="text-align:center">
-                <input type="checkbox" name="mk.${actor.id}" data-drpg-mk ${marked ? "checked" : ""} />
+                <input type="checkbox" name="mk.${actor.id}" data-drpg-mk ${marked ? "checked" : ""}
+                       aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monokuma.isMonokuma")}: ${actor.name}`)}" />
             </td>
             <td>
-                <select name="pool.${actor.id}" data-drpg-pool ${marked ? "" : "disabled"}>${options}</select>
+                <select name="pool.${actor.id}" data-drpg-pool ${marked ? "" : "disabled"}
+                        aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monokuma.pool")}: ${actor.name}`)}">${options}</select>
             </td>
         </tr>`;
     }).join("");
@@ -466,7 +469,8 @@ function buildAssignRows(roster, gms) {
 
         return `<tr${excluded ? ' class="drpg-assign-excluded"' : ""}>
                     <td>${foundry.utils.escapeHTML(actor.name)}${explicit ? "" : ` <span class="drpg-assign-implicit" data-tooltip="${game.i18n.localize("DRPG.Assign.implicitHint")}">*</span>`}</td>
-                    <td><select name="assign.${actor.id}" data-drpg-assign>${options}</select></td>
+                    <td><select name="assign.${actor.id}" data-drpg-assign
+                        aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Assign.monokuma")}: ${actor.name}`)}">${options}</select></td>
                 </tr>`;
     }).join("");
 }

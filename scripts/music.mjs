@@ -1294,7 +1294,8 @@ function musicMapRows(playlists) {
 
         return `<tr>
             <td>${foundry.utils.escapeHTML(label)}</td>
-            <td><select name="state:${state.key}">${options}</select></td>
+            <td><select name="state:${state.key}"
+                aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Music.playlist")}: ${label}`)}">${options}</select></td>
         </tr>`;
     }).join("");
 }

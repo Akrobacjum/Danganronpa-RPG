@@ -516,7 +516,8 @@ export async function openMonocubDialog() {
         return `<tr>
             <td>${foundry.utils.escapeHTML(a.name)}</td>
             <td style="text-align:center">
-                <input type="checkbox" name="cub:${a.id}" ${cub ? "checked" : ""} /></td>
+                <input type="checkbox" name="cub:${a.id}" ${cub ? "checked" : ""}
+                       aria-label="${foundry.utils.escapeHTML(`${game.i18n.localize("DRPG.Monocub.isOne")}: ${a.name}`)}" /></td>
             <td>${cub ? `${hope} / ${resourceMax(a, "hope")}` : "-"}</td>
             <td>${cub ? `
                 <select name="donor:${a.id}">${donors}</select>

@@ -8926,6 +8926,47 @@ const SCENARIOS = [
         }
     }],
 
+    ["every standing GM window names every control it draws", async () => {
+        /*
+         * 1.2.47's a11y test sweeps whatever happens to be on screen when it runs, so
+         * after the merge every full run failed on a DIFFERENT window - whichever one an
+         * earlier scenario had left open - five kinds at a time. Swept on 21.09 with all
+         * of them open at once: the Room setup, Item tables, Projects, Despair Flow,
+         * Investigation's Key Remnant planner, Monocubs and Sound windows had table rows
+         * named only by their column headers, 150 controls in all.
+         *
+         * So this opens every standing window itself, in its own time, and asks the
+         * module's own sweep about all of them together. Hidden tabs count: their
+         * controls are in the DOM and a reader reaches them when the tab is shown.
+         */
+        const { nameControls, a11yReport } = await import("./a11y.mjs");
+        const before = new Set(foundry.applications.instances.keys());
+        let opened = 0;
+        for (const [file, text] of await otherSources()) {
+            for (const m of text.matchAll(/^export (?:async )?function (open[A-Z]\w*|manage[A-Z]\w*)\s*\(/gm)) {
+                if (!STANDING.includes(m[1])) continue;
+                try {
+                    const mod = await import(`./${file}`);
+                    mod[m[1]]?.();
+                    opened++;
+                } catch { /* a window that needs a world state this one lacks */ }
+            }
+        }
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        try {
+            needs(opened >= 10, `only ${opened} standing windows could be opened here`);
+            nameControls();
+            const report = a11yReport();
+            ok(!/carry no name/.test(report), report);
+        } finally {
+            for (const app of [...foundry.applications.instances.values()]) {
+                if (before.has(app.id)) continue;
+                try { await app.close({ animate: false }); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
     ["handing over evidence hands over only what the giver had analysed", async () => {
         /*
          * The copy is born with the giver's state - `handoverBullet` passes

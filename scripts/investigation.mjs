@@ -1197,30 +1197,34 @@ export function caseKeyRows({ plan, status, placed, limit, roomOptionsFor, visOp
                     ? esc(st.finders.join(", "))
                     : `<em>${game.i18n.localize("DRPG.Investigation.notFound")}</em>`;
 
+        /* Named for a screen reader: the column, and which of the planned clues this
+           row is. The headers name them only for the eye (21.09, the a11y sweep). */
+        const aria = (...keys) => ` aria-label="${esc(
+            `${keys.map(k => game.i18n.localize(k)).join(": ")} - ${i + 1}`)}"`;
         return `<tr${overLimit ? ' style="opacity:.6"' : ""}>
             <td><strong>${esc(SCALE_LABELS[entry.scale] ?? entry.scale)}</strong></td>
-            <td><input type="text" name="keyname:${i}" value="${esc(entry.name ?? "")}"
+            <td><input type="text" name="keyname:${i}"${aria("DRPG.Investigation.traceName")} value="${esc(entry.name ?? "")}"
                 placeholder="${game.i18n.localize("DRPG.Remnant.tokenName")}" /></td>
-            <td><textarea name="keytext:${i}" rows="2"
+            <td><textarea name="keytext:${i}" rows="2"${aria("DRPG.Investigation.traceText")}
                 placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}">${
                 esc(entry.text ?? "")}</textarea>
                 ${context ? `<div class="notes drpg-trace-context">${esc(context)}</div>` : ""}</td>
-            <td><input type="text" name="note:${i}" value="${esc(entry.note ?? "")}"
+            <td><input type="text" name="note:${i}"${aria("DRPG.Investigation.keyNoteLabel")} value="${esc(entry.note ?? "")}"
                 placeholder="${game.i18n.localize("DRPG.Investigation.keyNotePlaceholder")}" /></td>
             <td>
-                <select name="token:${i}">
+                <select name="token:${i}"${aria("DRPG.Investigation.onMap")}>
                     <option value=""${live ? "" : " selected"}>${
                         game.i18n.localize("DRPG.Investigation.notPlaced")}</option>
                     ${picker}
                 </select>
             </td>
             <td>
-                <select name="room:${i}" class="${overLimit ? "drpg-key-limited" : ""}"${
+                <select name="room:${i}"${aria("DRPG.Investigation.createHere", "DRPG.Vault.room")} class="${overLimit ? "drpg-key-limited" : ""}"${
                     here || overLimit ? " disabled" : ""}>
                     ${here ? "" : `<option value="">${game.i18n.localize("DRPG.Investigation.pickRoom")}</option>`}
                     ${roomOptionsFor(here?.room ?? null)}
                 </select>
-                <select name="vis:${i}" class="${overLimit ? "drpg-key-limited" : ""}"${
+                <select name="vis:${i}"${aria("DRPG.Investigation.createHere", "DRPG.Investigation.difficulty")} class="${overLimit ? "drpg-key-limited" : ""}"${
                     here || overLimit ? " disabled" : ""}>${visOptionsFor(here?.visibility ?? null)}</select>
             </td>
             <td>${state}</td>
