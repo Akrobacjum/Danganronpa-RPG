@@ -138,7 +138,15 @@ const noteFoot = s => {
    being a corner. */
 const NOTE_MIN = 220;
 const NOTE_MAX = 360;
-function fitNoteTile(H, railEnd, s) {
+/* THE TOOLS TAKE THEIR RUN FIRST, IN AS FEW COLUMNS AS THE TILE CAN SPARE (22.09).
+   `railEnds` is where the rail would end with its longest tools menu in one column, in two,
+   and so on, and last where its layers end. The first of them that still leaves the notice
+   tile its floor is the one taken. Fitting the tile under the layers alone gave a player's
+   three layers a 131 px box at 1600x950, Drawings' eight tools wrapped into three columns
+   in it, and the strip reserved four columns of glass beside two tiles ("za szeroka",
+   Dawid). The tile gives up what a narrower strip is worth only while it keeps its floor;
+   past that, the tools wrap as they did. */
+function fitNoteTile(H, railEnds, s) {
   const body = document.body;
   const gauge = document.querySelector("#players");
   const g = gauge && gauge.offsetWidth > 0 && gauge.offsetHeight > 0 ? gauge.getBoundingClientRect() : null;
@@ -147,11 +155,14 @@ function fitNoteTile(H, railEnd, s) {
   const foot = g && g.bottom > H - 80 ? Math.round(H - g.top + 8) : Math.round(100 * s);
   const tile = noteTile();
   const lean = Math.round(tile.w * s * 0.22);
-  const room = (H - foot) - (railEnd + 34 + 8 + lean);
+  const roomUnder = end => (H - foot) - (end + 34 + 8 + lean);
+  const ends = [].concat(railEnds);
+  const railEnd = ends.find(end => roomUnder(end) / s >= NOTE_MIN) ?? ends.at(-1);
+  const room = roomUnder(railEnd);
   const h = Math.round(Math.min(NOTE_MAX, Math.max(NOTE_MIN, room / s)));
   body.style.setProperty("--drpg-note-foot", foot + "px");
   body.style.setProperty("--drpg-note-fit", h + "px");
-  return { foot, h, lean };
+  return { foot, h, lean, railEnd };
 }
 /* ---- the rotations: one stylesheet, rewritten after every geometry pass ----------------------
    A block is rotated with its pane. Written as a rule on the block's selector (not an inline
@@ -745,10 +756,21 @@ function moduleLayout(W, H) {
       const ownFirst = menuFirst ? [...menuFirst.querySelectorAll("button.ui-control")].filter(e => e.offsetWidth > 0) : [];
       /* The rail's run is its LAYERS - that menu cannot wrap (see below) - so the tile is
          fitted under the last of them, and the tools are then bounded to the same room. */
-      const railEnd = ownFirst.length
+      const layersEnd = ownFirst.length
         ? Math.ceil(Math.max(...ownFirst.map(e => e.getBoundingClientRect().bottom)))
         : Math.round(boxTop);
-      const fitted = fitNoteTile(H, railEnd, s);
+      /* Where the longest tools menu would end in one column, two, three - read off the
+         layers' own pitch, since the tools are the same tiles - then the layers themselves. */
+      const most = Math.max(0, ...Object.values(globalThis.ui?.controls?.controls ?? {})
+        .map(c => Object.keys(c.tools ?? {}).length));
+      const layerTops = ownFirst.map(e => e.getBoundingClientRect().top).sort((a, b) => a - b);
+      const firstTop = layerTops.length ? layerTops[0] : boxTop;
+      const tileH = ownFirst.length ? ownFirst[0].getBoundingClientRect().height : 34;
+      const pitch = layerTops.length > 1 ? Math.max(tileH, layerTops[1] - layerTops[0]) : tileH + 8;
+      const railEnds = [1, 2, 3]
+        .map(cols => Math.max(layersEnd, Math.ceil(firstTop + Math.ceil(most / cols) * pitch - (pitch - tileH))))
+        .concat(layersEnd);
+      const fitted = fitNoteTile(H, railEnds, s);
       const room = Math.round(H - fitted.foot - fitted.h * s - fitted.lean - 34 - 8 - boxTop);
       /* The bound may never be shorter than the controls themselves. Foundry's control menu
          is `flex-wrap: nowrap` - it cannot wrap, so a bound under its own height only hides
@@ -1190,7 +1212,16 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
         .map(c => Object.keys(c.tools ?? {}).length);
       const most = tools.length ? Math.max(...tools) : 0;
       const pitch = unit + gap;
-      const fit = Math.max(1, Math.floor(wantH / Math.max(1, pitch)));
+      /* THE HEIGHT THE TOOLS WRAP IN, NOT THE HEIGHT THE TILES SHOWN RIGHT NOW TAKE (22.09).
+         A tools menu wraps when it runs out of its box, and the box is the bound
+         `moduleLayout` gave it - from the first tile to the box's foot. Read off the tiles
+         instead, a player's three layers (114 px at 1920x1080) sized the reserve for
+         Drawings' eight tools at four columns beside them, and the strip ran 142 px past
+         the last tile ("za szeroka", Dawid) while the menu, given its 270 px, wraps them
+         into two. The longer of the two readings, so a box shorter than its own tiles
+         cannot shrink the reserve below what is already on screen. */
+      const run = Math.max(wantH, r.bottom - top);
+      const fit = Math.max(1, Math.floor((run + gap) / Math.max(1, pitch)));
       cols = 1 + Math.max(1, Math.ceil(most / fit));
     }
     /* The container is not the content: `#scene-controls` is 151 px wide with its buttons
