@@ -30,6 +30,11 @@ import { TRUTH_BULLET_FLAGS, isIdentified, hasReading } from "./truth-bullets.mj
 // there - see `myTruthBulletFor`. visibility.mjs does not reach back into this
 // file, so the static import is safe.
 import { myBulletForRemnant } from "./visibility.mjs";
+/* A PROJECT'S TOKEN WEARS THE SAME FRAME (Dawid, 16.09: "token projektu nie ma tej
+   samej ramki, co remnanty"). projects-map.mjs is already in this file's graph -
+   visibility.mjs imports it - and it does not import this one, so the static import
+   adds no cycle. */
+import { projectIdOf } from "./projects-map.mjs";
 import { debug, error, esc, cssColour } from "./utils.mjs";
 import { glassOn as motionGlassOn, SEAM_GLOW } from "./motion.mjs";
 /* The room border's own hairline. A ring under this theme is the same seam as the
@@ -67,6 +72,8 @@ const TYPE_TOKEN = {
 };
 
 const FALLBACK = 0x8a8296;   // --drpg-dim, for a type nobody has named yet
+/* A project's frame, for a token that has no type because a project does not have one. */
+const PROJECT_FALLBACK = 0xd8c98a;   // PROJECT_TOKEN.workingTint, if the tint cannot be read
 
 export function registerRemnantRings() {
     Hooks.on("refreshToken", token => paint(token));
@@ -442,8 +449,9 @@ function paint(token) {
 
         const existing = token[RING_NAME];
         const isRemnant = token.document.getFlag(MODULE_ID, REMNANT_FLAGS.isRemnant);
+        const project = isRemnant ? null : projectIdOf(token.document);
 
-        if (!isRemnant) {
+        if (!isRemnant && !project) {
             if (existing) {
                 existing.destroy({ children: true });
                 token[RING_NAME] = null;
@@ -452,14 +460,17 @@ function paint(token) {
         }
 
         // A Remnant the viewer cannot see must not be outlined into existence -
-        // the ring would give away a hidden trace to the whole table.
+        // the ring would give away a hidden trace to the whole table. The same
+        // sentence, word for word, is the whole secrecy of a project's token:
+        // visibility.mjs decides per client whether it is on this person's map,
+        // and a ring drawn regardless would announce it to everybody.
         if (!token.visible) {
             if (existing) existing.visible = false;
             return;
         }
 
-        const { type, reinforced } = colourInputsFor(token.document);
-        if (!type) {
+        const { colour, reinforced } = frameFor(token.document, isRemnant);
+        if (colour == null) {
             if (existing) existing.visible = false;
             return;
         }
@@ -471,7 +482,6 @@ function paint(token) {
 
         const w = Math.round(token.w ?? token.document.width * (canvas.grid?.size ?? 100));
         const h = Math.round(token.h ?? token.document.height * (canvas.grid?.size ?? 100));
-        const colour = colourOf(type);
 
         if (!glassOn()) {
             halo.visible = false;
@@ -564,4 +574,39 @@ function colourInputsFor(tokenDoc) {
     const bullet = myTruthBulletFor(tokenDoc);
     if (!bullet) return { type: null, reinforced: false };
     return { type: bullet.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral", reinforced: false };
+}
+
+/**
+ * The colour and weight of one frame, whatever kind of token is wearing it.
+ *
+ * A PROJECT HAS NO TYPE, SO IT DOES NOT ASK FOR ONE. Its token already carries
+ * its state as a tint - amber while it is being built, green once it is done
+ * (`tintFor` in projects-map.mjs writes one of `PROJECT_TOKEN`'s two colours) -
+ * and that tint is on the document this client is already holding. Reading the
+ * frame off it means the map cannot disagree with itself: a project whose
+ * countdown finished gets the green frame at the same moment its icon turns
+ * green, from the same number, with no second lookup that could be stale and no
+ * read of the countdown itself, which is ownership-gated and may not be this
+ * client's to see at all.
+ *
+ * ONE WEIGHT FOR A PROJECT, and that is a decision rather than an omission. The
+ * heavy frame means "reinforced" on a trace - the one thing a GM acts on without
+ * opening anything. On a project, finished-or-not is already said by the colour,
+ * and saying it twice would leave the heavy frame meaning two different things
+ * on one map.
+ */
+export function frameFor(tokenDoc, isRemnant) {
+    if (isRemnant) {
+        const { type, reinforced } = colourInputsFor(tokenDoc);
+        return { colour: type ? colourOf(type) : null, reinforced };
+    }
+    let colour = PROJECT_FALLBACK;
+    try {
+        const raw = tokenDoc?.texture?.tint;
+        // v13 writes the tint as "#rrggbb"; a Color or a number also answers to `from`.
+        if (raw != null && raw !== "") colour = foundry.utils.Color.from(raw).valueOf();
+    } catch {
+        colour = PROJECT_FALLBACK;
+    }
+    return { colour, reinforced: false };
 }

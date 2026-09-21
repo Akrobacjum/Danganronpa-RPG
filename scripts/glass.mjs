@@ -394,6 +394,9 @@ function tightenGmGap() {
    `margin-top` hud.mjs already keeps level with the Despair rail, and a z-index below the
    sidebar so an open sidebar slides over the column instead of under it. Legacy is untouched. */
 const PIN = { rail: null };
+/* `PAD_SIDE` from the partition, which lives inside `curtainShapes`. One number, stated
+   twice because the two are in different scopes; if it ever moves, both move. */
+const COLUMN_PAD = 12;
 function pinRightColumn() {
   const col = document.getElementById("ui-right-column-1");
   if (!col) return;
@@ -409,8 +412,70 @@ function pinRightColumn() {
      The tab rail leans, so the glass cut for it is the tiles plus the swing that lean costs
      - about 52 px on a 1440p screen. Pinned only to the rail's own left edge, the status
      strip and the Projects tray reached 46 px into that band, the strip had to start below
-     them, and the rail's top eight tiles ended up on somebody else's pane. */
-  const right = r ? Math.max(0, Math.round(innerWidth - r.left) + railSwing(r.height) + 8) : 0;
+     them, and the rail's top eight tiles ended up on somebody else's pane.
+
+     AND THE SWING IS NOT THE WHOLE BAND: THE STRIP'S OWN LEAN IS THE REST (16.09).
+     `railBox` reserves `swing + slack`, where the slack is what the strip's inner edge
+     costs over the rail's run - `14 + run * tan(STRIP_ANGLE)`, about 51 px on a rail of
+     620. Only the swing was reserved here, so the column stood some 43 px inside the
+     band, and everything downstream followed from that one number: the column counted as
+     hugging the wall (`hugR`, which is true within 120 px of it), its section pane ran
+     into the wall under the rail, a strip piece that overlaps a content pane is thrown
+     away - so the rail's upper tiles stood on the tray's glass again, which is the fault
+     this comment says was fixed. Measured 16.09 on the glass harness with a fifteen-tab
+     rail - the length a real client's sidebar runs to, where the harness's own six leave
+     the collision invisible - counting corners of the rail's tiles that stand on their
+     own strip rather than on somebody else's pane:
+
+                      swing only     swing + slack
+       2560 x 1440      60 / 60          60 / 60
+       1920 x 1080      60 / 60          60 / 60
+       1600 x 900       42 / 60          60 / 60
+       1440 x 900       42 / 60          60 / 60
+       1366 x 768       36 / 60          54 / 60
+       1280 x 800       45 / 60          57 / 60
+
+     The last two rows are the room running out, not the rule failing: see below.
+
+     The other way round was tried first and reverted: clipping the SECTION panes out of
+     the band instead (`pushPane` exempts them) puts the rail on a hole rather than on
+     somebody else's glass - 18 corners on nothing and 28 gaps at the screen edge at
+     1600x900 - because the strip starts below the column's pane and nothing then covers
+     what the column gave up. Four earlier shapes of that idea are written up in
+     `cutStrips`. The collision is not in the partition: it is that two things were told
+     to stand in the same 43 px, and one of them is the module's own column.
+
+     AND THE SLACK IS TAKEN ONLY WHERE THERE IS ROOM FOR IT.
+     The column moves left, and on a narrow desk what is to its left is the Despair rail,
+     which is centred on the screen and cannot move: below about 1250 px the two already
+     overlap, which is the band written up in the 1.2.47 notes. Taking the whole slack
+     unconditionally carried that band up with it - swept at 800 px tall, block failures
+     16 from 1248 to 1344 where 1.2.47 has none (and 1200-1247 keeps the 16 it already
+     had). So the pin asks for the band and settles for the room: never less than the old
+     swing-only distance, never so far left that the column crosses the Despair rail with
+     its pad. Where the screen cannot pay, the tiles stand on the tray's glass exactly as
+     they did - which is the same collision, written down in the same place as the rest of
+     that band rather than fixed by moving one of the two things off the screen.
+
+     At 1366 and 1280 that is what the residue in the table above is: the column takes as
+     much of the slack as the Despair rail leaves it, six and three tile corners still
+     stand on the tray's glass, and nothing stands on a hole. Both readings are with a
+     fifteen-tab rail, which is a long one. */
+  const slack = r ? 14 + Math.round(r.height * Math.tan(STRIP_ANGLE)) : 0;
+  const base = r ? Math.max(0, Math.round(innerWidth - r.left) + railSwing(r.height) + 8) : 0;
+  /* NEITHER READING IS OF THIS FUNCTION'S OWN OUTPUT, and that is worth checking rather
+     than asserting - three of the faults in 1.2.47 were measurements taken through a
+     distortion the same code had applied. `width: auto` on a fixed box is shrink-to-fit,
+     which in principle narrows as `right` grows; in fact the strip and the tray state
+     their own width off the interface scale, so the column is 306 px wide whatever is
+     left of it. Measured 16.09, five consecutive passes at 1280, 1366, 1440 and 1920:
+     the width and the pin both settle on the first one and do not move again. The
+     Despair rail is centred on the screen and does not read the column at all. */
+  const own = col.getBoundingClientRect().width;
+  const dsp = document.getElementById("drpg-despair");
+  const dspR = dsp && dsp.offsetWidth ? dsp.getBoundingClientRect().right : null;
+  const room = dspR != null && own ? Math.round(innerWidth - dspR - 2 * 12 - own) : Infinity;
+  const right = Math.max(base, Math.min(base + slack, room));
   if (col.dataset.drpgPinned === "1" && PIN.rail === right) return;
   PIN.rail = right;
   col.dataset.drpgPinned = "1";
@@ -424,6 +489,65 @@ function pinRightColumn() {
   col.style.zIndex = "-1";
   // the column itself takes no clicks; the strip and the tray opt back in (stained-glass.css)
   col.style.pointerEvents = "none";
+}
+/* THE MODULE'S OWN BUTTONS DO NOT STAND IN FOUNDRY'S TAB RAIL.
+   ---------------------------------------------------------------------------
+   The messenger circle and the sound button are pinned to the bottom-right corner, and
+   so is Foundry's tab rail - which grows downward with the number of tabs. On a short
+   screen with a full sidebar the two meet: measured 16.09 on the glass harness at
+   1366x768 with a fifteen-tab rail, the launchers sat at x 1278..1344, y 620..746 and
+   the rail's last two tiles at x 1280..1331, y 626..668. The module's buttons were drawn
+   over Foundry's, which is the collision the 1.2.47 audit recorded and did not fix.
+
+   It shows up twice: as two controls on top of each other, and as a hole in the glass -
+   the launchers are a BLOCK, their section pane runs into the wall (`hugR`), and a strip
+   piece that overlaps a content pane is thrown away, so the rail's bottom tiles lost
+   their own glass and stood on the launchers' instead. The same fault as the Projects
+   tray's, one corner further down.
+
+   The buttons move inboard, and only when they would otherwise stand in the rail's run:
+   on a tall screen the rail ends hundreds of pixels above them and nothing moves. How far
+   is the rail's own band - the same terms `railBox` reserves, so the launchers' pane
+   stops where the strip begins - plus one pad. That also takes their pane out of the
+   `hugR` zone (120 px of the wall), so it no longer runs into the wall behind the strip.
+
+   The condition is their TOP against the rail's bottom, which is a vertical reading, and
+   this moves them horizontally: the measurement is not of its own output. */
+const LAUNCH_CLEAR = "--drpg-launch-clear";
+function clearLaunchers() {
+  const drop = () => document.body.style.removeProperty(LAUNCH_CLEAR);
+  if (!themeOn() || narrowLayout()) { drop(); return; }
+  const rail = document.getElementById("sidebar-tabs");
+  const box = rail && rail.offsetWidth ? tileButtons(rail).map(e => e.getBoundingClientRect()) : [];
+  const buttons = [...document.querySelectorAll("#drpg-messenger-launcher, #drpg-sound-launcher")]
+    .filter(e => e.offsetWidth);
+  if (!box.length || !buttons.length) { drop(); return; }
+  const top = Math.min(...box.map(q => q.top)), bottom = Math.max(...box.map(q => q.bottom));
+  // clear of the rail's run with the strip's own collar to spare: stay at the wall
+  if (Math.min(...buttons.map(e => e.getBoundingClientRect().top)) > bottom + 14) { drop(); return; }
+  const run = bottom - top;
+  const band = Math.round(8 + (Math.max(...box.map(q => q.right)) - Math.min(...box.map(q => q.left)))
+    + railSwing(run) + 14 + run * Math.tan(STRIP_ANGLE));
+  /* CORRECTED AGAINST WHERE THEY ACTUALLY LANDED, not computed from the stylesheet's own
+     number. `right` is an inset from the containing block, and under this theme that is
+     not the viewport - an ancestor carries a filter - so the two differ by 9 px here and
+     22 px on the right-hand column. Rather than model that, this asks for the distance it
+     wants and moves by the error: once the buttons are where they should be the error is
+     zero and the value stops changing, which the five-pass check confirms. */
+  let cur = Number.parseFloat(getComputedStyle(document.body).getPropertyValue(LAUNCH_CLEAR)) || 0;
+  /* TWO PADS, NOT ONE: the pane is the block's box plus PAD_SIDE, and one pad put its edge
+     exactly on the band's - which the strip's "is this pane in my way" test reads with half
+     a pixel of tolerance. The second pad is what makes the answer unambiguous. */
+  const want = band + 2 * COLUMN_PAD;
+  /* AND IT SETTLES HERE, NOT OVER PASSES. Moving these buttons is the last thing that would
+     make the curtain recut, so there is no second pass to correct in: the signature is taken
+     after this and already matches. Three tries is one more than the two it takes. */
+  for (let i = 0; i < 3; i++) {
+    const err = want - (innerWidth - Math.max(...buttons.map(e => e.getBoundingClientRect().right)));
+    if (Math.abs(err) < 1) break;
+    cur = Math.max(0, Math.round(cur + err));
+    document.body.style.setProperty(LAUNCH_CLEAR, cur + "px");
+  }
 }
 function unpinRightColumn() {
   const col = document.getElementById("ui-right-column-1");
@@ -479,6 +603,7 @@ function moduleLayout(W, H) {
      which live inside the column it just moved - are measured where they will
      actually stand. */
   pinRightColumn();
+  clearLaunchers();
   /* THE LEFT RAIL STARTS UNDER THE MODULE'S OWN LEFT COLUMN, AND THAT IS A ONE-WAY READ.
      `#drpg-gm-launcher` is laid out over the top of `#scene-controls`, so with nothing done
      the first two tiles sit under the GM badge. The old `placeTiles` pushed the rail down
@@ -787,13 +912,23 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   const pushPane = (ctx, poly, tone, kind, rank) => {
     const { panes, railBands, W, H } = ctx;
     if (!poly || poly.length < 3) return null;
-    /* AND ONLY ACROSS THE RUN OF THE TILES.
+    /* THE THREE-WAY CUT, AND WHY IT IS NO LONGER NEEDED HERE (16.09).
        The first version of this clipped every pane out of the band for the WHOLE height of
        the screen, which took the clock's own glass, the GM button's and - worst - the
        notice tile's, all three of which live at that wall above or below the rail and had
        nothing to do with it (Dawid, 07.09: "kawalek szkla przeznaczony na powiadomienia
-       zniknal"). A pane is cut into three across the band's own run instead: what is above
-       it, what is beside it, and what is below. Only the middle piece loses the band. */
+       zniknal"). A pane was cut into three across the band's own run instead - what is
+       above it, what is beside it, what is below - and only the middle piece lost the band.
+
+       All three of those panes are SECTIONS, and the rule below exempts sections outright,
+       so the run limit was protecting nothing at the top and costing a sliver: a filler
+       sector may enter the band above the tiles, and the strip then starts below that
+       sector's BOX while the sector itself only covers the wall as far as its leaning
+       edge. Measured 16.09 at 1920x800 with the column pinned clear of the band: the
+       sector reached y = 30 in its bounding box and y = 25 at the wall, the strip began at
+       30, and the five pixels between them were bare map at the top-right corner - one
+       edge gap at every desk width. Filler is cut out of the band from the top of the
+       screen now, and down to the end of the rail's run rather than only across it. */
     let parts = [poly];
 
     /* FILLER ONLY. Clipping the SECTIONS - the panes cut for the clock, the GM button and
@@ -805,22 +940,27 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     if (kind !== "strip" && kind !== "section") {
       for (const [b, dir] of [[railBands.left, 1], [railBands.right, -1]]) {
         if (!b || b.real === false || !b.coreY) continue;
-        const [by0, by1] = b.coreY;
+        /* FROM THE TOP OF THE SCREEN, AND DOWN TO WHOEVER HOLDS THE WALL BELOW.
+           Where a SECTION stands in the band under the rail - the launchers' pane, at the
+           bottom-right corner of a tall screen - the strip has to stop above it, and the
+           wall below that is the filler's to cover: clipping it there left a wedge of bare
+           map along the bottom edge between the last sector and the leaning corner of the
+           launchers' own pane, 25 px of it at 1920x1080. Where no section is in the band
+           below (a short screen, where `clearLaunchers` has already stepped those buttons
+           inboard of it), the wall is the strip's all the way down, and stopping the clip
+           at the tiles left the mirror image of the same wedge: 28 px at 1366x768, between
+           the strip's own bottom and where the sector below it reaches the wall.
+           `bandEnd` is set once per band, after the columns are cut and before any filler
+           is, which is the only moment both answers are known. */
+        const end = b.bandEnd ?? b.coreY[1];
         parts = parts.flatMap(q => {
           const bx = bbox(q);
           if (dir > 0 ? bx.x0 >= b.band : bx.x1 <= b.band) return [q];
-          if (bx.y1 <= by0 || bx.y0 >= by1) return [q];
-          const out = [];
-          let rest = q;
-          if (bx.y0 < by0) { const cut = split(q, 0, by0, 0, -1); if (cut[0]) out.push(cut[0]); rest = cut[1]; }
-          if (rest) {
-            const bx2 = bbox(rest);
-            let mid = rest;
-            if (bx2.y1 > by1) { const cut = split(rest, 0, by1, 0, -1); mid = cut[0]; if (cut[1]) out.push(cut[1]); }
-            const kept = mid ? clipHP(mid, b.band, 0, dir, 0) : null;
-            if (kept) out.push(kept);
-          }
-          return out.filter(Boolean);
+          if (bx.y0 >= end) return [q];
+          if (bx.y1 <= end) { const kept = clipHP(q, b.band, 0, dir, 0); return kept ? [kept] : []; }
+          const [above, below] = split(q, 0, end, 0, -1);
+          const kept = above ? clipHP(above, b.band, 0, dir, 0) : null;
+          return [kept, below].filter(Boolean);
         });
       }
     }
@@ -1404,14 +1544,34 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const yB0 = hugB ? Math.max(lineY(cB, wall), lineY(cB, wall + dir * wBot)) + 1 : yBot;
       const yMid = short ? yB0 : Math.min(yBot - 120, Math.max(yTop + (yBot - yTop) * (0.5 + (rnd() - 0.5) * 0.16), yCtl + 60));
       const tilt = (5 + rnd() * 5) * DEG * (rnd() < 0.5 ? 1 : -1);
-      const M = [wall + dir * wMid, yMid], Wm = [wall, yMid - wMid * Math.tan(tilt)];
+      /* A STRIP THAT ENDS ON THE FLOOR ENDS PAST IT.
+         The seam across the strip's foot is tilted, so its two ends sit at different
+         heights - which is the point where the strip meets another pane, and a hole where
+         it meets the bottom of the screen. With nothing below it in the band (a short desk,
+         where `clearLaunchers` has stepped the module's buttons inboard) the seam landed on
+         y = H at one end and 13 px above it at the other, and the wedge between was bare
+         map: four samples of the edge check at 1366x768 and at 1280x800. Run both ends past
+         the edge instead - `clipRect` takes them back to it - so the strip finishes square
+         on the floor the way it finishes square on the wall. */
+      const onFloor = short && yB0 >= H - 1;
+      const foot = H + 40;
+      /* AND IT DOES NOT NARROW ON THE WAY THERE. The strip is wide at the top and pinched
+         at its middle because below the pinch there is another pane holding the wall. With
+         nothing under it there is nothing to make room for, and the pinch was the hole: the
+         foot came out 87 px wide inside a band of 121 at 1366x768, and the 34 px between
+         them was bare map along the bottom edge. Widening the foot to the band makes the
+         quad a rectangle, which is convex; the control point is dropped with it, because
+         the vertex it adds would notch a shape that no longer narrows. */
+      const footW = onFloor && bandW ? Math.max(wMid, wTopFit) : wMid;
+      const M = [wall + dir * footW, onFloor ? foot : yMid],
+            Wm = [wall, onFloor ? foot : yMid - wMid * Math.tan(tilt)];
       const yT0 = hugT ? Math.min(lineY(cT, wall), lineY(cT, wall + dir * wTopFit)) - 1 : yTop;
       /* THE CONTROL POINT ONLY EXISTS IF IT IS A CORNER. Once the strip was made to hold the
          tiles' width at its middle, `wCtl` and `wMid` came out equal, and the control vertex
          landed two pixels from `M` - a degenerate edge, which makes the quad non-convex and
          breaks the point-in-pane test the whole coverage check rests on (it then reported 47
          covered samples as holes). It is a corner or it is not there. */
-      let upperQ = clipRect([[wall, yT0], [wall + dir * wTopFit, yT0], ...(yCtl < yMid - 40 && wCtl > wMid + 4 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
+      let upperQ = clipRect([[wall, yT0], [wall + dir * wTopFit, yT0], ...(!onFloor && yCtl < yMid - 40 && wCtl > wMid + 4 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
       // the angle of that edge, for the tiles that sit on it (clockwise on the left, the mirror on the right)
       tiles[side ? "right" : "left"] = { angle: Math.atan((wTopFit - wCtl) / Math.max(1, yCtl - yTop)) * (side ? -1 : 1), yTop, wTop: wTopFit, wCtl, yCtl, origin: tb.origin || null, box: tb.core || [tb.x0, tb.x1], centre: tb.centre || null };
       let lowerQ = short ? null : clipRect([Wm, M, [wall + dir * wBot, yB0], [wall, yB0]], W, H);
@@ -1665,6 +1825,19 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     ctx.railBands = railBands;
     top.forEach(c => buildColumn(ctx, c, top, "top"));
     bot.forEach(c => buildColumn(ctx, c, bot, "bottom"));
+
+    /* How far down each band is the strip's alone - see the note in `pushPane`. Read after
+       the sections exist and before the first filler is cut, because it is a fact about the
+       sections and every filler pane is clipped against it. */
+    for (const [b, dir] of [[railBands.left, 1], [railBands.right, -1]]) {
+      if (!b || b.real === false || !b.coreY) continue;
+      const held = panes.some(p => {
+        if (p.kind !== "section") return false;
+        const bb = bbox(p.poly);
+        return bb.y1 > b.coreY[1] && (dir > 0 ? bb.x0 < b.band : bb.x1 > b.band);
+      });
+      b.bandEnd = held ? b.coreY[1] : Infinity;
+    }
 
     fillBands(ctx, top, bot);
     const ringLines = cutRings(ctx, top);
@@ -2211,6 +2384,7 @@ function unmount() {
   windows.length = 0;
   document.querySelectorAll("#scene-controls, #sidebar").forEach(e => { e.style.marginTop = ""; e.style.paddingTop = ""; e.style.boxSizing = ""; e.style.maxHeight = ""; e.style.overflow = ""; });
   unpinRightColumn();
+  document.body.style.removeProperty(LAUNCH_CLEAR);
   restoreLid();
   document.querySelectorAll("#scene-controls, #sidebar-tabs").forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; });
   BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; }));

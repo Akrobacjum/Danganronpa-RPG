@@ -1088,6 +1088,26 @@ body.drpg-theme-stained-glass #drpg-messenger-launcher,
 body.drpg-theme-stained-glass #drpg-sound-launcher {
     transition: border-color var(--drpg-t-snap, 120ms), box-shadow var(--drpg-t-snap, 120ms), color var(--drpg-t-snap, 120ms);
 }
+/* AND THEY STEP INBOARD OF FOUNDRY'S TAB RAIL WHEN IT REACHES THEM.
+   `--drpg-launch-clear` is written by `clearLaunchers` in glass.mjs, which measures the
+   rail's run and its band; it is zero on every screen where the rail ends above these
+   buttons, and the whole reason it is a variable rather than an inline style is that the
+   sound button's own offset is a formula this sheet owns (centred over the larger circle)
+   and should not be restated in a script. */
+body.drpg-theme-stained-glass #drpg-messenger-launcher {
+    right: calc(var(--drpg-edge, 16px) + var(--drpg-launch-clear, 0px));
+}
+body.drpg-theme-stained-glass #drpg-sound-launcher {
+    right: calc(var(--drpg-edge) + (var(--drpg-launcher) - var(--drpg-launcher-small)) / 2
+        + var(--drpg-launch-clear, 0px));
+}
+/* AND THE ROSTER GOES WITH ITS BUTTON. It is pinned to the wall on its own (`right: 16px`
+   in messenger.css, "with the button it sits on") which stopped being true the moment the
+   button could move: the panel would have opened over the wall with its button a hundred
+   pixels to the left of it. */
+body.drpg-theme-stained-glass #drpg-messenger-roster {
+    right: calc(16px + var(--drpg-launch-clear, 0px));
+}
 body.drpg-theme-stained-glass #drpg-messenger-launcher:hover,
 body.drpg-theme-stained-glass #drpg-sound-launcher:hover,
 body.drpg-theme-stained-glass #drpg-messenger-launcher:focus-visible,
@@ -3115,13 +3135,72 @@ body.drpg-theme-stained-glass #drpg-popups {
    top of this file), so the card is given its scrollbar back. `contain` is not
    used: a scroll container inside the tile is exactly what is wanted here. */
 body.drpg-theme-stained-glass #drpg-popups .drpg-popup {
-    flex: 0 0 auto;
+    /* THE CARDS TAKE THE TILE, RATHER THAN HANGING OFF ITS BOTTOM EDGE.
+       `flex: 0 0 auto` gave each card its content height and the stack sat
+       against the bottom, so a short notice left the top of its own pane as
+       bare glass with nothing on it. Measured 16.09 in Chromium on the glass
+       harness, one ordinary sticky notice (the rotation the pane applies taken
+       off, so these are the upright boxes):
+
+         1920 x 1080   tile 322 x 165   card 110 px   55 px of empty glass (33 %)
+         1280 x 800    tile 301 x 154   card 110 px    44 px               (29 %)
+         2560 x 1440   tile 430 x 220   card  86 px   134 px               (61 %)
+
+       - the wider the tile, the fewer lines the same sentence wraps to, so the
+       gap grows with the screen. The tile cannot shrink to its cards (it is a
+       pane of the curtain, cut before any card exists - the 1.2.30 mistake) and
+       cannot grow (the sweep at the top of this file), so what is left is the
+       card growing into it: `flex: 1 1 auto` shares the free height out, and
+       one notice becomes one pane of glass with the message in it.
+
+       `1 0 auto`, and each letter of it was measured:
+
+       - grow 1, not 0: this is the whole change. Free height is shared out, so
+         one notice takes the pane and two short ones take half each.
+       - basis auto, not 0: the FREE space is shared, not the tile. Two cards of
+         unequal length keep their difference, which is what tells them apart at
+         a glance; `1 1 0` hands a "you found nothing" and a paragraph the same
+         half.
+       - shrink 0, and this one was tried the other way first. With shrink on, a
+         scroll container's automatic minimum size is zero, so two cards that do
+         not fit are squeezed rather than overflowing: measured at 1920 x 1080, a
+         one-line notice beside a two-paragraph one came out 37 px tall - a title
+         bar with its own descender cut off. Cards that do not fit still overflow
+         the tile upward exactly as they did before this change, which is not
+         good either (the older card loses its top to `overflow: hidden` and the
+         reader cannot scroll it back) but is the behaviour that was there, and
+         is not made better by a card too short to read. */
+    flex: 1 0 auto;
     max-height: calc(var(--drpg-note-h) * var(--drpg-note-scale));
     overflow-y: auto;
     overflow-x: hidden;
+    /* the body is centred in whatever the card grew to, not left under the
+       title bar with the tile empty below it - see the auto margin below */
+    display: flex;
+    flex-direction: column;
     /* the cards take clicks already (the close button); a scrollable one needs
        the wheel as well, and the stack itself stays click-through */
     pointer-events: auto;
+}
+/* AND THE BODY TAKES WHAT THE CARD GREW BY, RATHER THAN FLOATING IN IT.
+   The body carries the card's dark plate (`rgba(7, 6, 11, 0.42)`) and the title carries
+   the light one, so a body left at its content height in a grown card reads as two
+   plates with a strip of bare glass between them - which is the complaint again, one
+   level down. It stretches instead: title plate on top, body plate over everything
+   below it, one notice on one pane.
+
+   `align-content` and NOT a flex or grid context on the body, which is the point of
+   the line. The text wants to sit in the middle of the plate rather than under its top
+   edge, and every obvious way to do that - `display: flex` with `justify-content`,
+   `display: grid` with `align-content` - changes the formatting context the prose is
+   in, and adjacent paragraph margins stop collapsing: a two-paragraph notice would
+   silently gain a line of space it does not have today. `align-content` on a BLOCK
+   container (Chromium 123, Firefox 125, Safari 17.6) centres the flow without touching
+   it. Where it is not supported it is ignored and the text sits at the top of a plate
+   that still covers the pane, which is the part that matters. */
+body.drpg-theme-stained-glass #drpg-popups .drpg-popup-body {
+    flex: 1 1 auto;
+    align-content: center;
 }
 
 /* ---- 4. The Look window fits its rows ---------------------------------------------------- */
@@ -3432,13 +3511,21 @@ body.drpg-theme-stained-glass [class*="drpg-"] .fa-diamond:is(i, span)::before {
     content: none;
 }
 
-/* A LONG NOTICE SCROLLS INSTEAD OF BEING CUT.
+/* A LONG NOTICE SCROLLS INSTEAD OF BEING CUT: THE SCROLLBAR, AND NOT THE HEIGHT.
    The cards are clipped to the notice tile, which is a constant, so anything longer than
-   two short lines simply lost its end. The tile keeps its size and the card keeps its
-   text: what does not fit scrolls, and the scrollbar is the theme's own hairline. */
+   two short lines simply lost its end. What does not fit scrolls, and the scrollbar is
+   the theme's own hairline.
+
+   THE HEIGHT THAT USED TO BE HERE WAS THE TILE OF 1.2.27 AND IT WAS STILL WINNING.
+   `max-height: calc(148px * var(--drpg-sg-scale))` sat in this block, and section 3
+   above - written later, for a tile of `--drpg-note-h` (220 px) on the geometry
+   factor - states the same property on the same selector EARLIER in the file, so the
+   old number took every tie. Measured 16.09 in Chromium on the glass harness: at
+   1920 x 1080 the cards resolved to `max-height: 125.8px` on a tile 165 px tall, and at
+   2560 x 1440 to 148 px on a tile of 220. A card was given a scrollbar over a fifth of
+   its own glass standing empty below it. The number is deleted rather than corrected:
+   two rules stating one height is how this happened. */
 body.drpg-theme-stained-glass #drpg-popups .drpg-popup {
-    max-height: calc(148px * var(--drpg-sg-scale));
-    overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--drpg-glass-accent) 55%, transparent) transparent;

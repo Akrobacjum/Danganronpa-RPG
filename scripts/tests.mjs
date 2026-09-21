@@ -11014,6 +11014,51 @@ const SCENARIOS = [
             "an unplaced row cannot be given a room");
     }],
 
+    ["a project's token wears a frame, and it is the project's own colour", async () => {
+        /*
+         * REPORTED AT THE TABLE, 16.09: "the project token does not have the same
+         * frame as the remnants". It did not - `paint` in remnant-ring.mjs read
+         * one flag, and a token without it was a token with its ring destroyed.
+         *
+         * Two things are asked here and they fail separately.
+         *
+         * THE COLOUR, driven. A project has no type, so the frame cannot come
+         * from the type table: it comes from the tint the token is already
+         * wearing, which projects-map.mjs wrote from the project's own state.
+         * That is what keeps the frame and the icon from disagreeing - one
+         * number, read off the document this client is holding, with no second
+         * lookup into a countdown that may not be this client's to read.
+         *
+         * THE WIRING, read from source. Driving `paint` itself needs a canvas,
+         * a placeable and PIXI, none of which exist headless; what would regress
+         * silently is the ONE line that lets a project token past the Remnant
+         * gate at all, so that line is what this asks about.
+         */
+        const { frameFor } = await import("./remnant-ring.mjs");
+        const { PROJECT_TOKEN } = await import("./config.mjs");
+
+        const hex = raw => foundry.utils.Color.from(raw).valueOf();
+        for (const [state, tint] of [["being built", PROJECT_TOKEN.workingTint], ["finished", PROJECT_TOKEN.doneTint]]) {
+            const frame = frameFor({ texture: { tint } }, false);
+            equal(frame.colour, hex(tint),
+                `a project ${state} is framed in something other than its own tint`);
+            ok(!frame.reinforced,
+                "a project took the reinforced weight, which means something else on a trace");
+        }
+
+        /* A token with no tint at all still gets a frame rather than nothing:
+           a project that cannot be coloured is still a project standing there. */
+        ok(frameFor({ texture: {} }, false).colour != null,
+            "a project token with no tint was left with no frame at all");
+
+        const src = stripComments((await moduleSources()).get("remnant-ring.mjs") ?? "");
+        const paint = src.slice(src.indexOf("function paint("));
+        ok(/projectIdOf\(\s*token\.document\s*\)/.test(paint),
+            "paint() stopped asking whether a token is a project, so project tokens lose their frame");
+        ok(/!isRemnant\s*&&\s*!project/.test(paint),
+            "paint() destroys the ring on a token that is not a Remnant, project or not");
+    }],
+
     ["the portrait picker is a control a keyboard can reach and a reader can name", async () => {
         /*
          * AUDIT 15.09, AND THE TEST ABOVE COULD NOT HAVE CAUGHT IT.
