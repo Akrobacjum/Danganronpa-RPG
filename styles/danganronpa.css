@@ -2892,18 +2892,22 @@ body.drpg-pixel-font [contenteditable] {
 
    The pulse stops under reduced motion and leaves the gold behind it - the
    colour is the message, the movement is only how it is noticed. */
+/* NEVER LIT, UNTIL 21.09 (review of stage D). This block read `--drpg-hope`, a
+   variable declared nowhere, so its border, its colour and its pulse all resolved
+   to nothing - and the sheet's chip rule below paints every header button bone and
+   ink with `!important` anyway. The gold is the chip's FILL now (section 5b of the
+   sheet chips, further down), and the pulse is gold. */
 .character-header-sheet .name-row .drpg-advance-button.is-offered {
-    border-color: var(--drpg-hope);
-    color: var(--drpg-hope);
     animation: drpg-advance-offered 2.4s ease-in-out infinite;
 }
 @keyframes drpg-advance-offered {
-    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--drpg-hope) 55%, transparent); }
-    50% { box-shadow: 0 0 6px 2px color-mix(in srgb, var(--drpg-hope) 45%, transparent); }
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--drpg-gold) 55%, transparent); }
+    50% { box-shadow: 0 0 6px 2px color-mix(in srgb, var(--drpg-gold) 45%, transparent); }
 }
-body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.is-offered {
+/* Specific enough to outrank the glass brush's `box-shadow: none` on header buttons. */
+body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-row .drpg-advance-button.is-offered {
     animation: none;
-    box-shadow: 0 0 6px 1px color-mix(in srgb, var(--drpg-hope) 45%, transparent);
+    box-shadow: 0 0 6px 1px color-mix(in srgb, var(--drpg-gold) 45%, transparent);
 }
 @media (prefers-reduced-motion: reduce) {
     .character-header-sheet .name-row .drpg-advance-button.is-offered { animation: none; }
@@ -10309,6 +10313,18 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 .application.sheet.actor .drpg-advance-button:hover i,
 .application.sheet.actor .level-button:hover i {
     color: var(--drpg-bone) !important;
+}
+
+/* 5b. A LEVEL UP WAITING TO BE SPENT (N-2) is the one chip that asks to be pressed.
+   Gold as the FILL, the ink glyph on it (about 12:1), not a gold glyph on bone; the
+   hover keeps the chip's own red. No clip: the brush's clip-path would cut the
+   pulse's glow off at the chip's edge. */
+.application.sheet.actor .character-header-sheet .name-row .drpg-advance-button.is-offered {
+    clip-path: none;
+}
+.application.sheet.actor .character-header-sheet .name-row .drpg-advance-button.is-offered:not(:hover) {
+    background: var(--drpg-gold) !important;
+    border-color: var(--drpg-gold) !important;
 }
 
 /* --- 6. the GM marker that gives the grey stripe a meaning --------------- */
