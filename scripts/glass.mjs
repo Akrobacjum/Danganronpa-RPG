@@ -771,7 +771,14 @@ function moduleLayout(W, H) {
         .map(cols => Math.max(layersEnd, Math.ceil(firstTop + Math.ceil(most / cols) * pitch - (pitch - tileH))))
         .concat(layersEnd);
       const fitted = fitNoteTile(H, railEnds, s);
-      const room = Math.round(H - fitted.foot - fitted.h * s - fitted.lean - 34 - 8 - boxTop);
+      /* THE BOX IS THE CAPACITY CHOSEN ABOVE, AND NOT ONE PIXEL OF THE TILE'S ROOM MORE (22.09).
+         It used to be all the room above the notice tile, and once the tile reached its
+         ceiling that was far more than any menu needs: a 13-tool menu then wrapped ten deep in
+         a 429 px box and ran 110 px below the glass, which was cut to the tiles on screen when
+         the tokens were open ("zapas z prawej jest, ale na dole brak miejsca", Dawid, on
+         1.2.49). Bounded to where the chosen run ends, the menu wraps sideways into the
+         columns `railBox` reserves, and the strip is cut to the whole box. */
+      const room = Math.round(fitted.railEnd - boxTop);
       /* The bound may never be shorter than the controls themselves. Foundry's control menu
          is `flex-wrap: nowrap` - it cannot wrap, so a bound under its own height only hides
          tiles behind the rail's `overflow: hidden` (four of twenty survived the first attempt).
@@ -1201,7 +1208,11 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const tilesBottom = btns.length
       ? Math.max(...btns.map(e => e.getBoundingClientRect().bottom))
       : (r.top + rail.offsetHeight);
-    const wantH = Math.max(tilesBottom - top, btns.length * 1);
+    /* AND TO THE FOOT OF THE BOX, which `moduleLayout` now bounds to exactly the run the
+       longest tools menu can take (22.09). The tiles on screen are one control's; the glass
+       is cut once, so it has to cover where ANY control's tools can reach - measured on
+       1.2.49, Regions' thirteen ran 110 px past a strip cut while the tokens were open. */
+    const wantH = Math.max(Math.max(tilesBottom, side ? 0 : r.bottom) - top, btns.length * 1);
     /* HOW MANY COLUMNS THE TILES CAN ACTUALLY REACH, not the worst case on any screen.
        Foundry wraps a control's tools into another column only when they run out of the
        height available, so on a tall screen thirteen tools sit in ONE column and reserving
