@@ -484,6 +484,25 @@ async function reconcilePhase(from, to) {
     }
 
     if (to === "classTrial") {
+        /*
+         * THE TRIAL'S BUDGET (T-1), first: from the moment the phase moves the sheet
+         * offers Analyze and the row offers an Objection, and both are paid for.
+         *
+         * It lives here and nowhere else, which is 1.2.47's rule for everything that
+         * happens because the phase ENTERS a trial (d6b069e): every road runs through
+         * `setClock` - the Start button, `setPhase` and so `startFloor`, the clock
+         * editor - and this branch runs only when the phase really moved, so a
+         * trial's second debate refills nothing. The merge with 1.2.47 took the call
+         * out of `startClassTrial` to put it here and did not put it here: from
+         * a1c041c until this line, starting a trial refilled nobody, while the card
+         * the Start button posts announced that it had.
+         */
+        try {
+            const { openTrialBudget } = await import("./actions.mjs");
+            await openTrialBudget();
+        } catch (err) {
+            error("Could not hand out the trial's budget after the phase changed", err);
+        }
         try {
             const { resetTrialProgress } = await import("./vote.mjs");
             await resetTrialProgress();
