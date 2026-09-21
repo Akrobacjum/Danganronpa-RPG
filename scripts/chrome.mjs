@@ -73,6 +73,24 @@ function dressNumberField(input) {
     const minus = pixButton("minus", game.i18n.localize("DRPG.Look.stepDown"));
     const plus = pixButton("plus", game.i18n.localize("DRPG.Look.stepUp"));
     wrap.append(minus, input, plus);
+
+    /*
+     * AND THE LABEL KEEPS POINTING AT THE FIELD (21.09). A `<label>` wrapping its
+     * control labels the FIRST labelable element inside it, and a button is one: with
+     * the minus button put in front of the input, "Day" labelled the minus button.
+     * Measured in Edit campaign: the day field had no label at all, and clicking the
+     * word "Day" - as you do to get into the field - pressed minus and moved the
+     * campaign from day 11 to day 10. Since 06.09, on every number field with a label.
+     *
+     * An explicit `for` outranks the first-descendant rule, so the label is pointed at
+     * the input by id (one is made if it has none) and clicking the word focuses the
+     * field again. A label that already names something else is left as it is.
+     */
+    const label = input.closest("label");
+    if (label && !label.htmlFor) {
+        if (!input.id) input.id = `drpg-step-${foundry.utils.randomID(8)}`;
+        label.htmlFor = input.id;
+    }
     minus.addEventListener("click", () => step(input, -1));
     plus.addEventListener("click", () => step(input, 1));
     /* One line of explanation under the field, as the audit page draws it, and only while

@@ -8892,6 +8892,40 @@ const SCENARIOS = [
         }
     }],
 
+    ["clicking a number field's label focuses the field and does not press minus", async () => {
+        /*
+         * The stepper (chrome.mjs, 06.09) put a minus button in front of every number
+         * input, inside its <label>. A label labels its first labelable descendant,
+         * and a button is one - so "Day" in Edit campaign labelled the minus button,
+         * the field had no name, and clicking the word "Day" moved the campaign from
+         * day 11 to day 10. Found by the a11y sweep on 21.09, measured by clicking.
+         */
+        const { openClockDialog } = await import("./gm-panel.mjs");
+        const before = new Set(foundry.applications.instances.keys());
+        openClockDialog();
+        let input = null;
+        for (let i = 0; i < 40 && !input; i++) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            input = document.querySelector('input[name="day"][data-drpg-chrome="step"]');
+        }
+        try {
+            needs(input, "the Edit campaign window did not draw its day stepper here");
+            const label = input.closest("label");
+            ok(label, "the day field is no longer inside its label");
+            equal(label.control, input, "the day's label names something other than the day field");
+            const was = input.value;
+            label.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+            await settle();
+            equal(input.value, was, "clicking the word \"Day\" changed the day");
+        } finally {
+            for (const app of [...foundry.applications.instances.values()]) {
+                if (before.has(app.id)) continue;
+                try { await app.close({ animate: false }); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
     ["handing over evidence hands over only what the giver had analysed", async () => {
         /*
          * The copy is born with the giver's state - `handoverBullet` passes
