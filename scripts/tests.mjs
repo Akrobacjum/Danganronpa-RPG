@@ -12937,17 +12937,17 @@ const SCENARIOS = [
          */
         const panel = await import("./gm-panel.mjs");
         const { isDeceased } = await import("./chapter.mjs");
-        const victim = studentActors()[0];
-        ok(victim, "no student to repair");
+        // A LIVING student (review of stage D): `studentActors()[0]` could be a dead one,
+        // whom the scenario revived first - and a Monocub, whose revive the restore does not
+        // undo. `cast()` is what every other fixture scenario stands on.
+        const [victim] = cast();
 
-        const wasDead = isDeceased(victim);
         const said = [];
         const info = ui.notifications.info.bind(ui.notifications);
         ui.notifications.info = text => { said.push(String(text)); return null; };
         const before = game.messages.size;
 
         try {
-            if (wasDead) await (await import("./chapter.mjs")).reviveCharacter(victim);
             const changed = await panel.applyAliveStates({ [victim.id]: { state: "dead" } });
             await settle();
 
@@ -12965,7 +12965,7 @@ const SCENARIOS = [
         } finally {
             ui.notifications.info = info;
             const { reviveCharacter } = await import("./chapter.mjs");
-            if (!wasDead && isDeceased(victim)) await reviveCharacter(victim);
+            if (isDeceased(victim)) await reviveCharacter(victim);
             await settle();
         }
     }]
