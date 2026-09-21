@@ -3823,15 +3823,33 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 .drpg-viewer-list legend {
     padding: 0 .35rem;
 }
-.drpg-viewer-list,
-.drpg-viewer-cell {
+.drpg-viewer-list {
     display: flex;
     flex-wrap: wrap;
     gap: .15rem .6rem;
 }
-.drpg-viewer-cell {
-    justify-content: center;
-    text-align: left;
+
+/* THE MANAGER'S MATRIX (22.09): a column per player, named once, standing on end so
+   sixteen of them fit beside the rest of the row. It replaced a `.drpg-viewer-cell` that
+   set `display: flex` on the <td> itself - which takes a cell out of the table's layout,
+   and is why its box sat shorter than its row and off its column. */
+.drpg-viewer-group {
+    text-align: center;
+}
+.drpg-viewer-head {
+    vertical-align: bottom;
+    padding: 4px 2px;
+    text-align: center;
+}
+.drpg-viewer-head > span {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    display: inline-block;
+}
+.drpg-viewer-tick {
+    text-align: center;
+    padding: 2px;
 }
 
 /* The pool list on a table row's "where does this live" window.

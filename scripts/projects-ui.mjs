@@ -394,7 +394,7 @@ function projectManagerRows(projects, rooms) {
         ...rooms.map(r => `<option value="${foundry.utils.escapeHTML(r)}"${roomOf(id) === r ? " selected" : ""}>${foundry.utils.escapeHTML(r)}</option>`)
     ].join("");
 
-    const players = game.users.filter(u => !u.isGM);
+    const players = playerList();
     return projects.map(p => {
         const secret = isSecret(p.id);
         const knows = viewersOf(p.id).map(u => u.id);
@@ -416,11 +416,9 @@ function projectManagerRows(projects, rooms) {
                 <input type="checkbox" name="secret.${p.id}" aria-label="${rowName("DRPG.Project.secret", p)}"
                        ${secret ? "checked" : ""} />
             </td>
-            <td class="drpg-viewer-cell">
-                ${players.length
-                    ? viewerBoxes(players, knows, p.id)
-                    : `<small class="notes">${game.i18n.localize("DRPG.Project.noPlayers")}</small>`}
-            </td>
+            ${players.length
+                ? viewerTicks(players, knows, p)
+                : `<td><small class="notes">${game.i18n.localize("DRPG.Project.noPlayers")}</small></td>`}
             <td style="text-align:center">
                 <button type="button" class="drpg-mini-button" data-drpg-edit="${p.id}"
                         data-tooltip="${game.i18n.localize("DRPG.Project.editTitle")}">
@@ -550,20 +548,30 @@ export async function openProjectManager() {
         return made ? openProjectManager() : undefined;
     }
     const rows = projectManagerRows(projects, rooms);
+    /* WHO KNOWS WHAT, AS A MATRIX (Dawid, 22.09: "gracze z dostepem do projects ... sa brzydko
+       ulozeni - liczylem bardziej na cos przypominajacego tabele"). One column per player,
+       named once in the header, and a tick in each row: a GM reads down a column to see what
+       one player knows and across a row to see who knows one project. The names used to be
+       repeated in every row as a wrapping run of labels, which at sixteen players was a
+       paragraph per project and no two rows lined up. */
+    const players = playerList();
+    const span = Math.max(1, players.length);
+    const two = players.length ? ' rowspan="2"' : "";
 
     const content = dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Project.manageIntro")}</p>
             <table>
                 <thead><tr>
-                    <th></th>
-                    <th>${game.i18n.localize("DRPG.Project.title")}</th>
-                    <th>${game.i18n.localize("DRPG.Project.room")}</th>
-                    <th>${game.i18n.localize("DRPG.Project.indirect")}</th>
-                    <th>${game.i18n.localize("DRPG.Project.secret")}</th>
-                    <th>${game.i18n.localize("DRPG.Project.visibleTo")}</th>
-                    <th>${game.i18n.localize("DRPG.Project.edit")}</th>
-                    <th>${game.i18n.localize("DRPG.Project.delete")}</th>
-                </tr></thead>
+                    <th${two}></th>
+                    <th${two}>${game.i18n.localize("DRPG.Project.title")}</th>
+                    <th${two}>${game.i18n.localize("DRPG.Project.room")}</th>
+                    <th${two}>${game.i18n.localize("DRPG.Project.indirect")}</th>
+                    <th${two}>${game.i18n.localize("DRPG.Project.secret")}</th>
+                    <th colspan="${span}" class="drpg-viewer-group">${game.i18n.localize("DRPG.Project.visibleTo")}</th>
+                    <th${two}>${game.i18n.localize("DRPG.Project.edit")}</th>
+                    <th${two}>${game.i18n.localize("DRPG.Project.delete")}</th>
+                </tr>${players.length ? `<tr>${players.map(u => `<th class="drpg-viewer-head" scope="col"><span>${
+                    foundry.utils.escapeHTML(u.name)}</span></th>`).join("")}</tr>` : ""}</thead>
                 <tbody>${rows}</tbody>
             </table>
             <p class="notes">${game.i18n.localize("DRPG.Project.secretNote")}</p>
@@ -705,7 +713,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             r === currentRoom ? " selected" : ""}>${foundry.utils.escapeHTML(r)}</option>`)
     ].join("");
 
-    const players = game.users.filter(u => !u.isGM);
+    const players = playerList();
 
     const traitOptions = [
         `<option value=""${currentTrait ? "" : " selected"}>${
@@ -1026,6 +1034,22 @@ function readManager(dialog, projects) {
  * through nothing at all. GMs only see this; players are named, never GMs, and
  * the builder is added by `builderIds` whatever is ticked here.
  */
+/** Every player, in the order a reader counts them: "Player 2" before "Player 10". The
+    matrix's header and its rows ask separately, so they must get the same order. */
+function playerList() {
+    return game.users.filter(u => !u.isGM)
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
+}
+
+/** One cell per player for the manager's matrix - see `openProjectManager`. The checkbox
+    keeps the name `viewerBoxes` gives it, so `readManager` reads both the same way. */
+function viewerTicks(players, checked, project) {
+    const known = new Set(checked);
+    return players.map(user => `<td class="drpg-viewer-tick">
+        <input type="checkbox" name="viewers.${project.id}" value="${user.id}"${known.has(user.id) ? " checked" : ""}
+               aria-label="${foundry.utils.escapeHTML(`${user.name}: ${project.name}`)}" /></td>`).join("");
+}
+
 function viewerBoxes(players, checked, projectId = null) {
     const name = projectId ? `viewers.${projectId}` : "viewers";
     const known = new Set(checked);
@@ -1049,7 +1073,7 @@ export async function openShareDialog(preselectId = null) {
         return;
     }
 
-    const players = game.users.filter(u => !u.isGM);
+    const players = playerList();
     if (!players.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.noPlayers"));
         return;
