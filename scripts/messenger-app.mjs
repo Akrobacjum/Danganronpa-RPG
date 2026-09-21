@@ -771,8 +771,13 @@ async function ruleApproveReshape(action, data) {
         name: data.rname ?? "",
         text: data.rtext ?? "",
         softer: data.softer || null,
-        tie: Boolean(data.tie)
+        tie: Boolean(data.tie),
+        attempt: data.attempt ?? ""
     });
+    /* `false` is a ruling that went through - a Reroll had taken the attempt back,
+       and the card says so - where `null` leaves the card open to be answered. The
+       same split `ruleApproveMurder` draws. */
+    if (applied === false) return settled("DRPG.Cleanup.reshapeVoided");
     return applied ? settled("DRPG.Bridge.settledApproved") : null;
 }
 
@@ -780,7 +785,13 @@ async function ruleDeclineReshape(action, data) {
     // No refund, and the comment on `proposeReshape` says why: the Sanity
     // and the turn bought the attempt, and the attempt happened.
     const { declineReshapeRuling } = await import("./cleanup.mjs");
-    const told = await declineReshapeRuling({ actorId: data.by });
+    const told = await declineReshapeRuling({
+        actorId: data.by,
+        tokenId: data.trace || null,
+        erase: Boolean(data.erase),
+        attempt: data.attempt ?? ""
+    });
+    if (told === false) return settled("DRPG.Cleanup.reshapeVoided");
     return told ? settled("DRPG.Bridge.settledDeclined") : null;
 }
 

@@ -765,7 +765,7 @@ async function reshapeTrace(token, data, {
  * Remnant. Those are the rules answering; this is a player writing prose.
  */
 async function proposeReshape(actor, token, data, {
-    name = "", text = "", softer = null, tie = false, done = []
+    name = "", text = "", softer = null, tie = false, done = [], erases = false, attempt = ""
 } = {}) {
     const { REMNANT_VISIBILITY_LABELS, REMNANT_TYPES } = await import("./config.mjs");
     const esc = foundry.utils.escapeHTML;
@@ -801,13 +801,23 @@ async function proposeReshape(actor, token, data, {
                     rname: name,
                     rtext: text,
                     softer: softer ?? "",
-                    tie: tie ? "1" : ""
+                    tie: tie ? "1" : "",
+                    attempt
                 }
             },
             {
                 action: "declineReshape",
                 label: game.i18n.localize("DRPG.Cleanup.reshapeDecline"),
-                data: { by: actor.id }
+                /* The trace and `erase` travel too: on the erase road the dice bought an
+                   ERASE and the rewrite was the upgrade the player chose on top of it,
+                   so a GM who refuses the story still owes them the erase. */
+                data: {
+                    by: actor.id,
+                    scene: token.parent?.id ?? "",
+                    trace: token.id,
+                    erase: erases ? "1" : "",
+                    attempt
+                }
             }
         ]
     });
@@ -844,7 +854,7 @@ async function proposeReshape(actor, token, data, {
  * code that was supposed to produce it. It costs two lines.
  */
 export async function applyReshapeRuling({
-    actorId, tokenId, name = "", text = "", softer = null, tie = false
+    actorId, tokenId, name = "", text = "", softer = null, tie = false, attempt = ""
 } = {}) {
     if (!game.user.isGM) return null;
     const actor = game.actors.get(actorId) ?? null;
@@ -869,6 +879,23 @@ export async function applyReshapeRuling({
             what: `${data.visibilityLabel} ${data.typeLabel}`
         }));
         return null;
+    }
+
+    /*
+     * A CARD FROM AN ATTEMPT A REROLL TOOK BACK RULES ON NOTHING (review of
+     * stage D). The card carries the attempt it was raised for; a Reroll replays
+     * the attempt under a new id. So a receipt for this same trace under another
+     * id is positive evidence the dice this card describes no longer exist, and
+     * the card is refused rather than written - measured the way the review wrote
+     * it: a lost Reroll, then Approve on the older card, used to put the lie on
+     * the trace anyway. No receipt at all (a reload, another GM's browser, the
+     * console road) proves nothing, and the card is honoured as it always was.
+     */
+    const tag = String(attempt ?? "").slice(0, 32);
+    const standing = lastAttempt.get(actorId);
+    if (tag && standing?.tokenId === tokenId && standing.attempt !== tag) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeTakenBack"));
+        return false;
     }
 
     const limits = CLEANUP.transformAction?.limits ?? {};
@@ -907,14 +934,47 @@ export async function applyReshapeRuling({
  * Nothing to refund, for the reason written at the top of this block: the price
  * bought the attempt, and the attempt happened.
  */
-export async function declineReshapeRuling({ actorId } = {}) {
+export async function declineReshapeRuling({ actorId, tokenId = null, erase = false, attempt = "" } = {}) {
     if (!game.user.isGM) return null;
     const actor = game.actors.get(actorId);
     if (!actor) return null;
+
+    // The same guard as the approval, and it matters MORE here: the erase below
+    // would otherwise remove a trace a Reroll's replay had left standing.
+    const tag = String(attempt ?? "").slice(0, 32);
+    const standing = lastAttempt.get(actorId);
+    if (tag && tokenId && standing?.tokenId === tokenId && standing.attempt !== tag) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeTakenBack"));
+        return false;
+    }
+
+    /*
+     * THE ERASE THE CRITICAL BOUGHT (review of stage D). On the erase road the
+     * rewrite was an upgrade the player chose instead of erasing, and N-3 made it
+     * a proposal - so a decline used to leave the trace exactly as it was, the
+     * critical's erase gone with the story, and nothing telling the player the
+     * trace was still there. The GM refuses the story, not the dice: the trace is
+     * erased as a plain critical would have erased it, through `removeRemnant`
+     * like every erase, with the receipt filled in first so a Reroll can put it
+     * back. Read fresh, as the approval reads it: a trace swept or reinforced in
+     * the meantime is left alone. No refund, and no price call - the critical's
+     * hand-back already ran when the dice landed.
+     */
+    let said = "DRPG.Cleanup.reshapeDeclined";
+    if (erase && tokenId) {
+        const token = findRemnantToken(tokenId);
+        const data = token ? remnantData(token) : null;
+        if (data && !data.reinforced) {
+            if (standing?.tokenId === tokenId) standing.erased = recreationDataFor(token);
+            await removeRemnant(token);
+            said = "DRPG.Cleanup.reshapeDeclinedErased";
+        }
+    }
+
     await whisperToOwner(actor, `${cardHead({
         action: game.i18n.localize("DRPG.Cleanup.reshapeRulingTitle")
     })}<p><em>${foundry.utils.escapeHTML(game.i18n.format(
-        "DRPG.Cleanup.reshapeDeclined", { name: game.user.name }))}</em></p>`);
+        said, { name: game.user.name }))}</em></p>`);
     ui.notifications.info(game.i18n.format("DRPG.Cleanup.reshapeDeclinedGm",
         { name: actor.name }));
     return true;
@@ -1135,7 +1195,7 @@ async function resolveTransformRoad(actor, token, data, verdict, {
         try {
             // N-3: the GM rules on the lie. See the block above `proposeReshape`.
             await proposeReshape(actor, token, data, {
-                name, text, softer, tie: byTheKiller, done
+                name, text, softer, tie: byTheKiller, done, attempt: receipt.attempt
             });
         } catch (err) {
             error("Could not put a transform's reshape to the GM", err);
@@ -1197,7 +1257,9 @@ async function resolveEraseRoad(actor, token, data, { outcome, transforming, isC
                 text: rewriteText,
                 softer: rewrite.visibility,
                 tie: isCleaner(actor),
-                done
+                done,
+                erases: true,
+                attempt: receipt.attempt
             });
         } catch (err) {
             error("Could not put a critical clean-up's reshape to the GM", err);
@@ -1365,7 +1427,10 @@ export async function resolveCleanup({
         // G-20: what the trace was before it was relabelled. A Reroll putting
         // back a DELETED trace re-creates it; putting back a transformed one
         // only has to say what it used to be.
-        transformed: null
+        transformed: null,
+        // Which attempt this is. A reshape card carries it, so a card raised by
+        // dice a Reroll has since replaced can tell it no longer rules on anything.
+        attempt: foundry.utils.randomID()
     };
 
     // THE SERVER-SIDE PRICE - see the long note in `resolveStageSix`. A client

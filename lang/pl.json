@@ -1241,7 +1241,10 @@
       "reshapeDeclinedGm": "Odrzucono. {name} dostaje informację, że ślad się nie zmienił.",
       "reshapeRulingGone": "Tego śladu już nie ma, więc nie ma czego przemianować.",
       "reshapeUnsent": "Propozycji przerobienia śladu nie udało się dostarczyć do wątku. Na śladzie nic nie zapisano - rozstrzygnij to słowami i przemianuj go ręcznie, jeśli się zgadzasz.",
-      "reshapeUnsentPlayer": "Robota zrobiona, ale twoja historia nie dotarła do GM-a. Opowiedz ją na głos; na śladzie nic nie zapisano."
+      "reshapeUnsentPlayer": "Robota zrobiona, ale twoja historia nie dotarła do GM-a. Opowiedz ją na głos; na śladzie nic nie zapisano.",
+      "reshapeVoided": "Cofnięte przez Reroll, zanim {name} rozstrzygnął.",
+      "reshapeTakenBack": "Reroll cofnął tę próbę, więc ta karta już o niczym nie rozstrzyga.",
+      "reshapeDeclinedErased": "{name} nie przyjmuje twojej wersji. Krytyczny sukces i tak zabiera ślad - zniknął."
     },
     "Murder": {
       "openingReask": "Poproś o rzut otwarcia ponownie",

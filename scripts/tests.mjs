@@ -11893,6 +11893,59 @@ const SCENARIOS = [
                 actorId: who.id, tokenId: id, name: "Ghost", text: "Nothing."
             });
             ok(!ghost, "the approval claimed to relabel a trace that no longer exists");
+
+            // ---- a card from dice a Reroll replaced rules on nothing -------
+            // (review of stage D) Card #1 is raised, a Reroll replays the attempt
+            // and loses, and Approve on card #1 used to write the lie anyway.
+            const attemptOf = async token => {
+                for (const m of [...game.messages].reverse().slice(0, 12)) {
+                    const html = await wordsOf(m, 1500);
+                    const at = html.match(new RegExp(
+                        `data-drpg-call="approveReshape"[^>]*data-trace="${token.id}"[^>]*data-attempt="(\\w+)"`));
+                    if (at) return at[1];
+                }
+                return null;
+            };
+            const fourth = await fixture();
+            await tamper(fourth, `Stale ${stamp}`, "A card from dice that are gone.");
+            await settle();
+            const stale = await attemptOf(fourth);
+            ok(stale, "the ruling card does not say which attempt it was raised for");
+            await cleanup.resolveCleanup({
+                actorId: who.id, tokenId: fourth.id, total: 0,
+                isCritical: false, withHope: true, viaAction: true,
+                mode: "transform", price: "stress", undo: true,
+                change: { name: `Stale ${stamp}`, text: "A card from dice that are gone." }
+            });
+            await settle();
+            const voided = await cleanup.applyReshapeRuling({
+                actorId: who.id, tokenId: fourth.id, attempt: stale,
+                name: `Stale ${stamp}`, text: "A card from dice that are gone."
+            });
+            equal(voided, false, "a card from an attempt a Reroll took back was not refused");
+            ok(!remnants.remnantData(fourth)?.public?.name?.includes(String(stamp)),
+                "a Reroll that lost still let the older card write the lie");
+
+            // ---- the erase road: a declined story still erases -----------
+            // A critical on the erase road bought an erase; the rewrite was the
+            // upgrade on top. Declining the story used to leave the trace standing.
+            const fifth = await fixture();
+            await cleanup.resolveCleanup({
+                actorId: who.id, tokenId: fifth.id, total: 30,
+                isCritical: true, withHope: true, viaAction: true, mode: "erase",
+                price: "stress",
+                transform: { name: `Decoy ${stamp}`, text: "A decoy.", visibility: "subtle" }
+            });
+            await settle();
+            ok(remnants.remnantData(fifth), "a proposed rewrite erased the trace before any ruling");
+            const decoy = await attemptOf(fifth);
+            const erased = await cleanup.declineReshapeRuling({
+                actorId: who.id, tokenId: fifth.id, erase: true, attempt: decoy
+            });
+            await settle();
+            ok(erased, "the decline on the erase road was refused");
+            ok(!canvas.scene.tokens.get(fifth.id),
+                "declining the story left the trace the critical had paid to erase");
         } finally {
             for (const item of made) {
                 try { await item.delete(); } catch { /* already gone */ }
