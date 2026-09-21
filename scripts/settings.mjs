@@ -1958,7 +1958,6 @@ function scaleWindow(app, element) {
     if (el.dataset.drpgScaled === key) return;
     el.dataset.drpgScaled = key;
     const want = { ...(app?.constructor?.DEFAULT_OPTIONS?.position ?? {}), ...(app?.options?.position ?? {}) };
-    let fixed = false;
     /* THE CHARACTER SHEET HAS A SIZE OF ITS OWN.
        Daggerheart opens it at 850 x 800, which was right for its own type; at the theme's
        floor the five-tile action grid does not fit that width and the last column is cut off
@@ -1970,8 +1969,8 @@ function scaleWindow(app, element) {
        VT323 at 17px and a five-tile grid under the glass; handing it to Monokuma
        Legacy would open a pixel-font sheet two thirds empty and take its resize
        handle away for a size nobody measured. Legacy keeps Daggerheart's own
-       850 x 800 multiplied by the slider, and keeps the handle, because `fixed`
-       stays false there.
+       850 x 800 multiplied by the slider, and keeps the handle - the rule that hides
+       it names the glass.
 
        AND ABOUT ONE WINDOW, ASKED BY ITS DOCUMENT (UI-09). A class-name match on
        "actor" also caught Foundry's Actors sidebar tab and any window with the word
@@ -1985,7 +1984,6 @@ function scaleWindow(app, element) {
            live in config.mjs (SHEET_SIZE) beside the Legacy minimum. */
         want.width = SHEET_SIZE.glass.width;
         want.height = SHEET_SIZE.glass.height;
-        fixed = true;
     }
     const size = {};
     for (const dim of ["width", "height"]) {
@@ -1996,13 +1994,11 @@ function scaleWindow(app, element) {
        1624, and Foundry will happily place a window whose bottom is off the display. */
     if (size.height) size.height = Math.min(size.height, Math.round(window.innerHeight - 48));
     if (size.width) size.width = Math.min(size.width, Math.round(window.innerWidth - 48));
-    /* THE SHEET IS NOT RESIZED BY HAND. Its size is a statement of the theme now - the grids
-       inside it are five tiles wide and the tallest tab is 820 px - so a dragged corner can
-       only cut content off or leave a hole. The handle goes with the ability. */
-    if (fixed && app?.options?.window) {
-        app.options.window.resizable = false;
-        el.querySelector(".window-resize-handle")?.remove();
-    }
+    /* THE SHEET IS NOT RESIZED BY HAND UNDER THE GLASS - its size is a statement of that
+       theme - and the handle is hidden by a THEME RULE in stained-glass.css rather than
+       taken out of the DOM here. Removed here, it stayed gone after a switch to Monokuma
+       Legacy, which keeps Daggerheart's size and was promised its handle (review of
+       stage D): a one-way edit cannot follow a two-way switch, and a rule can. */
     if (!Object.keys(size).length) return;
     /* THROUGH `setPosition`, NOT THE ELEMENT'S STYLE. An ApplicationV2 writes its own
        `position` onto the element after every render, so an inline width set from the render

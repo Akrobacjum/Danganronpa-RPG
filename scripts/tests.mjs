@@ -4475,6 +4475,30 @@ const REGRESSIONS = [
         }
     }],
 
+    ["R102 - the sheet's handle follows the theme, and the track band fits its clock", async () => {
+        /*
+         * Review of stage D. scaleWindow took the character sheet's resize handle out
+         * of the DOM under the glass, and a switch to Legacy - which keeps Daggerheart's
+         * size and was promised its handle - never got it back. And the clock's track
+         * band widened the plaque for a long name and jumped at the end of a short one.
+         */
+        const sources = new Map(await otherSources());
+        const settings = stripComments(sources.get("settings.mjs") ?? "");
+        const scale = settings.slice(settings.indexOf("function scaleWindow("),
+            settings.indexOf("\n}", settings.indexOf("function scaleWindow(")));
+        ok(!/window-resize-handle.*remove\(\)|resizable = false/.test(scale),
+            "the sheet's handle is removed by a one-way edit a theme switch cannot undo");
+        const glass = await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(r => r.text());
+        ok(/body\.drpg-theme-stained-glass \.application\.sheet\.actor\.character > \.window-resize-handle\s*\{\s*display: none/.test(glass),
+            "nothing hides the character sheet's handle under the glass");
+        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const band = css.slice(css.indexOf(".drpg-hud-track {"), css.indexOf("@keyframes drpg-track-scroll"));
+        ok(/\.drpg-hud-track \{[^}]*width: 0;[^}]*min-width: 100%/.test(band),
+            "the track band adds its text's width to the clock's");
+        ok(/\.drpg-hud-track > span \{[^}]*min-width: 100%/.test(band),
+            "a short name's copy is narrower than the band, so the loop jumps");
+    }],
+
     ["R101 - the Despair Flow window comes back after a refusal, with its pools", async () => {
         /*
          * Review of stage D. A refused add or revoke came back to `openGmTeamDialog`

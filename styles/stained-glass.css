@@ -3939,6 +3939,14 @@ body.drpg-theme-stained-glass .application.sheet.actor .drpg-advance-button {
     justify-content: center;
 }
 
+/* 7b. THE SHEET'S SIZE IS THIS THEME'S STATEMENT, so its corner handle is this theme's to
+   hide - by rule, so a switch to Monokuma Legacy gives it back at once (review of stage D:
+   settings.mjs used to remove the node, and nothing put it back). The character sheet only;
+   an NPC sheet and the Actors tab keep theirs (UI-09). */
+body.drpg-theme-stained-glass .application.sheet.actor.character > .window-resize-handle {
+    display: none;
+}
+
 /* ---- 8. the GM panel, against the audit page's own render ------------------------------- */
 
 /* FOUR TILES TO A ROW, not two. The audit page fits four across its 902 px panel and the
