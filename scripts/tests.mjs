@@ -4198,7 +4198,8 @@ const REGRESSIONS = [
         const cfg = stripComments(new Map(await otherSources()).get("config.mjs") ?? "");
         const fn = cfg.slice(cfg.indexOf("export function analyzeDc"),
             cfg.indexOf("export function analyzeDc") + 300);
-        ok(/OBSERVE_TYPE_ALIAS\[realType\] \?\? realType/.test(fn),
+        // ANALYZE_TYPE_ALIAS since 21.09: Observe's aliases spread, plus autopsy.
+        ok(/(?:OBSERVE|ANALYZE)_TYPE_ALIAS\[realType\] \?\? realType/.test(fn),
             "Analyze still has no answer for a trace whose real type is neutral");
 
         const analyze = stripComments(new Map(await otherSources()).get("analyze.mjs") ?? "");
