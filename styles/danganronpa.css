@@ -15676,10 +15676,16 @@ body.drpg-theme-stained-glass { --drpg-own-ring: var(--drpg-glass-accent); }
 
    TWO COPIES AND A MASK, the marquee this module already uses above: one copy
    scrolling leaves a gap behind it, and a hard cut at the edge reads as a
-   rendering fault where a fade reads as depth.
+   rendering fault where a fade reads as depth. EACH COPY IS AT LEAST A BAND
+   WIDE (review of stage D), so a short name's loop ends with the second copy
+   exactly where the first began, and the band takes the plaque's width without
+   adding to it: `width: 0` contributes nothing to the plaque's intrinsic size,
+   `min-width: 100%` fills it. A long name used to widen the clock itself.
    ========================================================================== */
 .drpg-hud-track {
     display: flex;
+    width: 0;
+    min-width: 100%;
     margin-top: 4px;
     padding-top: 4px;
     border-top: 1px solid var(--drpg-line);
@@ -15693,6 +15699,7 @@ body.drpg-theme-stained-glass { --drpg-own-ring: var(--drpg-glass-accent); }
 }
 .drpg-hud-track > span {
     flex: 0 0 auto;
+    min-width: 100%;
     padding-right: 1.5em;
     animation: drpg-track-scroll 16s linear infinite;
 }
