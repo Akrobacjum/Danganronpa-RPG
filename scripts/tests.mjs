@@ -7553,6 +7553,13 @@ const SCENARIOS = [
             equal(daytime.pay, null, "Analyze outside a trial fell through to Hope");
             equal(daytime.blockedKind, "nothingLeft", "the daytime refusal was the wrong kind");
             await setClock({ ...clock, phase: "classTrial" });
+            /* EMPTIED AGAIN ONCE INSIDE. Entering a trial hands out the time of day's
+               budget - `reconcilePhase`, on every road in - so the pocket emptied
+               before the phase moved is full again by the time it is asked. The
+               question here is what a trial charges an EMPTY pocket, not what it hands
+               out on the way in; that is its own scenario. */
+            await who.update({ "system.resources.actions.value": 0 });
+            await settle();
             equal(P.quotePrice(who, "analyze").pay, "hope",
                 "Analyze inside a trial did not fall through to Hope");
         } finally {
