@@ -3023,9 +3023,10 @@ function buildBulletRow(li, item, app) {
     addHandoverButton(li, item, app, { copying: true });
     addPresentButton(li, item, app);
 
-    // Nothing to analyse once the type is confirmed - a Key or Autopsy bullet
-    // arrives identified, an analysed one is resolved, and one this character
-    // already failed on this chapter is closed to them until the next.
+    // Nothing to analyse once it is read - an Autopsy bullet arrives whole, an
+    // analysed one is resolved, and one this character already failed on this
+    // chapter is closed to them until the next. A Key or a Final keeps the
+    // button until its reading is bought (21.09).
     if (!isAnalysable(item, data.chapterNow)) return;
 
     const button = document.createElement("button");

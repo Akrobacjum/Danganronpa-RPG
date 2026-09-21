@@ -769,6 +769,10 @@ async function createFind(actor, entry, isCritical) {
          * (`analyzedText`) about a clue nobody had read (T-2, 18.09).
          */
         shownType: isCritical ? data.type : null,
+        // ...and the reading with it, which for a Key or a Final is the one thing
+        // a critical adds over an ordinary find: their kind shows either way
+        // (21.09). `null` lets the rules decide, as above.
+        analyzed: isCritical ? true : null,
         visibility: data.visibility,
         faint: Boolean(data.faint),
         playerText: pub?.playerText ?? written?.playerText ?? "",

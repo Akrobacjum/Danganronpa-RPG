@@ -756,7 +756,8 @@ export const REMNANT_VISIBILITY_LABELS = {
 export const REMNANT_TYPES = {
     key: {
         label: "Key Remnant",
-        hint: "GM-placed, unremovable. Becomes a Truth Bullet unanalysed.",
+        hint: "GM-placed, unremovable. Found, it shows as a Key Truth Bullet at once; "
+            + "its analysis waits for an Analyze that cannot fail.",
         reinforced: true
     },
     neutral: {
@@ -814,8 +815,13 @@ export const REMNANT_TYPES = {
 export const TRUTH_BULLET_TYPES = {
     key: {
         label: "Key Truth Bullet",
-        hint: "Evidence from the GMs, so the case is solvable. Identified the moment you pick it "
-            + "up - no Analyze needed."
+        /* Its kind on pickup, its reading at an Analyze that cannot fail (Dawid,
+           21.09 - see READ_ON_ANALYZE in truth-bullets.mjs). `analysedHint` is the
+           line once that reading is bought, when "Analyze reads the rest" would
+           point at an action already spent. */
+        hint: "Evidence from the GMs, so the case is solvable. You know what it is the moment you "
+            + "pick it up; Analyze reads the rest, and cannot fail.",
+        analysedHint: "Evidence from the GMs, so the case is solvable."
     },
     neutral: {
         label: "Neutral Truth Bullet",
@@ -865,7 +871,10 @@ export const TRUTH_BULLET_TYPES = {
     },
     final: {
         label: "Final Truth Bullet",
-        hint: "One per chapter. Points at the Mastermind."
+        // The Key's shape, for the Key's reason - see above.
+        hint: "One per chapter. Points at the Mastermind. You know what it is the moment you "
+            + "pick it up; Analyze reads the rest, and cannot fail.",
+        analysedHint: "One per chapter. Points at the Mastermind."
     }
 };
 
@@ -1030,9 +1039,11 @@ export const CRITICAL = {
  * there. The "Bez rzutu." printed in the Incident column is the merged cell
  * belonging to Autopsy, exactly as in the observation table.
  *
- * `key: null` is not a gap: Key Truth Bullets arrive already identified (see
- * KEY_REMNANTS / REMNANT_TYPES.key) and never reach this lookup. No `autopsy`
- * column for the same reason.
+ * `key: null` is not a gap: it is the guide's "Bez rzutu". A Key Truth Bullet
+ * arrives with its kind showing, and since 21.09 it reaches this lookup when
+ * its holder analyses it for the reading - where `null` is scored as a success,
+ * so that Analyze cannot fail (see READ_ON_ANALYZE in truth-bullets.mjs). No
+ * `autopsy` column: an Autopsy arrives whole.
  *
  * NOT DERIVED, AND THAT IS THE POINT NOW. The old comment said the two tables
  * must not be allowed to drift apart; after G-08 the difference between them IS
@@ -1051,9 +1062,10 @@ export const ANALYZE_DC = {
  *
  * `null` means "no roll" rather than "impossible" - the guide prints "Bez rzutu"
  * for Key, and gives Autopsy and Final no column at all, because all three
- * arrive already identified. A bullet that somehow reaches Analyze in one of
- * those states is converted outright instead of being asked to beat a number
- * that was never written down.
+ * arrive already identified. A bullet that reaches Analyze in one of those
+ * states - a Key or a Final buying its reading, or one the GM handed over as
+ * Neutral - is converted outright instead of being asked to beat a number that
+ * was never written down.
  *
  * THE ALIASES ARE HERE TOO NOW (ACT-10, 20.09), AND THE NOTE THAT SAID THEY WERE
  * NOT WAS HALF RIGHT. It said a bullet SHOWING "neutral" is the normal state of

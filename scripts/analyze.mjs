@@ -60,6 +60,11 @@ export async function resolveAnalyze({
     // No stored record is needed: an analysable bullet has exactly one prior
     // state - shown as Neutral, not analysed, unlocked. The lock is only lifted
     // when it belongs to THIS chapter, so a genuine older lock survives.
+    //
+    // A Key or a Final has a second one since 21.09 - its kind already showing -
+    // and this winds it to Neutral all the same. Harmless, and not by luck:
+    // neither can fail (`analyzeDc` is null for both), so the `identify` below
+    // always follows and writes the kind, the facts and the reading back.
     if (undo) {
         const patch = {
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: "neutral",
@@ -101,7 +106,8 @@ export async function resolveAnalyze({
     // `null` is the guide's "Bez rzutu" - Key, Autopsy and Final identify
     // themselves. Treated as an automatic conversion rather than as a missing
     // number, so a bullet the GM deliberately handed over as "unidentified"
-    // still resolves instead of jamming.
+    // still resolves instead of jamming - and a Key or a Final whose reading is
+    // still to be bought (21.09) buys it on any roll at all.
     const success = dc === null || isCritical || total >= dc;
 
     if (!success) {
@@ -196,9 +202,10 @@ async function identify(item, actor, realType, isCritical, dc, total) {
        per-type `hint` is the UN-analysed line, and for neutral it reads "analysis
        turns it into a real category" - printed, until now, on the card announcing
        the analysis that did not. */
-    const hint = (realType === "neutral"
-        ? (TRUTH_BULLET_TYPES.neutral.analysedHint ?? TRUTH_BULLET_TYPES.neutral.hint)
-        : TRUTH_BULLET_TYPES[realType]?.hint) ?? "";
+    // Every kind's own, not only neutral's (21.09): a Key's or a Final's
+    // un-analysed line sends the player to the Analyze they have just made.
+    const hint = (TRUTH_BULLET_TYPES[realType]?.analysedHint
+        ?? TRUTH_BULLET_TYPES[realType]?.hint) ?? "";
 
     /*
      * THE SOUND RIDES THE CARD, AND IT USED NOT TO - a bug this file carried

@@ -644,7 +644,7 @@ export function finalRemnants() {
  * windows could write the same record. One entry, one place it is changed.
  */
 export async function placeFinalRemnant({ room, visibility = "evident", note = "",
-                                          name = "", text = "" } = {}) {
+                                          name = "", text = "", analysis = "" } = {}) {
     if (!game.user.isGM || !room) return null;
 
     const scene = canvas?.scene;
@@ -677,12 +677,14 @@ export async function placeFinalRemnant({ room, visibility = "evident", note = "
 
     /* And the words a player will read, for the same reason the planner now writes them: the
        endgame clue reaching its finder as "Trace" with no description is the worst instance of
-       the fault, not the mildest. */
-    if (token && (name || text)) {
+       the fault, not the mildest. And the reading, which waits for its finder's Analyze like
+       any trace's (21.09) - the form had no box for it. */
+    if (token && (name || text || analysis)) {
         const { setRemnantPublic } = await import("./remnants.mjs");
         await setRemnantPublic(token, {
             ...(name ? { name } : {}),
-            ...(text ? { playerText: text } : {})
+            ...(text ? { playerText: text } : {}),
+            ...(analysis ? { analyzedText: analysis } : {})
         });
     }
     return token;

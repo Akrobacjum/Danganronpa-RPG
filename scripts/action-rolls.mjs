@@ -3872,9 +3872,10 @@ async function performAnalyze(actor, def, options) {
         }
     }
 
-    // Only bullets there is still something to learn about. An identified one is
-    // finished, and one this character already burned an attempt on this chapter
-    // is closed to them until the next - guide, p. 30.
+    // Only bullets there is still something to learn about. A read one is
+    // finished - a Key or a Final showing its kind is not, until its reading is
+    // bought (21.09) - and one this character already burned an attempt on this
+    // chapter is closed to them until the next - guide, p. 30.
     const { analysableBullets } = await import("./truth-bullets.mjs");
     const bullets = analysableBullets(actor);
 

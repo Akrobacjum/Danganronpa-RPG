@@ -1001,8 +1001,12 @@ async function bulletFromRemnant(result, traces, scene, { setRemnantPublicById, 
          * published `sourceAction`, `tiedToCrime` and the lab reading below on
          * a bullet the GM deliberately withheld. `null` everywhere else keeps
          * the rules' own answer.
+         *
+         * AND "THE REAL TYPE" IS THE WHOLE OF IT, reading included (21.09). The
+         * option says "no analysis needed", and a Key or a Final showing its kind
+         * still has its reading to buy - so `true` says the analysis is done.
          */
-        analyzed: result.shown === "neutral" ? false : null,
+        analyzed: result.shown === "neutral" ? false : (result.shown === "real" ? true : null),
         shownType: result.shown === "auto" ? null
             : (result.shown === "real" ? data.type : "neutral"),
         visibility: data.visibility,
@@ -1033,10 +1037,12 @@ function bulletFromForm(result) {
         name: result.name,
         realType: result.realType,
         // As in `bulletFromRemnant`: a deliberate Neutral is not identified,
-        // whatever the real type would otherwise entitle it to (T-2).
-        analyzed: result.shown === "neutral" ? false : null,
+        // whatever the real type would otherwise entitle it to (T-2), and the
+        // real type is identified AND read.
+        analyzed: result.shown === "neutral" ? false : (result.shown === "real" ? true : null),
         // "auto" means "let the rules decide" - Key, Autopsy and Final
-        // bullets arrive identified, everything else starts Neutral. See
+        // bullets arrive identified (a Key's or a Final's reading still
+        // waiting for an Analyze), everything else starts Neutral. See
         // createTruthBullet.
         shownType: result.shown === "auto" ? null
             : (result.shown === "real" ? result.realType : "neutral"),

@@ -4202,7 +4202,8 @@ const REGRESSIONS = [
             "Analyze still has no answer for a trace whose real type is neutral");
 
         const analyze = stripComments(new Map(await otherSources()).get("analyze.mjs") ?? "");
-        ok(/realType === "neutral"/.test(analyze) && /analysedHint/.test(analyze),
+        // Asked of every kind's own `analysedHint` since 21.09, neutral's included.
+        ok(/TRUTH_BULLET_TYPES\[realType\]\?\.analysedHint/.test(analyze),
             "the card announcing an analysis still prints the un-analysed sentence - "
             + "\"analysis turns it into a real category\" - about an analysis that did not");
     }],
@@ -4474,6 +4475,50 @@ const REGRESSIONS = [
             "reshapeWaiting", "reshapeDeclined", "reshapeRulingGone"]) {
             const path = `DRPG.Cleanup.${key}`;
             ok(game.i18n.localize(path) !== path, `${path} is missing from lang/en.json`);
+        }
+    }],
+
+    ["R104 - a Key and a Final are written with their reading, like any trace", async () => {
+        /*
+         * Dawid, 21.09: every trace has a description and a description after
+         * Analyze. The Key planner, its "create here" card, the Final form and New
+         * trace each wrote the first and had no box for the second, so the only
+         * road to a Key's reading was the Traces tab - and a reading typed there
+         * reached its finder at pickup, with nothing bought. The runtime half is the
+         * scenario "a Key and a Final keep their reading for an Analyze"; this holds
+         * the roads that write it, and the two that decide it is already read.
+         */
+        const sources = new Map(await otherSources());
+        const inv = stripComments(sources.get("investigation.mjs") ?? "");
+        ok(/name="keyanalysis:\$\{i\}"/.test(inv), "the Key planner has no box for a clue's reading");
+        ok(/analysis: q\(`keyanalysis:\$\{i\}`\)/.test(inv), "the planner draws the box and never reads it back");
+        ok(/patch\.analyzedText = row\.analysis/.test(inv),
+            "a reading typed on a placed Key row never reaches the trace");
+        ok(/analyzedText: row\.analysis/.test(inv), "a planned Key Remnant is placed without its reading");
+        ok(/analysis: row\.analysis \?\? ""/.test(inv), "the stored plan drops the reading on every save");
+        ok(/name="keyanalysis"/.test(inv) && /analysis: result\.analysis/.test(inv),
+            "a Key Remnant made from an Observe card has no box for its reading");
+        ok(/name="tanalysis"/.test(inv) && /analyzedText: result\.analysis/.test(inv),
+            "New trace places a trace with no reading");
+        ok(/name="finalAnalysis"/.test(inv) && /analysis: action\.finalAnalysis/.test(inv),
+            "the Final form has no box for the endgame clue's reading");
+        const mm = stripComments(sources.get("mastermind.mjs") ?? "");
+        ok(/analyzedText: analysis/.test(mm), "placeFinalRemnant is handed a reading and drops it");
+
+        /* A critical find, and a GM's "the real type", are the two roads that hand a
+           Key over already read - the same as they do any trace. */
+        const obs = stripComments(sources.get("observe.mjs") ?? "");
+        ok(/analyzed: isCritical \? true : null/.test(obs),
+            "a critical find of a Key no longer reads it outright");
+        const gmi = stripComments(sources.get("gm-items.mjs") ?? "");
+        equal((gmi.match(/result\.shown === "real" \? true : null/g) ?? []).length, 2,
+            "\"the real type - no analysis needed\" hands a Key over with its reading still to buy");
+
+        const { TRUTH_BULLET_TYPES } = await import("./config.mjs");
+        for (const kind of ["key", "final"]) {
+            ok(TRUTH_BULLET_TYPES[kind]?.analysedHint
+                && TRUTH_BULLET_TYPES[kind].analysedHint !== TRUTH_BULLET_TYPES[kind].hint,
+                `a read ${kind} bullet is still told to go and analyse it`);
         }
     }],
 
@@ -8493,6 +8538,125 @@ const SCENARIOS = [
                     await scene.deleteEmbeddedDocuments("Token", [token.id]);
                 }
             }
+        }
+    }],
+
+    ["a Key and a Final keep their reading for an Analyze, like any trace", async () => {
+        /*
+         * Dawid, 21.09: every trace works like an ordinary one - a description,
+         * and a description after Analyze. A Key or a Final used to be born
+         * identified with both halves at once, so a reading written for one
+         * reached its finder on pickup. The kind still shows at once (the guide's
+         * "bez wymogu analizy"); the reading waits, and the Analyze that buys it
+         * cannot fail (the guide's "Bez rzutu").
+         *
+         *   1. picked up: the kind shows, the description is there, the reading is
+         *      not - on the item or in its markup - and the bullet can be analysed
+         *   2. a GM rewriting the reading reaches the unread copy's secret only
+         *   3. Analyze buys it on a 1
+         *   4. and then it is finished: read, and not analysable again
+         *   5. a copy born read (a critical, a GM's "the real type") has it at once
+         */
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const F = bullets.TRUTH_BULLET_FLAGS;
+
+        const scene = canvas?.scene;
+        ok(scene, "no active scene");
+        const anchor = scene?.tokens?.find(t => roomOfToken(t));
+        ok(anchor, "no token on the active scene stands in any room");
+        const [reader] = cast();
+        ok(reader, "no living student to hand the fixture to");
+
+        // Escape-safe on purpose, for the reason the two-tier scenario above gives.
+        const READING = `Filed under the wrong year ${Date.now() % 100000}`;
+        const REWRITTEN = `${READING} and signed twice`;
+        const placed = [];
+        const made = [];
+        try {
+            for (const kind of ["key", "final"]) {
+                const token = await remnants.placeRemnant({
+                    type: kind, visibility: "evident", tiedToCrime: true,
+                    x: anchor.x, y: anchor.y, scene, note: "test fixture - a reading kept for Analyze"
+                });
+                ok(token, `could not place the ${kind} fixture`);
+                placed.push(token);
+                await remnants.setRemnantPublic(token, {
+                    name: `Suite ${kind} ledger`, playerText: "A ledger.", analyzedText: READING
+                });
+                await settle();
+
+                const item = await bullets.createTruthBullet(reader, {
+                    name: `Suite ${kind} ledger`, realType: kind, visibility: "evident",
+                    playerText: "A ledger.", analyzedText: READING,
+                    remnantId: token.id, sceneId: scene.id
+                });
+                ok(item, `no ${kind} bullet was created`);
+                made.push(item);
+                await settle();
+
+                // ---- 1. picked up ------------------------------------------
+                let live = reader.items.get(item.id);
+                equal(live.getFlag(MODULE_ID, F.shownType), kind, `a ${kind} bullet does not show its kind on pickup`);
+                ok(bullets.isIdentified(live), `a ${kind} bullet is no longer identified on pickup`);
+                equal(live.getFlag(MODULE_ID, F.analyzedText) ?? "", "",
+                    `a ${kind} bullet carries its reading before anybody analysed it`);
+                const before = String(live.system?.description ?? "");
+                ok(!before.includes(READING), `a ${kind} bullet's description quotes its reading before any Analyze`);
+                ok(before.includes("A ledger."), `a ${kind} bullet lost its ordinary description`);
+                ok(!bullets.hasReading(live), `a ${kind} bullet counts as read before any Analyze`);
+                ok(bullets.isAnalysable(live), `a ${kind} bullet cannot be analysed, so its reading can never be bought`);
+                equal(bullets.secretOf(live.uuid).analyzedText, READING, `the ${kind} reading was not filed in the secret`);
+
+                // ---- 2. the GM rewrites it ---------------------------------
+                await remnants.setRemnantPublic(token, { analyzedText: REWRITTEN });
+                await settle();
+                live = reader.items.get(item.id);
+                equal(live.getFlag(MODULE_ID, F.analyzedText) ?? "", "",
+                    `rewriting a ${kind} trace's reading published it onto an unread copy`);
+                equal(bullets.secretOf(live.uuid).analyzedText, REWRITTEN,
+                    `the unread ${kind} copy's secret kept the old reading`);
+
+                // ---- 3. Analyze, on the worst roll there is ----------------
+                const verdict = await resolveAnalyze({
+                    actorId: reader.id, itemId: item.id, total: 1, isCritical: false
+                });
+                await settle();
+                ok(verdict?.success, `Analyze on a ${kind} bullet failed on a 1 - "Bez rzutu" became a roll`);
+                live = reader.items.get(item.id);
+                equal(live.getFlag(MODULE_ID, F.analyzedText), REWRITTEN, `Analyze did not buy the ${kind} reading`);
+                ok(String(live.system?.description ?? "").includes(REWRITTEN),
+                    `the ${kind} description did not gain the reading`);
+                equal(live.getFlag(MODULE_ID, F.shownType), kind, `analysing a ${kind} bullet changed its kind`);
+
+                // ---- 4. finished -------------------------------------------
+                ok(bullets.hasReading(live), `a read ${kind} bullet does not count as read`);
+                ok(!bullets.isAnalysable(live), `a read ${kind} bullet can be analysed again`);
+            }
+
+            // ---- 5. born read ----------------------------------------------
+            const crit = await bullets.createTruthBullet(reader, {
+                name: "Suite key ledger, read", realType: "key", shownType: "key", analyzed: true,
+                visibility: "evident", playerText: "A ledger.", analyzedText: READING
+            });
+            ok(crit, "no read Key bullet was created");
+            made.push(crit);
+            await settle();
+            equal(reader.items.get(crit.id)?.getFlag(MODULE_ID, F.analyzedText), READING,
+                "a Key handed over read (a critical, or \"the real type\") came without its reading");
+        } finally {
+            for (const item of made) {
+                const live = item.actor?.items?.get(item.id);
+                if (live) await live.delete();
+            }
+            for (const token of placed) {
+                await remnants.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) await scene.deleteEmbeddedDocuments("Token", [token.id]);
+            }
+            await settle();
         }
     }],
 

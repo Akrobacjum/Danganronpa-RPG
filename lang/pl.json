@@ -1453,7 +1453,7 @@
       "student": "Uczeń",
       "bullets": "Bullets",
       "keysHeld": "Key",
-      "unidentified": "Niezidentyfikowane",
+      "unidentified": "Nieprzeanalizowane",
       "breakdown": "Naprawdę",
       "pickRoom": "- utwórz w -",
       "createHere": "Utwórz na mapie",
@@ -1492,7 +1492,7 @@
       },
       "keyNoteLabel": "Twoja notatka",
       "keyNotePlaceholder": "Czyta to tylko GM",
-      "keyPublicNote": "Nazwa i Opis dla gracza to to, co trafia do znalazcy - te same dwa pola, które edytuje zakładka Ślady. Twoja notatka zostaje twoja.",
+      "keyPublicNote": "Nazwa i Opis dla gracza trafiają do znalazcy od razu; Co ujawnia analiza czeka na jego Analyze, które przy Key Remnant nie może się nie udać. Te same trzy pola, które edytuje zakładka Ślady. Twoja notatka zostaje twoja.",
       "leftoverKeys": "Na mapie wciąż jest {n} Key Remnant(s) z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.",
       "finalFoundBy": "Znalazł",
       "finalNobody": "Nikt go nie znalazł",
@@ -1508,7 +1508,7 @@
       "newTraceIntro": "Ślad, o którym po prostu stwierdzasz, że istnieje. Trafia w losowe miejsce wewnątrz pokoju, dokładnie jak zaplanowany trop - przesuń potem token, jeśli miejsce ma znaczenie.",
       "newTraceTied": "Powiązany z tym morderstwem (przetrwa czyszczenie na koniec rozdziału)",
       "newTraceReinforced": "Reinforced (nie do sprzątnięcia)",
-      "newTraceNote": "Nazwa i opis to to, co przeczyta uczeń, gdy go znajdzie i przeanalizuje. Twoja notatka zostaje twoja.",
+      "newTraceNote": "Nazwę i opis uczeń przeczyta, gdy go znajdzie; to, co ujawnia analiza - dopiero po Analyze. Twoja notatka zostaje twoja.",
       "newTraceBadType": "Ten moduł nie zna takiego rodzaju śladu.",
       "newTraceDone": "{type} jest teraz w: {room}.",
       "noRooms": "Na tej scenie nie ma jeszcze pokoi, więc nie ma gdzie postawić śladu. Najpierw narysuj regiony - Ustawienia pokoi wyjaśniają, jak.",
@@ -1838,7 +1838,7 @@
       "namePlaceholder": "np. Błoto na parapecie",
       "realType": "Czym naprawdę jest (tylko GM)",
       "shown": "Co gracz słyszy, że to jest",
-      "shownAuto": "Wg zasad - Key, Autopsy i Final przychodzą rozpoznane, reszta zaczyna jako Neutral",
+      "shownAuto": "Wg zasad - Key i Final pokazują rodzaj, a analizę zostawiają na Analyze, Autopsy przychodzi w całości, reszta zaczyna jako Neutral",
       "shownNeutral": "Neutral - muszą to przeanalizować",
       "shownReal": "Prawdziwy typ - bez analizy",
       "visibility": "Jak trudno było zauważyć oryginał",
@@ -1964,7 +1964,8 @@
         "noneScene": "Brak na tej scenie.",
         "noneAnywhere": "Brak gdziekolwiek."
       },
-      "discardNote": "{actor} - wyrzucone {item} w: {room} (rzut {total})."
+      "discardNote": "{actor} - wyrzucone {item} w: {room} (rzut {total}).",
+      "cardUnread": "Jeszcze nie przeanalizowane. Przy tym rodzaju Analyze nie może się nie udać."
     },
     "Rest": {
       "short": "Short Rest",
@@ -3453,7 +3454,7 @@
       "REMNANT_TYPES": {
         "key": {
           "label": "Key Remnant",
-          "hint": "Stawiany przez GM-a, nieusuwalny. Staje się Truth Bulletem bez analizy."
+          "hint": "Stawiany przez GM-a, nieusuwalny. Znaleziony od razu pokazuje się jako Key Truth Bullet; jego analiza czeka na Analyze, które nie może się nie udać."
         },
         "neutral": {
           "label": "Neutral Remnant",
@@ -3487,7 +3488,8 @@
       "TRUTH_BULLET_TYPES": {
         "key": {
           "label": "Key Truth Bullet",
-          "hint": "Dowód od GM-ów, by sprawa dała się rozwiązać. Rozpoznany w chwili podniesienia - Analyze niepotrzebne."
+          "hint": "Dowód od GM-ów, by sprawa dała się rozwiązać. Wiesz, czym jest, w chwili podniesienia; Analyze odczyta resztę i nie może się nie udać.",
+          "analysedHint": "Dowód od GM-ów, by sprawa dała się rozwiązać."
         },
         "neutral": {
           "label": "Neutral Truth Bullet",
@@ -3516,7 +3518,8 @@
         },
         "final": {
           "label": "Final Truth Bullet",
-          "hint": "Jeden na rozdział. Wskazuje Masterminda."
+          "hint": "Jeden na rozdział. Wskazuje Masterminda. Wiesz, czym jest, w chwili podniesienia; Analyze odczyta resztę i nie może się nie udać.",
+          "analysedHint": "Jeden na rozdział. Wskazuje Masterminda."
         }
       },
       "KEY_REMNANTS": {

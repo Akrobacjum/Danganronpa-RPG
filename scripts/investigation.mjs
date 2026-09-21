@@ -68,9 +68,10 @@ export function keyPlan() {
                this clue tells them", and it wrote `note` - a GM-private field. Measured: a Key
                Remnant placed from this planner reached its finder as a Truth Bullet called
                "Trace" with an empty description, while the sentence the GM wrote sat in the
-               ledger where no player could ever reach it. The three fields say what they are. */
+               ledger where no player could ever reach it. The three fields say what they are.
+               `analysis` is the fourth since 21.09: what the finder reads once they analyse it. */
             entries: KEY_REMNANTS.scale.map(scale => ({
-                scale, name: "", text: "", note: "", tokenId: null, sceneId: null
+                scale, name: "", text: "", analysis: "", note: "", tokenId: null, sceneId: null
             }))
         };
     }
@@ -94,7 +95,8 @@ export async function setKeyPlan(plan) {
     if (!game.user.isGM) return null;
     const stored = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
     const archive = { ...(stored.archive ?? {}) };
-    const worthKeeping = (stored.entries ?? []).some(e => e.name || e.text || e.note || e.tokenId);
+    const worthKeeping = (stored.entries ?? [])
+        .some(e => e.name || e.text || e.analysis || e.note || e.tokenId);
     if (stored.chapter != null && stored.chapter !== plan.chapter && worthKeeping) {
         archive[stored.chapter] = stored.entries;
     }
@@ -115,7 +117,7 @@ export async function archiveKeyPlan(chapter) {
     const stored = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
     if (stored.chapter !== chapter) return false;
     const worthKeeping = (stored.entries ?? [])
-        .some(e => e.name || e.text || e.note || e.tokenId);
+        .some(e => e.name || e.text || e.analysis || e.note || e.tokenId);
     if (!worthKeeping) return false;
     await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
         ...stored,
@@ -345,10 +347,14 @@ async function saveKeyPlan(plan, rows) {
                 const patch = {};
                 if (row.name && (repointed || row.name !== (stored.name ?? ""))) patch.name = row.name;
                 if (row.text && (repointed || row.text !== (stored.text ?? ""))) patch.playerText = row.text;
+                if (row.analysis && (repointed || row.analysis !== (stored.analysis ?? ""))) {
+                    patch.analyzedText = row.analysis;
+                }
                 if (Object.keys(patch).length) await setRemnantPublic(token, patch);
                 const now = remnantData(token)?.public ?? {};
                 entries.push(stripDraft({
-                    ...row, name: now.name || row.name, text: now.playerText || row.text
+                    ...row, name: now.name || row.name, text: now.playerText || row.text,
+                    analysis: now.analyzedText || row.analysis
                 }));
                 continue;
             }
@@ -360,7 +366,8 @@ async function saveKeyPlan(plan, rows) {
         if (token) {
             created += 1;
             entries.push({
-                scale: row.scale, name: row.name, text: row.text, note: row.note,
+                scale: row.scale, name: row.name, text: row.text, analysis: row.analysis ?? "",
+                note: row.note,
                 tokenId: token.id, sceneId: token.parent?.id ?? canvas?.scene?.id ?? null
             });
         } else {
@@ -375,7 +382,8 @@ async function saveKeyPlan(plan, rows) {
 /** The stored shape - the room/visibility pickers are input, not plan data. */
 function stripDraft(row) {
     return {
-        scale: row.scale, name: row.name ?? "", text: row.text ?? "", note: row.note ?? "",
+        scale: row.scale, name: row.name ?? "", text: row.text ?? "",
+        analysis: row.analysis ?? "", note: row.note ?? "",
         tokenId: row.tokenId ?? null, sceneId: row.sceneId ?? null
     };
 }
@@ -526,6 +534,10 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
                 <input type="text" name="ttext" value="" maxlength="400"
                        placeholder="${esc(game.i18n.localize(
                            "DRPG.Investigation.notePlaceholder"))}" /></label>
+            <label>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}
+                <input type="text" name="tanalysis" value="" maxlength="400"
+                       placeholder="${esc(game.i18n.localize(
+                           "DRPG.TruthBullet.analyzedTextPlaceholder"))}" /></label>
             <label>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}
                 <input type="text" name="note" value=""
                        placeholder="${esc(game.i18n.localize(
@@ -548,6 +560,7 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
                         visibility: f.vis.value,
                         name: f.tname.value.trim(),
                         text: f.ttext.value.trim(),
+                        analysis: f.tanalysis.value.trim(),
                         note: f.note.value.trim(),
                         tied: f.tied.checked,
                         reinforced: f.reinforced.checked
@@ -614,10 +627,11 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
      * finder cannot use, and two names for one object is a false contradiction the
      * table then has to spend the trial resolving.
      */
-    if (result.name || result.text) {
+    if (result.name || result.text || result.analysis) {
         await setRemnantPublic(token, {
             ...(result.name ? { name: result.name } : {}),
-            ...(result.text ? { playerText: result.text } : {})
+            ...(result.text ? { playerText: result.text } : {}),
+            ...(result.analysis ? { analyzedText: result.analysis } : {})
         });
     }
     log(`Case panel: a ${result.type} trace placed by hand in ${result.room}.`);
@@ -692,10 +706,13 @@ async function createKeyRemnant(row, scene = workingScene()) {
            while the clue sat in the ledger. `createFind` in observe.mjs has always done this
            correctly and says why: two names for one object is a false contradiction the table
            has to spend the trial resolving. Same call, same fields, same reason. */
-        if (token && (row.name || row.text)) {
+        if (token && (row.name || row.text || row.analysis)) {
             await setRemnantPublic(token, {
                 ...(row.name ? { name: row.name } : {}),
-                ...(row.text ? { playerText: row.text } : {})
+                ...(row.text ? { playerText: row.text } : {}),
+                // What the finder reads once they analyse it (21.09) - kept back
+                // until then like any trace's, however self-evident the kind.
+                ...(row.analysis ? { analyzedText: row.analysis } : {})
             });
         }
         return token;
@@ -775,6 +792,10 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
                 <input type="text" name="keytext" value="${esc(note)}"
                        placeholder="${esc(game.i18n.localize(
                            "DRPG.Investigation.notePlaceholder"))}" /></label>
+            <label>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}
+                <input type="text" name="keyanalysis" value=""
+                       placeholder="${esc(game.i18n.localize(
+                           "DRPG.TruthBullet.analyzedTextPlaceholder"))}" /></label>
             <label>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}
                 <input type="text" name="note" value=""
                        placeholder="${esc(game.i18n.localize(
@@ -797,6 +818,7 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
                         visibility: f.vis.value,
                         name: f.keyname?.value.trim() ?? "",
                         text: f.keytext?.value.trim() ?? "",
+                        analysis: f.keyanalysis?.value.trim() ?? "",
                         note: f.note.value.trim(),
                         slot: f.slot.value === "" ? null : Number(f.slot.value)
                     };
@@ -815,7 +837,7 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
 
     const token = await createKeyRemnant({
         createIn: result.room, visibility: result.visibility,
-        name: result.name, text: result.text, note: result.note, scale
+        name: result.name, text: result.text, analysis: result.analysis, note: result.note, scale
     }, scene);
     if (!token) return null;
 
@@ -824,6 +846,7 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
             ? { ...entry,
                 name: result.name || entry.name,
                 text: result.text || entry.text,
+                analysis: result.analysis || entry.analysis || "",
                 note: result.note || entry.note,
                 tokenId: token.id, sceneId: token.parent?.id ?? scene?.id ?? null }
             : entry);
@@ -1226,6 +1249,12 @@ export function caseKeyRows({ plan, status, placed, limit, roomOptionsFor, visOp
                 placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}">${
                 esc(entry.text ?? "")}</textarea>
                 ${context ? `<div class="notes drpg-trace-context">${esc(context)}</div>` : ""}</td>
+            ${/* The second tier, as on the Traces tab (21.09). A placed row falls back
+                  on the trace's own reading: a plan saved before this column existed
+                  holds none, and an empty box would read as "nothing written". */ ""}
+            <td><textarea name="keyanalysis:${i}" rows="2"${aria("DRPG.Investigation.traceAnalysis")}
+                placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}">${
+                esc(entry.analysis || here?.public?.analyzedText || "")}</textarea></td>
             <td><input type="text" name="note:${i}"${aria("DRPG.Investigation.keyNoteLabel")} value="${esc(entry.note ?? "")}"
                 placeholder="${game.i18n.localize("DRPG.Investigation.keyNotePlaceholder")}" /></td>
             <td>
@@ -1280,6 +1309,7 @@ function caseKeyPanel({ plan, status, placed, limit, roomOptionsFor, visOptionsF
             <th>${game.i18n.localize("DRPG.Investigation.difficulty")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.traceName")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.traceText")}</th>
+            <th>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.onMap")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.createHere")}</th>
@@ -1352,6 +1382,10 @@ function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlac
             <input type="text" name="finalText" value=""
                 placeholder="${esc(game.i18n.localize(
                     "DRPG.Investigation.notePlaceholder"))}" /></label>
+        <label>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}
+            <input type="text" name="finalAnalysis" value=""
+                placeholder="${esc(game.i18n.localize(
+                    "DRPG.TruthBullet.analyzedTextPlaceholder"))}" /></label>
         <label>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}
             <input type="text" name="finalNote"
                 placeholder="${game.i18n.localize(
@@ -1461,6 +1495,7 @@ function readDashboardForm(d) {
         finalVis: q("finalVis")?.value || "evident",
         finalName: q("finalName")?.value.trim() ?? "",
         finalText: q("finalText")?.value.trim() ?? "",
+        finalAnalysis: q("finalAnalysis")?.value.trim() ?? "",
         finalNote: q("finalNote")?.value.trim() ?? "",
         // ONLY THE ROWS THAT ARE ON SCREEN. The table renders what the
         // filter shows (by default: this chapter), so a trace the filter
@@ -1491,6 +1526,7 @@ function readDashboardForm(d) {
                 scale: entry.scale,
                 name: q(`keyname:${i}`)?.value.trim() ?? "",
                 text: q(`keytext:${i}`)?.value.trim() ?? "",
+                analysis: q(`keyanalysis:${i}`)?.value.trim() ?? "",
                 note: q(`note:${i}`)?.value.trim() ?? "",
                 tokenId: tokenId || null,
                 sceneId: sceneId || null,
@@ -1618,7 +1654,7 @@ async function placeFinalFromDashboard(action) {
     const { placeFinalRemnant } = await import("./mastermind.mjs");
     const placedFinal = await placeFinalRemnant({
         room: action.finalRoom, visibility: action.finalVis, note: action.finalNote,
-        name: action.finalName, text: action.finalText
+        name: action.finalName, text: action.finalText, analysis: action.finalAnalysis
     });
     if (placedFinal) {
         ui.notifications.info(game.i18n.format("DRPG.Mastermind.finalPlacedIn",

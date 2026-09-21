@@ -72,7 +72,14 @@ export const TRUTH_BULLET_FLAGS = {
      * roads, because a world made before this still carries it on the item.
      */
     faint: "faint",
-    /** Is the shown type confirmed rather than a placeholder? */
+    /**
+     * Has this holder's copy been read in full - its kind confirmed AND its
+     * analysis earned? For most bullets the two arrive together, at Analyze or
+     * on a critical find. A Key or a Final shows its kind from the moment it is
+     * picked up and still carries `false` here until its holder analyses it,
+     * because its reading waits like everybody else's (Dawid, 21.09) - see
+     * `READ_ON_ANALYZE` and `hasReading`.
+     */
     analyzed: "analyzed",
     /** Chapter this bullet was created in. */
     chapter: "chapter",
@@ -90,8 +97,9 @@ export const TRUTH_BULLET_FLAGS = {
      * whose blood, which cuff, what the smell is - and Analyze is what buys it.
      *
      * It lives in the bullet's SECRET from creation and is copied onto the item
-     * only once the bullet is identified, exactly like `sourceAction` and
-     * `tiedToCrime` two entries down and for exactly the same reason: a world
+     * only once the bullet is read (`hasReading`) - identified, for most, and
+     * for a Key or a Final its own Analyze - much like `sourceAction` and
+     * `tiedToCrime` two entries down and for the same reason: a world
      * where the answer sits on the item from the start is a world where the
      * console reads it without rolling. Until then the item carries `""`, which
      * is all a player's browser has ever been allowed to hold.
@@ -364,6 +372,22 @@ export function isIdentified(item) {
 }
 
 /**
+ * Has this holder earned the analysis half of the description?
+ *
+ * The same answer as `isIdentified` for every kind but two. A Key or a Final
+ * shows its kind the moment it is picked up - the guide's "bez wymogu analizy"
+ * - and its reading still waits for an Analyze, as an ordinary trace's does
+ * (Dawid, 21.09: every trace has a description, and a description after
+ * analysis). For those two, knowing the kind is not having read the rest, and
+ * this is the question every road that puts `analyzedText` on an item asks.
+ */
+export function hasReading(item) {
+    if (!isIdentified(item)) return false;
+    if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) return true;
+    return !READ_ON_ANALYZE.includes(item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral");
+}
+
+/**
  * The item's description, from whichever halves of the trace this holder has.
  *
  * ONE FUNCTION RATHER THAN THREE SPELLINGS. The description is written in three
@@ -395,7 +419,10 @@ export function bulletDescription(playerText, analyzedText = "") {
 export function isAnalysable(item, chapter = null) {
     if (!isTruthBullet(item)) return false;
     if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) return false;
-    if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) !== "neutral") return false;
+    // Neutral is the ordinary case. A Key or a Final showing its kind still has
+    // its reading to buy - see `hasReading`.
+    const shown = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType);
+    if (shown !== "neutral" && !READ_ON_ANALYZE.includes(shown)) return false;
 
     const locked = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.lockedChapter);
     if (locked === null || locked === undefined) return true;
@@ -453,16 +480,32 @@ export function copiedRemnants(actor) {
  */
 /*
  * The three that need no roll - guide, Stage 3: "Bez rzutu". They are born
- * identified, so Analyze never runs on one.
- *
- * WHICH IS WHY THE KEY-REMNANT PLANNER AND THE FINAL TRUTH FORM CARRY NO
- * ANALYSIS BOX, and their absence is a decision rather than an oversight: a
- * second tier on a bullet that identifies itself is a field no roll could ever
- * reveal, so it would be a box the GM fills in and nobody ever reads. The
- * Traces tab of the same dashboard has one, because those are the traces
- * Analyze is actually thrown at.
+ * identified: the pack shows their kind from the moment they land.
  */
 const SELF_EVIDENT = ["key", "autopsy", "final"];
+
+/*
+ * ...AND TWO OF THEM STILL KEEP THEIR READING FOR AN ANALYZE (Dawid, 21.09).
+ *
+ * This used to say the Key planner and the Final form carried no analysis box
+ * on purpose: a bullet that identifies itself never has Analyze thrown at it,
+ * so a second tier would be a field nobody read. What that left was three kinds
+ * of trace working three ways. An ordinary trace had a description and a
+ * description after analysis; a Key or a Final had no box for the second in
+ * their own forms, and a reading typed for one on the Traces tab reached its
+ * finder at pickup, with nothing bought. Dawid's rule is one shape for all of
+ * them: a description, and a description after Analyze.
+ *
+ * So the KIND stays self-evident, as the guide says, and the READING waits.
+ * Analyze on one of these cannot fail - `analyzeDc` answers `null` for both,
+ * the guide's "Bez rzutu", which `resolveAnalyze` has always scored as a
+ * success - so it costs the action and nothing else, and the case stays
+ * solvable. A critical find reads it outright, as it does any trace.
+ *
+ * Autopsy is not here: the GM hands it over with no trace behind it, and its
+ * dialog has never had a second tier.
+ */
+const READ_ON_ANALYZE = ["key", "final"];
 
 /**
  * Create a Truth Bullet on a character. The single path - the GM's dialog,
@@ -572,6 +615,11 @@ export async function createTruthBullet(actor, {
     // facts land on the item itself; otherwise they wait in the secret for
     // `identify` in analyze.mjs to publish them.
     const identified = (analyzed ?? selfEvident) || shown !== "neutral";
+    // And the reading, which a Key or a Final showing its kind has NOT earned
+    // yet - unless this is a find or a copy that says it has (`analyzed: true`:
+    // a critical, a GM's "the real type", a copy of something already read).
+    // The test `hasReading` makes, asked before there is an item to ask.
+    const read = identified && (analyzed === true || !READ_ON_ANALYZE.includes(shown));
 
     const { getClock } = await import("./clock.mjs");
     const { roomOfActor } = await import("./movement.mjs");
@@ -588,11 +636,11 @@ export async function createTruthBullet(actor, {
         // smuggle a visibility index through this field.
         tier: null,
         img,
-        // The analysis rides along only for a bullet that is born identified -
-        // a Key, an Autopsy, a critical find, or a copy of something the giver
-        // had already analysed. Everyone else gets the Observe half and buys
-        // the rest with a Head roll.
-        description: bulletDescription(playerText, identified ? analyzedText : ""),
+        // The analysis rides along only for a bullet that is born read - an
+        // Autopsy, a critical find, or a copy of something the giver had
+        // already analysed. Everyone else, a Key and a Final included, gets
+        // the Observe half and buys the rest with an Analyze.
+        description: bulletDescription(playerText, read ? analyzedText : ""),
         extraFlags: {
             [TRUTH_BULLET_FLAGS.isBullet]: true,
             [TRUTH_BULLET_FLAGS.shownType]: shown,
@@ -600,13 +648,13 @@ export async function createTruthBullet(actor, {
             /* Gated like `tiedToCrime` and `sourceAction` below, and for the
                same reason - see the note on the flag itself. */
             [TRUTH_BULLET_FLAGS.faint]: identified ? !!faint : false,
-            [TRUTH_BULLET_FLAGS.analyzed]: analyzed ?? selfEvident,
+            [TRUTH_BULLET_FLAGS.analyzed]: analyzed ?? (selfEvident && !READ_ON_ANALYZE.includes(realType)),
             [TRUTH_BULLET_FLAGS.chapter]: stamp?.chapter ?? clock.chapter,
             [TRUTH_BULLET_FLAGS.room]: room ?? roomOfActor(actor) ?? null,
             [TRUTH_BULLET_FLAGS.day]: stamp?.day ?? clock.day,
             [TRUTH_BULLET_FLAGS.timeOfDay]: stamp?.timeOfDay ?? clock.timeOfDay,
             [TRUTH_BULLET_FLAGS.playerText]: playerText,
-            [TRUTH_BULLET_FLAGS.analyzedText]: identified ? analyzedText : "",
+            [TRUTH_BULLET_FLAGS.analyzedText]: read ? analyzedText : "",
             [TRUTH_BULLET_FLAGS.remnantRef]: remnantId && sceneId ? `${sceneId}.${remnantId}` : null,
             [TRUTH_BULLET_FLAGS.sourceAction]: identified ? sourceAction : null,
             [TRUTH_BULLET_FLAGS.tiedToCrime]: identified ? tiedToCrime : null,
@@ -664,7 +712,11 @@ export function truthBulletData(item) {
         name: item.name,
         shownType,
         shownLabel: TRUTH_BULLET_TYPES[shownType]?.label ?? shownType,
-        shownHint: TRUTH_BULLET_TYPES[shownType]?.hint ?? "",
+        /* The line for what the holder has READ: a kind's `analysedHint` once its
+           reading is earned, where it has one. The un-analysed `hint` of a Key or
+           a Final points at an Analyze that has already been made. */
+        shownHint: (hasReading(item) && TRUTH_BULLET_TYPES[shownType]?.analysedHint)
+            || (TRUTH_BULLET_TYPES[shownType]?.hint ?? ""),
         visibility,
         visibilityLabel: REMNANT_VISIBILITY_LABELS[visibility] ?? visibility,
         faint: !!flag(TRUTH_BULLET_FLAGS.faint),
@@ -743,7 +795,7 @@ export function faintOf(item) {
  * for them the new text goes into the SECRET and waits for their own roll.
  * Writing only the first road would silently strand every un-analysed copy on
  * the text the trace was created with; writing only the second would leave
- * every analysed copy stale. So: secret always, item where `isIdentified`.
+ * every analysed copy stale. So: secret always, item where `hasReading`.
  *
  * @returns {Promise<number>} how many bullets were updated.
  */
@@ -762,10 +814,11 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
                 // holding the older sentence.
                 await setSecret(item.uuid, { analyzedText });
 
-                // And this holder's own half. `isIdentified` is the whole gate:
-                // a bullet still showing Neutral gets the Observe text and an
-                // empty second tier, which is what its flags already said.
-                const earned = isIdentified(item) ? analyzedText : "";
+                // And this holder's own half. `hasReading` is the whole gate: a
+                // bullet still showing Neutral - or a Key or a Final nobody has
+                // analysed yet - gets the Observe text and an empty second tier,
+                // which is what its flags already said.
+                const earned = hasReading(item) ? analyzedText : "";
 
                 // `FROM_REMNANT` on the OPTIONS, not the data: it is a fact about
                 // where this write came from, not about the bullet. `watchBulletEdits`
