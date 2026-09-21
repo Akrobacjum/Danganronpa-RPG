@@ -192,7 +192,14 @@ body.drpg-theme-stained-glass {
        So a card taller than this tile is not fixed by a taller tile. It is
        fixed by not clipping it - see the `overflow-y` on the card below - or by
        giving evidence a place of its own during a trial, which is live check 25
-       rather than a number here. */
+       rather than a number here.
+
+       AND ON 21.09 IT STOPPED BEING THE HEIGHT. That sweep was taken with the
+       scene rail pushed 150 px down the column by `space-between` (see
+       `#ui-left-column-1` below), which is what made the corner so tight. With
+       the column packed from the top, glass.mjs fits the tile to the room the
+       rail really leaves - `--drpg-note-fit`, between 160 and 360 on the same
+       scale - and 220 is what a pass that cannot measure the rail falls back on. */
     --drpg-note-w: 430px;
     --drpg-note-h: 220px;
     --drpg-note-scale: var(--drpg-ui-scale, var(--drpg-sg-scale, 1));
@@ -2746,6 +2753,27 @@ body.drpg-theme-stained-glass .character-header-sheet .drpg-ultimate-row .drpg-u
    139 px one - so no single nudge could ever have been right for both. It keeps the base
    sheet's margins, so the seam between its pane and the clock's - cut halfway across the
    20 px between them - stays 10 px off either block. */
+/* THE COLUMN IS PACKED FROM THE TOP, AND THE GAUGE KEEPS THE FLOOR (21.09).
+   Foundry lays `#ui-left-column-1` out `space-between`. Once glass.mjs bounds the scene rail
+   (`max-height`), the height it takes off the rail has to go somewhere, and `space-between`
+   put it into the gap ABOVE the GM button: measured at 1920x1080, 150 px of bare strip
+   between the clock and the button, and the eight scene layers pushed down to y 848 - onto
+   the notice tile's glass, under its cards. Packed from the top, the button sits under the
+   clock, the rail under the button, and the room left over is the notice tile's to take;
+   Foundry's gauge is held to the floor by its own auto margin, where the tile stands on it. */
+body.drpg-theme-stained-glass #ui-left-column-1 {
+    justify-content: flex-start;
+}
+body.drpg-theme-stained-glass #ui-left-column-1 > #players {
+    margin-top: auto;
+}
+/* ...AND THE BUTTON STANDS CLEAR OF THE CLOCK'S SEAM. `space-between` used to leave it far
+   below the clock; packed, it sat ON the seam, because the clock's pane runs 18 px under the
+   clock's box at the wall (measured 21.09 at 1920x1080 and at 2560x1440 alike) and the button
+   stood 20 px under it, tilted with the rail. 20 more puts its top corner inside the strip. */
+body.drpg-theme-stained-glass #ui-left-column-1 > #drpg-gm-launcher {
+    margin-top: 20px;
+}
 body.drpg-theme-stained-glass #ui-left-column-1 > #drpg-gm-launcher,
 body.drpg-theme-stained-glass #drpg-gm-launcher {
     align-self: start;
@@ -3085,10 +3113,12 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-button i {
     height: calc(14px * var(--drpg-sg-scale));
     font-size: calc(14px * var(--drpg-sg-scale));
 }
-/* the notice tile is always there, at the audit page's place; the cards land on it */
+/* the notice tile is always there, at the audit page's place; the cards land on it. Its foot
+   is fitted onto Foundry's gauge by glass.mjs (`fitNoteTile`, 21.09); 100 on the geometry
+   scale is where it stood before that, and where it stands until a pass has run. */
 body.drpg-theme-stained-glass #drpg-popups {
     top: auto !important;
-    bottom: calc(100px * var(--drpg-note-scale)) !important;
+    bottom: var(--drpg-note-foot, calc(100px * var(--drpg-note-scale))) !important;
     left: 16px !important;
     justify-content: flex-end;
     max-height: calc(100vh - 220px);
@@ -3119,7 +3149,7 @@ body.drpg-theme-stained-glass #drpg-despair .drpg-despair-row { width: max-conte
    (glass.mjs reads the same two): the stack is as tall as the tile, the newest at the bottom,
    and a card that would not fit is retired by popup.mjs. */
 body.drpg-theme-stained-glass #drpg-popups {
-    height: calc(var(--drpg-note-h) * var(--drpg-note-scale)) !important;
+    height: calc(var(--drpg-note-fit, var(--drpg-note-h)) * var(--drpg-note-scale)) !important;
     max-height: none;
     overflow: hidden;
     justify-content: flex-end;
@@ -3171,7 +3201,7 @@ body.drpg-theme-stained-glass #drpg-popups .drpg-popup {
          reader cannot scroll it back) but is the behaviour that was there, and
          is not made better by a card too short to read. */
     flex: 1 0 auto;
-    max-height: calc(var(--drpg-note-h) * var(--drpg-note-scale));
+    max-height: calc(var(--drpg-note-fit, var(--drpg-note-h)) * var(--drpg-note-scale));
     overflow-y: auto;
     overflow-x: hidden;
     /* the body is centred in whatever the card grew to, not left under the

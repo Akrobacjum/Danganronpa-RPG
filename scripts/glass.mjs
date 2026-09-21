@@ -41,11 +41,12 @@ const BLOCKS = [
   { cls: "event", sel: "#drpg-events", fallback: null },
   { cls: "three", sel: "#drpg-player-status", fallback: (W, H) => ({ x: W - 64 - 360, y: 22, w: 360, h: 78 }) },
   { cls: "tray", sel: "#ui-right-column-1 > #countdowns, #countdowns", fallback: (W, H, r) => ({ x: W - 64 - 360, y: (r.three ? r.three.y + r.three.h : 100) + 10, w: 360, h: 62 }) },
-  /* THE NOTICE TILE IS A CONSTANT. Not measured: two short cards or one long one fit it, the
-     stack is clipped to it (stained-glass.css, popup.mjs), and a card arriving or leaving never
-     recuts the glass. `--drpg-note-w` x `--drpg-note-h` at 100 % (stained-glass.css owns the
-     two numbers - see `noteTile`), at the audit page's place, scaled with the screen. */
-  { cls: "note-block", sel: "#drpg-popups", fixed: true, fallback: (W, H) => { const s = uiScale(), t = noteTile(); return { x: 16, y: H - (100 + t.h) * s, w: t.w * s, h: t.h * s }; } },
+  /* THE NOTICE TILE IS NOT MEASURED. Its cards are not what sizes it: two short cards or one
+     long one fit it, the stack is clipped to it (stained-glass.css, popup.mjs), and a card
+     arriving or leaving never recuts the glass. Its HEIGHT and its FOOT are fitted once a pass
+     to the room the scene rail leaves above Foundry's gauge (`fitNoteTile`, 21.09); the width is
+     `--drpg-note-w`, scaled with the screen. */
+  { cls: "note-block", sel: "#drpg-popups", fixed: true, fallback: (W, H) => { const s = uiScale(), t = noteTile(); return { x: 16, y: H - noteFoot(s) - t.h * s, w: t.w * s, h: t.h * s }; } },
   { cls: "launch", sel: "#drpg-messenger-launcher, #drpg-sound-launcher", union: true, fallback: (W, H) => ({ x: W - 22 - 66, y: H - 22 - 134, w: 66, h: 134 }) },
   /* FOUNDRY'S TWO RAILS ARE NOT BLOCKS, AND THE THREE DAYS SPENT MAKING THEM BLOCKS SAY WHY.
      A block is MEASURED, and every measurement of a rail is a statement about something the
@@ -99,8 +100,59 @@ const noteTile = () => {
     const v = parseFloat(cs.getPropertyValue(k));
     return Number.isFinite(v) && v > 0 ? v : whenMissing;
   };
-  return { w: read("--drpg-note-w", 330), h: read("--drpg-note-h", 160) };
+  /* The fitted height first (`fitNoteTile` writes it on the body), the stylesheet's own second:
+     a pass that could not measure the rail - the glass harness, a player with no scene
+     controls on screen - keeps the tile the sheet states. */
+  return { w: read("--drpg-note-w", 330), h: read("--drpg-note-fit", 0) || read("--drpg-note-h", 160) };
 };
+/* WHERE THE TILE'S FOOT STANDS, in screen pixels. The same body-level variable the stylesheet
+   places `#drpg-popups` with, so the pane and the stack cannot stand at two heights; 100 px on
+   the geometry scale when nothing has been fitted, which is where it stood until 21.09. */
+const noteFoot = s => {
+  const v = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-note-foot"));
+  return Number.isFinite(v) && v > 0 ? v : 100 * s;
+};
+
+/* THE NOTICE TILE TAKES WHAT THE SCENE RAIL LEAVES (Dawid, 21.09: "karta powiadomienia moze
+   byc jeszcze wieksza (w dol). Witraz i powiadomienie nachodza na czerwone foundry").
+   ---------------------------------------------------------------------------------------
+   The tile was a constant, 220 on the geometry scale, standing 100 above the floor - and
+   "220 is the ceiling" was measured against a rail that ENDED LOW. Measured in Foundry on
+   21.09 at 1920x1080: eight scene layers ran to y 848, the tile's box began at 840 and its
+   pane - leaned, so its top is a fifth of the tile's width above the box - at 781. The last
+   two layers stood on the notice glass, and the card was drawn over them. Below the card
+   there was glass with nothing on it but Foundry's gauge.
+
+   Two causes, both fixed here or beside it. The left column is `space-between`, so the
+   height the bound took off the rail went into the gap ABOVE the GM button and pushed the
+   whole rail 150 px down onto the tile (stained-glass.css now packs the column from the top).
+   And the tile could not move: a constant cannot be both tall on a tall screen and clear of
+   the rail on a short one. So it is fitted: its foot sits on Foundry's gauge (`#players`,
+   latency and FPS, the only thing below it), and its top is as high as the rail's run, the
+   band's skirt under it and the pane's own lean allow. Between NOTE_MIN and NOTE_MAX on the
+   geometry scale. The floor is the constant it replaces, and on purpose: a first cut with a
+   floor of 160 handed 1600x900 a card SMALLER than before, 112 px with its sentence cut off,
+   which is the complaint itself. So no screen gets less than it had; a screen too short for
+   the rail and 220 of tile keeps the overlap it had, and less of it (1600x900: the notice
+   pane over the last 58 px of the rail, from 137). Above the ceiling the tile would stop
+   being a corner. */
+const NOTE_MIN = 220;
+const NOTE_MAX = 360;
+function fitNoteTile(H, railEnd, s) {
+  const body = document.body;
+  const gauge = document.querySelector("#players");
+  const g = gauge && gauge.offsetWidth > 0 && gauge.offsetHeight > 0 ? gauge.getBoundingClientRect() : null;
+  /* The gauge only counts where it stands on the floor. In the glass harness it follows the
+     rail down the column instead, and a foot read off that would put the tile mid-screen. */
+  const foot = g && g.bottom > H - 80 ? Math.round(H - g.top + 8) : Math.round(100 * s);
+  const tile = noteTile();
+  const lean = Math.round(tile.w * s * 0.22);
+  const room = (H - foot) - (railEnd + 34 + 8 + lean);
+  const h = Math.round(Math.min(NOTE_MAX, Math.max(NOTE_MIN, room / s)));
+  body.style.setProperty("--drpg-note-foot", foot + "px");
+  body.style.setProperty("--drpg-note-fit", h + "px");
+  return { foot, h, lean };
+}
 /* ---- the rotations: one stylesheet, rewritten after every geometry pass ----------------------
    A block is rotated with its pane. Written as a rule on the block's selector (not an inline
    style), the rotation survives the module rebuilding that block from scratch - the status strip
@@ -672,10 +724,15 @@ function moduleLayout(W, H) {
          The band under the tiles needs its skirt below that again, so the clearance is the
          lean plus the skirt plus a hair - all three measured rather than guessed, and 0.22
          over the tile's width covers the worst of the three readings. */
-      const tile = noteTile();
-      const noteW = tile.w * s;
-      const notePaneLean = Math.round(noteW * 0.22);
-      const room = Math.round(H - (100 + tile.h) * s - notePaneLean - 34 - 8 - boxTop);
+      const menuFirst = railTop.querySelector(":scope > menu");
+      const ownFirst = menuFirst ? [...menuFirst.querySelectorAll("button.ui-control")].filter(e => e.offsetWidth > 0) : [];
+      /* The rail's run is its LAYERS - that menu cannot wrap (see below) - so the tile is
+         fitted under the last of them, and the tools are then bounded to the same room. */
+      const railEnd = ownFirst.length
+        ? Math.ceil(Math.max(...ownFirst.map(e => e.getBoundingClientRect().bottom)))
+        : Math.round(boxTop);
+      const fitted = fitNoteTile(H, railEnd, s);
+      const room = Math.round(H - fitted.foot - fitted.h * s - fitted.lean - 34 - 8 - boxTop);
       /* The bound may never be shorter than the controls themselves. Foundry's control menu
          is `flex-wrap: nowrap` - it cannot wrap, so a bound under its own height only hides
          tiles behind the rail's `overflow: hidden` (four of twenty survived the first attempt).
