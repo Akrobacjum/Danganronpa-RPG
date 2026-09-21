@@ -6625,25 +6625,24 @@ body[data-drpg-phase] :is(#drpg-player-status, #countdowns, #players) {
     #drpg-hud .drpg-hud-time.is-objection { animation: none; }
 }
 
-/* The debate's clock, in the elapsed line's place.
+/* The debate's clock, on the trial's card of the Event panel (22.09; it stood in the
+   clock's elapsed line until then).
    --------------------------------------------------------------------------
-   Bigger and brighter than the readout it replaces, because it is the opposite
-   kind of thing: "22 min in" is advice nobody has to act on, and "0:14" is the
-   number the room is watching. Tabular figures and a reserved width so the
-   digits do not shuffle as they count down. */
-.drpg-hud-elapsed.is-trial-clock {
-    font-size: var(--drpg-text-sm);
+   The biggest thing on the card, because it is the number the room is watching.
+   Tabular figures so the digits do not shuffle as they count down. */
+.drpg-event-clock {
+    font-size: calc(1.5rem * var(--drpg-legacy-scale, 1));
     font-weight: 600;
-    letter-spacing: 0.08em;
-    opacity: 0.95;
-    min-width: 4em;
+    line-height: 1.1;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+    margin-top: 4px;
 }
 
 /* Only a debate can overrun - the other two modes end themselves at zero, so a
    red number there would be the half-second before the transition lands. */
-.drpg-hud-elapsed.is-trial-clock.overrun {
+.drpg-event-clock.overrun {
     color: var(--drpg-crimson-light);
-    opacity: 1;
 }
 
 /* The room's search tokens, during a trial. Not removed - the room still has

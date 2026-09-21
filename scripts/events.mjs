@@ -26,7 +26,7 @@ import { marksOf } from "./character.mjs";
 import { motive } from "./rules.mjs";
 import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor } from "./movement.mjs";
-import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
+import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentCast, incidentParticipants,
     incidentWitness } from "./settings.mjs";
@@ -349,7 +349,10 @@ export function trialCard(clock) {
             kind: "trial",
             title: game.i18n.localize(`DRPG.Hud.trial.${key}`),
             sub: speaker,
-            meta: versus ?? game.i18n.localize("DRPG.Events.trialFloorOpen")
+            meta: versus ?? game.i18n.localize("DRPG.Events.trialFloorOpen"),
+            // The debate's countdown, only while a floor is open: a trial in session
+            // with nobody holding the floor has no clock running (see `paintTrialClock`).
+            clock: Boolean(floor)
         };
     } catch (err) {
         error("Could not read the trial's state for the Event panel", err);
@@ -541,9 +544,67 @@ function cardElement(card) {
         el.querySelector(".drpg-event-sub")?.classList.add("drpg-event-swap");
     }
     LAST_SUB.set(card.kind, card.sub ?? "");
+    if (card.clock) {
+        const clockEl = document.createElement("div");
+        clockEl.className = "drpg-event-clock";
+        clockEl.dataset.tooltip = game.i18n.localize("DRPG.Hud.trialClockTooltip");
+        paintTrialClock(clockEl);
+        el.append(clockEl);
+        startTrialClock();
+    }
     add("drpg-event-meta", card.meta);
     add("drpg-event-note", card.note);
     return el;
+}
+
+/* ==========================================================================
+ * THE DEBATE'S CLOCK, ON THE TRIAL'S CARD (22.09)
+ * --------------------------------------------------------------------------
+ * It stood in the campaign clock's elapsed line, a widget away from the card
+ * that names the mode and the speaker ("timer jest w zegarze zamiast oknie
+ * eventu. Bez sensu", Dawid). Derived from the floor's `startedAt`, so every
+ * client shows the same second without anybody broadcasting it.
+ *
+ * TICKED IN PLACE, NEVER BY A REDRAW. The panel stands on the curtain and a
+ * redraw of it is a recut of the glass (see the signature in `renderEvents`),
+ * so the seconds are written into the element the card already holds, and the
+ * signature carries only whether there is a clock - not what it reads.
+ * ========================================================================== */
+let trialClockTimer = null;
+
+/**
+ * How long this mode has left. The overrun mark is only ever put on a debate:
+ * the other two modes end themselves at zero, so a red number there would be
+ * the half-second before the transition lands rather than a state anybody is in.
+ */
+function paintTrialClock(el) {
+    const floor = trialFloor();
+    if (!floor) {
+        if (el.textContent) el.textContent = "";
+        return;
+    }
+    const left = secondsLeft(floor);
+    const over = left < 0;
+    const mins = Math.floor(Math.abs(left) / 60);
+    const secs = String(Math.abs(left) % 60).padStart(2, "0");
+    const text = `${over ? "+" : ""}${mins}:${secs}`;
+    // Only when it changes: `#drpg-events` is watched by the a11y sweep, and a
+    // write of the same words is still a mutation.
+    if (el.textContent !== text) el.textContent = text;
+    el.classList.toggle("overrun", over && floor.mode === FLOOR_MODES.debate);
+}
+
+function startTrialClock() {
+    if (trialClockTimer) return;
+    trialClockTimer = setInterval(() => {
+        const clocks = document.querySelectorAll("#drpg-events .drpg-event-clock");
+        if (!clocks.length) {
+            clearInterval(trialClockTimer);
+            trialClockTimer = null;
+            return;
+        }
+        clocks.forEach(paintTrialClock);
+    }, 1000);
 }
 
 /** Build or rebuild the panel. Safe to call repeatedly; removes itself when there is nothing to say. */
@@ -561,7 +622,7 @@ export function renderEvents() {
 
         // Redraw only when something changed: the panel is on the curtain, and
         // every rebuild of it is a recut of the glass around it.
-        const signature = JSON.stringify(cards.map(c => [c.kind, c.title, c.sub, c.meta, c.note, c.due, c.mine]));
+        const signature = JSON.stringify(cards.map(c => [c.kind, c.title, c.sub, c.meta, c.note, c.due, c.mine, c.clock]));
         if (existing && existing.dataset.signature === signature) return;
 
         const panel = document.createElement("div");

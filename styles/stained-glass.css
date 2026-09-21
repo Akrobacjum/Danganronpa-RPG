@@ -677,6 +677,14 @@ body.drpg-theme-stained-glass .drpg-event-sub {
     color: var(--drpg-sg-bone);
     margin-top: 2px;
 }
+body.drpg-theme-stained-glass .drpg-event-clock {
+    font-size: max(var(--drpg-sg-floor), calc(28px * var(--drpg-sg-scale)));
+    color: var(--drpg-sg-bone);
+    margin-top: 4px;
+}
+body.drpg-theme-stained-glass .drpg-event-clock.overrun {
+    color: var(--drpg-crimson-light, #ff6b7a);
+}
 body.drpg-theme-stained-glass .drpg-event-meta {
     font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
     color: var(--drpg-sg-bone-dim);

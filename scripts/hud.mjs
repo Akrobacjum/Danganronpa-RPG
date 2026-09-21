@@ -50,7 +50,7 @@ import { renderEvents } from "./events.mjs";
 // utils and nothing else - it stopped importing trial.mjs when the evidence
 // counter went, which is what took popup.mjs and truth-bullets.mjs out of its
 // graph as well.
-import { trialFloor, secondsLeft, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
+import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
 import { narrowColumn, narrowLayout } from "./narrow.mjs";
 
 const HUD_ID = "drpg-hud";
@@ -523,9 +523,16 @@ export function renderHud() {
 
         hud.append(
             ...hudHeader(clock),
-            buildTimeRow(clock, isGM),
-            buildElapsed()
+            buildTimeRow(clock, isGM)
         );
+        /* NO ELAPSED LINE IN A CLASS TRIAL, AND NO DEBATE CLOCK IN ITS PLACE (Dawid, 22.09:
+           "w class trial timer jest w zegarze zamiast oknie eventu. Bez sensu").
+           The debate's countdown moved to the trial's own card on the Event panel, where the
+           mode and the speaker already are - three facts about one debate were split across
+           two widgets. And the minutes line is pacing advice for a time of day's two
+           actions, which is not what anybody in a trial is counting. */
+        if (clock.phase === "classTrial") stopElapsed();
+        else hud.append(buildElapsed());
 
         // Last, under the timer: where you are standing is the most local thing
         // on a widget that otherwise describes the whole world.
@@ -1374,15 +1381,10 @@ function buildElapsed() {
     paintElapsed(el);
 
     clearInterval(elapsedTimer);
-    // Ten seconds for the minutes readout - it is in whole minutes, so a
-    // per-second tick would repaint sixty times for each visible change - and
-    // one second while a debate is running, where every tick is a visible
-    // change and the number is the thing people are watching.
-    //
-    // Which of the two is decided here rather than inside the tick, so the
-    // period changes when the HUD is rebuilt: the floor opening and closing both
-    // go through `SYNC.trial`, which redraws this widget.
-    const period = trialFloor() ? 1000 : 10_000;
+    // Ten seconds: the readout is in whole minutes, so a per-second tick would
+    // repaint sixty times for each visible change. The debate's per-second clock
+    // lives on the Event panel now (`paintTrialClock` in events.mjs).
+    const period = 10_000;
     elapsedTimer = setInterval(() => {
         // The HUD is rebuilt often; when this node is gone, so is the interval.
         if (!el.isConnected) {
@@ -1394,6 +1396,12 @@ function buildElapsed() {
     }, period);
 
     return el;
+}
+
+/** A trial has no elapsed line, so nothing may go on ticking for one. */
+function stopElapsed() {
+    clearInterval(elapsedTimer);
+    elapsedTimer = null;
 }
 
 /*
@@ -1415,25 +1423,6 @@ function setText(el, text) {
 }
 
 function paintElapsed(el) {
-    // A DEBATE'S CLOCK OUTRANKS THE TIME OF DAY'S.
-    //
-    // The minutes readout is pacing advice about spending two actions inside
-    // half an hour. A trial has actions of its own now (T-1) - Analyze and an
-    // Objection, out of the budget the trial hands out - but the seconds the room
-    // is actually watching are the debate's, and a readout about the afternoon
-    // sitting where those should be is a number nobody in the room is counting.
-    //
-    // Only while a floor is actually open. A trial in session with nobody
-    // holding the floor has no clock running, and inventing one - a stopwatch on
-    // the trial, a countdown to nothing - would be the module making up a rule.
-    // In that state the line goes back to what it has always been.
-    const floor = trialFloor();
-    if (floor) return paintFloorClock(el, floor);
-
-    // Back from a debate. The tooltip is restored with the class, or a line
-    // reading "22 min in" keeps explaining how long the debate has left.
-    el.classList.remove("is-trial-clock", "overrun");
-    el.dataset.tooltip = game.i18n.format("DRPG.Hud.elapsedTooltip", { first: MARK_FIRST_ACTION / 60000, second: MARK_SECOND_ACTION / 60000 });
 
     // The DISPLAY clock (CORE-06): during an incident an outsider's label
     // freezes on the last public hour, and a counter that read the true clock
@@ -1465,29 +1454,6 @@ function paintElapsed(el) {
 
     if (ms >= MARK_SECOND_ACTION) el.classList.add("past-second");
     else if (ms >= MARK_FIRST_ACTION) el.classList.add("past-first");
-}
-
-/**
- * How long this mode has left, counting down, in the elapsed line's place.
- *
- * Derived from the floor's `startedAt` exactly as the old bar's was, so every
- * client shows the same second without anybody broadcasting it.
- *
- * The overrun mark is only ever put on a debate. The other two modes end
- * themselves the moment they reach zero, so a red number there would be the
- * half-second before the transition lands rather than a state anybody is in.
- */
-function paintFloorClock(el, floor) {
-    const left = secondsLeft(floor);
-    const over = left < 0;
-    const mins = Math.floor(Math.abs(left) / 60);
-    const secs = String(Math.abs(left) % 60).padStart(2, "0");
-
-    el.classList.remove("past-first", "past-second", "paused", "empty");
-    el.classList.add("is-trial-clock");
-    el.classList.toggle("overrun", over && floor.mode === FLOOR_MODES.debate);
-    setText(el, `${over ? "+" : ""}${mins}:${secs}`);
-    el.dataset.tooltip = game.i18n.localize("DRPG.Hud.trialClockTooltip");
 }
 
 
