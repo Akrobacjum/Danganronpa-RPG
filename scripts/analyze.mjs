@@ -21,7 +21,7 @@
 
 import { MODULE_ID, analyzeDc, TRUTH_BULLET_TYPES } from "./config.mjs";
 import {
-    TRUTH_BULLET_FLAGS, secretOf, isTruthBullet, bulletDescription, faintOf, NOT_AN_EDIT
+    TRUTH_BULLET_FLAGS, secretOf, setSecret, isTruthBullet, bulletDescription, faintOf, NOT_AN_EDIT
 } from "./truth-bullets.mjs";
 // The trace's own `public` record, for a reading a bullet's secret was minted
 // without (T-2). Static: remnants.mjs does not import this file.
@@ -57,27 +57,33 @@ export async function resolveAnalyze({
     // A Reroll buys back the dice, not the attempt. Whatever the first throw
     // decided about this bullet is wound back before the second is scored.
     //
-    // No stored record is needed: an analysable bullet has exactly one prior
-    // state - shown as Neutral, not analysed, unlocked. The lock is only lifted
-    // when it belongs to THIS chapter, so a genuine older lock survives.
+    // The lock is only lifted when it belongs to THIS chapter, so a genuine
+    // older lock survives.
     //
-    // A Key or a Final has a second one since 21.09 - its kind already showing -
-    // and this winds it to Neutral all the same. Harmless, and not by luck:
-    // neither can fail (`analyzeDc` is null for both), so the `identify` below
-    // always follows and writes the kind, the facts and the reading back.
+    // TWO PRIOR STATES, NOT ONE (21.09). An analysable bullet used to have
+    // exactly one: shown as Neutral, not analysed. A Key or a Final now keeps its
+    // reading for an Analyze with its kind already showing, and since every
+    // bullet rolls (Dawid, 21.09) a Reroll can lose - so winding one back to
+    // Neutral would leave it showing less than it did when it was picked up. Which
+    // state it was in is recorded below, before the first throw is scored.
+    const secret = secretOf(item.uuid);
     if (undo) {
+        const before = secret.analysedFrom ?? "neutral";
+        const kindShown = before !== "neutral";
         const patch = {
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: "neutral",
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: before,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: false,
             // The three facts `identify` published go back into the secret with
-            // the rest of the truth - an un-analysed bullet knows nothing.
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: null,
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: null,
+            // the rest of the truth - an un-analysed bullet knows nothing. Unless
+            // its kind was showing: then they were public from pickup, exactly as
+            // `createTruthBullet` wrote them for an identified bullet.
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: kindShown ? (secret.sourceAction ?? null) : null,
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: kindShown ? (secret.tiedToCrime ?? null) : null,
             // And Faint, which `identify` joined to this list in 1.2.47 and this
             // undo was never told about: a rerolled Analyze that lost left the
             // doubtful-trace badge the first throw had published. `faintOf` reads
             // the secret first, so taking the flag off the item loses nothing.
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: null,
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: kindShown ? faintOf(item) : null,
             // The reading goes back too, ITEM AND DESCRIPTION BOTH. Clearing the
             // flag and leaving the rendered paragraph would hand the reroll for
             // free: the player reads the sentence off their own sheet while the
@@ -97,18 +103,28 @@ export async function resolveAnalyze({
         } catch (err) {
             error("Could not wind back the Analyze a reroll undid", err);
         }
+    } else {
+        // What it showed before this throw, for the Reroll above to put back.
+        try {
+            await setSecret(item.uuid, {
+                analysedFrom: item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral"
+            });
+        } catch (err) {
+            error("Could not record what the bullet showed before its Analyze", err);
+        }
     }
 
     const visibility = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.visibility) ?? "evident";
-    const realType = secretOf(item.uuid).realType ?? "neutral";
+    const realType = secret.realType ?? "neutral";
     const dc = analyzeDc(visibility, realType);
 
-    // `null` is the guide's "Bez rzutu" - Key, Autopsy and Final identify
-    // themselves. Treated as an automatic conversion rather than as a missing
-    // number, so a bullet the GM deliberately handed over as "unidentified"
-    // still resolves instead of jamming - and a Key or a Final whose reading is
-    // still to be bought (21.09) buys it on any roll at all.
-    const success = dc === null || isCritical || total >= dc;
+    /* EVERY BULLET ROLLS (Dawid, 21.09). `null` was the guide's "Bez rzutu" and
+       converted Key, Autopsy and Final outright on any throw; `analyzeDc` has a
+       number for every kind a bullet can be now, and R106 holds it to that. A
+       `null` that still arrives is a kind nothing knows, and a miss is the
+       honest answer to it - never a free pass. */
+    if (dc === null) warn(`Analyze: no difficulty for a ${realType} bullet in the ${visibility} band.`);
+    const success = isCritical || (dc !== null && total >= dc);
 
     if (!success) {
         await lockOut(item, actor, chapter, total);

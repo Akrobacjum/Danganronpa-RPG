@@ -5560,7 +5560,9 @@ const INVARIANTS = [
             "a prepared trace is no longer harder to read than to find");
 
         for (const [band, row] of Object.entries(ANALYZE_DC)) {
-            equal(row.key, null, `Analyze/${band} asks for a roll on a Key Truth Bullet`);
+            // Dawid, 21.09: every bullet rolls, a Key included - priced like finding it.
+            equal(row.key, OBSERVE_DC[band].key,
+                `Analyze/${band} on a Key Truth Bullet is not priced like finding one`);
             // Incident and Resolution are priced like Prep - the same decision
             // the observation table already made, for the same reason.
             equal(row.incident, row.prep, `Analyze/${band}: incident is not priced like prep`);
@@ -6510,11 +6512,32 @@ const INVARIANTS = [
                 `a neutral trace in the ${band} band is priced at ${dc}`);
             ok(Number.isFinite(dc), `a neutral trace in the ${band} band is still a free pass`);
         }
-        // And the three that are meant to be free stay free: the guide prints
-        // "Bez rzutu" for Key, and Autopsy and Final have no column at all.
+    }],
+
+    ["R106 - every bullet Analyze can reach is rolled for", async () => {
+        /*
+         * Dawid, 21.09: "Analyze ma mieć rzut w każdym bullecie". Key, Autopsy and
+         * Final answered `null`, the guide's "Bez rzutu", and `resolveAnalyze` read
+         * that as a success on any throw - which was only harmless while none of
+         * them had anything left to read. Every kind, every band, has a number now,
+         * and a `null` that still arrives is scored as a miss, not a pass.
+         */
+        const { analyzeDc, ANALYZE_DC, TRUTH_BULLET_TYPES } = await import("./config.mjs");
         for (const band of Object.keys(ANALYZE_DC)) {
-            equal(analyzeDc(band, "key"), null, `Key in the ${band} band is being asked to roll`);
+            for (const kind of Object.keys(TRUTH_BULLET_TYPES)) {
+                ok(Number.isFinite(analyzeDc(band, kind)),
+                    `a ${kind} bullet in the ${band} band is analysed without a roll`);
+            }
         }
+        equal(analyzeDc("evident", "final"), analyzeDc("evident", "key"), "a Final is not read like a Key");
+        const { observeDc } = await import("./config.mjs");
+        ok(observeDc("evident", "autopsy") === null,
+            "an Autopsy became findable by Observe - New trace would offer to place one");
+
+        const analyze = stripComments(new Map(await otherSources()).get("analyze.mjs") ?? "");
+        ok(!/dc === null \|\|/.test(analyze), "a missing number is still a free pass");
+        ok(/analysedFrom/.test(analyze),
+            "a Reroll can no longer tell a Key that showed its kind from a Neutral one");
     }],
 
     ["every string the code asks for exists in the language file", () => {
@@ -8576,15 +8599,17 @@ const SCENARIOS = [
          * and a description after Analyze. A Key or a Final used to be born
          * identified with both halves at once, so a reading written for one
          * reached its finder on pickup. The kind still shows at once (the guide's
-         * "bez wymogu analizy"); the reading waits, and the Analyze that buys it
-         * cannot fail (the guide's "Bez rzutu").
+         * "bez wymogu analizy"); the reading waits, and the Analyze that buys it is
+         * rolled like any other (the same day: every bullet rolls).
          *
          *   1. picked up: the kind shows, the description is there, the reading is
          *      not - on the item or in its markup - and the bullet can be analysed
          *   2. a GM rewriting the reading reaches the unread copy's secret only
-         *   3. Analyze buys it on a 1
-         *   4. and then it is finished: read, and not analysable again
-         *   5. a copy born read (a critical, a GM's "the real type") has it at once
+         *   3. a 1 misses: the kind stays, the reading does not come, the lock does
+         *   4. a Reroll winds it back and a 40 reads it; then it is finished
+         *   5. a Reroll that loses puts it back as it was picked up - its kind and
+         *      its crime tie showing - not as a Neutral bullet
+         *   6. a copy born read (a critical, a GM's "the real type") has it at once
          */
         const remnants = await import("./remnants.mjs");
         const bullets = await import("./truth-bullets.mjs");
@@ -8620,7 +8645,7 @@ const SCENARIOS = [
 
                 const item = await bullets.createTruthBullet(reader, {
                     name: `Suite ${kind} ledger`, realType: kind, visibility: "evident",
-                    playerText: "A ledger.", analyzedText: READING,
+                    playerText: "A ledger.", analyzedText: READING, tiedToCrime: true,
                     remnantId: token.id, sceneId: scene.id
                 });
                 ok(item, `no ${kind} bullet was created`);
@@ -8649,24 +8674,47 @@ const SCENARIOS = [
                 equal(bullets.secretOf(live.uuid).analyzedText, REWRITTEN,
                     `the unread ${kind} copy's secret kept the old reading`);
 
-                // ---- 3. Analyze, on the worst roll there is ----------------
-                const verdict = await resolveAnalyze({
-                    actorId: reader.id, itemId: item.id, total: 1, isCritical: false
-                });
+                const tie = live.getFlag(MODULE_ID, F.tiedToCrime);
+                equal(tie, true, `a ${kind} bullet does not show its crime tie on pickup`);
+
+                // ---- 3. a 1 misses ------------------------------------------
+                const ids = { actorId: reader.id, itemId: item.id, isCritical: false };
+                let verdict = await resolveAnalyze({ ...ids, total: 1 });
                 await settle();
-                ok(verdict?.success, `Analyze on a ${kind} bullet failed on a 1 - "Bez rzutu" became a roll`);
+                ok(verdict && !verdict.success, `Analyze on a ${kind} bullet passed on a 1 - it is a free pass again`);
+                live = reader.items.get(item.id);
+                equal(live.getFlag(MODULE_ID, F.shownType), kind, `a missed Analyze took the ${kind} bullet's kind away`);
+                equal(live.getFlag(MODULE_ID, F.analyzedText) ?? "", "", `a missed Analyze published the ${kind} reading`);
+                ok(!bullets.isAnalysable(live), `a missed Analyze on a ${kind} bullet did not lock it for the chapter`);
+
+                // ---- 4. a Reroll, and a 40 ----------------------------------
+                verdict = await resolveAnalyze({ ...ids, total: 40, undo: true });
+                await settle();
+                ok(verdict?.success, `a Reroll of 40 did not read the ${kind} bullet`);
                 live = reader.items.get(item.id);
                 equal(live.getFlag(MODULE_ID, F.analyzedText), REWRITTEN, `Analyze did not buy the ${kind} reading`);
                 ok(String(live.system?.description ?? "").includes(REWRITTEN),
                     `the ${kind} description did not gain the reading`);
                 equal(live.getFlag(MODULE_ID, F.shownType), kind, `analysing a ${kind} bullet changed its kind`);
-
-                // ---- 4. finished -------------------------------------------
                 ok(bullets.hasReading(live), `a read ${kind} bullet does not count as read`);
                 ok(!bullets.isAnalysable(live), `a read ${kind} bullet can be analysed again`);
+
+                // ---- 5. a Reroll that loses ---------------------------------
+                verdict = await resolveAnalyze({ ...ids, total: 1, undo: true });
+                await settle();
+                ok(verdict && !verdict.success, `a Reroll of 1 read the ${kind} bullet`);
+                live = reader.items.get(item.id);
+                equal(live.getFlag(MODULE_ID, F.shownType), kind,
+                    `a lost Reroll left the ${kind} bullet showing less than it did on pickup`);
+                equal(live.getFlag(MODULE_ID, F.tiedToCrime), tie,
+                    `a lost Reroll hid the crime tie the ${kind} bullet showed on pickup`);
+                equal(live.getFlag(MODULE_ID, F.analyzedText) ?? "", "",
+                    `a lost Reroll left the ${kind} reading on the item`);
+                ok(!String(live.system?.description ?? "").includes(REWRITTEN),
+                    `a lost Reroll left the ${kind} reading in the description`);
             }
 
-            // ---- 5. born read ----------------------------------------------
+            // ---- 6. born read ----------------------------------------------
             const crit = await bullets.createTruthBullet(reader, {
                 name: "Suite key ledger, read", realType: "key", shownType: "key", analyzed: true,
                 visibility: "evident", playerText: "A ledger.", analyzedText: READING

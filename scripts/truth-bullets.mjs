@@ -496,11 +496,12 @@ const SELF_EVIDENT = ["key", "autopsy", "final"];
  * finder at pickup, with nothing bought. Dawid's rule is one shape for all of
  * them: a description, and a description after Analyze.
  *
- * So the KIND stays self-evident, as the guide says, and the READING waits.
- * Analyze on one of these cannot fail - `analyzeDc` answers `null` for both,
- * the guide's "Bez rzutu", which `resolveAnalyze` has always scored as a
- * success - so it costs the action and nothing else, and the case stays
- * solvable. A critical find reads it outright, as it does any trace.
+ * So the KIND stays self-evident, as the guide says, and the READING waits -
+ * for an Analyze rolled like any other bullet's ("Analyze ma mieć rzut w każdym
+ * bullecie", the same day), against the Key column of ANALYZE_DC, the easiest
+ * in the table. A miss locks the reading away from that holder for the chapter,
+ * as it does for any bullet; a copy handed to somebody else can still be read. A
+ * critical find reads it outright, as it does any trace.
  *
  * Autopsy is not here: the GM hands it over with no trace behind it, and its
  * dialog has never had a second tier.

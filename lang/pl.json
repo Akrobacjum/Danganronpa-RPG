@@ -515,7 +515,7 @@
       "dcObserveKey": "Key Remnant: {rows}.",
       "dcObserveFaint": "Nikły ślad: {rows}.",
       "dcObserveDaily": "Coś bez śladu za sobą: {rows}.",
-      "dcAnalyze": "Identyfikacja Truth Bulleta, wg widoczności jego śladu - ze zbrodni: {rows}; nikły: {faint}; codzienność: {daily}. Key Remnant nie wymaga rzutu.",
+      "dcAnalyze": "Identyfikacja Truth Bulleta, wg widoczności jego śladu - ze zbrodni: {rows}; nikły: {faint}; codzienność: {daily}; Key i Final: {key}.",
       "dcHint": "Wskazówka: {a}+ na subtelną, {b}+ na bezpośrednią.",
       "dcStash": "Znalezienie skrytki: {n}+.",
       "dcProject": "Praca: {a}+ za +1 postępu, {b}+ za +2{relief}.",
@@ -1492,7 +1492,7 @@
       },
       "keyNoteLabel": "Twoja notatka",
       "keyNotePlaceholder": "Czyta to tylko GM",
-      "keyPublicNote": "Nazwa i Opis dla gracza trafiają do znalazcy od razu; Co ujawnia analiza czeka na jego Analyze, które przy Key Remnant nie może się nie udać. Te same trzy pola, które edytuje zakładka Ślady. Twoja notatka zostaje twoja.",
+      "keyPublicNote": "Nazwa i Opis dla gracza trafiają do znalazcy od razu; Co ujawnia analiza czeka na jego Analyze. Te same trzy pola, które edytuje zakładka Ślady. Twoja notatka zostaje twoja.",
       "leftoverKeys": "Na mapie wciąż jest {n} Key Remnant(s) z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.",
       "finalFoundBy": "Znalazł",
       "finalNobody": "Nikt go nie znalazł",
@@ -1965,7 +1965,7 @@
         "noneAnywhere": "Brak gdziekolwiek."
       },
       "discardNote": "{actor} - wyrzucone {item} w: {room} (rzut {total}).",
-      "cardUnread": "Jeszcze nie przeanalizowane. Przy tym rodzaju Analyze nie może się nie udać."
+      "cardUnread": "Jeszcze nie przeanalizowane. Użyj Analyze, by odczytać resztę."
     },
     "Rest": {
       "short": "Short Rest",
@@ -3454,7 +3454,7 @@
       "REMNANT_TYPES": {
         "key": {
           "label": "Key Remnant",
-          "hint": "Stawiany przez GM-a, nieusuwalny. Znaleziony od razu pokazuje się jako Key Truth Bullet; jego analiza czeka na Analyze, które nie może się nie udać."
+          "hint": "Stawiany przez GM-a, nieusuwalny. Znaleziony od razu pokazuje się jako Key Truth Bullet; jego analiza czeka na Analyze."
         },
         "neutral": {
           "label": "Neutral Remnant",
@@ -3488,7 +3488,7 @@
       "TRUTH_BULLET_TYPES": {
         "key": {
           "label": "Key Truth Bullet",
-          "hint": "Dowód od GM-ów, by sprawa dała się rozwiązać. Wiesz, czym jest, w chwili podniesienia; Analyze odczyta resztę i nie może się nie udać.",
+          "hint": "Dowód od GM-ów, by sprawa dała się rozwiązać. Wiesz, czym jest, w chwili podniesienia; Analyze odczyta resztę.",
           "analysedHint": "Dowód od GM-ów, by sprawa dała się rozwiązać."
         },
         "neutral": {
@@ -3518,7 +3518,7 @@
         },
         "final": {
           "label": "Final Truth Bullet",
-          "hint": "Jeden na rozdział. Wskazuje Masterminda. Wiesz, czym jest, w chwili podniesienia; Analyze odczyta resztę i nie może się nie udać.",
+          "hint": "Jeden na rozdział. Wskazuje Masterminda. Wiesz, czym jest, w chwili podniesienia; Analyze odczyta resztę.",
           "analysedHint": "Jeden na rozdział. Wskazuje Masterminda."
         }
       },

@@ -757,7 +757,7 @@ export const REMNANT_TYPES = {
     key: {
         label: "Key Remnant",
         hint: "GM-placed, unremovable. Found, it shows as a Key Truth Bullet at once; "
-            + "its analysis waits for an Analyze that cannot fail.",
+            + "its analysis waits for an Analyze.",
         reinforced: true
     },
     neutral: {
@@ -815,12 +815,12 @@ export const REMNANT_TYPES = {
 export const TRUTH_BULLET_TYPES = {
     key: {
         label: "Key Truth Bullet",
-        /* Its kind on pickup, its reading at an Analyze that cannot fail (Dawid,
-           21.09 - see READ_ON_ANALYZE in truth-bullets.mjs). `analysedHint` is the
-           line once that reading is bought, when "Analyze reads the rest" would
-           point at an action already spent. */
+        /* Its kind on pickup, its reading at an Analyze rolled like any other
+           (Dawid, 21.09 - see READ_ON_ANALYZE in truth-bullets.mjs). `analysedHint`
+           is the line once that reading is bought, when "Analyze reads the rest"
+           would point at an action already spent. */
         hint: "Evidence from the GMs, so the case is solvable. You know what it is the moment you "
-            + "pick it up; Analyze reads the rest, and cannot fail.",
+            + "pick it up; Analyze reads the rest.",
         analysedHint: "Evidence from the GMs, so the case is solvable."
     },
     neutral: {
@@ -873,7 +873,7 @@ export const TRUTH_BULLET_TYPES = {
         label: "Final Truth Bullet",
         // The Key's shape, for the Key's reason - see above.
         hint: "One per chapter. Points at the Mastermind. You know what it is the moment you "
-            + "pick it up; Analyze reads the rest, and cannot fail.",
+            + "pick it up; Analyze reads the rest.",
         analysedHint: "One per chapter. Points at the Mastermind."
     }
 };
@@ -1039,11 +1039,15 @@ export const CRITICAL = {
  * there. The "Bez rzutu." printed in the Incident column is the merged cell
  * belonging to Autopsy, exactly as in the observation table.
  *
- * `key: null` is not a gap: it is the guide's "Bez rzutu". A Key Truth Bullet
- * arrives with its kind showing, and since 21.09 it reaches this lookup when
- * its holder analyses it for the reading - where `null` is scored as a success,
- * so that Analyze cannot fail (see READ_ON_ANALYZE in truth-bullets.mjs). No
- * `autopsy` column: an Autopsy arrives whole.
+ * THE KEY COLUMN IS A NUMBER, AND THE GUIDE SAYS "Bez rzutu" (Dawid, 21.09:
+ * "Analyze ma mieć rzut w każdym bullecie"). The guide's blank was for a bullet
+ * that identified itself and had nothing left to read. A Key or a Final now
+ * keeps its reading for an Analyze (READ_ON_ANALYZE in truth-bullets.mjs), and
+ * that reading is bought with a roll like any other bullet's. The numbers are
+ * Observe's own Key column: the clue the GMs placed so the case is solvable is
+ * the easiest thing on the table to read, as it is the easiest to find. Final
+ * reads this column through `OBSERVE_TYPE_ALIAS`, and an Autopsy the GM handed
+ * over as Neutral through `ANALYZE_TYPE_ALIAS` below.
  *
  * NOT DERIVED, AND THAT IS THE POINT NOW. The old comment said the two tables
  * must not be allowed to drift apart; after G-08 the difference between them IS
@@ -1051,21 +1055,28 @@ export const CRITICAL = {
  * deleting it.
  */
 export const ANALYZE_DC = {
-    obvious: { dailyLife: 8,  key: null, faint: 8,  prep: 12, incident: 12, resolution: 12 },
-    evident: { dailyLife: 12, key: null, faint: 12, prep: 15, incident: 15, resolution: 15 },
-    subtle:  { dailyLife: 18, key: null, faint: 15, prep: 18, incident: 18, resolution: 18 },
-    hidden:  { dailyLife: 21, key: null, faint: 18, prep: 21, incident: 21, resolution: 21 }
+    obvious: { dailyLife: 8,  key: 6,  faint: 8,  prep: 12, incident: 12, resolution: 12 },
+    evident: { dailyLife: 12, key: 9,  faint: 12, prep: 15, incident: 15, resolution: 15 },
+    subtle:  { dailyLife: 18, key: 12, faint: 15, prep: 18, incident: 18, resolution: 18 },
+    hidden:  { dailyLife: 21, key: 15, faint: 18, prep: 21, incident: 21, resolution: 21 }
 };
+
+/*
+ * Observe's aliases, and one more that only Analyze needs. An Autopsy is never
+ * found, so Observe must go on answering `null` for it (New trace refuses a kind
+ * nothing can find); but one the GM handed over as Neutral does reach Analyze,
+ * and every bullet that does is rolled for (21.09). It is read like a Key: the
+ * GM's own evidence, handed out so the case can be solved.
+ */
+const ANALYZE_TYPE_ALIAS = { ...OBSERVE_TYPE_ALIAS, autopsy: "key" };
 
 /**
  * The Analyze difficulty for one Truth Bullet.
  *
- * `null` means "no roll" rather than "impossible" - the guide prints "Bez rzutu"
- * for Key, and gives Autopsy and Final no column at all, because all three
- * arrive already identified. A bullet that reaches Analyze in one of those
- * states - a Key or a Final buying its reading, or one the GM handed over as
- * Neutral - is converted outright instead of being asked to beat a number that
- * was never written down.
+ * EVERY KIND A BULLET CAN BE ANSWERS WITH A NUMBER (Dawid, 21.09: every bullet
+ * rolls). `null` used to mean "no roll" - Key, Autopsy and Final converted
+ * outright on any throw. It is left now only for a kind this table has never
+ * heard of, and `resolveAnalyze` scores that as a miss rather than a free pass.
  *
  * THE ALIASES ARE HERE TOO NOW (ACT-10, 20.09), AND THE NOTE THAT SAID THEY WERE
  * NOT WAS HALF RIGHT. It said a bullet SHOWING "neutral" is the normal state of
@@ -1080,7 +1091,7 @@ export const ANALYZE_DC = {
  * same table it points at. One answer, not a second number invented here.
  */
 export function analyzeDc(visibility, realType) {
-    const column = OBSERVE_TYPE_ALIAS[realType] ?? realType;
+    const column = ANALYZE_TYPE_ALIAS[realType] ?? realType;
     return ANALYZE_DC[visibility]?.[column] ?? null;
 }
 

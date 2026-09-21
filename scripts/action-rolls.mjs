@@ -484,7 +484,9 @@ function thresholdFacts(actor, actionKey, def) {
         case "analyze": {
             const col = key => Object.fromEntries(REMNANT_VISIBILITY.map(v => [v, ANALYZE_DC[v]?.[key]]));
             f("DRPG.Action.dcAnalyze", {
-                rows: ladderRows(col("prep")), faint: ladderRows(col("faint")), daily: ladderRows(col("dailyLife"))
+                rows: ladderRows(col("prep")), faint: ladderRows(col("faint")), daily: ladderRows(col("dailyLife")),
+                // A Key and a Final are rolled for since 21.09 - their own column.
+                key: ladderRows(col("key"))
             });
             const [a, b] = mins(def.hintThresholds);
             if (a !== undefined) f("DRPG.Action.dcHint", { a, b: b ?? a });
