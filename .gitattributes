@@ -10,6 +10,10 @@ docs/ export-ignore
 CLAUDE.md export-ignore
 CONTRIBUTING.md export-ignore
 
+# tools/ is the same: the generators for the icons and the Polish config check.
+# Nothing at runtime imports them, and they shipped in the 1.2.47 and 1.2.48 zips (88 KB).
+tools/ export-ignore
+
 # audit/ is the v1.1.88 review: the headless harness and its report. Useful in
 # the repository, pointless inside a module people install.
 audit/ export-ignore
