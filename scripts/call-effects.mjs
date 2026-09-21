@@ -1061,7 +1061,7 @@ export async function gatherEveryone(room, onScene = null) {
     } catch (err) {
         error("Region teleport failed; falling back to a direct placement", err);
         const { REVERT } = await import("./movement.mjs");
-        return fallbackGather(region, tokens, REVERT);
+        return fallbackGather(scene, region, tokens, REVERT);
     }
 }
 
@@ -1069,14 +1069,21 @@ export async function gatherEveryone(room, onScene = null) {
  * If the region cannot place the tokens - an unusual shape, or a version that
  * does not offer `teleportTokens` - write the positions directly, spread around
  * the region's centre and flagged so the movement rules leave them alone.
+ *
+ * ON THE SCENE IT WAS HANDED, not the one on this GM's screen (review of stage
+ * D). CALL-18 moved the region and the token list onto the order's scene, and
+ * this fallback went on writing to `canvas.scene`: a deferred assembly run while
+ * the primary GM looked at another map sent that scene's token ids to a scene
+ * that does not hold them, the client backend rejected the update, and the order
+ * - already cleared, its six Despair spent - moved nobody and told nobody.
  */
-async function fallbackGather(region, tokens, REVERT) {
+async function fallbackGather(scene, region, tokens, REVERT) {
     const bounds = region.object?.bounds ?? region.bounds;
     const centre = bounds
         ? { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
-        : { x: canvas.scene.width / 2, y: canvas.scene.height / 2 };
+        : { x: scene.width / 2, y: scene.height / 2 };
 
-    const spread = (canvas.grid?.size ?? 100) * 1.2;
+    const spread = (scene.grid?.size ?? 100) * 1.2;
     const updates = tokens.map((doc, index) => {
         const angle = (index / 8) * Math.PI * 2;
         return {
@@ -1086,7 +1093,7 @@ async function fallbackGather(region, tokens, REVERT) {
         };
     });
 
-    await canvas.scene.updateEmbeddedDocuments("Token", updates, {
+    await scene.updateEmbeddedDocuments("Token", updates, {
         [REVERT]: true,
         teleport: true,
         movementAction: "displace",

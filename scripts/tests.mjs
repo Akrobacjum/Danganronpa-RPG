@@ -4470,6 +4470,23 @@ const REGRESSIONS = [
         }
     }],
 
+    ["R99 - an assembly's fallback writes to the assembly's scene", async () => {
+        /*
+         * CALL-18 carries the gather order's scene; the fallback placement, used when
+         * the region cannot place the tokens itself, still wrote to `canvas.scene` -
+         * the map on the primary GM's screen, not the assembly's. Review of stage D.
+         */
+        const src = stripComments(new Map(await otherSources()).get("call-effects.mjs") ?? "");
+        const at = src.indexOf("async function fallbackGather(");
+        ok(at > 0, "the fallback placement has moved or gone");
+        const body = src.slice(at, src.indexOf("\n}", at));
+        ok(/async function fallbackGather\(scene,/.test(body), "the fallback is not handed a scene");
+        ok(!/canvas\.scene|canvas\.grid/.test(body),
+            "the fallback reads the scene on this GM's screen instead of the assembly's");
+        ok(/fallbackGather\(scene, region, tokens, REVERT\)/.test(src),
+            "the assembly does not pass its own scene to the fallback");
+    }],
+
     ["R93 - the Event panel sits under Despair in both themes, and an NPC sheet keeps its rows", async () => {
         /*
          * Two of Dawid's reports from the live world on 21.09, both CSS, both in 1.2.47.
