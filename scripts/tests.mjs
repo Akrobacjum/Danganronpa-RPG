@@ -3151,10 +3151,15 @@ const REGRESSIONS = [
             ok(rem, `rung ${n} is not stated in rem`);
             const px = Math.round(Number(rem[1]) * 16 * 10000) / 10000;
             equal(px, n, `rung ${n} is stated as ${rem[1]}rem, which is ${px}px at 100 %`);
-            const floor = value.match(/max\((\d+)px/);
-            if (floor) {
+            /* A floor is capped at the rung's own size (review of stage D): a bare
+               `max(10px, ...)` assumed a 16px root, and on a smaller one it held the
+               rung ABOVE Foundry's own at 100 %. */
+            if (value.includes("max(")) {
+                const floor = value.match(/max\(min\((\d+)px, ([\d.]+)rem\)/);
+                ok(floor, `rung ${n}'s floor is not capped at its own size, so a small root grows it`);
                 ok(Number(floor[1]) <= n,
                     `rung ${n} is floored at ${floor[1]}px, so 100 % GROWS it`);
+                equal(floor[2], rem[1], `rung ${n}'s floor is capped at another rung's size`);
             }
         }
 

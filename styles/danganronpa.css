@@ -308,7 +308,7 @@
        `--drpg-tile-text` still multiplies BELOW the floor on a cramped action
        grid. That multiply happens at the use site, not here, and it is deliberate
        and only there. */
-    --drpg-text-xs: max(10px, calc(0.6875rem * var(--drpg-legacy-scale, 1)));   /* 11px at 100 % - the floor, never smaller */
+    --drpg-text-xs: max(min(10px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));   /* 11px at 100 % - the floor, never smaller */
     --drpg-text-sm: calc(0.8125rem * var(--drpg-legacy-scale, 1));   /* 13px at 100 % */
     --drpg-text-md: calc(0.9375rem * var(--drpg-legacy-scale, 1));   /* 15px at 100 % */
     --drpg-text-base: calc(1rem * var(--drpg-legacy-scale, 1));      /* 16px at 100 % */
@@ -3908,7 +3908,7 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 
 .drpg-gm-panel .drpg-gmp-section h4 {
     margin: 0 0 4px;
-    font-size: max(10px, calc(0.78rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(min(10px, 0.78rem), calc(0.78rem * var(--drpg-legacy-scale, 1)));
     letter-spacing: 0.08em;
     text-transform: uppercase;
     opacity: 0.65;
@@ -4274,7 +4274,7 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
    control, the checkbox and selects are. */
 .drpg-mini-button {
     padding: 2px 8px;
-    font-size: max(10px, calc(0.78rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(min(10px, 0.78rem), calc(0.78rem * var(--drpg-legacy-scale, 1)));
     border-radius: 3px;
     cursor: pointer;
     background: rgba(var(--drpg-bone-rgb), 0.18);
@@ -6316,7 +6316,7 @@ body.drpg-pixel-font #drpg-player-status .drpg-status-label {
 body.drpg-pixel-font #drpg-player-status .drpg-status-value {
     /* 12 px at 100 %: fonts/README puts the pixel face's readable floor at 11, and a
        number is the one thing on this strip that has to be read at a glance (UI-12). */
-    font-size: max(10px, calc(0.75rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(min(10px, 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1)));
 }
 
 body.drpg-pixel-font .drpg-hud-elapsed {
@@ -6411,7 +6411,7 @@ body.drpg-pixel-font .drpg-hud-elapsed {
 
 /* One footprint, not a track - there is only ever one free Move. */
 #drpg-player-status .drpg-free-move {
-    font-size: max(10px, calc(0.75rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(min(10px, 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1)));
     color: var(--drpg-eye);
 }
 
@@ -8144,7 +8144,7 @@ body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-shee
 
 .application.sheet.actor .character-sidebar-sheet
     .status-value:has(.drpg-resource-bar) > * {
-    font-size: max(10px, calc(0.78rem * var(--drpg-legacy-scale, 1))) !important;
+    font-size: max(min(10px, 0.78rem), calc(0.78rem * var(--drpg-legacy-scale, 1))) !important;
     line-height: 1.15 !important;
     height: auto !important;
     min-width: 0 !important;
@@ -9199,7 +9199,7 @@ body.drpg-theme-monokuma-legacy .drpg-event-meta {
 }
 
 .drpg-event-meta {
-    font-size: max(10px, calc(0.7rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(min(10px, 0.7rem), calc(0.7rem * var(--drpg-legacy-scale, 1)));
     letter-spacing: 0.08em;
     text-transform: uppercase;
     opacity: 0.7;
@@ -11617,7 +11617,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     padding: 2px 7px;
     border: 1px solid var(--drpg-line);
     border-radius: 2px;
-    font-size: max(10px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(min(10px, 0.72rem), calc(0.72rem * var(--drpg-legacy-scale, 1)));
     letter-spacing: 0.02em;
     color: rgba(var(--drpg-bone-rgb), 0.85);
 }
@@ -11683,7 +11683,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 .drpg-room-group > h5 .notes,
 .drpg-room-tier > h6 .notes {
     font-variant-numeric: tabular-nums;
-    font-size: max(10px, calc(0.75rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(min(10px, 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1)));
 }
 
 .drpg-room-tier {
@@ -11695,7 +11695,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     align-items: baseline;
     gap: 8px;
     margin: 4px 0 0;
-    font-size: max(10px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(min(10px, 0.72rem), calc(0.72rem * var(--drpg-legacy-scale, 1)));
     font-weight: 600;
     letter-spacing: 0.05em;
     color: var(--drpg-dim);
@@ -15599,13 +15599,18 @@ body.drpg-high-contrast :focus-visible {
    a real pixel size, not at a relative one.
    ========================================================================== */
 body.drpg-theme-monokuma-legacy {
-    --font-size-8: max(8px, calc(0.5rem * var(--drpg-legacy-scale, 1)));
-    --font-size-9: max(9px, calc(0.5625rem * var(--drpg-legacy-scale, 1)));
-    --font-size-10: max(10px, calc(0.625rem * var(--drpg-legacy-scale, 1)));
-    --font-size-11: max(10px, calc(0.6875rem * var(--drpg-legacy-scale, 1)));
-    --font-size-12: max(10px, calc(0.75rem * var(--drpg-legacy-scale, 1)));
-    --font-size-13: max(10px, calc(0.8125rem * var(--drpg-legacy-scale, 1)));
-    --font-size-14: max(10px, calc(0.875rem * var(--drpg-legacy-scale, 1)));
+    /* THE FLOOR IS THE SMALLER OF ITS PX AND THE RUNG ITSELF (review of stage D). A bare
+       `max(10px, ...)` assumed a 16px root: on a browser or a Foundry set smaller, the
+       rung at 100 % sat ABOVE Foundry's own, and a client that never touched the slider
+       saw bigger text - the one promise W-2 made. Capped, the floor can only ever hold a
+       rung at its own 100 % size, at any root. */
+    --font-size-8: max(min(8px, 0.5rem), calc(0.5rem * var(--drpg-legacy-scale, 1)));
+    --font-size-9: max(min(9px, 0.5625rem), calc(0.5625rem * var(--drpg-legacy-scale, 1)));
+    --font-size-10: max(min(10px, 0.625rem), calc(0.625rem * var(--drpg-legacy-scale, 1)));
+    --font-size-11: max(min(10px, 0.6875rem), calc(0.6875rem * var(--drpg-legacy-scale, 1)));
+    --font-size-12: max(min(10px, 0.75rem), calc(0.75rem * var(--drpg-legacy-scale, 1)));
+    --font-size-13: max(min(10px, 0.8125rem), calc(0.8125rem * var(--drpg-legacy-scale, 1)));
+    --font-size-14: max(min(10px, 0.875rem), calc(0.875rem * var(--drpg-legacy-scale, 1)));
     --font-size-15: calc(0.9375rem * var(--drpg-legacy-scale, 1));
     --font-size-16: calc(1rem * var(--drpg-legacy-scale, 1));
     --font-size-18: calc(1.125rem * var(--drpg-legacy-scale, 1));
@@ -15680,7 +15685,7 @@ body.drpg-theme-stained-glass { --drpg-own-ring: var(--drpg-glass-accent); }
     border-top: 1px solid var(--drpg-line);
     overflow: hidden;
     white-space: nowrap;
-    font-size: max(10px, calc(0.68rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(min(10px, 0.68rem), calc(0.68rem * var(--drpg-legacy-scale, 1)));
     letter-spacing: 0.04em;
     color: var(--drpg-dim);
     -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
