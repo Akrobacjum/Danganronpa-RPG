@@ -2413,6 +2413,14 @@ body.drpg-theme-stained-glass .drpg-panel table :is(td, th).act {
     text-align: right;
     white-space: nowrap;
 }
+/* ...AND THE HEADER STANDS OVER ITS FIGURES (22.09). The header rule a few hundred lines up is
+   written `tr:first-child th`, and a pseudo-class outranks the `.num` above by one, so every
+   numeric column had its title on the left and its figures on the right - measured on the
+   case panel's "Who has what", where "2" stood a column's width from "BULLETS". */
+body.drpg-theme-stained-glass .drpg-panel table tr:first-child th:is(.num, .act),
+body.drpg-theme-stained-glass .drpg-panel table thead th:is(.num, .act) {
+    text-align: right;
+}
 
 /* ---- C-N. The switches the Look window promised ------------------------------------------
    The pulse can go while the glass stays; the ticker can go while the clock stays; and a
