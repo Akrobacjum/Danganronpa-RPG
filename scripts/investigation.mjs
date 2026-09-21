@@ -1042,21 +1042,26 @@ function caseTraceRows(shown, finders) {
             ? esc(who.join(", "))
             : `<em>${game.i18n.localize("DRPG.Investigation.notFound")}</em>`;
 
+        /* Named for a screen reader - the column, and which trace. The Key planner's
+           rows got the same on 21.09; these were missed because the sweep ran on a
+           scene with no traces, and the suite's own run had some. */
+        const row = data.public?.name || traceContextLine(data) || key;
+        const aria = column => ` aria-label="${esc(`${game.i18n.localize(column)}: ${row}`)}"`;
         return `<tr>
             <td>
                 <img src="${esc(data.public?.img || ICON)}" alt="" class="drpg-project-portrait"
                      data-drpg-portrait="${key}" />
                 <input type="hidden" name="img.${key}" value="${esc(data.public?.img || ICON)}" />
-                <input type="text" name="name.${key}" value="${esc(data.public?.name || "")}" />
+                <input type="text" name="name.${key}"${aria("DRPG.Investigation.traceName")} value="${esc(data.public?.name || "")}" />
                 <div class="notes drpg-trace-context">${esc(traceContextLine(data))}</div>
             </td>
-            <td><textarea name="text.${key}" rows="2">${esc(data.public?.playerText || "")}</textarea></td>
+            <td><textarea name="text.${key}" rows="2"${aria("DRPG.Investigation.traceText")}>${esc(data.public?.playerText || "")}</textarea></td>
             ${/* The second tier, edited in the same row as the first. Side by
                   side on purpose: the two sentences describe one object and a
                   GM writing the lab reading wants the observation in view, not
                   on another tab. See TRUTH_BULLET_FLAGS.analyzedText for who
                   ever gets to read this one. */ ""}
-            <td><textarea name="analysis.${key}" rows="2"
+            <td><textarea name="analysis.${key}" rows="2"${aria("DRPG.Investigation.traceAnalysis")}
                 placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"
                 >${esc(data.public?.analyzedText || "")}</textarea></td>
             ${/* WHAT IT REALLY IS, CORRECTED BY HAND. The column that used to be
@@ -1067,12 +1072,12 @@ function caseTraceRows(shown, finders) {
                   value written here reaches the answer key of every copy already
                   in a player's pack (`propagateRealType`), and changes what they
                   are SHOWN only where they have already analysed it. */ ""}
-            <td><select name="type.${key}">${Object.entries(REMNANT_TYPES).map(([value, def]) =>
+            <td><select name="type.${key}"${aria("DRPG.Investigation.traceType")}>${Object.entries(REMNANT_TYPES).map(([value, def]) =>
                 `<option value="${esc(value)}"${value === data.type ? " selected" : ""}>${
                     esc(def.label)}</option>`).join("")}</select></td>
-            <td style="text-align:center"><input type="checkbox" name="faint.${key}" ${data.faint ? "checked" : ""} /></td>
-            <td style="text-align:center"><input type="checkbox" name="crime.${key}" ${data.tiedToCrime ? "checked" : ""} /></td>
-            <td style="text-align:center"><input type="checkbox" name="reinf.${key}" ${data.reinforced ? "checked" : ""} /></td>
+            <td style="text-align:center"><input type="checkbox" name="faint.${key}"${aria("DRPG.Remnant.faintColumn")} ${data.faint ? "checked" : ""} /></td>
+            <td style="text-align:center"><input type="checkbox" name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")} ${data.tiedToCrime ? "checked" : ""} /></td>
+            <td style="text-align:center"><input type="checkbox" name="reinf.${key}"${aria("DRPG.Remnant.reinforcedColumn")} ${data.reinforced ? "checked" : ""} /></td>
             <td>${found}</td>
         </tr>`;
     }).join("");

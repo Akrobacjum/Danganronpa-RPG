@@ -8940,6 +8940,16 @@ const SCENARIOS = [
          * controls are in the DOM and a reader reaches them when the tab is shown.
          */
         const { nameControls, a11yReport } = await import("./a11y.mjs");
+        /* A trace on the map, so the case panel draws its Traces rows. The first
+           version of this ran on a scene with none, passed, and the next full run
+           failed on exactly those rows. */
+        const remnants = await import("./remnants.mjs");
+        const scene = canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const fixture = scene ? await remnants.placeRemnant({
+            type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+            note: "test fixture - accessibility sweep"
+        }) : null;
         const before = new Set(foundry.applications.instances.keys());
         let opened = 0;
         for (const [file, text] of await otherSources()) {
@@ -8962,6 +8972,10 @@ const SCENARIOS = [
             for (const app of [...foundry.applications.instances.values()]) {
                 if (before.has(app.id)) continue;
                 try { await app.close({ animate: false }); } catch { /* already gone */ }
+            }
+            if (fixture) {
+                try { await remnants.dropRemnantSecret(fixture); } catch { /* nothing filed */ }
+                try { await fixture.delete(); } catch { /* already gone */ }
             }
             await settle();
         }
