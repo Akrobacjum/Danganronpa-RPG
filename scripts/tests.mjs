@@ -6515,6 +6515,40 @@ const INVARIANTS = [
         }
     }],
 
+    ["R107 - the visual round of 22.09 stays put", async () => {
+        /*
+         * Dawid's list before the README screenshots, 22.09. Each of these was measured on
+         * screen and fixed in one place; this holds that place, so a later edit cannot
+         * quietly put the old shape back.
+         */
+        const sources = new Map(await otherSources());
+        const src = name => stripComments(sources.get(name) ?? "");
+
+        // The debate's clock is the trial card's line, not the campaign clock's.
+        ok(/drpg-event-clock/.test(src("events.mjs")) && /paintTrialClock/.test(src("events.mjs")),
+            "the trial card lost its countdown");
+        ok(!/paintFloorClock|is-trial-clock/.test(src("hud.mjs")),
+            "the campaign clock is drawing the debate's countdown again");
+
+        // Who knows a project is a matrix, one column per player, in counting order.
+        const projects = src("projects-ui.mjs");
+        ok(/function viewerTicks\(/.test(projects) && /drpg-viewer-head/.test(projects),
+            "the project manager lists viewers as a run of labels again");
+        ok(/numeric: true/.test(projects), "players are listed in creation order, not counting order");
+
+        // The stats' boxes take the slider, like the window they stand in.
+        ok(/--drpg-slider-scale/.test(src("settings.mjs")), "the slider's own factor is no longer published");
+
+        // The Despair names' column is the longest name's.
+        ok(/function fitNameColumn\(/.test(src("despair.mjs")), "the Despair name column is a guess again");
+
+        // The left rail: a player's starts where the GM's does; every control fits its strip.
+        const glass = src("glass.mjs");
+        ok(/GM_SLOT/.test(glass), "a player's rail starts on the clock's glass again");
+        ok(/railEnd - boxTop/.test(glass), "the tools box is bounded to all the room above the notice tile again");
+        ok(/r\.bottom\) - top/.test(glass), "the strip is cut to the tiles on screen, not to the box they can fill");
+    }],
+
     ["R106 - every bullet Analyze can reach is rolled for", async () => {
         /*
          * Dawid, 21.09: "Analyze ma mieć rzut w każdym bullecie". Key, Autopsy and
