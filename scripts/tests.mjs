@@ -11579,10 +11579,17 @@ const SCENARIOS = [
             ok(!still.public?.name?.includes(String(stamp)),
                 "the killer's name for the trace was written without a ruling");
 
-            const card = game.messages.filter(m => !before.has(m.id))
-                .find(m => m.content?.includes('data-drpg-call="approveReshape"'));
-            ok(card, "no ruling card was raised, so the lie is waiting on nobody");
-            ok(card.content.includes(`data-trace="${first.id}"`),
+            /* READ THROUGH secret.mjs, as every reader of a card has to since 1.2.44
+               ("The messenger's threads are private cards"): a message's own
+               `content` is a stub dash and the words live in the secret store. This
+               scenario read `content` directly, so after the merge with 1.2.47 it
+               reported "no ruling card" beside a card that was there. */
+            const { wordsOf } = await import("./secret.mjs");
+            const fresh = game.messages.filter(m => !before.has(m.id));
+            const said = await Promise.all(fresh.map(m => wordsOf(m, 2000)));
+            const at = said.findIndex(html => html.includes('data-drpg-call="approveReshape"'));
+            ok(at >= 0, "no ruling card was raised, so the lie is waiting on nobody");
+            ok(said[at].includes(`data-trace="${first.id}"`),
                 "the card does not name the trace it is about");
 
             // ---- and the ruling is what writes ---------------------------
