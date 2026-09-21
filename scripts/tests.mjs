@@ -12473,7 +12473,15 @@ let inFlight = false;
  * @param {0|1|2} [options.tier]  0 reads the module's own source; 1 adds the
  *                                invariants; 2 also runs the scenarios.
  */
-export async function runTests({ tier = 2 } = {}) {
+/**
+ * @param {object} [options]
+ * @param {number} [options.tier=2]  0 source reads, 1 adds invariants, 2 adds scenarios.
+ * @param {string} [options.only]    Run only the tests whose name contains this, in
+ *   every tier up to `tier`. For the loop of fixing one thing: a full run is four
+ *   minutes, and the scenario being fixed is one of them. The world is still
+ *   snapshotted and restored around the scenarios that run.
+ */
+export async function runTests({ tier = 2, only = null } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -12491,16 +12499,18 @@ export async function runTests({ tier = 2 } = {}) {
     // roll window opens, locked" for what still covers it.
     if (game.drpg) game.drpg.suiteRolling = true;
     try {
-        return await runSuite(tier);
+        return await runSuite(tier, only);
     } finally {
         if (game.drpg) game.drpg.suiteRolling = false;
         inFlight = false;
     }
 }
 
-async function runSuite(tier) {
+async function runSuite(tier, only = null) {
     const lines = [];
     let passed = 0, failed = 0, skipped = 0;
+    const wanted = only ? String(only).toLowerCase() : null;
+    const pick = list => wanted ? list.filter(([name]) => name.toLowerCase().includes(wanted)) : list;
 
     const record = (name, err) => {
         if (err instanceof Skipped) {
@@ -12522,14 +12532,14 @@ async function runSuite(tier) {
     // in the suite to be wrong about and the most expensive to skip: a divergence
     // it would have caught costs four releases, not one run.
     lines.push("TIER 0 - module-wide regression (source is read, not called)");
-    for (const [name, fn] of REGRESSIONS) {
+    for (const [name, fn] of pick(REGRESSIONS)) {
         try { await fn(); record(name, null); } catch (err) { record(name, err); }
     }
 
     if (tier >= 1) {
         lines.push("");
         lines.push("TIER 1 - invariants (the world is not touched)");
-        for (const [name, fn] of INVARIANTS) {
+        for (const [name, fn] of pick(INVARIANTS)) {
             try { await fn(); record(name, null); } catch (err) { record(name, err); }
         }
     }
@@ -12568,7 +12578,7 @@ async function runSuite(tier) {
         }
 
         if (snap) {
-            for (const [name, fn] of SCENARIOS) {
+            for (const [name, fn] of pick(SCENARIOS)) {
                 try {
                     await fn();
                     record(name, null);
