@@ -8783,6 +8783,12 @@ const SCENARIOS = [
         const hostToken = scene.tokens.find(t => t.actorId === receiver.id);
         ok(giverToken && hostToken, "one of the two students has no token on this scene");
         const wasAt = { x: giverToken.x, y: giverToken.y };
+        /* A TELEPORT, NOT A WALK. In v14 a bare `update({ x, y })` is a move, and a
+           move is constrained by walls: measured 21.09 on the QA world, the giver set
+           off for the receiver's room, walked 250 px and stopped at the Round Table's
+           wall, so every assertion below measured a cross-room refusal. The module's
+           own assemblies move tokens exactly like this, for exactly this reason. */
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
 
         const READING = `Ash and not soot ${Date.now() % 100000}`;   // escape-safe
         let token = null;
@@ -8791,7 +8797,7 @@ const SCENARIOS = [
             // Into the receiver's room, and verified rather than assumed: if
             // the move did not take, every assertion below would be measuring a
             // refusal instead of a copy.
-            await giverToken.update({ x: hostToken.x, y: hostToken.y });
+            await giverToken.update({ x: hostToken.x, y: hostToken.y }, PLACE);
             await settle();
             equal(roomOfActor(giver), roomOfActor(receiver),
                 "the fixture could not stand the two students in one room");
@@ -8859,7 +8865,7 @@ const SCENARIOS = [
             // The student goes back where the world put them, first: a fixture
             // that leaves somebody standing in the wrong room changes what
             // every later test in this run is looking at.
-            try { await giverToken.update(wasAt); } catch { /* scene already gone */ }
+            try { await giverToken.update(wasAt, PLACE); } catch { /* scene already gone */ }
             for (const item of made) {
                 const live = item?.actor?.items?.get(item.id);
                 if (live) await live.delete();
