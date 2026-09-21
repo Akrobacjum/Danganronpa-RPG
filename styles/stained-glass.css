@@ -2034,11 +2034,14 @@ body.drpg-theme-stained-glass #drpg-despair .drpg-despair-name {
        the two rows' pips aligned, which is the whole reason this is fixed and not a minimum.
        A name longer than that is a name somebody typed, so it may end in an ellipsis, as it
        did before. The interface scale carries it, like every other size here. */
-    flex: 0 0 calc(76px * var(--drpg-sg-scale));
+    flex: 0 0 var(--drpg-despair-name-w, calc(76px * var(--drpg-sg-scale)));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
+/* ...and since 22.09 that width is the longest name's, measured (`fitNameColumn` in
+   despair.mjs): 76 px had become 65 at 1080p around names of 71 and 80. Still one width for
+   every row, so the pips still line up; 76 is what a first paint uses before it is measured. */
 /* A9b. The status strip's label was 10 px - under the floor - in a box that clipped it. */
 body.drpg-theme-stained-glass #drpg-player-status .drpg-status-label {
     font-size: var(--drpg-sg-floor);

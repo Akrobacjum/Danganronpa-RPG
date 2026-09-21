@@ -465,6 +465,28 @@ export async function spendDespairCall(userId, callKey, { announce: post = true 
  * ========================================================================== */
 
 /** Build or rebuild the Despair rows. Safe to call repeatedly. */
+/**
+ * THE NAME COLUMN IS AS WIDE AS THE LONGEST NAME (Dawid, 22.09: "napisy w despair pool nachodza
+ * na ikonki i sa przez to uciete").
+ *
+ * It was a fixed 76 px on the type scale, sized when the names were set smaller: measured on
+ * 22.09 at 1920x1080 the column was 65 px and the names needed 71 ("Monokuma") and 80
+ * ("Monominie") - cut, and run into the first skull. Fixed was right about one thing, that every
+ * row's pips start at the same x, so the column is still one width for every row; it is just
+ * the widest name's, read off the names themselves. A name somebody typed at novel length is
+ * still stopped by the column's `max-width` and ends in an ellipsis.
+ */
+function fitNameColumn(wrapper) {
+    const names = [...wrapper.querySelectorAll(".drpg-despair-name")];
+    if (!names.length) return;
+    /* Released first: `scrollWidth` never reads less than the box, so a column set wide by a
+       first draw in the fallback face (116 px, measured) would never come back down. */
+    wrapper.style.removeProperty("--drpg-despair-name-w");
+    void wrapper.offsetWidth;
+    const widest = Math.max(...names.map(n => n.scrollWidth));
+    if (widest > 0) wrapper.style.setProperty("--drpg-despair-name-w", `${Math.ceil(widest) + 2}px`);
+}
+
 export function renderDespairBar() {
     try {
         // the module's own stack on a narrow screen, Foundry's top bar on a desk
@@ -512,6 +534,9 @@ export function renderDespairBar() {
 
         wrapper.addEventListener("pointerdown", event => event.stopPropagation());
         host.append(wrapper);
+        fitNameColumn(wrapper);
+        // Measured again once the pixel face is in: a first draw in the fallback font is narrower.
+        document.fonts?.ready?.then(() => { if (wrapper.isConnected) fitNameColumn(wrapper); });
 
         /*
          * PUBLISH THIS PANEL'S HEIGHT, AND NOTHING ELSE.
