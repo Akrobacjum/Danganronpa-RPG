@@ -11853,6 +11853,16 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     font-variant-numeric: tabular-nums;
     letter-spacing: 0;
 }
+/* ...AND ONLY THE "?" (Dawid, 22.09: "zamiast '?' ma '*?'"). A Hope pip and an action pip
+   draw their shape in `::before` - an empty `content` on a block, the pip's own glyph - and
+   the redaction writes its "?" beside it rather than instead of it, so every hidden Hope
+   read as a small star and a question mark. Measured on Player A's view of another sheet:
+   those two, and nothing else on the sheet, carried a `::before`. */
+.drpg-redacted-sheet .drpg-redacted-value::before,
+.drpg-redacted-sheet .drpg-redacted-value::after {
+    content: none !important;
+    display: none !important;
+}
 
 /* Hope keeps its colour - a hidden Hope is still Hope, and gold is how this
    module says Hope everywhere else. The pips are drawn shapes, so the mark has
