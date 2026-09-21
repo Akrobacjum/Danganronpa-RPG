@@ -15,7 +15,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { monokumas } from "./despair.mjs";
-import { isMonokuma } from "./monokuma.mjs";
+import { isMonokuma, studentActors } from "./monokuma.mjs";
 import { log, warn } from "./utils.mjs";
 
 /**
@@ -42,9 +42,7 @@ export function assignments() {
  * care. They are the people running the killing game, not students in it.
  */
 export function students() {
-    return game.actors
-        .filter(a => a.type === "character" && !isMonokuma(a))
-        .sort((a, b) => a.name.localeCompare(b.name));
+    return studentActors().sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**

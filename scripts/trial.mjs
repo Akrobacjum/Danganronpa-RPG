@@ -17,10 +17,25 @@
  *
  * One message, one hook, so the two can never disagree.
  *
- * Only public knowledge goes on the card: the name, the type the HOLDER sees,
- * how visible the original was, the chapter, and their own note. The real type
- * and the GM's note are not on the player's item to begin with (see D6 and
- * truth-bullets.mjs), so there is nothing here to leak by accident.
+ * WHAT GOES ON THE CARD IS WHAT THE PRESENTER KNOWS, and that sentence is the
+ * whole rule. Not "public knowledge", which is what this said and which was
+ * never quite it: the type on the card is the type THEY see, so an unanalysed
+ * bullet presents as Neutral and an analysed one presents as what it turned out
+ * to be. Since 1.2.47 the second half of the description goes with it - Analyze
+ * buys a sentence about the trace (`analyzedText`), it was already in the
+ * presenter's own item window, and leaving it off the card meant a player who
+ * had paid for it could not actually say it with the evidence in front of them.
+ *
+ * Nothing on the card can leak past that, because the parts of a Truth Bullet
+ * the holder has not earned are not on the holder's item at all: the real type,
+ * the GM's note and the ledger's copy of the analysis live in the answer key
+ * (see D6 and truth-bullets.mjs), and `truthBulletData` hands those out on a
+ * GM's client only.
+ *
+ * ANOTHER HOLDER'S COPY IS NOT TOUCHED. Two people can hold copies of one trace
+ * with different knowledge, and a presentation does not level them up: knowing
+ * is per character, and hearing something said in a trial is not the same as
+ * having analysed it. The card is the record that it was said.
  *
  * Present is Class-Trial-only on purpose. It reaches every player at once, and
  * outside the trial the cast is scattered across rooms that are supposed to be
@@ -31,7 +46,7 @@
 
 import { MODULE_ID, TRUTH_BULLET_TYPES, TRIAL } from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { truthBulletData, isTruthBullet } from "./truth-bullets.mjs";
+import { truthBulletData, isTruthBullet, bulletDescription } from "./truth-bullets.mjs";
 import { showPopup } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
     whisperToOwner } from "./utils.mjs";
@@ -403,22 +418,37 @@ export async function presentBullet(actor, item, {
     return true;
 }
 
-/** The card itself. Public knowledge only - see the note at the top. */
+/** The card itself. What the PRESENTER knows - see the note at the top. */
 function buildCard(actor, data, { objection, comment, target = null }) {
     const hint = TRUTH_BULLET_TYPES[data.shownType]?.hint ?? "";
 
     const badges = [
         `<span class="drpg-tb-badge type ${data.shownType}">${
-            foundry.utils.escapeHTML(data.shownLabel)}</span>`,
-        `<span class="drpg-tb-badge visibility">${
-            foundry.utils.escapeHTML(data.visibilityLabel)}</span>`
+            foundry.utils.escapeHTML(data.shownLabel)}</span>`
     ];
+    /* FAINT, ON THE SAME RULE THE SHEET USES (`bulletBadges`): beside the type,
+       and only once there IS a type, because Faint is the second half of what
+       the thing is rather than a fact of its own. `identified` as well as
+       `faint` for the reason stated there - a world made before 1.2.47 carries
+       the flag on unanalysed bullets until the migration has run. */
+    if (data.faint && data.identified) {
+        badges.push(`<span class="drpg-tb-badge faint">${
+            foundry.utils.escapeHTML(game.i18n.localize("DRPG.TruthBullet.faint"))}</span>`);
+    }
+    badges.push(`<span class="drpg-tb-badge visibility">${
+        foundry.utils.escapeHTML(data.visibilityLabel)}</span>`);
     if (data.chapter !== null) {
         badges.push(`<span class="drpg-tb-badge chapter">${
             game.i18n.format("DRPG.TruthBullet.chapterShort", { n: data.chapter })}</span>`);
     }
+    /* The same `room` class the sheet's row uses (`bulletBadges` in sheet.mjs), so
+       one fact is one colour wherever it is read. This card keeps its own badge
+       list rather than calling that function, and deliberately: it is a chat card
+       the whole table sees, so the GM's "Really:" chip and the per-holder "Analyzed
+       in vain" mark - both of which `bulletBadges` adds - would be shown to people
+       they are not about. */
     if (data.room) {
-        badges.push(`<span class="drpg-tb-badge">${foundry.utils.escapeHTML(data.room)}</span>`);
+        badges.push(`<span class="drpg-tb-badge room">${foundry.utils.escapeHTML(data.room)}</span>`);
     }
 
     return `<div class="drpg-evidence-card${objection ? " objection" : ""}">
@@ -437,6 +467,7 @@ function buildCard(actor, data, { objection, comment, target = null }) {
         <div class="drpg-tb-badges">${badges.join("")}</div>
         ${data.playerText
             ? `<p class="drpg-evidence-text">${foundry.utils.escapeHTML(data.playerText)}</p>` : ""}
+        ${data.analyzedText ? bulletDescription("", data.analyzedText) : ""}
         ${hint ? `<p class="drpg-evidence-hint"><em>${foundry.utils.escapeHTML(hint)}</em></p>` : ""}
         ${comment
             ? `<p class="drpg-evidence-comment">"${foundry.utils.escapeHTML(comment)}"</p>` : ""}

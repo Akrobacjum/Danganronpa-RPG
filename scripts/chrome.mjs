@@ -25,13 +25,12 @@
  */
 
 import { log } from "./utils.mjs";
+import { glassOn } from "./motion.mjs";
 
 const DONE = "drpgChrome";
 
-/** True when this browser wears the Stained Glass theme. */
-function themeOn() {
-    return document.body.classList.contains("drpg-theme-stained-glass");
-}
+/** True when this browser wears the Stained Glass theme - the shared reading in motion.mjs. */
+const themeOn = glassOn;
 
 /* ---- the number field: two pixel buttons, and the browser's arrows gone ---- */
 
@@ -167,7 +166,30 @@ export function injectFilters() {
 
 /* ---- one pass over a window ------------------------------------------------ */
 
-/** Decorate one rendered window. Safe to call on the same element repeatedly. */
+/**
+ * Decorate one rendered window. Safe to call on the same element repeatedly.
+ *
+ * PRICED, BECAUSE IT LOOKS EXPENSIVE AND IS NOT. It runs on every
+ * `renderApplicationV2` and it does structural surgery - `replaceWith` per
+ * number field and per select, a regex over every cell of every table - so a
+ * 1.2.47 audit pass proposed rebuilding it on `display: grid` to stop moving
+ * the inputs, on the strength of 25.83 ms measured in JSDOM.
+ *
+ * It does not reproduce in a browser. Measured in Chromium against the glass
+ * harness, median of seven, on windows built to the shapes the module actually
+ * opens:
+ *
+ *     4 fields, 1 select, a 6x4 table     (42 nodes)    0.2 ms
+ *    24 fields, 5 selects, a 24x8 table  (260 nodes)    0.7 ms
+ *    60 fields, 12 selects, a 60x10 table (761 nodes)   2.5 ms
+ *    the same window a second time                        0 ms
+ *
+ * JSDOM's `replaceWith` and `querySelectorAll` are orders of magnitude slower
+ * than a browser's, which is what that 25.83 ms was measuring. The second-pass
+ * zero is the marking doing its job. So: not a window-open cost, and not worth
+ * the risk of rebuilding how every form field in the module is drawn. If it is
+ * ever suspected again, re-take these five numbers before touching it.
+ */
 export function dressChrome(root) {
     if (!themeOn() || !root?.querySelectorAll) return;
     try {
@@ -186,7 +208,14 @@ export function dressChrome(root) {
 export function registerChrome() {
     injectFilters();
     Hooks.on("renderApplicationV2", app => dressChrome(app?.element));
-    // A window that redraws part of itself keeps its decorations, because the pass is
-    // idempotent and marks what it has done; this catches the parts drawn after the render.
+    /* `drpgWindowUpdated` IS FIRED BY NOBODY, and has not been.
+       The hook was added so a window redrawing part of itself would keep its
+       decorations - the pass is idempotent and marks what it has done - and the
+       other half was never written: `grep -rn drpgWindowUpdated` over the whole
+       tree returns this line and nothing else (16.09).
+       Kept rather than deleted, because the intention is sound and the listener
+       is the cheap half: anything in this module that rebuilds part of an open
+       window can fire it and get its chrome back. If nothing ever does, this is
+       one registration at ready and no cost at all. */
     Hooks.on("drpgWindowUpdated", el => dressChrome(el));
 }

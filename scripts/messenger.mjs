@@ -10,9 +10,11 @@
  *
  * A thread is not a document of its own - it is every ChatMessage whispered
  * to `[playerUserId, ...gmIds()]` and flagged with which player it belongs
- * to. That whisper target is exactly what `whisperToOwner()` in utils.mjs
- * already sends; this file gives it persistence (read with `threadMessages`
- * instead of scrolling past it) and a window instead of the sidebar.
+ * to. Since COMM-03 each of those is a PRIVATE card (secret.mjs): the document
+ * in the world carries a stub, and the words travel over the addressed socket
+ * to the thread's readers alone. This file gives the thread persistence (read
+ * with `threadMessages` instead of scrolling past it) and a window instead of
+ * the sidebar.
  *
  * `callGm()` in gm-bridge.mjs posts into these same threads - an action that
  * needs a human ruling (Observe, Analyze, Direct Murder…) shows up right next
@@ -23,6 +25,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, error, warn } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
+import { postSecret } from "./secret.mjs";
 
 /**
  * Whether this browser hears the messenger at all.
@@ -121,7 +124,10 @@ export async function markThreadRead(playerUserId) {
     // fires repainted the launcher for nothing each time.
     const newest = Math.max(0, ...threadMessages(playerUserId).map(m => m.timestamp ?? 0));
     if (lastReadAt(playerUserId) >= newest) return;
-    const map = { ...readMap(), [playerUserId]: Date.now() };
+    // The newest message's own stamp, not this browser's clock (COMM-15): a
+    // sender whose clock runs ahead would otherwise leave a bubble unread
+    // while it is on screen, and one running behind would arrive read.
+    const map = { ...readMap(), [playerUserId]: newest };
     await game.settings.set(MODULE_ID, SETTINGS.messengerLastRead, map);
     Hooks.callAll("drpgMessengerRead", playerUserId);
 }
@@ -161,6 +167,16 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm } 
     return createThreadMessage(playerUserId, `<p>${esc}</p>`, kind);
 }
 
+/*
+ * WHAT A LATER GM CANNOT SEE. A private card's words are held by the browsers
+ * that were connected when it was posted, so a GM who joins tomorrow reads a
+ * thread of stubs. That is the trade secret.mjs makes for every private card
+ * and it is the right one here too: a second GM re-reading last week's
+ * conversation is a convenience; a player reading it is the game. The roster
+ * preview tolerates a stub, and the thread's newest cards are the ones that
+ * matter.
+ */
+
 /**
  * Post pre-built HTML - the callGm() ruling cards - into a player's thread.
  * The caller is responsible for escaping anything it interpolated.
@@ -179,8 +195,20 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false) {
     // that is doing the sending.
     if (messengerSoundOn()) playSfx("chatSend");
 
+    /*
+     * A PRIVATE CARD, LIKE EVERY OTHER PRIVATE CARD (COMM-03).
+     *
+     * This was the one poster in the module that wrote its words into the
+     * document: `ChatMessage.create` with a whisper list, which Foundry
+     * delivers to every connected client and merely hides. So every player
+     * could read every other player's thread from the console - the parked
+     * murder's note, the project proposals, the GM's typed rulings, the DMs.
+     * The words go over the addressed socket now and live in the readers'
+     * own browsers; the document keeps the thread flag, the kind and the
+     * timestamp, which is all the roster and the badge ever read.
+     */
     try {
-        return await ChatMessage.create({
+        return await postSecret({
             content,
             whisper,
             flags: {
@@ -219,9 +247,6 @@ function onCreateChatMessage(message) {
 
     Hooks.callAll("drpgMessengerMessage", thread, message);
 
-    const authorId = message.author?.id ?? message.user?.id;
-    if (authorId === game.user.id) return; // do not ping yourself
-
     /*
      * A REQUEST FOR A GM GETS ITS OWN SOUND, AND ONLY ONE.
      *
@@ -230,11 +255,19 @@ function onCreateChatMessage(message) {
      * waiting on somebody. The more specific sound REPLACES the general one
      * rather than joining it: two sounds for one message is how a table learns
      * to stop hearing either.
+     *
+     * BEFORE the self-author check: the bridge posts its cards from the primary
+     * GM's own session (a parked murder, a trap that has armed), so that GM was
+     * the author of the one card they most needed to hear. A typed DM carries
+     * no `gmAsk` flag and still does not ping its own writer.
      */
     if (game.user.isGM && message.getFlag(MODULE_ID, MESSENGER_FLAGS.gmAsk)) {
         if (messengerSoundOn()) playSfx("gmAsk");
         return;
     }
+
+    const authorId = message.author?.id ?? message.user?.id;
+    if (authorId === game.user.id) return; // do not ping yourself
 
     // Was a hard-coded chime. It is a mapped event now, and NOT a mapped event
     // by default: this module ships no audio and assigns none, so a world that

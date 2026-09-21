@@ -288,11 +288,7 @@ function markFrame(element) {
        cards on screen. `applyTheme()` puts `drpg-theme-stained-glass` on `<body>` at ready and
        the chat log renders at ready too, so which of the two lands first is a race. It is the
        same trap `flashOutline` in fog.mjs has written out at length. */
-    const square = (() => {
-        try { return getSetting(SETTINGS.theme) === "stainedGlass"; }
-        catch { return document.body.classList.contains("drpg-theme-stained-glass"); }
-    })();
-    element.style.setProperty("border-radius", square ? "0px" : "4px", "important");
+    element.style.setProperty("border-radius", styleNow().square ? "0px" : "4px", "important");
     return true;
 }
 
@@ -314,14 +310,43 @@ export function markOutcome(element, outcome) {
     const token = OUTCOME_TOKEN[outcome];
     if (!element || !token) return null;
 
-    const colour = getComputedStyle(document.documentElement)
-        .getPropertyValue(token).trim();
+    const colour = outcomeColour(token);
     if (!colour) return null;
 
     element.style.setProperty("border", `1px solid ${colour}`, "important");
     element.style.setProperty("border-left", `3px solid ${colour}`, "important");
     return colour;
 }
+
+/*
+ * ONCE A SECOND, NOT ONCE A CARD (ROLL-17). `paintChatCard` is the hottest
+ * render hook in the module - every card, every render of the log, the whole
+ * history at load - and each outcome card asked the style engine for a colour
+ * and each plain card read the theme setting. Neither changes inside a render
+ * pass, and both change a few times a session; a one-second memo serves a
+ * whole pass from one read and still follows a theme switch on the next.
+ */
+const STYLE_MEMO_MS = 1000;
+let styleMemo = { at: 0, colours: {}, square: false };
+
+function styleNow() {
+    const now = Date.now();
+    if (now - styleMemo.at > STYLE_MEMO_MS) {
+        const colours = {};
+        try {
+            const root = getComputedStyle(document.documentElement);
+            for (const token of Object.values(OUTCOME_TOKEN)) colours[token] = root.getPropertyValue(token).trim();
+        } catch { /* keep an empty map: the card is still a readable card */ }
+        const square = (() => {
+            try { return getSetting(SETTINGS.theme) === "stainedGlass"; }
+            catch { return document.body.classList.contains("drpg-theme-stained-glass"); }
+        })();
+        styleMemo = { at: now, colours, square };
+    }
+    return styleMemo;
+}
+
+const outcomeColour = token => styleNow().colours[token] ?? "";
 
 /**
  * Which of the three outcomes a message carries, or `null` for a roll that is
@@ -575,11 +600,18 @@ function onPreCreateChatMessage(message, data, options, userId) {
             || (data?.rolls?.length ?? 0) > 0;
         if (!hasRoll) return;
 
-        // Already a whisper - respect whatever aimed it there.
-        if (message.whisper?.length) return;
+        // Already a whisper: respected when a GM aimed it (a blind roll on
+        // purpose). A PLAYER's whisper is widened, not respected (ROLL-14): the
+        // roll dialog's mode select is disabled but its value is the client's
+        // own core roll mode, which any player can set to "Self Roll" from the
+        // chat bar - and a self-whispered Despair result never reached the
+        // primary GM, so it never fed a Monokuma's pool.
+        const already = Array.from(message.whisper ?? []);
+        if (already.length && author.isGM) return;
 
         const recipients = gmIds();
         if (!recipients.length) return;
+        for (const id of already) recipients.push(id);
 
         /* ---- who this roll belongs to, and therefore who may read it ------
          *

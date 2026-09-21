@@ -703,6 +703,15 @@ function onCreateChatMessage(message) {
     if (whisper.length && !whisper.includes(game.user.id)) return;
     if (game.user.isGM && whisper.length && !forGm) return;
 
+    // A veiled card names everybody and is meant for its readers alone: the
+    // sound is theirs, and a client that never receives the words hears nothing.
+    if (message.getFlag(MODULE_ID, "veiled")) {
+        import("./secret.mjs")
+            .then(async S => { await S.wordsOf(message); if (S.secretHtml(message)) playSfx(key); })
+            .catch(() => {});
+        return;
+    }
+
     playSfx(key);
 }
 

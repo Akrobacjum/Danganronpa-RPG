@@ -15,13 +15,14 @@
  *
  * Discovery is per CHARACTER, not per player and not per client: two of one
  * player's characters standing in different rooms both uncover their own.
- * `SETTINGS.discoveredRooms` carries it, shaped
- * `{ [sceneId]: { [actorId]: [roomName, ...] } }`, written only by the
- * primary GM - see `onUpdateToken` below - and read by everyone else off the
- * ordinary world-setting sync `sync.mjs` already provides. It is NOT a
- * secret the way the Mastermind's identity is: it is a record of where the
- * party has already been, and travels the world the same way `sealedRooms`
- * does.
+ * The ledger is shaped `{ [sceneId]: { [actorId]: [roomName, ...] } }` and
+ * written only by the primary GM - see `onUpdateToken` below. Since D2
+ * (Dawid, 13.09) it is a SECRET the way the incident's cast is: the union
+ * lives on the GM's browser (`SETTINGS.discoveryLedger`), each player's
+ * browser holds only their own characters' rows (`SETTINGS.discoveryMine`),
+ * and the rows travel over the addressed socket (`shareLedger`). "Which
+ * rooms has X been in" is alibi evidence, and it no longer sits in a world
+ * setting any console can read.
  *
  * The Mastermind is the one exception, and it falls out of this model for
  * free: every room counts as "visited" for them (see `myDiscoveredRooms`),
@@ -34,12 +35,12 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS, getSetting, iAmTheMastermind, isEclipse } from "./settings.mjs";
+import { SETTINGS, iAmTheMastermind, isEclipse, discoveryLedger } from "./settings.mjs";
 import { roomOfToken, boundsOf } from "./movement.mjs";
 import { isMastermind } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
-import { ENTER, BEAT } from "./motion.mjs";
+import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural } from "./utils.mjs";
+import { ENTER, BEAT, reducedMotion, glassOn, SEAM_GLOW } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
@@ -53,7 +54,12 @@ const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
  * from the person testing. `diagnoseFog()` prints this, which turns that into a
  * fact. Bump it whenever the drawing behaviour changes.
  */
-const FOG_BUILD = "2026-08-26 · glow-field-trend";
+/**
+ * Which build of this file a browser loaded, for `diagnoseFog`. Derived from
+ * the manifest rather than typed by hand (MAP-14): the hand-typed stamp was
+ * not bumped for three drawing changes, which is the one job it had.
+ */
+const fogBuild = () => `${game?.modules?.get?.(MODULE_ID)?.version ?? "?"} · glow-field`;
 
 const LAYER_NAME = "drpgFog";
 const FOG_SPRITE = "drpgFogSprite";
@@ -252,6 +258,9 @@ const OUTLINE_MS = DISCOVERY_MS;
  * ========================================================================== */
 
 export function registerFog() {
+    // The ledger's socket road and its pull-on-join (D2).
+    step("the ledger's road", () => registerLedgerRoad());
+
     /*
      * EACH STEP GUARDED SEPARATELY, because they used to share one handler and
      * that is how this feature spent two releases not existing at all: the
@@ -639,11 +648,177 @@ export async function onFogSettingChanged() {
  * ========================================================================== */
 
 function allDiscovered() {
-    try {
-        return game.settings.get(MODULE_ID, SETTINGS.discoveredRooms) ?? {};
-    } catch {
-        return {};
+    return discoveryLedger();
+}
+
+/* ==========================================================================
+ * THE LEDGER'S ROAD (D2) - the GM's store, and the rows each player is sent
+ * ========================================================================== */
+
+const SOCKET_EVENT = `module.${MODULE_ID}`;
+const FOG_ROWS = "fog.rows";          // primary GM -> one player: your own rows
+const FOG_LEDGER = "fog.ledger";      // GM -> the other GMs: the whole union
+const FOG_REQUEST = "fog.request";    // anyone -> primary GM: send me mine
+const FOG_SHARE_ASK = "fog.shareAsk"; // primary GM -> everyone: what do you hold?
+const FOG_SHARED = "fog.shared";      // anyone -> primary GM: this is what I hold
+
+/** The rows of `ledger` that belong to characters `user` owns. */
+function rowsFor(ledger, user) {
+    const out = {};
+    for (const [sceneId, forScene] of Object.entries(ledger ?? {})) {
+        const kept = {};
+        for (const [actorId, rooms] of Object.entries(forScene ?? {})) {
+            const actor = game.actors.get(actorId);
+            if (actor?.testUserPermission(user, "OWNER")) kept[actorId] = [...(rooms ?? [])];
+        }
+        if (Object.keys(kept).length) out[sceneId] = kept;
     }
+    return out;
+}
+
+/** Union two ledgers, room by room. */
+function mergeLedgers(a, b) {
+    const out = foundry.utils.deepClone(a ?? {});
+    for (const [sceneId, forScene] of Object.entries(b ?? {})) {
+        out[sceneId] = out[sceneId] ?? {};
+        for (const [actorId, rooms] of Object.entries(forScene ?? {})) {
+            out[sceneId][actorId] = Array.from(new Set([...(out[sceneId][actorId] ?? []), ...(rooms ?? [])]));
+        }
+    }
+    return out;
+}
+
+/** Send `user` the store they are entitled to: the union to a GM, their rows to a player. */
+function sendStoreTo(user, ledger = allDiscovered()) {
+    if (!user || user.id === game.user.id) return;
+    try {
+        // Addressed twice: by the socket's recipients, and by `userId` inside
+        // the packet, so a relay that ignores the first still cannot put one
+        // player's rows on another player's browser.
+        if (user.isGM) {
+            game.socket.emit(SOCKET_EVENT, { action: FOG_LEDGER, userId: user.id, ledger }, { recipients: [user.id] });
+        } else {
+            game.socket.emit(SOCKET_EVENT, { action: FOG_ROWS, userId: user.id, rows: rowsFor(ledger, user) }, { recipients: [user.id] });
+        }
+    } catch (err) {
+        error(`Could not send the fog ledger to ${user.name}`, err);
+    }
+}
+
+/** Every connected client gets its share of `ledger`. */
+function shareLedger(ledger) {
+    for (const user of game.users.filter(u => u.active && u.id !== game.user.id)) sendStoreTo(user, ledger);
+}
+
+/**
+ * The one write. GM-only: this browser's copy of the union, then everyone's
+ * share of it over the socket, then the repaint the setting's `onChange`
+ * already triggers here.
+ */
+async function writeLedger(next) {
+    if (!game.user.isGM) return false;
+    await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger, next ?? {});
+    shareLedger(next ?? {});
+    return true;
+}
+
+/** The season reset: an empty union, everywhere. */
+export async function resetLedger() {
+    return writeLedger({});
+}
+
+/**
+ * A world that updates mid-season still has its ledger in the world setting.
+ * Lifted once into the primary GM's store, and the world setting emptied so
+ * no console can read it again.
+ */
+async function migrateLedger() {
+    if (!isPrimaryGm()) return false;
+    const old = game.settings.get(MODULE_ID, SETTINGS.discoveredRooms) ?? {};
+    if (!Object.keys(old).length) return false;
+    await writeLedger(mergeLedgers(allDiscovered(), old));
+    await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, {});
+    log("Lifted the discovery ledger out of world data (D2).");
+    return true;
+}
+
+/** What this client holds, for a primary GM rebuilding a lost union. */
+function myStore() {
+    return allDiscovered();
+}
+
+function registerLedgerRoad() {
+    game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
+        if (!payload?.action?.startsWith?.("fog.")) return;
+        if (senderId === game.user.id) return;
+        const sender = game.users.get(senderId);
+        if (!sender) return;
+        try {
+            switch (payload.action) {
+                case FOG_ROWS:
+                    // My rows, from a GM, addressed to me - and kept only for
+                    // the characters I own. A player's browser holds nothing else.
+                    if (!sender.isGM || game.user.isGM || payload.userId !== game.user.id) return;
+                    await game.settings.set(MODULE_ID, SETTINGS.discoveryMine, rowsFor(payload.rows ?? {}, game.user));
+                    return;
+                case FOG_LEDGER:
+                    // The union, from a GM, to a GM. Set, not written: a write
+                    // would share it back and the two GMs would ping-pong.
+                    if (!sender.isGM || !game.user.isGM || payload.userId !== game.user.id) return;
+                    await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger, payload.ledger ?? {});
+                    return;
+                case FOG_REQUEST:
+                    if (!isPrimaryGm()) return;
+                    sendStoreTo(sender);
+                    return;
+                case FOG_SHARE_ASK:
+                    if (sender.id !== primaryGmId()) return;
+                    game.socket.emit(SOCKET_EVENT, { action: FOG_SHARED, store: myStore() }, { recipients: [senderId] });
+                    return;
+                case FOG_SHARED: {
+                    if (!isPrimaryGm()) return;
+                    // A GM's copy is the union; a player's is trusted only for
+                    // the characters they own, so nobody can write another
+                    // character's history into the GM's record.
+                    const offered = sender.isGM ? (payload.store ?? {}) : rowsFor(payload.store ?? {}, sender);
+                    const merged = mergeLedgers(allDiscovered(), offered);
+                    if (JSON.stringify(merged) !== JSON.stringify(allDiscovered())) await writeLedger(merged);
+                    return;
+                }
+                default:
+                    return;
+            }
+        } catch (err) {
+            error("Could not handle a fog ledger message", err);
+        }
+    });
+
+    // THE PULL, AND THE PUSH BEHIND IT. Whoever comes up last asks: a player
+    // for their rows, a GM for the union. The primary, when it comes up with
+    // nothing (a new browser), asks every client for what it holds and
+    // rebuilds the union from the answers. The push on `userConnected` is the
+    // backstop for a client whose request was lost.
+    Hooks.once("ready", () => {
+        step("lift the ledger out of world data", () => migrateLedger());
+        try {
+            const primary = primaryGmId();
+            if (isPrimaryGm()) {
+                if (!Object.keys(allDiscovered()).length) {
+                    game.socket.emit(SOCKET_EVENT, { action: FOG_SHARE_ASK });
+                } else {
+                    shareLedger(allDiscovered());
+                }
+            } else if (primary) {
+                game.socket.emit(SOCKET_EVENT, { action: FOG_REQUEST }, { recipients: [primary] });
+            }
+        } catch (err) {
+            error("Could not ask for the fog ledger", err);
+        }
+    });
+    Hooks.on("userConnected", (user, connected) => {
+        if (!connected || !isPrimaryGm()) return;
+        sendStoreTo(user);
+    });
 }
 
 /**
@@ -695,11 +870,27 @@ export async function applyDiscoveryChanges(scene, changes = []) {
         forScene[actorId] = Array.from(rooms);
         moved = true;
     }
-    // Nothing moved is nothing written: a write here resyncs the fog on every
-    // client, and Apply is pressed far more often for a lock than for the fog.
+    // Nothing moved is nothing written: a write here sends every client its
+    // share of the ledger again and repaints the fog, and Apply is pressed far
+    // more often for a lock than for the fog.
     if (!moved) return false;
-    await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, { ...all, [scene.id]: forScene });
-    return true;
+    return writeLedger({ ...all, [scene.id]: forScene });
+}
+
+/**
+ * Overwrite one scene's whole discovery matrix in one write.
+ *
+ * Room Setup no longer calls this - its Apply lays only the changed cells onto
+ * the ledger through `applyDiscoveryChanges` (ROOM-01). It stays for the
+ * suite's fixtures, which blank a scene's rows for a test and then put back
+ * exactly the rows they read before it.
+ *
+ * @param {object} matrix  `{ [actorId]: [roomName, ...] }`
+ */
+export async function saveDiscoveryMatrix(scene, matrix) {
+    if (!game.user.isGM || !scene) return;
+    const all = allDiscovered();
+    await writeLedger({ ...all, [scene.id]: matrix });
 }
 
 /**
@@ -751,7 +942,7 @@ async function recordDiscovery(scene, actor, room) {
         ...all,
         [scene.id]: { ...forScene, [actor.id]: [...forActor, room] }
     };
-    await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, next);
+    await writeLedger(next);
     debug(`${actor.name} discovered "${room}" on ${scene.name}.`);
     return true;
 }
@@ -825,7 +1016,7 @@ export async function seedDiscovery(scene = canvas?.scene) {
 
     if (!changed) return false;
 
-    await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, { ...all, [scene.id]: forScene });
+    await writeLedger({ ...all, [scene.id]: forScene });
     debug(`Seeded the fog ledger with the rooms characters were already standing in on ${scene.name}.`);
     return true;
 }
@@ -928,7 +1119,7 @@ export async function setDiscovery(scene, { actorId = null, rooms = [], value } 
         forScene[id] = value ? Array.from(new Set(rooms)) : [];
     }
 
-    await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, { ...all, [scene.id]: forScene });
+    await writeLedger({ ...all, [scene.id]: forScene });
 }
 
 async function studentActorIds() {
@@ -1066,15 +1257,22 @@ let fogTexture = null;
  * What the fog was showing at the last successful paint.
  *
  * A repaint that produces the same picture is not free: it rebuilds two
- * textures and runs a 220ms dissolve between two identical states, and that is
+ * textures and runs an `ENTER()`-long dissolve between two identical states, and that is
  * a window in which nothing can change but anything can flicker. It also
  * happens constantly - a GM clears every room, so moving their Monokuma from
  * one to another changes where they ARE without changing one pixel of what is
  * covered.
  */
 let lastPaintSignature = "";
+/** The "can any region be read as a polygon" answer, per scene and region count (MAP-13). */
+let readableCache = { sceneId: null, count: -1, readable: 0 };
 
-/** The ledger as this GM last saw it, so growth in it can be noticed. */
+/**
+ * The ledger as this GM last saw it, so growth in it can be noticed - keyed by
+ * scene, because the rooms of one scene compared against the rooms of another
+ * are all "new", and the first paint after a scene switch played the
+ * five-second discovery curtain for a room found weeks ago.
+ */
 let lastLedgerSeen = null;
 
 /** Bumped by every dissolve; anything from an older one stands down. */
@@ -1085,7 +1283,8 @@ let dissolveGeneration = 0;
  *
  * They arrive in pairs on purpose - the move settles, and the GM's write comes
  * back through `SYNC.fog` about 120ms later - so a second repaint always landed
- * inside the first dissolve's 220ms window. Chaining them meant the second read
+ * inside the first dissolve's window (the interface's own enter time, 180ms).
+ * Chaining them meant the second read
  * the first's half-finished mix as its starting point, while the first was
  * still free to destroy that mix underneath it. Generations stopped them
  * corrupting each other; this stops them overlapping at all, which is the only
@@ -1130,10 +1329,12 @@ function dropSprite(sprite) {
     if (texture === fogTexture) fogTexture = null;
 }
 
-/** Does this viewer want animation kept to a minimum? */
-function reducedMotion() {
-    return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
-}
+/*
+ * `reducedMotion` comes from motion.mjs: it reads the module's own "Reduced
+ * motion" switch as well as the OS setting. A local copy here read only the
+ * OS, so the discovery curtain, the drift and the dissolve kept playing for a
+ * player who had asked the Look window for stillness.
+ */
 
 /**
  * A switch for every animated thing this layer does, and a way out of a bad
@@ -1251,67 +1452,33 @@ function watchdog(animation, ms, cleanUp) {
  * through slightly darker than the halfway point, which reads as the fog
  * settling rather than as a dissolve. What matters is that nothing jumps.
  */
-function swapInFog(container, texture, maskTexture, rect) {
-    const outgoing = container.children.filter(c => c.name === FOG_SPRITE);
-
-    const sprite = new PIXI.Sprite(texture);
-    sprite.name = FOG_SPRITE;
-    sprite.drpgTexture = texture;
-    sprite.drpgMaskTexture = maskTexture;
-    sprite.zIndex = 0;
-    // The texture starts a margin above and to the left of the scene rect.
-    sprite.position.set(-FOG_MARGIN, -FOG_MARGIN);
-    container.addChild(sprite);
-    container.position.set(rect.x, rect.y);
-    container.visible = true;
-    fogTexture = texture;
-
-    // The raster rides on the white silhouette, re-pointed here rather than
-    // rebuilt - that is what keeps its drift from snapping back to zero every
-    // time somebody walks through a door.
-    ensureRaster(container, maskTexture);
-
-    const finish = () => {
-        if (!sprite.destroyed) sprite.alpha = 1;
-        for (const old of outgoing) dropSprite(old);
-    };
-
-    // Nothing to fade from, or a viewer who has asked for no motion: swap
-    // outright. A first paint must never arrive as a fade-in from a clear map,
-    // which would show the whole scene for a fifth of a second.
-    if (!outgoing.length || motionOff()) return finish();
-
-    const previous = outgoing[outgoing.length - 1];
-    const previousTexture = previous?.drpgTexture ?? null;
-    const renderer = canvas?.app?.renderer;
-    if (!previousTexture || previousTexture.destroyed || !renderer) return finish();
-
-    /*
-     * A TRUE PER-PIXEL DISSOLVE, NOT TWO SPRITES AT PARTIAL ALPHA.
-     *
-     * The obvious cross-fade - old to zero, new from zero - DIPS. Two layers
-     * that each cover the same floor at half strength leave a quarter of it
-     * showing through, so every repaint flashed the map for a fifth of a
-     * second. Walking across a scene made the fog strobe.
-     *
-     * So the two states are mixed per pixel instead: erase `t` of the old, then
-     * ADD the new at `t`, which is exactly `old·(1−t) + new·t` and never lets
-     * the total drop below either end of the transition. Two blend modes, both
-     * already load-bearing in this file.
-     */
-    /*
-     * ONE DISSOLVE AT A TIME.
-     *
-     * Repaints arrive in bursts - the move settles, then the GM's write comes
-     * back through `SYNC.fog` a moment later - so two dissolves could overlap.
-     * Each held its own idea of which sprites were "the old ones", and whichever
-     * finished first destroyed the other's textures out from under it, leaving a
-     * full-screen sprite pointing at freed GPU memory. That is a black
-     * rectangle over the map with no error attached to it.
-     *
-     * A generation counter settles it: starting a dissolve invalidates every
-     * one before it, and a stale tick or clean-up does nothing at all.
-     */
+/*
+ * A TRUE PER-PIXEL DISSOLVE, NOT TWO SPRITES AT PARTIAL ALPHA.
+ *
+ * The obvious cross-fade - old to zero, new from zero - DIPS. Two layers
+ * that each cover the same floor at half strength leave a quarter of it
+ * showing through, so every repaint flashed the map for a fifth of a
+ * second. Walking across a scene made the fog strobe.
+ *
+ * So the two states are mixed per pixel instead: erase `t` of the old, then
+ * ADD the new at `t`, which is exactly `old·(1−t) + new·t` and never lets
+ * the total drop below either end of the transition. Two blend modes, both
+ * already load-bearing in this file.
+ */
+/*
+ * ONE DISSOLVE AT A TIME.
+ *
+ * Repaints arrive in bursts - the move settles, then the GM's write comes
+ * back through `SYNC.fog` a moment later - so two dissolves could overlap.
+ * Each held its own idea of which sprites were "the old ones", and whichever
+ * finished first destroyed the other's textures out from under it, leaving a
+ * full-screen sprite pointing at freed GPU memory. That is a black
+ * rectangle over the map with no error attached to it.
+ *
+ * A generation counter settles it: starting a dissolve invalidates every
+ * one before it, and a stale tick or clean-up does nothing at all.
+ */
+function startDissolve(container, { sprite, previous, previousTexture, texture, maskTexture, rect, renderer, finish }) {
     const generation = ++dissolveGeneration;
     dissolveBusy = true;
     let mixTexture = null;
@@ -1354,7 +1521,7 @@ function swapInFog(container, texture, maskTexture, rect) {
         previous.renderable = false;
         fogTexture = mixTexture;
         // The silhouette does not need dissolving: it is a faint texture's
-        // mask, and 220ms of the incoming shape is invisible on it.
+        // mask, and a fifth of a second of the incoming shape is invisible on it.
         ensureRaster(container, maskTexture);
 
         const state = { t: 0 };
@@ -1400,6 +1567,44 @@ function swapInFog(container, texture, maskTexture, rect) {
         if (!sprite.destroyed) sprite.renderable = true;
         finish();
     }
+}
+
+function swapInFog(container, texture, maskTexture, rect) {
+    const outgoing = container.children.filter(c => c.name === FOG_SPRITE);
+
+    const sprite = new PIXI.Sprite(texture);
+    sprite.name = FOG_SPRITE;
+    sprite.drpgTexture = texture;
+    sprite.drpgMaskTexture = maskTexture;
+    sprite.zIndex = 0;
+    // The texture starts a margin above and to the left of the scene rect.
+    sprite.position.set(-FOG_MARGIN, -FOG_MARGIN);
+    container.addChild(sprite);
+    container.position.set(rect.x, rect.y);
+    container.visible = true;
+    fogTexture = texture;
+
+    // The raster rides on the white silhouette, re-pointed here rather than
+    // rebuilt - that is what keeps its drift from snapping back to zero every
+    // time somebody walks through a door.
+    ensureRaster(container, maskTexture);
+
+    const finish = () => {
+        if (!sprite.destroyed) sprite.alpha = 1;
+        for (const old of outgoing) dropSprite(old);
+    };
+
+    // Nothing to fade from, or a viewer who has asked for no motion: swap
+    // outright. A first paint must never arrive as a fade-in from a clear map,
+    // which would show the whole scene for a fifth of a second.
+    if (!outgoing.length || motionOff()) return finish();
+
+    const previous = outgoing[outgoing.length - 1];
+    const previousTexture = previous?.drpgTexture ?? null;
+    const renderer = canvas?.app?.renderer;
+    if (!previousTexture || previousTexture.destroyed || !renderer) return finish();
+
+    startDissolve(container, { sprite, previous, previousTexture, texture, maskTexture, rect, renderer, finish });
 }
 
 /**
@@ -1500,8 +1705,6 @@ function armRendererFailsafe() {
     }
 }
 
-/** Resolve a CSS custom property to the integer PIXI wants. */
-/** The seam colour of the Stained Glass theme, read off the body where the theme sets it. */
 /**
  * The seam colour of the Stained Glass theme, read off the body where the theme
  * sets it.
@@ -1573,7 +1776,7 @@ export function diagnoseFog() {
     const regions = Array.from(scene?.regions ?? []).filter(r => r.name);
 
     const report = {
-        build: FOG_BUILD,
+        build: fogBuild(),
         settingOn: fogEnabled(),
         isGM: Boolean(game.user.isGM),
         canvasReady: Boolean(canvas?.ready),
@@ -1769,29 +1972,19 @@ export function doorwayReport() {
  * @param {number} [x] Scene x. Defaults to the cursor.
  * @param {number} [y] Scene y.
  */
-export function whatIsHere(x = null, y = null) {
-    const at = (x === null || y === null) ? canvas?.mousePosition : { x, y };
-    if (!at) {
-        console.log(`${MODULE_ID} | whatIsHere: no point to look at.`);
-        return null;
+/** Depth-first, by display-object name. */
+function findNamed(node, name) {
+    if (!node) return null;
+    if (node.name === name) return node;
+    for (const child of node.children ?? []) {
+        const hit = findNamed(child, name);
+        if (hit) return hit;
     }
+    return null;
+}
 
-    const grid = canvas?.grid?.size ?? 100;
-    const report = { at: { x: Math.round(at.x), y: Math.round(at.y) }, grid, found: [] };
-
-    const find = (node, name) => {
-        if (!node) return null;
-        if (node.name === name) return node;
-        for (const child of node.children ?? []) {
-            const hit = find(child, name);
-            if (hit) return hit;
-        }
-        return null;
-    };
-
-    /* ---- the outline: stroked chains, measured in scene units ------------- */
-    const group = find(canvas?.stage, "drpgRoomOutline");
-    report.room = roomOutline?.room ?? null;
+/** The stroked outline nearest the point, and whether the stroke covers it. */
+function nearestOutline(group, at, report) {
     const graphics = group?.children?.find(c => !c.texture && c.geometry);
     if (graphics) {
         let nearest = null;
@@ -1827,8 +2020,10 @@ export function whatIsHere(x = null, y = null) {
             if (report.outline.covers) report.found.push("room outline (a stroked line)");
         }
     }
+}
 
-    /* ---- the glow: one texture pixel, read ------------------------------- */
+/* ---- the glow: one texture pixel, read ------------------------------- */
+function glowAlphaAt(group, at, report) {
     const sprite = group?.children?.find(c => c.texture);
     if (sprite) {
         const px = Math.round(at.x - sprite.x);
@@ -1846,59 +2041,61 @@ export function whatIsHere(x = null, y = null) {
             }
         }
     }
+}
 
-    /* ---- the map underneath, so the answer can be acted on ---------------- */
-    const scene = canvas?.scene;
-    if (scene) {
-        let nearestBorder = null;
-        for (const region of scene.regions ?? []) {
-            if (!region.name) continue;
-            for (const flat of regionShapes(region, { x: 0, y: 0 })) {
-                for (let i = 0; i < flat.length; i += 2) {
-                    const j = (i + 2) % flat.length;
-                    const ax = flat[i], ay = flat[i + 1], bx = flat[j], by = flat[j + 1];
-                    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
-                    let t = ((at.x - ax) * dx + (at.y - ay) * dy) / l2;
-                    t = t < 0 ? 0 : t > 1 ? 1 : t;
-                    const d = Math.hypot(at.x - (ax + dx * t), at.y - (ay + dy * t));
-                    if (!nearestBorder || d < nearestBorder.distance) {
-                        nearestBorder = { room: region.name, distance: d };
-                    }
+/** The nearest room border to the point, in pixels and squares. */
+function nearestBorderTo(scene, at, grid, report) {
+    let nearestBorder = null;
+    for (const region of scene.regions ?? []) {
+        if (!region.name) continue;
+        for (const flat of regionShapes(region, { x: 0, y: 0 })) {
+            for (let i = 0; i < flat.length; i += 2) {
+                const j = (i + 2) % flat.length;
+                const ax = flat[i], ay = flat[i + 1], bx = flat[j], by = flat[j + 1];
+                const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
+                let t = ((at.x - ax) * dx + (at.y - ay) * dy) / l2;
+                t = t < 0 ? 0 : t > 1 ? 1 : t;
+                const d = Math.hypot(at.x - (ax + dx * t), at.y - (ay + dy * t));
+                if (!nearestBorder || d < nearestBorder.distance) {
+                    nearestBorder = { room: region.name, distance: d };
                 }
             }
         }
-        if (nearestBorder) {
-            report.border = { room: nearestBorder.room,
-                distance: Math.round(nearestBorder.distance * 10) / 10,
-                inSquares: Math.round(nearestBorder.distance / grid * 100) / 100 };
-        }
+    }
+    if (nearestBorder) {
+        report.border = { room: nearestBorder.room,
+            distance: Math.round(nearestBorder.distance * 10) / 10,
+            inSquares: Math.round(nearestBorder.distance / grid * 100) / 100 };
+    }
+}
 
-        let nearestWall = null;
-        for (const wall of scene.walls ?? []) {
-            const c = wall.c;
-            if (!c || c.length < 4) continue;
-            const dx = c[2] - c[0], dy = c[3] - c[1], l2 = dx * dx + dy * dy || 1;
-            let t = ((at.x - c[0]) * dx + (at.y - c[1]) * dy) / l2;
-            t = t < 0 ? 0 : t > 1 ? 1 : t;
-            const d = Math.hypot(at.x - (c[0] + dx * t), at.y - (c[1] + dy * t));
-            if (!nearestWall || d < nearestWall.distance) {
-                nearestWall = { distance: d, angle: Math.round(Math.atan2(dy, dx) * 180 / Math.PI) };
-            }
-        }
-        if (nearestWall) {
-            report.wall = { distance: Math.round(nearestWall.distance * 10) / 10, angle: nearestWall.angle };
+/** The nearest wall to the point, and the angle it runs at. */
+function nearestWallTo(scene, at, report) {
+    let nearestWall = null;
+    for (const wall of scene.walls ?? []) {
+        const c = wall.c;
+        if (!c || c.length < 4) continue;
+        const dx = c[2] - c[0], dy = c[3] - c[1], l2 = dx * dx + dy * dy || 1;
+        let t = ((at.x - c[0]) * dx + (at.y - c[1]) * dy) / l2;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const d = Math.hypot(at.x - (c[0] + dx * t), at.y - (c[1] + dy * t));
+        if (!nearestWall || d < nearestWall.distance) {
+            nearestWall = { distance: d, angle: Math.round(Math.atan2(dy, dx) * 180 / Math.PI) };
         }
     }
+    if (nearestWall) {
+        report.wall = { distance: Math.round(nearestWall.distance * 10) / 10, angle: nearestWall.angle };
+    }
+}
 
-    if (!report.found.length) report.found.push("nothing this module drew");
-
-    /*
-     * PRINTED FLAT AS WELL AS FOLDED. A console prints an object collapsed, and
-     * the answer this exists to give is then one click away from the person who
-     * needs it - which has now cost two round trips on the same question. The
-     * lines below are the whole finding; the object is still returned for
-     * anything that wants to read it.
-     */
+/*
+ * PRINTED FLAT AS WELL AS FOLDED. A console prints an object collapsed, and
+ * the answer this exists to give is then one click away from the person who
+ * needs it - which has now cost two round trips on the same question. The
+ * lines below are the whole finding; the object is still returned for
+ * anything that wants to read it.
+ */
+function printWhatIsHere(report, grid) {
     const lines = [
         `${MODULE_ID} | whatIsHere (${report.at.x}, ${report.at.y}) grid ${grid}`,
         `  drew it: ${report.found.join(", ")}`,
@@ -1920,6 +2117,36 @@ export function whatIsHere(x = null, y = null) {
     }
     if (report.wall) lines.push(`  nearest wall: ${report.wall.distance}px, at ${report.wall.angle}°`);
     console.log(lines.join("\n"));
+}
+
+export function whatIsHere(x = null, y = null) {
+    const at = (x === null || y === null) ? canvas?.mousePosition : { x, y };
+    if (!at) {
+        console.log(`${MODULE_ID} | whatIsHere: no point to look at.`);
+        return null;
+    }
+
+    const grid = canvas?.grid?.size ?? 100;
+    const report = { at: { x: Math.round(at.x), y: Math.round(at.y) }, grid, found: [] };
+
+    /* ---- the outline: stroked chains, measured in scene units ------------- */
+    const group = findNamed(canvas?.stage, "drpgRoomOutline");
+    report.room = roomOutline?.room ?? null;
+    nearestOutline(group, at, report);
+
+    glowAlphaAt(group, at, report);
+
+    /* ---- the map underneath, so the answer can be acted on ---------------- */
+    const scene = canvas?.scene;
+    if (scene) {
+        nearestBorderTo(scene, at, grid, report);
+        nearestWallTo(scene, at, report);
+    }
+
+    if (!report.found.length) report.found.push("nothing this module drew");
+
+    printWhatIsHere(report, grid);
+
 
     return report;
 }
@@ -1943,19 +2170,8 @@ export function whatIsHere(x = null, y = null) {
  *
  * @returns {Array<object>} one row per problem, worst first.
  */
-export function checkRegions() {
-    const scene = canvas?.scene;
-    if (!scene) {
-        console.log(`${MODULE_ID} | checkRegions: no scene is on the canvas.`);
-        return [];
-    }
-
-    const grid = canvas?.grid?.size ?? 100;
-    const walls = Array.from(scene.walls ?? []);
-    const findings = [];
-    const add = (level, room, problem, detail, at = null) =>
-        findings.push({ level, room, problem, detail, at });
-
+/** The regions that are rooms, with their polygons; the nameless and the shapeless are reported and skipped. */
+function namedRegions(scene, add) {
     const named = [];
     for (const region of scene.regions ?? []) {
         if (!region.name) {
@@ -1974,6 +2190,180 @@ export function checkRegions() {
         }
         named.push({ region, polys: shapes.map(f => new PIXI.Polygon(f)) });
     }
+    return named;
+}
+
+/* ---- 1. overlapping rooms - the first cause on the list --------------- */
+/*
+ * WITH A MARGIN, IN BOTH DIRECTIONS - and the margins are the engine's own,
+ * not a second set invented here.
+ *
+ * Asking a GM for pixel-perfect regions would be asking for something the
+ * code does not need. `doorwayEdges` samples a quarter of a square inside
+ * the border, so an overlap shallower than that is invisible to it; and it
+ * steps outward to nearly a full square looking for the neighbour, so two
+ * rooms may stand that far apart and still find each other. Anything inside
+ * those two figures is not a fault and is not reported.
+ *
+ * Depth, not area, is what decides. A hair-thin slice along a shared wall is
+ * a rounding artefact however long it runs; a shallow-but-wide overlap is
+ * the one that moves a border onto the neighbour's floor.
+ */
+function overlapCheck(named, grid, add) {
+    const tolerance = grid * DOORWAY_OVERLAP_INSET;
+    for (let i = 0; i < named.length; i++) {
+        for (let j = i + 1; j < named.length; j++) {
+            const hit = overlapArea(named[i].polys, named[j].polys, grid);
+            if (hit.area <= 0) continue;
+            if (hit.depth !== null && hit.depth < tolerance) continue;
+            const squares = hit.area / (grid * grid);
+            add("error", named[i].region.name, `Overlaps "${named[j].region.name}"`,
+                `About ${squares.toFixed(1)} grid square(s) of floor belong to both rooms`
+                + (hit.depth !== null ? `, reaching ${(hit.depth / grid).toFixed(1)} square(s) in` : "")
+                + ". Where they overlap, one room's border runs across the other's floor with no "
+                + "wall anywhere near it, and the whole shared border reads as one doorway. "
+                + "Rooms should touch; a sliver thinner than a quarter square is ignored.",
+                pointOf(named[i].region));
+        }
+    }
+}
+
+/*
+ * 2. BORDER DRAWN AWAY FROM ITS WALLS.
+ *
+ * Asked with the SAME predicate the doorway test uses, and that is the
+ * point: a validator measuring something slightly different can pass a
+ * scene whose glow still misbehaves.
+ *
+ * Measured as the longest CONTIGUOUS stretch, never as a total. Every
+ * room has border with no wall on it - that is what a doorway is - so a
+ * total flags every room on every map and says nothing. See
+ * ADRIFT_WARN_RUN for where the threshold comes from.
+ */
+function adriftCheck(region, edges, walls, grid, add) {
+    let adrift = 0;
+    let adriftAt = null;
+    let run = 0;
+    for (const edge of edges) {
+        if (!edge.length) continue;
+        const ex = edge.dx / edge.length;
+        const ey = edge.dy / edge.length;
+        const steps = Math.max(1, Math.round(edge.length / (grid * 0.25)));
+        for (let k = 0; k < steps; k++) {
+            const t = (k + 0.5) / steps;
+            const mx = edge.ax + edge.dx * t;
+            const my = edge.ay + edge.dy * t;
+            if (wallAlongEdge(mx, my, ex, ey, walls, grid * DOORWAY_WALL_NEAR, edge.trend)) {
+                run = 0;
+                continue;
+            }
+            run += edge.length / steps;
+            if (run > adrift) {
+                adrift = run;
+                adriftAt = { x: Math.round(mx), y: Math.round(my) };
+            }
+        }
+    }
+    if (adrift > grid * ADRIFT_WARN_RUN) {
+        add("warning", region.name, "Border runs away from the walls",
+            `${(adrift / grid).toFixed(1)} squares of border in one stretch have no wall `
+            + "alongside them. A border drawn away from the wall it describes is the second "
+            + "way a whole side of a room turns into a doorway - the wall is never found, so "
+            + "nothing closes it.", adriftAt);
+    }
+}
+
+/*
+ * 3. A ROOM WITH NO WAY OUT AT ALL.
+ *
+ * Found by walking every room on the QA scene rather than by reading
+ * the code: one of them reported not a single open stretch, and the
+ * reason was neither a wall nor an overlap - its region simply sits a
+ * full square from its neighbour's, and the neighbour probe reaches
+ * 0.95. Nothing was wrong with the walls; the two rooms had never been
+ * introduced.
+ *
+ * A player standing in a room the module says has no exit sees a closed
+ * box with no glow anywhere, which is indistinguishable from the fog
+ * being broken. Naming it is the difference between "this map has a
+ * gap" and "this feature does not work".
+ *
+ * Warning, not error: a genuinely sealed room is a thing a killing game
+ * may well want.
+ */
+function noWayOutCheck(scene, region, edges, grid, add) {
+    const openTotal = edges.reduce((a, e) =>
+        a + (e.open ?? []).reduce((b, [from, to]) => b + (to - from) * e.length, 0), 0);
+    if (edges.length && openTotal <= 0) {
+        const others = [];
+        for (const other of scene.regions ?? []) {
+            if (!other.name || other === region) continue;
+            others.push(regionShapes(other, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)));
+        }
+        const reach = grid * DOORWAY_PROBE_OUT;
+        const anyNeighbour = edges.some(e => {
+            const mx = e.ax + e.dx * 0.5;
+            const my = e.ay + e.dy * 0.5;
+            return Boolean(neighbourBeyond(mx, my, e.nx, e.ny, others, reach));
+        });
+        add("warning", region.name, "No way out",
+            anyNeighbour
+                ? "Every stretch of this room's border is walled, so nothing will glow as a "
+                  + "doorway. If that is deliberate, ignore it; if not, the door is missing."
+                : "No neighbouring room lies within reach of any part of this border - the "
+                  + "next region is more than a square away, so the two rooms never see each "
+                  + "other. Rooms should touch along the edge they share.",
+            pointOf(region));
+    }
+}
+
+/*
+ * 4. CORNERS OFF THE LATTICE - and the lattice is HALF a square.
+ *
+ * Foundry's region tools snap to half-grid, so a room drawn correctly
+ * has most of its corners on a half-square line and almost none on a
+ * whole one. Measured against whole squares this check fired on every
+ * room on the scene, which is a check that has learnt to cry wolf.
+ */
+function latticeCheck(region, polys, lattice, latticeOrigin, add) {
+    const tolerance = Math.max(1, lattice * 0.1);
+    let off = 0;
+    let worst = 0;
+    for (const poly of polys) {
+        const pts = poly.points ?? [];
+        for (let i = 0; i < pts.length; i += 2) {
+            const dx = gridOffset(pts[i], lattice, latticeOrigin);
+            const dy = gridOffset(pts[i + 1], lattice, latticeOrigin);
+            const d = Math.max(dx, dy);
+            if (d > tolerance) {
+                off++;
+                worst = Math.max(worst, d);
+            }
+        }
+    }
+    if (off) {
+        add("info", region.name, "Corners off the map's own lattice",
+            `${off} corner(s) sit up to ${Math.round(worst)}px off the half-square lattice `
+            + "the rest of this scene is drawn to. Draw with snapping on: a corner a "
+            + "fraction of a square out is invisible by eye and is enough to make two "
+            + "rooms overlap or miss.", pointOf(region));
+    }
+}
+
+export function checkRegions() {
+    const scene = canvas?.scene;
+    if (!scene) {
+        console.log(`${MODULE_ID} | checkRegions: no scene is on the canvas.`);
+        return [];
+    }
+
+    const grid = canvas?.grid?.size ?? 100;
+    const walls = Array.from(scene.walls ?? []);
+    const findings = [];
+    const add = (level, room, problem, detail, at = null) =>
+        findings.push({ level, room, problem, detail, at });
+
+    const named = namedRegions(scene, add);
 
     /*
      * WHERE THE LATTICE ACTUALLY IS, read off the map rather than assumed.
@@ -1993,163 +2383,21 @@ export function checkRegions() {
     const lattice = grid / 2;
     const latticeOrigin = commonestOffset(named, lattice);
 
-    /* ---- 1. overlapping rooms - the first cause on the list --------------- */
-    /*
-     * WITH A MARGIN, IN BOTH DIRECTIONS - and the margins are the engine's own,
-     * not a second set invented here.
-     *
-     * Asking a GM for pixel-perfect regions would be asking for something the
-     * code does not need. `doorwayEdges` samples a quarter of a square inside
-     * the border, so an overlap shallower than that is invisible to it; and it
-     * steps outward to nearly a full square looking for the neighbour, so two
-     * rooms may stand that far apart and still find each other. Anything inside
-     * those two figures is not a fault and is not reported.
-     *
-     * Depth, not area, is what decides. A hair-thin slice along a shared wall is
-     * a rounding artefact however long it runs; a shallow-but-wide overlap is
-     * the one that moves a border onto the neighbour's floor.
-     */
-    const tolerance = grid * DOORWAY_OVERLAP_INSET;
-    for (let i = 0; i < named.length; i++) {
-        for (let j = i + 1; j < named.length; j++) {
-            const hit = overlapArea(named[i].polys, named[j].polys, grid);
-            if (hit.area <= 0) continue;
-            if (hit.depth !== null && hit.depth < tolerance) continue;
-            const squares = hit.area / (grid * grid);
-            add("error", named[i].region.name, `Overlaps "${named[j].region.name}"`,
-                `About ${squares.toFixed(1)} grid square(s) of floor belong to both rooms`
-                + (hit.depth !== null ? `, reaching ${(hit.depth / grid).toFixed(1)} square(s) in` : "")
-                + ". Where they overlap, one room's border runs across the other's floor with no "
-                + "wall anywhere near it, and the whole shared border reads as one doorway. "
-                + "Rooms should touch; a sliver thinner than a quarter square is ignored.",
-                pointOf(named[i].region));
-        }
-    }
+    overlapCheck(named, grid, add);
 
     /* ---- 2..4 - per room, measured off the same edges the fog uses -------- */
     for (const { region, polys } of named) {
         const edges = doorwayEdges(region);
 
-        /*
-         * 2. BORDER DRAWN AWAY FROM ITS WALLS.
-         *
-         * Asked with the SAME predicate the doorway test uses, and that is the
-         * point: a validator measuring something slightly different can pass a
-         * scene whose glow still misbehaves.
-         *
-         * Measured as the longest CONTIGUOUS stretch, never as a total. Every
-         * room has border with no wall on it - that is what a doorway is - so a
-         * total flags every room on every map and says nothing. See
-         * ADRIFT_WARN_RUN for where the threshold comes from.
-         */
-        let adrift = 0;
-        let adriftAt = null;
-        let run = 0;
-        for (const edge of edges) {
-            if (!edge.length) continue;
-            const ex = edge.dx / edge.length;
-            const ey = edge.dy / edge.length;
-            const steps = Math.max(1, Math.round(edge.length / (grid * 0.25)));
-            for (let k = 0; k < steps; k++) {
-                const t = (k + 0.5) / steps;
-                const mx = edge.ax + edge.dx * t;
-                const my = edge.ay + edge.dy * t;
-                if (wallAlongEdge(mx, my, ex, ey, walls, grid * DOORWAY_WALL_NEAR, edge.trend)) {
-                    run = 0;
-                    continue;
-                }
-                run += edge.length / steps;
-                if (run > adrift) {
-                    adrift = run;
-                    adriftAt = { x: Math.round(mx), y: Math.round(my) };
-                }
-            }
-        }
-        if (adrift > grid * ADRIFT_WARN_RUN) {
-            add("warning", region.name, "Border runs away from the walls",
-                `${(adrift / grid).toFixed(1)} squares of border in one stretch have no wall `
-                + "alongside them. A border drawn away from the wall it describes is the second "
-                + "way a whole side of a room turns into a doorway - the wall is never found, so "
-                + "nothing closes it.", adriftAt);
-        }
-
-        /*
-         * 3. A ROOM WITH NO WAY OUT AT ALL.
-         *
-         * Found by walking every room on the QA scene rather than by reading
-         * the code: one of them reported not a single open stretch, and the
-         * reason was neither a wall nor an overlap - its region simply sits a
-         * full square from its neighbour's, and the neighbour probe reaches
-         * 0.95. Nothing was wrong with the walls; the two rooms had never been
-         * introduced.
-         *
-         * A player standing in a room the module says has no exit sees a closed
-         * box with no glow anywhere, which is indistinguishable from the fog
-         * being broken. Naming it is the difference between "this map has a
-         * gap" and "this feature does not work".
-         *
-         * Warning, not error: a genuinely sealed room is a thing a killing game
-         * may well want.
-         */
-        const openTotal = edges.reduce((a, e) =>
-            a + (e.open ?? []).reduce((b, [from, to]) => b + (to - from) * e.length, 0), 0);
-        if (edges.length && openTotal <= 0) {
-            const others = [];
-            for (const other of scene.regions ?? []) {
-                if (!other.name || other === region) continue;
-                others.push(regionShapes(other, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)));
-            }
-            const reach = grid * DOORWAY_PROBE_OUT;
-            const anyNeighbour = edges.some(e => {
-                const mx = e.ax + e.dx * 0.5;
-                const my = e.ay + e.dy * 0.5;
-                return Boolean(neighbourBeyond(mx, my, e.nx, e.ny, others, reach));
-            });
-            add("warning", region.name, "No way out",
-                anyNeighbour
-                    ? "Every stretch of this room's border is walled, so nothing will glow as a "
-                      + "doorway. If that is deliberate, ignore it; if not, the door is missing."
-                    : "No neighbouring room lies within reach of any part of this border - the "
-                      + "next region is more than a square away, so the two rooms never see each "
-                      + "other. Rooms should touch along the edge they share.",
-                pointOf(region));
-        }
+        adriftCheck(region, edges, walls, grid, add);
+        noWayOutCheck(scene, region, edges, grid, add);
 
         // 3. (there is no check on how LONG an opening is. A doorway has no
         //     upper size - see ADRIFT_WARN_RUN. A border that has wandered off
         //     its wall is caught above, which is the fault that check was
         //     standing in for.)
 
-        /*
-         * 4. CORNERS OFF THE LATTICE - and the lattice is HALF a square.
-         *
-         * Foundry's region tools snap to half-grid, so a room drawn correctly
-         * has most of its corners on a half-square line and almost none on a
-         * whole one. Measured against whole squares this check fired on every
-         * room on the scene, which is a check that has learnt to cry wolf.
-         */
-        const tolerance = Math.max(1, lattice * 0.1);
-        let off = 0;
-        let worst = 0;
-        for (const poly of polys) {
-            const pts = poly.points ?? [];
-            for (let i = 0; i < pts.length; i += 2) {
-                const dx = gridOffset(pts[i], lattice, latticeOrigin);
-                const dy = gridOffset(pts[i + 1], lattice, latticeOrigin);
-                const d = Math.max(dx, dy);
-                if (d > tolerance) {
-                    off++;
-                    worst = Math.max(worst, d);
-                }
-            }
-        }
-        if (off) {
-            add("info", region.name, "Corners off the map's own lattice",
-                `${off} corner(s) sit up to ${Math.round(worst)}px off the half-square lattice `
-                + "the rest of this scene is drawn to. Draw with snapping on: a corner a "
-                + "fraction of a square out is invisible by eye and is enough to make two "
-                + "rooms overlap or miss.", pointOf(region));
-        }
+        latticeCheck(region, polys, lattice, latticeOrigin, add);
     }
 
     const order = { error: 0, warning: 1, info: 2 };
@@ -2338,7 +2586,7 @@ export function whyBlack() {
     const dims = canvas?.dimensions;
 
     const report = {
-        build: FOG_BUILD,
+        build: fogBuild(),
         animationsOn,
         scene: `${canvas?.scene?.name} ${Math.round(dims?.rect?.width ?? 0)}x${Math.round(dims?.rect?.height ?? 0)}`,
         layer: describe(container),
@@ -2359,9 +2607,82 @@ export function whyBlack() {
  *
  * Not incremental on purpose: this only runs on the short list of triggers in
  * `registerFog`, none of them per-frame, so rebuilding is a handful of times
- * per minute at most, never a handful of times per second - see the header
- * note on why this is not hooked to `refreshToken`.
+ * per minute at most, never a handful of times per second. That is why it
+ * hangs off `updateToken`, `createToken` and `deleteToken` rather than the
+ * per-frame `refreshToken`: a rebuild per frame would be a rebuild per
+ * animation step of every token on the scene.
  */
+/*
+ * THE ECLIPSE DIMS EVERYTHING AND CLEARS NOTHING.
+ *
+ * This used to make the fog step aside entirely, on the reasoning that
+ * `visibility.mjs` already hides every token - which left the whole map
+ * uncovered and merely darkened, handing every player the layout of
+ * rooms they had never been in. An Eclipse is the least, not the most,
+ * a player should be able to see.
+ *
+ * So no room counts as CURRENT while one is running: rooms you know
+ * drop to the veil, the room you are standing in included, and rooms
+ * you have never entered stay under full fog. It costs one line,
+ * because "current" was always the only thing that cleared anything.
+ */
+/*
+ * TWO DIFFERENT QUESTIONS, AND FOR A GM THEY HAVE DIFFERENT ANSWERS.
+ *
+ * `mine` is WHERE I AM - it drives the outline and the room name, and
+ * for a GM that is wherever their Monokuma stands. `current` is WHAT IS
+ * CLEARED, and a GM clears every room on the map: they are running the
+ * scene and need to see all of it, tokens included. The fog is there
+ * for them only so that the space belonging to no room reads the same
+ * on their screen as on everybody else's, which is the whole of what
+ * this was ever meant to give them.
+ */
+function fogSets(scene) {
+    const mine = myCurrentRooms();
+    const discovered = myDiscoveredRooms(scene);
+
+    let current;
+    if (game.user.isGM) current = ledgerRooms(scene);
+    else if (isEclipse()) current = new Set();
+    else current = mine;
+
+    /*
+     * A ROOM THE CLASS HAS JUST FOUND OPENS FOR THE GM TOO.
+     *
+     * They do not walk into it, so nothing about their own tokens can
+     * announce it - the signal is the ledger growing, which reaches this
+     * client through `SYNC.fog` like any other world change. The first
+     * paint of a session seeds the comparison silently, or logging in would
+     * replay every discovery the season has ever made.
+     */
+    let opened = [];
+    if (game.user.isGM) {
+        if (lastLedgerSeen?.sceneId === scene.id) {
+            opened = Array.from(current).filter(room => !lastLedgerSeen.rooms.has(room));
+        }
+        lastLedgerSeen = { sceneId: scene.id, rooms: new Set(current) };
+    }
+    // The room you are standing in is VEILED during an Eclipse, not left
+    // under full fog: nothing is cleared, but you can still see the floor
+    // you are on. Adding it to the known set is all that takes, since a
+    // known room that is not current is exactly what the veil is for.
+    if (isEclipse() && !game.user.isGM) for (const room of mine) discovered.add(room);
+    return { mine, discovered, current, opened };
+}
+
+// Everything that is NOT a fog sprite goes now - leftovers from a
+// discovery animation, say. The fog sprites themselves are handed to
+// `swapInFog`, which fades the old one out rather than cutting it.
+function clearLayerLeftovers(container) {
+    for (const child of [...container.children]) {
+        if (child.name === FOG_SPRITE) continue;
+        if (child.name === RASTER_GROUP || child.name === RASTER_MASK) continue;
+        if (child.name === FX_GROUP) continue;
+        container.removeChild(child);
+        child.destroy({ children: true });
+    }
+}
+
 export function repaintFog() {
     try {
         if (dissolveBusy) {
@@ -2396,67 +2717,23 @@ export function repaintFog() {
         // behind a state nothing is able to lift. Standing down shows the map
         // as Foundry would - wrong, but visibly wrong, and with a reason
         // `diagnoseFog()` can read out.
-        const readable = regions.filter(r => regionShapes(r, rect).length).length;
+        // Not repeated on every `createToken`/`deleteToken` of anything on the
+        // map (MAP-13): the pass walks every polygon of every region, and the
+        // answer only changes when the scene or its region count does.
+        let readable;
+        if (readableCache.sceneId === scene.id && readableCache.count === regions.length) {
+            readable = readableCache.readable;
+        } else {
+            readable = regions.filter(r => regionShapes(r, rect).length).length;
+            readableCache = { sceneId: scene.id, count: regions.length, readable };
+        }
         if (!readable) {
             warn("Fog: no room geometry could be read on this scene, so nothing was fogged. "
                 + "The Regions may be drawn in a shape the module cannot measure.");
             return stand("regions exist but none exposed usable polygons");
         }
 
-        /*
-         * THE ECLIPSE DIMS EVERYTHING AND CLEARS NOTHING.
-         *
-         * This used to make the fog step aside entirely, on the reasoning that
-         * `visibility.mjs` already hides every token - which left the whole map
-         * uncovered and merely darkened, handing every player the layout of
-         * rooms they had never been in. An Eclipse is the least, not the most,
-         * a player should be able to see.
-         *
-         * So no room counts as CURRENT while one is running: rooms you know
-         * drop to the veil, the room you are standing in included, and rooms
-         * you have never entered stay under full fog. It costs one line,
-         * because "current" was always the only thing that cleared anything.
-         */
-        /*
-         * TWO DIFFERENT QUESTIONS, AND FOR A GM THEY HAVE DIFFERENT ANSWERS.
-         *
-         * `mine` is WHERE I AM - it drives the outline and the room name, and
-         * for a GM that is wherever their Monokuma stands. `current` is WHAT IS
-         * CLEARED, and a GM clears every room on the map: they are running the
-         * scene and need to see all of it, tokens included. The fog is there
-         * for them only so that the space belonging to no room reads the same
-         * on their screen as on everybody else's, which is the whole of what
-         * this was ever meant to give them.
-         */
-        const mine = myCurrentRooms();
-        const discovered = myDiscoveredRooms(scene);
-
-        let current;
-        if (game.user.isGM) current = ledgerRooms(scene);
-        else if (isEclipse()) current = new Set();
-        else current = mine;
-
-        /*
-         * A ROOM THE CLASS HAS JUST FOUND OPENS FOR THE GM TOO.
-         *
-         * They do not walk into it, so nothing about their own tokens can
-         * announce it - the signal is the ledger growing, which reaches this
-         * client through `SYNC.fog` like any other world change. The first
-         * paint of a session seeds the comparison silently, or logging in would
-         * replay every discovery the season has ever made.
-         */
-        let opened = [];
-        if (game.user.isGM) {
-            if (lastLedgerSeen) {
-                opened = Array.from(current).filter(room => !lastLedgerSeen.has(room));
-            }
-            lastLedgerSeen = new Set(current);
-        }
-        // The room you are standing in is VEILED during an Eclipse, not left
-        // under full fog: nothing is cleared, but you can still see the floor
-        // you are on. Adding it to the known set is all that takes, since a
-        // known room that is not current is exactly what the veil is for.
-        if (isEclipse() && !game.user.isGM) for (const room of mine) discovered.add(room);
+        const { mine, discovered, current, opened } = fogSets(scene);
         const ink = colourOf("--drpg-ink", 0x1a1620);
 
         // Nothing to do if the picture would come out the same. The layer has
@@ -2469,6 +2746,11 @@ export function repaintFog() {
             Array.from(current).sort().join(","),
             Array.from(discovered).sort().join(",")
         ].join("|");
+
+        // Before the "unchanged" shortcut: a GM's signature does not depend on
+        // where their Monokuma stands, so a walk from a room into a corridor
+        // left that room's outline, name and glow standing until the next paint.
+        if (roomOutline && !mine.has(roomOutline.room)) fadeRoomOutline();
 
         if (signature === lastPaintSignature && findLayer()?.visible) {
             lastFogReason = `unchanged: ${lastFogReason}`;
@@ -2497,20 +2779,17 @@ export function repaintFog() {
             return stand("the fog layer could not be mounted on the canvas");
         }
 
-        // Everything that is NOT a fog sprite goes now - leftovers from a
-        // discovery animation, say. The fog sprites themselves are handed to
-        // `swapInFog`, which fades the old one out rather than cutting it.
-        for (const child of [...container.children]) {
-            if (child.name === FOG_SPRITE) continue;
-            if (child.name === RASTER_GROUP || child.name === RASTER_MASK) continue;
-            if (child.name === FX_GROUP) continue;
-            container.removeChild(child);
-            child.destroy({ children: true });
-        }
+        clearLayerLeftovers(container);
         swapInFog(container, built.texture, built.maskTexture, rect);
         // The Eclipse's own dimming stands down while this is on - see the
         // ECLIPSE section of danganronpa.css.
-        document.body.classList.add("drpg-fog-active");
+        /* `toggle(name, true)`, not `add(name)`: in Chromium `add` queues a MutationRecord
+           even when the token is already there, and this runs on every repaint of the fog -
+           every step a token takes. Three observers in this module watch the body's `class`,
+           one of which repaints every Remnant ring on the canvas, so the fog was waking the
+           rings for a class it had already set. Measured and written up at the matching line
+           in glass.mjs (`drpg-curtain-on`). */
+        document.body.classList.toggle("drpg-fog-active", true);
 
         // The outline belongs to the room you are IN. Leaving it - for another
         // room, for a corridor, for nowhere at all - ends it. Measured against
@@ -2537,6 +2816,8 @@ export function repaintFog() {
 function stand(reason) {
     lastFogReason = reason;
     lastPaintSignature = "";
+    lastLedgerSeen = null;
+    readableCache = { sceneId: null, count: -1, readable: 0 };
     hideLayer();
     return false;
 }
@@ -2962,7 +3243,7 @@ function pinToScreen(group) {
         const parent = this.parent;
         if (parent) {
             try {
-                this.transform.setFromMatrix(parent.worldTransform.clone().invert());
+                this.transform.setFromMatrix((scratchMatrix ??= new PIXI.Matrix()).copyFrom(parent.worldTransform).invert());
             } catch {
                 // A degenerate matrix - a zero scale mid-transition, say. Leave
                 // the last good transform rather than throwing inside a render.
@@ -2977,6 +3258,22 @@ function pinToScreen(group) {
 let driftTick = null;
 /** Shared by the fog's raster and the backdrop's, so they never drift apart. */
 const driftOffset = { dots: { x: 0, y: 0 }, lines: { x: 0, y: 0 } };
+
+/**
+ * The ink colour, re-read from the stylesheet at most twice a second rather
+ * than on every frame (MAP-07): `getComputedStyle` is a synchronous style
+ * read, and the ticker was paying for one per frame for a value that changes
+ * with the theme and the time of day - a few times a session.
+ */
+let inkCache = { at: 0, value: 0x1a1620 };
+function inkColour() {
+    const now = Date.now();
+    if (now - inkCache.at > 500) inkCache = { at: now, value: colourOf("--drpg-ink", 0x1a1620) };
+    return inkCache.value;
+}
+
+/** One scratch matrix for `pinToScreen`, instead of a clone per frame per group. Made on first use, after PIXI is up. */
+let scratchMatrix = null;
 
 /*
  * THE TICKER RUNS EVEN WHEN NOTHING IS DRIFTING.
@@ -3042,11 +3339,20 @@ function startDrift() {
 
                 if (sprite instanceof PIXI.Graphics) {
                     // The backdrop's own ground, so this never depends on the
-                    // renderer's clear colour being what we left it.
-                    sprite.clear();
-                    sprite.beginFill(colourOf("--drpg-ink", 0x1a1620), 1);
-                    sprite.drawRect(0, 0, width, height);
-                    sprite.endFill();
+                    // renderer's clear colour being what we left it. Redrawn
+                    // only when its size or colour changed (MAP-07): a
+                    // `clear`/`drawRect` per frame rebuilt and re-uploaded the
+                    // geometry sixty times a second for a rectangle that
+                    // changes a few times a session.
+                    const ink = inkColour();
+                    const drawn = sprite.drpgDrawn;
+                    if (!drawn || drawn.w !== width || drawn.h !== height || drawn.ink !== ink) {
+                        sprite.clear();
+                        sprite.beginFill(ink, 1);
+                        sprite.drawRect(0, 0, width, height);
+                        sprite.endFill();
+                        sprite.drpgDrawn = { w: width, h: height, ink };
+                    }
                     continue;
                 }
 
@@ -3075,7 +3381,8 @@ function stopDrift() {
 
 /**
  * A small clear disc under each of this viewer's own character tokens, in the
- * layer's coordinate space. See pass 4 above for why.
+ * layer's coordinate space. Recorded for `diagnoseFog` alone: the drawing no
+ * longer cuts holes for them (the reveal texture covers the viewer's rooms).
  *
  * A token the GM has hidden outright is skipped: that control means "this is
  * not on the map", and cutting a hole around it would announce where it stands.
@@ -3162,7 +3469,12 @@ function clearLayer(container) {
         // memory for a frame.
         if (child.name === RASTER_GROUP) child.mask = null;
         if (child.name === FOG_SPRITE) dropSprite(child);
-        else child.destroy({ children: true });
+        else {
+            // The FX group's doorway glow owns a render texture that only
+            // `freeOwned` releases; `destroy` alone leaked one per scene change.
+            freeOwned(child);
+            child.destroy({ children: true });
+        }
     }
     fogTexture = null;
 }
@@ -3428,7 +3740,11 @@ function roomEnteredByMe(tokenDoc) {
     // Nothing is ever new to a GM - they know every room on the map, so a
     // Monokuma walking into one gets the outline and the name and none of the
     // five seconds of curtain that discovering a room is worth.
+    // The Mastermind's rows are never written to the ledger (their walks are
+    // nobody's business), so for them "discovered" would read empty in every
+    // room and the curtain would play in rooms their own fog already shows.
     const seen = game.user.isGM
+        || iAmTheMastermind()
         || discoveredFor(scene.id, actor.id).includes(room)
         || animatedAlready.has(key);
     if (!seen) animatedAlready.add(key);
@@ -3562,76 +3878,13 @@ function bandQuad(cA, cB, tMin, tMax) {
     return [cA, tMin, cB, tMin, cB, tMax, cA, tMax];
 }
 
-function playDiscoveryAnimation(room, tokenDoc) {
-    // Same rule as `announceRoom`: the sound belongs to the discovery, not to
-    // this client's ability to animate it.
-    playSfx("roomDiscovered");
-
-    const fx = fxLayer();
-    const scene = canvas?.scene;
-    if (!fx || !scene) return;
-
-    const region = Array.from(scene.regions ?? []).find(r => r.name === room);
-    if (!region) return;
-
-    const dims = canvas.dimensions;
-    const rect = dims?.rect ?? { x: 0, y: 0 };
-    const bounds = boundsOf(region);
-    const renderer = canvas?.app?.renderer;
-
-    // No measurable shape, no renderer, or a viewer who has asked for no
-    // motion: the room is already clear underneath, so just name it.
-    if (!bounds || !renderer || motionOff()) {
-        flashOutline(fx, region, rect);
-        return;
-    }
-
-    // Never two reveals over one another: walking briskly through three new
-    // rooms used to stack three room-sized overlays, each with its own timing.
-    // Outlines are spared - the one being left still has to fade.
-    clearReveals();
-
-    const ink = colourOf("--drpg-ink", 0x1a1620);
-    /* THE SAME READING `flashOutline` MAKES, AND FOR THE SAME REASON: the setting first,
-       the class as the fallback. A reveal can be the first thing a session draws. */
-    const glass = getSetting(SETTINGS.theme) === "stainedGlass"
-        || document.body.classList.contains("drpg-theme-stained-glass");
-    /* The reveal's own lines take the seam colour too, because `flashOutline` runs INSIDE the
-       reveal rather than after it - the file's rule for itself here is one gesture in one
-       colour rather than three things taking turns. Left at bone these would be white lines
-       with an accent-coloured border drawn straight across them for five seconds, which is
-       exactly what that rule forbids. Unlike the standing outline this is baked into a render
-       texture and destroyed when the reveal ends, so it is deliberately NOT wired into
-       `recolourRoomOutline`: it has no handle to recolour and never lives long enough to go
-       stale by more than its own run. */
-    const bone = outlineColour();
-    const grid = canvas.grid?.size ?? 100;
-
-    const width = Math.max(1, Math.ceil(bounds.w));
-    const height = Math.max(1, Math.ceil(bounds.h));
-    const resolution = Math.min(1, 1024 / Math.max(width, height));
-
-    /*
-     * A SEAM UNDER STAINED GLASS, THE 26.08 PIXEL LINE UNDER LEGACY.
-     *
-     * `grid * 0.07` is a 7 px bar at grid 100 - the pixel-art register the reveal was drawn
-     * in, and Legacy keeps it. Under this theme the lines are the same thing the room border
-     * and the curtain draw, and they are it exactly: `seamWidth()`, one display pixel, the
-     * same call `flashOutline` makes.
-     *
-     * A TWO-TEXEL FLOOR STOOD HERE AND IT WAS THE BUG (Dawid, 08.09: "wydaja sie za grube").
-     * The lines were baked into a render texture, and a texture whose `resolution` drops to
-     * 0.25 on a wide room cannot carry a line thinner than four scene units - so the floor
-     * was raised to two texels and the line came out at up to five times the border it was
-     * quoting, thickest exactly where the room was biggest. The floor is gone because the
-     * texture is gone: under this theme the lines are STROKED INTO THE SCENE GRAPH under a
-     * mask, like the border, where a hairline is a hairline at any zoom and any room size.
-     */
-    const lineWidth = glass ? seamWidth() : Math.max(2, grid * 0.07);
-    /* The curtain's three glow passes, quoted from `flashOutline`: widths as multiples of
-       the core, and the alphas that go with them. */
-    const GLOW = [[2.6, 0.46], [1.8, 0.50], [1.2, 0.58]];
-
+/**
+ * Everything the reveal draws with: the fog and its cut, the lines (a texture under
+ * Legacy, geometry under a mask under Stained Glass) and one sheet per stain colour,
+ * built, placed and added to the layer. Answers null when any of it could not be
+ * made, with everything it did make already destroyed.
+ */
+function buildRevealLayers(fx, { region, bounds, rect, glass, ink, bone, lineWidth, width, height, resolution, stains }) {
     /*
      * TWO TEXTURES, BOTH THE SIZE OF THE ROOM'S BOUNDING BOX.
      *
@@ -3674,21 +3927,6 @@ function playDiscoveryAnimation(room, tokenDoc) {
      * passes exist to give the bloom something to be made of.
      */
     let lineLayer = null, lineMask = null, lineCore = null, lineHalo = null;
-    /*
-     * THE SPACES BETWEEN THE LINES ARE PANES, AND A PANE ON THE CURTAIN CARRIES A STAIN.
-     *
-     * One texture per stain colour, because a texture is filled ONCE with one colour and
-     * then cut - the file's one reliable way to keep a shape inside the room (see the note
-     * on the two textures above). Two of them, because the curtain's palette is two:
-     * `STAIN` in glass.mjs, quoted here rather than exported because it lives inside the
-     * curtain's own closure. Each is cut to the bands drawn in its colour, so between them
-     * they paint every stained band and nothing else.
-     */
-    const STAIN = [0x5c1238, 0x142a66];
-    const stains = glass ? STAIN.map(colour => ({
-        colour, scratch: new PIXI.Container(), fill: new PIXI.Graphics(),
-        cut: new PIXI.Graphics(), tex: null, sprite: null
-    })) : [];
 
     try {
         const shapes = regionShapes(region, { x: bounds.x, y: bounds.y });
@@ -3769,6 +4007,8 @@ function playDiscoveryAnimation(room, tokenDoc) {
            on top - the one thing that must stay a hard edge. */
         fx.addChild(fogSprite, ...stains.map(s => s.sprite));
         fx.addChild(lineLayer ?? lineSprite);
+        return { fogScratch, fogFill, fogCut, lineScratch, lineFill, lineCut, fogTex, lineTex,
+                 fogSprite, lineSprite, lineLayer, lineMask, lineCore, lineHalo };
     } catch (err) {
         debug("Fog: could not set up the reveal", err);
         fogScratch.destroy({ children: true });
@@ -3777,10 +4017,12 @@ function playDiscoveryAnimation(room, tokenDoc) {
         for (const texture of [fogTex, lineTex, ...stains.map(s => s.tex)]) if (texture && !texture.destroyed) texture.destroy(true);
         for (const sprite of [fogSprite, lineSprite, ...stains.map(s => s.sprite)]) if (sprite && !sprite.destroyed) sprite.destroy();
         if (lineLayer && !lineLayer.destroyed) lineLayer.destroy({ children: true });
-        flashOutline(fx, region, rect);
-        return;
+        return null;
     }
+}
 
+/** Where the lines stand at rest, in pairs about the middle, and which band between them carries which stain. */
+function revealBandPlan(room, { width, height, grid, lineWidth }) {
     // Everything below is in the textures' own space. Every point on a
     // 45-degree line shares `x + y`, so one number places a line.
     // `c` is simply x now: a band is a vertical strip. See `bandQuad`.
@@ -3835,6 +4077,302 @@ function playDiscoveryAnimation(room, tokenDoc) {
         const h = x - Math.floor(x);
         bandStain[i] = h > 0.66 ? (h > 0.83 ? 1 : 0) : -1;
     }
+    return { cMax, cMid, cLow, cHigh, perSide, pitch, rest, lines, tMin, tMax, seed, bandStain };
+}
+
+/** Take the reveal down: scratch containers, the line layer, then sprites, then textures. */
+function destroyRevealLayers(L, stains) {
+    const { fogScratch, lineScratch, lineLayer, fogSprite, lineSprite, fogTex, lineTex } = L;
+    fogScratch.destroy({ children: true });
+    lineScratch.destroy({ children: true });
+    for (const stain of stains) stain.scratch.destroy({ children: true });
+    if (lineLayer && !lineLayer.destroyed) lineLayer.destroy({ children: true });
+    /* Sprites first, textures after: a texture freed while a sprite still holds it is a
+       sprite drawing from nothing. */
+    for (const sprite of [fogSprite, lineSprite, ...stains.map(s => s.sprite)]) {
+        if (sprite && !sprite.destroyed) sprite.destroy();
+    }
+    for (const texture of [fogTex, lineTex, ...stains.map(s => s.tex)]) {
+        if (texture && !texture.destroyed) texture.destroy(true);
+    }
+}
+
+/** Where every line is on this frame, how much of it is drawn, and how far the curtain has opened. */
+function revealLinePositions(t, plan, { slashEnd, holdEnd, height }) {
+    const { rest, lines, tMin, tMax, cMid, pitch } = plan;
+    let opening = 0;                    // half-width of the opened band
+    const at = new Array(lines);
+    // The stretch of each line that is currently drawn. `tMin` is the
+    // top of the drawn area and `tMax` the bottom, so a line running
+    // from one to the other is at full height.
+    const top = new Array(lines).fill(tMin);
+    const bottom = new Array(lines).fill(tMax);
+
+    if (t < slashEnd) {
+        /*
+         * THE CUT - UP FROM THE FLOOR, not in from the side.
+         *
+         * The lines stand where they will end up and grow upward out of
+         * the bottom edge of the room. Sliding them in sideways was the
+         * first version and it fought the geometry: these are vertical
+         * lines, so travelling along their own axis is the one
+         * direction in which they cannot be seen to move at all, and
+         * every other direction reads as drift rather than as a cut.
+         *
+         * Sharper than a quartic: almost the whole distance is covered
+         * in the first third of the phase, then it glides in. The
+         * contrast between those two speeds IS the cut. Staggered by
+         * index, so the room is struck rather than curtained.
+         */
+        for (let i = 0; i < lines; i++) {
+            at[i] = rest[i];
+            const local = clamp01((t / slashEnd - (i / lines) * 0.45) / 0.55);
+            const travel = 1 - Math.pow(1 - local, 2);
+
+            // SHORT BARS, so the arrival is visible at all.
+            //
+            // Everything here is clipped to the room's own shape, which
+            // means a bar reaching past the bottom wall has its lower
+            // end hidden and only its tip to show for itself - and a
+            // tip climbing a wall looks exactly like a line growing out
+            // of the floor, whatever it is really doing. A bar shorter
+            // than the room keeps both ends inside it, and then you can
+            // see the thing travel.
+            const bar = (tMax - tMin) * 0.30;
+            top[i] = Math.max(tMin, height - (height - tMin) * travel);
+
+            // The trailing end catches up over the second half, so the
+            // bars are at full height by the time the pause begins.
+            const settle = clamp01((travel - 0.5) / 0.5);
+            bottom[i] = top[i] + bar + (tMax - top[i] - bar) * settle;
+        }
+    } else if (t < holdEnd) {
+        // THE PAUSE. Nothing moves; the room is still shut.
+        for (let i = 0; i < lines; i++) at[i] = rest[i];
+    } else {
+        /*
+         * THE CURTAIN. Every line leaves through the same edge, and
+         * they all arrive there together - so a line that starts near
+         * the middle has further to travel and therefore MOVES FASTER
+         * than one already near the wall. That is what makes it read as
+         * a curtain being drawn rather than a block sliding apart.
+         *
+         * The opening is the position of the INNERMOST line, which is
+         * why no line is ever crossed by the reveal: for any two lines,
+         * the gap between them closes only as `q` runs out.
+         */
+        /*
+         * EASE IN AND OUT, QUINTIC. A pure ease-out started at full
+         * speed, which meant the curtain was already moving fastest at
+         * the instant the pause ended - no gathering, no release. This
+         * holds still for a beat, throws the lines apart through the
+         * middle, and settles them at the wall. Same duration, far more
+         * difference between the slowest and fastest moment, which is
+         * what "more dynamic" actually means here.
+         */
+        const x = clamp01((t - holdEnd) / (1 - holdEnd));
+        const q = x < 0.5
+            ? 16 * x * x * x * x * x
+            : 1 - Math.pow(-2 * x + 2, 5) / 2;
+        const exit = cMid + pitch;
+        let innermost = exit;
+        for (let i = 0; i < lines; i++) {
+            const from = Math.abs(rest[i] - cMid);
+            const to = from + (exit - from) * q;
+            at[i] = cMid + (rest[i] >= cMid ? to : -to);
+            innermost = Math.min(innermost, to);
+        }
+        opening = innermost;
+    }
+    return { at, top, bottom, opening };
+}
+
+/** Draw one frame: the fog minus the opening, the lines, and the stained bands between them. */
+function drawRevealFrame(L, plan, { at, top, bottom, opening }, { glass, bone, lineWidth, stains }) {
+    const { fogCut, lineCore, lineHalo, lineCut } = L;
+    const { lines, tMin, tMax, cMid, cLow, cHigh, bandStain } = plan;
+    /* The curtain's three glow passes, quoted from `flashOutline`: widths as multiples of
+       the core, and the alphas that go with them. */
+    const GLOW = SEAM_GLOW;
+    // The fog, minus whatever the curtain has opened.
+    fogCut.clear();
+    if (opening > 0) {
+        fogCut.beginFill(0xffffff, 1);
+        fogCut.drawPolygon(bandQuad(cMid - opening, cMid + opening, tMin, tMax));
+        fogCut.endFill();
+    }
+
+    const sorted = at.slice().sort((a, b) => a - b);
+
+    if (glass) {
+        /*
+         * STROKED, AND AT THE SEAM'S OWN WIDTH READ FRESH EACH FRAME.
+         *
+         * `seamWidth()` is one display pixel expressed in scene units, so it moves
+         * with the zoom - and a viewer who scrolls the map mid-reveal should see the
+         * same hairline they saw before, exactly as the room border does through
+         * `rezoomRoomOutline`. The light is the border's three passes under the
+         * blur set up above, on the same paths as the core.
+         */
+        const w = seamWidth();
+        lineCore.clear();
+        lineHalo.clear();
+        for (let i = 0; i < lines; i++) {
+            if (bottom[i] <= top[i]) continue;
+            for (const [k, alpha] of GLOW) {
+                lineHalo.lineStyle({ width: w * k, color: bone, alpha, cap: "round" });
+                lineHalo.moveTo(at[i], top[i]);
+                lineHalo.lineTo(at[i], bottom[i]);
+            }
+            lineCore.lineStyle({ width: w, color: bone, alpha: 1, cap: "square" });
+            lineCore.moveTo(at[i], top[i]);
+            lineCore.lineTo(at[i], bottom[i]);
+        }
+    } else {
+        // The lines: a room-shaped sheet of white with the gaps taken out.
+        lineCut.clear();
+        lineCut.beginFill(0xffffff, 1);
+
+        // Everything between the lines goes.
+        let edge = cLow;
+        for (const c of sorted) {
+            const from = c - lineWidth / 2;
+            if (from > edge) lineCut.drawPolygon(bandQuad(edge, from, tMin, tMax));
+            edge = c + lineWidth / 2;
+        }
+        lineCut.drawPolygon(bandQuad(edge, cHigh, tMin, tMax));
+
+        // And whatever falls outside each line's own stretch - above its
+        // leading end, and below the end still trailing it.
+        for (let i = 0; i < lines; i++) {
+            const x = at[i] - lineWidth;
+            const w = lineWidth * 3;
+            if (top[i] > tMin) lineCut.drawRect(x, tMin, w, top[i] - tMin);
+            if (bottom[i] < tMax) lineCut.drawRect(x, bottom[i], w, tMax - bottom[i]);
+        }
+        lineCut.endFill();
+    }
+
+    /*
+     * THE STAINED BANDS: each texture is a room-shaped sheet in its own colour, and
+     * everything that is not one of ITS bands is erased. Same fill-and-cut the fog
+     * and the lines use, and for the same reason - it is the one way in this file to
+     * keep a shape inside the walls.
+     *
+     * The opening goes with it. A band the curtain has already drawn back is not
+     * glass any more, and leaving the colour there would paint a lid over the room
+     * the reveal has just opened.
+     */
+    for (let s = 0; s < stains.length; s++) {
+        const cut = stains[s].cut;
+        cut.clear();
+        cut.beginFill(0xffffff, 1);
+        let kept = cLow;
+        for (let i = 0; i <= lines; i++) {
+            if (bandStain[i] !== s) continue;
+            const from = i === 0 ? cLow : sorted[i - 1] + lineWidth / 2;
+            const to = i === lines ? cHigh : sorted[i] - lineWidth / 2;
+            if (to <= from) continue;
+            if (from > kept) cut.drawPolygon(bandQuad(kept, from, tMin, tMax));
+            kept = Math.max(kept, to);
+        }
+        if (kept < cHigh) cut.drawPolygon(bandQuad(kept, cHigh, tMin, tMax));
+        if (opening > 0) cut.drawPolygon(bandQuad(cMid - opening, cMid + opening, tMin, tMax));
+        cut.endFill();
+    }
+}
+
+function playDiscoveryAnimation(room, tokenDoc) {
+    // Same rule as `announceRoom`: the sound belongs to the discovery, not to
+    // this client's ability to animate it.
+    playSfx("roomDiscovered");
+
+    const fx = fxLayer();
+    const scene = canvas?.scene;
+    if (!fx || !scene) return;
+
+    const region = Array.from(scene.regions ?? []).find(r => r.name === room);
+    if (!region) return;
+
+    const dims = canvas.dimensions;
+    const rect = dims?.rect ?? { x: 0, y: 0 };
+    const bounds = boundsOf(region);
+    const renderer = canvas?.app?.renderer;
+
+    // No measurable shape, no renderer, or a viewer who has asked for no
+    // motion: the room is already clear underneath, so just name it.
+    if (!bounds || !renderer || motionOff()) {
+        flashOutline(fx, region, rect);
+        return;
+    }
+
+    // Never two reveals over one another: walking briskly through three new
+    // rooms used to stack three room-sized overlays, each with its own timing.
+    // Outlines are spared - the one being left still has to fade.
+    clearReveals();
+
+    const ink = colourOf("--drpg-ink", 0x1a1620);
+    /* THE SAME READING `flashOutline` MAKES, AND FOR THE SAME REASON: the setting first,
+       the class as the fallback. A reveal can be the first thing a session draws. */
+    const glass = glassOn();
+    /* The reveal's own lines take the seam colour too, because `flashOutline` runs INSIDE the
+       reveal rather than after it - the file's rule for itself here is one gesture in one
+       colour rather than three things taking turns. Left at bone these would be white lines
+       with an accent-coloured border drawn straight across them for five seconds, which is
+       exactly what that rule forbids. Unlike the standing outline this is baked into a render
+       texture and destroyed when the reveal ends, so it is deliberately NOT wired into
+       `recolourRoomOutline`: it has no handle to recolour and never lives long enough to go
+       stale by more than its own run. */
+    const bone = outlineColour();
+    const grid = canvas.grid?.size ?? 100;
+
+    const width = Math.max(1, Math.ceil(bounds.w));
+    const height = Math.max(1, Math.ceil(bounds.h));
+    const resolution = Math.min(1, 1024 / Math.max(width, height));
+
+    /*
+     * A SEAM UNDER STAINED GLASS, THE 26.08 PIXEL LINE UNDER LEGACY.
+     *
+     * `grid * 0.07` is a 7 px bar at grid 100 - the pixel-art register the reveal was drawn
+     * in, and Legacy keeps it. Under this theme the lines are the same thing the room border
+     * and the curtain draw, and they are it exactly: `seamWidth()`, one display pixel, the
+     * same call `flashOutline` makes.
+     *
+     * A TWO-TEXEL FLOOR STOOD HERE AND IT WAS THE BUG (Dawid, 08.09: "wydaja sie za grube").
+     * The lines were baked into a render texture, and a texture whose `resolution` drops to
+     * 0.25 on a wide room cannot carry a line thinner than four scene units - so the floor
+     * was raised to two texels and the line came out at up to five times the border it was
+     * quoting, thickest exactly where the room was biggest. The floor is gone because the
+     * texture is gone: under this theme the lines are STROKED INTO THE SCENE GRAPH under a
+     * mask, like the border, where a hairline is a hairline at any zoom and any room size.
+     */
+    const lineWidth = glass ? seamWidth() : Math.max(2, grid * 0.07);
+
+    /*
+     * THE SPACES BETWEEN THE LINES ARE PANES, AND A PANE ON THE CURTAIN CARRIES A STAIN.
+     *
+     * One texture per stain colour, because a texture is filled ONCE with one colour and
+     * then cut - the file's one reliable way to keep a shape inside the room (see the note
+     * on the two textures above). Two of them, because the curtain's palette is two:
+     * `STAIN` in glass.mjs, quoted here rather than exported because it lives inside the
+     * curtain's own closure. Each is cut to the bands drawn in its colour, so between them
+     * they paint every stained band and nothing else.
+     */
+    const STAIN = [0x5c1238, 0x142a66];
+    const stains = glass ? STAIN.map(colour => ({
+        colour, scratch: new PIXI.Container(), fill: new PIXI.Graphics(),
+        cut: new PIXI.Graphics(), tex: null, sprite: null
+    })) : [];
+
+    const L = buildRevealLayers(fx, { region, bounds, rect, glass, ink, bone, lineWidth, width, height, resolution, stains });
+    if (!L) {
+        flashOutline(fx, region, rect);
+        return;
+    }
+    const { fogScratch, lineScratch, fogTex, lineTex, fogSprite, lineSprite, lineLayer } = L;
+
+    const plan = revealBandPlan(room, { width, height, grid, lineWidth });
+    const { lines, seed } = plan;
 
     /*
      * THE CURTAIN'S PULSE, SHAPE FOR SHAPE.
@@ -3865,20 +4403,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
     flashOutline(fx, region, rect);
 
     const state = { t: 0 };
-    const done = () => {
-        fogScratch.destroy({ children: true });
-        lineScratch.destroy({ children: true });
-        for (const stain of stains) stain.scratch.destroy({ children: true });
-        if (lineLayer && !lineLayer.destroyed) lineLayer.destroy({ children: true });
-        /* Sprites first, textures after: a texture freed while a sprite still holds it is a
-           sprite drawing from nothing. */
-        for (const sprite of [fogSprite, lineSprite, ...stains.map(s => s.sprite)]) {
-            if (sprite && !sprite.destroyed) sprite.destroy();
-        }
-        for (const texture of [fogTex, lineTex, ...stains.map(s => s.tex)]) {
-            if (texture && !texture.destroyed) texture.destroy(true);
-        }
-    };
+    const done = () => destroyRevealLayers(L, stains);
 
     const animation = CanvasAnimation.animate([{ parent: state, attribute: "t", to: 1 }], {
         duration: DISCOVERY_MS,
@@ -3888,177 +4413,9 @@ function playDiscoveryAnimation(room, tokenDoc) {
             else if (!lineSprite || lineSprite.destroyed || !lineTex || lineTex.destroyed) return;
 
             const t = state.t;
-            let opening = 0;                    // half-width of the opened band
-            const at = new Array(lines);
-            // The stretch of each line that is currently drawn. `tMin` is the
-            // top of the drawn area and `tMax` the bottom, so a line running
-            // from one to the other is at full height.
-            const top = new Array(lines).fill(tMin);
-            const bottom = new Array(lines).fill(tMax);
+            const frame = revealLinePositions(t, plan, { slashEnd, holdEnd, height });
 
-            if (t < slashEnd) {
-                /*
-                 * THE CUT - UP FROM THE FLOOR, not in from the side.
-                 *
-                 * The lines stand where they will end up and grow upward out of
-                 * the bottom edge of the room. Sliding them in sideways was the
-                 * first version and it fought the geometry: these are vertical
-                 * lines, so travelling along their own axis is the one
-                 * direction in which they cannot be seen to move at all, and
-                 * every other direction reads as drift rather than as a cut.
-                 *
-                 * Sharper than a quartic: almost the whole distance is covered
-                 * in the first third of the phase, then it glides in. The
-                 * contrast between those two speeds IS the cut. Staggered by
-                 * index, so the room is struck rather than curtained.
-                 */
-                for (let i = 0; i < lines; i++) {
-                    at[i] = rest[i];
-                    const local = clamp01((t / slashEnd - (i / lines) * 0.45) / 0.55);
-                    const travel = 1 - Math.pow(1 - local, 2);
-
-                    // SHORT BARS, so the arrival is visible at all.
-                    //
-                    // Everything here is clipped to the room's own shape, which
-                    // means a bar reaching past the bottom wall has its lower
-                    // end hidden and only its tip to show for itself - and a
-                    // tip climbing a wall looks exactly like a line growing out
-                    // of the floor, whatever it is really doing. A bar shorter
-                    // than the room keeps both ends inside it, and then you can
-                    // see the thing travel.
-                    const bar = (tMax - tMin) * 0.30;
-                    top[i] = Math.max(tMin, height - (height - tMin) * travel);
-
-                    // The trailing end catches up over the second half, so the
-                    // bars are at full height by the time the pause begins.
-                    const settle = clamp01((travel - 0.5) / 0.5);
-                    bottom[i] = top[i] + bar + (tMax - top[i] - bar) * settle;
-                }
-            } else if (t < holdEnd) {
-                // THE PAUSE. Nothing moves; the room is still shut.
-                for (let i = 0; i < lines; i++) at[i] = rest[i];
-            } else {
-                /*
-                 * THE CURTAIN. Every line leaves through the same edge, and
-                 * they all arrive there together - so a line that starts near
-                 * the middle has further to travel and therefore MOVES FASTER
-                 * than one already near the wall. That is what makes it read as
-                 * a curtain being drawn rather than a block sliding apart.
-                 *
-                 * The opening is the position of the INNERMOST line, which is
-                 * why no line is ever crossed by the reveal: for any two lines,
-                 * the gap between them closes only as `q` runs out.
-                 */
-                /*
-                 * EASE IN AND OUT, QUINTIC. A pure ease-out started at full
-                 * speed, which meant the curtain was already moving fastest at
-                 * the instant the pause ended - no gathering, no release. This
-                 * holds still for a beat, throws the lines apart through the
-                 * middle, and settles them at the wall. Same duration, far more
-                 * difference between the slowest and fastest moment, which is
-                 * what "more dynamic" actually means here.
-                 */
-                const x = clamp01((t - holdEnd) / (1 - holdEnd));
-                const q = x < 0.5
-                    ? 16 * x * x * x * x * x
-                    : 1 - Math.pow(-2 * x + 2, 5) / 2;
-                const exit = cMid + pitch;
-                let innermost = exit;
-                for (let i = 0; i < lines; i++) {
-                    const from = Math.abs(rest[i] - cMid);
-                    const to = from + (exit - from) * q;
-                    at[i] = cMid + (rest[i] >= cMid ? to : -to);
-                    innermost = Math.min(innermost, to);
-                }
-                opening = innermost;
-            }
-
-            // The fog, minus whatever the curtain has opened.
-            fogCut.clear();
-            if (opening > 0) {
-                fogCut.beginFill(0xffffff, 1);
-                fogCut.drawPolygon(bandQuad(cMid - opening, cMid + opening, tMin, tMax));
-                fogCut.endFill();
-            }
-
-            const sorted = at.slice().sort((a, b) => a - b);
-
-            if (glass) {
-                /*
-                 * STROKED, AND AT THE SEAM'S OWN WIDTH READ FRESH EACH FRAME.
-                 *
-                 * `seamWidth()` is one display pixel expressed in scene units, so it moves
-                 * with the zoom - and a viewer who scrolls the map mid-reveal should see the
-                 * same hairline they saw before, exactly as the room border does through
-                 * `rezoomRoomOutline`. The light is the border's three passes under the
-                 * blur set up above, on the same paths as the core.
-                 */
-                const w = seamWidth();
-                lineCore.clear();
-                lineHalo.clear();
-                for (let i = 0; i < lines; i++) {
-                    if (bottom[i] <= top[i]) continue;
-                    for (const [k, alpha] of GLOW) {
-                        lineHalo.lineStyle({ width: w * k, color: bone, alpha, cap: "round" });
-                        lineHalo.moveTo(at[i], top[i]);
-                        lineHalo.lineTo(at[i], bottom[i]);
-                    }
-                    lineCore.lineStyle({ width: w, color: bone, alpha: 1, cap: "square" });
-                    lineCore.moveTo(at[i], top[i]);
-                    lineCore.lineTo(at[i], bottom[i]);
-                }
-            } else {
-                // The lines: a room-shaped sheet of white with the gaps taken out.
-                lineCut.clear();
-                lineCut.beginFill(0xffffff, 1);
-
-                // Everything between the lines goes.
-                let edge = cLow;
-                for (const c of sorted) {
-                    const from = c - lineWidth / 2;
-                    if (from > edge) lineCut.drawPolygon(bandQuad(edge, from, tMin, tMax));
-                    edge = c + lineWidth / 2;
-                }
-                lineCut.drawPolygon(bandQuad(edge, cHigh, tMin, tMax));
-
-                // And whatever falls outside each line's own stretch - above its
-                // leading end, and below the end still trailing it.
-                for (let i = 0; i < lines; i++) {
-                    const x = at[i] - lineWidth;
-                    const w = lineWidth * 3;
-                    if (top[i] > tMin) lineCut.drawRect(x, tMin, w, top[i] - tMin);
-                    if (bottom[i] < tMax) lineCut.drawRect(x, bottom[i], w, tMax - bottom[i]);
-                }
-                lineCut.endFill();
-            }
-
-            /*
-             * THE STAINED BANDS: each texture is a room-shaped sheet in its own colour, and
-             * everything that is not one of ITS bands is erased. Same fill-and-cut the fog
-             * and the lines use, and for the same reason - it is the one way in this file to
-             * keep a shape inside the walls.
-             *
-             * The opening goes with it. A band the curtain has already drawn back is not
-             * glass any more, and leaving the colour there would paint a lid over the room
-             * the reveal has just opened.
-             */
-            for (let s = 0; s < stains.length; s++) {
-                const cut = stains[s].cut;
-                cut.clear();
-                cut.beginFill(0xffffff, 1);
-                let kept = cLow;
-                for (let i = 0; i <= lines; i++) {
-                    if (bandStain[i] !== s) continue;
-                    const from = i === 0 ? cLow : sorted[i - 1] + lineWidth / 2;
-                    const to = i === lines ? cHigh : sorted[i] - lineWidth / 2;
-                    if (to <= from) continue;
-                    if (from > kept) cut.drawPolygon(bandQuad(kept, from, tMin, tMax));
-                    kept = Math.max(kept, to);
-                }
-                if (kept < cHigh) cut.drawPolygon(bandQuad(kept, cHigh, tMin, tMax));
-                if (opening > 0) cut.drawPolygon(bandQuad(cMid - opening, cMid + opening, tMin, tMax));
-                cut.endFill();
-            }
+            drawRevealFrame(L, plan, frame, { glass, bone, lineWidth, stains });
 
             // The lines bow out over the last third rather than snapping off.
             const fade = clamp01((1 - t) / 0.3);
@@ -4100,36 +4457,8 @@ function playDiscoveryAnimation(room, tokenDoc) {
  * White also ties the outline to the raster and to the edge of the sweep, so
  * the whole reveal speaks in one colour instead of three.
  */
-function flashOutline(fx, region, rect) {
-    if (!fx || fx.destroyed) return;
-
-    // Whatever was outlined before, take it down - see `fadeRoomOutline`.
-    fadeRoomOutline();
-
-    // Under the Stained Glass theme the line is a seam: the state colour, the one the curtain's
-    // seams wear right now. Bone otherwise, as it always was. See `outlineColour`.
-    /* THE SETTING, NOT THE CLASS ON THE BODY.
-       `applyTheme()` puts `drpg-theme-stained-glass` on `<body>` at ready, and the first room
-       outline of a session is drawn while the scene is still coming up - before that class
-       lands. Reading the class meant the outline took the Legacy branch (the thick pixel-art
-       stroke, no seam glow) and then stood there unchanged for the rest of the session,
-       because nothing redraws an outline that is already correct for the room you are in.
-       That is why the border looked untouched after two rounds of changing it (Dawid, 07.09).
-       The client setting is readable the moment settings are registered, which is earlier
-       than any of this; the class stays as the fallback for a client mid-switch. */
-    const glass = getSetting(SETTINGS.theme) === "stainedGlass"
-        || document.body.classList.contains("drpg-theme-stained-glass");
-    const bone = outlineColour();
-    const grid = canvas?.grid?.size ?? 100;
-    const bounds = boundsOf(region);
-
-    const group = new PIXI.Container();
-    group.name = OUTLINE_NAME;
-    group.eventMode = "none";
-
-    // Measured once; the outline skips these and the glow marks them.
-    const edges = doorwayEdges(region);
-
+/** The four widths an outline is drawn with: the line, its keyline, the stub floor and the doorway margin. */
+function outlineWidths(glass, grid) {
     // Chunky and angular, in the pixel-art register the reveal raster set
     // (Dawid, 2026-08-26 - the old 4px stroke read thin and soft at play
     // zoom). Square caps are what close the corners: the gapped tracing draws
@@ -4172,7 +4501,7 @@ function flashOutline(fx, region, rect) {
        which is the opposite of the curtain it is supposed to quote: there the seam is a
        hairline core carrying a wide, faint light. So the coloured line halves again (grid 100:
        6 px to 3 px) and the keyline with it, and the light below does the work of being seen. */
-/* THE CURTAIN'S OWN NUMBERS, TAKEN OFF THE CURTAIN.
+    /* THE CURTAIN'S OWN NUMBERS, TAKEN OFF THE CURTAIN.
        Two rounds of "thinner" still did not look like a seam, so this stopped guessing and
        read `curtainPaint`: the seam there is a 1.2 px core in screen pixels carrying three
        BLURRED additive passes at 2.6 / 1.8 / 1.2 px and alpha 0.46 / 0.50 / 0.58. Two things
@@ -4207,6 +4536,177 @@ function flashOutline(fx, region, rect) {
     // the ink, and a bone line cut back to a different margin would poke out
     // past the keyline at every opening.
     const gapPad = grid * 0.05 + (inkWidth || Math.max(7, Math.round(grid * 0.11))) / 2;
+    return { boneWidth, inkWidth, stubFloor, gapPad };
+}
+
+// Sized from the grid rather than fixed. A flat 28px in scene units is
+// eleven pixels on screen at a zoom of 0.4, which is where this label spent
+// its life being unreadable.
+/* THE THEME'S OWN FACE, AND NOT THE ONE MONOKUMA LEGACY USES.
+   The room's name is drawn on the canvas by PIXI, not by the sheet, so it never saw the
+   theme's typography and both themes showed the same five-pixel DRPG Pixel. Under Stained
+   Glass a room's name is exactly what the audit page reserves the title face for - "tam,
+   gdzie jest nazwa rzeczy" - so it takes Special Elite, with the same fallbacks the CSS
+   has. Legacy keeps the pixel face to the letter. */
+function roomLabel(region, { glass, grid, bone, bounds, rect }) {
+    const label = new PIXI.Text(region.name, {
+        fontFamily: glass ? '"Special Elite", "Courier New", monospace' : "DRPG Pixel, monospace",
+        fontSize: Math.max(28, Math.round(grid * 1.1)),
+        fill: bone,
+        stroke: colourOf("--drpg-ink", 0x1a1620),
+        strokeThickness: Math.max(4, Math.round(grid * 0.11)),
+        align: "center"
+    });
+    label.resolution = 2;
+    label.anchor.set(0.5, 0.5);
+
+    // If the face was still loading when this was measured, the label is
+    // wearing a fallback. Marking it dirty is what makes PIXI measure and
+    // rasterise a second time, once there is something better to measure.
+    ensurePixelFont().then(() => {
+        if (!label.destroyed) label.dirty = true;
+    }).catch(() => { /* the fallback stands */ });
+    if (bounds) {
+        label.position.set(bounds.x - rect.x + bounds.w / 2, bounds.y - rect.y + bounds.h / 2);
+    }
+    return label;
+}
+
+/*
+ * THE SEAM'S LIGHT, AND ONLY UNDER STAINED GLASS.
+ *
+ * The curtain draws every seam as a thin core sitting inside an additive airbrush at
+ * two radii, which is why its crossings glow brighter than the runs between them. The
+ * room border already wore the seam's colour and the seam's thickness and was the one
+ * place that had the core without the light (Dawid, 2026-09-07).
+ *
+ * ITS OWN CONTAINER, because a blend mode belongs to a display object and the ink
+ * keyline underneath must stay opaque - additive ink is no ink at all, and the border
+ * would dissolve over a bright floor, which is exactly what the keyline exists to stop.
+ * Round caps and joins here rather than the line's square/miter: this pass is light,
+ * not a sprite edge, and a mitred spike in an additive layer reads as a flare.
+ *
+ * Drawn on the SAME gapped path, so a doorway stays dark in the glow too. Anything
+ * else would paint a lid of light across the opening.
+ */
+function seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region }) {
+    const halo = new PIXI.Graphics();
+    /* NAMED, because it has to be told apart from the outline itself. The glow strokes the
+       same path four to seven times wider, so anything that measures "the outline" by
+       picking the group's first Graphics would measure the light instead - which is what
+       the stub test did the moment this was added. */
+    halo.name = SEAM_GLOW_NAME;
+    halo.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
+    halo.eventMode = "none";
+    const pass = (width, alpha) => {
+        halo.lineStyle({ width, color: bone, alpha, cap: "round", join: "round" });
+        if (edges.length) traceOutlineGapped(halo, edges, rect, gapPad, stubFloor);
+        else traceRegionPathsAt(halo, region, rect);
+    };
+    /* THE CURTAIN'S THREE PASSES, AND THE BLUR THAT MAKES THEM A BLOOM.
+       These were hard-edged strokes seven and three times the line's width, which is a
+       pair of wide flat bands, not light - "glow jest o wiele sztuczniejszy" (07.09).
+       The curtain blurs each pass by 18 / 7 / 2 screen px; a `BlurFilter` here is in
+       screen pixels too, so the light stays the same weight at any zoom, as it does on
+       the curtain. Alphas are the curtain's, halved: it is compositing over its own dark
+       glass and this sits over a lit floor - but the alphas are the curtain's own now,
+       unchanged, because the point is that it reads as the same material and it was the
+       hard edge, not the brightness, that made it read as paint. */
+    /* THE CURTAIN'S PROPORTIONS, READ OFF IT PROPERLY THIS TIME.
+       Its glow is drawn at HALF resolution and blurred by 9 / 3.5 / 1 of those pixels -
+       18 / 7 / 2 on screen - over strokes of 2.6 / 1.8 / 1.2. So the light is two or three
+       pixels of line under twenty of bloom. This was five times the core wide and blurred
+       by two: a wide flat band, which is why the border still read as thick next to the
+       seams it is quoting. Narrow strokes, a blur six times the core. */
+    pass(boneWidth * 2.6, 0.46);
+    pass(boneWidth * 1.8, 0.50);
+    pass(boneWidth * 1.2, 0.58);
+    const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
+    if (Blur) { const f = new Blur(Math.max(6, boneWidth * 6), 3); f.padding = boneWidth * 14; halo.filters = [f]; }
+    return halo;
+}
+
+/*
+ * THE LANDING. Two decreasing hops rather than one, because a single arc
+ * reads as a slide and the point is that the room arrives - it drops in,
+ * catches, and settles. `Math.abs(sin)` gives the hops, the `(1 - t)`
+ * factor takes the height out of each one in turn.
+ */
+// Big enough to read as a landing rather than a nudge. The motion was
+// right at a third of a square and simply too small to see.
+// UP AND TO THE RIGHT, on the same reasoning as `bandQuad`: the isometric
+// module on The Forge rotates the canvas, so a hop expressed on the
+// diagonal here arrives as a clean vertical one there.
+function landOutline(group, grid) {
+    const jump = grid * 0.9;
+    const bounceState = { t: 0 };
+    const bounce = CanvasAnimation.animate([{ parent: bounceState, attribute: "t", to: 1 }], {
+        duration: BOUNCE_MS,
+        ontick: () => {
+            if (group.destroyed) return;
+            const t = clamp01(bounceState.t);
+            const hop = jump * Math.abs(Math.sin(Math.PI * t * 1.7)) * (1 - t);
+            group.x = hop;
+            group.y = -hop;
+        }
+    });
+    watchdog(bounce, BOUNCE_MS + 750, () => {
+        if (group.destroyed) return;
+        group.x = 0;
+        group.y = 0;
+    });
+}
+
+/*
+ * THE NAME GOES, THE OUTLINE STAYS. Naming a room is an announcement and
+ * announcements end; the outline is a statement of where you are, and that
+ * is true until you walk out. `fadeRoomOutline` is what ends it.
+ */
+function fadeLabel(label) {
+    const labelState = { t: 0 };
+    const dropLabel = () => { if (!label.destroyed) label.destroy(); };
+    const fading = CanvasAnimation.animate([{ parent: labelState, attribute: "t", to: 1 }], {
+        duration: OUTLINE_MS,
+        ontick: () => {
+            if (label.destroyed) return;
+            // Full through the cut and the pause, fading only as the curtain
+            // opens - the name should be readable while the room is still shut.
+            label.alpha = clamp01((1 - labelState.t) / 0.35);
+        }
+    });
+    watchdog(fading, OUTLINE_MS + 1500, dropLabel);
+}
+
+function flashOutline(fx, region, rect) {
+    if (!fx || fx.destroyed) return;
+
+    // Whatever was outlined before, take it down - see `fadeRoomOutline`.
+    fadeRoomOutline();
+
+    // Under the Stained Glass theme the line is a seam: the state colour, the one the curtain's
+    // seams wear right now. Bone otherwise, as it always was. See `outlineColour`.
+    /* THE SETTING, NOT THE CLASS ON THE BODY.
+       `applyTheme()` puts `drpg-theme-stained-glass` on `<body>` at ready, and the first room
+       outline of a session is drawn while the scene is still coming up - before that class
+       lands. Reading the class meant the outline took the Legacy branch (the thick pixel-art
+       stroke, no seam glow) and then stood there unchanged for the rest of the session,
+       because nothing redraws an outline that is already correct for the room you are in.
+       That is why the border looked untouched after two rounds of changing it (Dawid, 07.09).
+       The client setting is readable the moment settings are registered, which is earlier
+       than any of this; the class stays as the fallback for a client mid-switch. */
+    const glass = glassOn();
+    const bone = outlineColour();
+    const grid = canvas?.grid?.size ?? 100;
+    const bounds = boundsOf(region);
+
+    const group = new PIXI.Container();
+    group.name = OUTLINE_NAME;
+    group.eventMode = "none";
+
+    // Measured once; the outline skips these and the glow marks them.
+    const edges = doorwayEdges(region);
+
+    const { boneWidth, inkWidth, stubFloor, gapPad } = outlineWidths(glass, grid);
 
     const outline = new PIXI.Graphics();
     /*
@@ -4242,89 +4742,10 @@ function flashOutline(fx, region, rect) {
     stroke(boneWidth, bone);
     trace();
 
-    // Sized from the grid rather than fixed. A flat 28px in scene units is
-    // eleven pixels on screen at a zoom of 0.4, which is where this label spent
-    // its life being unreadable.
-    /* THE THEME'S OWN FACE, AND NOT THE ONE MONOKUMA LEGACY USES.
-       The room's name is drawn on the canvas by PIXI, not by the sheet, so it never saw the
-       theme's typography and both themes showed the same five-pixel DRPG Pixel. Under Stained
-       Glass a room's name is exactly what the audit page reserves the title face for - "tam,
-       gdzie jest nazwa rzeczy" - so it takes Special Elite, with the same fallbacks the CSS
-       has. Legacy keeps the pixel face to the letter. */
-    const label = new PIXI.Text(region.name, {
-        fontFamily: glass ? '"Special Elite", "Courier New", monospace' : "DRPG Pixel, monospace",
-        fontSize: Math.max(28, Math.round(grid * 1.1)),
-        fill: bone,
-        stroke: colourOf("--drpg-ink", 0x1a1620),
-        strokeThickness: Math.max(4, Math.round(grid * 0.11)),
-        align: "center"
-    });
-    label.resolution = 2;
-    label.anchor.set(0.5, 0.5);
+    const label = roomLabel(region, { glass, grid, bone, bounds, rect });
 
-    // If the face was still loading when this was measured, the label is
-    // wearing a fallback. Marking it dirty is what makes PIXI measure and
-    // rasterise a second time, once there is something better to measure.
-    ensurePixelFont().then(() => {
-        if (!label.destroyed) label.dirty = true;
-    }).catch(() => { /* the fallback stands */ });
-    if (bounds) {
-        label.position.set(bounds.x - rect.x + bounds.w / 2, bounds.y - rect.y + bounds.h / 2);
-    }
 
-    /*
-     * THE SEAM'S LIGHT, AND ONLY UNDER STAINED GLASS.
-     *
-     * The curtain draws every seam as a thin core sitting inside an additive airbrush at
-     * two radii, which is why its crossings glow brighter than the runs between them. The
-     * room border already wore the seam's colour and the seam's thickness and was the one
-     * place that had the core without the light (Dawid, 2026-09-07).
-     *
-     * ITS OWN CONTAINER, because a blend mode belongs to a display object and the ink
-     * keyline underneath must stay opaque - additive ink is no ink at all, and the border
-     * would dissolve over a bright floor, which is exactly what the keyline exists to stop.
-     * Round caps and joins here rather than the line's square/miter: this pass is light,
-     * not a sprite edge, and a mitred spike in an additive layer reads as a flare.
-     *
-     * Drawn on the SAME gapped path, so a doorway stays dark in the glow too. Anything
-     * else would paint a lid of light across the opening.
-     */
-    if (glass) {
-        const halo = new PIXI.Graphics();
-        /* NAMED, because it has to be told apart from the outline itself. The glow strokes the
-           same path four to seven times wider, so anything that measures "the outline" by
-           picking the group's first Graphics would measure the light instead - which is what
-           the stub test did the moment this was added. */
-        halo.name = SEAM_GLOW_NAME;
-        halo.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
-        halo.eventMode = "none";
-        const pass = (width, alpha) => {
-            halo.lineStyle({ width, color: bone, alpha, cap: "round", join: "round" });
-            if (edges.length) traceOutlineGapped(halo, edges, rect, gapPad, stubFloor);
-            else traceRegionPathsAt(halo, region, rect);
-        };
-        /* THE CURTAIN'S THREE PASSES, AND THE BLUR THAT MAKES THEM A BLOOM.
-           These were hard-edged strokes seven and three times the line's width, which is a
-           pair of wide flat bands, not light - "glow jest o wiele sztuczniejszy" (07.09).
-           The curtain blurs each pass by 18 / 7 / 2 screen px; a `BlurFilter` here is in
-           screen pixels too, so the light stays the same weight at any zoom, as it does on
-           the curtain. Alphas are the curtain's, halved: it is compositing over its own dark
-           glass and this sits over a lit floor - but the alphas are the curtain's own now,
-           unchanged, because the point is that it reads as the same material and it was the
-           hard edge, not the brightness, that made it read as paint. */
-        /* THE CURTAIN'S PROPORTIONS, READ OFF IT PROPERLY THIS TIME.
-           Its glow is drawn at HALF resolution and blurred by 9 / 3.5 / 1 of those pixels -
-           18 / 7 / 2 on screen - over strokes of 2.6 / 1.8 / 1.2. So the light is two or three
-           pixels of line under twenty of bloom. This was five times the core wide and blurred
-           by two: a wide flat band, which is why the border still read as thick next to the
-           seams it is quoting. Narrow strokes, a blur six times the core. */
-        pass(boneWidth * 2.6, 0.46);
-        pass(boneWidth * 1.8, 0.50);
-        pass(boneWidth * 1.2, 0.58);
-        const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
-        if (Blur) { const f = new Blur(Math.max(6, boneWidth * 6), 3); f.padding = boneWidth * 14; halo.filters = [f]; }
-        group.addChild(halo);
-    }
+    if (glass) group.addChild(seamHalo({ bone, boneWidth, edges, rect, gapPad, stubFloor, region }));
 
     group.addChild(outline, label);
     // Under the outline and the name, so neither is softened by it.
@@ -4371,7 +4792,7 @@ function flashOutline(fx, region, rect) {
             const halo = group.children.find(c => c?.name === SEAM_GLOW_NAME);
             if (halo && !halo.destroyed) {
                 halo.clear();
-                for (const [k, a] of [[2.6, 0.46], [1.8, 0.50], [1.2, 0.58]]) {
+                for (const [k, a] of SEAM_GLOW) {
                     halo.lineStyle({ width: w * k, color: roomOutline?.colour ?? bone, alpha: a, cap: "round", join: "round" });
                     if (edges.length) traceOutlineGapped(halo, edges, rect, gapPad, stubFloor);
                     else traceRegionPathsAt(halo, region, rect);
@@ -4380,52 +4801,8 @@ function flashOutline(fx, region, rect) {
         } : null
     };
 
-    /*
-     * THE LANDING. Two decreasing hops rather than one, because a single arc
-     * reads as a slide and the point is that the room arrives - it drops in,
-     * catches, and settles. `Math.abs(sin)` gives the hops, the `(1 - t)`
-     * factor takes the height out of each one in turn.
-     */
-    // Big enough to read as a landing rather than a nudge. The motion was
-    // right at a third of a square and simply too small to see.
-    // UP AND TO THE RIGHT, on the same reasoning as `bandQuad`: the isometric
-    // module on The Forge rotates the canvas, so a hop expressed on the
-    // diagonal here arrives as a clean vertical one there.
-    const jump = grid * 0.9;
-    const bounceState = { t: 0 };
-    const bounce = CanvasAnimation.animate([{ parent: bounceState, attribute: "t", to: 1 }], {
-        duration: BOUNCE_MS,
-        ontick: () => {
-            if (group.destroyed) return;
-            const t = clamp01(bounceState.t);
-            const hop = jump * Math.abs(Math.sin(Math.PI * t * 1.7)) * (1 - t);
-            group.x = hop;
-            group.y = -hop;
-        }
-    });
-    watchdog(bounce, BOUNCE_MS + 750, () => {
-        if (group.destroyed) return;
-        group.x = 0;
-        group.y = 0;
-    });
-
-    /*
-     * THE NAME GOES, THE OUTLINE STAYS. Naming a room is an announcement and
-     * announcements end; the outline is a statement of where you are, and that
-     * is true until you walk out. `fadeRoomOutline` is what ends it.
-     */
-    const labelState = { t: 0 };
-    const dropLabel = () => { if (!label.destroyed) label.destroy(); };
-    const fading = CanvasAnimation.animate([{ parent: labelState, attribute: "t", to: 1 }], {
-        duration: OUTLINE_MS,
-        ontick: () => {
-            if (label.destroyed) return;
-            // Full through the cut and the pause, fading only as the curtain
-            // opens - the name should be readable while the room is still shut.
-            label.alpha = clamp01((1 - labelState.t) / 0.35);
-        }
-    });
-    watchdog(fading, OUTLINE_MS + 1500, dropLabel);
+    landOutline(group, grid);
+    fadeLabel(label);
 }
 
 /* ==========================================================================
@@ -4623,6 +5000,15 @@ function doorwayFadeTexture() {
 }
 
 /** Distance from a point to a line SEGMENT, not to the infinite line. */
+/** The run of a polyline, point to point. Four copies of this loop lived in this file. */
+function polylineLength(points) {
+    let run = 0;
+    for (let i = 1; i < points.length; i++) {
+        run += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+    }
+    return run;
+}
+
 function distanceToSegment(px, py, x1, y1, x2, y2) {
     const dx = x2 - x1;
     const dy = y2 - y1;
@@ -5121,10 +5507,7 @@ function smoothPolyline(points, half) {
  * light nothing at all.
  */
 function trimPolyline(points, cut) {
-    let total = 0;
-    for (let i = 1; i < points.length; i++) {
-        total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
-    }
+    const total = polylineLength(points);
     const take = Math.min(cut, Math.max(0, (total - 1) / 2));
     if (take <= 0) return points;
 
@@ -5192,17 +5575,8 @@ function trimPolyline(points, cut) {
  * never light the floor it belongs to, and the border itself is erased a
  * little wider so the white outline stays crisp on top of it.
  */
-function addDoorwayGlow(group, region, edges, rect) {
-    if (!group || group.destroyed) return;
-    const renderer = canvas?.app?.renderer;
-    if (!renderer) return;
-
-    const grid = canvas?.grid?.size ?? 100;
-    const depth = grid * DOORWAY_DEPTH;
-    const out = grid * DOORWAY_OFFSET;
-    const step = Math.max(1, grid / 5);
-    const smoothHalf = Math.max(1, Math.round(grid * DOORWAY_SMOOTH / step));
-
+/** The doorway chains, resampled and averaged, and how far the averaging strayed from the wall. */
+function doorwayOpenings(edges, rect, { step, smoothHalf }) {
     let amplitude = 0;
     const openings = [];
     for (const chain of doorwayChains(edges, rect)) {
@@ -5216,6 +5590,253 @@ function addDoorwayGlow(group, region, edges, rect) {
         }
         if (averaged.length >= 2) openings.push(averaged);
     }
+    return { openings, amplitude };
+}
+
+    /*
+     * WHICH WAY EACH END RUNS, AND A STUB PAST IT.
+     *
+     * Two things are read off an opening's ends, and both have to be settled
+     * before a single stroke is drawn.
+     *
+     * The direction is taken between two points that are both well inside the
+     * opening. A chain's last point is pinned to the true border, so a
+     * direction measured to it still carries whichever tile it landed on: on
+     * a staircase that leans the cut about thirty degrees off the run.
+     *
+     * And the line is EXTENDED past the end before it is stroked. Otherwise
+     * every level closes itself with a cap square to its own last segment -
+     * axis-aligned, on a staircase - and that cap, not the gradient, is what
+     * decides where the band stops across part of its depth. Running the
+     * strokes off the end and cutting them afterwards leaves the cut as the
+     * only thing shaping it.
+     */
+function doorwayRuns(openings, { spanFor, depth, stub }) {
+    return openings.map(chain => {
+        const ownSpan = spanFor(chain);
+        const tail = chain[chain.length - 1];
+        const closed = Math.hypot(chain[0].x - tail.x, chain[0].y - tail.y) < 0.5;
+        const inner = trimPolyline(chain, depth);
+        const deeper = trimPolyline(chain, depth * 2);
+        const far = deeper.length >= 2 ? deeper : null;
+
+        const direction = (end, near, back) => {
+            let dx = end.x - near.x, dy = end.y - near.y;
+            if (back && Math.hypot(near.x - back.x, near.y - back.y) > 1) {
+                dx = near.x - back.x;
+                dy = near.y - back.y;
+            }
+            const length = Math.hypot(dx, dy);
+            return length < 1e-6 ? null : { x: dx / length, y: dy / length };
+        };
+
+        const heads = closed || inner.length < 2 ? [] : [
+            { at: chain[0], near: inner[0], head: true, dir: direction(chain[0], inner[0], far?.[0] ?? null) },
+            { at: tail, near: inner[inner.length - 1], head: false, dir: direction(tail, inner[inner.length - 1], far?.[far.length - 1] ?? null) }
+        ].filter(h => h.dir);
+
+        const line = [...chain];
+        for (const h of heads) {
+            const past = { x: h.at.x + h.dir.x * stub, y: h.at.y + h.dir.y * stub };
+            if (h.head) line.unshift(past);
+            else line.push(past);
+        }
+        return { heads, line, ownSpan };
+    });
+}
+
+/** The texture's box: every run, plus the glow's reach on all sides. */
+function doorwayBox(runs, reach) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const run of runs) {
+        for (const p of run.line) {
+            minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+            minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+        }
+    }
+    const box = {
+        x: Math.floor(minX - reach), y: Math.floor(minY - reach),
+        w: Math.ceil(maxX - minX + reach * 2), h: Math.ceil(maxY - minY + reach * 2)
+    };
+    return box;
+}
+
+    /*
+     * THE ENDS ARE CUT ONCE, ACROSS THE WHOLE BAND.
+     *
+     * Shortening each level by a different amount fades the glow out along
+     * the border, and on a straight wall it looks right - every level ends
+     * on a cap perpendicular to the same wall, so the sixteen caps stack
+     * into one clean edge. On a staircase they do not: a cap is
+     * perpendicular to the little axis-aligned segment it happens to land
+     * on, the segments alternate, and the sixteen ends come out as a
+     * ragged step instead of a cut.
+     *
+     * So the band is built full length - run past its ends, even, so no
+     * level's own cap can shape it - and cut afterwards, by one gradient
+     * laid across it, square to the direction the opening actually runs
+     * in. That is the same straight, single-gradient edge a flat wall
+     * gets, because now it is literally the same operation. Anything past
+     * the end goes entirely, so no light reaches around the doorframe.
+     */
+    // Both cuts have to clear the band comfortably in every direction: the
+    // band reaches `reach` outward from the line and an amplitude inward
+    // of it, and a cut that merely meets those edges leaves an
+    // antialiased sliver standing.
+function cutDoorwayEnds(ends, runs, { halfBand, depth, stub, box, fadeTexture }) {
+    for (const run of runs) {
+        for (const { at: end, near, dir } of run.heads) {
+            const ux = dir.x, uy = dir.y;
+            lastGlow.endAngles.push(Math.round(Math.atan2(uy, ux) * 180 / Math.PI));
+
+            /*
+             * CENTRED ON THE LINE, NOT ON THE END POINT.
+             *
+             * Both cuts reach a half-band either side of wherever they are
+             * anchored, and the end point is a corner of the TRUE border -
+             * up to an amplitude off the line the band is built around. So
+             * anchoring there hung the cuts off centre and left the
+             * outermost few pixels of the band with nothing to stop them:
+             * measured on a staircase, everything from the wall out to 27px
+             * was cut square and the last three ran on past it. The end
+             * point still decides WHERE along the run the cut falls; only
+             * the centring comes off the line.
+             */
+            const along = (end.x - near.x) * ux + (end.y - near.y) * uy;
+            const ox = near.x + ux * along - box.x;
+            const oy = near.y + uy * along - box.y;
+
+            if (fadeTexture) {
+                const ramp = new PIXI.Sprite(fadeTexture);
+                ramp.blendMode = PIXI.BLEND_MODES.ERASE;
+                ramp.anchor.set(0, 0.5);
+                ramp.width = depth;
+                ramp.height = halfBand * 2;
+                ramp.position.set(ox - ux * depth, oy - uy * depth);
+                ramp.rotation = Math.atan2(uy, ux);
+                ends.addChild(ramp);
+            }
+
+            const nx = -uy, ny = ux;
+            // Past the end of the stub the strokes were run out to, with
+            // room to spare - matching it exactly left a line of pixels.
+            const past = stub + 8;
+            const beyond = new PIXI.Graphics();
+            beyond.blendMode = PIXI.BLEND_MODES.ERASE;
+            beyond.beginFill(0xffffff, 1);
+            beyond.drawPolygon([
+                ox + nx * halfBand, oy + ny * halfBand,
+                ox - nx * halfBand, oy - ny * halfBand,
+                ox - nx * halfBand + ux * past, oy - ny * halfBand + uy * past,
+                ox + nx * halfBand + ux * past, oy + ny * halfBand + uy * past
+            ]);
+            beyond.endFill();
+            ends.addChild(beyond);
+
+        }
+    }
+}
+
+    /*
+     * THE INWARD SIDE GOES, ALL THE WAY ALONG.
+     *
+     * The band is built symmetrically about its line and the inward half
+     * is taken away by erasing the room - which holds for exactly as long
+     * as the room is what lies inward. At the end of an opening the border
+     * turns and stops being that, and what is left is a lobe of glow on
+     * the far side of the wall: measured on a staircase whose far end
+     * meets the room's own bottom edge, 35px past the line there against
+     * 3.5px anywhere else. That lobe is the bulge on an end that is
+     * otherwise cut square.
+     *
+     * Past the lip, the inward side is inside the room at every point
+     * ALONG an opening, so erasing it there costs nothing - and doing it
+     * along the whole run, corners and stubs included, is what closes the
+     * ends without a special case for each way a border can turn. The lip
+     * keeps the sliver that is legitimately lit where the true wall dips
+     * inside the averaged line.
+     *
+     * Which way is inward is asked of the room itself rather than read off
+     * the winding, which no map is obliged to keep consistent.
+     */
+function cutDoorwayInside(ends, runs, { amplitude, out, halfBand, stub, box, insideRoom }) {
+    const lip = Math.max(2, amplitude - out + 2);
+    const deepIn = halfBand + stub + 10;
+    for (const { line } of runs) {
+        if (line.length < 2) continue;
+
+        const normals = line.map((_, i) => {
+            const a = line[Math.max(0, i - 1)], b = line[Math.min(line.length - 1, i + 1)];
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const length = Math.hypot(dx, dy) || 1;
+            return { x: -dy / length, y: dx / length };
+        });
+
+        const mid = Math.floor(line.length / 2);
+        const probe = amplitude + 4;
+        const sign = insideRoom(line[mid].x + normals[mid].x * probe,
+            line[mid].y + normals[mid].y * probe) ? 1 : -1;
+
+        const ribbon = [];
+        for (let i = 0; i < line.length; i++) {
+            ribbon.push(line[i].x + normals[i].x * sign * lip - box.x,
+                line[i].y + normals[i].y * sign * lip - box.y);
+        }
+        for (let i = line.length - 1; i >= 0; i--) {
+            ribbon.push(line[i].x + normals[i].x * sign * deepIn - box.x,
+                line[i].y + normals[i].y * sign * deepIn - box.y);
+        }
+
+        const inwardCut = new PIXI.Graphics();
+        inwardCut.blendMode = PIXI.BLEND_MODES.ERASE;
+        inwardCut.beginFill(0xffffff, 1);
+        inwardCut.drawPolygon(ribbon);
+        inwardCut.endFill();
+        ends.addChild(inwardCut);
+    }
+}
+
+    // The room is not lit by its own doorways. Its shape comes out of the
+    // field entirely, and a ring of `out` around the border with it, which
+    // is what keeps the outline sitting on ink rather than on light.
+function eraseRoomFromGlow(renderer, field, region, rect, box, out) {
+    const eraser = new PIXI.Graphics();
+    eraser.blendMode = PIXI.BLEND_MODES.ERASE;
+    const shapes = regionShapes(region, rect).map(points => {
+        const shifted = new Array(points.length);
+        for (let i = 0; i < points.length; i += 2) {
+            shifted[i] = points[i] - box.x;
+            shifted[i + 1] = points[i + 1] - box.y;
+        }
+        return shifted;
+    });
+    eraser.beginFill(0xffffff, 1);
+    for (const points of shapes) eraser.drawPolygon(points);
+    eraser.endFill();
+    if (out > 0) {
+        eraser.lineStyle({ width: out * 2, color: 0xffffff, alpha: 1, join: "round" });
+        for (const points of shapes) eraser.drawPolygon(points);
+    }
+    try {
+        renderer.render(eraser, { renderTexture: field, clear: false });
+    } finally {
+        eraser.destroy();
+    }
+}
+
+function addDoorwayGlow(group, region, edges, rect) {
+    if (!group || group.destroyed) return;
+    const renderer = canvas?.app?.renderer;
+    if (!renderer) return;
+
+    const grid = canvas?.grid?.size ?? 100;
+    const depth = grid * DOORWAY_DEPTH;
+    const out = grid * DOORWAY_OFFSET;
+    const step = Math.max(1, grid / 5);
+    const smoothHalf = Math.max(1, Math.round(grid * DOORWAY_SMOOTH / step));
+
+    const { openings, amplitude: strayed } = doorwayOpenings(edges, rect, { step, smoothHalf });
+    let amplitude = strayed;
     if (!openings.length) return;
 
     /*
@@ -5261,13 +5882,7 @@ function addDoorwayGlow(group, region, edges, rect) {
      * sane map - is not touched, because `min` keeps the full depth the moment
      * the opening is longer than one.
      */
-    const lengthOf = chain => {
-        let run = 0;
-        for (let i = 1; i < chain.length; i++) {
-            run += Math.hypot(chain[i].x - chain[i - 1].x, chain[i].y - chain[i - 1].y);
-        }
-        return run;
-    };
+    const lengthOf = polylineLength;
     // A floor, so a genuinely narrow way through still says it is there rather
     // than vanishing into the outline that stops on either side of it.
     const spanFloor = grid * 0.25;
@@ -5291,71 +5906,13 @@ function addDoorwayGlow(group, region, edges, rect) {
         reachFromAveragedLine: Math.round((core + span) * 10) / 10,
         endAngles: []
     };
-    /*
-     * WHICH WAY EACH END RUNS, AND A STUB PAST IT.
-     *
-     * Two things are read off an opening's ends, and both have to be settled
-     * before a single stroke is drawn.
-     *
-     * The direction is taken between two points that are both well inside the
-     * opening. A chain's last point is pinned to the true border, so a
-     * direction measured to it still carries whichever tile it landed on: on
-     * a staircase that leans the cut about thirty degrees off the run.
-     *
-     * And the line is EXTENDED past the end before it is stroked. Otherwise
-     * every level closes itself with a cap square to its own last segment -
-     * axis-aligned, on a staircase - and that cap, not the gradient, is what
-     * decides where the band stops across part of its depth. Running the
-     * strokes off the end and cutting them afterwards leaves the cut as the
-     * only thing shaping it.
-     */
     const stub = reach + 4;
-    const runs = openings.map(chain => {
-        const ownSpan = spanFor(chain);
-        const tail = chain[chain.length - 1];
-        const closed = Math.hypot(chain[0].x - tail.x, chain[0].y - tail.y) < 0.5;
-        const inner = trimPolyline(chain, depth);
-        const deeper = trimPolyline(chain, depth * 2);
-        const far = deeper.length >= 2 ? deeper : null;
+    const runs = doorwayRuns(openings, { spanFor, depth, stub });
 
-        const direction = (end, near, back) => {
-            let dx = end.x - near.x, dy = end.y - near.y;
-            if (back && Math.hypot(near.x - back.x, near.y - back.y) > 1) {
-                dx = near.x - back.x;
-                dy = near.y - back.y;
-            }
-            const length = Math.hypot(dx, dy);
-            return length < 1e-6 ? null : { x: dx / length, y: dy / length };
-        };
-
-        const heads = closed || inner.length < 2 ? [] : [
-            { at: chain[0], near: inner[0], head: true, dir: direction(chain[0], inner[0], far?.[0] ?? null) },
-            { at: tail, near: inner[inner.length - 1], head: false, dir: direction(tail, inner[inner.length - 1], far?.[far.length - 1] ?? null) }
-        ].filter(h => h.dir);
-
-        const line = [...chain];
-        for (const h of heads) {
-            const past = { x: h.at.x + h.dir.x * stub, y: h.at.y + h.dir.y * stub };
-            if (h.head) line.unshift(past);
-            else line.push(past);
-        }
-        return { heads, line, ownSpan };
-    });
-
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const run of runs) {
-        for (const p of run.line) {
-            minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-            minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
-        }
-    }
-    const box = {
-        x: Math.floor(minX - reach), y: Math.floor(minY - reach),
-        w: Math.ceil(maxX - minX + reach * 2), h: Math.ceil(maxY - minY + reach * 2)
-    };
+    const box = doorwayBox(runs, reach);
     if (!(box.w > 0) || !(box.h > 0)) return;
 
-    let field = null, level = null, strokes = null, blit = null, eraser = null;
+    let field = null, level = null, strokes = null, blit = null;
     try {
         const resolution = Math.min(1, MAX_FOG_TEXTURE / Math.max(box.w, box.h));
         field = PIXI.RenderTexture.create({ width: box.w, height: box.h, resolution });
@@ -5387,166 +5944,19 @@ function addDoorwayGlow(group, region, edges, rect) {
             renderer.render(blit, { renderTexture: field, clear: k === 1 });
         }
 
-        /*
-         * THE ENDS ARE CUT ONCE, ACROSS THE WHOLE BAND.
-         *
-         * Shortening each level by a different amount fades the glow out along
-         * the border, and on a straight wall it looks right - every level ends
-         * on a cap perpendicular to the same wall, so the sixteen caps stack
-         * into one clean edge. On a staircase they do not: a cap is
-         * perpendicular to the little axis-aligned segment it happens to land
-         * on, the segments alternate, and the sixteen ends come out as a
-         * ragged step instead of a cut.
-         *
-         * So the band is built full length - run past its ends, even, so no
-         * level's own cap can shape it - and cut afterwards, by one gradient
-         * laid across it, square to the direction the opening actually runs
-         * in. That is the same straight, single-gradient edge a flat wall
-         * gets, because now it is literally the same operation. Anything past
-         * the end goes entirely, so no light reaches around the doorframe.
-         */
-        // Both cuts have to clear the band comfortably in every direction: the
-        // band reaches `reach` outward from the line and an amplitude inward
-        // of it, and a cut that merely meets those edges leaves an
-        // antialiased sliver standing.
         const halfBand = reach + amplitude + 6;
         const fadeTexture = doorwayFadeTexture();
         const ends = new PIXI.Container();
         const ownPolygons = regionShapes(region, rect).map(f => new PIXI.Polygon(f));
         const insideRoom = (x, y) => ownPolygons.some(p => p.contains(x, y));
-        for (const run of runs) {
-            for (const { at: end, near, dir } of run.heads) {
-                const ux = dir.x, uy = dir.y;
-                lastGlow.endAngles.push(Math.round(Math.atan2(uy, ux) * 180 / Math.PI));
+        cutDoorwayEnds(ends, runs, { halfBand, depth, stub, box, fadeTexture });
 
-                /*
-                 * CENTRED ON THE LINE, NOT ON THE END POINT.
-                 *
-                 * Both cuts reach a half-band either side of wherever they are
-                 * anchored, and the end point is a corner of the TRUE border -
-                 * up to an amplitude off the line the band is built around. So
-                 * anchoring there hung the cuts off centre and left the
-                 * outermost few pixels of the band with nothing to stop them:
-                 * measured on a staircase, everything from the wall out to 27px
-                 * was cut square and the last three ran on past it. The end
-                 * point still decides WHERE along the run the cut falls; only
-                 * the centring comes off the line.
-                 */
-                const along = (end.x - near.x) * ux + (end.y - near.y) * uy;
-                const ox = near.x + ux * along - box.x;
-                const oy = near.y + uy * along - box.y;
-
-                if (fadeTexture) {
-                    const ramp = new PIXI.Sprite(fadeTexture);
-                    ramp.blendMode = PIXI.BLEND_MODES.ERASE;
-                    ramp.anchor.set(0, 0.5);
-                    ramp.width = depth;
-                    ramp.height = halfBand * 2;
-                    ramp.position.set(ox - ux * depth, oy - uy * depth);
-                    ramp.rotation = Math.atan2(uy, ux);
-                    ends.addChild(ramp);
-                }
-
-                const nx = -uy, ny = ux;
-                // Past the end of the stub the strokes were run out to, with
-                // room to spare - matching it exactly left a line of pixels.
-                const past = stub + 8;
-                const beyond = new PIXI.Graphics();
-                beyond.blendMode = PIXI.BLEND_MODES.ERASE;
-                beyond.beginFill(0xffffff, 1);
-                beyond.drawPolygon([
-                    ox + nx * halfBand, oy + ny * halfBand,
-                    ox - nx * halfBand, oy - ny * halfBand,
-                    ox - nx * halfBand + ux * past, oy - ny * halfBand + uy * past,
-                    ox + nx * halfBand + ux * past, oy + ny * halfBand + uy * past
-                ]);
-                beyond.endFill();
-                ends.addChild(beyond);
-
-            }
-        }
-
-        /*
-         * THE INWARD SIDE GOES, ALL THE WAY ALONG.
-         *
-         * The band is built symmetrically about its line and the inward half
-         * is taken away by erasing the room - which holds for exactly as long
-         * as the room is what lies inward. At the end of an opening the border
-         * turns and stops being that, and what is left is a lobe of glow on
-         * the far side of the wall: measured on a staircase whose far end
-         * meets the room's own bottom edge, 35px past the line there against
-         * 3.5px anywhere else. That lobe is the bulge on an end that is
-         * otherwise cut square.
-         *
-         * Past the lip, the inward side is inside the room at every point
-         * ALONG an opening, so erasing it there costs nothing - and doing it
-         * along the whole run, corners and stubs included, is what closes the
-         * ends without a special case for each way a border can turn. The lip
-         * keeps the sliver that is legitimately lit where the true wall dips
-         * inside the averaged line.
-         *
-         * Which way is inward is asked of the room itself rather than read off
-         * the winding, which no map is obliged to keep consistent.
-         */
-        const lip = Math.max(2, amplitude - out + 2);
-        const deepIn = halfBand + stub + 10;
-        for (const { line } of runs) {
-            if (line.length < 2) continue;
-
-            const normals = line.map((_, i) => {
-                const a = line[Math.max(0, i - 1)], b = line[Math.min(line.length - 1, i + 1)];
-                const dx = b.x - a.x, dy = b.y - a.y;
-                const length = Math.hypot(dx, dy) || 1;
-                return { x: -dy / length, y: dx / length };
-            });
-
-            const mid = Math.floor(line.length / 2);
-            const probe = amplitude + 4;
-            const sign = insideRoom(line[mid].x + normals[mid].x * probe,
-                line[mid].y + normals[mid].y * probe) ? 1 : -1;
-
-            const ribbon = [];
-            for (let i = 0; i < line.length; i++) {
-                ribbon.push(line[i].x + normals[i].x * sign * lip - box.x,
-                    line[i].y + normals[i].y * sign * lip - box.y);
-            }
-            for (let i = line.length - 1; i >= 0; i--) {
-                ribbon.push(line[i].x + normals[i].x * sign * deepIn - box.x,
-                    line[i].y + normals[i].y * sign * deepIn - box.y);
-            }
-
-            const inwardCut = new PIXI.Graphics();
-            inwardCut.blendMode = PIXI.BLEND_MODES.ERASE;
-            inwardCut.beginFill(0xffffff, 1);
-            inwardCut.drawPolygon(ribbon);
-            inwardCut.endFill();
-            ends.addChild(inwardCut);
-        }
+        cutDoorwayInside(ends, runs, { amplitude, out, halfBand, stub, box, insideRoom });
         if (ends.children.length) renderer.render(ends, { renderTexture: field, clear: false });
         ends.destroy({ children: true });
         if (fadeTexture) fadeTexture.destroy(true);
 
-        // The room is not lit by its own doorways. Its shape comes out of the
-        // field entirely, and a ring of `out` around the border with it, which
-        // is what keeps the outline sitting on ink rather than on light.
-        eraser = new PIXI.Graphics();
-        eraser.blendMode = PIXI.BLEND_MODES.ERASE;
-        const shapes = regionShapes(region, rect).map(points => {
-            const shifted = new Array(points.length);
-            for (let i = 0; i < points.length; i += 2) {
-                shifted[i] = points[i] - box.x;
-                shifted[i + 1] = points[i + 1] - box.y;
-            }
-            return shifted;
-        });
-        eraser.beginFill(0xffffff, 1);
-        for (const points of shapes) eraser.drawPolygon(points);
-        eraser.endFill();
-        if (out > 0) {
-            eraser.lineStyle({ width: out * 2, color: 0xffffff, alpha: 1, join: "round" });
-            for (const points of shapes) eraser.drawPolygon(points);
-        }
-        renderer.render(eraser, { renderTexture: field, clear: false });
+        eraseRoomFromGlow(renderer, field, region, rect, box, out);
 
         const glow = new PIXI.Sprite(field);
         glow.name = GLOW_NAME;
@@ -5568,7 +5978,6 @@ function addDoorwayGlow(group, region, edges, rect) {
         blit?.destroy();
         if (level && !level.destroyed) level.destroy(true);
         strokes?.destroy();
-        eraser?.destroy();
     }
 }
 
@@ -5842,8 +6251,7 @@ function recolourRoomOutline() {
        the 26.08 pixel-art stroke, Stained Glass the curtain's hairline seam - so when the
        setting has moved the outline is drawn again from the room it was drawn from, rather
        than re-tinted. Everything else on this path is still one computed-style read. */
-    const glassNow = getSetting(SETTINGS.theme) === "stainedGlass"
-        || document.body.classList.contains("drpg-theme-stained-glass");
+    const glassNow = glassOn();
     if (standing.glass !== glassNow && standing.region && standing.fx && !standing.fx.destroyed) {
         flashOutline(standing.fx, standing.region, standing.rect);
         return;

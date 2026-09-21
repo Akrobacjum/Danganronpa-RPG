@@ -40,9 +40,10 @@ export { ECLIPSE_MOVES };
  * clock does not move until the Eclipse ends, so the time of day a running
  * Eclipse is leading into is always the NEXT one.
  *
- * That naming is not cosmetic - it is what decides the allowance. Two of the
- * five let you start anywhere on the map (see ECLIPSE_FREE_PLACEMENT); the
- * other three are the handbook's two connected rooms.
+ * That naming is not cosmetic - it is what decides the allowance. The ones in
+ * ECLIPSE_FREE_PLACEMENT (Night, today) let you start anywhere on the map - unless
+ * the darkening has pulled that back to two crossings (`freeBecomes` in the
+ * overflow table); the other three are the handbook's two connected rooms.
  * ========================================================================== */
 
 /** "Morning Eclipse", "Night Eclipse" - what this placement window is called. */
@@ -640,7 +641,7 @@ export async function judgeEclipseCrossing(actor, from, to) {
     if (!isEclipse()) return true;
 
     /*
-     * A Morning or Night Eclipse is "pick any room to begin in": no budget and
+     * A free-placement Eclipse (ECLIPSE_FREE_PLACEMENT) is "pick any room to begin in": no budget and
      * no adjacency. Both checks below are skipped rather than given a very large
      * number, because the rule is not "many crossings" - it is that you are
      * placing a token, not walking a route.
@@ -668,9 +669,9 @@ export async function judgeEclipseCrossing(actor, from, to) {
         if (from && to) {
             const connected = neighbouringRooms(from);
             if (connected.length && !connected.includes(to)) {
-                ui.notifications.warn(game.i18n.format("DRPG.Eclipse.notConnected", {
-                    from: from, to: to, rooms: connected.join(", ")
-                }));
+                // The same sentence the veto uses, and it names only rooms the
+                // viewer has been in - `crossingRefused` in movement.mjs.
+                ui.notifications.warn(game.i18n.format("DRPG.Move.notConnectedShort", { from, to }));
                 return false;
             }
         }
@@ -757,9 +758,11 @@ async function broadcastEclipse(active) {
 
 export function refreshEclipse() {
     try {
+        // The class alone. The HUD render and the visibility pass this also
+        // ran are already on the sync bus beside it (`SYNC.clock`,
+        // `SYNC.eclipse`), and on their own `ready`/`canvasReady` hooks for
+        // load - so from here they were a second and a third copy (CORE-12).
         document.body.classList.toggle("drpg-eclipse", isEclipse());
-        import("./visibility.mjs").then(m => m.applyAll()).catch(() => {});
-        import("./hud.mjs").then(m => m.renderHud()).catch(() => {});
     } catch (err) {
         error("Could not refresh for the Eclipse", err);
     }

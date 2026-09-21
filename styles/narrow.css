@@ -1,0 +1,215 @@
+/* ==========================================================================
+   THE NARROW STACK - the module on a screen that is not a desk
+   ==========================================================================
+   Below 1200 px of width, or 620 px of height, the module's blocks leave
+   Foundry's three columns and stack in one of their own. The move itself is in
+   scripts/narrow.mjs, which also says why: measured at every size on 13.09, the
+   columns start colliding at about 1196 px and are a pile of five overlapping
+   pairs by 393 px, with two blocks off the screen altogether.
+
+   THE BREAKPOINTS ARE NOT IN THIS FILE, and that is deliberate. `drpg-stacked`
+   and `drpg-short` are stamped on the body by applyTheme from the numbers in
+   settings.mjs, so this sheet, the curtain and the glass harness cannot end up
+   disagreeing about where a screen stops being a desk. A media query here would
+   be a fourth copy of the number, and the curtain could not read it.
+
+   AND IT IS ITS OWN FILE SO THAT IT LOADS LAST. Both themes give the blocks a
+   width of their own - the clock is 312 px under Stained Glass, the status strip
+   and the tray 360 - and those rules are as specific as anything that could be
+   written against them (`body.drpg-theme-stained-glass #ui-right-column-1 >
+   #drpg-player-status`). A sheet after them in module.json wins the tie without
+   an arms race in selectors, and the only `!important` below is there to answer
+   one of theirs.
+
+   Every rule below is keyed on one of the two classes, so on a desk not one of
+   them matches and nothing in the layout changes at all.
+   ========================================================================== */
+
+/* The stack itself: where Foundry's columns are, over the board, scrolled rather
+   than allowed to grow over the map. The shell takes no clicks - the board under
+   it must stay reachable where the stack is only air - and every block in it
+   takes its own back. */
+#drpg-column {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    /* The starting value only. `reserveRoom` in narrow.mjs measures Foundry's tab
+       rail and writes the real inset here, because how far that rail reaches in is
+       not a number a stylesheet can know - it wraps into a second column when its
+       run is taller than the screen, which is what a phone does to it. */
+    right: 8px;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    max-height: 52dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    pointer-events: none;
+}
+#drpg-column > * { pointer-events: auto; }
+/* Sideways on a phone there is no height to give away, so the stack keeps more of
+   what little there is and the board gets the rest. */
+/* ...but never so much of it that the launchers stand in the stack. They are fixed to
+   the bottom-right corner and about 150 px tall with their margin, so at 386 px of height
+   a stack of 60 % reached the messenger button - measured, three overlapping pairs and the
+   Projects tray off the screen at 640 x 360. */
+body.drpg-short #drpg-column { max-height: min(60dvh, calc(100dvh - 170px)); gap: 2px; }
+
+/* THE GAP OPENS EXACTLY WHERE THERE IS GLASS TO PUT IN IT.
+   The seam between two rows of the stack runs the full width and may not reach into
+   either row, so how far it can lean is decided by how far apart they are
+   (`stackShapes` in glass.mjs bounds the angle by exactly that). At four pixels it
+   leans by nothing and the glass comes out as a ruled page. Fourteen buys about a
+   degree, which is the same order as the lean the rails are cut with. Keyed on
+   `drpg-curtain-on`, which glass.mjs puts on the body only where a curtain is
+   actually painted, so a screen with no glass keeps the tighter rhythm and the
+   height it saves. */
+body.drpg-curtain-on #drpg-column,
+body.drpg-curtain-on #drpg-column > #ui-right-column-1 { gap: 14px; }
+
+/* The order of the stack, which is the order of the game: what time it is, how
+   much Despair is in the room, what is happening right now, then the table's own
+   standing and its projects. DOM order cannot say this - the Event card inserts
+   itself after the Despair rail, and the right column is appended last. */
+#drpg-column > #drpg-hud { order: 1; }
+#drpg-column > #drpg-despair { order: 2; }
+#drpg-column > #drpg-events { order: 3; }
+#drpg-column > #ui-right-column-1 { order: 4; }
+
+/* Every block in the stack is as wide as the stack. On a desk each is a box of a
+   stated width in a column sized by it; here the column is the screen and they
+   fill it. `min-width: 0` with them: a flex item refuses to shrink below its
+   content by default, which is what put the Despair rail 5 px over the edge. */
+body.drpg-stacked #drpg-column > :is(#drpg-hud, #drpg-despair, #drpg-events, #ui-right-column-1),
+body.drpg-stacked #drpg-column :is(#drpg-player-status, #countdowns) {
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* THE ONE `!important` IN THIS FILE, AND IT ANSWERS ANOTHER ONE. The Despair rail
+   is "as wide as its rows" under Stained Glass, stated with `!important` so that
+   nothing can squeeze the pips - which is right on a desk and 5 px too wide for a
+   393 px phone, where the last row's stepper is then clipped by the stack's own
+   `overflow-x`. Here it takes the stack's width and its rows wrap instead, which
+   is the same promise kept differently: no pip is ever cut in half. */
+body.drpg-stacked #drpg-column > #drpg-despair {
+    width: auto !important;
+    max-width: 100% !important;
+}
+/* THE ROW DOES NOT WRAP, AND THAT IS WHAT LETS IT FIT.
+   It used to, as a safety net, and the net was the fault: a wrapping flex container
+   places its items on lines BEFORE any of them is allowed to shrink, so the moment
+   the four parts added up to more than the width the stepper went to a line of its
+   own - a stray plus sign under each pool - and the run of pips beside it never gave
+   up a pixel. Held to one line, the pips are the only part that can give and they
+   give exactly as much as is needed. */
+body.drpg-stacked #drpg-despair .drpg-despair-row {
+    width: auto;
+    justify-content: center;
+    flex-wrap: nowrap;
+}
+/* And the pips come down with it. Measured on a 393 px phone: the name takes 65,
+   the twelve pips 217, the count 36 and the stepper 22, which is 364 with the gaps
+   in a row 377 wide - so the stepper wrapped onto a line of its own under each
+   pool, which reads as a stray plus sign rather than as a control. At 13 px the
+   twelve come to 109 and the row is one line again with room to spare. They are
+   read, not pressed: the stepper next to them is the tap target and it keeps its
+   size. */
+body.drpg-stacked #drpg-despair .drpg-despair-pip {
+    width: calc(13px * var(--drpg-sg-scale, 1));
+    height: calc(13px * var(--drpg-sg-scale, 1));
+}
+/* AND THE PIPS ARE THE PART THAT GIVES, which is a rule rather than another measured
+   number. The pool's name, its count and its stepper are each one thing that cannot
+   be broken; twelve pips are twelve things and read as well in two lines of six as
+   in one of twelve. So the run of pips shrinks and wraps inside itself, and the
+   stepper stays beside the count at any width - which is what reserving the
+   sidebar's rail had taken away again, the row having lost 56 px to it. */
+body.drpg-stacked #drpg-despair .drpg-despair-pips {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* The clock, flattened. On a desk it is a plaque of six stacked lines, which is
+   212 px of a phone's 852 before anything else has had a row; the same lines in a
+   wrapping row read in the same order in half the height. The campaign's name
+   keeps a line of its own - it is the longest string in the box and the only one
+   that would push the rest off the edge. */
+body.drpg-stacked #drpg-hud {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 2px 10px;
+    padding: 4px 8px;
+    margin: 0;
+    text-align: center;
+}
+body.drpg-stacked #drpg-hud .drpg-hud-campaign { flex-basis: 100%; }
+/* The ticker is the one thing in the clock that says nothing new - it is the
+   phase name scrolling behind the phase name. It is also positioned across the
+   whole plaque, which in a wrapping row lands on top of the words. */
+body.drpg-stacked #drpg-hud .drpg-hud-ticker { display: none; }
+
+/* The right column is a row of the stack now, not a column against the sidebar:
+   the margin that held it clear of the sidebar tabs, and the offset hud.mjs gives
+   it to line up with the Despair rail, are both meaningless here. */
+body.drpg-stacked #drpg-column > #ui-right-column-1 {
+    margin-top: 0;
+    gap: 4px;
+}
+/* And the status strip stops being as tall as the Despair rail. That height is
+   published as `--drpg-despair-height` so the two boxes match ACROSS the screen
+   from each other; stacked, they are one above the other, and the rule can only
+   make the strip taller than its own contents. */
+body.drpg-stacked #drpg-player-status { min-height: 0; }
+
+/* Foundry's top bar keeps nothing of the module's now and should not still be
+   reserving room in the middle of the screen. */
+body.drpg-stacked #ui-top:empty { display: none; }
+
+/* The notices come from the top of the screen, which is where the stack is now.
+   They go to the bottom instead, clear of the launchers, and take the width they
+   are given rather than the 330 px they are drawn for. */
+body.drpg-stacked #drpg-popups {
+    top: auto;
+    bottom: 96px;
+    left: 8px;
+    right: 8px;
+    transform: none;
+    align-items: stretch;
+}
+body.drpg-stacked #drpg-popups > * { max-width: none; width: auto; }
+/* The tile itself has a STATED width under Stained Glass - the audit page's 330 px,
+   on the scale - and a stated width beats the left/right pair the corner rule sets,
+   so the tile stayed 280 px wide and ran back under the sidebar's tabs. Measured at
+   393 x 852: 48 x 136 of it behind the rail. Here the two insets decide it. */
+body.drpg-stacked #drpg-popups {
+    width: auto;
+    max-width: none;
+}
+
+/* ---- windows -------------------------------------------------------------
+   `scaleWindow` in settings.mjs already keeps a window's SIZE inside the screen
+   (the character sheet asks for 1120 x 1160 and would otherwise open with its
+   bottom off the display). What it does not decide is where the window stands,
+   and Foundry remembers that between sessions: a dialog last dragged to the
+   middle of a 1920 px desk opens off the right edge of a phone. So a ceiling on
+   the size here as well, in case anything opens without a stated one. */
+body.drpg-stacked .application {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+}
+/* WHERE a window stands is left alone on purpose. ApplicationV2 clamps its own
+   left and top into the viewport, so a dialog remembered at the middle of a desk
+   comes back onto a phone by itself; pinning it here would have taken dragging
+   with it and answered a question Foundry had already answered. Worth a look on a
+   real phone, since that clamp is the one part of this not measured here. */

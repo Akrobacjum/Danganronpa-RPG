@@ -60,8 +60,9 @@ const SEEDED_CHIME = "sounds/notify.wav";
  * One entry per saved shape this update changes.
  *
  * Each stage that changes a saved shape appends here rather than writing its
- * own migration somewhere else. Keep the entries in the order the stages run:
- * a later clause is allowed to assume the earlier ones have been through.
+ * own migration somewhere else. The clauses are independent of each other -
+ * none assumes another has run - which is why the list is in the order they
+ * were written rather than by `since` (CORE-16).
  *
  *   key    stable identifier, used in the report and in the console
  *   since  the build that introduced the clause. NOT DOCUMENTATION: a clause is
@@ -378,8 +379,9 @@ const CLAUSES = [
         /*
          * TRAP 109 - A WORLD IN PLAY KEEPS THE WORD IT ALREADY USES.
          *
-         * Before E15 the safeword was `DRPG.Safeword.word` in the language
-         * file: one word for every install, and in this project's own worlds
+         * Before E15 the safeword was a string in the language file (now
+         * `DRPG.Legacy.safeword`, kept only for this clause - TEXT-19): one
+         * word for every install, and in this project's own worlds
          * that word is MISIUBOMBO. E15 makes it a setting whose default is
          * plain "Safe Word" - so without this clause, an update would silently
          * change the safeword of a campaign in progress.
@@ -399,12 +401,18 @@ const CLAUSES = [
          * The old key stays in the language file for exactly this clause to
          * read. It is not used to render anything any more.
          */
-        run: async () => {
+        run: async ({ from }) => {
+            // A WORLD THAT WAS IN PLAY, not a new one (CORE-13). Unstamped
+            // worlds run every clause, and a world created today has never
+            // used the language file's word - so without this line every new
+            // world got it as its safeword, with a card saying it was found.
+            if (!from) return null;
+
             const current = String(getSetting(SETTINGS.safeword) ?? "").trim();
             const { DEFAULT_SAFEWORD } = await import("./settings.mjs");
             if (current && current !== DEFAULT_SAFEWORD) return null;
 
-            const legacy = String(game.i18n.localize("DRPG.Safeword.word") ?? "").trim();
+            const legacy = String(game.i18n.localize("DRPG.Legacy.safeword") ?? "").trim();
             if (!legacy || legacy === DEFAULT_SAFEWORD) return null;
 
             await setSetting(SETTINGS.safeword, legacy);
@@ -483,6 +491,21 @@ const CLAUSES = [
             })}</p>`);
 
             return { motive: stored.text, timesOfDay: MOTIVE.defaultTimesOfDay };
+        }
+    },
+    {
+        key: "questionMarkIcon",
+        since: "1.2.44",
+        /*
+         * The Remnant icon changed from the hazard triangle to the question
+         * mark, and the sweep that moved existing tokens over ran on every
+         * load of every world since (`adoptQuestionMark`), walking each
+         * scene's tokens for a change it had made months ago. Once, here.
+         */
+        run: async () => {
+            const { adoptQuestionMark } = await import("./remnants.mjs");
+            const moved = await adoptQuestionMark();
+            return moved ? { moved } : null;
         }
     },
     {

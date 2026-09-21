@@ -1,9 +1,24 @@
 {
   "scenario": "scenarios/00-boot.mjs",
-  "passed": 15,
-  "total": 16,
+  "passed": 18,
+  "total": 19,
   "ms": 307,
   "results": [
+    {
+      "name": "p2: boot completed",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "p2: game.drpg api registered",
+      "ok": true,
+      "details": "keys=407"
+    },
+    {
+      "name": "p2: module settings registered (>30)",
+      "ok": true,
+      "details": "got 64"
+    },
     {
       "name": "p1: boot completed",
       "ok": true,
@@ -12,12 +27,12 @@
     {
       "name": "p1: game.drpg api registered",
       "ok": true,
-      "details": "keys=400"
+      "details": "keys=407"
     },
     {
       "name": "p1: module settings registered (>30)",
       "ok": true,
-      "details": "got 55"
+      "details": "got 64"
     },
     {
       "name": "gm: boot completed",
@@ -27,27 +42,27 @@
     {
       "name": "gm: game.drpg api registered",
       "ok": true,
-      "details": "keys=400"
+      "details": "keys=407"
     },
     {
       "name": "gm: module settings registered (>30)",
       "ok": true,
-      "details": "got 55"
+      "details": "got 64"
     },
     {
-      "name": "p2: boot completed",
+      "name": "p3: boot completed",
       "ok": true,
       "details": ""
     },
     {
-      "name": "p2: game.drpg api registered",
+      "name": "p3: game.drpg api registered",
       "ok": true,
-      "details": "keys=400"
+      "details": "keys=407"
     },
     {
-      "name": "p2: module settings registered (>30)",
+      "name": "p3: module settings registered (>30)",
       "ok": true,
-      "details": "got 55"
+      "details": "got 64"
     },
     {
       "name": "gm: module settings visible",
@@ -62,17 +77,17 @@
     {
       "name": "gm: boot notifications recorded",
       "ok": true,
-      "details": "[\"warn: This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().\",\"error: Danganronpa RPG: the data migration stopped short — seedItemRoles. Nothing was marked as migrated; the console has the details.\"]"
+      "details": "[\"info: Room-based visibility switched on for 1 scenes.\"]"
     },
     {
       "name": "p1: boot notifications recorded",
       "ok": true,
-      "details": "[\"warn: This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().\"]"
+      "details": "[]"
     },
     {
       "name": "p2: boot notifications recorded",
       "ok": true,
-      "details": "[\"warn: This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().\"]"
+      "details": "[]"
     },
     {
       "name": "gm: no missing i18n keys during boot",
@@ -94,6 +109,31 @@
   ],
   "socketTraffic": [
     {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
       "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 99
@@ -104,17 +144,32 @@
       "size": 29
     },
     {
-      "from": "p1",
+      "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 91
+      "size": 119
     },
     {
-      "from": "p2",
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 119
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -124,31 +179,41 @@
       "size": 135
     },
     {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 135
-    },
-    {
-      "from": "p2",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 91
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 119
     }
   ],
   "bootInfo": {
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 64
+    },
     "p1": {
       "t": "ready",
       "drpg": true,
-      "settingsRegistered": 55
+      "settingsRegistered": 64
     },
     "gm": {
       "t": "ready",
       "drpg": true,
-      "settingsRegistered": 55
+      "settingsRegistered": 64
     },
-    "p2": {
+    "p3": {
       "t": "ready",
       "drpg": true,
-      "settingsRegistered": 55
+      "settingsRegistered": 64
     }
   }
 }

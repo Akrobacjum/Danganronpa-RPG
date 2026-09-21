@@ -11,7 +11,7 @@ import { SETTINGS } from "./settings.mjs";
 import {
     allProjects, setProjectMeta, metaFor, roomOf, isIndirectMurder, isSecret,
     makeSecret, shareWith, unshareWith, revealProject, viewersOf, sealAudience, builderIds,
-    createProject, deleteProject, setProjectImage, updateProject
+    createProject, deleteProject, setProjectImage, updateProject, knowsProject
 } from "./projects.mjs";
 import { allRooms } from "./movement.mjs";
 import { dialogContent, error, tableDialog, wirePortraitPickers } from "./utils.mjs";
@@ -84,6 +84,7 @@ function onRenderCountdowns(app, element) {
         leaveIconOnly(app, root);
 
         localiseRawKeys(root);
+        hideUndiscovered(root);
         paintProgress(root);
 
         // Folding the tray away is everybody's, not the GM's - a player with
@@ -179,6 +180,57 @@ function localiseRawKeys(root) {
             element.setAttribute(attribute, game.i18n.localize(value));
         }
     }
+}
+
+/**
+ * ROWS FOR PROJECTS THIS PERSON HAS NOT FOUND YET ARE NOT DRAWN.
+ *
+ * The tray is Daggerheart's, and the system decides what reaches it from the
+ * countdown's own ownership - which is the secrecy gate and nothing else. A
+ * PUBLIC project in a room nobody has walked into is, as far as the system is
+ * concerned, everybody's business, so its row was in the tray from the moment
+ * the GM made it: the class could read off a list of what the season had in
+ * store for them, in order, before setting foot anywhere.
+ *
+ * So the row goes, on the same terms the map token goes (visibility.mjs): one
+ * rule, `knowsProject`, asked per client. Removed rather than hidden with a
+ * class - a hidden row is still in the accessibility tree and still in the
+ * tray's own count, and this file already removes system-owned controls on
+ * every render for the same reason.
+ *
+ * FAILING OPEN IS DELIBERATE, twice over:
+ *   - a row this pass cannot resolve to a project stays, because it may not be
+ *     one of ours at all (a countdown built in Daggerheart's own window);
+ *   - `knowsProject` answers true for a GM, for anyone in on a secret one, and
+ *     for any project with no room set, so those rows are never candidates.
+ * The only row this can ever take out is a public, room-bound project on a
+ * player's client, which is exactly the case it was written for.
+ *
+ * Runs BEFORE `paintProgress`, so the paint pass is not measuring and styling
+ * rows that are about to be thrown away.
+ *
+ * Exported, and takes the reader as an argument, for one reason: the suite runs
+ * as a GM, and a function whose first line is "a GM sees everything" cannot be
+ * tested by one. The default is the only value the render hook ever passes.
+ *
+ * @returns {number} how many rows were taken out - the suite's measurement.
+ */
+export function hideUndiscovered(root, user = game.user) {
+    if (user?.isGM) return 0;
+
+    const rows = root.querySelectorAll(".countdown-container");
+    if (!rows.length) return 0;
+    const projects = allProjects();
+
+    let removed = 0;
+    for (const row of rows) {
+        const project = projectForRow(row, projects);
+        if (!project) continue;
+        if (knowsProject(project.id, user)) continue;
+        row.remove();
+        removed += 1;
+    }
+    return removed;
 }
 
 /**
@@ -326,34 +378,15 @@ function addCollapseControl(root) {
  * creation in one dialog and editing in another meant a new project always
  * needed two trips.
  */
-export async function openProjectManager() {
-    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
-    // window each read the world when they opened and neither knows about the
-    // other, so the older one goes on looking authoritative while showing
-    // something that stopped being true. Raised rather than refused: pressing
-    // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-projects")) return null;
-
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return;
-    }
-
-    const projects = allProjects();
-    const rooms = allRooms();
-
-    // No projects yet? Go straight to creating one.
-    if (!projects.length) {
-        const made = await openCreateDialog(rooms);
-        return made ? openProjectManager() : undefined;
-    }
+/** One editable row per project: portrait, name and progress, room, the two flags, edit, delete. */
+function projectManagerRows(projects, rooms) {
     const roomOptions = id => [
         `<option value="">${game.i18n.localize("DRPG.Project.anyRoom")}</option>`,
         ...rooms.map(r => `<option value="${foundry.utils.escapeHTML(r)}"${roomOf(id) === r ? " selected" : ""}>${foundry.utils.escapeHTML(r)}</option>`)
     ].join("");
 
     const players = game.users.filter(u => !u.isGM);
-    const rows = projects.map(p => {
+    return projects.map(p => {
         const secret = isSecret(p.id);
         const knows = viewersOf(p.id).map(u => u.id);
         return `<tr data-project="${p.id}">
@@ -387,6 +420,123 @@ export async function openProjectManager() {
             </td>
         </tr>`;
     }).join("");
+}
+
+/** The portraits, the live progress figures, and the per-row edit buttons. */
+function wireProjectManager(dialog, projects, rooms) {
+    wirePortraitPickers(dialog.element);
+
+    /* PROGRESS MOVES WHILE THIS WINDOW IS OPEN, AND THAT IS WHAT IT IS FOR.
+
+       A player spends an action on a project and the number in here changes -
+       from their client, so nothing tells this window about it. It is the screen
+       a GM has up for most of a Daily Life (see the panel's note on the tile),
+       which is exactly the stretch when the figures move. Measured on 11.09 with
+       the manager open: a project went 0/4 to 1/4 and the cell still read 0/4.
+
+       Only the figures, written in place: every other cell here is a control the
+       GM is editing and Apply is what saves them, so swapping the table out would
+       discard half-finished work and unwire the row buttons below. A project
+       being CREATED or deleted elsewhere still needs the window reopening; that
+       is a rarer event and a louder one. */
+    keepFresh(dialog, {
+        run: root => {
+            for (const project of allProjects()) {
+                const cell = root.querySelector(
+                    `[data-drpg-progress="${CSS.escape(project.id)}"]`);
+                if (!cell) continue;
+                const text = `${project.current}/${project.start}`;
+                if (cell.textContent !== text) cell.textContent = text;
+            }
+        },
+        watch: { settingKeys: ["daggerheart.Countdowns"] }
+    });
+
+    for (const btn of dialog.element.querySelectorAll("[data-drpg-edit]")) {
+        btn.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const project = projects.find(p => p.id === btn.dataset.drpgEdit);
+            if (!project) return;
+            await dialog.close();
+            await openProjectDialog({ project, rooms });
+            await openProjectManager();
+        });
+    }
+}
+
+/** Write every row back: deletions first, then image, room, the murder flag and secrecy. Answers how many were deleted. */
+async function applyProjectManager(result, projects) {
+    let deleted = 0;
+    // A sabotage pair goes together (F5), so a row can be gone by the time the
+    // loop reaches it. Asked of the world, not of the list the window opened with:
+    // writing metadata for a project deleted two rows up leaves an orphan row, and
+    // a second Delete on it would not be counted.
+    const exists = id => allProjects().some(p => p.id === id);
+    for (const entry of result) {
+        if (entry.delete) {
+            if (!exists(entry.id)) { deleted += 1; continue; }
+            if (await deleteProject(entry.id)) deleted += 1;
+            continue;
+        }
+        if (!exists(entry.id)) continue;
+
+        const before = projects.find(p => p.id === entry.id);
+        if (entry.img && entry.img !== before?.img) await setProjectImage(entry.id, entry.img);
+
+        // A project that has only just been marked as an indirect murder is
+        // sealed with it - that is the default the guide wants, and the box in
+        // this row was rendered before the GM ticked "indirect".
+        const newlyMurder = entry.murder && !isIndirectMurder(entry.id);
+        // A tick with nobody behind it arms nothing (ITEM-14): the row's
+        // "Indirect" box is refused, with a reason, until the project has a
+        // killer - the edit dialog is where one is named.
+        if (newlyMurder) {
+            const meta = metaFor(entry.id);
+            if (!meta.killerId && !meta.by) {
+                ui.notifications.warn(game.i18n.format("DRPG.Project.needsKillerNamed", { name: before?.name ?? "?" }));
+                await setProjectMeta(entry.id, { room: entry.room || null });
+                continue;
+            }
+        }
+        await setProjectMeta(entry.id, { room: entry.room || null, indirectMurder: entry.murder });
+
+        // After that first moment the checkbox is simply the answer.
+        //
+        // This used to read `entry.secretTouched`, a field `readManager` has
+        // never returned - so it was permanently `undefined`, "is it secret"
+        // came out as `secret || murder`, and an indirect murder flipped between
+        // sealed and revealed on every other save.
+        const shouldBeSecret = entry.secret || newlyMurder;
+        // Through applySecrecy, which knows about the row's own ticked list of
+        // viewers (P-1) and about the builder; `entry.viewers` is null when this
+        // window had no list to read, and then the seal keeps whoever already knew.
+        await applySecrecy(entry.id, shouldBeSecret, entry.viewers);
+    }
+    return deleted;
+}
+
+export async function openProjectManager() {
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-projects")) return null;
+
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return;
+    }
+
+    const projects = allProjects();
+    const rooms = allRooms();
+
+    // No projects yet? Go straight to creating one.
+    if (!projects.length) {
+        const made = await openCreateDialog(rooms);
+        return made ? openProjectManager() : undefined;
+    }
+    const rows = projectManagerRows(projects, rooms);
 
     const content = dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Project.manageIntro")}</p>
@@ -426,46 +576,7 @@ export async function openProjectManager() {
         // see wirePortraitPickers() for why this cannot be wired any earlier.
         // The per-row edit buttons need the same treatment, and they close the
         // manager first so the two windows never stack.
-        render: (event, dialog) => {
-            wirePortraitPickers(dialog.element);
-
-            /* PROGRESS MOVES WHILE THIS WINDOW IS OPEN, AND THAT IS WHAT IT IS FOR.
-
-               A player spends an action on a project and the number in here changes -
-               from their client, so nothing tells this window about it. It is the screen
-               a GM has up for most of a Daily Life (see the panel's note on the tile),
-               which is exactly the stretch when the figures move. Measured on 11.09 with
-               the manager open: a project went 0/4 to 1/4 and the cell still read 0/4.
-
-               Only the figures, written in place: every other cell here is a control the
-               GM is editing and Apply is what saves them, so swapping the table out would
-               discard half-finished work and unwire the row buttons below. A project
-               being CREATED or deleted elsewhere still needs the window reopening; that
-               is a rarer event and a louder one. */
-            keepFresh(dialog, {
-                run: root => {
-                    for (const project of allProjects()) {
-                        const cell = root.querySelector(
-                            `[data-drpg-progress="${CSS.escape(project.id)}"]`);
-                        if (!cell) continue;
-                        const text = `${project.current}/${project.start}`;
-                        if (cell.textContent !== text) cell.textContent = text;
-                    }
-                },
-                watch: { settingKeys: ["daggerheart.Countdowns"] }
-            });
-
-            for (const btn of dialog.element.querySelectorAll("[data-drpg-edit]")) {
-                btn.addEventListener("click", async ev => {
-                    ev.preventDefault();
-                    const project = projects.find(p => p.id === btn.dataset.drpgEdit);
-                    if (!project) return;
-                    await dialog.close();
-                    await openProjectDialog({ project, rooms });
-                    await openProjectManager();
-                });
-            }
-        },
+        render: (event, dialog) => wireProjectManager(dialog, projects, rooms),
         rejectClose: false
     });
 
@@ -479,40 +590,7 @@ export async function openProjectManager() {
     }
     if (!result || result === "cancel") return;
 
-    let deleted = 0;
-    // A sabotage pair goes together (F5), so a row can be gone by the time the
-    // loop reaches it. Asked of the world, not of the list the window opened with:
-    // writing metadata for a project deleted two rows up leaves an orphan row, and
-    // a second Delete on it would not be counted.
-    const exists = id => allProjects().some(p => p.id === id);
-    for (const entry of result) {
-        if (entry.delete) {
-            if (!exists(entry.id)) { deleted += 1; continue; }
-            if (await deleteProject(entry.id)) deleted += 1;
-            continue;
-        }
-        if (!exists(entry.id)) continue;
-
-        const before = projects.find(p => p.id === entry.id);
-        if (entry.img && entry.img !== before?.img) await setProjectImage(entry.id, entry.img);
-
-        // A project that has only just been marked as an indirect murder is
-        // sealed with it - that is the default the guide wants, and the box in
-        // this row was rendered before the GM ticked "indirect".
-        const newlyMurder = entry.murder && !isIndirectMurder(entry.id);
-        await setProjectMeta(entry.id, { room: entry.room || null, indirectMurder: entry.murder });
-
-        // After that first moment the checkbox is simply the answer.
-        //
-        // This used to read `entry.secretTouched`, a field `readManager` has
-        // never returned - so it was permanently `undefined`, "is it secret"
-        // came out as `secret || murder`, and an indirect murder flipped between
-        // sealed and revealed on every other save.
-        const shouldBeSecret = entry.secret || newlyMurder;
-        // The row's own list of who knows (P-1), or nothing to say when this
-        // window had no list to read.
-        await applySecrecy(entry.id, shouldBeSecret, entry.viewers);
-    }
+    const deleted = await applyProjectManager(result, projects);
 
     ui.notifications.info(deleted
         ? game.i18n.format("DRPG.Project.savedWithDeletions", { n: deleted })
@@ -615,9 +693,6 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     ].join("");
 
     const players = game.users.filter(u => !u.isGM);
-    const playerOptions = players
-        .map(u => `<option value="${u.id}">${foundry.utils.escapeHTML(u.name)}</option>`)
-        .join("");
 
     const traitOptions = [
         `<option value=""${currentTrait ? "" : " selected"}>${
@@ -724,7 +799,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                 const f = d.element.querySelector("form");
                 return {
                     name: f.name.value.trim(),
-                    target: Number(f.target.value) || 4,
+                    target: Number(f.target.value) || PROJECT_SCALE.everyday.progress,
                     room: f.room.value || null,
                     trait: f.trait.value || null,
                     murder: f.murder.checked,
@@ -815,6 +890,23 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         return { id: project.id, name: result.name };
     }
 
+    // Whose trap it is: the character of the first player the GM ticked under
+    // "Visible to", else the proposer off the card (ITEM-03) - see `killerIdFor`.
+    // The list replaced the single name on 18.09 (P-1), and its first entry is
+    // the one that stands in. Whoever it is, `createProject` adds them to the
+    // ticked viewers rather than replacing them (F3).
+    const killerId = killerIdFor(result.viewers?.[0], start?.by ?? null);
+
+    // An indirect murder needs somebody to be the killer (ITEM-14): without a
+    // killer the trap never arms and the finished project tells nobody. Said
+    // here, where the GM can still pick a name, rather than logged later. It is
+    // the one value above, read once, so the refusal and the write below can
+    // never disagree about who the killer is.
+    if (result.murder && !killerId) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Project.needsKiller"));
+        return null;
+    }
+
     const created = await createProject({
         name: result.name,
         target: result.target,
@@ -831,24 +923,23 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         img: result.img,
         glyph: result.glyph,
         viewers: result.viewers ?? [],
-        // Whose trap it is: the student who proposed it, and only when there is
-        // no proposer - a project the GM made from the panel - the character of
-        // the first player they ticked. The proposer used to be ignored here, so
-        // an approved trap with nobody named had no killer and no viewer, and its
-        // own builder could not see it (F3, 17.09). The list replaced the single
-        // name on 18.09 (P-1), and the first entry is the one that stands in.
-        killerId: start?.by ?? characterOf(result.viewers?.[0])
+        // Decided just above, together with the refusal that guards it: a murder
+        // with neither a proposer nor a ticked player never gets this far.
+        killerId
     });
 
     if (created) ui.notifications.info(game.i18n.format("DRPG.Project.created", { name: created.name }));
     return created;
 }
 
-/** The character a player owns, for the one place a viewer stands in for a builder. */
-function characterOf(userId) {
-    const user = userId ? game.users.get(userId) : null;
-    if (!user) return null;
-    return game.actors.find(a => a.type === "character" && a.testUserPermission(user, "OWNER"))?.id ?? null;
+/** The actor behind a chosen viewer, else the proposer. */
+function killerIdFor(viewerUserId, byActorId) {
+    if (viewerUserId) {
+        const user = game.users.get(viewerUserId);
+        const owned = user ? game.actors.find(a => a.type === "character" && a.testUserPermission(user, "OWNER")) : null;
+        if (owned) return owned.id;
+    }
+    return byActorId ?? null;
 }
 
 /** Keep the ownership map in step with one boolean. */

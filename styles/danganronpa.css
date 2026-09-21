@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.42";
+    --drpg-css-version: "1.2.47";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -269,6 +269,285 @@
        grid, encoded as runs) rather than placed by hand - regenerate there,
        do not edit the path. */
     --drpg-g-die-d12: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 0h2v1H11zM9 1h6v1H9zM7 2h2v1H7zM11 2h2v1H11zM15 2h2v1H15zM5 3h2v1H5zM11 3h2v1H11zM17 3h2v1H17zM4 4h1v1H4zM11 4h2v1H11zM19 4h1v1H19zM3 5h1v1H3zM11 5h2v1H11zM20 5h1v1H20zM3 6h1v1H3zM11 6h2v1H11zM20 6h1v1H20zM2 7h1v1H2zM10 7h1v1H10zM13 7h1v1H13zM21 7h1v1H21zM1 8h2v1H1zM8 8h2v1H8zM14 8h2v1H14zM21 8h2v1H21zM1 9h1v1H1zM3 9h2v1H3zM7 9h1v1H7zM16 9h1v1H16zM19 9h2v1H19zM22 9h1v1H22zM1 10h1v1H1zM5 10h2v1H5zM17 10h2v1H17zM22 10h1v1H22zM1 11h1v1H1zM6 11h1v1H6zM17 11h1v1H17zM22 11h1v1H22zM1 12h1v1H1zM7 12h1v1H7zM16 12h1v1H16zM22 12h1v1H22zM1 13h1v1H1zM7 13h1v1H7zM16 13h1v1H16zM22 13h1v1H22zM1 14h1v1H1zM7 14h1v1H7zM16 14h1v1H16zM22 14h1v1H22zM1 15h1v1H1zM8 15h1v1H8zM15 15h1v1H15zM22 15h1v1H22zM2 16h1v1H2zM8 16h8v1H8zM21 16h1v1H21zM3 17h1v1H3zM7 17h1v1H7zM16 17h1v1H16zM20 17h1v1H20zM3 18h1v1H3zM6 18h1v1H6zM17 18h1v1H17zM20 18h1v1H20zM4 19h1v1H4zM6 19h1v1H6zM17 19h1v1H17zM19 19h1v1H19zM5 20h1v1H5zM18 20h1v1H18zM6 21h2v1H6zM16 21h2v1H16zM8 22h2v1H8zM14 22h2v1H14zM10 23h4v1H10z'/%3E%3C/svg%3E");
+
+    /* ---- Tokens added by later stages, merged here: one :root, last value wins. ---- */
+
+    --drpg-edge: 22px;
+
+    /* THE TWO CORNER CIRCLES, AS ONE MEASUREMENT.
+       The chat launcher takes its 66px from the performance gauge at the other
+       end of the bottom edge (Dawid, 26.08) - two ends of the same line that
+       must agree. The sound launcher then takes its size and its offset FROM
+       the chat one, because it is stacked on top of it: hard-coding 52 and 66
+       in three places is how a stack ends up overlapping itself the next time
+       the gauge changes. Which is exactly what happened while this was being
+       built. */
+    --drpg-launcher: 66px;
+    --drpg-launcher-small: 52px;
+
+    /* Bahnschrift ships with Windows 10 and up and is a condensed grotesque -
+       close to the heavy, squared lettering Danganronpa sets its menus in, and
+       nothing like Foundry's Signika. The stack degrades to the platform UI
+       face rather than to a serif, so a Mac or Linux seat still looks
+       deliberate. */
+    --drpg-font-ui: "Bahnschrift", "Segoe UI Variable Display", "Segoe UI",
+                    system-ui, -apple-system, "Helvetica Neue", sans-serif;
+
+    /* THE SIX TYPE RUNGS, AND THE SLIDER REACHES THEM (W-2, Dawid 19.09). 95 of
+       this sheet's 234 font-size declarations read them, which makes this the
+       cheapest 95 in the file. `--drpg-legacy-scale` is the slider under Monokuma
+       Legacy and 1 under Stained Glass (see `applyTheme`), so this moves Legacy
+       and leaves the glass exactly where it is.
+
+       THE FLOOR IS ON `xs` AND NOWHERE ELSE, because it is the only rung the
+       slider can push under it: 13px x 0.8 is 10.4. 10px rather than the 11px the
+       typography doc states, because 11 IS the value at 100 % and 0.8 x 11 is 8.8
+       - either the floor gives up a pixel or the bottom of the slider goes quiet
+       for this one rung.
+
+       `--drpg-tile-text` still multiplies BELOW the floor on a cramped action
+       grid. That multiply happens at the use site, not here, and it is deliberate
+       and only there. */
+    --drpg-text-xs: max(10px, calc(0.6875rem * var(--drpg-legacy-scale, 1)));   /* 11px at 100 % - the floor, never smaller */
+    --drpg-text-sm: calc(0.8125rem * var(--drpg-legacy-scale, 1));   /* 13px at 100 % */
+    --drpg-text-md: calc(0.9375rem * var(--drpg-legacy-scale, 1));   /* 15px at 100 % */
+    --drpg-text-base: calc(1rem * var(--drpg-legacy-scale, 1));      /* 16px at 100 % */
+    --drpg-text-lg: calc(1.25rem * var(--drpg-legacy-scale, 1));     /* 20px at 100 % */
+    --drpg-text-xl: calc(1.75rem * var(--drpg-legacy-scale, 1));     /* 28px at 100 % */
+
+    /* Two window widths, and no third.
+       --------------------------------------------------------------------
+       Every popup the module opens is one of these. Measured before they
+       existed, the same set of windows came out at 360, 400, 544, 723, 736,
+       896 and 1274px - seven sizes for one module, so nothing on screen ever
+       sat where the last thing had been.
+
+       Both are deliberately NARROWER than the character sheet's 850px
+       default. The sheet is the thing you work in; these are the things you
+       answer and dismiss, and a dialog as wide as the sheet reads as another
+       sheet. Wide is for a table with columns to line up - nothing else.
+
+       AND THEY ARE WHAT THE SLIDER HAS TO REACH (W-2, Dawid 19.09). The first one
+       is stated with `!important` further down this sheet, which outranks the
+       inline width `setPosition` writes, and the glass uses both as the floor and
+       the cap of a `fit-content` window. So a window box follows the slider here
+       or nowhere. `--drpg-legacy-scale` and not the type factor, for the same
+       reason as the type rungs - and because `scaleWindow` already scales boxes
+       by the slider alone: one number, two places, no drift. Under Stained Glass
+       the token is 1, so that theme's floor, cap and prose measure stay exactly
+       where they are. */
+    --drpg-popup: calc(34rem * var(--drpg-legacy-scale, 1));        /* 544px at 100 % - every window with prose in it */
+    --drpg-popup-wide: calc(44rem * var(--drpg-legacy-scale, 1));   /* 704px at 100 % - the GM panel and the managers */
+
+    /* AN ABSOLUTE CEILING, BECAUSE `vw` HAS NONE (W-9, Dawid 18.09).
+
+       Every size in this sheet was chosen at 16:9, and a dozen of them are
+       stated in `vw`. On a 5120x1440 screen 96vw is 4915px: a HUD stretched
+       across three feet of glass, and a measured table window whose five columns
+       sit a hand's width apart. These two are the ceilings the full-width
+       overlays and the measured windows share, and utils.mjs READS the second
+       one rather than keeping its own copy of the number - so the stylesheet
+       stays the authority on how wide anything may be. The ultrawide block near
+       the end of this file raises the second one on a screen wider than 2:1. */
+    --drpg-overlay-max: 1280px;
+    --drpg-window-max: 1400px;
+
+    --drpg-g-move:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 2h3v1H6zM10 2h3v1H10zM14 2h3v1H14zM18 2h2v1H18zM6 3h3v1H6zM10 3h3v1H10zM14 3h3v1H14zM18 3h2v1H18zM6 5h13v1H6zM5 6h15v1H5zM5 7h15v1H5zM5 8h15v1H5zM6 9h13v1H6zM7 10h11v1H7zM8 11h9v1H8zM9 12h7v1H9zM9 13h7v1H9zM7 14h11v1H7zM6 15h13v1H6zM6 16h13v1H6zM7 17h11v1H7zM8 18h9v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-search:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 2h7v1H7zM5 3h3v1H5zM13 3h3v1H13zM4 4h2v1H4zM14 4h2v1H14zM3 5h2v1H3zM15 5h2v1H15zM3 6h2v1H3zM15 6h2v1H15zM2 7h2v1H2zM16 7h2v1H16zM2 8h2v1H2zM16 8h2v1H16zM2 9h2v1H2zM16 9h2v1H16zM3 10h2v1H3zM15 10h2v1H15zM3 11h2v1H3zM15 11h2v1H15zM4 12h2v1H4zM14 12h2v1H14zM5 13h3v1H5zM13 13h3v1H13zM7 14h7v1H7zM13 15h3v1H13zM14 16h3v1H14zM15 17h3v1H15zM16 18h3v1H16zM17 19h3v1H17zM18 20h3v1H18z'/%3E%3C/svg%3E");
+    --drpg-g-observe:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 7h8v1H8zM5 8h3v1H5zM16 8h3v1H16zM3 9h2v1H3zM10 9h4v1H10zM19 9h2v1H19zM2 10h2v1H2zM9 10h6v1H9zM20 10h2v1H20zM2 11h2v1H2zM9 11h6v1H9zM20 11h2v1H20zM3 12h2v1H3zM10 12h4v1H10zM19 12h2v1H19zM5 13h3v1H5zM16 13h3v1H16zM8 14h8v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-analyze:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM8 3h8v1H8zM7 4h10v1H7zM6 5h12v1H6zM6 6h12v1H6zM6 7h12v1H6zM6 8h12v1H6zM7 9h10v1H7zM7 10h10v1H7zM8 11h8v1H8zM9 12h6v1H9zM9 14h6v1H9zM9 16h6v1H9zM10 18h4v1H10zM10 19h4v1H10z'/%3E%3C/svg%3E");
+    --drpg-g-listen:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 9h4v1H3zM3 10h4v1H3zM3 11h4v1H3zM3 12h4v1H3zM3 13h4v1H3zM10 9h2v1H10zM11 10h2v1H11zM11 11h2v1H11zM11 12h2v1H11zM10 13h2v1H10zM14 7h2v1H14zM15 8h2v1H15zM16 9h2v1H16zM17 10h2v1H17zM17 11h2v1H17zM17 12h2v1H17zM16 13h2v1H16zM15 14h2v1H15zM14 15h2v1H14z'/%3E%3C/svg%3E");
+    --drpg-g-project:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 4h14v1H6zM6 5h14v1H6zM4 6h16v1H4zM4 7h3v1H4zM11 7h9v1H11zM4 8h3v1H4zM11 8h9v1H11zM4 9h3v1H4zM11 9h9v1H11zM12 10h4v1H12zM12 11h4v1H12zM12 12h4v1H12zM12 13h4v1H12zM12 14h4v1H12zM12 15h4v1H12zM12 16h4v1H12zM12 17h4v1H12zM12 18h4v1H12zM12 19h4v1H12zM12 20h4v1H12zM12 21h4v1H12z'/%3E%3C/svg%3E");
+    --drpg-g-sabotage:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M17 1h3v1H17zM16 2h2v1H16zM15 3h2v1H15zM14 4h2v1H14zM13 5h2v1H13zM8 7h8v1H8zM6 8h12v1H6zM5 9h14v1H5zM4 10h16v1H4zM4 11h16v1H4zM4 12h16v1H4zM4 13h16v1H4zM5 14h14v1H5zM6 15h12v1H6zM8 16h8v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-rest:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 7h3v1H2zM2 8h3v1H2zM5 8h5v1H5zM2 9h3v1H2zM5 9h5v1H5zM2 10h20v1H2zM2 11h20v1H2zM2 12h20v1H2zM2 13h2v1H2zM20 13h2v1H20zM2 14h2v1H2zM20 14h2v1H20zM2 15h2v1H2zM20 15h2v1H20z'/%3E%3C/svg%3E");
+    --drpg-g-direct-murder:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 3h10v1H7zM5 4h14v1H5zM4 5h16v1H4zM4 6h16v1H4zM3 7h18v1H3zM3 8h4v1H3zM9 8h6v1H9zM17 8h4v1H17zM3 9h3v1H3zM8 9h8v1H8zM18 9h3v1H18zM3 10h3v1H3zM8 10h8v1H8zM18 10h3v1H18zM3 11h4v1H3zM9 11h6v1H9zM17 11h4v1H17zM3 12h18v1H3zM4 13h16v1H4zM5 14h5v1H5zM11 14h3v1H11zM16 14h5v1H16zM5 15h14v1H5zM6 16h12v1H6zM6 17h12v1H6zM6 18h2v1H6zM9 18h2v1H9zM12 18h2v1H12zM15 18h2v1H15z'/%3E%3C/svg%3E");
+    --drpg-g-dynamic:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 1h2v1H11zM11 2h2v1H11zM11 3h2v1H11zM10 4h4v1H10zM5 5h2v1H5zM11 5h2v1H11zM17 5h2v1H17zM6 6h2v1H6zM10 6h4v1H10zM16 6h2v1H16zM7 7h2v1H7zM10 7h4v1H10zM15 7h2v1H15zM9 8h6v1H9zM2 9h20v1H2zM2 10h20v1H2zM9 11h6v1H9zM7 12h2v1H7zM10 12h4v1H10zM15 12h2v1H15zM6 13h2v1H6zM10 13h4v1H10zM16 13h2v1H16zM5 14h2v1H5zM11 14h2v1H11zM17 14h2v1H17zM10 15h4v1H10zM11 16h2v1H11zM11 17h2v1H11zM11 18h2v1H11z'/%3E%3C/svg%3E");
+    --drpg-g-cleanup:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 2h3v1H16zM15 3h3v1H15zM14 4h3v1H14zM13 5h3v1H13zM12 6h3v1H12zM11 7h3v1H11zM10 8h3v1H10zM9 9h3v1H9zM6 10h9v1H6zM5 11h11v1H5zM4 12h13v1H4zM4 13h2v1H4zM7 13h2v1H7zM10 13h2v1H10zM13 13h2v1H13zM16 13h1v1H16zM4 14h2v1H4zM7 14h2v1H7zM10 14h2v1H10zM13 14h2v1H13zM16 14h1v1H16zM3 15h2v1H3zM7 15h2v1H7zM10 15h2v1H10zM14 15h2v1H14zM17 15h1v1H17zM3 16h2v1H3zM7 16h2v1H7zM10 16h2v1H10zM14 16h2v1H14zM17 16h1v1H17z'/%3E%3C/svg%3E");
+
+    --drpg-g-sprint:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 5h1v1H2zM12 5h1v1H12zM2 6h2v1H2zM12 6h2v1H12zM2 7h3v1H2zM12 7h3v1H12zM2 8h4v1H2zM12 8h4v1H12zM2 9h5v1H2zM12 9h5v1H12zM2 10h6v1H2zM12 10h6v1H12zM2 11h7v1H2zM12 11h7v1H12zM2 12h7v1H2zM12 12h7v1H12zM2 13h6v1H2zM12 13h6v1H12zM2 14h5v1H2zM12 14h5v1H12zM2 15h4v1H2zM12 15h4v1H12zM2 16h3v1H2zM12 16h3v1H12zM2 17h2v1H2zM12 17h2v1H12zM2 18h1v1H2zM12 18h1v1H12z'/%3E%3C/svg%3E");
+    --drpg-g-burst:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M13 1h5v1H13zM11 2h6v1H11zM10 3h6v1H10zM9 4h6v1H9zM8 5h6v1H8zM7 6h7v1H7zM6 7h10v1H6zM5 8h10v1H5zM10 9h7v1H10zM9 10h6v1H9zM8 11h6v1H8zM7 12h6v1H7zM6 13h6v1H6zM5 14h6v1H5zM4 15h6v1H4zM4 16h4v1H4zM5 17h2v1H5z'/%3E%3C/svg%3E");
+    --drpg-g-relief:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 5h13v1H3zM3 6h13v1H3zM4 7h11v1H4zM4 8h11v1H4zM4 9h11v1H4zM16 9h3v1H16zM4 10h11v1H4zM17 10h2v1H17zM4 11h11v1H4zM17 11h2v1H17zM4 12h11v1H4zM16 12h3v1H16zM4 13h11v1H4zM4 14h11v1H4zM4 15h11v1H4zM4 16h11v1H4zM5 17h9v1H5zM5 18h9v1H5z'/%3E%3C/svg%3E");
+    --drpg-g-palm:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h2v1H8zM11 3h2v1H11zM14 3h2v1H14zM8 4h2v1H8zM11 4h2v1H11zM14 4h2v1H14zM8 5h2v1H8zM11 5h2v1H11zM14 5h2v1H14zM8 6h9v1H8zM6 7h11v1H6zM5 8h12v1H5zM5 9h13v1H5zM5 10h13v1H5zM5 11h13v1H5zM6 12h12v1H6zM6 13h12v1H6zM7 14h10v1H7zM8 15h8v1H8zM9 16h6v1H9z'/%3E%3C/svg%3E");
+
+    --drpg-g-support:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM8 4h8v1H8zM8 5h8v1H8zM8 6h8v1H8zM10 7h4v1H10zM2 11h3v1H2zM19 11h3v1H19zM2 12h4v1H2zM18 12h4v1H18zM3 13h5v1H3zM16 13h5v1H16zM4 14h7v1H4zM13 14h7v1H13zM6 15h12v1H6zM8 16h8v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-experience:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM9 4h6v1H9zM7 5h10v1H7zM5 6h14v1H5zM3 7h18v1H3zM1 8h22v1H1zM3 9h18v1H3zM5 10h14v1H5zM7 11h10v1H7zM8 12h8v1H8zM8 13h8v1H8zM9 14h6v1H9zM10 15h4v1H10zM20 10h2v1H20zM20 11h2v1H20zM20 12h2v1H20zM19 13h3v1H19zM19 14h3v1H19z'/%3E%3C/svg%3E");
+    --drpg-g-ultimate:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 1h2v1H11zM11 2h2v1H11zM10 3h4v1H10zM10 4h4v1H10zM9 5h6v1H9zM2 6h20v1H2zM3 7h18v1H3zM4 8h16v1H4zM5 9h14v1H5zM5 10h14v1H5zM4 11h16v1H4zM4 12h6v1H4zM14 12h6v1H14zM3 13h5v1H3zM16 13h5v1H16zM3 14h4v1H3zM17 14h4v1H17zM2 15h4v1H2zM18 15h4v1H18z'/%3E%3C/svg%3E");
+    --drpg-g-contribution:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 1h6v1H9zM9 2h6v1H9zM3 3h4v1H3zM9 3h6v1H9zM17 3h4v1H17zM3 4h4v1H3zM9 4h6v1H9zM17 4h4v1H17zM3 5h18v1H3zM3 6h18v1H3zM5 7h14v1H5zM5 8h5v1H5zM14 8h5v1H14zM1 9h8v1H1zM15 9h8v1H15zM1 10h7v1H1zM16 10h7v1H16zM1 11h7v1H1zM16 11h7v1H16zM1 12h7v1H1zM16 12h7v1H16zM1 13h7v1H1zM16 13h7v1H16zM1 14h8v1H1zM15 14h8v1H15zM5 15h5v1H5zM14 15h5v1H14zM5 16h14v1H5zM3 17h18v1H3zM3 18h18v1H3zM3 19h4v1H3zM9 19h6v1H9zM17 19h4v1H17zM3 20h4v1H3zM9 20h6v1H9zM17 20h4v1H17zM9 21h6v1H9zM9 22h6v1H9z'/%3E%3C/svg%3E");
+    --drpg-g-reroll:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 3h6v1H9zM7 4h10v1H7zM6 5h12v1H6zM5 6h5v1H5zM14 6h5v1H14zM5 7h3v1H5zM16 7h3v1H16zM4 8h4v1H4zM16 8h4v1H16zM4 9h3v1H4zM17 9h3v1H17zM4 10h3v1H4zM17 10h3v1H17zM4 11h3v1H4zM17 11h3v1H17zM4 12h3v1H4zM17 12h3v1H17zM4 13h3v1H4zM17 13h3v1H17zM1 14h9v1H1zM17 14h3v1H17zM1 15h9v1H1zM17 15h3v1H17zM2 16h7v1H2zM17 16h3v1H17zM3 17h5v1H3zM17 17h3v1H17zM4 18h3v1H4zM17 18h3v1H17zM17 19h3v1H17z'/%3E%3C/svg%3E");
+    --drpg-g-determination:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM10 4h4v1H10zM10 5h4v1H10zM9 6h6v1H9zM8 7h8v1H8zM8 8h8v1H8zM7 9h10v1H7zM6 10h12v1H6zM6 11h12v1H6zM5 12h14v1H5zM5 13h14v1H5zM5 14h14v1H5zM6 15h12v1H6zM7 16h10v1H7zM9 17h6v1H9z'/%3E%3C/svg%3E");
+    --drpg-g-free-crit:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM8 4h8v1H8zM6 5h12v1H6zM5 6h6v1H5zM13 6h6v1H13zM4 7h7v1H4zM13 7h7v1H13zM4 8h7v1H4zM13 8h7v1H13zM4 9h7v1H4zM13 9h7v1H13zM4 10h7v1H4zM13 10h7v1H13zM4 11h7v1H4zM13 11h7v1H13zM4 12h6v1H4zM11 12h2v1H11zM14 12h6v1H14zM4 13h5v1H4zM10 13h4v1H10zM15 13h5v1H15zM4 14h4v1H4zM9 14h6v1H9zM16 14h4v1H16zM4 15h3v1H4zM8 15h8v1H8zM17 15h3v1H17zM5 16h14v1H5zM6 17h12v1H6zM8 18h8v1H8zM10 19h4v1H10z'/%3E%3C/svg%3E");
+
+    --drpg-g-obstacle:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 5h20v1H2zM2 6h20v1H2zM2 7h20v1H2zM4 8h3v1H4zM17 8h3v1H17zM4 9h3v1H4zM17 9h3v1H17zM2 10h20v1H2zM2 11h20v1H2zM2 12h20v1H2zM4 13h3v1H4zM17 13h3v1H17zM4 14h3v1H4zM17 14h3v1H17zM4 15h3v1H4zM17 15h3v1H17zM4 16h3v1H4zM17 16h3v1H17z'/%3E%3C/svg%3E");
+    --drpg-g-for-the-game:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h4v1H6zM14 3h4v1H14zM5 4h6v1H5zM13 4h6v1H13zM8 5h8v1H8zM3 6h18v1H3zM3 7h18v1H3zM4 8h7v1H4zM13 8h7v1H13zM4 9h7v1H4zM13 9h7v1H13zM4 10h7v1H4zM13 10h7v1H13zM4 11h7v1H4zM13 11h7v1H13zM4 12h7v1H4zM13 12h7v1H13zM4 13h7v1H4zM13 13h7v1H13zM4 14h7v1H4zM13 14h7v1H13zM4 15h7v1H4zM13 15h7v1H13zM4 16h7v1H4zM13 16h7v1H13zM4 17h7v1H4zM13 17h7v1H13z'/%3E%3C/svg%3E");
+    --drpg-g-behind-closed-doors:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h16v1H4zM4 3h16v1H4zM4 4h3v1H4zM17 4h3v1H17zM4 5h3v1H4zM17 5h3v1H17zM4 6h3v1H4zM17 6h3v1H17zM4 7h3v1H4zM17 7h3v1H17zM4 8h3v1H4zM17 8h3v1H17zM4 9h3v1H4zM17 9h3v1H17zM4 10h3v1H4zM14 10h2v1H14zM17 10h3v1H17zM4 11h3v1H4zM14 11h2v1H14zM17 11h3v1H17zM4 12h3v1H4zM17 12h3v1H17zM4 13h3v1H4zM17 13h3v1H17zM4 14h3v1H4zM17 14h3v1H17zM4 15h3v1H4zM17 15h3v1H17zM4 16h3v1H4zM17 16h3v1H17zM4 17h3v1H4zM17 17h3v1H17zM4 18h16v1H4zM4 19h16v1H4z'/%3E%3C/svg%3E");
+    --drpg-g-this-will-hurt:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 4h6v1H4zM14 4h6v1H14zM3 5h8v1H3zM13 5h8v1H13zM2 6h9v1H2zM13 6h9v1H13zM2 7h9v1H2zM12 7h10v1H12zM2 8h10v1H2zM13 8h9v1H13zM3 9h9v1H3zM12 9h9v1H12zM4 10h8v1H4zM13 10h7v1H13zM5 11h7v1H5zM12 11h7v1H12zM6 12h6v1H6zM13 12h5v1H13zM7 13h5v1H7zM12 13h5v1H12zM8 14h4v1H8zM13 14h3v1H13zM9 15h3v1H9zM12 15h3v1H12zM10 16h4v1H10zM11 17h2v1H11z'/%3E%3C/svg%3E");
+    --drpg-g-paranoia:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM5 4h4v1H5zM15 4h4v1H15zM4 5h3v1H4zM17 5h3v1H17zM3 6h3v1H3zM18 6h3v1H18zM3 7h3v1H3zM9 7h6v1H9zM18 7h3v1H18zM3 8h3v1H3zM8 8h3v1H8zM13 8h3v1H13zM18 8h3v1H18zM3 9h3v1H3zM8 9h3v1H8zM13 9h3v1H13zM18 9h3v1H18zM3 10h3v1H3zM8 10h3v1H8zM13 10h3v1H13zM18 10h3v1H18zM3 11h3v1H3zM9 11h6v1H9zM18 11h3v1H18zM3 12h3v1H3zM18 12h3v1H18zM4 13h3v1H4zM17 13h3v1H17zM5 14h4v1H5zM15 14h4v1H15zM8 15h8v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-chained:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM7 3h3v1H7zM14 3h3v1H14zM7 4h3v1H7zM14 4h3v1H14zM7 5h3v1H7zM14 5h3v1H14zM8 6h8v1H8zM8 8h8v1H8zM7 9h3v1H7zM14 9h3v1H14zM7 10h3v1H7zM14 10h3v1H14zM7 11h3v1H7zM14 11h3v1H14zM8 12h8v1H8zM8 14h8v1H8zM7 15h3v1H7zM14 15h3v1H14zM7 16h3v1H7zM14 16h3v1H14zM7 17h3v1H7zM14 17h3v1H14zM8 18h8v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-silence:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 3h13v1H5zM3 4h13v1H3zM19 4h2v1H19zM2 5h12v1H2zM17 5h5v1H17zM2 6h10v1H2zM15 6h7v1H15zM2 7h8v1H2zM13 7h9v1H13zM2 8h6v1H2zM11 8h11v1H11zM3 9h3v1H3zM9 9h12v1H9zM7 10h12v1H7zM7 11h4v1H7zM7 12h3v1H7zM7 13h2v1H7z'/%3E%3C/svg%3E");
+    --drpg-g-fuel-the-cub:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h4v1H6zM13 3h4v1H13zM5 4h6v1H5zM12 4h6v1H12zM4 5h14v1H4zM4 6h14v1H4zM5 7h12v1H5zM6 8h10v1H6zM7 9h8v1H7zM8 10h6v1H8zM9 11h4v1H9zM3 14h18v1H3zM2 15h20v1H2zM3 16h18v1H3zM5 17h14v1H5z'/%3E%3C/svg%3E");
+    --drpg-g-favorite-project:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM10 5h4v1H10zM9 6h6v1H9zM8 7h8v1H8zM7 8h10v1H7zM6 9h12v1H6zM5 10h14v1H5zM4 11h16v1H4zM9 12h6v1H9zM9 13h6v1H9zM9 14h6v1H9zM9 15h6v1H9zM9 16h6v1H9zM9 17h6v1H9zM9 18h6v1H9zM9 19h6v1H9z'/%3E%3C/svg%3E");
+    /* Feed the Overflow: water, because that is what the Call is named after
+       and what the counter does. Three waves, the middle one in counter-phase,
+       running edge to edge - at 24px a stack of identical lines reads as
+       stripes, and the phase shift is the whole difference between stripes and
+       current. */
+    --drpg-g-feed-overflow:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M0 4h3v1H0zM9 4h6v1H9zM21 4h3v1H21zM0 5h4v1H0zM8 5h8v1H8zM20 5h4v1H20zM3 6h6v1H3zM15 6h6v1H15zM4 7h4v1H4zM16 7h4v1H16zM3 10h6v1H3zM15 10h6v1H15zM2 11h8v1H2zM14 11h8v1H14zM0 12h3v1H0zM9 12h6v1H9zM21 12h3v1H21zM0 13h2v1H0zM10 13h4v1H10zM22 13h2v1H22zM0 16h3v1H0zM9 16h6v1H9zM21 16h3v1H21zM0 17h4v1H0zM8 17h8v1H8zM20 17h4v1H20zM3 18h6v1H3zM15 18h6v1H15zM4 19h4v1H4zM16 19h4v1H16z'/%3E%3C/svg%3E");
+    --drpg-g-contraband:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM3 3h18v1H3zM3 4h18v1H3zM4 5h16v1H4zM4 6h3v1H4zM9 6h2v1H9zM13 6h2v1H13zM17 6h3v1H17zM4 7h3v1H4zM9 7h2v1H9zM13 7h2v1H13zM17 7h3v1H17zM4 8h3v1H4zM9 8h2v1H9zM13 8h2v1H13zM17 8h3v1H17zM4 9h3v1H4zM9 9h2v1H9zM13 9h2v1H13zM17 9h3v1H17zM4 10h3v1H4zM9 10h2v1H9zM13 10h2v1H13zM17 10h3v1H17zM4 11h3v1H4zM9 11h2v1H9zM13 11h2v1H13zM17 11h3v1H17zM4 12h3v1H4zM9 12h2v1H9zM13 12h2v1H13zM17 12h3v1H17zM4 13h3v1H4zM9 13h2v1H9zM13 13h2v1H13zM17 13h3v1H17zM4 14h3v1H4zM9 14h2v1H9zM13 14h2v1H13zM17 14h3v1H17zM4 15h3v1H4zM9 15h2v1H9zM13 15h2v1H13zM17 15h3v1H17zM5 16h14v1H5zM6 17h12v1H6z'/%3E%3C/svg%3E");
+    --drpg-g-public-announcement:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 8h4v1H2zM2 9h4v1H2zM2 10h4v1H2zM2 11h4v1H2zM6 7h3v1H6zM6 8h3v1H6zM6 9h3v1H6zM6 10h3v1H6zM6 11h3v1H6zM6 12h3v1H6zM9 6h3v1H9zM9 7h3v1H9zM9 8h3v1H9zM9 9h3v1H9zM9 10h3v1H9zM9 11h3v1H9zM9 12h3v1H9zM9 13h3v1H9zM12 4h3v1H12zM12 5h3v1H12zM12 6h3v1H12zM12 7h3v1H12zM12 8h3v1H12zM12 9h3v1H12zM12 10h3v1H12zM12 11h3v1H12zM12 12h3v1H12zM12 13h3v1H12zM12 14h3v1H12zM12 15h3v1H12zM18 7h2v1H18zM19 9h2v1H19zM19 11h2v1H19zM18 13h2v1H18z'/%3E%3C/svg%3E");
+    --drpg-g-new-rule:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h10v1H3zM3 4h10v1H3zM3 5h10v1H3zM3 6h10v1H3zM8 7h4v1H8zM9 8h4v1H9zM10 9h4v1H10zM11 10h4v1H11zM12 11h4v1H12zM13 12h4v1H13zM14 13h4v1H14zM4 16h16v1H4zM3 17h18v1H3zM3 18h18v1H3z'/%3E%3C/svg%3E");
+    /* The falling arrow, on the Call that Dawid renamed Game Integrity
+       on 29.08. The eraser that used to live above this line went with
+       the project wipe - a variable nothing draws is a drawing somebody
+       will eventually wire to the wrong tile. */
+    --drpg-g-game-protection:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM9 3h6v1H9zM9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM9 8h6v1H9zM9 9h6v1H9zM9 10h6v1H9zM9 11h6v1H9zM4 12h16v1H4zM5 13h14v1H5zM6 14h12v1H6zM7 15h10v1H7zM8 16h8v1H8zM9 17h6v1H9zM10 18h4v1H10zM11 19h2v1H11z'/%3E%3C/svg%3E");
+    /* The motive: a sealed envelope, its flap a V-shaped GAP rather than
+       a stroke - the rule this whole set follows, and the reason Silence
+       reads at all. Distinct from every other tile in the Despair grid at
+       24px, which a clock face or an hourglass would not have been: the
+       HUD row carries the countdown, the tile only has to say "Monokuma
+       has handed something out". */
+    --drpg-g-motive:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 7h1v1H3zM5 7h14v1H5zM20 7h1v1H20zM3 8h2v1H3zM6 8h12v1H6zM19 8h2v1H19zM3 9h3v1H3zM7 9h10v1H7zM18 9h3v1H18zM3 10h4v1H3zM8 10h8v1H8zM17 10h4v1H17zM3 11h5v1H3zM9 11h6v1H9zM16 11h5v1H16zM3 12h6v1H3zM10 12h4v1H10zM15 12h6v1H15zM3 13h7v1H3zM11 13h2v1H11zM14 13h7v1H14zM3 14h8v1H3zM13 14h8v1H13zM3 15h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3z'/%3E%3C/svg%3E");
+
+    --drpg-g-leave-clue:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM5 4h4v1H5zM15 4h4v1H15zM4 5h3v1H4zM17 5h3v1H17zM3 6h3v1H3zM8 6h8v1H8zM18 6h3v1H18zM3 7h3v1H3zM7 7h3v1H7zM14 7h3v1H14zM18 7h3v1H18zM3 8h3v1H3zM6 8h3v1H6zM10 8h4v1H10zM15 8h3v1H15zM18 8h3v1H18zM3 9h3v1H3zM6 9h3v1H6zM10 9h4v1H10zM15 9h3v1H15zM18 9h3v1H18zM3 10h3v1H3zM6 10h3v1H6zM10 10h4v1H10zM15 10h3v1H15zM18 10h3v1H18zM3 11h3v1H3zM7 11h3v1H7zM10 11h4v1H10zM14 11h3v1H14zM18 11h3v1H18zM4 12h3v1H4zM8 12h8v1H8zM17 12h3v1H17zM5 13h4v1H5zM15 13h4v1H15zM7 14h10v1H7z'/%3E%3C/svg%3E");
+    --drpg-g-secure-trace:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM9 4h6v1H9zM9 5h6v1H9zM10 6h4v1H10zM2 9h4v1H2zM2 10h5v1H2zM3 11h5v1H3zM4 12h6v1H4zM5 13h7v1H5zM18 9h4v1H18zM17 10h5v1H17zM16 11h5v1H16zM14 12h6v1H14zM12 13h7v1H12zM6 14h12v1H6zM7 15h10v1H7zM9 16h6v1H9z'/%3E%3C/svg%3E");
+    --drpg-g-self-defence:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h16v1H4zM3 3h18v1H3zM3 4h18v1H3zM3 5h18v1H3zM3 6h18v1H3zM3 7h18v1H3zM3 8h18v1H3zM4 9h16v1H4zM4 10h16v1H4zM5 11h14v1H5zM6 12h12v1H6zM7 13h10v1H7zM8 14h8v1H8zM9 15h6v1H9zM10 16h4v1H10zM11 17h2v1H11z'/%3E%3C/svg%3E");
+    --drpg-g-survive:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M12 2h4v1H12zM11 3h5v1H11zM12 4h4v1H12zM8 6h8v1H8zM6 7h12v1H6zM5 8h6v1H5zM13 8h6v1H13zM7 9h4v1H7zM15 9h4v1H15zM8 10h4v1H8zM9 11h4v1H9zM10 12h4v1H10zM6 13h5v1H6zM13 13h4v1H13zM4 14h5v1H4zM14 14h4v1H14zM3 15h4v1H3zM15 15h5v1H15zM2 16h4v1H2zM17 16h4v1H17zM2 17h4v1H2zM18 17h4v1H18z'/%3E%3C/svg%3E");
+    --drpg-g-role-reversal:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 4h2v1H16zM16 5h4v1H16zM2 6h20v1H2zM2 7h20v1H2zM2 8h20v1H2zM16 9h4v1H16zM16 10h2v1H16zM6 13h2v1H6zM4 14h4v1H4zM2 15h20v1H2zM2 16h20v1H2zM2 17h20v1H2zM4 18h4v1H4zM6 19h2v1H6z'/%3E%3C/svg%3E");
+    --drpg-g-strike:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h3v1H4zM5 3h3v1H5zM6 4h3v1H6zM7 5h3v1H7zM17 2h3v1H17zM16 3h3v1H16zM15 4h3v1H15zM14 5h3v1H14zM9 7h6v1H9zM7 8h10v1H7zM6 9h12v1H6zM6 10h12v1H6zM7 11h10v1H7zM9 12h6v1H9zM7 14h3v1H7zM6 15h3v1H6zM5 16h3v1H5zM4 17h3v1H4zM14 14h3v1H14zM15 15h3v1H15zM16 16h3v1H16zM17 17h3v1H17z'/%3E%3C/svg%3E");
+    --drpg-g-pin:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM10 6h4v1H10zM5 7h14v1H5zM6 8h12v1H6zM7 9h10v1H7zM8 10h8v1H8zM9 11h6v1H9zM10 12h4v1H10zM2 15h20v1H2zM2 16h20v1H2zM2 17h20v1H2z'/%3E%3C/svg%3E");
+    --drpg-g-keep-distance:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 9h3v1H2zM2 10h3v1H2zM2 11h3v1H2zM2 12h3v1H2zM19 9h3v1H19zM19 10h3v1H19zM19 11h3v1H19zM19 12h3v1H19zM7 8h3v1H7zM6 9h4v1H6zM5 10h5v1H5zM6 11h4v1H6zM7 12h3v1H7zM14 8h3v1H14zM14 9h4v1H14zM14 10h5v1H14zM14 11h4v1H14zM14 12h3v1H14z'/%3E%3C/svg%3E");
+    --drpg-g-weapon-attack:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M15 1h4v1H15zM14 2h5v1H14zM13 3h5v1H13zM12 4h5v1H12zM11 5h5v1H11zM10 6h5v1H10zM9 7h5v1H9zM8 8h5v1H8zM7 9h5v1H7zM6 10h5v1H6zM5 11h5v1H5zM4 12h5v1H4zM3 13h6v1H3zM2 14h6v1H2zM4 15h5v1H4zM5 16h4v1H5zM3 17h7v1H3zM2 18h4v1H2z'/%3E%3C/svg%3E");
+    --drpg-g-finishing-blow:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h12v1H6zM5 4h14v1H5zM5 5h14v1H5zM5 6h3v1H5zM10 6h4v1H10zM16 6h3v1H16zM5 7h3v1H5zM10 7h4v1H10zM16 7h3v1H16zM5 8h14v1H5zM6 9h12v1H6zM7 10h3v1H7zM11 10h2v1H11zM14 10h3v1H14zM2 13h4v1H2zM18 13h4v1H18zM3 14h5v1H3zM16 14h5v1H16zM5 15h14v1H5zM5 16h14v1H5zM3 17h5v1H3zM16 17h5v1H16zM2 18h4v1H2zM18 18h4v1H18z'/%3E%3C/svg%3E");
+    --drpg-g-shared-escape:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 2h12v1H3zM3 3h3v1H3zM12 3h3v1H12zM3 4h3v1H3zM12 4h3v1H12zM3 5h3v1H3zM12 5h3v1H12zM3 6h3v1H3zM12 6h3v1H12zM3 7h3v1H3zM12 7h3v1H12zM3 8h3v1H3zM12 8h3v1H12zM3 9h3v1H3zM12 9h3v1H12zM3 10h3v1H3zM10 10h2v1H10zM12 10h3v1H12zM3 11h3v1H3zM12 11h3v1H12zM3 12h3v1H3zM12 12h3v1H12zM3 13h3v1H3zM12 13h3v1H12zM3 14h3v1H3zM12 14h3v1H12zM3 15h3v1H3zM12 15h3v1H12zM3 16h3v1H3zM12 16h3v1H12zM3 17h12v1H3zM17 8h4v1H17zM16 9h6v1H16zM16 10h6v1H16zM17 11h4v1H17zM17 12h4v1H17zM16 13h6v1H16z'/%3E%3C/svg%3E");
+    --drpg-g-double-role-reversal:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 4h14v1H3zM3 5h3v1H3zM3 6h3v1H3zM14 3h3v1H14zM13 4h5v1H13zM12 5h7v1H12zM3 10h3v1H3zM3 11h3v1H3zM3 12h14v1H3zM12 10h7v1H12zM13 11h5v1H13zM14 12h3v1H14zM3 16h14v1H3zM3 15h3v1H3zM3 17h3v1H3zM14 15h3v1H14zM13 16h5v1H13zM12 17h7v1H12z'/%3E%3C/svg%3E");
+    --drpg-g-crime-partners:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 3h5v1H4zM3 4h7v1H3zM3 5h7v1H3zM4 6h5v1H4zM15 3h5v1H15zM14 4h7v1H14zM14 5h7v1H14zM15 6h5v1H15zM3 9h7v1H3zM2 10h9v1H2zM2 11h9v1H2zM2 12h9v1H2zM2 13h9v1H2zM2 14h9v1H2zM2 15h9v1H2zM14 9h7v1H14zM13 10h9v1H13zM13 11h9v1H13zM13 12h9v1H13zM13 13h9v1H13zM13 14h9v1H13zM13 15h9v1H13z'/%3E%3C/svg%3E");
+    --drpg-g-averted-eyes:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 8h8v1H8zM5 9h3v1H5zM16 9h3v1H16zM3 10h2v1H3zM20 10h2v1H20zM2 11h20v1H2zM3 12h18v1H3zM6 13h12v1H6zM9 14h6v1H9zM4 16h3v1H4zM10 16h4v1H10zM17 16h3v1H17z'/%3E%3C/svg%3E");
+
+    --drpg-panel-ground: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
+    --drpg-panel-radius: 6px;
+    /* `none` since the ground went opaque at the end of this file: a
+       backdrop-filter behind something nothing shows through is a compositing
+       layer per panel, every frame, for an effect that cannot be seen. */
+    --drpg-panel-blur: none;
+    --drpg-panel-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.4);
+
+    /* Ink as channels, for the panels that need it at less than full strength.
+       Kept beside the hex rather than derived, the same way Bone carries its
+       own `-rgb`: `rgb(from …)` is not something this file can rely on across
+       every browser Foundry ships to. */
+    --drpg-ink-rgb: 29, 26, 33;
+    --drpg-panel-ground: light-dark(
+        rgb(var(--drpg-bone-rgb)),
+        rgb(var(--drpg-ink-rgb))
+    );
+
+    --drpg-g-projects:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h2v1H8zM7 3h3v1H7zM2 4h2v1H2zM6 4h3v1H6zM12 4h10v1H12zM2 5h6v1H2zM12 5h10v1H12zM3 6h4v1H3zM4 7h2v1H4zM8 9h2v1H8zM7 10h3v1H7zM2 11h2v1H2zM6 11h3v1H6zM12 11h10v1H12zM2 12h6v1H2zM12 12h10v1H12zM3 13h4v1H3zM4 14h2v1H4zM8 16h2v1H8zM7 17h3v1H7zM2 18h2v1H2zM6 18h3v1H6zM12 18h10v1H12zM2 19h6v1H2zM12 19h10v1H12zM3 20h4v1H3zM4 21h2v1H4z'/%3E%3C/svg%3E");
+    --drpg-g-jump:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 1h2v1H6zM16 1h2v1H16zM6 2h2v1H6zM16 2h2v1H16zM1 3h22v1H1zM1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h2v1H1zM21 8h2v1H21zM1 9h2v1H1zM21 9h2v1H21zM1 10h2v1H1zM5 10h2v1H5zM9 10h2v1H9zM13 10h2v1H13zM17 10h2v1H17zM21 10h2v1H21zM1 11h2v1H1zM5 11h2v1H5zM9 11h2v1H9zM13 11h2v1H13zM17 11h2v1H17zM21 11h2v1H21zM1 12h2v1H1zM21 12h2v1H21zM1 13h2v1H1zM21 13h2v1H21zM1 14h2v1H1zM5 14h2v1H5zM9 14h2v1H9zM13 14h2v1H13zM17 14h2v1H17zM21 14h2v1H21zM1 15h2v1H1zM5 15h2v1H5zM9 15h2v1H9zM13 15h2v1H13zM17 15h2v1H17zM21 15h2v1H21zM1 16h2v1H1zM21 16h2v1H21zM1 17h2v1H1zM21 17h2v1H21zM1 18h2v1H1zM21 18h2v1H21zM1 19h2v1H1zM21 19h2v1H21zM1 20h22v1H1zM1 21h22v1H1z'/%3E%3C/svg%3E");
+    --drpg-g-items:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM3 9h18v1H3zM3 10h2v1H3zM10 10h4v1H10zM19 10h2v1H19zM3 11h2v1H3zM10 11h4v1H10zM19 11h2v1H19zM3 12h2v1H3zM10 12h4v1H10zM19 12h2v1H19zM3 13h2v1H3zM10 13h4v1H10zM19 13h2v1H19zM3 14h2v1H3zM19 14h2v1H19zM3 15h2v1H3zM19 15h2v1H19zM3 16h2v1H3zM19 16h2v1H19zM3 17h2v1H3zM19 17h2v1H19zM3 18h2v1H3zM19 18h2v1H19zM3 19h2v1H3zM19 19h2v1H19zM3 20h18v1H3zM3 21h18v1H3z'/%3E%3C/svg%3E");
+    --drpg-g-music:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h13v1H9zM9 3h13v1H9zM9 4h13v1H9zM9 5h13v1H9zM9 6h13v1H9zM9 7h2v1H9zM20 7h2v1H20zM9 8h2v1H9zM20 8h2v1H20zM9 9h2v1H9zM20 9h2v1H20zM9 10h2v1H9zM20 10h2v1H20zM9 11h2v1H9zM20 11h2v1H20zM9 12h2v1H9zM14 12h8v1H14zM9 13h2v1H9zM14 13h8v1H14zM9 14h2v1H9zM14 14h7v1H14zM3 15h8v1H3zM15 15h5v1H15zM3 16h8v1H3zM3 17h7v1H3zM4 18h5v1H4z'/%3E%3C/svg%3E");
+    --drpg-g-who-is-alive:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 4h4v1H5zM15 4h4v1H15zM4 5h8v1H4zM14 5h6v1H14zM3 6h18v1H3zM3 7h18v1H3zM3 8h18v1H3zM3 9h6v1H3zM11 9h10v1H11zM3 10h6v1H3zM11 10h10v1H11zM11 11h2v1H11zM11 12h2v1H11zM6 13h5v1H6zM13 13h5v1H13zM7 14h4v1H7zM13 14h4v1H13zM8 15h3v1H8zM13 15h3v1H13zM9 16h6v1H9zM10 17h4v1H10zM11 18h2v1H11z'/%3E%3C/svg%3E");
+    --drpg-g-investigation:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h6v1H7zM5 2h10v1H5zM4 3h12v1H4zM3 4h14v1H3zM3 5h3v1H3zM9 5h8v1H9zM2 6h4v1H2zM9 6h9v1H9zM2 7h4v1H2zM8 7h10v1H8zM2 8h4v1H2zM8 8h10v1H8zM2 9h16v1H2zM2 10h16v1H2zM2 11h16v1H2zM3 12h14v1H3zM3 13h14v1H3zM4 14h14v1H4zM5 15h14v1H5zM7 16h6v1H7zM15 16h5v1H15zM16 17h5v1H16zM17 18h5v1H17zM18 19h5v1H18zM19 20h4v1H19zM20 21h3v1H20z'/%3E%3C/svg%3E");
+    --drpg-g-trial:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM2 5h21v1H2zM2 6h21v1H2zM2 7h21v1H2zM4 8h2v1H4zM11 8h2v1H11zM18 8h2v1H18zM4 9h2v1H4zM11 9h2v1H11zM18 9h2v1H18zM1 10h8v1H1zM11 10h2v1H11zM15 10h8v1H15zM1 11h8v1H1zM11 11h2v1H11zM15 11h8v1H15zM2 12h6v1H2zM11 12h2v1H11zM16 12h6v1H16zM2 13h6v1H2zM11 13h2v1H11zM16 13h6v1H16zM3 14h4v1H3zM11 14h2v1H11zM17 14h4v1H17zM4 15h2v1H4zM11 15h2v1H11zM18 15h2v1H18zM11 16h2v1H11zM11 17h2v1H11zM11 18h2v1H11zM6 19h13v1H6zM6 20h13v1H6zM6 21h13v1H6z'/%3E%3C/svg%3E");
+    --drpg-g-gm-team:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 4h4v1H6zM5 5h6v1H5zM4 6h8v1H4zM15 6h4v1H15zM4 7h8v1H4zM14 7h6v1H14zM4 8h8v1H4zM14 8h6v1H14zM4 9h8v1H4zM14 9h6v1H14zM5 10h6v1H5zM14 10h6v1H14zM6 11h4v1H6zM15 11h4v1H15zM4 12h8v1H4zM3 13h10v1H3zM15 13h6v1H15zM2 14h20v1H2zM2 15h21v1H2zM2 16h21v1H2zM2 17h21v1H2z'/%3E%3C/svg%3E");
+    --drpg-g-room-setup:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h20v1H2zM2 3h20v1H2zM2 4h20v1H2zM2 5h3v1H2zM10 5h3v1H10zM19 5h3v1H19zM2 6h3v1H2zM10 6h3v1H10zM19 6h3v1H19zM2 7h3v1H2zM10 7h3v1H10zM19 7h3v1H19zM2 8h3v1H2zM10 8h3v1H10zM19 8h3v1H19zM2 9h3v1H2zM10 9h3v1H10zM19 9h3v1H19zM2 10h3v1H2zM10 10h3v1H10zM19 10h3v1H19zM2 11h3v1H2zM10 11h3v1H10zM19 11h3v1H19zM2 12h3v1H2zM10 12h3v1H10zM19 12h3v1H19zM2 13h3v1H2zM10 13h3v1H10zM19 13h3v1H19zM2 14h3v1H2zM10 14h3v1H10zM19 14h3v1H19zM2 15h3v1H2zM19 15h3v1H19zM2 16h3v1H2zM19 16h3v1H19zM2 17h3v1H2zM19 17h3v1H19zM2 18h3v1H2zM19 18h3v1H19zM2 19h6v1H2zM14 19h8v1H14zM2 20h6v1H2zM14 20h8v1H14zM2 21h6v1H2zM14 21h8v1H14z'/%3E%3C/svg%3E");
+    --drpg-g-tables:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 3h22v1H1zM1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM1 9h2v1H1zM10 9h3v1H10zM21 9h2v1H21zM1 10h2v1H1zM10 10h3v1H10zM21 10h2v1H21zM1 11h2v1H1zM10 11h3v1H10zM21 11h2v1H21zM1 12h2v1H1zM10 12h3v1H10zM21 12h2v1H21zM1 13h22v1H1zM1 14h22v1H1zM1 15h2v1H1zM10 15h3v1H10zM21 15h2v1H21zM1 16h2v1H1zM10 16h3v1H10zM21 16h2v1H21zM1 17h2v1H1zM10 17h3v1H10zM21 17h2v1H21zM1 18h2v1H1zM10 18h3v1H10zM21 18h2v1H21zM1 19h22v1H1zM1 20h22v1H1z'/%3E%3C/svg%3E");
+    --drpg-g-season-setup:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M17 1h2v1H17zM4 2h2v1H4zM17 2h2v1H17zM4 3h2v1H4zM15 3h6v1H15zM2 4h6v1H2zM14 4h8v1H14zM2 5h6v1H2zM14 5h8v1H14zM4 6h2v1H4zM15 6h6v1H15zM4 7h2v1H4zM17 7h2v1H17zM15 8h4v1H15zM14 9h4v1H14zM13 10h5v1H13zM12 11h5v1H12zM11 12h5v1H11zM10 13h5v1H10zM9 14h5v1H9zM8 15h5v1H8zM7 16h5v1H7zM2 17h9v1H2zM2 18h8v1H2zM2 19h7v1H2zM2 20h6v1H2zM2 21h6v1H2zM3 22h3v1H3z'/%3E%3C/svg%3E");
+    --drpg-g-mastermind:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h10v1H7zM7 2h10v1H7zM7 3h10v1H7zM7 4h10v1H7zM7 5h10v1H7zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM1 9h22v1H1zM7 10h8v1H7zM6 11h10v1H6zM6 12h10v1H6zM6 13h10v1H6zM6 14h10v1H6zM7 15h8v1H7zM7 16h8v1H7zM9 17h4v1H9zM6 18h12v1H6zM5 19h14v1H5zM4 20h16v1H4zM4 21h16v1H4z'/%3E%3C/svg%3E");
+    --drpg-g-season-reset:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM10 3h4v1H10zM10 4h4v1H10zM6 5h2v1H6zM10 5h4v1H10zM5 6h3v1H5zM10 6h4v1H10zM16 6h1v1H16zM4 7h4v1H4zM10 7h4v1H10zM16 7h2v1H16zM3 8h4v1H3zM10 8h4v1H10zM16 8h3v1H16zM3 9h3v1H3zM10 9h4v1H10zM16 9h3v1H16zM2 10h4v1H2zM10 10h4v1H10zM16 10h4v1H16zM2 11h3v1H2zM10 11h4v1H10zM17 11h3v1H17zM2 12h3v1H2zM10 12h4v1H10zM17 12h3v1H17zM2 13h3v1H2zM10 13h4v1H10zM17 13h3v1H17zM2 14h3v1H2zM17 14h3v1H17zM2 15h4v1H2zM16 15h4v1H16zM3 16h3v1H3zM16 16h3v1H16zM3 17h4v1H3zM15 17h4v1H15zM4 18h5v1H4zM13 18h5v1H13zM5 19h12v1H5zM6 20h10v1H6zM8 21h6v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-failure-log:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 2h2v1H5zM18 2h2v1H18zM5 3h2v1H5zM17 3h3v1H17zM5 4h3v1H5zM16 4h3v1H16zM6 5h12v1H6zM7 6h10v1H7zM7 7h10v1H7zM7 8h10v1H7zM6 9h12v1H6zM1 10h10v1H1zM13 10h10v1H13zM1 11h10v1H1zM13 11h10v1H13zM6 12h5v1H6zM13 12h5v1H13zM1 13h10v1H1zM13 13h10v1H13zM1 14h10v1H1zM13 14h10v1H13zM6 15h5v1H6zM13 15h5v1H13zM1 16h10v1H1zM13 16h10v1H13zM1 17h10v1H1zM13 17h10v1H13zM6 18h5v1H6zM13 18h5v1H13zM6 19h12v1H6zM10 20h4v1H10z'/%3E%3C/svg%3E");
+    --drpg-g-clock:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 0h6v1H8zM5 1h12v1H5zM4 2h14v1H4zM3 3h5v1H3zM14 3h5v1H14zM2 4h4v1H2zM16 4h4v1H16zM1 5h4v1H1zM10 5h3v1H10zM17 5h4v1H17zM1 6h3v1H1zM10 6h3v1H10zM18 6h3v1H18zM1 7h3v1H1zM10 7h3v1H10zM18 7h3v1H18zM0 8h3v1H0zM10 8h3v1H10zM19 8h3v1H19zM0 9h3v1H0zM10 9h3v1H10zM19 9h3v1H19zM0 10h3v1H0zM10 10h3v1H10zM19 10h3v1H19zM0 11h3v1H0zM10 11h7v1H10zM19 11h3v1H19zM0 12h3v1H0zM10 12h7v1H10zM19 12h3v1H19zM0 13h3v1H0zM10 13h7v1H10zM19 13h3v1H19zM1 14h3v1H1zM18 14h3v1H18zM1 15h3v1H1zM18 15h3v1H18zM1 16h4v1H1zM17 16h4v1H17zM2 17h4v1H2zM16 17h4v1H16zM3 18h5v1H3zM14 18h5v1H14zM4 19h14v1H4zM5 20h12v1H5zM8 21h6v1H8z'/%3E%3C/svg%3E");
+
+    --drpg-g-confusion:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M19 1h2v1H19zM19 2h2v1H19zM17 3h6v1H17zM17 4h6v1H17zM10 5h2v1H10zM19 5h2v1H19zM10 6h2v1H10zM19 6h2v1H19zM6 7h2v1H6zM10 7h2v1H10zM14 7h2v1H14zM6 8h2v1H6zM10 8h2v1H10zM14 8h2v1H14zM6 9h2v1H6zM10 9h2v1H10zM14 9h2v1H14zM19 9h2v1H19zM6 10h2v1H6zM10 10h2v1H10zM14 10h2v1H14zM18 10h4v1H18zM6 11h2v1H6zM10 11h2v1H10zM14 11h2v1H14zM18 11h4v1H18zM3 12h5v1H3zM10 12h2v1H10zM14 12h2v1H14zM19 12h2v1H19zM3 13h5v1H3zM10 13h2v1H10zM14 13h2v1H14zM3 14h5v1H3zM10 14h2v1H10zM14 14h2v1H14zM3 15h13v1H3zM3 16h13v1H3zM3 17h13v1H3zM6 18h10v1H6zM6 19h10v1H6zM6 20h10v1H6z'/%3E%3C/svg%3E");
+    --drpg-g-misleading-trail:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h3v1H10zM10 4h3v1H10zM4 5h16v1H4zM4 6h17v1H4zM4 7h18v1H4zM4 8h18v1H4zM4 9h17v1H4zM4 10h16v1H4zM10 11h3v1H10zM10 12h3v1H10zM4 13h17v1H4zM3 14h18v1H3zM2 15h19v1H2zM2 16h19v1H2zM3 17h18v1H3zM4 18h17v1H4zM10 19h3v1H10zM10 20h3v1H10zM10 21h3v1H10z'/%3E%3C/svg%3E");
+    --drpg-g-move-body:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h4v1H3zM2 4h16v1H2zM1 5h17v1H1zM1 6h17v1H1zM1 7h17v1H1zM1 8h17v1H1zM2 9h16v1H2zM3 10h19v1H3zM14 11h8v1H14zM14 12h8v1H14zM14 13h8v1H14zM16 16h2v1H16zM16 17h4v1H16zM2 18h19v1H2zM2 19h18v1H2zM16 20h2v1H16z'/%3E%3C/svg%3E");
+    --drpg-g-betrayal:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h4v1H3zM16 3h4v1H16zM2 4h6v1H2zM15 4h6v1H15zM1 5h8v1H1zM14 5h8v1H14zM1 6h8v1H1zM14 6h8v1H14zM1 7h8v1H1zM14 7h8v1H14zM1 8h8v1H1zM14 8h8v1H14zM2 9h6v1H2zM15 9h6v1H15zM3 10h4v1H3zM16 10h4v1H16zM3 13h6v1H3zM16 13h6v1H16zM2 14h8v1H2zM15 14h8v1H15zM1 15h10v1H1zM14 15h10v1H14zM1 16h10v1H1zM14 16h10v1H14zM1 17h10v1H1zM14 17h10v1H14zM1 20h10v1H1zM14 20h9v1H14zM1 21h10v1H1zM14 21h9v1H14z'/%3E%3C/svg%3E");
+
+    --drpg-g-monokuma-eye: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
+
+    --drpg-r-flask:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 3h10v1H7zM7 4h10v1H7zM10 5h4v1H10zM10 6h4v1H10zM10 7h4v1H10zM10 8h4v1H10zM9 9h6v1H9zM8 10h2v1H8zM14 10h2v1H14zM7 11h2v1H7zM15 11h2v1H15zM6 12h2v1H6zM16 12h2v1H16zM5 13h2v1H5zM17 13h2v1H17zM4 14h2v1H4zM18 14h2v1H18zM4 15h2v1H4zM18 15h2v1H18zM3 16h18v1H3zM2 17h20v1H2zM2 18h20v1H2zM2 19h20v1H2zM3 20h18v1H3z'/%3E%3C/svg%3E");
+    --drpg-r-fist:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 7h4v1H3zM9 7h4v1H9zM15 7h4v1H15zM3 8h4v1H3zM9 8h4v1H9zM15 8h4v1H15zM3 9h16v1H3zM3 10h16v1H3zM3 11h16v1H3zM3 12h16v1H3zM3 13h16v1H3zM4 14h14v1H4zM5 15h12v1H5zM6 16h10v1H6z'/%3E%3C/svg%3E");
+    --drpg-r-trash:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM4 5h16v1H4zM4 6h16v1H4zM6 8h12v1H6zM6 9h12v1H6zM6 10h12v1H6zM6 11h12v1H6zM6 12h12v1H6zM6 13h12v1H6zM7 14h10v1H7zM7 15h10v1H7zM7 16h10v1H7zM7 17h10v1H7zM7 18h10v1H7z'/%3E%3C/svg%3E");
+    --drpg-r-stow:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM6 6h12v1H6zM7 7h10v1H7zM8 8h8v1H8zM9 9h6v1H9zM10 10h4v1H10zM11 11h2v1H11zM3 13h18v1H3zM3 14h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3z'/%3E%3C/svg%3E");
+    --drpg-r-retrieve:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM10 4h4v1H10zM9 5h6v1H9zM8 6h8v1H8zM7 7h10v1H7zM6 8h12v1H6zM10 9h4v1H10zM10 10h4v1H10zM10 11h4v1H10zM3 13h18v1H3zM3 14h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3z'/%3E%3C/svg%3E");
+    --drpg-r-share:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 0h6v1H16zM16 1h6v1H16zM16 2h6v1H16zM16 3h6v1H16zM16 4h6v1H16zM14 5h8v1H14zM12 6h2v1H12zM10 7h2v1H10zM8 8h2v1H8zM0 9h8v1H0zM0 10h6v1H0zM0 11h6v1H0zM0 12h6v1H0zM0 13h6v1H0zM0 14h8v1H0zM8 15h2v1H8zM10 16h2v1H10zM12 17h2v1H12zM14 18h8v1H14zM16 19h6v1H16zM16 20h6v1H16zM16 21h6v1H16zM16 22h6v1H16zM16 23h6v1H16z'/%3E%3C/svg%3E");
+    --drpg-r-give:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h3v1H2zM19 12h3v1H19zM3 13h3v1H3zM18 13h3v1H18zM4 14h4v1H4zM16 14h4v1H16zM6 15h4v1H6zM14 15h4v1H14zM8 16h8v1H8zM8 17h8v1H8zM10 18h4v1H10zM10 19h4v1H10z'/%3E%3C/svg%3E");
 }
 
 /* Shared pixel-sprite plumbing.
@@ -691,6 +970,11 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     border-radius: 6px;
     border: 1px solid light-dark(rgba(var(--drpg-shadow-rgb), 0.25), rgba(var(--drpg-bone-rgb), 0.18));
     background: light-dark(rgba(var(--drpg-bone-rgb), 0.82), rgba(var(--drpg-deep-rgb), 0.72));
+    /* DEAD, AND KEPT ONLY SO THE NEXT READER DOES NOT COUNT IT: the block rule further
+       down this file - `#drpg-despair, #drpg-hud, #drpg-player-status, #countdowns,
+       #players` - has the same weight and comes later, and it reads
+       `var(--drpg-panel-blur)`, which is `none`. Asked of Chromium through
+       `CSS.getMatchedStylesForNode` rather than read off the file (15.09). */
     backdrop-filter: blur(3px);
     box-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.35);
     color: var(--color-text-primary, inherit);
@@ -747,12 +1031,8 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     opacity: 0.85;
 }
 
-#drpg-hud .drpg-hud-day {
-    font-size: var(--font-size-12, 0.75rem);
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    opacity: 0.6;
-}
+/* `.drpg-hud-day` stood here. The clock prints "Chapter 1 · Day 3" on one line
+   in both themes since 1.2.47 - `.drpg-hud-chapter` above carries it. */
 
 #drpg-hud .drpg-hud-phase {
     font-size: var(--font-size-15, 0.95rem);
@@ -804,15 +1084,11 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     display: none;
 }
 
-/* Keep the HUD out of the way on narrow screens. */
-@media (max-width: 900px) {
-    #drpg-hud {
-        padding: 4px 10px;
-    }
-    #drpg-hud .drpg-hud-campaign {
-        font-size: var(--font-size-15, 0.95rem);
-    }
-}
+/* The HUD on a narrow screen is not a smaller plaque, it is the head of the
+   module's own stack - see styles/narrow.css. The 900 px media query that used to
+   trim its padding here went with it: the breakpoint is 1200 now, it is decided
+   in settings.mjs, and it arrives as `body.drpg-stacked`. (Not `.drpg-narrow`,
+   which is a dialog class in this file and something else entirely.) */
 
 /* ==========================================================================
    DESPAIR - one row per Monokuma
@@ -861,6 +1137,11 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     border-radius: 6px;
     border: 1px solid var(--drpg-blood-deep);
     background: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
+    /* DEAD, AND KEPT ONLY SO THE NEXT READER DOES NOT COUNT IT: the block rule further
+       down this file - `#drpg-despair, #drpg-hud, #drpg-player-status, #countdowns,
+       #players` - has the same weight and comes later, and it reads
+       `var(--drpg-panel-blur)`, which is `none`. Asked of Chromium through
+       `CSS.getMatchedStylesForNode` rather than read off the file (15.09). */
     backdrop-filter: blur(3px);
     box-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.4);
 }
@@ -997,6 +1278,30 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
 .drpg-assign .drpg-assign-none {
     opacity: 0.7;
     font-style: italic;
+}
+
+/* THE INTERFACE'S OWN EDGES, WHILE THIS SCREEN IS IN A KILLING.
+   ---------------------------------------------------------------------------
+   `drpg-incident-here` is stamped by hud.mjs on the browsers of the people the
+   incident is happening to - the killer, the victim, whoever walked in on it,
+   and every GM. See `incidentWitness` in settings.mjs for who that is and, in
+   particular, for why the killer of a TRAP is not one of them.
+
+   The colour is `--drpg-eye-light`, which is byte for byte the
+   `--drpg-sg-gm-light` the Event card wears under Stained Glass: the card and
+   the frame around it have to be the same red or they read as two unrelated
+   alarms. The bright twin rather than `--drpg-eye` itself, because this is
+   drawn against the dark ground and the base red is 3.68:1 there - borders
+   only, by its own note. Stained Glass takes the whole accent as well, which
+   carries the curtain's seams; this line is what makes the window frames turn
+   under BOTH themes, Monokuma Legacy included, where there is no Event panel
+   to take the colour from.
+
+   Scoped to the module's own surfaces on purpose: Foundry's sidebar and the
+   system's sheets are not ours to repaint, and a table that turns red down to
+   the chat log has stopped being a signal and started being a filter. */
+body.drpg-incident-here {
+    --drpg-window-edge: var(--drpg-eye-light);
 }
 
 /* Hide Daggerheart's own single-pool Fear tracker while ours is in charge. */
@@ -1540,6 +1845,115 @@ section[data-application-part="biography"] .experiences .value {
     opacity: 1;
 }
 
+/* ==========================================================================
+   THE PACK'S OWN GROUPS
+   ==========================================================================
+   Truth Bullets are cut into folds - one per chapter or one per room - with the
+   one you are in open and the rest shut. The fold's summary is deliberately the
+   same object as the group heading above it (`.drpg-inventory-group h4`): a
+   player reading down the inventory meets one kind of heading, some of which
+   happen to open. The only things added are the marker and the pointer.
+   ========================================================================== */
+.drpg-bullet-sort {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0 0 5px;
+    padding: 0 0.15rem;
+    flex-wrap: wrap;
+}
+
+.drpg-bullet-sort-label {
+    font-size: var(--drpg-text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.7;
+}
+
+/* The same chip the Truth Bullets themselves wear, because it is sorting them -
+   one visual grammar, as with the inventory's role tags. */
+.drpg-bullet-sort-button {
+    font-size: var(--drpg-text-xs);
+    line-height: 1;
+    padding: 3px 7px;
+    width: auto;
+    border-radius: 3px;
+    background: rgba(var(--drpg-bone-rgb), 0.06);
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.15);
+    color: inherit;
+    cursor: pointer;
+}
+
+.drpg-bullet-sort-button:hover {
+    background: rgba(var(--drpg-bone-rgb), 0.14);
+}
+
+/* The one that is down. Not a colour alone: the border carries it as well, so
+   it is still legible to somebody who cannot tell the two backgrounds apart. */
+.drpg-bullet-sort-button.is-on {
+    background: rgba(var(--drpg-evidence-rgb), 0.2);
+    border-color: var(--drpg-evidence);
+    font-weight: 600;
+}
+
+.drpg-bullet-group {
+    margin: 0 0 4px;
+}
+
+.drpg-bullet-group > summary {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0 0 3px;
+    padding: 0 0.15rem 3px;
+    border-bottom: 1px solid var(--drpg-line);
+    font-size: var(--font-size-12, 0.75rem);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--drpg-bone);
+    text-shadow: 0 1px 2px rgba(var(--drpg-shadow-rgb), 0.75);
+    cursor: pointer;
+    /* The default marker is a black triangle sitting outside the flex row and
+       breaking the baseline; the one below is drawn in the row's own colour. */
+    list-style: none;
+}
+
+.drpg-bullet-group > summary::-webkit-details-marker { display: none; }
+
+.drpg-bullet-group > summary .drpg-bullet-group-name::before {
+    content: "\25B8";           /* a small right-pointing triangle */
+    display: inline-block;
+    margin-right: 0.4em;
+    transition: transform var(--drpg-t-snap, 90ms) ease-out;
+    opacity: 0.7;
+}
+
+.drpg-bullet-group[open] > summary .drpg-bullet-group-name::before {
+    transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .drpg-bullet-group > summary .drpg-bullet-group-name::before { transition: none; }
+}
+
+.drpg-bullet-group > summary:hover {
+    background: rgba(var(--drpg-eye-rgb), 0.1);
+}
+
+/* Where you are, or the chapter you are in. A left edge rather than a fill:
+   the fold is already open, so this says WHY it is open without competing with
+   the evidence inside it. */
+.drpg-bullet-group.is-here > summary {
+    border-left: 2px solid var(--drpg-evidence);
+    padding-left: 0.4rem;
+}
+
+.drpg-bullet-group .drpg-group-count {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.65;
+}
+
 /* The action budget, stated above the grid. Reads as a status line rather than
    as prose: tabular numerals so it does not jitter as actions are spent, and it
    turns red only when there is genuinely nothing left to spend. */
@@ -1699,7 +2113,18 @@ section[data-application-part="biography"] .experiences .value {
    the window. Indented to the name, not to the icon. */
 .drpg-inventory-list .drpg-tb-badges {
     order: 2;
-    flex: 0 0 100%;
+    /* THE INDENT IS PART OF THE LINE, SO THE BASIS HAS TO KNOW ABOUT IT.
+       `flex-basis: 100%` is 100% of the row's content box and the 1.8rem indent is
+       added OUTSIDE it, so the chip line was 1.8rem wider than the box it sits in
+       and hung past the card's right edge - visibly, with the GM's "Really:" chip
+       the part that stuck out ("tag wyjeżdża poza ramkę", Dawid, 16.09).
+       Measured in Chromium with the real sheet at four widths: past the frame by
+       0, 14, 29 and 89 px at 560, 440, 360 and 300 px of card, and the card
+       scrolled sideways at every one of them. With the indent subtracted and
+       `min-width: 0` letting the line shrink, nothing leaves the card at any of
+       those four widths. */
+    flex: 0 0 calc(100% - 1.8rem);
+    min-width: 0;
     margin: 2px 0 1px 1.8rem;
 }
 
@@ -2350,7 +2775,6 @@ body.drpg-pixel-font #drpg-hud .drpg-hud-campaign {
 }
 
 body.drpg-pixel-font #drpg-hud .drpg-hud-chapter,
-body.drpg-pixel-font #drpg-hud .drpg-hud-day,
 body.drpg-pixel-font #drpg-hud .drpg-hud-time {
     font-size: var(--font-size-10, 0.62rem);
     letter-spacing: 0.02em;
@@ -2880,10 +3304,6 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     border-color: var(--drpg-gold-antique);
 }
 
-.drpg-tb-badge.tag {
-    opacity: 0.85;
-}
-
 /* ---- the boxed sections ------------------------------------------------- */
 
 .drpg-remnant-box {
@@ -2941,10 +3361,41 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     overflow-wrap: anywhere;
 }
 
-.drpg-remnant-tagrow {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+/* WHAT ANALYSIS BOUGHT, AND IT HAS TO LOOK BOUGHT.
+   ---------------------------------------------------------------------------
+   The second tier of a trace's description appears in three places that share
+   no markup: the Remnant card, the chat card Analyze sends, and the item's own
+   description as Daggerheart's sheet renders it. The last of those is why this
+   rule is as plain as it is - the system draws that field with its own
+   typography, and anything structural (a panel, a background) fought with it.
+   A rule down the side and an indent survive being dropped into somebody
+   else's markup.
+
+   NO PALETTE COLOUR HERE, AND THAT IS MEASURED RATHER THAN CAUTIOUS.
+   `--drpg-evidence` was the obvious pick - it is already the Truth Bullet's
+   own token, split off from `--drpg-gold` precisely so evidence would stop
+   reading as Hope. On the module's dark ink it is 8.83:1. On the white ground
+   an item sheet can perfectly well have, it is 2.10:1, which is not a colour
+   you can put a word in. `--drpg-eye` is the reverse problem and is the wrong
+   token anyway: Analyze is a Head roll, Eye is a different trait.
+
+   So the accent is `currentColor`, which is whatever the surrounding sheet
+   already proved it could render text in. The paragraph is told apart by the
+   rule, the indent and the bold label instead of by hue - which is also the
+   version that works for a reader who cannot see the hue. */
+.drpg-bullet-analysis {
+    margin: 6px 0 0;
+    padding-inline-start: 8px;
+    /* `color-mix` so the rule is quieter than the text beside it without
+       naming a colour of its own; the plain `currentColor` behind it is for
+       anything that cannot do the mix. */
+    border-inline-start: 2px solid currentColor;
+    border-inline-start-color: color-mix(in srgb, currentColor 45%, transparent);
+    overflow-wrap: anywhere;
+}
+
+.drpg-bullet-analysis strong {
+    margin-inline-end: 4px;
 }
 
 .drpg-truth-bullet {
@@ -2962,14 +3413,21 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 }
 
 .drpg-tb-badge {
-    /* W-2, Dawid 19.09: every bare size in this sheet takes the Interface scale,
-       and the ones 80 % would push under 10px keep a floor. The other eighteen
-       follow this pattern with no comment of their own. */
-    font-size: max(10px, calc(0.7rem * var(--drpg-legacy-scale, 1)));
+    font-size: var(--drpg-text-xs);
     line-height: 1;
     padding: 2px 5px;
     border-radius: 3px;
     white-space: nowrap;
+    /* ONE CHIP LONGER THAN THE LINE IS SHORTENED, NOT LET OUT.
+       The line wraps, so several chips are never the problem; ONE of them being
+       wider than the whole line is, and there is no shortage of those - a room
+       called "The long corridor behind the kitchen", a GM's "Really: Tamper Truth
+       Bullet". `nowrap` stays, because a chip broken across two lines stops
+       reading as one chip; the text is cut with an ellipsis instead and the full
+       string is on the tooltip, where the badges that can be long already put it. */
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     background: rgba(var(--drpg-bone-rgb), 0.08);
     border: 1px solid rgba(var(--drpg-bone-rgb), 0.15);
 }
@@ -3278,13 +3736,17 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     align-items: center;
     gap: 3px;
     margin-right: 8px;
+    /* W-2, Dawid 19.09: every bare size in this sheet takes the Interface scale,
+       and the ones 80 % would push under 10px keep a floor. The rest follow this
+       pattern with no comment of their own. */
     font-size: calc(0.8rem * var(--drpg-legacy-scale, 1));
     white-space: nowrap;
 }
 
 /* WHAT A SEASON RESET IS ALLOWED TO KEEP (R-1).
 
-   Twenty-seven ticks in five sections. The sections are what makes it readable:
+   One tick per group in `RESET_GROUPS` (season-exceptions.mjs) - close to thirty
+   of them - grouped by section. The sections are what makes it readable:
    one flat list of that length is a list nobody reads to the end, and the reset
    is the one window in this module where not reading to the end is expensive.
 
@@ -3311,23 +3773,6 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     gap: .4rem;
     align-items: baseline;
     line-height: 1.3;
-}
-
-/* WHAT ANALYSING A TRACE TOLD YOU (T-2).
-
-   Two places, one look: the line under the badges in an item window, and the
-   same sentence on the player's own Remnant card. Italic and quieter than the
-   player description above it, because it is a different KIND of sentence - the
-   description is what the thing looks like, this is what it means. */
-.drpg-item-analysis,
-.drpg-remnant-analysis {
-    margin: .25rem 0 0;
-    font-size: var(--font-size-12, 12px);
-    line-height: 1.35;
-    color: var(--drpg-bone, inherit);
-}
-.drpg-item-analysis {
-    font-style: italic;
 }
 
 /* WHO KNOWS ABOUT A PROJECT, as a list of names rather than one dropdown (P-1).
@@ -3859,6 +4304,18 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     font-size: calc(1.05rem * var(--drpg-legacy-scale, 1));
 }
 
+/* THE BADGE STRIP STARTS AT THE LEFT MARGIN ON A CARD, NOT AT THE RIGHT.
+   `.drpg-tb-badges` carries `margin-left: auto`, which is right where it was
+   written for - the inventory's rows, where the badges line up at the right of
+   a name on the same line. An evidence card is a COLUMN, so that margin pushed
+   the whole strip across the card with a hole under the name. */
+.drpg-evidence-card .drpg-tb-badges { margin-left: 0; }
+
+/* On the stage the card is the middle of the screen and the name is what the
+   table is arguing about, so it is sized like a heading rather than like a line
+   of a receipt. In the corner and in the chat log it stays as it was. */
+#drpg-evidence .drpg-evidence-name { font-size: calc(1.35rem * var(--drpg-legacy-scale, 1)); line-height: 1.2; }
+
 .drpg-evidence-text {
     margin: 0;
 }
@@ -3970,8 +4427,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    The mode now comes from the content, via `:has()`, not from the class list.
    Nothing has to be remembered at the call site - which is what went wrong the
    last three times this was tuned: a dialog was left out of a list and only its
-   window broke. `drpg-wide` and `drpg-compact` are the manual overrides for the
-   two cases the markup cannot express.
+   window broke. `drpg-wide` is the manual override for the one case the
+   markup cannot express (`.drpg-compact` was the other and nothing ever set it).
    ========================================================================== */
 
 /* Default: ONE width, the same for every window without a table in it.
@@ -4059,7 +4516,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-):has(.dialog-content table):not(.drpg-compact) :is(p, blockquote, .notes) {
+):has(.dialog-content table) :is(p, blockquote, .notes) {
     max-width: 42rem;
 }
 
@@ -4085,7 +4542,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-):has(.dialog-content table):not(.drpg-compact)
+):has(.dialog-content table)
     :is(p, .notes, h3, h4):not(td):not(th):not(table *),
 .application.dialog.drpg-wide :is(p, .notes, h3, h4):not(td):not(th):not(table *) {
     margin-inline: auto;
@@ -4137,7 +4594,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-):has(.dialog-content table):not(.drpg-compact) blockquote,
+):has(.dialog-content table) blockquote,
 .application.dialog.drpg-wide blockquote {
     margin-inline: auto;
 }
@@ -4242,7 +4699,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-):has(.dialog-content table):not(.drpg-compact) footer.form-footer {
+):has(.dialog-content table) footer.form-footer {
     position: sticky;
     bottom: calc(-1 * var(--drpg-window-pad));
     left: 0;
@@ -4309,9 +4766,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    Scoped on `.drpg-panel` / `.drpg-advance` rather than on the three window
    classes this used to name: every module dialog carries one of those two, so a
    table in a window nobody thought to add to the list is treated the same as
-   one in the Projects manager. `.drpg-compact` opts out - that is the whole
-   point of the flag. */
-.application.dialog:is(.drpg-panel, .drpg-advance):not(.drpg-compact)
+   one in the Projects manager. */
+.application.dialog:is(.drpg-panel, .drpg-advance)
     .dialog-content table {
     width: max-content;
     min-width: 100%;
@@ -4325,7 +4781,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     table-layout: auto;
 }
 
-.application.dialog:is(.drpg-panel, .drpg-advance):not(.drpg-compact)
+.application.dialog:is(.drpg-panel, .drpg-advance)
     .dialog-content :is(th, td) {
     white-space: nowrap;
 }
@@ -4337,7 +4793,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    Investigation dashboard's "Really" column is a `<td class="notes">` holding a
    comma-separated breakdown of every Truth Bullet a student is carrying, and on
    one unbreakable line that is a window several screens wide. */
-.application.dialog:is(.drpg-panel, .drpg-advance):not(.drpg-compact)
+.application.dialog:is(.drpg-panel, .drpg-advance)
     .dialog-content :is(td, th):is(.notes, :has(input[type="text"], textarea)) {
     white-space: normal;
 }
@@ -4350,7 +4806,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    claimed 503px of the Monocub dialog on its own and pushed the table 71px past
    the window. Short headings are unaffected: there is nothing in "Hope" to
    wrap. Measured after: 1312px → 1241px, no scrollbar. */
-.application.dialog:is(.drpg-panel, .drpg-advance):not(.drpg-compact)
+.application.dialog:is(.drpg-panel, .drpg-advance)
     .dialog-content thead th {
     white-space: normal;
 }
@@ -5121,9 +5577,60 @@ body:not(.drpg-gm) .character-header-sheet .character-traits .trait input[name*=
     pointer-events: none;
 }
 
+/* ---- the evidence stage ---------------------------------------------------
+   Where a Class Trial's evidence stands, which is NOT the corner with the
+   receipts. The corner tile is 430 x 220 and cannot grow - it shares that
+   corner with Foundry's tool rail, and every larger size was measured taking
+   the rail's glass away (the sweep is at the top of stained-glass.css) - while
+   an objection carrying a Truth Bullet with its analysis and a comment needs
+   459 px. So the card that is meant to be READ takes the middle of the map,
+   which is the one part of the screen nothing else is using while the table
+   argues. popup.mjs creates this on the first card and removes it with the
+   last, so an empty stage is never a box over the map.
+
+   UNDER THE WINDOWS, ON PURPOSE. `#drpg-popups` sits at 99990 because a notice
+   has to be seen over anything; evidence is the opposite - it stands for
+   minutes, and a ballot, a sheet or the GM's panel opened on top of it must be
+   reachable. One below Foundry's own app layer puts it over the board and the
+   curtain and under every window, with no guessing at a number: Foundry states
+   `--z-index-app` itself. */
+#drpg-evidence {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: calc(var(--z-index-app, 30) - 1);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: min(46rem, calc(100vw - 48px));
+    /* Taller than the screen is the one case the stage itself scrolls; a single
+       card is never clipped, which is the whole point of moving it here. */
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* The stage is a hole in the air: only the cards in it take clicks, so the
+       map stays draggable in the gaps between them. */
+    pointer-events: none;
+}
+#drpg-evidence .drpg-popup {
+    pointer-events: auto;
+    width: 100%;
+    /* The corner tile caps its cards; this one does not, and must not - a cap
+       here would put the clipping back where it was taken from. */
+    max-height: none;
+    cursor: default;
+}
+
 .drpg-popup {
     pointer-events: auto;
-    width: min(22rem, 86vw);
+    /* 27rem tracks the notice tile's own `--drpg-note-w` (430 px): under
+       Stained Glass the card is stretched to the tile anyway, so this width is
+       what Monokuma Legacy gets, and the two themes should not disagree about
+       how wide a notice is. Widened with the tile on 15.09 - the old 22rem
+       card wrapped a two-clause sentence onto four lines. */
+    width: min(27rem, 92vw);
     border-radius: 6px;
     /* The window edge, not the divider hairline - a popup lands over the map
        and has to state its own boundary. The accent classes below override the
@@ -5769,44 +6276,18 @@ body.drpg-pixel-font #drpg-player-status .drpg-status-label {
 }
 
 body.drpg-pixel-font #drpg-player-status .drpg-status-value {
-    font-size: max(10px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
+    /* 12 px at 100 %: fonts/README puts the pixel face's readable floor at 11, and a
+       number is the one thing on this strip that has to be read at a glance (UI-12). */
+    font-size: max(10px, calc(0.75rem * var(--drpg-legacy-scale, 1)));
 }
 
 body.drpg-pixel-font .drpg-hud-elapsed {
     font-size: var(--drpg-text-xs);
 }
 
-/* The incident line: only participants and GMs ever see this rendered. */
-.drpg-hud-incident {
-    margin-top: 4px;
-    padding-top: 4px;
-    border-top: 1px solid var(--drpg-red);
-    font-size: var(--font-size-11, 0.7rem);
-    line-height: 1.4;
-}
-
-.drpg-hud-incident-turn {
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--drpg-dim);
-}
-
-/* Your turn is the one thing here that needs to interrupt you. */
-.drpg-hud-incident-turn.mine {
-    color: var(--drpg-red);
-    font-weight: 700;
-}
-
-.drpg-hud-incident-left {
-    opacity: 0.75;
-    font-variant-numeric: tabular-nums;
-}
-
-body.drpg-pixel-font .drpg-hud-incident {
-    font-family: var(--drpg-font-pixel);
-    font-size: var(--drpg-text-xs);
-    letter-spacing: 0;
-}
+/* The incident line's four rules stood here. The incident is a card of the
+   Event panel in both themes since 1.2.47 (`incidentCard` in events.mjs), and
+   `.drpg-event[data-kind="incident"]` above is what carries its colour now. */
 
 /* ==========================================================================
    THE STATUS STRIP USES THE SHEET'S OWN MARKS
@@ -5892,7 +6373,7 @@ body.drpg-pixel-font .drpg-hud-incident {
 
 /* One footprint, not a track - there is only ever one free Move. */
 #drpg-player-status .drpg-free-move {
-    font-size: max(10px, calc(0.72rem * var(--drpg-legacy-scale, 1)));
+    font-size: max(10px, calc(0.75rem * var(--drpg-legacy-scale, 1)));
     color: var(--drpg-eye);
 }
 
@@ -6430,21 +6911,6 @@ body.drpg-pixel-font .drpg-safeword-button {
    takes its offsets from here.
    ========================================================================== */
 
-:root {
-    --drpg-edge: 22px;
-
-    /* THE TWO CORNER CIRCLES, AS ONE MEASUREMENT.
-       The chat launcher takes its 66px from the performance gauge at the other
-       end of the bottom edge (Dawid, 26.08) - two ends of the same line that
-       must agree. The sound launcher then takes its size and its offset FROM
-       the chat one, because it is stacked on top of it: hard-coding 52 and 66
-       in three places is how a stack ends up overlapping itself the next time
-       the gauge changes. Which is exactly what happened while this was being
-       built. */
-    --drpg-launcher: 66px;
-    --drpg-launcher-small: 52px;
-}
-
 /* Despair and the HUD are flex items in #ui-top, not fixed boxes - `top` on
    them does nothing at all. The margin on the FIRST item is what pushes the
    whole column down, and the HUD follows it for free. */
@@ -6740,14 +7206,6 @@ html body {
     color: var(--drpg-bone) !important;
 }
 
-/* The safeword is the one control on this sheet that has to be found by
-   somebody who is not enjoying themselves. A 14%-alpha wash behind red text at
-   3.94:1 is a decoration; this is a button. */
-.drpg-safeword-button {
-    background: var(--drpg-crimson) !important;
-    border: 1px solid var(--drpg-crimson-light) !important;
-    color: var(--drpg-bone) !important;
-}
 
 .drpg-safeword-button:hover {
     background: var(--drpg-eye) !important;
@@ -6772,16 +7230,6 @@ html body {
 
    Everything below claims a surface outright instead of tinting it.
    ========================================================================== */
-
-:root {
-    /* Bahnschrift ships with Windows 10 and up and is a condensed grotesque -
-       close to the heavy, squared lettering Danganronpa sets its menus in, and
-       nothing like Foundry's Signika. The stack degrades to the platform UI
-       face rather than to a serif, so a Mac or Linux seat still looks
-       deliberate. */
-    --drpg-font-ui: "Bahnschrift", "Segoe UI Variable Display", "Segoe UI",
-                    system-ui, -apple-system, "Helvetica Neue", sans-serif;
-}
 
 /* --- fonts --------------------------------------------------------------- */
 
@@ -7063,66 +7511,6 @@ html body {
    white the game is named for. Every section header is now a solid Bone bar
    with Ink text - Monokuma's split, applied to the furniture.
    ========================================================================== */
-
-:root {
-    /* THE SLIDER REACHES THESE SIX (W-2, Dawid 19.09). 95 of this sheet's 234
-       font-size declarations read them, which makes this the cheapest 95 in the
-       file. `--drpg-legacy-scale` is the slider under Monokuma Legacy and 1 under
-       Stained Glass (see `applyTheme`), so this moves Legacy and leaves the glass
-       exactly where it is.
-
-       THE FLOOR IS ON `xs` AND NOWHERE ELSE, because it is the only rung the
-       slider can push under it: 13px x 0.8 is 10.4. 10px rather than the 11px the
-       typography doc states, because 11 IS the value at 100 % and 0.8 x 11 is 8.8
-       - either the floor gives up a pixel or the bottom of the slider goes quiet
-       for this one rung.
-
-       `--drpg-tile-text` still multiplies BELOW the floor on a cramped action
-       grid. That multiply happens at the use site, not here, and it is deliberate
-       and only there. */
-    --drpg-text-xs: max(10px, calc(0.6875rem * var(--drpg-legacy-scale, 1)));   /* 11px at 100 % - the floor, never smaller */
-    --drpg-text-sm: calc(0.8125rem * var(--drpg-legacy-scale, 1));   /* 13px at 100 % */
-    --drpg-text-md: calc(0.9375rem * var(--drpg-legacy-scale, 1));   /* 15px at 100 % */
-    --drpg-text-base: calc(1rem * var(--drpg-legacy-scale, 1));      /* 16px at 100 % */
-    --drpg-text-lg: calc(1.25rem * var(--drpg-legacy-scale, 1));     /* 20px at 100 % */
-    --drpg-text-xl: calc(1.75rem * var(--drpg-legacy-scale, 1));     /* 28px at 100 % */
-
-    /* Two window widths, and no third.
-       --------------------------------------------------------------------
-       Every popup the module opens is one of these. Measured before they
-       existed, the same set of windows came out at 360, 400, 544, 723, 736,
-       896 and 1274px - seven sizes for one module, so nothing on screen ever
-       sat where the last thing had been.
-
-       Both are deliberately NARROWER than the character sheet's 850px
-       default. The sheet is the thing you work in; these are the things you
-       answer and dismiss, and a dialog as wide as the sheet reads as another
-       sheet. Wide is for a table with columns to line up - nothing else.
-
-       AND THEY ARE WHAT THE SLIDER HAS TO REACH (W-2, Dawid 19.09). The first one
-       is stated with `!important` further down this sheet, which outranks the
-       inline width `setPosition` writes, and the glass uses both as the floor and
-       the cap of a `fit-content` window. So a window box follows the slider here
-       or nowhere. `--drpg-legacy-scale` and not the type factor, for the same
-       reason as the type rungs - and because `scaleWindow` already scales boxes
-       by the slider alone: one number, two places, no drift. Under Stained Glass
-       the token is 1, so that theme's floor, cap and prose measure stay exactly
-       where they are. */
-    --drpg-popup: calc(34rem * var(--drpg-legacy-scale, 1));        /* 544px at 100 % - every window with prose in it */
-    --drpg-popup-wide: calc(44rem * var(--drpg-legacy-scale, 1));   /* 704px at 100 % - the GM panel and the managers */
-
-    /* AN ABSOLUTE CEILING, BECAUSE `vw` HAS NONE (W-9, Dawid 18.09).
-
-       Every size in this sheet was chosen at 16:9, and a dozen of them are
-       stated in `vw`. On a 5120x1440 screen 96vw is 4915px: a HUD stretched
-       across three feet of glass, and a measured table window whose five columns
-       sit a hand's width apart. These two are the ceilings the full-width
-       overlays and the measured windows share, and utils.mjs READS the second
-       one rather than keeping its own copy of the number - so the stylesheet
-       stays the authority on how wide anything may be. */
-    --drpg-overlay-max: 1280px;
-    --drpg-window-max: 1400px;
-}
 
 /* --- the font takes everything ------------------------------------------ */
 
@@ -7867,31 +8255,6 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
    on a thin diagonal reads as a banner so the hammer became a blunt T.
    ========================================================================== */
 
-:root {
-    --drpg-g-move:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 2h3v1H6zM10 2h3v1H10zM14 2h3v1H14zM18 2h2v1H18zM6 3h3v1H6zM10 3h3v1H10zM14 3h3v1H14zM18 3h2v1H18zM6 5h13v1H6zM5 6h15v1H5zM5 7h15v1H5zM5 8h15v1H5zM6 9h13v1H6zM7 10h11v1H7zM8 11h9v1H8zM9 12h7v1H9zM9 13h7v1H9zM7 14h11v1H7zM6 15h13v1H6zM6 16h13v1H6zM7 17h11v1H7zM8 18h9v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-search:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 2h7v1H7zM5 3h3v1H5zM13 3h3v1H13zM4 4h2v1H4zM14 4h2v1H14zM3 5h2v1H3zM15 5h2v1H15zM3 6h2v1H3zM15 6h2v1H15zM2 7h2v1H2zM16 7h2v1H16zM2 8h2v1H2zM16 8h2v1H16zM2 9h2v1H2zM16 9h2v1H16zM3 10h2v1H3zM15 10h2v1H15zM3 11h2v1H3zM15 11h2v1H15zM4 12h2v1H4zM14 12h2v1H14zM5 13h3v1H5zM13 13h3v1H13zM7 14h7v1H7zM13 15h3v1H13zM14 16h3v1H14zM15 17h3v1H15zM16 18h3v1H16zM17 19h3v1H17zM18 20h3v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-observe:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 7h8v1H8zM5 8h3v1H5zM16 8h3v1H16zM3 9h2v1H3zM10 9h4v1H10zM19 9h2v1H19zM2 10h2v1H2zM9 10h6v1H9zM20 10h2v1H20zM2 11h2v1H2zM9 11h6v1H9zM20 11h2v1H20zM3 12h2v1H3zM10 12h4v1H10zM19 12h2v1H19zM5 13h3v1H5zM16 13h3v1H16zM8 14h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-analyze:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM8 3h8v1H8zM7 4h10v1H7zM6 5h12v1H6zM6 6h12v1H6zM6 7h12v1H6zM6 8h12v1H6zM7 9h10v1H7zM7 10h10v1H7zM8 11h8v1H8zM9 12h6v1H9zM9 14h6v1H9zM9 16h6v1H9zM10 18h4v1H10zM10 19h4v1H10z'/%3E%3C/svg%3E");
-    --drpg-g-listen:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 9h4v1H3zM3 10h4v1H3zM3 11h4v1H3zM3 12h4v1H3zM3 13h4v1H3zM10 9h2v1H10zM11 10h2v1H11zM11 11h2v1H11zM11 12h2v1H11zM10 13h2v1H10zM14 7h2v1H14zM15 8h2v1H15zM16 9h2v1H16zM17 10h2v1H17zM17 11h2v1H17zM17 12h2v1H17zM16 13h2v1H16zM15 14h2v1H15zM14 15h2v1H14z'/%3E%3C/svg%3E");
-    --drpg-g-project:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 4h14v1H6zM6 5h14v1H6zM4 6h16v1H4zM4 7h3v1H4zM11 7h9v1H11zM4 8h3v1H4zM11 8h9v1H11zM4 9h3v1H4zM11 9h9v1H11zM12 10h4v1H12zM12 11h4v1H12zM12 12h4v1H12zM12 13h4v1H12zM12 14h4v1H12zM12 15h4v1H12zM12 16h4v1H12zM12 17h4v1H12zM12 18h4v1H12zM12 19h4v1H12zM12 20h4v1H12zM12 21h4v1H12z'/%3E%3C/svg%3E");
-    --drpg-g-sabotage:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M17 1h3v1H17zM16 2h2v1H16zM15 3h2v1H15zM14 4h2v1H14zM13 5h2v1H13zM8 7h8v1H8zM6 8h12v1H6zM5 9h14v1H5zM4 10h16v1H4zM4 11h16v1H4zM4 12h16v1H4zM4 13h16v1H4zM5 14h14v1H5zM6 15h12v1H6zM8 16h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-rest:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 7h3v1H2zM2 8h3v1H2zM5 8h5v1H5zM2 9h3v1H2zM5 9h5v1H5zM2 10h20v1H2zM2 11h20v1H2zM2 12h20v1H2zM2 13h2v1H2zM20 13h2v1H20zM2 14h2v1H2zM20 14h2v1H20zM2 15h2v1H2zM20 15h2v1H20z'/%3E%3C/svg%3E");
-    --drpg-g-direct-murder:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 3h10v1H7zM5 4h14v1H5zM4 5h16v1H4zM4 6h16v1H4zM3 7h18v1H3zM3 8h4v1H3zM9 8h6v1H9zM17 8h4v1H17zM3 9h3v1H3zM8 9h8v1H8zM18 9h3v1H18zM3 10h3v1H3zM8 10h8v1H8zM18 10h3v1H18zM3 11h4v1H3zM9 11h6v1H9zM17 11h4v1H17zM3 12h18v1H3zM4 13h16v1H4zM5 14h5v1H5zM11 14h3v1H11zM16 14h5v1H16zM5 15h14v1H5zM6 16h12v1H6zM6 17h12v1H6zM6 18h2v1H6zM9 18h2v1H9zM12 18h2v1H12zM15 18h2v1H15z'/%3E%3C/svg%3E");
-    --drpg-g-dynamic:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 1h2v1H11zM11 2h2v1H11zM11 3h2v1H11zM10 4h4v1H10zM5 5h2v1H5zM11 5h2v1H11zM17 5h2v1H17zM6 6h2v1H6zM10 6h4v1H10zM16 6h2v1H16zM7 7h2v1H7zM10 7h4v1H10zM15 7h2v1H15zM9 8h6v1H9zM2 9h20v1H2zM2 10h20v1H2zM9 11h6v1H9zM7 12h2v1H7zM10 12h4v1H10zM15 12h2v1H15zM6 13h2v1H6zM10 13h4v1H10zM16 13h2v1H16zM5 14h2v1H5zM11 14h2v1H11zM17 14h2v1H17zM10 15h4v1H10zM11 16h2v1H11zM11 17h2v1H11zM11 18h2v1H11z'/%3E%3C/svg%3E");
-    --drpg-g-cleanup:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 2h3v1H16zM15 3h3v1H15zM14 4h3v1H14zM13 5h3v1H13zM12 6h3v1H12zM11 7h3v1H11zM10 8h3v1H10zM9 9h3v1H9zM6 10h9v1H6zM5 11h11v1H5zM4 12h13v1H4zM4 13h2v1H4zM7 13h2v1H7zM10 13h2v1H10zM13 13h2v1H13zM16 13h1v1H16zM4 14h2v1H4zM7 14h2v1H7zM10 14h2v1H10zM13 14h2v1H13zM16 14h1v1H16zM3 15h2v1H3zM7 15h2v1H7zM10 15h2v1H10zM14 15h2v1H14zM17 15h1v1H17zM3 16h2v1H3zM7 16h2v1H7zM10 16h2v1H10zM14 16h2v1H14zM17 16h1v1H17z'/%3E%3C/svg%3E");
-}
-
 /* The tile's icon slot becomes a mask box. Font Awesome still ships the
    element, so its glyph has to be switched off explicitly - `content: none`
    on the pseudo-element it draws into. */
@@ -8005,17 +8368,6 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
    background disappears at this size and the same stroke removed from a
    sixteen-pixel mass does not.
    ========================================================================== */
-
-:root {
-    --drpg-g-sprint:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 5h1v1H2zM12 5h1v1H12zM2 6h2v1H2zM12 6h2v1H12zM2 7h3v1H2zM12 7h3v1H12zM2 8h4v1H2zM12 8h4v1H12zM2 9h5v1H2zM12 9h5v1H12zM2 10h6v1H2zM12 10h6v1H12zM2 11h7v1H2zM12 11h7v1H12zM2 12h7v1H2zM12 12h7v1H12zM2 13h6v1H2zM12 13h6v1H12zM2 14h5v1H2zM12 14h5v1H12zM2 15h4v1H2zM12 15h4v1H12zM2 16h3v1H2zM12 16h3v1H12zM2 17h2v1H2zM12 17h2v1H12zM2 18h1v1H2zM12 18h1v1H12z'/%3E%3C/svg%3E");
-    --drpg-g-burst:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M13 1h5v1H13zM11 2h6v1H11zM10 3h6v1H10zM9 4h6v1H9zM8 5h6v1H8zM7 6h7v1H7zM6 7h10v1H6zM5 8h10v1H5zM10 9h7v1H10zM9 10h6v1H9zM8 11h6v1H8zM7 12h6v1H7zM6 13h6v1H6zM5 14h6v1H5zM4 15h6v1H4zM4 16h4v1H4zM5 17h2v1H5z'/%3E%3C/svg%3E");
-    --drpg-g-relief:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 5h13v1H3zM3 6h13v1H3zM4 7h11v1H4zM4 8h11v1H4zM4 9h11v1H4zM16 9h3v1H16zM4 10h11v1H4zM17 10h2v1H17zM4 11h11v1H4zM17 11h2v1H17zM4 12h11v1H4zM16 12h3v1H16zM4 13h11v1H4zM4 14h11v1H4zM4 15h11v1H4zM4 16h11v1H4zM5 17h9v1H5zM5 18h9v1H5z'/%3E%3C/svg%3E");
-    --drpg-g-palm:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h2v1H8zM11 3h2v1H11zM14 3h2v1H14zM8 4h2v1H8zM11 4h2v1H11zM14 4h2v1H14zM8 5h2v1H8zM11 5h2v1H11zM14 5h2v1H14zM8 6h9v1H8zM6 7h11v1H6zM5 8h12v1H5zM5 9h13v1H5zM5 10h13v1H5zM5 11h13v1H5zM6 12h12v1H6zM6 13h12v1H6zM7 14h10v1H7zM8 15h8v1H8zM9 16h6v1H9z'/%3E%3C/svg%3E");
-}
 
 .drpg-call-button[data-drpg-call="sprint"] .drpg-action-icon,
 .drpg-call-button[data-drpg-call="burst"] .drpg-action-icon,
@@ -8227,23 +8579,6 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
    crisis set (14) still have Font Awesome.
    ========================================================================== */
 
-:root {
-    --drpg-g-support:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM8 4h8v1H8zM8 5h8v1H8zM8 6h8v1H8zM10 7h4v1H10zM2 11h3v1H2zM19 11h3v1H19zM2 12h4v1H2zM18 12h4v1H18zM3 13h5v1H3zM16 13h5v1H16zM4 14h7v1H4zM13 14h7v1H13zM6 15h12v1H6zM8 16h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-experience:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM9 4h6v1H9zM7 5h10v1H7zM5 6h14v1H5zM3 7h18v1H3zM1 8h22v1H1zM3 9h18v1H3zM5 10h14v1H5zM7 11h10v1H7zM8 12h8v1H8zM8 13h8v1H8zM9 14h6v1H9zM10 15h4v1H10zM20 10h2v1H20zM20 11h2v1H20zM20 12h2v1H20zM19 13h3v1H19zM19 14h3v1H19z'/%3E%3C/svg%3E");
-    --drpg-g-ultimate:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 1h2v1H11zM11 2h2v1H11zM10 3h4v1H10zM10 4h4v1H10zM9 5h6v1H9zM2 6h20v1H2zM3 7h18v1H3zM4 8h16v1H4zM5 9h14v1H5zM5 10h14v1H5zM4 11h16v1H4zM4 12h6v1H4zM14 12h6v1H14zM3 13h5v1H3zM16 13h5v1H16zM3 14h4v1H3zM17 14h4v1H17zM2 15h4v1H2zM18 15h4v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-contribution:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 1h6v1H9zM9 2h6v1H9zM3 3h4v1H3zM9 3h6v1H9zM17 3h4v1H17zM3 4h4v1H3zM9 4h6v1H9zM17 4h4v1H17zM3 5h18v1H3zM3 6h18v1H3zM5 7h14v1H5zM5 8h5v1H5zM14 8h5v1H14zM1 9h8v1H1zM15 9h8v1H15zM1 10h7v1H1zM16 10h7v1H16zM1 11h7v1H1zM16 11h7v1H16zM1 12h7v1H1zM16 12h7v1H16zM1 13h7v1H1zM16 13h7v1H16zM1 14h8v1H1zM15 14h8v1H15zM5 15h5v1H5zM14 15h5v1H14zM5 16h14v1H5zM3 17h18v1H3zM3 18h18v1H3zM3 19h4v1H3zM9 19h6v1H9zM17 19h4v1H17zM3 20h4v1H3zM9 20h6v1H9zM17 20h4v1H17zM9 21h6v1H9zM9 22h6v1H9z'/%3E%3C/svg%3E");
-    --drpg-g-reroll:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 3h6v1H9zM7 4h10v1H7zM6 5h12v1H6zM5 6h5v1H5zM14 6h5v1H14zM5 7h3v1H5zM16 7h3v1H16zM4 8h4v1H4zM16 8h4v1H16zM4 9h3v1H4zM17 9h3v1H17zM4 10h3v1H4zM17 10h3v1H17zM4 11h3v1H4zM17 11h3v1H17zM4 12h3v1H4zM17 12h3v1H17zM4 13h3v1H4zM17 13h3v1H17zM1 14h9v1H1zM17 14h3v1H17zM1 15h9v1H1zM17 15h3v1H17zM2 16h7v1H2zM17 16h3v1H17zM3 17h5v1H3zM17 17h3v1H17zM4 18h3v1H4zM17 18h3v1H17zM17 19h3v1H17z'/%3E%3C/svg%3E");
-    --drpg-g-determination:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM10 4h4v1H10zM10 5h4v1H10zM9 6h6v1H9zM8 7h8v1H8zM8 8h8v1H8zM7 9h10v1H7zM6 10h12v1H6zM6 11h12v1H6zM5 12h14v1H5zM5 13h14v1H5zM5 14h14v1H5zM6 15h12v1H6zM7 16h10v1H7zM9 17h6v1H9z'/%3E%3C/svg%3E");
-    --drpg-g-free-crit:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM8 4h8v1H8zM6 5h12v1H6zM5 6h6v1H5zM13 6h6v1H13zM4 7h7v1H4zM13 7h7v1H13zM4 8h7v1H4zM13 8h7v1H13zM4 9h7v1H4zM13 9h7v1H13zM4 10h7v1H4zM13 10h7v1H13zM4 11h7v1H4zM13 11h7v1H13zM4 12h6v1H4zM11 12h2v1H11zM14 12h6v1H14zM4 13h5v1H4zM10 13h4v1H10zM15 13h5v1H15zM4 14h4v1H4zM9 14h6v1H9zM16 14h4v1H16zM4 15h3v1H4zM8 15h8v1H8zM17 15h3v1H17zM5 16h14v1H5zM6 17h12v1H6zM8 18h8v1H8zM10 19h4v1H10z'/%3E%3C/svg%3E");
-}
-
 /* The Call tiles take the same mask treatment as the action tiles. The reset
    is scoped per key, so any Call without a glyph yet keeps its Font Awesome
    icon rather than rendering blank. */
@@ -8382,54 +8717,6 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
    negative space carries it. Same trick gives the gift box its ribbon and the
    bin its ribs - every internal line in this set is a gap, never a stroke.
    ========================================================================== */
-
-:root {
-    --drpg-g-obstacle:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 5h20v1H2zM2 6h20v1H2zM2 7h20v1H2zM4 8h3v1H4zM17 8h3v1H17zM4 9h3v1H4zM17 9h3v1H17zM2 10h20v1H2zM2 11h20v1H2zM2 12h20v1H2zM4 13h3v1H4zM17 13h3v1H17zM4 14h3v1H4zM17 14h3v1H17zM4 15h3v1H4zM17 15h3v1H17zM4 16h3v1H4zM17 16h3v1H17z'/%3E%3C/svg%3E");
-    --drpg-g-for-the-game:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h4v1H6zM14 3h4v1H14zM5 4h6v1H5zM13 4h6v1H13zM8 5h8v1H8zM3 6h18v1H3zM3 7h18v1H3zM4 8h7v1H4zM13 8h7v1H13zM4 9h7v1H4zM13 9h7v1H13zM4 10h7v1H4zM13 10h7v1H13zM4 11h7v1H4zM13 11h7v1H13zM4 12h7v1H4zM13 12h7v1H13zM4 13h7v1H4zM13 13h7v1H13zM4 14h7v1H4zM13 14h7v1H13zM4 15h7v1H4zM13 15h7v1H13zM4 16h7v1H4zM13 16h7v1H13zM4 17h7v1H4zM13 17h7v1H13z'/%3E%3C/svg%3E");
-    --drpg-g-behind-closed-doors:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h16v1H4zM4 3h16v1H4zM4 4h3v1H4zM17 4h3v1H17zM4 5h3v1H4zM17 5h3v1H17zM4 6h3v1H4zM17 6h3v1H17zM4 7h3v1H4zM17 7h3v1H17zM4 8h3v1H4zM17 8h3v1H17zM4 9h3v1H4zM17 9h3v1H17zM4 10h3v1H4zM14 10h2v1H14zM17 10h3v1H17zM4 11h3v1H4zM14 11h2v1H14zM17 11h3v1H17zM4 12h3v1H4zM17 12h3v1H17zM4 13h3v1H4zM17 13h3v1H17zM4 14h3v1H4zM17 14h3v1H17zM4 15h3v1H4zM17 15h3v1H17zM4 16h3v1H4zM17 16h3v1H17zM4 17h3v1H4zM17 17h3v1H17zM4 18h16v1H4zM4 19h16v1H4z'/%3E%3C/svg%3E");
-    --drpg-g-this-will-hurt:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 4h6v1H4zM14 4h6v1H14zM3 5h8v1H3zM13 5h8v1H13zM2 6h9v1H2zM13 6h9v1H13zM2 7h9v1H2zM12 7h10v1H12zM2 8h10v1H2zM13 8h9v1H13zM3 9h9v1H3zM12 9h9v1H12zM4 10h8v1H4zM13 10h7v1H13zM5 11h7v1H5zM12 11h7v1H12zM6 12h6v1H6zM13 12h5v1H13zM7 13h5v1H7zM12 13h5v1H12zM8 14h4v1H8zM13 14h3v1H13zM9 15h3v1H9zM12 15h3v1H12zM10 16h4v1H10zM11 17h2v1H11z'/%3E%3C/svg%3E");
-    --drpg-g-paranoia:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM5 4h4v1H5zM15 4h4v1H15zM4 5h3v1H4zM17 5h3v1H17zM3 6h3v1H3zM18 6h3v1H18zM3 7h3v1H3zM9 7h6v1H9zM18 7h3v1H18zM3 8h3v1H3zM8 8h3v1H8zM13 8h3v1H13zM18 8h3v1H18zM3 9h3v1H3zM8 9h3v1H8zM13 9h3v1H13zM18 9h3v1H18zM3 10h3v1H3zM8 10h3v1H8zM13 10h3v1H13zM18 10h3v1H18zM3 11h3v1H3zM9 11h6v1H9zM18 11h3v1H18zM3 12h3v1H3zM18 12h3v1H18zM4 13h3v1H4zM17 13h3v1H17zM5 14h4v1H5zM15 14h4v1H15zM8 15h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-chained:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM7 3h3v1H7zM14 3h3v1H14zM7 4h3v1H7zM14 4h3v1H14zM7 5h3v1H7zM14 5h3v1H14zM8 6h8v1H8zM8 8h8v1H8zM7 9h3v1H7zM14 9h3v1H14zM7 10h3v1H7zM14 10h3v1H14zM7 11h3v1H7zM14 11h3v1H14zM8 12h8v1H8zM8 14h8v1H8zM7 15h3v1H7zM14 15h3v1H14zM7 16h3v1H7zM14 16h3v1H14zM7 17h3v1H7zM14 17h3v1H14zM8 18h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-silence:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 3h13v1H5zM3 4h13v1H3zM19 4h2v1H19zM2 5h12v1H2zM17 5h5v1H17zM2 6h10v1H2zM15 6h7v1H15zM2 7h8v1H2zM13 7h9v1H13zM2 8h6v1H2zM11 8h11v1H11zM3 9h3v1H3zM9 9h12v1H9zM7 10h12v1H7zM7 11h4v1H7zM7 12h3v1H7zM7 13h2v1H7z'/%3E%3C/svg%3E");
-    --drpg-g-fuel-the-cub:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h4v1H6zM13 3h4v1H13zM5 4h6v1H5zM12 4h6v1H12zM4 5h14v1H4zM4 6h14v1H4zM5 7h12v1H5zM6 8h10v1H6zM7 9h8v1H7zM8 10h6v1H8zM9 11h4v1H9zM3 14h18v1H3zM2 15h20v1H2zM3 16h18v1H3zM5 17h14v1H5z'/%3E%3C/svg%3E");
-    --drpg-g-favorite-project:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM10 5h4v1H10zM9 6h6v1H9zM8 7h8v1H8zM7 8h10v1H7zM6 9h12v1H6zM5 10h14v1H5zM4 11h16v1H4zM9 12h6v1H9zM9 13h6v1H9zM9 14h6v1H9zM9 15h6v1H9zM9 16h6v1H9zM9 17h6v1H9zM9 18h6v1H9zM9 19h6v1H9z'/%3E%3C/svg%3E");
-    /* Feed the Overflow: water, because that is what the Call is named after
-       and what the counter does. Three waves, the middle one in counter-phase,
-       running edge to edge - at 24px a stack of identical lines reads as
-       stripes, and the phase shift is the whole difference between stripes and
-       current. */
-    --drpg-g-feed-overflow:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M0 4h3v1H0zM9 4h6v1H9zM21 4h3v1H21zM0 5h4v1H0zM8 5h8v1H8zM20 5h4v1H20zM3 6h6v1H3zM15 6h6v1H15zM4 7h4v1H4zM16 7h4v1H16zM3 10h6v1H3zM15 10h6v1H15zM2 11h8v1H2zM14 11h8v1H14zM0 12h3v1H0zM9 12h6v1H9zM21 12h3v1H21zM0 13h2v1H0zM10 13h4v1H10zM22 13h2v1H22zM0 16h3v1H0zM9 16h6v1H9zM21 16h3v1H21zM0 17h4v1H0zM8 17h8v1H8zM20 17h4v1H20zM3 18h6v1H3zM15 18h6v1H15zM4 19h4v1H4zM16 19h4v1H16z'/%3E%3C/svg%3E");
-    --drpg-g-contraband:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM3 3h18v1H3zM3 4h18v1H3zM4 5h16v1H4zM4 6h3v1H4zM9 6h2v1H9zM13 6h2v1H13zM17 6h3v1H17zM4 7h3v1H4zM9 7h2v1H9zM13 7h2v1H13zM17 7h3v1H17zM4 8h3v1H4zM9 8h2v1H9zM13 8h2v1H13zM17 8h3v1H17zM4 9h3v1H4zM9 9h2v1H9zM13 9h2v1H13zM17 9h3v1H17zM4 10h3v1H4zM9 10h2v1H9zM13 10h2v1H13zM17 10h3v1H17zM4 11h3v1H4zM9 11h2v1H9zM13 11h2v1H13zM17 11h3v1H17zM4 12h3v1H4zM9 12h2v1H9zM13 12h2v1H13zM17 12h3v1H17zM4 13h3v1H4zM9 13h2v1H9zM13 13h2v1H13zM17 13h3v1H17zM4 14h3v1H4zM9 14h2v1H9zM13 14h2v1H13zM17 14h3v1H17zM4 15h3v1H4zM9 15h2v1H9zM13 15h2v1H13zM17 15h3v1H17zM5 16h14v1H5zM6 17h12v1H6z'/%3E%3C/svg%3E");
-    --drpg-g-public-announcement:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 8h4v1H2zM2 9h4v1H2zM2 10h4v1H2zM2 11h4v1H2zM6 7h3v1H6zM6 8h3v1H6zM6 9h3v1H6zM6 10h3v1H6zM6 11h3v1H6zM6 12h3v1H6zM9 6h3v1H9zM9 7h3v1H9zM9 8h3v1H9zM9 9h3v1H9zM9 10h3v1H9zM9 11h3v1H9zM9 12h3v1H9zM9 13h3v1H9zM12 4h3v1H12zM12 5h3v1H12zM12 6h3v1H12zM12 7h3v1H12zM12 8h3v1H12zM12 9h3v1H12zM12 10h3v1H12zM12 11h3v1H12zM12 12h3v1H12zM12 13h3v1H12zM12 14h3v1H12zM12 15h3v1H12zM18 7h2v1H18zM19 9h2v1H19zM19 11h2v1H19zM18 13h2v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-new-rule:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h10v1H3zM3 4h10v1H3zM3 5h10v1H3zM3 6h10v1H3zM8 7h4v1H8zM9 8h4v1H9zM10 9h4v1H10zM11 10h4v1H11zM12 11h4v1H12zM13 12h4v1H13zM14 13h4v1H14zM4 16h16v1H4zM3 17h18v1H3zM3 18h18v1H3z'/%3E%3C/svg%3E");
-    /* The falling arrow, on the Call that Dawid renamed Game Integrity
-       on 29.08. The eraser that used to live above this line went with
-       the project wipe - a variable nothing draws is a drawing somebody
-       will eventually wire to the wrong tile. */
-    --drpg-g-game-protection:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM9 3h6v1H9zM9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM9 8h6v1H9zM9 9h6v1H9zM9 10h6v1H9zM9 11h6v1H9zM4 12h16v1H4zM5 13h14v1H5zM6 14h12v1H6zM7 15h10v1H7zM8 16h8v1H8zM9 17h6v1H9zM10 18h4v1H10zM11 19h2v1H11z'/%3E%3C/svg%3E");
-    /* The motive: a sealed envelope, its flap a V-shaped GAP rather than
-       a stroke - the rule this whole set follows, and the reason Silence
-       reads at all. Distinct from every other tile in the Despair grid at
-       24px, which a clock face or an hourglass would not have been: the
-       HUD row carries the countdown, the tile only has to say "Monokuma
-       has handed something out". */
-    --drpg-g-motive:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 7h1v1H3zM5 7h14v1H5zM20 7h1v1H20zM3 8h2v1H3zM6 8h12v1H6zM19 8h2v1H19zM3 9h3v1H3zM7 9h10v1H7zM18 9h3v1H18zM3 10h4v1H3zM8 10h8v1H8zM17 10h4v1H17zM3 11h5v1H3zM9 11h6v1H9zM16 11h5v1H16zM3 12h6v1H3zM10 12h4v1H10zM15 12h6v1H15zM3 13h7v1H3zM11 13h2v1H11zM14 13h7v1H14zM3 14h8v1H3zM13 14h8v1H13zM3 15h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3z'/%3E%3C/svg%3E");
-}
 
 .drpg-call-button[data-drpg-call="obstacle"] .drpg-action-icon {
     width: 24px;
@@ -8745,47 +9032,175 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     .drpg-call-button.drpg-call-pending::after { animation: none; }
 }
 
-/* --- the two HUD rows ----------------------------------------------------
-   Both sit under the elapsed line and both are absent unless there is
-   something to say, which is what keeps the right column where it was on an
-   ordinary time of day (trap 108). Same size and letterspacing as the elapsed
-   row above them, so the block reads as one stack rather than as three
-   different widgets. */
-.drpg-hud-motive,
-.drpg-hud-assembly {
+/* ---- one masked sprite, wherever the module wants a glyph of its own -------
+   pixel-icons.css masks Font Awesome where the module already draws an icon.
+   This is for the places where it draws none and the audit page does: the phase
+   on the clock, and the kind of an event. One class, and the sprite comes from
+   `--drpg-px-mask`.
+
+   HERE RATHER THAN IN pixel-icons.css, which is generated and would eat it, and
+   not in stained-glass.css, where it lived until 1.2.47: both places that use it
+   are in both themes now, and under Legacy an unmasked `.drpg-pxi` came out as a
+   solid square of its own colour. The sprite TOKENS are on the body (the
+   generator states them unscoped for the same reason); the masking of Foundry's
+   own icons stays Stained Glass only. */
+.drpg-pxi {
+    display: inline-block;
+    width: 1.2em;
+    height: 1.2em;
+    flex: 0 0 auto;
+    vertical-align: -0.22em;
+    background-color: currentColor;
+    -webkit-mask: var(--drpg-px-mask) center / contain no-repeat;
+    mask: var(--drpg-px-mask) center / contain no-repeat;
+    image-rendering: pixelated;
+}
+
+/* WHICH SPRITE A FACT WEARS. These were inside `body.drpg-theme-stained-glass`,
+   which made the picture a property of the THEME; it is a property of the fact.
+   An incident is a knife and a motive is an envelope whichever palette is on,
+   and Monokuma Legacy is the pixel-art theme - if either of the two had the
+   weaker claim to a pixel sprite it was not that one. Size and colour stay with
+   each theme. */
+.drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-sun); }
+body[data-drpg-time="noon"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-noon); }
+body[data-drpg-time="afternoon"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-afternoon); }
+body[data-drpg-time="evening"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-sunset); }
+body[data-drpg-time="night"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-moon); }
+body[data-drpg-phase="investigation"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-lens); }
+body[data-drpg-phase="classTrial"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-gavel); }
+body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-eclipse); }
+
+.drpg-event-glyph { --drpg-px-mask: var(--drpg-px-bell); }
+/* The barrier, not the skull: a safeword is a hand up, not a death. */
+.drpg-event[data-kind="safeword"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-barrier); }
+.drpg-event[data-kind="incident"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-murder); }
+.drpg-event[data-kind="body"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-murder); }
+.drpg-event[data-kind="motive"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-envelope); }
+.drpg-event[data-kind="assembly"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-horn); }
+.drpg-event[data-kind="trial"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-gavel); }
+.drpg-event[data-kind="overflow"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-heartcrack); }
+
+/* --- the Event panel, in both themes --------------------------------------
+   `.drpg-hud-motive` and `.drpg-hud-assembly` were here: two rows of the clock
+   that Monokuma Legacy used while Stained Glass showed the same facts as cards
+   in the Event panel. Both the rows and the four builders behind them went in
+   1.2.47 (see `appendHudExtras`'s tombstone in hud.mjs) - one set of facts had
+   two implementations and the Legacy one was the poorer of them, missing the
+   opening roll and the Despair overflow outright.
+
+   What is here now is the panel's STRUCTURE, unscoped, so both themes have a
+   panel at all. stained-glass.css keeps its own block for the LOOK and every
+   selector there is theme-scoped, so it wins these on specificity without
+   either file having to know about the other. */
+#drpg-events {
+    width: 412px;
+    max-width: 100%;
+    margin: 8px auto 0;
     display: flex;
+    flex-direction: column;
     gap: 6px;
-    justify-content: center;
-    align-items: baseline;
-    font-size: var(--font-size-11, 0.7rem);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    /* The panel says things; it has no button in it, so it takes no clicks and
+       the map underneath stays draggable through it. */
+    pointer-events: none;
+}
+
+.drpg-event {
+    --acc: var(--drpg-gold-antique);
+    position: relative;
+    overflow: hidden;
+    padding: 8px 10px;
+    text-align: center;
+}
+
+/* THE PLATE IS MONOKUMA LEGACY'S ALONE, and that is not a detail: under Stained
+   Glass a card stands on a pane of the curtain cut for the panel, so the card
+   itself states no background and no border - giving it one here put an opaque
+   plate over the glass and the panel stopped being part of the window. */
+body.drpg-theme-monokuma-legacy .drpg-event {
+    border: 1px solid var(--drpg-window-edge);
+    /* The accent states the kind on the edge rather than by flooding the card:
+       a panel of four cards in four different colours is a fruit bowl. */
+    border-left: 3px solid var(--acc);
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+}
+body.drpg-theme-monokuma-legacy .drpg-event-meta {
+    border-top: 1px solid var(--drpg-window-edge);
+}
+
+/* Which fact this is, said as a picture. The sprite is chosen in
+   pixel-icons.css, where the sprites live and where both themes can reach it;
+   here it is only sized and coloured. */
+.drpg-event-glyph {
+    display: block;
+    width: 28px;
+    height: 28px;
+    margin: 0 auto 4px;
+    color: var(--acc);
+}
+
+.drpg-event-title {
+    font-family: var(--drpg-font-title, inherit);
+    font-size: calc(1rem * var(--drpg-legacy-scale, 1));
+    line-height: 1.15;
+    color: var(--acc);
+}
+
+.drpg-event-sub {
+    font-size: calc(0.85rem * var(--drpg-legacy-scale, 1));
     margin-top: 2px;
 }
 
-.drpg-hud-motive-label,
-.drpg-hud-assembly-label {
-    opacity: 0.55;
-}
-
-.drpg-hud-motive-left,
-.drpg-hud-assembly-room {
-    color: var(--drpg-bone);
-    opacity: 0.95;
+.drpg-event-meta {
+    font-size: max(10px, calc(0.7rem * var(--drpg-legacy-scale, 1)));
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-top: 5px;
+    padding-top: 5px;
     font-variant-numeric: tabular-nums;
 }
 
-/* Due is the one moment the countdown was for, so it is the one moment the row
-   is allowed to shout. Blood, because a motive coming due is Monokuma's. */
-.drpg-hud-motive.due .drpg-hud-motive-left {
+/* The half of a motive that says what ignoring it costs. It was a tooltip until
+   1.2.47, which is to say it was unreadable on a shared screen and unreachable
+   from a keyboard. */
+.drpg-event-note {
+    font-size: calc(0.8rem * var(--drpg-legacy-scale, 1));
+    font-style: italic;
+    opacity: 0.8;
+    line-height: 1.25;
+    margin-top: 3px;
+}
+
+/* Due, or yours, is the one moment a card is allowed to shout. */
+.drpg-event.due .drpg-event-meta,
+.drpg-event.mine .drpg-event-meta {
     color: var(--drpg-blood);
     opacity: 1;
     animation: drpg-pending-pulse 1.6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .drpg-hud-motive.due .drpg-hud-motive-left { animation: none; }
+    .drpg-event.due .drpg-event-meta,
+    .drpg-event.mine .drpg-event-meta { animation: none; }
 }
+
+/* The ticker is a faint second copy of the card's own word, drawn behind it -
+   a texture Stained Glass builds out of a faint colour, and Monokuma Legacy has
+   no faint colours (the forced-colours block makes the same point further
+   down). events.mjs still builds the element; here it simply does not show. */
+.drpg-event-ticker { display: none; }
+
+/* Which accent each kind wears. The names are the module's own palette, so the
+   mapping reads the same in both themes even though the colours do not. */
+/* The safeword is the loudest thing this panel ever says. */
+.drpg-event[data-kind="safeword"] { --acc: var(--drpg-blood); }
+.drpg-event[data-kind="incident"] { --acc: var(--drpg-blood); }
+.drpg-event[data-kind="body"] { --acc: var(--drpg-blood); }
+.drpg-event[data-kind="motive"] { --acc: var(--drpg-crimson); }
+.drpg-event[data-kind="assembly"] { --acc: var(--drpg-gold-antique); }
+.drpg-event[data-kind="trial"] { --acc: var(--drpg-crimson); }
+.drpg-event[data-kind="overflow"] { --acc: var(--drpg-crimson); }
 
 /* ==========================================================================
    STAGE 5, THIRD TRANCHE - THE FOURTEEN CRISIS ACTIONS
@@ -8804,37 +9219,6 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
    That completes the set: 35 glyphs, and Font Awesome no longer draws anything
    this module puts on screen.
    ========================================================================== */
-
-:root {
-    --drpg-g-leave-clue:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM5 4h4v1H5zM15 4h4v1H15zM4 5h3v1H4zM17 5h3v1H17zM3 6h3v1H3zM8 6h8v1H8zM18 6h3v1H18zM3 7h3v1H3zM7 7h3v1H7zM14 7h3v1H14zM18 7h3v1H18zM3 8h3v1H3zM6 8h3v1H6zM10 8h4v1H10zM15 8h3v1H15zM18 8h3v1H18zM3 9h3v1H3zM6 9h3v1H6zM10 9h4v1H10zM15 9h3v1H15zM18 9h3v1H18zM3 10h3v1H3zM6 10h3v1H6zM10 10h4v1H10zM15 10h3v1H15zM18 10h3v1H18zM3 11h3v1H3zM7 11h3v1H7zM10 11h4v1H10zM14 11h3v1H14zM18 11h3v1H18zM4 12h3v1H4zM8 12h8v1H8zM17 12h3v1H17zM5 13h4v1H5zM15 13h4v1H15zM7 14h10v1H7z'/%3E%3C/svg%3E");
-    --drpg-g-secure-trace:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM9 4h6v1H9zM9 5h6v1H9zM10 6h4v1H10zM2 9h4v1H2zM2 10h5v1H2zM3 11h5v1H3zM4 12h6v1H4zM5 13h7v1H5zM18 9h4v1H18zM17 10h5v1H17zM16 11h5v1H16zM14 12h6v1H14zM12 13h7v1H12zM6 14h12v1H6zM7 15h10v1H7zM9 16h6v1H9z'/%3E%3C/svg%3E");
-    --drpg-g-self-defence:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h16v1H4zM3 3h18v1H3zM3 4h18v1H3zM3 5h18v1H3zM3 6h18v1H3zM3 7h18v1H3zM3 8h18v1H3zM4 9h16v1H4zM4 10h16v1H4zM5 11h14v1H5zM6 12h12v1H6zM7 13h10v1H7zM8 14h8v1H8zM9 15h6v1H9zM10 16h4v1H10zM11 17h2v1H11z'/%3E%3C/svg%3E");
-    --drpg-g-survive:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M12 2h4v1H12zM11 3h5v1H11zM12 4h4v1H12zM8 6h8v1H8zM6 7h12v1H6zM5 8h6v1H5zM13 8h6v1H13zM7 9h4v1H7zM15 9h4v1H15zM8 10h4v1H8zM9 11h4v1H9zM10 12h4v1H10zM6 13h5v1H6zM13 13h4v1H13zM4 14h5v1H4zM14 14h4v1H14zM3 15h4v1H3zM15 15h5v1H15zM2 16h4v1H2zM17 16h4v1H17zM2 17h4v1H2zM18 17h4v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-role-reversal:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 4h2v1H16zM16 5h4v1H16zM2 6h20v1H2zM2 7h20v1H2zM2 8h20v1H2zM16 9h4v1H16zM16 10h2v1H16zM6 13h2v1H6zM4 14h4v1H4zM2 15h20v1H2zM2 16h20v1H2zM2 17h20v1H2zM4 18h4v1H4zM6 19h2v1H6z'/%3E%3C/svg%3E");
-    --drpg-g-strike:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h3v1H4zM5 3h3v1H5zM6 4h3v1H6zM7 5h3v1H7zM17 2h3v1H17zM16 3h3v1H16zM15 4h3v1H15zM14 5h3v1H14zM9 7h6v1H9zM7 8h10v1H7zM6 9h12v1H6zM6 10h12v1H6zM7 11h10v1H7zM9 12h6v1H9zM7 14h3v1H7zM6 15h3v1H6zM5 16h3v1H5zM4 17h3v1H4zM14 14h3v1H14zM15 15h3v1H15zM16 16h3v1H16zM17 17h3v1H17z'/%3E%3C/svg%3E");
-    --drpg-g-pin:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM10 6h4v1H10zM5 7h14v1H5zM6 8h12v1H6zM7 9h10v1H7zM8 10h8v1H8zM9 11h6v1H9zM10 12h4v1H10zM2 15h20v1H2zM2 16h20v1H2zM2 17h20v1H2z'/%3E%3C/svg%3E");
-    --drpg-g-keep-distance:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 9h3v1H2zM2 10h3v1H2zM2 11h3v1H2zM2 12h3v1H2zM19 9h3v1H19zM19 10h3v1H19zM19 11h3v1H19zM19 12h3v1H19zM7 8h3v1H7zM6 9h4v1H6zM5 10h5v1H5zM6 11h4v1H6zM7 12h3v1H7zM14 8h3v1H14zM14 9h4v1H14zM14 10h5v1H14zM14 11h4v1H14zM14 12h3v1H14z'/%3E%3C/svg%3E");
-    --drpg-g-weapon-attack:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M15 1h4v1H15zM14 2h5v1H14zM13 3h5v1H13zM12 4h5v1H12zM11 5h5v1H11zM10 6h5v1H10zM9 7h5v1H9zM8 8h5v1H8zM7 9h5v1H7zM6 10h5v1H6zM5 11h5v1H5zM4 12h5v1H4zM3 13h6v1H3zM2 14h6v1H2zM4 15h5v1H4zM5 16h4v1H5zM3 17h7v1H3zM2 18h4v1H2z'/%3E%3C/svg%3E");
-    --drpg-g-finishing-blow:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h12v1H6zM5 4h14v1H5zM5 5h14v1H5zM5 6h3v1H5zM10 6h4v1H10zM16 6h3v1H16zM5 7h3v1H5zM10 7h4v1H10zM16 7h3v1H16zM5 8h14v1H5zM6 9h12v1H6zM7 10h3v1H7zM11 10h2v1H11zM14 10h3v1H14zM2 13h4v1H2zM18 13h4v1H18zM3 14h5v1H3zM16 14h5v1H16zM5 15h14v1H5zM5 16h14v1H5zM3 17h5v1H3zM16 17h5v1H16zM2 18h4v1H2zM18 18h4v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-shared-escape:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 2h12v1H3zM3 3h3v1H3zM12 3h3v1H12zM3 4h3v1H3zM12 4h3v1H12zM3 5h3v1H3zM12 5h3v1H12zM3 6h3v1H3zM12 6h3v1H12zM3 7h3v1H3zM12 7h3v1H12zM3 8h3v1H3zM12 8h3v1H12zM3 9h3v1H3zM12 9h3v1H12zM3 10h3v1H3zM10 10h2v1H10zM12 10h3v1H12zM3 11h3v1H3zM12 11h3v1H12zM3 12h3v1H3zM12 12h3v1H12zM3 13h3v1H3zM12 13h3v1H12zM3 14h3v1H3zM12 14h3v1H12zM3 15h3v1H3zM12 15h3v1H12zM3 16h3v1H3zM12 16h3v1H12zM3 17h12v1H3zM17 8h4v1H17zM16 9h6v1H16zM16 10h6v1H16zM17 11h4v1H17zM17 12h4v1H17zM16 13h6v1H16z'/%3E%3C/svg%3E");
-    --drpg-g-double-role-reversal:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 4h14v1H3zM3 5h3v1H3zM3 6h3v1H3zM14 3h3v1H14zM13 4h5v1H13zM12 5h7v1H12zM3 10h3v1H3zM3 11h3v1H3zM3 12h14v1H3zM12 10h7v1H12zM13 11h5v1H13zM14 12h3v1H14zM3 16h14v1H3zM3 15h3v1H3zM3 17h3v1H3zM14 15h3v1H14zM13 16h5v1H13zM12 17h7v1H12z'/%3E%3C/svg%3E");
-    --drpg-g-crime-partners:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 3h5v1H4zM3 4h7v1H3zM3 5h7v1H3zM4 6h5v1H4zM15 3h5v1H15zM14 4h7v1H14zM14 5h7v1H14zM15 6h5v1H15zM3 9h7v1H3zM2 10h9v1H2zM2 11h9v1H2zM2 12h9v1H2zM2 13h9v1H2zM2 14h9v1H2zM2 15h9v1H2zM14 9h7v1H14zM13 10h9v1H13zM13 11h9v1H13zM13 12h9v1H13zM13 13h9v1H13zM13 14h9v1H13zM13 15h9v1H13z'/%3E%3C/svg%3E");
-    --drpg-g-averted-eyes:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 8h8v1H8zM5 9h3v1H5zM16 9h3v1H16zM3 10h2v1H3zM20 10h2v1H20zM2 11h20v1H2zM3 12h18v1H3zM6 13h12v1H6zM9 14h6v1H9zM4 16h3v1H4zM10 16h4v1H10zM17 16h3v1H17z'/%3E%3C/svg%3E");
-}
 
 .drpg-action-button[data-drpg-crisis="leaveClue"] .drpg-action-icon {
     width: 24px;
@@ -10156,6 +10540,15 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     box-shadow: 0 0 8px var(--drpg-eye-glow);
 }
 
+/* The clock's own button: one press moves the time of day on. Sits at the end
+   of the clock line, sized like the suggestion's "Do it". */
+.drpg-gmp-advance {
+    margin-left: 0.6em;
+    vertical-align: middle;
+    font-size: 0.85em;
+}
+.drpg-gmp-advance i { margin-right: 0.3em; }
+
 /* A footer button is as tall as its label.
    --------------------------------------------------------------------------
    Foundry gives every <button> a fixed height, which is fine for "OK" and not
@@ -10617,16 +11010,6 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
    Placed at the end of the file on purpose: every rule above sets these same
    properties at the same specificity, so this has to be the later one to win.
    ========================================================================== */
-
-:root {
-    --drpg-panel-ground: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
-    --drpg-panel-radius: 6px;
-    /* `none` since the ground went opaque at the end of this file: a
-       backdrop-filter behind something nothing shows through is a compositing
-       layer per panel, every frame, for an effect that cannot be seen. */
-    --drpg-panel-blur: none;
-    --drpg-panel-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.4);
-}
 
 #drpg-despair,
 #drpg-hud,
@@ -11260,7 +11643,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     padding: 0 4px;
     border: 1px solid var(--drpg-line);
     border-radius: 2px;
-    font-size: max(10px, calc(0.66rem * var(--drpg-legacy-scale, 1)));
+    font-size: var(--drpg-text-xs);
     font-variant-numeric: tabular-nums;
     color: var(--drpg-dim);
     cursor: help;
@@ -11989,7 +12372,7 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
 */
 
 .drpg-overflow-badge {
-    font-size: max(10px, calc(10px * var(--drpg-legacy-scale, 1)));
+    font-size: var(--drpg-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     opacity: 0.9;
@@ -12110,7 +12493,7 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
     padding: 0 5px;
     border: 1px solid rgba(var(--drpg-bone-rgb), 0.28);
     border-radius: 2px;
-    font-size: 0.68em;
+    font-size: var(--drpg-text-xs);
     letter-spacing: 0.04em;
     text-transform: uppercase;
     opacity: 0.75;
@@ -12767,18 +13150,6 @@ body.drpg-pixel-font #pause.paused figcaption {
    screen. The only way for "the same colour" to survive being put in different
    places is for it to stop borrowing from underneath.
    ========================================================================== */
-
-:root {
-    /* Ink as channels, for the panels that need it at less than full strength.
-       Kept beside the hex rather than derived, the same way Bone carries its
-       own `-rgb`: `rgb(from …)` is not something this file can rely on across
-       every browser Foundry ships to. */
-    --drpg-ink-rgb: 29, 26, 33;
-    --drpg-panel-ground: light-dark(
-        rgb(var(--drpg-bone-rgb)),
-        rgb(var(--drpg-ink-rgb))
-    );
-}
 
 /* The module's own dialogs take the sheet's ground. Foundry's dialogs - a
    delete confirmation, a file picker - are left alone: they are not ours to
@@ -13757,39 +14128,6 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:ho
    an empty square.
    ========================================================================== */
 
-:root {
-    --drpg-g-projects:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h2v1H8zM7 3h3v1H7zM2 4h2v1H2zM6 4h3v1H6zM12 4h10v1H12zM2 5h6v1H2zM12 5h10v1H12zM3 6h4v1H3zM4 7h2v1H4zM8 9h2v1H8zM7 10h3v1H7zM2 11h2v1H2zM6 11h3v1H6zM12 11h10v1H12zM2 12h6v1H2zM12 12h10v1H12zM3 13h4v1H3zM4 14h2v1H4zM8 16h2v1H8zM7 17h3v1H7zM2 18h2v1H2zM6 18h3v1H6zM12 18h10v1H12zM2 19h6v1H2zM12 19h10v1H12zM3 20h4v1H3zM4 21h2v1H4z'/%3E%3C/svg%3E");
-    --drpg-g-jump:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 1h2v1H6zM16 1h2v1H16zM6 2h2v1H6zM16 2h2v1H16zM1 3h22v1H1zM1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h2v1H1zM21 8h2v1H21zM1 9h2v1H1zM21 9h2v1H21zM1 10h2v1H1zM5 10h2v1H5zM9 10h2v1H9zM13 10h2v1H13zM17 10h2v1H17zM21 10h2v1H21zM1 11h2v1H1zM5 11h2v1H5zM9 11h2v1H9zM13 11h2v1H13zM17 11h2v1H17zM21 11h2v1H21zM1 12h2v1H1zM21 12h2v1H21zM1 13h2v1H1zM21 13h2v1H21zM1 14h2v1H1zM5 14h2v1H5zM9 14h2v1H9zM13 14h2v1H13zM17 14h2v1H17zM21 14h2v1H21zM1 15h2v1H1zM5 15h2v1H5zM9 15h2v1H9zM13 15h2v1H13zM17 15h2v1H17zM21 15h2v1H21zM1 16h2v1H1zM21 16h2v1H21zM1 17h2v1H1zM21 17h2v1H21zM1 18h2v1H1zM21 18h2v1H21zM1 19h2v1H1zM21 19h2v1H21zM1 20h22v1H1zM1 21h22v1H1z'/%3E%3C/svg%3E");
-    --drpg-g-items:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM3 9h18v1H3zM3 10h2v1H3zM10 10h4v1H10zM19 10h2v1H19zM3 11h2v1H3zM10 11h4v1H10zM19 11h2v1H19zM3 12h2v1H3zM10 12h4v1H10zM19 12h2v1H19zM3 13h2v1H3zM10 13h4v1H10zM19 13h2v1H19zM3 14h2v1H3zM19 14h2v1H19zM3 15h2v1H3zM19 15h2v1H19zM3 16h2v1H3zM19 16h2v1H19zM3 17h2v1H3zM19 17h2v1H19zM3 18h2v1H3zM19 18h2v1H19zM3 19h2v1H3zM19 19h2v1H19zM3 20h18v1H3zM3 21h18v1H3z'/%3E%3C/svg%3E");
-    --drpg-g-music:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h13v1H9zM9 3h13v1H9zM9 4h13v1H9zM9 5h13v1H9zM9 6h13v1H9zM9 7h2v1H9zM20 7h2v1H20zM9 8h2v1H9zM20 8h2v1H20zM9 9h2v1H9zM20 9h2v1H20zM9 10h2v1H9zM20 10h2v1H20zM9 11h2v1H9zM20 11h2v1H20zM9 12h2v1H9zM14 12h8v1H14zM9 13h2v1H9zM14 13h8v1H14zM9 14h2v1H9zM14 14h7v1H14zM3 15h8v1H3zM15 15h5v1H15zM3 16h8v1H3zM3 17h7v1H3zM4 18h5v1H4z'/%3E%3C/svg%3E");
-    --drpg-g-who-is-alive:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 4h4v1H5zM15 4h4v1H15zM4 5h8v1H4zM14 5h6v1H14zM3 6h18v1H3zM3 7h18v1H3zM3 8h18v1H3zM3 9h6v1H3zM11 9h10v1H11zM3 10h6v1H3zM11 10h10v1H11zM11 11h2v1H11zM11 12h2v1H11zM6 13h5v1H6zM13 13h5v1H13zM7 14h4v1H7zM13 14h4v1H13zM8 15h3v1H8zM13 15h3v1H13zM9 16h6v1H9zM10 17h4v1H10zM11 18h2v1H11z'/%3E%3C/svg%3E");
-    --drpg-g-investigation:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h6v1H7zM5 2h10v1H5zM4 3h12v1H4zM3 4h14v1H3zM3 5h3v1H3zM9 5h8v1H9zM2 6h4v1H2zM9 6h9v1H9zM2 7h4v1H2zM8 7h10v1H8zM2 8h4v1H2zM8 8h10v1H8zM2 9h16v1H2zM2 10h16v1H2zM2 11h16v1H2zM3 12h14v1H3zM3 13h14v1H3zM4 14h14v1H4zM5 15h14v1H5zM7 16h6v1H7zM15 16h5v1H15zM16 17h5v1H16zM17 18h5v1H17zM18 19h5v1H18zM19 20h4v1H19zM20 21h3v1H20z'/%3E%3C/svg%3E");
-    --drpg-g-trial:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM2 5h21v1H2zM2 6h21v1H2zM2 7h21v1H2zM4 8h2v1H4zM11 8h2v1H11zM18 8h2v1H18zM4 9h2v1H4zM11 9h2v1H11zM18 9h2v1H18zM1 10h8v1H1zM11 10h2v1H11zM15 10h8v1H15zM1 11h8v1H1zM11 11h2v1H11zM15 11h8v1H15zM2 12h6v1H2zM11 12h2v1H11zM16 12h6v1H16zM2 13h6v1H2zM11 13h2v1H11zM16 13h6v1H16zM3 14h4v1H3zM11 14h2v1H11zM17 14h4v1H17zM4 15h2v1H4zM11 15h2v1H11zM18 15h2v1H18zM11 16h2v1H11zM11 17h2v1H11zM11 18h2v1H11zM6 19h13v1H6zM6 20h13v1H6zM6 21h13v1H6z'/%3E%3C/svg%3E");
-    --drpg-g-gm-team:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 4h4v1H6zM5 5h6v1H5zM4 6h8v1H4zM15 6h4v1H15zM4 7h8v1H4zM14 7h6v1H14zM4 8h8v1H4zM14 8h6v1H14zM4 9h8v1H4zM14 9h6v1H14zM5 10h6v1H5zM14 10h6v1H14zM6 11h4v1H6zM15 11h4v1H15zM4 12h8v1H4zM3 13h10v1H3zM15 13h6v1H15zM2 14h20v1H2zM2 15h21v1H2zM2 16h21v1H2zM2 17h21v1H2z'/%3E%3C/svg%3E");
-    --drpg-g-room-setup:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h20v1H2zM2 3h20v1H2zM2 4h20v1H2zM2 5h3v1H2zM10 5h3v1H10zM19 5h3v1H19zM2 6h3v1H2zM10 6h3v1H10zM19 6h3v1H19zM2 7h3v1H2zM10 7h3v1H10zM19 7h3v1H19zM2 8h3v1H2zM10 8h3v1H10zM19 8h3v1H19zM2 9h3v1H2zM10 9h3v1H10zM19 9h3v1H19zM2 10h3v1H2zM10 10h3v1H10zM19 10h3v1H19zM2 11h3v1H2zM10 11h3v1H10zM19 11h3v1H19zM2 12h3v1H2zM10 12h3v1H10zM19 12h3v1H19zM2 13h3v1H2zM10 13h3v1H10zM19 13h3v1H19zM2 14h3v1H2zM10 14h3v1H10zM19 14h3v1H19zM2 15h3v1H2zM19 15h3v1H19zM2 16h3v1H2zM19 16h3v1H19zM2 17h3v1H2zM19 17h3v1H19zM2 18h3v1H2zM19 18h3v1H19zM2 19h6v1H2zM14 19h8v1H14zM2 20h6v1H2zM14 20h8v1H14zM2 21h6v1H2zM14 21h8v1H14z'/%3E%3C/svg%3E");
-    --drpg-g-tables:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 3h22v1H1zM1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM1 9h2v1H1zM10 9h3v1H10zM21 9h2v1H21zM1 10h2v1H1zM10 10h3v1H10zM21 10h2v1H21zM1 11h2v1H1zM10 11h3v1H10zM21 11h2v1H21zM1 12h2v1H1zM10 12h3v1H10zM21 12h2v1H21zM1 13h22v1H1zM1 14h22v1H1zM1 15h2v1H1zM10 15h3v1H10zM21 15h2v1H21zM1 16h2v1H1zM10 16h3v1H10zM21 16h2v1H21zM1 17h2v1H1zM10 17h3v1H10zM21 17h2v1H21zM1 18h2v1H1zM10 18h3v1H10zM21 18h2v1H21zM1 19h22v1H1zM1 20h22v1H1z'/%3E%3C/svg%3E");
-    --drpg-g-season-setup:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M17 1h2v1H17zM4 2h2v1H4zM17 2h2v1H17zM4 3h2v1H4zM15 3h6v1H15zM2 4h6v1H2zM14 4h8v1H14zM2 5h6v1H2zM14 5h8v1H14zM4 6h2v1H4zM15 6h6v1H15zM4 7h2v1H4zM17 7h2v1H17zM15 8h4v1H15zM14 9h4v1H14zM13 10h5v1H13zM12 11h5v1H12zM11 12h5v1H11zM10 13h5v1H10zM9 14h5v1H9zM8 15h5v1H8zM7 16h5v1H7zM2 17h9v1H2zM2 18h8v1H2zM2 19h7v1H2zM2 20h6v1H2zM2 21h6v1H2zM3 22h3v1H3z'/%3E%3C/svg%3E");
-    --drpg-g-mastermind:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h10v1H7zM7 2h10v1H7zM7 3h10v1H7zM7 4h10v1H7zM7 5h10v1H7zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM1 9h22v1H1zM7 10h8v1H7zM6 11h10v1H6zM6 12h10v1H6zM6 13h10v1H6zM6 14h10v1H6zM7 15h8v1H7zM7 16h8v1H7zM9 17h4v1H9zM6 18h12v1H6zM5 19h14v1H5zM4 20h16v1H4zM4 21h16v1H4z'/%3E%3C/svg%3E");
-    --drpg-g-season-reset:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM10 3h4v1H10zM10 4h4v1H10zM6 5h2v1H6zM10 5h4v1H10zM5 6h3v1H5zM10 6h4v1H10zM16 6h1v1H16zM4 7h4v1H4zM10 7h4v1H10zM16 7h2v1H16zM3 8h4v1H3zM10 8h4v1H10zM16 8h3v1H16zM3 9h3v1H3zM10 9h4v1H10zM16 9h3v1H16zM2 10h4v1H2zM10 10h4v1H10zM16 10h4v1H16zM2 11h3v1H2zM10 11h4v1H10zM17 11h3v1H17zM2 12h3v1H2zM10 12h4v1H10zM17 12h3v1H17zM2 13h3v1H2zM10 13h4v1H10zM17 13h3v1H17zM2 14h3v1H2zM17 14h3v1H17zM2 15h4v1H2zM16 15h4v1H16zM3 16h3v1H3zM16 16h3v1H16zM3 17h4v1H3zM15 17h4v1H15zM4 18h5v1H4zM13 18h5v1H13zM5 19h12v1H5zM6 20h10v1H6zM8 21h6v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-failure-log:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 2h2v1H5zM18 2h2v1H18zM5 3h2v1H5zM17 3h3v1H17zM5 4h3v1H5zM16 4h3v1H16zM6 5h12v1H6zM7 6h10v1H7zM7 7h10v1H7zM7 8h10v1H7zM6 9h12v1H6zM1 10h10v1H1zM13 10h10v1H13zM1 11h10v1H1zM13 11h10v1H13zM6 12h5v1H6zM13 12h5v1H13zM1 13h10v1H1zM13 13h10v1H13zM1 14h10v1H1zM13 14h10v1H13zM6 15h5v1H6zM13 15h5v1H13zM1 16h10v1H1zM13 16h10v1H13zM1 17h10v1H1zM13 17h10v1H13zM6 18h5v1H6zM13 18h5v1H13zM6 19h12v1H6zM10 20h4v1H10z'/%3E%3C/svg%3E");
-    --drpg-g-clock:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 0h6v1H8zM5 1h12v1H5zM4 2h14v1H4zM3 3h5v1H3zM14 3h5v1H14zM2 4h4v1H2zM16 4h4v1H16zM1 5h4v1H1zM10 5h3v1H10zM17 5h4v1H17zM1 6h3v1H1zM10 6h3v1H10zM18 6h3v1H18zM1 7h3v1H1zM10 7h3v1H10zM18 7h3v1H18zM0 8h3v1H0zM10 8h3v1H10zM19 8h3v1H19zM0 9h3v1H0zM10 9h3v1H10zM19 9h3v1H19zM0 10h3v1H0zM10 10h3v1H10zM19 10h3v1H19zM0 11h3v1H0zM10 11h7v1H10zM19 11h3v1H19zM0 12h3v1H0zM10 12h7v1H10zM19 12h3v1H19zM0 13h3v1H0zM10 13h7v1H10zM19 13h3v1H19zM1 14h3v1H1zM18 14h3v1H18zM1 15h3v1H1zM18 15h3v1H18zM1 16h4v1H1zM17 16h4v1H17zM2 17h4v1H2zM16 17h4v1H16zM3 18h5v1H3zM14 18h5v1H14zM4 19h14v1H4zM5 20h12v1H5zM8 21h6v1H8z'/%3E%3C/svg%3E");
-}
-
 /* The icon slot becomes a mask box. Font Awesome still ships the element, so
    its glyph is switched off explicitly - and the box needs a length rather
    than the `1.1em` it had, because `font-size: 0` makes an em zero. */
@@ -13982,17 +14320,6 @@ i.drpg-pix-foot {
    them, which is also what tells it from Partners in Crime.
    ========================================================================== */
 
-:root {
-    --drpg-g-confusion:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M19 1h2v1H19zM19 2h2v1H19zM17 3h6v1H17zM17 4h6v1H17zM10 5h2v1H10zM19 5h2v1H19zM10 6h2v1H10zM19 6h2v1H19zM6 7h2v1H6zM10 7h2v1H10zM14 7h2v1H14zM6 8h2v1H6zM10 8h2v1H10zM14 8h2v1H14zM6 9h2v1H6zM10 9h2v1H10zM14 9h2v1H14zM19 9h2v1H19zM6 10h2v1H6zM10 10h2v1H10zM14 10h2v1H14zM18 10h4v1H18zM6 11h2v1H6zM10 11h2v1H10zM14 11h2v1H14zM18 11h4v1H18zM3 12h5v1H3zM10 12h2v1H10zM14 12h2v1H14zM19 12h2v1H19zM3 13h5v1H3zM10 13h2v1H10zM14 13h2v1H14zM3 14h5v1H3zM10 14h2v1H10zM14 14h2v1H14zM3 15h13v1H3zM3 16h13v1H3zM3 17h13v1H3zM6 18h10v1H6zM6 19h10v1H6zM6 20h10v1H6z'/%3E%3C/svg%3E");
-    --drpg-g-misleading-trail:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h3v1H10zM10 4h3v1H10zM4 5h16v1H4zM4 6h17v1H4zM4 7h18v1H4zM4 8h18v1H4zM4 9h17v1H4zM4 10h16v1H4zM10 11h3v1H10zM10 12h3v1H10zM4 13h17v1H4zM3 14h18v1H3zM2 15h19v1H2zM2 16h19v1H2zM3 17h18v1H3zM4 18h17v1H4zM10 19h3v1H10zM10 20h3v1H10zM10 21h3v1H10z'/%3E%3C/svg%3E");
-    --drpg-g-move-body:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h4v1H3zM2 4h16v1H2zM1 5h17v1H1zM1 6h17v1H1zM1 7h17v1H1zM1 8h17v1H1zM2 9h16v1H2zM3 10h19v1H3zM14 11h8v1H14zM14 12h8v1H14zM14 13h8v1H14zM16 16h2v1H16zM16 17h4v1H16zM2 18h19v1H2zM2 19h18v1H2zM16 20h2v1H16z'/%3E%3C/svg%3E");
-    --drpg-g-betrayal:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h4v1H3zM16 3h4v1H16zM2 4h6v1H2zM15 4h6v1H15zM1 5h8v1H1zM14 5h8v1H14zM1 6h8v1H1zM14 6h8v1H14zM1 7h8v1H1zM14 7h8v1H14zM1 8h8v1H1zM14 8h8v1H14zM2 9h6v1H2zM15 9h6v1H15zM3 10h4v1H3zM16 10h4v1H16zM3 13h6v1H3zM16 13h6v1H16zM2 14h8v1H2zM15 14h8v1H15zM1 15h10v1H1zM14 15h10v1H14zM1 16h10v1H1zM14 16h10v1H14zM1 17h10v1H1zM14 17h10v1H14zM1 20h10v1H1zM14 20h9v1H14zM1 21h10v1H1zM14 21h9v1H14z'/%3E%3C/svg%3E");
-}
-
 .drpg-action-button i.fa-hand-sparkles,
 .drpg-action-button i.fa-signs-post,
 .drpg-action-button i.fa-person-falling,
@@ -14071,10 +14398,6 @@ i.drpg-pix-foot {
    degrades gracefully instead of turning into a blank square. To change an
    icon, edit its ASCII art in the tool and re-run it.
    ========================================================================== */
-
-:root {
-    --drpg-g-monokuma-eye: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
-}
 
 #scene-controls button.ui-control.fa-user-large::before,
 #sidebar-tabs button.ui-control.fa-user-large::before,
@@ -14735,23 +15058,6 @@ i.drpg-pix-foot {
    `currentColor` keeps whatever colour the button rules decide. A row button
    added later without a sprite here keeps its vector glyph. */
 
-:root {
-    --drpg-r-flask:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 3h10v1H7zM7 4h10v1H7zM10 5h4v1H10zM10 6h4v1H10zM10 7h4v1H10zM10 8h4v1H10zM9 9h6v1H9zM8 10h2v1H8zM14 10h2v1H14zM7 11h2v1H7zM15 11h2v1H15zM6 12h2v1H6zM16 12h2v1H16zM5 13h2v1H5zM17 13h2v1H17zM4 14h2v1H4zM18 14h2v1H18zM4 15h2v1H4zM18 15h2v1H18zM3 16h18v1H3zM2 17h20v1H2zM2 18h20v1H2zM2 19h20v1H2zM3 20h18v1H3z'/%3E%3C/svg%3E");
-    --drpg-r-fist:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 7h4v1H3zM9 7h4v1H9zM15 7h4v1H15zM3 8h4v1H3zM9 8h4v1H9zM15 8h4v1H15zM3 9h16v1H3zM3 10h16v1H3zM3 11h16v1H3zM3 12h16v1H3zM3 13h16v1H3zM4 14h14v1H4zM5 15h12v1H5zM6 16h10v1H6z'/%3E%3C/svg%3E");
-    --drpg-r-trash:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM4 5h16v1H4zM4 6h16v1H4zM6 8h12v1H6zM6 9h12v1H6zM6 10h12v1H6zM6 11h12v1H6zM6 12h12v1H6zM6 13h12v1H6zM7 14h10v1H7zM7 15h10v1H7zM7 16h10v1H7zM7 17h10v1H7zM7 18h10v1H7z'/%3E%3C/svg%3E");
-    --drpg-r-stow:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM6 6h12v1H6zM7 7h10v1H7zM8 8h8v1H8zM9 9h6v1H9zM10 10h4v1H10zM11 11h2v1H11zM3 13h18v1H3zM3 14h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3z'/%3E%3C/svg%3E");
-    --drpg-r-retrieve:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM10 4h4v1H10zM9 5h6v1H9zM8 6h8v1H8zM7 7h10v1H7zM6 8h12v1H6zM10 9h4v1H10zM10 10h4v1H10zM10 11h4v1H10zM3 13h18v1H3zM3 14h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3z'/%3E%3C/svg%3E");
-    --drpg-r-share:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 0h6v1H16zM16 1h6v1H16zM16 2h6v1H16zM16 3h6v1H16zM16 4h6v1H16zM14 5h8v1H14zM12 6h2v1H12zM10 7h2v1H10zM8 8h2v1H8zM0 9h8v1H0zM0 10h6v1H0zM0 11h6v1H0zM0 12h6v1H0zM0 13h6v1H0zM0 14h8v1H0zM8 15h2v1H8zM10 16h2v1H10zM12 17h2v1H12zM14 18h8v1H14zM16 19h6v1H16zM16 20h6v1H16zM16 21h6v1H16zM16 22h6v1H16zM16 23h6v1H16z'/%3E%3C/svg%3E");
-    --drpg-r-give:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h3v1H2zM19 12h3v1H19zM3 13h3v1H3zM18 13h3v1H18zM4 14h4v1H4zM16 14h4v1H16zM6 15h4v1H6zM14 15h4v1H14zM8 16h8v1H8zM8 17h8v1H8zM10 18h4v1H10zM10 19h4v1H10z'/%3E%3C/svg%3E");
-}
-
 .drpg-row-use i,
 .drpg-row-equip i,
 .drpg-row-discard i,
@@ -15051,11 +15357,11 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
 .drpg-trace-filters .notes { margin-left: auto; align-self: center; }
 
 /* A SWITCH THAT CANNOT CHANGE ANYTHING IS NOT SHOWN.
-   The glass pulse, the ticker and reduced motion exist only under Stained Glass; the pixel
-   face exists only under Monokuma Legacy, which has no second face of its own. They used to
-   be dimmed here through `.drpg-setting-inert`; they are hidden now, in the one window that
-   still showed them, and the class went with the rule - see `renderSettingsConfig` in
-   settings.mjs for why. */
+   The glass pulse, the ticker and the blur exist only under Stained Glass; the pixel face
+   exists only under Monokuma Legacy, which has no second face of its own. Reduced motion is
+   in neither list - it is for both themes since W-3. They used to be dimmed here through
+   `.drpg-setting-inert`; they are hidden now, in the one window that still showed them, and
+   the class went with the rule - see `renderSettingsConfig` in settings.mjs for why. */
 
 /* ==========================================================================
    ULTRAWIDE (W-9, Dawid 18.09)
@@ -15267,7 +15573,10 @@ body.drpg-theme-monokuma-legacy {
 
    UNDER THE GLASS THE RING READS THE ACCENT INSTEAD, and the rule below says so
    in CSS as well as in the JS: same colour as the border of the room the token
-   is standing in, Eclipse included, with no second copy of that logic.
+   is standing in, Eclipse included, with no second copy of that logic. That
+   includes the incident's red: on a client inside a killing the accent turns red
+   (`drpg-incident-here`, stained-glass.css), and the ring with it - on that
+   client alone, which is the only screen that stamp ever reaches.
    Equal specificity to the five above, so it wins on source order - which is
    why it is written after them and must stay there.
    ========================================================================== */
@@ -15324,4 +15633,69 @@ body.drpg-theme-stained-glass { --drpg-own-ring: var(--drpg-glass-accent); }
 body.drpg-reduced-motion .drpg-hud-track > span { animation: none; }
 @media (prefers-reduced-motion: reduce) {
     .drpg-hud-track > span { animation: none; }
+}
+
+/* ==========================================================================
+   FORCED COLOURS - the interface when the browser is repainting it
+   --------------------------------------------------------------------------
+   Windows' high-contrast modes, and anything else that sets `forced-colors`,
+   replace every colour on the page with a small system palette. That is a
+   setting somebody chose, usually because the palette this module is proud of
+   is unreadable to them, so nothing here tries to talk them out of it: the
+   rules below give up the look and keep the meaning.
+
+   THE CURTAIN GOES, and it is the only part that has to. It is painted into a
+   canvas, and forced colours cannot reach inside a canvas - a bitmap of dark
+   glass would simply sit on top of the system's own background, which is the
+   one outcome worse than no theme at all. The flat backdrop is a gradient and
+   goes with it for the same reason.
+
+   Everything else is a box with words in it, and a box is something forced
+   colours can draw: a system border, the system's own two colours, and the
+   effects that only make sense in a palette - the blur, the glow, the scrim -
+   switched off so they cannot muddy what is left.
+   ========================================================================== */
+@media (forced-colors: active) {
+    #drpg-curtain,
+    .curtain-glow,
+    body.drpg-glass-flat::before,
+    /* the same argument one window at a time: a dressed title band is a canvas too */
+    .drpg-glass-band > canvas,
+    .window-header > canvas { display: none !important; }
+
+    /* The ticker is the phase name drawn faintly behind the phase name. Faint is a
+       colour, and there are no faint colours here - it comes out as a second copy
+       of the words, overlapping the first. */
+    .drpg-hud-ticker { display: none !important; }
+
+    #drpg-hud,
+    #drpg-despair,
+    #drpg-player-status,
+    #countdowns,
+    #drpg-events,
+    #drpg-popups .drpg-popup,
+    #drpg-evidence .drpg-popup,
+    .drpg-panel {
+        border: 1px solid CanvasText !important;
+        background: Canvas !important;
+        background-image: none !important;
+        color: CanvasText !important;
+        backdrop-filter: none !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
+    /* A Despair pip says "spent" with opacity and a colour, and forced colours
+       take both: twelve identical marks, and no way to read the one number the
+       rail exists for. Filled is solid, unspent is an outline. */
+    .drpg-despair-pip {
+        opacity: 1 !important;
+        outline: 1px solid CanvasText;
+        background: Canvas;
+    }
+    .drpg-despair-pip.filled { background: CanvasText; }
+
+    /* The focus ring is a colour in this theme, so in forced colours there is
+       none - and keyboard is the way most people in this mode are working. */
+    :focus-visible { outline: 2px solid Highlight !important; outline-offset: 2px; }
 }

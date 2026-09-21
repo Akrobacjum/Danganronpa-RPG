@@ -17,7 +17,7 @@
  * "works on my machine".
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TIMING } from "./config.mjs";
 import { debug, error } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -145,6 +145,15 @@ export function applyFor(settingKey, data = {}) {
 }
 
 /**
+ * Whether a world setting (by its bare key) travels this bus. The HUD's own
+ * `updateSetting` hook asks, so a key that already redraws it through a sync
+ * kind is not drawn a second time by the hook (CORE-12).
+ */
+export function isSyncedSetting(settingKey) {
+    return Boolean(SETTING_KINDS[settingKey]);
+}
+
+/**
  * Announce a change to every client, and apply it here.
  *
  * Safe to call from any client. The local half runs regardless of who is
@@ -179,7 +188,7 @@ export function broadcast(kind, data = {}) {
  */
 const lastRun = new Map();
 const queued = new Map();
-const COALESCE_MS = 120;
+const COALESCE_MS = TIMING.coalesceMs;
 
 function apply(kind, data = {}) {
     const now = Date.now();
@@ -255,6 +264,18 @@ function refresh(kind, data = {}) {
             run("bar", () => import("./despair.mjs").then(m => m.renderDespairBar?.()));
             run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            /* The body class only; the HUD and the visibility pass are the two
+               lines either side of it (CORE-12).
+               NOT "once each", which is what this said until 16.09. `applyAll`
+               is bound to `drpgTimeOfDayChanged` as well (visibility.mjs:57), and
+               that hook is fired eight lines below - so a clock tick runs the
+               visibility pass TWICE on every client, and an Eclipse change does
+               the same through `drpgEclipseChanged`. Left as it is rather than
+               fixed: dropping the direct call would make room visibility depend
+               on hook ordering, and coalescing `applyAll` touches the one path
+               that gives other people's hidden tokens back (see its own note).
+               It is once per time of day, not per frame, and it has not been
+               priced - but the claim had to stop being made. */
             run("eclipse", () => import("./eclipse.mjs").then(m => m.refreshEclipse()));
             run("visibility", () => import("./visibility.mjs").then(m => m.applyAll()));
             // Local listeners (other modules, macros) still get their hook - but
@@ -301,16 +322,28 @@ function refresh(kind, data = {}) {
             // At most two writes per character per Eclipse, so this is not the
             // per-frame cost that its name suggests.
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             break;
 
         case SYNC.projects:
             run("tray", () => import("./projects-ui.mjs").then(m => m.refreshProjects?.()));
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            // The HUD's project row for this room.
+            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
+            /* And the map. `projectMeta` is where a project's ROOM and its
+               SECRECY live, and both decide whether this client may see its
+               token - so a reveal, or a project moved to another room, has to
+               re-ask `knowsProject` here. The token being dragged somewhere
+               else is already covered: that is an `updateToken`, which
+               visibility.mjs hears directly. This is the case that has no
+               document change to hang off. */
+            run("projectTokens", () => import("./visibility.mjs").then(m => m.applyAll?.()));
             break;
 
         case SYNC.despair:
             run("bar", () => import("./despair.mjs").then(m => m.renderDespairBar?.()));
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             break;
 
         case SYNC.overflow:
@@ -328,6 +361,8 @@ function refresh(kind, data = {}) {
             // outlive the value it was standing in for.
             run("cache", () => import("./search-tokens.mjs").then(m => m.SearchTokens.clearFreshCounts()));
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            // The room pips on the HUD.
+            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             break;
 
         case SYNC.restrictions:
@@ -368,6 +403,21 @@ function refresh(kind, data = {}) {
                 m.reconcileMirror();
                 return m.repaintFog();
             }));
+
+            /* WALKING INTO A ROOM FINDS THE PROJECT IN IT (stage 2).
+               ---------------------------------------------------------------
+               Discovery is what `knowsProject` reads, so the two surfaces that
+               ask it have to be redrawn when the ledger moves, or a player
+               walks into a room and the project appears only when something
+               else happens to redraw - which on a quiet table can be minutes.
+
+               Neither redraw can ride the client's own `updateToken` hook
+               instead: the ledger is written by the PRIMARY GM and comes back
+               round the socket, so by the time this client heard its token had
+               moved, the answer was still "no". This is the moment the answer
+               changes. */
+            run("projectTray", () => import("./projects-ui.mjs").then(m => m.refreshProjects?.()));
+            run("projectTokens", () => import("./visibility.mjs").then(m => m.applyAll?.()));
             break;
 
         default:

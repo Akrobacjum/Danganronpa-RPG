@@ -121,6 +121,17 @@ export const ITEM_FLAGS = {
  * per-item state has one place to be added to instead of two to be
  * remembered in.
  */
+/**
+ * Does finding this thing leave a trace? The rule of D-28.08: a trace is
+ * evidence of having handled an OBJECT, so it is read off what was found -
+ * the category plus the roles the table entry declared - and never off the
+ * intention. One copy, used by the Search and by the Reroll that replays it.
+ */
+export function leavesTraceFor(category, roles = []) {
+    const all = new Set([category, ...(roles ?? [])]);
+    return all.has("crimeTool") || all.has("cleaningTool");
+}
+
 export function preservedFlags(item) {
     const flags = {};
     if (isBroken(item)) {
@@ -146,6 +157,12 @@ export function preservedFlags(item) {
      */
     const identity = item?.getFlag(MODULE_ID, ITEM_FLAGS.identity);
     if (identity) flags[ITEM_FLAGS.identity] = identity;
+
+    // And the Despair it has already taken. Every transfer is a create-then-
+    // delete, so without this a tool on its last point arrived on the other
+    // sheet brand new - the laundry service this function exists to stop.
+    const worn = wearOf(item);
+    if (worn) flags[ITEM_FLAGS.wear] = worn;
 
     return flags;
 }
@@ -565,7 +582,7 @@ export function carriedFor(actor, role) {
  * Create a found item on the character.
  *
  * Refuses when the category is full rather than silently exceeding the limit -
- * the guide caps crime tools at one and cleaning tools at two on purpose.
+ * the carry limits (see LIMIT_GROUPS: one shared two-slot Gear group) are the rule.
  *
  * @param {object} [options.extraFlags]  Further module flags written in the same
  *   creation. Truth Bullets carry a good deal more than a category and a tier,
@@ -695,10 +712,45 @@ export async function grantItem(actor, {
         });
 
         log(`${actor.name} gained ${name} (${category}${hasTier ? `, Tier ${tier}` : ""}).`);
+        if (item && location === LOCATIONS.carried) await keepGearShape(actor, item);
         return item ?? null;
     } catch (err) {
         warn("Could not create the item", err);
         return null;
+    }
+}
+
+/**
+ * ONE IN A HAND, ONE STOWED, NEVER TWO STOWED - on the way IN as well (D4,
+ * Dawid 13.09; audit ITEM-04).
+ *
+ * `LIMIT_GROUPS.gear.maxStowed` used to be enforced in one place: putting the
+ * readied item down was refused while the other was stowed. Every way a piece
+ * of Gear ARRIVES - a Search, a give, a handover, a theft, a plant, the stash -
+ * only counted the two slots, so a character who never readied anything
+ * carried two stowed tools indefinitely, which is the state the rule forbids.
+ *
+ * So the arriving item goes into the hand when the shape needs it, and the
+ * owner is told which - it changes what the incident engine reads as "the
+ * weapon in hand" (`equippedFor`), and that is not a thing to change quietly.
+ */
+export async function keepGearShape(actor, item) {
+    try {
+        const category = item?.getFlag(MODULE_ID, ITEM_FLAGS.category);
+        const group = ITEM_CATEGORIES[category]?.limitGroup;
+        const max = group ? LIMIT_GROUPS[group]?.maxStowed : null;
+        if (max === null || max === undefined) return false;
+        const { stowedInGroup, isEquipped, toggleEquipped } = await import("./use-items.mjs");
+        if (isEquipped(item)) return false;
+        if (stowedInGroup(actor, group).length <= max) return false;
+        if (!await toggleEquipped(actor, item)) return false;
+        await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.autoReadied", {
+            item: foundry.utils.escapeHTML(item.name), group: LIMIT_GROUPS[group].label
+        })}</p>`);
+        return true;
+    } catch (err) {
+        error("Could not keep the Gear shape", err);
+        return false;
     }
 }
 
@@ -723,7 +775,7 @@ export function registerInventoryLimits() {
         if (room.ok) return;
 
         ui.notifications.warn(game.i18n.format("DRPG.Inventory.full", {
-            category: ITEM_CATEGORIES[category]?.plural ?? category,
+            category: capacityLabel(category),
             limit: room.limit
         }));
         return false;

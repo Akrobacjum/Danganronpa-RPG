@@ -9,13 +9,24 @@
  *
  * This maps each state to a playlist the GM chooses and keeps them in step.
  *
- * WHAT DELIBERATELY HAS NO MUSIC: the incident. A murder is the one thing in
- * this module the table must not be able to detect from the outside - private
- * rolls, GM-side scoring and the whole Truth Bullet ledger exist for that - and
- * a track that only ever plays during Stage 5 would announce it to everybody in
- * the room the moment it started. So an incident holds whatever was already
- * playing. The Investigation, by contrast, begins with a body being found: it is
- * public by definition and gets its own mood.
+ * THE INCIDENT USED TO HAVE NO MUSIC, AND THE REASON WAS RIGHT - the fix is
+ * that it was the right reason for the wrong mechanism.
+ *
+ * A murder is the one thing in this module the table must not be able to detect
+ * from the outside; private rolls, GM-side scoring and the whole Truth Bullet
+ * ledger exist for that. A PLAYLIST would wreck it, because a playlist is a
+ * world document: the moment one started, every bystander would hear the
+ * killing begin. So for six milestones an incident simply held whatever was
+ * already playing.
+ *
+ * It has music now, and only its own people hear it (Dawid, 15.09). Not a
+ * state in the table below - an overlay on the browsers that are in it, built
+ * out of a local sound and a ducked playlist volume. A bystander's client is
+ * not told, does not play it and does not change. See THE MURDER MUSIC at the
+ * bottom of this file for how it works and what it costs.
+ *
+ * The Investigation, by contrast, begins with a body being found: it is public
+ * by definition and gets its own mood, in the ordinary way.
  *
  * WHY THERE IS NO SOCKET IN HERE. Playlists are world documents. One client
  * calls `playAll()`, the document changes, and every other client's own
@@ -41,7 +52,7 @@
  */
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, SITUATIONAL_PLAYLIST } from "./config.mjs";
-import { SETTINGS, getSetting, bodyDiscoveryFresh } from "./settings.mjs";
+import { SETTINGS, getSetting, bodyDiscoveryFresh, incidentWitness } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { trialFloor, FLOOR_MODES } from "./trial-floor.mjs";
 import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
@@ -105,6 +116,30 @@ async function asOurs(fn) {
  *   <time>    the fallback: whichever of the five times of day it is.
  */
 export const MUSIC_STATES = [
+    /*
+     * THE MURDER, AND IT IS NOT PART OF THE LADDER BELOW IT.
+     *
+     * Every other row here is a fact about the WORLD, decided by the primary GM
+     * and distributed by Foundry, so the whole table hears the same thing. That
+     * is exactly why the header of this file used to say an incident gets no
+     * music at all: a playlist that only ever starts during Stage 5 announces
+     * the killing to everybody in earshot, which is the one thing this module
+     * is built to prevent.
+     *
+     * This row is a fact about the BROWSER. It plays for the people in the
+     * incident and for the GM, on their own clients, and a bystander hears the
+     * afternoon exactly as before - so the objection the header raised does not
+     * apply to it. See `applyMurderMusic` at the bottom of this file for how,
+     * and for the two things that cost: the room's own playlist has to be
+     * ducked on those browsers, and a Foundry playlist cannot be played on one
+     * client, so what actually plays is one track off it.
+     *
+     * `test` is `false` on purpose. `currentState()` walks this list to decide
+     * what the WORLD is playing, and this is never that answer; the entry is
+     * here so the Sound panel lists it and `playlistFor("murder")` finds it,
+     * which is the whole of what it needs from the state machine.
+     */
+    { key: "murder", labelKey: "DRPG.Music.state.murder", local: true, test: () => false },
     { key: "paused", labelKey: "DRPG.Music.state.paused", test: () => game.paused },
     { key: "eclipse", labelKey: "DRPG.Music.state.eclipse", test: () => getClock().eclipse === true },
     /*
@@ -269,6 +304,27 @@ export function registerMusic() {
      */
     Hooks.on("updateSetting", setting => {
         const key = setting?.key;
+        /*
+         * THE MURDER'S TWO KEYS ARE HANDLED SEPARATELY, and not by `schedule`.
+         *
+         * Everything else in this listener feeds the world state machine, which
+         * runs on one client and distributes through the playlist document. The
+         * murder music is per browser and answers a different question - "am I
+         * in this one" - so it goes straight to `applyMurderMusic` on EVERY
+         * client rather than through the primary GM's `apply`.
+         *
+         * Both keys, and both are needed. `murderState` carries the stage, so
+         * it is what says the incident has started or ended; `incidentCast`
+         * carries the names, so on a participant's browser it is what says the
+         * incident is theirs - and it arrives by socket a moment after the
+         * world half, which means listening to only the first would start the
+         * music before the client knew whether it was in it.
+         */
+        if (key === `${MODULE_ID}.${SETTINGS.murderState}`
+            || key === `${MODULE_ID}.${SETTINGS.incidentCast}`) {
+            applyMurderMusic().catch(err => error("Could not follow the incident with the music", err));
+            return;
+        }
         if (key !== `${MODULE_ID}.${SETTINGS.trialQueue}`
             && key !== `${MODULE_ID}.${SETTINGS.clock}`
             && key !== `${MODULE_ID}.${SETTINGS.bodyFound}`) return;
@@ -287,6 +343,14 @@ export function registerMusic() {
         // and the first thing a GM sees should not be a fade triggered by a
         // state that is about to change again.
         schedule();
+
+        // In that order: put back a volume an earlier session parked, THEN ask
+        // whether this browser is in an incident right now. A client that
+        // reloaded mid-killing is both - the restore no-ops for it (the witness
+        // test refuses) and the second call starts the track again.
+        restoreDuckedMusic()
+            .then(() => applyMurderMusic())
+            .catch(err => error("Could not settle the murder music at ready", err));
     });
 }
 
@@ -1188,66 +1252,41 @@ export async function resetMusic() {
  * ========================================================================== */
 
 /** Map each state to one of the world's playlists. */
-export async function openSoundDialog() {
-    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
-    // window each read the world when they opened and neither knows about the
-    // other, so the older one goes on looking authoritative while showing
-    // something that stopped being true. Raised rather than refused: pressing
-    // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-sound")) return null;
+/*
+ * A PLAYER GETS THE SLIDERS AND NOTHING ELSE.
+ *
+ * This window used to be refused to them outright, which was right while it
+ * held only a GM's mapping tables. It now also holds the two volumes, and
+ * those are the one thing here that is NOT the GM's business: they are per
+ * browser, they change nothing anybody else hears, and a GM setting them
+ * for a player would be setting them wrong.
+ *
+ * So the same window opens for everybody and simply has less in it. Not a
+ * second, player-shaped window: two windows about the same two sliders is
+ * how the two drift apart.
+ */
+async function openPlayerSoundDialog({ tableDialog, dialogContent, soundSlidersHtml, wireSoundPanel }) {
+    await tableDialog({
+        window: { title: game.i18n.localize("DRPG.Sound.title") },
+        classes: ["drpg-panel", "drpg-projects", "drpg-sound", "drpg-sound-player", "drpg-window-sound"],
+        // NARROW, AND SAID HERE RATHER THAN LEFT TO THE FIT.
+        // `tableDialog` marks every window it makes as a table window,
+        // which is what exempts it from the module's one-width rule so a
+        // measured fit can win. This window has no table to measure, so
+        // the exemption left it with nothing at all and it opened the full
+        // width of the screen. Two sliders need about a third of that.
+        position: { width: 460 },
+        content: dialogContent(`<form>${soundSlidersHtml()}</form>`),
+        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close") }],
+        render: (event, dialog) => wireSoundPanel(dialog.element),
+        rejectClose: false
+    });
+}
 
-    const { dialogContent, tableDialog, panelTabs, wirePanelTabs } = await import("./utils.mjs");
-    const { soundSlidersHtml, soundEffectsHtml, wireSoundPanel } = await import("./sfx.mjs");
-
-    /*
-     * A PLAYER GETS THE SLIDERS AND NOTHING ELSE.
-     *
-     * This window used to be refused to them outright, which was right while it
-     * held only a GM's mapping tables. It now also holds the two volumes, and
-     * those are the one thing here that is NOT the GM's business: they are per
-     * browser, they change nothing anybody else hears, and a GM setting them
-     * for a player would be setting them wrong.
-     *
-     * So the same window opens for everybody and simply has less in it. Not a
-     * second, player-shaped window: two windows about the same two sliders is
-     * how the two drift apart.
-     */
-    if (!game.user.isGM) {
-        await tableDialog({
-            window: { title: game.i18n.localize("DRPG.Sound.title") },
-            classes: ["drpg-panel", "drpg-projects", "drpg-sound", "drpg-sound-player", "drpg-window-sound"],
-            // NARROW, AND SAID HERE RATHER THAN LEFT TO THE FIT.
-            // `tableDialog` marks every window it makes as a table window,
-            // which is what exempts it from the module's one-width rule so a
-            // measured fit can win. This window has no table to measure, so
-            // the exemption left it with nothing at all and it opened the full
-            // width of the screen. Two sliders need about a third of that.
-            position: { width: 460 },
-            content: dialogContent(`<form>${soundSlidersHtml()}</form>`),
-            buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close") }],
-            render: (event, dialog) => wireSoundPanel(dialog.element),
-            rejectClose: false
-        });
-        return null;
-    }
-
-    /*
-     * A WORLD WITH NO PLAYLISTS STILL OPENS THIS WINDOW.
-     *
-     * It used to be refused at the door with "make one in the Playlists sidebar
-     * first" - which was true right up until the Play tab grew a button that
-     * makes the cue playlist itself. The one action that fixes an empty world
-     * now lives inside the window the empty world was not allowed to open.
-     *
-     * The mapping table below is the part that genuinely needs playlists to
-     * exist, and it says so in place rather than closing the door on the other
-     * tab. Same reasoning as the missing cue playlist: report it where it is,
-     * do not refuse the whole screen over it.
-     */
-    const playlists = Array.from(game.playlists).sort((a, b) => a.name.localeCompare(b.name));
-
+/** One row per music state: its label and a select of the world's playlists. */
+function musicMapRows(playlists) {
     const map = musicMap();
-    const rows = MUSIC_STATES.map(state => {
+    return MUSIC_STATES.map(state => {
         const label = state.label ?? game.i18n.localize(state.labelKey);
         const options = [`<option value="">-</option>`, ...playlists.map(p =>
             `<option value="${p.id}"${map[state.key] === p.id ? " selected" : ""}>${
@@ -1258,38 +1297,39 @@ export async function openSoundDialog() {
             <td><select name="state:${state.key}">${options}</select></td>
         </tr>`;
     }).join("");
+}
 
+// Three tabs, Play first (Dawid, 26.08): the cue controls a GM reaches
+// for mid-scene, then the state-to-playlist mapping they set up once, then
+// the sound-effect files. Apply still reads the mapping selects whichever
+// tab is showing - panes are hidden by class, never removed; see
+// `panelTabs` in utils.mjs.
+/*
+ * THE CUE PANE IS BUILT, NOT BAKED (F17, 20.09).
+ *
+ * This was built once, from a cue playlist read when the window opened, so a
+ * track dragged into the cue playlist in the Playlists sidebar - which is
+ * exactly what a GM does next, with this window still open beside it - did not
+ * appear in the picker until the window was closed and opened again. The
+ * picker went on saying "this playlist has no tracks" over a playlist that had
+ * some. It takes no arguments now and reads the playlist itself, which is what
+ * lets `keepLive` in `openSoundDialog` call it again on every playlist change.
+ *
+ * THREE STATES, because there are three: no cue playlist, one that is empty,
+ * and one with tracks in it. The middle one used to exist only as a sentence
+ * the make-cue handler wrote into the DOM by hand; now it is a state the
+ * builder can reach on its own, which is what lets that hand-written DOM
+ * surgery go.
+ */
+function soundPlayPane() {
     // The cue playlist, if the world has one. Its absence is not an error -
-    // the state-to-playlist table below is the other half of this window and
-    // works perfectly well without it - so it is reported in place rather than
+    // the state-to-playlist table is the other half of this window and works
+    // perfectly well without it - so it is reported in place rather than
     // refused at the door.
-    //
-    // Three tabs, Play first (Dawid, 26.08): the cue controls a GM reaches
-    // for mid-scene, then the state-to-playlist mapping they set up once, then
-    // the sound-effect files. Apply still reads the mapping selects whichever
-    // tab is showing - panes are hidden by class, never removed; see
-    // `panelTabs` in utils.mjs.
-    /*
-     * THE CUE PANE IS BUILT, NOT BAKED (F17, 20.09).
-     *
-     * This was three constants and a template read once when the window opened, so
-     * a track dragged into the cue playlist in the Playlists sidebar - which is
-     * exactly what a GM does next, with this window still open beside it - did not
-     * appear in the picker until the window was closed and opened again. The
-     * picker went on saying "this playlist has no tracks" over a playlist that had
-     * some.
-     *
-     * THREE STATES, because there are three: no cue playlist, one that is empty,
-     * and one with tracks in it. The middle one used to exist only as a sentence
-     * the make-cue handler wrote into the DOM by hand; now it is a state the
-     * builder can reach on its own, which is what lets that hand-written DOM
-     * surgery go.
-     */
-    const buildPlayPane = () => {
-        const cue = situationalPlaylist();
-        // An empty cue playlist is the same to this button as a missing one.
-        const playable = Boolean(cue?.sounds.size);
-        return `
+    const cue = situationalPlaylist();
+    // An empty cue playlist is the same to this button as a missing one.
+    const playable = Boolean(cue?.sounds.size);
+    return `
             <fieldset class="drpg-music-now">
                 <legend>${game.i18n.localize("DRPG.Music.playNow")}</legend>
                 <p class="notes">${game.i18n.format("DRPG.Music.playNowNote",
@@ -1311,7 +1351,7 @@ export async function openSoundDialog() {
                     //
                     // So the module spells it. The button exists only while the
                     // playlist is missing, and it disappears the moment there is
-                    // one - which the rebuild above now does by itself.
+                    // one - which the rebuild on `createPlaylist` now does by itself.
                     : `<p class="notes drpg-warning" data-drpg-no-cue>${game.i18n.format(
                         "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST })}</p>
                     <button type="button" class="drpg-mini-button" data-drpg-make-cue>${
@@ -1323,10 +1363,11 @@ export async function openSoundDialog() {
                 <button type="button" class="drpg-mini-button" data-drpg-reset-music>${
                     game.i18n.localize("DRPG.Music.reset")}</button>
             </fieldset>`;
-    };
+}
 
-
-    const playlistsPane = `
+/** The mapping tab: the intro, the warnings, and the state-to-playlist table. */
+function soundPlaylistsPane(playlists, rows) {
+    return `
             <p>${game.i18n.localize("DRPG.Music.intro")}</p>
             ${playlists.length ? "" : `<p class="notes drpg-warning">${
                 game.i18n.localize("DRPG.Music.noPlaylists")}</p>`}
@@ -1338,6 +1379,130 @@ export async function openSoundDialog() {
                 <th>${game.i18n.localize("DRPG.Music.playlist")}</th>
             </tr></thead><tbody>${rows}</tbody></table>
             <p class="notes">${game.i18n.localize("DRPG.Music.fadeNote")}</p>`;
+}
+
+/** What Apply hands back: the mapping selects, whichever tab is showing. */
+function readMusicMap(d) {
+    const out = {};
+    for (const select of d.element.querySelectorAll("[name^='state:']")) {
+        const key = select.name.slice("state:".length);
+        if (select.value) out[key] = select.value;
+    }
+    return out;
+}
+
+/*
+ * THE CUE PANE'S LISTENERS, REWIRED AFTER EVERY REDRAW (F17).
+ *
+ * `keepLive` replaces the fieldset's nodes, and a listener goes with the
+ * button it was on - the same reason the Mastermind window's give-Hope
+ * row has its own `wireGive`. So this is called once from `wireSoundDialog`
+ * and again as the live region's `after`. The track select is read INSIDE the
+ * handler rather than captured beside it, so a redraw between opening
+ * the window and pressing Play cannot leave this pointing at a detached
+ * node or at a sound that has since been deleted.
+ */
+function wireSoundPlay(root) {
+    root.querySelector("[data-drpg-play]")?.addEventListener("click", async () => {
+        const sound = await playTrack(root.querySelector("[name=playTrack]")?.value);
+        if (sound) {
+            ui.notifications.info(game.i18n.format("DRPG.Music.playing",
+                { track: sound.name }));
+        }
+    });
+
+    root.querySelector("[data-drpg-reset-music]")?.addEventListener("click", async () => {
+        await resetMusic();
+        ui.notifications.info(game.i18n.localize("DRPG.Music.wasReset"));
+    });
+
+    /*
+     * Make the cue playlist. The fieldset swaps itself over: `soundPlayPane`
+     * has a state for "made but empty", and `createPlaylist` is one of the
+     * hooks the live region wakes on, so there is nothing left for this
+     * handler to do to the DOM.
+     *
+     * NOT BY REOPENING THE WINDOW, which is the obvious way and the wrong
+     * one: the Playlists tab beside this holds a table of selects the GM
+     * may already have changed, and Apply has not run yet.
+     *
+     * The Play button stays disabled, because a playlist made this second
+     * has no tracks in it and a button that says it will play something is
+     * lying until the GM has put something there.
+     */
+    root.querySelector("[data-drpg-make-cue]")?.addEventListener("click", async event => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        try {
+            const made = situationalPlaylist()
+                ?? await Playlist.create({ name: SITUATIONAL_PLAYLIST });
+            if (!made) throw new Error("Playlist.create returned nothing");
+            ui.notifications.info(game.i18n.format("DRPG.Music.situationalMade",
+                { name: made.name }));
+        } catch (err) {
+            button.disabled = false;
+            error("Could not create the cue playlist", err);
+            ui.notifications.error(game.i18n.localize("DRPG.Music.makeFailed"));
+        }
+    });
+}
+
+/** The Play tab acts at once and the window stays open; Apply belongs to the Music tab alone. */
+function wireSoundDialog(root, { wirePanelTabs, wireSoundPanel }) {
+    /*
+     * ONE APPLY, AND IT BELONGS TO ONE TAB.
+     *
+     * The playlist mapping is the only thing in this window that waits
+     * for a button: the cue controls act where they are, and the sound
+     * files and the volumes save as they are touched, because a mapping
+     * you cannot Test until you have closed and reopened the window is
+     * a mapping nobody trusts. So Apply appears on the Music tab and
+     * nowhere else, and nothing is lost by its absence elsewhere.
+     */
+    wirePanelTabs(root, {
+        buttons: { play: [], music: ["save"], effects: [] },
+        always: ["close"]
+    });
+    wireSoundPanel(root);
+    wireSoundPlay(root);
+}
+
+export async function openSoundDialog() {
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-sound")) return null;
+
+    const { dialogContent, tableDialog, panelTabs, wirePanelTabs } = await import("./utils.mjs");
+    const { soundSlidersHtml, soundEffectsHtml, wireSoundPanel } = await import("./sfx.mjs");
+
+    if (!game.user.isGM) {
+        await openPlayerSoundDialog({ tableDialog, dialogContent, soundSlidersHtml, wireSoundPanel });
+        return null;
+    }
+
+    /*
+     * A WORLD WITH NO PLAYLISTS STILL OPENS THIS WINDOW.
+     *
+     * It used to be refused at the door with "make one in the Playlists sidebar
+     * first" - which was true right up until the Play tab grew a button that
+     * makes the cue playlist itself. The one action that fixes an empty world
+     * now lives inside the window the empty world was not allowed to open.
+     *
+     * The mapping table below is the part that genuinely needs playlists to
+     * exist, and it says so in place rather than closing the door on the other
+     * tab. Same reasoning as the missing cue playlist: report it where it is,
+     * do not refuse the whole screen over it.
+     */
+    const playlists = Array.from(game.playlists).sort((a, b) => a.name.localeCompare(b.name));
+
+    const rows = musicMapRows(playlists);
+
+    // The cue pane reads its own playlist, because it is built again on every
+    // playlist change (`soundPlayPane`, and the live region in `render` below).
+    const playlistsPane = soundPlaylistsPane(playlists, rows);
 
     const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Sound.title") },
@@ -1353,7 +1518,7 @@ export async function openSoundDialog() {
         content: dialogContent(`<form>
             ${document.body.classList.contains("drpg-theme-stained-glass") ? "" : soundSlidersHtml()}
             ${panelTabs([
-                { key: "play", label: game.i18n.localize("DRPG.Sound.tabPlay"), html: buildPlayPane() },
+                { key: "play", label: game.i18n.localize("DRPG.Sound.tabPlay"), html: soundPlayPane() },
                 { key: "music", label: game.i18n.localize("DRPG.Sound.tabMusic"), html: playlistsPane },
                 { key: "effects", label: game.i18n.localize("DRPG.Sound.tabEffects"),
                   html: soundEffectsHtml() }
@@ -1362,14 +1527,7 @@ export async function openSoundDialog() {
         buttons: [
             {
                 action: "save", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
-                callback: (e, b, d) => {
-                    const out = {};
-                    for (const select of d.element.querySelectorAll("[name^='state:']")) {
-                        const key = select.name.slice("state:".length);
-                        if (select.value) out[key] = select.value;
-                    }
-                    return out;
-                }
+                callback: (e, b, d) => readMusicMap(d)
             },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
@@ -1378,78 +1536,7 @@ export async function openSoundDialog() {
         // table is not filling in a form, and Apply is about the mapping table
         // below rather than about what is playing right now.
         render: (event, dialog) => {
-            const root = dialog.element;
-            /*
-             * ONE APPLY, AND IT BELONGS TO ONE TAB.
-             *
-             * The playlist mapping is the only thing in this window that waits
-             * for a button: the cue controls act where they are, and the sound
-             * files and the volumes save as they are touched, because a mapping
-             * you cannot Test until you have closed and reopened the window is
-             * a mapping nobody trusts. So Apply appears on the Music tab and
-             * nowhere else, and nothing is lost by its absence elsewhere.
-             */
-            wirePanelTabs(root, {
-                buttons: { play: [], music: ["save"], effects: [] },
-                always: ["close"]
-            });
-            wireSoundPanel(root);
-            /*
-             * THE CUE PANE'S LISTENERS, REWIRED AFTER EVERY REDRAW (F17).
-             *
-             * `keepLive` replaces the fieldset's nodes, and a listener goes with the
-             * button it was on - the same reason the Mastermind window's give-Hope
-             * row has its own `wireGive`. The track select is read INSIDE the
-             * handler rather than captured beside it, so a redraw between opening
-             * the window and pressing Play cannot leave this pointing at a detached
-             * node or at a sound that has since been deleted.
-             */
-            const wirePlay = () => {
-                root.querySelector("[data-drpg-play]")?.addEventListener("click", async () => {
-                    const sound = await playTrack(root.querySelector("[name=playTrack]")?.value);
-                    if (sound) {
-                        ui.notifications.info(game.i18n.format("DRPG.Music.playing",
-                            { track: sound.name }));
-                    }
-                });
-
-                root.querySelector("[data-drpg-reset-music]")?.addEventListener("click", async () => {
-                    await resetMusic();
-                    ui.notifications.info(game.i18n.localize("DRPG.Music.wasReset"));
-                });
-
-                /*
-                 * Make the cue playlist. The fieldset swaps itself over now: the
-                 * builder above has a state for "made but empty", and `createPlaylist`
-                 * is one of the hooks below, so there is nothing left for this handler
-                 * to do to the DOM.
-                 *
-                 * NOT BY REOPENING THE WINDOW, which is the obvious way and the wrong
-                 * one: the Playlists tab beside this holds a table of selects the GM
-                 * may already have changed, and Apply has not run yet.
-                 *
-                 * The Play button stays disabled, because a playlist made this second
-                 * has no tracks in it and a button that says it will play something is
-                 * lying until the GM has put something there.
-                 */
-                root.querySelector("[data-drpg-make-cue]")?.addEventListener("click", async event => {
-                    const button = event.currentTarget;
-                    button.disabled = true;
-                    try {
-                        const made = situationalPlaylist()
-                            ?? await Playlist.create({ name: SITUATIONAL_PLAYLIST });
-                        if (!made) throw new Error("Playlist.create returned nothing");
-                        ui.notifications.info(game.i18n.format("DRPG.Music.situationalMade",
-                            { name: made.name }));
-                    } catch (err) {
-                        button.disabled = false;
-                        error("Could not create the cue playlist", err);
-                        ui.notifications.error(game.i18n.localize("DRPG.Music.makeFailed"));
-                    }
-                });
-            };
-
-            wirePlay();
+            wireSoundDialog(dialog.element, { wirePanelTabs, wireSoundPanel });
             /*
              * WHAT WAKES IT: THE PLAYLIST HOOKS (F17).
              *
@@ -1458,20 +1545,19 @@ export async function openSoundDialog() {
              * world hooks `keepLive` always adds. `settings: []` is an empty array,
              * which is TRUTHY, so live.mjs's filter rejects every module setting key:
              * this pane has no reason to redraw because a preference was saved. The
-             * two world hooks still fire and are harmless.
+             * two world hooks still fire and are harmless. `after` puts the pane's
+             * three listeners back on the nodes the redraw just made.
              */
             keepLive(dialog, {
                 region: ".drpg-music-now",
-                build: buildPlayPane,
+                build: soundPlayPane,
                 watch: {
                     settings: [],
                     hooks: ["createPlaylistSound", "deletePlaylistSound", "updatePlaylistSound",
                         "createPlaylist", "deletePlaylist", "updatePlaylist"]
                 },
-                after: wirePlay
+                after: () => wireSoundPlay(dialog.element)
             });
-
-
         },
         rejectClose: false
     });
@@ -1608,7 +1694,7 @@ export function diagnoseMusic() {
         `A cue is running: ${interrupted ? "yes" : "no"}${
             interrupted?.held?.length ? `, holding ${interrupted.held.length} playlist(s)` : ""}`,
         "",
-        "state              applies  playlist"
+        "state              applies       playlist"
     ];
 
     for (const state of MUSIC_STATES) {
@@ -1618,6 +1704,12 @@ export function diagnoseMusic() {
         } catch (err) {
             applies = `error: ${err.message}`;
         }
+        /* A LOCAL ROW NEVER "APPLIES", AND THAT IS NOT A FAULT. `murder` is not
+           in the ladder - it plays on the browsers of the people in a killing
+           and answers a question this table does not ask - so a plain `false`
+           in this column would read as a state that is broken. Says what it is
+           instead, and says whether THIS browser is currently hearing it. */
+        if (state.local) applies = murderPlaying ? "playing here" : "per-client";
         const mapped = map[state.key] ? game.playlists.get(map[state.key]) : null;
         // "Mapped to a playlist with nothing in it" is silence that looks
         // exactly like a correct mapping from every other angle.
@@ -1627,7 +1719,7 @@ export function diagnoseMusic() {
             : mapped.name;
         const mark = state.key === winner ? " <- wins" : "";
         const random = state.randomTrack ? " (random track)" : "";
-        lines.push(`${state.key.padEnd(18)} ${String(applies).padEnd(8)} ${playlist}${mark}${random}`);
+        lines.push(`${state.key.padEnd(18)} ${String(applies).padEnd(13)} ${playlist}${mark}${random}`);
     }
 
     if (!winner) lines.push("", "No state applies at all - nothing will play.");
@@ -1644,4 +1736,165 @@ export function diagnoseMusic() {
         whisper: [game.user.id]
     });
     return text;
+}
+
+
+/* ==========================================================================
+ * THE MURDER MUSIC - one browser at a time
+ * --------------------------------------------------------------------------
+ * Dawid, 15.09: the people in a killing get their own playlist, and nobody
+ * else hears it.
+ *
+ * WHY IT CANNOT BE A STATE LIKE THE OTHERS. Everything above this line works
+ * because a Foundry playlist is a WORLD DOCUMENT: the primary GM calls
+ * `playAll()`, the document changes, and every client's own `PlaylistSound`
+ * reacts. That is the whole reason this file needs no socket - and it is also
+ * the reason it cannot do this, because a world document reaches the four
+ * people who must not know a murder is happening just as reliably as it
+ * reaches the two who are in it.
+ *
+ * SO IT IS AN OVERLAY, AND IT COSTS TWO THINGS - both worth saying plainly
+ * rather than discovering at a table:
+ *
+ *   1. ONE TRACK, NOT A PLAYLIST. `AudioHelper.play(..., false)` plays a file
+ *      on this browser and nowhere else, which is exactly the audience needed,
+ *      but it is a file. So a track is drawn from the mapped playlist and
+ *      looped. A playlist's own shuffle, fades and track order are Foundry's
+ *      and do not come with it.
+ *   2. THE ROOM'S MUSIC HAS TO BE DUCKED HERE. Otherwise a participant hears
+ *      both at once. `globalPlaylistVolume` is a CLIENT setting - it is the
+ *      one the module's own Music slider already proxies - so turning it down
+ *      changes this browser and no other. It is put back on the way out, and
+ *      what it was is parked in a setting rather than a variable so that a
+ *      player who closes the tab mid-incident does not come back to silence
+ *      with no explanation. See `SETTINGS.musicDuckedFrom`.
+ *
+ * NOTHING MAPPED MEANS NOTHING HAPPENS, the same contract every other row in
+ * the table has: a GM who has not chosen a murder playlist gets the behaviour
+ * the module had before this existed, which is the room's own music carrying
+ * on. The duck only ever runs when there is something to put over it.
+ * ========================================================================== */
+
+/** The looping local track, while this browser is in a killing. */
+let murderTrack = null;
+/** What we last decided, so an unchanged answer costs nothing. */
+let murderPlaying = false;
+
+/** The volume the room's playlists had before this browser was ducked. */
+function duckedFrom() {
+    try {
+        const v = Number(getSetting(SETTINGS.musicDuckedFrom));
+        return Number.isFinite(v) ? v : -1;
+    } catch {
+        return -1;
+    }
+}
+
+async function rememberDuck(level) {
+    try {
+        await game.settings.set(MODULE_ID, SETTINGS.musicDuckedFrom, level);
+    } catch (err) {
+        debug("Murder music: could not park the playlist volume", err);
+    }
+}
+
+function playlistVolume() {
+    try {
+        const v = Number(game.settings.get("core", "globalPlaylistVolume"));
+        return Number.isFinite(v) ? v : 1;
+    } catch {
+        return 1;
+    }
+}
+
+async function setPlaylistVolume(level) {
+    try {
+        await game.settings.set("core", "globalPlaylistVolume", level);
+    } catch (err) {
+        debug("Murder music: could not move the playlist volume", err);
+    }
+}
+
+/** A file off the mapped playlist, or null when there is nothing to play. */
+function murderTrackSrc() {
+    const playlist = playlistFor("murder");
+    const sounds = [...(playlist?.sounds ?? [])].filter(s => s?.path);
+    if (!sounds.length) return null;
+    // A different one each incident, the same way the trial's states pick.
+    return sounds[Math.floor(Math.random() * sounds.length)].path;
+}
+
+async function startMurderMusic() {
+    const src = murderTrackSrc();
+    // Nothing mapped: leave the room alone, and above all do NOT duck - a GM
+    // who has not set this up must not find the music silently turned off.
+    if (!src) return;
+
+    const was = playlistVolume();
+    await rememberDuck(was);
+    await setPlaylistVolume(0);
+
+    try {
+        murderTrack = await foundry.audio.AudioHelper.play({
+            src,
+            // At the volume the room's music WAS, so the change reads as the
+            // scene turning rather than as somebody moving a slider.
+            volume: was,
+            loop: true,
+            autoplay: true
+        }, false);
+        log("Murder music: this browser is in the incident; the room's playlist is ducked.");
+    } catch (err) {
+        // Put the room back rather than leaving a client in silence over a
+        // sound that never started.
+        error("Could not start the murder music", err);
+        await stopMurderMusic();
+    }
+}
+
+async function stopMurderMusic() {
+    try {
+        await murderTrack?.stop?.();
+    } catch (err) {
+        debug("Murder music: the track would not stop", err);
+    }
+    murderTrack = null;
+
+    const was = duckedFrom();
+    if (was >= 0) {
+        await setPlaylistVolume(was);
+        await rememberDuck(-1);
+    }
+}
+
+/**
+ * Is this browser in a killing, and is the music where that says it should be?
+ *
+ * Cheap and idempotent: the answer is compared with the last one, so the
+ * settings watcher below can call it on every murder write without restarting
+ * a track that is already playing.
+ */
+export async function applyMurderMusic() {
+    if (!game.user) return;
+    const inIt = Boolean(incidentWitness().witness);
+    if (inIt === murderPlaying) return;
+    murderPlaying = inIt;
+    if (inIt) await startMurderMusic();
+    else await stopMurderMusic();
+}
+
+/**
+ * A tab closed mid-incident leaves this browser ducked with nothing playing.
+ *
+ * Called once at `ready`. If the volume was parked and there is no incident to
+ * park it for, it goes back - which is the state a player who reloaded during
+ * a murder, or whose murder ended while they were away, comes back into. When
+ * there IS still an incident, `applyMurderMusic` takes it from here and starts
+ * the track again.
+ */
+async function restoreDuckedMusic() {
+    if (duckedFrom() < 0) return;
+    if (incidentWitness().witness) return;
+    log("Murder music: the playlist volume was left parked by an incident that is over. Restoring it.");
+    await stopMurderMusic();
 }

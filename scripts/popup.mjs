@@ -30,14 +30,15 @@
  * the whisper was addressed to, which is almost always what was meant.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TIMING } from "./config.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { MESSAGE_FLAG } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP } from "./motion.mjs";
 
-import { contentOf, wordsOf } from "./secret.mjs";
+import { contentOf, wordsOf, secretHtml, isVeiled } from "./secret.mjs";
 const CONTAINER_ID = "drpg-popups";
-const AUTO_DISMISS_MS = 12000;
+const EVIDENCE_ID = "drpg-evidence";
+const AUTO_DISMISS_MS = TIMING.popupAutoDismissMs;
 
 /**
  * How many cards may be on screen at once.
@@ -64,6 +65,60 @@ function container() {
     }
     positionBelowWidgets(el);
     return el;
+}
+
+/**
+ * EVIDENCE GETS THE MIDDLE OF THE SCREEN, AND IT GETS IT BECAUSE IT WAS BEING
+ * CUT IN HALF IN THE CORNER (16.09).
+ * ---------------------------------------------------------------------------
+ * The notice tile is 430 x 220, and that is a ceiling rather than a choice: the
+ * corner it stands in is shared with Foundry's tool rail, whose own run is
+ * bounded to clear it, and every larger size was measured taking the rail's
+ * glass away (see the sweep at the top of stained-glass.css). A Class Trial
+ * objection carrying a Truth Bullet with its analysis and a comment needs 459
+ * px. It does not fit and it never will.
+ *
+ * So the one card in this module that is meant to be READ stops living in the
+ * corner with the receipts. It stands in the middle of the map, which is the
+ * one part of the screen nothing else is using during a trial - nobody is
+ * moving tokens while the table argues.
+ *
+ * IT IS NOT A PANE OF THE CURTAIN, DELIBERATELY. A block that comes and goes is
+ * a block the glass has to be recut around, and that is the mistake 1.2.30 made
+ * with the notice tile - the corner tile came and went with the news. This
+ * stage carries its own glass in the stylesheet, so it can appear, grow with
+ * its card and vanish without the curtain hearing about it at all.
+ *
+ * The stage takes no clicks; the card inside it does (stained-glass.css), so
+ * the map underneath stays draggable around the evidence.
+ */
+function evidenceStage() {
+    let el = document.getElementById(EVIDENCE_ID);
+    if (!el) {
+        el = document.createElement("div");
+        el.id = EVIDENCE_ID;
+        /* Announced, because a card that lands in the middle of the screen
+           without a word is a card a screen reader's user never learns about.
+           The same role the notice stack carries (a11y.mjs). */
+        el.setAttribute("role", "status");
+        el.setAttribute("aria-live", "polite");
+        document.body.append(el);
+    }
+    return el;
+}
+
+/**
+ * Which of the two this card belongs in.
+ *
+ * Only a STICKY piece of evidence takes the stage. A non-sticky one is a
+ * caller that wanted the evidence colour for a passing message, and a passing
+ * message in the middle of the screen is exactly the interruption the corner
+ * exists to avoid.
+ */
+function hostFor(kind, sticky) {
+    return sticky && (kind === "evidence" || kind === "objection")
+        ? evidenceStage()
+        : container();
 }
 
 /**
@@ -103,17 +158,58 @@ function positionBelowWidgets(el) {
     }
 }
 
-/** Retire the oldest non-sticky cards until the stack fits. */
-function trimStack() {
-    const cards = Array.from(container().querySelectorAll(".drpg-popup:not(.leaving)"));
+/**
+ * Retire the oldest cards until the stack fits - non-sticky ones first.
+ *
+ * Takes the stack it is trimming, because there are two now and they hold
+ * different amounts: the corner tile is a fixed piece of glass with room for
+ * two short cards, and the evidence stage is sized by its own card.
+ */
+function trimStack(host = container()) {
+    if (host.id === EVIDENCE_ID) { trimEvidence(host); return; }
+    const cards = Array.from(host.querySelectorAll(".drpg-popup:not(.leaving)"));
     const droppable = cards.filter(c => !c.classList.contains("drpg-popup-sticky"));
     // Under Stained Glass the stack lives on a tile of the curtain cut for two short cards or one
     // long one (glass.mjs, "note-block"), so two is the most it may hold.
-    const max = document.body.classList.contains("drpg-theme-stained-glass") ? 2 : MAX_VISIBLE;
-    const excess = cards.length - max;
+    const glass = document.body.classList.contains("drpg-theme-stained-glass");
+    const max = glass ? 2 : MAX_VISIBLE;
+    let excess = cards.length - max;
 
     for (let i = 0; i < excess && i < droppable.length; i++) {
         droppable[i].dispatchEvent(new CustomEvent("drpg-dismiss"));
+    }
+
+    /* AND THEN THE OLDEST STICKY ONE (UI-10). The glass tile clips with `overflow: hidden`
+       and fills from the bottom, so with two sticky evidence cards on it every later card -
+       a refusal, a reply, the time of day - was appended out of sight, and the newest card
+       was the one nobody could see until a sticky one was closed by hand. A retired evidence
+       card is still in the chat log; a hidden refusal is nowhere. Legacy scrolls, so it keeps
+       its sticky cards. */
+    excess -= Math.min(excess, droppable.length);
+    if (!glass || excess <= 0) return;
+    const sticky = cards.filter(c => c.classList.contains("drpg-popup-sticky"));
+    for (let i = 0; i < excess && i < sticky.length; i++) {
+        sticky[i].dispatchEvent(new CustomEvent("drpg-dismiss"));
+    }
+}
+
+/**
+ * The stage holds TWO pieces of evidence, and the second one is the point.
+ *
+ * A trial argues by putting one thing beside another - an objection answers a
+ * presentation, and reading the two together is the whole move. One at a time
+ * would make the objection erase what it was objecting to. Three is a wall of
+ * text in the middle of the map, and the chat log still has every card.
+ *
+ * Oldest first, and by hand rather than by `overflow: hidden`: this stage grows
+ * with what is in it, so a card that does not fit is not clipped, it is simply
+ * not retired and the stage gets taller. The cap is what keeps that honest.
+ */
+const MAX_EVIDENCE = 2;
+function trimEvidence(host) {
+    const cards = Array.from(host.querySelectorAll(".drpg-popup:not(.leaving)"));
+    for (let i = 0; i < cards.length - MAX_EVIDENCE; i++) {
+        cards[i].dispatchEvent(new CustomEvent("drpg-dismiss"));
     }
 }
 
@@ -192,7 +288,8 @@ export function showPopup(bodyHtml, {
     else body.innerHTML = bodyHtml ?? "";
     card.append(body);
 
-    container().append(card);
+    const host = hostFor(kind, sticky);
+    host.append(card);
 
     let dismissed = false;
     const dismiss = () => {
@@ -219,6 +316,13 @@ export function showPopup(bodyHtml, {
             if (gone) return;
             gone = true;
             card.remove();
+            /* The stage is a box in the middle of the screen. Empty, it has
+               nothing to draw and nothing to say, so it goes rather than
+               sitting there as an invisible `role="status"` region. The corner
+               tile is the opposite case and stays: it is a cut pane of the
+               curtain whether or not anything is on it. */
+            const stage = document.getElementById(EVIDENCE_ID);
+            if (stage && !stage.querySelector(".drpg-popup")) stage.remove();
         };
         card.addEventListener("transitionend", event => {
             if (event.target === card) remove();
@@ -229,7 +333,7 @@ export function showPopup(bodyHtml, {
     // So `trimStack` can retire this card without holding a reference to its
     // closure. Everything a card knows about closing lives in `dismiss`.
     card.addEventListener("drpg-dismiss", dismiss);
-    trimStack();
+    trimStack(host);
 
     // Click-anywhere-to-dismiss is right for a notification and wrong for a card
     // somebody is reading: a sticky one closes only from its own button, unless
@@ -266,6 +370,26 @@ export function showPopup(bodyHtml, {
     }
 
     if (!sticky) setTimeout(dismiss, AUTO_DISMISS_MS);
+    return dismiss;
+}
+
+/**
+ * A card that says "waiting on the GM", and the function that takes it down.
+ *
+ * A player who asked for a ruling used to get either a toast that faded in
+ * five seconds or nothing at all, and then sat for minutes unable to tell a
+ * GM reading the question from a socket that had dropped it. Sticky, so it
+ * stays until the answer comes; closable, so it never traps anybody.
+ */
+export function showWaiting(text, title = null) {
+    const dismiss = showPopup(`<p>${text}</p>`, { sticky: true, title, kind: "info" });
+    return () => {
+        try {
+            dismiss?.();
+        } catch {
+            // Already gone.
+        }
+    };
 }
 
 /* ==========================================================================
@@ -311,6 +435,13 @@ async function onCreateChatMessage(message) {
     // everyone, which is what makes it an announcement.
     const whisper = message.whisper ?? [];
     if (whisper.length && !whisper.includes(game.user.id)) return;
+
+    // A veiled card is addressed to everybody and readable by its readers
+    // alone: wait for the words, and if none came this is not our card.
+    if (isVeiled(message)) {
+        await wordsOf(message);
+        if (!secretHtml(message)) return;
+    }
 
     /* ---- a GM is not an audience for every receipt in the world ----------
      *

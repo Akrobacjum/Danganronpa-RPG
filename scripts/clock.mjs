@@ -22,7 +22,7 @@ import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mj
 import { SETTINGS, getClock, clearBodyDiscovery } from "./settings.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-import { announce, log, warn, plural } from "./utils.mjs";
+import { announce, log, warn, error, plural } from "./utils.mjs";
 
 /**
  * Current clock, always with every field present. Defined in settings.mjs -
@@ -118,6 +118,19 @@ export async function setClock(patch = {}) {
      */
     if (patch.phase !== undefined && patch.phase !== before.phase) {
         await clearBodyDiscovery();
+        await reconcilePhase(before.phase, next.phase);
+    }
+
+    /*
+     * AND THE ECLIPSE, for the same reason and by the same rule.
+     *
+     * `endEclipse` clears the crossing ledger and tells the other clients. The
+     * flag is also one field of the season reset's clock write, which ran
+     * neither - so a season wiped during an Eclipse left last season's crossings
+     * in the ledger and every other browser still dimmed.
+     */
+    if (patch.eclipse !== undefined && before.eclipse && !next.eclipse) {
+        await reconcileEclipseEnded();
     }
 
     /*
@@ -275,14 +288,18 @@ export async function rewindTimeOfDay() {
 }
 
 /** Jump straight to a specific time of day without rolling the session over. */
-export async function setTimeOfDay(key, options = {}) {
+export async function setTimeOfDay(key, { also = {}, ...options } = {}) {
     if (!game.user.isGM) return null;
     if (!TIMES_OF_DAY.includes(key)) {
         ui.notifications.error(game.i18n.format("DRPG.Clock.unknownTime", { key }));
         return null;
     }
 
-    const next = await setClock({ timeOfDay: key });
+    // `also`: extra clock fields folded into the SAME write, the way
+    // `advanceTimeOfDay` takes them. The end of a chapter moves the day and
+    // the time of day together, and two writes were two full redraws of
+    // every HUD and sheet on every client (CORE-12).
+    const next = await setClock({ ...also, timeOfDay: key });
     await applyTimeOfDayChange(next, options);
     return next;
 }
@@ -425,12 +442,85 @@ async function announceTimeOfDay(clock, summary, { sfx = null } = {}) {
  * setting change fires locally after the world value syncs.
  */
 export function refreshSheets() {
-    import("./hud.mjs").then(m => m.renderHud()).catch(() => {});
-
+    // Sheets only. This used to render the HUD too, and every sync kind that
+    // also ran `renderHud` itself paid for the HUD twice (CORE-12); the kinds
+    // that relied on the side effect now ask for the HUD by name in sync.mjs.
     for (const app of Object.values(ui.windows ?? {})) {
         if (app?.document?.type === "character") app.render(false);
     }
     for (const app of foundry.applications?.instances?.values() ?? []) {
         if (app?.document?.type === "character") app.render(false);
+    }
+}
+
+/**
+ * THE PHASE OWNS STATE, AND MORE THAN ONE ROUTE WRITES THE PHASE.
+ *
+ * `startClassTrial` and `closeTrial` are the deliberate doors, and they used to
+ * be the only places that set the trial's own state up and took it down. The
+ * phase is also a select in "Edit campaign", it is `setPhase` behind the GM
+ * panel's Investigation tile and behind `game.drpg.setPhase`, and it is one
+ * field of the season reset - and none of those three ran any of it. Measured:
+ * ending a trial from the clock editor left the debate floor open with a
+ * speaker still holding it and the console still offering to close the debate;
+ * starting one from there left the previous trial's vote standing and never
+ * charged for the Key Remnants nobody found.
+ *
+ * So the reconciliation lives where the phase is actually written, and the two
+ * doors keep only what is theirs: the confirmation, and the card the table
+ * reads. Every step here is idempotent - `endFloor` writes an empty queue,
+ * `resetTrialProgress` writes the same four fields, `chargeForUnfoundKeys`
+ * stamps `keysCharged` and refuses to run twice in one chapter - so a door that
+ * comes through here is not doing its own work a second time.
+ */
+async function reconcilePhase(from, to) {
+    if (from === "classTrial") {
+        try {
+            const { endFloor } = await import("./trial-floor.mjs");
+            await endFloor();
+        } catch (err) {
+            error("Could not close the debate floor after the phase changed", err);
+        }
+    }
+
+    if (to === "classTrial") {
+        try {
+            const { resetTrialProgress } = await import("./vote.mjs");
+            await resetTrialProgress();
+        } catch (err) {
+            error("Could not reset the trial's progress after the phase changed", err);
+        }
+        try {
+            /* AFTER the reset, never before: the reset blanks this chapter's trial
+               record and the "already charged" stamp lives in it, so charging first
+               would have the stamp wiped a line later and the next trial opened in
+               this chapter would pay Monokuma twice. It whispers the GMs whatever it
+               charged - see `chargeForUnfoundKeys`. */
+            const { chargeForUnfoundKeys } = await import("./investigation.mjs");
+            await chargeForUnfoundKeys();
+        } catch (err) {
+            error("Could not charge for the Key Remnants nobody found", err);
+        }
+    }
+}
+
+/**
+ * The mechanical half of ending an Eclipse, for the routes that only write the flag.
+ *
+ * Judging the murders declared under the Eclipse stays in `endEclipse`: the one
+ * route that comes through here without it is the season reset, and a season
+ * being wiped has no murders left to rule on.
+ */
+async function reconcileEclipseEnded() {
+    try {
+        await game.settings.set(MODULE_ID, SETTINGS.eclipseMoves, {});
+    } catch (err) {
+        error("Could not clear the Eclipse's crossing ledger", err);
+    }
+    try {
+        const { broadcast, SYNC } = await import("./sync.mjs");
+        broadcast(SYNC.eclipse, { active: false });
+    } catch (err) {
+        error("Could not tell the other clients the Eclipse had ended", err);
     }
 }

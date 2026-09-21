@@ -55,13 +55,6 @@ export const VOICE = {
     applied: "voice.applied",
     /** user -> GM: "where do I belong?" - sent on join and on A/V startup. */
     whoAmI: "voice.whoAmI",
-    /**
-     * GM -> primary GM: "I picked a room by hand; leave my voice where it is"
-     * (or "I have stopped, steer me again"). Only a GM sends this, and only the
-     * client running the assignment loop acts on it - see `manualUsers` in
-     * voice.mjs.
-     */
-    manual: "voice.manual"
 };
 
 /**
@@ -119,8 +112,10 @@ export function registerVoiceClient() {
         askWhereIBelong();
     });
 
-    // Registered here rather than at `init`: `game.socket` does not exist yet
-    // when the module wires itself up.
+    // Registered at `ready` rather than `init`: the socket itself is up at
+    // init (sfx.mjs and safeword.mjs listen from there), but a voice packet
+    // arriving before the AV client and the world's users exist has nothing
+    // to act on, so the listener waits for both.
     Hooks.once("ready", () => {
         game.socket.on(SOCKET_EVENT, onVoiceSocket);
         startSelfCheck();
@@ -240,7 +235,8 @@ function enqueue(fn) {
     return chain;
 }
 
-function avclientActive() {
+/** Whether the LiveKit AV client module is enabled at all. Shared with voice.mjs. */
+export function avclientActive() {
     return Boolean(game.modules.get(AV_MODULE)?.active);
 }
 
@@ -422,7 +418,7 @@ async function applyAndReport(room, requestId) {
  *
  * Never resolves to `undefined`: `enqueue` swallows a rejection into one, and a
  * caller reading that as "not one of the failure strings, so it worked" is how
- * the eavesdrop dialog used to announce success for a switch that threw.
+ * a GM window once announced success for a switch that threw.
  */
 export async function applyLocally(room) {
     const state = await enqueue(() => applyBreakout(room));

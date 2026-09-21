@@ -9,7 +9,9 @@
  * excluded: they are helpers, not Monokumas, and the guide gives Despair only
  * to the two people running the killing game.
  *
- * Pools are public. When Monokuma spends Despair the table is meant to see it.
+ * Pools are on every screen with their counts public (D3); what a player's copy
+ * masks is the overflow's caption. The spend itself is announced with the Call,
+ * so the table sees it happen.
  */
 
 import { MODULE_ID, STARTING, DESPAIR_CALLS, callEffect } from "./config.mjs";
@@ -19,6 +21,7 @@ import { automatedUpdate } from "./resource-guard.mjs";
 import { announce, whisperToOwner, log, warn, error, isPrimaryGm } from "./utils.mjs";
 import { overflowStatus } from "./overflow.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
+import { narrowColumn } from "./narrow.mjs";
 
 const WIDGET_ID = "drpg-despair";
 
@@ -240,6 +243,27 @@ export async function setDespair(userId, value) {
  * a GM correcting a number by hand, which should not darken the world.
  */
 export async function adjustDespair(userId, delta) {
+    /*
+     * ONE WRITER (DESP-12). The pools are one world object, written whole from
+     * the local cache; two GM clients writing at once - the primary awarding a
+     * roll's point while an assistant pays a Call from their own pool - lost
+     * one write. An assistant GM's adjustment goes to the primary over the
+     * bridge, like a player's reroll correction does, and is applied there.
+     */
+    if (game.user?.isGM && !isPrimaryGm() && userId) {
+        try {
+            const { requestDespairAdjust, hasGm } = await import("./gm-bridge.mjs");
+            const { primaryGmId } = await import("./utils.mjs");
+            const primary = game.users.get(primaryGmId() ?? "");
+            if (primary?.active && primary.id !== game.user.id && hasGm()) {
+                await requestDespairAdjust(userId, delta);
+                return Math.min(Math.max(getDespair(userId) + delta, 0), despairMax());
+            }
+        } catch (err) {
+            warn("Could not route a Despair adjustment to the primary GM; writing it here", err);
+        }
+    }
+
     const before = getDespair(userId);
     const wanted = before + delta;
     const applied = await setDespair(userId, wanted);
@@ -331,11 +355,12 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
         return 0;
     }
 
-    // Checked before the pool is charged: under the Despair darkening the Hope
-    // write below would be stripped and the Despair gone for nothing (CALL-05).
+    // While the "Despair" darkening runs no Hope can be earned: the actor hook
+    // deletes the increase, and this used to take the Despair and report a
+    // grant that never landed (DESP-04). Asked before anything is paid.
     const { overflowBlocksHope } = await import("./overflow.mjs");
     if (overflowBlocksHope()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Overflow.noHopeNow"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Overflow.hopeBlocked"));
         return 0;
     }
 
@@ -365,6 +390,8 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
  *
  * @param {string} userId  Which Monokuma is paying.
  * @param {string} callKey Key from DESPAIR_CALLS.
+ * @param {{announce?: boolean}} [options]  `announce: false` leaves the card to
+ *   the caller, which posts it after the effect - see the note below.
  */
 export async function spendDespairCall(userId, callKey, { announce: post = true } = {}) {
     const call = DESPAIR_CALLS[callKey];
@@ -384,25 +411,26 @@ export async function spendDespairCall(userId, callKey, { announce: post = true 
     await adjustDespair(userId, -call.cost);
 
     /*
-     * ONE PURCHASE, ONE CARD, AND IT COMES AFTER THE EFFECT (CALL-13, 20.09).
+     * ONE PURCHASE, ONE CARD, AND IT COMES AFTER THE EFFECT (DESP-11; the review
+     * line's CALL-13 found the same).
      *
      * This card used to be posted unconditionally, one line after the pool was
-     * charged and BEFORE `applyCall` had run - while `spendDespairCallFor` posts
+     * charged and BEFORE `applyCall` had run - while `spendDespairCallFor` posted
      * its own public card afterwards with the same label on it. So every Despair
      * Call bought from a sheet posted two cards, the first of them out before
      * anybody knew whether the Call had landed; on a failure the pool is handed
      * back and the Monokuma warned privately, and the table kept a public receipt
-     * for a purchase that did not happen. `refusalBeforePaying` removed the common
-     * causes and cannot remove the class: `applyCall` can still throw, which is
-     * what the catch two files over is for.
+     * for a purchase that did not happen. `refusalBeforePaying` turns the common
+     * causes away before anything is paid, but it cannot turn away all of them:
+     * `applyCall` can still fail, which is why the card waits for it.
      *
      * A FLAG, NOT A SECOND FUNCTION, AND IT DEFAULTS TO TRUE.
      * `game.drpg.spendDespairCall` is a documented API that pays and tells the
-     * table, and a bare API spend has no second card to carry the price. The road
-     * through `spendDespairCallFor` passes false and folds the price sentence into
-     * the card it already posts - the one that has always carried the Blood popup
-     * and the despairCall sound, so the silent copy of it was what the table saw
-     * first.
+     * table, and a bare API spend has no second card to carry the price, so it
+     * keeps this one. The sheet's road, `spendDespairCallFor`, passes
+     * `announce: false` and posts ONE card after the effect lands, with the
+     * effect's receipt lines and this card's price sentence folded into it - the
+     * card that has always carried the Blood popup and the despairCall sound.
      */
     if (!post) return true;
 
@@ -415,9 +443,11 @@ export async function spendDespairCall(userId, callKey, { announce: post = true 
             content: `<h3>${game.i18n.localize("DRPG.Despair.callTitle")}</h3>
                       <p><strong>${foundry.utils.escapeHTML(call.label)}</strong> - ${foundry.utils.escapeHTML(callEffect(call))}</p>
                       <p><em>${game.i18n.format("DRPG.Despair.spent", {
-                          name: foundry.utils.escapeHTML(user?.name ?? "?"),
-                          cost: call.cost,
-                          left: getDespair(userId)
+                          // The pool's label, not the account name; and no
+                          // "left" - the player rail masks the pool for a
+                          // reason, and this card told the room the number.
+                          name: foundry.utils.escapeHTML(poolLabel(user) ?? user?.name ?? "?"),
+                          cost: call.cost
                       })}</em></p>`
         });
     } catch (err) {
@@ -434,7 +464,8 @@ export async function spendDespairCall(userId, callKey, { announce: post = true 
 /** Build or rebuild the Despair rows. Safe to call repeatedly. */
 export function renderDespairBar() {
     try {
-        const host = document.querySelector("#ui-top") ?? document.querySelector("#ui-middle");
+        // the module's own stack on a narrow screen, Foundry's top bar on a desk
+        const host = narrowColumn() ?? document.querySelector("#ui-top") ?? document.querySelector("#ui-middle");
         if (!host) return;
 
         document.getElementById(WIDGET_ID)?.remove();
@@ -447,7 +478,8 @@ export function renderDespairBar() {
         wrapper.classList.toggle("single", gms.length === 1);
         wrapper.classList.toggle("gm-editable", game.user.isGM);
         // Players keep the bar but not the numbers - see `buildRow`.
-        wrapper.classList.toggle("masked", !game.user.isGM);
+        // `masked` used to hide the pips from a player; the count is public since D3.
+        wrapper.classList.remove("masked");
 
         /*
          * A HEADING, BECAUSE THE ROWS DO NOT SAY WHAT THEY ARE.
@@ -561,7 +593,12 @@ function buildOverflowCaption() {
         if (active) {
             const badge = document.createElement("span");
             badge.className = "drpg-overflow-badge";
-            badge.textContent = game.i18n.localize("DRPG.Overflow.activeNow");
+            // WHICH darkening, not only that one runs (DESP-17): the card at
+            // the boundary was the only place the name appeared.
+            const name = overflowStatus().effectName;
+            badge.textContent = name
+                ? `${game.i18n.localize("DRPG.Overflow.activeNow")} · ${name}`
+                : game.i18n.localize("DRPG.Overflow.activeNow");
             line.append(" ", badge);
         }
 
@@ -579,13 +616,10 @@ function buildRow(user, showName) {
     const isGM = game.user.isGM;
     const isOwnPool = game.user.id === user.id;
 
-    // Only a GM has a reading to lose. A player's bar is question marks by
-    // design (see the note on the pips below), so there is nothing to confirm
-    // and nothing to give away by confirming it - which is also why this is not
-    // even asked on their client: `spentSince` records as it reads, and a
-    // player recording a pool they cannot see would be keeping a copy of the
-    // one number this bar exists to withhold.
-    const spent = isGM ? spentSince("despair", user.id, held) : null;
+    // Everyone has a reading now (D3): the pool's count is shown on every
+    // client, so the pips that were just paid animate on every client too.
+    // Only the OVERFLOW stays masked for a player - see `renderOverflowCaption`.
+    const spent = spentSince("despair", user.id, held);
 
     const row = document.createElement("div");
     row.className = "drpg-despair-row";
@@ -612,17 +646,12 @@ function buildRow(user, showName) {
 
     for (let i = 1; i <= max; i++) {
         const pip = document.createElement("span");
-        // "You will not see that table. You will see its effects." - Player
-        // Handbook, p. 12. The bar stays (a player should know the Monokumas
-        // have a currency and roughly how big it can get) but the reading does
-        // not: every pip renders as a question mark and none of them is marked
-        // `filled`, so counting the DOM gives nothing away either.
-        //
-        // Not a secrecy mechanism, and it is not pretending to be one: the pool
-        // is a world setting, so a determined player can still read it from the
-        // console (see the note on world-scoped data in settings.mjs). This is
-        // about not putting the answer on screen unasked.
-        pip.className = `drpg-despair-pip${isGM && i <= held ? " filled" : ""}`;
+        // THE READING IS PUBLIC (D3, Dawid 13.09). The bar used to show a
+        // player question marks - "you will see its effects, not the table" -
+        // and the table could not tell what its own Despair rolls were feeding.
+        // The count is shown to everyone now; what stays hidden is the
+        // overflow: when the hat fires is still Monokuma's to know.
+        pip.className = `drpg-despair-pip${i <= held ? " filled" : ""}`;
         // The pips between the old reading and the new one: the ones that were
         // just paid. They are built empty, like every other unspent socket, and
         // the class only says how they got that way. See the keyframes in the
@@ -631,7 +660,7 @@ function buildRow(user, showName) {
         pip.dataset.value = String(i);
 
         if (isGM) {
-            const label = game.i18n.format("DRPG.Despair.pipTooltip", { n: i, name: user.name });
+            const label = game.i18n.format("DRPG.Despair.pipTooltip", { n: i, name: poolLabel(user) });
             pip.dataset.tooltip = label;
             // Same reasoning as the action pips on the sheet: a `<span>` with a
             // click handler cannot be reached from the keyboard, and this is the
@@ -653,8 +682,7 @@ function buildRow(user, showName) {
 
     const count = document.createElement("span");
     count.className = "drpg-despair-count";
-    // The cap is public - the handbook prints it - so only the reading is hidden.
-    count.textContent = isGM ? `${held}/${max}` : `?/${max}`;
+    count.textContent = `${held}/${max}`;
     row.append(count);
 
     /*

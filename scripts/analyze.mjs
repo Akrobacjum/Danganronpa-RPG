@@ -20,10 +20,12 @@
  */
 
 import { MODULE_ID, analyzeDc, TRUTH_BULLET_TYPES } from "./config.mjs";
-import { TRUTH_BULLET_FLAGS, secretOf, isTruthBullet } from "./truth-bullets.mjs";
-// The trace's own ledger entry, for the sentence a bullet's secret may have been
-// minted without (T-2). Static: remnants.mjs does not import this file.
-import { remnantData } from "./remnants.mjs";
+import {
+    TRUTH_BULLET_FLAGS, secretOf, isTruthBullet, bulletDescription, faintOf
+} from "./truth-bullets.mjs";
+// The trace's own `public` record, for a reading a bullet's secret was minted
+// without (T-2). Static: remnants.mjs does not import this file.
+import { remnantPublicById } from "./remnants.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, article } from "./utils.mjs";
 
 /**
@@ -63,11 +65,17 @@ export async function resolveAnalyze({
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: "neutral",
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: false,
             // The three facts `identify` published go back into the secret with
-            // the rest of the truth - an un-analysed bullet knows nothing. The
-            // sentence goes back as "", which is what creation writes.
+            // the rest of the truth - an un-analysed bullet knows nothing.
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: null,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: null,
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analysisText}`]: ""
+            // The reading goes back too, ITEM AND DESCRIPTION BOTH. Clearing the
+            // flag and leaving the rendered paragraph would hand the reroll for
+            // free: the player reads the sentence off their own sheet while the
+            // module believes they never bought it. The secret still holds it,
+            // so the second throw can pay out exactly the same words.
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: "",
+            "system.description": bulletDescription(
+                item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "")
         };
         if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.lockedChapter) === chapter) {
             patch[`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.lockedChapter}`] = null;
@@ -126,35 +134,50 @@ async function lockOut(item, actor, chapter, total) {
 
 /** Success converts the bullet: what it really is becomes what the player sees. */
 async function identify(item, actor, realType, isCritical, dc, total) {
-    // The moment of analysis is when three more facts go public - which action
+    // The moment of analysis is when four more facts go public - which action
     // left the source trace (the Remnant token's icon on this player's map),
-    // whether it belongs to the murder (the pack's sort), and what the GM wrote
-    // about this trace for the moment somebody read it (T-2). All three were
-    // waiting in the bullet's secret since creation, so a trace the killer has
-    // since wiped still identifies completely.
+    // whether it belongs to the murder (the pack's sort), whether the connection
+    // is doubtful at all (Faint), and what the lab actually says about the
+    // object. All four were waiting in the bullet's secret since creation, so a
+    // trace the killer has since wiped still identifies completely.
     const secret = secretOf(item.uuid);
 
     /*
-     * THE TRACE IS THE SOURCE OF TRUTH, THE SECRET IS THE FAST PATH (T-2, 18.09).
+     * THE SECRET IS THE FAST PATH, THE TRACE IS THE FALLBACK (T-2).
      *
-     * The secret gets `analysis` at creation and from `propagateAnalysis`, which
-     * covers every route - but only if every route was reached. A bullet minted
-     * before the GM wrote the sentence, or on a second GM whose ledger request
-     * went unanswered, has a secret with nothing in it. `identify` only ever runs
-     * on a GM's client, so the trace itself can answer here: one line instead of
-     * an audit trail across four creation sites.
+     * `propagateRemnantPublic` files a rewritten reading into every copy's
+     * secret, analysed or not - but only the copies it can see at that moment.
+     * A copy minted afterwards from a trace that was already revealed is never
+     * reconciled by `revealSourceOf`, and a secret filed on another GM's
+     * browser may not have reached this one, so a secret can hold "" while the
+     * trace holds the GM's words. `identify` only ever runs on a GM's client,
+     * which can read the trace's `public` record directly: one lookup here
+     * instead of an audit of every creation site. A bullet with no trace
+     * behind it keeps whatever its secret was given.
      */
-    const said = secret.analysis
-        || remnantData(game.scenes.get(secret.sceneId)?.tokens?.get(secret.remnantId))?.analysis
+    const analyzedText = secret.analyzedText
+        || remnantPublicById(secret.sceneId, secret.remnantId)?.analyzedText
         || "";
-
     try {
         await item.update({
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: secret.sourceAction ?? null,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: secret.tiedToCrime ?? null,
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analysisText}`]: said
+            /* Faint joined this list in 1.2.47. It used to sit on the item from
+               creation, so the badge announced a doubtful trace to somebody who
+               had not analysed it - `faintOf` knows both roads for a world made
+               before that. */
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: faintOf(item),
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: analyzedText,
+            // Rebuilt from the FLAG rather than patched onto whatever the
+            // description currently holds: a GM may have rewritten the Observe
+            // half since this bullet was created, and the flag is the copy that
+            // followed that edit. Reading the rendered HTML back would make the
+            // description its own source of truth, which is how the two halves
+            // would start to disagree.
+            "system.description": bulletDescription(
+                item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "", analyzedText)
         });
     } catch (err) {
         error("Could not identify the Truth Bullet after a successful Analyze", err);
@@ -162,18 +185,13 @@ async function identify(item, actor, realType, isCritical, dc, total) {
     }
 
     const label = TRUTH_BULLET_TYPES[realType]?.label ?? realType;
-    // THE TRACE'S OWN SENTENCE IF THERE IS ONE (T-2). The per-type line is the
-    // same for every Prep trace in the season; a GM who wrote about THIS one said
-    // something the type sentence cannot. A trace with nothing written keeps the
-    // generic line, which is what this has always printed.
-    /* AND A BULLET THAT CAME OUT NEUTRAL GETS THE SENTENCE FOR THAT (ACT-10). The
+    /* A BULLET THAT CAME OUT NEUTRAL GETS THE SENTENCE FOR THAT (ACT-10). The
        per-type `hint` is the UN-analysed line, and for neutral it reads "analysis
        turns it into a real category" - printed, until now, on the card announcing
        the analysis that did not. */
-    const line = realType === "neutral"
+    const hint = (realType === "neutral"
         ? (TRUTH_BULLET_TYPES.neutral.analysedHint ?? TRUTH_BULLET_TYPES.neutral.hint)
-        : TRUTH_BULLET_TYPES[realType]?.hint;
-    const hint = said || line || "";
+        : TRUTH_BULLET_TYPES[realType]?.hint) ?? "";
 
     /*
      * THE SOUND RIDES THE CARD, AND IT USED NOT TO - a bug this file carried
@@ -193,6 +211,20 @@ async function identify(item, actor, realType, isCritical, dc, total) {
      * and leaves GMs out unless the flag says otherwise, which is exactly
      * "heard by the student who ran it".
      */
+    /*
+     * THE CARD CARRIES THE READING, NOT JUST THE CATEGORY.
+     *
+     * The category alone is a label; the sentence the GM wrote for analysis is
+     * the thing the player actually spent a Head roll on, and asking them to go
+     * and reopen their inventory to find out what they bought is the same
+     * mistake the Observe card would be making if it named the trace and left
+     * the description on the sheet. It is on the item as well - this is the
+     * announcement, the item is the record.
+     *
+     * `typeHint` is the module's own line about what this CATEGORY means and it
+     * stays where it was, under the reading: general first-read guidance after
+     * the specific fact, not instead of it.
+     */
     await whisperToOwner(actor, `
         <h3>${game.i18n.localize("DRPG.Analyze.identifiedTitle")}</h3>
         <p>${game.i18n.format("DRPG.Analyze.identified", {
@@ -200,6 +232,9 @@ async function identify(item, actor, realType, isCritical, dc, total) {
             name: foundry.utils.escapeHTML(item.name),
             type: foundry.utils.escapeHTML(label)
         })}</p>
+        ${analyzedText ? `<p class="drpg-bullet-analysis"><strong>${
+            game.i18n.localize("DRPG.TruthBullet.analysisHeading")
+        }</strong> ${foundry.utils.escapeHTML(analyzedText)}</p>` : ""}
         ${hint ? `<p><em>${foundry.utils.escapeHTML(hint)}</em></p>` : ""}`,
         { flags: { [MODULE_ID]: { sfx: "analyzeHit" } } });
 
@@ -215,12 +250,19 @@ async function identify(item, actor, realType, isCritical, dc, total) {
             const { callGm } = await import("./gm-bridge.mjs");
             await callGm(actor, {
                 title: game.i18n.localize("DRPG.Analyze.critTitle"),
-                body: game.i18n.format("DRPG.Analyze.critPrompt", {
+                gmBody: `<p>${game.i18n.format("DRPG.Analyze.critPrompt", {
                     a: article(label),
                     actor: foundry.utils.escapeHTML(actor.name),
                     name: foundry.utils.escapeHTML(item.name),
                     type: foundry.utils.escapeHTML(label)
-                })
+                })}</p>`,
+                // The hint is the answer, so the card carries the way to give
+                // it; nothing to refund, the Analyze already resolved (COMM-07).
+                actions: [
+                    { action: "reply", label: game.i18n.localize("DRPG.Bridge.reply"), data: { by: actor.id } },
+                    { action: "decline", label: game.i18n.localize("DRPG.Bridge.nothingThere"),
+                      data: { by: actor.id, cost: "0" } }
+                ]
             });
         } catch (err) {
             // The old road, so a broken bridge cannot swallow the guide's owed

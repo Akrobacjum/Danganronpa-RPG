@@ -33,16 +33,6 @@ export function hopeHeld(actor) {
 }
 
 /**
- * Is a Hope Call barred right now, whatever it costs? Says why when it is.
- *
- * Asked twice by `spendHopeCall` (ACT-09, 17.09): before anything else, and
- * again after a GM's yes on the two Calls that wait for one. That wait can be
- * five minutes, and a Silence bought or an Eclipse begun in the meantime used
- * to be ignored - the Call went through on a ruling given to a different moment.
- *
- * @returns {Promise<boolean>}
- */
-/**
  * Is this Call shut before anything is chosen or paid for (CALL-17, 20.09)?
  *
  * THE SAME ANSWER, ASKED AT THE DOOR AND AT THE BOUNDARY. These rules were only
@@ -82,6 +72,16 @@ export async function callBarred(actor, { despair = false } = {}) {
     return null;
 }
 
+/**
+ * Is a Hope Call barred right now, whatever it costs? Says why when it is.
+ *
+ * Asked twice by `spendHopeCall` (ACT-09, 17.09): before anything else, and
+ * again after a GM's yes on the two Calls that wait for one. That wait can be
+ * five minutes, and a Silence bought or an Eclipse begun in the meantime used
+ * to be ignored - the Call went through on a ruling given to a different moment.
+ *
+ * @returns {Promise<boolean>}
+ */
 async function hopeCallBarred(actor) {
     // The Eclipse is placement-only - see the guard in action-rolls.mjs's
     // `performAction` for the full reasoning. A Call is not a room
@@ -142,7 +142,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
 
         if (await hopeCallBarred(actor)) return null;
 
-        const held = hopeHeld(actor);
+        let held = hopeHeld(actor);
         if (held < call.cost) {
             ui.notifications.warn(game.i18n.format("DRPG.Calls.notEnoughHope", {
                 call: call.label, cost: call.cost, held
@@ -189,12 +189,19 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
              * six-field object literal pushed them apart - the guard was there
              * and it did not read as one.
              */
+            // The sticky "waiting" card, raised before the fork so the GM
+            // guard stays within sight of the bridge call (R6).
+            const waiting = game.user.isGM ? () => {} : await showWaitingCard(call);
             let approved;
-            if (game.user.isGM) {
-                approved = await askHopeCallApproval(ask);
-            } else {
-                const { requestHopeCallApproval } = await import("./gm-bridge.mjs");
-                approved = await requestHopeCallApproval(ask);
+            try {
+                if (game.user.isGM) {
+                    approved = await askHopeCallApproval(ask);
+                } else {
+                    const { requestHopeCallApproval } = await import("./gm-bridge.mjs");
+                    approved = await requestHopeCallApproval(ask);
+                }
+            } finally {
+                waiting();
             }
 
             if (!approved) {
@@ -213,14 +220,14 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
                 }));
                 return null;
             }
+            // The write below and the receipt both use `held`: the reading
+            // from before the wait, during which a roll may have granted Hope
+            // or another Call spent it. Charging `held - cost` then either
+            // erased the grant or handed back what was spent.
+            held = now;
         }
 
-        // Charged against the Hope held NOW, not at the ask (ACT-09). A GM's
-        // ruling can take minutes, and the number read before it was written back
-        // over anything that moved Hope meanwhile: a Support spent during the wait
-        // came back, and Hope a roll granted was erased.
-        const left = hopeHeld(actor) - call.cost;
-        await automatedUpdate(actor, { "system.resources.hope.value": left });
+        await automatedUpdate(actor, { "system.resources.hope.value": held - call.cost });
 
         // Do the thing, not just charge for it.
         const { applyCall } = await import("./call-effects.mjs");
@@ -250,7 +257,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             ${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
             ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
             <p><em>${game.i18n.format("DRPG.Calls.hopeSpent", {
-                cost: call.cost, left
+                cost: call.cost, left: held - call.cost
             })}</em></p>`, { flags: { [MODULE_ID]: { popupTone: "hope", sfx: "hopeCall" } } });
 
         log(`${actor.name} spent ${call.cost} Hope on ${call.label}.`);
@@ -303,18 +310,22 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
             return null;
         }
 
-        // Before the pool is touched: paying posts a public card, and a refund
-        // afterwards cannot take the card back - see `refusalBeforePaying`.
-        const { refusalBeforePaying } = await import("./call-effects.mjs");
-        const refusal = refusalBeforePaying(call, choice);
+        // Before the pool is touched: a Call that would change nothing - a room
+        // already sealed, a track already full, Hope bought under the darkening
+        // (DESP-04), a project that cannot move (CALL-10) - is turned away with
+        // its reason, rather than paid, applied, refunded and only then
+        // explained. See `refusalBeforePaying` and `projectRefusal`.
+        const { refusalBeforePaying, projectRefusal } = await import("./call-effects.mjs");
+        const refusal = refusalBeforePaying(call, choice) ?? await projectRefusal(call, choice);
         if (refusal) {
             ui.notifications.warn(refusal);
             return null;
         }
 
-        const { spendDespairCall, getDespair, poolLabel } = await import("./despair.mjs");
-        // `{ announce: false }`: this road posts its own card after the effect, and
-        // two cards for one purchase is what CALL-13 was.
+        const { spendDespairCall, poolLabel } = await import("./despair.mjs");
+        // One card, after the effect (DESP-11, CALL-13): `announce: false` keeps
+        // `spendDespairCall` from posting its own, and the announcement is this
+        // function's, below, with the effect's own receipt lines on it.
         const ok = await spendDespairCall(user.id, key, { announce: false });
         if (!ok) return null;
 
@@ -360,19 +371,19 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
          * an empty card cannot happen. It wears Blood, because a Despair Call
          * is spent Despair.
          */
-        /* AND THE PRICE IS ON THIS CARD NOW (CALL-13). It used to be on a second,
-           silent card posted by `spendDespairCall` before the effect ran - see the
-           note there. Read where the card is built, which is after the refund
-           branch above, so the figure is the pool as it stands once the purchase
-           has actually held. `poolLabel` rather than the account's name, because
-           that is what the Despair bar calls it. */
-        const body = `${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
+        /* AND THE PRICE IS ON THIS CARD (DESP-11, CALL-13). It used to be on a
+           second card that `spendDespairCall` posted before the effect ran - see
+           the note there. Built after the refund branch above, so it is only ever
+           posted for a purchase that held. `poolLabel` rather than the account's
+           name, because that is what the Despair bar calls it. */
+        const body = `<p>${esc(callEffect(call))}</p>
+                      ${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
                       ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
                       <p><em>${game.i18n.format("DRPG.Despair.spent", {
-                          name: esc(poolLabel(user)), cost: call.cost, left: getDespair(user.id)
+                          name: esc(poolLabel(user) ?? user?.name ?? "?"), cost: call.cost
                       })}</em></p>`;
         await announce({
-            content: `<h3>${esc(call.label)}</h3>${body}`,
+            content: `<h3>${game.i18n.localize("DRPG.Despair.callTitle")} - ${esc(call.label)}</h3>${body}`,
             flags: { [MODULE_ID]: { popupTone: "fear", sfx: { key: "despairCall", gm: true } } }
         });
 
@@ -503,6 +514,20 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {} }
        gives. */
     if (call.needsGm && !String(result).trim()) return null;
     return result;
+}
+
+/**
+ * A sticky notice while the GM decides (COMM-04). The player used to see
+ * nothing at all between pressing the tile and the answer, and could not tell
+ * a GM reading the question from a socket that had dropped it.
+ */
+async function showWaitingCard(call) {
+    try {
+        const { showWaiting } = await import("./popup.mjs");
+        return showWaiting(game.i18n.format("DRPG.Calls.waitingGm", { call: call.label }), call.label);
+    } catch {
+        return () => {};
+    }
 }
 
 /**

@@ -52,9 +52,10 @@ export function actionsMax(actor) {
  * GRANTS - crossings and actions bought with Hope
  * --------------------------------------------------------------------------
  * Sprint and Burst (E13) buy something that lasts rather than something the
- * next roll consumes, so neither goes through `FLAGS.pendingCall` - that holds
- * ONE armed Call, and parking a Sprint there would silently delete a Support
- * armed a moment before. They bank into counters instead, spent by the two
+ * next roll consumes, so neither goes through `FLAGS.pendingCall` - that is the
+ * list of Calls armed for the NEXT roll (CALL-02), spent by the roll that uses
+ * them, and a Sprint parked there would be used up by a Search that has nothing
+ * to do with crossing a room. They bank into counters instead, spent by the two
  * functions below that charge for a crossing and for an action.
  *
  * Nothing clears them on a timer. `resetActionsFor` empties both alongside the
@@ -196,6 +197,9 @@ export async function spendAction(actor, amount = 1, { quiet = false } = {}) {
  * @param {object} [receipt]  What `spendAction` returned for the spend being
  *   undone. A Burst receipt gives the Burst back. Without one - a GM-side refund
  *   for a spend made on somebody else's client - it is refunded as an action.
+ *   A ruling card posted by 1.2.43 says `paid: "grant"` rather than carrying a
+ *   receipt (ROLL-13), so the card's reader builds `{ grant: true }` from those
+ *   words before it calls this; nothing here reads a card.
  */
 export async function refundAction(actor, amount = 1, receipt = null) {
     if (!actor || amount <= 0) return false;
@@ -383,10 +387,12 @@ export async function resetAllActions({ keepGrants = false } = {}) {
  * time of day. A Burst and a Sprint were bought with four Hope each and "until the
  * end of this time of day" has not arrived - the trial is inside it.
  *
- * Called from the two places the phase moves to `classTrial` and nowhere else,
- * both already guarded by "the phase was not classTrial": `startClassTrial` and
- * `startFloor`. That guard is what makes it idempotent, so a trial's second and
- * third debate refill nothing.
+ * Called from one place: the `to === "classTrial"` branch of `reconcilePhase`
+ * in clock.mjs, which `setClock` runs on every route into a trial
+ * (`startClassTrial`, `setPhase` - which `startFloor` goes through - the clock
+ * editor and the season reset), and only when the phase really changed. That
+ * guard is what makes it idempotent, so a trial's second and third debate
+ * refill nothing.
  */
 export async function openTrialBudget() {
     return resetAllActions({ keepGrants: true });

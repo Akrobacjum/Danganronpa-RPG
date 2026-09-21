@@ -22,7 +22,7 @@
  * entitled to more from.
  */
 
-import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mjs";
+import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, STARTING, OVERFLOW } from "./config.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel } from "./clock.mjs";
 import { dialogContent, error, workingScene, esc} from "./utils.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -201,7 +201,8 @@ export async function openDespairExplainer() {
          * cannot hold. A player who clicked the pips to ask about the bar reads
          * the caption sitting directly above it on the way.
          */
-        const overflowLines = [esc(t("DRPG.Overflow.explainBody")),
+        const overflowLines = [esc(game.i18n.format("DRPG.Overflow.explainBody",
+                                   { max: STARTING.despairMax, effects: Object.keys(OVERFLOW.effects ?? {}).length })),
                                esc(t("DRPG.Overflow.explainVeil"))];
         if (game.user.isGM) {
             const { overflowStatus } = await import("./overflow.mjs");
@@ -288,8 +289,12 @@ export async function openStatusExplainer() {
 /** The Projects tray: what a project is, and which ones this reader can see. */
 export async function openProjectsExplainer() {
     try {
-        const { visibleProjects } = await import("./projects.mjs");
-        const mine = visibleProjects(game.user);
+        /* `knownProjects`, not `visibleProjects`: this window explains the tray,
+           so it has to list exactly what the tray lists. On `visibleProjects` it
+           named every public project on the board, discovered or not - which
+           made it a way of reading the season's plan off a help window. */
+        const { knownProjects } = await import("./projects.mjs");
+        const mine = knownProjects(game.user);
 
         // `current` counts UP toward `start`, whichever way the underlying
         // countdown is stored - `allProjects()` has already normalised that,

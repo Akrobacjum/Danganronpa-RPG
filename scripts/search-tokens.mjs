@@ -10,7 +10,7 @@
  * whichever Scene Region the acting token is standing in (`roomOfActor`).
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, activeGmIds, whisperToGms, debug, error } from "./utils.mjs";
 import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
@@ -457,7 +457,7 @@ async function onSocketMessage(payload, senderId) {
  * if no GM answers in time, so a disconnected GM can never silently grant a
  * free search.
  */
-function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, timeoutMs = 5000) {
+function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, timeoutMs = TIMING.searchTokenAckMs) {
     if (!game.users.some(u => u.isGM && u.active)) {
         ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.noGm"));
         return Promise.resolve({ ok: false, left: null, plant: null });

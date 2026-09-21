@@ -2,7 +2,7 @@
  * Danganronpa RPG - the killing game's rules.
  * ---------------------------------------------------------------------------
  * Monokuma's standing rules: the ones announced at the start, and every one
- * bought since with the "New Rule" Call (its price is DESPAIR_CALLS.newRule).
+ * bought since with the "New Rule" Despair Call (priced in DESPAIR_CALLS).
  *
  * Until now that Call posted its rule to chat and the module forgot it. A rule
  * that scrolls out of the log is a rule nobody can be held to - and being held
@@ -89,7 +89,7 @@ export function motive() {
  * mechanically: nothing counted down, nothing came due, and whether it was
  * still in force was a memory test the table failed two sessions later.
  *
- * NOT A GM ENTRANCE ANY MORE. This is reached from the nine-Despair Call and
+ * NOT A GM ENTRANCE ANY MORE. This is reached from the Motive Despair Call and
  * from `game.drpg.setMotive` for repair; the free route the rules manager used
  * to offer is gone, because a motive that costs nothing is a move Monokuma can
  * make every time of day forever.
@@ -235,8 +235,8 @@ async function write(next) {
  * Introduce a rule.
  *
  * Called by hand from the manager, and by the New Rule Despair Call - which is
- * the reason this is a function and not a dialog: the Call has already been
- * paid for and asked for the wording by the time it gets here.
+ * the reason this is a function and not a dialog: the Call has already taken
+ * its price and asked for the wording by the time it gets here.
  *
  * @param {string} text
  * @returns {Promise<object|null>} the stored rule.

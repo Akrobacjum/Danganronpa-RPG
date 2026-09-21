@@ -20,7 +20,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { getClock } from "./clock.mjs";
+import { getClock, timeOfDayLabel } from "./clock.mjs";
 import { error, esc} from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 
@@ -101,7 +101,7 @@ export async function showDaySummary() {
     const content = `
         <div class="drpg-day-summary">
             <p class="drpg-sum-lede">${game.i18n.format("DRPG.Summary.lede", {
-                phase: esc(clock?.timeOfDay ?? ""), n: mine.length })}</p>
+                phase: esc(timeOfDayLabel(clock?.timeOfDay)), n: mine.length })}</p>
             <ul class="drpg-sum-list">${rows.join("")}</ul>
             <p class="drpg-sum-totals">${game.i18n.format("DRPG.Summary.totals", {
                 actions: mine.length, found, traces })}</p>

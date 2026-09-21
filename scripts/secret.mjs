@@ -31,10 +31,14 @@
  *
  * WHAT STILL LEAKS, said plainly rather than left for somebody to discover: a
  * non-recipient can still see THAT a private card exists, when, from which
- * speaker, and who it was addressed to. That is metadata and it cannot be
- * removed without giving up the chat log itself - the recipient list is what
- * Foundry routes on. The content is the thing that was worth moving, and the
- * content is gone.
+ * speaker, and who it was addressed to. That is metadata, and for most cards
+ * it is harmless - "somebody Searched at 21:03" is not a secret. For an
+ * incident's cards it is the whole secret, and those are posted VEILED (see
+ * `VEILED_FLAG` below): a neutral speaker, the whole table as the recipient
+ * list, and a card that clients holding no words never draw. What a veiled
+ * card still tells a reader of the database is that a private card was posted
+ * at that moment by that user - the author is the one field Foundry stamps
+ * server-side, and every incident card is posted by a GM's client.
  *
  * WHAT IT COSTS. A GM who was not connected when a secret was posted will never
  * see that sentence: there is no server-side copy to catch up from. Before this,
@@ -43,7 +47,7 @@
  * player reading it is the game.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { debug, error } from "./utils.mjs";
 
@@ -52,6 +56,29 @@ const ACTION_SECRET = "secret.card";
 
 /** The flag that says "this card's words are somewhere else". */
 export const SECRET_FLAG = "secret";
+
+/**
+ * The flag that says "and its audience is nobody's business either".
+ *
+ * THE OTHER HALF OF THE LEAK, the one the header above admits to: a bystander
+ * could still read WHO a private card was addressed to and WHICH actor it
+ * spoke as. For an incident's cards that metadata is the whole secret - the
+ * recipient list of a crisis card IS the cast. A veiled card carries a neutral
+ * speaker and the whole table as its `whisper` list, so the document says
+ * nothing about anybody; the words still travel only to the real readers,
+ * and a client holding no words hides the card instead of drawing a stub.
+ */
+export const VEILED_FLAG = "veiled";
+
+/** Is this a card whose document deliberately names nobody? */
+export function isVeiled(message) {
+    return Boolean(message?.flags?.[MODULE_ID]?.[VEILED_FLAG]);
+}
+
+/** Everybody: the audience a veiled card is written to. */
+function everyone() {
+    return game.users.filter(u => Boolean(u?.id)).map(u => u.id);
+}
 
 /**
  * What a client that is not holding the words sees in the document.
@@ -78,7 +105,7 @@ const STUB = '<p class="notes" data-drpg-secret>-</p>';
 const isStub = content => String(content ?? "").includes("data-drpg-secret");
 
 /** How many secrets a browser keeps. Beyond this the oldest go. */
-const KEEP = 500;
+const KEEP = TIMING.secretCardsKept;
 
 /* ==========================================================================
  * THE STORE
@@ -184,22 +211,35 @@ export function contentOf(message) {
     return secretHtml(message) ?? message?.content ?? "";
 }
 
-async function remember(id, html, at) {
+async function remember(id, html, at, pin = false) {
     // Anything holding a notice open for these words gets them now.
     const pending = waiting.get(id);
     if (pending) pending(html);
 
-    const store = { ...read(), [id]: { html, at: at ?? Date.now() } };
+    const store = { ...read(), [id]: { html, at: at ?? Date.now(), ...(pin ? { pin: true } : {}) } };
 
-    const ids = Object.keys(store);
+    // Oldest first, and only as many as we are over by. A store that emptied
+    // itself on every overflow would lose a whole session's narration to one
+    // busy evening. PINNED cards - the messenger's threads, the longest-lived
+    // cards in the world - are never the ones to go: a thread that aged out
+    // of the store would show its oldest bubbles as dashes.
+    const ids = Object.keys(store).filter(key => !store[key].pin);
     if (ids.length > KEEP) {
-        // Oldest first, and only as many as we are over by. A store that
-        // emptied itself on every overflow would lose a whole session's
-        // narration to one busy evening.
         ids.sort((a, b) => (store[a].at ?? 0) - (store[b].at ?? 0));
         for (const stale of ids.slice(0, ids.length - KEEP)) delete store[stale];
     }
     await write(store);
+
+    // A thread's window draws its bubbles from this store: the one whose
+    // words just landed is redrawn in place, the way a settled card is.
+    const message = game.messages?.get(id);
+    const thread = message?.flags?.[MODULE_ID]?.thread;
+    if (thread) Hooks.callAll("drpgMessengerEdited", thread, message);
+}
+
+/** A card the store must never age out: a messenger thread's. */
+function pinned(flags) {
+    return Boolean(flags?.[MODULE_ID]?.thread);
 }
 
 /** A card that is gone takes its words with it. */
@@ -223,35 +263,43 @@ async function forget(ids = []) {
  * @param {string}   data.content      The sentence that must not travel.
  * @param {string[]} data.whisper      Who may read it. Required - a secret with
  *                                     no audience is a bug, not a broadcast.
+ * @param {boolean}  [data.veiled]     Hide the audience and the speaker too:
+ *                                     the document is addressed to everybody
+ *                                     and speaks as nobody in particular. For
+ *                                     cards whose recipient list would itself
+ *                                     be a secret - an incident's.
  * @returns {Promise<ChatMessage|null>}
  */
 export async function postSecret(data = {}) {
-    const recipients = [...new Set((data.whisper ?? []).filter(Boolean))];
+    const { veiled = false, ...rest } = data ?? {};
+    const recipients = [...new Set((rest.whisper ?? []).filter(Boolean))];
     if (!recipients.length) {
         error("Refused to post a private card with nobody to read it.");
         return null;
     }
 
-    const html = data.content ?? "";
+    const html = rest.content ?? "";
     const message = await ChatMessage.create({
-        ...data,
+        ...rest,
+        ...(veiled ? { speaker: { alias: game.i18n.localize("DRPG.Secret.speaker") } } : {}),
         content: STUB,
-        whisper: recipients,
+        whisper: veiled ? everyone() : recipients,
         flags: foundry.utils.mergeObject(
-            data.flags ?? {},
-            { [MODULE_ID]: { [SECRET_FLAG]: true } },
+            rest.flags ?? {},
+            { [MODULE_ID]: { [SECRET_FLAG]: true, ...(veiled ? { [VEILED_FLAG]: true } : {}) } },
             { inplace: false }
         )
     });
     if (!message) return null;
 
     const at = message.timestamp ?? Date.now();
+    const pin = pinned(rest.flags);
 
     // Ourselves first and without the socket: a GM posting a card they are a
     // recipient of should never be waiting on their own network round trip to
     // read what they just wrote.
     if (recipients.includes(game.user.id)) {
-        await remember(message.id, html, at);
+        await remember(message.id, html, at, pin);
         refresh(message);
     }
 
@@ -259,7 +307,7 @@ export async function postSecret(data = {}) {
     if (others.length) {
         try {
             game.socket.emit(SOCKET_EVENT,
-                { action: ACTION_SECRET, id: message.id, html, at },
+                { action: ACTION_SECRET, id: message.id, html, at, pin },
                 { recipients: others });
         } catch (err) {
             // The card exists and says nothing. Better than the reverse.
@@ -268,6 +316,56 @@ export async function postSecret(data = {}) {
     }
 
     return message;
+}
+
+/**
+ * Replace a private card's words, on every client that holds them.
+ *
+ * For a card that changes after it was posted - a ruling card settling into a
+ * receipt. `message.update({ content })` would put the words into the
+ * document, which is the leak this file exists to close; so the document is
+ * left alone and the new words travel the road the old ones did.
+ *
+ * @param {ChatMessage} message
+ * @param {string} html
+ * @param {string[]} [recipients]  Who holds the words. Defaults to the card's
+ *   whisper list, which is right for every card that is not veiled.
+ */
+export async function updateSecret(message, html, recipients = null) {
+    if (!message?.id) return null;
+    const readers = [...new Set((recipients ?? message.whisper ?? []).filter(Boolean))];
+    const at = read()[message.id]?.at ?? message.timestamp ?? Date.now();
+    const pin = pinned(message.flags);
+    if (readers.includes(game.user.id) || !readers.length) {
+        await remember(message.id, html, at, pin);
+        refresh(message);
+    }
+    const others = readers.filter(id => id !== game.user.id);
+    if (others.length) {
+        try {
+            game.socket.emit(SOCKET_EVENT,
+                { action: ACTION_SECRET, id: message.id, html, at, pin }, { recipients: others });
+        } catch (err) {
+            error("Could not deliver a private card's new words", err);
+        }
+    }
+    return message;
+}
+
+/** The document a socket packet named, once Foundry delivers it - or null after a while. */
+function messageArrives(id, ms = 4000) {
+    return new Promise(resolve => {
+        const hook = Hooks.on("createChatMessage", message => {
+            if (message?.id !== id) return;
+            Hooks.off("createChatMessage", hook);
+            clearTimeout(timer);
+            resolve(message);
+        });
+        const timer = setTimeout(() => {
+            Hooks.off("createChatMessage", hook);
+            resolve(game.messages.get(id) ?? null);
+        }, ms);
+    });
 }
 
 /** Redraw one card in place, once its words have arrived. */
@@ -285,11 +383,28 @@ function refresh(message) {
  * ========================================================================== */
 
 export function registerSecrets() {
-    game.socket.on(SOCKET_EVENT, async payload => {
+    game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
         if (payload?.action !== ACTION_SECRET) return;
         if (!payload.id || typeof payload.html !== "string") return;
         try {
-            await remember(payload.id, payload.html, payload.at);
+            /*
+             * WHO MAY PUT WORDS ON A CARD (CASE-13): a GM, or the card's own
+             * author. Anybody else sending `secret.card` for somebody else's
+             * message was writing spoofed narration - "the GM ruled..." -
+             * into a real card on another player's screen. The document
+             * usually lands before its words; when it has not yet, the check
+             * waits for it rather than trusting the packet.
+             */
+            const sender = game.users.get(senderId ?? "");
+            if (!sender?.isGM) {
+                const message = game.messages.get(payload.id) ?? await messageArrives(payload.id);
+                const author = message?.author?.id ?? message?.user?.id ?? null;
+                if (!message || author !== senderId) {
+                    debug(`Refused private words for ${payload.id} from ${sender?.name ?? senderId}: not the author.`);
+                    return;
+                }
+            }
+            await remember(payload.id, payload.html, payload.at, Boolean(payload.pin));
             refresh(game.messages.get(payload.id));
         } catch (err) {
             error("Could not keep a private card that arrived", err);
@@ -303,7 +418,18 @@ export function registerSecrets() {
     Hooks.on("renderChatMessageHTML", (message, element) => {
         try {
             const html = secretHtml(message);
-            if (!html) return;
+            if (!html) {
+                // A veiled card this client was not sent the words of is not
+                // this client's card: hidden, not blanked, so the log shows
+                // neither a dash nor a gap where somebody else's secret sits.
+                if (isVeiled(message)) {
+                    element.classList.add("drpg-veiled");
+                    element.style.display = "none";
+                }
+                return;
+            }
+            element.classList.remove("drpg-veiled");
+            element.style.display = "";
             const body = element.querySelector(".message-content") ?? element;
             body.innerHTML = html;
         } catch (err) {

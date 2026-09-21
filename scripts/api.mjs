@@ -68,8 +68,7 @@ import {
 } from "./assignments.mjs";
 import {
     diagnoseDice, diagnoseDespair, diagnoseStyles, diagnoseTruthBullets, diagnoseVoice,
-    diagnoseWindows, traceClicks, fileSizes,
-} from "./diagnostics.mjs";
+    diagnoseWindows, traceClicks, fileSizes, perfReport, whySlow } from "./diagnostics.mjs";
 import { diagnoseLive } from "./live.mjs";
 import { diagnoseOwnRings } from "./own-ring.mjs";
 import { unregisterCriticalRule } from "./critical.mjs";
@@ -89,7 +88,8 @@ import {
     migrateRemnants, remnantData, reportRemnants, flushTraceDigest } from "./remnants.mjs";
 import { migrate1_2_0, migrationStatus } from "./migrate.mjs";
 import {
-    allProjects, visibleProjects, canSee, projectsAvailableIn, projectsListedIn,
+    allProjects, visibleProjects, knownProjects, knowsProject, canSee,
+    projectsAvailableIn, projectsListedIn,
     isComplete, addProgress, setProjectMeta,
     makeSecret, shareWith, unshareWith, revealProject, isSecret, viewersOf
 } from "./projects.mjs";
@@ -145,6 +145,7 @@ import {
 import { repaintFog, diagnoseFog, applySceneVisionMode, seedDiscovery, prepareScenes,
     restoreSceneVisionMode, diagnoseScenes, whyBlack, fogAnimations, fogPeek, doorwayReport,
     checkRegions, whatIsHere } from "./fog.mjs";
+import { a11yReport } from "./a11y.mjs";
 import {
     isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isSilenced,
     meddleTargets, performMeddle, resolveMeddle, meddleDialog,
@@ -196,10 +197,8 @@ import {
 } from "./messenger.mjs";
 import {
     scheduleReconcile as reconcileVoice,
-    eavesdropRoom, voicePlan, voiceTargets,
-    stopEavesdropping,
-    resetAllVoice,
-    openEavesdropDialog as voiceEavesdropDialog
+    voicePlan, voiceTargets,
+    resetAllVoice
 } from "./voice.mjs";
 import {
     startEclipse, endEclipse, isEclipse, movesLeft, placementStatus, ruleOnParkedMurder
@@ -319,17 +318,17 @@ export const DrpgApi = {
     /** Phase: "dailyLife" | "investigation" | "classTrial". */
     setPhase,
 
-    /** Move to the next time of day: refills actions, free Moves, search tokens. */
+    /** Move to the next time of day. Refills nothing by default; `resetActions` and `resetSearchTokens` are opt-in (see clock.mjs). */
     advanceTimeOfDay,
 
     /** Step back one time of day. A correction - refills nothing, and refused while an Eclipse runs. */
     rewindTimeOfDay,
     setTimeOfDay,
 
-    /** Open the GM panel (also on the token toolbar as a clock icon). */
+    /** Open the GM panel (also the launcher in the left rail). */
     gmPanel: openGmPanel,
 
-    /** Open the clock editor (also a tile on the GM panel). */
+    /** Open the clock editor (also "Edit campaign" on the GM panel). */
     editClock: openClockDialog,
 
     /** Force the top-of-screen HUD to redraw. */
@@ -426,6 +425,14 @@ export const DrpgApi = {
         Anything shown to a player must come from here, never `allProjects`. */
     visibleProjects,
     canSee,
+
+    /** The same list again, narrowed to what this person has actually FOUND: a
+     *  public project in a room nobody has walked into is legal to know about and
+     *  simply has not been discovered yet. The tray and the map token both ask
+     *  `knowsProject`; see the note above it in projects.mjs for which of the
+     *  two questions belongs where. */
+    knownProjects,
+    knowsProject,
     projectsAvailableIn,
 
     /** The same list with finished projects left in, which is what a picker
@@ -725,6 +732,10 @@ export const DrpgApi = {
     /** Un-mark a mis-click. Does NOT bring the destroyed inventory back. */
     reviveCharacter,
 
+    /** The safeword, for anyone: no character, no sheet, no reason asked.
+     *  The same confirmation the sheet's button opens (COMM-11). */
+    safeword: () => import("./safeword.mjs").then(m => m.safewordDialog()),
+
     /** Promote the traces, call everyone in, and hold the game there. */
     discoverBody,
 
@@ -913,8 +924,6 @@ export const DrpgApi = {
     openObjection,
     openRebuttal,
     returnToDebate,
-    /** Kept under its old name: it always returned to the debate. */
-    returnToDiscussion: returnToDebate,
     /** The transition the clock would have made, made now. */
     advanceFloorNow,
     extendFloor,
@@ -1165,10 +1174,7 @@ export const DrpgApi = {
     /** Re-check every player's room and reassign voice now, skipping the debounce. */
     reconcileVoice,
 
-    /** Join a room's voice channel as a muted listener. `null` leaves it. */
-    eavesdropRoom,
     voicePlan,
-    stopEavesdropping,
 
     /**
      * The raw decision behind `voicePlan()` - one entry per connected account,
@@ -1178,11 +1184,8 @@ export const DrpgApi = {
      */
     voiceTargets,
 
-    /** Send everyone currently assigned back to the main room. */
+    /** Send everyone currently assigned back to the main room (also a tile under Between sessions). */
     resetAllVoice,
-
-    /** Open the room picker (also on the GM panel's "More…" menu). */
-    voiceEavesdropDialog,
 
     /* ---- music -------------------------------------------------------------
      * The playlist follows the state. No socket: playlists are world documents,
@@ -1232,6 +1235,21 @@ export const DrpgApi = {
      *  long to be doorways, corners off the grid. Reports, never repairs - the
      *  map belongs to the GM. Also on a button in Room setup ▸ Fog. */
     checkRegions,
+    /** What a screen reader cannot read: every kind of control in the module's own
+     *  chrome that carries no name, after the sweep in a11y.mjs has done what it
+     *  can. `game.drpg.a11y()` - empty is the answer to want. */
+    a11y: a11yReport,
+    /** What the theme costs THIS machine: the frame budget with the pulse running
+     *  and with it held, one recut of the glass, and the module's hot lookups.
+     *  `game.drpg.perf()` - every performance number in the audit was measured
+     *  headlessly, and this is the only one measured where somebody is playing. */
+    perf: perfReport,
+    /** The other half of `perf()`: instead of pricing what the module already
+     *  suspects, this watches for a while and asks the browser to name the file
+     *  and the function every long frame's script time was spent in.
+     *  `game.drpg.whySlow()`, then USE the module for fifteen seconds. An empty
+     *  table is a result too - it means the cost is paint, not JavaScript. */
+    whySlow,
     /** Hide both fog layers for a few seconds, then put them back. Answers
      *  "is that thing on screen ours?" without pasting a chain of lookups. */
     fogPeek,

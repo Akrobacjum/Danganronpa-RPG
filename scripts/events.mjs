@@ -20,7 +20,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { getClock, timeOfDayLabel } from "./clock.mjs";
+import { getClock } from "./clock.mjs";
 import { error, plural } from "./utils.mjs";
 import { marksOf } from "./character.mjs";
 import { motive } from "./rules.mjs";
@@ -28,23 +28,59 @@ import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
-import { bodyDiscovery, bodyDiscoveryFresh } from "./settings.mjs";
+import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentCast, incidentParticipants,
+    incidentWitness } from "./settings.mjs";
+import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
+import { SAFEWORD_FLAG } from "./safeword.mjs";
+import { trialProgress, VOTE_OPEN_FLAG, votesIn, pendingVoters } from "./vote.mjs";
+import { narrowColumn } from "./narrow.mjs";
 
 const WIDGET_ID = "drpg-events";
 
-/** The panel exists only under the Stained Glass theme. */
+/**
+ * BOTH THEMES, SINCE 1.2.47, AND THE REASON IS NOT DECORATION.
+ * ---------------------------------------------------------------------------
+ * This panel used to be Stained Glass only, and the four standing threats went
+ * back to being rows of the clock under Monokuma Legacy so that theme "stayed
+ * exactly the look it was". What that actually bought was two implementations
+ * of the same four facts - `motiveCard` here and `buildMotive` in hud.mjs, and
+ * so on - and a Legacy screen that was missing information, not just styling:
+ *
+ *   the opening roll     no row at all
+ *   the Despair overflow no row at all
+ *   a body found         a row that vanished the moment the investigation
+ *                        started, because it read `bodyDiscovery()` alone and
+ *                        that record is cleared then; the card here stands for
+ *                        the whole investigation
+ *   the motive           a row whose consequence was in a tooltip only
+ *
+ * So there is one implementation now and both themes get all of it. The clock
+ * is a clock in both, which is what it was always supposed to be. What stays
+ * theme-specific is the LOOK (stained-glass.css and the Legacy block beside it)
+ * and the ticker behind the clock, which is a texture rather than a fact.
+ *
+ * Kept as a function rather than deleted at every call site: it is what the
+ * a11y sweep and the suite name when they ask whether this panel is a thing,
+ * and a predicate that is true everywhere is cheaper to read than an absence.
+ */
 export function eventsWindowActive() {
-    return document.body.classList.contains("drpg-theme-stained-glass");
+    return true;
 }
 
-function kicker(clock) {
-    const parts = [
-        game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter }),
-        game.i18n.format("DRPG.Hud.day", { n: clock.day ?? 1 })
-    ];
-    try { const t = timeOfDayLabel(clock.timeOfDay); if (t) parts.push(t); } catch { /* the hour is optional */ }
-    return parts.join(" · ");
-}
+/* THE KICKER IS GONE, AND WHAT IT SAID IS THE REASON (16.09).
+   ---------------------------------------------------------------------------
+   Every card in this panel used to open with a line reading
+   "Chapter 1 · Day 3 · Afternoon", built here from the clock. The clock itself
+   stands 300 px to the left and prints the campaign, "Chapter 1 · Day 3", the
+   phase with its glyph, the hour, the elapsed time and the room. So with three
+   cards up, the same six words were on screen four times - once where they
+   belong and three times as a header for something else.
+
+   Nothing replaces it as a header. What the freed line buys is the motive's
+   CONSEQUENCE, which until now lived only in a `data-tooltip`: a tooltip is not
+   readable on a shared screen, is not readable at all by somebody driving with
+   a keyboard, and "or else" is half of what a motive IS. It is `note` on the
+   card now, and the tooltip keeps its copy for the hover. */
 
 /* ---- the three cards ------------------------------------------------------ */
 
@@ -56,7 +92,17 @@ function motiveCard() {
         : plural("DRPG.Motive.left", { n: record.remaining ?? 0 });
     const tooltip = [foundry.utils.escapeHTML(record.text)];
     if (record.consequence) tooltip.push(`<em>${game.i18n.format("DRPG.Motive.orElse", { what: foundry.utils.escapeHTML(record.consequence) })}</em>`);
-    return { kind: "motive", due: Boolean(record.due), title: game.i18n.localize("DRPG.Motive.title"), sub: record.text, meta, tooltip: tooltip.join("<br>") };
+    return {
+        kind: "motive", due: Boolean(record.due),
+        title: game.i18n.localize("DRPG.Motive.title"),
+        sub: record.text,
+        meta,
+        // The half of a motive that says what it costs to ignore.
+        note: record.consequence
+            ? game.i18n.format("DRPG.Motive.orElse", { what: record.consequence })
+            : null,
+        tooltip: tooltip.join("<br>")
+    };
 }
 
 function assemblyCard() {
@@ -82,15 +128,37 @@ function assemblyCard() {
  */
 function openingCard() {
     if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
-    const state = game.settings.get(MODULE_ID, "murderState") ?? {};
+    const state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
     if (!state.active || state.stage !== "openingRoll") return null;
+    const cast = incidentCast();
     const ids = new Set(game.actors
         .filter(a => a.type === "character" && a.testUserPermission(game.user, "OWNER"))
         .map(a => a.id));
     if (game.user.character?.id) ids.add(game.user.character.id);
-    const seats = [state.killerId, state.victimId, state.thirdId].filter(Boolean);
+    /*
+     * The names are in the client-scoped cast (LIVE-001), which a participant
+     * holds and a bystander does not; reading them off the world half found
+     * nothing and hid this card from the killer as well.
+     *
+     * EACH KIND OF MURDER HAS EXACTLY ONE PERSON IT DOES NOT TELL, and they are
+     * opposite people. A DIRECT murder does not tell its victim: nobody has
+     * asked them for anything and the first they know of it is the incident
+     * starting (config.mjs, the opening rules). An INDIRECT one does not tell
+     * its killer: they built the trap and are somewhere else, and the victim is
+     * the one who rolls. Stated as one line because it is one rule seen from
+     * two ends.
+     *
+     * The killer's half is belt and braces - `castOwners` in murder.mjs no
+     * longer sends them a cast at all while the trap is running, so
+     * `incidentParticipants()` is already empty on their browser. It is written
+     * here too because this card is also built on a GM's client, where the cast
+     * is complete, and because a rule that lives in one place is a rule that
+     * travels when somebody moves the other place.
+     */
+    const seats = incidentParticipants().filter(id =>
+        state.indirect ? id !== cast.killerId : id !== cast.victimId);
     if (!game.user.isGM && !seats.some(id => ids.has(id))) return null;
-    const victim = game.actors.get(state.victimId), killer = game.actors.get(state.killerId);
+    const victim = game.actors.get(cast.victimId), killer = game.actors.get(cast.killerId);
     let room = null;
     try { room = victim ? (roomOfActor(victim)?.name ?? null) : null; } catch { /* a victim outside every room */ }
     const who = game.user.isGM && killer && victim ? `${killer.name} → ${victim.name}` : (victim?.name ?? "");
@@ -104,21 +172,29 @@ function openingCard() {
 }
 function incidentCard() {
     if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
-    const state = game.settings.get(MODULE_ID, "murderState") ?? {};
+    /*
+     * THE MECHANICS FROM THE WORLD, THE NAMES FROM THIS BROWSER.
+     *
+     * Every id this card reads - who the killer is, who the victim is, whose
+     * turn it is - moved into the client-scoped cast with LIVE-001, and this
+     * card went on reading them off the world setting alone. They were never
+     * there, so `victim` was always undefined and the card returned null the
+     * instant the opening roll ended: the panel simply vanished for the rest of
+     * the incident, on the GM's screen as well as everybody else's. Same merge
+     * `murderState()` makes in murder.mjs, and the same one `openingCard` above
+     * already made.
+     */
+    const state = { ...(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}), ...incidentCast() };
     if (!state.active || state.stage !== "incident") return null;
 
-    const ids = new Set(game.actors
-        .filter(a => a.type === "character" && a.testUserPermission(game.user, "OWNER"))
-        .map(a => a.id));
-    const assigned = game.user.character?.id;
-    if (assigned) ids.add(assigned);
-    const seats = [state.killerId, state.victimId, state.thirdId].filter(Boolean);
-    const ownedSeat = seats.find(id => ids.has(id)) ?? null;
-    const mine = (assigned && seats.includes(assigned)) ? assigned : (game.user.isGM ? null : ownedSeat);
+    // THE GATE: a spectator gets nothing, not even the frame - and neither does
+    // the killer of a trap. One predicate, shared with the HUD's turn row, the
+    // colour of the interface's edges and the murder playlist, so those four
+    // cannot come to disagree about who is in this. See `incidentWitness`.
+    const here = incidentWitness();
+    if (!here.witness) return null;
+    const mine = here.seat;
     const involved = Boolean(mine);
-
-    // THE GATE: a spectator gets nothing, not even the frame.
-    if (!game.user.isGM && !ownedSeat) return null;
 
     const victim = game.actors.get(state.victimId);
     const killer = game.actors.get(state.killerId);
@@ -152,13 +228,112 @@ function incidentCard() {
 }
 
 /**
+ * THE SCENE IS STOPPED, and it stays stopped until somebody says otherwise.
+ *
+ * The safeword's own card is a sticky popup on the client that receives the
+ * announcement, which is right for the moment it lands and wrong for the ten
+ * minutes afterwards: somebody closes it, somebody else joins, and the one
+ * state in this game that means "nothing happens now" is on nobody's screen.
+ *
+ * NO NEW STATE, and that is the whole of why this reads the way it does. The
+ * safeword pauses the game (`game.togglePause`, safeword.mjs) and the clock
+ * stamps `pausedAt` when it does, so "is the game stopped" is already answered
+ * twice over. What is left is "was it stopped BY a safeword", and the chat log
+ * is the record: the announcement carries `SAFEWORD_FLAG` and a timestamp. An
+ * ordinary pause - somebody pressed Foundry's own button - gets no card, and
+ * should not: Foundry draws its own banner for that.
+ *
+ * WHO CALLED IT IS NOT ON THE CARD, ever. The handbook's protection is that
+ * nobody has to explain themselves, and the public announcement says "somebody"
+ * for exactly that reason (safeword.mjs). The name travels to the GMs over a
+ * recipient-addressed socket and stops there; this card is drawn on everybody's
+ * screen, so it knows nothing to leak.
+ *
+ * The slack is for the order of two writes, not for a guess: the message is
+ * posted and the pause follows it, both asynchronously, so a message a few
+ * seconds older than the stamp is still this pause's.
+ */
+const SAFEWORD_SLACK_MS = 15000;
+/* Exported for the suite, which passes a clock of its own rather than moving
+   the world's: both of these take one and read nothing else off it. */
+export function safewordCard(clock) {
+    try {
+        if (!game.paused || !clock.pausedAt) return null;
+        const called = (game.messages ?? []).reduce((newest, m) => {
+            if (!m.getFlag(MODULE_ID, SAFEWORD_FLAG)) return newest;
+            return !newest || m.timestamp > newest.timestamp ? m : newest;
+        }, null);
+        if (!called || called.timestamp < clock.pausedAt - SAFEWORD_SLACK_MS) return null;
+
+        return {
+            kind: "safeword",
+            // It is waiting on a person, and `due` is how this panel says so.
+            due: true,
+            title: game.i18n.localize("DRPG.Events.safewordTitle"),
+            sub: game.i18n.localize("DRPG.Events.safewordSub"),
+            meta: game.i18n.localize(game.user.isGM
+                ? "DRPG.Events.safewordMetaGm" : "DRPG.Events.safewordMeta")
+        };
+    } catch (err) {
+        error("Could not read the safeword for the Event panel", err);
+        return null;
+    }
+}
+
+/**
+ * IS THERE A VOTE OPEN, asked without inventing anywhere new to keep it.
+ *
+ * `ballots` lives on the GM's client and nowhere else, so a player's browser
+ * cannot answer this at all - which is the gap `pendingVoters` exists for: a
+ * player who dismissed their ballot by accident had nothing on screen telling
+ * them the table was waiting. Two facts that are already shared answer it:
+ * the flagged announcement `openVote` posts (the log is the record), and
+ * `voteClosed` in `trialProgress`, which is a world setting and is what
+ * `closeVote` writes. Both are chapter-stamped, because the log outlives the
+ * trial and a record from another chapter describes another vote.
+ */
+function voteIsOpen(clock) {
+    try {
+        if (trialProgress().voteClosed) return false;
+        return (game.messages ?? []).some(m =>
+            m.getFlag(MODULE_ID, VOTE_OPEN_FLAG)
+            && m.getFlag(MODULE_ID, "voteChapter") === clock.chapter);
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Whose floor it is in the Class Trial: the mode, the speaker, and who they
  * aimed at. The same reading hud.mjs `trialSlot` makes for the time row; here
  * it is a card, so the clock can stay a clock.
+ *
+ * THE VOTE IS A MODE OF THIS CARD AND NOT A CARD OF ITS OWN, because it is the
+ * same fact the rest of the time: what the trial is doing right now. A second
+ * card would put two gavels in the panel and leave the reader to work out which
+ * of them is live. What differs is what the two sides may know - everybody is
+ * told the vote is open, and only a GM is told how many ballots are back, since
+ * `votesIn` and `pendingVoters` answer on that client alone. HOW anybody voted
+ * is not here and is not anywhere: that is the one thing the guide keeps.
  */
-function trialCard(clock) {
+export function trialCard(clock) {
     try {
         if (clock.phase !== "classTrial") return null;
+
+        if (voteIsOpen(clock)) {
+            const back = game.user.isGM ? votesIn() : null;
+            const out = game.user.isGM ? (pendingVoters()?.length ?? null) : null;
+            return {
+                kind: "trial",
+                due: true,
+                title: game.i18n.localize("DRPG.Events.voteTitle"),
+                sub: game.i18n.localize("DRPG.Events.voteSub"),
+                meta: back === null || out === null
+                    ? game.i18n.localize("DRPG.Events.voteMeta")
+                    : game.i18n.format("DRPG.Events.voteMetaGm", { back, total: back + out })
+            };
+        }
+
         const floor = trialFloor();
         const key = floor ? floor.mode : "discussion";
         const unknown = "-";
@@ -276,13 +451,42 @@ function bodyCard(clock) {
     };
 }
 
+/**
+ * THE DESPAIR OVERFLOW, WHILE IT RUNS (Dawid, 13.09). The rail's caption says
+ * the counter is under an effect, in the small type of a caption; the effect
+ * itself changes what every action costs for a whole time of day, which is
+ * exactly what this panel is for. Everybody sees the card - the effect is
+ * announced to the table when it fires - and only the GM sees the counter
+ * behind it, which stays masked for a player (D3).
+ */
+function overflowCard() {
+    try {
+        const key = overflowEffect();
+        if (!key) return null;
+        const status = overflowStatus();
+        const rule = overflowRules().effects?.[key] ?? {};
+        return {
+            kind: "overflow",
+            due: true,
+            title: game.i18n.localize("DRPG.Overflow.caption"),
+            sub: status.effectName ?? game.i18n.localize(`DRPG.Overflow.name.${key}`),
+            meta: game.user.isGM
+                ? game.i18n.format("DRPG.Events.overflowMetaGm", { count: status.count, max: status.threshold })
+                : game.i18n.format(`DRPG.Overflow.what.${key}`, { n: rule.by ?? 1 })
+        };
+    } catch (err) {
+        error("Could not read the overflow for the Event panel", err);
+        return null;
+    }
+}
+
 /* ---- the panel ------------------------------------------------------------ */
 
 /* The state each card showed last time it was drawn, so a redraw can tell a change
    from a first sight. Keyed by card kind: two cards never share one. */
 const LAST_SUB = new Map();
 
-function cardElement(card, clock) {
+function cardElement(card) {
     const el = document.createElement("div");
     el.className = "drpg-event";
     el.dataset.kind = card.kind;
@@ -317,7 +521,6 @@ function cardElement(card, clock) {
         line.textContent = text;
         el.append(line);
     };
-    add("drpg-event-kicker", kicker(clock));
     add("drpg-event-title", card.title);
     /*
      * THE STATE ARRIVES THE WAY THE HOUR DOES.
@@ -339,6 +542,7 @@ function cardElement(card, clock) {
     }
     LAST_SUB.set(card.kind, card.sub ?? "");
     add("drpg-event-meta", card.meta);
+    add("drpg-event-note", card.note);
     return el;
 }
 
@@ -349,12 +553,15 @@ export function renderEvents() {
         if (!eventsWindowActive() || !game.user) { existing?.remove(); return; }
 
         const clock = getClock() ?? {};
-        const cards = [trialCard(clock), openingCard(), incidentCard(), bodyCard(clock), assemblyCard(), motiveCard()].filter(Boolean);
+        /* The safeword is first because it outranks everything: while the scene
+           is stopped, nothing else on this panel is happening. */
+        const cards = [safewordCard(clock), trialCard(clock), openingCard(), incidentCard(),
+            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard()].filter(Boolean);
         if (!cards.length) { existing?.remove(); return; }
 
         // Redraw only when something changed: the panel is on the curtain, and
         // every rebuild of it is a recut of the glass around it.
-        const signature = JSON.stringify(cards.map(c => [c.kind, c.title, c.sub, c.meta, c.due, c.mine]));
+        const signature = JSON.stringify(cards.map(c => [c.kind, c.title, c.sub, c.meta, c.note, c.due, c.mine]));
         if (existing && existing.dataset.signature === signature) return;
 
         const panel = document.createElement("div");
@@ -362,10 +569,11 @@ export function renderEvents() {
         panel.className = "drpg-events";
         panel.dataset.signature = signature;
         panel.setAttribute("role", "status");
-        for (const card of cards) panel.append(cardElement(card, clock));
+        for (const card of cards) panel.append(cardElement(card));
 
         const rail = document.getElementById("drpg-despair");
-        const host = rail?.parentElement ?? document.querySelector("#ui-top") ?? document.querySelector("#ui-middle");
+        // the card follows the rail wherever it stands, including into the narrow stack
+        const host = rail?.parentElement ?? narrowColumn() ?? document.querySelector("#ui-top") ?? document.querySelector("#ui-middle");
         if (!host) return;
         existing?.remove();
         if (rail) rail.after(panel); else host.append(panel);

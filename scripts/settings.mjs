@@ -6,7 +6,7 @@
  * never clutters the settings window.
  */
 
-import { MODULE_ID, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS } from "./config.mjs";
+import { MODULE_ID, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
 export const SETTINGS = {
@@ -57,8 +57,12 @@ export const SETTINGS = {
     hideSystemFear: "hideSystemFear",
     pixelFont: "pixelFont",
     theme: "theme",
+    /** This browser's language for the module's own strings - see i18n.mjs. */
+    language: "language",
     /** The slow darkening of the glass, separately from the glass itself. */
     glassPulse: "glassPulse",
+    /** Whether the glass blurs the map behind it - the theme's largest single cost. */
+    glassBlur: "glassBlur",
     uiScale: "uiScale",
     /** This browser's own "reduced motion", independent of what the system says. */
     reducedMotion: "reducedMotion",
@@ -69,6 +73,8 @@ export const SETTINGS = {
     /** The three messenger sounds, muted for this browser alone. */
     messengerSound: "messengerSound",
     projectsCollapsed: "projectsCollapsed",
+    /** How a player's Truth Bullets are grouped in the inventory: "chapter" or "room". */
+    bulletSort: "bulletSort",
     debug: "debug",
     /** Regions become LiveKit breakout rooms - off by default, needs avclient-livekit. */
     voiceEnabled: "voiceEnabled",
@@ -116,6 +122,8 @@ export const SETTINGS = {
      * for Foundry's `globalPlaylistVolume` - see `SFX_SLIDERS`.
      */
     sfxVolumes: "sfxVolumes",
+    /** The room's playlist volume, parked while the murder music has this browser. */
+    musicDuckedFrom: "musicDuckedFrom",
     /**
      * The word that stops the scene - Player Handbook, ch. 13.
      *
@@ -336,7 +344,6 @@ export const SETTINGS = {
      * upgrading mid-chapter can be read once and emptied. Nothing writes it.
      */
     blackenedLedger: "blackenedLedger",
-    blackened: "blackened",
     /**
      * The speaking queue during a Class Trial: who has the floor and since when.
      *
@@ -432,6 +439,10 @@ export const SETTINGS = {
      * discipline `truth-bullets.mjs` uses for its own ledger writes.
      */
     discoveredRooms: "discoveredRooms",
+    /** The GM's union of every character's discoveries - a CLIENT setting on GM browsers (D2). */
+    discoveryLedger: "discoveryLedger",
+    /** This player's own characters' rows, written by the primary GM over the socket (D2). */
+    discoveryMine: "discoveryMine",
     /**
      * Rooms, not sight lines, decide what a player can see.
      *
@@ -575,6 +586,24 @@ export function registerSettings() {
         onChange: () => applyTheme()
     });
 
+    /* ---- the language of this layer, per browser. English by default, and
+       deliberately NOT Foundry's core language: the file is fetched by the
+       module itself at init and merged at i18nInit (i18n.mjs), so a Polish
+       table on an English Foundry gets the sheet, the panel and the cards in
+       Polish and nothing else changes. A reload, because everything on screen
+       was built in the old language. The glossary stays in English in every
+       language - see the header of i18n.mjs. */
+    game.settings.register(MODULE_ID, SETTINGS.language, {
+        name: "DRPG.Settings.language.name",
+        hint: "DRPG.Settings.language.hint",
+        scope: "client",
+        config: true,
+        type: String,
+        choices: { en: "English", pl: "Polski" },
+        default: "en",
+        requiresReload: true
+    });
+
     /* ---- the look: theme, glass effects, UI scale. All three are this
        browser's own (scope "client"); the GM's choice never reaches a player. */
     game.settings.register(MODULE_ID, SETTINGS.theme, {
@@ -597,6 +626,46 @@ export function registerSettings() {
     game.settings.register(MODULE_ID, SETTINGS.glassPulse, {
         name: "DRPG.Settings.glassPulse.name",
         hint: "DRPG.Settings.glassPulse.hint",
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => applyTheme()
+    });
+
+    /* THE ONE SWITCH THAT IS ABOUT THE MACHINE RATHER THAN THE TASTE.
+       Every other switch in this group is "what can I bear to look at". This one is
+       "what can this browser draw": a full-screen `backdrop-filter` is recomputed
+       every time anything over or behind it is redrawn, and under this theme the
+       pulse, the clock's ticker and Foundry's own map see to it that something
+       always is. It is the theme's largest single cost and it is not JavaScript -
+       the measurement, and what was tried and did not help, are written on
+       `--drpg-glass-backdrop` in stained-glass.css. Default ON: the blur is what
+       the theme looks like, and a table that does not need to turn it off should
+       never have to know it is there. `game.drpg.perf()` says whether they do. */
+    /* HOW THIS PLAYER READS THEIR OWN PACK, AND IT IS THEIRS TO DECIDE.
+       Not `config: true`: the switch lives on the inventory itself, beside the
+       evidence it orders, because that is where somebody realises they want it -
+       a setting in Foundry's window would be a control nobody finds while
+       looking at the thing it controls. Client-scoped like the look settings:
+       one player argues a case by room and another by chapter, and neither
+       should move the other's pack. */
+    game.settings.register(MODULE_ID, SETTINGS.bulletSort, {
+        name: "DRPG.Settings.bulletSort.name",
+        hint: "DRPG.Settings.bulletSort.hint",
+        scope: "client",
+        config: false,
+        type: String,
+        choices: {
+            chapter: "DRPG.Sheet.bulletsByChapter",
+            room: "DRPG.Sheet.bulletsByRoom"
+        },
+        default: "chapter"
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.glassBlur, {
+        name: "DRPG.Settings.glassBlur.name",
+        hint: "DRPG.Settings.glassBlur.hint",
         scope: "client",
         config: true,
         type: Boolean,
@@ -749,6 +818,29 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: Object.fromEntries(SFX_VOLUME_KEYS.map(key => [key, 1]))
+    });
+
+    /*
+     * WHAT THE PLAYLIST VOLUME WAS BEFORE THE MURDER MUSIC TOOK IT.
+     *
+     * The murder playlist plays on one browser rather than in the world (see
+     * music.mjs), so the room's own playlist has to be ducked on that browser
+     * while it runs - and put back afterwards. Held in a setting rather than in
+     * a variable because the thing that most obviously goes wrong is a client
+     * closing the tab mid-incident: a variable dies with the page and the
+     * player comes back to a world with the music turned off and no way to
+     * know why. `restoreDuckedMusic` reads this at `ready` and, if no incident
+     * is running, puts the number back.
+     *
+     * `-1` for "not ducked" rather than `null`, so a stored 0 - a player who
+     * had genuinely muted the music before any of this - is not read as absent
+     * and quietly turned back up.
+     */
+    game.settings.register(MODULE_ID, SETTINGS.musicDuckedFrom, {
+        scope: "client",
+        config: false,
+        type: Number,
+        default: -1
     });
 
     // The word that stops the scene. Set in Season setup, shown on every sheet,
@@ -937,17 +1029,6 @@ export function registerSettings() {
         default: {}
     });
 
-    // Same as `pendingMurders` above, and for the same reason: the register of
-    // this chapter's killers is read by `recordBlackened` and by the verdict
-    // window, which asks for it fresh when it opens. No surface holds it, so
-    // there is nothing to redraw and no refresh to promise.
-    game.settings.register(MODULE_ID, SETTINGS.blackened, {
-        scope: "world",
-        config: false,
-        type: Array,
-        default: []
-    });
-
     /*
      * THE TWO CLIENT-SCOPED HALVES OF LIVE-001.
      *
@@ -1050,9 +1131,39 @@ export function registerSettings() {
         }
     });
 
-    // Which rooms each character has discovered. Cleared at season reset.
+    /*
+     * WHICH ROOMS EACH CHARACTER HAS DISCOVERED - AND WHO MAY KNOW IT (D2,
+     * Dawid 13.09; audit MAP-12).
+     *
+     * This used to be one world setting, readable from any player's console:
+     * "which rooms has X been in" for the whole season, which in a killing
+     * game is alibi evidence. It travels the `incidentCast` road now. The
+     * primary GM holds the union in a client setting on their own browser and
+     * mirrors it to the other GMs; each player's browser holds only the rows
+     * of the characters they own, sent to them alone over the addressed
+     * socket (fog.mjs, `shareLedger`). The world setting stays registered so
+     * a world that updates mid-season can be lifted out of it once
+     * (`migrateLedger`), and is empty from then on.
+     *
+     * All three fire the same repaint: the fog reads through
+     * `discoveryLedger()` below, whichever store this client is.
+     */
     game.settings.register(MODULE_ID, SETTINGS.discoveredRooms, {
         scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.discoveredRooms)
+    });
+    game.settings.register(MODULE_ID, SETTINGS.discoveryLedger, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.discoveredRooms)
+    });
+    game.settings.register(MODULE_ID, SETTINGS.discoveryMine, {
+        scope: "client",
         config: false,
         type: Object,
         default: {},
@@ -1260,13 +1371,120 @@ function onWorldChange(key) {
  * is the killer - one asks "is this actor one of them" and the other asks "who
  * are the others" - so neither is given the answer.
  */
-export function incidentParticipants() {
+/**
+ * The discovery ledger as THIS client may know it: the union on a GM's
+ * browser, this player's own rows on theirs. Shaped
+ * `{ [sceneId]: { [actorId]: [roomName, ...] } }` either way. A leaf, so
+ * movement.mjs and fog.mjs read the same thing.
+ */
+export function discoveryLedger() {
     try {
-        const cast = game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};
-        return [cast.killerId, cast.victimId, cast.thirdId].filter(Boolean);
+        const key = game.user?.isGM ? SETTINGS.discoveryLedger : SETTINGS.discoveryMine;
+        return game.settings.get(MODULE_ID, key) ?? {};
     } catch {
-        return [];
+        return {};
     }
+}
+
+/**
+ * This client's copy of the incident's cast.
+ *
+ * The names in a murder do not travel in the world setting - they are the one
+ * thing the incident has to keep (LIVE-001). The GM's browser holds the whole
+ * cast; a participant's holds their own seat and nothing else; a spectator's
+ * holds nothing. So every reader has to merge this with `murderState`'s public
+ * half rather than expecting the ids to be in it, and this is the leaf they
+ * all ask.
+ */
+export function incidentCast() {
+    try {
+        return game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};
+    } catch {
+        return {};
+    }
+}
+
+export function incidentParticipants() {
+    const cast = incidentCast();
+    return [cast.killerId, cast.victimId, cast.thirdId].filter(Boolean);
+}
+
+/**
+ * DOES THIS BROWSER WITNESS THE INCIDENT THAT IS RUNNING - and which seat is it?
+ *
+ * Four things now turn on that one question: the Event card, the HUD's turn
+ * row, the colour of the interface's own edges, and whether this client plays
+ * the murder playlist. Before this existed they each answered it themselves,
+ * in four slightly different ways, and two of them had already drifted - the
+ * HUD was still reading the ids off the world half of `murderState`, where
+ * they have not lived since LIVE-001, so its row rendered for nobody at all
+ * including the GM. The Event card had been fixed; nothing connected the two.
+ *
+ * So it is one function, in the leaf every caller can already reach, and the
+ * rules it states are the whole of the rule:
+ *
+ *   · the names come from `incidentCast`, never from the world setting - a
+ *     bystander's browser holds none of them and must go on holding none
+ *   · a seat is decided by OWNERSHIP, because `game.user.character` is a field
+ *     nothing at this table ever sets (see hud.mjs's own note on that)
+ *   · a GM witnesses every incident, but owns no seat in it - owning every
+ *     actor in the world would otherwise make every incident read as theirs
+ *   · AND THE KILLER OF A TRAP IS NOT A WITNESS. They built it and walked
+ *     away; the whole point of an indirect murder is that they are elsewhere
+ *     when it goes off. A card, a red edge or a change of music arriving on
+ *     their screen is the module telling them the moment it worked, which is
+ *     exactly the fact the rest of this file exists to keep from travelling.
+ *     They are let back in at Stage 6, when the scene becomes theirs to
+ *     arrange - see `castOwners` in murder.mjs, which stops sending them the
+ *     cast at all until then.
+ *
+ * @returns {{running: boolean, witness: boolean, seat: string|null, gm: boolean, indirect: boolean}}
+ */
+export function incidentWitness() {
+    const away = { running: false, witness: false, seat: null, gm: false, indirect: false };
+    let state;
+    try {
+        state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    } catch {
+        return away;
+    }
+    // `openingRoll` counts: the trap's roll and the killer's are both part of
+    // the same held breath, and the Event card has always covered both.
+    if (!state.active || (state.stage !== "incident" && state.stage !== "openingRoll")) return away;
+
+    const cast = incidentCast();
+    const indirect = Boolean(state.indirect);
+    const gm = Boolean(game.user?.isGM);
+
+    const mine = new Set();
+    try {
+        for (const actor of game.actors ?? []) {
+            if (actor.type === "character" && actor.testUserPermission(game.user, "OWNER")) mine.add(actor.id);
+        }
+    } catch {
+        // No actors yet - mid-boot. Not a witness, which is the safe answer.
+    }
+    // Still preferred when it is set: somebody owning two students gets the
+    // turn indicator for the one they are actually playing.
+    const assigned = game.user?.character?.id ?? null;
+    if (assigned) mine.add(assigned);
+
+    // The killer's seat is simply not on the board during their own trap.
+    const seats = [
+        indirect ? null : cast.killerId,
+        cast.victimId,
+        cast.thirdId
+    ].filter(Boolean);
+
+    const owned = (assigned && seats.includes(assigned))
+        ? assigned
+        : (seats.find(id => mine.has(id)) ?? null);
+
+    // A GM's ownership of every actor is not a seat; only a deliberate
+    // assignment is.
+    const seat = gm ? (assigned && seats.includes(assigned) ? assigned : null) : owned;
+
+    return { running: true, witness: gm || Boolean(owned), seat, gm, indirect };
 }
 
 /*
@@ -1355,6 +1573,20 @@ export async function clearBodyDiscovery() {
 }
 
 /** Convenience reader. */
+/**
+ * The language this browser asked the module for: `en` or `pl`, `en` when the
+ * setting is unregistered or holds something unknown. Here rather than in
+ * i18n.mjs because utils.mjs's `plural()` needs it and utils imports this leaf.
+ */
+export function moduleLanguage() {
+    try {
+        const lang = game.settings.get(MODULE_ID, SETTINGS.language);
+        return lang === "pl" ? "pl" : "en";
+    } catch {
+        return "en";
+    }
+}
+
 export function getSetting(key) {
     return game.settings.get(MODULE_ID, key);
 }
@@ -1426,6 +1658,50 @@ export function pixelFontOn() {
  * every onChange above. The curtain itself (scripts/glass.mjs) listens to the
  * same settings through `refreshGlass`, which this calls when it is loaded.
  */
+/*
+ * THE THREE SHAPES A SCREEN CAN HAVE, AND THEY ARE MEASURED, NOT GUESSED.
+ *
+ * Foundry lays its interface out in columns that assume a desk: the left column,
+ * the centred top bar and the right column. The module puts its own blocks in
+ * them - the clock in the left, the Despair rail in the top, the status strip and
+ * the Projects tray in the right - and on a wide screen they never meet. On a
+ * narrow one they do, and the measurement is unambiguous (audit/glass-harness.html
+ * at each size, 13.09; overlapping pairs among the module's own blocks):
+ *
+ *   1920x993  none        1366x768  none        1280x800  none
+ *   1024x768  the rail over the status strip and over the tray
+ *   820x1180  and the clock over the rail as well
+ *   393x852   five pairs, and two blocks off the screen entirely
+ *
+ * The rail is centred and about 433 px wide at the scale floor, the right column
+ * about 382 px in from the edge, so the two meet at about 1196 px of width. 1200
+ * is that number rounded up, and nothing wider than it changes at all.
+ *
+ * SHORT IS ITS OWN THING, AND IT IS NOT ABOUT COLLISIONS. A phone held sideways
+ * (980 x 386) is narrow as well, so it stacks for the reason above; what 620 px
+ * decides is different. The stack has a ceiling and scrolls past it, and a block
+ * scrolled under that ceiling is a block the curtain cannot cut a pane for - it
+ * reports the position it is laid out at, which by then is over the board. Under
+ * 620 px of height that starts happening with an ordinary table's blocks, so the
+ * curtain stands down there and the flat backdrop takes over (glass.mjs). It is a
+ * separate number from the one above because a wide short window - 1600 x 600 -
+ * has no collisions to fix and keeps the desk layout it always had.
+ */
+export const BREAKPOINTS = { narrow: 1200, short: 620 };
+
+/* A measurement of zero is a window that has not been laid out yet - a hidden
+   iframe, a client mid-boot - and it must not read as "tiny": nothing stacks,
+   shrinks or unmounts on a number nobody has measured. */
+const measured = v => (Number.isFinite(v) && v > 0 ? v : Infinity);
+
+/** True when the module's blocks must leave Foundry's columns and stack in one. */
+export function narrowScreen(w = innerWidth) {
+    return measured(w) < BREAKPOINTS.narrow;
+}
+/** True when there is too little height for the desk layout's vertical rhythm. */
+export function shortScreen(h = innerHeight) {
+    return measured(h) < BREAKPOINTS.short;
+}
 /**
  * The screen's own factor under the slider.
  *
@@ -1473,9 +1749,25 @@ export function typeScale() {
 export function effectiveScale() {
     return Math.round(sliderScale() * autoScale() * 100) / 100;
 }
-/* The screen's factor changes when the window does; the theme follows once the resize has
-   settled, and only when the factor actually differs. */
-let screenWatched = false, screenTimer = 0, screenFactor = 0;
+/* The screen's factor changes when the window does, and so can its shape; the theme
+   follows once the resize has settled, and only when one of the two actually differs. */
+let screenWatched = false, screenTimer = 0, screenFactor = 0, screenShape = "";
+/* The scale is not the only thing a resize can change: crossing 1200 px of width
+   restacks the module and crossing 620 px of height puts the glass to sleep, and
+   both can happen without the factor moving a hundredth (it is at its floor on every
+   screen under 1792 x 1008 anyway). One key covers all three. */
+const shapeKey = () => (narrowScreen() ? "n" : "-") + (shortScreen() ? "s" : "-");
+function watchScreen() {
+    screenFactor = autoScale();
+    screenShape = shapeKey();
+    if (screenWatched) return;
+    screenWatched = true;
+    addEventListener("resize", () => {
+        clearTimeout(screenTimer);
+        screenTimer = setTimeout(() => { if (autoScale() !== screenFactor || shapeKey() !== screenShape) applyTheme(); }, 250);
+    });
+}
+
 /**
  * Is this client asking for more contrast?
  *
@@ -1514,16 +1806,6 @@ function watchContrast() {
     }
 }
 
-function watchScreen() {
-    screenFactor = autoScale();
-    if (screenWatched) return;
-    screenWatched = true;
-    addEventListener("resize", () => {
-        clearTimeout(screenTimer);
-        screenTimer = setTimeout(() => { if (autoScale() !== screenFactor) applyTheme(); }, 250);
-    });
-}
-
 export function applyTheme() {
     const theme = getSetting(SETTINGS.theme);
     document.body.classList.toggle("drpg-theme-stained-glass", theme === "stainedGlass");
@@ -1531,11 +1813,20 @@ export function applyTheme() {
     document.body.classList.toggle("drpg-pixel-font", pixelFontOn());
     document.body.classList.toggle("drpg-no-pulse", getSetting(SETTINGS.glassPulse) === false);
     document.body.classList.toggle("drpg-no-ticker", getSetting(SETTINGS.hudTicker) === false);
+    document.body.classList.toggle("drpg-no-blur", getSetting(SETTINGS.glassBlur) === false);
     document.body.classList.toggle("drpg-reduced-motion", getSetting(SETTINGS.reducedMotion) === true);
-    // W-7. Deliberately NOT in the pulse/ticker group above: those two are one
+    // W-7. Deliberately NOT in the pulse/ticker/blur group above: those three are one
     // theme's effects, and this one is about being able to read the other 235
     // sizes in the stylesheet, whichever theme is drawing them.
     document.body.classList.toggle("drpg-high-contrast", highContrastOn());
+    /* The breakpoints live here and nowhere else. The stylesheet keys off these two
+       classes rather than repeating the numbers in a media query, so there is one
+       place to change them and no chance of the sheet and the curtain disagreeing
+       about where a screen stops being a desk. One class for "the blocks stack"
+       and one for "and there is no height either", which is the only distinction
+       styles/narrow.css needs to draw. */
+    document.body.classList.toggle("drpg-stacked", narrowScreen());
+    document.body.classList.toggle("drpg-short", shortScreen());
     // On the body, where the theme's own rules live: a value on <html> was shadowed by
     // the sheet's default on body (v1.2.15), so the scale never applied.
     const total = String(effectiveScale());
@@ -1593,6 +1884,10 @@ export function applyTheme() {
     }
     watchScreen();
     watchContrast();
+    /* The stack before the glass: the curtain is cut around where the blocks are,
+       and on a narrow screen this is what decides that. Dynamic, like the curtain's
+       own call, because narrow.mjs reads the breakpoints from this file. */
+    import("./narrow.mjs").then(m => m.applyNarrowLayout()).catch(() => {});
     import("./glass.mjs").then(m => m.refreshGlass()).catch(() => {});
     import("./sfx.mjs").then(m => m.renderSoundLauncher?.()).catch(() => {});
     // The clock carries the theme's ticker and, under Monokuma Legacy, the three
@@ -1603,11 +1898,11 @@ export function applyTheme() {
 /*
  * THE OTHER THEME'S SWITCHES ARE NOT SHOWN.
  *
- * Two of the look settings only exist under Stained Glass - the pulse and the ticker
- * (Reduced motion is for both themes since W-3) - and the pixel face only exists under
- * Monokuma Legacy, which has no
- * second face of its own to swap. Whichever theme is on, the other's switches still sat
- * in Foundry's settings window looking live, and changing one did nothing.
+ * Three of the look settings only exist under Stained Glass - the pulse, the ticker and
+ * the blur - and the pixel face only exists under Monokuma Legacy, which has no second
+ * face of its own to swap. Reduced motion is in neither list: it is for both themes since
+ * W-3. Whichever theme is on, the other's switches still sat in Foundry's settings window
+ * looking live, and changing one did nothing.
  *
  * HIDDEN, not greyed (Dawid, 08.09). They were greyed here and simply absent from the
  * Look window, which builds the same switches from the same settings - so the two
@@ -1662,15 +1957,20 @@ function scaleWindow(app, element) {
        Legacy would open a pixel-font sheet two thirds empty and take its resize
        handle away for a size nobody measured. Legacy keeps Daggerheart's own
        850 x 800 multiplied by the slider, and keeps the handle, because `fixed`
-       stays false there. */
+       stays false there.
+
+       AND ABOUT ONE WINDOW, ASKED BY ITS DOCUMENT (UI-09). A class-name match on
+       "actor" also caught Foundry's Actors sidebar tab and any window with the word
+       in its name, and `documentName === "Actor"` caught NPC sheets - all of them
+       were forced to this size and lost their resize handle. */
     if (document.body.classList.contains("drpg-theme-stained-glass")
-        && (/actor/i.test(app?.constructor?.name ?? "") || app?.element?.classList?.contains("actor")
-            || app?.document?.documentName === "Actor")) {
-        want.width = 1120;
-        /* 1160, NOT 940. Measured on the sheet: the tallest tab wants 820 px of room and was
-           given 607, so the last row of Hope Calls was simply below the fold - the window was
-           sized for the old, smaller type. The extra 213 px is that shortfall. */
-        want.height = 1160;
+        && app?.document?.type === "character") {
+        /* 1160 high, NOT 940. Measured on the sheet: the tallest tab wants 820 px of room and
+           was given 607, so the last row of Hope Calls was simply below the fold - the window
+           was sized for the old, smaller type. The extra 213 px is that shortfall. The numbers
+           live in config.mjs (SHEET_SIZE) beside the Legacy minimum. */
+        want.width = SHEET_SIZE.glass.width;
+        want.height = SHEET_SIZE.glass.height;
         fixed = true;
     }
     const size = {};
@@ -1714,9 +2014,11 @@ Hooks.on("renderSettingsConfig", (_app, element) => {
     };
     const sync = () => {
         const glass = (themeField?.value ?? getSetting(SETTINGS.theme)) === "stainedGlass";
-        // Reduced motion is shown under both themes (W-3, 16.09) - see look.mjs.
-        for (const key of [SETTINGS.glassPulse, SETTINGS.hudTicker])
-            show(key, glass);
+        /* The other theme's switches, hidden: the pulse, the ticker and the blur are
+           the glass's alone. Reduced motion is NOT among them (W-3, 16.09 - see
+           look.mjs): motion.css zeroes every motion token of the module under
+           `drpg-reduced-motion`, popups and flares included, whichever theme is on. */
+        for (const key of [SETTINGS.glassPulse, SETTINGS.hudTicker, SETTINGS.glassBlur]) show(key, glass);
         show(SETTINGS.pixelFont, !glass);
     };
     sync();

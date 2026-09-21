@@ -13,8 +13,8 @@
  * Legacy it is also where the pixel face is turned on and off.
  */
 
-import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, getSetting, setSetting, autoScale } from "./settings.mjs";
+import { SETTINGS, getSetting, setSetting, autoScale, moduleLanguage } from "./settings.mjs";
+import { LANGUAGES, confirmLanguageReload } from "./i18n.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { error } from "./utils.mjs";
 
@@ -58,20 +58,27 @@ function lookFieldset() {
     const check = (key, setting, on) => `<label><span>${t(key)}</span>
             <input type="checkbox" name="look:${setting}"${on ? " checked" : ""}></label>`;
     const pixel = legacy ? check("pixelFont", SETTINGS.pixelFont, getSetting(SETTINGS.pixelFont) !== false) : "";
-    /* The glass's own switches are shown to the browsers that have glass.
+    /* The glass's own switches - the pulse, the ticker and the blur - are shown to the
+       browsers that have glass, and to nobody else.
        The messenger sounds went the other way, to the Volume fieldset above (sfx.mjs),
        which is where a sound switch is looked for.
-       Foundry's own settings window hides the same two through `renderSettingsConfig`
+       Foundry's own settings window hides the same three through `renderSettingsConfig`
        in settings.mjs; the two windows show the same set.
 
        REDUCED MOTION IS FOR EVERY THEME AGAIN (Dawid, 16.09, W-3). It sat in this group from
-       08.09 on the grounds that Legacy had nothing for it to damp. Legacy has windows that
-       grow in and fade out, and an accessibility switch should not depend on which look a
-       player picked - so it stands outside the group, in both windows. */
-    const glassOnly = legacy ? "" :
+       08.09 on the grounds that Legacy had nothing for it to damp. Legacy has the popups, the
+       flares, the clock's turn-over and windows that grow in and fade out, and an
+       accessibility switch should not depend on which look a player picked - so it is added
+       after the group, outside the theme test, and both windows show it under both themes. */
+    const glassOnly = (legacy ? "" :
         check("pulse", SETTINGS.glassPulse, getSetting(SETTINGS.glassPulse) !== false)
-        + check("ticker", SETTINGS.hudTicker, getSetting(SETTINGS.hudTicker) !== false);
-    const motion = check("reducedMotion", SETTINGS.reducedMotion, getSetting(SETTINGS.reducedMotion) === true);
+        + check("ticker", SETTINGS.hudTicker, getSetting(SETTINGS.hudTicker) !== false)
+        /* The blur is in this group because it is glass-only, and last in it because it
+           is the only row here that is about what the machine can draw rather than what
+           its owner wants to look at. It is also the row worth reaching for first when a
+           table reports a stutter - see `--drpg-glass-backdrop` in stained-glass.css. */
+        + check("blur", SETTINGS.glassBlur, getSetting(SETTINGS.glassBlur) !== false))
+        + check("reducedMotion", SETTINGS.reducedMotion, getSetting(SETTINGS.reducedMotion) === true);
     /* HIGH CONTRAST STANDS WITH REDUCED MOTION, and for the same reason (W-7): it is
        an accessibility switch, not a theme effect, so it is offered whichever look a
        player picked. The note under it is for the one case a switch cannot explain
@@ -82,8 +89,16 @@ function lookFieldset() {
             ? `<p class="notes">${t("contrastAuto")}</p>` : "");
     const opt = (value, label) => `<option value="${value}"${theme === value ? " selected" : ""}>${
         foundry.utils.escapeHTML(game.i18n.localize(label))}</option>`;
+    /* The language, first: it is the one row here that changes every other word on the
+       screen, and a player looking for it should not have to read the theme's switches
+       first. The names are the languages' own, never translated. */
+    const lang = moduleLanguage();
+    const langOptions = Object.entries(LANGUAGES).map(([value, name]) =>
+        `<option value="${value}"${lang === value ? " selected" : ""}>${foundry.utils.escapeHTML(name)}</option>`).join("");
     return `<fieldset class="drpg-look">
         <legend>${t("legend")}</legend>
+        <label><span>${t("language")}</span>
+            <select name="look:language">${langOptions}</select></label>
         <label><span>${t("theme")}</span>
             <select name="look:theme">${opt("stainedGlass", "DRPG.Settings.theme.stainedGlass")}${opt("monokumaLegacy", "DRPG.Settings.theme.monokumaLegacy")}</select></label>
         ${pixel}
@@ -92,7 +107,6 @@ function lookFieldset() {
             <output>${Math.round(scale * 100)}%</output></label>
         <p class="notes" data-drpg-scale-note>${scaleNote(scale)}</p>
         ${glassOnly}
-        ${motion}
         ${contrast}
         <p class="notes">${t("note")}</p>
     </fieldset>`;
@@ -114,6 +128,14 @@ function systemWantsContrast() {
 }
 
 function wireLook(root) {
+    /* A language change is a reload - every open window was built in the old one. The
+       setting is written first, so a declined reload still takes effect next time. */
+    root.querySelector("[name='look:language']")?.addEventListener("change", async ev => {
+        try {
+            await setSetting(SETTINGS.language, ev.currentTarget.value);
+            await confirmLanguageReload();
+        } catch (err) { error("Could not change the language", err); }
+    });
     /* The glass report and its "Redraw the glass" button were taken out on 07.09: a diagnostic
        does not belong in a player's settings window, and `drpgGlassDebug()` in the console
        still prints every number it printed, to the person who actually wants it. */
@@ -142,6 +164,7 @@ function wireLook(root) {
         [SETTINGS.pixelFont, SETTINGS.pixelFont, "the pixel font"],
         [SETTINGS.glassPulse, SETTINGS.glassPulse, "the glass pulse"],
         [SETTINGS.hudTicker, SETTINGS.hudTicker, "the clock's ticker"],
+        [SETTINGS.glassBlur, SETTINGS.glassBlur, "the glass's blur"],
         [SETTINGS.reducedMotion, SETTINGS.reducedMotion, "reduced motion"],
         [SETTINGS.highContrast, SETTINGS.highContrast, "high contrast"]
     ]) {
@@ -179,4 +202,3 @@ export async function openLookDialog() {
     });
 }
 
-void MODULE_ID;

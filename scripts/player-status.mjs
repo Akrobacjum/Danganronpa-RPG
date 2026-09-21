@@ -23,8 +23,8 @@ import { MODULE_ID } from "./config.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFreeMove: player view only
 import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
-import { isMonokuma } from "./monokuma.mjs";
-import { isDeceased } from "./chapter.mjs";
+import { isMonokuma, ownStudent } from "./monokuma.mjs";
+import { isDeceased, livingStudents } from "./chapter.mjs";
 import { isMonocub } from "./monocub.mjs";
 import { matchStripToDespair } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
@@ -129,13 +129,7 @@ function hasStatusToShow() {
  * a GM with no character of their own has no budget to show.
  */
 function ownCharacter() {
-    const assigned = game.user.character;
-    if (assigned && !isMonokuma(assigned)) return assigned;
-    if (assigned) return null;   // a Monokuma account: see buildPlayerView
-
-    const owned = game.actors.filter(a =>
-        a.type === "character" && a.isOwner && !isMonokuma(a));
-    return owned.length === 1 ? owned[0] : null;
+    return ownStudent();   // null for a Monokuma account: see buildPlayerView
 }
 
 /**
@@ -179,7 +173,6 @@ function keepMounted() {
 
 export function renderPlayerStatus() {
     try {
-        document.getElementById(WIDGET_ID)?.remove();
         // Same rail, same moment: whatever redrew the strip may also have
         // changed whether the effects widget has anything to show.
         syncEffectsWidget();
@@ -207,10 +200,51 @@ export function renderPlayerStatus() {
         // the GM's personal budget, and a GM has none. The answer to that is
         // labels that say whose numbers these are - not an empty corner.
         const el = ownCharacter() ? buildPlayerView() : buildTableView();
-        if (!el) return;
+        if (!el) { document.getElementById(WIDGET_ID)?.remove(); return; }
 
         el.id = WIDGET_ID;
+
+        /*
+         * AND IF IT WOULD COME OUT THE SAME, IT STAYS WHERE IT IS.
+         *
+         * This strip redraws on every module setting write and on every update
+         * of any student - which on a GM's client is every action anybody at
+         * the table takes. It used to redraw by removing its node and
+         * prepending a new one, and under Stained Glass that pair of child-list
+         * mutations is a recut of the curtain: measured 1:1 in the glass
+         * harness, five remove-and-prepend cycles produced five geometry passes
+         * under Stained Glass and none under Monokuma Legacy, at 13-19 ms of
+         * blocking JS each, 150 ms after the fact. Most of those writes change
+         * nothing this strip prints.
+         *
+         * The same guard the Event panel already carries (events.mjs), and for
+         * the reason stated there: the panel is on the curtain, so every
+         * rebuild of it is a recut of the glass around it.
+         *
+         * The markup IS the signature. The alternative - a list of the values
+         * printed - is a second statement of what the builders draw and would
+         * go stale the first time one of them learns a new field. Building the
+         * element costs a few dozen detached nodes and no layout; it is the
+         * INSERTION that costs, and that is what this skips.
+         */
+        const signature = el.outerHTML;
+        const standing = document.getElementById(WIDGET_ID);
+        /* AND NEVER SKIP A BUILD THAT FLARED. `markSpent` (motion.mjs) is called while the
+           pips are being built and, under Stained Glass, asks the pane under the pip to beat
+           - a side effect that has already happened by the time the markup can be compared.
+           Whenever it fires it also leaves `drpg-spent` or `drpg-gained` in the markup, so
+           the signature would differ anyway in every case but an exact tie in the resumed
+           animation's delay; this says so outright rather than resting on that. */
+        if (standing && standing.parentElement === host
+            && standing.dataset.drpgSignature === signature
+            && !el.querySelector(".drpg-spent, .drpg-gained")) {
+            matchStripToDespair();
+            return;
+        }
+        el.dataset.drpgSignature = signature;
+
         el.addEventListener("pointerdown", event => event.stopPropagation());
+        standing?.remove();
 
         // Always first. The old code inserted before the Projects tray when it
         // could find it and prepended when it could not, so the panel's place
@@ -438,8 +472,7 @@ function field(className, label, value, tooltipKey, spent) {
 
 /** Living students, which is who the two counts below are about. */
 function trackedStudents() {
-    return game.actors.filter(a =>
-        a.type === "character" && !isMonokuma(a) && !isDeceased(a));
+    return livingStudents();
 }
 
 /**

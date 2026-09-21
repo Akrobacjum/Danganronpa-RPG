@@ -48,6 +48,11 @@ const ACTION_OPEN = "vote.open";
  */
 let ballots = null;
 
+/** Who the ballots went out to, frozen at `openVote` (CASE-14). */
+let issuedTo = null;
+
+/** The flag on the "a vote is open" announcement. Read by events.mjs. */
+export const VOTE_OPEN_FLAG = "voteOpen";
 /* ==========================================================================
  * HOW FAR THROUGH THE TRIAL THE TABLE HAS GOT
  * --------------------------------------------------------------------------
@@ -147,7 +152,7 @@ export function registerVote() {
  * onto everybody else's screen, with a candidate list of their own choosing.
  */
 function onBallotOpened(payload, senderId) {
-    if (game.user.isGM) return;
+    if (!game.user || game.user.isGM) return;
     if (!game.users.get(senderId)?.isGM) return;
 
     castBallot(payload.candidates, payload.voterActorId, Number(payload.picks) || 1)
@@ -168,7 +173,7 @@ function onBallotOpened(payload, senderId) {
  * rather than trusting a `<select>` on a client to have offered honest options.
  */
 function onBallotCast(payload, senderId) {
-    if (!game.user.isGM) return;
+    if (!game.user?.isGM) return;
     if (!ballots) return;
 
     const sender = game.users.get(senderId);
@@ -192,31 +197,19 @@ function onBallotCast(payload, senderId) {
     // adding to the tally - a resend must never double a vote.
     ballots.set(senderId, clean);
     log(`Ballot received with ${clean.length} name(s) (${ballots.size} so far).`);
+    // A ballot is neither a document nor a setting, so nothing that keeps a
+    // window live would notice it. The trial console's "still to vote" line is
+    // the one thing a GM opens that window to read during a vote.
+    //
     // LAST, after the Map has the ballot in it: a listener that read
-    // `pendingVoters()` first would redraw the same stale list (F8).
-    voteChanged();
+    // `pendingVoters()` first would redraw the same stale list (F8). A hook and
+    // not a socket, because `Hooks.callAll` runs on this client only - the names
+    // never leave the GM's browser, the same reason the tally is a Map.
+    Hooks.callAll("drpgBallotsChanged");
 }
 
 function refuseBallot(senderId, why) {
     warn(`Refused a ballot from ${game.users.get(senderId)?.name ?? senderId}: ${why}.`);
-}
-/*
- * THE VOTE IS THE ONE THING THIS MODULE KEEPS OUT OF THE WORLD, so the one
- * mechanism every live window relies on cannot see it (F8).
- *
- * `ballots` is a Map in this GM's memory - deliberately, see the note on it -
- * and a Map fires no `updateSetting`. Measured on 19.09: the trial console read
- * "3 still to vote" and went on reading it after all three had answered, with no
- * rebuild of `.drpg-trial-console` at all. Nothing in the world had changed,
- * because nothing about a ballot IS in the world.
- *
- * `Hooks.callAll` runs on THIS client only, so the names never leave the GM's
- * browser - the same reason the tally is a Map - and `keepLive` already takes
- * `watch.hooks`. The payload is a count, not a list: a window that wants to know
- * who is outstanding asks `pendingVoters()` itself.
- */
-function voteChanged() {
-    Hooks.callAll("drpgVoteChanged", { in: ballots?.size ?? null });
 }
 
 /** Everyone who can be accused, from the perspective of one voter. */
@@ -278,15 +271,33 @@ export async function openVote({ picks = null } = {}) {
         ballots = null;
         return null;
     }
+    // Frozen at the moment they go out (CASE-14): a player who drops after
+    // the ballots are issued is no longer "eligible", and the count then read
+    // "3 of 3" for a room that was told four ballots were out. Remind still
+    // reaches anyone who joins mid-vote; the two lists are unioned at close.
+    issuedTo = new Set(voters.map(({ user }) => user.id));
 
     sendBallots(voters);
     // After the emit, so a send that threw for one player is still reported as a
     // vote that is now running - and before the card, so the console is true by
     // the time it lands (F8).
-    voteChanged();
+    Hooks.callAll("drpgBallotsChanged");
 
+    /* FLAGGED, SO THE EVENT PANEL CAN SEE IT (1.2.47).
+       `ballots` is a module-level Map on the GM's client and nothing else - a
+       player's browser cannot tell a vote is running at all, which is exactly
+       the gap `pendingVoters` was written for: somebody who dismissed their
+       ballot by accident had nothing anywhere to tell them so. The message is
+       the record, the way the safeword's is: this flag plus `voteClosed` in
+       `trialProgress` (a world setting everybody reads) is "a vote is open" with
+       no new state to keep in step. The chapter rides along because the log
+       outlives the trial. */
     await announce({
-        flags: { [MODULE_ID]: { sfx: { key: "voteOpen", gm: true } } },
+        flags: { [MODULE_ID]: {
+            sfx: { key: "voteOpen", gm: true },
+            [VOTE_OPEN_FLAG]: true,
+            voteChapter: getClock().chapter
+        } },
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.banner")}</div>
             <p>${game.i18n.format("DRPG.Vote.opened", { n: voters.length })}</p>
@@ -390,6 +401,7 @@ export function remindVoters() {
     if (!pending?.length) return 0;
 
     sendBallots(pending);
+    Hooks.callAll("drpgBallotsChanged");
     log(`Re-sent ballots to ${pending.length} player(s).`);
     return pending.length;
 }
@@ -432,9 +444,15 @@ async function castBallot(candidates, voterActorId, picks = 1) {
                 <div class="drpg-choice-list">${rows(i)}</div>
             </fieldset>`).join("");
 
+    // One ballot window at a time (CASE-14): a Remind that reached a player
+    // whose first window was still open stacked a second, and either counted.
+    for (const app of foundry.applications?.instances?.values?.() ?? []) {
+        if (app.rendered && app.options?.classes?.includes("drpg-ballot")) app.close();
+    }
+
     const choice = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Vote.ballotTitle") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-ballot"],
         content: dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Vote.ballotIntro")}</p>
             ${picks > 1 ? `<p class="drpg-warning">${
@@ -510,13 +528,16 @@ export async function closeVote() {
     // table rather than as two people who never answered. Whether the accusation
     // carries the room is the whole question the card is trying to settle.
     const returned = ballots.size;
-    const silent = pendingVoters()?.length ?? 0;
+    const stillPending = new Set((pendingVoters() ?? []).map(({ user }) => user.id));
+    for (const id of issuedTo ?? []) if (!ballots.has(id)) stillPending.add(id);
+    const silent = stillPending.size;
     const issued = returned + silent;
     ballots = null;
+    issuedTo = null;
     // ABOVE the nobody-answered return, which writes no setting at all: a hook
     // placed after it would leave the console printing a list of voters for a
     // vote that no longer exists (F8).
-    voteChanged();
+    Hooks.callAll("drpgBallotsChanged");
 
     if (!returned) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vote.nobodyVoted"));

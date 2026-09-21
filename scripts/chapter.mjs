@@ -29,10 +29,10 @@
  * truth-bullets.mjs), and only a GM may write to another player's sheet.
  */
 
-import { MODULE_ID, FLAGS, REMNANT_TYPES } from "./config.mjs";
+import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, setBodyDiscovery, clearBodyDiscovery } from "./settings.mjs";
-import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret } from "./truth-bullets.mjs";
+import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret, faintOf } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, REMNANT_FLAGS } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, error, plural }
@@ -209,6 +209,8 @@ export async function killCharacter(actor, { keepBullets = false } = {}) {
         ${keepBullets ? "" : `<p>${plural("DRPG.Chapter.bulletsGone", { n: removed })}</p>`}
         <p><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`, {
         whisper: deathAudience ?? gmIds(),
+        // The audience of a death card mid-incident is the incident's cast.
+        veiled: true,
         flags: { [MODULE_ID]: { sfx: { key: "death", gm: true } } }
     });
 
@@ -287,7 +289,7 @@ async function offerStageSix(victim) {
  * Undo the marking. The inventory does NOT come back - those documents are
  * gone - so this is for a mis-click, not for a resurrection.
  */
-export async function reviveCharacter(actor) {
+export async function reviveCharacter(actor, { quiet = false } = {}) {
     if (!game.user.isGM || !actor) return false;
 
     try {
@@ -298,7 +300,9 @@ export async function reviveCharacter(actor) {
         return false;
     }
 
-    ui.notifications.info(game.i18n.format("DRPG.Chapter.revived", { name: actor.name }));
+    // `quiet`: the season reset revives every corpse in a row and deletes every
+    // Truth Bullet anyway, so a toast per body said nothing (CORE-18).
+    if (!quiet) ui.notifications.info(game.i18n.format("DRPG.Chapter.revived", { name: actor.name }));
     return true;
 }
 
@@ -742,7 +746,12 @@ export async function revealAllBulletTypes() {
         try {
             await item.update({
                 [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType,
-                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true
+                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true,
+                /* Faint goes public with the type, because this is the same moment
+                   Analyze is - the bullet gives up what it really was. Without this
+                   line the chapter's reveal would leave every doubtful trace looking
+                   solid on the sheets it has just been written onto. */
+                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: faintOf(item)
             });
             revealed++;
         } catch (err) {
@@ -784,7 +793,14 @@ export async function sweepTruthBullets() {
 
         const doomed = [];
         for (const item of bulletsOf(actor)) {
-            if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint)) {
+            /* `faintOf`, NOT THE ITEM'S FLAG. Since 1.2.47 Faint is published onto
+               a player's item only once they have analysed the bullet, so the flag
+               reads false for every doubtful trace nobody has spent a Head roll on -
+               and this sweep would have taken exactly the evidence Faint exists to
+               carry across. The ledger is the truth and this runs GM-side, where the
+               ledger is readable; `faintOf` falls back to the item for a world made
+               before the change. */
+            if (faintOf(item)) {
                 kept++;
                 continue;
             }
@@ -885,12 +901,17 @@ export async function openChapterEndDialog() {
        own planted clues and nothing older. */
     const endingChapter = getClock().chapter;
     const sweepable = bullets.filter(({ item }) =>
-        !item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint)
+        // the same reader the sweep itself uses, or the count would promise work
+        // the action will not do - which is the whole point of the note above
+        !faintOf(item)
         && secretOf(item.uuid).realType !== "final").length;
     /* AND WHETHER THE TRIAL IS STILL SITTING. The clock is the authority, not the
        floor: a trial in session with nobody holding the floor has no floor record at
        all, and it is still a trial - see the note on the HUD's four states. */
     const trialSitting = getClock().phase === "classTrial";
+    // The season's last chapter (CORE-10): moving on to a seventh is never what
+    // the GM means; the reset lives under Between sessions.
+    const lastChapter = (Number(getClock().chapter) || 1) >= CHAPTERS_PER_SEASON;
 
     let faintable = 0, keyable = 0;
     for (const scene of game.scenes) {
@@ -922,15 +943,16 @@ export async function openChapterEndDialog() {
             <label class="drpg-checkbox">
                 <input type="checkbox" name="keys"${keyable ? " checked" : " disabled"} />
                 ${game.i18n.format("DRPG.Chapter.optKeys", { n: keyable })}</label>
-            <p class="notes">${game.i18n.localize("DRPG.Chapter.tidyNote")}</p>
             <hr />
             <label class="drpg-checkbox">
                 <input type="checkbox" name="endTrial"${trialSitting ? " checked" : " disabled"} />
                 ${game.i18n.localize("DRPG.Chapter.optEndTrial")}</label>
             <label class="drpg-checkbox">
-                <input type="checkbox" name="nextChapter" checked />
+                <input type="checkbox" name="nextChapter"${lastChapter ? "" : " checked"} />
                 ${game.i18n.format("DRPG.Chapter.optNextChapter", {
                     from: getClock().chapter, to: getClock().chapter + 1 })}</label>
+            ${lastChapter ? `<p class="notes drpg-warning">${game.i18n.format("DRPG.Chapter.lastChapter", {
+                    n: getClock().chapter, next: getClock().chapter + 1 })}</p>` : ""}
             <label class="drpg-checkbox">
                 <input type="checkbox" name="nextSession" checked />
                 ${game.i18n.format("DRPG.Chapter.optNextSession", {
@@ -958,7 +980,10 @@ export async function openChapterEndDialog() {
                         endTrial: f.endTrial.checked,
                         nextChapter: f.nextChapter.checked,
                         nextSession: f.nextSession.checked,
-                        nextMorning: f.nextMorning.checked
+                        nextMorning: f.nextMorning.checked,
+                        // The chapter this window was opened for, so a second
+                        // GM's End of chapter cannot end the next one (CORE-17).
+                        endingChapter: getClock().chapter
                     };
                 }
             },
@@ -998,6 +1023,16 @@ export async function applyChapterEnd(choices = {}) {
     const endingChapter = getClock().chapter;
     const trialSitting = getClock().phase === "classTrial";
 
+    // Two GMs with the console open pressing End of chapter a few seconds
+    // apart moved the clock two chapters and swept twice (CORE-17). Optional,
+    // so the API and the suite can still call this without naming a chapter.
+    if (choices.endingChapter != null && choices.endingChapter !== endingChapter) {
+        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Chapter.alreadyEnded", {
+            n: choices.endingChapter
+        })}</p>`);
+        return null;
+    }
+
     const done = [];
     if (result.reveal) {
         done.push(plural("DRPG.Chapter.doneReveal", { n: await revealAllBulletTypes() }));
@@ -1013,14 +1048,14 @@ export async function applyChapterEnd(choices = {}) {
        GM's knowledge and kept everybody else's. */
     if (result.sweep) {
         const { removed } = await sweepTruthBullets();
-        done.push(game.i18n.format("DRPG.Chapter.doneSweep", { n: removed }));
+        done.push(plural("DRPG.Chapter.doneSweep", { n: removed }));
     }
     if (result.faint) {
         const { clearFaintRemnants } = await import("./remnants.mjs");
-        done.push(game.i18n.format("DRPG.Chapter.doneFaint", { n: await clearFaintRemnants() }));
+        done.push(plural("DRPG.Chapter.doneFaint", { n: await clearFaintRemnants() }));
     }
     if (result.keys) {
-        done.push(game.i18n.format("DRPG.Chapter.doneKeys",
+        done.push(plural("DRPG.Chapter.doneKeys",
             { n: await clearChapterKeyRemnants(endingChapter) }));
     }
 
@@ -1109,10 +1144,12 @@ export async function applyChapterEnd(choices = {}) {
        card into a Class Trial that has not finished. */
     if (result.nextMorning) {
         try {
-            const { setClock, setTimeOfDay } = await import("./clock.mjs");
-            await setClock({ day: (getClock().day ?? 1) + 1 });
+            const { setTimeOfDay } = await import("./clock.mjs");
+            // One write for the day and the hour: each write is a full redraw
+            // on every client (CORE-12).
             await setTimeOfDay("morning", {
-                resetActions: true, resetSearchTokens: true, announce: true
+                resetActions: true, resetSearchTokens: true, announce: true,
+                also: { day: (getClock().day ?? 1) + 1 }
             });
             done.push(game.i18n.format("DRPG.Chapter.doneNextMorning",
                 { day: getClock().day }));

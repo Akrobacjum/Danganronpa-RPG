@@ -104,6 +104,41 @@ export function buildDocumentClasses(ctx) {
                     coll.set(child.id, child);
                 }
             }
+            this._exposeSource();
+        }
+
+        /*
+         * A DOCUMENT'S OWN FIELDS READ AS PROPERTIES, THE WAY FOUNDRY'S DO.
+         *
+         * This class carried getters for the fields the shim happened to need -
+         * `name`, `type`, `flags`, `system` - and everything else lived only in
+         * `_source`. Foundry puts a document's whole schema on the document, so
+         * module code reads `wall.c`, `region.shapes`, `light.config`, and in here
+         * every one of those was `undefined`.
+         *
+         * It cost a real test a year. "A diagonal wall closes the staircase drawn
+         * along it" builds three walls and asks fog.mjs whether the region's border
+         * has walls alongside it - pure geometry, no canvas needed - and it has
+         * failed since the day it was written, reported as "32.0 squares read as
+         * open". The module was right: `wall.c` was undefined, so `wallAlongEdge`
+         * skipped every wall and correctly found none. The test was measuring the
+         * harness. It was carried in the accepted-failures bucket under the label
+         * "needs a real canvas", which was never true of it.
+         *
+         * Defined rather than assigned, so a write goes to `_source` and `update`
+         * keeps working; and never over a name the class already has, so a field
+         * called `update` or `parent` cannot shadow a method.
+         */
+        _exposeSource() {
+            for (const key of Object.keys(this._source)) {
+                if (key === "_id" || key in this) continue;
+                Object.defineProperty(this, key, {
+                    configurable: true,
+                    enumerable: false,
+                    get: () => this._source[key],
+                    set: v => { this._source[key] = v; }
+                });
+            }
         }
         static get documentName() { return this.name.replace(/Document$/, ""); }
         get documentName() { return this.constructor.documentName; }
@@ -160,6 +195,7 @@ export function buildDocumentClasses(ctx) {
 
         updateSource(changes = {}) {
             U.mergeObject(this._source, changes, { performDeletions: true });
+            this._exposeSource();   // a field that only arrives with an update is still a field
             return changes;
         }
         toObject() { return U.deepClone(this._source); }
@@ -431,6 +467,13 @@ export function buildDocumentClasses(ctx) {
 
     class ChatMessageImpl extends BaseDocument {
         static get documentName() { return "ChatMessage"; }
+        // Foundry stamps every message with its creation time; the messenger's
+        // read state and unread badge are built on it.
+        static async create(data, context = {}) {
+            const stamp = d => ({ timestamp: Date.now(), ...d });
+            return super.create(Array.isArray(data) ? data.map(stamp) : stamp(data), context);
+        }
+        get timestamp() { return this._source.timestamp ?? 0; }
         get author() { return ctx.gameRef().users.get(this._source.author ?? this._source.user) ?? null; }
         get user() { return this.author; }
         get speaker() { return this._source.speaker ?? {}; }
@@ -761,29 +804,59 @@ export function buildApplications(ctx) {
      * Scenarios push answers via globalThis.__dialogAnswers.push(fnOrValue).
      * Every dialog shown is recorded in globalThis.__dialogLog.
      */
+    // `content` may be a string or an element (the module's `dialogContent` hands over a div).
+    const contentText = c => typeof c === "string" ? c : (c?.outerHTML ?? "");
+    // Headless, a window that reopens itself after its default button (the trial console,
+    // the item tables) would recurse forever: the default is pressed, the callback reopens
+    // the window, the default is pressed again. A human never does that. Past this depth
+    // the window counts as dismissed.
+    const openDepth = new Map();
+    const MAX_DEPTH = 2;
+    const autoAnswered = new Map();
     class DialogV2 {
         static async wait(config = {}) {
-            globalThis.__dialogLog.push({ kind: "wait", title: config.window?.title, content: (config.content ?? "").slice(0, 400), buttons: (config.buttons ?? []).map(b => b.action) });
+            const title = config.window?.title ?? "?";
+            globalThis.__dialogLog.push({ kind: "wait", title, content: contentText(config.content).slice(0, 400), buttons: (config.buttons ?? []).map(b => b.action) });
             const queued = globalThis.__dialogAnswers.shift();
             if (queued !== undefined) {
                 const v = typeof queued === "function" ? await queued(config) : queued;
                 return v;
             }
+            // A client told to sit still (the suite runs on the GM alone; a player
+            // auto-answering an opening roll would race it) closes every window.
+            if (globalThis.__dialogAuto === false) return null;
             const buttons = config.buttons ?? [];
             const def = buttons.find(b => b.default) ?? buttons[0];
             if (!def) return null;
-            if (typeof def.callback === "function") {
-                // Foundry passes (event, button, dialog); button.form?.elements is used to read inputs.
-                const fakeButton = { form: makeForm(config) };
-                try { return await def.callback(new globalThis.window.Event("click"), fakeButton, { element: makeDialogElement(config) }); }
-                catch (err) { ctx.log(`DialogV2 callback threw: ${err.stack}`); return def.action; }
+            const depth = (openDepth.get(title) ?? 0);
+            if (depth >= MAX_DEPTH) return null;
+            // ...and the tail-recursive shape too (window -> action -> window -> the same
+            // action): the same title auto-answered many times in a second is a loop no
+            // human is driving, so the window counts as dismissed.
+            const now = Date.now();
+            const recent = (autoAnswered.get(title) ?? []).filter(t => now - t < 1500);
+            recent.push(now); autoAnswered.set(title, recent);
+            if (recent.length > 6) return null;
+            openDepth.set(title, depth + 1);
+            try {
+                if (typeof def.callback === "function") {
+                    // Foundry passes (event, button, dialog); button.form?.elements is used to read inputs.
+                    const fakeButton = { form: makeForm(config) };
+                    try { return await def.callback(new globalThis.window.Event("click"), fakeButton, { element: makeDialogElement(config) }); }
+                    // A throwing callback is a dialog that produced no answer; treat it as
+                    // dismissed (`rejectClose: false` -> null).
+                    catch (err) { ctx.log(`DialogV2 callback threw: ${err.stack}`); return null; }
+                }
+                return def.action;
+            } finally {
+                openDepth.set(title, (openDepth.get(title) ?? 1) - 1);
             }
-            return def.action;
         }
         static async confirm(config = {}) {
-            globalThis.__dialogLog.push({ kind: "confirm", title: config.window?.title, content: (config.content ?? "").slice(0, 400) });
+            globalThis.__dialogLog.push({ kind: "confirm", title: config.window?.title, content: contentText(config.content).slice(0, 400) });
             const queued = globalThis.__dialogAnswers.shift();
             if (queued !== undefined) return typeof queued === "function" ? queued(config) : queued;
+            if (globalThis.__dialogAuto === false) return null;
             if (config.yes?.callback) { try { return await config.yes.callback(new globalThis.window.Event("click"), { form: makeForm(config) }, { element: makeDialogElement(config) }); } catch { return true; } }
             return true;
         }
@@ -791,6 +864,7 @@ export function buildApplications(ctx) {
             globalThis.__dialogLog.push({ kind: "prompt", title: config.window?.title });
             const queued = globalThis.__dialogAnswers.shift();
             if (queued !== undefined) return typeof queued === "function" ? queued(config) : queued;
+            if (globalThis.__dialogAuto === false) return null;
             if (config.ok?.callback) { try { return await config.ok.callback(new globalThis.window.Event("click"), { form: makeForm(config) }, { element: makeDialogElement(config) }); } catch { return "ok"; } }
             return "ok";
         }
@@ -800,7 +874,8 @@ export function buildApplications(ctx) {
     function makeDialogElement(config) {
         const doc = globalThis.document;
         const el = doc.createElement("dialog");
-        el.innerHTML = config.content ?? "";
+        if (config.content && typeof config.content !== "string") el.append(config.content.cloneNode(true));
+        else el.innerHTML = config.content ?? "";
         return el;
     }
     function makeForm(config) {

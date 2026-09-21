@@ -10,8 +10,8 @@
  *
  *   the dice      the chat message is rewritten in place, so the table sees one
  *                 roll with new numbers rather than two contradictory rolls
- *   Hope / Sanity Daggerheart's own `DualityRoll#reroll` reverses these, since
- *                 it already knows what the previous duality granted
+ *   Hope / Sanity `settleDualityReroll`, a port of what `DualityRoll#reroll`
+ *                 settles, moves these from the old duality to the new one
  *   Despair       ours, not the system's - a Despair result that becomes a Hope
  *                 result has to hand the point back to the Monokuma that got it
  *   the action    whatever the roll actually did is undone and redone against
@@ -28,8 +28,9 @@
  * already made is re-asked rather than rewritten.
  */
 
-import { MODULE_ID, FLAGS, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL } from "./config.mjs";
+import { MODULE_ID, FLAGS, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING } from "./config.mjs";
 import { resolveThreshold, easedBy, replaceFlag, log, error, plural } from "./utils.mjs";
+import { leavesTraceFor } from "./inventory.mjs";
 
 /**
  * Reroll, with the dice the first roll was actually made with.
@@ -143,7 +144,7 @@ async function settleDualityReroll(original, rerolled) {
             });
         }
     } catch (err) {
-        error("Could not settle Hope and Sanity after a reroll with extra dice", err);
+        error("Could not settle Hope and Sanity after a reroll", err);
     }
 }
 
@@ -281,7 +282,7 @@ export async function rerollLastAction(actor) {
  * pass through the action engine.
  */
 /** How far back the fallback scan will look, in real minutes. */
-const REROLL_WINDOW_MINUTES = 30;
+const REROLL_WINDOW_MINUTES = TIMING.rerollWindowMinutes;
 
 function findMessage(actor, bookmark) {
     if (bookmark?.messageId) {
@@ -364,12 +365,12 @@ async function settleDespair(actor, before, after, done) {
  * guide's `CRITICAL.hope`. Nothing tops that up afterwards, and despair-award
  * says at its own call site why it no longer does.
  *
- * A reroll does not go through that funnel. `DualityRoll#reroll` settles its
- * resources in `updateResourcesForDualityReroll`, which this module does not
- * wrap, so the system pays its own single point for a crit arrived at by
- * rerolling and the second one is owed here. The same call with -1 hands it
- * back when a reroll throws a critical away, which is why this is a signed
- * delta rather than a payment.
+ * A reroll does not go through that funnel. Its resources are settled by
+ * `settleDualityReroll` above - the port of the system's own
+ * `updateResourcesForDualityReroll` - which pays the single point the system
+ * would for a crit arrived at by rerolling, so the second one is owed here. The
+ * same call with -1 hands it back when a reroll throws a critical away, which is
+ * why this is a signed delta rather than a payment.
  */
 async function settleCritHope(actor, before, after, done) {
     if (before.isCritical === after.isCritical) return;
@@ -421,6 +422,9 @@ async function replayAction(actor, bookmark, after, done) {
             // other one that goes through there - `cleanupKey` inside the
             // bookmark is what says which of the three it was, and that is
             // read one line down rather than out here.
+            // Palm bookmarks itself as "palm" (the hook and the traps key on
+            // it); the replay is the same as a Steal's.
+            case "palm":
             case "steal": return await settleSteal(actor, bookmark, after, done);
             default:
                 // A trait rolled straight from the sheet, or an action from
@@ -454,7 +458,8 @@ async function settleProgress(actor, bookmark, after, done) {
     }
 
     const def = ACTIONS.project;
-    // The tool's relief rides the bookmark (ACT-11). Scored against the bare
+    // The same eased bands the first roll was scored against (ACT-11 / ROLL-04):
+    // the readied tool's relief rides the bookmark. Scored against the bare
     // bands, a reroll took back progress the tool had earned the first roll.
     const relief = bookmark.relief ?? 0;
     const hit = after.isCritical
@@ -493,6 +498,18 @@ async function settleProgress(actor, bookmark, after, done) {
  * guide's three tokens count attempts, not successes.
  */
 async function settleSearch(actor, bookmark, after, done) {
+    // A Search whose token was refused never searched the room, and a Search
+    // that opened a stash found what the drawer held: neither is a draw from
+    // the room's table, so neither is drawn again on new dice (ROLL-02).
+    if (bookmark.claimed === false) {
+        done.push(game.i18n.localize("DRPG.Reroll.searchNeverRan"));
+        return {};
+    }
+    if (bookmark.fromVault) {
+        done.push(game.i18n.localize("DRPG.Reroll.searchStashStands"));
+        return {};
+    }
+
     const def = ACTIONS.search;
     const hit = resolveThreshold(after.total, def.thresholds);
     const found = Boolean(hit) || after.isCritical;
@@ -519,41 +536,40 @@ async function settleSearch(actor, bookmark, after, done) {
         }
     }
 
-    // 2. Draw again, from the same category and for the same goal.
+    // 2. Draw again, from the same category and for the same goal - and from
+    //    the same ROOM, so the room's own table answers as it did the first time.
     let drawnName = null;
-    let drawnRoles = [];
-    let identity = null;
+    let drawn = null;
+    let granted = null;
     if (found && bookmark.category) {
         const { drawItem } = await import("./tables.mjs");
-        const drawn = await drawItem(bookmark.category, tier, { goal: bookmark.goal ?? null });
+        drawn = await drawItem(bookmark.category, tier, { goal: bookmark.goal ?? null, room: bookmark.room ?? null });
         if (drawn?.name) {
             drawnName = drawn.name;
-            drawnRoles = drawn.roles ?? [];
             const { grantItem } = await import("./inventory.mjs");
-            const granted = await grantItem(actor, {
+            granted = await grantItem(actor, {
                 name: drawn.name, category: bookmark.category, tier, goal: bookmark.goal ?? null,
                 roles: drawn.roles ?? []
             });
             if (granted) itemId = granted.id;
-            identity = granted?.getFlag?.(MODULE_ID, "drpgItemId") ?? null;
             done.push(game.i18n.format("DRPG.Reroll.itemDrawn", { item: drawn.name, tier }));
         }
     } else {
         done.push(game.i18n.localize("DRPG.Reroll.searchNothing"));
     }
 
-    // 3. The trace. Only murder and cleaning gear leaves one, per the guide, and
-    //    only a Search that actually found something - but a Search that failed
-    //    and is now a success has to leave the trace it never earned first time.
-    //
-    //    THE ACTION'S RULE, NOT THE ONE IT REPLACED ON 28.08 (ACT-11, 17.09). This
-    //    read `category !== "usable"`, so a rerolled hunt for "something to work
-    //    with" that turned up a plain screwdriver left a Prep Remnant the first
-    //    roll never would have, tied to the crime. What leaves a trace is the
-    //    object in hand - crime or cleaning gear by its category or by the roles
-    //    its table entry declares - and whether it is tied waits for it to be used.
-    const roles = new Set([bookmark.category, ...drawnRoles]);
-    const leaves = roles.has("crimeTool") || roles.has("cleaningTool");
+    // 3. The trace, by the same rule the Search itself uses - one copy of it,
+    //    `leavesTraceFor` in inventory.mjs (ACT-11 / ROLL-03). What was FOUND
+    //    decides it: crime or cleaning gear, by the object's category or by the
+    //    roles its table entry declares, never the intention. The rule this
+    //    replaced on 28.08 read `category !== "usable"`, so a rerolled hunt for
+    //    "something to work with" that turned up a plain screwdriver left a Prep
+    //    Remnant the first roll never would have, tied to the crime. A Search that
+    //    failed and is now a success does have to leave the trace it never earned
+    //    first time, which is what `found` is for; the trace is tied to the crime
+    //    only by the object being used later, so `tieTraceForItem` comes back
+    //    for the identity.
+    const leaves = found && leavesTraceFor(bookmark.category, drawn?.roles);
     const visibility = found
         ? (after.isCritical ? def.critical?.remnant : hit?.remnant)
         : null;
@@ -563,7 +579,7 @@ async function settleSearch(actor, bookmark, after, done) {
         type: "prep",
         faint: true,
         tiedToCrime: null,
-        itemIdentity: identity,
+        itemIdentity: granted?.getFlag?.(MODULE_ID, "drpgItemId") ?? null,
         action: "search",
         subject: drawnName ?? "",
         note: game.i18n.format("DRPG.Remnant.searchNote", {
@@ -593,6 +609,7 @@ async function settleSabotage(actor, bookmark, after, done) {
     const penalty = bookmark.penalty ?? 0;
     const relief = bookmark.relief ?? 0;
     const score = after.total + penalty;
+    // The same eased bands the first roll was scored against (ACT-11 / ROLL-04).
     const hit = after.isCritical ? def.critical : resolveThreshold(score, easedBy(def.thresholds, relief));
     const success = Boolean(hit);
 
@@ -609,9 +626,11 @@ async function settleSabotage(actor, bookmark, after, done) {
     if (success && bookmark.targetProjectId) {
         // Guide's Sabotage table, by the repair project it demands:
         //   12 -> trivial (3)   18 -> complex (6)   crit -> desperate (8)
+        // The complex band is the last of the table, lowered by the same relief.
+        const complexAt = Math.max(...def.thresholds.map(t => t.min)) - relief;
         const difficulty = after.isCritical
             ? PROJECT_SCALE.desperate.progress
-            : score >= 18 - relief ? PROJECT_SCALE.complex.progress : PROJECT_SCALE.trivial.progress;
+            : score >= complexAt ? PROJECT_SCALE.complex.progress : PROJECT_SCALE.trivial.progress;
 
         const result = await sabotageProject(bookmark.targetProjectId, difficulty);
         repairId = result?.repair?.id ?? null;

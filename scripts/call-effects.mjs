@@ -16,8 +16,13 @@ import { MODULE_ID, FLAGS, HOPE_CALLS, DESPAIR_CALLS, MOTIVE, STARTING, callEffe
 import { SETTINGS } from "./settings.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
+// The darkening's own reader, and a leaf: static so `refusalBeforePaying` can
+// stay synchronous for the sheet, which asks it between two windows.
 import { overflowBlocksHope } from "./overflow.mjs";
-import { allProjects, isComplete, isFrozen } from "./projects.mjs";
+// projects.mjs is NOT imported here statically: it reaches this file through
+// fog.mjs and movement.mjs, and a top-level import back would close a static
+// cycle - the notes on the imports in both of those files say there is none.
+// Every use below is lazy.
 import {
     announce, whisperToOwner, dialogContent, log, warn, error, plural, cardHead, isPrimaryGm,
     esc} from "./utils.mjs";
@@ -178,10 +183,15 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
     // window with disadvantage already switched on and locked, and no reason
     // given. The socket path told them; the path that actually matters did not.
     if (from && from !== actor.id) {
+        // "Another student spent Hope on you" was said for Monokuma's Obstacle
+        // too, and for a Monocub's Meddle - whose author must stay unnamed.
+        const voice = kind === "despair" ? "DRPG.Calls.armedByMonokuma"
+            : kind === "hope" ? "DRPG.Calls.armedForYou"
+            : "DRPG.Calls.armedByNobody";
         await whisperToOwner(actor, `${cardHead({
             action: game.i18n.localize("DRPG.Calls.armedTitle")
         })}<p>${
-            game.i18n.format("DRPG.Calls.armedForYou", {
+            game.i18n.format(voice, {
                 what: game.i18n.localize(`DRPG.Calls.grants.${grants}`)
             })
         }</p>`);
@@ -245,7 +255,10 @@ export async function consumeCallsExcept(actor, keep = null) {
     return spent;
 }
 
-/** Kept for the one caller that only wants to know whether anything was spent. */
+/**
+ * The single-slot name, kept so a caller written before CALL-02 still spends
+ * every armed Call rather than none. Answers with the first one spent.
+ */
 export async function consumeCall(actor) {
     return (await consumeCalls(actor))[0] ?? null;
 }
@@ -260,26 +273,23 @@ export function grants(actor, what) {
  * ========================================================================== */
 
 /**
- * Apply everything a Call does, after it has been paid for.
- *
- * @param {Actor} actor    Who made the Call.
- * @param {string} key
- * @param {"hope"|"despair"} kind
- * @param {object} choice  { target, project, room, item } from the picker.
- * @returns {Promise<{lines: string[], failed: boolean}>} what happened, and
- *   whether the Call delivered nothing - in which case the caller must hand the
- *   price back. A Call that has been paid for and did nothing is a theft: the
- *   Reroll costs 3 Hope, and "there was nothing to reroll" used to keep all
- *   three of them.
- */
-/**
  * Would this Call change nothing? Asked before a Despair Call is PAID.
  *
  * Review of CALL-15 and CALL-05 (17.09): `applyCall` refuses these and hands the
- * price back, but a Despair Call has already posted its public "spent" card by
- * then, so the whole table was told about a purchase that did not happen. The
- * same questions, asked of the picker's answer before the pool is touched.
- * `applyCall` keeps its own checks: the world can move between the two.
+ * price back. The public "spent" card waits for the effect on both lines now
+ * (DESP-11, CALL-13), so a refusal there no longer tells the table about a
+ * purchase that did not happen - but it still charges the pool, refunds it, and
+ * only then says why. The same questions, asked of the picker's answer before
+ * the pool is touched, give the reason first and move nothing. `applyCall` keeps
+ * its own checks: the world can move between the two.
+ *
+ * ONE DARKENING CHECK, NOT TWO. DESP-04 asked `overflowBlocksHope` in
+ * `spendDespairCallFor` itself; it is this function's `grantsHope` question now,
+ * with the same `hopeBlocked` sentence, so the Monokuma is told once.
+ *
+ * Synchronous, because the sheet asks it between the picker and the
+ * confirmation. The project question needs projects.mjs, which this file can
+ * only import lazily, so it is `projectRefusal` below and is awaited separately.
  *
  * @returns {string|null}  Why not, ready to show; null when the Call would land.
  */
@@ -299,21 +309,13 @@ export function refusalBeforePaying(call, choice = {}) {
         .every(resource => resourceValue(target, resource) >= resourceMax(target, resource))) {
         return i18n.format("DRPG.Calls.nothingToMark", { name: target.name });
     }
-    // The API and a stale picker can both name a project that cannot move
-    // (CALL-10): the list already leaves those out, this is the boundary.
-    if (call?.progress && choice.project) {
-        const project = allProjects().find(p => p.id === choice.project);
-        if (!project || isComplete(project) || isFrozen(project.id)) {
-            return i18n.localize("DRPG.Project.noneToMove");
-        }
-    }
     // A second copy of the same Call adds nothing, and the first is still there
     // to be used (CALL-02). Dice Calls are exempt: those stack by design.
     if (call?.grants && target && alreadyArmed(target, call)) {
         return i18n.format("DRPG.Calls.alreadyArmed", { name: target.name, call: call.label });
     }
     if (call?.grantsHope && target) {
-        if (overflowBlocksHope()) return i18n.localize("DRPG.Overflow.noHopeNow");
+        if (overflowBlocksHope()) return i18n.localize("DRPG.Overflow.hopeBlocked");
         const max = resourceMax(target, "hope") || STARTING.hopeMax;
         if (resourceValue(target, "hope") >= max) return i18n.localize("DRPG.Despair.hopeAlreadyFull");
     }
@@ -321,13 +323,363 @@ export function refusalBeforePaying(call, choice = {}) {
 }
 
 /**
+ * The project half of `refusalBeforePaying`, which has to await (CALL-10).
+ *
+ * The API and a stale picker can both name a project that cannot move: a
+ * finished one, or one a sabotage has frozen. `pickProject` already leaves those
+ * out of the list; this is the boundary behind it, asked by `spendDespairCallFor`
+ * before the pool is touched.
+ *
+ * @returns {Promise<string|null>}  Why not, ready to show; null when it can move.
+ */
+export async function projectRefusal(call, choice = {}) {
+    if (!call?.progress || !choice.project) return null;
+    const { allProjects, isComplete, isFrozen } = await import("./projects.mjs");
+    const project = allProjects().find(p => p.id === choice.project);
+    if (!project || isComplete(project) || isFrozen(project.id)) {
+        return game.i18n.localize("DRPG.Project.noneToMove");
+    }
+    return null;
+}
+
+/**
  * Thrown by a branch whose target is already where the Call would put it - a
  * full Health track, a room already sealed. The price goes back like any other
- * failure, but it is not a fault, so nobody is told to "tell the GM"; the branch
- * has already said what was wrong (CALL-15).
+ * failure, but it is not a fault, so it is neither logged as an error nor given
+ * the "could not be applied" line a fault gets; the branch has already said what
+ * was wrong (CALL-15).
  */
 class NothingToDo extends Error {}
 
+/* --------------------------------------------------------------------------
+ * ONE FUNCTION PER EFFECT, run by `applyCall` below in the order they have
+ * always run. The split is Hygiene C - bodies moved, nothing else; the guards
+ * inside them are the far side of the rule `refusalBeforePaying` states at the
+ * door. The picker's answer can go stale between the two, so the branch that is
+ * about to write asks again, and throws `NothingToDo` when there is nothing
+ * left to do - which refunds without calling it a fault.
+ * -------------------------------------------------------------------------- */
+
+// --- effects that arm the next roll ---
+async function grantEffect(actor, call, choice, done, { key, kind }) {
+    // Support and Approval arm someone else; the rest arm the caller.
+    const beneficiary = choice.target ?? actor;
+
+    // The boundary for CALL-02: the picker refuses this before paying, and
+    // a world that moved in between refuses here and hands the price back.
+    if (alreadyArmed(beneficiary, call)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadyArmed",
+            { name: beneficiary.name, call: call.label }));
+        throw new NothingToDo(`${beneficiary.name} already holds ${call.key}`);
+    }
+
+    const armed = await armCall(beneficiary, { key, kind, grants: call.grants, from: actor.id });
+
+    // `armCall` returns null when the flag could not be written - no GM
+    // online to forward it, or the write itself failed. Announcing it
+    // anyway is how six Hope bought a Free Critical that was never armed
+    // and never refunded, because the receipt line made the Call look
+    // like it had done something.
+    if (!armed) throw new Error(`could not arm ${key} on ${beneficiary.name}`);
+
+    done.push(game.i18n.format("DRPG.Calls.armed", {
+        name: beneficiary.name,
+        what: game.i18n.localize(`DRPG.Calls.grants.${call.grants}`)
+    }));
+}
+
+// --- Despair spent as somebody else's Hope ---
+//
+// The pool has ALREADY been charged by `spendDespairCall`, so this only
+// credits the Hope. Routing it through `convertDespairToHope` would take
+// the Despair a second time - the exchange rate is the Call's own cost.
+async function hopeFromDespairEffect(actor, call, choice, done) {
+    // No Hope is earned under the Despair darkening, and this is Hope earned:
+    // the write would be stripped and the Call would still report "gains 1
+    // Hope" and keep its Despair (DESP-04, CALL-05). `refusalBeforePaying`
+    // asks first; this is the far side of it, for a darkening that began while
+    // the picker was open. Not a fault, so no "tell the GM".
+    if (overflowBlocksHope()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Overflow.hopeBlocked"));
+        throw new NothingToDo("the darkening blocks Hope");
+    }
+    const max = resourceMax(choice.target, "hope") || STARTING.hopeMax;
+    const held = resourceValue(choice.target, "hope");
+    const next = Math.min(max, held + call.grantsHope);
+
+    if (next === held) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Despair.hopeAlreadyFull"));
+        throw new NothingToDo(`${choice.target.name} is already at maximum Hope`);
+    }
+
+    await automatedUpdate(choice.target, { "system.resources.hope.value": next });
+    done.push(game.i18n.format("DRPG.Calls.hopeGranted", {
+        name: choice.target.name, n: next - held
+    }));
+    await whisperToOwner(choice.target, `<p>${game.i18n.format("DRPG.Despair.hopeConverted", {
+        n: next - held, who: foundry.utils.escapeHTML(actor?.name ?? "Monokuma")
+    })}</p>`);
+}
+
+/*
+ * --- Despair poured into the overflow (Z14) ---
+ *
+ * No target of its own: the thing it acts on is the world. That is why
+ * the Call is `target: "none"` and why this branch runs above the ones
+ * that need somebody to point at.
+ *
+ * The pool has already been charged by `spendDespairCall`, exactly as
+ * with `grantsHope` above - this only moves the point to its
+ * destination. It pushes a receipt line for the same reason every
+ * branch here does: `applyCall` calls a Call with an empty receipt
+ * FAILED and hands the price back, so a branch that worked silently
+ * would be a Call that worked and then refunded itself (trap 100).
+ */
+async function feedOverflowEffect(actor, call, choice, done) {
+    const { addOverflow, overflowCount, overflowThreshold } =
+        await import("./overflow.mjs");
+    const after = await addOverflow(call.feedsOverflow, { reason: "Feed the Overflow" });
+    if (after === null) throw new Error("the overflow refused the Despair");
+    done.push(game.i18n.format("DRPG.Calls.overflowFed", {
+        n: call.feedsOverflow, count: overflowCount(), max: overflowThreshold()
+    }));
+}
+
+// --- damage and stress ---
+async function damageEffect(actor, call, choice, done) {
+    const update = {};
+    // What actually lands, not what the Call is worth: Pain on a student
+    // with one mark left used to report "takes 2 Health" and keep all of
+    // its price, and on a full track it did nothing at all (CALL-15).
+    const landed = [];
+    for (const [resource, amount] of Object.entries(call.damage)) {
+        // Health and Sanity are reverse resources: marks count up to max.
+        const marks = resourceValue(choice.target, resource);
+        const max = resourceMax(choice.target, resource);
+        const next = Math.min(max, marks + amount);
+        if (next === marks) continue;
+        update[`system.resources.${resource}.value`] = next;
+        landed.push(`${next - marks} ${resource === "hitPoints" ? "Health" : "Sanity"}`);
+    }
+    if (!landed.length) {
+        ui.notifications.warn(game.i18n.format("DRPG.Calls.nothingToMark", { name: choice.target.name }));
+        throw new NothingToDo(`${choice.target.name} has nothing left to mark`);
+    }
+    await automatedUpdate(choice.target, update);
+    done.push(game.i18n.format("DRPG.Calls.damaged", {
+        name: choice.target.name,
+        what: landed.join(", ")
+    }));
+}
+
+// --- project progress ---
+//
+// Named from the local project list rather than from what `addProgress`
+// returns: a player's write is forwarded to the GM and comes back as a
+// bare acknowledgement, so reading the name off it produced a receipt
+// saying "progress on ?" - which reads exactly like nothing happened.
+// `wipesProgress` went with the Call that carried it (29.08) - see the
+// note above the project Calls in config.mjs. The branch went too rather
+// than being left standing for nothing: an unreachable handler is how a
+// deleted rule comes back by accident.
+async function progressEffect(actor, call, choice, done) {
+    const { addProgress, allProjects } = await import("./projects.mjs");
+    const project = allProjects().find(p => p.id === choice.project);
+
+    if (!project) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Project.gone"));
+        throw new Error(`project ${choice.project} no longer exists`);
+    } else {
+        const applied = await addProgress(choice.project, call.progress);
+        if (!applied) throw new Error(`addProgress refused ${choice.project}`);
+
+        // A GM's write says outright whether the bar moved. A player's
+        // is forwarded, so the answer comes back as a whisper instead -
+        // never claim a number this side of the socket.
+        if (applied.changed === false) {
+            done.push(game.i18n.format("DRPG.Calls.progressRefused", { name: project.name }));
+        } else if (applied.changed) {
+            done.push(game.i18n.format("DRPG.Calls.progressedTo", {
+                name: project.name, current: applied.to, target: applied.target
+            }));
+        } else {
+            done.push(game.i18n.format("DRPG.Calls.progressSent", {
+                name: project.name, n: call.progress > 0 ? `+${call.progress}` : call.progress
+            }));
+        }
+    }
+}
+
+/*
+ * --- crossings, actions and a rest bought with Hope (E13) ---
+ *
+ * None of the three touches `pendingCall`, and every one of them pushes
+ * a receipt line: `applyCall` reports `failed` when nothing was pushed,
+ * and a Call that failed hands the Hope back. A branch that did its work
+ * silently would be a Call that worked and then refunded itself (trap
+ * 100).
+ */
+async function freeMovesEffect(actor, call, choice, done) {
+    const { grantFreeMoves, freeMovesLeft } = await import("./actions.mjs");
+    if (!await grantFreeMoves(actor, call.freeMoves)) {
+        throw new Error(`could not bank ${call.freeMoves} crossing(s)`);
+    }
+    done.push(plural("DRPG.Calls.sprinted", { n: freeMovesLeft(actor) }));
+}
+
+async function freeActionsEffect(actor, call, choice, done) {
+    const { grantFreeActions, freeActionsLeft } = await import("./actions.mjs");
+    if (!await grantFreeActions(actor, call.freeActions)) {
+        throw new Error(`could not bank ${call.freeActions} action(s)`);
+    }
+    done.push(plural("DRPG.Calls.burst", { n: freeActionsLeft(actor) }));
+}
+
+async function freeRestEffect(actor, call, choice, done) {
+    const { takeRest } = await import("./rest.mjs");
+    // Every gate a Short Rest normally has, waived - decision 4, and
+    // the reasoning is on `relief` in config.mjs. `quiet` because the
+    // Call is already printing a card and this is one purchase.
+    const rested = await takeRest(actor, call.freeRest, {
+        free: true, ignoreRoom: true, ignoreLimit: true, quiet: true
+    });
+    // Backing out of the "what do you want back" picker is a real
+    // cancel: nothing was restored, so the five Hope come back.
+    // NothingToDo, not a fault, when the player chose not to (live check,
+    // 17.09 - the refund arrived under a "Tell the GM" error toast). A rest
+    // that FAILED is a fault and is logged as one: `takeRest` answers false
+    // for the first and null for the second.
+    if (rested === false) throw new NothingToDo("the rest was not taken");
+    if (!rested) throw new Error("the rest failed");
+    done.push(...(rested.applied ?? []));
+}
+
+// --- reroll the last action ---
+async function rerollEffect(actor, call, choice, done) {
+    const { rerollLastAction } = await import("./reroll.mjs");
+    const lines = await rerollLastAction(actor);
+    // `rerollLastAction` has already said why.
+    if (!lines) throw new NothingToDo("nothing to reroll");
+    done.push(...lines);
+}
+
+// --- a new rule, announced to everyone AND written down ---
+//
+// Twelve Despair used to buy a chat message that scrolled away. The
+// rule now lands on the standing list every character sheet carries,
+// which is the only form in which a rule can actually bind anybody.
+async function newRuleEffect(actor, call, choice, done) {
+    const { addRule } = await import("./rules.mjs");
+    const recorded = await addRule(choice.text);
+    if (recorded) done.push(game.i18n.localize("DRPG.Rules.recorded"));
+
+    await announce({
+        // The catalogue has had a `newRule` sound since v1.1.8 and this
+        // card - the only thing that announces one - carried no flag, so
+        // it was a sound a GM could map a file to and never hear. Found
+        // in E17 by asking the question R3 does not: not "does every
+        // sound played exist", but "is every sound that exists played".
+        // Public, no whisper list, so the whole table hears it - which
+        // is what the catalogue entry says it is for.
+        flags: { [MODULE_ID]: { sfx: "newRule" } },
+        content: `<div class="drpg-new-rule">
+            <h3>${game.i18n.localize("DRPG.Calls.newRuleTitle")}</h3>
+            <p>${foundry.utils.escapeHTML(choice.text)}</p>
+        </div>`
+    });
+    done.push(game.i18n.localize("DRPG.Calls.newRuleAnnounced"));
+}
+
+// --- sealed rooms ---
+async function sealRoomEffect(actor, call, choice, done) {
+    if (isSealed(choice.room)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadySealed", { room: choice.room }));
+        throw new NothingToDo(`${choice.room} is already sealed`);
+    }
+    await sealRoom(choice.room);
+    done.push(game.i18n.format("DRPG.Calls.sealed", { room: choice.room }));
+}
+
+// --- silence: no Hope Calls until this time of day ends ---
+async function silenceEffect(actor, call, choice, done) {
+    if (isSilenced(choice.target)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadySilenced", { name: choice.target.name }));
+        throw new NothingToDo(`${choice.target.name} is already silenced`);
+    }
+    await restrict(choice.target, { silenced: true });
+    done.push(game.i18n.format("DRPG.Calls.silenced", { name: choice.target.name }));
+    await tell(choice.target, "DRPG.Calls.silencedNotice");
+}
+
+// --- chained: pinned to the room they are standing in ---
+async function chainEffect(actor, call, choice, done) {
+    if (isChained(choice.target)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadyChained", { name: choice.target.name }));
+        throw new NothingToDo(`${choice.target.name} is already chained`);
+    }
+    const { roomOfActor } = await import("./movement.mjs");
+    const here = roomOfActor(choice.target);
+    await restrict(choice.target, { chained: true, room: here });
+    done.push(game.i18n.format("DRPG.Calls.chained", {
+        name: choice.target.name, room: here ?? "-"
+    }));
+    await tell(choice.target, "DRPG.Calls.chainedNotice");
+}
+
+/* --- a motive: a demand, a deadline and a price for missing it ---
+ *
+ * The whole record comes from the picker, so this branch does nothing
+ * but hand it over and report. `setMotive` announces publicly - the
+ * guide requires it - which means the receipt below is the SECOND
+ * thing the table sees, not the first.
+ */
+async function motiveEffect(actor, call, choice, done) {
+    const { setMotive } = await import("./rules.mjs");
+    const record = await setMotive(choice.motive);
+    if (!record) throw new Error("the motive was not announced");
+    done.push(plural("DRPG.Calls.motiveSet", { n: record.timesOfDay }));
+}
+
+/* --- gather everyone, now or at the start of the next time of day ---
+ *
+ * `defers` is the E14 change and it is the whole Call: nobody moves
+ * now, everybody is told where and when, and the crossing they make to
+ * get there is their own. The immediate branch is kept because
+ * `chapter.mjs` still gathers the cast for a body discovery and a
+ * trial, and those are not announcements - they are the game moving
+ * the cast because the fiction just did.
+ */
+async function gatherEffect(actor, call, choice, done) {
+    if (call.defers) {
+        const order = await scheduleGather(choice.room, actor?.name);
+        if (!order) throw new Error(`could not call an assembly in ${choice.room}`);
+        done.push(game.i18n.format("DRPG.Calls.gatherCalled", { room: choice.room }));
+    } else {
+        const moved = await gatherEveryone(choice.room);
+        done.push(plural("DRPG.Calls.gathered", { room: choice.room, n: moved }));
+    }
+}
+
+// --- destroy an item ---
+async function destroyItemEffect(actor, call, choice, done) {
+    const name = choice.item.name;
+    await choice.item.delete();
+    done.push(game.i18n.format("DRPG.Calls.destroyed", { item: name }));
+}
+
+/**
+ * Apply everything a Call does, after it has been paid for.
+ *
+ * @param {Actor} actor    Who made the Call.
+ * @param {string} key
+ * @param {"hope"|"despair"} kind
+ * @param {object} choice  { target, project, room, item } from the picker.
+ * @returns {Promise<{lines: string[], failed: boolean}>} what happened, and
+ *   whether the Call delivered nothing - in which case the caller must hand the
+ *   price back. A Call that has been paid for and did nothing is a theft: the
+ *   Reroll costs 3 Hope, and "there was nothing to reroll" used to keep all
+ *   three of them.
+ */
 export async function applyCall(actor, key, kind, choice = {}) {
     const call = kind === "despair" ? DESPAIR_CALLS[key] : HOPE_CALLS[key];
     if (!call) return { lines: [], failed: true };
@@ -335,316 +687,32 @@ export async function applyCall(actor, key, kind, choice = {}) {
     const done = [];
 
     try {
-        // --- effects that arm the next roll ---
-        if (call.grants) {
-            // Support and Approval arm someone else; the rest arm the caller.
-            const beneficiary = choice.target ?? actor;
-            // The boundary for CALL-02: the picker refuses this before paying, and
-            // a world that moved in between refuses here and hands the price back.
-            if (alreadyArmed(beneficiary, call)) {
-                ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadyArmed",
-                    { name: beneficiary.name, call: call.label }));
-                throw new NothingToDo(`${beneficiary.name} already holds ${call.key}`);
-            }
-            const armed = await armCall(beneficiary, { key, kind, grants: call.grants, from: actor.id });
-
-            // `armCall` returns null when the flag could not be written - no GM
-            // online to forward it, or the write itself failed. Announcing it
-            // anyway is how six Hope bought a Free Critical that was never armed
-            // and never refunded, because the receipt line made the Call look
-            // like it had done something.
-            if (!armed) throw new Error(`could not arm ${key} on ${beneficiary.name}`);
-
-            done.push(game.i18n.format("DRPG.Calls.armed", {
-                name: beneficiary.name,
-                what: game.i18n.localize(`DRPG.Calls.grants.${call.grants}`)
-            }));
-        }
-
-        // --- Despair spent as somebody else's Hope ---
-        //
-        // The pool has ALREADY been charged by `spendDespairCall`, so this only
-        // credits the Hope. Routing it through `convertDespairToHope` would take
-        // the Despair a second time - the exchange rate is the Call's own cost.
-        if (call.grantsHope && choice.target) {
-            // No Hope is earned under the Despair darkening, and this is Hope
-            // earned: the write would be stripped and the Call would still
-            // report "gains 1 Hope" and keep its Despair (CALL-05). Refused
-            // before the write, so the throw hands the price back.
-            if (overflowBlocksHope()) {
-                ui.notifications.warn(game.i18n.localize("DRPG.Overflow.noHopeNow"));
-                throw new NothingToDo("No Hope can be granted while the Despair darkening runs");
-            }
-            const max = resourceMax(choice.target, "hope") || STARTING.hopeMax;
-            const held = resourceValue(choice.target, "hope");
-            const next = Math.min(max, held + call.grantsHope);
-
-            if (next === held) {
-                ui.notifications.warn(game.i18n.localize("DRPG.Despair.hopeAlreadyFull"));
-                throw new NothingToDo(`${choice.target.name} is already at maximum Hope`);
-            }
-
-            await automatedUpdate(choice.target, { "system.resources.hope.value": next });
-            done.push(game.i18n.format("DRPG.Calls.hopeGranted", {
-                name: choice.target.name, n: next - held
-            }));
-            await whisperToOwner(choice.target, `<p>${game.i18n.format("DRPG.Despair.hopeConverted", {
-                n: next - held, who: foundry.utils.escapeHTML(actor?.name ?? "Monokuma")
-            })}</p>`);
-        }
-
-        /*
-         * --- Despair poured into the overflow (Z14) ---
-         *
-         * No target of its own: the thing it acts on is the world. That is why
-         * the Call is `target: "none"` and why this branch sits above the ones
-         * that need somebody to point at.
-         *
-         * The pool has already been charged by `spendDespairCall`, exactly as
-         * with `grantsHope` above - this only moves the point to its
-         * destination. It pushes a receipt line for the same reason every
-         * branch here does: `applyCall` calls a Call with an empty receipt
-         * FAILED and hands the price back, so a branch that worked silently
-         * would be a Call that worked and then refunded itself (trap 100).
-         */
-        if (call.feedsOverflow) {
-            const { addOverflow, overflowCount, overflowThreshold } =
-                await import("./overflow.mjs");
-            const after = await addOverflow(call.feedsOverflow, { reason: "Feed the Overflow" });
-            if (after === null) throw new Error("the overflow refused the Despair");
-            done.push(game.i18n.format("DRPG.Calls.overflowFed", {
-                n: call.feedsOverflow, count: overflowCount(), max: overflowThreshold()
-            }));
-        }
-
-        // --- damage and stress ---
-        if (call.damage && choice.target) {
-            const update = {};
-            // What actually lands, not what the Call is worth: Pain on a student
-            // with one mark left used to report "takes 2 Health" and keep all of
-            // its price, and on a full track it did nothing at all (CALL-15).
-            const landed = [];
-            for (const [resource, amount] of Object.entries(call.damage)) {
-                // Health and Sanity are reverse resources: marks count up to max.
-                const marks = resourceValue(choice.target, resource);
-                const max = resourceMax(choice.target, resource);
-                const next = Math.min(max, marks + amount);
-                if (next === marks) continue;
-                update[`system.resources.${resource}.value`] = next;
-                landed.push(`${next - marks} ${resource === "hitPoints" ? "Health" : "Sanity"}`);
-            }
-            if (!landed.length) {
-                ui.notifications.warn(game.i18n.format("DRPG.Calls.nothingToMark", { name: choice.target.name }));
-                throw new NothingToDo(`${choice.target.name} has nothing left to mark`);
-            }
-            await automatedUpdate(choice.target, update);
-            done.push(game.i18n.format("DRPG.Calls.damaged", {
-                name: choice.target.name,
-                what: landed.join(", ")
-            }));
-        }
-
-        // --- project progress ---
-        //
-        // Named from the local project list rather than from what `addProgress`
-        // returns: a player's write is forwarded to the GM and comes back as a
-        // bare acknowledgement, so reading the name off it produced a receipt
-        // saying "progress on ?" - which reads exactly like nothing happened.
-        // `wipesProgress` went with the Call that carried it (29.08) - see the
-        // note above the project Calls in config.mjs. The branch went too rather
-        // than being left standing for nothing: an unreachable handler is how a
-        // deleted rule comes back by accident.
-        if (call.progress && choice.project) {
-            const { addProgress, allProjects } = await import("./projects.mjs");
-            const project = allProjects().find(p => p.id === choice.project);
-
-            if (!project) {
-                ui.notifications.warn(game.i18n.localize("DRPG.Project.gone"));
-                throw new Error(`project ${choice.project} no longer exists`);
-            } else {
-                const applied = await addProgress(choice.project, call.progress);
-                if (!applied) throw new Error(`addProgress refused ${choice.project}`);
-
-                // A GM's write says outright whether the bar moved. A player's
-                // is forwarded, so the answer comes back as a whisper instead -
-                // never claim a number this side of the socket.
-                if (applied.changed === false) {
-                    done.push(game.i18n.format("DRPG.Calls.progressRefused", { name: project.name }));
-                } else if (applied.changed) {
-                    done.push(game.i18n.format("DRPG.Calls.progressedTo", {
-                        name: project.name, current: applied.to, target: applied.target
-                    }));
-                } else {
-                    done.push(game.i18n.format("DRPG.Calls.progressSent", {
-                        name: project.name, n: call.progress > 0 ? `+${call.progress}` : call.progress
-                    }));
-                }
-            }
-        }
-
-        /*
-         * --- crossings, actions and a rest bought with Hope (E13) ---
-         *
-         * None of the three touches `pendingCall`, and every one of them pushes
-         * a receipt line: `applyCall` reports `failed` when nothing was pushed,
-         * and a Call that failed hands the Hope back. A branch that did its work
-         * silently would be a Call that worked and then refunded itself (trap
-         * 100).
-         */
-        if (call.freeMoves) {
-            const { grantFreeMoves, freeMovesLeft } = await import("./actions.mjs");
-            if (!await grantFreeMoves(actor, call.freeMoves)) {
-                throw new Error(`could not bank ${call.freeMoves} crossing(s)`);
-            }
-            done.push(plural("DRPG.Calls.sprinted", { n: freeMovesLeft(actor) }));
-        }
-
-        if (call.freeActions) {
-            const { grantFreeActions, freeActionsLeft } = await import("./actions.mjs");
-            if (!await grantFreeActions(actor, call.freeActions)) {
-                throw new Error(`could not bank ${call.freeActions} action(s)`);
-            }
-            done.push(plural("DRPG.Calls.burst", { n: freeActionsLeft(actor) }));
-        }
-
-        if (call.freeRest) {
-            const { takeRest } = await import("./rest.mjs");
-            // Every gate a Short Rest normally has, waived - decision 4, and
-            // the reasoning is on `relief` in config.mjs. `quiet` because the
-            // Call is already printing a card and this is one purchase.
-            const rested = await takeRest(actor, call.freeRest, {
-                free: true, ignoreRoom: true, ignoreLimit: true, quiet: true
-            });
-            // Backing out of the "what do you want back" picker is a real
-            // cancel: nothing was restored, so the five Hope come back.
-            // NothingToDo, not a fault, when the player chose not to (live check,
-            // 17.09 - the refund arrived under a "Tell the GM" error toast). A rest
-            // that FAILED still says so: `takeRest` answers false for the first
-            // and null for the second.
-            if (rested === false) throw new NothingToDo("the rest was not taken");
-            if (!rested) throw new Error("the rest failed");
-            done.push(...(rested.applied ?? []));
-        }
-
-        // --- reroll the last action ---
-        if (call.reroll) {
-            const { rerollLastAction } = await import("./reroll.mjs");
-            const lines = await rerollLastAction(actor);
-            // `rerollLastAction` has already said why.
-            if (!lines) throw new NothingToDo("nothing to reroll");
-            done.push(...lines);
-        }
-
-        // --- a new rule, announced to everyone AND written down ---
-        //
-        // Twelve Despair used to buy a chat message that scrolled away. The
-        // rule now lands on the standing list every character sheet carries,
-        // which is the only form in which a rule can actually bind anybody.
-        if (call.announces && choice.text) {
-            const { addRule } = await import("./rules.mjs");
-            const recorded = await addRule(choice.text);
-            if (recorded) done.push(game.i18n.localize("DRPG.Rules.recorded"));
-
-            await announce({
-                // The catalogue has had a `newRule` sound since v1.1.8 and this
-                // card - the only thing that announces one - carried no flag, so
-                // it was a sound a GM could map a file to and never hear. Found
-                // in E17 by asking the question R3 does not: not "does every
-                // sound played exist", but "is every sound that exists played".
-                // Public, no whisper list, so the whole table hears it - which
-                // is what the catalogue entry says it is for.
-                flags: { [MODULE_ID]: { sfx: "newRule" } },
-                content: `<div class="drpg-new-rule">
-                    <h3>${game.i18n.localize("DRPG.Calls.newRuleTitle")}</h3>
-                    <p>${foundry.utils.escapeHTML(choice.text)}</p>
-                </div>`
-            });
-            done.push(game.i18n.localize("DRPG.Calls.newRuleAnnounced"));
-        }
-
-        // --- sealed rooms ---
-        if (call.sealsRoom && choice.room) {
-            if (isSealed(choice.room)) {
-                ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadySealed", { room: choice.room }));
-                throw new NothingToDo(`${choice.room} is already sealed`);
-            }
-            await sealRoom(choice.room);
-            done.push(game.i18n.format("DRPG.Calls.sealed", { room: choice.room }));
-        }
-
-        // --- silence: no Hope Calls until this time of day ends ---
-        if (call.silences && choice.target) {
-            if (isSilenced(choice.target)) {
-                ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadySilenced", { name: choice.target.name }));
-                throw new NothingToDo(`${choice.target.name} is already silenced`);
-            }
-            await restrict(choice.target, { silenced: true });
-            done.push(game.i18n.format("DRPG.Calls.silenced", { name: choice.target.name }));
-            await tell(choice.target, "DRPG.Calls.silencedNotice");
-        }
-
-        // --- chained: pinned to the room they are standing in ---
-        if (call.chains && choice.target) {
-            if (isChained(choice.target)) {
-                ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadyChained", { name: choice.target.name }));
-                throw new NothingToDo(`${choice.target.name} is already chained`);
-            }
-            const { roomOfActor } = await import("./movement.mjs");
-            const here = roomOfActor(choice.target);
-            await restrict(choice.target, { chained: true, room: here });
-            done.push(game.i18n.format("DRPG.Calls.chained", {
-                name: choice.target.name, room: here ?? "-"
-            }));
-            await tell(choice.target, "DRPG.Calls.chainedNotice");
-        }
-
-        /* --- a motive: a demand, a deadline and a price for missing it ---
-         *
-         * The whole record comes from the picker, so this branch does nothing
-         * but hand it over and report. `setMotive` announces publicly - the
-         * guide requires it - which means the receipt below is the SECOND
-         * thing the table sees, not the first.
-         */
-        if (call.setsMotive && choice.motive) {
-            const { setMotive } = await import("./rules.mjs");
-            const record = await setMotive(choice.motive);
-            if (!record) throw new Error("the motive was not announced");
-            done.push(plural("DRPG.Calls.motiveSet", { n: record.timesOfDay }));
-        }
-
-        /* --- gather everyone, now or at the start of the next time of day ---
-         *
-         * `defers` is the E14 change and it is the whole Call: nobody moves
-         * now, everybody is told where and when, and the crossing they make to
-         * get there is their own. The immediate branch is kept because
-         * `chapter.mjs` still gathers the cast for a body discovery and a
-         * trial, and those are not announcements - they are the game moving
-         * the cast because the fiction just did.
-         */
-        if (call.gathersEveryone && choice.room) {
-            if (call.defers) {
-                const order = await scheduleGather(choice.room, actor?.name);
-                if (!order) throw new Error(`could not call an assembly in ${choice.room}`);
-                done.push(game.i18n.format("DRPG.Calls.gatherCalled", { room: choice.room }));
-            } else {
-                const moved = await gatherEveryone(choice.room);
-                done.push(plural("DRPG.Calls.gathered", { room: choice.room, n: moved }));
-            }
-        }
-
-        // --- destroy an item ---
-        if (call.target === "item" && choice.item) {
-            const name = choice.item.name;
-            await choice.item.delete();
-            done.push(game.i18n.format("DRPG.Calls.destroyed", { item: name }));
-        }
+        // The branches, in the order they have always run.
+        if (call.grants) await grantEffect(actor, call, choice, done, { key, kind });
+        if (call.grantsHope && choice.target) await hopeFromDespairEffect(actor, call, choice, done);
+        if (call.feedsOverflow) await feedOverflowEffect(actor, call, choice, done);
+        if (call.damage && choice.target) await damageEffect(actor, call, choice, done);
+        if (call.progress && choice.project) await progressEffect(actor, call, choice, done);
+        if (call.freeMoves) await freeMovesEffect(actor, call, choice, done);
+        if (call.freeActions) await freeActionsEffect(actor, call, choice, done);
+        if (call.freeRest) await freeRestEffect(actor, call, choice, done);
+        if (call.reroll) await rerollEffect(actor, call, choice, done);
+        if (call.announces && choice.text) await newRuleEffect(actor, call, choice, done);
+        if (call.sealsRoom && choice.room) await sealRoomEffect(actor, call, choice, done);
+        if (call.silences && choice.target) await silenceEffect(actor, call, choice, done);
+        if (call.chains && choice.target) await chainEffect(actor, call, choice, done);
+        if (call.setsMotive && choice.motive) await motiveEffect(actor, call, choice, done);
+        if (call.gathersEveryone && choice.room) await gatherEffect(actor, call, choice, done);
+        if (call.target === "item" && choice.item) await destroyItemEffect(actor, call, choice, done);
     } catch (err) {
         if (err instanceof NothingToDo) return { lines: done, failed: true };
         // A Call that has been paid for and did nothing must say so, and must
         // give the price back. Failing quietly is how "Contribution adds no
         // progress, no error" happened.
         error(`Could not fully apply ${key}`, err);
-        ui.notifications.error(game.i18n.format("DRPG.Calls.effectFailed", { call: call.label }));
+        // One message, from the caller: it refunds and says so (DESP-19). A
+        // toast here as well contradicted it a second later ("paid for, but
+        // could not be applied" then "did nothing, so it has been returned").
         done.push(game.i18n.format("DRPG.Calls.effectFailed", { call: call.label }));
         return { lines: done, failed: true };
     }
@@ -974,18 +1042,14 @@ export async function gatherEveryone(room, onScene = null) {
     const { isMonokuma } = await import("./monokuma.mjs");
     const { isDeceased } = await import("./chapter.mjs");
     const { isMonocub } = await import("./monocub.mjs");
-    // THE DEAD STAY WHERE THEY FELL (17.09, CALL-01). A murder is secret until the body is
-    // found, and `killCharacter` leaves the corpse token exactly where it is for that reason.
-    // Gathering it with the living carried an undiscovered body into the assembly room in
-    // front of the whole cast - reproduced on 16.09 - and the body discovery itself moved
-    // the victim, and every earlier chapter's dead, off the spot they were found on. A
-    // Monocub is dead and back on the board, so a Monocub still comes.
+    // Not the dead (DESP-15): a body is evidence, and moving one moves the
+    // crime scene. A Monocub is dead and does walk.
     /* FROM THE SCENE'S DOCUMENTS, NOT FROM THE CANVAS (CALL-18). `canvas.tokens`
        only holds the scene this client is LOOKING at, which is the whole defect one
        level up; `scene.tokens` is the same cast whether or not anybody is looking. */
     const tokens = [...scene.tokens]
-        .filter(t => t.actor?.type === "character" && !isMonokuma(t.actor))
-        .filter(t => !isDeceased(t.actor) || isMonocub(t.actor));
+        .filter(t => t.actor?.type === "character" && !isMonokuma(t.actor)
+            && !(isDeceased(t.actor) && !isMonocub(t.actor)));
 
     if (!tokens.length) return 0;
 
@@ -1065,7 +1129,7 @@ export async function pickTarget(actor, call, kind) {
         switch (call.target) {
             case "player": return await pickPlayer(actor, call, kind);
             case "monocub": return await pickMonocub();
-            case "project": return await pickProject(actor, call);
+            case "project": return await pickProject(actor, kind, call);
             case "room": return await pickRoom();
             case "item": return await pickItem();
             default: return {};
@@ -1126,7 +1190,7 @@ async function pickText(call) {
             <p>${game.i18n.localize("DRPG.Calls.newRulePrompt")}</p>
             <textarea name="text" rows="3"
                 placeholder="${game.i18n.localize("DRPG.Calls.newRulePlaceholder")}"></textarea>
-            <p class="notes">${game.i18n.localize("DRPG.Calls.newRuleNote")}</p>
+            <p class="notes">${game.i18n.format("DRPG.Calls.newRuleNote", { cost: DESPAIR_CALLS.newRule.cost })}</p>
         </form>`),
         buttons: [
             {
@@ -1246,8 +1310,8 @@ async function pickPlayer(actor, call, kind) {
     return { target: pool.find(a => a.id === id) };
 }
 
-async function pickProject(actor, call = null) {
-    const { visibleProjects, projectsAvailableIn, isComplete, isFrozen } = await import("./projects.mjs");
+async function pickProject(actor, kind = "hope", call = null) {
+    const { knownProjects, projectsAvailableIn, isComplete, isFrozen } = await import("./projects.mjs");
     const { roomOfActor } = await import("./movement.mjs");
 
     // Hope's Contribution is "a project being run in your current room";
@@ -1257,9 +1321,17 @@ async function pickProject(actor, call = null) {
     // exists. The fallback used to be `allProjects()`, so a player standing in a
     // room with no project was shown a dropdown of every secret plan at the
     // table - the same leak as Work on Project, one dialog further along.
+    //
+    // And the fallback is Monokuma's alone (DESP-14): `kind` used to go unread,
+    // so a student in an empty room could Contribute across the map.
     const room = roomOfActor(actor);
     const here = projectsAvailableIn(room);
-    const listed = here.length ? here : visibleProjects();
+    // `knownProjects` rather than `visibleProjects` for the same reason the tray
+    // uses it: the fallback is a list of NAMES, and a public project nobody has
+    // walked into yet is not something this account should be able to read off a
+    // dropdown. It changes nothing for a GM - `knowsProject` answers true for
+    // them - and narrows a player-held Monokuma to the rooms they have found.
+    const listed = here.length ? here : (kind === "despair" ? knownProjects() : []);
 
     /*
      * A CALL THAT MOVES PROGRESS NEEDS PROGRESS TO MOVE (CALL-10, Dawid 17.09).
@@ -1269,15 +1341,19 @@ async function pickProject(actor, call = null) {
      * has nothing left to take and taking from it would reopen something whose
      * completion has already armed a trap or thawed a repair; a frozen one is the
      * thing a repair exists to fix, and both Work on Project and Sabotage already
-     * leave it out (projects.mjs). So the two Calls that carry `progress` see the
-     * same list those actions do.
+     * leave it out (projects.mjs). So the Calls that carry `progress` see the
+     * same list those actions do. `projectsAvailableIn` has already dropped the
+     * finished ones from this room's list; the frozen ones, and the whole of the
+     * `knownProjects` fallback, are filtered here.
      */
     const pool = call?.progress
         ? listed.filter(p => !isComplete(p) && !isFrozen(p.id))
         : listed;
 
+    // Two different empties: nothing on the list at all, or a list whose every
+    // project is finished or frozen.
     if (!pool.length) {
-        ui.notifications.warn(game.i18n.localize(call?.progress
+        ui.notifications.warn(game.i18n.localize(listed.length
             ? "DRPG.Project.noneToMove" : "DRPG.Project.none"));
         return null;
     }

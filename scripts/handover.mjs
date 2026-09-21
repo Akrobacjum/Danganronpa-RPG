@@ -20,8 +20,8 @@
  * player's sheet in the first place.
  */
 
-import { MODULE_ID, FLAGS, ITEM_CATEGORIES, BEDROOM_KEY_FLAG } from "./config.mjs";
-import { grantItem, canCarry, preservedFlags } from "./inventory.mjs";
+import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
+import { grantItem, canCarry, preservedFlags, capacityLabel, isStashed } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet } from "./truth-bullets.mjs";
 import { dialogContent, whisperToOwner, log, warn, error } from "./utils.mjs";
 
@@ -129,9 +129,8 @@ async function shareKey({ from, to, item }) {
 
     const already = to.items.some(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === room);
     if (already) {
-        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.alreadyHasIt", {
-            who: foundry.utils.escapeHTML(to.name),
-            name: foundry.utils.escapeHTML(item.name)
+        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.alreadyHasKey", {
+            who: foundry.utils.escapeHTML(to.name)
         })}</p>`);
         return null;
     }
@@ -251,7 +250,6 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
         shownType: data.shownType,
         analyzed: data.analyzed,
         visibility: data.visibility,
-        faint: data.faint,
         playerText: data.playerText,
         gmNote: secret.gmNote ?? "",
         remnantId: secret.remnantId ?? null,
@@ -262,10 +260,24 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
         // From the SECRET, not the item: `createTruthBullet` publishes these
         // onto the copy only if it is born identified, so handing over an
         // unidentified bullet still hands over nothing the giver cannot see.
+        //
+        // `analyzedText` rides the same road for the same reason, and the
+        // symmetry is the point. Hand over evidence you HAVE analysed and the
+        // copy is born identified, so the receiver gets your reading with it -
+        // which is what sharing findings in this game means. Hand over
+        // something you have not, and the copy is born Neutral: the reading is
+        // in its secret, waiting for the receiver's own Head roll, and their
+        // browser holds not one word of it in the meantime.
         sourceAction: secret.sourceAction ?? null,
         tiedToCrime: secret.tiedToCrime ?? null,
-        // And the sentence analysing it buys (T-2), under the same rule.
-        analysis: secret.analysis ?? ""
+        analyzedText: secret.analyzedText ?? "",
+        /* And `faint` moved onto this road in 1.2.47. Read off the giver's ITEM
+           it would have come back false for every unidentified bullet, so every
+           copy of a doubtful trace would have quietly stopped being doubtful -
+           and the chapter's clear would then have taken it. */
+        faint: typeof secret.faint === "boolean"
+            ? secret.faint
+            : Boolean(data.faint)
     });
 
     if (!copy) {
@@ -349,6 +361,12 @@ export async function lootBody({ takerId, bodyId, itemId } = {}) {
 
     const category = item.getFlag(MODULE_ID, "category");
     if (!category) return null;
+    // The loot picker already filters these out; the authority has to agree
+    // with it (ITEM-06): a stash across the map is not on the body.
+    if (isStashed(item)) {
+        warn(`Refused to loot "${item.name}" from ${body.name}: it is in a stash, not on the body.`);
+        return null;
+    }
 
     const name = item.name;
     const taken = await grantItem(taker, {
@@ -452,19 +470,18 @@ async function mintLootBullet(taker, body, item, name, category, trace) {
         const incriminating = ["crimeTool", "cleaningTool"].some(role => servesAs(item, role));
 
         /*
-         * WHAT ANALYSING THE TRACE WILL SAY (T-2), off the LEDGER.
+         * WHAT ANALYSING THE TRACE WILL SAY, off the trace's own `public` record.
          *
          * `trace` is the bookmark on the body - a scene id, a token id and what has
-         * been taken - not a ledger entry, so it has no sentence of its own. The
-         * second looter's trace already exists and a GM may have written about it
-         * hours ago, which makes this the one copy route that could be wrong without
-         * anybody changing anything.
+         * been taken - not a ledger entry, so it has no reading of its own. The
+         * second looter's trace already exists, a GM may have written its lab
+         * reading hours ago, and it is usually already revealed - so the
+         * `revealSourceOf` at the end of `createTruthBullet` returns before it
+         * reconciles this copy. Without this the copy would be the one bullet in
+         * the game whose analysis said nothing, however much the GM had written.
          */
-        const { remnantData } = await import("./remnants.mjs");
-        const traceToken = trace?.sceneId && trace?.tokenId
-            ? game.scenes.get(trace.sceneId)?.tokens?.get(trace.tokenId)
-            : null;
-        const said = traceToken ? (remnantData(traceToken)?.analysis ?? "") : "";
+        const { remnantPublicById } = await import("./remnants.mjs");
+        const analyzedText = remnantPublicById(trace?.sceneId, trace?.tokenId)?.analyzedText ?? "";
 
         await createTruthBullet(taker, {
             name: game.i18n.format("DRPG.Loot.bulletName", { item: name }),
@@ -478,7 +495,7 @@ async function mintLootBullet(taker, body, item, name, category, trace) {
             tiedToCrime: incriminating ? true : null,
             remnantId: trace?.tokenId ?? null,
             sceneId: trace?.sceneId ?? null,
-            analysis: said
+            analyzedText
         });
     } catch (err) {
         // The object moved; the record of it did not. Worth saying out loud,
@@ -508,11 +525,21 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
         return null;
     }
 
+    // Something in a stash is not in a hand, and only a hand can give (ITEM-06).
+    // The sheet hides the button on a stash row; the API and a hand-built
+    // packet did not.
+    if (isStashed(item)) {
+        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.stashed", {
+            name: foundry.utils.escapeHTML(item.name)
+        })}</p>`);
+        return null;
+    }
+
     const room = canCarry(to, category);
     if (!room.ok) {
         await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.theirHandsFull", {
             who: foundry.utils.escapeHTML(to.name),
-            category: foundry.utils.escapeHTML(ITEM_CATEGORIES[category]?.plural ?? category),
+            category: foundry.utils.escapeHTML(capacityLabel(category)),
             limit: room.limit
         })}</p>`);
         return null;

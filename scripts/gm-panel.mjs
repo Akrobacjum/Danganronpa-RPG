@@ -8,12 +8,14 @@
 
 import { MODULE_ID, moduleVersion, FLAGS, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES,
     CHAPTERS_PER_SEASON } from "./config.mjs";
-import { getClock, setClock, clockSummary, timeOfDayLabel, phaseLabel, campaignName } from "./clock.mjs";
+import { getClock, setClock, advanceTimeOfDay, clockSummary, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft, actionsMax, hasFreeMove, resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
+import { studentActors, actingStudents } from "./monokuma.mjs";
 import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
 import { keepLive, alreadyOpen, handOff } from "./live.mjs";
 import { bodyDiscovery } from "./settings.mjs";
+import { keyPlanStatus } from "./investigation.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -140,9 +142,10 @@ const PANEL_SECTIONS = [
             //     several versions; a second door to it was a second thing to
             //     keep in step. `nextStep` still offers it when one is running,
             //     see EXTRA_ACTIONS.
-            //   Listen in on a voice room - reachable from the console
-            //     (`game.drpg.voiceEavesdropDialog()`) and from nowhere a GM
-            //     goes twice a session.
+            //   Listen in on a voice room - removed outright (Dawid, 13.09):
+            //     LiveKit shows the listener's tile to the room, so it never
+            //     was a way to listen unseen. The voice reset it also carried
+            //     is a tile under Between sessions.
         ]
     },
     {
@@ -196,6 +199,16 @@ const PANEL_SECTIONS = [
             // first minute is editing.
             { key: "tables", icon: "fa-table-list", labelKey: "DRPG.Tables.editorTitle",
               run: () => import("./tables.mjs").then(m => m.openItemTables()) },
+            // "Send everybody's voice back to the main room" - the one button the
+            // removed eavesdrop window also carried, kept as its own tile.
+            { key: "voiceReset", icon: "fa-microphone-lines", labelKey: "DRPG.Panel.voiceReset",
+              run: async () => {
+                  const { resetAllVoice } = await import("./voice.mjs");
+                  const n = await resetAllVoice();
+                  ui.notifications[n === null ? "warn" : "info"](n === null
+                      ? game.i18n.localize("DRPG.Voice.resetRefused")
+                      : plural("DRPG.Voice.resetDone", { n }));
+              } },
             // Beside the checks it answers: the season checklist carries the
             // pre-session diagnostics as a button now, because "what is missing"
             // and "fix it" are the same list read from the two ends.
@@ -207,6 +220,11 @@ const PANEL_SECTIONS = [
             // Final Key Remnants, all on one window.
             { key: "mastermind", icon: "fa-user-secret", labelKey: "DRPG.Mastermind.dialogTitle",
               run: () => import("./mastermind.mjs").then(m => m.openMastermindDialog()) },
+            // A chapter that ends without a verdict - stretched because nobody
+            // died, closed on a confession, a one-chapter season - had no door
+            // on screen at all: the trial console's button waited on a verdict.
+            { key: "chapterEndTile", icon: "fa-flag-checkered", labelKey: "DRPG.Chapter.endTitle",
+              run: () => import("./chapter.mjs").then(m => m.openChapterEndDialog()) },
             // Last in the section and red: it is the only control here that
             // destroys anything, and it destroys a chapter's worth at once.
             { key: "seasonReset", icon: "fa-trash-arrow-up", labelKey: "DRPG.Season.resetTitle",
@@ -250,12 +268,43 @@ const PANEL_SECTIONS = [
  */
 const EXTRA_ACTIONS = {
     eclipse: { key: "eclipse", run: () => toggleEclipse() },
+    /*
+     * THE MOST REPEATED GESTURE OF A SESSION, IN ONE PRESS.
+     *
+     * "Everyone has spent their actions" used to point at the campaign editor:
+     * six presses, the day and session bumped by hand at Night, and with the
+     * refill box left off (the hint says to) none of the boundary work ran -
+     * no restock, no seals cleared, no motive ticked, no overflow check. This
+     * is the same call the Eclipse's end makes, refilling included; the day
+     * and the session tick over at Night on their own. Refused during an
+     * Eclipse, whose own end already advances - a second budget is exactly
+     * what a table must never be handed.
+     */
+    advance: {
+        key: "advance",
+        run: async () => {
+            if (isEclipse()) {
+                ui.notifications.warn(game.i18n.localize("DRPG.Panel.advanceDuringEclipse"));
+                return null;
+            }
+            return advanceTimeOfDay({ resetActions: true });
+        }
+    },
+    chapterEnd: {
+        key: "chapterEnd",
+        run: () => import("./chapter.mjs").then(m => m.openChapterEndDialog())
+    },
     // Starting Stage 7 has never had a tile - it was a side effect of finding
     // the body - so the suggestion line points at something the grid does not
     // carry, which is what EXTRA_ACTIONS is for.
     startInvestigation: {
         key: "startInvestigation",
         run: () => import("./clock.mjs").then(m => m.setPhase("investigation"))
+    },
+    // The trial console, for the Next line once the Investigation is done.
+    trial: {
+        key: "trial",
+        run: () => import("./trial-floor-ui.mjs").then(m => m.manageClassTrial())
     }
 };
 
@@ -558,51 +607,11 @@ async function openFailureLog() {
  * merge - see the stage's verification. The one thing deliberately NOT carried
  * across is the death dialog's own character picker: this table is the picker.
  */
-async function openWhoIsAliveDialog() {
-    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
-    // window each read the world when they opened and neither knows about the
-    // other, so the older one goes on looking authoritative while showing
-    // something that stopped being true. Raised rather than refused: pressing
-    // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-alive")) return null;
-
-    // `killCharacter`, `reviveCharacter` and `setSilenced` went with the apply loop
-    // (F15): `applyAliveStates` below imports what it writes.
-    const { isDeceased, openDeathDialog } = await import("./chapter.mjs");
-    const { isMonocub, setMonocub, isSilenced } = await import("./monocub.mjs");
-    const { isMonokuma } = await import("./monokuma.mjs");
-    const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
-    const { resourceValue, resourceMax } = await import("./character.mjs");
-
-    /*
-     * READ FRESH, because somebody dies while this window is open (E22, E17).
-     *
-     * The table used to be built once from the cast as it stood, and a death,
-     * a revival or a Monocub accepting the invitation reached it only if the GM
-     * closed and reopened. `keepLive` rebuilds it in place instead - and the
-     * roster has to be a function for the same reason the rows do, because a
-     * character created mid-session would otherwise have a row nobody reads on
-     * Apply.
-     */
-    const roster = () => game.actors.filter(a => a.type === "character" && !isMonokuma(a));
-    const students = roster();
-    if (!students.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
-        return;
-    }
-
-    const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : "alive";
-    /*
-     * CALLED, NOT READ ONCE (F15, 20.09). This was a string, built when the
-     * window opened, and the table rebuilds itself on every actor change - so
-     * every redraw put the same figures back: a pool that had just paid for a
-     * donation went on offering the Despair it no longer had, and a Monokuma who
-     * opted in while the window stood open never appeared in the list at all. The
-     * row above it made exactly this mistake with `anyCub` and says so.
-     */
-    const buildDonors = () => monokumas().map(u =>
-        `<option value="${u.id}">${esc(poolLabel(u))} (${getDespair(u.id)})</option>`).join("");
-
+/*
+ * THE TABLE, REBUILDABLE. Everything above is a function of the world now,
+ * so this can be called again in place while the window stays open.
+ */
+function aliveTableHtml({ roster, stateOf, donors, isSilenced, resourceValue, resourceMax }) {
     /*
      * THE THREE MONOCUB COLUMNS ONLY EXIST WHEN A MONOCUB DOES (D-F4).
      *
@@ -631,7 +640,6 @@ async function openWhoIsAliveDialog() {
          * heading above calls it properly, so for four releases a table with no
          * Monocub in it had three columns of heading over six columns of row.
          */
-        const donors = buildDonors();
         const cubCells = !anyCub() ? "" : `
             <td>${cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : "-"}</td>
             <td>${cub && donors ? `
@@ -663,64 +671,59 @@ async function openWhoIsAliveDialog() {
         </tr>`;
     }).join("");
 
-    /*
-     * THE TABLE, REBUILDABLE. Everything above is a function of the world now,
-     * so this can be called again in place while the window stays open.
-     */
-    const buildAlive = () => {
-        const cubs = anyCub();
-        return `<div class="drpg-alive-live">
-            <p class="notes">${game.i18n.localize("DRPG.Panel.whoIsAliveNote")}</p>
-            <table class="drpg-vault-table"><thead><tr>
-                <th>${game.i18n.localize("DRPG.Panel.character")}</th>
-                <th>${game.i18n.localize("DRPG.Panel.stateColumn")}</th>
-                ${cubs ? `
-                <th>${game.i18n.localize("DRPG.Monocub.hope")}</th>
-                <th>${game.i18n.localize("DRPG.Monocub.giveHopeColumn")}</th>
-                <th>${game.i18n.localize("DRPG.Monocub.silenced")}</th>` : ""}
-                <th>${game.i18n.localize("DRPG.Panel.doColumn")}</th>
-            </tr></thead><tbody>${buildRows()}</tbody></table>
-            ${cubs ? `<p class="notes">${
-                game.i18n.localize("DRPG.Monocub.silencedNote")}</p>` : ""}
-        </div>`;
-    };
+    const cubs = anyCub();
+    return `<div class="drpg-alive-live">
+        <p class="notes">${game.i18n.localize("DRPG.Panel.whoIsAliveNote")}</p>
+        <table class="drpg-vault-table"><thead><tr>
+            <th>${game.i18n.localize("DRPG.Panel.character")}</th>
+            <th>${game.i18n.localize("DRPG.Panel.stateColumn")}</th>
+            ${cubs ? `
+            <th>${game.i18n.localize("DRPG.Monocub.hope")}</th>
+            <th>${game.i18n.localize("DRPG.Monocub.giveHopeColumn")}</th>
+            <th>${game.i18n.localize("DRPG.Monocub.silenced")}</th>` : ""}
+            <th>${game.i18n.localize("DRPG.Panel.doColumn")}</th>
+        </tr></thead><tbody>${buildRows()}</tbody></table>
+        ${cubs ? `<p class="notes">${
+            game.i18n.localize("DRPG.Monocub.silencedNote")}</p>` : ""}
+    </div>`;
+}
 
-    // The per-row buttons act at once rather than waiting for Apply: each one
-    // runs a real procedure - a death that empties an inventory, a donation
-    // that spends a Despair pool - and a GM who then cancels the form should
-    // not find those undone with it. The window closes and reopens so the table
-    // is rebuilt around what actually happened.
-    /*
-     * WHICH ROW ACTIONS CLOSE THIS WINDOW, AND WHICH DO NOT (E6).
-     *
-     * An action that opens a window of its own closes this one first and brings
-     * it back after: the death dialog is a place the GM goes and comes back
-     * from, and so is the item manager behind the footer's Items button -
-     * D-F5-2 settled that one deliberately, its own Close is the one exit.
-     *
-     * An action that opens NOTHING has no reason to. `setMonocub` writes a flag;
-     * closing and reopening the whole table for it threw away the GM's scroll
-     * position to show them a row that `keepLive` was already about to redraw
-     * on `updateActor`. So `keepOpen` leaves the window alone and lets the live
-     * region do what it is for.
-     */
-    /*
-     * A WINDOW THAT CLOSES IN ORDER TO COME BACK HAS NOT FINISHED (F7, 20.09).
-     *
-     * `tableDialog` is `DialogV2.wait`, which resolves the moment this window
-     * closes, whoever closed it - so the reopen below happened OUTSIDE the promise
-     * the caller is holding. The GM panel awaits `item.run()`, that resolved on
-     * the close, and `openGmPanel()` ran before the GM had answered the death
-     * dialog the row had just opened: three windows on screen for one action, and
-     * the panel in front of the one being asked a question.
-     *
-     * So the whole round trip - close, do the thing, open the table again - is ONE
-     * promise, recorded here and returned below. See `handOff` (live.mjs) for why
-     * it cannot be written with an `await` in front of it. The footer's Items
-     * button has always had this shape; the row buttons did not.
-     */
-    let roundTrip = null;
-    const wireRow = (dialog, attribute, run, { keepOpen = false } = {}) => {
+// The per-row buttons act at once rather than waiting for Apply: each one
+// runs a real procedure - a death that empties an inventory, a donation
+// that spends a Despair pool - and a GM who then cancels the form should
+// not find those undone with it. The window closes and reopens so the table
+// is rebuilt around what actually happened.
+/*
+ * WHICH ROW ACTIONS CLOSE THIS WINDOW, AND WHICH DO NOT (E6).
+ *
+ * An action that opens a window of its own closes this one first and brings
+ * it back after: the death dialog is a place the GM goes and comes back
+ * from, and so is the item manager behind the footer's Items button -
+ * D-F5-2 settled that one deliberately, its own Close is the one exit.
+ *
+ * An action that opens NOTHING has no reason to. `setMonocub` writes a flag;
+ * closing and reopening the whole table for it threw away the GM's scroll
+ * position to show them a row that `keepLive` was already about to redraw
+ * on `updateActor`. So `keepOpen` leaves the window alone and lets the live
+ * region do what it is for.
+ */
+/*
+ * A WINDOW THAT CLOSES IN ORDER TO COME BACK HAS NOT FINISHED (F7, 20.09).
+ *
+ * `tableDialog` is `DialogV2.wait`, which resolves the moment this window
+ * closes, whoever closed it - so the reopen used to happen OUTSIDE the promise
+ * the caller is holding. The GM panel awaits `item.run()`, that resolved on
+ * the close, and `openGmPanel()` ran before the GM had answered the death
+ * dialog the row had just opened: three windows on screen for one action, and
+ * the panel in front of the one being asked a question.
+ *
+ * So the whole round trip - close, do the thing, open the table again - is ONE
+ * promise, handed to `onHandOff` in the same turn as the close and returned by
+ * `openWhoIsAliveDialog`. See `handOff` (live.mjs) for why it cannot be written
+ * with an `await` in front of it. The footer's Items button has always had
+ * this shape; the row buttons did not.
+ */
+function wireAliveRow(dialog, attribute, run, { keepOpen = false, onHandOff = null } = {}) {
         for (const button of dialog.element.querySelectorAll(`[${attribute}]`)) {
             button.addEventListener("click", async ev => {
                 ev.preventDefault();
@@ -736,18 +739,115 @@ async function openWhoIsAliveDialog() {
                 // A row that opens nothing leaves the window alone and lets the
                 // live region redraw it - see the note above.
                 if (keepOpen) return void await work();
-                roundTrip = handOff(dialog, async () => {
+                const trip = handOff(dialog, async () => {
                     await work();
                     return openWhoIsAliveDialog();
                 });
+                onHandOff?.(trip);
             });
         }
+}
+
+/*
+ * WIRED IN A FUNCTION, because `keepLive` replaces the table's DOM
+ * and every listener on it goes with the nodes. A live region whose
+ * buttons stopped working would be worse than a stale one: the GM
+ * reads a table that is true and presses a Kill that does nothing.
+ *
+ * `onHandOff` carries a row's round trip back to the window (F7) - see the
+ * note above `wireAliveRow`.
+ */
+function wireAliveTable(dialog, { openDeathDialog, setMonocub, onHandOff }) {
+    // The full death procedure, on the one character the row is about.
+    // `openDeathDialog` owns the warning about the inventory and the
+    // "keep their things" choice; repeating either here would be a
+    // second copy of a rule that can only be right in one place.
+    wireAliveRow(dialog, "data-drpg-kill", actor => openDeathDialog({ actor }), { onHandOff });
+    // No window of its own, so the table stays where it is (E6).
+    wireAliveRow(dialog, "data-drpg-cub", actor => setMonocub(actor, true),
+        { keepOpen: true });
+
+    for (const button of dialog.element.querySelectorAll("[data-drpg-give]")) {
+        button.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const id = button.dataset.drpgGive;
+            const actor = game.actors.get(id);
+            const donorId = dialog.element.querySelector(`[name="donor:${id}"]`)?.value;
+            const amount = Number(
+                dialog.element.querySelector(`[name="amount:${id}"]`)?.value) || 0;
+            if (!actor || !donorId || amount <= 0) return;
+
+            const { convertDespairToHope } = await import("./despair.mjs");
+            await convertDespairToHope(donorId, actor, amount);
+            /*
+             * The window stays open (E6). This changes two resources on
+             * two actors, and `keepLive` here watches actors - so the
+             * two rows redraw themselves with the new numbers while the
+             * GM is still looking at the row they pressed, instead of
+             * the whole table blinking out and coming back scrolled to
+             * the top.
+             */
+        });
+    }
+}
+
+async function openWhoIsAliveDialog() {
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-alive")) return null;
+
+    // `killCharacter`, `reviveCharacter` and `setSilenced` went with the apply loop
+    // (F15): `applyAliveStates` below imports what it writes.
+    const { isDeceased, openDeathDialog } = await import("./chapter.mjs");
+    const { isMonocub, setMonocub, isSilenced } = await import("./monocub.mjs");
+    const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
+    const { resourceValue, resourceMax } = await import("./character.mjs");
+
+    /*
+     * READ FRESH, because somebody dies while this window is open (E22, E17).
+     *
+     * The table used to be built once from the cast as it stood, and a death,
+     * a revival or a Monocub accepting the invitation reached it only if the GM
+     * closed and reopened. `keepLive` rebuilds it in place instead - and the
+     * roster has to be a function for the same reason the rows do, because a
+     * character created mid-session would otherwise have a row nobody reads on
+     * Apply.
+     */
+    const roster = () => studentActors();
+    const students = roster();
+    if (!students.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
+        return;
+    }
+
+    const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : "alive";
+    /*
+     * CALLED, NOT READ ONCE (F15, 20.09). This was a string, built when the
+     * window opened, and the table rebuilds itself on every actor change - so
+     * every redraw put the same figures back: a pool that had just paid for a
+     * donation went on offering the Despair it no longer had, and a Monokuma who
+     * opted in while the window stood open never appeared in the list at all. The
+     * row above it made exactly this mistake with `anyCub` and says so.
+     */
+    const buildDonors = () => monokumas().map(u =>
+        `<option value="${u.id}">${esc(poolLabel(u))} (${getDespair(u.id)})</option>`).join("");
+
+    const table = () => {
+        const donors = buildDonors();
+        return aliveTableHtml({ roster, stateOf, donors, isSilenced, resourceValue, resourceMax });
     };
+
+    // A row button's round trip, if one is running: this window did not answer,
+    // it handed over (F7). Set by `wireAliveRow` through the callback below.
+    let roundTrip = null;
 
     const chosen = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Panel.whoIsAlive") },
         classes: ["drpg-panel", "drpg-projects", "drpg-window-alive"],
-        content: dialogContent(`<form>${buildAlive()}</form>`),
+        content: dialogContent(`<form>${table()}</form>`),
         buttons: [
             {
                 action: "save", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
@@ -770,45 +870,9 @@ async function openWhoIsAliveDialog() {
             { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
         ],
         render: (event, dialog) => {
-            /*
-             * WIRED IN A FUNCTION, because `keepLive` replaces the table's DOM
-             * and every listener on it goes with the nodes. A live region whose
-             * buttons stopped working would be worse than a stale one: the GM
-             * reads a table that is true and presses a Kill that does nothing.
-             */
-            const wireAll = () => {
-            // The full death procedure, on the one character the row is about.
-            // `openDeathDialog` owns the warning about the inventory and the
-            // "keep their things" choice; repeating either here would be a
-            // second copy of a rule that can only be right in one place.
-            wireRow(dialog, "data-drpg-kill", actor => openDeathDialog({ actor }));
-            // No window of its own, so the table stays where it is (E6).
-            wireRow(dialog, "data-drpg-cub", actor => setMonocub(actor, true),
-                { keepOpen: true });
-
-            for (const button of dialog.element.querySelectorAll("[data-drpg-give]")) {
-                button.addEventListener("click", async ev => {
-                    ev.preventDefault();
-                    const id = button.dataset.drpgGive;
-                    const actor = game.actors.get(id);
-                    const donorId = dialog.element.querySelector(`[name="donor:${id}"]`)?.value;
-                    const amount = Number(
-                        dialog.element.querySelector(`[name="amount:${id}"]`)?.value) || 0;
-                    if (!actor || !donorId || amount <= 0) return;
-
-                    const { convertDespairToHope } = await import("./despair.mjs");
-                    await convertDespairToHope(donorId, actor, amount);
-                    /*
-                     * The window stays open (E6). This changes two resources on
-                     * two actors, and `keepLive` here watches actors - so the
-                     * two rows redraw themselves with the new numbers while the
-                     * GM is still looking at the row they pressed, instead of
-                     * the whole table blinking out and coming back scrolled to
-                     * the top.
-                     */
-                });
-            }
-            };
+            const wireAll = () => wireAliveTable(dialog, {
+                openDeathDialog, setMonocub, onHandOff: trip => { roundTrip = trip; }
+            });
 
             wireAll();
             /*
@@ -820,7 +884,7 @@ async function openWhoIsAliveDialog() {
              */
             keepLive(dialog, {
                 region: ".drpg-alive-live",
-                build: buildAlive,
+                build: table,
                 watch: { actors: true },
                 after: wireAll
             });
@@ -828,9 +892,8 @@ async function openWhoIsAliveDialog() {
         rejectClose: false
     });
 
-    // A row button's round trip, if one is running: this window did not answer,
-    // it handed over (F7). Returned rather than awaited-and-dropped so the GM
-    // panel's tile stays in front of it.
+    // Returned rather than awaited-and-dropped, so the GM panel's tile waits
+    // for the round trip instead of opening the panel over it (F7).
     if (roundTrip) return roundTrip;
 
     if (chosen === "items") {
@@ -852,16 +915,18 @@ async function openWhoIsAliveDialog() {
 }
 
 /**
- * Write what the Players window was told, row by row (F15, 20.09).
+ * Write what the Players window was told, row by row, outside in: deceased first,
+ * then Monocub, then silence. Answers how many changed.
  *
- * DRIVEN BY THE ANSWER, NOT BY THE ROSTER THE WINDOW OPENED WITH. The loop used to
- * walk `students`, read once when the window opened, while the answer was built
- * from `roster()` at the moment of Apply - so a character created while the window
- * stood open got a row, got read, and was then skipped by the loop. Nothing said
- * so: the count at the end only counts what the loop wrote.
+ * DRIVEN BY THE ANSWER, NOT BY THE ROSTER THE WINDOW OPENED WITH (F15, 20.09). The
+ * loop used to walk `students`, read once when the window opened, while the answer
+ * was built from `roster()` at the moment of Apply - so a character created while
+ * the window stood open got a row, got read, and was then skipped by the loop.
+ * Nothing said so: the count at the end only counts what the loop wrote.
  *
  * Exported because it is the part of this window that can be checked without a
- * window, now that it is driven by a plain object rather than by a form.
+ * window, now that it is driven by a plain object rather than by a form - and it
+ * imports what it writes for the same reason.
  *
  * `"silenced" in want` RATHER THAN ITS TRUTHINESS. The dialog always sends the
  * key, but a caller that only means to move a state must not be read as asking for
@@ -910,7 +975,6 @@ export async function applyAliveStates(chosen = {}) {
             changed++;
         }
     }
-
     return changed;
 }
 
@@ -974,10 +1038,7 @@ async function toggleEclipse() {
  * @returns {{text: string, action: string|null}}
  */
 function nextStep(clock) {
-    const students = game.actors.filter(a =>
-        a.type === "character"
-        && !a.getFlag(MODULE_ID, FLAGS.monokuma)
-        && (!a.getFlag(MODULE_ID, FLAGS.deceased) || a.getFlag(MODULE_ID, FLAGS.monocub)));
+    const students = actingStudents();
     const stillActing = students.filter(a => actionsLeft(a) > 0);
 
     if (game.drpg?.murderState?.()?.active) {
@@ -1012,7 +1073,7 @@ function nextStep(clock) {
         // are read from the trial's own progress record; see vote.mjs.
         const progress = game.drpg?.trialProgress?.() ?? {};
         if (progress.verdictApplied) {
-            return { text: game.i18n.localize("DRPG.Panel.nextChapterEnd"), action: "trial" };
+            return { text: game.i18n.localize("DRPG.Panel.nextChapterEnd"), action: "chapterEnd" };
         }
         if (progress.voteClosed) {
             return { text: game.i18n.localize("DRPG.Panel.nextVerdict"), action: "trial" };
@@ -1050,16 +1111,26 @@ function nextStep(clock) {
     }
 
     if (clock.phase === "investigation") {
+        // Once every planned Key Remnant has been found the one step that ends
+        // the phase is the trial (CORE-19); the line used to describe the
+        // Investigation for the whole of it.
+        let status = null;
+        try {
+            status = keyPlanStatus();
+        } catch {
+            status = null;
+        }
+        if (status?.entries?.length && status.missing === 0) {
+            return { text: game.i18n.localize("DRPG.Panel.nextStartTrial"), action: "trial" };
+        }
         return { text: game.i18n.localize("DRPG.Panel.nextInvestigation"), action: "investigation" };
     }
 
     // Daily Life. The one number that decides whether the time of day is over.
-    //
-    // THE CLOCK MOVES THROUGH THE ECLIPSE, NOT THE EDITOR (17.09, GMP-01). "Do it" used to
-    // open Edit campaign, which is bookkeeping: applying a new time of day there skips the
-    // placement window, the refill and the restock, so a GM who followed the suggestion
-    // left every student on 0 actions in the new time of day and the line went on saying
-    // everyone had spent theirs. The Eclipse is the one road that refills.
+    // The boundary between two times of day IS the Eclipse (`startEclipse`
+    // refills, `endEclipse` advances), so that is what the line suggests; the
+    // "Next time of day" button beside the clock is the road for a table that
+    // skips one. Neither goes near the campaign editor, which is for corrections.
     return stillActing.length
         ? { text: plural("DRPG.Panel.nextStillActing", { n: stillActing.length }),
             action: null }
@@ -1077,12 +1148,7 @@ function buildPanelContent() {
     // design - and so did every corpse. The one question this table answers is
     // "who still has actions left", and neither of those can have any. A
     // Monocub stays: they spend a real budget on Move and Meddle.
-    const roster = game.actors.filter(a => {
-        if (a.type !== "character") return false;
-        if (a.getFlag(MODULE_ID, FLAGS.monokuma)) return false;
-        if (a.getFlag(MODULE_ID, FLAGS.deceased) && !a.getFlag(MODULE_ID, FLAGS.monocub)) return false;
-        return true;
-    });
+    const roster = actingStudents();
 
     const rows = roster
         .map(a => {
@@ -1095,8 +1161,8 @@ function buildPanelContent() {
             // empty outline says "used" in the one the rest of the interface
             // already speaks.
             const move = `<i class="${hasFreeMove(a) ? "fa-solid" : "fa-regular"} `
-                + `fa-shoe-prints drpg-pix-foot" title="${
-                    hasFreeMove(a) ? "free Move available" : "free Move used"}"></i>`;
+                + `fa-shoe-prints drpg-pix-foot" title="${esc(game.i18n.localize(
+                    hasFreeMove(a) ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent"))}"></i>`;
             const cub = a.getFlag(MODULE_ID, FLAGS.monocub)
                 ? ` <span class="notes">(${game.i18n.localize("DRPG.Monocub.isOne")})</span>` : "";
             const low = left === 0 ? ' style="opacity:.55"' : "";
@@ -1132,10 +1198,20 @@ function buildPanelContent() {
                 : ""}
         </div>`;
 
+    // One press for the clock, on the line that shows it. Hidden during an
+    // Eclipse (its end advances) and in a trial (the chapter's end does).
+    const canAdvance = !isEclipse() && clock.phase !== "classTrial";
+    const advance = canAdvance
+        ? `<button type="button" class="drpg-gmp-next-go drpg-gmp-advance" data-drpg-run="advance"
+                data-tooltip="${esc(game.i18n.localize("DRPG.Panel.advanceTooltip"))}">
+               <i class="fa-solid fa-forward-step" inert></i> ${esc(game.i18n.localize("DRPG.Panel.advance"))}</button>`
+        : "";
+
     return `<div class="drpg-gmp-standing">
                 <h3>${foundry.utils.escapeHTML(campaignName(clock))}</h3>
                 <p><strong>${clockSummary(clock)}</strong>
-                   <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span></p>
+                   <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span>
+                   ${advance}</p>
                 ${suggestion}
                 ${table}
             </div>`;
@@ -1173,32 +1249,13 @@ export async function openClockDialog() {
         .map(([key, p]) => `<option value="${key}"${key === clock.phase ? " selected" : ""}>${p.label}</option>`)
         .join("");
 
-    /*
-     * THE LIST HAS TO CONTAIN THE CHAPTER THE CLOCK IS ON (GMP-03, 20.09).
-     *
-     * Six options, 1 to 6, and a season does not stop at 6: ending chapter 6
-     * writes chapter 7 (`applyChapterEnd`, chapter.mjs, uncapped on purpose).
-     * WITH NO OPTION MATCHING, THE BROWSER REPORTS THE FIRST ONE - so this window
-     * opened reading "Chapter 1" while the HUD read 7, and Apply, which is the
-     * bookkeeping a GM presses to fix a typo in the campaign name, rewound the
-     * campaign five chapters without a word. Everything keyed to the chapter
-     * follows it down: Silence stops being true, this chapter's Key Remnants and
-     * traces stop counting as this chapter's, and the death records written since
-     * say 7 for a world that says 1.
-     *
-     * The rule is general: a select that edits a stored value must CONTAIN that
-     * value, or the form reports its first option as the person's answer and
-     * writes it back on submit. The other two selects here are safe for a reason
-     * rather than by luck - the time of day and the phase are closed sets written
-     * only from TIMES_OF_DAY and PHASES. The chapter is the one field the world
-     * can put outside its own list. The same cap is on the Season setup window's
-     * chapter field (season-setup.mjs), widened there in the same pass.
-     *
-     * COERCED ONCE AND USED TWICE. `n === clock.chapter` is a strict compare, so
-     * a world holding the string "7" would widen nothing and match nothing - the
-     * worst of both. Anything below 1 or unreadable falls back to 1 rather than
-     * building a list of length NaN out of a world setting.
-     */
+    // Never shorter than the clock: a clock past the season's last chapter
+    // found no matching option, the browser selected "1", and Apply wrote it.
+    //
+    // COERCED ONCE AND USED TWICE (GMP-03). `n === clock.chapter` is a strict
+    // compare, so a world holding the string "7" would have matched nothing and
+    // put the browser back on "1". Anything below 1 or unreadable falls back to 1
+    // rather than building a list of length NaN out of a world setting.
     const stated = Number(clock.chapter);
     const now = Number.isFinite(stated) && stated >= 1 ? Math.round(stated) : 1;
     const chapters = Array.from({ length: Math.max(CHAPTERS_PER_SEASON, now) }, (_, i) => i + 1)

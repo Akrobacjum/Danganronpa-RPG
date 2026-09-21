@@ -1,0 +1,448 @@
+{
+  "scenario": "scenarios/40-flow.mjs",
+  "passed": 35,
+  "total": 35,
+  "ms": 9784,
+  "results": [
+    {
+      "name": "p1: spending an action costs exactly one",
+      "ok": true,
+      "details": "2 -> 1"
+    },
+    {
+      "name": "gm: clock advanced to noon",
+      "ok": true,
+      "details": "{\"eclipse\":false,\"campaignName\":\"\",\"season\":1,\"chapter\":1,\"session\":1,\"day\":1,\"phase\":\"dailyLife\",\"timeOfDay\":\"noon\",\"timeOfDayStartedAt\":1789530882974,\"pausedAt\":null,\"finalTrial\":false,\"campaign\":\"QA season\"}"
+    },
+    {
+      "name": "p1: sees the new time of day",
+      "ok": true,
+      "details": "{\"clock\":\"noon\",\"left\":2,\"max\":2,\"hud\":\"DRPG Audit WorldChapter 1 · Day 1Daily LifeNoon0 min inDorm ANo available project\",\"strip\":\"ActionsMoveDAGGERHEART.GENERAL.hope\"}"
+    },
+    {
+      "name": "p1: actions refilled by the advance",
+      "ok": true,
+      "details": "2/2"
+    },
+    {
+      "name": "p1: HUD names the time of day",
+      "ok": true,
+      "details": "DRPG Audit WorldChapter 1 · Day 1Daily LifeNoon0 min inDorm ANo available project"
+    },
+    {
+      "name": "p2: sees the new time of day",
+      "ok": true,
+      "details": "{\"clock\":\"noon\",\"left\":2,\"max\":2,\"hud\":\"DRPG Audit WorldChapter 1 · Day 1Daily LifeNoon0 min inCafeteriaNo available project\",\"strip\":\"ActionsMoveDAGGERHEART.GENERAL.hope\"}"
+    },
+    {
+      "name": "p2: actions refilled by the advance",
+      "ok": true,
+      "details": "2/2"
+    },
+    {
+      "name": "p2: HUD names the time of day",
+      "ok": true,
+      "details": "DRPG Audit WorldChapter 1 · Day 1Daily LifeNoon0 min inCafeteriaNo available project"
+    },
+    {
+      "name": "p3: sees the new time of day",
+      "ok": true,
+      "details": "{\"clock\":\"noon\",\"left\":2,\"max\":2,\"hud\":\"DRPG Audit WorldChapter 1 · Day 1Daily LifeNoon0 min inDorm BNo available project\",\"strip\":\"ActionsMoveDAGGERHEART.GENERAL.hope\"}"
+    },
+    {
+      "name": "p3: actions refilled by the advance",
+      "ok": true,
+      "details": "2/2"
+    },
+    {
+      "name": "p3: HUD names the time of day",
+      "ok": true,
+      "details": "DRPG Audit WorldChapter 1 · Day 1Daily LifeNoon0 min inDorm BNo available project"
+    },
+    {
+      "name": "p3: the time-of-day card reached a bystander",
+      "ok": true,
+      "details": "[\"Noon Chapter 1 · Day 1 · Session 1 · Noon Actions refilled for 4 characters · Every room restocked with search tokens\"]"
+    },
+    {
+      "name": "p1: Search ran without throwing",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "p1: Search charged one action",
+      "ok": true,
+      "details": "2 -> 1 (dialogs: Search)"
+    },
+    {
+      "name": "gm: Search spent one of the room's tokens",
+      "ok": true,
+      "details": "Dorm A: 3 -> 2"
+    },
+    {
+      "name": "gm: the Search left a card the GM can read",
+      "ok": true,
+      "details": "[{\"w\":[],\"t\":\"Noon Chapter 1 · Day 1 · Session 1 · Noon Actions refilled for 4 characters · Every room restocked with search tokens\"},{\"w\":[\"USERGM0000000000\",\"USERP10000000000\"],\"t\":\"Duality: 14\"},{\"w\":[\"USERGM0000000000\",\"USERP10000000000\"],\"t\":\"-\"}]"
+    },
+    {
+      "name": "p2: another player was not told what p1 searched for",
+      "ok": true,
+      "details": "[{\"w\":[],\"t\":\"Noon Chapter 1 · Day 1 · Session 1 · Noon Actions refilled for 4 characters · Every room restocked with search tokens\"}]"
+    },
+    {
+      "name": "gm: the Ultimate request arrived as a card with buttons in the player's thread",
+      "ok": true,
+      "details": "{\"found\":true,\"sent\":true,\"rid\":\"CHIJLycQTKOovRW8\",\"asker\":\"USERP20000000000\",\"text\":\"Ultimate - does it apply? Botan Kage I am the Ultimate Locksmith and this is a lock. Advantage on a roll your Ultimate genuinely applies to. 1 Hope, charged only on a yes. The question is the handbook\"}"
+    },
+    {
+      "name": "p2: Hope was charged once the GM said yes",
+      "ok": true,
+      "details": "{\"hope0\":3,\"hope\":2,\"r\":\"object\",\"notifs\":[]}"
+    },
+    {
+      "name": "gm: a player's message lands in the GM's thread",
+      "ok": true,
+      "details": "{\"total\":2,\"thread\":1}"
+    },
+    {
+      "name": "gm: the GM sees an unread count for it",
+      "ok": true,
+      "details": "{\"total\":2,\"thread\":1}"
+    },
+    {
+      "name": "p3: the reply arrives with an unread count",
+      "ok": true,
+      "details": "{\"total\":2,\"thread\":2,\"notifs\":[]}"
+    },
+    {
+      "name": "p1: holds no words of p3's thread with the GM",
+      "ok": true,
+      "details": "{\"n\":0,\"words\":0,\"clear\":0}"
+    },
+    {
+      "name": "p3: holds the words of their own thread",
+      "ok": true,
+      "details": "2 of the thread's cards have words on p3"
+    },
+    {
+      "name": "gm: the safeword reached this client",
+      "ok": true,
+      "details": "{\"paused\":true,\"cards\":[\"-\",\"-\",\"THE SCENE IS STOPPED Somebody used the safeword. Play stops here. A GM will pick this up, and the sc\"],\"notifs\":[]}"
+    },
+    {
+      "name": "p1: the safeword reached this client",
+      "ok": true,
+      "details": "{\"paused\":false,\"cards\":[\"Duality: 14\",\"-\",\"THE SCENE IS STOPPED Somebody used the safeword. Play stops here. A GM will pick this up, and the sc\"],\"notifs\":[]}"
+    },
+    {
+      "name": "p2: the safeword reached this client",
+      "ok": true,
+      "details": "{\"paused\":false,\"cards\":[\"-\",\"-\",\"THE SCENE IS STOPPED Somebody used the safeword. Play stops here. A GM will pick this up, and the sc\"],\"notifs\":[]}"
+    },
+    {
+      "name": "gm: Pain ran",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "gm: Pain took 2 Health from Aiko (Health counts up as damage in Daggerheart)",
+      "ok": true,
+      "details": "{\"hp0\":0,\"hp\":2,\"r\":\"object\",\"err\":null,\"despair\":3}"
+    },
+    {
+      "name": "p1: the victim of the Call was told",
+      "ok": true,
+      "details": "{\"notifs\":[],\"cards\":[\"THE SCENE IS STOPPED Somebody used the safeword. Play stops here. A GM will pick this up, and the scene resumes from a point everyone agrees\",\"Despair Call - Pain A player loses 2 Health. Aiko Hoshino takes 2 Health. GM spent 3 Despair\"]}"
+    },
+    {
+      "name": "p2: the Despair rail on a player shows no number",
+      "ok": true,
+      "details": "Despair PoolsDespair3/12Despair overflow · ?/20"
+    },
+    {
+      "name": "gm: no uncaught errors",
+      "ok": true,
+      "details": "[]"
+    },
+    {
+      "name": "p1: no uncaught errors",
+      "ok": true,
+      "details": "[]"
+    },
+    {
+      "name": "p2: no uncaught errors",
+      "ok": true,
+      "details": "[]"
+    },
+    {
+      "name": "p3: no uncaught errors",
+      "ok": true,
+      "details": "[]"
+    }
+  ],
+  "permissionDenials": [],
+  "socketTraffic": [
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 29
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 27
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 62
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 147
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 150
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 147
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 62
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 62
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 150
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 147
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 147
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 102
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 102
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 102
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 118
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 118
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 118
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 72
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 72
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 72
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 51
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 318
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 149
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 133
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 120
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 1106
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 119
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 349
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 120
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 1006
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 143
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 456
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 169
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 158
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 97
+    }
+  ],
+  "bootInfo": {
+    "gm": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 69
+    },
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 69
+    },
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 69
+    },
+    "p3": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 69
+    }
+  }
+}

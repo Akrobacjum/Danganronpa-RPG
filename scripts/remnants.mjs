@@ -131,38 +131,30 @@ const TINTS = {
     final: "#ffffff"
 };
 
-/**
- * Difficulty as a tag a player can read, not a number.
+/*
+ * THE DIFFICULTY BAND IS GONE, AND SO IS THE TAG ROW IT LIVED ON.
+ * ---------------------------------------------------------------------------
+ * `difficultyTag` turned a trace's Observe DC into one of four wide words -
+ * slight / modest / firm / deep - and `remnantPublic` appended it to every
+ * trace's tags, so a player who found something read it on the Remnant card.
+ * The bands existed instead of a number for a good reason, and that reason is
+ * why the whole thing has gone rather than been moved somewhere else: the DC
+ * is derived from the trace's REAL type (`OBSERVE_TYPE_ALIAS` in config.mjs),
+ * so the band is a function of the answer. Two traces both labelled Obvious
+ * can land in different bands, and the difference is a hint at the type the
+ * player has not analysed yet. The old note called the bands "wide enough that
+ * neighbouring types usually land in the same one", which is an acknowledged
+ * leak with a bound on it rather than no leak.
  *
- * Four bands over `observeDc()`'s six actual values (6, 9, 12, 15, 18, 21),
- * named for how solid the lead feels rather than for what a GM would call the
- * visibility band - "Obvious" and "Evident" are already spoken for, and this
- * is a different axis: a Faint trace at Obvious (12) is genuinely harder to
- * spot than a Key one at Obvious (6), which is the whole reason `observeDc`
- * takes the type as well as the visibility. Naming the bands after the DC
- * range rather than reusing REMNANT_VISIBILITY_LABELS keeps the two axes from
- * being read as the same thing.
+ * With the tags removed (Dawid, 16.09) it had no other reader, and putting it
+ * back somewhere would have meant re-arguing that bound. What the player sees
+ * about how hard a trace was to spot is the VISIBILITY band, which is stored on
+ * the trace, is not derived from the answer, and is already on the badge row.
  *
- * NO EXACT NUMBER, ever - DC is derived from the trace's REAL type
- * (`OBSERVE_TYPE_ALIAS` in config.mjs), so printing "DC 9" would let a player
- * back out whether they are looking at a Key trace or a Prep one just by
- * comparing it to a Key trace they found earlier. The four bands are wide
- * enough that neighbouring types usually land in the same one.
+ * `observeDc` is untouched: the DC itself is still what Observe and Analyze
+ * roll against, and it has never been shown to anybody.
  */
-const DIFFICULTY_BANDS = [
-    { max: 9, key: "slight" },
-    { max: 12, key: "modest" },
-    { max: 15, key: "firm" },
-    { max: Infinity, key: "deep" }
-];
 
-/** The difficulty tag for a trace, or `null` when it has no Observe DC at all. */
-export function difficultyTag(visibility, type) {
-    const dc = observeDc(visibility, type);
-    if (dc === null) return null;
-    const band = DIFFICULTY_BANDS.find(b => dc <= b.max) ?? DIFFICULTY_BANDS[DIFFICULTY_BANDS.length - 1];
-    return game.i18n.localize(`DRPG.Remnant.difficulty.${band.key}`);
-}
 
 /**
  * Whether a player is told anything at all about a trace they (or their
@@ -296,7 +288,28 @@ export async function placeRemnant(data = {}) {
     if (data.tiedToCrime === undefined || data.tiedToCrime === null) {
         try {
             const { murderState } = await import("./murder.mjs");
-            if (murderState()) data = { ...data, tiedToCrime: true };
+            const state = murderState();
+            if (state) {
+                /*
+                 * THE INCIDENT'S OWN TRACES, NOT EVERY TRACE OF THE NIGHT (D5,
+                 * Dawid 13.09; audit CASE-11). This used to tie anything left
+                 * while an incident ran, so a witness Searching a cupboard at
+                 * the far end of the school became "evidence of the murder".
+                 * Tied now: a trace left by a participant, or one left in the
+                 * incident's room. Anything else stays `null` - the dashboard's
+                 * "?" column, for the GM to answer.
+                 */
+                const cast = [state.killerId, state.victimId, state.thirdId].filter(Boolean);
+                let tied = Boolean(data.sourceActor && cast.includes(data.sourceActor));
+                if (!tied) {
+                    const { locateActor } = await import("./movement.mjs");
+                    const where = locateActor(game.actors.get(state.victimId));
+                    const sceneId = data.sceneId ?? data.scene?.id ?? canvas?.scene?.id ?? null;
+                    tied = Boolean(where?.room && data.room && data.room === where.room
+                        && (!where.scene || !sceneId || where.scene.id === sceneId));
+                }
+                data = { ...data, tiedToCrime: tied ? true : null };
+            }
         } catch {
             // No incident module, no incident. The trace stays as it came.
         }
@@ -665,7 +678,9 @@ export async function reconcileRemnantActor() {
     if (!game.user.isGM) return;
     const actor = game.actors.getName(REMNANT_ACTOR);
     if (actor) await raiseRemnantOwnership(actor);
-    await adoptQuestionMark(actor);
+    // The icon sweep is a migration clause now (`questionMarkIcon` in
+    // migrate.mjs): it walked every scene's tokens on every load for a world
+    // that had been through it long ago (audit, hygiene).
 }
 
 /**
@@ -678,10 +693,10 @@ export async function reconcileRemnantActor() {
  * and for the same reason: every existing world placed its traces under the
  * old icon, and `placeRemnant` only reaches the ones placed from now on.
  */
-async function adoptQuestionMark(actor) {
+export async function adoptQuestionMark(actor = game.actors.getName(REMNANT_ACTOR)) {
     // One GM does the sweep; the ledger writes reach the others over the
     // socket and the token writes are world data anyway.
-    if (!isPrimaryGm()) return;
+    if (!isPrimaryGm()) return 0;
     try {
         if (actor && actor.img === OLD_ICON) await actor.update({ img: ICON });
 
@@ -704,8 +719,10 @@ async function adoptQuestionMark(actor) {
         }
 
         if (moved) log(`Moved ${moved} Remnant token(s) onto the question-mark icon.`);
+        return moved;
     } catch (err) {
         error("Could not move existing Remnants onto the question-mark icon", err);
+        return 0;
     }
 }
 
@@ -891,7 +908,8 @@ export async function dropRemnantSecret(tokenDoc) {
  * the other two stayed stale.
  *
  * `public` is the one structure a player is ever shown anything from:
- * `{ name, img, playerText, tags }`. Every one of the three views below reads
+ * `{ name, img, playerText, analyzedText }` - `tags` was the fifth and is gone
+ * (16.09; see `remnantPublic`). Every one of the three views below reads
  * ONLY from it - never from `type`, `note`, `tiedToCrime`, `pointsAt` or
  * `sourceActor`, which stay answer-key fields for exactly the reason D6 (see
  * the header of this file) already gives.
@@ -910,7 +928,11 @@ function defaultPublic(entry) {
         name: entry?.described?.name || game.i18n.localize("DRPG.Remnant.tokenName"),
         img: ICON,
         playerText: entry?.described?.playerText || "",
-        tags: []
+        // The second tier: what Analyze says about this same object. Empty is
+        // the honest default - a trace nobody has written a lab reading for
+        // pays out its category and nothing else, which is what every trace did
+        // before this field existed.
+        analyzedText: entry?.described?.analyzedText || ""
     };
 }
 
@@ -918,23 +940,20 @@ function defaultPublic(entry) {
  * Read what a player may eventually be shown about this trace. GM-side only -
  * a player's client never holds the ledger this reads from (see `remnantData`).
  *
- * TWO TAGS ARE COMPUTED HERE RATHER THAN STORED IN `tags`, for the same
- * reason in both cases: a tag written once at creation describes the trace as
- * it was, and both of these facts can change afterwards. `retuneRemnant`
- * moves a trace's visibility, so a stored difficulty would go stale; and a GM
- * correcting which room a trace was left in would leave a stored room tag
- * pointing at the wrong place. Derived on read, they cannot disagree with the
- * ledger.
+ * TAGS ARE GONE FROM HERE, AND FROM THE MODULE (Dawid, 16.09).
  *
- * The room tag is what replaces the Casebook's grouping. Grouping was a view -
- * it existed only inside that one window - whereas a tag is a property of the
- * object, so it travels automatically onto the token, into the Truth Bullet in
- * the player's pack, onto the evidence card in the trial and into the
- * Investigation dashboard. Same information, in every view at once, which is
- * what makes the Casebook safe to delete in this stage.
+ * This used to append two derived tags - the room and a difficulty band - to a
+ * list of free-text ones a GM typed into the Investigation dashboard. The
+ * argument for them was that a tag is a property of the object and therefore
+ * travels into every view at once, which was true and is no longer needed: the
+ * room and the difficulty are both proper badges now, on the inventory row, on
+ * the evidence card and on the Remnant card, drawn from the fields they are
+ * actually stored in rather than from a string that had to be kept in step.
  *
- * The GM's own manual tags stay first, so the two derived ones read as a
- * consistent suffix rather than shuffling around whatever was typed.
+ * What the free-text half was FOR is the thing that came back as a real
+ * control: a GM correcting what a trace is. That is the type, and the dashboard
+ * sets it directly now (`setRemnantFlags`), where it reaches the copies' answer
+ * keys instead of sitting in a list nothing reads.
  */
 export function remnantPublic(tokenDoc) {
     if (!game.user.isGM) return null;
@@ -942,25 +961,23 @@ export function remnantPublic(tokenDoc) {
     const entry = key ? readRemnantLedger()[key] : null;
     if (!entry || entry.deleted) return null;
 
-    const pub = { ...defaultPublic(entry), ...(entry.public ?? {}) };
-    const derived = [entry.room || null, difficultyTag(entry.visibility, entry.type)]
-        .filter(Boolean);
-
-    return {
-        ...pub,
-        // Deduplicated: a GM who typed the room name in by hand before this
-        // was derived should not now see it twice on the same card.
-        tags: Array.from(new Set([...pub.tags, ...derived]))
-    };
+    return { ...defaultPublic(entry), ...(entry.public ?? {}) };
 }
 
 /**
  * Change what a player may eventually be shown, and push the change out to
  * every view that reads it.
  *
- * @param {object} patch  Any of `name`, `img`, `playerText`, `tags` - merged
- *   over what is already stored, so a caller changing one field does not have
- *   to resend the other three.
+ * @param {object} patch  Any of `name`, `img`, `playerText` or `analyzedText` -
+ *   merged over what is already stored, so a caller changing one field does not
+ *   have to resend the rest.
+ *
+ * `analyzedText` is the one field here that is NOT public to everyone holding a
+ * copy: it reaches an analysed bullet's item and an un-analysed bullet's secret.
+ * It lives in this record anyway because it is a property of the TRACE - one
+ * object, one lab reading, however many people are carrying a copy - and that
+ * is the same argument that put `playerText` here rather than on each bullet.
+ * `propagateRemnantPublic` is where the two roads part.
  */
 export async function setRemnantPublic(tokenDoc, patch = {}) {
     if (!game.user.isGM || !tokenDoc) return null;
@@ -1141,6 +1158,19 @@ export function registerRemnantLedger() {
     });
 
     /*
+     * EVERY DELETION TOMBSTONES ITS ROW (CASE-12). `removeRemnant` did; the
+     * chapter's Faint sweep, a retune's remove, both Reroll undos and a GM's
+     * own Delete on the token did not, so the ledger kept a live row for every
+     * trace that no longer existed - 685 rows and 174 KB in E17, re-parsed on
+     * every read. One hook on the primary GM covers all of them; the tombstone
+     * is idempotent, so the roads that already do it cost nothing extra.
+     */
+    Hooks.on("deleteToken", doc => {
+        if (!isPrimaryGm() || !doc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return;
+        dropRemnantSecret(doc).catch(err => warn("Could not tombstone a deleted Remnant's row", err));
+    });
+
+    /*
      * WHEN THE DIGEST GOES OUT. The turn of the time of day and the end of an
      * Eclipse - the two moments the table already stops at, so the whisper
      * lands in a pause rather than across somebody's turn.
@@ -1154,15 +1184,33 @@ export function registerRemnantLedger() {
     Hooks.on("drpgTimeOfDayChanged", () => { flushTraceDigest(); });
     Hooks.on("drpgEclipseChanged", running => { if (!running) flushTraceDigest(); });
 
-    game.socket.on(SOCKET_EVENT, async payload => {
+    /*
+     * GM-TO-GM, CHECKED AT BOTH ENDS - the same rule truth-bullets.mjs states
+     * for its ledger, and for the same reason. This ledger is the answer key to
+     * every trace on every map: type, who left it, whether it is tied to the
+     * crime, the GM's own note. Checking only that THIS client is a GM left the
+     * sender unchecked, so a player's console could ask for the whole ledger
+     * (`rm.ledgerRequest` with their own id in `from`) and be sent it, or push a
+     * forged `rm.secret` that retyped their own trace as Faint on every GM's
+     * browser. `senderId` is Foundry's own argument and cannot be forged; the
+     * reply is addressed to it, never to a field the packet chose.
+     */
+    game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
         if (!game.user?.isGM || !payload) return;
+        if (!Object.values(RM).includes(payload.action)) return;
+        if (!game.users.get(senderId)?.isGM) {
+            warn(`Refused a Remnant ledger "${payload.action}" from a non-GM (${
+                game.users.get(senderId)?.name ?? senderId}).`);
+            return;
+        }
+        if (senderId === game.user.id) return;
         try {
             if (payload.action === RM.secret) {
-                await mergeRemnantEntries({ [payload.key]: payload.entry });
-            } else if (payload.action === RM.request && payload.from !== game.user.id) {
+                if (payload.key) await mergeRemnantEntries({ [payload.key]: payload.entry });
+            } else if (payload.action === RM.request) {
                 game.socket.emit(SOCKET_EVENT,
                     { action: RM.full, from: game.user.id, ledger: readRemnantLedger() },
-                    { recipients: [payload.from] });
+                    { recipients: [senderId] });
             } else if (payload.action === RM.full) {
                 await mergeRemnantEntries(payload.ledger ?? {});
             }
@@ -1393,13 +1441,23 @@ export async function tieTraceForItem(identity) {
     return tied;
 }
 
-export async function setRemnantFlags(tokenDoc, { faint = null, tiedToCrime = null, reinforced = null } = {}) {
+export async function setRemnantFlags(tokenDoc,
+    { faint = null, tiedToCrime = null, reinforced = null, type = null } = {}) {
     if (!game.user.isGM || !tokenDoc) return null;
 
     const patch = {};
     if (faint !== null) patch.faint = Boolean(faint);
     if (tiedToCrime !== null) patch.tiedToCrime = Boolean(tiedToCrime);
     if (reinforced !== null) patch.reinforced = Boolean(reinforced);
+    /* WHAT THE TRACE REALLY IS, CORRECTED BY HAND (Dawid, 16.09).
+       A type is decided by whatever action left the trace, and the module gets
+       it right for the common cases and cannot for the rest: a GM who knows the
+       killer moved the body after the Search had no way to say so. It joins the
+       other three verdicts here rather than getting a road of its own, because
+       it is the same kind of thing - a fact about the object that lives in the
+       ledger and has to reach the copies. Refused if it is not one of the eight:
+       a typo here would be a trace with no label anywhere. */
+    if (type !== null && REMNANT_TYPES[type]) patch.type = type;
     if (!Object.keys(patch).length) return null;
 
     // Into the ledger, not onto the token. `tiedToCrime` in particular is the
@@ -1419,39 +1477,17 @@ export async function setRemnantFlags(tokenDoc, { faint = null, tiedToCrime = nu
             error("Could not propagate the crime tie to the copied bullets", err);
         }
     }
-    return tokenDoc;
-}
-
-/**
- * Write what analysing this trace tells a player (T-2, Dawid 17.09).
- *
- * THE IDLE GUARD LIVES HERE, ONCE. Three callers write this field - the
- * dashboard's Save, `createKeyRemnant` and the Final Remnant form - and each of
- * them would otherwise grow its own test for "is there anything to do". A write is
- * never free: `setRemnantSecret` bumps `updated` and pushes to every other GM, and
- * `propagateAnalysis` walks every character's bullets.
- *
- * It deliberately does NOT call `markRemnantEdited`. That mark means "a human
- * decided what a FINDER reads" (E7), and this sentence is not what a finder reads
- * on pickup - it is what somebody is told when they analyse it.
- */
-export async function setRemnantAnalysis(tokenDoc, text = "") {
-    if (!game.user.isGM || !tokenDoc) return null;
-    const key = keyOf(tokenDoc);
-    if (!key) return null;
-
-    const said = String(text ?? "").trim();
-    if (said === (readRemnantLedger()[key]?.analysis ?? "")) return tokenDoc;
-
-    await setRemnantSecret(tokenDoc, { analysis: said });
-
-    // Onto the copies already in packs: the secret half always, the published
-    // flag only where the holder has earned it. Same two halves as the crime tie.
-    try {
-        const { propagateAnalysis } = await import("./truth-bullets.mjs");
-        await propagateAnalysis(tokenDoc.id, said);
-    } catch (err) {
-        error("Could not propagate the after-analysis description to the copied bullets", err);
+    /* The same road, for the same reason: a copy whose answer key disagrees with
+       the trace it came from pays out the old category the next time anybody
+       analyses it. `propagateRealType` decides which copies also change what the
+       player is SHOWN - only the ones already identified. */
+    if (patch.type !== undefined) {
+        try {
+            const { propagateRealType } = await import("./truth-bullets.mjs");
+            await propagateRealType(tokenDoc.id, patch.type);
+        } catch (err) {
+            error("Could not propagate the corrected type to the copied bullets", err);
+        }
     }
     return tokenDoc;
 }

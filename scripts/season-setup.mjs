@@ -22,7 +22,7 @@
 // live in `roomsWantedFor`, so both screens that print it agree by
 // construction (audit A21).
 import {
-    MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON
+    MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON, TIMING
 } from "./config.mjs";
 import { SETTINGS, DEFAULT_SAFEWORD, setSetting } from "./settings.mjs";
 // What a reset is allowed to keep (R-1). Static and by a literal path, so the
@@ -39,7 +39,7 @@ import { listExperiences, initCharacter, needsStartingResources } from "./charac
 import { carriableCategories } from "./inventory.mjs";
 // Static, and safe to be: vault.mjs never reaches back here, and `steps()` is
 // synchronous - a `done` that had to await could not answer at all.
-import { sharedRooms, roomsWantedFor } from "./vault.mjs";
+import { sharedRooms, roomsWantedFor, forgetAllStashesFound } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
 import { mastermindActor } from "./mastermind.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc} from "./utils.mjs";
@@ -93,6 +93,56 @@ function hasOpeningItem(actor) {
     return actor.items.some(i => carriable.includes(i.getFlag(MODULE_ID, "category")));
 }
 
+/**
+ * Give the starting resources to every student whose Health or Sanity maximum is
+ * BELOW the starting values. Answers how many were set up.
+ *
+ * Below, not different (SEASON-01): a Level Up raises the maximum, and a sheet above
+ * the start is an advanced student, not one waiting to be set up. See
+ * `needsStartingResources` for what the old equality test used to wipe.
+ */
+async function fixResources() {
+    let n = 0;
+    for (const actor of studentActors()) {
+        if (!needsStartingResources(actor)) continue;
+        await initCharacter(actor);
+        n++;
+    }
+    return n;
+}
+
+/** Take the GM roles off Foundry's SHOW_CURSOR permission. Answers how many came off. */
+async function fixCursorPermission() {
+    const perms = foundry.utils.deepClone(
+        game.settings.get("core", "permissions") ?? {});
+    const before = perms.SHOW_CURSOR ?? [];
+    const after = before.filter(r => !GM_ROLES.includes(r));
+    if (after.length === before.length) return 0;
+    perms.SHOW_CURSOR = after;
+    await game.settings.set("core", "permissions", perms);
+    return before.length - after.length;
+}
+
+/** The shared-rooms-per-player line under the room count step. */
+function roomCountLine(roster) {
+    return `<div class="notes">${foundry.utils.escapeHTML(
+        game.i18n.format("DRPG.Season.roomCountLine", {
+            rooms: sharedRooms().length,
+            players: roster.length,
+            want: roomsWantedFor(roster.length)
+        }))}</div>`;
+}
+
+/** The room guide and the Check rooms button under the rooms step. */
+function roomGuideHtml() {
+    return `<div class="drpg-room-guide">
+        <p>${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.roomGuide"))}</p>
+        <p><button type="button" data-drpg-check>${
+            foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.checkRooms"))}</button></p>
+        <div data-drpg-check-out class="drpg-room-check"></div>
+    </div>`;
+}
+
 function steps() {
     const roster = studentActors();
     const clock = getClock();
@@ -127,15 +177,7 @@ function steps() {
             missing: () => roster.filter(needsStartingResources).map(a => a.name),
             // The one row that can finish itself: the guide's numbers are the
             // guide's numbers, and there is nothing to decide.
-            fix: async () => {
-                let n = 0;
-                for (const actor of studentActors()) {
-                    if (!needsStartingResources(actor)) continue;
-                    await initCharacter(actor);
-                    n++;
-                }
-                return n;
-            }
+            fix: fixResources
         },
         {
             key: "ultimate",
@@ -239,12 +281,7 @@ function steps() {
              */
             done: sharedRooms().length >= roomsWantedFor(roster.length),
             missing: () => [],
-            extra: () => `<div class="notes">${foundry.utils.escapeHTML(
-                game.i18n.format("DRPG.Season.roomCountLine", {
-                    rooms: sharedRooms().length,
-                    players: roster.length,
-                    want: roomsWantedFor(roster.length)
-                }))}</div>`
+            extra: () => roomCountLine(roster)
         },
         {
             key: "rooms",
@@ -264,12 +301,7 @@ function steps() {
              * errand, and splitting them across two windows is how the second
              * half stops happening.
              */
-            extra: () => `<div class="drpg-room-guide">
-                <p>${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.roomGuide"))}</p>
-                <p><button type="button" data-drpg-check>${
-                    foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.checkRooms"))}</button></p>
-                <div data-drpg-check-out class="drpg-room-check"></div>
-            </div>`
+            extra: () => roomGuideHtml()
         },
         {
             /*
@@ -300,16 +332,7 @@ function steps() {
             optional: true,
             done: !gmRolesSharingCursor().length,
             missing: () => gmRolesSharingCursor().map(roleName),
-            fix: async () => {
-                const perms = foundry.utils.deepClone(
-                    game.settings.get("core", "permissions") ?? {});
-                const before = perms.SHOW_CURSOR ?? [];
-                const after = before.filter(r => !GM_ROLES.includes(r));
-                if (after.length === before.length) return 0;
-                perms.SHOW_CURSOR = after;
-                await game.settings.set("core", "permissions", perms);
-                return before.length - after.length;
-            },
+            fix: fixCursorPermission,
             // ITS OWN SENTENCE (SEASON-02). `DRPG.Season.fixed` counts characters
             // given their starting resources, which is the other `fix` row; this one
             // counts GM roles that have stopped broadcasting their pointer.
@@ -405,23 +428,9 @@ function paintDraft(root, draft) {
     }
 }
 
-export async function openSeasonSetup({ draft = null } = {}) {
-    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
-    // window each read the world when they opened and neither knows about the
-    // other, so the older one goes on looking authoritative while showing
-    // something that stopped being true. Raised rather than refused: pressing
-    // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-season")) return null;
-
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return null;
-    }
-
-    const clock = getClock();
-    const list = steps();
-
-    const rows = list.map(step => {
+/** One line per step: the mark, the name and hint, what is missing, its extra, and a button when it can act. */
+function setupRows(list) {
+    return list.map(step => {
         const names = step.done ? [] : step.missing();
         const detail = names.length
             ? `<div class="drpg-setup-missing">${esc(names.join(", "))}</div>`
@@ -452,11 +461,119 @@ export async function openSeasonSetup({ draft = null } = {}) {
             ${button}
         </li>`;
     }).join("");
+}
+
+/** What Save hands back: the campaign name, the chapter and the safeword. */
+function readSeasonForm(d) {
+    const f = d.element.querySelector("form");
+    return {
+        campaignName: f.campaignName.value.trim(),
+        chapter: Number(f.chapter.value) || 1,
+        // Blank means "put the default back", which is what
+        // `safeword()` reads an empty setting as. Written blank
+        // rather than filled in here so the two agree.
+        safeword: f.safeword.value.trim()
+    };
+}
+
+/** The Check rooms button under the rooms step: run the region check and print its findings in place. */
+function wireRoomCheck(dialog) {
+    const checkButton = dialog.element.querySelector("[data-drpg-check]");
+    const checkOut = dialog.element.querySelector("[data-drpg-check-out]");
+    checkButton?.addEventListener("click", async ev => {
+        ev.preventDefault();
+        const { checkRegions } = await import("./fog.mjs");
+        const findings = checkRegions();
+        if (!findings.length) {
+            checkOut.innerHTML = `<p class="notes">${
+                esc(game.i18n.localize("DRPG.Season.checkClean"))}</p>`;
+            return;
+        }
+        const marks = { error: "\u2715", warning: "!", info: "\u00b7" };
+        checkOut.innerHTML = `<table class="drpg-vault-table drpg-room-check-table"><tbody>${
+            findings.map(f => `<tr>
+                <td>${marks[f.level] ?? "\u00b7"}</td>
+                <td>${esc(f.room)}</td>
+                <td><strong>${esc(f.problem)}</strong><br>
+                    <small>${esc(f.detail)}${f.at ? ` (${f.at.x}, ${f.at.y})` : ""}</small></td>
+            </tr>`).join("")
+        }</tbody></table>`;
+    });
+}
+
+/**
+ * Each step's Do it / Open it button: fix or open, then come back to a fresh window.
+ *
+ * `onHandOff` is how the round trip reaches `openSeasonSetup`, which returns it in
+ * place of its own answer - see the note inside.
+ */
+function wireSetupSteps(dialog, onHandOff) {
+    for (const button of dialog.element.querySelectorAll(".drpg-setup-do")) {
+        button.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const step = steps().find(s => s.key === button.dataset.step);
+            if (!step) return;
+            try {
+                if (step.fix) {
+                    const n = await step.fix();
+                    ui.notifications.info(plural(step.fixedKey ?? "DRPG.Season.fixed", { n }));
+                } else {
+                    await step.open(step.missing());
+                }
+            } catch (err) {
+                error(`Could not act on the "${step.key}" setup step`, err);
+            }
+
+            /*
+             * THE REOPEN IS PART OF THE SAME ERRAND (SEASON-02, 20.09).
+             *
+             * The window still closes and comes back, because every one of these
+             * rows can change what ANOTHER row reports and the checklist is built
+             * from the world. What changed is the two things that made one press
+             * look like two:
+             *
+             * `await dialog.close(); openSeasonSetup();` resolved the
+             * `DialogV2.wait` this window is sitting in - so `openSeasonSetup`
+             * returned, and the GM panel tile awaiting it opened the PANEL over
+             * the window as it came back. `handOff` keeps the whole round trip in
+             * one promise, handed to `onHandOff` in the same turn as the close and
+             * returned by `openSeasonSetup`, so the tile waits for the real end of
+             * it. See the note on `handOff` in live.mjs for why it cannot be
+             * written with an `await` in front of it.
+             *
+             * And the new copy is built from the world, so the campaign name, the
+             * chapter and the safeword the GM had typed but not applied went with
+             * the reopen. They are read here, BEFORE the close, and painted back.
+             */
+            const draft = readDraft(dialog.element);
+            onHandOff(handOff(dialog, () => openSeasonSetup({ draft })));
+        });
+    }
+}
+
+export async function openSeasonSetup({ draft = null } = {}) {
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-season")) return null;
+
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const clock = getClock();
+    const list = steps();
+
+    const rows = setupRows(list);
 
     const outstanding = list.filter(s => !s.done && !s.optional).length;
 
     // A row button's round trip, if one is running: this window did not answer, it
-    // handed over (SEASON-02). Set inside the render below and read after the wait.
+    // handed over (SEASON-02). Set by `wireSetupSteps` through the callback the
+    // render below gives it, and read after the wait.
     let roundTrip = null;
 
     const result = await DialogV2.wait({
@@ -472,8 +589,7 @@ export async function openSeasonSetup({ draft = null } = {}) {
                        value="${esc(clock.campaignName ?? "")}"
                        placeholder="${esc(game.i18n.localize("DRPG.Season.campaignPlaceholder"))}" /></label>
             <label>${esc(game.i18n.localize("DRPG.Season.chapter"))}
-                <input type="number" name="chapter" min="1"
-                       max="${Math.max(CHAPTERS_PER_SEASON, Number(clock.chapter) || 1)}"
+                <input type="number" name="chapter" min="1" max="${Math.max(CHAPTERS_PER_SEASON, Number(clock.chapter) || 1)}"
                        value="${Number(clock.chapter) || 1}" /></label>
 
             <!--
@@ -494,22 +610,18 @@ export async function openSeasonSetup({ draft = null } = {}) {
         buttons: [
             {
                 action: "save", label: game.i18n.localize("DRPG.Assign.save"), default: true,
-                callback: (e, b, d) => {
-                    const f = d.element.querySelector("form");
-                    return {
-                        campaignName: f.campaignName.value.trim(),
-                        chapter: Number(f.chapter.value) || 1,
-                        // Blank means "put the default back", which is what
-                        // `safeword()` reads an empty setting as. Written blank
-                        // rather than filled in here so the two agree.
-                        safeword: f.safeword.value.trim()
-                    };
-                }
+                callback: (e, b, d) => readSeasonForm(d)
             },
             // The other end of this same list. "What is missing" and "fix it"
             // are one errand, and the checks used to be a GM-panel tile of
             // their own next to this one - one door fewer, same two answers.
-            { action: "checks", label: game.i18n.localize("DRPG.Panel.seasonChecks") },
+            // The checks are a read-out, so the fields come back with the window:
+            // read here, while the form is still on screen. A bare action would
+            // answer the string "checks", which carries no fields at all.
+            {
+                action: "checks", label: game.i18n.localize("DRPG.Panel.seasonChecks"),
+                callback: (e, b, d) => ({ checks: true, draft: readDraft(d.element) })
+            },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
         // Wire the per-row buttons against the mounted DOM - a listener attached
@@ -525,68 +637,8 @@ export async function openSeasonSetup({ draft = null } = {}) {
              * them not to bother. The console copy stays: it carries the
              * coordinates in a form that can be pasted.
              */
-            const checkButton = dialog.element.querySelector("[data-drpg-check]");
-            const checkOut = dialog.element.querySelector("[data-drpg-check-out]");
-            checkButton?.addEventListener("click", async ev => {
-                ev.preventDefault();
-                const { checkRegions } = await import("./fog.mjs");
-                const findings = checkRegions();
-                if (!findings.length) {
-                    checkOut.innerHTML = `<p class="notes">${
-                        esc(game.i18n.localize("DRPG.Season.checkClean"))}</p>`;
-                    return;
-                }
-                const marks = { error: "\u2715", warning: "!", info: "\u00b7" };
-                checkOut.innerHTML = `<table class="drpg-vault-table drpg-room-check-table"><tbody>${
-                    findings.map(f => `<tr>
-                        <td>${marks[f.level] ?? "\u00b7"}</td>
-                        <td>${esc(f.room)}</td>
-                        <td><strong>${esc(f.problem)}</strong><br>
-                            <small>${esc(f.detail)}${f.at ? ` (${f.at.x}, ${f.at.y})` : ""}</small></td>
-                    </tr>`).join("")
-                }</tbody></table>`;
-            });
-
-            for (const button of dialog.element.querySelectorAll(".drpg-setup-do")) {
-                button.addEventListener("click", async ev => {
-                    ev.preventDefault();
-                    const step = steps().find(s => s.key === button.dataset.step);
-                    if (!step) return;
-                    try {
-                        if (step.fix) {
-                            const n = await step.fix();
-                            ui.notifications.info(plural(step.fixedKey ?? "DRPG.Season.fixed", { n }));
-                        } else {
-                            await step.open(step.missing());
-                        }
-                    } catch (err) {
-                        error(`Could not act on the "${step.key}" setup step`, err);
-                    }
-
-                    /*
-                     * THE REOPEN IS PART OF THE SAME ERRAND (SEASON-02, 20.09).
-                     *
-                     * The window still closes and comes back, because every one of these
-                     * rows can change what ANOTHER row reports and the checklist is built
-                     * from the world. What changed is the two things that made one press
-                     * look like two:
-                     *
-                     * `await dialog.close(); openSeasonSetup();` resolved the
-                     * `DialogV2.wait` this window is sitting in - so `openSeasonSetup`
-                     * returned, and the GM panel tile awaiting it opened the PANEL over
-                     * the window as it came back. `handOff` keeps the whole round trip in
-                     * one promise, returned below, so the tile waits for the real end of
-                     * it. See the note on `handOff` in live.mjs for why it cannot be
-                     * written with an `await` in front of it.
-                     *
-                     * And the new copy is built from the world, so the campaign name, the
-                     * chapter and the safeword the GM had typed but not applied went with
-                     * the reopen. They are read here, BEFORE the close, and painted back.
-                     */
-                    const draft = readDraft(dialog.element);
-                    roundTrip = handOff(dialog, () => openSeasonSetup({ draft }));
-                });
-            }
+            wireRoomCheck(dialog);
+            wireSetupSteps(dialog, trip => { roundTrip = trip; });
         },
         rejectClose: false
     });
@@ -594,12 +646,9 @@ export async function openSeasonSetup({ draft = null } = {}) {
     if (roundTrip) return roundTrip;
     if (!result || result === "close") return null;
 
-    if (result === "checks") {
-        // The checks are a read-out, so the fields come back with the window.
-        const carried = { campaignName: result.campaignName, chapter: String(result.chapter),
-            safeword: result.safeword };
+    if (result.checks) {
         await runPreSessionChecks();
-        return openSeasonSetup({ draft: carried });
+        return openSeasonSetup({ draft: result.draft });
     }
 
     await setClock({ campaignName: result.campaignName, chapter: result.chapter });
@@ -876,8 +925,8 @@ export async function resetSeason() {
  * single update can carry and short enough that nothing times out.
  */
 async function deleteMessages(ids) {
-    for (let i = 0; i < ids.length; i += 500) {
-        await ChatMessage.deleteDocuments(ids.slice(i, i + 500));
+    for (let i = 0; i < ids.length; i += TIMING.chatDeleteBatch) {
+        await ChatMessage.deleteDocuments(ids.slice(i, i + TIMING.chatDeleteBatch));
     }
     return ids.length;
 }
@@ -902,8 +951,10 @@ async function wipeSeason(plan) {
      * things" with no mention of the seven that stayed is the half of the sentence
      * that gets misread later.
      *
-     * Every key in `RESET_GROUPS` is named at exactly one call below, and a test
-     * holds that: a step nobody named would be ungated, and the tick the GM read
+     * Every key in `RESET_GROUPS` is named by at least one call below - the
+     * incident and the discovered rooms by more than one, because each is stored
+     * in more than one place - and every key named below is in the table. A test
+     * holds both: a step nobody named would be ungated, and the tick the GM read
      * as a promise would silently not apply to it.
      */
     const step = async (key, label, fn) => {
@@ -947,15 +998,17 @@ async function wipeSeason(plan) {
         const { setMonocub } = await import("./monocub.mjs");
         for (const actor of studentActors()) {
             if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false);
-            if (actor.getFlag(MODULE_ID, "deceased")) await reviveCharacter(actor);
+            if (actor.getFlag(MODULE_ID, "deceased")) await reviveCharacter(actor, { quiet: true });
         }
     });
 
     await step("incident", "the incident", async () => {
-        const { endMurder, clearBlackened } = await import("./murder.mjs");
+        const { endMurder, clearBlackened, clearBetrayalOffer } = await import("./murder.mjs");
         const { clearParkedMurders } = await import("./eclipse.mjs");
         await endMurder({ reason: "seasonReset", followUp: false });
         await clearBlackened();
+        // The betrayal outlives the incident by design (D18); not the season.
+        await clearBetrayalOffer();
         // A murder declared in the dark and never judged is an incident that
         // has not happened yet. It would open on the first Eclipse of the new
         // season, against a cast that has no idea what it is about.
@@ -1045,6 +1098,20 @@ async function wipeSeason(plan) {
     await step("actions", "the action budget", async () => {
         const { resetAllActions } = await import("./actions.mjs");
         await resetAllActions();
+        // Two stamps keyed to a clock that is about to read session 1, day 1
+        // again: "rested this session" and "may betray this day". Left
+        // standing they refused the first Long Rest of the new season.
+        for (const actor of studentActors()) {
+            for (const flag of [FLAGS.restsTaken, FLAGS.betrayalWindow]) {
+                if (actor.getFlag(MODULE_ID, flag) !== undefined) await actor.unsetFlag(MODULE_ID, flag);
+            }
+        }
+    });
+
+    // "I have found X's hiding place" was written on the finder and cleared by
+    // nothing; next season the same character opened the same drawer for free.
+    await step("stashesFound", "stashes found", async () => {
+        await forgetAllStashesFound(studentActors());
     });
 
     await step("despair", "Despair pools", async () => {
@@ -1100,15 +1167,49 @@ async function wipeSeason(plan) {
          *
          * They used to survive it, which is the one thing in this list a table
          * would notice by accident: a new cast walking into a killing game already
-         * governed by rules written for people who are dead. Ticked by default like
-         * every other group, and a GM who wants to carry them over unticks the box.
+         * governed by rules written for people who are dead - rules bought with
+         * the Despair this reset zeroes. Ticked by default like every other group,
+         * and a GM who wants to carry them over unticks the box. An empty ARRAY,
+         * because that is the setting's type.
          */
-        ["rules", "Monokuma's standing rules", SETTINGS.killingGameRules, {}],
+        ["rules", "Monokuma's standing rules", SETTINGS.killingGameRules, []],
         ["trialProgress", "the trial's progress", SETTINGS.trialProgress, {}],
-        ["bodyFound", "the body waiting to be answered", SETTINGS.bodyFound, {}]
+        ["bodyFound", "the body waiting to be answered", SETTINGS.bodyFound, {}],
+        // A standing assembly is stamped with the time of day and session it
+        // was called in; the new season's first advance would otherwise find
+        // the stamp stale and teleport the whole new cast into last season's
+        // room. Written directly - `cancelGather` posts a card and a sound
+        // into a chat that is being deleted.
+        ["assembly", "a called assembly", SETTINGS.pendingGather, {}],
+        /*
+         * AN INCIDENT LEFT RUNNING OUTLIVED THE SEASON IT BELONGED TO.
+         *
+         * `endMurder` is the one exit and this list went round it, so a season
+         * wiped mid-incident kept `active: true` pointing at a killer and a
+         * victim who may not exist any more: `openMurder` refused every new
+         * murder ("one at a time"), the GM panel's next step read "incident",
+         * and every trace anybody left anywhere was tied to a crime from last
+         * season. Written directly for the same reason the motive and the
+         * assembly above are - `endMurder` records who the Blackened was, kills
+         * a self-inflicted victim and posts its cards, and none of that belongs
+         * in a reset that is deleting the chat and the cast it would name.
+         *
+         * The cast goes with it. It is client-scoped, so this clears the GM's
+         * own copy; a participant's browser drops theirs when the next incident
+         * opens without them in it.
+         *
+         * Both under the `incident` group, with the step above: one tick, one
+         * incident, and a GM who keeps it keeps all of it.
+         */
+        ["incident", "the incident's record", SETTINGS.murderState, {}],
+        ["incident", "the incident's cast", SETTINGS.incidentCast, {}]
     ]) {
         await step(group, label, () => game.settings.set(MODULE_ID, key, value));
     }
+    // The fog ledger lives on the GM's browser since D2; the world row above
+    // only clears what an un-migrated world may still carry. Both are the
+    // `discovered` group - the same fact, stored in two places.
+    await step("discovered", "the fog ledger", () => import("./fog.mjs").then(m => m.resetLedger()));
 
     await step("clock", "the clock", async () => {
         const clock = getClock();

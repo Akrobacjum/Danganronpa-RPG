@@ -16,7 +16,7 @@ import { studentActors } from "./monokuma.mjs";
 import { listExperiences } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings } from "./voice.mjs";
-import { isPrimaryGm, log } from "./utils.mjs";
+import { isPrimaryGm, log, debug } from "./utils.mjs";
 
 /**
  * Why Dice So Nice might be rolling unskinned dice.
@@ -461,28 +461,7 @@ function rastersDiffer(char, family) {
  *
  * Paste the whole output. Every line is a measurement, not a guess.
  */
-export function diagnoseStyles() {
-    const lines = [];
-
-    // ---- 1. The page itself -------------------------------------------------
-    // First, because it makes every measurement below suspect. An extension
-    // repainting the page wins the cascade over everything in a layer, and this
-    // module's entire stylesheet is in one.
-    const tint = detectPageTinting();
-    if (tint) {
-        lines.push(`!! ${tint.name.toUpperCase()} IS REPAINTING THIS PAGE - ${tint.evidence}`);
-        lines.push("   Its rules sit in no cascade layer, and unlayered rules beat layered ones");
-        lines.push("   whatever their specificity. Every colour below may be its choice, not ours.");
-        lines.push("   Turn it off for this site before trusting anything else in this report.");
-        lines.push("");
-    }
-
-    lines.push(`Page: ${location.origin} (${location.protocol})`);
-    lines.push(`Module version Foundry loaded: ${game.modules.get(MODULE_ID)?.version ?? "?"}`);
-    lines.push(`Foundry ${game.version}, system ${game.system.id} ${game.system.version}`);
-    lines.push(`Other active modules: ${game.modules.filter(m => m.active && m.id !== MODULE_ID).map(m => m.id).join(", ") || "none"}`);
-    lines.push("");
-
+function styleSheetLines(lines) {
     // ---- 2. Did the stylesheet arrive, and did it parse? --------------------
     const found = [];
     for (const sheet of Array.from(document.styleSheets ?? [])) findOurSheets(sheet, 0, found);
@@ -503,7 +482,10 @@ export function diagnoseStyles() {
         lines.push("   ← nothing from this module is attached to the page. Check that the module is enabled,");
         lines.push("     then look for danganronpa.css in the resource list below.");
     }
+}
 
+/** The load-bearing tokens, read off :root; answers the computed style for the sections after it. */
+function themeTokenLines(lines) {
     // ---- 3. Do the tokens resolve? -----------------------------------------
     const root = getComputedStyle(document.documentElement);
     const missing = [];
@@ -520,9 +502,10 @@ export function diagnoseStyles() {
     } else if (missing.length) {
         lines.push(`   ← ${missing.length} unresolved: ${missing.join(", ")}`);
     }
+    return root;
+}
 
-    // ---- 4. Did the pixel font arrive, and does it carry its characters? ----
-    lines.push("");
+function pixelFontLines(lines) {
     const pixelOn = document.body.classList.contains("drpg-pixel-font");
     lines.push(`Pixel font setting: ${pixelOn ? "on" : "off (body.drpg-pixel-font absent)"}`);
     const faces = Array.from(document.fonts ?? []).filter(f => f.family.includes("DRPG"));
@@ -539,9 +522,9 @@ export function diagnoseStyles() {
                 : "IDENTICAL TO THE FALLBACK  ← substituted, the font is not being used here"}`);
         }
     }
+}
 
-    // ---- 5. The two things that were reported wrong ------------------------
-    lines.push("");
+function despairBarLines(lines, root) {
     const pip = document.querySelector("#drpg-despair .drpg-despair-pip");
     if (!pip) {
         lines.push("Despair bar: not on screen, so nothing to measure there.");
@@ -565,6 +548,9 @@ export function diagnoseStyles() {
         }
         lines.push(...paintLines("pip", pip, "color"));
     }
+}
+
+function callIconLines(lines, root) {
 
     const callIcon = document.querySelector(".drpg-despair-panel .drpg-call-button .drpg-action-icon");
     if (!callIcon) {
@@ -579,21 +565,9 @@ export function diagnoseStyles() {
         lines.push(`   parent colour: ${getComputedStyle(callIcon.parentElement).color}`);
         lines.push(...paintLines("call icon", callIcon, "color"));
     }
+}
 
-    // The theme the client is actually in. Foundry paints its own chrome from
-    // this, and a module that forces client settings can move it out from under
-    // a player without anyone choosing it.
-    lines.push("");
-    let scheme = "(unreadable)";
-    try {
-        scheme = JSON.stringify(game.settings.get("core", "uiConfig")?.colorScheme ?? "(unset)");
-    } catch { /* older core, or the setting is gone */ }
-    lines.push(`Colour scheme: ${scheme}`);
-    lines.push(`<html> classes: ${document.documentElement.className || "(none)"}`);
-    lines.push(`<body> classes: ${document.body.className || "(none)"}`);
-
-    // ---- 6. What actually came over the wire -------------------------------
-    lines.push("");
+function resourceLines(lines) {
     const resources = (performance.getEntriesByType?.("resource") ?? [])
         .filter(r => r.name.includes(MODULE_ID));
     const origins = [...new Set(resources.map(r => { try { return new URL(r.name).origin; } catch { return "?"; } }))];
@@ -614,6 +588,58 @@ export function diagnoseStyles() {
         lines.push("   no .woff2 was requested at all - either the font setting is off, or no text on screen");
         lines.push("   is using the pixel face yet. Open the Despair bar or a character sheet and run this again.");
     }
+}
+
+export function diagnoseStyles() {
+    const lines = [];
+
+    // ---- 1. The page itself -------------------------------------------------
+    // First, because it makes every measurement below suspect. An extension
+    // repainting the page wins the cascade over everything in a layer, and this
+    // module's entire stylesheet is in one.
+    const tint = detectPageTinting();
+    if (tint) {
+        lines.push(`!! ${tint.name.toUpperCase()} IS REPAINTING THIS PAGE - ${tint.evidence}`);
+        lines.push("   Its rules sit in no cascade layer, and unlayered rules beat layered ones");
+        lines.push("   whatever their specificity. Every colour below may be its choice, not ours.");
+        lines.push("   Turn it off for this site before trusting anything else in this report.");
+        lines.push("");
+    }
+
+    lines.push(`Page: ${location.origin} (${location.protocol})`);
+    lines.push(`Module version Foundry loaded: ${game.modules.get(MODULE_ID)?.version ?? "?"}`);
+    lines.push(`Foundry ${game.version}, system ${game.system.id} ${game.system.version}`);
+    lines.push(`Other active modules: ${game.modules.filter(m => m.active && m.id !== MODULE_ID).map(m => m.id).join(", ") || "none"}`);
+    lines.push("");
+
+    styleSheetLines(lines);
+
+    const root = themeTokenLines(lines);
+
+    // ---- 4. Did the pixel font arrive, and does it carry its characters? ----
+    lines.push("");
+    pixelFontLines(lines);
+
+    // ---- 5. The two things that were reported wrong ------------------------
+    lines.push("");
+    despairBarLines(lines, root);
+    callIconLines(lines, root);
+
+    // The theme the client is actually in. Foundry paints its own chrome from
+    // this, and a module that forces client settings can move it out from under
+    // a player without anyone choosing it.
+    lines.push("");
+    let scheme = "(unreadable)";
+    try {
+        scheme = JSON.stringify(game.settings.get("core", "uiConfig")?.colorScheme ?? "(unset)");
+    } catch { /* older core, or the setting is gone */ }
+    lines.push(`Colour scheme: ${scheme}`);
+    lines.push(`<html> classes: ${document.documentElement.className || "(none)"}`);
+    lines.push(`<body> classes: ${document.body.className || "(none)"}`);
+
+    // ---- 6. What actually came over the wire -------------------------------
+    lines.push("");
+    resourceLines(lines);
 
     return report("Style diagnostics", lines);
 }
@@ -1148,7 +1174,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
     lines.push("");
     if (pending.length) {
         lines.push(`${pending.length} character(s) still need their starting resources.`);
-        lines.push("Each of them counts as Wounded AND Broken Down right now: one action");
+        lines.push("Each of them counts as Wounded AND in Breakdown right now: one action");
         lines.push("instead of two, and disadvantage forced onto every roll.");
         lines.push("");
         lines.push("Fix: open the sheet and press the wand button next to the name,");
@@ -1209,7 +1235,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
     roll("Everybody carries their opening item", missingItem,
         `One Tier ${STARTING.startingItemTier} item tied to their Ultimate - hand it out from Give / take items.`);
     roll("Everybody is assigned to a Despair pool", unwatched,
-        "Without one, Despair from their rolls has nowhere to go. Fix it in GM Team.");
+        "Without one, Despair from their rolls has nowhere to go. Fix it in the GM panel, under Despair Flow.");
 
     return report("Season setup", lines, { toChat });
 }
@@ -1233,4 +1259,256 @@ function report(title, lines, { toChat = true } = {}) {
     }
 
     return text;
+}
+
+/**
+ * What the theme costs this machine, measured on this machine.
+ *
+ * `game.drpg.perf()`.
+ *
+ * WHY THIS EXISTS AND WHY IT COULD NOT BE ANSWERED ANYWHERE ELSE. Every
+ * performance claim this module makes was measured headlessly, and headless
+ * Chromium composites a canvas in software: the curtain's pulse measured 117 ms
+ * a frame at 1920 x 993 there and 21 ms on a phone-sized window, which says
+ * something about how the cost SCALES and nothing at all about what a real
+ * machine with a real GPU does with it. The only honest number comes from the
+ * screen somebody is actually playing on, so the command that takes it lives
+ * here rather than the number.
+ *
+ * The pulse is measured by holding it off and taking the frames again, which is
+ * the one part of the theme that repaints on its own. Everything else here -
+ * the curtain's cut, the module's own hot lookups - is timed by doing it.
+ *
+ * Nothing is left changed: the pulse goes back to whatever it was, including
+ * off, and a curtain forced to recut settles on the next frame like any other.
+ */
+/**
+ * WHERE THE TIME ACTUALLY GOES, ON THE MACHINE SOMEBODY IS PLAYING ON.
+ *
+ * `perfReport` above prices things this module already suspects - the pulse,
+ * the blur, a recut of the glass. This one does not guess: it asks the browser
+ * to attribute every long frame's script time to the file and the function it
+ * ran in, which is how the audit's own numbers were taken in the harness, and
+ * prints the list. Whatever is at the top of it is the answer, whether or not
+ * anyone had thought of it.
+ *
+ * WHY THIS AND NOT A PROFILE. A profile is the better tool and it is also a
+ * twenty-minute job for somebody who did not write the module; this is one line
+ * in the console, and its output is short enough to paste into a message.
+ *
+ * `long-animation-frame` is Chromium 123 and later. On a browser without it the
+ * command says so rather than printing an empty table that reads like "nothing
+ * is slow" - the one answer it must never give by accident.
+ *
+ * WHAT TO DO WITH IT: run it, then USE the module for the length of the window
+ * - open the panel, open a sheet, walk a token. It reports what ran.
+ */
+export async function whySlow({ seconds = 15 } = {}) {
+    const lines = [];
+    const round = n => Math.round(n * 10) / 10;
+
+    if (typeof PerformanceObserver !== "function"
+        || !PerformanceObserver.supportedEntryTypes?.includes("long-animation-frame")) {
+        const message = "This browser does not report long animation frames, so there is "
+            + "nothing to attribute. Chromium 123 or later does; on anything else the "
+            + "Performance tab of the developer tools is the way in.";
+        log(message);
+        return message;
+    }
+
+    const frames = [];
+    const observer = new PerformanceObserver(list => {
+        for (const entry of list.getEntries()) frames.push(entry.toJSON());
+    });
+    observer.observe({ type: "long-animation-frame", buffered: false });
+
+    log(`Watching for ${seconds}s. Use the module - open a window, open a sheet, move a token.`);
+    try {
+        await new Promise(resolve => setTimeout(resolve, seconds * 1000));
+    } finally {
+        observer.disconnect();
+    }
+
+    /* Grouped by the pair that identifies the work: what invoked it, and where
+       it is. A hook handler and a timer callback in the same file are two
+       different problems and must not be added together. */
+    const byScript = new Map();
+    let total = 0, blocking = 0, longest = 0;
+    for (const frame of frames) {
+        total += frame.duration ?? 0;
+        blocking += frame.blockingDuration ?? 0;
+        longest = Math.max(longest, frame.duration ?? 0);
+        for (const script of frame.scripts ?? []) {
+            const file = String(script.sourceURL || "?").split("/").pop().split("?")[0];
+            const key = `${file} · ${script.sourceFunctionName || "(anonymous)"} · ${
+                script.invoker || script.invokerType || "?"}`;
+            const row = byScript.get(key) ?? { ms: 0, runs: 0 };
+            row.ms += script.duration ?? 0;
+            row.runs++;
+            byScript.set(key, row);
+        }
+    }
+
+    lines.push(`Watched ${seconds}s. ${frames.length} long frames, ${round(total)} ms in them,`
+        + ` ${round(blocking)} ms of that blocking; the longest single frame was ${round(longest)} ms.`);
+
+    if (!byScript.size) {
+        /* NOT "nothing is slow". Long frames with no script attributed to them
+           are frames the browser spent in style, layout, paint or compositing -
+           which is exactly what a full-screen backdrop-filter costs, and it is
+           what `perf()`'s blur line is for. Saying so is the whole value of this
+           branch: an empty table here is a RESULT, not an absence of one. */
+        lines.push("");
+        lines.push(frames.length
+            ? "No script time was attributed to any of them, so the cost is not JavaScript:"
+            + " it is style, layout or paint. `game.drpg.perf()` prices the two the theme"
+            + " is most likely to be spending it on - the blur and the pulse."
+            : "No long frames at all. Whatever is slow was not slow while this was watching -"
+            + " run it again and use the module harder while it does.");
+    } else {
+        lines.push("");
+        lines.push("Script time, worst first:");
+        for (const [key, row] of [...byScript.entries()].sort((a, b) => b[1].ms - a[1].ms).slice(0, 15)) {
+            lines.push(`  ${String(round(row.ms)).padStart(8)} ms  x${String(row.runs).padEnd(4)} ${key}`);
+        }
+    }
+
+    const report = lines.join("\n");
+    log(`\n${report}`);
+    return report;
+}
+
+export async function perfReport({ frames = 60 } = {}) {
+    const lines = [];
+    const round = n => Math.round(n * 100) / 100;
+
+    /* The browser's own beat, which is the number everything else is a share of.
+       Taken over `frames` frames rather than one: a single frame catches whatever
+       else the tab was doing. */
+    const beat = async () => {
+        await new Promise(r => requestAnimationFrame(r));
+        const t0 = performance.now();
+        for (let i = 0; i < frames; i++) await new Promise(r => requestAnimationFrame(r));
+        return (performance.now() - t0) / frames;
+    };
+
+    lines.push(`Screen ${innerWidth} x ${innerHeight}, device pixel ratio ${devicePixelRatio}`);
+    lines.push(`Frames averaged over ${frames}`);
+    lines.push("");
+
+    const themed = document.body.classList.contains("drpg-theme-stained-glass");
+    const hadNoPulse = document.body.classList.contains("drpg-no-pulse");
+
+    const asIs = await beat();
+    lines.push(`As it stands        ${String(round(asIs)).padStart(7)} ms/frame  (${Math.round(1000 / asIs)} fps)`);
+
+    if (themed && !hadNoPulse) {
+        document.body.classList.add("drpg-no-pulse");
+        try {
+            const still = await beat();
+            lines.push(`With the pulse held ${String(round(still)).padStart(7)} ms/frame  (${Math.round(1000 / still)} fps)`);
+            lines.push(`The pulse costs     ${String(round(asIs - still)).padStart(7)} ms/frame`);
+        } finally {
+            document.body.classList.remove("drpg-no-pulse");
+        }
+    } else {
+        lines.push(themed ? "The pulse is already off, so there is nothing to hold." : "Monokuma Legacy: no curtain, no pulse.");
+    }
+
+    /* AND THE ONE THAT IS USUALLY LARGER THAN THE PULSE.
+       The glass frosts the map behind it, and a `backdrop-filter` is recomputed
+       every time anything over or behind it is redrawn - which under this theme is
+       every frame that anything moves at all. Measured in the glass harness it was
+       the difference between 150 ms a frame and 16.7, and between a window taking
+       210 ms to appear and taking 25; but that was headless Chromium rasterising in
+       software, where a blur costs what a GPU would never charge for it. This line
+       is the reason the harness number is not quoted anywhere a table can read it:
+       the only honest one comes from here.
+       Held the same way as the pulse, by the class the Look window's switch writes,
+       so what is measured is exactly what that switch does. */
+    const hadNoBlur = document.body.classList.contains("drpg-no-blur");
+    if (themed && !hadNoBlur) {
+        document.body.classList.add("drpg-no-blur");
+        try {
+            const clear = await beat();
+            lines.push(`With the blur held  ${String(round(clear)).padStart(7)} ms/frame  (${Math.round(1000 / clear)} fps)`);
+            lines.push(`The blur costs      ${String(round(asIs - clear)).padStart(7)} ms/frame`);
+        } finally {
+            document.body.classList.remove("drpg-no-blur");
+        }
+    } else if (themed) {
+        lines.push("The blur is already off, so there is nothing to hold.");
+    }
+
+    /* WHAT A WINDOW COSTS TO OPEN, WHICH IS THE OTHER HALF OF "IT FEELS SLOW".
+       A window carrying the theme's ground has to have its backdrop rasterised
+       before it can be composited, and it is laid over a full-screen blur that has
+       to be recomputed around it. That is a cost the frame average above cannot
+       see, because it is paid once, at the moment somebody is watching.
+       A PROBE RATHER THAN A REAL WINDOW: opening one of the module's own would run
+       its data preparation, its hooks and its entrance, and this is meant to price
+       the drawing and nothing else. The probe is a bare `.drpg-panel` with the
+       theme's own header and content, shown in the middle of the screen for about
+       a fifth of a second - it will flicker, and that is what it is for. */
+    try {
+        const opens = [];
+        for (let i = 0; i < 6; i++) {
+            const probe = document.createElement("div");
+            probe.className = "application drpg-panel";
+            probe.style.cssText = "position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);"
+                + "width:460px;height:320px;z-index:1;pointer-events:none;";
+            probe.innerHTML = '<div class="window-header"></div><div class="window-content"></div>';
+            const t0 = performance.now();
+            document.body.append(probe);
+            await new Promise(r => requestAnimationFrame(r));
+            await new Promise(r => requestAnimationFrame(r));
+            opens.push(performance.now() - t0);
+            probe.remove();
+            await new Promise(r => requestAnimationFrame(r));
+        }
+        opens.sort((x, y) => x - y);
+        lines.push(`A window reaches the screen in ${String(round(opens[3])).padStart(6)} ms (median of six)`);
+    } catch (err) {
+        lines.push("A window could not be timed here.");
+        debug("The window-open probe failed", err);
+    }
+
+    /* The cut itself, which happens on a resize and whenever a block changes size -
+       not every frame. Ten of them, because one is dominated by whatever the layout
+       was doing at the time. */
+    if (themed && typeof globalThis.drpgGlassRebuild === "function") {
+        const t0 = performance.now();
+        for (let i = 0; i < 10; i++) await globalThis.drpgGlassRebuild();
+        lines.push(`One recut of the glass ${String(round((performance.now() - t0) / 10)).padStart(6)} ms`);
+    }
+
+    lines.push("");
+    lines.push("The module's own hot lookups, per call:");
+    try {
+        const M = await import("./movement.mjs");
+        const actor = game.actors.find(a => a.type === "character");
+        if (actor) {
+            const time = (fn, runs = 200) => {
+                fn();
+                const t0 = performance.now();
+                for (let i = 0; i < runs; i++) fn();
+                return (performance.now() - t0) / runs;
+            };
+            for (const [name, fn] of [
+                ["roomOfActor", () => M.roomOfActor(actor)],
+                ["othersInRoom", () => M.othersInRoom(actor)]
+            ]) {
+                lines.push(`  ${name.padEnd(16)} ${String(round(time(fn))).padStart(7)} ms`);
+            }
+        } else {
+            lines.push("  (no character on this world to measure against)");
+        }
+    } catch (err) {
+        lines.push(`  (could not measure: ${err?.message ?? err})`);
+    }
+
+    lines.push("");
+    lines.push("A frame budget is 16.7 ms at 60 Hz. Anything the theme costs is spent");
+    lines.push("on top of whatever Foundry and the system are doing with the same frame.");
+    return report("Danganronpa RPG - what the theme costs this machine", lines);
 }

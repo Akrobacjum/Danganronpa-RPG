@@ -237,6 +237,18 @@ export async function performMeddle(actor, targetId, help) {
     const target = game.actors.get(targetId);
     if (!target) return null;
 
+    // Paid on this client, resolved on the GM's: with no GM there is nobody
+    // to resolve it, and the price would simply be gone (DESP-05). `gmOnline`
+    // is the bridge's exported question; its toasting `hasGm` is private to it,
+    // so the toast is this line's own.
+    if (!game.user.isGM) {
+        const { gmOnline } = await import("./gm-bridge.mjs");
+        if (!gmOnline()) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Bridge.noGm"));
+            return null;
+        }
+    }
+
     /*
      * ASKED BEFORE ANYTHING IS PAID (ACT-12, 17.09).
      *
@@ -250,10 +262,6 @@ export async function performMeddle(actor, targetId, help) {
     const { sameRoom } = await import("./movement.mjs");
     if (isMonocub(target) || isMonokuma(target) || isDeceased(target) || !sameRoom(actor, target)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Monocub.nobodyHere"));
-        return null;
-    }
-    if (!game.user.isGM && !game.users.some(u => u.isGM && u.active)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Bridge.noGm"));
         return null;
     }
 
@@ -331,7 +339,6 @@ async function meddleLocked() {
         ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
         return true;
     }
-    const { getClock } = await import("./settings.mjs");
     if (getClock().phase === "classTrial") {
         ui.notifications.warn(game.i18n.localize("DRPG.Trial.callsLocked"));
         return true;
@@ -366,6 +373,12 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
         warn(`Refused a Meddle by ${actor.name}: ${why}.`);
         // Said to the Monocub as well - a refusal only the GM console heard
         // looked, from the sheet, like an action and a Hope that vanished.
+        //
+        // SAID, NOT REFUNDED (ACT-12). This side cannot see that anything was
+        // paid, so a refund here is Hope minted for any packet that names a
+        // target in another room. The honest refusals are asked in
+        // `performMeddle` before anything is paid; what reaches this line is a
+        // world that moved between the two, or a forged request.
         if (isMonocub(actor)) {
             await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.meddleRefused")}</p>`);
         }
@@ -399,6 +412,8 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
     }
 
     const text = help ? hit.help : hit.hinder;
+    // The target's own sentence (DESP-06), never the Monocub's receipt.
+    const targetText = (help ? hit.helpTarget : hit.hinderTarget) ?? text;
 
     if (isCritical) {
         if (help) await refundAction(target, 1);
@@ -438,7 +453,7 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
     // The target is told SOMETHING happened without being told who - the guide
     // has Monocubs act "z boku" (from the sidelines); knowing which dead
     // classmate is pulling the strings is not part of that.
-    await whisperToOwner(target, `<p>${foundry.utils.escapeHTML(text)}</p>`, meddleSfx);
+    await whisperToOwner(target, `<p>${foundry.utils.escapeHTML(targetText)}</p>`, meddleSfx);
 
     log(`${actor.name} used Meddle on ${target.name}: ${text}`);
     return { success: true, text };

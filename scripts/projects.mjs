@@ -13,7 +13,13 @@
 
 import { MODULE_ID, PROJECT_SCALE, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { announce, log, error, whisperToOwner, gmIds } from "./utils.mjs";
+import { announce, log, error, whisperToOwner, gmIds, esc, ownerIdsOf } from "./utils.mjs";
+
+/* `discoveredFor` is the per-character record of which rooms somebody has
+   actually stood in - the public half of `knowsProject` below. Imported at the
+   top and not dynamically: the import graph was checked in both directions
+   (16.09) and fog.mjs does not reach this file, so there is no cycle to dodge. */
+import { discoveredFor } from "./fog.mjs";
 
 const DH = "daggerheart";
 const COUNTDOWNS = "Countdowns";
@@ -36,6 +42,61 @@ export function roomOf(countdownId) {
 /** Is this project an indirect murder? */
 export function isIndirectMurder(countdownId) {
     return Boolean(metaFor(countdownId).indirectMurder);
+}
+
+/** Where this project's token stands, if it has one: `{ sceneId, tokenId }`. */
+export function tokenRefOf(countdownId) {
+    const meta = metaFor(countdownId);
+    return meta.tokenId && meta.tokenScene
+        ? { sceneId: meta.tokenScene, tokenId: meta.tokenId }
+        : null;
+}
+
+/**
+ * DOES THIS PERSON KNOW THIS PROJECT IS THERE?
+ *
+ * One predicate, two roads in, and NO new state - which is the whole reason it
+ * is worth writing down. Everything it needs was already being tracked:
+ *
+ *   · `canSee` is the ownership gate. A secret project simply does not reach a
+ *     client that is not in on it, and somebody who IS in on it knows about it
+ *     by definition - they proposed it, or it is their own murder.
+ *   · `discoveredFor` (fog.mjs) is the per-character record of which rooms
+ *     somebody has actually stood in. A public project is known once you have
+ *     been in its room, and it stays known afterwards, because knowledge does.
+ *
+ * So a token on the map answers to this and nothing else, and so does the row
+ * in the Projects tray. The alternative was a `discoveredBy` list per project,
+ * a third place for "who knows what" to go stale in.
+ *
+ * A project with no room ("abstract work anywhere") has nowhere to walk into,
+ * so there is nothing to discover: it is known as soon as it is visible.
+ */
+export function knowsProject(countdownId, user = game.user) {
+    if (user?.isGM) return true;
+    if (!canSee(countdownId, user)) return false;
+    // In on a secret one: you are one of the people who made it.
+    if (isSecret(countdownId)) return true;
+
+    const room = roomOf(countdownId);
+    if (!room) return true;
+
+    /* Any character this person holds having been there is enough. A player
+       running two students knows what either of them has seen - the same rule
+       `incidentWitness` uses for the incident's seats. */
+    const sceneId = canvas?.scene?.id ?? null;
+    if (!sceneId) return false;
+    try {
+        for (const actor of game.actors ?? []) {
+            if (actor.type !== "character") continue;
+            if (!actor.testUserPermission(user, "OWNER")) continue;
+            if (discoveredFor(sceneId, actor.id).includes(room)) return true;
+        }
+    } catch {
+        // A world mid-migration, or a scene with no discovery recorded yet.
+        // Answering "no" hides the token, which is the safe direction to fail.
+    }
+    return false;
 }
 
 /** Write metadata for a project. GM only. */
@@ -155,6 +216,55 @@ export function canSee(countdownId, user = game.user) {
 /** Every project this user is allowed to know about. */
 export function visibleProjects(user = game.user) {
     return allProjects().filter(p => canSee(p.id, user));
+}
+
+/**
+ * Every project this user KNOWS is there - `visibleProjects` narrowed by
+ * discovery. See `knowsProject` above for the two roads in.
+ *
+ * The difference between the two lists is the whole of stage 2, so it is worth
+ * saying which question each one answers:
+ *
+ *   · `visibleProjects` is "may this client be told about it at all". It is the
+ *     secrecy gate, and it is what a socket handler has to check, because a
+ *     player who is not in on a secret project must not be able to touch it
+ *     however they learnt the id.
+ *   · `knownProjects` is "is it on this person's map yet". A public project in
+ *     a room nobody has walked into is perfectly legal to know about and simply
+ *     has not been found, so it is absent from the tray and its token is not
+ *     drawn - not greyed, not a neutral marker, absent.
+ *
+ * The lists a character builds FROM WHERE THEY ARE STANDING - `projectsListedIn`
+ * and everything downstream of it - deliberately stay on `visibleProjects`.
+ * Standing in the room IS the discovery, so the only case the two lists could
+ * disagree on is the gap between a token arriving in a region and the primary
+ * GM's ledger write coming back round the socket. Gating there would buy
+ * nothing (you cannot get the list without being in the room anyway) and would
+ * cost a player a turn's work every time that round trip was slow.
+ */
+export function knownProjects(user = game.user) {
+    return allProjects().filter(p => knowsProject(p.id, user));
+}
+
+/**
+ * Secret projects standing in this room that this person is NOT in on.
+ *
+ * The candidate list for a non-obvious Observe (observe.mjs), and the reason it
+ * takes a USER rather than reading `game.user`: it is asked on the GM's client,
+ * about somebody else's character. Reading the ambient user there would answer
+ * "the GM is in on all of them" and the list would always be empty - which is
+ * the shape of bug that looks like a rule quietly not existing.
+ *
+ * `canSee`, not `knowsProject`: this is the ownership question. Discovery is
+ * about walking into a room, and the observer is standing in it - asking whether
+ * they have found the room would be asking a question whose answer is yes.
+ */
+export function secretsUnknownIn(room, user) {
+    if (!room || !user || user.isGM) return [];
+    return allProjects()
+        .filter(p => p.room === room)
+        .filter(p => isSecret(p.id))
+        .filter(p => !canSee(p.id, user));
 }
 
 /**
@@ -349,7 +459,7 @@ export async function addProgress(countdownId, amount, { by = null } = {}) {
  *   Stained Glass tray draws this instead of `img`; null means the hourglass.
  */
 export async function createProject({
-    name, target = 4, room = null, indirectMurder = false, secret = false,
+    name, target = PROJECT_SCALE.everyday.progress, room = null, indirectMurder = false, secret = false,
     viewers = [], trait = null, img = "icons/magic/time/hourglass-yellow-green.webp",
     glyph = null,
     // Whose trap this is, and what sets it off. Both only mean anything on an
@@ -400,13 +510,16 @@ export async function createProject({
     // work on: `projectsAvailableIn` filters on `canSee`, so their own murder
     // was missing from their own Work on Project list.
     //
-    // AND THE PERSON WHO PROPOSED IT (F3, 17.09). Every player's project reaches
-    // this through the approval window, which named the killer only when the GM
-    // picked somebody under "Also visible to" - left at "-", an indirect murder
-    // was sealed with no viewers at all, and the player who built it could not
-    // see it or work on it. Viewers are now added to the builder, not instead.
+    // AND THE BUILDER IS ALWAYS IN, WHOEVER ELSE IS (F3, 17.09; ITEM-03). Every
+    // player's project reaches this through the approval window, which named the
+    // killer only when the GM picked somebody under "Also visible to" - left at
+    // "-", an indirect murder was sealed with no viewers at all, and the player
+    // who built it could not see it or work on it. The builder - the named
+    // killer, failing that the proposer - is added to the viewers, not replaced
+    // by them. Which of the two is named when the GM ticks somebody on a
+    // player's proposal is the caller's answer (`killerIdFor`, projects-ui.mjs).
     const audience = hidden
-        ? Array.from(new Set([...viewers, ...ownerIdsOf(killerId ?? by)]))
+        ? Array.from(new Set([...viewers, ...ownerIdsOfId(killerId ?? by)]))
         : [];
 
     countdowns[id] = {
@@ -445,6 +558,18 @@ export async function createProject({
     });
 
     log(`Created project "${name}" (${target} progress)${room ? ` in ${room}` : ""}${trait ? `, ${trait}` : ""}.`);
+
+    /* AND ONTO THE MAP, if it has a room to stand in. Dynamic, because
+       projects-map.mjs reads this file - this cycle is real, unlike the fog one
+       at the top. Failure here is not failure of the project: a project with no
+       token is a project the tray still runs perfectly well. */
+    try {
+        const { placeProjectToken } = await import("./projects-map.mjs");
+        await placeProjectToken(id);
+    } catch (err) {
+        error(`Could not put the new project "${name}" on the map`, err);
+    }
+
     return { id, name, target, trait };
 }
 
@@ -650,7 +775,6 @@ async function announceTrapReady(countdownId, name) {
     const { TRAP_TRIGGERS } = await import("./config.mjs");
     const kind = meta.trigger?.kind ?? "manual";
     const def = TRAP_TRIGGERS[kind];
-    const esc = foundry.utils.escapeHTML;
 
     /*
      * A WATCHED TRAP GOES QUIET INSTEAD OF ASKING (E21).
@@ -842,6 +966,18 @@ export async function deleteProject(countdownId) {
     const data = game.settings.get(DH, COUNTDOWNS);
     const countdowns = foundry.utils.duplicate(data?.countdowns ?? {});
     if (!countdowns[countdownId]) return null;
+
+    /* THE TOKEN GOES FIRST, while the metadata still says where it is. Deleting
+       the project's row and then looking for its token would leave a two-square
+       marker standing in a room for a project that no longer exists, and
+       nothing left pointing at it to clean it up. */
+    try {
+        const { removeProjectToken } = await import("./projects-map.mjs");
+        await removeProjectToken(countdownId);
+    } catch (err) {
+        error("Could not take the deleted project off the map", err);
+    }
+
     delete countdowns[countdownId];
     await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns });
 
@@ -864,6 +1000,16 @@ export async function deleteProject(countdownId) {
     }
     await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
 
+    // Its plant and its ledger row go with it (ITEM-08).
+    try {
+        const { pruneTrapsFor } = await import("./traps.mjs");
+        await pruneTrapsFor(new Set(Object.keys(meta)));
+    } catch (err) {
+        error("Could not prune the deleted project's trap", err);
+    }
+
+    // And its repair, if it was broken (F5, above). Last, so the recursion finds
+    // this project already gone and the pair's metadata already written.
     const repair = own.frozenBy ?? null;
     if (repair && countdowns[repair] && metaFor(repair).repairs === countdownId) {
         await deleteProject(repair);
@@ -895,6 +1041,14 @@ export async function clearAllProjects() {
     // `deleteProject` does - `countdowns` is one key inside it, not all of it.
     await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns: {} });
     await game.settings.set(MODULE_ID, SETTINGS.projectMeta, {});
+
+    // Nothing planted for a project that no longer exists (ITEM-08).
+    try {
+        const { pruneTrapsFor } = await import("./traps.mjs");
+        await pruneTrapsFor(null);
+    } catch (err) {
+        error("Could not prune the season's traps", err);
+    }
 
     log(`Season reset: cleared ${gone} project(s).`);
     return gone;
@@ -934,13 +1088,7 @@ const OBSERVER = 2;    // CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER
  * player who is not a viewer.
  */
 /** The non-GM users who own this actor - whose eyes "the killer" means. */
-function ownerIdsOf(actorId) {
-    const actor = game.actors.get(actorId ?? "");
-    if (!actor) return [];
-    return game.users
-        .filter(u => !u.isGM && actor.testUserPermission(u, "OWNER"))
-        .map(u => u.id);
-}
+const ownerIdsOfId = actorId => ownerIdsOf(game.actors.get(actorId ?? ""));
 
 function ownershipMap(viewerIds = []) {
     const viewers = new Set(viewerIds.filter(Boolean));
@@ -1089,7 +1237,7 @@ export async function revealProject(countdownId) {
  */
 export function builderIds(countdownId) {
     const meta = metaFor(countdownId);
-    return ownerIdsOf(meta.killerId ?? meta.by ?? null);
+    return ownerIdsOfId(meta.killerId ?? meta.by ?? null);
 }
 
 /**
@@ -1112,7 +1260,7 @@ export function sealAudience(countdownId) {
     const ids = new Set(isSecret(countdownId)
         ? withoutLeak(countdownId, viewersOf(countdownId).map(u => u.id))
         : withoutLeak(countdownId, meta.sealedViewers ?? []));
-    for (const id of ownerIdsOf(meta.killerId ?? meta.by ?? null)) ids.add(id);
+    for (const id of builderIds(countdownId)) ids.add(id);
     return Array.from(ids);
 }
 
@@ -1128,8 +1276,7 @@ function withoutLeak(countdownId, ids) {
     const players = game.users.filter(u => !u.isGM).map(u => u.id);
     const everyone = players.length >= 2 && players.every(id => ids.includes(id));
     if (!everyone) return ids;
-    const meta = metaFor(countdownId);
-    return ownerIdsOf(meta.killerId ?? meta.by ?? null);
+    return builderIds(countdownId);
 }
 
 /** Is this project hidden from the table at large? */

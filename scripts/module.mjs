@@ -14,6 +14,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { registerSettings } from "./settings.mjs";
+import { registerLanguage } from "./i18n.mjs";
 import { runMigrationOnLoad } from "./migrate.mjs";
 import { registerSfx } from "./sfx.mjs";
 import { registerPrivateRolls } from "./private-rolls.mjs";
@@ -29,6 +30,7 @@ import { registerOverflow } from "./overflow.mjs";
 import { registerDespairAwards } from "./despair-award.mjs";
 import { registerMovement } from "./movement.mjs";
 import { registerProjectsUi } from "./projects-ui.mjs";
+import { registerProjectsMap } from "./projects-map.mjs";
 import { registerGmBridge } from "./gm-bridge.mjs";
 import { registerInventoryLimits } from "./inventory.mjs";
 import { registerTruthBullets } from "./truth-bullets.mjs";
@@ -71,6 +73,8 @@ import { registerSync } from "./sync.mjs";
 import { registerTraps } from "./traps.mjs";
 import { SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerGlass } from "./glass.mjs";
+import { registerNarrow } from "./narrow.mjs";
+import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
 import { requirementsMet, announceMissingRequirements, announceMissingRecommendations }
@@ -122,6 +126,9 @@ Hooks.once("init", () => {
     // Settings first and unguarded: every other subsystem reads them, so if this
     // cannot run there is nothing worth continuing to.
     registerSettings();
+    // Straight after, and before anything reads a string: the language file is
+    // fetched now and merged the moment Foundry's own translations exist.
+    safely("the language", registerLanguage);
 
     // A paint-path workaround, not decoration - see the note on the function.
     safely("the select picker skin", injectSelectPickerSkin);
@@ -141,6 +148,7 @@ Hooks.once("init", () => {
     safely("Despair overflow", registerOverflow);
     safely("movement", registerMovement);
     safely("the projects tray", registerProjectsUi);
+    safely("projects on the map", registerProjectsMap);
     safely("inventory limits", registerInventoryLimits);
     safely("the resource guard", registerResourceGuard);
     // Registers the Breakdown/Wounded conditions on `setup` and takes the two
@@ -256,6 +264,10 @@ Hooks.once("ready", () => {
     // The look: theme class, glass effects, UI scale, then the curtain that
     // depends on all three. After the API, before anything that renders a block.
     safely("the theme", applyTheme);
+    // before the curtain, which does not draw over a stacked layout
+    safely("the narrow layout", registerNarrow);
+    // after the layout, because it sweeps the blocks wherever the layout put them
+    safely("the interface as something other than a picture", registerA11y);
     safely("the stained glass", registerGlass);
     // Before the other socket listeners: this is the one that carries world-state
     // changes to the players. Without it `broadcast()` emits into a socket nobody

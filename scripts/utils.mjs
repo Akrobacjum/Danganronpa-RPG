@@ -3,7 +3,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, moduleLanguage } from "./settings.mjs";
 
 /**
  * Escape a value for HTML, treating null and undefined as empty (C3).
@@ -125,7 +125,9 @@ export function activeGmIds() {
  * never fires. Assistants are only used when no full GM is connected.
  */
 export function isPrimaryGm() {
-    return primaryGmId() === game.user.id && game.user.isGM;
+    // `game.user` is null for the first and last moments of a client's life,
+    // and socket packets arrive in both.
+    return Boolean(game.user?.isGM) && primaryGmId() === game.user.id;
 }
 
 /**
@@ -167,6 +169,16 @@ export function article(word) {
 }
 
 /**
+ * Threshold bands lowered by a readied tool's relief. One copy, read by the
+ * action that rolls and by the Reroll that scores the same dice again: two
+ * copies scored a rerolled Work on Project against the raw bands (ROLL-04).
+ */
+export function easedBy(thresholds, relief) {
+    if (!relief) return thresholds;
+    return thresholds.map(band => ({ ...band, min: Math.max(0, band.min - relief) }));
+}
+
+/**
  * "1 item destroyed", not "1 item(s) destroyed".
  *
  * Foundry has no pluralisation of its own - `game.i18n.format` substitutes and
@@ -187,7 +199,9 @@ export function plural(key, data = {}, countOn = "n") {
     const n = Number(data[countOn] ?? 0);
     let form = "other";
     try {
-        form = new Intl.PluralRules(game.i18n?.lang || "en").select(n);
+        // The MODULE's language, not Foundry's: the strings come from our
+        // file, and a Polish file carries one/few/many/other.
+        form = new Intl.PluralRules(moduleLanguage()).select(n);
     } catch {
         // An unknown language tag is the only way this throws, and the answer is
         // not to give up on the sentence - English's own rule is one/other, and
@@ -223,6 +237,12 @@ export function ownerOf(actor) {
     return game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"))
         ?? game.users.find(u => !u.isGM && actor.testUserPermission(u, "OWNER"))
         ?? null;
+}
+
+/** Every non-GM user who owns this actor, by id - the plural of `ownerOf`. */
+export function ownerIdsOf(actor) {
+    if (!actor) return [];
+    return game.users.filter(u => !u.isGM && actor.testUserPermission(u, "OWNER")).map(u => u.id);
 }
 
 /**
@@ -337,7 +357,11 @@ export async function whisperToGms(content, extra = {}) {
  * way it was posted before this file existed.
  */
 async function privately(payload) {
-    if (!payload.whisper?.length) return ChatMessage.create(payload);
+    if (!payload.whisper?.length) {
+        // `veiled` is secret.mjs's word, not a ChatMessage field.
+        delete payload.veiled;
+        return ChatMessage.create(payload);
+    }
     const { postSecret } = await import("./secret.mjs");
     return postSecret(payload);
 }
@@ -407,24 +431,6 @@ export function resolveThreshold(total, tiers) {
         if (total >= tier.min) hit = tier;
     }
     return hit;
-}
-
-/**
- * The same bands with the tool in hand taken off the top.
- *
- * The tier comes off the THRESHOLD rather than being added to the roll. The two
- * are the same arithmetic and are not the same card: this way the total stays
- * the total that was rolled, and the reason it was enough is a line in the
- * report rather than a number nobody can account for. `cleanupDc` chooses the
- * same way, for the same reason.
- *
- * Here rather than in action-rolls.mjs since 17.09 (ACT-11): a Reroll scores
- * the new dice against the same eased bands, and a second copy of this in
- * reroll.mjs is how the two would drift apart again.
- */
-export function easedBy(thresholds, relief) {
-    if (!relief) return thresholds;
-    return thresholds.map(band => ({ ...band, min: Math.max(0, band.min - relief) }));
 }
 
 /** Clamp helper. */
@@ -745,34 +751,6 @@ export function tableDialog(options) {
  * A window whose tabs each hold their own table wants `fitWindowToTabs` below
  * instead - one size for all of them, rather than this one re-run per switch.
  */
-/*
- * WHICH WINDOWS HAVE ALREADY BEEN SIZED ONCE (D17, Dawid 29.08).
- *
- * "Zakładka projects przesuwa się w lewo w losowych momentach", and the random
- * moment is any re-render. Measured on the QA world: a window at the right of
- * the screen, sent `setPosition({ width })` with no `left`, came back 104px
- * further left - 1187px wide at left 159, then 1301px wide at left 55.
- *
- * That is Foundry doing its job. ApplicationV2 keeps a window on screen, so
- * growing its width shrinks the largest `left` it will accept and the window is
- * pulled in from the right edge. Nothing is broken in the framework and nothing
- * was broken in the measurement either - the mistake was asking at all. A fit
- * exists to size a window to its table WHEN IT OPENS. Re-running it on every
- * render means a window somebody has read, dragged and settled gets re-measured
- * behind their back, and the only visible consequence is that it walks.
- *
- * So the first fit is unchanged - a freshly centred window should widen to its
- * content, and moving while it does that is invisible and correct - and every
- * later fit is capped at the width that fits from where the window already is.
- * The table scrolls sideways instead, which is what `pinFooterAcrossScroll`
- * below already exists to survive.
- *
- * A WeakSet rather than a flag on the dialog: nothing here should keep a closed
- * window alive, and a property on somebody else's object is a name collision
- * waiting for the next Foundry release.
- */
-const fitted = new WeakSet();
-
 export function fitWindowToTable(dialog) {
     const root = dialog?.element;
     if (!root) return;
@@ -813,7 +791,6 @@ export function fitWindowToTable(dialog) {
                 widest = Math.max(0, content.scrollWidth - pad);
             }
 
-            fitted.add(dialog);
             const width = windowWidthFor(root, content, widest);
 
             /*
@@ -844,10 +821,40 @@ export function fitWindowToTable(dialog) {
             }
 
             dialog.setPosition({ width, height: "auto" });
-            // TWO frames, like the fit itself: one for the new width to land on
-            // the element, a second for the table to reflow inside it. Pinned
-            // after a single frame, the scrollport still measured the old size
-            // and the bar was told there was nothing to stick to.
+            /*
+             * PINNED AT ONCE, AND AGAIN TWO FRAMES LATER. Belt AND braces, on
+             * purpose - this is the one change here that could not be settled
+             * headlessly.
+             *
+             * The note that used to sit here said the two frames were what let
+             * the scrollport measure its NEW size: "pinned after a single frame,
+             * the scrollport still measured the old size and the bar was told
+             * there was nothing to stick to". Measured in Chromium (16.09):
+             * reading `content.clientWidth` immediately after a width is written
+             * returns the new width, 900 where the old one was 400, because the
+             * read forces a layout flush that includes the write. One frame and
+             * two frames give the same answer. So the flush is not what the
+             * frames were buying.
+             *
+             * WHAT COULD NOT BE CHECKED FROM HERE is whether that still holds
+             * through `ApplicationV2#setPosition({ height: "auto" })`, which
+             * writes through Foundry rather than onto the element, and may race
+             * Foundry's own post-render position write. jsdom cannot answer it -
+             * it has no layout, `scrollWidth` is 0, and `pinFooterAcrossScroll`
+             * returns early at `!scrolls`, so a headless test would pass by
+             * measuring nothing. That is the `stackShapes` failure in CLAUDE.md
+             * word for word.
+             *
+             * So both calls stay. The first settles the bar in the frame the
+             * window is resized, which is worth roughly 170 ms of a window
+             * visibly rearranging itself under the reader (two frames at the
+             * 86 ms the curtain's blur costs a frame); the second is exactly
+             * today's behaviour, kept as the net. `pinFooterAcrossScroll` is
+             * idempotent and clears its own properties when nothing scrolls, so
+             * an early call that reads a stale box does no harm and the late one
+             * corrects it - the worst case is what the window does now.
+             */
+            pinFooterAcrossScroll(dialog);
             requestAnimationFrame(() =>
                 requestAnimationFrame(() => pinFooterAcrossScroll(dialog)));
         } catch (err) {
@@ -863,12 +870,14 @@ export function fitWindowToTable(dialog) {
  *
  * IT USED TO TAKE A `settled` FLAG - "this window has been fitted before, so
  * somebody may have put it somewhere" - and cap the answer at the room to the
- * right of the window's current left edge. That term is gone (W-9):
- * ApplicationV2 re-clamps `left` to `clientWidth - width` on every width change,
- * so a window that grows is moved back onto the screen for free, and all the
- * term did was make a window opened near the right edge permanently narrower
- * than the same window opened in the middle. `fitted` still decides whether a
- * window is re-measured at all; it no longer decides how wide it may be.
+ * right of the window's current left edge (D17, 29.08: a re-fit sent with no
+ * `left` pulled a window at the right of the screen 104px further in). That
+ * term is gone (W-9): ApplicationV2 re-clamps `left` to `clientWidth - width`
+ * on every width change, so a window that grows is moved back onto the screen
+ * for free, and all the term did was make a window opened near the right edge
+ * permanently narrower than the same window opened in the middle. The `fitted`
+ * set that remembered which windows had been sized went with it: nothing read
+ * it once the flag was gone.
  */
 function windowWidthFor(root, content, widest) {
     const styles = getComputedStyle(content);
@@ -913,7 +922,9 @@ function windowWidthFor(root, content, widest) {
 /**
  * One size for a tabbed window, taken from its biggest tab.
  *
- * Room Setup holds five tables behind five tabs and they are nothing like each
+ * Room Setup holds a table behind each of its seven tabs (`ROOM_SETUP_TABS` in
+ * vault.mjs; this said "five" until 16.09, and had been wrong since the sixth
+ * was added) and they are nothing like each
  * other: Bedrooms is two columns, Fog is one column per room. Fitting the
  * window on every switch made it right for whichever tab was showing and made
  * the window itself jump - measured at 708px on Bedrooms and 1504 on Fog, on
@@ -980,7 +991,6 @@ export function fitWindowToTabs(dialog) {
 
             if (!widest) return;
 
-            fitted.add(dialog);
             const width = windowWidthFor(root, content, widest);
             const capped = parseFloat(getComputedStyle(content).maxHeight);
             const chrome = Math.max(0, root.getBoundingClientRect().height - content.clientHeight);
@@ -993,6 +1003,9 @@ export function fitWindowToTabs(dialog) {
             }
 
             dialog.setPosition({ width, height });
+            // The same pair, for the reason written out at the end of
+            // `fitWindowToTable` above - this is the tabbed twin of it.
+            pinFooterAcrossScroll(dialog);
             requestAnimationFrame(() =>
                 requestAnimationFrame(() => pinFooterAcrossScroll(dialog)));
         } catch (err) {
@@ -1161,7 +1174,7 @@ export function wirePortraitPickers(root, { defaultImg = null } = {}) {
         if (portrait.dataset.drpgWired) continue;
         portrait.dataset.drpgWired = "1";
 
-        portrait.addEventListener("click", () => {
+        const open = () => {
             new foundry.applications.apps.FilePicker.implementation({
                 type: "image",
                 current: root.querySelector(hiddenSelector)?.value || defaultImg || "",
@@ -1170,9 +1183,9 @@ export function wirePortraitPickers(root, { defaultImg = null } = {}) {
                      * LOOKED UP WHEN THE ANSWER ARRIVES, NOT WHEN THE PICKER
                      * OPENED (F13). A picker stands open for as long as somebody
                      * takes to browse, and a live window rebuilds in that time -
-                     * so the nodes captured on click are usually detached by now,
-                     * and writing to them threw the choice away silently. `root`
-                     * is the dialog element and outlives every rebuild.
+                     * so nodes captured when it opened are usually detached by
+                     * now, and writing to them threw the choice away silently.
+                     * `root` is the dialog element and outlives every rebuild.
                      */
                     const live = root.querySelector(hiddenSelector);
                     if (live) live.value = path;
@@ -1182,6 +1195,52 @@ export function wirePortraitPickers(root, { defaultImg = null } = {}) {
                     if (shown) shown.setAttribute("src", path);
                 }
             }).render(true);
+        };
+
+        portrait.addEventListener("click", open);
+
+        /*
+         * AN <img> THAT DOES SOMETHING IS A CONTROL, AND IT WAS NOT ONE.
+         * ---------------------------------------------------------------------
+         * Audit 15.09. This is the only way to change a Project's, a trace's or
+         * a table entry's picture, and until now it was an `<img alt="">` with a
+         * click listener: not focusable, so unreachable by keyboard at all, and
+         * marked decorative, so a screen reader skipped it in silence. Four call
+         * sites build this markup (investigation.mjs, projects-ui.mjs twice,
+         * tables.mjs) and every one of them had the same hole.
+         *
+         * WORSE, `game.drpg.a11y()` REPORTED IT CLEAN. Its sweep looks at
+         * `button, a[href], [role=button], input, select, textarea` - an image
+         * with a listener matches none of those, so the one tool built to find
+         * nameless controls could not see this one. That is the failure this
+         * repository opens its own notes with: a check that passes because it
+         * measured nothing.
+         *
+         * Fixed here rather than at the four call sites for the reason a11y.mjs
+         * gives for sweeping: an attribute added where the markup is written is
+         * an attribute the NEXT portrait will not have. This function already
+         * has to visit every one of them to attach the listener, so it is the
+         * one place that cannot be forgotten.
+         *
+         * The name comes from the tooltip the markup already carries, and where
+         * there is none from the module's own label - never invented, and never
+         * left blank.
+         */
+        if (!portrait.getAttribute("role")) portrait.setAttribute("role", "button");
+        if (!portrait.hasAttribute("tabindex")) portrait.setAttribute("tabindex", "0");
+        if (!portrait.getAttribute("aria-label")) {
+            const named = portrait.dataset.tooltip
+                ?? portrait.getAttribute("title")
+                ?? game.i18n.localize("DRPG.Project.changeImage");
+            portrait.setAttribute("aria-label", named);
+        }
+        // Enter and Space, because that is what a button does and this now says
+        // it is one. Space is prevented first: on a focusable element inside a
+        // scrolling dialog its default is to page the window.
+        portrait.addEventListener("keydown", event => {
+            if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
+            event.preventDefault();
+            open();
         });
     }
 }

@@ -1,6 +1,6 @@
 /**
  * The "Foundry server": authoritative world store + permission gate + relay.
- * Forks three clients (gm, p1, p2), seeds a world, runs a scenario file.
+ * Forks four clients (gm, p1, p2, p3), seeds a world, runs a scenario file.
  *
  * Usage: node cluster.mjs scenarios/00-boot.mjs [--verbose]
  */
@@ -20,7 +20,7 @@ if (!scenarioPath) { console.error("usage: node cluster.mjs <scenario.mjs>"); pr
 /* ----------------------------- world seed -------------------------------- */
 
 const IDS = {
-    gm: "USERGM0000000000", p1: "USERP10000000000", p2: "USERP20000000000",
+    gm: "USERGM0000000000", p1: "USERP10000000000", p2: "USERP20000000000", p3: "USERP30000000000",
     aiko: "ACTORAIKO0000000", botan: "ACTORBOTAN000000", chie: "ACTORCHIE0000000", daichi: "ACTORDAICHI00000",
     scene: "SCENEACADEMY0000"
 };
@@ -53,12 +53,13 @@ const world = {
         User: [
             { _id: IDS.gm, name: "GM", role: 4, active: true, character: null, color: "#ff0000", flags: {} },
             { _id: IDS.p1, name: "PlayerOne", role: 1, active: true, character: IDS.aiko, color: "#00ff00", flags: {} },
-            { _id: IDS.p2, name: "PlayerTwo", role: 1, active: true, character: IDS.botan, color: "#0000ff", flags: {} }
+            { _id: IDS.p2, name: "PlayerTwo", role: 1, active: true, character: IDS.botan, color: "#0000ff", flags: {} },
+            { _id: IDS.p3, name: "PlayerThree", role: 1, active: true, character: IDS.chie, color: "#ffaa00", flags: {} }
         ],
         Actor: [
             studentActor(IDS.aiko, "Aiko Hoshino", IDS.p1),
             studentActor(IDS.botan, "Botan Kage", IDS.p2),
-            studentActor(IDS.chie, "Chie Mori", null),
+            studentActor(IDS.chie, "Chie Mori", IDS.p3),
             studentActor(IDS.daichi, "Daichi Sato", null),
             { ...studentActor("ACTORMONOKUMA000", "Monokuma", null), flags: { "danganronpa-rpg": { monokuma: true } } }
         ],
@@ -320,10 +321,20 @@ function onClientMessage(who, entry, msg) {
             entry.proc.send({ t: "ack", id: msg.id, ok: !error, result: msg.value, error });
             break;
         }
-        case "socket":
+        case "socket": {
             socketTraffic.push({ from: who, channel: msg.channel, size: JSON.stringify(msg.args ?? []).length });
-            broadcast({ t: "socketMsg", channel: msg.channel, args: msg.args, senderId: entry.userId }, { except: who });
+            // Foundry honours `{ recipients: [userId, ...] }` on the emit: the packet reaches
+            // those clients and nobody else. The relay used to broadcast everything, which hid
+            // any module bug that leaned on the address - and made addressed packets land on
+            // the wrong player when a scenario measured who holds what.
+            const recipients = Array.isArray(msg.args?.[1]?.recipients) ? new Set(msg.args[1].recipients) : null;
+            for (const [other, target] of clients) {
+                if (other === who) continue;
+                if (recipients && !recipients.has(target.userId)) continue;
+                target.proc.send({ t: "socketMsg", channel: msg.channel, args: msg.args, senderId: entry.userId });
+            }
             break;
+        }
         case "evalResult": {
             const p = evalPending.get(msg.id);
             if (p) { evalPending.delete(msg.id); msg.ok ? p.resolve(msg.value) : p.reject(new Error(msg.value)); }
@@ -371,6 +382,7 @@ async function main() {
     spawnClient("gm", IDS.gm);
     spawnClient("p1", IDS.p1);
     spawnClient("p2", IDS.p2);
+    spawnClient("p3", IDS.p3);
 
     const boots = await Promise.all([...clients.keys()].map(w => clients.get(w).ready));
     const failed = [...bootInfo.entries()].filter(([, b]) => b.t === "bootFailed");
@@ -385,7 +397,7 @@ async function main() {
 
     const scenario = await import(url.pathToFileURL(path.resolve(scenarioPath)).href);
     const api = {
-        gm: handleFor("gm"), p1: handleFor("p1"), p2: handleFor("p2"),
+        gm: handleFor("gm"), p1: handleFor("p1"), p2: handleFor("p2"), p3: handleFor("p3"),
         check, settle, world, logSink, permissionDenials, socketTraffic, bootInfo, IDS,
         broadcastRaw: broadcast
     };

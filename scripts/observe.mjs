@@ -24,12 +24,14 @@
  * the difficulty.
  */
 
-import { MODULE_ID, OBSERVE_FAIL_STRESS, TIMES_OF_DAY } from "./config.mjs";
+import { MODULE_ID, OBSERVE_FAIL_STRESS, PROJECT_OBSERVE, TIMES_OF_DAY, TIMING } from "./config.mjs";
 import { rankForObserve } from "./remnants.mjs";
 import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
-import { dialogContent, whisperToOwner, whisperToGms, log, warn, error, debug } from "./utils.mjs";
+import {
+    dialogContent, whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, log, warn, error, debug
+} from "./utils.mjs";
 // The store the declarations are written through (ACT-08). settings.mjs imports
 // config.mjs and nothing else, so this closes no cycle.
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
@@ -80,7 +82,7 @@ export const DECLARATIONS = {
  * which is the half that matters at the table.
  */
 const pending = new Map();
-const PENDING_TTL_MS = 60 * 60 * 1000;
+const PENDING_TTL_MS = TIMING.pendingObserveTtlMs;
 /** True once the setting has been folded into the cache on this client. */
 let pendingLoaded = false;
 
@@ -162,8 +164,41 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
     const candidates = rankForObserve(where.room, where.scene,
         { preferSource: followingTraces ? actorId : null })
         .filter(c => !already.has(c.token.id));
-    if (!candidates.length) return { ok: false, reason: "none" };
     const room = where.room;
+
+    /* The other thing this room can give up, and only to one declaration - see
+       PROJECT_OBSERVE in config.mjs for why it is that one and no other. Asked
+       about the OBSERVER's account, not `game.user`: this runs on the GM's
+       client, where the ambient answer would be "in on all of them". */
+    const secret = declaration === DECLARATIONS.nonObvious
+        ? pickHidden(await hiddenProjectsFor(actor, room))
+        : null;
+
+    if (!candidates.length) {
+        // The room is picked clean of traces. If it is also holding nothing this
+        // declaration can find, that is the Daily Life fallback as before.
+        if (!secret) return { ok: false, reason: "none" };
+
+        /* Otherwise the project IS the target. Nothing else in this file needs a
+           branch for that: it takes the same key, the same pending entry and the
+           same road home, and `resolveObserve` reads `projectOnly` at the one
+           point where a trace would have been created. Without this the total
+           would never reach the GM at all - the observer's client drops to a
+           ruling card when the target lookup says "nothing here", so a room
+           whose only secret was a project could not be searched. */
+        const onlyKey = foundry.utils.randomID();
+        readPending();
+        pending.set(onlyKey, {
+            at: Date.now(), actorId, room, declaration, request,
+            tokenId: null, sceneId: where.scene?.id ?? null,
+            dc: PROJECT_OBSERVE.dc, data: null,
+            projectId: secret.id, projectOnly: true
+        });
+        // Written through like the trace's own declaration below (ACT-08).
+        await writePending();
+        log(`Observe: ${actor.name} is sweeping ${room}, which holds nothing but a secret project (DC ${PROJECT_OBSERVE.dc}).`);
+        return { ok: true, key: onlyKey };
+    }
 
     let chosen;
     if (declaration === DECLARATIONS.specific) {
@@ -217,7 +252,10 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
         tokenId: chosen.token.id,
         sceneId: where.scene?.id ?? null,
         dc: chosen.dc,
-        data: chosen.data
+        data: chosen.data,
+        /* Carried alongside the trace, scored against the same total and at its
+           own difficulty. A non-obvious sweep that clears both takes both. */
+        projectId: secret?.id ?? null
     });
 
     // Written through at once: the roll that answers this arrives minutes later,
@@ -226,6 +264,114 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
 
     log(`Observe: ${actor.name} is looking at a ${chosen.data.visibility} ${chosen.data.type} in ${room} (DC ${chosen.dc}).`);
     return { ok: true, key };
+}
+
+/* ==========================================================================
+ * THE OTHER THING IN THE ROOM - a secret project
+ * ========================================================================== */
+
+/** The secret projects in this room that the observer's account is not in on. */
+async function hiddenProjectsFor(actor, room) {
+    try {
+        const { secretsUnknownIn } = await import("./projects.mjs");
+        return secretsUnknownIn(room, ownerOf(actor));
+    } catch (err) {
+        // A world with no projects, or a module half-loaded. Finding nothing is
+        // the safe direction: it leaves Observe exactly as it was.
+        error("Could not read the room's secret projects", err);
+        return [];
+    }
+}
+
+/**
+ * Which one, when a room is hiding more than one.
+ *
+ * THE FURTHEST ALONG. A project near its target is the bigger thing under the
+ * tarp - more of it has been built, more of it is in the way - so it is the one
+ * a sweep of the room walks into first. Compared as a SHARE of the target rather
+ * than in raw points, because two projects with different targets are not
+ * comparable any other way: 3 of 4 is nearly finished and 3 of 12 has barely
+ * started.
+ *
+ * A project with no target at all sorts last rather than dividing by zero.
+ */
+function pickHidden(projects) {
+    if (!projects?.length) return null;
+    const share = p => (p.start > 0 ? p.current / p.start : -1);
+    return projects.reduce((best, p) => share(p) > share(best) ? p : best);
+}
+
+/**
+ * Let this observer in on the project they just noticed.
+ *
+ * `shareWith` is the same call the GM makes when a killer brings somebody in,
+ * and it is the right one: being in on a project is one state, not two, and a
+ * second "found it but only sort of" state would be a new thing for every
+ * reader of `canSee` to learn. What follows from it - the row in the tray, the
+ * token on the map - is stage 2's work and needs nothing here.
+ *
+ * EVERY account that holds the character, not just the first. `ownerOf` picks
+ * one user for a whisper, which is right for a message and wrong for access: a
+ * character played by two people would leave one of them staring at a project
+ * their own character found.
+ *
+ * Told to the GMs as well as the finder. They have no other way of learning it
+ * happened, and the one control that can undo it - `unshareWith` - is theirs.
+ *
+ * @returns {Promise<boolean>} whether anything was shared.
+ */
+async function shareFoundProject(actor, projectId) {
+    const ids = ownerIdsOf(actor);
+    if (!ids.length) return false;
+
+    const { shareWith, allProjects } = await import("./projects.mjs");
+    const project = allProjects().find(p => p.id === projectId);
+    if (!project) return false;
+
+    for (const userId of ids) await shareWith(projectId, userId);
+
+    /* `shareWith` writes the countdown's OWNERSHIP, which is Daggerheart's own
+       setting - so none of this module's `onChange` refreshes fire and the
+       finder's tray and map would have shown the project only when something
+       else happened to redraw them. `SYNC.projects` is the kind that redraws
+       exactly those two (sync.mjs), and it is announced from here because this
+       is the only path that changes a project's ownership without also touching
+       `projectMeta`, which is what normally carries the news. */
+    try {
+        const { broadcast, SYNC } = await import("./sync.mjs");
+        broadcast(SYNC.projects, {});
+    } catch (err) {
+        error("Could not announce a project somebody just found", err);
+    }
+
+    await whisperToOwner(actor, `
+        <p><strong>${game.i18n.localize("DRPG.Observe.projectFoundTitle")}</strong></p>
+        <p>${game.i18n.format("DRPG.Observe.projectFound", {
+            name: foundry.utils.escapeHTML(project.name ?? "-")
+        })}</p>`,
+        { flags: { [MODULE_ID]: { sfx: "projectFound" } } });
+
+    log(`Observe: ${actor.name} found the secret project "${project.name}".`);
+    return true;
+}
+
+/**
+ * Score the total against the project's own difficulty, if there is one here.
+ *
+ * Its own number and its own verdict, deliberately separate from the trace's:
+ * they are two different objects at two different difficulties, and a roll can
+ * clear one and not the other in either direction. The trace's verdict is not
+ * consulted and must not be - a miss on a DC 21 trace that still cleared 18 has
+ * found the project, and saying otherwise would make the easier thing depend on
+ * the harder one.
+ *
+ * @returns {Promise<string|null>} the project's id when it was found.
+ */
+async function noticeSecretProject(actor, entry, total, isCritical) {
+    if (!entry.projectId) return null;
+    if (!isCritical && total < PROJECT_OBSERVE.dc) return null;
+    const shared = await shareFoundProject(actor, entry.projectId);
+    return shared ? entry.projectId : null;
 }
 
 /**
@@ -376,22 +522,56 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
     if (undo) await undoPrevious(actor, entry);
 
     entry.at = Date.now();
-    const success = isCritical || total >= entry.dc;
 
-    if (!success) {
-        /* THE BOOKMARK RECORDS WHAT WAS MARKED, NOT WHAT THE RULE ASKS FOR
-           (ACT-17, 20.09). A character already at their maximum takes no mark, and
-           an undo that trusted the constant handed back Sanity nobody had spent. */
-        const marked = await applyFailure(actor, total, entry);
-        entry.result = { success: false, bulletId: null, stress: marked };
+    /* THE BOOKMARK RECORDS WHAT WAS MARKED, NOT WHAT THE RULE ASKS FOR
+       (ACT-17, 20.09). A character already at their maximum takes no mark, and
+       an undo that trusted the constant handed back Sanity nobody had spent - so
+       both misses below keep what `applyFailure` reports, not OBSERVE_FAIL_STRESS.
+
+       AND EVERY RESULT IS WRITTEN THROUGH (ACT-08). `entry.result` is what a
+       Reroll's undo reads, and a GM who reloads between the throw and the Reroll
+       must come back to the result that actually stands. */
+
+    /* THE ROOM'S ONLY SECRET IS A PROJECT (stage 3).
+       -----------------------------------------------------------------------
+       No trace was chosen because there was none left to choose, so there is
+       nothing to create and nothing to describe - the whole of the result is
+       whether the total cleared the project's own number. A miss still costs
+       the Sanity every missed Observe costs: the action was spent looking. */
+    if (entry.projectOnly) {
+        const found = await noticeSecretProject(actor, entry, total, isCritical);
+        if (!found) {
+            const marked = await applyFailure(actor, total, entry);
+            entry.result = { success: false, bulletId: null, projectId: null, stress: marked };
+            await writePending();
+            return { success: false, key };
+        }
+        entry.result = { success: true, bulletId: null, projectId: found, stress: 0 };
         await writePending();
-        return { success: false, key };
+        return { success: true, key };
     }
 
-    const item = await createFind(actor, entry, isCritical);
-    entry.result = { success: true, bulletId: item?.id ?? null, stress: 0 };
+    const success = isCritical || total >= entry.dc;
+
+    const item = success ? await createFind(actor, entry, isCritical) : null;
+    const marked = success ? 0 : await applyFailure(actor, total, entry);
+
+    /* THE TRACE'S CARD FIRST, THEN THIS ONE, and the order is the whole reason
+       the call is down here rather than beside the verdict: the two cards are
+       read in the order they arrive, and "you find nothing" landing UNDER "you
+       noticed a project" reads as the project being taken back. Scored against
+       the same total at its own difficulty, and not conditioned on `success` -
+       see `noticeSecretProject`. */
+    const foundProject = await noticeSecretProject(actor, entry, total, isCritical);
+
+    entry.result = {
+        success,
+        bulletId: item?.id ?? null,
+        projectId: foundProject,
+        stress: marked
+    };
     await writePending();
-    return { success: true, key };
+    return { success, key };
 }
 
 /** Put back whatever the previous throw of this same Observe did. */
@@ -409,6 +589,23 @@ async function undoPrevious(actor, entry) {
             } catch (err) {
                 error("Could not take back the Truth Bullet a reroll undid", err);
             }
+        }
+    }
+
+    /* A project the first throw noticed has to be un-noticed, for exactly the
+       reason the Truth Bullet above does: a Reroll takes the dice back, so
+       everything they bought goes back with them. `unshareWith` is GM-only and
+       this whole file is GM-only, so there is no bridge to cross.
+
+       The finder is not told. They were told they found it; being told they
+       un-found it would be the module narrating its own bookkeeping, and the
+       second throw's result is about to say what they actually found. */
+    if (previous.projectId) {
+        try {
+            const { unshareWith } = await import("./projects.mjs");
+            for (const userId of ownerIdsOf(actor)) await unshareWith(previous.projectId, userId);
+        } catch (err) {
+            error("Could not take back the project a reroll undid", err);
         }
     }
 
@@ -434,10 +631,6 @@ async function undoPrevious(actor, entry) {
 }
 
 /**
- * A failed Observe costs 2 Sanity. Sanity is a reverse resource in Daggerheart:
- * marks count up towards the maximum, so a failure raises the value.
- */
-/**
  * What a failed Observe costs, wherever it was decided (ACT-17, 20.09).
  *
  * Extracted from `applyFailure` so there is ONE writer of an Observe miss: the
@@ -446,8 +639,11 @@ async function undoPrevious(actor, entry) {
  * road charged nothing and refunded the action, which made asking a human the
  * cheaper way to look.
  *
- * Sanity is a reverse resource in Daggerheart: marks count up towards the
- * maximum, so a failure raises the value.
+ * A miss costs OBSERVE_FAIL_STRESS Sanity (1). Sanity is a reverse resource in
+ * Daggerheart: marks count up towards the maximum, so a failure raises the value.
+ *
+ * @returns {Promise<number>} the marks actually taken - 0 for a character who
+ *   was already at their maximum.
  */
 export async function chargeObserveMiss(actor, { total = null, dc = null } = {}) {
     if (!actor) return 0;
@@ -465,7 +661,7 @@ export async function chargeObserveMiss(actor, { total = null, dc = null } = {})
     }
 
     /*
-     * It costs 2 Sanity and looks exactly like a success until the card is read.
+     * It costs 1 Sanity and looks exactly like a success until the card is read.
      *
      * ON THE CARD. This said "local, on the observer's client" and was wrong the
      * same way `identify` in analyze.mjs was: `resolveObserve` is GM-only, so every
@@ -544,11 +740,13 @@ async function createFind(actor, entry, isCritical) {
     // description with an empty one.
     let pub = stored;
     if (written?.name && written.name !== described?.name
-        || written?.playerText && written.playerText !== described?.playerText) {
+        || written?.playerText && written.playerText !== described?.playerText
+        || written?.analyzedText && written.analyzedText !== described?.analyzedText) {
         try {
             pub = await setRemnantPublicById(entry.sceneId, entry.tokenId, {
                 name: written.name || described?.name || fallbackName,
-                playerText: written.playerText || described?.playerText || ""
+                playerText: written.playerText || described?.playerText || "",
+                analyzedText: written.analyzedText || described?.analyzedText || ""
             });
         } catch (err) {
             error("Could not record the description on the Remnant", err);
@@ -567,21 +765,22 @@ async function createFind(actor, entry, isCritical) {
          * real type for Key, Final and Autopsy. It used to force the literal
          * "neutral", so a Key trace found on an ordinary success arrived
          * `analyzed: true` under a badge reading Neutral - un-analysable, already
-         * wearing the real action's glyph, and now about to carry T-2's sentence
-         * about a clue nobody had read (T-2, 18.09).
+         * wearing the real action's glyph, and publishing the lab reading
+         * (`analyzedText`) about a clue nobody had read (T-2, 18.09).
          */
         shownType: isCritical ? data.type : null,
         visibility: data.visibility,
         faint: Boolean(data.faint),
         playerText: pub?.playerText ?? written?.playerText ?? "",
+        // What analysis will say, filed with the bullet now so a later Head roll
+        // pays out even if the trace itself is wiped before then. It reaches
+        // this player's ITEM only on a critical, which identifies outright -
+        // `createTruthBullet` is where that is decided, not here.
+        analyzedText: pub?.analyzedText ?? written?.analyzedText ?? "",
         img: pub?.img ?? null,
-        tags: pub?.tags ?? [],
         gmNote: data.note ?? "",
         remnantId: entry.tokenId,
         sceneId: entry.sceneId,
-        // What analysing it will say, from the record this function has already
-        // read. Secret until the bullet is identified (T-2).
-        analysis: data.analysis ?? "",
         // Passed explicitly: this is the GM's client, which may be looking at a
         // different scene entirely, so the canvas-bound default would stamp null.
         room: entry.room,
@@ -660,13 +859,38 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                 <textarea name="playerText" rows="3"${stored ? " autofocus" : ""}
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"
                     >${foundry.utils.escapeHTML(stored?.playerText ?? "")}</textarea></label>
+            ${/*
+                * THE SECOND BOX IS ASKED HERE AND NOT LATER, and it is optional.
+                *
+                * This is the one moment a GM is already looking at this trace
+                * and thinking about what it is - so it is the cheapest moment
+                * to also write what the lab would say about it. The alternative
+                * is being interrupted weeks later, mid-Investigation, by a
+                * player's Head roll landing on a trace nobody has written a
+                * reading for.
+                *
+                * Left empty it costs nothing: Analyze still identifies the
+                * category, which is exactly what it did before this field
+                * existed. The Remnant card and the Investigation dashboard both
+                * edit the same field afterwards, so nothing is decided here
+                * that cannot be changed at leisure.
+                */ ""}
+            <label>${game.i18n.localize("DRPG.TruthBullet.analyzedText")}
+                <textarea name="analyzedText" rows="3"
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"
+                    >${foundry.utils.escapeHTML(stored?.analyzedText ?? "")}</textarea></label>
+            <p class="notes">${game.i18n.localize("DRPG.TruthBullet.analyzedTextNote")}</p>
         </form>`),
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Observe.describeConfirm"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
-                    return { name: f.name.value.trim(), playerText: f.playerText.value.trim() };
+                    return {
+                        name: f.name.value.trim(),
+                        playerText: f.playerText.value.trim(),
+                        analyzedText: f.analyzedText.value.trim()
+                    };
                 }
             }
         ],
@@ -674,6 +898,29 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
     // Closing the dialog resolves to null, which `createFind` reads as "use the
     // prefilled name and no description" - the find still lands either way.
     }).catch(() => null);
+}
+
+/**
+ * What a pending Observe is aimed at, in the only terms anything outside this
+ * file may read. For the suite.
+ *
+ * DELIBERATELY NOT THE ANSWER KEY. No token id, no `data`, and above all no DC:
+ * those are the half of an Observe the observer is being tested on, and a reader
+ * that hands them out is the leak this whole file is arranged to prevent. What
+ * is left is the shape of the declaration - which is a rule, not a secret.
+ *
+ * Harmless on a player's client for a second reason as well: `chooseObserveTarget`
+ * returns before writing anything unless `game.user.isGM`, so `pending` is empty
+ * on every browser but a GM's and this answers null there whatever it is asked.
+ */
+export function pendingShape(key) {
+    const entry = pending.get(key);
+    if (!entry) return null;
+    return {
+        declaration: entry.declaration,
+        projectOnly: Boolean(entry.projectOnly),
+        hasProject: Boolean(entry.projectId)
+    };
 }
 
 /** Forget every pending target. A console tool for a stuck declaration. */

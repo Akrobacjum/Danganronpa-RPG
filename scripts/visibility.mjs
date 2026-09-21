@@ -19,8 +19,8 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, isEclipse } from "./settings.mjs";
-import { roomOfToken } from "./movement.mjs";
+import { SETTINGS, isEclipse, incidentParticipants } from "./settings.mjs";
+import { roomOfToken, roomAt } from "./movement.mjs";
 import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
 // Static, like movement.mjs's own import of the same file: `applyToToken`
@@ -28,6 +28,8 @@ import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
 // mastermind.mjs does not reach back into this file at load time - its one
 // call to `applyAll` is a dynamic import - so there is no cycle.
 import { myLairRoom } from "./mastermind.mjs";
+import { knowsProject } from "./projects.mjs";
+import { projectIdOf } from "./projects-map.mjs";
 import { debug } from "./utils.mjs";
 
 export function registerVisibility() {
@@ -145,6 +147,19 @@ function applyToToken(token) {
             return;
         }
 
+        /* A PROJECT IS THE OTHER KIND OF TOKEN THIS MODULE PUTS ON THE MAP.
+           Its document reaches every browser carrying a neutral name and one
+           countdown id - see the header of projects-map.mjs for why that is
+           the whole of its secrecy - and who may SEE it is decided here, on
+           each client, by one predicate. A secret project is hidden from
+           anybody not in on it; a public one is hidden until its room has been
+           stood in, and stays visible afterwards. */
+        const projectId = projectIdOf(token?.document);
+        if (projectId) {
+            applyToProjectToken(token, projectId);
+            return;
+        }
+
         if (!token?.actor || token.actor.type !== "character") return;
         // The GM sees the whole cast, always. Not a judgement call and never a
         // setting: they are running the game, not standing in a room.
@@ -211,7 +226,24 @@ function applyToToken(token) {
         // rather than hiding the entire cast.
         if (!mine.size && !room) return;
 
-        if (room && mine.has(room)) return;
+        if (room && mine.has(room)) {
+            /*
+             * THE DOCUMENT ARRIVES BEFORE THE SPRITE DOES (MAP-02). A token
+             * walking INTO my room is "in my room" the instant its update
+             * lands, while the mesh is still sliding there from wherever it
+             * came - so it flipped visible at its old position and crossed the
+             * border on screen, which is the direction of the crime scene.
+             * While the sprite is not yet in a room of mine it stays hidden;
+             * `refreshToken` fires every frame of the slide and shows it the
+             * moment it crosses. One region test per animating token per frame.
+             */
+            const sliding = token.x !== token.document.x || token.y !== token.document.y;
+            if (sliding) {
+                const at = roomAt(token.x, token.y, token.document);
+                if (at && !mine.has(at)) hide(token);
+            }
+            return;
+        }
         hide(token);
     } catch {
         // Never break the canvas over this.
@@ -226,6 +258,22 @@ function applyToToken(token) {
  * specific trace, and it holds regardless of whether the GM has room
  * enforcement switched on.
  */
+/**
+ * A project's token, hidden from anybody who does not know it is there.
+ *
+ * The GM leaves before anything is asked, exactly as with a trace: they are
+ * running the game, not discovering it. Everyone else answers to
+ * `knowsProject`, which is one predicate over facts the module was already
+ * keeping - the countdown's own ownership for a secret project, and fog.mjs's
+ * record of which rooms a character has stood in for a public one.
+ */
+function applyToProjectToken(token, projectId) {
+    if (game.user.isGM) return;
+    if (token.document.hidden) return;     // a GM has hidden it by hand
+    if (knowsProject(projectId)) return;
+    hide(token);
+}
+
 function applyToRemnantToken(token) {
     if (game.user.isGM) return;
     // Still hidden: Foundry's own flag already keeps it off every screen but
@@ -264,18 +312,25 @@ function myIncidentTrace(tokenDoc) {
     try {
         if (!tokenDoc.getFlag(MODULE_ID, REMNANT_FLAGS.fromIncident)) return false;
 
-        const state = game.settings.get(MODULE_ID, "murderState");
+        const state = game.settings.get(MODULE_ID, SETTINGS.murderState);
         if (!state?.active) return false;
 
         /*
-         * MIRRORS `killerIds` + the victim, and the shape matters: the state
-         * stores `killerId` and a single `thirdId` with a `thirdSide`, not a
-         * list. An accomplice who threw in with the killers is `thirdSide ===
-         * "killer"` and was in the room; a third party who merely walked in is
-         * a witness and is not who D11 is about.
+         * THE NAMES ARE NOT IN THE WORLD SETTING ANY MORE (LIVE-001): they live
+         * in the client-scoped cast that only the participants and the GMs
+         * hold. This used to read `killerId`/`victimId`/`thirdId` off the world
+         * half, which has carried none of them since the split - so the set was
+         * always empty and D11's client half silently did nothing, again.
+         *
+         * `incidentParticipants()` is the same leaf reader movement.mjs uses. A
+         * bystander's client gets an empty list, which is the whole point. The
+         * "accomplice who threw in with the killers" distinction needs the
+         * side, which this client's own copy of the cast still carries.
          */
-        const ids = new Set([state.victimId, state.killerId].filter(Boolean));
-        if (state.thirdId && state.thirdSide === "killer") ids.add(state.thirdId);
+        const ids = new Set(incidentParticipants());
+        const cast = game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};
+        if (cast.thirdId && cast.thirdSide !== "killer") ids.delete(cast.thirdId);
+        if (!ids.size) return false;
 
         return game.actors.filter(a => a.isOwner).some(a => ids.has(a.id));
     } catch {
@@ -355,7 +410,30 @@ export function applyAll() {
     forgetMyRooms();
 
     for (const token of canvas.tokens?.placeables ?? []) {
-        // Ask Foundry to refresh, which runs applyToToken through the hook.
+        /*
+         * THE FLAG IS THE UN-HIDE PATH, AND THE COMMENT HERE USED TO SAY
+         * SOMETHING ELSE.
+         *
+         * It read "Ask Foundry to refresh, which runs applyToToken through the
+         * hook", which cannot be the reason: `applyToToken` runs on the very
+         * next line whether or not Foundry refreshes anything. A reader who
+         * believed it would delete the line as a duplicate, and deleting it
+         * breaks the feature this file exists for.
+         *
+         * What the flag actually does is give Foundry back the tokens this
+         * module has hidden. `hide()` writes `visible = false` onto seven
+         * display objects by hand, and the only thing in here that reverses it
+         * is `show()` - which returns early for a token the viewer does not own
+         * (see its own note). So nothing in this module ever restores somebody
+         * else's token; Foundry's own visibility pass is what does, and this is
+         * how it is asked to run. Take the line out and an Eclipse ending, the
+         * clock moving, a Truth Bullet arriving and the lair opening all leave
+         * other people's tokens stranded invisible - and no test anywhere would
+         * catch it, because the harness has no canvas.
+         *
+         * Found by a verification pass on 16.09; three readers reached it
+         * independently, which is why it is written down rather than fixed.
+         */
         token.renderFlags?.set?.({ refreshVisibility: true });
         applyToToken(token);
     }

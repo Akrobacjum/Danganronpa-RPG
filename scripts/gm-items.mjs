@@ -18,7 +18,7 @@ import {
     TRUTH_BULLET_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
 } from "./config.mjs";
 import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySummary,
-    pickableCategories, isStashed }
+    pickableCategories, isStashed, isBroken }
     from "./inventory.mjs";
 // `BULLET_CATEGORY` went with the hand-rolled category list: excluding Truth
 // Bullets is `pickableCategories`'s job now, not this file's.
@@ -27,6 +27,13 @@ import { createTruthBullet, issueAutopsy, copiedRemnants }
 import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER }
     from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
+
+/** The student <option> list every give/take window opens with (ITEM-18). */
+function recipientOptions(students, selectedId) {
+    return students
+        .map(a => `<option value="${a.id}"${a.id === selectedId ? " selected" : ""}>${esc(a.name)}</option>`)
+        .join("");
+}
 import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs, workingScene,
     log, error, plural, cardHead, esc} from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
@@ -42,6 +49,127 @@ const DialogV2 = foundry.applications.api.DialogV2;
  *
  * @param {Actor} [actor]  Skip the character picker when the caller knows who.
  */
+/*
+ * ONE WINDOW: WHO, WHAT THEY HAVE, GIVE OR TAKE (Dawid, 03.09).
+ *
+ * This was a menu of five buttons that each opened somewhere else, and the
+ * one thing a GM wants to see before pressing any of them - what the
+ * student is actually holding, and what is in their stash - was behind a
+ * sixth ("Look inside the stashes"). The holdings are on the window now,
+ * and the only choice left at this level is the verb.
+ *
+ * TWO TABS AND A FOOTER THAT FOLLOWS THEM, which is what `wirePanelTabs`
+ * is for and what Item Tables and Sound already do. Nothing underneath
+ * changed: `gmGiveItemDialog`, `giveTruthBulletDialog`, `giveKeyDialog` and
+ * `takeItemDialog` are the same windows, reached from the tab that matches
+ * what they do.
+ *
+ * A stashed item is an ordinary item on its owner's sheet, so the stash
+ * needs no separate reader - it is a flag on a row this list already walks.
+ * `openVaultInspector` stays on the console for a GM who wants every
+ * stash at once rather than one student's.
+ */
+function holdingsHtml(who) {
+        const groups = [];
+        for (const [key, cat] of Object.entries(ITEM_CATEGORIES)) {
+            const all = itemsInCategory(who, key);
+            if (!all.length) continue;
+            const rows = all.map(item => {
+                const tier = item.getFlag(MODULE_ID, "tier");
+                return `<li>${esc(item.name)}${
+                    tier !== undefined && tier !== null
+                        ? ` <span class="notes">T${tier}</span>` : ""
+                }${isStashed(item)
+                    ? ` <span class="notes">${esc(game.i18n.localize("DRPG.Items.inStash"))}</span>`
+                    : ""}</li>`;
+            }).join("");
+            groups.push(`<div class="drpg-holdings-group"><h4>${esc(cat.label)}</h4>`
+                + `<ul>${rows}</ul></div>`);
+        }
+        return `<p class="notes">${esc(inventorySummary(who))}</p>`
+            + (groups.length
+                ? `<div class="drpg-holdings">${groups.join("")}</div>`
+                : `<p class="notes">${esc(game.i18n.format("DRPG.Items.carriesNothing",
+                    { actor: who.name }))}</p>`);
+}
+
+/** The tabs' buttons, the select that changes whose pockets are shown, and the live read-out. */
+function wireItemManager(dialog, target) {
+    wirePanelTabs(dialog.element, {
+        buttons: {
+            give: ["give", "bullet", "key"],
+            take: ["take", "takeBullet", "takeKey"]
+        },
+        always: ["cancel"]
+    });
+
+    /* WHOSE POCKETS, AND WHAT IS IN THEM - two questions, and only the first
+       of them was ever answered twice.
+
+       The read-out follows the person, or a GM who changes their mind reads the
+       last student's pockets under a new name. It did not follow the POCKETS:
+       giving somebody a thing, taking one away, or a player picking something up
+       mid-Daily-Life all left this line saying what they used to be carrying.
+       Measured on 11.09 - "Usables: 1/3" with two of them in the actor.
+
+       That matters here more than on most windows, because the buttons under it
+       are what CHANGES the holdings: the hub gives an item and comes straight
+       back to itself, so the number it shows is the one the GM is about to act
+       on again.
+
+       `chosen` is looked up fresh each time rather than closed over: the select
+       is the answer now (see the buttons below), and the element itself is
+       re-queried because `keepLive` REPLACES the region and a reference captured
+       at render time would be pointing at a detached node by the second refresh. */
+    const form = dialog.element.querySelector("form");
+    const chosen = () => game.actors.get(form?.elements?.who?.value) ?? target;
+    const holdings = () =>
+        `<div class="drpg-holdings-live">${holdingsHtml(chosen())}</div>`;
+
+    form?.elements?.who?.addEventListener("change", () => {
+        const live = dialog.element.querySelector(".drpg-holdings-live");
+        if (live) live.outerHTML = holdings();
+    });
+
+    keepLive(dialog, {
+        region: ".drpg-holdings-live",
+        build: holdings,
+        // Items for what they are carrying, actors because a stash lives on the
+        // sheet and the summary counts it.
+        watch: { items: true, actors: true }
+    });
+}
+
+/** Six doors and a Close: each answers with what to do and to whom. */
+function itemManagerButtons(target) {
+    return [
+        // Each returns the verb AND who it is about, because the select
+        // above is the answer now - the argument this function was called
+        // with is only its default.
+        ...[["give", "DRPG.Items.give"],
+            ["bullet", "DRPG.TruthBullet.give"],
+            ["key", "DRPG.Vault.giveKey"],
+            ["take", "DRPG.Items.take"],
+            // A FILTER, NOT A SECOND DIALOG. `takeItemDialog` already lists
+            // Truth Bullets - it walks every category - so this is that
+            // window with everything else hidden. A GM removing a bullet is
+            // looking for one of three among fifteen things.
+            ["takeBullet", "DRPG.TruthBullet.takeAway"],
+            // The same filter for keys. Give has a door for them, so Take
+            // has one too (Dawid, 03.09).
+            ["takeKey", "DRPG.Vault.takeKey"]
+        ].map(([action, labelKey]) => ({
+            action,
+            label: game.i18n.localize(labelKey),
+            callback: (e, b, d) => ({
+                go: action,
+                who: d.element.querySelector("[name=who]")?.value ?? target.id
+            })
+        })),
+        { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
+    ];
+}
+
 export async function openItemManager(actor = null) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
@@ -78,53 +206,8 @@ export async function openItemManager(actor = null) {
         return null;
     }
 
-    /*
-     * ONE WINDOW: WHO, WHAT THEY HAVE, GIVE OR TAKE (Dawid, 03.09).
-     *
-     * This was a menu of five buttons that each opened somewhere else, and the
-     * one thing a GM wants to see before pressing any of them - what the
-     * student is actually holding, and what is in their stash - was behind a
-     * sixth ("Look inside the stashes"). The holdings are on the window now,
-     * and the only choice left at this level is the verb.
-     *
-     * TWO TABS AND A FOOTER THAT FOLLOWS THEM, which is what `wirePanelTabs`
-     * is for and what Item Tables and Sound already do. Nothing underneath
-     * changed: `gmGiveItemDialog`, `giveTruthBulletDialog`, `giveKeyDialog` and
-     * `takeItemDialog` are the same windows, reached from the tab that matches
-     * what they do.
-     *
-     * A stashed item is an ordinary item on its owner's sheet, so the stash
-     * needs no separate reader - it is a flag on a row this list already walks.
-     * `openVaultInspector` stays on the console for a GM who wants every
-     * stash at once rather than one student's.
-     */
-    const holdingsFor = who => {
-        const groups = [];
-        for (const [key, cat] of Object.entries(ITEM_CATEGORIES)) {
-            const all = itemsInCategory(who, key);
-            if (!all.length) continue;
-            const rows = all.map(item => {
-                const tier = item.getFlag(MODULE_ID, "tier");
-                return `<li>${esc(item.name)}${
-                    tier !== undefined && tier !== null
-                        ? ` <span class="notes">T${tier}</span>` : ""
-                }${isStashed(item)
-                    ? ` <span class="notes">${esc(game.i18n.localize("DRPG.Items.inStash"))}</span>`
-                    : ""}</li>`;
-            }).join("");
-            groups.push(`<div class="drpg-holdings-group"><h4>${esc(cat.label)}</h4>`
-                + `<ul>${rows}</ul></div>`);
-        }
-        return `<p class="notes">${esc(inventorySummary(who))}</p>`
-            + (groups.length
-                ? `<div class="drpg-holdings">${groups.join("")}</div>`
-                : `<p class="notes">${esc(game.i18n.format("DRPG.Items.carriesNothing",
-                    { actor: who.name }))}</p>`);
-    };
 
-    const whoOptions = students
-        .map(a => `<option value="${a.id}"${a.id === target.id ? " selected" : ""}>${
-            esc(a.name)}</option>`).join("");
+    const whoOptions = recipientOptions(students, target.id);
 
     const choice = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Items.manage") },
@@ -132,7 +215,7 @@ export async function openItemManager(actor = null) {
         content: dialogContent(`<form>
             <label>${game.i18n.localize("DRPG.Items.whichCharacterHub")}
                 <select name="who">${whoOptions}</select></label>
-            <div class="drpg-holdings-live">${holdingsFor(target)}</div>
+            <div class="drpg-holdings-live">${holdingsHtml(target)}</div>
             ${panelTabs([
                 { key: "give", label: game.i18n.localize("DRPG.Items.tabGive"),
                   html: `<p class="notes">${game.i18n.localize("DRPG.Items.giveNote")}</p>` },
@@ -140,77 +223,8 @@ export async function openItemManager(actor = null) {
                   html: `<p class="notes">${game.i18n.localize("DRPG.Items.takeNote")}</p>` }
             ])}
         </form>`),
-        render: (event, dialog) => {
-            wirePanelTabs(dialog.element, {
-                buttons: {
-                    give: ["give", "bullet", "key"],
-                    take: ["take", "takeBullet", "takeKey"]
-                },
-                always: ["cancel"]
-            });
-
-            /* WHOSE POCKETS, AND WHAT IS IN THEM - two questions, and only the first
-               of them was ever answered twice.
-
-               The read-out follows the person, or a GM who changes their mind reads the
-               last student's pockets under a new name. It did not follow the POCKETS:
-               giving somebody a thing, taking one away, or a player picking something up
-               mid-Daily-Life all left this line saying what they used to be carrying.
-               Measured on 11.09 - "Usables: 1/3" with two of them in the actor.
-
-               That matters here more than on most windows, because the buttons under it
-               are what CHANGES the holdings: the hub gives an item and comes straight
-               back to itself, so the number it shows is the one the GM is about to act
-               on again.
-
-               `chosen` is looked up fresh each time rather than closed over: the select
-               is the answer now (see the buttons below), and the element itself is
-               re-queried because `keepLive` REPLACES the region and a reference captured
-               at render time would be pointing at a detached node by the second refresh. */
-            const form = dialog.element.querySelector("form");
-            const chosen = () => game.actors.get(form?.elements?.who?.value) ?? target;
-            const holdings = () =>
-                `<div class="drpg-holdings-live">${holdingsFor(chosen())}</div>`;
-
-            form?.elements?.who?.addEventListener("change", () => {
-                const live = dialog.element.querySelector(".drpg-holdings-live");
-                if (live) live.outerHTML = holdings();
-            });
-
-            keepLive(dialog, {
-                region: ".drpg-holdings-live",
-                build: holdings,
-                // Items for what they are carrying, actors because a stash lives on the
-                // sheet and the summary counts it.
-                watch: { items: true, actors: true }
-            });
-        },
-        buttons: [
-            // Each returns the verb AND who it is about, because the select
-            // above is the answer now - the argument this function was called
-            // with is only its default.
-            ...[["give", "DRPG.Items.give"],
-                ["bullet", "DRPG.TruthBullet.give"],
-                ["key", "DRPG.Vault.giveKey"],
-                ["take", "DRPG.Items.take"],
-                // A FILTER, NOT A SECOND DIALOG. `takeItemDialog` already lists
-                // Truth Bullets - it walks every category - so this is that
-                // window with everything else hidden. A GM removing a bullet is
-                // looking for one of three among fifteen things.
-                ["takeBullet", "DRPG.TruthBullet.takeAway"],
-                // The same filter for keys. Give has a door for them, so Take
-                // has one too (Dawid, 03.09).
-                ["takeKey", "DRPG.Vault.takeKey"]
-            ].map(([action, labelKey]) => ({
-                action,
-                label: game.i18n.localize(labelKey),
-                callback: (e, b, d) => ({
-                    go: action,
-                    who: d.element.querySelector("[name=who]")?.value ?? target.id
-                })
-            })),
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+        render: (event, dialog) => wireItemManager(dialog, target),
+        buttons: itemManagerButtons(target),
         rejectClose: false
     });
 
@@ -260,7 +274,8 @@ export async function openItemManager(actor = null) {
 async function giveKeyDialog(actor) {
     // Bedrooms, not stashes - a stash in somebody else's room must never
     // produce a key to it. See `allBedrooms` and trap 79.
-    const { allBedrooms, grantBedroomKey, keysHeldBy } = await import("./vault.mjs");
+    // Across every scene (ITEM-16): the dorms are usually not the scene the GM is looking at.
+    const { allBedroomsAnywhere: allBedrooms, grantBedroomKey, keysHeldBy } = await import("./vault.mjs");
 
     const students = studentActors();
     const initial = actor ?? students[0] ?? null;
@@ -299,14 +314,12 @@ async function giveKeyDialog(actor) {
                 foundry.utils.escapeHTML(v.owner.name)}</option>`).join("");
     };
 
-    const recipients = students
-        .map(a => `<option value="${a.id}"${a.id === initial.id ? " selected" : ""}>${
-            foundry.utils.escapeHTML(a.name)}</option>`).join("");
+    const recipients = recipientOptions(students, initial.id);
 
     const result = await DialogV2.wait({
-        window: { title: actor
-            ? game.i18n.format("DRPG.Vault.giveKeyTo", { actor: actor.name })
-            : game.i18n.localize("DRPG.Vault.giveKey") },
+        // Generic on purpose (ITEM-13): the form carries its own recipient
+        // select, and a title naming the argument lied as soon as it changed.
+        window: { title: game.i18n.localize("DRPG.Vault.giveKey") },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
             <label>${game.i18n.localize("DRPG.Items.recipient")}
@@ -370,31 +383,27 @@ async function giveKeyDialog(actor) {
  * on a sheet is making a ruling, and being told "Crime Tools 1/1" is more useful
  * than being refused. Going over the cap is deliberate and flagged.
  */
-export async function gmGiveItemDialog(actor) {
-    // Truth Bullets have their own dialog. They share nothing with a physical
-    // item but the word "give": no tier, no carry limit, and half a dozen fields
-    // this form has no place for.
-    /*
-     * THE CARRY COUNTS BELONG TO A PERSON, so they are built for one rather
-     * than once. Changing the recipient rebuilds them - a row reading "2/2"
-     * about somebody who is no longer getting the item is worse than a row
-     * with no numbers on it at all.
-     */
-    /*
-     * The list itself comes from `pickableCategories` - the one place that
-     * decides which categories a form may offer, and which splits usables into
-     * Healing and Sanity Relief because that split IS what a usable does. This
-     * window had the split first and three others did not; sharing the list is
-     * what stops them drifting again (audit A22-A24).
-     *
-     * What stays here is the only thing that is this window's own: the carry
-     * count on each row.
-     *
-     * `foundry.utils.escapeHTML` rather than the local `esc`, which is declared
-     * further down this function - the first call to this closure happens
-     * before that line runs, so reaching for it would throw.
-     */
-    const categoriesFor = who => pickableCategories().map(choice => {
+/*
+ * THE CARRY COUNTS BELONG TO A PERSON, so they are built for one rather
+ * than once. Changing the recipient rebuilds them - a row reading "2/2"
+ * about somebody who is no longer getting the item is worse than a row
+ * with no numbers on it at all.
+ */
+/*
+ * The list itself comes from `pickableCategories` - the one place that
+ * decides which categories a form may offer, and which splits usables into
+ * Healing and Sanity Relief because that split IS what a usable does. This
+ * window had the split first and three others did not; sharing the list is
+ * what stops them drifting again (audit A22-A24).
+ *
+ * What stays here is the only thing that is this window's own: the carry
+ * count on each row.
+ *
+ * `foundry.utils.escapeHTML` is the same escape `esc` wraps; this was a closure
+ * inside the dialog once, written before `esc` reached it, and the spelling stayed.
+ */
+function giveCategoryOptions(who) {
+    return pickableCategories().map(choice => {
         const cat = ITEM_CATEGORIES[choice.key];
         // The shared budget, where there is one: rows drawing on the same
         // slots have to show the same number, or the GM reads "1/1" beside a
@@ -408,17 +417,267 @@ export async function gmGiveItemDialog(actor) {
         return `<option value="${choice.value}">${
             foundry.utils.escapeHTML(choice.label)}${cap}</option>`;
     }).join("");
+}
 
+/** The entries of one table, as options for the item select. */
+function giveItemOptionsFor(table) {
+    return Array.from(table?.results ?? [])
+        .map(r => `<option value="${r.id}">${esc(r.name ?? r.text ?? "")}</option>`).join("");
+}
+
+/*
+ * THE TABLE FIRST, THEN WHAT IS IN IT (Dawid, 03.09).
+ *
+ * This was one select carrying every result of every table, with the table
+ * as an `<optgroup>` label. A world with the default set installed puts
+ * several hundred rows in it, so a GM who knew exactly which table they
+ * wanted still had to find one line inside a list of everything - and the
+ * category and tier beside it followed the ITEM, which is the wrong end:
+ * the table is what knows those two.
+ *
+ * Two selects, and the second is rebuilt from the first. The item options
+ * are built here rather than rendered hidden, because a `<select>` with
+ * hidden options is a control that reports values nobody can see.
+ */
+function giveExistingPane(catalogue, categories, tiers) {
+    const tableOptions = catalogue.map(table => {
+        const cat = table.getFlag(MODULE_ID, "category") ?? "";
+        const tier = table.getFlag(MODULE_ID, "tier");
+        const goal = table.getFlag(MODULE_ID, "goal") ?? "";
+        return `<option value="${table.id}" data-category="${esc(cat)}" data-tier="${
+            tier ?? ""}" data-goal="${esc(goal)}">${esc(table.name)} (${table.results.size})</option>`;
+    }).join("");
+
+    return catalogue.length
+        ? `<label>${game.i18n.localize("DRPG.Items.pickTable")}
+                <select name="exTable">${tableOptions}</select></label>
+            <label>${game.i18n.localize("DRPG.Items.pickExisting")}
+                <select name="exItem">${giveItemOptionsFor(catalogue[0])}</select></label>
+            <label>${game.i18n.localize("DRPG.Items.category")}
+                <select name="exCategory">${categories}</select></label>
+            <label>${game.i18n.localize("DRPG.Items.tier")}
+                <select name="exTier">${tiers}</select></label>
+            <p class="notes">${game.i18n.localize("DRPG.Items.existingNote")}</p>`
+        : `<p class="notes">${game.i18n.localize("DRPG.Items.existingEmpty")}</p>`;
+}
+
+/** The "create new" tab: category, tier, a name with every built-in as autocomplete, description, roles. */
+function giveCreatePane({ categories, tiers, suggestions }) {
+    return `
+            <label>${game.i18n.localize("DRPG.Items.category")}
+                <select name="category">${categories}</select></label>
+            <label>${game.i18n.localize("DRPG.Items.tier")}
+                <select name="tier">${tiers}</select></label>
+            <label>${game.i18n.localize("DRPG.Items.name")}
+                <input type="text" name="name" list="drpg-item-names"
+                       placeholder="${game.i18n.localize("DRPG.Items.namePlaceholder")}" /></label>
+            <datalist id="drpg-item-names">${
+                suggestions.map(n => `<option value="${esc(n)}"></option>`).join("")
+            }</datalist>
+            <label>${game.i18n.localize("DRPG.Items.description")}
+                <textarea name="description" rows="2"
+                    placeholder="${game.i18n.localize("DRPG.Items.descriptionPlaceholder")}"></textarea></label>
+            <span class="drpg-role-picker" data-drpg-roles>
+                <span class="drpg-role-label">${game.i18n.localize("DRPG.Items.alsoServesAs")}</span>
+                ${EQUIPPABLE.map(key => `<label class="drpg-check"><input type="checkbox"
+                    data-drpg-role="${key}" />${esc(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("")}
+            </span>
+            <p class="notes" data-drpg-roles-note></p>`;
+}
+
+/** The give form's own rules: the table drives the item list, category and tier; the recipient rebuilds the counts; the roles follow tier and home. */
+function wireGiveForm(dialog) {
+    wirePanelTabs(dialog.element);
+
+    /*
+     * THE TABLE DRIVES THE OTHER THREE.
+     *
+     * Picking a table refills the item list and moves the category and
+     * tier to whatever that table is. All three stay editable
+     * afterwards: a room pool carries no category of its own, and there
+     * the GM's answer is the only one there is.
+     */
+    const form = dialog.element.querySelector("form");
+    const tableSelect = form?.elements?.exTable;
+    if (!tableSelect) return;
+
+    const syncFromTable = ({ refillItems = true } = {}) => {
+        const opt = tableSelect.selectedOptions?.[0];
+        if (!opt) return;
+
+        if (refillItems) {
+            const table = game.tables.get(tableSelect.value);
+            form.elements.exItem.innerHTML = giveItemOptionsFor(table);
+        }
+
+        const { category, tier, goal } = opt.dataset;
+        if (category) {
+            const value = category === "usable" && goal ? `${category}:${goal}` : category;
+            if (form.elements.exCategory.querySelector(`option[value="${CSS.escape(value)}"]`)) {
+                form.elements.exCategory.value = value;
+            }
+        }
+        if (tier !== "") form.elements.exTier.value = tier;
+    };
+
+    tableSelect.addEventListener("change", () => syncFromTable());
+    // On open the item list is already right, so only the two
+    // read-along selects need moving.
+    syncFromTable({ refillItems: false });
+
+    // Both category selects carry the counts, and both are rebuilt when
+    // the recipient changes. The picked value is kept across the swap.
+    form.elements.recipient?.addEventListener("change", () => {
+        const who = game.actors.get(form.elements.recipient.value);
+        for (const name of ["category", "exCategory"]) {
+            const select = form.elements[name];
+            if (!select) continue;
+            // The chosen value survives the swap - the options are
+            // rebuilt for their counts, not for their identity.
+            const keep = select.value;
+            select.innerHTML = giveCategoryOptions(who);
+            if ([...select.options].some(o => o.value === keep)) select.value = keep;
+        }
+    });
+
+    /*
+     * A SECOND ROLE, ON THE SAME TERMS AS THE TABLES (Dawid, 31.08).
+     *
+     * Two rules, both borrowed rather than reinvented so the two places
+     * a GM can make an item cannot disagree: a role is offered only
+     * from `MULTI_ROLE_TIER` up, because a two-tag item is
+     * unconditionally better than a one-tag one and has no business at
+     * the bottom of the range; and an item is never offered its own
+     * home, which would be a box that cannot be unticked.
+     *
+     * Repainted on every change to either select, because both of them
+     * decide what is on offer.
+     */
+    const rolePicker = form.querySelector("[data-drpg-roles]");
+    const roleNote = form.querySelector("[data-drpg-roles-note]");
+    const paintRoles = () => {
+        if (!rolePicker) return;
+        const [home] = String(form.elements.category?.value ?? "").split(":");
+        const tier = Number(form.elements.tier?.value);
+        const allowed = Number.isFinite(tier) && tier >= MULTI_ROLE_TIER;
+
+        for (const box of rolePicker.querySelectorAll("[data-drpg-role]")) {
+            const isHome = box.dataset.drpgRole === home;
+            const off = isHome || !allowed;
+            box.disabled = off;
+            if (off) box.checked = false;
+            box.closest("label")?.classList.toggle("drpg-locked", off);
+            box.closest("label")?.toggleAttribute("hidden", isHome);
+        }
+        if (roleNote) {
+            roleNote.textContent = allowed
+                ? ""
+                : game.i18n.format("DRPG.Tables.rolesTierOnly", { tier: MULTI_ROLE_TIER });
+        }
+    };
+    form.elements.category?.addEventListener("change", paintRoles);
+    form.elements.tier?.addEventListener("change", paintRoles);
+    paintRoles();
+}
+
+/** What Give hands back: whichever pane is showing, read as one shape with a `mode`. */
+function readGiveForm(d) {
+    const f = d.element.querySelector("form");
+    const active = d.element.querySelector(".drpg-gmt-section.active")
+        ?.dataset.drpgGmtSection ?? "create";
+
+    if (active === "existing" && f.elements.exTable) {
+        const [category, kind = null] = f.elements.exCategory.value.split(":");
+        return {
+            mode: "existing",
+            tableId: f.elements.exTable.value,
+            resultId: f.elements.exItem.value,
+            category, kind,
+            tier: Number(f.elements.exTier.value),
+            tell: f.elements.tell.checked,
+            recipient: f.elements.recipient?.value ?? null
+        };
+    }
+
+    // "usable:healing" carries the kind after the colon; the
+    // plain categories have nothing to split.
+    const [category, kind = null] = f.elements.category.value.split(":");
+    return {
+        mode: "create",
+        category,
+        kind,
+        tier: Number(f.elements.tier.value),
+        name: f.elements.name.value.trim(),
+        description: f.elements.description.value.trim(),
+        roles: [...f.querySelectorAll("[data-drpg-role]:checked")]
+            .map(b => b.dataset.drpgRole),
+        tell: f.elements.tell.checked,
+        recipient: f.elements.recipient?.value ?? null
+    };
+}
+
+    // Both tabs funnel into one shape, so everything below - the grant, the
+    // receipt, the log line - cannot diverge between them.
+function giveFromResult(result) {
+    let give;
+    if (result.mode === "existing") {
+        const entry = game.tables.get(result.tableId)?.results?.get(result.resultId);
+        if (!entry) {
+            ui.notifications.error(game.i18n.localize("DRPG.Items.failed"));
+            return null;
+        }
+        const name = entry.name ?? entry.text ?? "";
+        give = {
+            name,
+            category: result.category,
+            kind: result.kind,
+            tier: result.tier,
+            // The same rule drawItem applies: a description that is only the
+            // name again adds nothing over the tier line the item will get.
+            description: entry.description && entry.description !== name ? entry.description : "",
+            // The same roles a Search would have handed over. Without this the
+            // hammer given by hand and the hammer found in a room were two
+            // different objects.
+            roles: rolesOfResult(entry),
+            img: entry.img ?? null
+        };
+    } else {
+        if (!result.name) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Items.needsName"));
+            return null;
+        }
+        give = { ...result, img: null };
+    }
+    return give;
+}
+
+/** The receipt the player sees: what it is, what it does. */
+async function tellGiven(actor, give) {
+    const effect = USABLE_KIND_EFFECTS[give.kind]?.[give.tier]
+        ?? TIER_EFFECTS[give.category]?.[give.tier] ?? "";
+    const label = USABLE_KINDS[give.kind]
+        ? `${ITEM_CATEGORIES[give.category]?.label} - ${USABLE_KINDS[give.kind].label}`
+        : ITEM_CATEGORIES[give.category]?.label ?? give.category;
+    await whisperToOwner(actor, `
+        <h3>${game.i18n.localize("DRPG.Items.received")}</h3>
+        <p><strong>${esc(give.name)}</strong> - ${esc(label)
+        }, ${game.i18n.format("DRPG.Items.tierN", { n: give.tier })}</p>
+        ${give.description ? `<p>${esc(give.description)}</p>` : ""}
+        ${effect ? `<p><em>${esc(effect)}</em></p>` : ""}`);
+}
+
+export async function gmGiveItemDialog(actor) {
+    // Truth Bullets have their own dialog. They share nothing with a physical
+    // item but the word "give": no tier, no carry limit, and half a dozen fields
+    // this form has no place for.
     // Everyone this can be handed to. The one who came in from the hub is
     // selected; opened from the hub there is nobody, and the first student
     // stands in - so the counts below always describe whoever the select is
     // actually showing.
     const students = studentActors();
     const initial = actor ?? students[0] ?? null;
-    const categories = categoriesFor(initial);
-    const recipients = students
-        .map(a => `<option value="${a.id}"${a.id === initial?.id ? " selected" : ""}>${
-            foundry.utils.escapeHTML(a.name)}</option>`).join("");
+    const categories = giveCategoryOptions(initial);
+    const recipients = recipientOptions(students, initial?.id);
 
     const tiers = ITEM_TIERS
         .map(t => `<option value="${t}"${t === 2 ? " selected" : ""}>${
@@ -439,47 +698,10 @@ export async function gmGiveItemDialog(actor) {
     // give retyped an item the tables already knew.)
     const catalogue = moduleTables().filter(t => t.results.size);
 
-    /*
-     * THE TABLE FIRST, THEN WHAT IS IN IT (Dawid, 03.09).
-     *
-     * This was one select carrying every result of every table, with the table
-     * as an `<optgroup>` label. A world with the default set installed puts
-     * several hundred rows in it, so a GM who knew exactly which table they
-     * wanted still had to find one line inside a list of everything - and the
-     * category and tier beside it followed the ITEM, which is the wrong end:
-     * the table is what knows those two.
-     *
-     * Two selects, and the second is rebuilt from the first. The item options
-     * are built here rather than rendered hidden, because a `<select>` with
-     * hidden options is a control that reports values nobody can see.
-     */
-    const tableOptions = catalogue.map(table => {
-        const cat = table.getFlag(MODULE_ID, "category") ?? "";
-        const tier = table.getFlag(MODULE_ID, "tier");
-        const goal = table.getFlag(MODULE_ID, "goal") ?? "";
-        return `<option value="${table.id}" data-category="${esc(cat)}" data-tier="${
-            tier ?? ""}" data-goal="${esc(goal)}">${esc(table.name)} (${table.results.size})</option>`;
-    }).join("");
-
-    const itemOptionsFor = table => Array.from(table?.results ?? [])
-        .map(r => `<option value="${r.id}">${esc(r.name ?? r.text ?? "")}</option>`).join("");
-
-    const existingPane = catalogue.length
-        ? `<label>${game.i18n.localize("DRPG.Items.pickTable")}
-                <select name="exTable">${tableOptions}</select></label>
-            <label>${game.i18n.localize("DRPG.Items.pickExisting")}
-                <select name="exItem">${itemOptionsFor(catalogue[0])}</select></label>
-            <label>${game.i18n.localize("DRPG.Items.category")}
-                <select name="exCategory">${categories}</select></label>
-            <label>${game.i18n.localize("DRPG.Items.tier")}
-                <select name="exTier">${tiers}</select></label>
-            <p class="notes">${game.i18n.localize("DRPG.Items.existingNote")}</p>`
-        : `<p class="notes">${game.i18n.localize("DRPG.Items.existingEmpty")}</p>`;
+    const existingPane = giveExistingPane(catalogue, categories, tiers);
 
     const result = await DialogV2.wait({
-        window: { title: actor
-            ? game.i18n.format("DRPG.Items.giveTo", { actor: actor.name })
-            : game.i18n.localize("DRPG.Items.give") },
+        window: { title: game.i18n.localize("DRPG.Items.give") },
         classes: ["drpg-panel"],
         // Two tabs, one verb (Dawid, 2026-08-26). The footer's Give reads
         // whichever pane is showing; the tell-player switch and the cap note
@@ -487,26 +709,8 @@ export async function gmGiveItemDialog(actor) {
         content: dialogContent(`<form>${panelTabs([
             { key: "existing", label: game.i18n.localize("DRPG.Items.tabGiveExisting"),
               html: existingPane },
-            { key: "create", label: game.i18n.localize("DRPG.Items.tabCreateNew"), html: `
-            <label>${game.i18n.localize("DRPG.Items.category")}
-                <select name="category">${categories}</select></label>
-            <label>${game.i18n.localize("DRPG.Items.tier")}
-                <select name="tier">${tiers}</select></label>
-            <label>${game.i18n.localize("DRPG.Items.name")}
-                <input type="text" name="name" list="drpg-item-names"
-                       placeholder="${game.i18n.localize("DRPG.Items.namePlaceholder")}" /></label>
-            <datalist id="drpg-item-names">${
-                suggestions.map(n => `<option value="${esc(n)}"></option>`).join("")
-            }</datalist>
-            <label>${game.i18n.localize("DRPG.Items.description")}
-                <textarea name="description" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.Items.descriptionPlaceholder")}"></textarea></label>
-            <span class="drpg-role-picker" data-drpg-roles>
-                <span class="drpg-role-label">${game.i18n.localize("DRPG.Items.alsoServesAs")}</span>
-                ${EQUIPPABLE.map(key => `<label class="drpg-check"><input type="checkbox"
-                    data-drpg-role="${key}" />${esc(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("")}
-            </span>
-            <p class="notes" data-drpg-roles-note></p>` }
+            { key: "create", label: game.i18n.localize("DRPG.Items.tabCreateNew"),
+              html: giveCreatePane({ categories, tiers, suggestions }) }
         ])}
             <label>${game.i18n.localize("DRPG.Items.recipient")}
                 <select name="recipient">${recipients}</select></label>
@@ -515,136 +719,11 @@ export async function gmGiveItemDialog(actor) {
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Items.overCapNote")}</p>
         </form>`),
-        render: (event, dialog) => {
-            wirePanelTabs(dialog.element);
-
-            /*
-             * THE TABLE DRIVES THE OTHER THREE.
-             *
-             * Picking a table refills the item list and moves the category and
-             * tier to whatever that table is. All three stay editable
-             * afterwards: a room pool carries no category of its own, and there
-             * the GM's answer is the only one there is.
-             */
-            const form = dialog.element.querySelector("form");
-            const tableSelect = form?.elements?.exTable;
-            if (!tableSelect) return;
-
-            const syncFromTable = ({ refillItems = true } = {}) => {
-                const opt = tableSelect.selectedOptions?.[0];
-                if (!opt) return;
-
-                if (refillItems) {
-                    const table = game.tables.get(tableSelect.value);
-                    form.elements.exItem.innerHTML = itemOptionsFor(table);
-                }
-
-                const { category, tier, goal } = opt.dataset;
-                if (category) {
-                    const value = category === "usable" && goal ? `${category}:${goal}` : category;
-                    if (form.elements.exCategory.querySelector(`option[value="${CSS.escape(value)}"]`)) {
-                        form.elements.exCategory.value = value;
-                    }
-                }
-                if (tier !== "") form.elements.exTier.value = tier;
-            };
-
-            tableSelect.addEventListener("change", () => syncFromTable());
-            // On open the item list is already right, so only the two
-            // read-along selects need moving.
-            syncFromTable({ refillItems: false });
-
-            // Both category selects carry the counts, and both are rebuilt when
-            // the recipient changes. The picked value is kept across the swap.
-            form.elements.recipient?.addEventListener("change", () => {
-                const who = game.actors.get(form.elements.recipient.value);
-                for (const name of ["category", "exCategory"]) {
-                    const select = form.elements[name];
-                    if (!select) continue;
-                    // The chosen value survives the swap - the options are
-                    // rebuilt for their counts, not for their identity.
-                    const keep = select.value;
-                    select.innerHTML = categoriesFor(who);
-                    if ([...select.options].some(o => o.value === keep)) select.value = keep;
-                }
-            });
-
-            /*
-             * A SECOND ROLE, ON THE SAME TERMS AS THE TABLES (Dawid, 31.08).
-             *
-             * Two rules, both borrowed rather than reinvented so the two places
-             * a GM can make an item cannot disagree: a role is offered only
-             * from `MULTI_ROLE_TIER` up, because a two-tag item is
-             * unconditionally better than a one-tag one and has no business at
-             * the bottom of the range; and an item is never offered its own
-             * home, which would be a box that cannot be unticked.
-             *
-             * Repainted on every change to either select, because both of them
-             * decide what is on offer.
-             */
-            const rolePicker = form.querySelector("[data-drpg-roles]");
-            const roleNote = form.querySelector("[data-drpg-roles-note]");
-            const paintRoles = () => {
-                if (!rolePicker) return;
-                const [home] = String(form.elements.category?.value ?? "").split(":");
-                const tier = Number(form.elements.tier?.value);
-                const allowed = Number.isFinite(tier) && tier >= MULTI_ROLE_TIER;
-
-                for (const box of rolePicker.querySelectorAll("[data-drpg-role]")) {
-                    const isHome = box.dataset.drpgRole === home;
-                    const off = isHome || !allowed;
-                    box.disabled = off;
-                    if (off) box.checked = false;
-                    box.closest("label")?.classList.toggle("drpg-locked", off);
-                    box.closest("label")?.toggleAttribute("hidden", isHome);
-                }
-                if (roleNote) {
-                    roleNote.textContent = allowed
-                        ? ""
-                        : game.i18n.format("DRPG.Tables.rolesTierOnly", { tier: MULTI_ROLE_TIER });
-                }
-            };
-            form.elements.category?.addEventListener("change", paintRoles);
-            form.elements.tier?.addEventListener("change", paintRoles);
-            paintRoles();
-        },
+        render: (event, dialog) => wireGiveForm(dialog),
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Items.give"), default: true,
-                callback: (e, b, d) => {
-                    const f = d.element.querySelector("form");
-                    const active = d.element.querySelector(".drpg-gmt-section.active")
-                        ?.dataset.drpgGmtSection ?? "create";
-
-                    if (active === "existing" && f.elements.exTable) {
-                        const [category, kind = null] = f.elements.exCategory.value.split(":");
-                        return {
-                            mode: "existing",
-                            tableId: f.elements.exTable.value,
-                            resultId: f.elements.exItem.value,
-                            category, kind,
-                            tier: Number(f.elements.exTier.value),
-                            tell: f.elements.tell.checked,
-                            recipient: f.elements.recipient?.value ?? null
-                        };
-                    }
-
-                    // "usable:healing" carries the kind after the colon; the
-                    // plain categories have nothing to split.
-                    const [category, kind = null] = f.elements.category.value.split(":");
-                    return {
-                        mode: "create",
-                        category,
-                        kind,
-                        tier: Number(f.elements.tier.value),
-                        name: f.elements.name.value.trim(),
-                        description: f.elements.description.value.trim(),
-                        roles: [...f.querySelectorAll("[data-drpg-role]:checked")]
-                            .map(b => b.dataset.drpgRole),
-                        tell: f.elements.tell.checked,
-                        recipient: f.elements.recipient?.value ?? null
-                    };
-                }
+                callback: (e, b, d) => readGiveForm(d)
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
@@ -667,37 +746,8 @@ export async function gmGiveItemDialog(actor) {
     }
     actor = chosen;
 
-    // Both tabs funnel into one shape, so everything below - the grant, the
-    // receipt, the log line - cannot diverge between them.
-    let give;
-    if (result.mode === "existing") {
-        const entry = game.tables.get(result.tableId)?.results?.get(result.resultId);
-        if (!entry) {
-            ui.notifications.error(game.i18n.localize("DRPG.Items.failed"));
-            return false;
-        }
-        const name = entry.name ?? entry.text ?? "";
-        give = {
-            name,
-            category: result.category,
-            kind: result.kind,
-            tier: result.tier,
-            // The same rule drawItem applies: a description that is only the
-            // name again adds nothing over the tier line the item will get.
-            description: entry.description && entry.description !== name ? entry.description : "",
-            // The same roles a Search would have handed over. Without this the
-            // hammer given by hand and the hammer found in a room were two
-            // different objects.
-            roles: rolesOfResult(entry),
-            img: entry.img ?? null
-        };
-    } else {
-        if (!result.name) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Items.needsName"));
-            return false;
-        }
-        give = { ...result, img: null };
-    }
+    const give = giveFromResult(result);
+    if (!give) return false;
 
     const item = await grantItem(actor, {
         name: give.name,
@@ -723,19 +773,7 @@ export async function gmGiveItemDialog(actor) {
         item: give.name, actor: actor.name
     }));
 
-    if (result.tell) {
-        const effect = USABLE_KIND_EFFECTS[give.kind]?.[give.tier]
-            ?? TIER_EFFECTS[give.category]?.[give.tier] ?? "";
-        const label = USABLE_KINDS[give.kind]
-            ? `${ITEM_CATEGORIES[give.category]?.label} - ${USABLE_KINDS[give.kind].label}`
-            : ITEM_CATEGORIES[give.category]?.label ?? give.category;
-        await whisperToOwner(actor, `
-            <h3>${game.i18n.localize("DRPG.Items.received")}</h3>
-            <p><strong>${esc(give.name)}</strong> - ${esc(label)
-            }, ${game.i18n.format("DRPG.Items.tierN", { n: give.tier })}</p>
-            ${give.description ? `<p>${esc(give.description)}</p>` : ""}
-            ${effect ? `<p><em>${esc(effect)}</em></p>` : ""}`);
-    }
+    if (result.tell) await tellGiven(actor, give);
 
     return true;
 }
@@ -783,6 +821,248 @@ function visibilityOptions(selected = "evident") {
  * Writing one by hand stays, because a GM inventing evidence that is not on the
  * map yet is a real thing to want.
  */
+/** The traces on the scene as options, marking the ones this student already holds a copy of. */
+function bulletTraceOptions(traces, who, traceContextLine) {
+        const copied = copiedRemnants(who);
+        return traces.map(({ token, data }) => {
+            const name = data.public?.name || game.i18n.localize("DRPG.Remnant.tokenName");
+            const context = traceContextLine(data);
+            // Said rather than hidden. A second copy is a legitimate thing to
+            // hand out - two students may both have seen the same thing - so a
+            // missing row would read as a missing trace.
+            const held = copied.has(token.id)
+                ? ` · ${game.i18n.localize("DRPG.TruthBullet.alreadyHeld")}` : "";
+            return `<option value="${token.id}" data-name="${esc(name)}">${
+                esc(name)}${context ? ` · ${esc(context)}` : ""}${esc(held)}</option>`;
+        }).join("");
+}
+
+/** The "shown as" select: let the rules decide, Neutral, or the real type. */
+function bulletShownSelect(name) {
+    return `<select name="${name}">
+                <option value="auto" selected>${game.i18n.localize("DRPG.TruthBullet.shownAuto")}</option>
+                <option value="neutral">${game.i18n.localize("DRPG.TruthBullet.shownNeutral")}</option>
+                <option value="real">${game.i18n.localize("DRPG.TruthBullet.shownReal")}</option>
+            </select>`;
+}
+
+/** The "from a Remnant" tab: pick a trace, rename it, say how it shows. */
+function bulletExistingPane(traces, initial, traceContextLine) {
+    const firstName = traces.length
+        ? (traces[0].data.public?.name || game.i18n.localize("DRPG.Remnant.tokenName"))
+        : "";
+
+    return traces.length
+        ? `<label>${game.i18n.localize("DRPG.TruthBullet.pickRemnant")}
+                <select name="remnant">${bulletTraceOptions(traces, initial, traceContextLine)}</select></label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.name")}
+                <input type="text" name="exName" value="${esc(firstName)}" /></label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.shown")}
+                ${bulletShownSelect("exShown")}</label>
+            <p class="notes">${game.i18n.localize("DRPG.TruthBullet.remnantNote")}</p>`
+        : `<p class="notes">${game.i18n.localize("DRPG.TruthBullet.remnantEmpty")}</p>`;
+}
+
+/** The "write new" tab: every field a fresh Truth Bullet needs. */
+function bulletCreatePane() {
+    return `
+            <label>${game.i18n.localize("DRPG.TruthBullet.name")}
+                <input type="text" name="name"
+                       placeholder="${game.i18n.localize("DRPG.TruthBullet.namePlaceholder")}" /></label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.realType")}
+                <select name="realType">${typeOptions("neutral")}</select></label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.shown")}
+                ${bulletShownSelect("shown")}</label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.visibility")}
+                <select name="visibility">${visibilityOptions("evident")}</select></label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="faint" />
+                ${game.i18n.localize("DRPG.TruthBullet.faintField")}</label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="tied" />
+                ${game.i18n.localize("DRPG.TruthBullet.tiedField")}</label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
+                <textarea name="playerText" rows="2"
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"></textarea></label>
+            ${/* A bullet invented here has no trace to inherit a reading from,
+                  so this is the only place one can be written for it. The
+                  Autopsy dialog further down deliberately has no twin of this
+                  box: an autopsy identifies itself, so no Analyze will ever be
+                  thrown at it - see SELF_EVIDENT in truth-bullets.mjs. */ ""}
+            <label>${game.i18n.localize("DRPG.TruthBullet.analyzedText")}
+                <textarea name="analyzedText" rows="2"
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"></textarea></label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.gmNote")}
+                <textarea name="gmNote" rows="2"
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}"></textarea></label>`;
+}
+
+/** The name follows the picked trace; the trace list follows the recipient. */
+function wireBulletForm(dialog, traces, traceContextLine) {
+    wirePanelTabs(dialog.element);
+    const form = dialog.element.querySelector("form");
+    if (!form) return;
+
+    // The name field follows the picked trace, because the GM is
+    // renaming a thing rather than naming one: what is already on the
+    // trace is the answer until they say otherwise.
+    const picker = form.elements.remnant;
+    picker?.addEventListener("change", () => {
+        const opt = picker.selectedOptions?.[0];
+        if (opt && form.elements.exName) form.elements.exName.value = opt.dataset.name ?? "";
+    });
+
+    // Whether a trace is already copied is a fact about the recipient,
+    // so the list is rebuilt when the recipient changes - and the
+    // selection is kept across the swap.
+    form.elements.recipient?.addEventListener("change", () => {
+        if (!picker) return;
+        const who = game.actors.get(form.elements.recipient.value);
+        if (!who) return;
+        const keep = picker.value;
+        picker.innerHTML = bulletTraceOptions(traces, who, traceContextLine);
+        if ([...picker.options].some(o => o.value === keep)) picker.value = keep;
+    });
+}
+
+/** What Give hands back: whichever tab is showing, with the recipient and the tell switch. */
+function readBulletForm(d) {
+    const f = d.element.querySelector("form");
+    const active = d.element.querySelector(".drpg-gmt-section.active")
+        ?.dataset.drpgGmtSection ?? "create";
+    const common = {
+        recipient: f.elements.recipient?.value ?? null,
+        tell: f.elements.tell.checked
+    };
+
+    if (active === "existing" && f.elements.remnant) {
+        return { ...common, mode: "existing",
+                 remnantId: f.elements.remnant.value,
+                 name: f.elements.exName.value.trim(),
+                 shown: f.elements.exShown.value };
+    }
+
+    return {
+        ...common,
+        mode: "create",
+        // `f.name` reads this same field - HTMLFormElement
+        // carries [LegacyOverrideBuiltIns], so its named getter
+        // beats the built-in `name`. `f.elements` does not have
+        // that clause, which is the trap two functions down.
+        // Neither collides here; both forms are spelled the
+        // same way for the sake of reading them together.
+        name: f.elements.name.value.trim(),
+        realType: f.elements.realType.value,
+        shown: f.elements.shown.value,
+        visibility: f.elements.visibility.value,
+        faint: f.elements.faint.checked,
+        tied: f.elements.tied.checked,
+        playerText: f.elements.playerText.value.trim(),
+        analyzedText: f.elements.analyzedText.value.trim(),
+        gmNote: f.elements.gmNote.value.trim()
+    };
+}
+
+/**
+ * The bullet a picked trace becomes. A rename is written back to the trace
+ * first, so the next copy of it carries the same name. Answers null when the
+ * trace is gone.
+ */
+async function bulletFromRemnant(result, traces, scene, { setRemnantPublicById, markRemnantEditedById }) {
+    const entry = traces.find(t => t.token.id === result.remnantId);
+    if (!entry) {
+        ui.notifications.warn(game.i18n.localize("DRPG.TruthBullet.remnantGone"));
+        return null;
+    }
+    const { token, data } = entry;
+    const pub = data.public ?? null;
+
+    // A rename is written back to the trace, the way Observe writes back the
+    // sentence the GM types. Otherwise the second student to be handed this
+    // same trace would get the old name, and the two copies of one object
+    // would disagree in the pack that is meant to prove things.
+    if (result.name !== pub?.name) {
+        try {
+            await setRemnantPublicById(scene?.id, token.id, { name: result.name });
+            // Named by a GM, so it is decided (E7).
+            await markRemnantEditedById(scene?.id, token.id);
+        } catch (err) {
+            error("Could not record the new name on the Remnant", err);
+        }
+    }
+
+    return {
+        name: result.name,
+        realType: data.type,
+        /*
+         * THE GM'S EXPLICIT "HAND IT OVER AS NEUTRAL" HAS TO BEAT
+         * `SELF_EVIDENT` (T-2, 18.09). Without this a Key or Final realType
+         * handed over as Neutral still came out `analyzed: true`, so it
+         * published `sourceAction`, `tiedToCrime` and the lab reading below on
+         * a bullet the GM deliberately withheld. `null` everywhere else keeps
+         * the rules' own answer.
+         */
+        analyzed: result.shown === "neutral" ? false : null,
+        shownType: result.shown === "auto" ? null
+            : (result.shown === "real" ? data.type : "neutral"),
+        visibility: data.visibility,
+        faint: Boolean(data.faint),
+        playerText: pub?.playerText ?? "",
+        // The trace's lab reading travels with it. `createTruthBullet` decides
+        // whether it reaches the item or waits in the secret, by the same
+        // `identified` test that governs `sourceAction` below - so a GM handing
+        // this out as Neutral hands out nothing analysis has not been paid for.
+        analyzedText: pub?.analyzedText ?? "",
+        img: pub?.img ?? null,
+        gmNote: data.note ?? "",
+        remnantId: token.id,
+        sceneId: scene?.id ?? null,
+        // Passed explicitly for the reason Observe passes it: the room
+        // lookup is canvas-bound, and this may not be the scene on screen.
+        room: data.room ?? null,
+        // Both into the bullet's secret; public on the item only once it is
+        // identified, like every other tie.
+        sourceAction: data.action ?? null,
+        tiedToCrime: Boolean(data.tiedToCrime)
+    };
+}
+
+/** The bullet the "write new" tab describes. */
+function bulletFromForm(result) {
+    return {
+        name: result.name,
+        realType: result.realType,
+        // As in `bulletFromRemnant`: a deliberate Neutral is not identified,
+        // whatever the real type would otherwise entitle it to (T-2).
+        analyzed: result.shown === "neutral" ? false : null,
+        // "auto" means "let the rules decide" - Key, Autopsy and Final
+        // bullets arrive identified, everything else starts Neutral. See
+        // createTruthBullet.
+        shownType: result.shown === "auto" ? null
+            : (result.shown === "real" ? result.realType : "neutral"),
+        visibility: result.visibility,
+        faint: result.faint,
+        // The GM's manual verdict (Dawid, 26.08). Into the bullet's secret
+        // at creation; public on the item only once identified.
+        tiedToCrime: result.tied,
+        playerText: result.playerText,
+        // No trace behind this one, so nothing will reconcile it afterwards -
+        // what the GM typed is what the bullet keeps. It still waits in the
+        // secret until the holder identifies it, like every other reading.
+        analyzedText: result.analyzedText,
+        gmNote: result.gmNote
+    };
+}
+
+/** The receipt the player sees. */
+async function tellBulletGiven(who, payload) {
+    await whisperToOwner(who, `
+        <h3>${game.i18n.localize("DRPG.TruthBullet.received")}</h3>
+        <p><strong>${esc(payload.name)}</strong></p>
+        ${payload.playerText ? `<p>${esc(payload.playerText)}</p>` : ""}
+        <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
+}
+
 async function giveTruthBulletDialog(actor) {
 
     const students = studentActors();
@@ -792,9 +1072,7 @@ async function giveTruthBulletDialog(actor) {
         return false;
     }
 
-    const recipients = students
-        .map(a => `<option value="${a.id}"${a.id === initial.id ? " selected" : ""}>${
-            esc(a.name)}</option>`).join("");
+    const recipients = recipientOptions(students, initial.id);
 
     const { remnantsOn, remnantData, traceContextLine, setRemnantPublicById,
         markRemnantEditedById } =
@@ -808,71 +1086,16 @@ async function giveTruthBulletDialog(actor) {
         .map(token => ({ token, data: remnantData(token) }))
         .filter(entry => entry.data);
 
-    const traceOptionsFor = who => {
-        const copied = copiedRemnants(who);
-        return traces.map(({ token, data }) => {
-            const name = data.public?.name || game.i18n.localize("DRPG.Remnant.tokenName");
-            const context = traceContextLine(data);
-            // Said rather than hidden. A second copy is a legitimate thing to
-            // hand out - two students may both have seen the same thing - so a
-            // missing row would read as a missing trace.
-            const held = copied.has(token.id)
-                ? ` · ${game.i18n.localize("DRPG.TruthBullet.alreadyHeld")}` : "";
-            return `<option value="${token.id}" data-name="${esc(name)}">${
-                esc(name)}${context ? ` · ${esc(context)}` : ""}${esc(held)}</option>`;
-        }).join("");
-    };
-
-    const shownSelect = name => `<select name="${name}">
-                <option value="auto" selected>${game.i18n.localize("DRPG.TruthBullet.shownAuto")}</option>
-                <option value="neutral">${game.i18n.localize("DRPG.TruthBullet.shownNeutral")}</option>
-                <option value="real">${game.i18n.localize("DRPG.TruthBullet.shownReal")}</option>
-            </select>`;
-
-    const firstName = traces.length
-        ? (traces[0].data.public?.name || game.i18n.localize("DRPG.Remnant.tokenName"))
-        : "";
-
-    const existingPane = traces.length
-        ? `<label>${game.i18n.localize("DRPG.TruthBullet.pickRemnant")}
-                <select name="remnant">${traceOptionsFor(initial)}</select></label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.name")}
-                <input type="text" name="exName" value="${esc(firstName)}" /></label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.shown")}
-                ${shownSelect("exShown")}</label>
-            <p class="notes">${game.i18n.localize("DRPG.TruthBullet.remnantNote")}</p>`
-        : `<p class="notes">${game.i18n.localize("DRPG.TruthBullet.remnantEmpty")}</p>`;
+    const existingPane = bulletExistingPane(traces, initial, traceContextLine);
 
     const result = await DialogV2.wait({
-        window: { title: actor
-            ? game.i18n.format("DRPG.TruthBullet.giveTo", { actor: actor.name })
-            : game.i18n.localize("DRPG.TruthBullet.give") },
+        window: { title: game.i18n.localize("DRPG.TruthBullet.give") },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>${panelTabs([
             { key: "existing", label: game.i18n.localize("DRPG.TruthBullet.tabFromRemnant"),
               html: existingPane },
-            { key: "create", label: game.i18n.localize("DRPG.TruthBullet.tabWriteNew"), html: `
-            <label>${game.i18n.localize("DRPG.TruthBullet.name")}
-                <input type="text" name="name"
-                       placeholder="${game.i18n.localize("DRPG.TruthBullet.namePlaceholder")}" /></label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.realType")}
-                <select name="realType">${typeOptions("neutral")}</select></label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.shown")}
-                ${shownSelect("shown")}</label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.visibility")}
-                <select name="visibility">${visibilityOptions("evident")}</select></label>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="faint" />
-                ${game.i18n.localize("DRPG.TruthBullet.faintField")}</label>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="tied" />
-                ${game.i18n.localize("DRPG.TruthBullet.tiedField")}</label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
-                <textarea name="playerText" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"></textarea></label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.gmNote")}
-                <textarea name="gmNote" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}"></textarea></label>` }
+            { key: "create", label: game.i18n.localize("DRPG.TruthBullet.tabWriteNew"),
+              html: bulletCreatePane() }
         ])}
             <label>${game.i18n.localize("DRPG.Items.recipient")}
                 <select name="recipient">${recipients}</select></label>
@@ -881,70 +1104,11 @@ async function giveTruthBulletDialog(actor) {
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>
             <p class="notes">${game.i18n.localize("DRPG.TruthBullet.secretNote")}</p>
         </form>`),
-        render: (event, dialog) => {
-            wirePanelTabs(dialog.element);
-            const form = dialog.element.querySelector("form");
-            if (!form) return;
-
-            // The name field follows the picked trace, because the GM is
-            // renaming a thing rather than naming one: what is already on the
-            // trace is the answer until they say otherwise.
-            const picker = form.elements.remnant;
-            picker?.addEventListener("change", () => {
-                const opt = picker.selectedOptions?.[0];
-                if (opt && form.elements.exName) form.elements.exName.value = opt.dataset.name ?? "";
-            });
-
-            // Whether a trace is already copied is a fact about the recipient,
-            // so the list is rebuilt when the recipient changes - and the
-            // selection is kept across the swap.
-            form.elements.recipient?.addEventListener("change", () => {
-                if (!picker) return;
-                const who = game.actors.get(form.elements.recipient.value);
-                if (!who) return;
-                const keep = picker.value;
-                picker.innerHTML = traceOptionsFor(who);
-                if ([...picker.options].some(o => o.value === keep)) picker.value = keep;
-            });
-        },
+        render: (event, dialog) => wireBulletForm(dialog, traces, traceContextLine),
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.TruthBullet.give"), default: true,
-                callback: (e, b, d) => {
-                    const f = d.element.querySelector("form");
-                    const active = d.element.querySelector(".drpg-gmt-section.active")
-                        ?.dataset.drpgGmtSection ?? "create";
-                    const common = {
-                        recipient: f.elements.recipient?.value ?? null,
-                        tell: f.elements.tell.checked
-                    };
-
-                    if (active === "existing" && f.elements.remnant) {
-                        return { ...common, mode: "existing",
-                                 remnantId: f.elements.remnant.value,
-                                 name: f.elements.exName.value.trim(),
-                                 shown: f.elements.exShown.value };
-                    }
-
-                    return {
-                        ...common,
-                        mode: "create",
-                        // `f.name` reads this same field - HTMLFormElement
-                        // carries [LegacyOverrideBuiltIns], so its named getter
-                        // beats the built-in `name`. `f.elements` does not have
-                        // that clause, which is the trap two functions down.
-                        // Neither collides here; both forms are spelled the
-                        // same way for the sake of reading them together.
-                        name: f.elements.name.value.trim(),
-                        realType: f.elements.realType.value,
-                        shown: f.elements.shown.value,
-                        visibility: f.elements.visibility.value,
-                        faint: f.elements.faint.checked,
-                        tied: f.elements.tied.checked,
-                        playerText: f.elements.playerText.value.trim(),
-                        gmNote: f.elements.gmNote.value.trim()
-                    };
-                }
+                callback: (e, b, d) => readBulletForm(d)
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
@@ -959,83 +1123,10 @@ async function giveTruthBulletDialog(actor) {
         return false;
     }
 
-    let payload = null;
-
-    if (result.mode === "existing") {
-        const entry = traces.find(t => t.token.id === result.remnantId);
-        if (!entry) {
-            ui.notifications.warn(game.i18n.localize("DRPG.TruthBullet.remnantGone"));
-            return false;
-        }
-        const { token, data } = entry;
-        const pub = data.public ?? null;
-
-        // A rename is written back to the trace, the way Observe writes back the
-        // sentence the GM types. Otherwise the second student to be handed this
-        // same trace would get the old name, and the two copies of one object
-        // would disagree in the pack that is meant to prove things.
-        if (result.name !== pub?.name) {
-            try {
-                await setRemnantPublicById(scene?.id, token.id, { name: result.name });
-                // Named by a GM, so it is decided (E7).
-                await markRemnantEditedById(scene?.id, token.id);
-            } catch (err) {
-                error("Could not record the new name on the Remnant", err);
-            }
-        }
-
-        payload = {
-            name: result.name,
-            realType: data.type,
-            /*
-             * THE GM'S EXPLICIT "HAND IT OVER AS NEUTRAL" HAS TO BEAT
-             * `SELF_EVIDENT` (T-2, 18.09). Without this a Key or Final realType
-             * handed over as Neutral still came out `analyzed: true`, so it
-             * published `sourceAction`, `tiedToCrime` and now T-2's sentence on a
-             * bullet the GM deliberately withheld. `null` everywhere else keeps
-             * the rules' own answer.
-             */
-            analyzed: result.shown === "neutral" ? false : null,
-            shownType: result.shown === "auto" ? null
-                : (result.shown === "real" ? data.type : "neutral"),
-            visibility: data.visibility,
-            faint: Boolean(data.faint),
-            playerText: pub?.playerText ?? "",
-            img: pub?.img ?? null,
-            tags: pub?.tags ?? [],
-            gmNote: data.note ?? "",
-            remnantId: token.id,
-            sceneId: scene?.id ?? null,
-            // Passed explicitly for the reason Observe passes it: the room
-            // lookup is canvas-bound, and this may not be the scene on screen.
-            room: data.room ?? null,
-            // All three into the bullet's secret; public on the item only once it
-            // is identified, like every other tie.
-            sourceAction: data.action ?? null,
-            tiedToCrime: Boolean(data.tiedToCrime),
-            analysis: data.analysis ?? ""
-        };
-    } else {
-        payload = {
-            name: result.name,
-            realType: result.realType,
-            // As in the branch above: a deliberate Neutral is not identified,
-            // whatever the real type would otherwise entitle it to (T-2).
-            analyzed: result.shown === "neutral" ? false : null,
-            // "auto" means "let the rules decide" - Key, Autopsy and Final
-            // bullets arrive identified, everything else starts Neutral. See
-            // createTruthBullet.
-            shownType: result.shown === "auto" ? null
-                : (result.shown === "real" ? result.realType : "neutral"),
-            visibility: result.visibility,
-            faint: result.faint,
-            // The GM's manual verdict (Dawid, 26.08). Into the bullet's secret
-            // at creation; public on the item only once identified.
-            tiedToCrime: result.tied,
-            playerText: result.playerText,
-            gmNote: result.gmNote
-        };
-    }
+    const payload = result.mode === "existing"
+        ? await bulletFromRemnant(result, traces, scene, { setRemnantPublicById, markRemnantEditedById })
+        : bulletFromForm(result);
+    if (!payload) return false;
 
     const item = await createTruthBullet(who, payload);
 
@@ -1048,13 +1139,7 @@ async function giveTruthBulletDialog(actor) {
         item: payload.name, actor: who.name
     }));
 
-    if (result.tell) {
-        await whisperToOwner(who, `
-            <h3>${game.i18n.localize("DRPG.TruthBullet.received")}</h3>
-            <p><strong>${esc(payload.name)}</strong></p>
-            ${payload.playerText ? `<p>${esc(payload.playerText)}</p>` : ""}
-            <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
-    }
+    if (result.tell) await tellBulletGiven(who, payload);
 
     return true;
 }
@@ -1206,16 +1291,18 @@ async function takeItemDialog(actor, { only = null } = {}) {
             // A Truth Bullet carries `tier: null` on purpose, and `!== undefined`
             // let that through - every bullet in this picker read "(Tnull)".
             const tier = item.getFlag(MODULE_ID, "tier");
+            // Where it is and what state it is in, as the holdings list above
+            // says them (ITEM-12): two "Kitchen knife (T1)" rows told the GM
+            // nothing about which was in the drawer or which was ruined.
             const label = `${ITEM_CATEGORIES[category]?.label ?? category} · ${item.name}${
                 tier !== undefined && tier !== null ? ` (T${tier})` : ""
-            }`;
+            }${isStashed(item) ? ` - ${game.i18n.localize("DRPG.Items.inStash")}` : ""}${
+                isBroken(item) ? ` - ${game.i18n.localize("DRPG.Items.broken")}` : ""}`;
             return `<option value="${item.id}">${foundry.utils.escapeHTML(label)}</option>`;
         }).join("");
     };
 
-    const recipients = students
-        .map(a => `<option value="${a.id}"${a.id === initial.id ? " selected" : ""}>${
-            foundry.utils.escapeHTML(a.name)}</option>`).join("");
+    const recipients = recipientOptions(students, initial.id);
 
     const result = await DialogV2.wait({
         // The title says which of the three buttons opened this - see

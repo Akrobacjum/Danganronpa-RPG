@@ -54,7 +54,23 @@ export const TRUTH_BULLET_FLAGS = {
     shownType: "shownType",
     /** obvious | evident | subtle | hidden - the DC input for Observe/Analyze. */
     visibility: "visibility",
-    /** Survives the sweep at the start of the next session. */
+    /**
+     * DOUBTFUL - AND NOT SOMETHING THE FINDER KNOWS YET.
+     *
+     * Faint means two things in the rules: the connection to the case is
+     * doubtful, and the trace is exempt when a GM clears the table's evidence.
+     * Both are facts about the OBJECT, which is exactly the shape of thing
+     * Analyze is for - and until 1.2.47 this flag was written onto the player's
+     * item at creation, one line above `tiedToCrime` and `sourceAction`, which
+     * are gated on `identified` for precisely this reason. So the badge said
+     * "Faint" on a bullet nobody had analysed, and anybody reading their own
+     * item's flags in the console could tell a doubtful trace from a solid one
+     * without spending a Head roll ("usunąć faint", Dawid, 16.09).
+     *
+     * It lives in the bullet's SECRET from creation now and is copied onto the
+     * item by `identify`. `faintOf` is the GM-side reader that knows both
+     * roads, because a world made before this still carries it on the item.
+     */
     faint: "faint",
     /** Is the shown type confirmed rather than a placeholder? */
     analyzed: "analyzed",
@@ -64,10 +80,26 @@ export const TRUTH_BULLET_FLAGS = {
     room: "room",
     day: "day",
     timeOfDay: "timeOfDay",
-    /** The description written for the player. */
+    /** The description written for the player. What Observe buys. */
     playerText: "playerText",
-    /** Tags from the source Remnant's `public` record - e.g. a difficulty band. */
-    tags: "tags",
+    /**
+     * THE SECOND HALF OF THE DESCRIPTION, AND IT IS NOT HERE UNTIL IT IS EARNED.
+     *
+     * `playerText` is what anybody who found the trace can read: the smear, the
+     * torn cuff, the smell. This is what the LAB says about the same object -
+     * whose blood, which cuff, what the smell is - and Analyze is what buys it.
+     *
+     * It lives in the bullet's SECRET from creation and is copied onto the item
+     * only once the bullet is identified, exactly like `sourceAction` and
+     * `tiedToCrime` two entries down and for exactly the same reason: a world
+     * where the answer sits on the item from the start is a world where the
+     * console reads it without rolling. Until then the item carries `""`, which
+     * is all a player's browser has ever been allowed to hold.
+     *
+     * The GM writes it once, on the Remnant, and every copy follows - see
+     * `propagateRemnantPublic`.
+     */
+    analyzedText: "analyzedText",
     /**
      * `${sceneId}.${tokenId}` of the Remnant this bullet was copied from -
      * PUBLIC, unlike `remnantId` in the secret ledger (see `secretOf`). It
@@ -85,7 +117,7 @@ export const TRUTH_BULLET_FLAGS = {
      */
     lockedChapter: "lockedChapter",
     /**
-     * THREE FACTS THAT GO PUBLIC AT THE MOMENT OF ANALYSIS, and not before
+     * TWO FACTS THAT GO PUBLIC AT THE MOMENT OF ANALYSIS, and not before
      * (Dawid, 26.08: "to o czym piszę wchodzi w życie do truth bullets które
      * gracz przeanalizował"). Both live in the bullet's SECRET from creation -
      * `secretOf(uuid).sourceAction` / `.tiedToCrime` - and are copied onto
@@ -97,15 +129,7 @@ export const TRUTH_BULLET_FLAGS = {
     /** Which action left the source trace - drives the Remnant token's icon. */
     sourceAction: "sourceAction",
     /** Whether the source trace belongs to the murder - drives the sort. */
-    tiedToCrime: "tiedToCrime",
-    /**
-     * The GM's own sentence about THIS trace, published on analysis (T-2, Dawid
-     * 17.09). It lives in the trace's ledger entry as `analysis` and in this
-     * bullet's secret as `analysis`; the ITEM carries it under a different name
-     * on purpose, so the R9 sweep can forbid the secret spelling in world data
-     * outright without forbidding the published one. "" until identified.
-     */
-    analysisText: "analysisText"
+    tiedToCrime: "tiedToCrime"
 };
 
 /** Socket actions, all addressed to GMs only. */
@@ -339,6 +363,35 @@ export function isIdentified(item) {
     return (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral") !== "neutral";
 }
 
+/**
+ * The item's description, from whichever halves of the trace this holder has.
+ *
+ * ONE FUNCTION RATHER THAN THREE SPELLINGS. The description is written in three
+ * places - when a bullet is created, when the GM edits the Remnant afterwards,
+ * and at the moment Analyze succeeds - and before this existed the first of
+ * those built the markup inline. A second tier written by two of the three and
+ * forgotten by the third is a bullet whose description silently disagrees with
+ * the card beside it, which is the same class of defect as two names for one
+ * object (see `describeFind` in observe.mjs).
+ *
+ * The analysis is a paragraph of its own with a heading, not a sentence tacked
+ * onto the first: the two halves were bought separately and a player rereading
+ * their pack needs to see which part of it they paid a Head roll for.
+ *
+ * @param {string} playerText    What Observe bought. Always shown.
+ * @param {string} [analyzedText] What Analyze bought. Pass it only for a holder
+ *   who has actually earned it - this function does no checking, because the
+ *   callers are the ones holding the item and its flags.
+ */
+export function bulletDescription(playerText, analyzedText = "") {
+    const esc = foundry.utils.escapeHTML;
+    const first = playerText ? `<p>${esc(playerText)}</p>` : "";
+    if (!analyzedText) return first;
+    return `${first}<p class="drpg-bullet-analysis"><strong>${
+        esc(game.i18n.localize("DRPG.TruthBullet.analysisHeading"))
+    }</strong> ${esc(analyzedText)}</p>`;
+}
+
 export function isAnalysable(item, chapter = null) {
     if (!isTruthBullet(item)) return false;
     if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) return false;
@@ -398,6 +451,17 @@ export function copiedRemnants(actor) {
  * Neither ever enters the Analyze table - which is exactly why ANALYZE_DC has
  * `key: null` and no `autopsy` column at all.
  */
+/*
+ * The three that need no roll - guide, Stage 3: "Bez rzutu". They are born
+ * identified, so Analyze never runs on one.
+ *
+ * WHICH IS WHY THE KEY-REMNANT PLANNER AND THE FINAL TRUTH FORM CARRY NO
+ * ANALYSIS BOX, and their absence is a decision rather than an oversight: a
+ * second tier on a bullet that identifies itself is a field no roll could ever
+ * reveal, so it would be a box the GM fills in and nobody ever reads. The
+ * Traces tab of the same dashboard has one, because those are the traces
+ * Analyze is actually thrown at.
+ */
 const SELF_EVIDENT = ["key", "autopsy", "final"];
 
 /**
@@ -413,9 +477,26 @@ const SELF_EVIDENT = ["key", "autopsy", "final"];
  *                                     "neutral" otherwise.
  * @param {string} [data.visibility]   obvious | evident | subtle | hidden
  * @param {boolean} [data.faint]
- * @param {string} [data.playerText]   Description for the player.
+ * @param {string} [data.playerText]   Description for the player. What Observe buys.
+ * @param {string} [data.analyzedText] What Analyze buys on top of it. Filed in
+ *   the secret at creation and written onto the item only once the bullet is
+ *   identified - see TRUTH_BULLET_FLAGS.analyzedText.
+ *
+ *   THE TRACE OUTRANKS THIS ARGUMENT WHEN THERE IS A TRACE. A bullet with a
+ *   `remnantId` is reconciled to its Remnant's record moments later, by the
+ *   `revealSourceOf` call at the bottom of this function: revealing a trace
+ *   propagates its `public` block onto every copy, and that includes the
+ *   analysis half. So passing a reading the trace does not have does not
+ *   create one - it is overwritten with the trace's, which is empty.
+ *
+ *   That is the right way round and not a wrinkle to route past: one object,
+ *   one lab reading, however many copies (see `setRemnantPublic`). Every real
+ *   caller already writes the trace first and then reads it back - observe.mjs
+ *   does it explicitly, gm-items.mjs passes `pub.analyzedText`, and a handover
+ *   passes a secret that was itself filled from the trace. A bullet with NO
+ *   trace keeps whatever it is given, because there is nothing to disagree
+ *   with.
  * @param {string} [data.img]          Portrait. Defaults to the category icon.
- * @param {string[]} [data.tags]       Public tags - e.g. a difficulty band.
  * @param {string} [data.gmNote]       Note for the GM. Never leaves the ledger.
  * @param {string} [data.remnantId]    Source token id, when there is one.
  * @param {string} [data.sceneId]
@@ -463,15 +544,10 @@ async function revealSourceOf(sceneId, remnantId) {
 
 export async function createTruthBullet(actor, {
     name, realType = "neutral", shownType = null, visibility = "evident",
-    faint = false, playerText = "", img = null, tags = [], gmNote = "",
+    faint = false, playerText = "", analyzedText = "", img = null, gmNote = "",
     remnantId = null, sceneId = null,
     room = null, analyzed = null, stamp = null,
-    sourceAction = null, tiedToCrime = null,
-    /**
-     * What the player is told when this bullet is identified (T-2). Secret until
-     * then - the same rule `sourceAction` follows.
-     */
-    analysis = ""
+    sourceAction = null, tiedToCrime = null
 } = {}) {
     if (!actor || !name) return null;
 
@@ -512,24 +588,28 @@ export async function createTruthBullet(actor, {
         // smuggle a visibility index through this field.
         tier: null,
         img,
-        description: playerText ? `<p>${foundry.utils.escapeHTML(playerText)}</p>` : "",
+        // The analysis rides along only for a bullet that is born identified -
+        // a Key, an Autopsy, a critical find, or a copy of something the giver
+        // had already analysed. Everyone else gets the Observe half and buys
+        // the rest with a Head roll.
+        description: bulletDescription(playerText, identified ? analyzedText : ""),
         extraFlags: {
             [TRUTH_BULLET_FLAGS.isBullet]: true,
             [TRUTH_BULLET_FLAGS.shownType]: shown,
             [TRUTH_BULLET_FLAGS.visibility]: visibility,
-            [TRUTH_BULLET_FLAGS.faint]: !!faint,
+            /* Gated like `tiedToCrime` and `sourceAction` below, and for the
+               same reason - see the note on the flag itself. */
+            [TRUTH_BULLET_FLAGS.faint]: identified ? !!faint : false,
             [TRUTH_BULLET_FLAGS.analyzed]: analyzed ?? selfEvident,
             [TRUTH_BULLET_FLAGS.chapter]: stamp?.chapter ?? clock.chapter,
             [TRUTH_BULLET_FLAGS.room]: room ?? roomOfActor(actor) ?? null,
             [TRUTH_BULLET_FLAGS.day]: stamp?.day ?? clock.day,
             [TRUTH_BULLET_FLAGS.timeOfDay]: stamp?.timeOfDay ?? clock.timeOfDay,
             [TRUTH_BULLET_FLAGS.playerText]: playerText,
-            [TRUTH_BULLET_FLAGS.tags]: tags,
+            [TRUTH_BULLET_FLAGS.analyzedText]: identified ? analyzedText : "",
             [TRUTH_BULLET_FLAGS.remnantRef]: remnantId && sceneId ? `${sceneId}.${remnantId}` : null,
             [TRUTH_BULLET_FLAGS.sourceAction]: identified ? sourceAction : null,
             [TRUTH_BULLET_FLAGS.tiedToCrime]: identified ? tiedToCrime : null,
-            // "" rather than null, so every reader can `?? ""` without a branch.
-            [TRUTH_BULLET_FLAGS.analysisText]: identified ? analysis : "",
             // Never inherited. A failed analysis is a fact about the person who
             // failed, not about the evidence - guide, Stage 3.
             [TRUTH_BULLET_FLAGS.lockedChapter]: null
@@ -538,8 +618,13 @@ export async function createTruthBullet(actor, {
 
     if (!item) return null;
 
-    await setSecret(item.uuid,
-        { realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime, analysis });
+    // `analyzedText` goes into the secret whether or not it went onto the item:
+    // that is what lets `identify` publish it later without going back to the
+    // Remnant, and what lets a trace the killer has since wiped still pay out.
+    await setSecret(item.uuid, {
+        realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime, analyzedText,
+        faint: !!faint
+    });
 
     /*
      * AFTER THE SECRET IS FILED, so the sound cannot arrive before the thing it
@@ -580,26 +665,23 @@ export function truthBulletData(item) {
         shownType,
         shownLabel: TRUTH_BULLET_TYPES[shownType]?.label ?? shownType,
         shownHint: TRUTH_BULLET_TYPES[shownType]?.hint ?? "",
-        /* "" until identified - see TRUTH_BULLET_FLAGS. */
-        analysisText: flag(TRUTH_BULLET_FLAGS.analysisText) ?? "",
-        /*
-         * WHAT TO PRINT AS THIS BULLET'S SENTENCE, decided in one place (T-2).
-         * The GM's own words about this trace once they have been earned, and the
-         * generic line for the type until then - and for a trace nobody wrote
-         * anything about. `shownHint` above stays exactly what it was: the
-         * generic sentence, for the one caller that wants only that.
-         */
-        hint: (flag(TRUTH_BULLET_FLAGS.analysisText) || TRUTH_BULLET_TYPES[shownType]?.hint) ?? "",
         visibility,
         visibilityLabel: REMNANT_VISIBILITY_LABELS[visibility] ?? visibility,
         faint: !!flag(TRUTH_BULLET_FLAGS.faint),
         analyzed: !!flag(TRUTH_BULLET_FLAGS.analyzed),
+        /* THE ONE ANSWER TO "HAS THIS BEEN SETTLED", so the four surfaces that
+           ask it - the inventory row, the item window, the trial's pack and the
+           handover card - cannot drift into four spellings of `isIdentified`.
+           Same rule as the function of that name above, read off the data a
+           caller already has rather than off the item again. */
+        identified: !!flag(TRUTH_BULLET_FLAGS.analyzed) || shownType !== "neutral",
         chapter: flag(TRUTH_BULLET_FLAGS.chapter) ?? null,
         room: flag(TRUTH_BULLET_FLAGS.room) ?? null,
         day: flag(TRUTH_BULLET_FLAGS.day) ?? null,
         timeOfDay: flag(TRUTH_BULLET_FLAGS.timeOfDay) ?? null,
         playerText: flag(TRUTH_BULLET_FLAGS.playerText) ?? "",
-        tags: flag(TRUTH_BULLET_FLAGS.tags) ?? [],
+        /* Empty until this holder has analysed it - see TRUTH_BULLET_FLAGS. */
+        analyzedText: flag(TRUTH_BULLET_FLAGS.analyzedText) ?? "",
         remnantRef: flag(TRUTH_BULLET_FLAGS.remnantRef) ?? null,
         /* Null until the bullet is identified - see TRUTH_BULLET_FLAGS. */
         sourceAction: flag(TRUTH_BULLET_FLAGS.sourceAction) ?? null,
@@ -615,9 +697,31 @@ export function truthBulletData(item) {
             ? (TRUTH_BULLET_TYPES[secret.realType ?? "neutral"]?.label ?? secret.realType)
             : undefined,
         gmNote: game.user.isGM ? (secret.gmNote ?? "") : undefined,
+        /* What analysis WOULD say, whether or not this holder has bought it.
+           `analyzedText` above is this holder's copy and is empty until they
+           have; this is the ledger's, so a GM reading somebody's pack sees the
+           whole object rather than the part that person has paid for. */
+        realAnalyzedText: game.user.isGM ? (secret.analyzedText ?? "") : undefined,
         remnantId: game.user.isGM ? (secret.remnantId ?? null) : undefined,
         sceneId: game.user.isGM ? (secret.sceneId ?? null) : undefined
     };
+}
+
+/**
+ * Whether this bullet is Faint, asked of the ledger first and the item second.
+ *
+ * GM-side only, like everything else that reads the ledger. The item is the
+ * fallback and not the answer: a bullet made before 1.2.47 carries the flag
+ * there and has nothing in its secret, and one made since carries it on the
+ * item only once it has been identified. Reading the ledger first and the item
+ * second is right in both worlds, and `migrateFaintIntoSecrets` below closes
+ * the gap for good the first time a GM logs in.
+ */
+export function faintOf(item) {
+    if (!item) return false;
+    const secret = secretOf(item.uuid);
+    if (typeof secret.faint === "boolean") return secret.faint;
+    return !!item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint);
 }
 
 /**
@@ -627,9 +731,19 @@ export function truthBulletData(item) {
  * Called from remnants.mjs's `setRemnantPublic` - never on its own - because
  * finding "every bullet copied from this trace" reads `secretOf(item.uuid)
  * .remnantId`, the answer key, and that only resolves on a GM's client.
- * Which fields move: name, portrait, the description and the tags a player
+ * Which fields move: name, portrait and the description a player
  * reads - never `realType`, `gmNote` or anything else the ledger's secret
  * half holds.
+ *
+ * THE ANALYSIS HALF MOVES DOWN TWO ROADS, NOT ONE, and that is the whole of
+ * the second tier working. A GM who rewrites what analysis says is rewriting
+ * it for two kinds of holder at once: the ones who have already bought it,
+ * whose ITEM has to change or their pack keeps quoting the old sentence in the
+ * trial, and the ones who have not, whose item must not learn a word of it -
+ * for them the new text goes into the SECRET and waits for their own roll.
+ * Writing only the first road would silently strand every un-analysed copy on
+ * the text the trace was created with; writing only the second would leave
+ * every analysed copy stale. So: secret always, item where `isIdentified`.
  *
  * @returns {Promise<number>} how many bullets were updated.
  */
@@ -641,7 +755,18 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
         if (actor.type !== "character") continue;
         for (const item of bulletsOf(actor)) {
             if (secretOf(item.uuid).remnantId !== remnantTokenId) continue;
+            const analyzedText = pub.analyzedText ?? "";
             try {
+                // The road that reaches every copy, analysed or not. Filed first
+                // so that a failure on the item below cannot leave the ledger
+                // holding the older sentence.
+                await setSecret(item.uuid, { analyzedText });
+
+                // And this holder's own half. `isIdentified` is the whole gate:
+                // a bullet still showing Neutral gets the Observe text and an
+                // empty second tier, which is what its flags already said.
+                const earned = isIdentified(item) ? analyzedText : "";
+
                 // `FROM_REMNANT` on the OPTIONS, not the data: it is a fact about
                 // where this write came from, not about the bullet. `watchBulletEdits`
                 // below reads it to know this is the trace talking and not a GM,
@@ -649,10 +774,9 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
                 await item.update({
                     name: pub.name || item.name,
                     img: pub.img || item.img,
-                    "system.description": pub.playerText
-                        ? `<p>${foundry.utils.escapeHTML(pub.playerText)}</p>` : "",
+                    "system.description": bulletDescription(pub.playerText ?? "", earned),
                     [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.playerText}`]: pub.playerText ?? "",
-                    [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tags}`]: pub.tags ?? []
+                    [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: earned
                 }, { [FROM_REMNANT]: true });
                 touched++;
             } catch (err) {
@@ -697,19 +821,24 @@ export async function propagateCrimeTie(remnantTokenId, tied) {
 }
 
 /**
- * Move a GM's after-analysis sentence onto the copies already in packs (T-2).
+ * A GM corrected what a trace really is: move it onto every copy of it.
  *
- * TWO HALVES, AND THAT IS THE POINT. The secret gets it always, so a holder who
- * analyses the trace tomorrow gets the words the GM wrote today. The published
- * flag gets it only where the holder has already earned it - a GM editing the
- * sentence must reach the person who has analysed this trace, and must not reach
- * the person who has not.
+ * The twin of `propagateCrimeTie` above, and the same two halves for the same
+ * reason. The SECRET always: that is the answer key, and a copy whose key
+ * disagrees with the trace it came from would pay out the old category the next
+ * time somebody analysed it. The player's ITEM only where the copy is already
+ * identified: an unanalysed one is showing "Neutral" and must go on showing it,
+ * or a GM's correction would hand the answer to everybody holding a copy.
  *
- * The same shape as `propagateCrimeTie` above, for the same reason.
+ * `shownType` as well as the secret on an identified copy, because that is what
+ * the row and the card read - without it the dashboard would say Tamper and the
+ * player's pack would still say Prep, and the trial would be spent working out
+ * which of the two is lying.
+ *
+ * @returns {Promise<number>} how many copies moved
  */
-export async function propagateAnalysis(remnantTokenId, text = "") {
-    if (!game.user.isGM || !remnantTokenId) return 0;
-    const said = String(text ?? "");
+export async function propagateRealType(remnantTokenId, realType) {
+    if (!game.user.isGM || !remnantTokenId || !realType) return 0;
 
     let touched = 0;
     for (const actor of game.actors) {
@@ -717,15 +846,15 @@ export async function propagateAnalysis(remnantTokenId, text = "") {
         for (const item of bulletsOf(actor)) {
             if (secretOf(item.uuid).remnantId !== remnantTokenId) continue;
             try {
-                await setSecret(item.uuid, { analysis: said });
+                await setSecret(item.uuid, { realType });
                 if (isIdentified(item)) {
                     await item.update({
-                        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analysisText}`]: said
+                        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType
                     });
                 }
                 touched++;
             } catch (err) {
-                error(`Could not move the after-analysis description onto "${item.name}"`, err);
+                error(`Could not move the corrected type onto "${item.name}"`, err);
             }
         }
     }
@@ -783,6 +912,54 @@ export async function issueAutopsy(actors, { name, playerText = "", gmNote = "" 
  * invent an answer: everything lands as `neutral` and the GMs get a list to
  * correct by hand.
  * ========================================================================== */
+
+/**
+ * Move Faint off the player's item and into the ledger, where it belongs.
+ *
+ * A world made before 1.2.47 carries `faint` on every bullet's item, whether or
+ * not its holder has analysed it - see the note on the flag. That is a fact
+ * about the object sitting in a player's own data, and it is the one kind of
+ * leak this module has spent three releases closing.
+ *
+ * IDEMPOTENT BY CONSTRUCTION, with no marker setting to go stale. For each
+ * bullet the ledger does not yet have a `faint` for, the item's flag is the
+ * truth and is copied in; and where the bullet is NOT identified, the flag is
+ * then cleared, because an unidentified bullet has no business carrying it. A
+ * second run finds `typeof secret.faint === "boolean"` everywhere and does
+ * nothing. A bullet made since the change is already in that state.
+ *
+ * GM-only, like every other reader of the ledger, and quiet: this corrects the
+ * shape of stored data rather than the state of the game, so there is nothing a
+ * GM would want a card about. The count goes to the log.
+ */
+export async function migrateFaintIntoSecrets() {
+    if (!game.user.isGM) return 0;
+
+    let moved = 0;
+    for (const actor of game.actors ?? []) {
+        for (const item of actor.items ?? []) {
+            if (!isTruthBullet(item)) continue;
+            const secret = secretOf(item.uuid);
+            if (typeof secret.faint === "boolean") continue;
+
+            const onItem = !!item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint);
+            try {
+                await setSecret(item.uuid, { faint: onItem });
+                if (onItem && !isIdentified(item)) {
+                    await item.update({
+                        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: false
+                    });
+                }
+                moved++;
+            } catch (err) {
+                error(`Could not move Faint into the ledger for "${item.name}"`, err);
+            }
+        }
+    }
+
+    if (moved) log(`Moved Faint into the ledger for ${moved} Truth Bullet(s).`);
+    return moved;
+}
 
 export async function migrateTruthBullets() {
     if (!game.user.isGM || !isPrimaryGm()) return 0;
@@ -899,16 +1076,16 @@ function watchBulletEdits() {
             const [sceneId, tokenId] = String(ref).split(".");
             if (!sceneId || !tokenId) return;
 
-            // Only the three things the trace owns. A GM ticking `identified`
-            // or burning an analysis is not describing the object.
+            // Only the things the trace owns. A GM ticking `identified` or
+            // burning an analysis is not describing the object.
             const patch = {};
             if (changes.name !== undefined) patch.name = item.name;
             const flags = changes.flags?.[MODULE_ID] ?? {};
             if (flags[TRUTH_BULLET_FLAGS.playerText] !== undefined) {
                 patch.playerText = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "";
             }
-            if (flags[TRUTH_BULLET_FLAGS.tags] !== undefined) {
-                patch.tags = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.tags) ?? [];
+            if (flags[TRUTH_BULLET_FLAGS.analyzedText] !== undefined) {
+                patch.analyzedText = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzedText) ?? "";
             }
             /*
              * The description is edited on the item sheet as HTML, and the flag
@@ -916,10 +1093,22 @@ function watchBulletEdits() {
              * changes only the first, so it is read back and stripped - without
              * this, editing a bullet the ordinary way would write the name to the
              * trace and silently drop the words.
+             *
+             * THE ANALYSIS PARAGRAPH IS CUT OUT BEFORE THE SCRAPE, and it has to
+             * be. `bulletDescription` renders two blocks into this one field, so
+             * a flat `textContent` would fold the lab reading - and the heading
+             * in front of it - into `playerText` and then push that sentence
+             * down onto every copy of the trace, including the copies held by
+             * people who have not analysed anything. One GM opening a bullet's
+             * sheet would publish the answer to the whole table.
+             *
+             * Cut by the class `bulletDescription` stamps, which is the only
+             * thing here that knows the two halves apart.
              */
             if (changes.system?.description !== undefined && patch.playerText === undefined) {
                 const wrap = document.createElement("div");
                 wrap.innerHTML = String(item.system?.description ?? "");
+                for (const block of wrap.querySelectorAll(".drpg-bullet-analysis")) block.remove();
                 patch.playerText = wrap.textContent.replace(/\s+/g, " ").trim();
             }
             if (!Object.keys(patch).length) return;
@@ -1004,6 +1193,11 @@ export function registerTruthBullets() {
 
     if (game.user.isGM) {
         requestLedger();
-        migrateTruthBullets().catch(err => error("Truth Bullet migration failed", err));
+        migrateTruthBullets()
+            /* After, never beside: the Stage 1 migration writes a fresh secret for
+               every bullet it touches, and this one reads secrets. Running them
+               concurrently would race the ledger. */
+            .then(() => migrateFaintIntoSecrets())
+            .catch(err => error("Truth Bullet migration failed", err));
     }
 }

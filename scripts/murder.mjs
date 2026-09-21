@@ -45,7 +45,7 @@
 
 import {
     MODULE_ID, FLAGS, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS,
-    RESOLUTION_STRESS_COST, RESOLUTION_HEALTH_COST, TRAITS, callEffect
+    RESOLUTION_STRESS_COST, RESOLUTION_HEALTH_COST, TRAITS, callEffect, TIMING
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS } from "./settings.mjs";
@@ -57,8 +57,25 @@ import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { dropRemnant, traceFeedback } from "./remnants.mjs";
 import { keepLive, closeOpen } from "./live.mjs";
 import {
-    announce, dialogContent, tableDialog, whisperToGms, whisperToOwner, ownerOf, gmIds,
+    announce as announcePlain, dialogContent, tableDialog, whisperToGms,
+    whisperToOwner as whisperToOwnerPlain, ownerOf, gmIds,
     isPrimaryGm, log, warn, error, plural, debug, esc} from "./utils.mjs";
+
+/*
+ * VEILED, ALL OF THEM (LIVE-001, the closing half).
+ *
+ * Every private card this file posts is about an incident, and an incident's
+ * cast is exactly what a card's speaker and recipient list would spell out to
+ * a bystander reading `game.messages` - the words were moved off the document
+ * (secret.mjs), the addressing was not. `veiled` gives the document a neutral
+ * speaker and the whole table as its audience; the words still reach only the
+ * people named here. The two helpers below are the plain ones with that set,
+ * so no call site in this file can forget.
+ */
+const whisperToOwner = (actor, content, extra = {}) =>
+    whisperToOwnerPlain(actor, content, { veiled: true, ...extra });
+const announce = data =>
+    announcePlain(data?.whisper?.length ? { veiled: true, ...data } : data);
 
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -75,8 +92,23 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * somebody, and on a client that cannot see who the third party is it would be
  * a fact about nobody. Everything else an incident holds is a number, a stage
  * or a list of blocked action keys, and none of that names anyone.
+ *
+ * `lastCrisis` - the Reroll receipt - is here too. It carries `actorId`,
+ * `victimId` and a snapshot of the MERGED state, so a receipt written to the
+ * world half named every participant from the first crisis action until
+ * `endMurder`, undoing LIVE-001 for the whole of Stages 5 and 6. Routed into
+ * the cast it stays on GM browsers (and reaches the participants, who already
+ * hold the cast), and `murderState()` merges it back so every reader is
+ * unchanged.
  */
-const CAST_FIELDS = ["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide"];
+const CAST_FIELDS = [
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis",
+    // The betrayal offer (`{ thirdId, killerId, chapter, day }`) and the swing
+    // memo (`{ [actorId]: itemId }`). Both used to be actor flags, which are
+    // world data every client receives - so for the whole of Stage 6 anybody
+    // could read who the accomplice was and who swung what (CASE-04).
+    "betrayal", "swung"
+];
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const CAST_SET = "incident.cast";
@@ -159,10 +191,50 @@ async function restoreState(state = {}) {
 }
 
 /** Every non-GM user who owns somebody named in a cast. */
-function castOwners(cast) {
+/**
+ * Whose browsers hold the cast.
+ *
+ * THE KILLER OF A TRAP IS NOT ON THIS LIST WHILE THE TRAP IS RUNNING, and that
+ * is the whole of "an indirect murder does not tell its killer" (Dawid, 15.09).
+ *
+ * Measured before the change, on four clients: an indirect murder opened, and
+ * the killer's player received the cast, the incident Event card and a whisper -
+ * the module announcing, in real time, that the thing they had built had just
+ * worked. They are not in the room. Everything else in this file exists to stop
+ * that fact travelling, and it was travelling straight to the one person who
+ * most wants to know it.
+ *
+ * WITHHELD, NOT REDACTED, and the difference matters. Sending them a cast with
+ * the names stripped would still be a packet arriving at the moment the trap
+ * closed, and a client-scoped setting quietly gaining a timestamp is a tell for
+ * anybody who opens a console. They are sent nothing, which is what a bystander
+ * is sent.
+ *
+ * THEY ARE LET BACK IN AT STAGE 6. The scene becomes theirs to arrange once the
+ * incident is over - cleanup.mjs asks `killerIds(murderState())` whether this
+ * actor may work on the body, and that answer lives in the cast. So the gate is
+ * the STAGE, not the murder: closed while `openingRoll` or `incident` is
+ * running, open the moment it is not.
+ */
+function trapRunning(state) {
+    return Boolean(state?.active) && Boolean(state?.indirect)
+        && (state.stage === "openingRoll" || state.stage === "incident");
+}
+
+function castOwners(cast, state = null) {
     const out = new Set();
-    for (const field of ["killerId", "victimId", "thirdId"]) {
-        const owner = ownerOf(game.actors.get(cast?.[field] ?? ""));
+    const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+
+    const seats = [
+        trapRunning(live) ? null : cast?.killerId,
+        cast?.victimId,
+        cast?.thirdId,
+        // The accomplice keeps their copy for as long as the betrayal is on
+        // offer, which is longer than the incident (D18).
+        cast?.betrayal?.thirdId
+    ];
+    for (const id of seats) {
+        const owner = ownerOf(game.actors.get(id ?? ""));
         if (owner && !owner.isGM) out.add(owner.id);
     }
     return out;
@@ -176,9 +248,9 @@ function castOwners(cast) {
  * through `incidentAudience`. Narrowing it further is a question about what the
  * victim may know and when, which is a rule, not a leak.
  */
-function pushCastToParticipants(cast, previous) {
-    const now = castOwners(cast);
-    const before = castOwners(previous);
+function pushCastToParticipants(cast, previous, stateNow = null, statePrev = null) {
+    const now = castOwners(cast, stateNow);
+    const before = castOwners(previous, statePrev ?? stateNow);
 
     for (const userId of before) {
         if (!now.has(userId)) sendCast(userId, {});
@@ -187,9 +259,11 @@ function pushCastToParticipants(cast, previous) {
 }
 
 function sendCast(userId, cast) {
+    // The swing memo is Stage 6's business on the GM's side, not a participant's.
+    const { swung, ...theirs } = cast ?? {};
     try {
         game.socket.emit(SOCKET_EVENT,
-            { action: CAST_MINE, from: game.user.id, cast }, { recipients: [userId] });
+            { action: CAST_MINE, from: game.user.id, cast: theirs }, { recipients: [userId] });
     } catch (err) {
         error("Could not deliver an incident cast to a participant", err);
     }
@@ -224,6 +298,25 @@ async function writeState(patch) {
 
     const publicNext = { ...publicBefore, ...publicPatch };
     await game.settings.set(MODULE_ID, SETTINGS.murderState, publicNext);
+
+    /*
+     * THE STAGE IS ALSO A RECIPIENT LIST, and nothing above notices that.
+     *
+     * `castOwners` withholds the cast from a trap's killer while the trap is
+     * running, so the moment the incident ENDS they have to be sent it - that
+     * is how Stage 6 knows the body is theirs to arrange. But a stage change is
+     * a public-half patch: it touches no cast field, so the `writeCast` above
+     * is skipped entirely and nobody is pushed anything. The killer would have
+     * waited for the next write that happened to move a name.
+     *
+     * So the gate is compared across this write and the cast re-sent when it
+     * moves. Cheap - one socket packet on two transitions in a whole murder -
+     * and it is the only thing standing between "the trap is finished" and a
+     * killer whose cleanup screen does not believe they are the killer.
+     */
+    if (trapRunning(publicNext) !== trapRunning(publicBefore)) {
+        pushCastToParticipants(castNext, castNext, publicNext, publicBefore);
+    }
 
     const next = { ...publicNext, ...castNext };
 
@@ -272,10 +365,16 @@ async function armBetrayalWindow(state) {
     if (!killer || !third) return null;
 
     const clock = getClock();
-    await third.setFlag(MODULE_ID, FLAGS.betrayalWindow, {
-        killerId: killer.id,
-        chapter: clock?.chapter ?? 1,
-        day: clock?.day ?? 1
+    // In the cast, never on the actor: the offer names the killer and the
+    // accomplice, and an actor flag would name them to every client.
+    await writeCast({
+        ...readCast(),
+        betrayal: {
+            thirdId: third.id,
+            killerId: killer.id,
+            chapter: clock?.chapter ?? 1,
+            day: clock?.day ?? 1
+        }
     });
     log(`Betrayal window open for ${third.name} against ${killer.name} `
         + `(chapter ${clock?.chapter}, day ${clock?.day}).`);
@@ -291,18 +390,29 @@ async function armBetrayalWindow(state) {
  * a murder two chapters ago, and the sheet would light the tile for it.
  */
 async function sweepBetrayalWindows() {
-    if (!game.user.isGM) return;
+    if (!isPrimaryGm()) return;
     const clock = getClock();
-    for (const actor of game.actors) {
-        const open = actor.getFlag(MODULE_ID, FLAGS.betrayalWindow);
-        if (!open) continue;
-        if (open.chapter === clock?.chapter && open.day === clock?.day) continue;
-        try {
-            await actor.unsetFlag(MODULE_ID, FLAGS.betrayalWindow);
-        } catch {
-            // A window that outlives its day is refused on read anyway.
-        }
-    }
+    const cast = readCast();
+    const open = cast.betrayal;
+    if (!open) return;
+    if (open.chapter === clock?.chapter && open.day === clock?.day) return;
+    const { betrayal, ...rest } = cast;
+    await writeCast(rest, cast);
+}
+
+/** Take the betrayal off the table, whoever it was offered to. GM-side. */
+export async function clearBetrayalOffer() {
+    if (!game.user.isGM) return;
+    const cast = readCast();
+    if (!cast.betrayal) return;
+    const { betrayal, ...rest } = cast;
+    await writeCast(rest, cast);
+}
+
+/** The weapon this actor swung in the running incident, if it is still on them. GM-side. */
+export function swungWeaponOf(actor) {
+    const id = readCast().swung?.[actor?.id ?? ""];
+    return id ? (actor.items.get(id) ?? null) : null;
 }
 
 /** Which side is this actor on, if any: "killer" | "victim" | "third" | null. */
@@ -646,9 +756,11 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
     // long as that player takes. Awaiting it here would leave `openMurder`
     // hanging, and with it the dialog that called it.
     //
-    // The tracker keeps its button. This is the first invitation, not the only
-    // one - a player who dismissed the window, or who was not connected when the
-    // incident opened, still needs a way to be asked again.
+    // This is the first invitation, not the only one: `throwOpeningRoll`
+    // re-offers a dismissed window up to three times on its own, and after
+    // that the tracker's "Ask for the opening roll again" sends it once more
+    // (CASE-10). A player who was not connected when the incident opened has
+    // the roll thrown for them on the GM's client - see `rollOpening`.
     rollOpening(indirect ? "victim" : "killer", murderState())
         .catch(err => error("Could not open the Stage 4 roll", err));
 
@@ -861,7 +973,10 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
 
     // The victim sensing it coming does not end the incident by itself - the
     // guide gives them a free Move and lets them use it or not. Ending it is
-    // the GM's call, which is why this reports rather than decides.
+    // the GM's call, which is why this reports rather than decides - and says
+    // so (CASE-10): left at "openingRoll" with no prompt, the incident sat
+    // open, refused every other murder and tied every trace in the building.
+    await whisperToGms(`<p class="drpg-warning">${game.i18n.localize("DRPG.Murder.victimNoticedNext")}</p>`);
     return { success: true, band };
 }
 
@@ -1103,7 +1218,7 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      *
      *   - the knife never took its Despair wear, so the murder weapon was the
      *     one tool in the game that could not break in the murder;
-     *   - `FLAGS.swungWeapon` stayed empty, so Stage 6's `destroysTools` ruined
+     *   - the swing memo stayed empty, so Stage 6's `destroysTools` ruined
      *     whatever happened to be readied at closing time - the gloves - and
      *     the knife walked away, which is the exact bug that flag was added for;
      *   - and the Search trace that handed the killer the weapon was never tied
@@ -1131,12 +1246,8 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      * ends, holding the id of the thing that was actually used.
      */
     if (swung) {
-        try {
-            await actor.setFlag(MODULE_ID, FLAGS.swungWeapon, swung.id);
-        } catch {
-            // A weapon nobody wrote down is destroyed by the old rule instead
-            // of not at all. Never let bookkeeping stop a swing.
-        }
+        // The id travels in the crisis packet below and is remembered in the
+        // GM's cast, not on the actor - a flag would be world data (CASE-04).
 
         /*
          * AND THE TRACE THAT HANDED IT OVER IS EVIDENCE NOW (Dawid, 28.08).
@@ -1217,7 +1328,9 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
         withHope: Boolean(roll.withHope),
         choice,
         // What was actually spent, so a Reroll can give it back.
-        usedItemId
+        usedItemId,
+        // What was swung, so Stage 6 ruins the right thing (E9).
+        swungId: swung?.id ?? null
     });
 
     return { roll, choice };
@@ -1405,6 +1518,8 @@ async function grantImprovisedWeapon(actor, def, band, done) {
  */
 export async function resolveCrisisAction({
     actorId, key, total, isCritical, withHope, undo = false, choice = null, usedItemId = null,
+    // The weapon the roll was thrown with, remembered for Stage 6 (E9, CASE-04).
+    swungId = null,
     // G-18. Not derived here from the state, because by the time this runs the
     // grant may have been consumed by the undo half of a Reroll - the client
     // that pressed the tile is the one that knew.
@@ -1431,6 +1546,12 @@ export async function resolveCrisisAction({
     const actor = game.actors.get(actorId);
     const def = CRISIS_ACTIONS[key];
     if (!state || !actor || !def) return null;
+
+    // The swing memo, in the cast. Only an item the actor actually holds: the
+    // packet is a claim, and a stranger's id would have Stage 6 ruin nothing.
+    if (swungId && actor.items?.has(swungId)) {
+        await writeState({ swung: { ...(readCast().swung ?? {}), [actorId]: swungId } });
+    }
 
     // WHOSE SIDE, not the entry's. One action is written `side: "both"` - using
     // an item is the same act whoever does it - and everything below is about
@@ -2272,13 +2393,10 @@ async function clearAdvantage(side) {
 }
 
 async function spendStress(actor, done) {
-    const marks = resourceValue(actor, "stress");
-    const max = resourceMax(actor, "stress");
-
-    if (marks < max) {
-        await automatedUpdate(actor, {
-            "system.resources.stress.value": Math.min(max, marks + RESOLUTION_STRESS_COST)
-        });
+    // The same write the clean-up makes (cleanup.mjs `markResolutionStress`);
+    // `false` means the track was full, and the blood branch below pays instead.
+    const { markResolutionStress } = await import("./cleanup.mjs");
+    if (await markResolutionStress(actor)) {
         done.push(game.i18n.format("DRPG.Murder.spentStress", { n: RESOLUTION_STRESS_COST }));
         return;
     }
@@ -2578,13 +2696,26 @@ async function migrateIncidentSecrets() {
         log(`Lifted ${strays.length} incident name(s) out of world data (LIVE-001).`);
     }
 
-    const oldRegister = game.settings.get(MODULE_ID, SETTINGS.blackened) ?? [];
-    if (oldRegister.length) {
-        const merged = [...new Set([...blackenedIds(), ...oldRegister])];
-        await writeBlackened(merged);
-        await game.settings.set(MODULE_ID, SETTINGS.blackened, []);
-        log(`Lifted ${oldRegister.length} Blackened out of world data (LIVE-001).`);
+    // The betrayal offer and the swing memo used to be actor flags (CASE-04).
+    // A live offer is lifted into the cast; everything else is scrubbed.
+    const clock = getClock();
+    for (const actor of game.actors) {
+        const window = actor.getFlag(MODULE_ID, FLAGS.betrayalWindow);
+        if (window?.killerId && window.chapter === clock?.chapter && window.day === clock?.day
+            && !readCast().betrayal) {
+            await writeCast({ ...readCast(), betrayal: { thirdId: actor.id, ...window } });
+            log(`Lifted ${actor.name}'s betrayal offer out of world data (CASE-04).`);
+        }
+        for (const flag of [FLAGS.betrayalWindow, FLAGS.swungWeapon]) {
+            if (actor.getFlag(MODULE_ID, flag) === undefined) continue;
+            try {
+                await actor.unsetFlag(MODULE_ID, flag);
+            } catch {
+                // Nothing reads the flag any more; a copy that will not go is inert.
+            }
+        }
     }
+
 }
 
 export function registerMurder() {
@@ -2880,26 +3011,15 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
         }
     }
 
-    /*
-     * The swing memo goes with the incident it belonged to.
-     *
-     * AFTER `endResolution`, which is the one thing that reads it, and for
-     * everybody rather than the killer alone: a victim who fought back swung
-     * something too, and a stale id would have Stage 6 of the NEXT incident
-     * destroying a weapon from this one.
-     */
-    for (const id of participantIds(state ?? {})) {
-        try {
-            await game.actors.get(id)?.unsetFlag(MODULE_ID, FLAGS.swungWeapon);
-        } catch {
-            // A memo that outlives its incident costs one wrong confiscation,
-            // and only if the same character swings nothing in the next one.
-        }
-    }
-
     // Both halves, and the participants' copies with them: an incident that is
-    // over must not leave its cast sitting on anybody's client.
+    // over must not leave its cast sitting on anybody's client. The swing memo
+    // goes with it - `endResolution` above was the one thing that read it.
+    //
+    // THE BETRAYAL DOES NOT (D18): the offer lasts until the end of the day,
+    // which is longer than the incident, so it is the one thing put back.
+    const offer = readCast().betrayal ?? null;
     await restoreState({});
+    if (offer) await writeCast({ betrayal: offer });
     log(`Murder closed (${reason}).`);
 
     /* AND THE TRACKER GOES WITH IT.
@@ -3100,8 +3220,8 @@ export function betrayalTarget(actor) {
      * `betrayalCandidate` and returns the newcomer; returning that here once
      * made the tile offer the accomplice a chance to murder themselves.
      */
-    const open = actor.getFlag(MODULE_ID, FLAGS.betrayalWindow);
-    if (!open?.killerId) return null;
+    const open = readCast().betrayal;
+    if (!open?.killerId || open.thirdId !== actor.id) return null;
 
     const clock = getClock();
     if (open.chapter !== clock?.chapter || open.day !== clock?.day) return null;
@@ -3166,7 +3286,7 @@ export async function betrayAsPlayer(actorId) {
      * failed attempt is an offer that can be attempted again, which is the
      * spam this is here to stop.
      */
-    await actor.unsetFlag(MODULE_ID, FLAGS.betrayalWindow);
+    await clearBetrayalOffer();
     return openBetrayal(actor, target);
 }
 
@@ -3654,6 +3774,10 @@ async function rollOpening(side, state) {
  */
 let openingRollsInFlight = 0;
 
+/** The tracker's "ask again": once per ten seconds on this client. */
+let lastReask = 0;
+const REASK_COOLDOWN_MS = TIMING.reaskCooldownMs;
+
 /**
  * Is the invitation this client is answering still wanted?
  *
@@ -3738,7 +3862,7 @@ export async function throwOpeningRoll(side, actorId) {
     // every attempt to dismiss it reopened the window twice more - measured:
     // closing it took three closes, and four abandoned incidents left four
     // stacked "Body Roll" windows warning about a murder that no longer existed.
-    const MAX_ATTEMPTS = 3;
+    const MAX_ATTEMPTS = TIMING.openingAttempts;
     let roll = null;
     openingRollsInFlight++;
     try {
@@ -3813,6 +3937,161 @@ export async function resolveOpening({ actorId, side, total, isCritical, withHop
 }
 
 /** The live tracker: whose turn, what is left, and the controls. */
+/** The three people in the incident, and the victim's Health and Sanity marks as text. */
+function incidentPeople(now) {
+        const killer = game.actors.get(now.killerId);
+        const victim = game.actors.get(now.victimId);
+        const third = now.thirdId ? game.actors.get(now.thirdId) : null;
+        // Marks, the sheet's own direction (W-1): 0/6 is untouched.
+        const left = res => victim ? marksOf(victim, res) : "?";
+        return { killer, victim, third, left };
+}
+
+/* THE WRAPPER IS PART OF THE ANSWER, not decoration on the call site.
+
+   `keepLive` looks its region up by selector on every round and REPLACES the element
+   it finds - so a `build()` that returns the region's CONTENTS replaces the region
+   with its own first child, and the second refresh has nothing left to find. Measured
+   on 11.09 with exactly that mistake: one Pass the turn and the window read "Player A
+   -> Player B" and nothing else, with `.drpg-incident-live` gone from the DOM.
+   `buildConsole` in trial-floor-ui.mjs carries its own class for the same reason. */
+function incidentTrackerHtml(now, cleanup) {
+    // The incident is gone but the window is still up - the live hook below closes it
+    // on the next tick, and until then it says so rather than showing a dead fight.
+    if (!now) {
+        return `<div class="drpg-incident-live"><p class="notes">${
+            game.i18n.localize("DRPG.Murder.trackerOver")}</p></div>`;
+    }
+    const { killer, victim, third, left } = incidentPeople(now);
+
+    /*
+     * AN INCIDENT WHOSE CAST IS GONE SAYS SO (20.09).
+     *
+     * The cast is two actor ids, held in the GMs' client-scoped `incidentCast`
+     * since LIVE-001 and merged in by `murderState`. An actor deleted while an
+     * incident stands open - a fixture from a suite run that died, a character
+     * removed between sessions - leaves the world insisting a fight is running
+     * and this window reading "? -> ?". Every control on it then acts
+     * on a side that does not exist: passing the turn writes a turn nobody owns,
+     * and the tracker is the only screen that could have explained it.
+     *
+     * ONLY AN ID THAT NAMES NOBODY. A GM whose copy of the cast has not arrived
+     * yet has no ids at all, and that is a sync still in flight, not a deleted
+     * actor - so an empty id is left alone and only an id `game.actors` cannot
+     * find is reported.
+     *
+     * It cannot repair itself - which actor was meant is not recoverable - so it
+     * names what is missing and points at the one button that helps. The stage
+     * and the count below stay: they are what a GM needs to decide whether
+     * anything of this incident is worth writing down before it goes.
+     */
+    const lost = [
+        now.killerId && !killer && !now.selfInflicted ? game.i18n.localize("DRPG.Murder.side.killer") : null,
+        now.victimId && !victim ? game.i18n.localize("DRPG.Murder.side.victim") : null
+    ].filter(Boolean);
+
+    return `<div class="drpg-incident-live">
+        ${lost.length ? `<p class="drpg-warning">${game.i18n.format(
+            "DRPG.Murder.trackerCastGone", { who: lost.join(", ") })}</p>` : ""}
+        <p>${now.selfInflicted
+            // One name, and an arrow pointing at itself would be the only
+            // thing on this line that is not true.
+            ? `<strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong> · ${
+                game.i18n.localize("DRPG.Murder.selfInflicted")}`
+            : `<strong>${foundry.utils.escapeHTML(killer?.name ?? "?")}</strong> →
+               <strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong>${
+                third ? ` · ${game.i18n.format("DRPG.Murder.thirdIs", {
+                    name: foundry.utils.escapeHTML(third.name)
+                })}` : ""}`}</p>
+        <p>${now.selfInflicted
+            // No turn and no side to report: there is no Stage 5 in this one.
+            ? game.i18n.format("DRPG.Murder.trackerStateSelf", {
+                stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`)
+            })
+            : game.i18n.format("DRPG.Murder.trackerState", {
+                stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`),
+                turn: now.turn,
+                side: game.i18n.localize(`DRPG.Murder.side.${now.turnSide}`)
+            })}</p>
+        <p>${game.i18n.format("DRPG.Murder.victimMarks", {
+            hp: left("hitPoints"), stress: left("stress")
+        })}</p>
+        <p>${game.i18n.format("DRPG.Murder.keyCount", { n: now.keyRemnants })}</p>
+        ${cleanupSection(killer, cleanup)}</div>`;
+}
+
+/* WHICH BUTTONS ARE ON IT, which `keepLive` cannot change - it replaces a region of
+   the content, not a DialogV2 footer built once. Same answer the trial console reached
+   for the same reason: when the SET of buttons would differ, reopen instead. */
+function incidentSignature(now) {
+    return now ? [now.stage, now.selfInflicted].join("|") : null;
+}
+
+/** The footer, by stage: re-ask the opening roll, pass the turn, end the incident, close. */
+function incidentButtons(state) {
+    return [
+        // There is no unconditional "roll the opening" button, and there must not
+        // be one - the rate-limited re-ask at the end of this note is the exception.
+        //
+        // Stage 4 offers exactly one roll and its owner is not a decision:
+        // a direct murder opens on the KILLER's roll, a trap on the VICTIM's.
+        // `openMurder` sends that invitation itself the moment the incident
+        // opens, so by the time this window is on screen the roll is already
+        // with whoever owes it.
+        //
+        // A button here only ever sent a SECOND copy. Measured: opening one
+        // incident and pressing it three times left the player with FOUR
+        // stacked roll windows, each of which reopened itself twice more when
+        // dismissed - the retry loop cannot tell an unwanted duplicate from a
+        // refusal. And because the tracker reopens after every action with
+        // this button as `default`, holding Enter sent invitations for as
+        // long as you held it.
+        //
+        // Nothing is lost by its absence. An owner who is offline never gets
+        // an invitation in the first place - `rollOpening` sees that and
+        // throws the roll on the GM's own client - and an owner who is here
+        // is re-offered three times before anyone has to intervene.
+        // And none at all for a self-inflicted death: there is no turn to
+        // pass, so the window's DEFAULT button - the one Enter presses -
+        // would have been a control for a stage this incident never enters.
+        // ...but an invitation that was declined three times can be sent
+        // once more from here (CASE-10): the alternative was End and open
+        // it again, which repeated the whole three-strike loop. Rate-limited
+        // on this client so a held Enter cannot stack windows again.
+        ...(state.stage === "openingRoll" && !state.selfInflicted ? [
+            { action: "reask", label: game.i18n.localize("DRPG.Murder.openingReask") }
+        ] : []),
+        ...(state.stage === "openingRoll" || state.selfInflicted ? [] : [
+            // No "somebody walks in" button. The guide's third party is
+            // whoever "wejdzie do pomieszczenia poprzez akcję ruch", and
+            // `maybeThirdParty` already watches token movement into the
+            // victim's room and registers them the moment it happens. A
+            // second, manual route only invited the GM to nominate somebody
+            // who had not actually walked in - and to do it twice, since the
+            // watcher had usually already fired.
+            { action: "pass", label: game.i18n.localize("DRPG.Murder.passTurn"), default: true }
+        ]),
+        { action: "end", label: game.i18n.localize("DRPG.Murder.endMurder") },
+        { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
+    ];
+}
+
+/** Send the opening roll again, once the cooldown allows. */
+function reaskOpening() {
+    const now = Date.now();
+    if (now - lastReask < REASK_COOLDOWN_MS) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Murder.openingReaskWait"));
+    } else {
+        lastReask = now;
+        const current = murderState();
+        if (current?.stage === "openingRoll") {
+            rollOpening(current.indirect ? "victim" : "killer", current)
+                .catch(err => error("Could not re-send the opening roll", err));
+            ui.notifications.info(game.i18n.localize("DRPG.Murder.openingReaskSent"));
+        }
+    }
+}
+
 export async function openIncidentTracker() {
     /*
      * NO `alreadyOpen` GUARD HERE, and it is the one window that must not have
@@ -3862,91 +4141,8 @@ export async function openIncidentTracker() {
      */
     const read = () => murderState();
 
-    const bodyFor = now => {
-        const killer = game.actors.get(now.killerId);
-        const victim = game.actors.get(now.victimId);
-        const third = now.thirdId ? game.actors.get(now.thirdId) : null;
-        // Marks, the sheet's own direction (W-1): 0/6 is untouched.
-        const left = res => victim ? marksOf(victim, res) : "?";
-        return { killer, victim, third, left };
-    };
-
-    /* THE WRAPPER IS PART OF THE ANSWER, not decoration on the call site.
-
-       `keepLive` looks its region up by selector on every round and REPLACES the element
-       it finds - so a `build()` that returns the region's CONTENTS replaces the region
-       with its own first child, and the second refresh has nothing left to find. Measured
-       on 11.09 with exactly that mistake: one Pass the turn and the window read "Player A
-       -> Player B" and nothing else, with `.drpg-incident-live` gone from the DOM.
-       `buildConsole` in trial-floor-ui.mjs carries its own class for the same reason. */
-    const trackerBody = () => {
-        const now = read();
-        // The incident is gone but the window is still up - the live hook below closes it
-        // on the next tick, and until then it says so rather than showing a dead fight.
-        if (!now) {
-            return `<div class="drpg-incident-live"><p class="notes">${
-                game.i18n.localize("DRPG.Murder.trackerOver")}</p></div>`;
-        }
-        const { killer, victim, third, left } = bodyFor(now);
-
-        /*
-         * AN INCIDENT WHOSE CAST IS GONE SAYS SO (20.09).
-         *
-         * The state is a world setting and the cast is two actor ids in it, so an
-         * actor deleted while an incident stands open - a fixture from a suite run
-         * that died, a character removed between sessions - leaves the world
-         * insisting a fight is running and this window reading "? -> ?". Every
-         * control on it then acts on a side that does not exist: passing the turn
-         * writes a turn nobody owns, and the tracker is the only screen that could
-         * have explained it.
-         *
-         * It cannot repair itself - which actor was meant is not recoverable - so it
-         * names what is missing and points at the one button that helps. The stage
-         * and the count below stay: they are what a GM needs to decide whether
-         * anything of this incident is worth writing down before it goes.
-         */
-        const lost = [
-            !killer && !now.selfInflicted ? game.i18n.localize("DRPG.Murder.side.killer") : null,
-            !victim ? game.i18n.localize("DRPG.Murder.side.victim") : null
-        ].filter(Boolean);
-
-        return `<div class="drpg-incident-live">
-            ${lost.length ? `<p class="drpg-warning">${game.i18n.format(
-                "DRPG.Murder.trackerCastGone", { who: lost.join(", ") })}</p>` : ""}
-            <p>${now.selfInflicted
-                // One name, and an arrow pointing at itself would be the only
-                // thing on this line that is not true.
-                ? `<strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong> · ${
-                    game.i18n.localize("DRPG.Murder.selfInflicted")}`
-                : `<strong>${foundry.utils.escapeHTML(killer?.name ?? "?")}</strong> →
-                   <strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong>${
-                    third ? ` · ${game.i18n.format("DRPG.Murder.thirdIs", {
-                        name: foundry.utils.escapeHTML(third.name)
-                    })}` : ""}`}</p>
-            <p>${now.selfInflicted
-                // No turn and no side to report: there is no Stage 5 in this one.
-                ? game.i18n.format("DRPG.Murder.trackerStateSelf", {
-                    stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`)
-                })
-                : game.i18n.format("DRPG.Murder.trackerState", {
-                    stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`),
-                    turn: now.turn,
-                    side: game.i18n.localize(`DRPG.Murder.side.${now.turnSide}`)
-                })}</p>
-            <p>${game.i18n.format("DRPG.Murder.victimMarks", {
-                hp: left("hitPoints"), stress: left("stress")
-            })}</p>
-            <p>${game.i18n.format("DRPG.Murder.keyCount", { n: now.keyRemnants })}</p>
-            ${cleanupSection(killer, cleanup)}</div>`;
-    };
-
-    /* WHICH BUTTONS ARE ON IT, which `keepLive` cannot change - it replaces a region of
-       the content, not a DialogV2 footer built once. Same answer the trial console reached
-       for the same reason: when the SET of buttons would differ, reopen instead. */
-    const signature = () => {
-        const now = read();
-        return now ? [now.stage, now.selfInflicted].join("|") : null;
-    };
+    const trackerBody = () => incidentTrackerHtml(read(), cleanup);
+    const signature = () => incidentSignature(read());
     const openedWith = signature();
     let settling = false;
 
@@ -3956,43 +4152,7 @@ export async function openIncidentTracker() {
         window: { title: game.i18n.localize("DRPG.Murder.trackerTitle") },
         classes: ["drpg-panel", "drpg-window-incident"],
         content: dialogContent(trackerBody()),
-        buttons: [
-            // There is no "roll the opening" button, and there must not be one.
-            //
-            // Stage 4 offers exactly one roll and its owner is not a decision:
-            // a direct murder opens on the KILLER's roll, a trap on the VICTIM's.
-            // `openMurder` sends that invitation itself the moment the incident
-            // opens, so by the time this window is on screen the roll is already
-            // with whoever owes it.
-            //
-            // A button here only ever sent a SECOND copy. Measured: opening one
-            // incident and pressing it three times left the player with FOUR
-            // stacked roll windows, each of which reopened itself twice more when
-            // dismissed - the retry loop cannot tell an unwanted duplicate from a
-            // refusal. And because the tracker reopens after every action with
-            // this button as `default`, holding Enter sent invitations for as
-            // long as you held it.
-            //
-            // Nothing is lost by its absence. An owner who is offline never gets
-            // an invitation in the first place - `rollOpening` sees that and
-            // throws the roll on the GM's own client - and an owner who is here
-            // is re-offered three times before anyone has to intervene.
-            // And none at all for a self-inflicted death: there is no turn to
-            // pass, so the window's DEFAULT button - the one Enter presses -
-            // would have been a control for a stage this incident never enters.
-            ...(state.stage === "openingRoll" || state.selfInflicted ? [] : [
-                // No "somebody walks in" button. The guide's third party is
-                // whoever "wejdzie do pomieszczenia poprzez akcję ruch", and
-                // `maybeThirdParty` already watches token movement into the
-                // victim's room and registers them the moment it happens. A
-                // second, manual route only invited the GM to nominate somebody
-                // who had not actually walked in - and to do it twice, since the
-                // watcher had usually already fired.
-                { action: "pass", label: game.i18n.localize("DRPG.Murder.passTurn"), default: true }
-            ]),
-            { action: "end", label: game.i18n.localize("DRPG.Murder.endMurder") },
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+        buttons: incidentButtons(state),
         render: (event, dialog) => keepLive(dialog, {
             region: ".drpg-incident-live",
             build: trackerBody,
@@ -4021,6 +4181,10 @@ export async function openIncidentTracker() {
 
     if (action === "pass") {
         await passTurn();
+        return openIncidentTracker();
+    }
+    if (action === "reask") {
+        reaskOpening();
         return openIncidentTracker();
     }
     if (action === "end") {

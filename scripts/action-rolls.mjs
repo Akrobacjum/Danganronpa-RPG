@@ -5,20 +5,23 @@
  * repeatable actions."
  *
  * Every action opens with a briefing of what it does, then either resolves
- * itself (Search, Work on Project, Sabotage, Dynamic) or whispers a ruling
- * request to the GM (Think, Listen, Analyze, Observe, Direct Murder, starting
- * a project) - because those are the ones the guide wants a human to judge.
+ * itself (Search, Work on Project, Sabotage, Palm, Tamper, Rest, Move) or
+ * sends a ruling card to the GM (Observe with nothing to rank, Analyze's hint,
+ * Listen, a Dynamic threshold, Direct Murder) - because those are the ones
+ * the guide wants a human to judge.
  *
  * Movement is not here: crossing a room boundary charges itself, in
  * movement.mjs.
  */
 
 import {
-    MODULE_ID, FLAGS, ACTIONS, TRAITS, DYNAMIC_THRESHOLDS, INDIRECT_MURDER,
-    PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND, PRICE_CHAINS,
-    CLEANUP, MONOCUB
+    MODULE_ID, FLAGS, ACTIONS, TRAITS, TRAIT_BY_DH, DYNAMIC_THRESHOLDS, INDIRECT_MURDER,
+    PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND, CLEANUP,
+    OBSERVE_DC, ANALYZE_DC, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, RESOLUTION_STRESS_COST, OBSERVE_FAIL_STRESS, TIMING,
+    PRICE_CHAINS, MONOCUB
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
+import { leavesTraceFor } from "./inventory.mjs";
 import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
@@ -36,12 +39,12 @@ import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, easedBy, whisperToOwner, dialogContent, replaceFlag, log, debug, error, plural, cardHead, esc} from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, error, plural, cardHead, esc, easedBy, gmIds, ownerOf } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll } from "./private-rolls.mjs";
 // One reader, for the Tamper menu's "what you have readied" line. use-items.mjs
 // does not import this file.
-import { equippedFor } from "./use-items.mjs";
+import { equippedFor, tierOf } from "./use-items.mjs";
 import { playSfx } from "./sfx.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -322,8 +325,8 @@ export async function performAction(actor, actionKey, options = {}) {
  * `briefing()` below still exists for Move, which asks nothing and therefore has
  * no window of its own to fold into.
  */
-export function briefingBlock(actor, actionKey, def) {
-    const facts = briefingFacts(actor, actionKey, def);
+export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
+    const facts = briefingFacts(actor, actionKey, def, extraFacts);
 
     const paragraphs = String(def.description ?? def.hint ?? "")
         .split(/\n\s*\n/)
@@ -344,7 +347,7 @@ export function briefingBlock(actor, actionKey, def) {
 }
 
 /** The cost / statistics / room lines every briefing ends with. */
-function briefingFacts(actor, actionKey, def) {
+function briefingFacts(actor, actionKey, def, extraFacts = []) {
     const room = roomOfActor(actor);
     const cost = def.cost ?? 1;
     const facts = [];
@@ -431,6 +434,13 @@ function briefingFacts(actor, actionKey, def) {
         facts.push(game.i18n.format("DRPG.Action.failStress", { n: def.failStress }));
     }
 
+    // THE NUMBERS, FROM THE TABLE THE ROLL WILL BE SCORED AGAINST (D1, Dawid
+    // 13.09): every threshold a briefing can know before the dice, computed
+    // for this character as they stand - tool in hand, witnesses, the state of
+    // the scene - and the ladder where the exact row is the GM's to pick.
+    try { facts.push(...thresholdFacts(actor, actionKey, def)); } catch (err) { error("Could not print the thresholds", err); }
+    facts.push(...extraFacts);
+
     // Same question the tile's stripe asks, and it has to be asked the same
     // way: `callsGm` can be a predicate on the character now. A briefing that
     // says "this waits for the GM" over a tile that does not is worse than
@@ -440,6 +450,77 @@ function briefingFacts(actor, actionKey, def) {
         : Boolean(def.callsGm);
     if (callsGm) facts.push(game.i18n.localize("DRPG.Action.callsGmNote"));
 
+    return facts;
+}
+
+/** "Obvious 9 · Evident 12 · Subtle 15 · Hidden 18" from one column of a DC table. */
+function ladderRows(column) {
+    return REMNANT_VISIBILITY.map(v => game.i18n.format("DRPG.Action.dcLadderRow", {
+        label: REMNANT_VISIBILITY_LABELS[v] ?? v, n: column[v]
+    })).join(" · ");
+}
+
+/** The thresholds an action will be scored against, as the player stands now. */
+function thresholdFacts(actor, actionKey, def) {
+    const facts = [];
+    const f = (key, data) => facts.push(game.i18n.format(key, data));
+    const mins = list => (list ?? []).map(t => t.min);
+
+    switch (actionKey) {
+        case "search": {
+            const rows = (def.thresholds ?? []).map(t =>
+                game.i18n.format("DRPG.Action.dcTierRow", { n: t.min, tier: t.tier })).join(" · ");
+            if (rows) f("DRPG.Action.dcSearch", { rows });
+            break;
+        }
+        case "observe": {
+            const col = key => Object.fromEntries(REMNANT_VISIBILITY.map(v => [v, OBSERVE_DC[v]?.[key]]));
+            f("DRPG.Action.dcObserve", { rows: ladderRows(col("prep")) });
+            f("DRPG.Action.dcObserveKey", { rows: ladderRows(col("key")) });
+            f("DRPG.Action.dcObserveFaint", { rows: ladderRows(col("faint")) });
+            f("DRPG.Action.dcObserveDaily", { rows: ladderRows(col("dailyLife")) });
+            break;
+        }
+        case "analyze": {
+            const col = key => Object.fromEntries(REMNANT_VISIBILITY.map(v => [v, ANALYZE_DC[v]?.[key]]));
+            f("DRPG.Action.dcAnalyze", {
+                rows: ladderRows(col("prep")), faint: ladderRows(col("faint")), daily: ladderRows(col("dailyLife"))
+            });
+            const [a, b] = mins(def.hintThresholds);
+            if (a !== undefined) f("DRPG.Action.dcHint", { a, b: b ?? a });
+            if (def.stashThreshold) f("DRPG.Action.dcStash", { n: def.stashThreshold });
+            break;
+        }
+        case "project": {
+            const relief = toolRelief(equippedFor(actor, "tool"), tierOf);
+            const reliefNote = relief ? game.i18n.format("DRPG.Action.dcRelief", { n: relief }) : "";
+            const [a, b] = mins(def.thresholds).map(n => Math.max(0, n - relief));
+            if (a !== undefined) f("DRPG.Action.dcProject", { a, b: b ?? a, relief: reliefNote });
+            const [sa, sb] = mins(ACTIONS.sabotage?.thresholds).map(n => Math.max(0, n - relief));
+            if (sa !== undefined) f("DRPG.Action.dcSabotage", { a: sa, b: sb ?? sa, relief: reliefNote });
+            if (othersInRoom(actor).length) f("DRPG.Action.dcConceal", { n: SABOTAGE_CONCEAL.threshold });
+            try {
+                const room = roomOfActor(actor);
+                const here = room ? projectsAvailableIn(room) : [];
+                if (here.some(p => isIndirectMurder(p))) f("DRPG.Action.dcIndirect", { n: INDIRECT_MURDER.concealIntent.threshold });
+            } catch { /* no projects here */ }
+            break;
+        }
+        case "listen": {
+            const [a, b] = mins(def.thresholds);
+            if (a !== undefined) f("DRPG.Action.dcListen", { a, b: b ?? a });
+            break;
+        }
+        case "palm": {
+            f("DRPG.Action.dcPalm", {
+                take: def.threshold, unseen: def.unseen?.threshold ?? "-",
+                plant: def.plant?.threshold ?? def.threshold, plantUnseen: def.plant?.unseen ?? def.unseen?.threshold ?? "-"
+            });
+            break;
+        }
+        default:
+            break;
+    }
     return facts;
 }
 
@@ -539,7 +620,15 @@ function dynamicDef() {
  * "rollTrait is not a function" before a single die was thrown.
  */
 export async function rollTrait(actor, drpgTrait,
-    { remember = true, actionKey = null, context = null, title = null } = {}) {
+    { remember = true, actionKey = null, context = null, title = null, dc = null } = {}) {
+    // "Beat 12" on the window that throws the dice (D1). `dc` may be a number
+    // or a ladder written as text ("12 / 18"); a window with no title of its
+    // own takes the action's label so the number has something to hang on.
+    if (dc !== null && dc !== undefined && dc !== "") {
+        const heading = title ?? ACTIONS[actionKey]?.label ?? null;
+        const beat = game.i18n.format("DRPG.Action.beat", { n: dc });
+        title = heading ? `${heading} · ${beat}` : beat;
+    }
     const calls = await import("./call-effects.mjs");
 
     // `remember: false` marks a supporting roll - concealing an intent, hiding
@@ -641,7 +730,12 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     const outcome = {
         total,
         ...dualityOf(roll),
-        trait: drpgTrait,
+        // What the dialog actually rolled, not what was asked for: Search and a
+        // Determination grant unlock the statistic select, and every reader of
+        // this - the card header, the duality chip, the bookmark - mislabelled
+        // a Hand roll as Eye (ROLL-06). Falls back to the argument when the
+        // system's result does not say.
+        trait: traitRolled(result, drpgTrait),
         freeCritical: free,
         raw: result
     };
@@ -656,6 +750,17 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
 
     if (remember) await rememberRoll(actor, outcome, result, actionKey, context);
     return outcome;
+}
+
+/** The module's trait key for whatever statistic the system's result says was rolled. */
+function traitRolled(result, fallback) {
+    const dh = result?.roll?.options?.roll?.trait
+        ?? result?.roll?.options?.trait
+        ?? result?.config?.roll?.trait
+        ?? result?.data?.roll?.trait
+        ?? result?.roll?.trait
+        ?? null;
+    return (dh && TRAIT_BY_DH[dh]) || fallback;
 }
 
 /**
@@ -865,7 +970,7 @@ function dualityBar(outcome) {
  * reports itself finished - a client that lost focus mid-throw is the ordinary
  * way - must not be able to swallow the result of an action somebody paid for.
  */
-const DICE_SETTLE_MS = 6000;
+const DICE_SETTLE_MS = TIMING.diceSettleMs;
 
 /**
  * Wait for Dice So Nice to finish throwing, if it is throwing at all.
@@ -941,8 +1046,8 @@ function readTraitField(element, traits) {
 /**
  * Ask which trait to use, for an action with nothing else to ask.
  *
- * `intro` is the briefing. An action that folds its briefing in (see
- * FOLDS_BRIEFING_IN) has a window of its own to carry it; one that does not
+ * `intro` is the briefing. An action that folds its briefing in (every one
+ * but the keys in NEEDS_OWN_BRIEFING) has a window of its own to carry it; one that does not
  * used to get a briefing window, then this one, then the roll dialog - three
  * windows to answer "Body or Leg?". Passing the briefing here makes it two.
  */
@@ -976,29 +1081,37 @@ async function chooseTrait(actor, def, { intro = "" } = {}) {
  * Hope, Sanity and Despair. Charging afterwards let a player collect those and
  * then cancel; charging first means an honest cancel has to be refunded.
  *
- * BUT NOT ONCE ONE OF ITS ROLLS HAS LANDED (ACT-05, 17.09). Charging first and
- * refunding every cancel is the same bargain as charging afterwards: the
- * concealment roll or Palm's Shadow roll kept its Hope, or a Monokuma's
- * Despair, and the action came back when the second window was closed. So
- * `rolled` says a roll for this action already counted, and then the action
- * stays spent - with a line saying so, because a pip that does not come back
- * after a closed window looks like a bug.
- */
-/*
  * AND THE ONE-ROLL ACTIONS PAY FIRST TOO (ACT-07, 17.09).
  *
- * Search, Observe, Analyze, Listen, the GM-ruled and generic actions and a
- * Dynamic action used to charge after the dice and ignore the answer. The sheet
- * disables only the tile that was clicked and none of these windows is modal,
- * so a student with one action could open two, roll both, and get both results
- * for one action - and with more windows, keep every roll's Hope while the
- * spend was refused. Charging before the roll makes the second window stop at
- * "not enough actions", and a closed roll window gets its action back here.
+ * Search, Observe, Analyze, Listen, the generic actions and a Dynamic action
+ * used to charge after the dice and ignore the answer. The sheet disables only
+ * the tile that was clicked and none of these windows is modal, so a student
+ * with one action could open two, roll both, and get both results for one
+ * action - and with more windows, keep every roll's Hope while the spend was
+ * refused. Charging before the roll makes the second window stop at "not
+ * enough actions", and a closed roll window gets its action back here -
+ * except Analyze's, which pays a price chain and gives back the step that
+ * paid through `refundPrice` (T-1).
+ *
+ * `paid` is the receipt `spendAction` handed back - null for an action that
+ * cost nothing - so a Burst that paid comes back as a Burst (trap 98). A
+ * window closed AFTER one of the action's own rolls has landed does not come
+ * here: that is `spentAfterRoll`, below, and the action stays spent (ROLL-05).
  */
-async function abort(actor, paid, { rolled = false } = {}) {
-    if (!paid) return null;
-    if (rolled) ui.notifications.info(game.i18n.localize("DRPG.Actions.keptAfterRoll"));
-    else await refundAction(actor, paid.amount, paid);
+async function abort(actor, paid) {
+    if (paid) await refundAction(actor, paid.amount, paid);
+    return null;
+}
+
+/**
+ * A later roll of the same action closed unanswered, after an earlier roll of
+ * it already landed. The action stays spent (ROLL-05): the first roll paid
+ * out its Hope, its Despair to the Monokuma, and refunding here made a free
+ * generator of "throw the supporting roll, cancel the main one, repeat".
+ * The first dialog of an action is the one a player may still back out of.
+ */
+async function spentAfterRoll(actor, def) {
+    ui.notifications.warn(game.i18n.format("DRPG.Action.spentAfterRoll", { action: def?.label ?? "" }));
     return null;
 }
 
@@ -1015,6 +1128,349 @@ function canAfford(actor, cost) {
 /* ==========================================================================
  * SEARCH
  * ========================================================================== */
+
+/** The stash a Search rifles first, if the room holds one with anything in it. */
+function stashToSearch(actor, room, { stashesIn, stashItemsIn }) {
+    /*
+     * WHICH STASH A SEARCH FINDS, when the room holds more than one.
+     *
+     * Open ones first, then hidden - and within that, the first with anything
+     * in it. Two reasons for that order rather than, say, the richest or a
+     * random pick: a search that turns up the unhidden drawer before the
+     * hiding place is what anybody would expect of a room, and it keeps the
+     * concealment penalty honest. Penalising a roll for a hidden stash while
+     * handing over an open one in the same room would charge for a difficulty
+     * the search never actually met.
+     *
+     * Your own is skipped: you do not search a room to find your own drawer.
+     */
+    const inRoom = stashesIn(room).filter(entry => entry.actorId !== actor.id);
+    const ordered = [...inRoom.filter(e => !e.concealed), ...inRoom.filter(e => e.concealed)];
+
+    let stashOwner = null;
+    let stashLoot = [];
+    let stashConcealed = false;
+    for (const entry of ordered) {
+        const owner = game.actors.get(entry.actorId);
+        if (!owner) continue;
+        const loot = stashItemsIn(owner, room);
+        if (!loot.length) continue;
+        stashOwner = owner;
+        stashLoot = loot;
+        stashConcealed = entry.concealed;
+        break;
+    }
+    return { stashOwner, stashLoot, stashConcealed };
+}
+
+/** The token was refused: an empty room, or nobody there to answer. Which one decides what the player keeps. */
+async function searchUnclaimed(actor, def, roll, { room, category, goalKey, paid }) {
+    // WHY the token was refused decides what the player is told and whether
+    // they keep the action.
+    //
+    // `spend()` answers false for two completely different things: the room
+    // really is empty, and nobody was there to say. A player's spend is a
+    // socket round trip to the GMs, so no GM connected - or one that did not
+    // answer inside five seconds, which a hosted server makes ordinary - came
+    // back as a flat false and was reported as "somebody got here first, 0
+    // tokens left" on a room that still had all three. The action went with
+    // it.
+    //
+    // The counter itself tells them apart. It is authoritative on this point
+    // and, on the unanswered path, uncached: nothing wrote a fresh count,
+    // so this reads the world setting.
+    //
+    // Only the genuinely-empty branch keeps charging. That is the branch the
+    // charge was introduced for - "a room they knew was empty" is the Hope
+    // generator, and it still costs - while an unanswered request is the
+    // module failing the player, not the player gaming it.
+    const reallyEmpty = SearchTokens.left(room) <= 0;
+    // With the receipt the spend handed back, so a Burst returns as a Burst.
+    if (!reallyEmpty && paid) await refundAction(actor, paid.amount, paid);
+
+    // `claimed: false` is what a Reroll reads: a room that was never
+    // searched is not searched by rerolling the dice (ROLL-02).
+    await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null, claimed: false });
+    await report(actor, def, roll, {
+        text: game.i18n.localize(reallyEmpty
+            ? "DRPG.SearchTokens.pickedClean"
+            : "DRPG.SearchTokens.timeout"),
+        room, tokensLeft: SearchTokens.left(room)
+    });
+    return { success: false, exhausted: reallyEmpty, unanswered: !reallyEmpty };
+}
+
+// "Something specific" is the one goal no table can answer. The roll still
+// happens - and the tier it reaches is exactly the information the GM needs
+// to decide what was really there - so the result goes to them with the
+// player's own description attached.
+async function searchSpecific(actor, def, roll, { room, category, request, tier, hit, paid }) {
+    await callGm(actor, {
+        title: def.label,
+        request,
+        roll,
+        room,
+        // "Create an item" leaves this card open on purpose - the other two
+        // answers stay reachable if the editor is cancelled - and the card
+        // says so, because a button that does not close its card looks
+        // broken to anyone who does not know that (audit E11).
+        gmBody: `<p>${hit || roll.isCritical
+            ? game.i18n.format("DRPG.Action.specificFound", { tier })
+            : game.i18n.localize("DRPG.Action.specificNothing")} <em>${
+            game.i18n.localize("DRPG.Bridge.createItemStays")}</em></p>`,
+        // Three answers, because those are the three a GM actually gives to
+        // "I am looking for X": it exists and I will make it, it exists
+        // already and here it is, or there is none. Each opens the window
+        // that does the thing with everything the card already knows filled
+        // in - see `runCallAction`.
+        //
+        // Lowercase data keys only: `dataset` lowercases everything, so a
+        // `tierWanted` would come back as `tierwanted` and read undefined.
+        actions: [
+            {
+                action: "createItem",
+                label: game.i18n.localize("DRPG.Bridge.createItem"),
+                data: {
+                    by: actor.id, category, tier: String(tier),
+                    room: room ?? "", want: request ?? ""
+                }
+            },
+            {
+                action: "giveItem",
+                label: game.i18n.localize("DRPG.Bridge.giveItem"),
+                data: { by: actor.id }
+            },
+            declineAction(actor, paid)
+        ]
+    });
+
+    // Ruled by a human, so Reroll can only re-ask - see reroll.mjs.
+    await noteRollContext(actor, {
+        actionKey: "search", goal: "specific", gmRuled: true,
+        label: def.label, room, request
+    });
+
+    await report(actor, def, roll, {
+        success: Boolean(hit) || roll.isCritical,
+        text: game.i18n.localize("DRPG.Action.specificSent"),
+        room, tokensLeft: SearchTokens.left(room)
+    });
+    return { calledGm: true, roll, tier, request };
+}
+
+/** A miss: recorded for Reroll, sounded, and reported as the action's own failure line. */
+async function searchNothing(actor, def, roll, { room, category, goalKey }) {
+    await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null });
+
+    /*
+     * THE ONE COMMON FAILURE IN THIS GAME THAT WAS COMPLETELY SILENT.
+     *
+     * A Search that finds nothing still costs an action and still burns one
+     * of the room's three tokens, and until now the only sign of either was
+     * a card saying so. Local, on the searcher's client: this branch runs
+     * where the roll was made.
+     *
+     * The two other ways a Search ends nothing are deliberately NOT here. A
+     * critical is not a failure, and a "something specific" request has gone
+     * to a GM rather than come up empty - that one is waiting, not lost.
+     */
+    playSfx("searchNothing");
+
+    await report(actor, def, roll, { text: def.failure, room, tokensLeft: SearchTokens.left(room) });
+    return { success: false };
+}
+
+// Somebody else's stash is searched before the room is.
+//
+// The guide's stash is a place things are hidden IN a room, so a successful
+// search finds what is hidden there first and only falls through to the
+// room's own contents once the stash is empty. Nothing is drawn for a stash
+// - the loot is whatever its owner actually put in it, which is what makes
+// rifling through one worth the action.
+async function searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot }) {
+    const { requestVaultSteal } = await import("./gm-bridge.mjs");
+
+    // The declaration still counts. Somebody rummaging for a weapon who
+    // finds the hiding place should come out with the weapon if there is
+    // one in there - and with whatever else is in there if not, because
+    // finding the stash at all is the win.
+    const wanted = stashLoot.filter(i =>
+        i.getFlag(MODULE_ID, "category") === category);
+    const pool = wanted.length ? wanted : stashLoot;
+    const taken = pool[Math.floor(Math.random() * pool.length)];
+
+    // `viaSearch`: this is the route that PAYS for a concealed stash - an
+    // action, a search token, and the -1 applied above. Without it the GM
+    // side refuses every concealed stash outright, which made beating the
+    // concealment worth nothing at all. See `stealFromVault`.
+    const got = await requestVaultSteal({
+        thiefId: actor.id, ownerId: stashOwner.id, itemId: taken.id, viaSearch: true,
+        // WAS THE HAND STEADY. The catalogue has said since E5 that `stolen`
+        // is "heard by the victim, and only when the thief was clumsy enough
+        // to be noticed", and there was no clumsiness in the code to read.
+        // This is it, and it is the same test every other fumble in the
+        // module uses: Despair, and a critical is never clumsy.
+        clumsy: Boolean(roll.withFear) && !roll.isCritical
+    });
+
+    await noteRollContext(actor, {
+        actionKey: "search", room, category, goal: goalKey, tier, fromVault: true
+    });
+    // Palm's rule (ROLL-10): the card names what came out only when this
+    // client SAW it come out. A player's request is answered on the GM's
+    // side and can still be refused there (hands full, a rule), and the
+    // old card had already told them "you find {item}".
+    const text = got && !got.pending && got.name
+        ? game.i18n.format("DRPG.Vault.foundInStash", { item: foundry.utils.escapeHTML(got.name) })
+        : got === null
+            ? game.i18n.localize("DRPG.Vault.foundStashNothing")
+            : game.i18n.localize("DRPG.Vault.foundStashPending");
+    await report(actor, def, roll, {
+        success: true, text, room, tokensLeft: SearchTokens.left(room)
+    });
+    return { success: true, roll, tier, fromVault: true };
+}
+
+    /*
+     * SOMEBODY LEFT SOMETHING HERE - E21, traps 165 and 166.
+     *
+     * Dawid, 28.08: if a player plants an item as an indirect murder project,
+     * the FIRST search in that room always pulls out the planted item, whatever
+     * the player was looking for.
+     *
+     * Without it the fifth trigger does not exist. The trap rides an object and
+     * the object is lying in a room where it might not be found for three
+     * sessions or ever, because a Search draws from the room's pool and the
+     * chance of hitting that one thing gets worse the better stocked the room
+     * is. The killer would be paying a project's full price for a lottery
+     * ticket - which is not tension, it is a raffle.
+     *
+     * INSTEAD OF THE DRAW, NEVER ADDED TO IT (trap 165). Dropping the plant
+     * into the room's table would make it likely rather than certain.
+     *
+     * AND DOWN THE `substitute` PATH, which the module has had since v1.1.33
+     * for "the room had none of what you asked for and gave you this instead"
+     * (trap 166). Same sentence, same token, same everything. A planted-item
+     * card that differed by so much as a comma would teach the table the
+     * difference inside three sessions, and then the best defence against an
+     * indirect murder would be reading your own chat more carefully than the
+     * fiction.
+     *
+     * The GM decided this, not us - a player's client is never told a room has
+     * something waiting in it until the item is in their hands. Asked HERE, past
+     * every way a Search can end without finding anything: `performSearch` comes
+     * this far only once a failure, a request sent to a GM and a stash find have
+     * all returned, and each of those leaves the plant in the room (ACT-03).
+     */
+async function searchDraw(room, category, tier, goalKey) {
+    const plant = await SearchTokens.takePlant(room);
+
+    return plant
+        ? {
+            name: plant.name,
+            img: plant.img ?? null,
+            description: plant.description ?? "",
+            roles: plant.roles ?? [],
+            // The one thing that makes the card read like an ordinary
+            // unexpected find rather than an announcement.
+            substitute: true,
+            identity: plant.drpgItemId
+        }
+        : await drawItem(category, tier, { goal: goalKey, room });
+}
+
+    // The item actually goes into the inventory, subject to the carry limits.
+async function grantDrawn(actor, drawn, { category, tier, goalKey }) {
+    let granted = null;
+    if (drawn?.name) {
+        const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
+        // The icon and the sentence the GM wrote on the table entry travel with
+        // it - see `drawItem`. Both are `null` for a built-in pool, which is
+        // exactly what `grantItem` already treats as "use the category icon and
+        // the tier line".
+        granted = await grantItem(actor, {
+            name: drawn.name, category, tier, goal: goalKey,
+            img: drawn.img ?? null, description: drawn.description ?? "",
+            // What else it can do, from the table entry it came out of.
+            roles: drawn.roles ?? [],
+            // A planted item arrives with its identity already minted by the
+            // GM, and it has to keep it: the GM's ledger was written against
+            // that name the moment the thing was planted, and an item that is
+            // renamed on the way into somebody's bag is an item the trap will
+            // never recognise again.
+            ...(drawn.identity ? { extraFlags: { [ITEM_FLAGS.identity]: drawn.identity } } : {})
+        });
+    }
+    return granted;
+}
+
+    /*
+     * THE TRACE FOLLOWS WHAT WAS FOUND, NOT WHAT WAS ASKED FOR.
+     *
+     * This read `category !== "usable"`, which was the same answer as the rule
+     * below for as long as the only non-usable things you could ask for were a
+     * crime tool and a cleaning tool. Adding "something to work with" broke it
+     * in both directions at once, and neither was acceptable: counting `tool`
+     * as incriminating buries the investigation under a trace for every hunt
+     * for a screwdriver, while exempting it opens a door - from tier 2 half the
+     * tools ARE weapons, so a killer asking for "something to work with" would
+     * walk out with a crowbar and no trace.
+     *
+     * By the time this runs the dice have settled and the item is known, so the
+     * question can be asked about the object instead of the intention. A trace
+     * is physical evidence of having handled a THING; it has never been
+     * evidence of what you meant. That makes this the more honest rule as well
+     * as the only workable one.
+     *
+     * Read off `category` plus the roles the table entry declared, rather than
+     * off the granted Item: the carry limit can refuse to grant it, and picking
+     * something up and finding you cannot hold it still means you touched it.
+     */
+async function leaveSearchTrace(actor, def, roll, { hit, category, drawn, granted, room, tier }) {
+    const leaves = leavesTraceFor(category, drawn?.roles);
+    const visibility = roll.isCritical ? def.critical?.remnant : hit?.remnant;
+
+    let placed = null;
+    let leftTrace = false;
+    if (leaves && visibility) {
+        const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
+        const catLabel = ITEM_CATEGORIES[category]?.label ?? category;
+        placed = await dropRemnant(actor, {
+            type: "prep",
+            visibility,
+            faint: true,
+            /*
+             * NOT TIED BY CATEGORY ANY MORE (Dawid, 28.08).
+             *
+             * This used to say `true` because the thing found was crime or
+             * cleaning gear - a fact about the category, not about the chapter.
+             * A penknife nobody picked up again sat at the top of the case
+             * dashboard's murder-first sort beside the knife out of the body.
+             *
+             * What ties this trace is the object being USED, which nobody can
+             * know yet. So the trace remembers WHICH object it handed over and
+             * `tieTraceForItem` comes back for it the moment that object is
+             * swung. Left `null` rather than `false`: the incident rule in
+             * `placeRemnant` still gets to say yes if this Search is happening
+             * in the middle of one.
+             */
+            tiedToCrime: null,
+            itemIdentity: granted?.getFlag?.(MODULE_ID, "drpgItemId") ?? null,
+            action: "search",
+            subject: drawn?.name ?? "",
+            note: game.i18n.format("DRPG.Remnant.searchNote", {
+                actor: actor.name,
+                room: room ?? "?",
+                category: catLabel,
+                item: drawn?.name ?? "?",
+                tier,
+                total: roll.total
+            })
+        });
+        leftTrace = traceFeedback(roll, placed);
+    }
+    return { placed, leftTrace };
+}
 
 async function performSearch(actor, def, options) {
     const cost = options.free ? 0 : def.cost;
@@ -1057,35 +1513,7 @@ async function performSearch(actor, def, options) {
     const { favoursCategory, hindersCategory, stashesIn, stashItemsIn } =
         await import("./vault.mjs");
 
-    /*
-     * WHICH STASH A SEARCH FINDS, when the room holds more than one.
-     *
-     * Open ones first, then hidden - and within that, the first with anything
-     * in it. Two reasons for that order rather than, say, the richest or a
-     * random pick: a search that turns up the unhidden drawer before the
-     * hiding place is what anybody would expect of a room, and it keeps the
-     * concealment penalty honest. Penalising a roll for a hidden stash while
-     * handing over an open one in the same room would charge for a difficulty
-     * the search never actually met.
-     *
-     * Your own is skipped: you do not search a room to find your own drawer.
-     */
-    const inRoom = stashesIn(room).filter(entry => entry.actorId !== actor.id);
-    const ordered = [...inRoom.filter(e => !e.concealed), ...inRoom.filter(e => e.concealed)];
-
-    let stashOwner = null;
-    let stashLoot = [];
-    let stashConcealed = false;
-    for (const entry of ordered) {
-        const owner = game.actors.get(entry.actorId);
-        if (!owner) continue;
-        const loot = stashItemsIn(owner, room);
-        if (!loot.length) continue;
-        stashOwner = owner;
-        stashLoot = loot;
-        stashConcealed = entry.concealed;
-        break;
-    }
+    const { stashOwner, stashLoot, stashConcealed } = stashToSearch(actor, room, { stashesIn, stashItemsIn });
 
     let situational = 0;
     if (favoursCategory(room, category)) situational += 1;
@@ -1110,6 +1538,7 @@ async function performSearch(actor, def, options) {
     try {
         roll = await rollTrait(actor, trait, {
             actionKey: "search",
+            dc: (def.thresholds ?? []).map(t => t.min).join(" / "),
             // Recorded before anything can bail out below, so a Reroll always
             // knows what was being looked for and where.
             context: { room, category, goal: goalKey, request }
@@ -1137,300 +1566,21 @@ async function performSearch(actor, def, options) {
     // Paying for it is also just what happened in the fiction. They searched a
     // room somebody else had already picked clean.
 
-    if (!claimed) {
-        // WHY the token was refused decides what the player is told and whether
-        // they keep the action.
-        //
-        // `spend()` answers false for two completely different things: the room
-        // really is empty, and nobody was there to say. A player's spend is a
-        // socket round trip to the GMs, so no GM connected - or one that did not
-        // answer inside five seconds, which a hosted server makes ordinary - came
-        // back as a flat false and was reported as "somebody got here first, 0
-        // tokens left" on a room that still had all three. The action went with
-        // it.
-        //
-        // The counter itself tells them apart. It is authoritative on this point
-        // and, on the unanswered path, uncached: nothing wrote a fresh count,
-        // so this reads the world setting.
-        //
-        // Only the genuinely-empty branch keeps charging. That is the branch the
-        // charge was introduced for - "a room they knew was empty" is the Hope
-        // generator, and it still costs - while an unanswered request is the
-        // module failing the player, not the player gaming it.
-        const reallyEmpty = SearchTokens.left(room) <= 0;
-        if (!reallyEmpty && paid) await refundAction(actor, cost, paid);
-
-        await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null });
-        await report(actor, def, roll, {
-            text: game.i18n.localize(reallyEmpty
-                ? "DRPG.SearchTokens.pickedClean"
-                : "DRPG.SearchTokens.timeout"),
-            room, tokensLeft: SearchTokens.left(room)
-        });
-        return { success: false, exhausted: reallyEmpty, unanswered: !reallyEmpty };
-    }
+    if (!claimed) return searchUnclaimed(actor, def, roll, { room, category, goalKey, paid });
 
     const hit = resolveThreshold(roll.total, def.thresholds);
     const baseTier = hit?.tier ?? 0;
     const tier = roll.isCritical ? Math.min(3, baseTier + (def.critical?.tierBonus ?? 1)) : baseTier;
 
-    // "Something specific" is the one goal no table can answer. The roll still
-    // happens - and the tier it reaches is exactly the information the GM needs
-    // to decide what was really there - so the result goes to them with the
-    // player's own description attached.
-    if (goalKey === "specific") {
-        await callGm(actor, {
-            title: def.label,
-            request,
-            roll,
-            room,
-            // "Create an item" leaves this card open on purpose - the other two
-            // answers stay reachable if the editor is cancelled - and the card
-            // says so, because a button that does not close its card looks
-            // broken to anyone who does not know that (audit E11).
-            body: `${hit || roll.isCritical
-                ? game.i18n.format("DRPG.Action.specificFound", { tier })
-                : game.i18n.localize("DRPG.Action.specificNothing")} <em>${
-                game.i18n.localize("DRPG.Bridge.createItemStays")}</em>`,
-            // Three answers, because those are the three a GM actually gives to
-            // "I am looking for X": it exists and I will make it, it exists
-            // already and here it is, or there is none. Each opens the window
-            // that does the thing with everything the card already knows filled
-            // in - see `runCallAction`.
-            //
-            // Lowercase data keys only: `dataset` lowercases everything, so a
-            // `tierWanted` would come back as `tierwanted` and read undefined.
-            actions: [
-                {
-                    action: "createItem",
-                    label: game.i18n.localize("DRPG.Bridge.createItem"),
-                    data: {
-                        by: actor.id, category, tier: String(tier),
-                        room: room ?? "", want: request ?? ""
-                    }
-                },
-                {
-                    action: "giveItem",
-                    label: game.i18n.localize("DRPG.Bridge.giveItem"),
-                    data: { by: actor.id }
-                },
-                declineAction(actor, paid)
-            ]
-        });
+    if (goalKey === "specific") return searchSpecific(actor, def, roll, { room, category, request, tier, hit, paid });
 
-        // Ruled by a human, so Reroll can only re-ask - see reroll.mjs.
-        await noteRollContext(actor, {
-            actionKey: "search", goal: "specific", gmRuled: true,
-            label: def.label, room, request
-        });
+    if (!hit && !roll.isCritical) return searchNothing(actor, def, roll, { room, category, goalKey });
 
-        await report(actor, def, roll, {
-            success: Boolean(hit) || roll.isCritical,
-            text: game.i18n.localize("DRPG.Action.specificSent"),
-            room, tokensLeft: SearchTokens.left(room)
-        });
-        return { calledGm: true, roll, tier, request };
-    }
+    if (stashLoot.length) return searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot });
 
-    if (!hit && !roll.isCritical) {
-        await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null });
-
-        /*
-         * THE ONE COMMON FAILURE IN THIS GAME THAT WAS COMPLETELY SILENT.
-         *
-         * A Search that finds nothing still costs an action and still burns one
-         * of the room's three tokens, and until now the only sign of either was
-         * a card saying so. Local, on the searcher's client: this branch runs
-         * where the roll was made.
-         *
-         * The two other ways a Search ends nothing are deliberately NOT here. A
-         * critical is not a failure, and a "something specific" request has gone
-         * to a GM rather than come up empty - that one is waiting, not lost.
-         */
-        playSfx("searchNothing");
-
-        await report(actor, def, roll, { text: def.failure, room, tokensLeft: SearchTokens.left(room) });
-        return { success: false };
-    }
-
-    // Somebody else's stash is searched before the room is.
-    //
-    // The guide's stash is a place things are hidden IN a room, so a successful
-    // search finds what is hidden there first and only falls through to the
-    // room's own contents once the stash is empty. Nothing is drawn for a stash
-    // - the loot is whatever its owner actually put in it, which is what makes
-    // rifling through one worth the action.
-    if (stashLoot.length) {
-        const { requestVaultSteal } = await import("./gm-bridge.mjs");
-
-        // The declaration still counts. Somebody rummaging for a weapon who
-        // finds the hiding place should come out with the weapon if there is
-        // one in there - and with whatever else is in there if not, because
-        // finding the stash at all is the win.
-        const wanted = stashLoot.filter(i =>
-            i.getFlag(MODULE_ID, "category") === category);
-        const pool = wanted.length ? wanted : stashLoot;
-        const taken = pool[Math.floor(Math.random() * pool.length)];
-
-        // `viaSearch`: this is the route that PAYS for a concealed stash - an
-        // action, a search token, and the -1 applied above. Without it the GM
-        // side refuses every concealed stash outright, which made beating the
-        // concealment worth nothing at all. See `stealFromVault`.
-        await requestVaultSteal({
-            thiefId: actor.id, ownerId: stashOwner.id, itemId: taken.id, viaSearch: true,
-            // WAS THE HAND STEADY. The catalogue has said since E5 that `stolen`
-            // is "heard by the victim, and only when the thief was clumsy enough
-            // to be noticed", and there was no clumsiness in the code to read.
-            // This is it, and it is the same test every other fumble in the
-            // module uses: Despair, and a critical is never clumsy.
-            clumsy: Boolean(roll.withFear) && !roll.isCritical
-        });
-
-        await noteRollContext(actor, {
-            actionKey: "search", room, category, goal: goalKey, tier, fromVault: true
-        });
-        await report(actor, def, roll, {
-            success: true,
-            text: game.i18n.format("DRPG.Vault.foundInStash", {
-                item: foundry.utils.escapeHTML(taken.name)
-            }),
-            room, tokensLeft: SearchTokens.left(room)
-        });
-        return { success: true, roll, tier, fromVault: true };
-    }
-
-    /*
-     * SOMEBODY LEFT SOMETHING HERE - E21, traps 165 and 166.
-     *
-     * Dawid, 28.08: if a player plants an item as an indirect murder project,
-     * the FIRST search in that room always pulls out the planted item, whatever
-     * the player was looking for.
-     *
-     * Without it the fifth trigger does not exist. The trap rides an object and
-     * the object is lying in a room where it might not be found for three
-     * sessions or ever, because a Search draws from the room's pool and the
-     * chance of hitting that one thing gets worse the better stocked the room
-     * is. The killer would be paying a project's full price for a lottery
-     * ticket - which is not tension, it is a raffle.
-     *
-     * INSTEAD OF THE DRAW, NEVER ADDED TO IT (trap 165). Dropping the plant
-     * into the room's table would make it likely rather than certain.
-     *
-     * AND DOWN THE `substitute` PATH, which the module has had since v1.1.33
-     * for "the room had none of what you asked for and gave you this instead"
-     * (trap 166). Same sentence, same token, same everything. A planted-item
-     * card that differed by so much as a comma would teach the table the
-     * difference inside three sessions, and then the best defence against an
-     * indirect murder would be reading your own chat more carefully than the
-     * fiction.
-     *
-     * The GM decided this, not us - a player's client is never told a room has
-     * something waiting in it until the item is in their hands. Asked HERE, past
-     * every way a Search can end without finding anything: a failure, a request
-     * sent to a GM and a stash find all leave the plant in the room (ACT-03).
-     */
-    const plant = await SearchTokens.takePlant(room);
-
-    const drawn = plant
-        ? {
-            name: plant.name,
-            img: plant.img ?? null,
-            description: plant.description ?? "",
-            roles: plant.roles ?? [],
-            // The one thing that makes the card read like an ordinary
-            // unexpected find rather than an announcement.
-            substitute: true,
-            identity: plant.drpgItemId
-        }
-        : await drawItem(category, tier, { goal: goalKey, room });
-
-    // The item actually goes into the inventory, subject to the carry limits.
-    let granted = null;
-    if (drawn?.name) {
-        const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
-        // The icon and the sentence the GM wrote on the table entry travel with
-        // it - see `drawItem`. Both are `null` for a built-in pool, which is
-        // exactly what `grantItem` already treats as "use the category icon and
-        // the tier line".
-        granted = await grantItem(actor, {
-            name: drawn.name, category, tier, goal: goalKey,
-            img: drawn.img ?? null, description: drawn.description ?? "",
-            // What else it can do, from the table entry it came out of.
-            roles: drawn.roles ?? [],
-            // A planted item arrives with its identity already minted by the
-            // GM, and it has to keep it: the GM's ledger was written against
-            // that name the moment the thing was planted, and an item that is
-            // renamed on the way into somebody's bag is an item the trap will
-            // never recognise again.
-            ...(drawn.identity ? { extraFlags: { [ITEM_FLAGS.identity]: drawn.identity } } : {})
-        });
-    }
-
-    /*
-     * THE TRACE FOLLOWS WHAT WAS FOUND, NOT WHAT WAS ASKED FOR.
-     *
-     * This read `category !== "usable"`, which was the same answer as the rule
-     * below for as long as the only non-usable things you could ask for were a
-     * crime tool and a cleaning tool. Adding "something to work with" broke it
-     * in both directions at once, and neither was acceptable: counting `tool`
-     * as incriminating buries the investigation under a trace for every hunt
-     * for a screwdriver, while exempting it opens a door - from tier 2 half the
-     * tools ARE weapons, so a killer asking for "something to work with" would
-     * walk out with a crowbar and no trace.
-     *
-     * By the time this runs the dice have settled and the item is known, so the
-     * question can be asked about the object instead of the intention. A trace
-     * is physical evidence of having handled a THING; it has never been
-     * evidence of what you meant. That makes this the more honest rule as well
-     * as the only workable one.
-     *
-     * Read off `category` plus the roles the table entry declared, rather than
-     * off the granted Item: the carry limit can refuse to grant it, and picking
-     * something up and finding you cannot hold it still means you touched it.
-     */
-    const roles = new Set([category, ...(drawn?.roles ?? [])]);
-    const leaves = roles.has("crimeTool") || roles.has("cleaningTool");
-    const visibility = roll.isCritical ? def.critical?.remnant : hit?.remnant;
-
-    let placed = null;
-    let leftTrace = false;
-    if (leaves && visibility) {
-        const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
-        const catLabel = ITEM_CATEGORIES[category]?.label ?? category;
-        placed = await dropRemnant(actor, {
-            type: "prep",
-            visibility,
-            faint: true,
-            /*
-             * NOT TIED BY CATEGORY ANY MORE (Dawid, 28.08).
-             *
-             * This used to say `true` because the thing found was crime or
-             * cleaning gear - a fact about the category, not about the chapter.
-             * A penknife nobody picked up again sat at the top of the case
-             * dashboard's murder-first sort beside the knife out of the body.
-             *
-             * What ties this trace is the object being USED, which nobody can
-             * know yet. So the trace remembers WHICH object it handed over and
-             * `tieTraceForItem` comes back for it the moment that object is
-             * swung. Left `null` rather than `false`: the incident rule in
-             * `placeRemnant` still gets to say yes if this Search is happening
-             * in the middle of one.
-             */
-            tiedToCrime: null,
-            itemIdentity: granted?.getFlag?.(MODULE_ID, "drpgItemId") ?? null,
-            action: "search",
-            subject: drawn?.name ?? "",
-            note: game.i18n.format("DRPG.Remnant.searchNote", {
-                actor: actor.name,
-                room: room ?? "?",
-                category: catLabel,
-                item: drawn?.name ?? "?",
-                tier,
-                total: roll.total
-            })
-        });
-        leftTrace = traceFeedback(roll, placed);
-    }
+    const drawn = await searchDraw(room, category, tier, goalKey);
+    const granted = await grantDrawn(actor, drawn, { category, tier, goalKey });
+    const { placed, leftTrace } = await leaveSearchTrace(actor, def, roll, { hit, category, drawn, granted, room, tier });
 
     const outcome = {
         success: true, tier, category,
@@ -1525,45 +1675,6 @@ async function performSearch(actor, def, options) {
  * actions changes: the roll still happens where it happened, the card still
  * carries the same three parts.
  * ========================================================================== */
-
-/**
- * The one window Think, Listen and their kin open before the dice: the
- * briefing, the trait (when there is a choice) and the box for what you are
- * actually trying to do.
- *
- * ALWAYS OPENS, even when the action has a single trait and nothing to pick -
- * `chooseTrait` short-circuits in that case, and short-circuiting past this
- * window would take the sentence with it.
- */
-async function askTraitAndRequest(actor, actionKey, def) {
-    const traits = def.traits ?? [];
-
-    const picked = await DialogV2.wait({
-        window: { title: def.label },
-        classes: ["drpg-panel"],
-        content: dialogContent(`${briefingBlock(actor, actionKey, def)}<form>
-            ${requestFieldHtml({
-                prompt: game.i18n.format("DRPG.Action.gmPrompt", { action: def.label }),
-                placeholder: game.i18n.localize(`DRPG.Action.placeholder.${actionKey}`)
-            })}
-            ${traits.length ? traitFieldHtml(actor, traits) : ""}
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Action.roll"), default: true,
-                callback: (e, b, d) => ({
-                    trait: traits.length ? readTraitField(d.element, traits) : null,
-                    request: readRequestField(d.element)
-                })
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
-    });
-
-    if (!picked || picked === "cancel") return null;
-    return picked;
-}
 
 /** The textarea, with whatever prompt the action wants above it. */
 function requestFieldHtml({ prompt, placeholder, optional = true }) {
@@ -1737,6 +1848,8 @@ async function performProject(actor, def, options) {
     // here to push - the reason is the useful half of the answer, and a player
     // who cannot see the option cannot tell whether they are in the wrong room
     // or the module has forgotten the project exists.
+    // The trait field serves both rows: a project to push and one to break are
+    // both "a project whose statistic may be open".
     const traitOptions = openTraits(here, def);
 
     /*
@@ -1760,6 +1873,9 @@ async function performProject(actor, def, options) {
     const { isMonokuma } = await import("./monokuma.mjs");
     const { sabotageTargetsIn } = await import("./projects.mjs");
     const breakable = sabotageTargetsIn(room, { anyRoom: isMonokuma(actor) });
+    if (!traitOptions.length && openTraits(breakable, ACTIONS.sabotage).length) {
+        traitOptions.push(...ACTIONS.sabotage.traits);
+    }
 
     const picked = await chooseVariant({
         actor,
@@ -1790,21 +1906,32 @@ async function performProject(actor, def, options) {
                 why: game.i18n.localize("DRPG.Project.nothingToSabotage")
             }
         ],
-        extra: here.length
+        // Both targets ride along (ROLL-12): which project to push, and which
+        // to break. Sabotage used to open a second window that asked for the
+        // same two things this one already showed.
+        extra: `${here.length
             ? `<label class="drpg-specific-note">
                 <span>${game.i18n.localize("DRPG.Project.whichWork")}</span>
                 <select name="project">${projectOptionsHtml(here)}</select>
             </label>`
-            : ""
+            : ""}${breakable.length
+            ? `<label class="drpg-specific-note">
+                <span>${game.i18n.localize("DRPG.Project.whichSabotage")}</span>
+                <select name="sabotage">${projectOptionsHtml(breakable)}</select>
+            </label>`
+            : ""}`
     });
 
     if (!picked) return null;
     if (picked.value === "start") return startProject(actor);
-    // Straight through to the action it always was - its own dialog, its own
-    // concealment roll, its own trace. Nothing about `performSabotage` changed;
-    // only the door into it did.
+    // Straight through to the action it always was - its own concealment roll,
+    // its own trace - with the target and the statistic read off THIS window.
     if (picked.value === "sabotage") {
-        return performSabotage(actor, ACTIONS.sabotage, options);
+        const target = breakable.find(pr => pr.id === picked.form?.querySelector("[name=sabotage]")?.value)
+            ?? breakable[0];
+        const trait = resolveProjectTrait(target, picked.trait, ACTIONS.sabotage.traits ?? []);
+        if (!trait) return null;
+        return performSabotage(actor, ACTIONS.sabotage, options, { project: target, trait });
     }
 
     // The window is closed by now, but `chooseVariant` hands back the form it
@@ -1912,7 +2039,6 @@ async function startProject(actor) {
     // anything before it lands. Nothing exists in the world until they do.
     const scaleLabel = Object.values(PROJECT_SCALE)
         .find(s => s.progress === result.target)?.label ?? `${result.target}`;
-    const esc = foundry.utils.escapeHTML;
 
     const summary = [
         `<strong>${esc(result.name)}</strong>`,
@@ -2017,7 +2143,6 @@ async function workOnProject(actor, def, options, chosen = null) {
     const indirect = isIndirectMurder(project.id);
     const witnesses = othersInRoom(actor);
     const lines = [];
-    let bonus = 0;
 
     // Pay before any dice are thrown.
     //
@@ -2029,26 +2154,9 @@ async function workOnProject(actor, def, options, chosen = null) {
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
 
-    // Guide: with someone else in the room, the killer must hide their intent
-    // first; alone, the project simply gains +1 progress.
-    if (indirect) {
-        if (witnesses.length) {
-            const conceal = await rollTrait(actor, INDIRECT_MURDER.concealIntent.trait,
-                { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
-            if (!conceal) return abort(actor, paid);
-            const ok = conceal.isCritical || conceal.total >= INDIRECT_MURDER.concealIntent.threshold;
-            lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> - ${conceal.total}: ${
-                ok ? (conceal.withFear
-                        ? INDIRECT_MURDER.concealIntent.successWithDespair
-                        : INDIRECT_MURDER.concealIntent.success)
-                   : INDIRECT_MURDER.concealIntent.failure
-            }</p>`);
-            if (ok && conceal.withFear) bonus += 1;
-        } else {
-            bonus += INDIRECT_MURDER.concealIntent.aloneBonus;
-            lines.push(`<p><em>${game.i18n.localize("DRPG.Project.aloneBonus")}</em></p>`);
-        }
-    }
+    const concealment = await concealProjectIntent(actor, { indirect, witnesses, paid, lines });
+    if ("exit" in concealment) return concealment.exit;
+    const { bonus, rolledAlready } = concealment;
 
     /*
      * A TOOL IN HAND IS WORTH A DIE (E8).
@@ -2078,6 +2186,7 @@ async function workOnProject(actor, def, options, chosen = null) {
         roll = await rollTrait(actor, trait, {
             actionKey: "project",
             title: game.i18n.localize(indirect ? "DRPG.Roll.murderProject" : "DRPG.Roll.project"),
+            dc: (def.thresholds ?? []).map(t => Math.max(0, t.min - relief)).join(" / "),
             context: { room: roomOfActor(actor), projectId: project.id, bonus, cost }
         });
     } finally {
@@ -2085,7 +2194,7 @@ async function workOnProject(actor, def, options, chosen = null) {
         // outlived its roll would attach itself to the next unrelated one.
         calls.clearSituational();
     }
-    if (!roll) return abort(actor, paid, { rolled: Boolean(indirect && witnesses.length) });
+    if (!roll) return rolledAlready ? spentAfterRoll(actor, def) : abort(actor, paid);
 
     await breakOnDespair(actor, tool, roll);
 
@@ -2110,10 +2219,11 @@ async function workOnProject(actor, def, options, chosen = null) {
     // indirect murder quietly lost its alone/Despair progress on every reroll.
     await noteRollContext(actor, {
         actionKey: "project", projectId: project.id, progress, bonus: earnedBonus,
-        room: roomOfActor(actor),
-        // The tool's relief, so a Reroll scores the new dice against the same
-        // bands this roll was scored against (ACT-11).
+        // What the readied tool took off the bands, so a Reroll scores the new
+        // dice against the same bands (ROLL-04). From here, never from the
+        // inventory at reroll time: the tool may have broken on this roll.
         relief,
+        room: roomOfActor(actor),
         // Whether the critical's free action has already been handed back, so a
         // reroll that loses the critical knows there is one to take away again.
         refunded: Boolean(hit?.refundAction && cost > 0),
@@ -2122,48 +2232,7 @@ async function workOnProject(actor, def, options, chosen = null) {
         burst: Boolean(paid?.grant)
     });
 
-    // Guide: every project action also rolls to hide the traces it leaves.
-    let traceLeftTrace = false;
-    if (indirect) {
-        const trace = await rollTrait(actor, INDIRECT_MURDER.hideTraces.trait,
-            { remember: false, title: game.i18n.localize("DRPG.Roll.hideTraces") });
-        if (trace) {
-            const band = trace.isCritical
-                ? INDIRECT_MURDER.hideTraces.critical
-                : resolveThreshold(trace.total, INDIRECT_MURDER.hideTraces.thresholds);
-            const traceRemnant = band?.remnant ?? "obvious";
-
-            const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
-            const placed = await dropRemnant(actor, {
-                type: "prep",
-                visibility: traceRemnant,
-                faint: true,
-                // THE EFFECT OF A PROJECT TIED TO THE MURDER is part of it
-                // (Dawid, 28.08). An indirect murder IS the murder, built in
-                // instalments, so the traces of building it are the traces of
-                // committing it. `null` for every other project, which leaves
-                // the incident rule free to answer.
-                tiedToCrime: project.indirectMurder ? true : null,
-                action: "project",
-                subject: project.name,
-                note: game.i18n.format("DRPG.Remnant.projectNote", {
-                    actor: actor.name,
-                    project: project.name,
-                    room: roomOfActor(actor) ?? "?",
-                    progress,
-                    total: trace.total
-                })
-            });
-            traceLeftTrace = traceFeedback(trace, placed);
-
-            // Just the score - never the band this rolled into (see
-            // `traceFeedback`). Whether anything is said about the trace
-            // itself is `report()`'s generic `outcome.leftTrace` line below,
-            // the same one every other action uses, so this does not print
-            // its own second copy of that sentence.
-            lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> - ${trace.total}</p>`);
-        }
-    }
+    const traceLeftTrace = indirect ? await hideProjectTraces(actor, project, progress, lines) : false;
 
     // A critical on a project hands the action back. Applied here, where the
     // action was spent, rather than inside `report()`.
@@ -2190,6 +2259,81 @@ async function workOnProject(actor, def, options, chosen = null) {
         actor, actionKey: "project", roll, outcome, projectId: project.id
     });
     return outcome;
+}
+
+// Guide: with someone else in the room, the killer must hide their intent
+// first; alone, the project simply gains +1 progress.
+async function concealProjectIntent(actor, { indirect, witnesses, paid, lines }) {
+    let bonus = 0;
+    let rolledAlready = false;
+    if (indirect) {
+        if (witnesses.length) {
+            const conceal = await rollTrait(actor, INDIRECT_MURDER.concealIntent.trait, {
+                remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent"),
+                dc: INDIRECT_MURDER.concealIntent.threshold
+            });
+            if (!conceal) return { exit: await abort(actor, paid) };
+            rolledAlready = true;
+            const ok = conceal.isCritical || conceal.total >= INDIRECT_MURDER.concealIntent.threshold;
+            lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> - ${conceal.total}: ${
+                ok ? (conceal.withFear
+                        ? INDIRECT_MURDER.concealIntent.successWithDespair
+                        : INDIRECT_MURDER.concealIntent.success)
+                   : INDIRECT_MURDER.concealIntent.failure
+            }</p>`);
+            if (ok && conceal.withFear) bonus += 1;
+        } else {
+            bonus += INDIRECT_MURDER.concealIntent.aloneBonus;
+            lines.push(`<p><em>${game.i18n.localize("DRPG.Project.aloneBonus")}</em></p>`);
+        }
+    }
+    return { bonus, rolledAlready };
+}
+
+    // Guide: every project action also rolls to hide the traces it leaves.
+async function hideProjectTraces(actor, project, progress, lines) {
+    let traceLeftTrace = false;
+    const trace = await rollTrait(actor, INDIRECT_MURDER.hideTraces.trait, {
+        remember: false, title: game.i18n.localize("DRPG.Roll.hideTraces"),
+        dc: (INDIRECT_MURDER.hideTraces.thresholds ?? []).map(t => t.min).filter(Boolean).join(" / ")
+    });
+    if (trace) {
+        const band = trace.isCritical
+            ? INDIRECT_MURDER.hideTraces.critical
+            : resolveThreshold(trace.total, INDIRECT_MURDER.hideTraces.thresholds);
+        const traceRemnant = band?.remnant ?? "obvious";
+
+        const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
+        const placed = await dropRemnant(actor, {
+            type: "prep",
+            visibility: traceRemnant,
+            faint: true,
+            // THE EFFECT OF A PROJECT TIED TO THE MURDER is part of it
+            // (Dawid, 28.08). An indirect murder IS the murder, built in
+            // instalments, so the traces of building it are the traces of
+            // committing it. `null` for every other project, which leaves
+            // the incident rule free to answer.
+            tiedToCrime: project.indirectMurder ? true : null,
+            action: "project",
+            subject: project.name,
+            note: game.i18n.format("DRPG.Remnant.projectNote", {
+                actor: actor.name,
+                project: project.name,
+                room: roomOfActor(actor) ?? "?",
+                progress,
+                total: trace.total
+            })
+        });
+        traceLeftTrace = traceFeedback(trace, placed);
+
+        // Just the score - never the band this rolled into (see
+        // `traceFeedback`). Whether anything is said about the trace
+        // itself is `report()`'s generic `outcome.leftTrace` line below,
+        // the same one every other action uses, so this does not print
+        // its own second copy of that sentence.
+        lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> - ${trace.total}</p>`);
+    }
+    return traceLeftTrace;
 }
 
 /**
@@ -2290,8 +2434,9 @@ async function chooseProjectAndTrait(list, promptKey, actor, def, { disableCompl
         window: { title: game.i18n.localize("DRPG.Project.title") },
         classes: ["drpg-panel"],
         // No briefing here: Work-on-Project already showed one on the window
-        // before this, and Sabotage's own path opens this dialog first. Repeating
-        // it would put the same three paragraphs on two consecutive windows.
+        // before this. Sabotage only reaches this dialog through the API's own
+        // door (the Projects window picks its target itself, ROLL-12), and that
+        // is when the briefing is shown.
         content: dialogContent(`${def === ACTIONS.sabotage ? briefingBlock(actor, "sabotage", def) : ""}<form>
             <label>${game.i18n.localize(promptKey)}
                 <select name="project">${projectOptions}</select></label>
@@ -2336,13 +2481,164 @@ async function chooseProjectAndTrait(list, promptKey, actor, def, { disableCompl
  * SABOTAGE
  * ========================================================================== */
 
-async function performSabotage(actor, def, options) {
+async function performSabotage(actor, def, options, preset = null) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
     const room = roomOfActor(actor);
     const { sabotageTargetsIn, sabotageProject } = await import("./projects.mjs");
 
+    const { targets, withheld } = await sabotageTargets(actor, room, { sabotageTargetsIn });
+
+    if (!targets.length) {
+        ui.notifications.warn(withheld.length
+            ? game.i18n.format("DRPG.Project.allSabotaged", {
+                  names: withheld.map(p => p.name).join(", ")
+              })
+            : game.i18n.localize("DRPG.Project.nothingToSabotage"));
+        return null;
+    }
+
+    if (withheld.length) {
+        ui.notifications.warn(game.i18n.format("DRPG.Project.someSabotaged", {
+            names: withheld.map(p => p.name).join(", ")
+        }));
+    }
+
+    // Breaking a thing takes the same kind of work as building it, so sabotage
+    // uses the project's own trait. The player does not get to pick an easier
+    // one than the people who built it had to use - the trait field in this
+    // same dialog only ever matters for a target that left it open, same as
+    // Work on Project. See chooseProjectAndTrait().
+    // Already chosen on the Projects window (ROLL-12) - as long as the target
+    // is still one that can be broken; the API's direct door still asks here.
+    const chosen = preset?.project && targets.some(p => p.id === preset.project.id) ? preset : null;
+    const picked = chosen ?? await chooseProjectAndTrait(targets, "DRPG.Project.whichSabotage", actor, def);
+    if (!picked) return null;
+    const { project, trait } = picked;
+
+    const witnesses = othersInRoom(actor);
+    const lines = [];
+
+    // Paid before the concealment roll, for the same reason as Work on Project:
+    // that roll grants Hope and feeds a Despair pool, and an uncharged cancel
+    // afterwards turned it into free resources.
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
+
+    const concealment = await concealSabotage(actor, { room, project, witnesses, paid, lines });
+    if ("exit" in concealment) return concealment.exit;
+    const { penalty, rolledAlready } = concealment;
+
+    // Sabotage is project work with the sign flipped, so the tool counts here
+    // too - the guide's own "including sabotage". `performSabotage` did not look
+    // at the inventory at all before this (trap 60), so it is armed here rather
+    // than assumed to arrive from the project path.
+    const { equippedFor, breakOnDespair, tierOf } = await import("./use-items.mjs");
+    const calls = await import("./call-effects.mjs");
+    const tool = equippedFor(actor, "tool");
+    if (tool) calls.armSituational(1);
+
+    // Project work with the sign flipped eases the same way.
+    const relief = toolRelief(tool, tierOf);
+    if (relief) {
+        lines.push(`<p><em>${game.i18n.format("DRPG.Project.toolRelief", {
+            item: tool.name, tier: relief
+        })}</em></p>`);
+    }
+
+    let roll;
+    try {
+        roll = await rollTrait(actor, trait, {
+            actionKey: "sabotage",
+            dc: (def.thresholds ?? []).map(t => Math.max(0, t.min - relief + penalty)).join(" / "),
+            context: { room, targetProjectId: project.id, penalty, witnesses: witnesses.length }
+        });
+    } finally {
+        calls.clearSituational();
+    }
+    if (!roll) return rolledAlready ? spentAfterRoll(actor, def) : abort(actor, paid);
+
+    await breakOnDespair(actor, tool, roll);
+
+    // `penalty` stays on the score and the relief stays on the bands: one is a
+    // modifier the roll earned, the other is a change to what it has to beat.
+    const score = roll.total + penalty;
+    const hit = roll.isCritical
+        ? def.critical
+        : resolveThreshold(score, easedBy(def.thresholds, relief));
+    const success = Boolean(hit);
+
+    // A successful sabotage freezes the project and spawns its repair. The
+    // better the roll, the harder the repair - the guide scales it from
+    // "simple" to "hidden-difficulty".
+    //
+    // `sabotageProject` now waits for the GM's client to confirm the freeze and
+    // the repair actually landed, rather than handing back `{pending: true}`
+    // the instant the request was sent. It used to report success on the
+    // strength of the emit alone, which is exactly how a player sabotaging a
+    // project and immediately trying to keep working on it could win the race:
+    // the roll called it frozen before the world setting agreed.
+    let repair = null;
+    if (success) {
+        const difficulty = sabotageRepairScale(roll, score, relief);
+        repair = await sabotageProject(project.id, difficulty);
+    }
+    // The dice succeeded but nobody was there (or ready in time) to actually
+    // write the freeze - say so rather than claiming a state that never
+    // landed. `success` stays true below: the attempt itself still happened,
+    // still leaves a trace, and can still reveal the actor on a Despair.
+    const applied = Boolean(repair?.repair);
+    const applyFailed = success && !applied;
+
+    const { traceFeedback } = await import("./remnants.mjs");
+    const placed = await dropSabotageTrace(actor, def, roll, { project, room, success, hit, repair });
+
+    const outcome = {
+        success,
+        applied,
+        project: project.name,
+        leftTrace: traceFeedback(roll, placed),
+        extra: lines.join(""),
+        // Despair reveals the attempt to anyone else in the room.
+        revealed: roll.withFear && witnesses.length > 0,
+        text: !success
+            ? def.failure
+            : applyFailed
+                ? game.i18n.format("DRPG.Project.sabotageNotApplied", { name: project.name })
+                : `${hit.result} - ${game.i18n.format("DRPG.Project.frozenNow", {
+                      name: project.name, repair: repair.repair.name
+                  })}`
+    };
+
+    await soundSabotage(actor, room, outcome);
+
+    // What Reroll has to unpick: the freeze on the target, the repair project it
+    // spawned, and the trace. The concealment penalty rides along because the new
+    // roll is scored the same way this one was.
+    await noteRollContext(actor, {
+        actionKey: "sabotage",
+        room,
+        targetProjectId: project.id,
+        repairId: repair?.repair?.id ?? null,
+        penalty,
+        relief,
+        witnesses: witnesses.length,
+        ...remnantRef(placed)
+    });
+
+    await report(actor, def, roll, outcome);
+    // See the note on the project hook above. The sabotage path already had the
+    // id to hand - it writes it into `noteRollContext` so a Reroll can undo the
+    // right one - it simply was not saying it out loud.
+    Hooks.callAll("drpgActionResolved", {
+        actor, actionKey: "sabotage", roll, outcome, projectId: project.id
+    });
+    return outcome;
+}
+
+/** What this character can sabotage from where they stand, and what is being held back from them. */
+async function sabotageTargets(actor, room, { sabotageTargetsIn }) {
     // WHICH CHARACTER, NOT WHICH ACCOUNT.
     //
     // This used to read `game.user.isGM || isMonokuma(actor)`, and the first
@@ -2374,48 +2670,21 @@ async function performSabotage(actor, def, options) {
     const withheld = visibleProjects()
         .filter(p => anyRoom || (room && p.room === room))
         .filter(p => isFrozen(p.id) || repairs(p.id));
+    return { targets, withheld };
+}
 
-    if (!targets.length) {
-        ui.notifications.warn(withheld.length
-            ? game.i18n.format("DRPG.Project.allSabotaged", {
-                  names: withheld.map(p => p.name).join(", ")
-              })
-            : game.i18n.localize("DRPG.Project.nothingToSabotage"));
-        return null;
-    }
-
-    if (withheld.length) {
-        ui.notifications.warn(game.i18n.format("DRPG.Project.someSabotaged", {
-            names: withheld.map(p => p.name).join(", ")
-        }));
-    }
-
-    // Breaking a thing takes the same kind of work as building it, so sabotage
-    // uses the project's own trait. The player does not get to pick an easier
-    // one than the people who built it had to use - the trait field in this
-    // same dialog only ever matters for a target that left it open, same as
-    // Work on Project. See chooseProjectAndTrait().
-    const picked = await chooseProjectAndTrait(targets, "DRPG.Project.whichSabotage", actor, def);
-    if (!picked) return null;
-    const { project, trait } = picked;
-
-    // Someone is watching. Cover what you are doing before you do it, exactly
-    // as an indirect murder covers its intent - and learn the answer while
-    // there is still time to walk away.
-    const witnesses = othersInRoom(actor);
-    const lines = [];
+// Someone is watching. Cover what you are doing before you do it, exactly
+// as an indirect murder covers its intent. A failure is seen, and the
+// sabotage goes ahead anyway: the roll that decided who saw it has already
+// paid out, so there is no walking away from it (see below).
+async function concealSabotage(actor, { room, project, witnesses, paid, lines }) {
     let penalty = 0;
-
-    // Paid before the concealment roll, for the same reason as Work on Project:
-    // that roll grants Hope and feeds a Despair pool, and an uncharged cancel
-    // afterwards turned it into free resources.
-    const paid = cost > 0 ? await spendAction(actor, cost) : null;
-    if (cost > 0 && !paid) return null;
-
+    let rolledAlready = false;
     if (witnesses.length) {
         const conceal = await rollTrait(actor, SABOTAGE_CONCEAL.trait,
-            { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
-        if (!conceal) return abort(actor, paid);
+            { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent"), dc: SABOTAGE_CONCEAL.threshold });
+        if (!conceal) return { exit: await abort(actor, paid) };
+        rolledAlready = true;
 
         const hidden = conceal.isCritical || conceal.total >= SABOTAGE_CONCEAL.threshold;
         if (hidden && conceal.withFear) penalty = SABOTAGE_CONCEAL.despairPenalty;
@@ -2443,7 +2712,8 @@ async function performSabotage(actor, def, options) {
                     actor: foundry.utils.escapeHTML(actor.name),
                     room: foundry.utils.escapeHTML(room ?? "-"),
                     project: foundry.utils.escapeHTML(project.name)
-                })}</em></p>`
+                })}</em></p>`,
+                whisper: roomAudience(actor)
             });
             await whisperToOwner(actor, `<p>${SABOTAGE_CONCEAL.failure}</p>
                 <p>${game.i18n.localize("DRPG.Action.sabotageSeenOn")}</p>`);
@@ -2451,82 +2721,29 @@ async function performSabotage(actor, def, options) {
     } else {
         lines.push(`<p><em>${SABOTAGE_CONCEAL.aloneNote}</em></p>`);
     }
+    return { penalty, rolledAlready };
+}
 
-    // Sabotage is project work with the sign flipped, so the tool counts here
-    // too - the guide's own "including sabotage". `performSabotage` did not look
-    // at the inventory at all before this (trap 60), so it is armed here rather
-    // than assumed to arrive from the project path.
-    const { equippedFor, breakOnDespair, tierOf } = await import("./use-items.mjs");
-    const calls = await import("./call-effects.mjs");
-    const tool = equippedFor(actor, "tool");
-    if (tool) calls.armSituational(1);
-
-    // Project work with the sign flipped eases the same way.
-    const relief = toolRelief(tool, tierOf);
-    if (relief) {
-        lines.push(`<p><em>${game.i18n.format("DRPG.Project.toolRelief", {
-            item: tool.name, tier: relief
-        })}</em></p>`);
-    }
-
-    let roll;
-    try {
-        roll = await rollTrait(actor, trait, {
-            actionKey: "sabotage",
-            context: { room, targetProjectId: project.id, penalty, witnesses: witnesses.length }
-        });
-    } finally {
-        calls.clearSituational();
-    }
-    if (!roll) return abort(actor, paid, { rolled: witnesses.length > 0 });
-
-    await breakOnDespair(actor, tool, roll);
-
-    // `penalty` stays on the score and the relief stays on the bands: one is a
-    // modifier the roll earned, the other is a change to what it has to beat.
-    const score = roll.total + penalty;
-    const hit = roll.isCritical
-        ? def.critical
-        : resolveThreshold(score, easedBy(def.thresholds, relief));
-    const success = Boolean(hit);
-
-    // A successful sabotage freezes the project and spawns its repair. The
-    // better the roll, the harder the repair - the guide scales it from
-    // "simple" to "hidden-difficulty".
-    //
-    // `sabotageProject` now waits for the GM's client to confirm the freeze and
-    // the repair actually landed, rather than handing back `{pending: true}`
-    // the instant the request was sent. It used to report success on the
-    // strength of the emit alone, which is exactly how a player sabotaging a
-    // project and immediately trying to keep working on it could win the race:
-    // the roll called it frozen before the world setting agreed.
-    let repair = null;
-    if (success) {
-        // Guide's Sabotage table, by the repair project it demands:
-        //   12 -> trivial (3)   18 -> complex (6)   crit -> desperate (8)
-        // The 12 band was creating a 4-progress "everyday" repair, one scale
-        // step harder than the guide asks for.
-        const difficulty = roll.isCritical
-            ? PROJECT_SCALE.desperate.progress
-            // This 18 is the same band `easedBy` just lowered, read a second
-            // time by hand - so it comes down by the same amount, or a good
-            // tool would buy the band without buying the repair it names.
-            : score >= 18 - relief
-                ? PROJECT_SCALE.complex.progress
-                : PROJECT_SCALE.trivial.progress;
-        repair = await sabotageProject(project.id, difficulty);
-    }
-    // The dice succeeded but nobody was there (or ready in time) to actually
-    // write the freeze - say so rather than claiming a state that never
-    // landed. `success` stays true below: the attempt itself still happened,
-    // still leaves a trace, and can still reveal the actor on a Despair.
-    const applied = Boolean(repair?.repair);
-    const applyFailed = success && !applied;
+    // Guide's Sabotage table, by the repair project it demands:
+    //   12 -> trivial (3)   18 -> complex (6)   crit -> desperate (8)
+    // The 12 band was creating a 4-progress "everyday" repair, one scale
+    // step harder than the guide asks for.
+function sabotageRepairScale(roll, score, relief) {
+    return roll.isCritical
+        ? PROJECT_SCALE.desperate.progress
+        // This 18 is the same band `easedBy` just lowered, read a second
+        // time by hand - so it comes down by the same amount, or a good
+        // tool would buy the band without buying the repair it names.
+        : score >= 18 - relief
+            ? PROJECT_SCALE.complex.progress
+            : PROJECT_SCALE.trivial.progress;
+}
 
     // Sabotage always leaves a trace, success or not.
+async function dropSabotageTrace(actor, def, roll, { project, room, success, hit, repair }) {
+    const { dropRemnant } = await import("./remnants.mjs");
     const visibility = success ? hit.remnant : def.failureRemnant;
-    const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
-    const placed = await dropRemnant(actor, {
+    return dropRemnant(actor, {
         type: "prep",
         // Sabotaging a murder project is working on the murder too.
         tiedToCrime: project?.indirectMurder ? true : null,
@@ -2544,23 +2761,7 @@ async function performSabotage(actor, def, options) {
                 : game.i18n.localize("DRPG.Remnant.sabotageFailed")
         })
     });
-
-    const outcome = {
-        success,
-        applied,
-        project: project.name,
-        leftTrace: traceFeedback(roll, placed),
-        extra: lines.join(""),
-        // Despair reveals the attempt to anyone else in the room.
-        revealed: roll.withFear && witnesses.length > 0,
-        text: !success
-            ? def.failure
-            : applyFailed
-                ? game.i18n.format("DRPG.Project.sabotageNotApplied", { name: project.name })
-                : `${hit.result} - ${game.i18n.format("DRPG.Project.frozenNow", {
-                      name: project.name, repair: repair.repair.name
-                  })}`
-    };
+}
 
     /*
      * ONE SOUND FOR ONE SABOTAGE, and which one depends on who found out.
@@ -2577,45 +2778,24 @@ async function performSabotage(actor, def, options) {
      * chapter. And the saboteur is on the announcement's audience too, so
      * playing only the failure would have left them hearing the smaller half.
      */
+async function soundSabotage(actor, room, outcome) {
     if (outcome.revealed) {
         await announce({
             content: `<p><em>${game.i18n.format("DRPG.Action.sabotageSeen", {
                 actor: foundry.utils.escapeHTML(actor.name),
                 room: foundry.utils.escapeHTML(room ?? "-")
             })}</em></p>`,
-            // Public - no whisper list - so the whole table hears it, which is
-            // the whole table that just read it.
+            // The room, not the table (D6): the people who saw it and the GMs.
+            // Word of it reaches the rest the way news does in a locked school.
+            whisper: roomAudience(actor),
             flags: { [MODULE_ID]: { sfx: "sabotageSeen" } }
         });
     } else if (!outcome.success) {
         // Local: this branch runs on the saboteur's own client. A sabotage that
-        // missed still dropped its Remnant a few lines above - the sound is
-        // for the trace, not for the miss.
+        // missed still dropped its Remnant (`dropSabotageTrace`, called before
+        // this) - the sound is for the trace, not for the miss.
         playSfx("sabotageFailed");
     }
-
-    // What Reroll has to unpick: the freeze on the target, the repair project it
-    // spawned, and the trace. The concealment penalty rides along because the new
-    // roll is scored the same way this one was.
-    await noteRollContext(actor, {
-        actionKey: "sabotage",
-        room,
-        targetProjectId: project.id,
-        repairId: repair?.repair?.id ?? null,
-        penalty,
-        relief,
-        witnesses: witnesses.length,
-        ...remnantRef(placed)
-    });
-
-    await report(actor, def, roll, outcome);
-    // See the note on the project hook above. The sabotage path already had the
-    // id to hand - it writes it into `noteRollContext` so a Reroll can undo the
-    // right one - it simply was not saying it out loud.
-    Hooks.callAll("drpgActionResolved", {
-        actor, actionKey: "sabotage", roll, outcome, projectId: project.id
-    });
-    return outcome;
 }
 
 /* ==========================================================================
@@ -2637,6 +2817,153 @@ async function performSabotage(actor, def, options) {
  * remove. One of the two costs a socket round trip: which traces are yours is a
  * question only a GM's client can answer (trap 85).
  */
+// The erase ladder for THIS character: the cleaning tool's tier and the
+// fresh scene come off the table's numbers (D1). Computed here, beside
+// the module that scores the roll, rather than in the sync briefing.
+function tamperThresholdFacts(actor, cleanup) {
+    try {
+        const column = Object.fromEntries(REMNANT_VISIBILITY.map(v => [v, cleanup.cleanupDc(v, actor)]));
+        const reliefs = [];
+        const tier = cleanup.cleaningTier(actor);
+        if (CLEANUP.toolTierReducesDc && tier) reliefs.push(game.i18n.format("DRPG.Action.reliefTool", { n: tier }));
+        const fresh = cleanup.freshSceneBonus();
+        if (fresh) reliefs.push(game.i18n.format("DRPG.Action.reliefFresh", { n: fresh }));
+        const facts = [game.i18n.format("DRPG.Action.dcTamper", {
+            rows: ladderRows(column),
+            relief: reliefs.length ? game.i18n.format("DRPG.Action.dcTamperRelief", { what: reliefs.join(", ") }) : ""
+        })];
+        facts.push(game.i18n.format("DRPG.Action.dcFrame", { n: CLEANUP.actions.misleadingTrail.threshold }));
+        // Through the same filter the concealment roll uses: a killer's accomplice
+        // in the room is no witness, and no concealment will be rolled for them.
+        if (witnessesTo(actor, othersInRoom(actor)).length) {
+            facts.push(game.i18n.format("DRPG.Action.dcConceal", { n: CLEANUP.conceal.threshold }));
+        }
+        return facts;
+    } catch (err) {
+        error("Could not print the Tamper thresholds", err);
+        return [];
+    }
+}
+
+/** The Tamper menu: cover, reshape, frame, and - for the killer on their own night - the body. */
+async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, tamperFacts, cleanup }) {
+    return chooseVariant({
+        actor,
+        title: def.label,
+        intro: briefingBlock(actor, "tamper", def, { extraFacts: tamperFacts }),
+        prompt: game.i18n.localize("DRPG.Tamper.prompt"),
+        confirm: game.i18n.localize("DRPG.Action.roll"),
+        options: [
+            {
+                value: "cover", icon: "fa-eraser",
+                label: game.i18n.localize("DRPG.Tamper.cover"),
+                hint: plural("DRPG.Tamper.coverHint", { n: erasable.length }),
+                disabled: !erasable.length,
+                // Two different nothings, and the difference is the whole
+                // answer: a room with none of your traces in it is a room to
+                // walk out of, and a room where every one of them is reinforced
+                // is a room where this action will never work.
+                why: game.i18n.localize(mine.length
+                    ? "DRPG.Tamper.onlyReinforced" : "DRPG.Tamper.nothingOfYours")
+            },
+            // Z5: the same list of traces as "cover", because it is the same
+            // question - which of your traces are you standing over - and a
+            // different answer to it. Struck through for the same reason too:
+            // there is nothing to relabel if there is nothing here of yours.
+            {
+                value: "reshape", icon: "fa-pen-nib",
+                label: game.i18n.localize("DRPG.Cleanup.transformAction"),
+                hint: game.i18n.localize("DRPG.Cleanup.transformActionHint"),
+                disabled: !erasable.length,
+                why: game.i18n.localize(mine.length
+                    ? "DRPG.Tamper.onlyReinforced" : "DRPG.Tamper.nothingOfYours")
+            },
+            {
+                value: "frame", icon: "fa-signs-post",
+                label: game.i18n.localize("DRPG.Tamper.frame"),
+                hint: game.i18n.format("DRPG.Tamper.frameHint", { n: CLEANUP.actions.misleadingTrail.threshold }),
+                disabled: !candidates.length,
+                why: game.i18n.localize("DRPG.Cleanup.trailNobody")
+            },
+            // The third row exists only for the person standing over a body
+            // they made. Struck through rather than absent when they are not
+            // next to it, because "the body is in the other room" is the useful
+            // half of that answer.
+            ...(stageSix ? [{
+                value: "body", icon: "fa-person-falling",
+                label: game.i18n.localize("DRPG.Cleanup.moveAction"),
+                hint: game.i18n.format("DRPG.Cleanup.moveHint", { n: RESOLUTION_STRESS_COST }),
+                disabled: !cleanup.bodyIsHere(actor),
+                why: game.i18n.localize("DRPG.Cleanup.bodyNotHere")
+            }] : [])
+        ],
+        // What is readied, said where the roll that uses it is chosen. The
+        // clean-up panel carried this line; the panel is gone and the sentence
+        // is not - a Cleaning Tool lowers the number and grants advantage, and
+        // a player deciding whether to scrub should know whether they are doing
+        // it bare-handed.
+        traitNote: (() => {
+            const tool = equippedFor(actor, "cleaningTool");
+            return tool
+                ? game.i18n.format("DRPG.Cleanup.readied", { item: tool.name })
+                : game.i18n.localize("DRPG.Cleanup.noneReadied");
+        })(),
+        // The selects are always in the form and the CSS shows the one that
+        // belongs to the checked row - the same trick Search's "what
+        // specifically" box uses. Reading the wrong one is impossible because
+        // the branch below reads by name, not by position.
+        extra: `${erasable.length ? `<label class="drpg-specific-note" data-drpg-when="cover">
+                <span>${game.i18n.localize("DRPG.Tamper.whichTrace")}</span>
+                <select name="trace">${erasable.map(t =>
+                    `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("")}</select>
+            </label>
+            <label class="drpg-specific-note" data-drpg-when="reshape">
+                <span>${game.i18n.localize("DRPG.Tamper.whichTrace")}</span>
+                <select name="reshapeTrace">${erasable.map(t =>
+                    `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("")}</select>
+            </label>` : ""}${candidates.length ? `<label class="drpg-specific-note" data-drpg-when="frame">
+                <span>${game.i18n.localize("DRPG.Cleanup.trailWho")}</span>
+                <select name="who">${candidates.map(a =>
+                    `<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select>
+            </label>` : ""}`
+    });
+}
+
+/** Run what the menu chose. Each road charges itself - see the notes on the branches. */
+async function runTamperChoice(actor, picked, { cleanup, erasable, candidates, viaAction }) {
+    if (picked.value === "body") {
+        // Where the body goes is a decision, not a result, so it is asked
+        // before the dice - by the dialog that has always owned that question.
+        return cleanup.openMoveBodyDialog(actor);
+    }
+
+    if (picked.value === "cover") {
+        const traceId = picked.form?.querySelector("[name=trace]")?.value ?? erasable[0]?.id;
+        if (!traceId) return null;
+        // The price is charged inside - `chargeTamper` takes one step of the
+        // chain on both routes, after the concealment roll, and charging here as
+        // well would take two (T-1).
+        return cleanup.attemptCleanup(actor, traceId, { viaAction });
+    }
+
+    if (picked.value === "reshape") {
+        const traceId = picked.form?.querySelector("[name=reshapeTrace]")?.value
+            ?? erasable[0]?.id;
+        if (!traceId) return null;
+        // Declared before the dice and before anything is charged, so backing
+        // out of the question costs nothing at all.
+        const change = await cleanup.askTransformChange(actor);
+        if (!change) return null;
+        return cleanup.attemptCleanup(actor, traceId, {
+            viaAction, mode: "transform", change
+        });
+    }
+
+    const whoId = picked.form?.querySelector("[name=who]")?.value ?? candidates[0]?.id;
+    if (!whoId) return null;
+    return cleanup.attemptStageSix(actor, "misleadingTrail", whoId, { viaAction });
+}
+
 async function performTamper(actor, def, options) {
     /*
      * WHAT THE CHAIN WOULD TAKE, ASKED BEFORE THE MENU OPENS (T-1).
@@ -2681,11 +3008,13 @@ async function performTamper(actor, def, options) {
      * action grid; they are these three rows now (Dawid, 28.08). One tile, two
      * economies, and `isCleaner` is the whole of the difference:
      *
-     *   the killer, in Stage 6   Sanity and an action, the guide's price. The
+     *   the killer, in Stage 6   a Sanity mark: their chain skips its action
+     *                            step on their own night (D3, T-1). The
      *                            trace list is the WHOLE ROOM, because the
      *                            guide opens their eyes to their own scene.
      *                            Carrying the body is offered.
-     *   anybody, any afternoon   one action. The trace list is only what this
+     *   anybody, any afternoon   an action, or a Sanity mark once the actions
+     *                            are gone. The trace list is only what this
      *                            character has actually found (see
      *                            `cleanableTracesForPlayer`). No body.
      */
@@ -2703,95 +3032,9 @@ async function performTamper(actor, def, options) {
     // anything from.
     const erasable = mine.filter(t => !t.reinforced);
 
-    const esc = foundry.utils.escapeHTML;
-    const picked = await chooseVariant({
-        actor,
-        title: def.label,
-        intro: briefingBlock(actor, "tamper", def),
-        prompt: game.i18n.localize("DRPG.Tamper.prompt"),
-        confirm: game.i18n.localize("DRPG.Action.roll"),
-        options: [
-            {
-                value: "cover", icon: "fa-eraser",
-                label: game.i18n.localize("DRPG.Tamper.cover"),
-                hint: plural("DRPG.Tamper.coverHint", { n: erasable.length }),
-                disabled: !erasable.length,
-                // Two different nothings, and the difference is the whole
-                // answer: a room with none of your traces in it is a room to
-                // walk out of, and a room where every one of them is reinforced
-                // is a room where this action will never work.
-                why: game.i18n.localize(mine.length
-                    ? "DRPG.Tamper.onlyReinforced" : "DRPG.Tamper.nothingOfYours")
-            },
-            // Z5: the same list of traces as "cover", because it is the same
-            // question - which of your traces are you standing over - and a
-            // different answer to it. Struck through for the same reason too:
-            // there is nothing to relabel if there is nothing here of yours.
-            {
-                value: "reshape", icon: "fa-pen-nib",
-                label: game.i18n.localize("DRPG.Cleanup.transformAction"),
-                hint: game.i18n.localize("DRPG.Cleanup.transformActionHint"),
-                disabled: !erasable.length,
-                why: game.i18n.localize(mine.length
-                    ? "DRPG.Tamper.onlyReinforced" : "DRPG.Tamper.nothingOfYours")
-            },
-            {
-                value: "frame", icon: "fa-signs-post",
-                label: game.i18n.localize("DRPG.Tamper.frame"),
-                /* THE NUMBER COMES OFF THE RULE (ACT-16, 20.09). The sentence said
-                   18 and the threshold has been 15 since D7 - measured in E18c, and
-                   written out beside `misleadingTrail` in config.mjs. It also said a
-                   trace is planted "either way", which is true of a miss with Hope
-                   and not of a miss with Despair. A tile that states a price is the
-                   one place a stale number is read as the rule. */
-                hint: game.i18n.format("DRPG.Tamper.frameHint", {
-                    n: CLEANUP.actions.misleadingTrail.threshold
-                }),
-                disabled: !candidates.length,
-                why: game.i18n.localize("DRPG.Cleanup.trailNobody")
-            },
-            // The third row exists only for the person standing over a body
-            // they made. Struck through rather than absent when they are not
-            // next to it, because "the body is in the other room" is the useful
-            // half of that answer.
-            ...(stageSix ? [{
-                value: "body", icon: "fa-person-falling",
-                label: game.i18n.localize("DRPG.Cleanup.moveAction"),
-                hint: game.i18n.localize("DRPG.Cleanup.moveHint"),
-                disabled: !cleanup.bodyIsHere(actor),
-                why: game.i18n.localize("DRPG.Cleanup.bodyNotHere")
-            }] : [])
-        ],
-        // What is readied, said where the roll that uses it is chosen. The
-        // clean-up panel carried this line; the panel is gone and the sentence
-        // is not - a Cleaning Tool lowers the number and grants advantage, and
-        // a player deciding whether to scrub should know whether they are doing
-        // it bare-handed.
-        traitNote: (() => {
-            const tool = equippedFor(actor, "cleaningTool");
-            return tool
-                ? game.i18n.format("DRPG.Cleanup.readied", { item: tool.name })
-                : game.i18n.localize("DRPG.Cleanup.noneReadied");
-        })(),
-        // The selects are always in the form and the CSS shows the one that
-        // belongs to the checked row - the same trick Search's "what
-        // specifically" box uses. Reading the wrong one is impossible because
-        // the branch below reads by name, not by position.
-        extra: `${erasable.length ? `<label class="drpg-specific-note" data-drpg-when="cover">
-                <span>${game.i18n.localize("DRPG.Tamper.whichTrace")}</span>
-                <select name="trace">${erasable.map(t =>
-                    `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("")}</select>
-            </label>
-            <label class="drpg-specific-note" data-drpg-when="reshape">
-                <span>${game.i18n.localize("DRPG.Tamper.whichTrace")}</span>
-                <select name="reshapeTrace">${erasable.map(t =>
-                    `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("")}</select>
-            </label>` : ""}${candidates.length ? `<label class="drpg-specific-note" data-drpg-when="frame">
-                <span>${game.i18n.localize("DRPG.Cleanup.trailWho")}</span>
-                <select name="who">${candidates.map(a =>
-                    `<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select>
-            </label>` : ""}`
-    });
+    const tamperFacts = tamperThresholdFacts(actor, cleanup);
+
+    const picked = await chooseTamper(actor, def, { erasable, mine, candidates, stageSix, tamperFacts, cleanup });
 
     if (!picked) return null;
 
@@ -2799,37 +3042,7 @@ async function performTamper(actor, def, options) {
     // `stageSix` above and the header of cleanup.mjs.
     const viaAction = !stageSix;
 
-    if (picked.value === "body") {
-        // Where the body goes is a decision, not a result, so it is asked
-        // before the dice - by the dialog that has always owned that question.
-        return cleanup.openMoveBodyDialog(actor);
-    }
-
-    if (picked.value === "cover") {
-        const traceId = picked.form?.querySelector("[name=trace]")?.value ?? erasable[0]?.id;
-        if (!traceId) return null;
-        // The price is charged inside - `chargeTamper` takes one step of the
-        // chain on both routes, after the concealment roll, and charging here as
-        // well would take two (T-1).
-        return cleanup.attemptCleanup(actor, traceId, { viaAction });
-    }
-
-    if (picked.value === "reshape") {
-        const traceId = picked.form?.querySelector("[name=reshapeTrace]")?.value
-            ?? erasable[0]?.id;
-        if (!traceId) return null;
-        // Declared before the dice and before anything is charged, so backing
-        // out of the question costs nothing at all.
-        const change = await cleanup.askTransformChange(actor);
-        if (!change) return null;
-        return cleanup.attemptCleanup(actor, traceId, {
-            viaAction, mode: "transform", change
-        });
-    }
-
-    const whoId = picked.form?.querySelector("[name=who]")?.value ?? candidates[0]?.id;
-    if (!whoId) return null;
-    return cleanup.attemptStageSix(actor, "misleadingTrail", whoId, { viaAction });
+    return runTamperChoice(actor, picked, { cleanup, erasable, candidates, viaAction });
 }
 
 /**
@@ -2938,39 +3151,19 @@ async function openCrisisMenu(actor) {
  * stealable, does the victim get told - is made in `stealFromPerson` on a GM's
  * client, against the same table in config.mjs. Same division as Observe.
  */
-async function performPalm(actor, def, options) {
-    const cost = options.free ? 0 : def.cost;
-    if (!canAfford(actor, cost)) return null;
-
-    const room = roomOfActor(actor);
-    if (!room) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Action.noRoom"));
-        return null;
-    }
-
-    // Anybody standing here who is not you. `othersInRoom` already excludes
-    // tokens that do not count as present - see `countsAsPresent`.
-    const targets = othersInRoom(actor).filter(a => a?.type === "character");
-    if (!targets.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Steal.nobodyHere"));
-        return null;
-    }
-
-    /*
-     * WHICH WAY, WHO, AND - FOR A PLANT ONLY - WHAT, all in one window.
-     *
-     * The asymmetry in that list is the whole difference between the two
-     * directions, and it is a difference in what the player is allowed to know.
-     * A Steal must not show the victim's pockets: that list is the prize, and
-     * this window opens whether or not the theft is going to work, so a picker
-     * here would hand it over on a miss (trap 93). A Plant shows YOURS, because
-     * they are yours - and choosing what to leave behind is the decision the
-     * action is for.
-     */
-    const mine = await palmablePool(actor);
-
-    const esc = foundry.utils.escapeHTML;
-    const picked = await chooseVariant({
+/*
+ * WHICH WAY, WHO, AND - FOR A PLANT ONLY - WHAT, all in one window.
+ *
+ * The asymmetry in that list is the whole difference between the two
+ * directions, and it is a difference in what the player is allowed to know.
+ * A Steal must not show the victim's pockets: that list is the prize, and
+ * this window opens whether or not the theft is going to work, so a picker
+ * here would hand it over on a miss (trap 93). A Plant shows YOURS, because
+ * they are yours - and choosing what to leave behind is the decision the
+ * action is for.
+ */
+async function choosePalm(actor, def, targets, mine) {
+    return chooseVariant({
         actor,
         title: def.label,
         intro: briefingBlock(actor, "palm", def),
@@ -3000,6 +3193,96 @@ async function performPalm(actor, def, options) {
                     `<option value="${i.id}">${esc(describeItem(i))}</option>`).join("")}</select>
             </label>` : ""}`
     });
+}
+
+/*
+ * A PLANT IS ALREADY DECIDED BY THE TIME THE DICE LAND.
+ *
+ * No picker, no critical branch and nothing to reveal: the item was chosen
+ * in the first window, out of the player's own pockets, and a critical buys
+ * nothing extra because there is nothing extra to buy. Said out loud rather
+ * than left as an absence - the reader's next question after the Steal
+ * branch below is "and what does a critical do here", and the answer is
+ * "nothing, on purpose".
+ */
+async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success }) {
+    const { requestPlant } = await import("./gm-bridge.mjs");
+    await requestPlant({
+        plannerId: actor.id,
+        victimId: victim.id,
+        itemId: planted.id,
+        total: hand.total,
+        isCritical: Boolean(hand.isCritical),
+        unseenTotal: shadow.total,
+        unseenCritical: Boolean(shadow.isCritical)
+    });
+
+    await noteRollContext(actor, {
+        actionKey: "palm", planting: true, room, victimId: victim.id,
+        seen, success, itemId: planted.id
+    });
+
+    const plantOutcome = {
+        success, seen, target: victim.name,
+        text: game.i18n.format("DRPG.Steal.plantSent", {
+            name: foundry.utils.escapeHTML(victim.name)
+        })
+    };
+    await report(actor, def, hand, plantOutcome);
+    Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome: plantOutcome });
+    return plantOutcome;
+}
+
+/*
+ * THE CRITICAL IS THE ONLY WAY TO CHOOSE, AND THE PICKER COMES AFTER.
+ *
+ * Built here, on this client, and only once the dice have already said the
+ * theft worked - never before. Opening a list of somebody's pockets is
+ * itself the information the action is about, so a picker that appeared
+ * before the roll would hand it over even on a miss (trap 93). The GM side
+ * re-derives the same pool and refuses anything that is not in it, so the
+ * id travelling from here is a request, not an instruction (trap 92).
+ */
+async function chooseStolen(victim, hand, success) {
+    let chosenId = null;
+    if (success && hand.isCritical) {
+        const pool = await stealablePool(victim);
+        if (!pool.length) {
+            ui.notifications.warn(game.i18n.format("DRPG.Steal.emptyPockets", {
+                name: victim.name
+            }));
+        } else {
+            chosenId = await chooseStolenItem(victim, pool);
+            // Backing out of the picker is not backing out of the theft - the
+            // dice are thrown, the action is spent and the hand is already in
+            // the pocket. It falls back to whatever comes out, which is what an
+            // ordinary success would have got.
+        }
+    }
+    return chosenId;
+}
+
+async function performPalm(actor, def, options) {
+    const cost = options.free ? 0 : def.cost;
+    if (!canAfford(actor, cost)) return null;
+
+    const room = roomOfActor(actor);
+    if (!room) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Action.noRoom"));
+        return null;
+    }
+
+    // Anybody standing here who is not you. `othersInRoom` already excludes
+    // tokens that do not count as present - see `countsAsPresent`.
+    const targets = othersInRoom(actor).filter(a => a?.type === "character");
+    if (!targets.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Steal.nobodyHere"));
+        return null;
+    }
+
+    const mine = await palmablePool(actor);
+
+    const picked = await choosePalm(actor, def, targets, mine);
     if (!picked) return null;
 
     const victim = game.actors.get(picked.form?.querySelector("[name=who]")?.value ?? "");
@@ -3019,15 +3302,19 @@ async function performPalm(actor, def, options) {
 
     const unseen = def.unseen;
     const shadow = await rollTrait(actor, unseen.trait, {
-        remember: false, title: game.i18n.localize("DRPG.Steal.unseenRoll")
+        remember: false, title: game.i18n.localize("DRPG.Steal.unseenRoll"),
+        dc: planting ? (def.plant?.unseen ?? unseen.threshold) : unseen.threshold
     });
     if (!shadow) return abort(actor, paid);
 
     const hand = await rollTrait(actor, def.traits[0], {
         actionKey: "steal",
+        dc: planting ? (def.plant?.threshold ?? def.threshold) : def.threshold,
         context: { room, victimId: victim.id, unseenTotal: shadow.total }
     });
-    if (!hand) return abort(actor, paid, { rolled: true });
+    // The Shadow roll above has landed and paid out; closing this window does
+    // not hand the action back (ROLL-05).
+    if (!hand) return spentAfterRoll(actor, def);
 
     /*
      * A PLANT IS AN EASIER HAND THAN A STEAL (D10a), on both axes.
@@ -3044,69 +3331,9 @@ async function performPalm(actor, def, options) {
     const seen = !(shadow.isCritical || shadow.total >= unseenBar);
     const success = hand.isCritical || hand.total >= bar;
 
-    /*
-     * A PLANT IS ALREADY DECIDED BY THE TIME THE DICE LAND.
-     *
-     * No picker, no critical branch and nothing to reveal: the item was chosen
-     * in the first window, out of the player's own pockets, and a critical buys
-     * nothing extra because there is nothing extra to buy. Said out loud rather
-     * than left as an absence - the reader's next question after the Steal
-     * branch below is "and what does a critical do here", and the answer is
-     * "nothing, on purpose".
-     */
-    if (planting) {
-        const { requestPlant } = await import("./gm-bridge.mjs");
-        await requestPlant({
-            plannerId: actor.id,
-            victimId: victim.id,
-            itemId: planted.id,
-            total: hand.total,
-            isCritical: Boolean(hand.isCritical),
-            unseenTotal: shadow.total,
-            unseenCritical: Boolean(shadow.isCritical)
-        });
+    if (planting) return resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success });
 
-        await noteRollContext(actor, {
-            actionKey: "palm", planting: true, room, victimId: victim.id,
-            seen, success, itemId: planted.id
-        });
-
-        const plantOutcome = {
-            success, seen, target: victim.name,
-            text: game.i18n.format("DRPG.Steal.plantSent", {
-                name: foundry.utils.escapeHTML(victim.name)
-            })
-        };
-        await report(actor, def, hand, plantOutcome);
-        Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome: plantOutcome });
-        return plantOutcome;
-    }
-
-    /*
-     * THE CRITICAL IS THE ONLY WAY TO CHOOSE, AND THE PICKER COMES AFTER.
-     *
-     * Built here, on this client, and only once the dice have already said the
-     * theft worked - never before. Opening a list of somebody's pockets is
-     * itself the information the action is about, so a picker that appeared
-     * before the roll would hand it over even on a miss (trap 93). The GM side
-     * re-derives the same pool and refuses anything that is not in it, so the
-     * id travelling from here is a request, not an instruction (trap 92).
-     */
-    let chosenId = null;
-    if (success && hand.isCritical) {
-        const pool = await stealablePool(victim);
-        if (!pool.length) {
-            ui.notifications.warn(game.i18n.format("DRPG.Steal.emptyPockets", {
-                name: victim.name
-            }));
-        } else {
-            chosenId = await chooseStolenItem(victim, pool);
-            // Backing out of the picker is not backing out of the theft - the
-            // dice are thrown, the action is spent and the hand is already in
-            // the pocket. It falls back to whatever comes out, which is what an
-            // ordinary success would have got.
-        }
-    }
+    const chosenId = await chooseStolen(victim, hand, success);
 
     const { requestSteal } = await import("./gm-bridge.mjs");
     await requestSteal({
@@ -3203,7 +3430,6 @@ function describeItem(item) {
 
 /** Which of them. Only ever opened on a critical - see `performPalm`. */
 async function chooseStolenItem(victim, pool) {
-    const esc = foundry.utils.escapeHTML;
     const describe = i => esc(describeItem(i));
 
     const chosen = await DialogV2.wait({
@@ -3232,65 +3458,21 @@ async function chooseStolenItem(victim, pool) {
  * ACTIONS THAT NEED A HUMAN
  * ========================================================================== */
 
-/** Think, Listen, Analyze, Observe: roll, then hand the result to the GM. */
-async function performGmAction(actor, actionKey, def, options) {
-    const cost = options.free ? 0 : def.cost;
-    if (!canAfford(actor, cost)) return null;
-
-    // One window, before anything is thrown: the trait and the sentence.
-    const asked = await askTraitAndRequest(actor, actionKey, def);
-    if (!asked) return null;
-    const { trait, request } = asked;
-    // An action with traits to choose between and none chosen is a dismissal.
-    if ((def.traits?.length ?? 0) && !trait) return null;
-
-    // Paid before the dice - see `abort` and ACT-07 above it.
-    const paid = cost > 0 ? await spendAction(actor, cost) : null;
-    if (cost > 0 && !paid) return null;
-    const roll = await rollTrait(actor, trait, { actionKey });
-    if (!roll) return abort(actor, paid);
-
-    const body = buildGmBody(actionKey, def, roll);
-
-    await callGm(actor, {
-        title: def.label,
-        request,
-        roll,
-        room: roomOfActor(actor),
-        body,
-        // Nothing mechanical to apply - Think and Listen end in a sentence - so
-        // the card carries the two answers that ARE the ruling: say it, or say
-        // there is nothing and hand the action back. Receipt-shaped (T-1), so a
-        // Burst-paid ruling comes back as a Burst.
-        actions: gmRulingActions(actor,
-            cost > 0 ? { key: actionKey, pay: "action", amount: cost, grant: Boolean(paid?.grant) } : null)
-    });
-
-    // Ruled by a human. Reroll cannot undo a ruling, so it re-asks - see
-    // `settleGmRuling` in reroll.mjs.
-    await noteRollContext(actor, {
-        actionKey, gmRuled: true, request, label: def.label, room: roomOfActor(actor)
-    });
-
-    await whisperToOwner(actor, `${rollHead(def, roll)}${body}`, rollCardFlags(def, roll));
-
-    return { calledGm: true, roll };
+/**
+ * Who hears what happened in a room: the GMs, the actor's own player, and the
+ * players of everyone standing in the same room. "You hear only your room"
+ * is the module's rule for voice and dice; a sabotage caught in the act is a
+ * scene in one room too (D6).
+ */
+function roomAudience(actor) {
+    const ids = new Set(gmIds());
+    for (const a of [actor, ...othersInRoom(actor)]) {
+        const owner = ownerOf(a);
+        if (owner) ids.add(owner.id);
+    }
+    return [...ids];
 }
 
-/**
- * The two buttons every ruling gets when there is nothing mechanical to apply.
- *
- * "Reply" posts the GM's sentence into the thread the question arrived in;
- * "There is nothing" hands the price back, because a question that is never
- * answered has not been paid for. Both are handled in `runCallAction`.
- *
- * THE STEP TRAVELS, THE AMOUNT DOES NOT (T-1). This card is authored on the
- * PLAYER's client - `callGm` posts it into their own thread - so anything written
- * here can be rewritten there before a GM presses it. `data-cost` used to be read
- * back verbatim and handed to `refundAction`, which would have bought five Sanity
- * of healing from any GM pressing "There is nothing". The far side now takes the
- * amount from `PRICE_CHAINS` and accepts only a step name the table knows.
- */
 /**
  * The refusal button every GM ruling card ends with, and the receipt that makes
  * the refund honest (ACT-14, 20.09).
@@ -3307,8 +3489,15 @@ async function performGmAction(actor, actionKey, def, options) {
  * attribute reads as `undefined` on the far side and means "a card posted before
  * this release"; an empty string was what a FREE action produced, and the two were
  * indistinguishable - so a card for an action that cost nothing refunded an action
- * that was never spent. `options.free` reaches this through `performGmAction` and
- * through `askForHint`, so that is not a hypothetical.
+ * that was never spent. `options.free` reaches this through a free Search's
+ * "something specific" card and through `askForHint`, so that is not a
+ * hypothetical.
+ *
+ * `paid` KEEPS THE NAME the 1.2.43 cards gave it (ROLL-13), because those cards
+ * are still in live chat logs with "grant" or "action" written there, and the far
+ * side reads a "grant" off one of them as a Burst. A card written here names the
+ * chain STEP instead - "action", "hope" or "stress" - and says in `grant` whether
+ * a Burst paid for it.
  */
 function declineAction(actor, receipt = null) {
     return {
@@ -3344,6 +3533,21 @@ function missAction(actor) {
     };
 }
 
+/**
+ * The two buttons every ruling gets when there is nothing mechanical to apply.
+ *
+ * "Reply" posts the GM's sentence into the thread the question arrived in;
+ * "There is nothing" hands the price back, because a question that is never
+ * answered has not been paid for. Both are handled in `runCallAction`.
+ *
+ * THE STEP TRAVELS, AND THE FAR SIDE PRICES IT (T-1). This card is authored on
+ * the PLAYER's client - `callGm` posts it into their own thread - so anything
+ * written here can be rewritten there before a GM presses it. `data-cost` used to
+ * be read back verbatim and handed to `refundAction`, which would have bought five
+ * Sanity of healing from any GM pressing "There is nothing". The far side takes
+ * the amount from `PRICE_CHAINS` by the step's name instead, and a name the table
+ * does not know buys nothing.
+ */
 function gmRulingActions(actor, receipt = null) {
     return [
         {
@@ -3353,26 +3557,6 @@ function gmRulingActions(actor, receipt = null) {
         },
         declineAction(actor, receipt)
     ];
-}
-
-/** The reference the GM needs to rule, right next to the roll. */
-function buildGmBody(actionKey, def, roll) {
-    if (def.thresholds?.length) {
-        const rows = def.thresholds.map(t =>
-            `<li>${t.min}+ - ${foundry.utils.escapeHTML(t.result ?? "")}</li>`).join("");
-        const crit = def.critical?.result
-            ? `<li><em>${game.i18n.localize("DRPG.Action.critical")} - ${foundry.utils.escapeHTML(def.critical.result)}</em></li>`
-            : "";
-        return `<ul class="drpg-gm-reference">${rows}${crit}</ul>`;
-    }
-
-    if (actionKey === "observe") {
-        return `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total })}</small></p>`;
-    }
-    if (actionKey === "analyze") {
-        return `<p><small>${game.i18n.localize("DRPG.Action.analyzeGm")}</small></p>`;
-    }
-    return "";
 }
 
 /**
@@ -3427,17 +3611,16 @@ async function observeRanked(actor, def, cost, options, declaration) {
     // spent. Leave the action in the player's pocket.
     if (!target) return null;
 
-    if (!target.ok) {
-        // Nothing here to find, or the character is not standing in a room:
-        // hand it to the GM the way Observe always used to work.
-        return performGmAction(actor, "observe", def, options);
-    }
-
     // Paid before the dice - see `abort` and ACT-07 above it.
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
     const roll = await rollTrait(actor, "eye", { actionKey: "observe" });
     if (!roll) return abort(actor, paid);
+
+    // Nothing here to find, or the character is not standing in a room: the
+    // GM rules on the roll just thrown, as `observeSpecific` does. This used
+    // to open a SECOND declaration window (ROLL-11).
+    if (!target.ok) return ruleObserve(actor, def, roll, "");
 
     return settleObserveRoll(actor, def, roll, target.key, declaration);
 }
@@ -3485,9 +3668,9 @@ async function observeSpecific(actor, def, cost, request = "") {
     if (!target) return abort(actor, paid);
 
     // Refused, empty room, no room at all: the GM rules on the roll that has
-    // already been thrown. Calling `performGmAction` here would roll a second
+    // already been thrown. Opening a second declaration window would roll a second
     // time for the same action.
-    if (!target.ok) return ruleObserve(actor, def, roll, request, null, cost);
+    if (!target.ok) return ruleObserve(actor, def, roll, request);
 
     return settleObserveRoll(actor, def, roll, target.key, declaration);
 }
@@ -3548,11 +3731,17 @@ async function observeAnything(actor, def, cost, request = "") {
     // pressing and meaningless as the title of the window it arrives in. The GM
     // gets a title that says which action this was.
     return ruleObserve(actor, def, roll, request,
-        game.i18n.localize("DRPG.Observe.anythingTitle"), cost);
+        game.i18n.localize("DRPG.Observe.anythingTitle"));
 }
 
-/** Hand a roll that has already happened to the GM as a ruling. */
-async function ruleObserve(actor, def, roll, request, title = null, cost = 0) {
+/**
+ * Hand a roll that has already happened to the GM as a ruling.
+ *
+ * Nothing about the price travels on this card. The action was paid before the
+ * dice and stays paid on every answer, "nothing was there" included - that one
+ * is the Observe's own result and charges its miss (see `missAction`).
+ */
+async function ruleObserve(actor, def, roll, request, title = null) {
     const { callGm } = await import("./gm-bridge.mjs");
     const label = title ?? def.label;
     // Both halves from one lookup: `locateActor` answers without the canvas, so
@@ -3566,7 +3755,7 @@ async function ruleObserve(actor, def, roll, request, title = null, cost = 0) {
 
     await callGm(actor, {
         title: label,
-        body: `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total })}</small></p>`,
+        gmBody: `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total, n: OBSERVE_FAIL_STRESS })}</small></p>`,
         roll,
         request,
         room,
@@ -3724,7 +3913,13 @@ async function performAnalyze(actor, def, options) {
     // step in the chain rather than this step twice.
     const charge = free ? null : await payPrice(actor, "analyze");
     if (!free && !charge) return null;
-    const roll = await rollTrait(actor, "head", { actionKey: "analyze" });
+    const roll = await rollTrait(actor, "head", {
+        actionKey: "analyze",
+        // A bullet's own difficulty is read off its REAL type, which is the
+        // answer the roll exists to find - so only the two ruled routes show one.
+        dc: choice === "hint" ? (def.hintThresholds ?? []).map(t => t.min).join(" / ")
+            : choice === "stash" ? def.stashThreshold : null
+    });
     if (!roll) {
         // The window was closed. Whatever the chain took, it gives back - the
         // step that paid, and a Burst as a Burst.
@@ -4026,6 +4221,7 @@ async function performListen(actor, def, options) {
     if (cost > 0 && !paid) return null;
     const roll = await rollTrait(actor, "shadow", {
         actionKey: "listen",
+        dc: (def.thresholds ?? []).map(t => t.min).join(" / "),
         context: { room: here, target }
     });
     if (!roll) return abort(actor, paid);
@@ -4148,7 +4344,6 @@ async function performRest(actor) {
  * the GM is the WRITE, like every other world change in this module.
  */
 async function performBetrayal(actor, partner) {
-    const esc = foundry.utils.escapeHTML;
     const confirmed = await DialogV2.confirm({
         classes: ["drpg-panel"],
         window: { title: game.i18n.localize("DRPG.Murder.betrayalTitle") },
@@ -4183,7 +4378,7 @@ async function performDirectMurder(actor, def, options) {
         window: { title: def.label },
         content: `${briefingBlock(actor, "directMurder", def)}
             <p class="notes">${game.i18n.localize("DRPG.Action.murderSpendsAnyway")}</p>
-            <p>${game.i18n.localize("DRPG.Action.murderConfirm")}</p>`,
+            <p>${game.i18n.localize(isEclipse() ? "DRPG.Action.murderConfirmEclipse" : "DRPG.Action.murderConfirm")}</p>`,
         rejectClose: false
     });
     if (!confirmed) return null;
@@ -4213,6 +4408,16 @@ async function performDirectMurder(actor, def, options) {
      * The action is spent here either way, which is the guide's rule and does
      * not change. What the player does not get here is the outcome.
      */
+    // Before the action is spent: the declaration only exists once a GM's
+    // client has written it, and with no GM connected `requestParkMurder`
+    // refuses. Charging first and then telling the player "your move is made"
+    // left them one action down with nothing declared anywhere.
+    const { gmOnline } = await import("./gm-bridge.mjs");
+    if (!game.user.isGM && !gmOnline()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Bridge.noGm"));
+        return null;
+    }
+
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
 
@@ -4223,7 +4428,12 @@ async function performDirectMurder(actor, def, options) {
     });
 
     const { parkDirectMurder } = await import("./eclipse.mjs");
-    await parkDirectMurder({ killerId: actor.id, room, note });
+    const parked = await parkDirectMurder({ killerId: actor.id, room, note });
+    if (!parked) {
+        // The GM went away between the check and the write. Nothing was
+        // declared, so nothing is owed - and a Burst that paid comes back as one.
+        return abort(actor, paid);
+    }
 
     await whisperToOwner(actor,
         `${cardHead({ action: def.label })}<p>${
@@ -4330,18 +4540,31 @@ async function performDynamic(actor, options) {
     const request = {
         description,
         actorName: actor.name,
+        actorId: actor.id,
         room: roomOfActor(actor)
     };
 
+    // The sticky "waiting" card (COMM-04), raised before the fork so the GM
+    // guard stays within sight of the bridge call (R6).
+    const waiting = game.user.isGM ? () => {} : (await import("./popup.mjs"))
+        .showWaiting(game.i18n.localize("DRPG.Action.dynamicWaiting"), dynDef.label);
     let picked;
-    if (game.user.isGM) {
-        picked = await askDynamicDifficulty(request);
-    } else {
-        ui.notifications.info(game.i18n.localize("DRPG.Action.dynamicWaiting"));
-        const { requestDynamicDifficulty } = await import("./gm-bridge.mjs");
-        picked = await requestDynamicDifficulty(request);
+    try {
+        if (game.user.isGM) {
+            picked = await askDynamicDifficulty(request);
+        } else {
+            const { requestDynamicDifficulty } = await import("./gm-bridge.mjs");
+            picked = await requestDynamicDifficulty(request);
+        }
+    } finally {
+        waiting();
     }
 
+    // `false` is the GM's no (ROLL-08); `null` is silence, already reported.
+    if (picked === false) {
+        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Action.dynamicRefused")}</p>`);
+        return null;
+    }
     if (!picked) return null;
 
     const band = DYNAMIC_THRESHOLDS[picked.tier];
@@ -4352,6 +4575,7 @@ async function performDynamic(actor, options) {
     if (cost > 0 && !paid) return null;
     const roll = await rollTrait(actor, picked.trait, {
         actionKey: "dynamic",
+        dc: Array.isArray(band.range) ? `${band.range[0]}-${band.range[1]}` : null,
         context: { bandIndex: picked.tier, description, room: roomOfActor(actor) }
     });
     if (!roll) return abort(actor, paid);

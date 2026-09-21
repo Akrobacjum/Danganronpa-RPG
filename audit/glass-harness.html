@@ -7,9 +7,10 @@
      gap, as in v13), the status strip and the tray share `#ui-right-column-1` beside the
      sidebar, and the tray carries Daggerheart's own countdown markup. One module dialog and
      one popup stand in for the windows. Not part of the package (audit/ is export-ignored).
-     `?scale=1.4` sets the interface scale; `?theme=legacy` the other theme. -->
+     `?scale=1.4` pins the interface scale (otherwise the screen's own, as applyTheme
+     computes it); `?theme=legacy` the other theme. -->
 <!doctype html><html><head><meta charset="utf-8">
-<link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css">
+<link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css"><link rel="stylesheet" href="/styles/narrow.css">
 <style>
   html,body{margin:0;background:#2a2430;min-height:100vh;overflow:hidden}
   body{background-image:linear-gradient(90deg,rgba(255,255,255,.12) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.12) 1px,transparent 1px),radial-gradient(circle at 30% 60%,rgba(127,228,255,.35),transparent 30%),radial-gradient(circle at 70% 40%,rgba(255,61,139,.3),transparent 30%);background-size:52px 52px,52px 52px,auto,auto}
@@ -37,7 +38,8 @@
   #players{padding:6px 10px;font-size:12px;color:#ddd}
   #drpg-messenger-launcher,#drpg-sound-launcher{position:fixed;right:22px;width:52px;height:52px;border-radius:50%}
   #drpg-sound-launcher{bottom:22px}#drpg-messenger-launcher{bottom:82px;width:66px;height:66px}
-  #drpg-popups{position:fixed;left:16px;bottom:100px;width:330px}
+  /* the notice tile is placed by the module's own sheets (and by narrow.mjs on a
+     stacked screen); the harness used to pin it here and was testing its own rule */
   /* a module dialog where Foundry would put one */
   .application{position:fixed;left:560px;top:420px;width:420px;display:flex;flex-direction:column;color:#eee}
   .application .window-header{display:flex;align-items:center;gap:8px;padding:3px 7px}
@@ -70,7 +72,7 @@
 <div id="ui-right">
   <div id="ui-right-column-1">
     <div id="drpg-player-status"><div class="drpg-status-field"><span class="drpg-status-label">Still to act</span><span class="drpg-status-value">4 / 4</span></div><div class="drpg-status-field"><span class="drpg-status-label">Hope</span><span class="drpg-status-value">3</span></div></div>
-    <div id="countdowns"><div class="countdowns-header"><i class="fa-solid fa-clock"></i><span class="window-title">Projects</span><button class="drpg-projects-gear"><i class="fa-solid fa-gear"></i></button></div>
+    <div id="countdowns"><div class="countdowns-header"><i class="fa-solid fa-clock"></i><span class="window-title">Projects</span><button class="drpg-projects-gear" aria-label="Manage projects"><i class="fa-solid fa-gear" inert></i></button></div>
       <div class="countdowns-container"><div class="countdown-category-container">
         <div class="countdown-container" data-countdown="a"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-main-container"><div class="countdown-content"><header>Rig the dumbwaiter</header><div class="countdown-tools"><div class="progress-tag">2 / 4</div><div class="countdown-tool-controls"><a>-</a><a>+</a></div></div></div></div></div>
         <div class="countdown-container" data-countdown="b"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-main-container"><div class="countdown-content"><header>Poison the tea with something long</header><div class="countdown-tools"><div class="progress-tag">1 / 6</div><div class="countdown-tool-controls"><a>-</a><a>+</a></div></div></div></div></div>
@@ -91,7 +93,6 @@
 <script type="module">
   const q = new URLSearchParams(location.search);
   if (q.get("theme") === "legacy") { document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"); document.body.classList.add("drpg-pixel-font"); }
-  if (q.get("scale")) document.body.style.setProperty("--drpg-ui-scale", q.get("scale"));
   if (q.get("still")) document.body.classList.add("drpg-reduced-motion");   // no pulse: the glass as painted
   for (const row of document.querySelectorAll(".drpg-despair-pips")) for (let i = 0; i < 12; i++) { const p = document.createElement("span"); p.className = "drpg-despair-pip" + (i < 5 ? " filled" : ""); row.append(p); }
   const defaults = { theme: "stainedGlass", glassEffects: true, glassPulse: true, reducedMotion: false, hudTicker: true, uiScale: Number(q.get("scale") || 1), debug: false, pixelFont: true };
@@ -100,7 +101,30 @@
   globalThis.ui = { sidebar: {} }; globalThis.foundry = { utils: { escapeHTML: s => s } }; globalThis.CONFIG = {};
   const m = await import("/scripts/glass.mjs");
   window.__glass = m;
+  /* applyTheme does not run here, so the harness stamps what it would: the two scale
+     tokens and the two shape classes. They are read from settings.mjs rather than
+     rewritten, so the breakpoints cannot drift apart from the module's own. */
+  const st = await import("/scripts/settings.mjs");
+  window.__settings = st;
+  const stamp = () => {
+    const auto = st.autoScale(), type = Math.round(Math.max(0.85, auto) * 100) / 100;
+    for (const el of [document.body, document.documentElement]) {
+      el.style.setProperty("--drpg-ui-scale", q.get("scale") || String(auto));
+      el.style.setProperty("--drpg-type-scale", q.get("scale") || String(type));
+    }
+    document.body.classList.toggle("drpg-stacked", st.narrowScreen());
+    document.body.classList.toggle("drpg-short", st.shortScreen());
+    nr.applyNarrowLayout();
+    m.refreshGlass();
+  };
+  const nr = await import("/scripts/narrow.mjs");
+  window.__narrow = nr;
+  const ax = await import("/scripts/a11y.mjs");
+  window.__a11y = ax;
+  stamp();
+  addEventListener("resize", stamp);
   m.registerGlass();
+  ax.registerA11y();
   const chrome = await import("/scripts/chrome.mjs");
   chrome.injectFilters?.();
   const win = document.querySelector(".application.drpg-panel");

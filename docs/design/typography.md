@@ -16,10 +16,12 @@ a test for the two that can be tested (`scripts/tests.mjs`).
 
 ## The floor
 
-`--drpg-sg-floor` is **11px** and nothing in the theme is set smaller at any
-interface scale. The scale (80-140%) multiplies against it through
-`max(var(--drpg-sg-floor), calc(...))`, so 80% does not take a 12px label to
-9px. Below 11px VT323's five-pixel strokes start dropping out.
+`--drpg-sg-floor` is **21px, scaled by the slider** (`calc(21px * var(--drpg-sg-scale))`,
+where the scale is the slider times the screen term, clamped at 0.85 - see
+`typeScale` in settings.mjs) and nothing in the theme is set smaller. Every
+size goes through `max(var(--drpg-sg-floor), calc(...))`, so 80% does not take
+a label under the floor. Below about 11px VT323's five-pixel strokes start
+dropping out, which is why the floor sits well above it.
 
 ## Neither face has a bold or an italic
 
@@ -54,8 +56,8 @@ licences.
 Every size above is for 2560 x 1440 at 100 %. Since 1.2.35 `applyTheme()`
 multiplies the slider by the screen's factor - the short side against 1440p,
 between 0.7 and 1 - so a 1280 x 800 tablet draws the panes at 70 % of the
-monitor's and a 1080p screen at 75 %, while the 11 px floor keeps the type
-readable at every factor. The Look window shows both numbers. Streaks and
+monitor's and a 1080p screen at 75 %, while the floor (21 px at 100 %, scaled
+with the rest) keeps the type readable at every factor. The Look window shows both numbers. Streaks and
 veins on a coloured pane run parallel to the pane's longest edge.
 
 ## Monokuma Legacy takes the slider too

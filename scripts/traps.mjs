@@ -56,11 +56,12 @@
 import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
     TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
-import { isPrimaryGm, debug, log, error } from "./utils.mjs";
+import { isPrimaryGm, debug, log, warn, error, esc } from "./utils.mjs";
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
 import { allProjects } from "./projects.mjs";
+import { newItemIdentity } from "./inventory.mjs";
 
 /* ==========================================================================
  * THE ARMED MAP - trap 157
@@ -242,7 +243,6 @@ async function alert(trap, actor, why) {
     const room = trap.room ?? roomOf(actor) ?? "?";
     const clock = getSetting(SETTINGS.clock) ?? {};
 
-    const esc = foundry.utils.escapeHTML;
     const triggerLabel = localised(`DRPG.Trap.trigger.${trap.trigger.kind}`, def?.label ?? trap.trigger.kind);
     const body = `<p><strong>${esc(triggerLabel)}</strong></p>
         <p>${game.i18n.format("DRPG.Trap.alertReading", {
@@ -395,7 +395,7 @@ export async function restorePlant(room, sceneId, plant) {
 export async function plantItem(projectId, room, { sceneId = null, ...item } = {}) {
     if (!game.user.isGM || !projectId || !room) return null;
 
-    const drpgItemId = foundry.utils.randomID(16);
+    const drpgItemId = newItemIdentity();
     const store = { ...plants() };
     store[plantKey(room, sceneId)] = { projectId, drpgItemId, ...item };
     await setSetting(SETTINGS.trapPlants, store);
@@ -435,8 +435,43 @@ export async function takePlant(room, sceneId = null) {
     delete rest[key];
     await setSetting(SETTINGS.trapPlants, rest);
 
+    // A plant no longer outlives its project (ITEM-08): `deleteProject` and
+    // the season reset prune the store through `pruneTrapsFor` below.
     debug(`A planted item was taken out of ${room}.`);
     return found;
+}
+
+/**
+ * Forget every plant and ledger row of projects that no longer exist. GM
+ * browsers only, where the two client-scoped stores live; called by the
+ * project manager's delete and by the season reset (ITEM-08).
+ *
+ * @param {Set<string>|null} keep  Project ids that still exist; null = none.
+ */
+export async function pruneTrapsFor(keep = null) {
+    if (!game.user.isGM) return 0;
+    const alive = id => Boolean(keep?.has?.(id));
+    let dropped = 0;
+
+    const store = plants();
+    const nextPlants = {};
+    for (const [key, entry] of Object.entries(store)) {
+        if (alive(entry?.projectId)) nextPlants[key] = entry;
+        else dropped += 1;
+    }
+    if (dropped) await setSetting(SETTINGS.trapPlants, nextPlants);
+
+    const rows = ledger();
+    const nextLedger = {};
+    let stale = 0;
+    for (const [itemId, projectId] of Object.entries(rows)) {
+        if (alive(projectId)) nextLedger[itemId] = projectId;
+        else stale += 1;
+    }
+    if (stale) await setSetting(SETTINGS.trapLedger, nextLedger);
+
+    if (dropped || stale) log(`Traps: pruned ${dropped} plant(s) and ${stale} ledger row(s) of deleted projects.`);
+    return dropped + stale;
 }
 
 /**
@@ -460,7 +495,6 @@ export async function openPlantDialog(projectId) {
     const { allRooms } = await import("./movement.mjs");
 
     const meta = metaFor(projectId);
-    const esc = foundry.utils.escapeHTML;
     const rooms = allRooms();
     const roomOptions = rooms.map(r =>
         `<option value="${esc(r)}"${r === meta.room ? " selected" : ""}>${esc(r)}</option>`).join("");
@@ -570,8 +604,22 @@ export function registerTraps() {
      * means. The packet carries ids and a room name and nothing else: the GM
      * re-derives the trap, the modifiers and the audience on their own side,
      * because a claim from a client is a claim about an EVENT, never about a
-     * consequence. A forged packet costs a false alert on the GM's screen, and
-     * the GM was always the one who fires.
+     * consequence.
+     *
+     * WHAT A FORGED PACKET ACTUALLY COST, AND THE NOTE HERE USED TO UNDERSTATE
+     * IT (audit 15.09). It said "a false alert on the GM's screen, and the GM
+     * was always the one who fires". The second half is true and checked -
+     * `ruleFireTrap` opens the murder screen and asks the GM who walked in, so
+     * `payload.actorId` never becomes a victim by itself. The first half was
+     * not the whole cost: `alert` stamps `stampFired` BEFORE sending the card,
+     * so a forged packet also disarms the trap until a GM presses Rearm. Any
+     * player could have burned every armed trap on the map in a loop.
+     *
+     * So the handler now asks Foundry who really sent this and whether they own
+     * the character the packet names - the same `senderOf`/`ownsActor` pair the
+     * GM bridge applies to all thirty of its own handlers. A relay is a client
+     * reporting something ITS OWN student did; there is no legitimate packet
+     * here about somebody else's.
      */
     const relay = (kind, payload) => {
         if (isPrimaryGm()) return false;
@@ -608,9 +656,20 @@ export function registerTraps() {
     // one of the five that was ever working.
     Hooks.on("createChatMessage", onChatMessage);
 
-    game.socket.on(SOCKET_EVENT, async payload => {
+    game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
         if (payload?.action !== TRAP_EVENT) return;
         if (!isPrimaryGm()) return;
+
+        // Dynamically, not at the top of the file: traps.mjs already reaches
+        // gm-bridge.mjs this way from `alert`, and a static edge here would add
+        // one to a graph that settings.mjs was reorganised to keep acyclic.
+        const { senderOf, ownsActor } = await import("./gm-bridge.mjs");
+        const sender = senderOf(senderId);
+        if (!ownsActor(sender, payload.actorId)) {
+            warn(`Refused a trap relay from ${sender?.name ?? senderId}: not their character.`);
+            return;
+        }
+
         const actor = payload.actorId ? game.actors.get(payload.actorId) : null;
         if (!actor) return;
         try {

@@ -31,7 +31,7 @@ import { TRUTH_BULLET_FLAGS, isIdentified } from "./truth-bullets.mjs";
 // file, so the static import is safe.
 import { myBulletForRemnant } from "./visibility.mjs";
 import { debug, error, esc, cssColour } from "./utils.mjs";
-import { SETTINGS, getSetting } from "./settings.mjs";
+import { glassOn as motionGlassOn, SEAM_GLOW } from "./motion.mjs";
 /* The room border's own hairline. A ring under this theme is the same seam as the
    border the token is standing inside, so it takes the same number from the same place
    rather than a second copy of the formula that could drift from it. */
@@ -49,14 +49,7 @@ let ringZoom = 0;
 /** True when this browser wears Stained Glass. The SETTING first, then the class: the
     class lands at ready and tokens are drawn before that - fog.mjs `flashOutline` records
     in full what reading the class alone cost there. */
-function glassOn() {
-    try {
-        return getSetting(SETTINGS.theme) === "stainedGlass"
-            || document.body.classList.contains("drpg-theme-stained-glass");
-    } catch {
-        return document.body.classList.contains("drpg-theme-stained-glass");
-    }
-}
+const glassOn = motionGlassOn;
 
 /**
  * Which token each type borrows. Same assignments the `.drpg-tb-badge.type.*`
@@ -189,7 +182,8 @@ function actionLabelOf(action) {
 }
 
 /**
- * The two player-facing fields, editable from the card itself.
+ * The player-facing fields - the name, the Observe sentence and the lab
+ * reading - editable from the card itself.
  *
  * Until now this card showed the GM's own note - the answer key - and nothing
  * at all of `public`, the record a player actually reads off their Truth
@@ -197,7 +191,7 @@ function actionLabelOf(action) {
  * seeing found the one field they wanted missing, and had to go and open the
  * Investigation Dashboard instead.
  *
- * NOT A SECOND WRITE PATH. Both fields go through `setRemnantPublic`, which is
+ * NOT A SECOND WRITE PATH. Every field goes through `setRemnantPublic`, which is
  * the same function the dashboard's Traces tab and `observe.mjs`'s first find
  * already call - one record, so the two screens cannot disagree and nothing has
  * to be synchronised between them. `setRemnantPublic` also propagates: the
@@ -260,11 +254,10 @@ function gmRemnantCard(tokenOrActor, esc) {
         [t("DRPG.Remnant.cardSubject"), esc(data.subject ?? "-")]
     ];
 
+    /* The record the three editable fields below read and write. It went out with
+       the tag row it used to share a block with, and every `pub.` below was left
+       reading a name nothing declared - so the GM's card threw before it drew. */
     const pub = data.public ?? {};
-    const tagRow = (pub.tags ?? []).length
-        ? `<div class="drpg-remnant-tagrow">${pub.tags.map(x =>
-            `<span class="drpg-tb-badge tag">${esc(x)}</span>`).join("")}</div>`
-        : "";
 
     return `<div class="drpg-panel drpg-remnant-card">
         <header class="drpg-remnant-head">
@@ -290,7 +283,11 @@ function gmRemnantCard(tokenOrActor, esc) {
                 <textarea rows="3" data-drpg-public="playerText"
                     data-drpg-was="${esc(pub.playerText ?? "")}"
                     placeholder="${esc(t("DRPG.TruthBullet.playerTextPlaceholder"))}">${esc(pub.playerText ?? "")}</textarea></label>
-            ${tagRow}
+            <label>${esc(t("DRPG.TruthBullet.analyzedText"))}
+                <textarea rows="3" data-drpg-public="analyzedText"
+                    data-drpg-was="${esc(pub.analyzedText ?? "")}"
+                    placeholder="${esc(t("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(pub.analyzedText ?? "")}</textarea></label>
+            <p class="notes">${esc(t("DRPG.TruthBullet.analyzedTextNote"))}</p>
             <p class="notes">${esc(t("DRPG.Remnant.cardEditNote"))}</p>
         </section>
     </div>`;
@@ -316,11 +313,19 @@ function playerRemnantCard(tokenOrActor, esc) {
     const shownType = flag(TRUTH_BULLET_FLAGS.shownType) ?? "neutral";
     const known = isIdentified(bullet);
     const playerText = flag(TRUTH_BULLET_FLAGS.playerText) ?? "";
-    // What the analysis told them, if it has happened. "" before that, because
-    // the flag itself is "" until `identify` publishes it (T-2).
-    const said = flag(TRUTH_BULLET_FLAGS.analysisText) ?? "";
-    const tags = flag(TRUTH_BULLET_FLAGS.tags) ?? [];
+    /* Read off the ITEM, not decided here. The flag is empty until this holder
+       has analysed this copy, so the card needs no rule of its own: it prints
+       what their browser is actually allowed to hold. `known` still gates it,
+       because a bullet can be identified with no reading written for it. */
+    const analyzedText = flag(TRUTH_BULLET_FLAGS.analyzedText) ?? "";
     const visibility = flag(TRUTH_BULLET_FLAGS.visibility) ?? null;
+    /* WHERE IT WAS PICKED UP, as a badge rather than as a tag. The tag row this
+       replaces carried the room and a difficulty band, both appended by
+       `remnantPublic`; the band has gone entirely (it was derived from the REAL
+       type, so it hinted at the answer - see the note in remnants.mjs) and the
+       room is a field on the bullet, so it is drawn from that, the same way the
+       inventory row draws it. */
+    const room = flag(TRUTH_BULLET_FLAGS.room) ?? null;
 
     // The emblem the player has EARNED, exactly as on the map: the action's
     // glyph once their copy is identified, the question mark before -
@@ -332,7 +337,8 @@ function playerRemnantCard(tokenOrActor, esc) {
         `<span class="drpg-tb-badge type ${esc(shownType)}">${
             esc(TRUTH_BULLET_TYPES[shownType]?.label ?? shownType)}</span>`,
         visibility ? `<span class="drpg-tb-badge visibility">${
-            esc(REMNANT_VISIBILITY_LABELS[visibility] ?? visibility)}</span>` : null
+            esc(REMNANT_VISIBILITY_LABELS[visibility] ?? visibility)}</span>` : null,
+        room ? `<span class="drpg-tb-badge room">${esc(room)}</span>` : null
     ].filter(Boolean).join("");
 
     return `<div class="drpg-panel drpg-remnant-card">
@@ -343,13 +349,13 @@ function playerRemnantCard(tokenOrActor, esc) {
                 <div class="drpg-tb-badges">${badges}</div>
             </div>
         </header>
-        ${playerText || said || !known ? `<section class="drpg-remnant-box">
+        ${playerText || analyzedText || !known ? `<section class="drpg-remnant-box">
             ${playerText ? `<p class="drpg-remnant-text">${esc(playerText)}</p>` : ""}
-            ${said ? `<p class="drpg-remnant-analysis"><em>${esc(said)}</em></p>` : ""}
+            ${known && analyzedText ? `<p class="drpg-remnant-text drpg-bullet-analysis"><strong>${
+                esc(game.i18n.localize("DRPG.TruthBullet.analysisHeading"))
+            }</strong> ${esc(analyzedText)}</p>` : ""}
             ${known ? "" : `<p class="notes">${esc(game.i18n.localize("DRPG.Remnant.cardUnanalyzed"))}</p>`}
         </section>` : ""}
-        ${tags.length ? `<div class="drpg-remnant-tagrow">${tags.map(x =>
-            `<span class="drpg-tb-badge tag">${esc(x)}</span>`).join("")}</div>` : ""}
     </div>`;
 }
 
@@ -506,7 +512,7 @@ function paint(token) {
         const rect = [seam / 2, seam / 2, Math.max(1, w - seam), Math.max(1, h - seam)];
         core.lineStyle({ width: seam, color: colour, alpha: 1, cap: "square", join: "miter", miterLimit: 2 });
         core.drawRect(...rect);
-        for (const [k, alpha] of [[2.6, 0.46], [1.8, 0.50], [1.2, 0.58]]) {
+        for (const [k, alpha] of SEAM_GLOW) {
             halo.lineStyle({ width: seam * k, color: colour, alpha, cap: "round", join: "round" });
             halo.drawRect(...rect);
         }

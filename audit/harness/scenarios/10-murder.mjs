@@ -5,7 +5,10 @@
  */
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, p2, check, settle }) {
+export async function run({ gm, p1, p2, p3, check, settle }) {
+    // This scenario drives the incident from the GM's client and measures state between its
+    // own steps; the killer's player client answering an opening roll it was sent would race it.
+    for (const c of [p1, p2, p3].filter(Boolean)) await c.eval(`globalThis.__dialogAuto = false; (game.socket._handlers.get("module.danganronpa-rpg") ?? []).length = 0; return true;`);
     const ids = await gm.eval(`return {
         chie: game.actors.getName("Chie Mori").id,
         daichi: game.actors.getName("Daichi Sato").id,

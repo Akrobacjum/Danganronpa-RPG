@@ -43,6 +43,30 @@ export function studentActors() {
 }
 
 /**
+ * The students who still spend a budget: the living, and the dead who are
+ * back as a Monocub. The one roster the panel's "Next" line, its table and
+ * the status strip used to spell five ways (audit, hygiene).
+ */
+export function actingStudents() {
+    return studentActors().filter(a =>
+        !a.getFlag(MODULE_ID, FLAGS.deceased) || a.getFlag(MODULE_ID, FLAGS.monocub));
+}
+
+/**
+ * The one student this account plays, or null: the assigned character when
+ * it is a student, nothing when the assigned character is a Monokuma (a
+ * Monokuma account has no student view), else the single owned student.
+ * Written twice before (hud.mjs and player-status.mjs), identically.
+ */
+export function ownStudent() {
+    const assigned = game.user.character;
+    if (assigned && !isMonokuma(assigned)) return assigned;
+    if (assigned) return null;
+    const owned = game.actors.filter(a => a.type === "character" && a.isOwner && !isMonokuma(a));
+    return owned.length === 1 ? owned[0] : null;
+}
+
+/**
  * Mark or unmark an actor as a Monokuma. GM only.
  *
  * Marking one also clears their action budget and Hope: those are student

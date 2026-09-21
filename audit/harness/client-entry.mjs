@@ -46,6 +46,11 @@ document.fonts ??= { ready: Promise.resolve(), add() {}, load: async () => [], c
 globalThis.Audio = class { constructor(src) { this.src = src; } play() { return Promise.resolve(); } pause() {} addEventListener() {} removeEventListener() {} load() {} };
 globalThis.AudioContext = class { constructor() { this.state = "running"; this.destination = {}; } resume() { return Promise.resolve(); } createGain() { return { connect() {}, gain: { value: 1 } }; } };
 window.scrollTo ??= () => {};
+// Bare `innerWidth` / `innerHeight` (the module reads them as globals, as a
+// browser allows): jsdom keeps them on `window` only.
+for (const k of ["innerWidth", "innerHeight", "outerWidth", "outerHeight", "devicePixelRatio", "scrollX", "scrollY"]) {
+    if (globalThis[k] === undefined) Object.defineProperty(globalThis, k, { get: () => dom.window[k], configurable: true });
+}
 
 /*
  * Serve CSS custom properties from the REAL stylesheets, so the module's
@@ -161,12 +166,15 @@ const apps = buildApplications(ctx);
 
 /* ------------------------------ i18n ------------------------------------- */
 
-const enJson = JSON.parse(fs.readFileSync(path.join(REPO, "lang/en.json"), "utf8"));
+// Foundry expands dotted keys ("step.name" inside "Season") when it merges a
+// language file, so a lookup by path finds them. Mirror that, or the suite's
+// i18n coverage test fails on keys that resolve fine in the real client.
+const enJson = U.expandObject(JSON.parse(fs.readFileSync(path.join(REPO, "lang/en.json"), "utf8")));
 const i18n = {
-    lang: "en",
+    lang: process.env.DRPG_LANG ?? "en",
     translations: enJson,
     localize(key) {
-        const v = U.getProperty(enJson, key);
+        const v = U.getProperty(this.translations, key);
         if (typeof v === "string") return v;
         globalThis.__missingI18n.add(key);
         return key;
@@ -176,7 +184,7 @@ const i18n = {
         for (const [k, v] of Object.entries(data)) s = s.replaceAll(`{${k}}`, String(v));
         return s;
     },
-    has(key) { return typeof U.getProperty(enJson, key) === "string"; }
+    has(key) { return typeof U.getProperty(this.translations, key) === "string"; }
 };
 
 /* ---------------------------- settings ----------------------------------- */
@@ -191,7 +199,15 @@ const FOREIGN_SETTING_DEFAULTS = {
     "daggerheart.Appearance": { scope: "world", default: {} },
     "daggerheart.Automation": { scope: "world", default: { hope: true } },
     "dice-so-nice.Appearance": { scope: "client", default: {} },
-    "core.rollMode": { scope: "client", default: "publicroll" }
+    "core.rollMode": { scope: "client", default: "publicroll" },
+    /* How loud playlists are ON THIS BROWSER. Foundry's own, client-scoped, and
+       the module reads and writes it in two places: the Sound panel's Music
+       slider proxies it rather than keeping a second volume beside it
+       (`SFX_SLIDERS.music.proxiesFoundryMusic`), and the murder music ducks it
+       while the incident has this client. Neither path could be exercised
+       headless until the shim modelled it - the first assertion written against
+       the duck died on "Setting core.globalPlaylistVolume is not registered". */
+    "core.globalPlaylistVolume": { scope: "client", default: 1 }
 };
 
 const settingsApi = {
@@ -216,7 +232,17 @@ const settingsApi = {
     },
     async set(ns, key, value) {
         const full = `${ns}.${key}`;
-        const def = settingDefs.get(full);
+        let def = settingDefs.get(full);
+        /* THE SAME FALLBACK `get` HAS, and it was missing here only because
+           nothing had written a foreign setting before. `core.globalPlaylist
+           Volume` is written by the module (the Music slider, and the murder
+           music's duck), so a shim that can read a foreign setting but not
+           write one turned every such write into a thrown scenario. */
+        if (!def && FOREIGN_SETTING_DEFAULTS[full]) {
+            def = FOREIGN_SETTING_DEFAULTS[full];
+            settingDefs.set(full, def);
+            logLine(`(harness) auto-registered foreign setting ${full}`);
+        }
         if (!def) throw new Error(`Setting ${full} is not registered`);
         if (def.scope === "world") {
             await bus.setSetting(full, JSON.parse(JSON.stringify(value ?? null)));
@@ -577,7 +603,8 @@ const CONST = {
     TOKEN_DISPOSITIONS: { SECRET: -2, HOSTILE: -1, NEUTRAL: 0, FRIENDLY: 1 },
     CHAT_MESSAGE_STYLES: { OTHER: 0, OOC: 1, IC: 2, EMOTE: 3 },
     DICE_ROLL_MODES: { PUBLIC: "publicroll", PRIVATE: "gmroll", BLIND: "blindroll", SELF: "selfroll" },
-    REGION_EVENTS: { TOKEN_ENTER: "tokenEnter", TOKEN_EXIT: "tokenExit", TOKEN_MOVE_IN: "tokenMoveIn", TOKEN_MOVE_OUT: "tokenMoveOut" }
+    REGION_EVENTS: { TOKEN_ENTER: "tokenEnter", TOKEN_EXIT: "tokenExit", TOKEN_MOVE_IN: "tokenMoveIn", TOKEN_MOVE_OUT: "tokenMoveOut" },
+    KEYBINDING_PRECEDENCE: { PRIORITY: 0, NORMAL: 1, DEFERRED: 2 }
 };
 globalThis.CONST = CONST;
 
@@ -800,9 +827,11 @@ process.on("message", async msg => {
                 break;
             }
             case "socketMsg": {
+                // Foundry hands a module socket handler `(payload, senderId)`. The
+                // emit's options (`{ recipients }`) are for the server, not the handler.
                 const handlers = game.socket._handlers.get(msg.channel) ?? [];
                 for (const fn of handlers) {
-                    try { await fn(...msg.args); } catch (err) { logLine(`socket handler ${msg.channel}: ${err.stack}`); }
+                    try { await fn(msg.args?.[0], msg.senderId); } catch (err) { logLine(`socket handler ${msg.channel}: ${err.stack}`); }
                 }
                 break;
             }
