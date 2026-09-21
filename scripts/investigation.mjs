@@ -22,7 +22,7 @@
  */
 
 import {
-    MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC,
+    MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, OBSERVE_DC, REMNANT_TYPES,
     REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS, isEclipse } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
@@ -444,6 +444,174 @@ export function randomPointIn(region, scene) {
     }
 
     return centre;
+}
+
+
+/**
+ * Put a trace of any kind on the map, by hand (N-4, Dawid 21.09).
+ *
+ * THERE WAS NO WAY TO DO THIS AT ALL, which is the finding. Traces arrive from
+ * actions (`dropRemnant`), from the Key planner's own per-row button, from the
+ * Mastermind's Final Remnant and from the ruling card an Observe produces - and
+ * every one of those roads places a KEY Remnant or a trace somebody's action
+ * earned. A GM who wanted to put a Prep trace in the kitchen because that is what
+ * happened in the fiction had to make a token by hand and flag it by hand.
+ *
+ * THE KEY PLANNER IS NOT THIS, and stays where it is. That screen is about the
+ * five clues the chapter's case is built on: they are planned, counted against the
+ * opening roll's limit, and reinforced so nothing can sweep them. This is the other
+ * half - a trace the GM is simply stating exists.
+ *
+ * THE TWO FLAGS ARE ASKED RATHER THAN ASSUMED. A Key Remnant gets `tiedToCrime` and
+ * `reinforced` implicitly because that is what a Key Remnant IS; a hand-placed trace
+ * can be either, and the difference decides whether the chapter-end sweep takes it
+ * and whether a killer can clean it up. Both default off, which is the ordinary
+ * trace.
+ *
+ * Opened from the case dashboard, so the room list is the scene that dashboard was
+ * built from - `workingScene`, the same answer `createKeyRemnant` uses.
+ */
+export async function openNewTrace({ room = null, sceneId = null } = {}) {
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const { allRooms } = await import("./movement.mjs");
+    const scene = (sceneId ? game.scenes.get(sceneId) : null) ?? workingScene();
+    const rooms = allRooms(scene);
+    if (!rooms.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Investigation.noRooms"));
+        return null;
+    }
+
+    const roomOptions = rooms.map(r =>
+        `<option value="${esc(r)}"${r === room ? " selected" : ""}>${esc(r)}</option>`).join("");
+    /* EVERY TYPE THE MAP CAN HOLD, including the two with screens of their own.
+       A GM repairing a case - a Key Remnant lost with its plan row, a Final Remnant
+       that has to move - has nowhere else to say so, and refusing them here would
+       send them back to editing token flags by hand, which is the thing this window
+       exists to stop. */
+    const typeOptions = Object.entries(REMNANT_TYPES).map(([key, def]) =>
+        `<option value="${key}"${key === "prep" ? " selected" : ""}>${
+            esc(def.label ?? key)}</option>`).join("");
+    const visOptions = REMNANT_VISIBILITY.map(v =>
+        `<option value="${v}"${v === "evident" ? " selected" : ""}>${
+            esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
+
+    const result = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Investigation.newTraceTitle") },
+        classes: ["drpg-panel", "drpg-window-newtrace"],
+        content: dialogContent(`<form>
+            <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceIntro")}</p>
+            <label>${game.i18n.localize("DRPG.Investigation.pickRoom")}
+                <select name="room">${roomOptions}</select></label>
+            <label>${game.i18n.localize("DRPG.Investigation.traceType")}
+                <select name="type">${typeOptions}</select></label>
+            <label>${game.i18n.localize("DRPG.Investigation.difficulty")}
+                <select name="vis">${visOptions}</select></label>
+            <label>${game.i18n.localize("DRPG.Investigation.traceName")}
+                <input type="text" name="tname" value="" maxlength="60"
+                       placeholder="${esc(game.i18n.localize("DRPG.Remnant.tokenName"))}" /></label>
+            <label>${game.i18n.localize("DRPG.Investigation.traceText")}
+                <input type="text" name="ttext" value="" maxlength="400"
+                       placeholder="${esc(game.i18n.localize(
+                           "DRPG.Investigation.notePlaceholder"))}" /></label>
+            <label>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}
+                <input type="text" name="note" value=""
+                       placeholder="${esc(game.i18n.localize(
+                           "DRPG.Investigation.keyNotePlaceholder"))}" /></label>
+            <label class="drpg-checkbox"><input type="checkbox" name="tied" />
+                ${game.i18n.localize("DRPG.Investigation.newTraceTied")}</label>
+            <label class="drpg-checkbox"><input type="checkbox" name="reinforced" />
+                ${game.i18n.localize("DRPG.Investigation.newTraceReinforced")}</label>
+            <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceNote")}</p>
+        </form>`),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Investigation.createHere"),
+                default: true,
+                callback: (e, b, d) => {
+                    const f = d.element.querySelector("form");
+                    return {
+                        room: f.room.value,
+                        type: f.type.value,
+                        visibility: f.vis.value,
+                        name: f.tname.value.trim(),
+                        text: f.ttext.value.trim(),
+                        note: f.note.value.trim(),
+                        tied: f.tied.checked,
+                        reinforced: f.reinforced.checked
+                    };
+                }
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+
+    if (!result || result === "cancel" || !result.room) return null;
+    if (!REMNANT_TYPES[result.type]) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Investigation.newTraceBadType"));
+        return null;
+    }
+
+    const region = Array.from(scene?.regions ?? []).find(r => r.name === result.room);
+    if (!region) {
+        ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room: result.room }));
+        return null;
+    }
+
+    const spot = randomPointIn(region, scene);
+    const { placeRemnant } = await import("./remnants.mjs");
+    const clock = getClock();
+    const token = await placeRemnant({
+        x: spot.x,
+        y: spot.y,
+        sceneId: scene?.id ?? null,
+        type: result.type,
+        visibility: result.visibility,
+        faint: result.type === "faint",
+        tiedToCrime: result.tied,
+        // A Key Remnant is reinforced by its own definition whatever this says -
+        // `placeRemnant` reads the type - so the box only ever ADDS the mark.
+        reinforced: result.reinforced,
+        // The GM's own line stays the GM's. `note` is the ledger's private field.
+        note: result.note || "",
+        // The stamp every other road puts on a trace, so the dashboard can sort
+        // this one by chapter and `traceContextLine` has a room to print. No
+        // `action`: nobody performed one, exactly as for a planned clue.
+        room: result.room,
+        chapter: clock.chapter,
+        day: clock.day,
+        timeOfDay: clock.timeOfDay
+    });
+
+    if (!token) return null;
+
+    /*
+     * AND THE WORDS GO WHERE A PLAYER CAN REACH THEM.
+     *
+     * `placeRemnant` has no `name` and no `text` - it names every token the same
+     * public word on purpose, because a token's name travels to every client, and
+     * the meaning lives in the GM-side ledger. The player-facing pair is a separate
+     * write, and `createKeyRemnant` and `createFind` both make it for the same
+     * reason: a Truth Bullet called "Trace" with no description is a clue the
+     * finder cannot use, and two names for one object is a false contradiction the
+     * table then has to spend the trial resolving.
+     */
+    if (result.name || result.text) {
+        await setRemnantPublic(token, {
+            ...(result.name ? { name: result.name } : {}),
+            ...(result.text ? { playerText: result.text } : {})
+        });
+    }
+    log(`Case panel: a ${result.type} trace placed by hand in ${result.room}.`);
+    ui.notifications.info(game.i18n.format("DRPG.Investigation.newTraceDone", {
+        room: result.room,
+        type: REMNANT_TYPES[result.type]?.label ?? result.type
+    }));
+    return token;
 }
 
 /**
@@ -1370,6 +1538,10 @@ export async function openInvestigationDashboard() {
                     };
                 }
             },
+            // N-4: the one road to a trace the GM is simply stating exists. Beside
+            // the sweeps rather than on a tab, because it is an action rather than a
+            // view - the same place "clear the Faint traces" lives.
+            { action: "newTrace", label: game.i18n.localize("DRPG.Investigation.newTraceTitle") },
             { action: "clearFaint", label: game.i18n.localize("DRPG.Panel.clearFaint") },
             // The Truth Bullet sweep lands here for the same reason as the rest
             // of this row (Z7): it stopped being a step in the end-of-chapter
@@ -1487,6 +1659,11 @@ export async function openInvestigationDashboard() {
     });
 
     if (!action || action === "close") return null;
+
+    if (action === "newTrace") {
+        await openNewTrace();
+        return openInvestigationDashboard();
+    }
 
     if (action === "clearFaint") {
         await confirmClearFaint();

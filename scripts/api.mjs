@@ -114,7 +114,7 @@ import {
 } from "./chapter.mjs";
 import {
     keyPlan, setKeyPlan, keyPlanStatus,
-    openInvestigationDashboard, openKeyRemnantHere
+    openInvestigationDashboard, openKeyRemnantHere, openNewTrace
 } from "./investigation.mjs";
 import {
     trialFloor, floorHolder, floorTarget, maySpeak, secondsLeft,
@@ -762,6 +762,9 @@ export const DrpgApi = {
     /** One clue, in one room, optionally filling a slot in the plan. Also the
      *  button on an Observe ruling card. */
     keyRemnantHere: openKeyRemnantHere,
+
+    /** N-4: place a trace of any type by hand, from the case dashboard. */
+    newTrace: openNewTrace,
 
     /* ---- the murder engine -------------------------------------------------
      * Two opening rolls, then a turn-based incident. The module owns the

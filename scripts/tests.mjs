@@ -4213,6 +4213,69 @@ const REGRESSIONS = [
         const chrome = stripComments(sources.get("chrome.mjs") ?? "");
         ok(/Hooks\.on\("drpgWindowUpdated"/.test(chrome),
             "the listener this hook exists for is gone, so firing it decorates nothing");
+    }],
+
+    ["R91 - the GM can state that a trace exists", async () => {
+        /*
+         * N-4, Dawid 21.09. There was no general "put a trace here" control at all:
+         * every road onto the map placed a KEY Remnant (the planner's per-row button,
+         * the Observe ruling card) or a trace an action had earned (`dropRemnant`,
+         * the Final Remnant). A GM who simply wanted a Prep trace in the kitchen had
+         * to build a token and flag it by hand.
+         *
+         * THE TWO FLAGS ARE THE TEST. A Key Remnant is tied to the crime and
+         * reinforced because that is what a Key Remnant IS; a hand-placed trace can
+         * be either, and those two booleans decide whether the chapter-end sweep
+         * takes it and whether a killer can clean it up. A window that assumed them
+         * would quietly make every hand-placed trace unsweepable and uncleanable.
+         */
+        const sources = new Map(await otherSources());
+        const inv = stripComments(sources.get("investigation.mjs") ?? "");
+        const start = inv.indexOf("export async function openNewTrace");
+        ok(start > 0, "the case panel cannot place a trace by hand any more");
+        const body = inv.slice(start, inv.indexOf("export", start + 40));
+        ok(body.length > 400, "openNewTrace has moved or been hollowed out");
+
+        ok(/if \(!game\.user\.isGM\)/.test(body.slice(0, 400)),
+            "a player reaching openNewTrace is not turned away at the door");
+        ok(/Object\.entries\(REMNANT_TYPES\)/.test(body),
+            "the kind list is written out rather than read from REMNANT_TYPES, so a "
+            + "new kind will be missing from the one window that can place any of them");
+        ok(/name="tied"/.test(body) && /name="reinforced"/.test(body),
+            "the window does not ask for the two flags");
+        ok(/tiedToCrime: result\.tied/.test(body) && /reinforced: result\.reinforced/.test(body),
+            "the flags are asked for and then not carried, so every hand-placed trace "
+            + "is an ordinary one whatever the GM ticked");
+        ok(/if \(!REMNANT_TYPES\[result\.type\]\)/.test(body),
+            "the kind comes back off a form and is written without being checked");
+        ok(/placeRemnant\(/.test(body),
+            "the trace is built by hand instead of through the one writer that owns "
+            + "the flags, the art and the name");
+        /* MEASURED, 21.09: the first cut passed `name` and `text` to `placeRemnant`,
+           which has neither parameter and dropped both without a word. The window
+           looked right and produced a trace the finder would read as "Trace" with no
+           description. The public pair is a SECOND write, and every other road that
+           offers those words makes it. */
+        ok(/setRemnantPublic\(token, \{/.test(body),
+            "the name and the description the GM typed never reach the player's record");
+        ok(/playerText: result\.text/.test(body),
+            "the description is written under the wrong key, so the bullet is blank");
+
+        /* The door. A window nothing opens is a window nobody has. */
+        const dash = inv.slice(inv.indexOf("export async function openInvestigationDashboard"));
+        ok(/action: "newTrace"/.test(dash), "the dashboard has no button for it");
+        ok(/if \(action === "newTrace"\)/.test(dash), "the button leads nowhere");
+
+        const api = stripComments(sources.get("api.mjs") ?? "");
+        ok(/newTrace: openNewTrace/.test(api), "it is not on game.drpg, so a macro cannot reach it");
+
+        /* A localise() that misses prints its own key at the table - and it prints it
+           truthy, so only comparing against the key itself catches it. */
+        for (const key of ["newTraceTitle", "newTraceIntro", "traceType", "newTraceTied",
+            "newTraceReinforced", "newTraceNote", "newTraceBadType", "newTraceDone", "noRooms"]) {
+            const path = `DRPG.Investigation.${key}`;
+            ok(game.i18n.localize(path) !== path, `${path} is missing from lang/en.json`);
+        }
     }]
 ];
 
