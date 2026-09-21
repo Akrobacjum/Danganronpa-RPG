@@ -57,7 +57,11 @@ const SURFACES = [
  * pickers would otherwise report a window clean that has a nameless control in
  * it, which is the exact way this defect stayed invisible for a release.
  */
-export const CONTROLS = "button, a[href], [role=\"button\"], input, select, textarea, "
+/* NOT A HIDDEN INPUT (21.09). `<input type="hidden">` carries a form value and is
+   never exposed to assistive technology, so it has no name to give and nothing to
+   read one out to - measured, the Projects window's hidden `img.<id>` field was
+   reported as a control a screen reader cannot name. */
+export const CONTROLS = "button, a[href], [role=\"button\"], input:not([type=\"hidden\"]), select, textarea, "
     + "img[data-drpg-portrait]";
 
 /** Controls the sweep could not name, for the report. Keyed so one entry is one kind. */

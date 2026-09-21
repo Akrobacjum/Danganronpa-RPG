@@ -1694,8 +1694,11 @@ function recountTokenCells(root, scene) {
 function fogMatrixRows(rooms, students, known) {
     return rooms.map(room => {
         const escRoom = foundry.utils.escapeHTML(room);
+        // Both coordinates, as the input's name has them: a screen reader walking the
+        // grid hears "Big IT Room - Player A", not "checkbox" seventy-two times.
         const boxes = students.map(actor =>
             `<td style="text-align:center"><input type="checkbox"
+                aria-label="${escRoom} - ${foundry.utils.escapeHTML(actor.name)}"
                 name="fog:${escRoom}:${actor.id}" ${
                 known.get(actor.id)?.has(room) ? "checked" : ""} /></td>`).join("");
         return `<tr><td><strong>${escRoom}</strong></td>${boxes}</tr>`;
@@ -1788,13 +1791,26 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
                 name="${prefix}:${escRoom}:${key}" ${ticked.includes(key) ? "checked" : ""} />${
                 foundry.utils.escapeHTML(cat.label)}</label>`).join(" ");
 
+        /* A NAME A SCREEN READER CAN SAY (21.09). A control in a table row is named by
+           its column header only for the eye; 1.2.47's a11y sweep found these with no
+           name at all, and it can only copy a name the control already carries. Each
+           says its column and its room: "Locked: Big IT Room", not "checkbox". */
+        const COLUMN = {
+            owner: "DRPG.Vault.owner", locked: "DRPG.Vault.lockedColumn",
+            startlocked: "DRPG.Vault.lockedAtStartColumn", notshared: "DRPG.Vault.notSharedColumn",
+            nosearch: "DRPG.SearchTokens.sealedColumn", table: "DRPG.Vault.table",
+            short: "DRPG.Rest.shortColumn", long: "DRPG.Rest.longColumn",
+            desc: "DRPG.Vault.descriptionColumn"
+        };
+        const named = key => COLUMN[key]
+            ? ` aria-label="${foundry.utils.escapeHTML(game.i18n.localize(COLUMN[key]))}: ${escRoom}"` : "";
         const check = (name, on, title = "") => `<td style="text-align:center"${
-            title ? ` title="${title}"` : ""}><input type="checkbox" name="${name}:${escRoom}"
+            title ? ` title="${title}"` : ""}><input type="checkbox" name="${name}:${escRoom}"${named(name)}
                 ${on ? "checked" : ""} /></td>`;
 
         return {
             name: `<td><strong>${escRoom}</strong></td>`,
-            owner: `<td><select name="owner:${escRoom}"><option value="">-</option>${people}</select></td>`,
+            owner: `<td><select name="owner:${escRoom}"${named("owner")}><option value="">-</option>${people}</select></td>`,
             concealed: check("concealed", isConcealed(room)),
             short: check("short", region?.getFlag(MODULE_ID, REST_FLAGS.short)),
             long: check("long", region?.getFlag(MODULE_ID, REST_FLAGS.long)),
@@ -1818,7 +1834,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
                     data-drpg-token-by="max" title="${
                         game.i18n.localize("DRPG.SearchTokens.refillRoom")}">↺</button>
             </td>`,
-            table: `<td><select name="table:${escRoom}">
+            table: `<td><select name="table:${escRoom}"${named("table")}>
                 <option value="">${game.i18n.localize("DRPG.Vault.globalPool")}</option>
                 ${tableOptions}</select></td>`,
             favours: `<td>${categoryBoxes("fav", favours)}</td>`,
@@ -1827,7 +1843,7 @@ function roomCells(rooms, { students, tables, categories, regions, scene, maxTok
             // the wrapping-cell rule the rest of this table lives under - see
             // the `:has(input[type="text"], textarea)` exception in the
             // stylesheet - so the prose wraps instead of stretching the window.
-            description: `<td><textarea name="desc:${escRoom}" rows="5"
+            description: `<td><textarea name="desc:${escRoom}" rows="5"${named("desc")}
                 placeholder="${game.i18n.localize("DRPG.Vault.descriptionPlaceholder")}"
                 >${foundry.utils.escapeHTML(roomDescription(room))}</textarea></td>`
         };

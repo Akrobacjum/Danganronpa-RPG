@@ -373,6 +373,15 @@ function addCollapseControl(root) {
  * ========================================================================== */
 
 /**
+ * The name a screen reader gives a control in one project's row: its column and
+ * the project. Visually the column header names every control under it; a reader
+ * walking the table hears only the control, so it has to carry both (21.09).
+ */
+function rowName(columnKey, project) {
+    return foundry.utils.escapeHTML(`${game.i18n.localize(columnKey)}: ${project.name}`);
+}
+
+/**
  * One window for everything: create a project, set its room, mark it as an
  * indirect murder, control who can see it, and share or revoke access. Having
  * creation in one dialog and editing in another meant a new project always
@@ -397,12 +406,15 @@ function projectManagerRows(projects, rooms) {
             </td>
             <td>${foundry.utils.escapeHTML(p.name)}<br><small data-drpg-progress="${p.id}"
                 >${p.current}/${p.start}</small></td>
-            <td><select name="room.${p.id}">${roomOptions(p.id)}</select></td>
+            <td><select name="room.${p.id}" aria-label="${rowName("DRPG.Project.room", p)}">${
+                roomOptions(p.id)}</select></td>
             <td style="text-align:center">
-                <input type="checkbox" name="murder.${p.id}" ${isIndirectMurder(p.id) ? "checked" : ""} />
+                <input type="checkbox" name="murder.${p.id}" aria-label="${rowName("DRPG.Project.indirect", p)}"
+                       ${isIndirectMurder(p.id) ? "checked" : ""} />
             </td>
             <td style="text-align:center">
-                <input type="checkbox" name="secret.${p.id}" ${secret ? "checked" : ""} />
+                <input type="checkbox" name="secret.${p.id}" aria-label="${rowName("DRPG.Project.secret", p)}"
+                       ${secret ? "checked" : ""} />
             </td>
             <td class="drpg-viewer-cell">
                 ${players.length
@@ -416,7 +428,8 @@ function projectManagerRows(projects, rooms) {
                 </button>
             </td>
             <td style="text-align:center">
-                <input type="checkbox" name="delete.${p.id}" class="drpg-project-delete" />
+                <input type="checkbox" name="delete.${p.id}" class="drpg-project-delete"
+                       aria-label="${rowName("DRPG.Project.delete", p)}" />
             </td>
         </tr>`;
     }).join("");

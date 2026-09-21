@@ -1065,10 +1065,12 @@ function tableRowHtml(table, r, { home = null, tier = NaN, badge = "" } = {}) {
                  data-drpg-result-img="${r.id}"
                  title="${esc(game.i18n.localize("DRPG.Tables.changeIcon"))}" />
             <input type="text" class="drpg-table-item-name" data-drpg-field="name"
+                   aria-label="${esc(game.i18n.localize("DRPG.Items.name"))}"
                    data-drpg-owns-table="${table.id}" data-drpg-owns-result="${r.id}"
                    data-drpg-initial="${esc(name)}"
                    value="${esc(name)}" />
             <input type="text" class="drpg-table-item-note notes" data-drpg-field="description"
+                   aria-label="${esc(game.i18n.localize("DRPG.Items.description"))}: ${esc(name)}"
                    data-drpg-owns-table="${table.id}" data-drpg-owns-result="${r.id}"
                    data-drpg-initial="${esc(note)}"
                    value="${esc(note)}"
