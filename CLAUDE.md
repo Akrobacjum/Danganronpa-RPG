@@ -34,7 +34,7 @@ If a claim cannot be measured, say that instead of rounding it up.
 | The suite, headless | `cd audit/harness && node cluster.mjs scenarios/01-runtests.mjs` |
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines) |
 | Every scenario | the ten numbered ones: 10, 11, 12, 13, 14, 20, 30, 40, 50, 60 |
-| The Polish file | `node tools/config-prose.mjs --check lang/pl.json` - must read 490/490 |
+| The Polish file | `node tools/config-prose.mjs --check lang/pl.json` - must read 493/493 |
 | The curtain, without Foundry | `python3 -m http.server 8765` then `/audit/glass-harness.html` |
 | The evidence pack, without Foundry | the same server, then `/audit/pack-harness.html` |
 | What the theme costs | `game.drpg.perf()` at the table - the only place that number is real |
