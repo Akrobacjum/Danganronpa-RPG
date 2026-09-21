@@ -59,6 +59,11 @@ export const RESET_GROUPS = [
     { key: "actions", section: "cast" },
     { key: "preNotes", section: "cast" },
     { key: "sheetNotes", section: "cast" },
+    /* 1.2.47 added this step ("I have found X's hiding place" was cleared by
+       nothing) after this table was written, and the merge brought the step
+       without the row. `step` runs only what the plan names, so until the row
+       existed the reset silently stopped clearing it - see R50. */
+    { key: "stashesFound", section: "cast" },
 
     { key: "projects", section: "board" },
     { key: "mastermind", section: "board" },
@@ -67,6 +72,9 @@ export const RESET_GROUPS = [
     { key: "rules", section: "board" },
     { key: "doors", section: "board" },
     { key: "eclipseMoves", section: "board" },
+    // The same story: a standing assembly order, cleared by 1.2.47's reset so a
+    // new season does not gather its cast into last season's room.
+    { key: "assembly", section: "board" },
 
     { key: "cards", section: "log" },
     { key: "chatRest", section: "log" },
