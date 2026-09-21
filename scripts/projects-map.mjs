@@ -28,7 +28,7 @@
  */
 
 import { MODULE_ID, PROJECT_TOKEN } from "./config.mjs";
-import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete }
+import { roomOf, setProjectMeta, tokenRefOf, allProjects, isComplete, knowsProject, isSecret }
     from "./projects.mjs";
 import { boundsOf } from "./movement.mjs";
 import { log, error, whisperToGms, esc } from "./utils.mjs";
@@ -319,6 +319,115 @@ export async function syncProjectTokens() {
     return touched;
 }
 
+/* ---- what a project token opens ---------------------------------------------- */
+
+/**
+ * A project token's card, in place of Daggerheart's adversary sheet (Dawid, 21.09).
+ *
+ * The token is an unlinked copy of one shared `npc` actor, so a double-click opened
+ * that actor's sheet: a stat block, two tabs, and the project's name squeezed into
+ * a column one letter wide. Nothing on it was about a project. Dawid chose the
+ * trace's answer - the window becomes a card - and this wears the trace card's frame
+ * (`.drpg-remnant-card`, its header, its fact list) so the two read as one family.
+ *
+ * WHO SEES WHAT. A player gets what the tray already shows them: the name, the
+ * progress and the room. The GM gets the rest - who may see it, who by now knows it
+ * exists, the trigger if it is somebody's murder - and a door to the manager.
+ *
+ * ONLY FROM A TOKEN, AND ONLY IF YOU KNOW IT. The shared actor is OBSERVER for
+ * every player, so it can be opened from the Actors directory with no token behind
+ * it; taking "the first project token on the scene" for that sheet, as a trace's
+ * card does, would hand a player a project they have never heard of. So the project
+ * is read off the token the sheet belongs to and nothing else, and then asked of
+ * `knowsProject` - the one predicate that also decides whether the token is drawn
+ * for this client at all. Anything else gets a card that names no project.
+ */
+function showProjectCard(app, element) {
+    const actor = app?.document;
+    if (!actor?.getFlag?.(MODULE_ID, PROJECT_TOKEN_FLAG)) return;
+
+    const token = actor.isToken ? actor.token : null;
+    const id = token ? projectIdOf(token) : null;
+    const project = typeof id === "string" && knowsProject(id)
+        ? allProjects().find(p => p.id === id) ?? null
+        : null;
+
+    const body = element.querySelector(".window-content") ?? element;
+    body.innerHTML = project ? projectCard(project) : unknownProjectCard(Boolean(token));
+    if (game.user.isGM && project) {
+        body.querySelector("[data-drpg-project-manager]")?.addEventListener("click", async event => {
+            event.preventDefault();
+            const { openProjectManager } = await import("./projects-ui.mjs");
+            await openProjectManager();
+        });
+    }
+    // Sized for a stat block; this is a card, exactly as the trace's is - and a frame
+    // later for the same reason: set inside the render hook, the application's own
+    // first-render positioning overwrote it (see showRemnantCard).
+    requestAnimationFrame(() => app.setPosition?.({ height: "auto", width: 480 }));
+}
+
+/** The card itself. Pure: everything it prints is handed to it or asked of game state. */
+function projectCard(project) {
+    const t = key => game.i18n.localize(key);
+    const target = Number(project.start) || 0;
+    const current = Math.max(0, Math.min(target || Infinity, Number(project.current) || 0));
+    const share = target > 0 ? Math.round((current / target) * 100) : 0;
+
+    const rows = [
+        [t("DRPG.Project.cardProgress"), `${current} / ${target}`],
+        [t("DRPG.Project.room"), esc(project.room ?? t("DRPG.Project.anyRoom"))]
+    ];
+    let actions = "";
+    if (game.user.isGM) {
+        const status = project.complete ? "cardDone" : (project.frozen ? "cardFrozen" : "cardUnderway");
+        rows.push([t("DRPG.Project.cardStatus"), esc(t(`DRPG.Project.${status}`))]);
+        rows.push([t("DRPG.Project.cardSecrecy"),
+            esc(t(isSecret(project.id) ? "DRPG.Project.cardSecret" : "DRPG.Project.cardPublic"))]);
+        // The same predicate that draws the token for each of them - so this list and
+        // what each player's map shows cannot disagree.
+        const knownBy = game.users.filter(u => !u.isGM && knowsProject(project.id, u))
+            .map(u => esc(u.name));
+        rows.push([t("DRPG.Project.cardKnownBy"),
+            knownBy.length ? knownBy.join(", ") : esc(t("DRPG.Project.cardKnownByNobody"))]);
+        if (project.indirectMurder) {
+            rows.push([t("DRPG.Project.indirect"),
+                esc(project.condition || t("DRPG.Project.cardNoCondition"))]);
+        }
+        actions = `<footer class="drpg-project-card-actions">
+            <button type="button" data-drpg-project-manager>${esc(t("DRPG.Project.cardOpenManager"))}</button>
+        </footer>`;
+    }
+
+    return `<div class="drpg-panel drpg-remnant-card drpg-project-card">
+        <header class="drpg-remnant-head">
+            <span class="drpg-remnant-glyph" data-drpg-act="project" aria-hidden="true"></span>
+            <div class="drpg-remnant-title"><h3>${esc(project.name ?? "")}</h3></div>
+        </header>
+        <div class="drpg-project-card-bar" role="progressbar" aria-label="${esc(t("DRPG.Project.cardProgress"))}"
+             aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${current}"><span style="width: ${share}%"></span></div>
+        <section class="drpg-remnant-box">
+            <dl class="drpg-remnant-facts">
+                ${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}
+            </dl>
+        </section>
+        ${actions}
+    </div>`;
+}
+
+/** Opened with no project this client may read: say so, and name nothing. */
+function unknownProjectCard(fromToken) {
+    const t = key => game.i18n.localize(key);
+    const note = game.user.isGM && !fromToken ? "DRPG.Project.cardShared" : "DRPG.Project.cardUnknown";
+    return `<div class="drpg-panel drpg-remnant-card drpg-project-card">
+        <header class="drpg-remnant-head">
+            <span class="drpg-remnant-glyph" data-drpg-act="project" aria-hidden="true"></span>
+            <div class="drpg-remnant-title"><h3>${esc(t("DRPG.Project.cardTitle"))}</h3></div>
+        </header>
+        <p class="notes">${esc(t(note))}</p>
+    </div>`;
+}
+
 /** Called once at ready. */
 export function registerProjectsMap() {
     Hooks.on("canvasReady", () => {
@@ -327,6 +436,16 @@ export function registerProjectsMap() {
     Hooks.on("updateToken", (tokenDoc, changes) => {
         onProjectTokenMoved(tokenDoc, changes)
             .catch(err => error("Could not move a project with its token", err));
+    });
+    // One hook, as the trace's card has it: ApplicationV2 fires a render hook for
+    // every class in the chain, and the concrete sheet as well would run this twice.
+    Hooks.on("renderActorSheetV2", (app, element) => {
+        try {
+            showProjectCard(app, element);
+        } catch (err) {
+            // An adversary sheet is ugly, not broken. Never throw into another render.
+            error("Could not draw the project card", err);
+        }
     });
     log(`${MODULE_ID}: projects stand on the map.`);
 }

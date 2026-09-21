@@ -4543,6 +4543,55 @@ const REGRESSIONS = [
             "the window itself fades in under glass, so its glass is blind until the last frame");
         ok(/for \(const child of el\.children\)[\s\S]{0,80}opacity: 0/.test(glass),
             "nothing fades the window's contents in, so they appear all at once");
+    }],
+
+    ["R96 - a project token opens a card that names only what its reader knows", async () => {
+        /*
+         * Dawid, 21.09: a project token opened Daggerheart's adversary sheet - to every
+         * player too, the shared actor being OBSERVER - and he chose a card like the
+         * trace's. The card is new code on a road that reaches players, so what it may
+         * print is the test:
+         *
+         *   - the project is read off the TOKEN the sheet belongs to, never "the first
+         *     project token on the scene": the shared actor opens from the Actors
+         *     directory with no token behind it, and the first token would be a
+         *     project that player has never heard of;
+         *   - and asked of `knowsProject`, the predicate that decides whether the
+         *     token is drawn for this client at all;
+         *   - who knows it, the secrecy and a murder's trigger are the GM's rows only.
+         *
+         * Measured live on two clients: Player A saw "You do not know what this is."
+         * on two projects and the name, progress and room of the one they are in on.
+         */
+        const sources = new Map(await otherSources());
+        const map = stripComments(sources.get("projects-map.mjs") ?? "");
+        const at = map.indexOf("function showProjectCard(");
+        ok(at > 0, "the project token's card is gone");
+        const show = map.slice(at, map.indexOf("\nfunction ", at + 20));
+        ok(/const token = actor\.isToken \? actor\.token : null/.test(show),
+            "the card takes its project from somewhere other than the token it was opened from");
+        ok(!/getActiveTokens/.test(show),
+            "the card falls back to any project token on the scene, which names a project to "
+            + "a player who opened the shared actor from the directory");
+        ok(/knowsProject\(id\)/.test(show), "the card is not gated by knowsProject");
+        ok(/Hooks\.on\("renderActorSheetV2"[\s\S]{0,120}showProjectCard/.test(map),
+            "nothing draws the card when a project token's sheet opens");
+
+        const card = map.slice(map.indexOf("function projectCard("), map.indexOf("function unknownProjectCard("));
+        const gm = card.slice(card.indexOf("if (game.user.isGM)"));
+        for (const key of ["cardKnownBy", "cardSecrecy", "DRPG.Project.indirect", "data-drpg-project-manager"]) {
+            ok(gm.includes(key) && card.indexOf(key) >= card.indexOf("if (game.user.isGM)"),
+                `"${key}" is printed outside the GM's branch, so a player reads it`);
+        }
+
+        /* And the frame both cards share: the title band in the flow, the size a frame late. */
+        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        ok(/\.application\.sheet:has\(\.drpg-remnant-card\)\s*>\s*\.window-header\s*\{[^}]*position:\s*relative/.test(css),
+            "the NPC sheet's title band still lies over the card's own header");
+        const ring = stripComments(sources.get("remnant-ring.mjs") ?? "");
+        ok(/requestAnimationFrame\(\(\) => app\.setPosition/.test(ring)
+            && /requestAnimationFrame\(\(\) => app\.setPosition/.test(show),
+            "a card sizes its window inside the render hook, where the first render overwrites it");
     }]
 ];
 

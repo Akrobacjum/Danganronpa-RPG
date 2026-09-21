@@ -3233,6 +3233,17 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
     min-height: 0;
 }
 
+/* AND THE TITLE BAND TAKES ITS OWN ROW (21.09). Daggerheart's NPC sheet lays its
+   36px header band `position: absolute` over the content, to sit on the stat
+   block's art. Over a card it sat on the card's own header instead: the emblem and
+   the name were drawn under the band, with the window's two buttons on top of
+   them - measured, the card's header began 17px below the window's top edge, in
+   the middle of the band. Back in the flow the band takes its own row, whatever
+   height a theme or the Interface scale gives it. */
+.application.sheet:has(.drpg-remnant-card) > .window-header {
+    position: relative;
+}
+
 /* ---- the emblem and the name ------------------------------------------- */
 
 .drpg-remnant-head {
@@ -3305,6 +3316,29 @@ body.drpg-reduced-motion .character-header-sheet .name-row .drpg-advance-button.
 }
 
 /* ---- the boxed sections ------------------------------------------------- */
+
+/* ---- the project token's card (21.09) ---------------------------------------
+   It wears the trace card's frame - `.drpg-remnant-card` - so everything above
+   applies to it as written. What only a project has is a progress bar and, for a
+   GM, one button. */
+.drpg-project-card-bar {
+    height: 6px;
+    margin: 2px 0 10px;
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.2);
+    background: rgba(var(--drpg-bone-rgb), 0.06);
+}
+
+.drpg-project-card-bar > span {
+    display: block;
+    height: 100%;
+    background: var(--drpg-glass-accent, var(--drpg-gold-antique));
+}
+
+.drpg-project-card-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
 
 .drpg-remnant-box {
     border: 1px solid rgba(var(--drpg-bone-rgb), 0.2);

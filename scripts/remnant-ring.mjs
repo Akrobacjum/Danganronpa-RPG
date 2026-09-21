@@ -157,7 +157,12 @@ function showRemnantCard(app, element) {
     body.innerHTML = html;
     if (game.user.isGM) wireCardEditing(body, token ?? actor);
     // The window is sized for a stat block and this is a card.
-    app.setPosition?.({ height: "auto", width: 480 });
+    //
+    // A FRAME LATER, NOT HERE (21.09). Set inside the render hook, the size was
+    // overwritten by the application's own first-render positioning a moment later:
+    // measured, every card sat in the stat block's 660 x 600 window. Deferred one
+    // frame it holds - 480 wide, as tall as the card.
+    requestAnimationFrame(() => app.setPosition?.({ height: "auto", width: 480 }));
 }
 
 /**
