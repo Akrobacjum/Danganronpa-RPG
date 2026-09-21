@@ -3585,7 +3585,17 @@ const REGRESSIONS = [
             "a goal can be paired with any category, which would make "
             + "\"DRPG Murder Weapons (Healing) - Tier 2\" a legal answer");
 
-        const create = tables.slice(tables.indexOf("typeof action.newPool === \"string\""));
+        /* WHERE 1.2.44 PUT IT. Main's Hygiene C split the item tables window into ten
+           pieces, and the create path became `createPoolFrom`, defined ABOVE the call
+           site. This slice used to run from the call site to the end of the file,
+           which after the merge held the call and none of the function - so the test
+           reported the fix gone beside a fix that had been carried over intact. */
+        ok(/typeof action\.newPool === "string"\) \{\s*await createPoolFrom\(action\)/.test(tables),
+            "the create button no longer reaches createPoolFrom");
+        const from = tables.indexOf("async function createPoolFrom(");
+        ok(from > 0, "createPoolFrom is gone - the create path has moved again");
+        const end = tables.slice(from).search(/\r?\n\}\r?\n/);
+        const create = tables.slice(from, from + (end > 0 ? end : 4000));
         ok(/const known = classifyTableName\(name\)/.test(create),
             "the create path does not read the name back, so both tabs write the same flags");
         ok(/roomPool: true/.test(create),
