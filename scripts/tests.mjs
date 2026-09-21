@@ -4498,6 +4498,25 @@ const REGRESSIONS = [
         }
     }],
 
+    ["R94 - the GM's trace card declares what it reads", async () => {
+        /*
+         * 1.2.47's 35b09de removed `const pub = data.public ?? {}` from `gmRemnantCard`
+         * with the tag row it fed, and left every `pub.` read. The card threw on every
+         * open, `showRemnantCard`'s catch swallowed it, and a GM who double-clicked a
+         * trace got Daggerheart's adversary sheet. Live on 1.2.47; restored by the merge.
+         *
+         * Read from the source because the failure is one missing line and the symptom
+         * is a silent fallback - a scenario would have to know to look for a card that
+         * is not there.
+         */
+        const src = stripComments(new Map(await otherSources()).get("remnant-ring.mjs") ?? "");
+        const at = src.indexOf("function gmRemnantCard(");
+        ok(at > 0, "gmRemnantCard has moved or gone");
+        const body = src.slice(at, src.indexOf("\nfunction ", at + 20));
+        const declared = body.search(/\bconst pub\s*=/);
+        const firstRead = body.search(/\bpub\./);
+        ok(firstRead < 0 || (declared >= 0 && declared < firstRead),
+            "gmRemnantCard reads `pub` before declaring it, so every GM's trace card throws");
     }]
 ];
 
