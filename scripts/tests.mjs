@@ -4254,6 +4254,8 @@ const REGRESSIONS = [
         ok(/chargeObserveMiss\(actor\)/.test(miss), "the miss charges nothing");
         ok(!/refundAction/.test(miss),
             "the miss refunds the action - the character looked, on either road");
+        ok(!/DRPG\.Bridge\.declined|settledDeclined/.test(miss),
+            "the miss tells the player their action is back, beside the Sanity it just took");
         ok(/data\.paid === "none"/.test(app),
             "a card for a free action still refunds an action that was never spent");
     }],

@@ -868,14 +868,21 @@ async function ruleObserveMiss(action, data) {
     const { chargeObserveMiss } = await import("./observe.mjs");
     await chargeObserveMiss(actor);
 
+    /* A RESULT, AND SAID AS ONE (review of stage D). This posted the refusal's
+       sentence - "{name} turned the attempt down. Your action is back." - and the GM
+       a toast that the action was back, while nothing gave it back and
+       `chargeObserveMiss` had just whispered "You take 1 Sanity". A table that
+       believed the thread handed the action back by hand and undid ACT-17's price.
+       It speaks the way `ruleReply` speaks now: the GM's ruling, in the ruling's
+       words, and the card settles as answered, not declined. */
     const { postToThread } = await import("./messenger.mjs");
     const owner = ownerOf(actor);
     if (owner) {
-        await postToThread(owner.id, `<p><em>${foundry.utils.escapeHTML(
-            game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>`);
+        await postToThread(owner.id, `<p><strong>${foundry.utils.escapeHTML(
+            game.i18n.format("DRPG.Bridge.rulingBy", { name: game.user.name }))}</strong> ${
+            foundry.utils.escapeHTML(game.i18n.localize("DRPG.Bridge.nothingThere"))}</p>`);
     }
-    ui.notifications.info(game.i18n.format("DRPG.Bridge.declinedGm", { name: actor.name }));
-    return settled("DRPG.Bridge.settledDeclined");
+    return settled("DRPG.Bridge.settledAnswered");
 }
 
 /**
