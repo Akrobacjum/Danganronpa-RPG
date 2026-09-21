@@ -225,6 +225,10 @@ const RAIL_MARGIN = 16;
    BEFORE anything is measured - the rail's own padding is computed from the dropped position,
    so the tiles follow it down and the shard is cut around both where they end up. */
 const GM_DROP = 26;
+/* What the GM button takes out of the left column below the clock, for a screen that has no
+   button (see the rail placement in `moduleLayout`): the clock's bottom margin 4, the column's
+   gap 16, the button's own top margin 20 (stained-glass.css) and its height 32. */
+const GM_SLOT = 4 + 16 + 20 + 32;
 function railOverhang(el) {
   const r = el.getBoundingClientRect();
   if (r.width < 1) return 0;
@@ -673,6 +677,19 @@ function moduleLayout(W, H) {
     const above = ["#drpg-hud", "#drpg-gm-launcher"].map(s => document.querySelector(s))
       .filter(e => e && e.offsetWidth > 0 && e.offsetHeight > 0)
       .map(e => e.getBoundingClientRect().bottom);
+    /* A PLAYER'S RAIL STARTS WHERE THE GM'S DOES (22.09). These are read with the rotations
+       off, and the clock is drawn tilted: its pane runs some 50 px below its upright box at the
+       wall. On a GM's screen the button stands in that gap and the tiles follow it, so nothing
+       showed. A player has no button, and once the column was packed from the top (1.2.49) the
+       first tiles sat 38 px under the clock's upright box - on its glass, across its seam
+       ("rozjechane przyciski foundry u gracza", Dawid, 22.09). So a screen without the button
+       keeps its slot: the button's own margin, height and the column gap it would have taken. */
+    const hudEl = document.querySelector("#drpg-hud");
+    const gmEl = document.querySelector("#drpg-gm-launcher");
+    const gmShown = Boolean(gmEl && gmEl.offsetWidth > 0 && gmEl.offsetHeight > 0);
+    if (!gmShown && hudEl && hudEl.offsetHeight > 0) {
+      above.push(hudEl.getBoundingClientRect().bottom + GM_SLOT);
+    }
     if (tops.length && above.length) {
       /* 40, not 18: the GM launcher is a block, and a block is rotated about its pane's
          corner after this runs, which walks it up to 30 px down the screen from the box read
