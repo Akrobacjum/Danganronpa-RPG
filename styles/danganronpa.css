@@ -9092,8 +9092,17 @@ body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--dr
    What is here now is the panel's STRUCTURE, unscoped, so both themes have a
    panel at all. stained-glass.css keeps its own block for the LOOK and every
    selector there is theme-scoped, so it wins these on specificity without
-   either file having to know about the other. */
+   either file having to know about the other.
+
+   ITS PLACE IN THE COLUMN IS STRUCTURE TOO (Dawid, 21.09). #ui-top is a flex
+   column ordered by hand: Despair 10, the HUD 20. The panel's 15 - under the
+   Despair rail, over the clock - was written in stained-glass.css, when only
+   glass HAD a panel, and it stayed there when 1.2.47 gave Legacy one. Under
+   Legacy the panel had no order at all, sorted as 0, and sat above Despair
+   Pools. Stated once here, for both; glass states the same number and so
+   moves by nothing. */
 #drpg-events {
+    order: 15;
     width: 412px;
     max-width: 100%;
     margin: 8px auto 0;
@@ -10140,7 +10149,15 @@ body.drpg-theme-monokuma-legacy .drpg-action-button[data-drpg-cost-kind]::before
    suggest one had ever been there.
    ========================================================================== */
 
-.application.sheet.actor .window-content {
+/* THE CHARACTER SHEET ONLY (21.09). Written `.sheet.actor`, this forced a 275px
+   first column onto EVERY actor sheet - and Daggerheart's NPC sheet is laid out in
+   rows (`grid-template-rows: auto auto 1fr`, no columns at all). Its header, the
+   portrait and the name side by side, was squeezed into that 275px track: a square
+   portrait at 275px tall is 275px wide, the name got about a character's width and
+   printed one letter per line. Measured on 21.09 on a Remnant and on a project
+   token, the two things in this module that open an NPC sheet. The rule was only
+   ever about the rail above, which is `.character-sidebar-sheet`. */
+.application.sheet.actor.character .window-content {
     grid-template-columns: minmax(0, 275px) minmax(0, 1fr) !important;
 }
 

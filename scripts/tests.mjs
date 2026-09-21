@@ -4464,6 +4464,40 @@ const REGRESSIONS = [
             const path = `DRPG.Cleanup.${key}`;
             ok(game.i18n.localize(path) !== path, `${path} is missing from lang/en.json`);
         }
+    }],
+
+    ["R93 - the Event panel sits under Despair in both themes, and an NPC sheet keeps its rows", async () => {
+        /*
+         * Two of Dawid's reports from the live world on 21.09, both CSS, both in 1.2.47.
+         *
+         * THE PANEL. #ui-top is a flex column ordered by hand - Despair 10, the HUD 20 -
+         * and the Event panel's 15 was written in stained-glass.css when only glass had
+         * a panel. 1.2.47 gave Legacy one and left the 15 behind, so under Legacy the
+         * panel sorted as 0 and stood above Despair Pools. Measured after the fix: 15
+         * and below Despair in both themes.
+         *
+         * THE SHEET. `.application.sheet.actor .window-content` forced a 275px first
+         * column onto EVERY actor sheet. Daggerheart lays its NPC sheet out in rows,
+         * so a trace's or a project's sheet had its portrait and name squeezed into
+         * that track and printed the name one letter per line. Measured after the fix:
+         * a single 658px track and a 353px name row, where it had been 16px.
+         */
+        const css = stripComments(new Map(await otherSources()).get("danganronpa.css")
+            ?? await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()));
+        const panel = css.match(/(^|\n)#drpg-events\s*\{[^}]*\}/);
+        ok(panel, "the Event panel has no unscoped block, so Legacy has no panel structure");
+        ok(/order:\s*15\s*;/.test(panel[0]),
+            "the Event panel's place in #ui-top is stated only for one theme");
+
+        const bare = [...css.matchAll(/([^{}]+)\{[^}]*grid-template-columns:\s*minmax\(0,\s*275px\)/g)]
+            .map(m => m[1].trim());
+        ok(bare.length > 0, "the character sheet's rail rule has gone");
+        for (const selector of bare) {
+            ok(/\.character\b/.test(selector),
+                `"${selector}" puts a 275px rail on sheets that have no rail`);
+        }
+    }],
+
     }]
 ];
 
