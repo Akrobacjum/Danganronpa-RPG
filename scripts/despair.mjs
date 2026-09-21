@@ -252,11 +252,14 @@ export async function adjustDespair(userId, delta) {
      */
     if (game.user?.isGM && !isPrimaryGm() && userId) {
         try {
-            const { requestDespairAdjust, hasGm } = await import("./gm-bridge.mjs");
+            // `sendDespairToPrimary`, not `requestDespairAdjust`: that one hands a GM
+            // straight back here. And no `hasGm` - it was never exported, so asking
+            // for it threw and this fell through to writing locally, every time.
+            const { sendDespairToPrimary } = await import("./gm-bridge.mjs");
             const { primaryGmId } = await import("./utils.mjs");
             const primary = game.users.get(primaryGmId() ?? "");
-            if (primary?.active && primary.id !== game.user.id && hasGm()) {
-                await requestDespairAdjust(userId, delta);
+            if (primary?.active && primary.id !== game.user.id) {
+                sendDespairToPrimary(userId, delta);
                 return Math.min(Math.max(getDespair(userId) + delta, 0), despairMax());
             }
         } catch (err) {

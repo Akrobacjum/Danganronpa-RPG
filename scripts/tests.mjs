@@ -4592,6 +4592,33 @@ const REGRESSIONS = [
         ok(/requestAnimationFrame\(\(\) => app\.setPosition/.test(ring)
             && /requestAnimationFrame\(\(\) => app\.setPosition/.test(show),
             "a card sizes its window inside the render hook, where the first render overwrites it");
+    }],
+
+    ["R97 - an assistant GM's Despair goes to the primary, and cannot loop", async () => {
+        /*
+         * DESP-12, 1.2.47: the pools are one world object written whole from a local
+         * cache, so an assistant GM's adjustment is meant to go to the primary. The
+         * receiving half worked; the sending half asked gm-bridge for `hasGm`, which it
+         * never exported, so the call threw and every assistant wrote locally - the
+         * race stayed open on the live server. Found by the merge's import check.
+         *
+         * Two ways to get it wrong, both held here: import a name that is not there,
+         * or route through `requestDespairAdjust`, which hands a GM caller straight
+         * back to `adjustDespair` and would recurse.
+         */
+        const sources = new Map(await otherSources());
+        const despair = stripComments(sources.get("despair.mjs") ?? "");
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const adjust = despair.slice(despair.indexOf("export async function adjustDespair("),
+            despair.indexOf("\nexport ", despair.indexOf("export async function adjustDespair(") + 20));
+        ok(/sendDespairToPrimary\(userId, delta\)/.test(adjust),
+            "an assistant GM's Despair is not sent to the primary");
+        ok(!/requestDespairAdjust|hasGm/.test(adjust),
+            "adjustDespair reaches for a road that loops or a name that is not exported");
+        const send = bridge.slice(bridge.indexOf("export function sendDespairToPrimary("),
+            bridge.indexOf("\n}", bridge.indexOf("export function sendDespairToPrimary(")));
+        ok(send.length > 40, "gm-bridge has no way to send a GM's Despair to the primary");
+        ok(!/adjustDespair/.test(send), "the send calls adjustDespair, which would loop back to it");
     }]
 ];
 

@@ -1403,6 +1403,28 @@ export async function requestDespairAdjust(targetUserId, delta) {
 }
 
 /**
+ * An assistant GM's Despair change, sent to the primary to write (DESP-12).
+ *
+ * NOT `requestDespairAdjust`, whose first line hands any GM caller straight back
+ * to `adjustDespair` - which, on an assistant, would route here again for ever.
+ * 1.2.47 wired the receiving half (`handleDespair` admits a GM sender at any size)
+ * and reached for the sending half through `hasGm`, which this file never
+ * exported: the import came back undefined, the call threw, `adjustDespair`'s
+ * catch wrote the pool locally, and the race DESP-12 exists to close - two GM
+ * clients each writing the whole pools object from their own cache - stayed open.
+ *
+ * The caller has already checked that the primary is online and is somebody else.
+ * The dispatcher runs handlers on the primary GM only, so there is one writer.
+ */
+export function sendDespairToPrimary(targetUserId, delta) {
+    emitToGms({
+        action: ACTION_DESPAIR, userId: game.user.id,
+        requestId: expectAck(ACTION_DESPAIR), targetUserId, delta
+    });
+    return { pending: true };
+}
+
+/**
  * Sabotage writes two world settings; the GM applies it and this waits for the
  * real outcome rather than assuming the request will land.
  *
