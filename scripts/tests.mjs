@@ -4478,6 +4478,35 @@ const REGRESSIONS = [
         }
     }],
 
+    ["R105 - a proposed murder is the proposer's, whoever else is ticked", async () => {
+        /*
+         * Dawid, 21.09, the stage D question on killer precedence: "the proposer".
+         * The viewer list (P-1, 18.09) made its first tick the killer, so ticking an
+         * accomplice onto a player's own proposal handed the trap to the accomplice.
+         * The tick is only the answer when there is no proposer to read.
+         */
+        const { killerIdFor } = await import("./projects-ui.mjs");
+        ok(typeof killerIdFor === "function", "killerIdFor is not exported for the suite any more");
+        const players = game.users.filter(u => !u.isGM);
+        const owned = user => game.actors.find(a => a.type === "character" && a.testUserPermission(user, "OWNER"));
+        const viewer = players.find(u => owned(u));
+        needs(viewer, "no player in this world owns a character, so a ticked viewer stands for nobody");
+        const proposer = cast().find(a => a.id !== owned(viewer).id);
+        needs(proposer, "only one character here - the proposer and the viewer cannot differ");
+
+        equal(killerIdFor(viewer.id, proposer.id), proposer.id,
+            "a ticked viewer took the proposer's murder off them");
+        equal(killerIdFor(viewer.id, null), owned(viewer).id,
+            "with no proposal, the first ticked player's character is not the killer");
+        equal(killerIdFor(null, proposer.id), proposer.id, "the proposer is not the killer when nobody is ticked");
+        equal(killerIdFor(null, null), null, "a killer was invented from nothing");
+
+        /* And the audience still takes both - the builder and the tick (F3). */
+        const projects = stripComments(new Map(await otherSources()).get("projects.mjs") ?? "");
+        ok(/new Set\(\[\.\.\.viewers, \.\.\.ownerIdsOfId\(killerId \?\? by\)\]\)/.test(projects),
+            "a sealed project no longer keeps both the killer and the ticked players in");
+    }],
+
     ["R104 - a Key and a Final are written with their reading, like any trace", async () => {
         /*
          * Dawid, 21.09: every trace has a description and a description after

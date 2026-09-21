@@ -903,11 +903,10 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         return { id: project.id, name: result.name };
     }
 
-    // Whose trap it is: the character of the first player the GM ticked under
-    // "Visible to", else the proposer off the card (ITEM-03) - see `killerIdFor`.
-    // The list replaced the single name on 18.09 (P-1), and its first entry is
-    // the one that stands in. Whoever it is, `createProject` adds them to the
-    // ticked viewers rather than replacing them (F3).
+    // Whose trap it is: the proposer off the card, else the character of the
+    // first player the GM ticked under "Visible to" - see `killerIdFor`. Whoever
+    // it is, `createProject` adds them to the ticked viewers rather than
+    // replacing them (F3).
     const killerId = killerIdFor(result.viewers?.[0], start?.by ?? null);
 
     // An indirect murder needs somebody to be the killer (ITEM-14): without a
@@ -945,14 +944,28 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     return created;
 }
 
-/** The actor behind a chosen viewer, else the proposer. */
-function killerIdFor(viewerUserId, byActorId) {
+/**
+ * The proposer, else the actor behind the first player ticked.
+ *
+ * THE PROPOSER FIRST (Dawid, 21.09 - the stage D review's question, answered
+ * "the proposer"). This is what 988146c (F3, 17.09) wrote: whoever proposed the
+ * murder is its killer, and a player ticked under "Visible to" is ADDED to the
+ * audience rather than put in their place. The viewer list that replaced the
+ * single name the next day (P-1) turned the order round - its first tick stood
+ * in for the killer - so a GM ticking an accomplice onto a player's own trap
+ * quietly made the accomplice the one it fires for. The tick still counts where
+ * there is no proposal to read: a murder the GM opens from the panel.
+ *
+ * Exported for the suite, which asks it both ways round; nothing else calls it.
+ */
+export function killerIdFor(viewerUserId, byActorId) {
+    if (byActorId) return byActorId;
     if (viewerUserId) {
         const user = game.users.get(viewerUserId);
         const owned = user ? game.actors.find(a => a.type === "character" && a.testUserPermission(user, "OWNER")) : null;
         if (owned) return owned.id;
     }
-    return byActorId ?? null;
+    return null;
 }
 
 /** Keep the ownership map in step with one boolean. */
