@@ -4470,6 +4470,24 @@ const REGRESSIONS = [
         }
     }],
 
+    ["R101 - the Despair Flow window comes back after a refusal, with its pools", async () => {
+        /*
+         * Review of stage D. A refused add or revoke came back to `openGmTeamDialog`
+         * with nothing awaited, the old copy still on screen, and `alreadyOpen`
+         * refused the new one: no window, the draft gone. And the draft itself
+         * carried each Monokuma's tick but not the pool chosen beside it.
+         */
+        const src = stripComments(new Map(await otherSources()).get("gm-team-dialog.mjs") ?? "");
+        const add = src.slice(src.indexOf('result?.op === "add"'), src.indexOf('result?.op === "remove"'));
+        const remove = src.slice(src.indexOf('result?.op === "remove"'), src.indexOf('if (!result || result === "cancel")'));
+        ok(/reopen\("drpg-window-gmteam"/.test(add) && /reopen\("drpg-window-gmteam"/.test(remove),
+            "a refused add or revoke opens the window while the old copy is still closing");
+        const read = src.slice(src.indexOf("function readTeamDraft("), src.indexOf("function paintTeamDraft("));
+        const paint = src.slice(src.indexOf("function paintTeamDraft("));
+        ok(/monokumaPools\[actor\.id\] = select\.value/.test(read), "the draft forgets each Monokuma's pool");
+        ok(/draft\.monokumaPools/.test(paint), "a carried pool is never put back");
+    }],
+
     ["R100 - the overflow's Silence shuts Hope Calls and leaves a Monokuma's open", async () => {
         /*
          * Handbook 7: the Silence falls on the students' Hope Calls. `callBarred`

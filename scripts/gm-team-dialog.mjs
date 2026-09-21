@@ -25,7 +25,7 @@ import { isMonokuma, setMonokuma, poolFor, setPools } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { dialogContent, error, tableDialog, panelTabs, wirePanelTabs } from "./utils.mjs";
 import { setOverflowRules, overflowSection, overflowNowLine, readOverflowForm } from "./overflow.mjs";
-import { alreadyOpen, keepFresh } from "./live.mjs";
+import { alreadyOpen, keepFresh, reopen } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -51,11 +51,17 @@ function readTeamDraft(root, gms, actors) {
         if (field) pools[user.id] = field.value;
     }
     const monokumas = {};
+    // The pool beside each tick as well (review of stage D): a GM who ticked a new
+    // Monokuma and chose its pool lost the choice on the first reopen, and Save then
+    // wrote the default into the character's flags.
+    const monokumaPools = {};
     for (const actor of actors) {
         const box = root.querySelector(`[name="mk.${CSS.escape(actor.id)}"]`);
         if (box) monokumas[actor.id] = box.checked;
+        const select = root.querySelector(`[name="pool.${CSS.escape(actor.id)}"]`);
+        if (select) monokumaPools[actor.id] = select.value;
     }
-    return { pools, monokumas, overflow: readOverflowForm(root) };
+    return { pools, monokumas, monokumaPools, overflow: readOverflowForm(root) };
 }
 
 /** Put a carried draft back, once the new copy has rendered. */
@@ -69,6 +75,11 @@ function paintTeamDraft(root, draft) {
     for (const [id, on] of Object.entries(draft.monokumas ?? {})) {
         const box = root.querySelector(`[name="mk.${CSS.escape(id)}"]`);
         if (box) box.checked = on;
+    }
+    for (const [id, value] of Object.entries(draft.monokumaPools ?? {})) {
+        const select = root.querySelector(`[name="pool.${CSS.escape(id)}"]`);
+        // A pool revoked since is no longer an option; the row keeps what the world says.
+        if (select && Array.from(select.options).some(o => o.value === value)) select.value = value;
     }
     const rules = draft.overflow;
     if (!rules) return;
@@ -302,11 +313,17 @@ export async function openGmTeamDialog({ draft = null } = {}) {
         ui.notifications.info(game.i18n.localize("DRPG.Assign.splitDone"));
         return openGmTeamDialog({ draft: carried });
     }
+    /* THROUGH `reopen` WHERE THE ROAD MAY AWAIT NOTHING (LIVE-REOPEN-01, review of
+       stage D). A refusal - the pool already granted by another GM, the account
+       gone, a revoke whose user is no longer on the list - comes back here before
+       the old copy has closed, `alreadyOpen` refuses the new one, and the GM is
+       left with no window and their draft gone. `reopen` closes the old copy
+       first. The auto branch awaits a settings write and was always safe. */
     if (result?.op === "add") {
         if (result.userId && await addPool(result.userId)) {
             ui.notifications.info(game.i18n.localize("DRPG.Despair.poolAdded"));
         }
-        return openGmTeamDialog({ draft: carried });
+        return reopen("drpg-window-gmteam", () => openGmTeamDialog({ draft: carried }));
     }
     if (result?.op === "remove") {
         /*
@@ -325,7 +342,7 @@ export async function openGmTeamDialog({ draft = null } = {}) {
                 ui.notifications.info(game.i18n.localize("DRPG.Despair.poolRemoved"));
             }
         }
-        return openGmTeamDialog({ draft: carried });
+        return reopen("drpg-window-gmteam", () => openGmTeamDialog({ draft: carried }));
     }
     if (!result || result === "cancel") return null;
 
