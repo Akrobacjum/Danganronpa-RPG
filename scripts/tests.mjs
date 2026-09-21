@@ -4470,6 +4470,22 @@ const REGRESSIONS = [
         }
     }],
 
+    ["R100 - the overflow's Silence shuts Hope Calls and leaves a Monokuma's open", async () => {
+        /*
+         * Handbook 7: the Silence falls on the students' Hope Calls. `callBarred`
+         * asked it before the Despair branch, so a Monokuma pressing a Despair Call
+         * under it was told the menu was shut - while `spendDespairCallFor`, the
+         * `game.drpg` road, sold the same Call without a word. Review of stage D.
+         */
+        const src = stripComments(new Map(await otherSources()).get("calls.mjs") ?? "");
+        const at = src.indexOf("export async function callBarred(");
+        const body = src.slice(at, src.indexOf("\n}", at));
+        ok(at > 0, "callBarred has moved or gone");
+        const despair = body.indexOf("if (despair)"), silence = body.indexOf("overflowBlocksCalls()");
+        ok(despair > 0 && silence > despair,
+            "the Silence is asked before the Despair branch returns, so it bars a Monokuma's Calls");
+    }],
+
     ["R99 - an assembly's fallback writes to the assembly's scene", async () => {
         /*
          * CALL-18 carries the gather order's scene; the fallback placement, used when

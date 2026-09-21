@@ -46,24 +46,27 @@ export function hopeHeld(actor) {
  * that is not belt and braces: the sheet is one road in, `game.drpg` is another, and
  * the world can move between the question and the purchase.
  *
- * WHICH RULES ARE WHOSE. The Eclipse and death fall on both kinds. Overflow's
- * Silence is the weather and falls on everybody, so it is asked for both. The Class
- * Trial shuts DESPAIR Calls only - that asymmetry is T-1's decision, written out in
- * `spendDespairCallFor` - and a Monokuma is deceased by definition, which is why the
- * dead test is not asked of one.
+ * WHICH RULES ARE WHOSE. The Eclipse falls on both kinds. Overflow's Silence shuts
+ * every student's HOPE Calls (handbook 7; `reader: "spendHopeCall"` in config.mjs)
+ * and a Monokuma's Despair Calls go on under it - so it is asked on the Hope side
+ * only, in the order `hopeCallBarred` asks it. This asked it for both, and the
+ * sheet's Despair picker told a Monokuma the Silence had shut a menu the rules
+ * leave open (review of stage D). The Class Trial shuts DESPAIR Calls only - T-1's
+ * decision, written out in `spendDespairCallFor` - and a Monokuma is deceased by
+ * definition, which is why the dead test is not asked of one.
  *
  * @returns {Promise<string|null>} the sentence to say, or null when nothing bars it.
  */
 export async function callBarred(actor, { despair = false } = {}) {
     if (isEclipse()) return game.i18n.localize("DRPG.Eclipse.actionsLocked");
 
-    const { overflowBlocksCalls } = await import("./overflow.mjs");
-    if (overflowBlocksCalls()) return game.i18n.localize("DRPG.Overflow.silenced");
-
     if (despair) {
         if (getClock().phase === "classTrial") return game.i18n.localize("DRPG.Trial.callsLocked");
         return null;
     }
+
+    const { overflowBlocksCalls } = await import("./overflow.mjs");
+    if (overflowBlocksCalls()) return game.i18n.localize("DRPG.Overflow.silenced");
 
     const { isDeceased } = await import("./chapter.mjs");
     if (isDeceased(actor)) {
