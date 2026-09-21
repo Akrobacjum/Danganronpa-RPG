@@ -2556,6 +2556,7 @@
       "startingItemMissing": "No starting item named. Every student begins with one Tier 2 item tied to their Ultimate."
     },
     "Advance": {
+      "experienceNeedsNameKept": "A new experience needs a name. Nothing was sent - the Level Up is still yours to spend.",
       "title": "Level Up - {actor}",
       "chatTitle": "Level Up #{n}",
       "apply": "Apply",

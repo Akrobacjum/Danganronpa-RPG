@@ -47,6 +47,12 @@ const ACTION_CLEANUP_TRACES_RESULT = "cleanup.tracesResult";
 const ACTION_ANALYZE_RESOLVE = "analyze.resolve";
 /* N-2: the player picked their own Level Up and the GM's client writes it. */
 const ACTION_ADVANCEMENT = "advancement.apply";
+/* ...and where the offer itself lives: a GM asks the primary to record or withdraw
+   one, an owner asks the primary for theirs, and the primary answers with the set.
+   See "WHERE AN OFFER LIVES" in level-up.mjs. */
+const ACTION_ADVANCEMENT_OFFER = "advancement.offer";
+const ACTION_ADVANCEMENT_ASK = "advancement.ask";
+const ACTION_ADVANCEMENT_OFFERS = "advancement.offers";
 const ACTION_SHARE_BULLET = "handover.bullet";
 const ACTION_GIVE_ITEM = "handover.item";
 const ACTION_VAULT_STEAL = "vault.steal";
@@ -118,6 +124,8 @@ function onGmReady(payload, senderId) {
     // primary role has moved to the newcomer, the newcomer IS the primary.
     if (senderId !== primaryGmId()) return;
     resendPendingRulings();
+    // And the Level Ups: a primary that has just arrived is the one holding them.
+    askForOffers();
 }
 
 /**
@@ -200,6 +208,11 @@ export function registerGmBridge() {
     game.socket.on(SOCKET_EVENT, onOpeningAsk);
     // And its withdrawal, which travels the same way for the same reason.
     game.socket.on(SOCKET_EVENT, onOpeningCancel);
+    // The Level Ups offered to this user's characters travel GM -> owner as well.
+    // Asked for once the listener is up - never pushed on `userConnected`, which
+    // arrives before a newcomer can hear it (see the note at the top).
+    game.socket.on(SOCKET_EVENT, onAdvancementOffers);
+    askForOffers();
 }
 
 /**
@@ -598,8 +611,94 @@ async function handleAdvancement(payload, senderId, ctx) {
         return refuse(ACTION_ADVANCEMENT, "a pick names something that is not an option", ctx);
     }
 
-    await applyAdvancement(actor, picks, offer.kind);
+    /* Bounded on arrival as well as caught on the player's screen (level-up.mjs):
+       a packet from an older client, or a forged one, must not spend the offer on
+       a new experience that has no name. */
+    if (picks.some(p => p.option === "experienceNew" && !String(p.name ?? "").trim())) {
+        return refuse(ACTION_ADVANCEMENT, "a new experience has no name", ctx);
+    }
+
+    /* ONE AT A TIME PER CHARACTER. The offer is only withdrawn once
+       `applyAdvancement` has written the rises and awaited the store, three round
+       trips later; two packets inside that window - two stacked pickers, a double
+       press on a slow server - both found the offer standing and both applied. The
+       lines above are synchronous, so nothing interleaves between reading the offer
+       and taking the latch. */
+    if (advancing.has(actor.id)) {
+        return refuse(ACTION_ADVANCEMENT, "a Level Up for that character is already being written", ctx);
+    }
+    advancing.add(actor.id);
+    try {
+        await applyAdvancement(actor, picks, offer.kind);
+    } finally {
+        advancing.delete(actor.id);
+    }
     return;
+}
+
+/** Characters whose Level Up is being written right now (see handleAdvancement). */
+const advancing = new Set();
+
+/** A GM asks the primary to record or withdraw an offer (N-2). */
+async function handleAdvancementOffer(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender?.isGM) return refuse(ACTION_ADVANCEMENT_OFFER, "only a GM hands out a Level Up", ctx);
+    const actor = game.actors.get(payload.actorId);
+    if (!actor || actor.type !== "character") {
+        return refuse(ACTION_ADVANCEMENT_OFFER, "no such character", ctx);
+    }
+    const kind = payload.kind ?? null;
+    if (kind !== null && !LEVEL_UP[kind]?.picks) {
+        return refuse(ACTION_ADVANCEMENT_OFFER, `no such Level Up: ${kind}`, ctx);
+    }
+    const { recordOffer } = await import("./level-up.mjs");
+    await recordOffer(actor.id, kind);
+    return;
+}
+
+/** An owner asks for the offers on their own characters; the answer is the set. */
+async function handleAdvancementAsk(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender || sender.isGM) return;
+    sendOffersTo(sender.id);
+    return;
+}
+
+/**
+ * Primary GM: send one user the whole set of offers on their own characters.
+ * Addressed - nobody else's browser receives it - and only when they are there.
+ */
+export async function sendOffersTo(userId) {
+    const user = game.users.get(userId);
+    if (!user?.active || user.isGM) return;
+    const { offersFor } = await import("./level-up.mjs");
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_ADVANCEMENT_OFFERS, userId, offers: offersFor(userId)
+    }, { recipients: [userId] });
+}
+
+/** A GM other than the primary: have the primary record or withdraw an offer. */
+export function requestOfferRecord(actorId, kind) {
+    emitToGms({
+        action: ACTION_ADVANCEMENT_OFFER, userId: game.user.id,
+        requestId: expectAck(ACTION_ADVANCEMENT_OFFER), actorId, kind
+    });
+    return { pending: true };
+}
+
+/** An owner's browser: take the set the primary sent. Outside the primary gate. */
+function onAdvancementOffers(payload, senderId) {
+    if (payload?.action !== ACTION_ADVANCEMENT_OFFERS) return;
+    if (!replyForMe(payload, senderId)) return;
+    import("./level-up.mjs")
+        .then(m => m.receiveOffers(payload.offers))
+        .catch(err => error("Could not keep the Level Ups offered to you", err));
+}
+
+/** An owner's browser: ask the primary for this user's offers. */
+function askForOffers() {
+    if (game.user.isGM) return;
+    emitToGms({ action: ACTION_ADVANCEMENT_ASK, userId: game.user.id });
 }
 
     // Handing something to another character writes to a sheet the sender does
@@ -1243,6 +1342,8 @@ const GM_HANDLERS = {
     [ACTION_OBSERVE_RESOLVE]: handleObserveResolve,
     [ACTION_ANALYZE_RESOLVE]: handleAnalyzeResolve,
     [ACTION_ADVANCEMENT]: handleAdvancement,
+    [ACTION_ADVANCEMENT_OFFER]: handleAdvancementOffer,
+    [ACTION_ADVANCEMENT_ASK]: handleAdvancementAsk,
     [ACTION_SHARE_BULLET]: handleShareBulletOrGiveItem,
     [ACTION_GIVE_ITEM]: handleShareBulletOrGiveItem,
     [ACTION_PLANT]: handlePlant,
@@ -1293,7 +1394,9 @@ async function onSocket(payload, senderId) {
         // a request.
         || payload.action === ACTION_OPENING_ASK
         || payload.action === ACTION_OPENING_CANCEL
-        || payload.action === ACTION_REFUSED) return;
+        || payload.action === ACTION_REFUSED
+        // GM -> owner, handled by `onAdvancementOffers` outside the primary gate.
+        || payload.action === ACTION_ADVANCEMENT_OFFERS) return;
     if (!isPrimaryGm()) return;
 
     /*

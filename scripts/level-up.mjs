@@ -13,7 +13,8 @@
 
 import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, TRAITS, STARTING } from "./config.mjs";
 import { listExperiences, resourceMax } from "./character.mjs";
-import { log, error } from "./utils.mjs";
+import { log, error, isPrimaryGm, ownerIdsOf } from "./utils.mjs";
+import { SETTINGS } from "./settings.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -99,13 +100,101 @@ export async function openAdvancementFor(actor) {
     return openAdvancement(actor, picked.value);
 }
 
+/* ==========================================================================
+ * WHERE AN OFFER LIVES (review of stage D, 21.09)
+ * ==========================================================================
+ *
+ * N-2 kept the offer as a flag on the character, and a flag is world data:
+ *
+ *   - AN OWNER CAN WRITE IT. A player may set flags on their own actor, and the
+ *     GM's client checked that same flag before writing a Level Up - so one line
+ *     in the console gave a player a Reinforced Level Up, as often as they liked.
+ *   - EVERYONE CAN READ IT. After a wrong verdict the GM hands the Blackened a
+ *     Reinforced Level Up; until they spent it, any player's console could list
+ *     who carried one - the surviving killer, by name.
+ *
+ * So the offer lives where the module keeps every other secret: in a CLIENT-scoped
+ * setting (see secret.mjs, observe.mjs). The PRIMARY GM's copy is the authority,
+ * holding every offer; an owner's browser holds only its own characters', written
+ * from an addressed message, and uses it for nothing but lighting the button. The
+ * primary never reads anything a player can write.
+ *
+ * DELIVERY, AND AN OWNER WHO WAS NOT THERE. A message sent on `userConnected`
+ * arrives before the newcomer's listeners exist (gm-bridge.mjs records the
+ * measurement), so the owner ASKS: once when their bridge is up, and again when
+ * a primary GM announces itself. The answer is their whole set, so asking twice
+ * costs nothing and a withdrawn offer disappears the same way a new one arrives.
+ */
+function readOffers() {
+    try {
+        return { ...(game.settings.get(MODULE_ID, SETTINGS.advanceOffers) ?? {}) };
+    } catch {
+        return {};
+    }
+}
+
+async function writeOffers(offers) {
+    await game.settings.set(MODULE_ID, SETTINGS.advanceOffers, offers);
+}
+
+/** Primary GM: write or withdraw one offer, then send each owner their set. */
+export async function recordOffer(actorId, kind) {
+    if (!isPrimaryGm()) return null;
+    const offers = readOffers();
+    if (kind && LEVEL_UP[kind]?.picks) offers[actorId] = { kind, at: Date.now() };
+    else delete offers[actorId];
+    await writeOffers(offers);
+    const actor = game.actors.get(actorId);
+    const { sendOffersTo } = await import("./gm-bridge.mjs");
+    for (const userId of actor ? ownerIdsOf(actor) : []) sendOffersTo(userId);
+    return offers[actorId] ?? null;
+}
+
+/** Primary GM: the offers standing on this user's own characters - and only those. */
+export function offersFor(userId) {
+    const user = game.users.get(userId);
+    const out = {};
+    if (!user || user.isGM) return out;
+    for (const [actorId, offer] of Object.entries(readOffers())) {
+        const actor = game.actors.get(actorId);
+        if (actor?.testUserPermission?.(user, "OWNER") && LEVEL_UP[offer?.kind]?.picks) {
+            out[actorId] = { kind: offer.kind };
+        }
+    }
+    return out;
+}
+
+/** Owner: replace this browser's copy with the set the primary sent, and redraw. */
+export async function receiveOffers(offers) {
+    const before = readOffers();
+    const mine = {};
+    for (const [actorId, offer] of Object.entries(offers ?? {})) {
+        // Bounded here as well: only a character this user owns, only a real kind.
+        if (game.actors.get(actorId)?.isOwner && LEVEL_UP[offer?.kind]?.picks) {
+            mine[actorId] = { kind: offer.kind };
+        }
+    }
+    await writeOffers(mine);
+    for (const id of new Set([...Object.keys(before), ...Object.keys(mine)])) {
+        game.actors.get(id)?.sheet?.render(false);
+    }
+}
+
+/** Any GM: an offer is spent or taken back. The primary writes it; others ask it to. */
+async function withdrawOffer(actorId) {
+    if (isPrimaryGm()) return recordOffer(actorId, null);
+    const { requestOfferRecord } = await import("./gm-bridge.mjs");
+    return requestOfferRecord(actorId, null);
+}
+
 /**
  * Hand the choice to the player (N-2).
  *
- * The flag is the whole mechanism: it is what lights the button on their sheet,
- * what the picker reads to know which kind was earned, and what the GM's client
- * checks before it applies anything. Nothing is written to the character until
- * they have chosen - an offer is not an advancement.
+ * The offer is the whole mechanism: it lights the button on their sheet, tells
+ * the picker which kind was earned, and is what the primary GM checks before it
+ * applies anything. It lives in the primary GM's client store, not on the
+ * character - see "WHERE AN OFFER LIVES" above. Nothing is written to the
+ * character until they have chosen - an offer is not an advancement.
  *
  * WHISPERED, NOT ANNOUNCED. Which advancement somebody earned is between them and
  * the GM until they spend it; a public card would also tell the table who voted
@@ -127,7 +216,12 @@ export async function offerAdvancement(actor, kind = "standard") {
 
     const offer = { kind, by: game.user.id, at: Date.now() };
     try {
-        await actor.setFlag(MODULE_ID, FLAGS.pendingAdvance, offer);
+        if (isPrimaryGm()) {
+            await recordOffer(actor.id, kind);
+        } else {
+            const { requestOfferRecord } = await import("./gm-bridge.mjs");
+            requestOfferRecord(actor.id, kind);
+        }
     } catch (err) {
         error(`Could not offer ${actor.name} a Level Up`, err);
         ui.notifications.error(game.i18n.localize("DRPG.Advance.offerFailed"));
@@ -150,9 +244,13 @@ export async function offerAdvancement(actor, kind = "standard") {
     return offer;
 }
 
-/** The offer standing on this character, if any (N-2). */
+/**
+ * The offer standing on this character, if any (N-2) - as THIS browser holds it:
+ * every offer on the primary GM, a character's own on its owner's, nothing
+ * anywhere else.
+ */
 export function pendingAdvance(actor) {
-    const offer = actor?.getFlag?.(MODULE_ID, FLAGS.pendingAdvance) ?? null;
+    const offer = readOffers()[actor?.id] ?? null;
     return offer && LEVEL_UP[offer.kind]?.picks ? offer : null;
 }
 
@@ -232,6 +330,15 @@ export async function openAdvancement(actor, kind = "standard") {
      * twice cannot buy two.
      */
     if (asPlayer) {
+        /* A NEW EXPERIENCE WITH NO NAME is caught HERE, on the screen of the person
+           who left it blank. The apply's own warning fires on the GM's client, so a
+           player's blank name used to warn the GM, spend the offer on the picks that
+           did work, and tell the player nothing. The offer is untouched and the
+           button is still lit; they press it again. */
+        if (result.some(p => p?.option === "experienceNew" && !String(p.name ?? "").trim())) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Advance.experienceNeedsNameKept"));
+            return null;
+        }
         const { requestAdvancement } = await import("./gm-bridge.mjs");
         return requestAdvancement({ actorId: actor.id, picks: result, kind });
     }
@@ -445,14 +552,11 @@ export async function applyAdvancement(actor, picks, kind = "standard") {
         await automatedUpdate(actor, update);
         const taken = (actor.getFlag(MODULE_ID, FLAGS.advances) ?? 0) + 1;
         await actor.setFlag(MODULE_ID, FLAGS.advances, taken);
-        /* AN OFFER IS SPENT BY BEING TAKEN (N-2). Cleared here rather than at the
+        /* AN OFFER IS SPENT BY BEING TAKEN (N-2). Withdrawn here rather than at the
            three call sites - the GM's own picker, a player's picks arriving over the
            socket, and the API - because this is the one place that writes an
-           advancement. `unsetFlag`, not a `-=key` in an update: that form silently
-           does nothing in this world, which the season reset's notes record. */
-        if (actor.getFlag(MODULE_ID, FLAGS.pendingAdvance)) {
-            await actor.unsetFlag(MODULE_ID, FLAGS.pendingAdvance);
-        }
+           advancement. Through the primary GM, which holds the offers. */
+        await withdrawOffer(actor.id);
 
         log(`Advancement (${kind}) applied to ${actor.name}: ${summary.join(", ")}`);
         await tellPlayer(actor, kind, summary, taken);

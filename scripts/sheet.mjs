@@ -1500,7 +1500,10 @@ function injectAdvanceButton(app, element) {
      * own sheet for new controls; the class below is what makes it read as
      * something waiting to be answered, and the tooltip says which kind was earned.
      */
-    const offer = game.user.isGM ? null : pendingAdvanceFor(app.document);
+    // The owner's alone. Another player opening this sheet used to see the lit badge
+    // and read the kind off its tooltip - after a wrong verdict, the Blackened's
+    // Reinforced Level Up, on the one character who has it (review of stage D).
+    const offer = (game.user.isGM || !app.document.isOwner) ? null : pendingAdvanceFor(app.document);
     if (!game.user.isGM && !offer) return;
 
     const nameRow = element.querySelector(".character-header-sheet .name-row");

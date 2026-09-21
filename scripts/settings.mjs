@@ -204,6 +204,13 @@ export const SETTINGS = {
      */
     observePending: "observePending",
     /**
+     * Level Ups handed to a player and not yet spent (N-2). CLIENT-scoped: the
+     * primary GM's copy is the authority, an owner's holds only their own
+     * characters' - see "WHERE AN OFFER LIVES" in level-up.mjs for why a flag
+     * on the character was both forgeable and readable by everyone.
+     */
+    advanceOffers: "advanceOffers",
+    /**
      * The words of every private card this browser is a recipient of.
      *
      * CLIENT-SCOPED, and that is the entire point - see secret.mjs. A whisper
@@ -909,6 +916,13 @@ export function registerSettings() {
     });
 
     game.settings.register(MODULE_ID, SETTINGS.observePending, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.advanceOffers, {
         scope: "client",
         config: false,
         type: Object,

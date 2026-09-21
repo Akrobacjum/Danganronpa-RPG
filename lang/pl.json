@@ -2695,7 +2695,8 @@
       "offered": "{kind}. Naciśnij przycisk obok swojego imienia na arkuszu i wybierz - liczba wyborów: {n}.",
       "offerSent": "{name} - powiadomienie wysłane; wybór należy teraz do gracza.",
       "offerFailed": "Nie udało się zapisać oferty na tej postaci.",
-      "offerTooltip": "{kind} - naciśnij, by wybrać, co bierzesz."
+      "offerTooltip": "{kind} - naciśnij, by wybrać, co bierzesz.",
+      "experienceNeedsNameKept": "Nowe doświadczenie potrzebuje nazwy. Nic nie wysłano - Level Up wciąż czeka na wykorzystanie."
     },
     "Loot": {
       "take": "Weź",

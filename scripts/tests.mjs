@@ -3862,9 +3862,11 @@ const REGRESSIONS = [
             "nothing can hand a Level Up to the player");
         const offer = level.slice(level.indexOf("export async function offerAdvancement"),
             level.indexOf("export function pendingAdvance"));
+        ok(offer.length > 200, "offerAdvancement has moved or gone");
         ok(/if \(!game\.user\.isGM\)/.test(offer), "anybody can offer themselves a Level Up");
-        ok(/setFlag\(MODULE_ID, FLAGS\.pendingAdvance/.test(offer),
-            "the offer is not written to the character, so nothing can read it back");
+        // Recorded by the primary GM, in its own store - see R98 for why not a flag.
+        ok(/recordOffer\(actor\.id, kind\)|requestOfferRecord\(actor\.id, kind\)/.test(offer),
+            "the offer is not recorded anywhere, so nothing can read it back");
         ok(/whisperToOwner\(/.test(offer) && !/announce\(/.test(offer),
             "the offer is announced to the table - which advancement somebody earned "
             + "also says how they voted");
@@ -3881,7 +3883,7 @@ const REGRESSIONS = [
 
         const applied = level.slice(level.indexOf("export async function applyAdvancement"));
         ok(/if \(!game\.user\.isGM\)/.test(applied), "the apply is no longer the GM's alone");
-        ok(/unsetFlag\(MODULE_ID, FLAGS\.pendingAdvance\)/.test(applied),
+        ok(/await withdrawOffer\(actor\.id\)/.test(applied),
             "the offer is not spent by being taken, so it can be taken twice");
 
         const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
@@ -4619,6 +4621,57 @@ const REGRESSIONS = [
             bridge.indexOf("\n}", bridge.indexOf("export function sendDespairToPrimary(")));
         ok(send.length > 40, "gm-bridge has no way to send a GM's Despair to the primary");
         ok(!/adjustDespair/.test(send), "the send calls adjustDespair, which would loop back to it");
+    }],
+
+    ["R98 - a Level Up offer lives where no player can write it or read somebody else's", async () => {
+        /*
+         * Review of stage D, re-checked on the merged tree and measured on two clients
+         * on 21.09. N-2 kept the offer as a flag on the character, which is world data:
+         * an owner could write it and pick a Reinforced Level Up from the console, and
+         * anybody could read who carried one - after a wrong verdict, the surviving
+         * killer. Measured after the move: a forged Reinforced offer with three picks
+         * changed nothing (max Health 4 -> 4, the GM's offer still Standard), and one
+         * honest pick sent twice in one tick applied once (4 -> 5).
+         */
+        const sources = new Map(await otherSources());
+        const level = stripComments(sources.get("level-up.mjs") ?? "");
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const sheet = stripComments(sources.get("sheet.mjs") ?? "");
+
+        ok(!/pendingAdvance/.test(stripComments(sources.get("config.mjs") ?? "")),
+            "the offer still has a flag key, so something can still write it to the character");
+        ok(!/setFlag\([^)]*pendingAdvance|unsetFlag\([^)]*pendingAdvance/.test(level),
+            "the offer is written to the character, where its owner can forge it and anyone can read it");
+        ok(game.settings.settings.get(`${MODULE_ID}.advanceOffers`)?.scope === "client",
+            "the offer store is not client-scoped, so it reaches every browser");
+
+        const pending = level.slice(level.indexOf("export function pendingAdvance("),
+            level.indexOf("\n}", level.indexOf("export function pendingAdvance(")));
+        ok(/readOffers\(\)/.test(pending) && !/getFlag/.test(pending),
+            "pendingAdvance reads something other than this browser's store");
+        const record = level.slice(level.indexOf("export async function recordOffer("),
+            level.indexOf("export function offersFor("));
+        ok(/if \(!isPrimaryGm\(\)\) return null;/.test(record),
+            "a client other than the primary GM writes the authority");
+
+        const handler = bridge.slice(bridge.indexOf("async function handleAdvancement("),
+            bridge.indexOf("async function handleAdvancementOffer("));
+        ok(/advancing\.has\(actor\.id\)/.test(handler) && /finally \{\s*advancing\.delete/.test(handler),
+            "two packets inside the apply's round trips both spend the offer");
+        ok(/experienceNew[\s\S]{0,80}\.trim\(\)/.test(handler),
+            "a new experience with no name spends the offer on the GM's side");
+        const offer = bridge.slice(bridge.indexOf("async function handleAdvancementOffer("),
+            bridge.indexOf("async function handleAdvancementAsk("));
+        ok(/if \(!sender\?\.isGM\)/.test(offer), "a player can record an offer through the bridge");
+        ok(/\{ recipients: \[userId\] \}/.test(bridge.slice(bridge.indexOf("export async function sendOffersTo("))),
+            "an owner's offers are broadcast rather than addressed to them");
+        ok(/game\.socket\.on\(SOCKET_EVENT, onAdvancementOffers\);\s*askForOffers\(\);/.test(bridge),
+            "an owner never asks for their offers, so one made while they were away never lights");
+
+        const button = sheet.slice(sheet.indexOf("function injectAdvanceButton"),
+            sheet.indexOf("function injectItemButton"));
+        ok(/!app\.document\.isOwner/.test(button),
+            "the lit badge shows on characters the viewer does not own");
     }]
 ];
 

@@ -66,7 +66,6 @@ export const FLAGS = {
      * again before it applies anything, because the player's picks arrive over a
      * socket and a socket carries claims rather than facts.
      */
-    pendingAdvance: "pendingAdvance",
     /** Character: the student's Ultimate talent, shown under their name. */
     ultimate: "ultimate",
     /**
