@@ -709,6 +709,191 @@ async function reshapeTrace(token, data, {
     }));
 }
 
+
+/* ==========================================================================
+ * A RESHAPE IS A PROPOSAL (N-3, Dawid 21.09)
+ * ========================================================================== */
+
+/**
+ * Ask the GM to rule on a lie, instead of writing it into their evidence.
+ *
+ * WHAT WAS WRONG. A Tamper that succeeded applied the player's words the moment
+ * the dice landed: their name and their sentence went onto the GM's own trace,
+ * and the next person through the door read them as the truth of the room. The
+ * packet was BOUNDED - `plainText` caps both halves, the visibility list is
+ * checked - but bounding is not ruling. Nobody had said yes.
+ *
+ * Starting a project is the precedent and Dawid named it: the player fills in
+ * the form, the form becomes a card, and nothing exists in the world until the
+ * GM presses a button. The same three reasons apply here and are stronger,
+ * because this writes over something that already exists.
+ *
+ * THE ROLL AND THE PRICE STAY SPENT. A decline is a ruling, not a refund: they
+ * spent the turn and the Sanity scrubbing at a trace, and the critical's
+ * Sanity-back is the critical's, not the approval's. So this sits exactly where
+ * the write used to sit - after the price, before the report - and the report
+ * says the same thing it always said about the dice.
+ *
+ * WHAT IT DOES NOT DO. It does not touch the Tamper Remnant a failure leaves,
+ * the erase road, or the reshape's OWN consequence of becoming a Tamper
+ * Remnant. Those are the rules answering; this is a player writing prose.
+ */
+async function proposeReshape(actor, token, data, {
+    name = "", text = "", softer = null, tie = false, done = []
+} = {}) {
+    const { REMNANT_VISIBILITY_LABELS, REMNANT_TYPES } = await import("./config.mjs");
+    const esc = foundry.utils.escapeHTML;
+    const becomes = CLEANUP.transformAction?.becomes ?? "resolution";
+
+    const was = `${data.visibilityLabel} ${data.typeLabel}`;
+    const now = `${REMNANT_VISIBILITY_LABELS[softer ?? data.visibility]
+        ?? data.visibilityLabel} ${REMNANT_TYPES[becomes]?.label ?? becomes}`;
+    const body = [
+        `<strong>${esc(name || game.i18n.localize("DRPG.Cleanup.reshapeUnnamed"))}</strong>`,
+        text ? `<br><em>${esc(text)}</em>` : "",
+        `<br>${esc(game.i18n.format("DRPG.Cleanup.reshapeRulingWas", { was, now }))}`,
+        softer ? `<br>${esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingQuieter"))}` : "",
+        tie ? `<br><span class="drpg-warning">${
+            esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingTies"))}</span>` : ""
+    ].join("");
+
+    const { callGm } = await import("./gm-bridge.mjs");
+    const sent = await callGm(actor, {
+        title: game.i18n.localize("DRPG.Cleanup.reshapeRulingTitle"),
+        room: data.room ?? null,
+        body,
+        actions: [
+            {
+                action: "approveReshape",
+                label: game.i18n.localize("DRPG.Cleanup.reshapeApprove"),
+                // Lowercase keys only: `data-*` arrives through `dataset`, which
+                // lowercases everything, so `tokenId` would read back undefined.
+                data: {
+                    by: actor.id,
+                    scene: token.parent?.id ?? "",
+                    trace: token.id,
+                    rname: name,
+                    rtext: text,
+                    softer: softer ?? "",
+                    tie: tie ? "1" : ""
+                }
+            },
+            {
+                action: "declineReshape",
+                label: game.i18n.localize("DRPG.Cleanup.reshapeDecline"),
+                data: { by: actor.id }
+            }
+        ]
+    });
+
+    /*
+     * A CARD THAT DID NOT GO IS NOT A PROPOSAL, and the player must not be told
+     * one is waiting. Same `=== false` care as ACT-15: the messenger answers
+     * with a document or with false, and a lie left in limbo with nobody asked
+     * is the one outcome this change must not create.
+     */
+    if (sent === false) {
+        await whisperToGms(`<p class="drpg-warning">${
+            game.i18n.localize("DRPG.Cleanup.reshapeUnsent")}</p>`);
+        done.push(game.i18n.localize("DRPG.Cleanup.reshapeUnsentPlayer"));
+        return false;
+    }
+
+    done.push(game.i18n.format("DRPG.Cleanup.reshapeWaiting", {
+        name: name || game.i18n.localize("DRPG.Cleanup.reshapeUnnamed")
+    }));
+    return true;
+}
+
+/**
+ * The GM pressed Approve. NOW the words land.
+ *
+ * Read fresh rather than from the card: minutes may have passed, and the trace
+ * the ruling is about is the trace as it stands when the ruling is made. A
+ * chapter sweep, another killer's clean-up or the GM's own hand may have taken
+ * it - in which case there is nothing to relabel and both sides are told.
+ *
+ * BOUNDED AGAIN ON ARRIVAL. These values come off `dataset`, and the module's
+ * habit is that a field is bounded by the code that uses it rather than by the
+ * code that was supposed to produce it. It costs two lines.
+ */
+export async function applyReshapeRuling({
+    actorId, tokenId, name = "", text = "", softer = null, tie = false
+} = {}) {
+    if (!game.user.isGM) return null;
+    const actor = game.actors.get(actorId) ?? null;
+    const token = findRemnantToken(tokenId);
+    const data = token ? remnantData(token) : null;
+    if (!data) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeRulingGone"));
+        if (actor) await whisperToOwner(actor, `<p>${
+            game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
+        return null;
+    }
+
+    /*
+     * REINFORCED SINCE THE ROLL IS A REFUSAL, and this is the one guard that
+     * could not be asked when the dice landed. A GM who has decided in the
+     * meantime that this trace is what makes the case solvable has said no to
+     * every road that edits it, including one they are being offered a button
+     * for.
+     */
+    if (data.reinforced) {
+        ui.notifications.warn(game.i18n.format("DRPG.Cleanup.reinforced", {
+            what: `${data.visibilityLabel} ${data.typeLabel}`
+        }));
+        return null;
+    }
+
+    const limits = CLEANUP.transformAction?.limits ?? {};
+    const safeName = plainText(name, limits.name ?? 60);
+    const safeText = plainText(text, limits.text ?? 400);
+    const quieter = REMNANT_VISIBILITY.includes(softer) ? softer : null;
+
+    const done = [];
+    /*
+     * THE RECEIPT IS FILLED IN WHEN THE CHANGE HAPPENS, not when it was asked
+     * for. A Reroll between the roll and the ruling finds `transformed: null`,
+     * which is the truth - nothing had been written yet - and one after the
+     * ruling finds the snapshot `reshapeTrace` takes below. The Map holds the
+     * object, so writing through it here is the same record the roll opened.
+     */
+    const receipt = lastAttempt.get(actorId);
+    await reshapeTrace(token, data, {
+        name: safeName, text: safeText, softer: quieter, tie: Boolean(tie),
+        receipt: receipt?.tokenId === tokenId ? receipt : null,
+        done
+    });
+
+    if (actor && done.length) {
+        await whisperToOwner(actor, `${cardHead({
+            action: game.i18n.localize("DRPG.Cleanup.reshapeRulingTitle")
+        })}<p>${done.join("</p><p>")}</p>`);
+    }
+    log(`Reshape approved: ${actor?.name ?? actorId} relabelled a ${
+        data.visibility} ${data.type}.`);
+    return true;
+}
+
+/**
+ * The GM pressed Decline. The trace stands, and the player is told so.
+ *
+ * Nothing to refund, for the reason written at the top of this block: the price
+ * bought the attempt, and the attempt happened.
+ */
+export async function declineReshapeRuling({ actorId } = {}) {
+    if (!game.user.isGM) return null;
+    const actor = game.actors.get(actorId);
+    if (!actor) return null;
+    await whisperToOwner(actor, `${cardHead({
+        action: game.i18n.localize("DRPG.Cleanup.reshapeRulingTitle")
+    })}<p><em>${foundry.utils.escapeHTML(game.i18n.format(
+        "DRPG.Cleanup.reshapeDeclined", { name: game.user.name }))}</em></p>`);
+    ui.notifications.info(game.i18n.format("DRPG.Cleanup.reshapeDeclinedGm",
+        { name: actor.name }));
+    return true;
+}
+
 /**
  * What are you trying to make this look like? Asked BEFORE the dice (Z5).
  *
@@ -988,11 +1173,12 @@ export async function resolveCleanup({
                 : null;
 
             try {
-                await reshapeTrace(token, data, {
-                    name, text, softer, tie: byTheKiller, receipt, done
+                // N-3: the GM rules on the lie. See the block above `proposeReshape`.
+                await proposeReshape(actor, token, data, {
+                    name, text, softer, tie: byTheKiller, done
                 });
             } catch (err) {
-                error("Could not rewrite the Remnant a transform reshaped", err);
+                error("Could not put a transform's reshape to the GM", err);
             }
         }
 
@@ -1031,16 +1217,24 @@ export async function resolveCleanup({
 
     if (rewrite) {
         try {
-            await reshapeTrace(token, data, {
+            /*
+             * THE SAME RULING, BY THE SAME ARGUMENT (N-3).
+             *
+             * This is the erase road's critical reward rather than the Tamper
+             * action, but what lands on the trace is identical: a name and a
+             * sentence a player wrote, on the GM's own evidence. Gating one and
+             * not the other would leave a road where the words apply themselves,
+             * and a rule with a door next to it is not a rule.
+             */
+            await proposeReshape(actor, token, data, {
                 name: rewriteName,
                 text: rewriteText,
                 softer: rewrite.visibility,
                 tie: isCleaner(actor),
-                receipt,
                 done
             });
         } catch (err) {
-            error("Could not rewrite the Remnant a critical clean-up transformed", err);
+            error("Could not put a critical clean-up's reshape to the GM", err);
         }
     } else if (outcome.removes && !transforming) {
         try {

@@ -131,6 +131,7 @@ import {
 } from "./murder.mjs";
 import {
     cleanableRemnants, attemptCleanup, resolveCleanup, openCleanupDialog, isCleaner,
+    applyReshapeRuling, declineReshapeRuling,
     openMoveBodyDialog,
     attemptStageSix, resolveStageSix
 } from "./cleanup.mjs";
@@ -810,6 +811,12 @@ export const DrpgApi = {
     moveBodyDialog: openMoveBodyDialog,
     attemptCleanup,
     resolveCleanup,
+
+    /** The two halves of a reshape ruling (N-3), for a GM whose card has gone.
+     *  The buttons on the card are the ordinary road; these are the road back
+     *  when a thread has been cleared and a lie is left waiting on nobody. */
+    approveReshape: applyReshapeRuling,
+    declineReshape: declineReshapeRuling,
 
     /** Is this actor the one cleaning up right now? */
     isCleaner,

@@ -4276,6 +4276,73 @@ const REGRESSIONS = [
             const path = `DRPG.Investigation.${key}`;
             ok(game.i18n.localize(path) !== path, `${path} is missing from lang/en.json`);
         }
+    }],
+
+    ["R92 - a reshaped trace waits for a ruling", async () => {
+        /*
+         * N-3, Dawid 21.09. A Tamper that succeeded wrote the player's name and
+         * the player's sentence onto the GM's own evidence the moment the dice
+         * landed. The packet was bounded - `plainText` caps both halves, the
+         * visibility list is checked - but BOUNDING IS NOT RULING, and the next
+         * person through the door read those words as the truth of the room.
+         *
+         * Starting a project is the precedent Dawid named: the form becomes a
+         * card, and nothing exists in the world until the GM presses a button.
+         *
+         * TWO ROADS WRITE THOSE WORDS, which is the half a reader misses: the
+         * Tamper action, and the erase road's critical reward. A rule with a door
+         * next to it is not a rule, so the test counts the callers rather than
+         * checking the branch it was written for.
+         */
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("cleanup.mjs") ?? "");
+
+        const callers = [...src.matchAll(/await reshapeTrace\(/g)].length;
+        ok(callers === 1,
+            `reshapeTrace is awaited ${callers} times - it must be reachable only `
+            + "through the approval, or there is a road that writes without a ruling");
+        const ruling = src.slice(src.indexOf("export async function applyReshapeRuling"),
+            src.indexOf("export async function declineReshapeRuling"));
+        ok(ruling.length > 300, "applyReshapeRuling has gone or moved below the decline");
+        ok(/await reshapeTrace\(/.test(ruling),
+            "the one write left is not the one behind the GM's button");
+
+        /* Both roads ask. */
+        const transform = src.slice(src.indexOf("if (transforming && success)"),
+            src.indexOf("const back = CLEANUP.transformAction?.refundStress"));
+        ok(/await proposeReshape\(/.test(transform),
+            "the Tamper action still applies the lie itself");
+        const critical = src.slice(src.indexOf("if (rewrite) {"),
+            src.indexOf("} else if (outcome.removes"));
+        ok(/await proposeReshape\(/.test(critical),
+            "a critical clean-up still applies the lie itself");
+
+        /* The ruling reads the world as it stands, not as the card remembers it. */
+        ok(/findRemnantToken\(tokenId\)/.test(ruling),
+            "the ruling trusts the card for the trace instead of looking it up, so a "
+            + "trace swept between the roll and the button is relabelled in absentia");
+        ok(/if \(data\.reinforced\)/.test(ruling),
+            "a GM who reinforced the trace after the roll is still offered a button "
+            + "that edits it");
+        ok(/plainText\(name,/.test(ruling) && /plainText\(text,/.test(ruling),
+            "the words come off a dataset and are written without being bounded again");
+        ok(/if \(!game\.user\.isGM\) return null/.test(ruling),
+            "the approval is not GM-gated on the client that runs it");
+
+        /* A decline is a ruling, not a refund - the whole point of where this sits. */
+        const decline = src.slice(src.indexOf("export async function declineReshapeRuling"));
+        ok(!/refundPrice|handBack|automatedUpdate/.test(decline.slice(0, 900)),
+            "declining hands the price back, which turns every ruling into a free retry");
+
+        /* And the GM's card reaches both. */
+        const app = stripComments(sources.get("messenger-app.mjs") ?? "");
+        ok(/action === "approveReshape"/.test(app) && /action === "declineReshape"/.test(app),
+            "the card's buttons lead nowhere");
+        for (const key of ["reshapeRulingTitle", "reshapeApprove", "reshapeDecline",
+            "reshapeWaiting", "reshapeDeclined", "reshapeRulingGone"]) {
+            const path = `DRPG.Cleanup.${key}`;
+            ok(game.i18n.localize(path) !== path, `${path} is missing from lang/en.json`);
+        }
     }]
 ];
 
@@ -9794,6 +9861,120 @@ const SCENARIOS = [
                 "system.resources.actions.value": before.actions,
                 "system.resources.stress.value": before.stress
             });
+            await settle();
+        }
+    }],
+
+    ["a reshaped trace does not change until the GM says so", async () => {
+        /*
+         * N-3, driven through the resolver the way the socket drives it.
+         *
+         * THE CLAIM IN ONE LINE: a successful Tamper used to be the write. Now it
+         * is a request, and the trace reads exactly as it did until a GM presses a
+         * button - so this scenario asserts the trace TWICE, once either side of
+         * the ruling, and again after a decline.
+         *
+         * The fixture is `copiedRemnants`: the Tamper road refuses a trace the
+         * character has not found, and a Truth Bullet copied off it is what puts
+         * it on that register.
+         */
+        const [who] = cast();
+        const cleanup = await import("./cleanup.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const scene = game.scenes.active ?? canvas?.scene;
+        ok(scene, "no active scene to place a fixture trace on");
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const stamp = Date.now() % 100000;
+        const placed = [];
+        const made = [];
+
+        const fixture = async () => {
+            const token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident",
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "test fixture - N-3 reshape ruling"
+            });
+            ok(token, "could not place a fixture trace");
+            placed.push(token);
+            const item = await bullets.createTruthBullet(who, {
+                name: `Suite fixture - reshape ${placed.length}`,
+                realType: "neutral", visibility: "obvious",
+                remnantId: token.id, sceneId: scene.id
+            });
+            ok(item, "could not copy the fixture trace onto a bullet");
+            made.push(item);
+            await settle();
+            return token;
+        };
+
+        const tamper = (token, name, text) => cleanup.resolveCleanup({
+            actorId: who.id, tokenId: token.id, total: 30,
+            isCritical: false, withHope: true, viaAction: true,
+            mode: "transform", price: "stress",
+            change: { name, text }
+        });
+
+        try {
+            // ---- a success proposes, and writes nothing -------------------
+            const first = await fixture();
+            const before = new Set(game.messages.map(m => m.id));
+            await tamper(first, `Spilled paint ${stamp}`, "A tin went over during the afternoon.");
+            await settle();
+
+            const still = remnants.remnantData(first);
+            equal(still.type, "prep",
+                "the trace became something else before anybody had ruled on it");
+            ok(!still.public?.name?.includes(String(stamp)),
+                "the killer's name for the trace was written without a ruling");
+
+            const card = game.messages.filter(m => !before.has(m.id))
+                .find(m => m.content?.includes('data-drpg-call="approveReshape"'));
+            ok(card, "no ruling card was raised, so the lie is waiting on nobody");
+            ok(card.content.includes(`data-trace="${first.id}"`),
+                "the card does not name the trace it is about");
+
+            // ---- and the ruling is what writes ---------------------------
+            const applied = await cleanup.applyReshapeRuling({
+                actorId: who.id, tokenId: first.id,
+                name: `Spilled paint ${stamp}`, text: "A tin went over during the afternoon."
+            });
+            await settle();
+            ok(applied, "the approval refused a trace that was still standing");
+            const after = remnants.remnantData(first);
+            equal(after.type, "resolution", "approving did not turn it into a Tamper Remnant");
+            equal(after.public?.name, `Spilled paint ${stamp}`,
+                "the name the GM approved never reached the record");
+            equal(after.visibility, "evident",
+                "a plain success bought the quiet half, which belongs to a critical");
+
+            // ---- a decline leaves the trace exactly as it was ------------
+            const second = await fixture();
+            await tamper(second, `Nothing here ${stamp}`, "Just a scuff.");
+            await settle();
+            await cleanup.declineReshapeRuling({ actorId: who.id });
+            await settle();
+            const kept = remnants.remnantData(second);
+            equal(kept.type, "prep", "a declined reshape changed the trace anyway");
+            ok(!kept.public?.name?.includes(String(stamp)),
+                "a declined name was written onto the trace");
+
+            // ---- and a trace that is gone cannot be relabelled -----------
+            const third = await fixture();
+            const id = third.id;
+            await third.delete();
+            await settle();
+            const ghost = await cleanup.applyReshapeRuling({
+                actorId: who.id, tokenId: id, name: "Ghost", text: "Nothing."
+            });
+            ok(!ghost, "the approval claimed to relabel a trace that no longer exists");
+        } finally {
+            for (const item of made) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const token of placed) {
+                try { await token.delete(); } catch { /* already gone */ }
+            }
             await settle();
         }
     }],

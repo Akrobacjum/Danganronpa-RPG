@@ -661,6 +661,34 @@ async function runCallAction(action, data) {
         return settled("DRPG.Bridge.settledDeclined");
     }
 
+    /*
+     * N-3, 21.09: a reshaped trace is a proposal, like a project.
+     *
+     * The words are on the card so the ruling survives a reload; the trace is
+     * read fresh inside `applyReshapeRuling`, because the thing being ruled on
+     * is the trace as it stands now, not as it stood when the dice landed.
+     */
+    if (action === "approveReshape") {
+        const { applyReshapeRuling } = await import("./cleanup.mjs");
+        const applied = await applyReshapeRuling({
+            actorId: data.by,
+            tokenId: data.trace,
+            name: data.rname ?? "",
+            text: data.rtext ?? "",
+            softer: data.softer || null,
+            tie: Boolean(data.tie)
+        });
+        return applied ? settled("DRPG.Bridge.settledApproved") : null;
+    }
+
+    if (action === "declineReshape") {
+        // No refund, and the comment on `proposeReshape` says why: the Sanity
+        // and the turn bought the attempt, and the attempt happened.
+        const { declineReshapeRuling } = await import("./cleanup.mjs");
+        const told = await declineReshapeRuling({ actorId: data.by });
+        return told ? settled("DRPG.Bridge.settledDeclined") : null;
+    }
+
     // ---------------------------------------------------------------- generic
     //
     // Every action that calls the GM now carries at least one of these two.
