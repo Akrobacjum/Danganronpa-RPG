@@ -643,6 +643,12 @@ const advancing = new Set();
 async function handleAdvancementOffer(payload, senderId, ctx) {
     const sender = senderOf(senderId);
     if (!sender?.isGM) return refuse(ACTION_ADVANCEMENT_OFFER, "only a GM hands out a Level Up", ctx);
+    // A GM owns every character, so this refuses nothing a real GM sends; it is
+    // here because R1b holds every handler that acts on `payload.actorId` to the
+    // same two questions, and a rule with an exception is two rules.
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_ADVANCEMENT_OFFER, "sender does not own that character", ctx);
+    }
     const actor = game.actors.get(payload.actorId);
     if (!actor || actor.type !== "character") {
         return refuse(ACTION_ADVANCEMENT_OFFER, "no such character", ctx);
@@ -679,6 +685,9 @@ export async function sendOffersTo(userId) {
 
 /** A GM other than the primary: have the primary record or withdraw an offer. */
 export function requestOfferRecord(actorId, kind) {
+    // The caller is a GM, so a GM is connected - asked anyway, as every request is
+    // (R6): one rule for every road out of this file.
+    if (!hasGm()) return null;
     emitToGms({
         action: ACTION_ADVANCEMENT_OFFER, userId: game.user.id,
         requestId: expectAck(ACTION_ADVANCEMENT_OFFER), actorId, kind
