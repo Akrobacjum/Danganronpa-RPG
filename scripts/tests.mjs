@@ -11113,11 +11113,15 @@ const SCENARIOS = [
                 "a non-sticky evidence card took the middle of the screen");
 
             /* Two is the cap, and the second is the point: an objection answers
-               a presentation and reading the two together is the move. */
+               a presentation and reading the two together is the move. Since 22.09
+               the third is PARKED under the other two rather than dismissed, so the
+               stage shows two and still holds three. */
             close.push(showPopup("<p>objection</p>", { kind: "objection", sticky: true, title: "Objection" }));
             close.push(showPopup("<p>and another</p>", { kind: "evidence", sticky: true, title: "Evidence" }));
-            const live = [...stage.querySelectorAll(".drpg-popup")].filter(c => !c.classList.contains("leaving"));
-            equal(live.length, 2, "the evidence stage is holding more than the two it is capped at");
+            const kept = [...stage.querySelectorAll(".drpg-popup")].filter(c => !c.classList.contains("leaving"));
+            const shown = kept.filter(c => !c.classList.contains("drpg-popup-parked"));
+            equal(shown.length, 2, "the evidence stage is showing more than the two it is capped at");
+            equal(kept.length, 3, "a piece of evidence was thrown away to make room instead of waiting");
         } finally {
             for (const dismiss of close) { try { dismiss?.(); } catch { /* already gone */ } }
         }
