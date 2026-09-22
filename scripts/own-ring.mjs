@@ -14,8 +14,9 @@
  * which the isometric view draws as the same diamond as Foundry's selection border and
  * the project and Remnant frames. So every token a player owns stands on its square,
  * in the hour's colour, and the one the viewer plays stands on a bone one - the
- * interface's own white, which nothing else on the map is drawn in. Dawid chose the
- * floor diamond over the circle when asked, the same day.
+ * interface's own white. The only other bone frame on a map is the Final Truth's
+ * (remnant-ring.mjs), which frames a trace's icon rather than a student. Dawid chose
+ * the floor diamond over the circle when asked, the same day.
  *
  * WHICH TOKENS. A character a player owns (`hasPlayerOwner`), on every screen,
  * the GM's included: a frame that only the owner could see would tell the GM
