@@ -11092,7 +11092,7 @@ const SCENARIOS = [
 
         const SURFACES = ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#countdowns",
             "#drpg-events", "#drpg-popups", "#drpg-evidence", "#drpg-gm-launcher",
-            "#drpg-messenger-launcher", "#drpg-sound-launcher", ".drpg-panel", ".drpg-messenger"];
+            "#drpg-messenger-launcher", "#drpg-sound-launcher", "#drpg-book-launcher", ".drpg-panel", ".drpg-messenger"];
         let seen = 0;
         for (const sel of SURFACES) {
             for (const host of document.querySelectorAll(sel)) {

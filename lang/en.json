@@ -964,6 +964,16 @@
       "voteMetaGm": "{back} of {total} ballots back",
       "trialFloorOpen": "Everyone has the floor"
     },
+    "Handbooks": {
+      "title": "Handbooks",
+      "launcherTooltip": "Handbooks",
+      "brochure": "Student Brochure",
+      "player": "Player Handbook",
+      "gm": "GM Handbook",
+      "contents": "Contents",
+      "loading": "Loading...",
+      "failed": "This handbook could not be loaded. Try again in a moment."
+    },
     "Look": {
       "language": "Language",
       "title": "Settings",

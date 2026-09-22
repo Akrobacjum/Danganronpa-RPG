@@ -47,7 +47,7 @@ const BLOCKS = [
      to the room the scene rail leaves above Foundry's gauge (`fitNoteTile`, 21.09); the width is
      `--drpg-note-w`, scaled with the screen. */
   { cls: "note-block", sel: "#drpg-popups", fixed: true, fallback: (W, H) => { const s = uiScale(), t = noteTile(); return { x: 16, y: H - noteFoot(s) - t.h * s, w: t.w * s, h: t.h * s }; } },
-  { cls: "launch", sel: "#drpg-messenger-launcher, #drpg-sound-launcher", union: true, fallback: (W, H) => ({ x: W - 22 - 66, y: H - 22 - 134, w: 66, h: 134 }) },
+  { cls: "launch", sel: "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher", union: true, fallback: (W, H) => ({ x: W - 22 - 114, y: H - 22 - 134, w: 114, h: 134 }) },
   /* FOUNDRY'S TWO RAILS ARE NOT BLOCKS, AND THE THREE DAYS SPENT MAKING THEM BLOCKS SAY WHY.
      A block is MEASURED, and every measurement of a rail is a statement about something the
      user is about to change: click a scene control and Foundry opens its tools beside it (the
@@ -586,7 +586,7 @@ function clearLaunchers() {
   if (!themeOn() || narrowLayout()) { drop(); return; }
   const rail = document.getElementById("sidebar-tabs");
   const box = rail && rail.offsetWidth ? tileButtons(rail).map(e => e.getBoundingClientRect()) : [];
-  const buttons = [...document.querySelectorAll("#drpg-messenger-launcher, #drpg-sound-launcher")]
+  const buttons = [...document.querySelectorAll("#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-book-launcher")]
     .filter(e => e.offsetWidth);
   if (!box.length || !buttons.length) { drop(); return; }
   const top = Math.min(...box.map(q => q.top)), bottom = Math.max(...box.map(q => q.bottom));

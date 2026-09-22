@@ -14,7 +14,7 @@
     position: fixed;
     /* The module's edge margin, and 52 px: 44 was a comfortable target only if you never
        miss, and this is a control a player reaches for in the middle of a scene. */
-    right: var(--drpg-edge, 16px);
+    right: calc(var(--drpg-edge, 16px) + var(--drpg-book-lane, 0px));
     /*
      * `--drpg-av-lift` IS THE CAMERA DOCK, measured by camera-view.mjs and zero
      * when there is not one. `#players` rises over the dock on its own because
@@ -68,7 +68,7 @@
 
 #drpg-messenger-roster {
     position: fixed;
-    right: 16px;
+    right: calc(16px + var(--drpg-book-lane, 0px));
     /* With the button it sits on. */
     bottom: calc(68px + var(--drpg-av-lift, 0px));
     z-index: 71;

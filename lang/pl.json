@@ -953,6 +953,16 @@
       "voteMetaGm": "{back} z {total} głosów wróciło",
       "trialFloorOpen": "Wszyscy mają głos"
     },
+    "Handbooks": {
+      "title": "Podręczniki",
+      "launcherTooltip": "Podręczniki",
+      "brochure": "Ulotka ucznia",
+      "player": "Podręcznik gracza",
+      "gm": "Podręcznik Mistrza Gry",
+      "contents": "Spis treści",
+      "loading": "Wczytywanie...",
+      "failed": "Nie udało się wczytać podręcznika. Spróbuj za chwilę."
+    },
     "Look": {
       "language": "Język",
       "title": "Ustawienia",

@@ -17,6 +17,7 @@ import { registerSettings } from "./settings.mjs";
 import { registerLanguage } from "./i18n.mjs";
 import { runMigrationOnLoad } from "./migrate.mjs";
 import { registerSfx } from "./sfx.mjs";
+import { registerHandbooks } from "./handbooks.mjs";
 import { registerPrivateRolls } from "./private-rolls.mjs";
 import { registerSearchTokenSocket } from "./search-tokens.mjs";
 import { registerSheetTweaks } from "./sheet.mjs";
@@ -175,6 +176,8 @@ Hooks.once("init", () => {
     // not this ran, which is the point: a chime must never be able to take a
     // subsystem down with it.
     safely("the sound engine", registerSfx);
+    // The third corner button, beside the sound engine's: the handbooks.
+    safely("the handbooks", registerHandbooks);
     safely("the messenger", registerMessenger);
     safely("the messenger UI", registerMessengerUi);
     safely("regional voice", registerVoice);

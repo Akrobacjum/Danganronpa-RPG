@@ -261,6 +261,11 @@
        is a mask, so none of them depends on a font file arriving. */
     --drpg-pix-speaker: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM18 4h2v1H18zM10 5h3v1H10zM18 5h2v1H18zM9 6h4v1H9zM19 6h2v1H19zM8 7h5v1H8zM19 7h2v1H19zM8 8h5v1H8zM15 8h2v1H15zM20 8h2v1H20zM3 9h10v1H3zM15 9h2v1H15zM20 9h2v1H20zM3 10h10v1H3zM16 10h2v1H16zM20 10h2v1H20zM3 11h10v1H3zM16 11h2v1H16zM20 11h2v1H20zM3 12h10v1H3zM16 12h2v1H16zM20 12h2v1H20zM3 13h10v1H3zM16 13h2v1H16zM20 13h2v1H20zM3 14h10v1H3zM15 14h2v1H15zM20 14h2v1H20zM8 15h5v1H8zM15 15h2v1H15zM20 15h2v1H20zM8 16h5v1H8zM19 16h2v1H19zM9 17h4v1H9zM19 17h2v1H19zM10 18h3v1H10zM18 18h2v1H18zM11 19h2v1H11zM18 19h2v1H18z'/%3E%3C/svg%3E");
 
+    /* 24x24 pixel open book - the handbooks launcher (handbooks.mjs). Two
+       pages bending to the spine, four lines of text on each, the cover's
+       edge under them; drawn on the speaker's grid for the same reason. */
+    --drpg-pix-book: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 3h3v1h-3zM20 3h3v1h-3zM1 4h6v1h-6zM17 4h6v1h-6zM1 5h9v1h-9zM14 5h9v1h-9zM1 6h2v1h-2zM4 6h7v1h-7zM13 6h7v1h-7zM21 6h2v1h-2zM1 7h3v1h-3zM7 7h4v1h-4zM13 7h4v1h-4zM20 7h3v1h-3zM1 8h2v1h-2zM4 8h3v1h-3zM9 8h2v1h-2zM13 8h2v1h-2zM17 8h3v1h-3zM21 8h2v1h-2zM1 9h3v1h-3zM7 9h4v1h-4zM13 9h4v1h-4zM20 9h3v1h-3zM1 10h2v1h-2zM4 10h3v1h-3zM9 10h2v1h-2zM13 10h2v1h-2zM17 10h3v1h-3zM21 10h2v1h-2zM1 11h3v1h-3zM7 11h4v1h-4zM13 11h4v1h-4zM20 11h3v1h-3zM1 12h2v1h-2zM4 12h3v1h-3zM9 12h2v1h-2zM13 12h2v1h-2zM17 12h3v1h-3zM21 12h2v1h-2zM1 13h3v1h-3zM7 13h4v1h-4zM13 13h4v1h-4zM20 13h3v1h-3zM1 14h6v1h-6zM9 14h2v1h-2zM13 14h2v1h-2zM17 14h6v1h-6zM1 15h10v1h-10zM13 15h10v1h-10zM0 16h1v1h-1zM4 16h7v1h-7zM13 16h7v1h-7zM23 16h1v1h-1zM0 17h4v1h-4zM7 17h4v1h-4zM13 17h4v1h-4zM20 17h4v1h-4zM4 18h3v1h-3zM10 18h1v1h-1zM13 18h1v1h-1zM17 18h3v1h-3zM7 19h3v1h-3zM11 19h2v1h-2zM14 19h3v1h-3zM10 20h4v1h-4z'/%3E%3C/svg%3E");
+
     /* 24x24 pixel line-art d12 - a dodecahedron face-on: decagon silhouette,
        pentagon face, five spokes. Drawn for the roll dialog (the two duality
        dice and the Roll button), where the system's rendered SVG dice and
@@ -284,6 +289,15 @@
        built. */
     --drpg-launcher: 66px;
     --drpg-launcher-small: 52px;
+    /* THE THIRD, AND THE SMALLEST: the handbooks (Dawid, 22.09). It stands at
+       the wall with its centre level with the midpoint between the other two
+       centres, and those two step inboard by its width plus the 8 px they keep
+       between themselves. Its width alone was measured first: the circles
+       cleared by 9.7 and 16.7 px, but the chat's unread badge, which stands
+       out of its top-right corner, overlapped the book by 2. With the 8 px:
+       badge 5.5, chat 16.2, settings 23.2 (Monokuma Legacy, 1920 x 1080). */
+    --drpg-launcher-book: 40px;
+    --drpg-book-lane: calc(var(--drpg-launcher-book) + 8px);
 
     /* Bahnschrift ships with Windows 10 and up and is a condensed grotesque -
        close to the heavy, squared lettering Danganronpa sets its menus in, and
@@ -12570,7 +12584,8 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
     position: fixed;
     /* Centred over the larger circle, and clear of it by 8px. Both derived, so
        the stack survives the next change to either size. */
-    right: calc(var(--drpg-edge) + (var(--drpg-launcher) - var(--drpg-launcher-small)) / 2);
+    right: calc(var(--drpg-edge) + var(--drpg-book-lane, 0px)
+        + (var(--drpg-launcher) - var(--drpg-launcher-small)) / 2);
     bottom: calc(var(--drpg-edge) + var(--drpg-launcher) + 8px + var(--drpg-av-lift, 0px));
     z-index: 70;
     width: var(--drpg-launcher-small);
@@ -12615,6 +12630,154 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
 #drpg-sound-launcher.drpg-muted {
     border-color: var(--drpg-line-strong) !important;
     color: var(--drpg-line-strong) !important;
+}
+
+/* ---- the handbooks button ------------------------------------------------------
+   The smallest of the three, at the wall. Its centre is level with the midpoint of
+   the chat circle's centre (edge + L/2) and the settings circle's (edge + L + 8 +
+   S/2), which is edge + 3L/4 + 4 + S/4: derived from the same two sizes, so the
+   three stay a group when either changes. */
+#drpg-book-launcher {
+    position: fixed;
+    right: var(--drpg-edge);
+    bottom: calc(var(--drpg-edge) + var(--drpg-launcher) * 0.75 + 4px
+        + var(--drpg-launcher-small) / 4 - var(--drpg-launcher-book) / 2
+        + var(--drpg-av-lift, 0px));
+    z-index: 70;
+    width: var(--drpg-launcher-book);
+    height: var(--drpg-launcher-book);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 2px solid var(--drpg-bone) !important;
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink)) !important;
+    color: var(--drpg-bone) !important;
+    box-shadow: 0 2px 10px rgba(var(--drpg-shadow-rgb), 0.35) !important;
+    cursor: pointer;
+}
+
+#drpg-book-launcher:hover {
+    box-shadow: 0 0 10px rgba(var(--drpg-bone-rgb), 0.45) !important;
+}
+
+/* 24 px, the glyph's own grid: one CSS pixel to a cell, so it stays sharp at the
+   size where a blurred pixel would show most. */
+#drpg-book-launcher i {
+    display: block;
+    width: 24px;
+    height: 24px;
+    background: currentColor;
+    -webkit-mask-image: var(--drpg-pix-book);
+    mask-image: var(--drpg-pix-book);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+
+/* ---- the handbooks window: tabs, a contents list, the text -------------------- */
+.application.drpg-handbook .window-content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    container-type: inline-size;
+}
+
+.drpg-handbook-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.drpg-handbook-main {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(150px, 14rem) 1fr;
+    gap: 14px;
+}
+
+.drpg-handbook-toc {
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding-right: 8px;
+    border-right: 1px solid var(--drpg-line);
+}
+
+.drpg-handbook-toc a {
+    display: block;
+    padding: 3px 4px;
+    color: var(--drpg-bone);
+    text-decoration: none;
+    line-height: 1.25;
+}
+
+.drpg-handbook-toc a:hover,
+.drpg-handbook-toc a:focus-visible {
+    background: rgba(var(--drpg-bone-rgb), 0.1);
+}
+
+.drpg-handbook-toc a.drpg-handbook-toc-h3 {
+    padding-left: 1rem;
+    font-size: 0.92em;
+    opacity: 0.8;
+}
+
+/* `position: relative` makes the text the headings' offset parent, which is
+   what the contents list scrolls by (`fillContents`). Selectable, unlike most
+   of Foundry: a rule is something people copy into a message. */
+.drpg-handbook-text {
+    position: relative;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 12px 24px 2px;
+    line-height: 1.5;
+    user-select: text;
+}
+
+.drpg-handbook-text h1 { font-size: 1.6em; margin: 0.2em 0 0.4em; }
+.drpg-handbook-text h2 { font-size: 1.3em; margin: 1.4em 0 0.4em; }
+.drpg-handbook-text h3 { font-size: 1.1em; margin: 1.1em 0 0.3em; }
+.drpg-handbook-text p,
+.drpg-handbook-text ul,
+.drpg-handbook-text ol { margin: 0.45em 0; }
+
+.drpg-handbook-text table {
+    width: 100%;
+    margin: 0.6em 0;
+    border-collapse: collapse;
+}
+
+.drpg-handbook-text :is(th, td) {
+    padding: 4px 6px;
+    border: 1px solid var(--drpg-line);
+    text-align: left;
+    vertical-align: top;
+}
+
+.drpg-handbook-text th {
+    background: rgba(var(--drpg-bone-rgb), 0.08);
+}
+
+.drpg-handbook-text a {
+    color: var(--drpg-eye);
+}
+
+.drpg-handbook-text :is(h1, h2, h3) { line-height: 1.25; }
+
+/* A narrow window gives the text the whole width. */
+@container (max-width: 620px) {
+    .drpg-handbook-main { grid-template-columns: 1fr; }
+    .drpg-handbook-toc { display: none; }
 }
 
 /* The selected table's name and the two things you can do to it, on one line.

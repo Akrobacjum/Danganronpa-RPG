@@ -34,7 +34,7 @@ import { debug } from "./utils.mjs";
 const SURFACES = [
     "#drpg-hud", "#drpg-despair", "#drpg-player-status", "#countdowns",
     "#drpg-events", "#drpg-popups", "#drpg-evidence", "#drpg-gm-launcher", "#drpg-messenger-launcher",
-    "#drpg-sound-launcher", ".drpg-panel", ".drpg-messenger",
+    "#drpg-sound-launcher", "#drpg-book-launcher", ".drpg-panel", ".drpg-messenger",
     /*
      * `.drpg-advance` IS A MODULE WINDOW AND THIS LIST WAS THE ONLY PLACE THAT
      * DID NOT KNOW IT (audit 15.09). The Level Up window is the one dialog of
