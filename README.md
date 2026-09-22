@@ -200,11 +200,13 @@ as a card with the buttons to answer it.
 
 ## The rules
 
-The full rules are in [docs/handbooks](docs/handbooks), in English and Polish: a
-GM Handbook, a Player Handbook and a one-page Student Brochure for the table.
-They live in this repository only, not in the installed module. They were
-written for version 1.2.43, so where a handbook and the module disagree, trust
-the module.
+The full rules come in three handbooks, in English and Polish: a GM Handbook, a
+Player Handbook and a one-page Student Brochure for the table. They ship with
+the module. The small book button in the bottom-right corner opens them in the
+game, in the language you picked for the module, and only GMs see the GM
+Handbook. You can also read them here, in [docs/handbooks](docs/handbooks).
+They describe version 1.2.55. If a later version and a handbook ever disagree,
+trust the module.
 
 ## Installation
 
