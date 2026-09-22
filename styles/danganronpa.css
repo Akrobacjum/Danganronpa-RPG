@@ -10868,29 +10868,22 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
    window is a different refusal: it applies to all of them at once and is fixed
    by waiting, not by saving up. Sharing one grey put a player with a full Hope
    pool in front of seven identical dead tiles with no way to tell why - so this
-   keeps the tile lit and puts a padlock on it instead of draining the colour.
+   keeps the tile lit and only dims it a little instead of draining the colour, and
+   the tooltip says what it waits for. (The dashed edge is Monokuma Legacy's: under
+   Stained Glass the tile's border is the theme's, stated with `!important`.)
+
+   NO PADLOCK IN THE CORNER ANY MORE (22.09). It was `\f023` in "Font Awesome 6
+   Pro", "6 Free" or "5 Free", and Foundry v14 ships "Font Awesome 7 Pro": none of
+   the three was loaded, so every locked tile wore an empty 8 x 10 px box at its top
+   right - fifteen of them on a Monokuma sheet during a Class Trial, measured on
+   Forge. Dawid, seeing it: "dziwny kwadrat w prawym gornym rogu kafelka - czy
+   mozemy go usunac?" Removed rather than repaired, as asked.
    ========================================================================== */
 
 .drpg-call-button.drpg-locked-eclipse {
     opacity: 0.75;
     cursor: default;
     border-style: dashed;
-}
-
-.drpg-call-button.drpg-locked-eclipse::after {
-    content: "\f023";                       /* fa-lock */
-    font-family: "Font Awesome 6 Pro", "Font Awesome 6 Free", "Font Awesome 5 Free";
-    font-weight: 900;
-    position: absolute;
-    top: 4px;
-    right: 5px;
-    font-size: 0.7em;
-    opacity: 0.85;
-    pointer-events: none;
-}
-
-.drpg-call-button.drpg-locked-eclipse {
-    position: relative;
 }
 
 
