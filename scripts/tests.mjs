@@ -2712,8 +2712,10 @@ const REGRESSIONS = [
 
         // And the JavaScript reads the cap rather than keeping a second copy of it.
         const utils = stripComments(new Map(await otherSources()).get("utils.mjs") ?? "");
-        const fit = utils.slice(utils.indexOf("function windowWidthFor"),
-            utils.indexOf("function windowWidthFor") + 2000);
+        // To the function's own end, not a fixed count: comments are blanked, not
+        // removed, so a longer note inside it pushed the line past a 2000-character cut.
+        const fitAt = utils.indexOf("function windowWidthFor");
+        const fit = utils.slice(fitAt, utils.indexOf("\n}", fitAt) + 2);
         ok(fit.includes("--drpg-window-max"),
             "the measured-window fit no longer reads the cap out of the stylesheet");
         ok(!/viewport - here/.test(fit),
