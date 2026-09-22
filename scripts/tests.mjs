@@ -6538,6 +6538,54 @@ const INVARIANTS = [
         }
     }],
 
+    ["R110 - the gaps the README survey found stay closed", async () => {
+        /*
+         * 22.09: checking the new README against the code turned up six places where the
+         * module did not do what it said. Each is held here by what it does, where that can
+         * be asked without a table, and by its source where it cannot.
+         */
+        const sources = new Map(await otherSources());
+        const src = name => stripComments(sources.get(name) ?? "");
+
+        // Listen names only the rooms the listener has discovered.
+        const listen = src("action-rolls.mjs");
+        const at = listen.indexOf("async function performListen");
+        const body = listen.slice(at, listen.indexOf("\n}", at));
+        ok(/roomsKnownToMe\(\)/.test(body) && /DRPG\.Listen\.unknownRoom/.test(body),
+            "Listen names every neighbouring room again, discovered or not");
+        ok(/<option value="\$\{i\}">/.test(body), "Listen's options carry room names in the page");
+        ok(game.i18n.has("DRPG.Listen.unknownRoom"), "the unexplored-room label has no text");
+
+        // A key taken by Palm, from a stash or from a body still opens its door.
+        const { preservedFlags } = await import("./inventory.mjs");
+        const fakeKey = { getFlag: (scope, key) => (key === "bedroomKey" ? "Test Room" : undefined) };
+        equal(preservedFlags(fakeKey).bedroomKey, "Test Room", "a key loses its room when it changes hands");
+
+        // A removed stash is forgotten by whoever had found it.
+        const vault = src("vault.mjs");
+        const set = vault.slice(vault.indexOf("export async function setStash"),
+            vault.indexOf("\n}", vault.indexOf("export async function setStash")));
+        ok(set.indexOf("forgetStashFound(") > 0 && set.indexOf("forgetStashFound(") < set.lastIndexOf("return list"),
+            "setStash forgets the finders after it has already returned");
+
+        // A trace left by looting a body earns an icon like any other trace.
+        const icons = src("remnant-icons.mjs");
+        ok(/"loot"/.test(icons), "a looted body's trace has no icon to earn");
+        const svg = await fetch(`/modules/${MODULE_ID}/icons/remnant-loot.svg`);
+        ok(svg.ok, "icons/remnant-loot.svg is missing");
+        ok(game.i18n.has("DRPG.Remnant.action.loot"), "a looted body's trace has no action name");
+
+        // The season checklist checks what it says it checks.
+        const season = src("season-setup.mjs");
+        ok(/some\(a => isMonokuma\(a\)\)/.test(season), "'At least one Monokuma' is satisfied by a GM account alone again");
+        ok(/feedsNobody\(a\) \|\| monokumaFor\(a\)/.test(season),
+            "a student set to nobody on purpose is a red cross on the checklist again");
+
+        // The killers still cleaning up are not the witnesses who find the body.
+        ok(/killerIds\(murderState\(\)\)/.test(src("chapter.mjs")),
+            "two killers in Stage 6 can discover their own victim again");
+    }],
+
     ["R109 - a notice stays until it is closed, the newest on top", async () => {
         /*
          * Dawid, 22.09: "powiadomienia niech nie znikaja, dopoki gracz ich nie zamknie",
