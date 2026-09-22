@@ -4,7 +4,7 @@
  * A character carries three usable items and two pieces of gear - a weapon, a
  * cleaning tool or a tool, in any mix, one of them in a hand - and not one
  * thing more. The stash is where the rest of what they own lives: their own
- * bedroom, uncapped, and - this being a killing game - searchable by anybody
+ * bedroom, three things to a stash (`VAULT_LIMIT`), and - this being a killing game - searchable by anybody
  * who walks in while they are elsewhere.
  *
  * Two flags carry the whole thing:
@@ -504,11 +504,11 @@ export async function setStash(room, actorId, { present = undefined, concealed =
     }
 
     await region.update({ [`flags.${MODULE_ID}.${VAULT_FLAGS.stashes}`]: list });
-    return list;
 
     // A hiding place taken away is one nobody has "found" any more (ITEM-09):
     // the finders' notes pointed at it by room and owner, and left standing
-    // they opened the same drawer for free next season.
+    // they opened the same drawer for free next season. This block sat AFTER the
+    // `return` above it until 22.09, so it never ran.
     if (present === false) {
         try {
             await forgetStashFound(room, actorId);
@@ -516,6 +516,7 @@ export async function setStash(room, actorId, { present = undefined, concealed =
             error("Could not clear who had found a removed stash", err);
         }
     }
+    return list;
 }
 
 /** Every finder's note about one stash, gone. */
@@ -740,7 +741,7 @@ export async function setVaultRoom(room, {
  * WHAT IS IN IT
  * ========================================================================== */
 
-/** Everything this character has stashed. Uncapped by design. */
+/** Everything this character has stashed, in every stash they own. Each stash takes `VAULT_LIMIT`. */
 export function vaultContents(actor) {
     if (!actor) return [];
     return actor.items.filter(i =>
