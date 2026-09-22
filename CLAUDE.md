@@ -66,7 +66,7 @@ in Polish, `.few`/`.many`.
 
 **The breakpoints live in `settings.mjs` and nowhere else.** `BREAKPOINTS` is
 read by the stylesheet (through two body classes stamped in `applyTheme`), by
-the curtain, and by the glass harness. A media query with 1200 in it would be a
+the curtain, and by the glass harness. A media query with 1224 in it would be a
 fourth copy of the number and the curtain could not read it.
 
 **`styles/narrow.css` loads last on purpose.** Both themes state widths for the

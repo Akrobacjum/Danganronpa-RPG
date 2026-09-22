@@ -1689,7 +1689,15 @@ export function pixelFontOn() {
  *
  * The rail is centred and about 433 px wide at the scale floor, the right column
  * about 382 px in from the edge, so the two meet at about 1196 px of width. 1200
- * is that number rounded up, and nothing wider than it changes at all.
+ * was that number rounded up.
+ *
+ * 1224 SINCE 22.09, BECAUSE 1200 TO 1216 WERE STILL A COLLISION. Swept on a real
+ * client (Foundry v14, Stained Glass, a fresh load at each width, 768 px tall), the
+ * Despair rail and the status strip overlapped by 10 px at 1200 once the curtain's
+ * own faults were fixed, and the curtain's self-check read 8 block failures at 1200,
+ * 1208 and 1216 - the rail had no pane of its own, because two blocks standing on
+ * each other cannot have one each. 1224 and every width above it read clean, and
+ * 1152, 1100, 1024, 900 and 820 x 1180 read clean stacked.
  *
  * SHORT IS ITS OWN THING, AND IT IS NOT ABOUT COLLISIONS. A phone held sideways
  * (980 x 386) is narrow as well, so it stacks for the reason above; what 620 px
@@ -1701,7 +1709,7 @@ export function pixelFontOn() {
  * separate number from the one above because a wide short window - 1600 x 600 -
  * has no collisions to fix and keeps the desk layout it always had.
  */
-export const BREAKPOINTS = { narrow: 1200, short: 620 };
+export const BREAKPOINTS = { narrow: 1224, short: 620 };
 
 /* A measurement of zero is a window that has not been laid out yet - a hidden
    iframe, a client mid-boot - and it must not read as "tiny": nothing stacks,

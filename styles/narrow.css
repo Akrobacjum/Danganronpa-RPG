@@ -1,7 +1,7 @@
 /* ==========================================================================
    THE NARROW STACK - the module on a screen that is not a desk
    ==========================================================================
-   Below 1200 px of width, or 620 px of height, the module's blocks leave
+   Below 1224 px of width, or 620 px of height, the module's blocks leave
    Foundry's three columns and stack in one of their own. The move itself is in
    scripts/narrow.mjs, which also says why: measured at every size on 13.09, the
    columns start colliding at about 1196 px and are a pile of five overlapping

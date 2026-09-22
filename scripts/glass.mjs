@@ -997,6 +997,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     return band === "top" ? s : -s;
   };
   const PAD_SIDE = 12, PAD_FAR = 10, HUG = 120;
+  /* The narrowest gap between two panes the filler will cut a sector into (`cutSectors`).
+     Two columns closer than two pads and this apart meet exactly instead - see `padSide`. */
+  const FILL_MIN = 8;
 
   /* `W` is where the glass ENDS (an expanded sidebar is a wall); `FW` is the screen. The slope
      field and the upright zone in the middle belong to the screen: read off the wall instead,
@@ -1120,17 +1123,27 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
    *
    * The pane's padding pays for this - see `padSide` in `buildColumn`.
    */
+  /* A REAL STACK IS ASKED FOR FIRST (22.09).
+     The search took the first column that would have the block, in the order the columns
+     were made - and the Despair rail's is made before the status strip's. At 1264 to 1400
+     wide the rail stands 3 to 20 px left of the strip, so the Projects tray, which sits
+     exactly under the strip, was offered the rail's column first, passed its "near but not
+     beside" test, and joined it: one pane cut from the rail across to the wall, the strip's
+     own pane inside it, an overlap 226 px deep and five corners on the wrong glass at
+     1366 x 768 (ov1 bf5 on every width from 1264 to 1400). A column the block overlaps
+     horizontally is where it belongs; the gap rule is only for when there is none. */
   const columnsOf = list => {
     const cols = [];
     const beside = (c, b) => c.items.some(i =>
       Math.min(i.y + i.h, b.y + b.h) - Math.max(i.y, b.y) > 12);
+    const overOf = (c, b) => Math.min(c.x1, b.x + b.w) - Math.max(c.x0, b.x);
     for (const b of list) {
-      const c = cols.find(c => {
-        const over = Math.min(c.x1, b.x + b.w) - Math.max(c.x0, b.x);
-        if (over > 0) return true;                       // a real stack, whatever the heights
-        if (over <= -(2 * PAD_SIDE + 10)) return false;  // far enough apart to pad both panes
-        return !beside(c, b);
-      });
+      const c = cols.find(c => overOf(c, b) > 0)          // a real stack, whatever the heights
+        ?? cols.find(c => {
+          const over = overOf(c, b);
+          if (over <= -(2 * PAD_SIDE + 10)) return false;  // far enough apart to pad both panes
+          return !beside(c, b);
+        });
       if (c) { c.items.push(b); c.x0 = Math.min(c.x0, b.x); c.x1 = Math.max(c.x1, b.x + b.w); c.y0 = Math.min(c.y0, b.y); c.y1 = Math.max(c.y1, b.y + b.h); }
       else cols.push({ x0: b.x, x1: b.x + b.w, y0: b.y, y1: b.y + b.h, items: [b] });
     }
@@ -1296,7 +1309,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const s0 = field(cx, FW, band);
     let theta = Math.abs(cx - FW / 2) < 0.1 * FW ? 0 : Math.min(8 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
     // a neighbour too close forbids the tilt that would swing the pane into it
-    for (const o of cols) if (o !== c) { const gap = o.x0 > c.x1 ? o.x0 - c.x1 : c.x0 - o.x1; if (gap >= 0) theta = Math.min(theta, Math.atan(Math.max(0, gap - 2 * PAD_SIDE - 2) / Math.max(h, 1))); }
+    for (const o of cols) if (o !== c) { const gap = o.x0 > c.x1 ? o.x0 - c.x1 : c.x0 - o.x1; if (gap >= 0) theta = Math.min(theta, Math.atan(Math.max(0, gap - 2 * PAD_SIDE - FILL_MIN) / Math.max(h, 1))); }
     const s = Math.sign(s0) * Math.tan(theta);
     const phi = -Math.atan(s);
     const px = cx < W / 2 ? c.x1 : c.x0;
@@ -1330,14 +1343,14 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
 
        Now that neighbours are allowed to stay separate columns, the pad has to
        pay for it: each side takes at most half the gap, so the seam lands in the
-       middle of it and the two panes meet rather than cross. One pixel short of
-       half, so the seam is a seam and not a coincidence of rounding - the
-       self-check counts a shared edge as clean, but only exactly.
+       middle of it and the two panes meet rather than cross. (It used to be one
+       pixel short of half, which left a sliver the filler never filled; the
+       note inside the function says what replaced it.)
 
        The nearest neighbour decides, so a column with nothing beside it keeps
        the full 12 and nothing at any other width moves. The tilt was already
        taking the same gap into account two dozen lines up, and comes out at zero
-       long before the pad does. */
+       for every gap where the pads are cut to meet. */
     const padSide = side => {
       let free = Infinity;
       for (const o of cols) {
@@ -1345,7 +1358,16 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
         const gap = side < 0 ? c.x0 - o.x1 : o.x0 - c.x1;
         if (gap >= 0) free = Math.min(free, gap);
       }
-      return free === Infinity ? PAD_SIDE : Math.max(0, Math.min(PAD_SIDE, free / 2 - 1));
+      /* AND WHERE WHAT IS LEFT IS TOO NARROW TO FILL, THE TWO MEET (22.09). One pixel short
+         of half left a 2 px sliver between the Despair rail's pane and the status strip's,
+         and the filler cuts nothing under FILL_MIN: bare map at the screen's top edge,
+         the one edge gap left at 1366 x 768. Under that width both panes take exactly half,
+         so they share one seam. Exact is safe here because it only happens where the tilt
+         rule above has already stood both columns upright (the same FILL_MIN there), and
+         a shared edge between two upright rectangles is the one thing the self-check
+         counts as clean. */
+      if (free === Infinity) return PAD_SIDE;
+      return free - 2 * PAD_SIDE < FILL_MIN ? Math.max(0, free / 2) : PAD_SIDE;
     };
     let X0 = c.x0 - px - padSide(-1), X1 = c.x1 - px + padSide(1);
     const Yn = (band === "top" ? c.y0 - py : c.y1 - py) + (band === "top" ? -3000 : 3000);
@@ -1417,7 +1439,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const edgeY = band === "top" ? 0 : H, sgn = band === "top" ? 1 : -1;
     rA = { ...rA, edgeY }; rB = { ...rB, edgeY };
     const gap = rB.x0 - rA.x0;
-    if (gap < 8) return;
+    if (gap < FILL_MIN) return;
     // beside each pane ONE long straight diagonal runs from the pane's far corner down to the
     // ledge; one or two rays cross it. The open stretch is cut rarely. Few lines, all long.
     const LA = dA > 0 ? Math.min(gap * 0.45, 520 + rnd() * 240) : 0;
@@ -1795,7 +1817,15 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        these - the name `LAST.blocks` uses - found `undefined` on every box, so the
        stack came out empty, one pane covered the lot, and the self-check passed
        because it had nothing left to check. */
-    let rows = boxes.filter(b => b.r && b.w > W * 0.5).sort((p, q) => p.y - q.y);
+    /* WHAT MAKES A ROW IS THE STACK, NOT THE WIDTH (22.09). The Projects tray keeps its own
+       width when stacked - 331 px at 1152 x 768, right-aligned under the status strip with
+       5 px between them - so "wider than half the screen" called it loose and cut a box for
+       it. The box's top edge, padded, ran 12 px up into the strip's row, and the strip's right
+       end stood on the tray's glass: twelve block failures, at the one stacked width the
+       sweep reported any. A block inside narrow.mjs's column is a row whatever its width. */
+    const column = host.querySelector(COLUMN_SEL);
+    const inStack = b => Boolean(column) && (b.els ?? []).some(e => column.contains(e));
+    let rows = boxes.filter(b => b.r && (b.w > W * 0.5 || inStack(b))).sort((p, q) => p.y - q.y);
     const loose = boxes.filter(b => !rows.includes(b) && b.r);
 
     /* AND A ROW SCROLLED OUT OF THE STACK HAS NO GLASS.
@@ -1818,23 +1848,44 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       }).filter(Boolean);
     }
 
-    // 1. a seam down the middle of every gap between two rows, leaning as far as the gap allows
-    for (let i = 0; i + 1 < rows.length; i++) {
-      const a = rows[i], b = rows[i + 1];
-      const gap = Math.max(0, b.y - (a.y + a.h));
+    /* Rows whose heights overlap stand side by side and share a tier: a seam across the
+       screen between them would run through both. The tier is split by an upright seam in
+       the middle of the gap between them instead (step 2b). Twelve pixels, the tolerance the
+       desk's columns use for "a touch is not an overlap". */
+    const tiers = [];
+    for (const b of rows) {
+      const g = tiers[tiers.length - 1];
+      if (g && Math.min(g.y1, b.y + b.h) - Math.max(g.y0, b.y) > 12) {
+        g.items.push(b); g.y0 = Math.min(g.y0, b.y); g.y1 = Math.max(g.y1, b.y + b.h);
+      } else tiers.push({ y0: b.y, y1: b.y + b.h, items: [b] });
+    }
+
+    // 1. a seam down the middle of every gap between two tiers, leaning as far as the gap allows
+    for (let i = 0; i + 1 < tiers.length; i++) {
+      const a = tiers[i], b = tiers[i + 1];
+      const gap = Math.max(0, b.y0 - a.y1);
       const rise = Math.max(0, gap / 2 - 3);
       const ang = (rnd() < 0.5 ? -1 : 1) * Math.min(4 * DEG, Math.atan(rise / (W / 2)));
-      cut(W / 2, (a.y + a.h + b.y) / 2, ang);
+      cut(W / 2, (a.y1 + b.y0) / 2, ang);
     }
 
     /* 2. the seam under the stack, which is the one that can lean: there is nothing
        below it but board, so it only has to clear the last row - and it is pushed down
        by its own rise so that the high end of it does. */
-    const last = rows[rows.length - 1];
+    const last = tiers[tiers.length - 1];
     const endAng = (rnd() < 0.5 ? -1 : 1) * (3 + rnd() * 3) * DEG;
     const rise = Math.abs(Math.tan(endAng)) * (W / 2);
-    const yBase = last ? last.y + last.h + PAD_FAR + rise : Math.min(H * 0.3, 160);
+    const yBase = last ? last.y1 + PAD_FAR + rise : Math.min(H * 0.3, 160);
     cut(W / 2, yBase, endAng);
+
+    // 2b. an upright seam between rows that share a tier, only through that tier's pieces
+    for (const g of tiers) {
+      const side = [...g.items].sort((p, q) => p.x - q.x);
+      for (let i = 0; i + 1 < side.length; i++) {
+        const x = (side[i].x + side[i].w + side[i + 1].x) / 2;
+        cut(x, (g.y0 + g.y1) / 2, Math.PI / 2, p => { const bb = bbox(p); const cy = (bb.y0 + bb.y1) / 2; return cy > g.y0 && cy < g.y1; });
+      }
+    }
 
     /* 3. the blocks that are not rows: one box each, claimed so that nothing cut in the
        field afterwards runs through them. */

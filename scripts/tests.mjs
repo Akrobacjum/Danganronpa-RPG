@@ -11447,7 +11447,7 @@ const SCENARIOS = [
         ok(!narrowScreen(0) && !shortScreen(0),
             "a window that has not been laid out yet reads as a phone, so a client "
             + "mid-boot restacks itself and unmounts its curtain on a measurement of zero");
-        ok(BREAKPOINTS.narrow === 1200 && BREAKPOINTS.short === 620,
+        ok(BREAKPOINTS.narrow === 1224 && BREAKPOINTS.short === 620,
             "the breakpoints moved without the measurements that chose them moving");
 
         const src = stripComments(
