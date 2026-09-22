@@ -180,7 +180,7 @@ function showRemnantCard(app, element) {
  * question mark, exactly like the token does.
  */
 const GLYPH_ACTIONS = ["search", "project", "sabotage", "dynamic", "resolution",
-    "incident", "discard", "manual"];
+    "incident", "discard", "manual", "loot"];
 
 function glyph(action) {
     const act = GLYPH_ACTIONS.includes(action) ? action : "unknown";
@@ -190,7 +190,13 @@ function glyph(action) {
 /** The action that left a trace, as a label - same read traceContextLine uses. */
 function actionLabelOf(action) {
     if (!action) return null;
-    return ACTIONS[action]?.label ?? action;
+    if (ACTIONS[action]?.label) return ACTIONS[action].label;
+    /* The actions a trace can record that are not tiles (a thrown-away item, a body looted,
+       a trace the GM placed) are named in the Remnant table, as `traceContextLine` reads
+       them; "loot" printed as the bare key on this card until 22.09. */
+    const key = `DRPG.Remnant.action.${action}`;
+    const label = game.i18n.localize(key);
+    return label === key ? action : label;
 }
 
 /**

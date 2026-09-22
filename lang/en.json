@@ -1879,7 +1879,8 @@
         "incident": "Incident",
         "resolution": "Clean-up",
         "discard": "Thrown away",
-        "manual": "Placed by the GM"
+        "manual": "Placed by the GM",
+        "loot": "Taken from a body"
       },
       "cardTitle": "A trace",
       "cardWhat": "Trace",

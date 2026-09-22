@@ -3287,6 +3287,7 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 .drpg-remnant-glyph[data-drpg-act="incident"] { -webkit-mask-image: var(--drpg-g-direct-murder); mask-image: var(--drpg-g-direct-murder); }
 .drpg-remnant-glyph[data-drpg-act="discard"] { -webkit-mask-image: var(--drpg-r-trash); mask-image: var(--drpg-r-trash); }
 .drpg-remnant-glyph[data-drpg-act="manual"] { -webkit-mask-image: var(--drpg-g-monokuma-eye); mask-image: var(--drpg-g-monokuma-eye); }
+.drpg-remnant-glyph[data-drpg-act="loot"] { -webkit-mask-image: var(--drpg-g-palm); mask-image: var(--drpg-g-palm); }
 
 .drpg-remnant-title {
     display: grid;

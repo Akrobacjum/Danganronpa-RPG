@@ -1939,6 +1939,7 @@
         "incident": "Incydent",
         "resolution": "Sprzątanie",
         "discard": "Wyrzucone",
+        "loot": "Zabrane z ciała",
         "manual": "Postawione przez GM-a"
       },
       "cardTitle": "Ślad",

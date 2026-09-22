@@ -44,6 +44,8 @@ const SOURCES = {
     resolution: { var: "--drpg-g-cleanup" },
     incident: { var: "--drpg-g-direct-murder" },
     discard: { var: "--drpg-r-trash" },
+    // Taking something off a body (handover.mjs, `lootBody`) - the hand that Palm uses.
+    loot: { var: "--drpg-g-palm" },
     // A GM-placed trace (Key Remnants, the Final Truth) was left by Monokuma's
     // own hand, and says so.
     manual: { selector: "#drpg-gm-launcher i::before" }
