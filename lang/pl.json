@@ -389,6 +389,7 @@
         "other": "{n} osób w: {room}. Nie da się poznać kto."
       },
       "emptyRoom": "{room} brzmi na pusty.",
+      "unknownRoom": "Nieodkryty pokój {n}",
       "named": "W: {room}: {who}",
       "critical": "Łapiesz wszystko naraz:",
       "empty": "pusto"

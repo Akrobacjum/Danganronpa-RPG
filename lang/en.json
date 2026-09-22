@@ -387,6 +387,7 @@
         "other": "{n} people in {room}. You cannot tell who."
       },
       "emptyRoom": "{room} sounds empty.",
+      "unknownRoom": "Unexplored room {n}",
       "named": "In {room}: {who}",
       "critical": "You catch it all at once:",
       "empty": "empty"

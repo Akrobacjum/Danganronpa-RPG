@@ -325,7 +325,7 @@ function notConnectedText(from, to, connected) {
  * browser holds only their own rows), through settings.mjs, so this stays a
  * leaf and needs nothing from the fog.
  */
-function roomsKnownToMe() {
+export function roomsKnownToMe() {
     try {
         if (game.user.isGM || iAmTheMastermind()) return null;
         const sceneId = canvas?.scene?.id;

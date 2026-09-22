@@ -4186,7 +4186,7 @@ async function performListen(actor, def, options) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
-    const { neighbouringRooms, occupantsOf } = await import("./movement.mjs");
+    const { neighbouringRooms, occupantsOf, roomsKnownToMe } = await import("./movement.mjs");
     const here = roomOfActor(actor);
     const neighbours = neighbouringRooms(here);
 
@@ -4195,8 +4195,20 @@ async function performListen(actor, def, options) {
         return null;
     }
 
+    /* THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
+       discovered or not, so opening Listen in a room with an unexplored neighbour printed that
+       room's name - the one thing the fog and the refused crossing (`notConnectedText`) are
+       careful never to say. A room this viewer has not been in is "Unexplored room 1, 2...",
+       in the picker and in the answer alike, and the option values are indices, so the page
+       carries no name either. A GM and the Mastermind, who know the map, see every name. */
+    const known = roomsKnownToMe();
+    let unexplored = 0;
+    const labelOf = new Map(neighbours.map(r => [r, !known || known.has(r)
+        ? r
+        : game.i18n.format("DRPG.Listen.unknownRoom", { n: ++unexplored })]));
+
     const options_ = neighbours
-        .map(r => `<option value="${foundry.utils.escapeHTML(r)}">${foundry.utils.escapeHTML(r)}</option>`)
+        .map((r, i) => `<option value="${i}">${foundry.utils.escapeHTML(labelOf.get(r))}</option>`)
         .join("");
 
     const target = await DialogV2.wait({
@@ -4210,7 +4222,7 @@ async function performListen(actor, def, options) {
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Action.roll"), default: true,
-                callback: (e, b, d) => d.element.querySelector("[name=room]").value
+                callback: (e, b, d) => neighbours[Number(d.element.querySelector("[name=room]").value)] ?? null
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
@@ -4218,6 +4230,7 @@ async function performListen(actor, def, options) {
     });
 
     if (!target || target === "cancel") return null;
+    const shownAs = labelOf.get(target) ?? target;
 
     // Paid before the dice - see `abort` and ACT-07 above it.
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
@@ -4247,7 +4260,7 @@ async function performListen(actor, def, options) {
         // Everything, everywhere.
         const sweep = neighbours.map(room => {
             const who = occupantsOf(room, actor).map(a => a.name);
-            return `<li><strong>${foundry.utils.escapeHTML(room)}</strong> - ${
+            return `<li><strong>${foundry.utils.escapeHTML(labelOf.get(room) ?? room)}</strong> - ${
                 who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
             }</li>`;
         }).join("");
@@ -4257,7 +4270,7 @@ async function performListen(actor, def, options) {
         // Named.
         const who = occupantsOf(target, actor).map(a => a.name);
         lines.push(`<p>${game.i18n.format("DRPG.Listen.named", {
-            room: foundry.utils.escapeHTML(target),
+            room: foundry.utils.escapeHTML(shownAs),
             who: who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
         })}</p>`);
         outcome = { success: true, room: target, named: who };
@@ -4265,8 +4278,8 @@ async function performListen(actor, def, options) {
         // Anonymous: a count, no identities.
         const count = occupantsOf(target, actor).length;
         lines.push(`<p>${count
-            ? plural("DRPG.Listen.anonymous", { room: foundry.utils.escapeHTML(target), n: count })
-            : game.i18n.format("DRPG.Listen.emptyRoom", { room: foundry.utils.escapeHTML(target) })
+            ? plural("DRPG.Listen.anonymous", { room: foundry.utils.escapeHTML(shownAs), n: count })
+            : game.i18n.format("DRPG.Listen.emptyRoom", { room: foundry.utils.escapeHTML(shownAs) })
         }</p>`);
         outcome = { success: true, room: target, count };
     } else {
