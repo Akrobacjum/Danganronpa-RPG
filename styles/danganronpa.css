@@ -13742,6 +13742,21 @@ body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="
     line-height: 1.2;
     white-space: nowrap;
 }
+/* ...AND THE ONE THAT IS DOWN READS AS DOWN (22.09). The row-button rule above paints
+   every inventory button Bone on a pale plate with `!important`, and these two are in
+   an inventory group, so their pressed state was painted over: under Monokuma Legacy
+   the evidence plate and edge of `.is-on` never showed, and under the glass the full
+   brush went on UNDER a Bone label - "CHAPTER" in bone on the morning's pale blue,
+   unreadable, seen on Forge while taking the README's inventory shot. */
+.application.sheet.actor .drpg-inventory-group .drpg-bullet-sort-button.is-on {
+    background: rgba(var(--drpg-evidence-rgb), 0.2) !important;
+    border-color: var(--drpg-evidence) !important;
+}
+body.drpg-theme-stained-glass .application.sheet.actor .drpg-inventory-group .drpg-bullet-sort-button {
+    /* the glass's own button: a dark plate, and the label the brush's ink when it is on */
+    background: rgba(7, 7, 10, 0.55) !important;
+    color: var(--brush-ink, var(--drpg-sg-bone)) !important;
+}
 
 /* The row grows with them, or the taller buttons push its own padding out of
    shape and the list starts to look loose. */
