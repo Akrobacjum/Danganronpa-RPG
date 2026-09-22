@@ -6572,10 +6572,11 @@ const INVARIANTS = [
             map.indexOf("export async function syncProjectTokens") + 900);
         ok(/if \(!game\.ready\)/.test(sync), "the project sync writes a world setting before ready again");
 
-        // A project's icon fits its floor diamond under the isometric view.
+        // A project's icon under the isometric view: smaller than the full picture that
+        // overran its frame, larger than 1.2.51's 0.45 (Dawid, 22.09: "cos pomiedzy").
         const { PROJECT_TOKEN } = await import("./config.mjs");
-        ok(PROJECT_TOKEN.isoScale > 0 && PROJECT_TOKEN.isoScale < 0.514,
-            `the project icon at ${PROJECT_TOKEN.isoScale} stands out of its frame (it fits below 0.514)`);
+        ok(PROJECT_TOKEN.isoScale > 0.45 && PROJECT_TOKEN.isoScale < 1,
+            `the project icon is at ${PROJECT_TOKEN.isoScale}, not between 1.2.51's 0.45 and the full picture`);
 
         // The clock's button is on its line; the matrix names lie down; the track has notes.
         const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()))

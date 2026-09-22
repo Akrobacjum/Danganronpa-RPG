@@ -2450,10 +2450,15 @@ export const PROJECT_TOKEN = {
      * 283 px of diamond; "ramka dookola tokena projektu nie miesci ikony projektu",
      * Dawid, who chose the smaller icon over an upright frame). Worked out on the hazard
      * triangle's own outline: its rounded lower corners leave the diamond first, at
-     * 0.514; 0.45 keeps a clear gap to the seam. The flag means nothing without that
-     * module.
+     * 0.514, and 1.2.51 shipped 0.45.
+     *
+     * 0.72, BETWEEN THE TWO (22.09, after 1.2.51 on Forge: "przywrocmy wieksze ikony
+     * projektow, ale nie tak duze - cos pomiedzy tym co bylo, a co jest"). About half way
+     * from 0.45 to 1. The triangle's lower corners stand a little out of the diamond at
+     * this size - that is the trade Dawid chose for an icon that reads on the map. The
+     * flag means nothing without that module.
      */
-    isoScale: 0.45
+    isoScale: 0.72
 };
 
 export const PROJECT_GLYPHS = {
