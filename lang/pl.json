@@ -3274,6 +3274,12 @@
       "failed": "Danganronpa RPG: migracja danych zatrzymała się w pół drogi - {clauses}. Nic nie oznaczono jako zmigrowane; szczegóły w konsoli."
     },
     "Popup": {
+      "moreTip": {
+        "one": "Pod nimi czeka jeszcze {n} powiadomienie. Zamknij jedno, żeby je zobaczyć.",
+        "few": "Pod nimi czekają jeszcze {n} powiadomienia. Zamknij jedno, żeby zobaczyć następne.",
+        "many": "Pod nimi czeka jeszcze {n} powiadomień. Zamknij jedno, żeby zobaczyć następne.",
+        "other": "Pod nimi czeka jeszcze {n} powiadomienia. Zamknij jedno, żeby zobaczyć następne."
+      },
       "kind": {
         "info": "Uwaga",
         "error": "Odmowa",

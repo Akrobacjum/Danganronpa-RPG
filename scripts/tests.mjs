@@ -6538,6 +6538,54 @@ const INVARIANTS = [
         }
     }],
 
+    ["R109 - a notice stays until it is closed, the newest on top", async () => {
+        /*
+         * Dawid, 22.09: "powiadomienia niech nie znikaja, dopoki gracz ich nie zamknie",
+         * and then "nowy notice ma wypychac pod spod stare". No timer, nothing dismissed
+         * for room: a card past what the stack shows waits parked under the others, the
+         * stack says how many with "+N", and closing a shown card brings one back.
+         */
+        const popup = stripComments((new Map(await otherSources())).get("popup.mjs") ?? "");
+        ok(!/setTimeout\(dismiss/.test(popup), "a notice leaves by itself on a timer again");
+        ok(!/drpg-dismiss"\)\);\s*\}\s*\}/.test(popup.slice(popup.indexOf("function trimStack"),
+            popup.indexOf("function unparkInto"))), "the stack dismisses its oldest cards again");
+
+        const { showPopup } = await import("./popup.mjs");
+        const host = () => document.getElementById("drpg-popups");
+        document.querySelectorAll("#drpg-popups .drpg-popup").forEach(c => c.remove());
+        const shown = () => [...host().querySelectorAll(".drpg-popup:not(.leaving):not(.drpg-popup-parked)")];
+        const all = () => [...host().querySelectorAll(".drpg-popup:not(.leaving)")];
+        const text = c => c.querySelector(".drpg-popup-body")?.textContent.trim();
+        const closers = [];
+        try {
+            for (const n of ["R109 one", "R109 two", "R109 three", "R109 four", "R109 five"]) {
+                closers.push(showPopup(`<p>${n}</p>`, { title: "R109" }));
+                await wait(120);
+            }
+            equal(all().length, 5, "a notice was dismissed to make room");
+            equal(text(shown()[0]), "R109 five", "the newest notice is not the first one shown");
+            const waiting = all().length - shown().length;
+            ok(waiting >= 1, "five notices all fit a stack that shows at most four");
+            equal(host().querySelector(".drpg-popup-more")?.textContent, `+${waiting}`,
+                "the stack does not say how many notices are waiting");
+
+            // Close the newest: something that was waiting comes back, and none is lost.
+            shown()[0].querySelector(".drpg-popup-close").click();
+            // A waiting card takes the seat once the closed one has actually gone, after
+            // its leaving transition - so this waits for a card to be shown again.
+            await until(() => all().length === 4 && shown().length >= 1, 4000);
+            equal(all().length, 4, "closing one notice took another with it");
+            ok(shown().length >= 1 && !shown().some(c => text(c) === "R109 five"),
+                "the closed notice is still on screen");
+            if (waiting >= 1) ok(shown().some(c => text(c) === "R109 four"),
+                "the newest waiting notice did not come back when a seat was free");
+        } finally {
+            for (const close of closers) { try { close?.(); } catch { /* already gone */ } }
+            await wait(400);
+            document.querySelectorAll("#drpg-popups .drpg-popup").forEach(c => c.remove());
+        }
+    }],
+
     ["R108 - what the table saw on 1.2.50 stays fixed", async () => {
         /*
          * Dawid's second look on 22.09, on Forge. Two of these were errors a live world
@@ -10651,7 +10699,8 @@ const SCENARIOS = [
         /* THE STACK IS CAPPED, so "one more than there was" is not the question this
            test is asking. `showPopup` keeps at most four notices on screen and only TWO
            under the stained-glass theme - so once the cap is reached a new notice
-           replaces an old one and the count does not move. Measured on 11.09: posting
+           replaced an old one and the count did not move (since 22.09 it parks it
+           instead, still in the DOM, and R109 holds that). Measured on 11.09: posting
            three notices in a row on a themed client gave 0 -> 1 -> 2 -> 2, and this test
            failed with "no notice appeared at all" while its notice was on the screen.
 

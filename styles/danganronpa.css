@@ -5798,6 +5798,26 @@ body:not(.drpg-gm) .character-header-sheet .character-traits .trait input[name*=
     letter-spacing: 0.06em;
 }
 
+/* A NOTICE THAT WAITS (22.09). Past what a stack shows, the older cards are parked
+   rather than dismissed (popup.mjs, `trimStack`): out of the layout, kept in the DOM,
+   and back when a card in front of them is closed. The "+N" beside the close button of
+   the oldest shown card says how many are waiting; its tooltip says how to reach them. */
+.drpg-popup.drpg-popup-parked {
+    display: none !important;
+}
+.drpg-popup-title .drpg-popup-more {
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 0 5px;
+    border: 1px solid currentColor;
+    font-size: 0.85em;
+    line-height: 1.4;
+    letter-spacing: 0.04em;
+    opacity: 0.75;
+    pointer-events: auto;
+    cursor: help;
+}
+
 .drpg-popup-close {
     flex: 0 0 auto;
     width: 1.6rem;

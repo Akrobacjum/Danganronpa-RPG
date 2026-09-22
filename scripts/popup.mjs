@@ -30,15 +30,14 @@
  * the whisper was addressed to, which is almost always what was meant.
  */
 
-import { MODULE_ID, TIMING } from "./config.mjs";
+import { MODULE_ID } from "./config.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
-import { MESSAGE_FLAG } from "./utils.mjs";
+import { MESSAGE_FLAG, plural } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP } from "./motion.mjs";
 
 import { contentOf, wordsOf, secretHtml, isVeiled } from "./secret.mjs";
 const CONTAINER_ID = "drpg-popups";
 const EVIDENCE_ID = "drpg-evidence";
-const AUTO_DISMISS_MS = TIMING.popupAutoDismissMs;
 
 /**
  * How many cards may be on screen at once.
@@ -50,9 +49,15 @@ const AUTO_DISMISS_MS = TIMING.popupAutoDismissMs;
  * is the right ones to lose - but they used to be lost silently and off-screen,
  * so the reader could not tell whether they had missed anything.
  *
- * Oldest are now dismissed as new ones arrive, so the stack stays readable and
- * always shows the most recent events. A sticky card (evidence in a trial) is
- * never one of them - it is on screen because somebody has to read it.
+ * Oldest were dismissed as new ones arrived, so the stack stayed readable and
+ * always showed the most recent events.
+ *
+ * NOW THEY WAIT INSTEAD (22.09, Dawid: "powiadomienia niech nie znikaja, dopoki
+ * gracz ich nie zamknie"). Nothing a notice says leaves the screen until the reader
+ * closes it: no timer, and a card that does not fit is PARKED rather than dismissed
+ * - out of sight, counted on the stack as "+N", and back the moment a card in front
+ * of it is closed. The cap is still how many are SHOWN; it stops being how many are
+ * kept.
  */
 const MAX_VISIBLE = 4;
 
@@ -158,43 +163,142 @@ function positionBelowWidgets(el) {
     }
 }
 
+/** How many cards a stack SHOWS. The rest wait, parked - see `MAX_VISIBLE`. */
+function capacityOf(host) {
+    if (host.id === EVIDENCE_ID) return MAX_EVIDENCE;
+    // Under Stained Glass the stack lives on a tile of the curtain cut for two short cards or one
+    // long one (glass.mjs, "note-block"), so two is the most it may show.
+    return document.body.classList.contains("drpg-theme-stained-glass") ? 2 : MAX_VISIBLE;
+}
+
+const PARKED = "drpg-popup-parked";
+
+/* Arrival order, kept on each card, because the two stacks lay it out differently: the
+   corner tile puts the newest on TOP (see `showPopup`), the evidence stage puts it at
+   the bottom. "Oldest" is a fact about time, so it is read off the time. */
+let arrivals = 0;
+const seqOf = card => Number(card.dataset.drpgSeq) || 0;
+const byArrival = (a, b) => seqOf(a) - seqOf(b);
+
 /**
- * Retire the oldest cards until the stack fits - non-sticky ones first.
+ * Park the oldest cards until the stack fits - non-sticky ones first.
  *
- * Takes the stack it is trimming, because there are two now and they hold
- * different amounts: the corner tile is a fixed piece of glass with room for
- * two short cards, and the evidence stage is sized by its own card.
+ * Takes the stack it is trimming, because there are two and they show different
+ * amounts: the corner tile is a fixed piece of glass with room for two short cards,
+ * and the evidence stage holds two pieces of evidence (`MAX_EVIDENCE`).
+ *
+ * PARKED, NOT DISMISSED (22.09). This retired the oldest cards for good, which was a
+ * notice leaving the screen before anybody had read it. A parked card is hidden and
+ * kept, in arrival order; `unparkInto` brings the newest of them back as soon as a
+ * shown card is closed.
+ *
+ * Non-sticky ones go first, then sticky ones (UI-10): the glass tile clips with
+ * `overflow: hidden` and fills from the bottom, so with two sticky cards on it every
+ * later card - a refusal, a reply, the time of day - used to arrive out of sight.
+ * The newest card is always one of the cards shown.
  */
 function trimStack(host = container()) {
-    if (host.id === EVIDENCE_ID) { trimEvidence(host); return; }
-    const cards = Array.from(host.querySelectorAll(".drpg-popup:not(.leaving)"));
-    const droppable = cards.filter(c => !c.classList.contains("drpg-popup-sticky"));
-    // Under Stained Glass the stack lives on a tile of the curtain cut for two short cards or one
-    // long one (glass.mjs, "note-block"), so two is the most it may hold.
-    const glass = document.body.classList.contains("drpg-theme-stained-glass");
-    const max = glass ? 2 : MAX_VISIBLE;
-    let excess = cards.length - max;
-
-    for (let i = 0; i < excess && i < droppable.length; i++) {
-        droppable[i].dispatchEvent(new CustomEvent("drpg-dismiss"));
+    const shown = Array.from(host.querySelectorAll(`.drpg-popup:not(.leaving):not(.${PARKED})`))
+        .sort(byArrival);
+    let excess = shown.length - capacityOf(host);
+    if (excess > 0) {
+        const order = [
+            ...shown.filter(c => !c.classList.contains("drpg-popup-sticky")),
+            ...shown.filter(c => c.classList.contains("drpg-popup-sticky"))
+        ];
+        // Never the card that just arrived: it is the newest, and it is why this ran.
+        const newest = shown.at(-1);
+        for (const card of order) {
+            if (excess <= 0) break;
+            if (card === newest) continue;
+            card.classList.add(PARKED);
+            excess--;
+        }
     }
-
-    /* AND THEN THE OLDEST STICKY ONE (UI-10). The glass tile clips with `overflow: hidden`
-       and fills from the bottom, so with two sticky evidence cards on it every later card -
-       a refusal, a reply, the time of day - was appended out of sight, and the newest card
-       was the one nobody could see until a sticky one was closed by hand. A retired evidence
-       card is still in the chat log; a hidden refusal is nowhere. Legacy scrolls, so it keeps
-       its sticky cards. */
-    excess -= Math.min(excess, droppable.length);
-    if (!glass || excess <= 0) return;
-    const sticky = cards.filter(c => c.classList.contains("drpg-popup-sticky"));
-    for (let i = 0; i < excess && i < sticky.length; i++) {
-        sticky[i].dispatchEvent(new CustomEvent("drpg-dismiss"));
-    }
+    parkWhatDoesNotFit(host);
+    markParked(host);
 }
 
 /**
- * The stage holds TWO pieces of evidence, and the second one is the point.
+ * AND WHAT DOES NOT FIT THE GLASS WAITS TOO, rather than being cut by it (22.09).
+ *
+ * The corner tile is a fixed pane with `overflow: hidden`, cut for two short cards or
+ * one long one. With the newest card on top, two long ones overflowed it at the top -
+ * measured at 1920 x 1080, a new notice arrived with its title bar above the glass and
+ * only its sentence showing. So while the tile overflows and more than one card is
+ * shown, the oldest shown one is parked as well. One card alone never is: a card taller
+ * than the tile is capped at the tile and scrolls inside itself.
+ *
+ * MEASURED ON THE BOXES, NOT ON `scrollHeight`. A card arrives translated down by
+ * half a slide, and a transform counts towards a scroll container's overflow: every
+ * arrival read as an overflow, and two cards that fitted were parked down to one.
+ * The cards do not shrink (`flex: 1 0 auto`), so their heights and the gaps between
+ * them add up to more than the tile exactly when they do not fit.
+ */
+function overflowsGlass(host) {
+    if (host.id === EVIDENCE_ID || !document.body.classList.contains("drpg-theme-stained-glass")) return false;
+    const shown = host.querySelectorAll(`.drpg-popup:not(.leaving):not(.${PARKED})`);
+    if (shown.length < 2) return false;
+    const gap = parseFloat(getComputedStyle(host).rowGap) || 0;
+    let total = gap * (shown.length - 1);
+    for (const card of shown) total += card.offsetHeight;
+    return total > host.clientHeight + 1;
+}
+
+function parkWhatDoesNotFit(host) {
+    let shown = Array.from(host.querySelectorAll(`.drpg-popup:not(.leaving):not(.${PARKED})`)).sort(byArrival);
+    while (shown.length > 1 && overflowsGlass(host)) {
+        shown[0].classList.add(PARKED);
+        shown = shown.slice(1);
+    }
+}
+
+/** A shown card was closed: bring back the newest parked one, as many as now fit. */
+function unparkInto(host) {
+    if (!host?.isConnected) return;
+    let shown = host.querySelectorAll(`.drpg-popup:not(.leaving):not(.${PARKED})`).length;
+    const parked = Array.from(host.querySelectorAll(`.drpg-popup.${PARKED}:not(.leaving)`))
+        .sort(byArrival);
+    const room = capacityOf(host);
+    while (shown < room && parked.length) {
+        const card = parked.pop();
+        card.classList.remove(PARKED);
+        shown++;
+        // Back only if it fits beside what is shown - otherwise it waits a little longer.
+        if (overflowsGlass(host)) {
+            card.classList.add(PARKED);
+            break;
+        }
+    }
+    markParked(host);
+}
+
+/**
+ * The "+N" on the stack: how many notices wait under the ones on screen.
+ *
+ * On the title bar of the OLDEST shown card, beside its close button: the parked
+ * cards are older than everything shown, so they sit next to it in the stack and it
+ * is the one they come back beside. One badge per stack, moved rather than multiplied.
+ */
+function markParked(host) {
+    host.querySelectorAll(".drpg-popup-more").forEach(b => b.remove());
+    const waiting = host.querySelectorAll(`.drpg-popup.${PARKED}:not(.leaving)`).length;
+    if (!waiting) return;
+    const oldest = Array.from(host.querySelectorAll(`.drpg-popup:not(.leaving):not(.${PARKED})`))
+        .sort(byArrival)[0];
+    const top = oldest?.querySelector(".drpg-popup-title");
+    if (!top) return;
+    const badge = document.createElement("span");
+    badge.className = "drpg-popup-more";
+    badge.textContent = `+${waiting}`;
+    const tip = plural("DRPG.Popup.moreTip", { n: waiting });
+    badge.dataset.tooltip = tip;
+    badge.setAttribute("aria-label", tip);
+    top.insertBefore(badge, top.querySelector(".drpg-popup-close"));
+}
+
+/**
+ * The stage SHOWS TWO pieces of evidence, and the second one is the point.
  *
  * A trial argues by putting one thing beside another - an objection answers a
  * presentation, and reading the two together is the whole move. One at a time
@@ -202,20 +306,16 @@ function trimStack(host = container()) {
  * text in the middle of the map, and the chat log still has every card.
  *
  * Oldest first, and by hand rather than by `overflow: hidden`: this stage grows
- * with what is in it, so a card that does not fit is not clipped, it is simply
- * not retired and the stage gets taller. The cap is what keeps that honest.
+ * with what is in it, so a card that does not fit is not clipped, it would simply
+ * make the stage taller. The cap is what keeps that honest - and since 22.09 the
+ * oldest is parked by `trimStack` like any notice, not dismissed.
  */
 const MAX_EVIDENCE = 2;
-function trimEvidence(host) {
-    const cards = Array.from(host.querySelectorAll(".drpg-popup:not(.leaving)"));
-    for (let i = 0; i < cards.length - MAX_EVIDENCE; i++) {
-        cards[i].dispatchEvent(new CustomEvent("drpg-dismiss"));
-    }
-}
 
 /**
- * Show a floating, auto-dismissing card on THIS client. Several can stack if
- * things happen close together.
+ * Show a floating card on THIS client, until its reader closes it (22.09). Several
+ * can stack if things happen close together; past what the stack shows, the older
+ * ones wait parked - see `trimStack`.
  *
  * @param {string|Element} bodyHtml  Already-escaped HTML, or a ready-made
  *   element to adopt. The element form exists because a copy of a chat card is
@@ -230,9 +330,9 @@ function trimEvidence(host) {
  *   refused, gold for evidence, loud red for an Objection.
  * @param {() => void} [options.onClick]   Extra action on click, before the
  *   card dismisses. Used to jump straight to the messenger for a DM reply.
- * @param {boolean} [options.sticky]  Stay until dismissed by hand. Evidence put
- *   in front of the table has to survive being read and argued with, which is
- *   considerably longer than twelve seconds.
+ * @param {boolean} [options.sticky]  Close only from its own button, not from a
+ *   click anywhere on it, and go to the trial's stage when it is evidence. Every
+ *   card stays until it is closed now; this is about how it may be closed.
  * @param {"hope"|"fear"|"critical"|null} [options.tone]  What the card is about,
  *   when that has a colour of its own. The title bar takes it: gold for Hope,
  *   Blood for Despair, crimson for a Critical. A name rather than a colour, so
@@ -289,13 +389,24 @@ export function showPopup(bodyHtml, {
     card.append(body);
 
     const host = hostFor(kind, sticky);
-    host.append(card);
+    card.dataset.drpgSeq = String(++arrivals);
+    /* THE NEWEST ON TOP, AND THE OLD ONES PUSHED UNDER IT (22.09, Dawid: "nowy notice ma
+       wypychac pod spod stare"). The corner tile used to append, so a new notice came in
+       below the ones already there. It goes in first now; what it pushes past the tile's
+       two is parked underneath (`trimStack`). The evidence stage keeps its order: there
+       an objection is read AFTER the presentation it answers. */
+    if (host.id === EVIDENCE_ID) host.append(card);
+    else host.prepend(card);
 
     let dismissed = false;
     const dismiss = () => {
         if (dismissed) return;
         dismissed = true;
         card.classList.add("leaving");
+        /* The seat it leaves is taken by the newest card that was waiting for one - once
+           it has actually gone: a leaving card still takes its space until it is removed,
+           and measured beside it nothing would fit. */
+        const home = card.parentElement;
 
         // WAIT FOR THE TRANSITION, NOT FOR A NUMBER.
         //
@@ -316,6 +427,7 @@ export function showPopup(bodyHtml, {
             if (gone) return;
             gone = true;
             card.remove();
+            unparkInto(home);
             /* The stage is a box in the middle of the screen. Empty, it has
                nothing to draw and nothing to say, so it goes rather than
                sitting there as an invisible `role="status"` region. The corner
@@ -350,9 +462,8 @@ export function showPopup(bodyHtml, {
     // EVIDENCE LANDS. IT DOES NOT APPEAR.
     //
     // An ordinary card slides down a few pixels and fades in, which is right
-    // for a receipt: it is information, it can be ignored, and it will retire
-    // by itself in twelve seconds. Evidence in a Class Trial is the opposite of
-    // all three. Somebody has put a fact in front of the table and the table has
+    // for a receipt: it is information, and it can be ignored until its reader
+    // closes it. Evidence in a Class Trial is the opposite of all of that. Somebody has put a fact in front of the table and the table has
     // to deal with it, so it arrives from the side, overshoots, and stops hard -
     // Danganronpa's own grammar, where nothing eases into frame.
     //
@@ -369,7 +480,8 @@ export function showPopup(bodyHtml, {
         ], BEAT(), ARRIVE());
     }
 
-    if (!sticky) setTimeout(dismiss, AUTO_DISMISS_MS);
+    /* NO TIMER (22.09). An ordinary card used to leave by itself after twelve seconds,
+       which is a notice gone while its reader was looking at the map. */
     return dismiss;
 }
 

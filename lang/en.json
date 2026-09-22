@@ -3124,6 +3124,10 @@
       "failed": "Danganronpa RPG: the data migration stopped short - {clauses}. Nothing was marked as migrated; the console has the details."
     },
     "Popup": {
+      "moreTip": {
+        "one": "{n} more notice waits under these. Close one to see it.",
+        "other": "{n} more notices wait under these. Close one to see the next."
+      },
       "kind": {
         "info": "Notice",
         "error": "Refused",

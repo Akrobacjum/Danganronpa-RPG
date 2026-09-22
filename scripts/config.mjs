@@ -329,8 +329,6 @@ export const TIMING = {
     openingAttempts: 3,
     /** The incident tracker's "ask again", once per this on a client. */
     reaskCooldownMs: 10000,
-    /** A notice card's life on screen when nobody dismisses it. */
-    popupAutoDismissMs: 12000,
     /** The sync bus and the live windows coalesce redraws inside this window. */
     coalesceMs: 120,
     /** The HUD's minutes counter: amber at the first mark, red at the second. */
