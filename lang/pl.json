@@ -3008,6 +3008,8 @@
       "alreadyRunning": "Pakiet testów już działa na tym kliencie. Poczekaj, aż skończy - drugi przebieg zrobiłby zrzut świata, w którym pierwszy ma jeszcze rozstawione fikstury, i ustawiłby go jako bazę."
     },
     "Season": {
+      "missingPool": "jeszcze nie ma puli Despair (ma ją każde pełne konto Gamemastera)",
+      "missingMonokumaActor": "żadna postać nie jest oznaczona jako Monokuma (Despair Flow albo menu pod prawym przyciskiem na liście Actors)",
       "title": "Ustaw sezon",
       "introOutstanding": "Jeszcze {n} do zrobienia. Sezon może ruszyć bez nich; każdy brak ujawni się w chwili, gdy zacznie mieć znaczenie.",
       "introReady": "Wszystko na miejscu. To ta sama lista, którą czyta kontrola przed sezonem, więc wróci zielona.",
@@ -3042,12 +3044,12 @@
       "hint": {
         "name": "Wyświetlana u góry ekranu każdego, nad rozdziałem i zegarem.",
         "cast": "Jedna postać na ucznia. Monokumy są osobno i tu się nie liczą.",
-        "monokumas": "Monokuma ma pulę Despair. Bez niego Despair nie ma dokąd trafić.",
+        "monokumas": "Despair potrzebuje puli, do której trafia, i postaci Monokumy, która go wydaje: Despair Calls są na karcie tej postaci. Gra jest pisana dla więcej niż jednego GM-a - podziel uczniów równo między Monokumy.",
         "resources": "Dopóki to nie jest ustawione, postać liczy się jako Wounded i w Breakdown naraz: jedna akcja zamiast dwóch i utrudnienie na każdym rzucie.",
         "ultimate": "Tytuł to postać. To zdanie, które ktoś pisze, więc to otwiera arkusz zamiast wymyślać za niego.",
         "experiences": "Pierwszy rzut, który chce doświadczenia, to moment, w którym zauważa się jego brak - i to w środku sceny.",
         "items": "Przedmiot startowy. Uczeń z pustą torbą nie ma czym szukać, nie ma co oddać i nie ma czym zabić.",
-        "assignments": "Despair z rzutów ucznia idzie do puli jego Monokumy. Bez opieki idzie donikąd.",
+        "assignments": "Despair z rzutów ucznia idzie do puli jego Monokumy. Uczeń celowo ustawiony na nikogo, na przykład Mastermind, nie zasila żadnej puli i tak ma być.",
         "sound": "Ten moduł nie zawiera dźwięków i żadnych nie przypisuje - pliki są twoje, ta sama umowa co przy playlistach. Przypisz, co chcesz, w panelu Dźwięk; puste pole gra ciszą z wyboru, nie z winy.",
         "rooms": "Pokoje to regiony sceny. Ruch, Search, Listen i każdy incydent są rozstrzygane w ich kategoriach.",
         "cursor": "Foundry pokazuje stołowi każdy kursor z nazwiskiem - transmisja na żywo z tego, na co patrzysz. To wyłącza ją dla dwóch ról GM-a i zostawia kursory graczy w spokoju.",

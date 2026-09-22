@@ -2892,6 +2892,8 @@
       "alreadyRunning": "The regression suite is already running on this client. Wait for it to finish - a second run would take its snapshot of a world the first one has fixtures standing in, and put that back as the baseline."
     },
     "Season": {
+      "missingPool": "no Despair pool yet (every full Gamemaster account holds one)",
+      "missingMonokumaActor": "no character is marked as Monokuma (Despair Flow, or the Actors list's right-click menu)",
       "title": "Set the season up",
       "introOutstanding": "{n} still to do. A season can start without them; each missing piece shows up the moment it matters.",
       "introReady": "Everything is in place. This list is the same one the pre-season checks read, so they will come back green.",
@@ -2914,7 +2916,7 @@
       "step.cast": "The cast exists",
       "hint.cast": "One character per student. Monokumas are separate and do not count here.",
       "step.monokumas": "At least one Monokuma",
-      "hint.monokumas": "A Monokuma holds a Despair pool. With none, Despair has nowhere to go. The game is written for more than one GM - split the students evenly between the Monokumas.",
+      "hint.monokumas": "Despair needs a pool to go into and a Monokuma character to spend it: the Despair Calls are on that character's sheet. The game is written for more than one GM - split the students evenly between the Monokumas.",
       "step.resources": "Starting Health, Sanity and Hope",
       "hint.resources": "Until this is set, a character counts as Wounded AND in Breakdown: one action instead of two, and disadvantage on every roll.",
       "step.ultimate": "Everybody has an Ultimate",
@@ -2926,7 +2928,7 @@
       "step.despairSplit": "The students are split evenly between the pools",
       "hint.despairSplit": "Whatever the number of Monokumas, the living cast should be shared out evenly - at most one student apart. Advisory: a cast that will not divide, or a Monokuma who is meant to watch the dangerous half, is a decision, not a mistake.",
       "step.assignments": "Every student has a Monokuma watching",
-      "hint.assignments": "Despair from a student's rolls goes to their Monokuma's pool. Unwatched, it goes nowhere.",
+      "hint.assignments": "Despair from a student's rolls goes to their Monokuma's pool. A student set to nobody on purpose, such as the Mastermind, feeds no pool, and that is fine.",
       "step.sound": "Sound files",
       "hint.sound": "This module ships no audio and assigns none - the files are yours, the same bargain the playlists make. Map what you want in the Sound panel; anything left blank stays silent by choice, not by fault.",
       "step.rooms": "The map has rooms",

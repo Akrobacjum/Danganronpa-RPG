@@ -33,8 +33,8 @@ import {
 } from "./season-exceptions.mjs";
 import { safeword } from "./safeword.mjs";
 import { getClock, setClock } from "./clock.mjs";
-import { studentActors } from "./monokuma.mjs";
-import { monokumaFor } from "./assignments.mjs";
+import { studentActors, isMonokuma } from "./monokuma.mjs";
+import { monokumaFor, feedsNobody } from "./assignments.mjs";
 import { listExperiences, initCharacter, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 // Static, and safe to be: vault.mjs never reaches back here, and `steps()` is
@@ -162,8 +162,16 @@ function steps() {
         },
         {
             key: "monokumas",
-            done: monokumas().length > 0,
-            missing: () => [],
+            /* A POOL AND SOMEBODY TO SPEND IT (22.09). This ticked as soon as a pool-holding GM
+               account existed, which is every full Gamemaster - so it was green in a world with
+               no Monokuma character at all, and the Despair Calls live on that character's
+               sheet. The handbook said the row checks for a character marked as Monokuma; now
+               it checks both, and says which is missing. */
+            done: monokumas().length > 0 && game.actors.some(a => isMonokuma(a)),
+            missing: () => [
+                ...(monokumas().length ? [] : [game.i18n.localize("DRPG.Season.missingPool")]),
+                ...(game.actors.some(a => isMonokuma(a)) ? [] : [game.i18n.localize("DRPG.Season.missingMonokumaActor")])
+            ],
             // The window the two Despair rows further down already open: opting
             // somebody in is what it is for, and a row that says "at least one
             // Monokuma" with no way to make one reports rather than helps (SEASON-02).
@@ -208,8 +216,11 @@ function steps() {
         },
         {
             key: "assignments",
-            done: roster.every(a => monokumaFor(a)),
-            missing: () => roster.filter(a => !monokumaFor(a)).map(a => a.name),
+            /* NOBODY, ON PURPOSE, IS AN ANSWER (22.09). Despair Flow recommends "- nobody -" for
+               the Mastermind, and this row then showed them as a red cross forever. A student
+               deliberately set to feed no pool is watched as intended. */
+            done: roster.every(a => feedsNobody(a) || monokumaFor(a)),
+            missing: () => roster.filter(a => !feedsNobody(a) && !monokumaFor(a)).map(a => a.name),
             open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
         },
         {
