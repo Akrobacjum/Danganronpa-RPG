@@ -613,8 +613,12 @@ async function checkBodyFound(tokenDoc) {
         t.actor && bodies.has(t.actor.id) && !t.hidden && roomOfToken(t) === room);
     if (!bodyHere) return null;
 
-    const { blackenedIds } = await import("./murder.mjs");
-    const involved = new Set(blackenedIds());
+    /* AND THE KILLERS STILL CLEANING UP (22.09). The Blackened register is written when the
+       murder is closed, so during the clean-up it was empty: a killer and a partner in crime
+       standing by the body were two "witnesses", and the body was discovered in the middle of
+       their own Stage 6. The running incident's killers count as involved too. */
+    const { blackenedIds, killerIds, murderState } = await import("./murder.mjs");
+    const involved = new Set([...blackenedIds(), ...killerIds(murderState())]);
 
     const witnesses = scene.tokens.filter(t => {
         const actor = t.actor;
