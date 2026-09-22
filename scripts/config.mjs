@@ -2440,7 +2440,20 @@ export const PROJECT_TOKEN = {
     sort: -5,
     /** A finished project is still there - it is the thing that got built. */
     doneTint: "#8fd18f",
-    workingTint: "#d8c98a"
+    workingTint: "#d8c98a",
+    /**
+     * The icon's size under Isometric Perspective, as that module's own `scale` flag
+     * (22.09). It stands the picture upright over the token's square, and the square
+     * lies on the floor as a diamond two thirds as tall as it is wide - so a full-size
+     * picture, as wide as the diamond, stood a sixth of its height out of the frame at
+     * the top and again at the bottom (measured on Forge, 22.09: 424 px of picture over
+     * 283 px of diamond; "ramka dookola tokena projektu nie miesci ikony projektu",
+     * Dawid, who chose the smaller icon over an upright frame). Worked out on the hazard
+     * triangle's own outline: its rounded lower corners leave the diamond first, at
+     * 0.514; 0.45 keeps a clear gap to the seam. The flag means nothing without that
+     * module.
+     */
+    isoScale: 0.45
 };
 
 export const PROJECT_GLYPHS = {

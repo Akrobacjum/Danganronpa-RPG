@@ -36,6 +36,12 @@ import { log, error, whisperToGms, esc } from "./utils.mjs";
 /** The actor every project token is an unlinked copy of. */
 const PROJECT_ACTOR = "DRPG Project";
 
+/* Isometric Perspective's scope and the flag it sizes a token's picture by. Written only
+   while that module is on: its flags are its own, and a scope that is not active is not
+   one to write into. */
+const ISO_MODULE = "isometric-perspective";
+const isoOn = () => Boolean(game.modules?.get(ISO_MODULE)?.active);
+
 /** The one flag a project token carries. Everything else is looked up. */
 export const PROJECT_TOKEN_FLAG = "projectId";
 
@@ -195,7 +201,10 @@ export async function placeProjectToken(countdownId, { scene = null } = {}) {
                needs is "the people who know" - which only a client can decide.
                Same arrangement, and same reason, as an incident's own traces. */
             hidden: false,
-            flags: { [MODULE_ID]: { [PROJECT_TOKEN_FLAG]: countdownId } }
+            flags: {
+                [MODULE_ID]: { [PROJECT_TOKEN_FLAG]: countdownId },
+                ...(isoOn() ? { [ISO_MODULE]: { scale: PROJECT_TOKEN.isoScale } } : {})
+            }
         }]);
         if (!created) return null;
         await setProjectMeta(countdownId, { tokenId: created.id, tokenScene: target.id });
@@ -236,11 +245,18 @@ export async function refreshProjectToken(countdownId) {
     const token = projectTokenOf(countdownId);
     if (!token) return;
     const want = tintFor(countdownId);
-    if (token.texture?.tint === want) return;
+    const changes = {};
+    if (token.texture?.tint !== want) changes["texture.tint"] = want;
+    /* A token placed before 1.2.51 has the picture at full size; the sync that runs on
+       every scene draw brings it down to the one that fits its frame. */
+    if (isoOn() && token.getFlag?.(ISO_MODULE, "scale") !== PROJECT_TOKEN.isoScale) {
+        changes[`flags.${ISO_MODULE}.scale`] = PROJECT_TOKEN.isoScale;
+    }
+    if (!Object.keys(changes).length) return;
     try {
-        await token.update({ "texture.tint": want });
+        await token.update(changes);
     } catch (err) {
-        error(`Could not recolour the project token for ${countdownId}`, err);
+        error(`Could not refresh the project token for ${countdownId}`, err);
     }
 }
 
