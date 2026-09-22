@@ -1126,7 +1126,7 @@ const REGRESSIONS = [
         }
         ok(openers.length >= 15, `only ${openers.length} standing windows were found`);
 
-        const wide = [], refused = [], unplaced = [];
+        const wide = [], refused = [], unplaced = [], pinnedTop = [];
         let measured = 0;
         for (const [file, name] of openers) {
             const before = new Set(foundry.applications.instances.keys());
@@ -1155,6 +1155,14 @@ const REGRESSIONS = [
                        tables window in exactly that state from 1.2.44 to 1.2.50 and counted
                        it as measured, because the opener's rejection is swallowed above. */
                     if (!el.style.left || !el.style.top) unplaced.push(name);
+                    /* AND IT CAN BE MOVED DOWN. Foundry keeps a window's RECORDED box on the
+                       screen, so a recorded height the window does not show pins its top:
+                       the Sound window recorded 1278 px over 506 on screen under the glass
+                       and would not leave the top of the screen (22.09). */
+                    const recorded = app.position?.height;
+                    if (typeof recorded === "number" && recorded - el.offsetHeight > 40) {
+                        pinnedTop.push(`${name} (${Math.round(recorded)} recorded, ${el.offsetHeight} shown)`);
+                    }
                     if (el.offsetWidth > window.innerWidth) {
                         wide.push(`${name} is ${el.offsetWidth}px wide on a `
                             + `${window.innerWidth}px screen`);
@@ -1192,6 +1200,7 @@ const REGRESSIONS = [
         needs(measured > 0, `no standing window would open here (${openers.length} found, ${measured} measured): this needs a browser that lays out`);
         ok(measured >= 10, `only ${measured} windows actually opened - this measured nothing`);
         ok(!unplaced.length, `these windows opened without a position - their render threw: ${unplaced.join(", ")}`);
+        ok(!pinnedTop.length, `these windows cannot be dragged down - a height they do not show: ${pinnedTop.join("; ")}`);
         ok(!wide.length, `these do not fit the screen: ${wide.join("; ")}`);
     }],
 

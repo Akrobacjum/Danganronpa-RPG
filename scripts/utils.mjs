@@ -1001,12 +1001,25 @@ export function fitWindowToTabs(dialog) {
             const height = Math.round(
                 Math.min(tallest, Number.isFinite(capped) ? capped : tallest) + chrome);
 
+            /* UNDER THE GLASS THE HEIGHT IS NOT OURS TO STATE (22.09). Stained Glass gives
+               every module window `height: auto !important` (section 7 of stained-glass.css),
+               so the number written here was never the height on screen - and Foundry keeps
+               a window's RECORDED box on the screen when it is dragged. The Sound window
+               recorded 1278 px (its Effects tab, capped at the screen) while it showed 506,
+               so its top could go no lower than 42 px: "Panel sound jest przyklejony do gory
+               ekranu" (Dawid, on 1.2.51). Room Setup the same, 1278 over 1099. So under the
+               glass only the width is fitted - the thing this function exists for, one width
+               for every tab - and the height is left to the content, which is what the theme
+               shows anyway. Monokuma Legacy keeps the measured height, which it does show. */
+            const glass = document.body.classList.contains("drpg-theme-stained-glass")
+                && root.classList.contains("drpg-panel");
             const box = root.getBoundingClientRect();
-            if (Math.abs(box.width - width) < 2 && Math.abs(box.height - height) < 2) {
+            if (Math.abs(box.width - width) < 2 && (glass || Math.abs(box.height - height) < 2)
+                && (!glass || dialog.position?.height === "auto")) {
                 return pinFooterAcrossScroll(dialog);
             }
 
-            dialog.setPosition({ width, height });
+            dialog.setPosition({ width, height: glass ? "auto" : height });
             // The same pair, for the reason written out at the end of
             // `fitWindowToTable` above - this is the tabbed twin of it.
             pinFooterAcrossScroll(dialog);
