@@ -1705,6 +1705,15 @@ function wireNewItemForm(root) {
  * being an editable heading.
  */
 function wirePaneHeading(pane, root, { current, show, nameEl }) {
+    /* ITS OWN TWO BUTTONS, LOOKED UP HERE (22.09). When this was split out of
+       `wirePoolPane` (1.2.44) the listeners came with it and the two lookups stayed
+       behind, so the first line threw `ReferenceError: renameButton is not defined`
+       during render - the window-at-0,0 failure the note on `wirePaneRows` describes,
+       in the piece next to it: the Item tables window opened pinned to the top left
+       corner and could not be dragged. Seen on Forge on 1.2.50. */
+    const renameButton = pane.querySelector("[data-drpg-rename-table]");
+    const deleteButton = pane.querySelector("[data-drpg-delete-table]");
+
     renameButton?.addEventListener("click", async ev => {
         ev.preventDefault();
         if (!current()) return;
