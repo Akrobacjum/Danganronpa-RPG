@@ -328,7 +328,7 @@
       },
       "musicEnabled": {
         "name": "Music follows the game state",
-        "hint": "Swaps the playlist when the Eclipse opens, a trial or investigation begins, the time of day turns, or the game goes on hold. Map the playlists first: GM panel, Sound, Music. A murder never changes it."
+        "hint": "Swaps the playlist when the Eclipse opens, a trial or investigation begins, the time of day turns, or the game goes on hold. Map the playlists first: GM panel, Sound, Music. The murder row is separate: it plays only for the people in the incident and the GMs, whatever this says."
       },
       "voiceEnabled": {
         "name": "Regional voice (needs LiveKit AVClient)",
@@ -1091,8 +1091,8 @@
     "Music": {
       "intro": "Pick which playlist plays when. The module never starts a playlist you have not chosen here, and ships no audio of its own.",
       "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during one uses the Eclipse's.",
-      "trialNote": "Objection beats the open debate, and the debate beats the trial merely being in session. A rebuttal has no row of its own - it replays the debate. Each picks a random track when it takes over, never the one it played last. An Objection runs one minute, so give that playlist a short fade.",
-      "incidentNote": "A murder incident has no entry on purpose. A track that only ever played during one would tell the whole table a murder is happening. Whatever is playing keeps playing.",
+      "trialNote": "Objection beats the open debate, and the debate beats the trial merely being in session. A rebuttal has no row of its own: the Objection's music keeps playing through it. Each picks a random track when it takes over, never the one it played last. An Objection runs one minute, so give that playlist a short fade.",
+      "incidentNote": "The murder row plays only in the browsers of the people in the incident and of the GMs, so nobody else learns from the music that a murder is happening. Leave it empty and whatever is playing keeps playing.",
       "fadeNote": "Fades are the playlist's own - set Fade Duration on the playlist or on a track, and both directions use it. Put a track on and everything else pauses where it stands, then resumes from there.",
       "when": "When",
       "playlist": "Plays",
@@ -2484,7 +2484,7 @@
         "one": "{n} student still has actions to spend.",
         "other": "{n} students still have actions to spend."
       },
-      "nextAllDone": "Everyone has spent their actions. Start the Eclipse - closing it moves the clock and refills everyone.",
+      "nextAllDone": "Everyone has spent their actions. Start the Eclipse: opening it refills everyone, and closing it moves the clock.",
       "advance": "Next time of day",
       "advanceTooltip": "Move the clock on without an Eclipse: refills actions, Free Moves and search tokens. At Night this also starts the next day and session.",
       "advanceDuringEclipse": "An Eclipse is running - end it from the clock's chevron; its end moves the clock.",

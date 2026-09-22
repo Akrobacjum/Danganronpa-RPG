@@ -324,7 +324,7 @@
       },
       "musicEnabled": {
         "name": "Muzyka podąża za stanem gry",
-        "hint": "Zmienia playlistę, gdy zaczyna się Eclipse, Class Trial albo Investigation, zmienia się pora dnia albo gra zostaje wstrzymana. Najpierw przypisz playlisty: panel GM-a, Dźwięk, Muzyka. Morderstwo nigdy jej nie zmienia."
+        "hint": "Zmienia playlistę, gdy zaczyna się Eclipse, Class Trial albo Investigation, zmienia się pora dnia albo gra zostaje wstrzymana. Najpierw przypisz playlisty: panel GM-a, Dźwięk, Muzyka. Wiersz morderstwa działa osobno: gra tylko dla osób w incydencie i GM-ów, niezależnie od tego ustawienia."
       },
       "voiceEnabled": {
         "name": "Głos per pokój (wymaga LiveKit AVClient)",
@@ -1092,8 +1092,8 @@
     "Music": {
       "intro": "Wybierz, która playlista gra kiedy. Moduł nigdy nie uruchamia playlisty, której tu nie wybrano, i nie zawiera własnej muzyki.",
       "orderNote": "Wygrywa pierwszy pasujący stan, w podanej kolejności. Class Trial nocą używa playlist Class Trial; Eclipse w jego trakcie - playlist Eclipse.",
-      "trialNote": "Objection ma pierwszeństwo przed otwartą debatą, a debata przed samym trwaniem Class Trial. Rebuttal nie ma własnego wiersza - odtwarza debatę. Każdy losuje utwór, gdy przejmuje grę, nigdy ten sam co ostatnio. Objection trwa minutę, więc daj tej playliście krótkie wyciszenie.",
-      "incidentNote": "Incydent morderstwa celowo nie ma wpisu. Utwór, który grałby tylko w jego trakcie, powiedziałby całemu stołowi, że trwa morderstwo. Co gra, gra dalej.",
+      "trialNote": "Objection ma pierwszeństwo przed otwartą debatą, a debata przed samym trwaniem Class Trial. Rebuttal nie ma własnego wiersza: przez cały Rebuttal gra dalej muzyka Objection. Każdy losuje utwór, gdy przejmuje grę, nigdy ten sam co ostatnio. Objection trwa minutę, więc daj tej playliście krótkie wyciszenie.",
+      "incidentNote": "Wiersz morderstwa gra tylko w przeglądarkach osób, które są w incydencie, i GM-ów, więc nikt inny nie dowie się z muzyki, że trwa morderstwo. Zostaw go pustym, a to, co gra, będzie grać dalej.",
       "fadeNote": "Wyciszenia należą do playlisty - ustaw Fade Duration na playliście albo na utworze, a użyją go oba kierunki. Włącz utwór, a wszystko inne zatrzymuje się w miejscu i stamtąd wraca.",
       "when": "Kiedy",
       "playlist": "Gra",
@@ -2574,7 +2574,7 @@
         "many": "{n} uczniów ma jeszcze akcje do wydania.",
         "other": "{n} uczniów ma jeszcze akcje do wydania."
       },
-      "nextAllDone": "Wszyscy wydali akcje. Zacznij Eclipse - jego zamknięcie przesuwa zegar i odnawia wszystkich.",
+      "nextAllDone": "Wszyscy wydali akcje. Zacznij Eclipse: jego otwarcie odnawia wszystkim akcje, a zamknięcie przesuwa zegar.",
       "advance": "Następna pora dnia",
       "advanceTooltip": "Przesuń zegar bez Eclipse: odnawia akcje, Free Moves i Search Tokens. Nocą zaczyna też następny dzień i sesję.",
       "advanceDuringEclipse": "Trwa Eclipse - zakończ go strzałką przy zegarze; jego koniec przesuwa zegar.",
