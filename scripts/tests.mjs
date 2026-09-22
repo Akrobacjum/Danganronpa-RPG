@@ -3748,24 +3748,29 @@ const REGRESSIONS = [
             "a self-inflicted death is reported as missing a killer, which it never had");
     }],
 
-    ["R77 - your own token is ringed, and only yours", async () => {
+    ["R77 - every student stands on a frame, and yours is bone", async () => {
         /*
          * W-6 (Dawid, 18.09): a player's token is lost in a room - a bedroom holds a
          * bed, a desk, two Remnants and four students, all drawn at the same size out
          * of the same tileset, and the one token you may move looks like the three you
          * may not.
          *
-         * A CIRCLE, and that is the one thing this test is really about: the Remnant
-         * markers are SQUARE pixel frames, so round means "yours" and square means
-         * "evidence" with no legend to read. A ring that became a rectangle would
-         * duplicate the other marker exactly.
+         * It was a circle round the viewer's token alone. Dawid, 22.09, on 1.2.50:
+         * the same frame on every player's token, and the viewer's own in drpg-bone -
+         * and, asked, the square on the floor rather than the circle. So this holds the
+         * three things that decision is made of: a SQUARE, on every player-owned
+         * character, and bone for the one that is yours.
          */
         const sources = new Map(await otherSources());
         const own = stripComments(sources.get("own-ring.mjs") ?? "");
-        ok(own.length > 500, "own-ring.mjs is gone, so nothing marks the viewer's token");
-        ok(/drawCircle\(/.test(own), "the own-token ring is not a circle any more");
-        ok(!/drawRect\(/.test(own),
-            "the ring draws a rectangle, which is the Remnant marker's own shape");
+        ok(own.length > 500, "own-ring.mjs is gone, so nothing marks the students' tokens");
+        ok(/drawRect\(/.test(own) && !/drawCircle\(/.test(own),
+            "the student frame is not the token's square any more");
+        const whose = own.slice(own.indexOf("function frameOf"), own.indexOf("function hourColour"));
+        ok(/hasPlayerOwner/.test(whose), "only the viewer's token is framed again, not every student's");
+        ok(/type !== "character"/.test(whose), "a frame reaches tokens that are not characters");
+        ok(/whose === "mine" \? cssColour\("--drpg-bone"/.test(own),
+            "the viewer's own frame is not bone");
 
         const mine = own.slice(own.indexOf("function isMine"), own.indexOf("function hourColour"));
         ok(/game\.user\?\.character/.test(mine),

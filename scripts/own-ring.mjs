@@ -1,23 +1,35 @@
 /**
- * Danganronpa RPG - your own token wears the hour.
+ * Danganronpa RPG - every student stands on a frame, and yours is bone.
  * ---------------------------------------------------------------------------
  * W-6 (Dawid, 18.09): "zeton gracza ginie w pokoju" - a player's token is lost
  * in a room. A bedroom holds a bed, a desk, two Remnants and four students, all
  * drawn at the same size out of the same tileset, and the one token you are
  * allowed to move looks exactly like the three you are not.
  *
- * A CIRCLE, AND THAT IS THE WHOLE REASON IT IS A CIRCLE. The Remnant markers are
- * SQUARE pixel frames (see remnant-ring.mjs, Dawid 26.08), so a ring duplicates
- * nothing on this map: round means "this one is yours", square means "this one is
- * evidence", and the two can sit in the same room without a legend.
+ * EVERY STUDENT'S TOKEN, AND YOURS IN BONE (Dawid, 22.09, on 1.2.50: "dodajmy
+ * takie samo obramowanie na tokenie kazdego gracza. Niech obramowanie tokenu, ktory
+ * nalezy do gracza bedzie drpg-bone"). It was a circle round the viewer's own token
+ * alone, and the reasoning was that round meant "yours" and square meant "evidence".
+ * At the table the square read better: it is the token's own square on the floor,
+ * which the isometric view draws as the same diamond as Foundry's selection border and
+ * the project and Remnant frames. So every token a player owns stands on its square,
+ * in the hour's colour, and the one the viewer plays stands on a bone one - the
+ * interface's own white, which nothing else on the map is drawn in. Dawid chose the
+ * floor diamond over the circle when asked, the same day.
  *
- * IN THE COLOUR OF THE TIME OF DAY, like the curtain's own seams. The hour is
- * already the loudest thing on this interface - it colours the room borders, the
- * HUD and the glass - so the ring is the same accent rather than a sixth colour
+ * WHICH TOKENS. A character a player owns (`hasPlayerOwner`), on every screen,
+ * the GM's included: a frame that only the owner could see would tell the GM
+ * nothing when they look for a student. Monokuma and any other character the GM
+ * alone owns stay bare. A mastermind is a player's character like any other, and
+ * is framed like one - a missing frame would be the tell.
+ *
+ * THE OTHERS IN THE COLOUR OF THE TIME OF DAY, like the curtain's own seams. The
+ * hour is already the loudest thing on this interface - it colours the room borders,
+ * the HUD and the glass - so the frame is the same accent rather than a sixth colour
  * nobody has met. Under Stained Glass it reads `--drpg-glass-accent` and is
  * therefore the same hairline colour as the border of the room the token is
  * standing in, Eclipse included. Under Monokuma Legacy the accent is not derived
- * from the hour at all, so danganronpa.css declares the five hours for this ring
+ * from the hour at all, so danganronpa.css declares the five hours for this frame
  * itself - see the W-6 block there.
  *
  * WHAT IT IS NOT. Not a target ring: Foundry already draws one of those when a
@@ -27,10 +39,10 @@
  * the artwork, for the reason the Remnant ring gives for the same decision - the
  * picture is already saying what the thing IS.
  *
- * WHOSE TOKEN. The viewer's own character, and on a non-GM client anything they
- * own. A Gamemaster owns every token in the world, so `isOwner` alone would ring
- * the entire cast on their screen and mean nothing; a GM who has a character of
- * their own still gets that one.
+ * WHICH ONE IS BONE. The viewer's own character, and on a non-GM client anything
+ * they own. A Gamemaster owns every token in the world, so `isOwner` alone would
+ * whiten the entire cast on their screen and mean nothing; a GM who has a
+ * character of their own still gets that one.
  *
  * The mechanism is remnant-ring.mjs's, deliberately: the same hooks, the same
  * zoom guard, the same MutationObserver on the body's hour, and the same "rebuild
@@ -40,19 +52,24 @@
 
 import { debug, cssColour } from "./utils.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-/* The curtain's hairline, in the scene units this draws in. The ring is a seam
+/* The frame is the Remnant frame's, so its light is too: the three additive passes the
+   curtain's seams and the evidence frames share. */
+import { SEAM_GLOW } from "./motion.mjs";
+/* The curtain's hairline, in the scene units this draws in. The frame is a seam
    like the room border it stands inside, so it takes the same number from the
    same place rather than a second copy of the formula. */
 import { seamWidth } from "./fog.mjs";
 
 const RING_NAME = "drpgOwnRing";
-/* The seam's light, told apart from the seam: anything measuring "the ring" by
+/* The seam's light, told apart from the seam: anything measuring "the frame" by
    taking the first child would measure the bloom instead, which is a stroke two
    to three times wider under a blur. Same split as the Remnant ring's. */
 const RING_GLOW_NAME = "drpgOwnRingGlow";
 
 /** The token the ring's colour falls back to when the hour has not been written yet. */
 const FALLBACK = 0xffd38f;   // the afternoon gold, which is what the sheets default to
+/** Bone, if the sheet has not declared it yet: Stained Glass's value. */
+const BONE_FALLBACK = 0xf2eee6;
 
 /** The zoom the rings were last struck at - see the `canvasPan` guard below. */
 let ringZoom = 0;
@@ -77,7 +94,7 @@ export function registerOwnRing() {
        The hairline is drawn in scene units, so without this it would fatten as you
        zoom in and vanish as you zoom out. A fifth of a zoom step, never on a plain
        pan - the same guard `rezoomRoomOutline` and the Remnant rings use. Legacy's
-       ring is a whole pixel cell of the token's own grid and holds still, so it is
+       frame is a whole pixel cell of the token's own grid and holds still, so it is
        not re-struck at all. */
     Hooks.on("canvasPan", () => {
         if (!glassOn()) return;
@@ -106,8 +123,8 @@ export function registerOwnRing() {
     });
 
     /* Ownership is not a refresh. A character handed to a player mid-session, or a
-       player's own token dropped on the scene by the GM, changes who this ring belongs
-       to without moving anything.
+       player's own token dropped on the scene by the GM, changes which frame its
+       tokens wear without moving anything.
 
        ONLY ON AN OWNERSHIP CHANGE, and only that actor's tokens. `updateActor` is a
        noisy hook - a Daggerheart roll writes the actor several times - and repainting
@@ -134,7 +151,7 @@ function repaintAll() {
  *
  * The assigned character first, because that is the one a player is playing even
  * on a client that owns several. Then ownership, and only off the GM's screen: a
- * GM owns the whole cast, so the ring would be on every token and say nothing.
+ * GM owns the whole cast, so every token would be bone and none would say anything.
  */
 function isMine(token) {
     const actor = token?.actor;
@@ -142,6 +159,20 @@ function isMine(token) {
     const mine = game.user?.character;
     if (mine && actor.id === mine.id) return true;
     return !game.user?.isGM && actor.isOwner === true;
+}
+
+/**
+ * Whose frame this token wears: "mine" (bone), "student" (the hour) or none.
+ *
+ * `hasPlayerOwner` is Foundry's own "some non-GM user owns this", and every client
+ * holds the ownership table, so a player's screen answers it for the tokens of
+ * people they are not.
+ */
+function frameOf(token) {
+    const actor = token?.actor;
+    if (!actor || actor.type !== "character") return null;
+    if (isMine(token)) return "mine";
+    return actor.hasPlayerOwner ? "student" : null;
 }
 
 /**
@@ -158,16 +189,16 @@ function hourColour() {
 }
 
 /**
- * The ring's two pieces, made once and kept.
+ * The frame's two pieces, made once and kept.
  *
  * Both are cleared and redrawn on every refresh; what is NOT rebuilt is the
  * container, the blend mode and the filter, none of which a token taking a step
  * has any reason to allocate again.
  *
- * AT INDEX 0, so the ring sits under everything else this module puts on a token
+ * AT INDEX 0, so the frame sits under everything else this module puts on a token
  * and under Foundry's own bars and border. The artwork itself is not a child of
  * the token any more - since v12 the sprite lives in the primary group - so "under
- * the token" is a statement about the token's own overlay, and the ring is drawn
+ * the token" is a statement about the token's own overlay, and the frame is drawn
  * at the edge of the square rather than across it for exactly that reason.
  */
 function ringParts(token) {
@@ -185,17 +216,18 @@ function ringParts(token) {
 }
 
 /**
- * Draw, update or remove one token's ring.
+ * Draw, update or remove one token's frame.
  *
  * Everything is rebuilt each refresh rather than cached: a token that changes size
- * or owner mid-scene would otherwise keep a ring drawn for what it used to be.
+ * or owner mid-scene would otherwise keep a frame drawn for what it used to be.
  */
 function paint(token) {
     try {
         if (!token?.document) return;
         const existing = token[RING_NAME];
+        const whose = frameOf(token);
 
-        if (!isMine(token)) {
+        if (!whose) {
             if (existing) {
                 existing.destroy({ children: true });
                 token[RING_NAME] = null;
@@ -203,9 +235,9 @@ function paint(token) {
             return;
         }
 
-        /* A token the viewer cannot see must not be ringed into existence. It is
-           their own token, so this is not a leak - but a ring floating over the fog
-           where a hidden token stands is a drawing of something that is not there. */
+        /* A token the viewer cannot see must not be framed into existence. For somebody
+           else's token that WOULD be a leak - a frame over the fog where a student stands -
+           and for their own it is a drawing of something that is not there. */
         if (!token.visible) {
             if (existing) existing.visible = false;
             return;
@@ -218,58 +250,59 @@ function paint(token) {
 
         const w = Math.round(token.w ?? token.document.width * (canvas.grid?.size ?? 100));
         const h = Math.round(token.h ?? token.document.height * (canvas.grid?.size ?? 100));
-        const colour = hourColour();
-        const cx = w / 2;
-        const cy = h / 2;
+        const colour = whose === "mine" ? cssColour("--drpg-bone", BONE_FALLBACK) : hourColour();
 
         if (!glassOn()) {
-            /* MONOKUMA LEGACY: a hard ring on integer coordinates, no bloom - the same
-               pixel language the Remnant frame speaks, and the reason that frame is not
-               antialiased either.
+            /* MONOKUMA LEGACY: the Remnant frame to the pixel - four filled bars on
+               integer coordinates, one cell of the token's 12-cell grid thick, no bloom.
 
-               HALF A CELL, NOT A WHOLE ONE, and that was worth looking at: the Remnant
-               frame is a full cell of the token's 12-cell grid because it is a FRAME
-               around the edge of a square, where the only thing inside it is a glyph.
-               A circle at the same weight lies across the face - seen on Player A at
-               8x on 20.09, the ring covered the outer third of the portrait. Half a
-               cell reads as a ring and leaves the artwork alone. */
-            halo.visible = false;
-            const cell = Math.max(1, Math.round(Math.min(w, h) / 24));
-            /* AT THE FOOTPRINT'S EDGE. The token's artwork has not been a child of the
+               AT THE FOOTPRINT'S EDGE. The token's artwork has not been a child of the
                token object since v12 - the sprite lives in the primary group - so
                anything this file draws is ABOVE the picture whatever order it is added
-               in. A ring that hugs the edge of the square frames the token instead of
-               crossing it, which is the same answer without a second display object in
-               another group to keep in step with the token's every move. */
-            const r = Math.round(Math.min(w, h) / 2) - Math.ceil(cell / 2);
-            if (r <= 0) return;
-            core.lineStyle({ width: cell, color: colour, alpha: 0.95, alignment: 0.5 });
-            core.drawCircle(Math.round(cx), Math.round(cy), r);
+               in. A frame on the edge of the square frames the token instead of
+               crossing it; under the isometric view that edge is the floor under the
+               student's feet. */
+            halo.visible = false;
+            const t = Math.max(1, Math.round(Math.min(w, h) / 12));
+            core.beginFill(colour, 0.95);
+            core.drawRect(0, 0, w, t);
+            core.drawRect(0, h - t, w, t);
+            core.drawRect(0, t, t, h - 2 * t);
+            core.drawRect(w - t, t, t, h - 2 * t);
+            core.endFill();
             return;
         }
 
-        /* STAINED GLASS: the curtain's hairline, and a bloom under an additive blend -
-           the seam and its light, which is what every other edge in this theme is. The
-           radius sits half a hairline inside the square so the stroke cannot spill over
-           the token's own footprint at any zoom. */
-        const line = seamWidth();
-        const r = Math.min(w, h) / 2 - line / 2;
-        if (r <= 0) return;
-
+        /* STAINED GLASS: the Remnant frame's seam - the curtain's hairline for the core,
+           three additive passes of the same rectangle for its light and a blur six times
+           the core in screen pixels. Every pass traces the rectangle the core traces, inset
+           by half the CORE width, so the light straddles the line. */
+        const seam = seamWidth();
+        const rect = [seam / 2, seam / 2, Math.max(1, w - seam), Math.max(1, h - seam)];
         halo.visible = true;
-        halo.lineStyle({ width: line * 3, color: colour, alpha: 0.28, alignment: 0.5 });
-        halo.drawCircle(cx, cy, r);
-        core.lineStyle({ width: line, color: colour, alpha: 0.9, alignment: 0.5 });
-        core.drawCircle(cx, cy, r);
+        core.lineStyle({ width: seam, color: colour, alpha: 1, cap: "square", join: "miter", miterLimit: 2 });
+        core.drawRect(...rect);
+        for (const [k, alpha] of SEAM_GLOW) {
+            halo.lineStyle({ width: seam * k, color: colour, alpha, cap: "round", join: "round" });
+            halo.drawRect(...rect);
+        }
+        const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
+        if (Blur) {
+            // Kept and retuned, not rebuilt: `refreshToken` fires on every step a token takes.
+            let filter = halo.filters?.[0];
+            if (!(filter instanceof Blur)) { filter = new Blur(Math.max(6, seam * 6), 3); halo.filters = [filter]; }
+            else filter.blur = Math.max(6, seam * 6);
+            filter.padding = seam * 14;
+        }
     } catch (err) {
-        debug("Could not paint an own-token ring", err);
+        debug("Could not paint a student's frame", err);
     }
 }
 
 /**
- * What the rings think they are doing, for the console.
+ * What the frames think they are doing, for the console.
  *
- * The ring is drawn per client off a DOM colour and an ownership test, so "it is
+ * The frame is drawn per client off a DOM colour and an ownership test, so "it is
  * not there" has three different causes and none of them log anything. This is the
  * one question that separates them.
  */
@@ -280,6 +313,7 @@ export function diagnoseOwnRings() {
             token: token.document?.name ?? "?",
             actor: token.actor?.name ?? null,
             mine: isMine(token),
+            frame: frameOf(token),
             visible: Boolean(token.visible),
             ring: Boolean(token[RING_NAME] && !token[RING_NAME].destroyed),
             showing: Boolean(token[RING_NAME]?.visible)
