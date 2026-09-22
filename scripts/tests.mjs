@@ -1126,7 +1126,7 @@ const REGRESSIONS = [
         }
         ok(openers.length >= 15, `only ${openers.length} standing windows were found`);
 
-        const wide = [], refused = [];
+        const wide = [], refused = [], unplaced = [];
         let measured = 0;
         for (const [file, name] of openers) {
             const before = new Set(foundry.applications.instances.keys());
@@ -1149,6 +1149,12 @@ const REGRESSIONS = [
                 const el = app.element;
                 if (el?.isConnected) {
                     measured++;
+                    /* AND IT WAS PLACED. An ApplicationV2 writes its left and top once its
+                       render has finished; a render that throws never gets there, and the
+                       window sits at 0,0 and cannot be dragged. This loop opened the Item
+                       tables window in exactly that state from 1.2.44 to 1.2.50 and counted
+                       it as measured, because the opener's rejection is swallowed above. */
+                    if (!el.style.left || !el.style.top) unplaced.push(name);
                     if (el.offsetWidth > window.innerWidth) {
                         wide.push(`${name} is ${el.offsetWidth}px wide on a `
                             + `${window.innerWidth}px screen`);
@@ -1185,6 +1191,7 @@ const REGRESSIONS = [
            a width only where there is layout. */
         needs(measured > 0, `no standing window would open here (${openers.length} found, ${measured} measured): this needs a browser that lays out`);
         ok(measured >= 10, `only ${measured} windows actually opened - this measured nothing`);
+        ok(!unplaced.length, `these windows opened without a position - their render threw: ${unplaced.join(", ")}`);
         ok(!wide.length, `these do not fit the screen: ${wide.join("; ")}`);
     }],
 
@@ -6525,11 +6532,13 @@ const INVARIANTS = [
     ["R108 - what the table saw on 1.2.50 stays fixed", async () => {
         /*
          * Dawid's second look on 22.09, on Forge. Two of these were errors a live world
-         * threw and no test had opened the window that throws: the Item tables window,
-         * whose render had died on a name its split-out helper never looked up since
-         * 1.2.44, and the project token sync writing a world setting before `ready`.
-         * The window is OPENED here, because a source check would have passed the
-         * broken file - it named the button, just in the wrong function.
+         * threw: the Item tables window, whose render had died since 1.2.44 on a name its
+         * split-out helper never looked up, and the project token sync writing a world
+         * setting before `ready`. R12 and the accessibility sweep DID open that window on
+         * every run - and swallowed the render's rejection and never asked where the
+         * window was, so a window pinned at 0,0 counted as measured. This asks. (R12 now
+         * asks it of every standing window.) A source check alone would have passed the
+         * broken file: it named the button, just in the wrong function.
          */
         const sources = new Map(await otherSources());
         const src = name => stripComments(sources.get(name) ?? "");
@@ -6571,12 +6580,14 @@ const INVARIANTS = [
         // The clock's button is on its line; the matrix names lie down; the track has notes.
         const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()))
             .replace(/\/\*[\s\S]*?\*\//g, " ");
-        ok(/\.drpg-gmp-standing > p \{[^}]*display: flex;[^}]*justify-content: center/.test(css),
+        ok(/\.drpg-gmp-advance \{[^}]*display: inline-flex/.test(css),
             "the Next time of day button is a block of its own again");
         const head = css.slice(css.indexOf(".drpg-viewer-head > span {"), css.indexOf(".drpg-viewer-tick {"));
         ok(head.length > 0 && !/writing-mode/.test(head), "the players' names stand on end again");
         ok(/fa-music/.test(src("hud.mjs")), "the track band has lost its notes");
-        ok(/function holdActionsTab\(/.test(src("sheet.mjs")) && /holdActionsTab\(app, element\)/.test(src("sheet.mjs")),
+        // The CALL, with its semicolon: `holdActionsTab(app, element)` alone also matches
+        // the definition's own signature, and passed with the call deleted.
+        ok(/function holdActionsTab\(/.test(src("sheet.mjs")) && /^\s*holdActionsTab\(app, element\);/m.test(src("sheet.mjs")),
             "nothing grows the glass sheet to hold its Actions tab");
 
         // Foundry's selection is the interface colour, not its own orange.
