@@ -762,6 +762,7 @@ function onRenderCharacterSheet(app, element, context, options) {
             growForCalls(app);
             fitActionTiles(element);
             watchTileFit(app, element);
+            holdActionsTab(app, element);
             tidySidebar(element);
             paintResourceBars(app, element);
             injectEquippedTools(app, element);
@@ -4430,6 +4431,57 @@ export function findDuplicateUltimates() {
  */
 const grown = new WeakSet();
 const SHEET_MIN_HEIGHT = SHEET_SIZE.minHeight;
+
+/**
+ * THE ACTIONS TAB FITS ITS WINDOW, MEASURED RATHER THAN PREDICTED (22.09).
+ *
+ * Under the glass the sheet's size is a statement - `SHEET_SIZE.glass` times the
+ * interface scale, see `scaleWindow` - and it has no handle to correct it with. The
+ * statement is right at 100 %, but not everything inside it scales with it: type has a
+ * floor, a masked icon has a floor, borders and gaps do not shrink. At 80 % on a live
+ * client (Dawid's, on 1.2.50) the Actions tab wanted 654 px and was given 642, so the
+ * last row of Hope Calls stood under the frame and the tab scrolled by twelve pixels
+ * ("pozwalaja na delikatny scroll").
+ *
+ * So the window grows by what the tab is short, once it is drawn and whenever the tab is
+ * opened again - never past the screen, where a sheet that scrolls is still better than
+ * one whose bottom is off the display, and never smaller. Stained Glass only: Monokuma
+ * Legacy keeps its handle, and re-asserting a height on every render would undo a
+ * deliberate resize (see `growForCalls`).
+ */
+function holdActionsTab(app, element) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root || typeof app?.setPosition !== "function") return;
+    if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
+
+    const fit = () => {
+        try {
+            if (!root.isConnected) return;
+            const tab = root.querySelector('section.tab[data-tab="features"].active');
+            if (!tab) return;
+            const short = tab.scrollHeight - tab.clientHeight;
+            if (short <= 0) return;
+            const now = root.getBoundingClientRect().height;
+            const room = Math.max(0, window.innerHeight - 48);
+            const want = Math.min(Math.ceil(now + short + 2), room);
+            if (want > now + 0.5) app.setPosition({ height: want });
+        } catch {
+            // Cosmetic. A tab that scrolls still works.
+        }
+    };
+    /* After `scaleWindow` has written the scaled size (it runs on the same render, from a
+       later hook) and after the tiles' own fit has settled their text; and once more when
+       the faces have loaded, which is when a line can still wrap. */
+    const later = () => requestAnimationFrame(() => requestAnimationFrame(fit));
+    later();
+    document.fonts?.ready?.then(later);
+
+    if (root.dataset.drpgHoldActions) return;
+    root.dataset.drpgHoldActions = "1";
+    root.addEventListener("click", ev => {
+        if (ev.target.closest?.('nav [data-tab="features"]')) later();
+    });
+}
 
 function growForCalls(app) {
     try {
