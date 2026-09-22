@@ -6600,6 +6600,10 @@ const INVARIANTS = [
         ok(/function holdActionsTab\(/.test(src("sheet.mjs")) && /^\s*holdActionsTab\(app, element\);/m.test(src("sheet.mjs")),
             "nothing grows the glass sheet to hold its Actions tab");
 
+        // The pause veil starts at the top of the screen: #pause is a <figure>, with a margin.
+        equal(getComputedStyle(document.getElementById("pause")).marginTop, "0px",
+            "the pause overlay is pushed down the screen by its own margin again");
+
         // Foundry's selection is the interface colour, not its own orange.
         const { hourColour } = await import("./own-ring.mjs");
         equal(CONFIG.Canvas.dispositionColors.CONTROLLED, hourColour(),

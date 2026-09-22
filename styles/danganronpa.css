@@ -2726,6 +2726,10 @@ body.drpg-pixel-font .character-sidebar-sheet .bar-label {
     background: none;
     top: 0;
     height: 100vh;
+    /* It is a <figure>, and a figure has a margin: 16 px above and below on Foundry
+       v14, which put the whole overlay 16 px down the screen - a strip of unveiled map
+       across the top ("pauza nie pokrywa calego ekranu", Dawid, on 1.2.51). */
+    margin: 0;
 }
 
 /* The spinning logo. */
