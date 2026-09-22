@@ -464,6 +464,9 @@ const PIN = { rail: null };
 /* `PAD_SIDE` from the partition, which lives inside `curtainShapes`. One number, stated
    twice because the two are in different scopes; if it ever moves, both move. */
 const COLUMN_PAD = 12;
+/* The status strip and the Projects tray, at 100 % type: the width they keep, and the width
+   they take where the desk has room (see `pinRightColumn`). */
+const COLUMN_W = [360, 400];
 function pinRightColumn() {
   const col = document.getElementById("ui-right-column-1");
   if (!col) return;
@@ -538,10 +541,23 @@ function pinRightColumn() {
      left of it. Measured 16.09, five consecutive passes at 1280, 1366, 1440 and 1920:
      the width and the pin both settle on the first one and do not move again. The
      Despair rail is centred on the screen and does not read the column at all. */
-  const own = col.getBoundingClientRect().width;
   const dsp = document.getElementById("drpg-despair");
   const dspR = dsp && dsp.offsetWidth ? dsp.getBoundingClientRect().right : null;
-  const room = dspR != null && own ? Math.round(innerWidth - dspR - 2 * 12 - own) : Infinity;
+  /* WIDER, AND TOWARD THE TILES (Dawid, 22.09: "poszerzmy troche panel projects i sasiadujacy
+     nad nim panel ... raczej w prawo w strone kafelkow foundry"). To the right, the column's
+     own margin was the only room left: stained-glass.css takes it from 22 px to 6, which puts
+     the strip's pane 6 px short of the rail's glass instead of 23 (measured 22.09 at 1920 x 1080:
+     the pane ends at 1793.6, the rail's strip begins at 1800). The rest of
+     the width comes from the left, and only where the Despair rail leaves it: the strip and
+     the tray ask for 400 px on the type scale and settle for no less than the 360 they had,
+     so a narrow desk - where the two already touch - keeps exactly the column it had. */
+  const scale = Number.parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-scale")) || 1;
+  const gap = Number.parseFloat(getComputedStyle(col).marginRight) || 0;
+  const [narrowW, wideW] = COLUMN_W.map(w => Math.round(w * scale));
+  const fitW = dspR != null ? Math.floor(innerWidth - dspR - 2 * 12 - (base + slack) - gap) : wideW;
+  col.style.setProperty("--drpg-column-w", Math.max(narrowW, Math.min(wideW, fitW)) + "px");
+  const own = col.getBoundingClientRect().width;
+  const room = dspR != null && own ? Math.round(innerWidth - dspR - 2 * 12 - own - gap) : Infinity;
   const right = Math.max(base, Math.min(base + slack, room));
   if (col.dataset.drpgPinned === "1" && PIN.rail === right) return;
   PIN.rail = right;
@@ -621,6 +637,7 @@ function unpinRightColumn() {
   if (!col || col.dataset.drpgPinned !== "1") return;
   delete col.dataset.drpgPinned; PIN.rail = null;
   for (const k of ["position", "top", "right", "left", "bottom", "height", "width", "zIndex", "pointerEvents"]) col.style[k] = "";
+  col.style.removeProperty("--drpg-column-w");
 }
 /* Measuring turns the rotation off for one style pass, and the blocks carry an 840 ms
    transition on `transform` - so without this every measurement animated every block from
