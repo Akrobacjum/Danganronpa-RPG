@@ -4218,6 +4218,11 @@ export const SFX_EVENTS = {
         hint: "Somebody takes the trial floor. Heard by the whole table.",
         category: "incident"
     },
+    rebuttal: {
+        label: "Rebuttal",
+        hint: "The rebuttal starts: the one who objected and the one they named, and nobody else, until the floor opens again. Heard by the whole table.",
+        category: "incident"
+    },
     voteOpen: {
         label: "The vote opens",
         hint: "Heard by the whole table.",

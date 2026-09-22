@@ -792,13 +792,19 @@ async function onWorldSettingChanged(setting) {
 }
 
 /**
- * The Nonstop Debate opening, and an Objection taking the floor.
+ * The Nonstop Debate opening, an Objection taking the floor, and the rebuttal after it.
  *
  * `FLOOR_MODES.debate` is the floor open to everybody, which is what the HUD
  * calls it and what `openDebate()` produces. So the debate's sound is the
  * floor going from absent to present, not the mode becoming `debate`:
  * returning to debate after a rebuttal is the same debate carrying on, and it
  * would otherwise announce itself twice a minute.
+ *
+ * THE REBUTTAL HAS ITS OWN (Dawid, 22.09: "osobny sound effect na start
+ * rebuttal"). It is the mode becoming `rebuttal` from anything else - after an
+ * Objection's minute, when the floor hands itself on, or when the GM opens one -
+ * and not the rebuttal carrying on. Every client reads the same floor, so the
+ * whole table hears it, as it hears the Objection.
  */
 async function onFloorChanged() {
     const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
@@ -810,6 +816,9 @@ async function onFloorChanged() {
     if (open && !worldWas.floorOpen) playSfx("debateOpen");
     if (mode === FLOOR_MODES.objection && worldWas.floorMode !== FLOOR_MODES.objection) {
         playSfx("objection");
+    }
+    if (mode === FLOOR_MODES.rebuttal && worldWas.floorMode !== FLOOR_MODES.rebuttal) {
+        playSfx("rebuttal");
     }
 
     worldWas.floorOpen = open;

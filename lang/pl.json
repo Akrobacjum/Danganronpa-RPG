@@ -4328,6 +4328,10 @@
           "label": "Objection",
           "hint": "Ktoś przejmuje głos w Class Trial. Słyszy cały stół."
         },
+        "rebuttal": {
+          "label": "Rebuttal",
+          "hint": "Zaczyna się Rebuttal: mówią tylko autor Objection i osoba, którą wskazał, dopóki głos nie wróci do wszystkich. Słyszy cały stół."
+        },
         "voteOpen": {
           "label": "Głosowanie się otwiera",
           "hint": "Słyszy cały stół."
