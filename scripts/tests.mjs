@@ -6597,6 +6597,45 @@ const INVARIANTS = [
         } finally {
             await app?.close();
         }
+
+        /* The boxes are GitHub's alert syntax, so one file reads right in both places: a
+           `> [!KIND]` quote becomes a titled box of that kind, and any other quote stays one. */
+        const { markdownToHtml } = await import("./handbooks.mjs");
+        const probe = document.createElement("div");
+        probe.innerHTML = markdownToHtml("> [!WARNING]\n> Costs **1 Sanity**.\n\n> Just a quote.\n");
+        const box = probe.querySelector("aside.drpg-callout.drpg-callout-warning");
+        ok(box, "a [!WARNING] quote did not become a warning box");
+        ok(box && !/\[!WARNING\]/.test(box.textContent), "the box still shows its [!WARNING] marker");
+        ok(box?.querySelector(".drpg-callout-title")?.textContent.includes(game.i18n.localize("DRPG.Handbooks.callout.warning")),
+            "the box has no title in the module's language");
+        ok(box?.querySelector("strong"), "bold inside a box was lost");
+        ok(probe.querySelector("blockquote"), "an ordinary quote was turned into a box");
+    }],
+
+    ["R112 - the curtain holds on a narrow desk, and the right column is wider", async () => {
+        /*
+         * 22.09: swept on a fresh load at 22 sizes, the curtain's self-check failed at every
+         * width from 1152 to 1400 - a tray that joined the Despair rail's column, a stacked
+         * tray cut as a loose box, a 2 px sliver between two panes - and the rail and the
+         * status strip stood on each other below 1224. Each fix is held by its source here;
+         * the partition at this window's own size is "the curtain cuts a clean partition".
+         */
+        const glass = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(r => r.text()));
+        ok(/cols\.find\(c => overOf\(c, b\) > 0\)\s*\?\?/.test(glass),
+            "a block joins the first column near it again, not the one it stacks under");
+        ok(/b\.w > W \* 0\.5 \|\| inStack\(b\)/.test(glass), "a narrow block in the stack is cut as a loose box again");
+        ok(/free - 2 \* PAD_SIDE < FILL_MIN \? Math\.max\(0, free \/ 2\)/.test(glass),
+            "two close panes stop a pixel short of each other again");
+        equal(BREAKPOINTS.narrow, 1224, "the desk layout is back at widths where the rail and the strip overlap");
+
+        // Wider toward the tiles: the column's margin, and the width it asks for where it fits.
+        if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
+        const col = document.getElementById("ui-right-column-1");
+        needs(col?.dataset.drpgPinned === "1", "the right column is not pinned here (a stacked screen or no layout)");
+        equal(getComputedStyle(col).marginRight, "6px", "the right column keeps its old 22 px off the tiles");
+        const scale = Number.parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-scale")) || 1;
+        const width = document.getElementById("drpg-player-status")?.offsetWidth ?? 0;
+        ok(width >= Math.round(360 * scale) - 1, `the status strip is narrower than it was (${width} px)`);
     }],
 
     ["R110 - the gaps the README survey found stay closed", async () => {
