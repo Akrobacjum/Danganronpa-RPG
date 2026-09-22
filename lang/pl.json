@@ -958,10 +958,17 @@
       "launcherTooltip": "Podręczniki",
       "brochure": "Ulotka ucznia",
       "player": "Podręcznik gracza",
-      "gm": "Podręcznik Mistrza Gry",
+      "gm": "Podręcznik GM",
       "contents": "Spis treści",
       "loading": "Wczytywanie...",
-      "failed": "Nie udało się wczytać podręcznika. Spróbuj za chwilę."
+      "failed": "Nie udało się wczytać podręcznika. Spróbuj za chwilę.",
+      "callout": {
+        "note": "Uwaga",
+        "tip": "Wskazówka",
+        "important": "Ważne",
+        "warning": "Ostrzeżenie",
+        "caution": "Ostrożnie"
+      }
     },
     "Look": {
       "language": "Język",

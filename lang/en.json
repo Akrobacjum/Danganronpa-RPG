@@ -972,7 +972,14 @@
       "gm": "GM Handbook",
       "contents": "Contents",
       "loading": "Loading...",
-      "failed": "This handbook could not be loaded. Try again in a moment."
+      "failed": "This handbook could not be loaded. Try again in a moment.",
+      "callout": {
+        "note": "Note",
+        "tip": "Tip",
+        "important": "Important",
+        "warning": "Warning",
+        "caution": "Caution"
+      }
     },
     "Look": {
       "language": "Language",

@@ -12732,6 +12732,14 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
     opacity: 0.8;
 }
 
+/* Under Monokuma Legacy the pixel face runs the contents list to three and four lines an
+   entry ("1. Installation and dependencies" took four at 1920 x 1080); smaller there, and
+   only there - Stained Glass sets it in the prose face, which fits. */
+body:not(.drpg-theme-stained-glass) .drpg-handbook-toc {
+    font-size: 0.8em;
+    line-height: 1.3;
+}
+
 /* `position: relative` makes the text the headings' offset parent, which is
    what the contents list scrolls by (`fillContents`). Selectable, unlike most
    of Foundry: a rule is something people copy into a message. */
@@ -12744,32 +12752,127 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
     user-select: text;
 }
 
+/* The type, the way the books ask to be read (Dawid, 22.09: "podkreslenia, boxy
+   na informacje, boldy, tabele"): a rule under each section, a short red bar under
+   each subsection, bold that stands out of the prose, one accent underline for
+   the condition a rule turns on, and boxes and tables that read as such. */
 .drpg-handbook-text h1 { font-size: 1.6em; margin: 0.2em 0 0.4em; }
-.drpg-handbook-text h2 { font-size: 1.3em; margin: 1.4em 0 0.4em; }
-.drpg-handbook-text h3 { font-size: 1.1em; margin: 1.1em 0 0.3em; }
+.drpg-handbook-text h2 {
+    font-size: 1.3em;
+    margin: 1.5em 0 0.5em;
+    padding-bottom: 4px;
+    border-bottom: 2px solid var(--drpg-line-strong);
+}
+.drpg-handbook-text h3 { font-size: 1.1em; margin: 1.2em 0 0.35em; }
+.drpg-handbook-text h3::after {
+    content: "";
+    display: block;
+    width: 2.5rem;
+    height: 2px;
+    margin-top: 3px;
+    background: var(--drpg-eye);
+}
 .drpg-handbook-text p,
 .drpg-handbook-text ul,
 .drpg-handbook-text ol { margin: 0.45em 0; }
+.drpg-handbook-text li + li { margin-top: 0.2em; }
+
+.drpg-handbook-text strong {
+    color: var(--drpg-gold-light);
+    font-weight: 700;
+}
+
+.drpg-handbook-text ins {
+    text-decoration: underline;
+    text-decoration-color: var(--drpg-eye);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+    background: none;
+}
+
+.drpg-handbook-text code {
+    padding: 0 4px;
+    border-radius: 3px;
+    background: rgba(var(--drpg-bone-rgb), 0.08);
+    font-size: 0.9em;
+}
+
+.drpg-handbook-text hr {
+    margin: 1.2em 0;
+    border: 0;
+    border-top: 1px solid var(--drpg-line);
+}
+
+/* A plain quote, which the books hardly use; a box is below. */
+.drpg-handbook-text blockquote {
+    margin: 0.7em 0;
+    padding: 2px 12px;
+    border-left: 3px solid var(--drpg-line-strong);
+    font-style: italic;
+}
+
+.drpg-handbook-table {
+    max-width: 100%;
+    overflow-x: auto;
+    margin: 0.7em 0;
+}
 
 .drpg-handbook-text table {
     width: 100%;
-    margin: 0.6em 0;
+    margin: 0;
     border-collapse: collapse;
+    border: 1px solid var(--drpg-line-strong);
 }
 
 .drpg-handbook-text :is(th, td) {
-    padding: 4px 6px;
+    padding: 5px 8px;
     border: 1px solid var(--drpg-line);
     text-align: left;
     vertical-align: top;
 }
 
 .drpg-handbook-text th {
-    background: rgba(var(--drpg-bone-rgb), 0.08);
+    background: rgba(var(--drpg-bone-rgb), 0.13);
+    border-bottom: 2px solid var(--drpg-line-strong);
+    font-weight: 700;
+}
+
+.drpg-handbook-text tbody tr:nth-child(even) > td {
+    background: rgba(var(--drpg-bone-rgb), 0.045);
 }
 
 .drpg-handbook-text a {
     color: var(--drpg-eye);
+}
+
+/* THE FIVE BOXES. One colour each, fixed rather than taken from the theme's
+   accent, because the colour is what the kind means: blue a note, green a tip,
+   violet a rule people miss, amber a cost, red the irreversible. */
+.drpg-handbook-text .drpg-callout {
+    --drpg-callout-rgb: 78, 163, 221;
+    margin: 0.9em 0;
+    padding: 8px 12px 8px 14px;
+    border-left: 4px solid rgb(var(--drpg-callout-rgb));
+    border-radius: 0 4px 4px 0;
+    background: rgba(var(--drpg-callout-rgb), 0.11);
+}
+.drpg-handbook-text .drpg-callout-tip { --drpg-callout-rgb: 92, 190, 120; }
+.drpg-handbook-text .drpg-callout-important { --drpg-callout-rgb: 167, 139, 250; }
+.drpg-handbook-text .drpg-callout-warning { --drpg-callout-rgb: 232, 160, 48; }
+.drpg-handbook-text .drpg-callout-caution { --drpg-callout-rgb: 240, 72, 90; }
+
+.drpg-handbook-text .drpg-callout > :last-child { margin-bottom: 0; }
+
+.drpg-handbook-text .drpg-callout-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0 0 4px;
+    color: rgb(var(--drpg-callout-rgb));
+    font-weight: 700;
+    font-size: 0.85em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .drpg-handbook-text :is(h1, h2, h3) { line-height: 1.25; }

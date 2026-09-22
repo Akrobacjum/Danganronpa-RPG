@@ -3379,6 +3379,35 @@ body.drpg-theme-stained-glass .application.drpg-panel.drpg-handbook:not(.minimiz
 body.drpg-theme-stained-glass .application.drpg-panel.drpg-handbook:not(.minimized) .window-content {
     overflow: hidden;
 }
+/* A book needs two levels of heading, and the panel rule gives h2 and h3 one: the same 13 px
+   capitals. The section keeps them; a subsection reads as a title in the prose face with the
+   base sheet's short bar under it. Bold takes the time of day's accent here rather than gold. */
+body.drpg-theme-stained-glass .drpg-handbook-text h2 {
+    font-size: max(var(--drpg-sg-floor), calc(15px * var(--drpg-sg-scale)));
+    border-bottom-width: 2px;
+    padding-bottom: 4px;
+}
+body.drpg-theme-stained-glass .drpg-handbook-text h3 {
+    font-family: var(--drpg-font-prose);
+    font-size: max(var(--drpg-sg-floor), calc(18px * var(--drpg-sg-scale)));
+    text-transform: none;
+    letter-spacing: 0.02em;
+    color: var(--drpg-bone);
+    border-bottom: 0;
+}
+body.drpg-theme-stained-glass .drpg-handbook-text h3::after {
+    background: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass .drpg-handbook-text strong {
+    color: color-mix(in srgb, var(--drpg-glass-accent) 70%, white);
+}
+body.drpg-theme-stained-glass .drpg-handbook-text ins {
+    text-decoration-color: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass .drpg-handbook-text .drpg-callout-title {
+    font-family: var(--drpg-font-chrome);
+    font-weight: 400;
+}
 
 /* ---- 8. The Event panel sits under the Despair rail ------------------------------------- */
 body.drpg-theme-stained-glass #ui-top > #drpg-events,

@@ -54,6 +54,11 @@ export function handbookPath(id, lang = moduleLanguage()) {
 const rendered = new Map();
 
 /** One handbook as HTML: fetched and converted once per session and language. */
+/** The converter on its own, for the suite: Markdown in, the viewer's HTML out. */
+export function markdownToHtml(markdown) {
+    return toHtml(markdown);
+}
+
 export function handbookHtml(id, lang = moduleLanguage()) {
     const key = `${id}.${lang}`;
     if (!rendered.has(key)) {
@@ -71,9 +76,74 @@ export function handbookHtml(id, lang = moduleLanguage()) {
     return rendered.get(key);
 }
 
+/*
+ * THE BOXES ARE GITHUB'S ALERTS (Dawid, 22.09: "boxy na informacje").
+ * `> [!TIP]` on a line of its own opens one, on GitHub and here alike, so the
+ * files need no second syntax for the game. The keyword stays English in both
+ * languages - GitHub knows only these five - and the title the reader sees is
+ * the module's own, in the module's language.
+ */
+const CALLOUTS = {
+    NOTE: "fa-circle-info",
+    TIP: "fa-lightbulb",
+    IMPORTANT: "fa-circle-exclamation",
+    WARNING: "fa-triangle-exclamation",
+    CAUTION: "fa-hand"
+};
+const CALLOUT_MARK = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i;
+
+/** A blockquote that opens with `[!KIND]` becomes a titled box; any other stays a quote. */
+function calloutsIn(root) {
+    for (const quote of root.querySelectorAll("blockquote")) {
+        const first = quote.querySelector(":scope > p");
+        const lead = first?.firstChild;
+        if (lead?.nodeType !== Node.TEXT_NODE) continue;
+        const match = lead.textContent.match(CALLOUT_MARK);
+        if (!match) continue;
+        const kind = match[1].toUpperCase();
+        lead.textContent = lead.textContent.slice(match[0].length);
+        // showdown keeps the marker's line break as a `<br>` when the box goes on
+        // in the same paragraph; the title already stands on its own line.
+        if (!lead.textContent && first.firstChild === lead) lead.remove();
+        if (first.firstChild?.nodeName === "BR") first.firstChild.remove();
+        if (!first.textContent.trim() && !first.children.length) first.remove();
+
+        const box = document.createElement("aside");
+        box.className = `drpg-callout drpg-callout-${kind.toLowerCase()}`;
+        const title = document.createElement("p");
+        title.className = "drpg-callout-title";
+        const icon = document.createElement("i");
+        icon.className = `fa-solid ${CALLOUTS[kind]}`;
+        icon.setAttribute("inert", "");
+        title.append(icon, game.i18n.localize(`DRPG.Handbooks.callout.${kind.toLowerCase()}`));
+        box.append(title, ...quote.childNodes);
+        quote.replaceWith(box);
+    }
+}
+
+/*
+ * TWO QUOTES, NOT ONE. GitHub ends a quote at a blank line; showdown carries on into
+ * the next quote after it, so two boxes one under the other came out as one box with
+ * both texts in it (R111 caught it, 22.09). A comment on the blank line ends the quote
+ * for showdown too, and renders as nothing.
+ */
+function endQuotes(markdown) {
+    const lines = markdown.split(/\r?\n/);
+    const out = [];
+    for (let i = 0; i < lines.length; i++) {
+        out.push(lines[i]);
+        if (!/^\s*>/.test(lines[i])) continue;
+        let j = i + 1;
+        while (j < lines.length && !lines[j].trim()) j++;
+        if (j > i + 1 && j < lines.length && /^\s*>/.test(lines[j])) out.push("", "<!-- -->");
+    }
+    return out.join("\n");
+}
+
 function toHtml(markdown) {
     const Converter = globalThis.showdown?.Converter;
     if (!Converter) return `<pre>${foundry.utils.escapeHTML(markdown)}</pre>`;
+    markdown = endQuotes(markdown);
     const html = new Converter({
         tables: true,
         strikethrough: true,
@@ -92,6 +162,14 @@ function toHtml(markdown) {
     const template = document.createElement("template");
     template.innerHTML = html;
     for (const element of template.content.querySelectorAll("[id]")) element.removeAttribute("id");
+    calloutsIn(template.content);
+    // Wide tables scroll inside their own box rather than widening the text.
+    for (const table of template.content.querySelectorAll("table")) {
+        const wrap = document.createElement("div");
+        wrap.className = "drpg-handbook-table";
+        table.replaceWith(wrap);
+        wrap.append(table);
+    }
     return template.innerHTML;
 }
 
