@@ -3246,18 +3246,18 @@ body.drpg-theme-stained-glass #drpg-popups .drpg-popup {
    level down. It stretches instead: title plate on top, body plate over everything
    below it, one notice on one pane.
 
-   `align-content` and NOT a flex or grid context on the body, which is the point of
-   the line. The text wants to sit in the middle of the plate rather than under its top
-   edge, and every obvious way to do that - `display: flex` with `justify-content`,
-   `display: grid` with `align-content` - changes the formatting context the prose is
-   in, and adjacent paragraph margins stop collapsing: a two-paragraph notice would
-   silently gain a line of space it does not have today. `align-content` on a BLOCK
-   container (Chromium 123, Firefox 125, Safari 17.6) centres the flow without touching
-   it. Where it is not supported it is ignored and the text sits at the top of a plate
-   that still covers the pane, which is the part that matters. */
+   THE TEXT STARTS UNDER THE TITLE (22.09). It was centred in the plate, so in a card
+   grown to the whole tile a short notice floated in the middle of it ("powiadomienia
+   wyswietlaja sie z duzym marginesem od gory", Dawid, on 1.2.50). Measured upright at
+   2075 x 1320 on a three-line Eclipse notice: its first line stood 25 px under the title
+   bar, and 12 px now - the plate's own padding, as at its sides - with the free height
+   under the text. `align-content: start`, stated rather than left to the default, so
+   the choice is on the page: the plate still covers the pane, the words begin at its top.
+   Still a BLOCK container, not a flex or grid one: those change the formatting
+   context the prose is in, and adjacent paragraph margins would stop collapsing. */
 body.drpg-theme-stained-glass #drpg-popups .drpg-popup-body {
     flex: 1 1 auto;
-    align-content: center;
+    align-content: start;
 }
 
 /* ---- 4. The Look window fits its rows ---------------------------------------------------- */
