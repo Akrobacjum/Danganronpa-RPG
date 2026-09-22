@@ -9,7 +9,8 @@
  * loot (they persist until used in a crime and removed).
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon }
+import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon,
+    BEDROOM_KEY_FLAG }
     from "./config.mjs";
 import { whisperToOwner, log, warn, error } from "./utils.mjs";
 
@@ -163,6 +164,13 @@ export function preservedFlags(item) {
     // sheet brand new - the laundry service this function exists to stop.
     const worn = wearOf(item);
     if (worn) flags[ITEM_FLAGS.wear] = worn;
+
+    /* AND A KEY STILL OPENS ITS DOOR (22.09). The room a key opens is a flag on the key, and
+       this list never carried it: a key Palmed off somebody, lifted from a stash or taken
+       from a body arrived as a "Room Key" that opened nothing. Only "Give room key" made a
+       working copy, because it writes the flag itself. */
+    const keyRoom = item?.getFlag(MODULE_ID, BEDROOM_KEY_FLAG);
+    if (keyRoom) flags[BEDROOM_KEY_FLAG] = keyRoom;
 
     return flags;
 }
