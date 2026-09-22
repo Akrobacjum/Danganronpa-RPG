@@ -6520,6 +6520,64 @@ const INVARIANTS = [
         }
     }],
 
+    ["R108 - what the table saw on 1.2.50 stays fixed", async () => {
+        /*
+         * Dawid's second look on 22.09, on Forge. Two of these were errors a live world
+         * threw and no test had opened the window that throws: the Item tables window,
+         * whose render had died on a name its split-out helper never looked up since
+         * 1.2.44, and the project token sync writing a world setting before `ready`.
+         * The window is OPENED here, because a source check would have passed the
+         * broken file - it named the button, just in the wrong function.
+         */
+        const sources = new Map(await otherSources());
+        const src = name => stripComments(sources.get(name) ?? "");
+
+        // The Item tables window renders, so Foundry places it and it can be dragged.
+        const { openItemTables } = await import("./tables.mjs");
+        const tablesApp = () => [...foundry.applications.instances.values()]
+            .find(a => a.element?.classList?.contains("drpg-window-tables"));
+        const opening = openItemTables();   // held, not awaited - it resolves on close
+        try {
+            await until(() => tablesApp()?.element?.isConnected);
+            await settle();
+            const el = tablesApp()?.element;
+            ok(el, "the Item tables window did not open");
+            ok(el?.style.left && el?.style.top,
+                "the Item tables window has no position - its render threw, which pins it to 0,0");
+        } finally {
+            try { await tablesApp()?.close(); } catch { /* already gone */ }
+            try { await opening; } catch { /* closed rather than answered */ }
+            await settle();
+        }
+        const heading = src("tables.mjs");
+        const at = heading.indexOf("function wirePaneHeading(");
+        const body = heading.slice(at, heading.indexOf("\n}", at));
+        ok(/const renameButton = pane\.querySelector/.test(body) && /const deleteButton = pane\.querySelector/.test(body),
+            "the table heading's buttons are used where nothing looks them up");
+
+        // The project tokens wait for ready before they write.
+        const map = src("projects-map.mjs");
+        const sync = map.slice(map.indexOf("export async function syncProjectTokens"),
+            map.indexOf("export async function syncProjectTokens") + 900);
+        ok(/if \(!game\.ready\)/.test(sync), "the project sync writes a world setting before ready again");
+
+        // A project's icon fits its floor diamond under the isometric view.
+        const { PROJECT_TOKEN } = await import("./config.mjs");
+        ok(PROJECT_TOKEN.isoScale > 0 && PROJECT_TOKEN.isoScale < 0.514,
+            `the project icon at ${PROJECT_TOKEN.isoScale} stands out of its frame (it fits below 0.514)`);
+
+        // The clock's button is on its line; the matrix names lie down; the track has notes.
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()))
+            .replace(/\/\*[\s\S]*?\*\//g, " ");
+        ok(/\.drpg-gmp-standing > p \{[^}]*display: flex;[^}]*justify-content: center/.test(css),
+            "the Next time of day button is a block of its own again");
+        const head = css.slice(css.indexOf(".drpg-viewer-head > span {"), css.indexOf(".drpg-viewer-tick {"));
+        ok(head.length > 0 && !/writing-mode/.test(head), "the players' names stand on end again");
+        ok(/fa-music/.test(src("hud.mjs")), "the track band has lost its notes");
+        ok(/function holdActionsTab\(/.test(src("sheet.mjs")) && /holdActionsTab\(app, element\)/.test(src("sheet.mjs")),
+            "nothing grows the glass sheet to hold its Actions tab");
+    }],
+
     ["R107 - the visual round of 22.09 stays put", async () => {
         /*
          * Dawid's list before the README screenshots, 22.09. Each of these was measured on
