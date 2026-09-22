@@ -6538,6 +6538,67 @@ const INVARIANTS = [
         }
     }],
 
+    ["R111 - the book in the corner opens the handbooks", async () => {
+        /*
+         * 22.09 (Dawid): a third corner button, the smallest, at the wall and level with
+         * the seam between the chat and settings circles. It opens the Student Brochure
+         * and the Player Handbook for everybody and the GM Handbook for a GM.
+         */
+        const { booksFor, handbookHtml, openHandbooks } = await import("./handbooks.mjs");
+        equal(booksFor({ isGM: false }).map(b => b.id).join(), "player-brochure,player-handbook",
+            "a player is offered the wrong handbooks");
+        equal(booksFor({ isGM: true }).length, 3, "a GM is missing a handbook");
+
+        const book = document.getElementById("drpg-book-launcher");
+        ok(book, "the handbooks button is not on the screen");
+        needs(book?.offsetWidth > 0, "no layout here: where the button stands needs a browser");
+
+        /* Where it stands, read from the resolved insets rather than the boxes: under
+           Stained Glass the three are turned with their pane, and a turned box is wider
+           than the circle in it. */
+        const px = (el, prop) => Number.parseFloat(getComputedStyle(el)[prop]);
+        const chat = document.getElementById("drpg-messenger-launcher");
+        const gear = document.getElementById("drpg-sound-launcher");
+        const lane = px(chat, "right") - px(book, "right");
+        equal(Math.round(lane), Math.round(book.offsetWidth + 8), "the chat circle is not one book and 8 px inboard of the book");
+        const centre = (el) => px(el, "bottom") + el.offsetHeight / 2;
+        ok(Math.abs(centre(book) - (centre(chat) + centre(gear)) / 2) < 1,
+            "the book is not level with the midpoint of the chat and settings circles");
+        ok(book.offsetWidth < gear.offsetWidth && gear.offsetWidth < chat.offsetWidth,
+            "the book is not the smallest of the three");
+
+        // Every book in both languages ships and comes out as a handbook, with no ids
+        // that could shadow Foundry's own (#chat, #players).
+        needs(globalThis.showdown?.Converter, "no Markdown converter here: this needs Foundry's own page");
+        for (const lang of ["en", "pl"]) {
+            for (const id of ["player-brochure", "player-handbook", "gm-handbook"]) {
+                const html = await handbookHtml(id, lang);
+                ok(/<h1>/.test(html) && /<table>/.test(html), `${id}.${lang} did not come out as a handbook`);
+                ok(!/\sid="/.test(html), `${id}.${lang} carries ids that could shadow Foundry's own`);
+            }
+        }
+
+        // The button opens it, with its contents list, and the list moves the text.
+        book.click();
+        let app = null;
+        for (let i = 0; i < 40 && !app?.element?.querySelector(".drpg-handbook-toc a"); i++) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            app = foundry.applications.instances.get("drpg-handbooks");
+        }
+        try {
+            ok(app?.rendered, "the handbooks button opened nothing");
+            const text = app.element.querySelector(".drpg-handbook-text");
+            const links = [...app.element.querySelectorAll(".drpg-handbook-toc a")];
+            ok(links.length > 1, "the handbook window has no contents list");
+            links.at(-1).click();
+            ok(text.scrollTop > 0, "the contents list does not move the text");
+            ok(app.element.getBoundingClientRect().bottom <= window.innerHeight + 1,
+                "the handbook window runs off the bottom of the screen");
+        } finally {
+            await app?.close();
+        }
+    }],
+
     ["R110 - the gaps the README survey found stay closed", async () => {
         /*
          * 22.09: checking the new README against the code turned up six places where the
