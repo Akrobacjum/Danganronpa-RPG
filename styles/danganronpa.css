@@ -15761,6 +15761,20 @@ body.drpg-theme-stained-glass { --drpg-own-ring: var(--drpg-glass-accent); }
     from { transform: translateX(0); }
     to { transform: translateX(-100%); }
 }
+/* THE TWO NOTES AROUND THE NAME (22.09). Under Stained Glass the pixel-icon rule gives every
+   masked glyph a 22 px floor, which is right for a button and twice the height of this line:
+   the band grew a row taller around two icons. Here they are the text's own size. */
+.drpg-hud-track .drpg-hud-track-note {
+    font-size: 0.9em;
+    margin: 0 0.1em;
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-track i.drpg-hud-track-note {
+    width: 1.1em;
+    height: 1.1em;
+    min-width: 0;
+    min-height: 0;
+    vertical-align: -0.15em;
+}
 /* A name that stands still is still a name you can read, which is the whole
    point of the line; the scroll is how a long one finishes its sentence. */
 body.drpg-reduced-motion .drpg-hud-track > span { animation: none; }

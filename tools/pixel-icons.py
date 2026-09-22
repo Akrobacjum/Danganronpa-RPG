@@ -244,6 +244,11 @@ def _(px):
     for k in range(5):
         a = math.pi + k * math.pi / 4; line(px, 12 + 8.5 * math.cos(a), 16 + 8.5 * math.sin(a), 12 + 11 * math.cos(a), 16 + 11 * math.sin(a), 2)
     px -= {(x, y) for x in range(N) for y in range(18, N)}; rect(px, 1, 19, 22, 2)
+@icon('music')            # the track band on the clock: two beamed quavers
+def _(px):
+    disc(px, 6.5, 18.5, 3.4); disc(px, 17.5, 16.5, 3.4)
+    rect(px, 8, 5, 2, 14); rect(px, 19, 3, 2, 14)
+    poly(px, [(8, 4.5), (21, 1.5), (21, 5.5), (8, 8.5)])
 # ---- redrawn: the four the review found weak, plus the eclipse in one colour --------
 @icon('eclipse')          # the black ball in front of the light: a ring, lit on one side
 def _(px):
@@ -289,7 +294,8 @@ FA = {
     'play': 'play', 'pen-to-square': 'edit', 'gear': 'gear', 'shield-halved': 'shield', 'user-slash': 'user-slash',
     'eye-slash': 'eye-slash', 'moon': 'moon', 'comments': 'chat', 'hand': 'palm', 'hand-holding': 'palm', 'circle': 'dot',
     'arrows-left-right': 'swap', 'khanda': 'murder', 'handshake': 'support', 'bell': 'bell', 'dice': 'dice', 'key': 'key',
-    'xmark': 'close', 'check': 'check', 'sort': 'sort', 'hourglass': 'hourglass', 'sun': 'sun', 'note-sticky': 'note'
+    'xmark': 'close', 'check': 'check', 'sort': 'sort', 'hourglass': 'hourglass', 'sun': 'sun', 'note-sticky': 'note',
+    'music': 'music'
 }
 missing = [v for v in FA.values() if v not in ALL]
 assert not missing, missing

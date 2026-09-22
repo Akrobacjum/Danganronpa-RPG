@@ -14,7 +14,7 @@
  *          ◀   Afternoon   ▶            <- the chevrons are GM-only
  *              43 min in                <- how long this time of day has run
  *           Dorm · no project           <- where your student stands
- *        Beautiful Days · Beautiful     <- the track this client is hearing, scrolling
+ *      ♫ Beautiful Days ♫  ♫ Beautiful  <- the track this client is hearing, scrolling
  *
  * Players see the same lines without the chevrons; the clock is edited from
  * the GM panel, not from here.
@@ -94,8 +94,19 @@ function paintTrackLine(hud) {
     band.className = "drpg-hud-track";
     band.dataset.tooltip = game.i18n.format("DRPG.Hud.nowPlaying", { track: now.track });
     band.replaceChildren();
+    /* A NOTE AT EACH END OF THE NAME (22.09, Dawid on 1.2.50: "by bylo wiadomo o co
+       chodzi"). A bare title scrolling under the clock read as one more line of the clock;
+       the two notes say it is a song before the name has finished arriving, and they
+       replace the " · " that used to part one copy from the next. Font Awesome's glyph,
+       which Stained Glass masks to its own pixel note like every other icon it draws. */
     const run = document.createElement("span");
-    run.textContent = `${now.track} · `;
+    const note = () => {
+        const i = document.createElement("i");
+        i.className = "fa-solid fa-music drpg-hud-track-note";
+        i.setAttribute("aria-hidden", "true");
+        return i;
+    };
+    run.append(note(), document.createTextNode(` ${now.track} `), note());
     band.append(run, run.cloneNode(true));
     if (!existing) host.append(band);
 }

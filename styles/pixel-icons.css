@@ -95,6 +95,7 @@ body {
     --drpg-px-swap: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 5h1v1h-1zM8 6h2v1h-2zM15 6h1v1h-1zM6 7h4v1h-4zM15 7h3v1h-3zM5 8h5v1h-5zM15 8h4v1h-4zM4 9h6v1h-6zM15 9h5v1h-5zM3 10h7v1h-7zM15 10h6v1h-6zM2 11h8v1h-8zM15 11h7v1h-7zM2 12h8v1h-8zM15 12h7v1h-7zM3 13h7v1h-7zM15 13h6v1h-6zM4 14h6v1h-6zM15 14h5v1h-5zM5 15h5v1h-5zM15 15h4v1h-4zM6 16h4v1h-4zM15 16h3v1h-3zM8 17h2v1h-2zM15 17h1v1h-1zM9 18h1v1h-1z'/%3E%3C/svg%3E");
     --drpg-px-noon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 1h3v1h-3zM11 2h3v1h-3zM11 3h3v1h-3zM4 4h2v1h-2zM11 4h3v1h-3zM19 4h2v1h-2zM4 5h3v1h-3zM11 5h3v1h-3zM18 5h3v1h-3zM5 6h3v1h-3zM11 6h3v1h-3zM17 6h3v1h-3zM6 7h9v1h-9zM16 7h3v1h-3zM7 8h11v1h-11zM7 9h10v1h-10zM7 10h10v1h-10zM1 11h16v1h-16zM18 11h6v1h-6zM1 12h16v1h-16zM18 12h6v1h-6zM1 13h16v1h-16zM18 13h6v1h-6zM7 14h10v1h-10zM8 15h8v1h-8zM7 16h8v1h-8zM16 16h2v1h-2zM6 17h3v1h-3zM16 17h3v1h-3zM5 18h3v1h-3zM11 18h3v1h-3zM17 18h3v1h-3zM4 19h3v1h-3zM11 19h3v1h-3zM18 19h3v1h-3zM4 20h2v1h-2zM11 20h3v1h-3zM19 20h2v1h-2zM11 21h3v1h-3zM11 22h3v1h-3zM11 23h3v1h-3z'/%3E%3C/svg%3E");
     --drpg-px-afternoon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h3v1h-3zM11 5h3v1h-3zM11 6h3v1h-3zM11 7h3v1h-3zM4 8h2v1h-2zM11 8h3v1h-3zM19 8h2v1h-2zM4 9h3v1h-3zM18 9h3v1h-3zM5 10h2v1h-2zM9 10h6v1h-6zM18 10h2v1h-2zM7 11h10v1h-10zM7 12h10v1h-10zM6 13h12v1h-12zM6 14h12v1h-12zM0 15h5v1h-5zM6 15h12v1h-12zM20 15h4v1h-4zM0 16h5v1h-5zM6 16h12v1h-12zM20 16h4v1h-4zM0 17h5v1h-5zM6 17h12v1h-12zM20 17h4v1h-4zM1 19h22v1h-22zM1 20h22v1h-22z'/%3E%3C/svg%3E");
+    --drpg-px-music: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M17 2h4v1h-4zM12 3h9v1h-9zM8 4h13v1h-13zM8 5h13v1h-13zM8 6h9v1h-9zM19 6h2v1h-2zM8 7h4v1h-4zM19 7h2v1h-2zM8 8h2v1h-2zM19 8h2v1h-2zM8 9h2v1h-2zM19 9h2v1h-2zM8 10h2v1h-2zM19 10h2v1h-2zM8 11h2v1h-2zM19 11h2v1h-2zM8 12h2v1h-2zM19 12h2v1h-2zM8 13h2v1h-2zM16 13h5v1h-5zM8 14h2v1h-2zM15 14h6v1h-6zM5 15h5v1h-5zM14 15h7v1h-7zM4 16h6v1h-6zM14 16h7v1h-7zM3 17h7v1h-7zM14 17h7v1h-7zM3 18h7v1h-7zM15 18h5v1h-5zM3 19h7v1h-7zM16 19h3v1h-3zM4 20h5v1h-5zM5 21h3v1h-3z'/%3E%3C/svg%3E");
 }
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-magnifying-glass,
 body.drpg-theme-stained-glass i.drpg-action-icon.fa-magnifying-glass,
@@ -353,7 +354,10 @@ body.drpg-theme-stained-glass i.drpg-action-icon.fa-sun,
 body.drpg-theme-stained-glass [class*="drpg-"] .fa-sun:is(i, span),
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-note-sticky,
 body.drpg-theme-stained-glass i.drpg-action-icon.fa-note-sticky,
-body.drpg-theme-stained-glass [class*="drpg-"] .fa-note-sticky:is(i, span) {
+body.drpg-theme-stained-glass [class*="drpg-"] .fa-note-sticky:is(i, span),
+body.drpg-theme-stained-glass [class*="drpg-"] i.fa-music,
+body.drpg-theme-stained-glass i.drpg-action-icon.fa-music,
+body.drpg-theme-stained-glass [class*="drpg-"] .fa-music:is(i, span) {
     display: inline-block;
     width: max(1.15em, 22px);
     height: max(1.15em, 22px);
@@ -622,7 +626,10 @@ body.drpg-theme-stained-glass i.drpg-action-icon.fa-sun::before,
 body.drpg-theme-stained-glass [class*="drpg-"] .fa-sun:is(i, span)::before,
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-note-sticky::before,
 body.drpg-theme-stained-glass i.drpg-action-icon.fa-note-sticky::before,
-body.drpg-theme-stained-glass [class*="drpg-"] .fa-note-sticky:is(i, span)::before { content: none; }
+body.drpg-theme-stained-glass [class*="drpg-"] .fa-note-sticky:is(i, span)::before,
+body.drpg-theme-stained-glass [class*="drpg-"] i.fa-music::before,
+body.drpg-theme-stained-glass i.drpg-action-icon.fa-music::before,
+body.drpg-theme-stained-glass [class*="drpg-"] .fa-music:is(i, span)::before { content: none; }
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-magnifying-glass, body.drpg-theme-stained-glass i.drpg-action-icon.fa-magnifying-glass, body.drpg-theme-stained-glass [class*="drpg-"] .fa-magnifying-glass:is(i, span) { --drpg-px-mask: var(--drpg-px-search); }
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-eye, body.drpg-theme-stained-glass i.drpg-action-icon.fa-eye, body.drpg-theme-stained-glass [class*="drpg-"] .fa-eye:is(i, span) { --drpg-px-mask: var(--drpg-px-observe); }
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-brain, body.drpg-theme-stained-glass i.drpg-action-icon.fa-brain, body.drpg-theme-stained-glass [class*="drpg-"] .fa-brain:is(i, span) { --drpg-px-mask: var(--drpg-px-brain); }
@@ -709,3 +716,4 @@ body.drpg-theme-stained-glass [class*="drpg-"] i.fa-sort, body.drpg-theme-staine
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-hourglass, body.drpg-theme-stained-glass i.drpg-action-icon.fa-hourglass, body.drpg-theme-stained-glass [class*="drpg-"] .fa-hourglass:is(i, span) { --drpg-px-mask: var(--drpg-px-hourglass); }
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-sun, body.drpg-theme-stained-glass i.drpg-action-icon.fa-sun, body.drpg-theme-stained-glass [class*="drpg-"] .fa-sun:is(i, span) { --drpg-px-mask: var(--drpg-px-sun); }
 body.drpg-theme-stained-glass [class*="drpg-"] i.fa-note-sticky, body.drpg-theme-stained-glass i.drpg-action-icon.fa-note-sticky, body.drpg-theme-stained-glass [class*="drpg-"] .fa-note-sticky:is(i, span) { --drpg-px-mask: var(--drpg-px-note); }
+body.drpg-theme-stained-glass [class*="drpg-"] i.fa-music, body.drpg-theme-stained-glass i.drpg-action-icon.fa-music, body.drpg-theme-stained-glass [class*="drpg-"] .fa-music:is(i, span) { --drpg-px-mask: var(--drpg-px-music); }
