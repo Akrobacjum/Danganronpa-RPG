@@ -283,6 +283,8 @@ async function onProjectTokenMoved(tokenDoc, changes) {
     log(`Project ${id} moved from ${was ?? "nowhere"} to ${landedIn} by its token.`);
 }
 
+let syncWaitingForReady = false;
+
 /**
  * Bring the map into line with the projects. GM only.
  *
@@ -292,6 +294,22 @@ async function onProjectTokenMoved(tokenDoc, changes) {
  * otherwise disagree until somebody reloaded.
  */
 export async function syncProjectTokens() {
+    /* `canvasReady` OUTRUNS `ready` AT BOOT (22.09), and a world setting may not be written
+       before the game is ready: on Forge, with a project whose token had been deleted by
+       hand, the very first sync threw "You may not set a World-level Setting before the Game
+       is ready" and the reference stayed stale until the next scene change. Deferred rather
+       than dropped, and once however many scene draws pile up before ready - the fog's seed
+       learned the same thing (`seedDiscovery`). */
+    if (!game.ready) {
+        if (!syncWaitingForReady) {
+            syncWaitingForReady = true;
+            Hooks.once("ready", () => {
+                syncWaitingForReady = false;
+                syncProjectTokens().catch(err => error("Could not sync the project tokens", err));
+            });
+        }
+        return 0;
+    }
     if (!game.user.isGM || !canvas?.scene) return 0;
 
     let touched = 0;
