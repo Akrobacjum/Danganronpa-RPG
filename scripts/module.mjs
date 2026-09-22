@@ -46,6 +46,7 @@ import { registerFog } from "./fog.mjs";
 import { registerIsoShield } from "./iso-shield.mjs";
 import { registerRemnantRings } from "./remnant-ring.mjs";
 import { registerOwnRing } from "./own-ring.mjs";
+import { registerSelectionColour } from "./selection.mjs";
 import { registerRemnantIcons } from "./remnant-icons.mjs";
 import { registerRemnantLedger } from "./remnants.mjs";
 import { registerSecrets } from "./secret.mjs";
@@ -161,6 +162,8 @@ Hooks.once("init", () => {
     // AFTER the Remnant rings, so a Remnant token that somehow belongs to a player
     // is drawn as evidence first and as theirs second (W-6).
     safely("the own-token ring", registerOwnRing);
+    // Foundry's selection border and drag rectangle, in the same interface colour.
+    safely("the selection colour", registerSelectionColour);
     safely("Remnant icons", registerRemnantIcons);
     safely("day summary", registerDaySummary);
     safely("the roll dialog lock", registerRollDialog);

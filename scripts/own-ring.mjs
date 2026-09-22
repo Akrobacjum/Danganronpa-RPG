@@ -184,7 +184,7 @@ function frameOf(token) {
  * accent came back as `rgb(87, 182, 255)` rather than as the hex the sheet
  * declares, which is why the reading goes through `cssColour` - see the note there.
  */
-function hourColour() {
+export function hourColour() {
     return cssColour(glassOn() ? "--drpg-glass-accent" : "--drpg-own-ring", FALLBACK);
 }
 

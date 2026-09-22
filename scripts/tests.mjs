@@ -6578,6 +6578,14 @@ const INVARIANTS = [
         ok(/fa-music/.test(src("hud.mjs")), "the track band has lost its notes");
         ok(/function holdActionsTab\(/.test(src("sheet.mjs")) && /holdActionsTab\(app, element\)/.test(src("sheet.mjs")),
             "nothing grows the glass sheet to hold its Actions tab");
+
+        // Foundry's selection is the interface colour, not its own orange.
+        const { hourColour } = await import("./own-ring.mjs");
+        equal(CONFIG.Canvas.dispositionColors.CONTROLLED, hourColour(),
+            "a controlled border is not drawn in the interface colour");
+        const drag = foundry.canvas.layers.ControlsLayer.prototype.drawSelect;
+        ok(drag?.drpgPatched && !/0xFF9829/i.test(String(drag)),
+            "the drag rectangle still has Foundry's orange written into it");
     }],
 
     ["R107 - the visual round of 22.09 stays put", async () => {
