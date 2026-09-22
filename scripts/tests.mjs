@@ -6586,6 +6586,10 @@ const INVARIANTS = [
         const { PROJECT_TOKEN } = await import("./config.mjs");
         ok(PROJECT_TOKEN.isoScale > 0.45 && PROJECT_TOKEN.isoScale < 1,
             `the project icon is at ${PROJECT_TOKEN.isoScale}, not between 1.2.51's 0.45 and the full picture`);
+        // ...and it is the project card's hammer, not Foundry's hazard sign (Dawid, 22.09).
+        ok(PROJECT_TOKEN.icon.endsWith("/icons/remnant-project.svg"), "project tokens wear something other than the hammer");
+        // The sync compares the tint as the hex a Color prints, or it writes every token every draw.
+        ok(/String\(token\.texture\?\.tint/.test(map), "the project sync compares a Color object with a string again");
 
         // The clock's button is on its line; the matrix names lie down; the track has notes.
         const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text()))

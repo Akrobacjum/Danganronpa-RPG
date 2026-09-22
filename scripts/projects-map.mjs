@@ -63,6 +63,16 @@ const PROJECT_OWNERSHIP = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
 async function ensureProjectActor() {
     let actor = game.actors.getName(PROJECT_ACTOR);
     if (actor) {
+        /* The base actor moves off the hazard sign with its tokens - only from the exact
+           old default, since an image a GM chose on purpose is a choice (the Remnants'
+           `adoptQuestionMark` rule). */
+        if (game.user.isGM && actor.img === PROJECT_TOKEN.oldIcon) {
+            try {
+                await actor.update({ img: PROJECT_TOKEN.icon });
+            } catch (err) {
+                error("Could not move the Project actor onto the hammer", err);
+            }
+        }
         if (game.user.isGM && (actor.ownership?.default ?? 0) < PROJECT_OWNERSHIP) {
             try {
                 await actor.update({ "ownership.default": PROJECT_OWNERSHIP });
@@ -246,7 +256,14 @@ export async function refreshProjectToken(countdownId) {
     if (!token) return;
     const want = tintFor(countdownId);
     const changes = {};
-    if (token.texture?.tint !== want) changes["texture.tint"] = want;
+    /* THE TINT IS A Color ON THE DOCUMENT, and a Color is never `===` a string: this
+       compared an object with "#d8c98a" and wrote the tint of every project token on
+       every scene draw, for as long as it has existed (found 22.09). The Color prints
+       as its hex, which is what `want` is. */
+    if (String(token.texture?.tint ?? "") !== want) changes["texture.tint"] = want;
+    /* A token placed before 1.2.53 wears Foundry's hazard sign; only that exact default
+       moves, as the actor above does. */
+    if (token.texture?.src === PROJECT_TOKEN.oldIcon) changes["texture.src"] = PROJECT_TOKEN.icon;
     /* A token placed before 1.2.51 has the picture at full size; the sync that runs on
        every scene draw brings it down to the one that fits its frame. */
     if (isoOn() && token.getFlag?.(ISO_MODULE, "scale") !== PROJECT_TOKEN.isoScale) {
@@ -327,6 +344,8 @@ export async function syncProjectTokens() {
         return 0;
     }
     if (!game.user.isGM || !canvas?.scene) return 0;
+    // The base actor's own housekeeping (ownership, the hammer), when there is one to keep.
+    if (game.actors.getName(PROJECT_ACTOR)) await ensureProjectActor();
 
     let touched = 0;
     for (const project of allProjects() ?? []) {

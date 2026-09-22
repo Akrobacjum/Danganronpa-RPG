@@ -2433,8 +2433,15 @@ export const PROJECT_SCALE = {
 export const PROJECT_TOKEN = {
     /** Grid squares, square. */
     size: 2,
-    /** Neutral, and it has to be: this document reaches every browser. */
-    icon: "icons/svg/hazard.svg",
+    /** Neutral, and it has to be: this document reaches every browser.
+        THE HAMMER, NOT FOUNDRY'S HAZARD SIGN (22.09, Dawid, on 1.2.52: "zamiast trojkata
+        ostrzegawczego powinien byc mlotek widoczny po otworzeniu ekranu tokena projektu").
+        It is the project card's own glyph, as the module's white token icon the project
+        Remnants already wear - so the token and the card it opens say the same thing,
+        and still nothing about which project it is. */
+    icon: `modules/${MODULE_ID}/icons/remnant-project.svg`,
+    /** What every project token wore before the hammer, for the sync to move off. */
+    oldIcon: "icons/svg/hazard.svg",
     /** Scenery, so it does not compete with the cast for attention. */
     alpha: 0.7,
     sort: -5,
@@ -2454,9 +2461,9 @@ export const PROJECT_TOKEN = {
      *
      * 0.72, BETWEEN THE TWO (22.09, after 1.2.51 on Forge: "przywrocmy wieksze ikony
      * projektow, ale nie tak duze - cos pomiedzy tym co bylo, a co jest"). About half way
-     * from 0.45 to 1. The triangle's lower corners stand a little out of the diamond at
-     * this size - that is the trade Dawid chose for an icon that reads on the map. The
-     * flag means nothing without that module.
+     * from 0.45 to 1. The triangle stood a little out of the diamond at this size; the
+     * hammer that replaced it the same day does not - worked out on its own cells, it
+     * fits whole up to 0.8. The flag means nothing without that module.
      */
     isoScale: 0.72
 };
