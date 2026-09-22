@@ -4457,6 +4457,9 @@ function holdActionsTab(app, element) {
     const fit = () => {
         try {
             if (!root.isConnected) return;
+            /* Asked again here, not only on the way in: the theme switches live, the sheet's
+               root outlives the switch, and the listener below was bound under the glass. */
+            if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
             const tab = root.querySelector('section.tab[data-tab="features"].active');
             if (!tab) return;
             const short = tab.scrollHeight - tab.clientHeight;
