@@ -1,8 +1,11 @@
-# Danganronpa RPG - Podręcznik Mistrza Gry
+# Danganronpa RPG - Podręcznik GM
 
 *Dla modułu "Danganronpa RPG" do Foundry VTT v14, wersja 1.2.55, zbudowanego na systemie Daggerheart.*
 
-To podręcznik dla osób prowadzących killing game. Idzie w kolejności, w jakiej sezon naprawdę się buduje i gra: instalacja, ustawienie, prowadzenie dnia, morderstwo, Investigation, Class Trial, koniec rozdziału i od nowa. Każda liczba w nim pochodzi z `scripts/config.mjs`; jeśli któraś zasada wyda się sprzeczna z tym, co widać przy stole, ten plik jest autorytetem, a niniejszy dokument komentarzem. Tam, gdzie decyzja należy do GMa, a nie do modułu, tekst mówi to wprost.
+To podręcznik dla osób prowadzących killing game. Idzie w kolejności, w jakiej sezon naprawdę się buduje i gra: instalacja, ustawienie, prowadzenie dnia, morderstwo, Investigation, Class Trial, koniec rozdziału i od nowa. Tam, gdzie decyzja należy do GMa, a nie do modułu, tekst mówi to wprost.
+
+> [!NOTE]
+> Każda liczba w tym podręczniku pochodzi z `scripts/config.mjs`; jeśli któraś zasada wyda się sprzeczna z tym, co widać przy stole, ten plik jest autorytetem, a niniejszy dokument komentarzem.
 
 Słownik zostaje po angielsku w każdym języku, w jakim mówi moduł: Hope, Despair, Sanity, Health, Truth Bullet, Remnant, Key Remnant, Blackened, Class Trial, Daily Life, Eclipse, Mastermind, Monokuma, Monocub, Ultimate, Vault, Stash, nazwy Calli i nazwy akcji. To nazwy własne tej gry - odmieniamy je, ale nie tłumaczymy.
 
@@ -35,7 +38,10 @@ Moduł powstał i był grany na The Forge; działa tak samo na każdym hoście F
 
 **Start świata.** Załóż świat na systemie Daggerheart, włącz moduł i zależności, potem otwórz panel GMa (przycisk **GM** w lewej kolumnie, pod zegarem) i uruchom **Ustaw sezon**. Cała reszta to sekcja 2.
 
-**Ustawienia modułu warte znajomości.** W ustawieniach modułu w Foundry znajdziesz m.in.: *wymuszone prywatne rzuty graczy* (każdy rzut gracza jest szeptem do niego i do GMów), *anonimowe arkusze postaci* (cudzy arkusz otwiera się ocenzurowany), *Search Tokens na pokój*, *blokadę okna rzutu dla graczy*, *gracze widzą tylko tych, którzy są w ich pokoju*, *pokoje decydują, co widzą gracze* (mgła pokojów), *gracze nie edytują akcji, Hope ani statystyk*, *przejście między pokojami kosztuje Move*, *rzuty dają Despair*, *zastąpienie licznika Fear z Daggerheart*, *chroń edycję tokenów przed Isometric Perspective*, *muzyka podąża za stanem gry*, *głos per pokój*, oraz per przeglądarkę *Język* i *Motyw*. Domyślne wartości to sposób, w jaki gra ma być grana; przełączniki istnieją po to, by stół mógł któryś kawałek prowadzić ręcznie, gdy zechce. Dwa są na starcie wyłączone, bo każde najpierw czegoś od ciebie potrzebuje: *muzyka podąża za stanem gry* (playlisty zmapowane w oknie Dźwięk) i *głos per pokój* (LiveKit AVClient i działający serwer).
+**Ustawienia modułu warte znajomości.** W ustawieniach modułu w Foundry znajdziesz m.in.: *wymuszone prywatne rzuty graczy* (każdy rzut gracza jest szeptem do niego i do GMów), *anonimowe arkusze postaci* (cudzy arkusz otwiera się ocenzurowany), *Search Tokens na pokój*, *blokadę okna rzutu dla graczy*, *gracze widzą tylko tych, którzy są w ich pokoju*, *pokoje decydują, co widzą gracze* (mgła pokojów), *gracze nie edytują akcji, Hope ani statystyk*, *przejście między pokojami kosztuje Move*, *rzuty dają Despair*, *zastąpienie licznika Fear z Daggerheart*, *chroń edycję tokenów przed Isometric Perspective*, *muzyka podąża za stanem gry*, *głos per pokój*, oraz per przeglądarkę *Język* i *Motyw*. Domyślne wartości to sposób, w jaki gra ma być grana; przełączniki istnieją po to, by stół mógł któryś kawałek prowadzić ręcznie, gdy zechce.
+
+> [!IMPORTANT]
+> Dwa z tych ustawień są na starcie wyłączone, bo każde najpierw czegoś od ciebie potrzebuje: *muzyka podąża za stanem gry* (playlisty zmapowane w oknie Dźwięk) i *głos per pokój* (LiveKit AVClient i działający serwer).
 
 ---
 
@@ -43,7 +49,7 @@ Moduł powstał i był grany na The Forge; działa tak samo na każdym hoście F
 
 **Panel GMa > Między sesjami > Ustaw sezon** (`scripts/season-setup.mjs`). To lista kontrolna, nie kreator: każdy wiersz zostaje na ekranie ze swoim stanem, więc pominięty krok wciąż widać. Ptaszek znaczy zrobione, krzyżyk - sezon tego potrzebuje, kreska - opcjonalne. Wiersze, które moduł umie dokończyć sam, mają przycisk **Zrób to**; wiersze, które potrzebują człowieka, mają **Otwórz** i prowadzą do właściwego okna. Każdy przycisk zamyka i otwiera listę na nowo, by znaczniki były aktualne.
 
-Nad listą są trzy pola zapisywane przyciskiem **Zapisz**: nazwa kampanii (widoczna u góry ekranu każdego), rozdział (1 do 6, `CHAPTERS_PER_SEASON`) i **safeword** (puste znaczy domyślne "Safe Word"; sekcja 19).
+Nad listą są trzy pola zapisywane przyciskiem **Zapisz**: nazwa kampanii (widoczna u góry ekranu każdego), rozdział (**1 do 6**, `CHAPTERS_PER_SEASON`) i **safeword** (puste znaczy domyślne "Safe Word"; sekcja 19).
 
 | Krok | Co sprawdza | Jak naprawić |
 |---|---|---|
@@ -62,11 +68,20 @@ Nad listą są trzy pola zapisywane przyciskiem **Zapisz**: nazwa kampanii (wido
 | Kursor GMa jest prywatny (zalecane) | Udostępnianie kursora w Foundry jest wyłączone dla dwóch ról GMa | **Zrób to** edytuje macierz uprawnień core; gracze zachowują swoje |
 | Mastermind (opcjonalnie) | Mastermind jest ustawiony | **Otwórz** otwiera okno Masterminda. Sezon bez niego to legalny sezon |
 
-**Jak rysować pokoje** (instrukcja z wiersza): najpierw ściany, potem jeden nazwany region na pokój, rysowany po ścianach z włączonym przyciąganiem. Nienazwany region nie jest pokojem i nigdy nie liczy się jako sąsiad. Sąsiedzi stykają się wspólną krawędzią i nigdy nie nachodzą na siebie. Drzwi to po prostu przerwa w ścianach, dowolnej szerokości. Dwie strefy to dwa pokoje. Kontrola zgłasza nachodzenia, granice narysowane obok ścian i narożniki poza siatką; nigdy nie edytuje mapy.
+> [!IMPORTANT]
+> **Jak rysować pokoje** (instrukcja z wiersza): najpierw ściany, potem <ins>jeden nazwany region na pokój</ins>, rysowany po ścianach z włączonym przyciąganiem. Nienazwany region nie jest pokojem i nigdy nie liczy się jako sąsiad. Sąsiedzi stykają się wspólną krawędzią i nigdy nie nachodzą na siebie. Drzwi to po prostu przerwa w ścianach, dowolnej szerokości. Dwie strefy to dwa pokoje. Kontrola zgłasza nachodzenia, granice narysowane obok ścian i narożniki poza siatką; nigdy nie edytuje mapy.
 
 **Kontrola przed sezonem** (przycisk u dołu) uruchamia trzy raporty w jednym oknie: komu jeszcze brakuje zasobów startowych, które sceny z pokojami są przygotowane do widoczności opartej na pokojach, oraz audyt anonimowości (czyj arkusz gracz mógłby przeczytać, a nie powinien). Zielono tutaj znaczy, że lista powyżej jest kompletna.
 
-**Liczby tworzenia postaci** (`config.mjs`): sześć statystyk - Eye, Head, Body, Leg, Hand, Shadow - rozkład +2, +1, +1, 0, 0, -1 (`TRAIT_ARRAY`); Health 4, Sanity 6, Hope 2 z maksimum 6, dwa doświadczenia po +2.
+**Liczby tworzenia postaci** (`config.mjs`):
+
+| Na starcie | Wartość |
+|---|---|
+| Statystyki | sześć - Eye, Head, Body, Leg, Hand, Shadow - rozkład **+2, +1, +1, 0, 0, -1** (`TRAIT_ARRAY`) |
+| Health | **4** |
+| Sanity | **6** |
+| Hope | **2** z maksimum 6 |
+| Doświadczenia | dwa, po **+2** |
 
 ---
 
@@ -96,7 +111,10 @@ Kafelki, według sekcji:
 | Między sesjami (zwinięta) | **Edytuj kampanię**, **Despair Flow**, **Ustawienia pokoi**, **Tabele przedmiotów**, **Zresetuj wszystkie pokoje głosowe**, **Ustaw sezon**, **Mastermind**, **Zakończ rozdział**, **Zresetuj sezon** (czerwony) |
 | Diagnostyka (zwinięta, przyciemniona) | **Dziennik debugowania** - wszystko, co w tej przeglądarce poszło nie tak od załadowania strony, z Kopiuj i Wyczyść |
 
-O **Uczniach** warto dodać: lista rozwijana tylko przestawia flagi i jest narzędziem naprawczym na pomyłkę. Przyciski po prawej robią to naprawdę - **Postać umiera** niszczy Truth Bullets postaci (chyba że zaznaczysz *Zachowaj ich Truth Bullets*, przy śmierci spoza killing game) i zostawia resztę przy ciele; **Zaproś jako Monocuba** robi z martwego ucznia Monocuba. Kolumny Monocuba (Hope, zamiana Despair w Hope, Uciszony) pojawiają się dopiero, gdy jakiś Monocub istnieje.
+O **Uczniach** warto dodać: lista rozwijana tylko przestawia flagi i jest narzędziem naprawczym na pomyłkę. Przyciski po prawej robią to naprawdę - **Postać umiera**, opisane niżej, i **Zaproś jako Monocuba**, który robi z martwego ucznia Monocuba. Kolumny Monocuba (Hope, zamiana Despair w Hope, Uciszony) pojawiają się dopiero, gdy jakiś Monocub istnieje.
+
+> [!CAUTION]
+> **Postać umiera** niszczy Truth Bullets postaci (chyba że zaznaczysz *Zachowaj ich Truth Bullets*, przy śmierci spoza killing game) i zostawia resztę przy ciele.
 
 ---
 
@@ -104,7 +122,13 @@ O **Uczniach** warto dodać: lista rozwijana tylko przestawia flagi i jest narz�
 
 `scripts/clock.mjs`. Sezon > rozdział > sesja > pora dnia. Jedna sesja to jeden dzień fikcji, czyli pięć pór dnia: **Rano, Południe, Popołudnie, Wieczór, Noc** (`TIMES_OF_DAY`). Przejście za Noc przewija dzień i sesję naraz. Rozdziały nigdy nie przesuwają się same; podręcznik pozwala rozciągnąć rozdział, gdy nie było jeszcze morderstwa, więc rozdział przesuwasz ręcznie (Koniec rozdziału albo Edytuj kampanię).
 
-Trzy **fazy**: Daily Life (dwie akcje na porę dnia), Investigation (znaleziono ciało; Observe i Analyze budują Truth Bullets), Class Trial. Kanoniczny rozdział to pięć sesji: trzy Daily Life (trzecia z morderstwem), jedno Investigation, jeden Class Trial - ale fazę ustawia się ręcznie.
+Trzy **fazy**. Kanoniczny rozdział to pięć sesji, jak niżej - ale fazę ustawia się ręcznie:
+
+| Faza | Co oznacza | Sesje w kanonicznym rozdziale |
+|---|---|---|
+| Daily Life | dwie akcje na porę dnia | trzy (trzecia z morderstwem) |
+| Investigation | znaleziono ciało; Observe i Analyze budują Truth Bullets | jedna |
+| Class Trial | - | jedna |
 
 **Co robi zmiana pory dnia**, po kolei (`applyTimeOfDayChange`):
 
@@ -114,19 +138,26 @@ Trzy **fazy**: Daily Life (dwie akcje na porę dnia), Investigation (znaleziono 
 4. odlicza jedną porę dnia od terminu Motive;
 5. ogłasza nową porę dnia stołowi (prywatnie uczestnikom, gdy trwa morderstwo) i przerysowuje HUD u wszystkich.
 
-Sama z siebie **nie odnawia akcji**. Budżet wraca, gdy Eclipse się *otwiera* (sekcja 12); panelowa **Następna pora dnia** przekazuje odnowienie jawnie dla stołów, które pomijają Eclipse, a okno Edytuj kampanię ma na to pole wyboru. Dwa odnowienia na jedną granicę to jedyna rzecz, której stół nie może dostać.
+> [!IMPORTANT]
+> Zmiana pory dnia sama z siebie **nie odnawia akcji**. Budżet wraca, <ins>gdy Eclipse się otwiera</ins> (sekcja 12); panelowa **Następna pora dnia** przekazuje odnowienie jawnie dla stołów, które pomijają Eclipse, a okno Edytuj kampanię ma na to pole wyboru. Dwa odnowienia na jedną granicę to jedyna rzecz, której stół nie może dostać.
 
 **Cofanie** (lewa strzałka na HUD) przesuwa zegar o jedną porę dnia wstecz jako korekta pomyłki. Jest odrzucane, gdy trwa Eclipse (zegar jeszcze się nie przesunął, więc nie ma do czego się cofać; zamiast tego zakończ Eclipse z panelu bez przesuwania zegara). Nie odnawia niczego, najpierw odwołuje zwołane zgromadzenie, czyści obowiązujące Calle i oddaje Motive jego porę dnia.
 
-**Edytuj kampanię** (Między sesjami) edytuje nazwę, rozdział, fazę, dzień, sesję i porę dnia, z domyślnie wyłączonym *Odnów też akcje i Search Tokens*. Dwie przestrogi: zmiana fazy kończy zapis "znaleziono ciało i czeka"; a przesunięcie zegara nie kończy Eclipse - jeśli trwał, po Zastosuj dostajesz ostrzeżenie, a linia zegara mówi ECLIPSE, dopóki nie zakończysz go z HUD.
+**Edytuj kampanię** (Między sesjami) edytuje nazwę, rozdział, fazę, dzień, sesję i porę dnia, z domyślnie wyłączonym *Odnów też akcje i Search Tokens*.
 
-**HUD** pokazuje to wszystko wszystkim. GM ma dodatkowo strzałki: lewa cofa, prawa zaczyna Eclipse przed następną porą dnia (podpowiedź go nazywa) i zamienia się w przycisk odtwarzania, który go kończy. Nocą podpowiedź prawej strzałki mówi, że kończy też sesję. HUD pokazuje też, jak długo trwa bieżąca pora dnia (bursztyn po 15 minutach, czerwień po 30, zamrożone, gdy gra stoi na pauzie). Podczas Class Trial wiersz pory dnia podaje zamiast niej tryb rozprawy, strzałki i linia czasu ustępują miejsca, a odliczanie debaty siedzi na karcie Class Trial w panelu zdarzeń. Pasek stanu GMa pokazuje licznik "Zostały akcje", a podczas Eclipse "Jeszcze się ustawiają". **Panel zdarzeń** pod paskiem Despair pokazuje trwające zdarzenia jako karty: stop safewordu, Class Trial i jego głosowanie, rzut otwarcia i incydent (tylko uczestnikom i GMom), znalezione ciało, zaciemnienie z overflow, zwołane zgromadzenie i Motive.
+> [!WARNING]
+> Dwie przestrogi:
+>
+> - zmiana fazy kończy zapis "znaleziono ciało i czeka";
+> - przesunięcie zegara nie kończy Eclipse - jeśli trwał, po Zastosuj dostajesz ostrzeżenie, a linia zegara mówi ECLIPSE, dopóki nie zakończysz go z HUD.
+
+**HUD** pokazuje to wszystko wszystkim. GM ma dodatkowo strzałki: lewa cofa, prawa zaczyna Eclipse przed następną porą dnia (podpowiedź go nazywa) i zamienia się w przycisk odtwarzania, który go kończy. Nocą podpowiedź prawej strzałki mówi, że kończy też sesję. HUD pokazuje też, jak długo trwa bieżąca pora dnia (bursztyn po **15 minutach**, czerwień po **30**, zamrożone, gdy gra stoi na pauzie). Podczas Class Trial wiersz pory dnia podaje zamiast niej tryb rozprawy, strzałki i linia czasu ustępują miejsca, a odliczanie debaty siedzi na karcie Class Trial w panelu zdarzeń. Pasek stanu GMa pokazuje licznik "Zostały akcje", a podczas Eclipse "Jeszcze się ustawiają". **Panel zdarzeń** pod paskiem Despair pokazuje trwające zdarzenia jako karty: stop safewordu, Class Trial i jego głosowanie, rzut otwarcia i incydent (tylko uczestnikom i GMom), znalezione ciało, zaciemnienie z overflow, zwołane zgromadzenie i Motive.
 
 ---
 
 ## 5. Akcje i budżety
 
-`config.mjs ACTIONS`, `STARTING`, `scripts/actions.mjs`. Każdy uczeń ma **2 akcje** na porę dnia i **1 Free Move**. **Wounded** (całe Health zaznaczone) kosztuje 1 akcję na porę dnia; zaciemnienie *Panic* kosztuje 1 więcej; oba się sumują, ale nigdy poniżej 1. Budżet jest wyliczany, nie przechowywany, więc postać, która wyleczy się w ciągu dnia, dostaje akcję z powrotem przy następnym odnowieniu. **Breakdown** (Sanity na 0) daje utrudnienie na każdym rzucie.
+`config.mjs ACTIONS`, `STARTING`, `scripts/actions.mjs`. Każdy uczeń ma **2 akcje** na porę dnia i **1 Free Move**. **Wounded** (całe Health zaznaczone) kosztuje 1 akcję na porę dnia; zaciemnienie *Panic* kosztuje 1 więcej; oba się sumują, ale nigdy poniżej **1**. Budżet jest wyliczany, nie przechowywany, więc postać, która wyleczy się w ciągu dnia, dostaje akcję z powrotem przy następnym odnowieniu. **Breakdown** (Sanity na 0) daje utrudnienie na każdym rzucie.
 
 Dziesięć kafelków na arkuszu, w kolejności rysowania:
 
@@ -154,11 +185,29 @@ Dziesięć kafelków na arkuszu, w kolejności rysowania:
 | Obce większości ludzi | 16 do 18 | 2 | Subtle |
 | Wymaga bardzo niszowej wiedzy | 19 do 21 | 3 | Hidden |
 
-**Rest** (`REST`). **Long Rest** kosztuje 2 akcje, wybiera 2 z trzech opcji, raz na sesję. **Short Rest** kosztuje 1 akcję, wybiera 1, raz na porę dnia. Każdy działa tylko w pokoju z taką flagą (Ustawienia pokoi > Odpoczynki); podręcznik umieszcza Long Rest w sypialniach, więc oflaguj je. Sen przywraca całe Health (Long) albo połowę (Short); Posiłek całe albo pół Sanity; Oddech daje 2 Hope albo 1.
+**Rest** (`REST`). **Long Rest** kosztuje **2 akcje**, wybiera 2 z trzech opcji, **raz na sesję**. **Short Rest** kosztuje **1 akcję**, wybiera 1, **raz na porę dnia**. Każdy działa <ins>tylko w pokoju z taką flagą</ins> (Ustawienia pokoi > Odpoczynki); podręcznik umieszcza Long Rest w sypialniach, więc oflaguj je.
 
-**Sabotage** (`ACTIONS.sabotage`): 12 psuje projekt tak, że potrzebuje prostej naprawy (ślad Subtle), 18 - złożonej (Evident), krytyk - naprawy o ukrytej trudności (ślad Obvious); porażka i tak zostawia ślad Hidden. Gdy w pokoju jest ktoś jeszcze, sabotażysta rzuca też Shadow przeciw 16, by ukryć, co robi (`SABOTAGE_CONCEAL`); z Despair fuszeruje i sabotaż jest o 1 trudniejszy; wynik z Despair przy świadkach jest ogłaszany całemu stołowi. Zepsuty projekt jest zamrożony do ukończenia projektu naprawy. Uszkodzenie nakłada klient GMa - jeśli żaden GM nie potwierdzi na czas, rzut się udał, ale cel może nie być zepsuty, i gracz ma o tym powiedzieć.
+| Opcja | Long Rest | Short Rest |
+|---|---|---|
+| Sen | przywraca całe Health | przywraca połowę |
+| Posiłek | przywraca całe Sanity | przywraca pół |
+| Oddech | daje 2 Hope | daje 1 |
 
-**Krytyki** dają 2 Hope (`CRITICAL.hope`). Rzut z Despair, w którym użyto przedmiotu trzymanego w ręku, zdejmuje z niego jeden punkt wytrzymałości (sekcja 10).
+**Sabotage** (`ACTIONS.sabotage`):
+
+| Wynik | Psuje projekt tak, że potrzebuje | Ślad |
+|---|---|---|
+| 12 | prostej naprawy | Subtle |
+| 18 | złożonej naprawy | Evident |
+| Krytyk | naprawy o ukrytej trudności | Obvious |
+| Porażka | - | i tak zostawia ślad Hidden |
+
+Gdy w pokoju jest ktoś jeszcze, sabotażysta rzuca też Shadow przeciw **16**, by ukryć, co robi (`SABOTAGE_CONCEAL`); z Despair fuszeruje i sabotaż jest o 1 trudniejszy; wynik z Despair przy świadkach jest ogłaszany całemu stołowi. Zepsuty projekt jest zamrożony do ukończenia projektu naprawy.
+
+> [!NOTE]
+> Uszkodzenie nakłada klient GMa - jeśli żaden GM nie potwierdzi na czas, rzut się udał, ale cel może nie być zepsuty, i gracz ma o tym powiedzieć.
+
+**Krytyki** dają **2 Hope** (`CRITICAL.hope`). Rzut z Despair, w którym użyto przedmiotu trzymanego w ręku, zdejmuje z niego jeden punkt wytrzymałości (sekcja 10).
 
 ---
 
@@ -181,7 +230,10 @@ Wydawane z arkusza postaci, szeptem do gracza. Zablokowane podczas Eclipse, pod 
 | Relief | 4 | Weź Short Rest teraz: bez akcji, bez pokoju odpoczynku, nie zużywa tego z tej pory dnia | nie |
 | Loaded Die | 6 | Przy następnym rzucie jedna kość ustawiona na 12, druga rzucona; krytyk tylko, jeśli i ona wypadnie 12 | nie |
 
-**Zatwierdzanie Experience i Ultimate.** Gracz musi napisać, do czego chce tego użyć - puste pole anuluje, bo decyzja dotyczy zdania, nie Calla. Prośba ląduje jako karta w wątku komunikatora gracza, widoczna dla gracza i każdego GMa, z przyciskami **Stosuje się** i **Nie tym razem**. Odpowiedzieć może każdy GM. Pytanie jest z podręcznika: czy doświadczenie albo talent *naprawdę* się tu stosuje? Nic nie jest pobierane przed zgodą; odmowa albo milczenie nic gracza nie kosztuje (prośba wygasa po pięciu minutach). Jeśli twoja przeglądarka przeładuje się z otwartym pytaniem, klient gracza zapyta ponownie, gdy wrócisz. Po naciśnięciu przycisku karta zmienia się w pokwitowanie w wątku, więc nikt nie orzeka dwa razy; pod nią można jeszcze dopisać coś słowami.
+**Zatwierdzanie Experience i Ultimate.** Gracz musi napisać, do czego chce tego użyć - puste pole anuluje, bo decyzja dotyczy zdania, nie Calla. Prośba ląduje jako karta w wątku komunikatora gracza, widoczna dla gracza i każdego GMa, z przyciskami **Stosuje się** i **Nie tym razem**. Odpowiedzieć może każdy GM. Nic nie jest pobierane przed zgodą; odmowa albo milczenie nic gracza nie kosztuje (prośba wygasa po **pięciu minutach**). Jeśli twoja przeglądarka przeładuje się z otwartym pytaniem, klient gracza zapyta ponownie, gdy wrócisz. Po naciśnięciu przycisku karta zmienia się w pokwitowanie w wątku, więc nikt nie orzeka dwa razy; pod nią można jeszcze dopisać coś słowami.
+
+> [!TIP]
+> Pytanie jest z podręcznika: czy doświadczenie albo talent *naprawdę* się tu stosuje?
 
 ### 6.2 Despair Calls (`DESPAIR_CALLS`)
 
@@ -205,7 +257,7 @@ Wydawane z arkusza Monokumy, z puli, z której ten Monokuma czerpie, i zawsze og
 | Motive | 6 | Ogłoś Motive: żądanie, termin w porach dnia i cenę zignorowania |
 | New Rule | 9 | Wprowadź jedną nową zasadę killing game |
 
-Obstacle, Approval, Support i Confusion Monocuba są "uzbrajane" na następny rzut celu tym samym mechanizmem; okno rzutu je nakłada. Pieczęcie, Chained i Silence czyści otwarcie następnego Eclipse albo, gdy Eclipse nie jest używany, następna zmiana pory dnia. Public Announcement jest odroczone: zgromadzenie odbywa się na następnej granicy, a cofnięcie zegara je odwołuje. **Motive** pyta o żądanie, termin od 1 do 10 pór dnia (domyślnie 3, `MOTIVE`) i konsekwencję; jest ogłaszane wszystkim, odlicza się przy każdej zmianie pory dnia (Eclipse się nie liczy), jest ogłaszane raz jeszcze, gdy termin minie, i zostaje na tablicy na zerze, dopóki go nie wycofasz albo rozdział się nie zmieni. **New Rule** trafia na listę zasad killing game, widoczną na każdym arkuszu postaci; brzmienie edytujesz, zasady wycofujesz albo dodajesz w **Zasadach killing game** w panelu.
+Obstacle, Approval, Support i Confusion Monocuba są "uzbrajane" na następny rzut celu tym samym mechanizmem; okno rzutu je nakłada. Pieczęcie, Chained i Silence czyści otwarcie następnego Eclipse albo, gdy Eclipse nie jest używany, następna zmiana pory dnia. Public Announcement jest odroczone: zgromadzenie odbywa się na następnej granicy, a cofnięcie zegara je odwołuje. **Motive** pyta o żądanie, termin od **1 do 10** pór dnia (domyślnie **3**, `MOTIVE`) i konsekwencję; jest ogłaszane wszystkim, odlicza się przy każdej zmianie pory dnia (Eclipse się nie liczy), jest ogłaszane raz jeszcze, gdy termin minie, i zostaje na tablicy na zerze, dopóki go nie wycofasz albo rozdział się nie zmieni. **New Rule** trafia na listę zasad killing game, widoczną na każdym arkuszu postaci; brzmienie edytujesz, zasady wycofujesz albo dodajesz w **Zasadach killing game** w panelu.
 
 ### 6.3 Decyzje, karty i komunikator
 
@@ -219,13 +271,13 @@ Dwóch GMów to norma. Jeden z nich jest **głównym GMem** (połączony pełny 
 
 `scripts/despair.mjs`, `scripts/assignments.mjs`, `scripts/overflow.mjs`, `config.mjs OVERFLOW`.
 
-**Zdobywanie.** Gdy rzut ucznia wypadnie z wyższą kością Despair, +1 Despair idzie do puli Monokumy *tego ucznia* (ustawienie *rzuty dają Despair*, zapisywane przez głównego GMa). Rzuty reakcji - gołe kliknięcie statystyki - nic nie płacą; własne rzuty aktora Monokumy nic nie płacą. Uczeń ustawiony na "- nikt -" nie karmi nikogo (przydatne dla postaci wycofanej, prowadzonej jako NPC, albo Masterminda według twojego uznania).
+**Zdobywanie.** Gdy rzut ucznia wypadnie z wyższą kością Despair, **+1 Despair** idzie do puli Monokumy *tego ucznia* (ustawienie *rzuty dają Despair*, zapisywane przez głównego GMa). Rzuty reakcji - gołe kliknięcie statystyki - nic nie płacą; własne rzuty aktora Monokumy nic nie płacą. Uczeń ustawiony na "- nikt -" nie karmi nikogo (przydatne dla postaci wycofanej, prowadzonej jako NPC, albo Masterminda według twojego uznania).
 
 **Pule.** Każde konto pełnego Gamemastera ma pulę Despair z limitem **12** (`STARTING.despairMax`), a postacie Monokum wydają z tych pul. Widget Despair u góry ekranu pokazuje każdą pulę: wszyscy widzą liczby, GM ma dodatkowo przyciski. **Despair Flow** (Między sesjami) to jedno okno dla zespołu: którzy aktorzy są Monokumami, z puli którego GMa każdy czerpie, nazwy pul, dodatkowi posiadacze pul (Asystentowi GMa można przyznać pulę), który Monokuma pilnuje którego ucznia (z **Podziel po równo** i "- nikt -") oraz strojenie overflow. Kształt z podręcznika to co najmniej dwóch GMów dzielących uczniów ściśle między siebie, ale moduł działa i z jednym.
 
 **Zamiana Despair w Hope** (1:1) to decyzja GMa z okna Uczniowie albo okna Masterminda, nigdy przycisk samoobsługowy: tak zasila się Monocuba i tak Mastermind utrzymuje się na powierzchni.
 
-**Overflow.** Despair zdobyty ponad pełną pulę kiedyś parował; teraz zbiera się w jednym liczniku wspólnym dla wszystkich Monokum. Feed the Overflow wlewa go celowo. Przy **progu** (domyślnie **20**, edytowalny od 6 do 60; podpowiedź sugeruje 12 plus połowa liczby graczy) licznik płaci próg, zachowuje resztę i losuje **jeden** efekt z tych, które zaznaczyłeś, na jedną porę dnia. Odpala w chwili, gdy licznik dojdzie do progu: karta przychodzi od razu, a efekt obejmuje nadchodzącą porę dnia. Jeśli jakieś zaciemnienie już trwa, licznik czeka do następnej granicy. Jest sprawdzany ponownie, gdy otwiera się Eclipse, i przy każdej zmianie pory dnia, a jedna granica płaci tylko raz. Zapisanie zmienionego progu albo listy efektów ogłasza stołowi nowy próg. Odznacz wszystkie osiem, a licznik rośnie i nigdy nie odpala - prawdziwe ustawienie, licznik jako klimat.
+**Overflow.** Despair zdobyty ponad pełną pulę kiedyś parował; teraz zbiera się w jednym liczniku wspólnym dla wszystkich Monokum. Feed the Overflow wlewa go celowo. Przy **progu** (domyślnie **20**, edytowalny od 6 do 60; podpowiedź sugeruje 12 plus połowa liczby graczy) licznik płaci próg, zachowuje resztę i losuje **jeden** efekt z tych, które zaznaczyłeś, na jedną porę dnia. Odpala w chwili, gdy licznik dojdzie do progu: karta przychodzi od razu, a efekt obejmuje nadchodzącą porę dnia. Jeśli jakieś zaciemnienie już trwa, licznik czeka do następnej granicy. Jest sprawdzany ponownie, gdy otwiera się Eclipse, i przy każdej zmianie pory dnia, a jedna granica płaci tylko raz. Zapisanie zmienionego progu albo listy efektów ogłasza stołowi nowy próg.
 
 | Efekt | Rodzaj | Co robi |
 |---|---|---|
@@ -238,17 +290,48 @@ Dwóch GMów to norma. Jeden z nich jest **głównym GMem** (połączony pełny 
 | Rot | jednorazowy | Każdy przedmiot z więcej niż jednym punktem wytrzymałości traci 1; nic się nie łamie |
 | Earthquake | jednorazowy | Każdy projekt traci 1 postępu |
 
+> [!TIP]
+> Odznacz wszystkie osiem, a licznik rośnie i nigdy nie odpala - prawdziwe ustawienie, licznik jako klimat.
+
 **Werdykt Class Trial opróżnia overflow** przy obu wynikach; reset sezonu też. Gracze widzą liczby w pulach i próg overflow, ale "?" zamiast jego licznika ("?/20") - kiedy kapelusz wystrzeli, wie tylko Monokuma.
 
 ---
 
 ## 8. Monokuma, Monocuby i Mastermind
 
-**Monokuma** (`scripts/monokuma.mjs`) to aktor typu `character` z flagą, ustawianą w Despair Flow albo przez **Oznacz jako Monokumę** w menu prawego przycisku na liście aktorów. Co flaga zmienia: brak ekonomii akcji i brak Hope; siatka akcji staje się Despair Calls; ruch bez ograniczeń (bez kosztów pokoi, bez ścian, bez limitu Eclipse, bez pieczęci); widoczność pokojów nigdy nie ukrywa ich przed nimi samymi; ich rzuty są szeptem tylko do GMów i nie karmią żadnej puli; nie liczą się jako świadkowie incydentu ani ciała. Podręcznik każe GMom chodzić po mapie jako dwa rozróżnialne Monokumy; każdy wskazuje pulę jednego GMa i głos per pokój podąża za tym samym przypisaniem.
+**Monokuma** (`scripts/monokuma.mjs`) to aktor typu `character` z flagą, ustawianą w Despair Flow albo przez **Oznacz jako Monokumę** w menu prawego przycisku na liście aktorów. Co flaga zmienia:
 
-**Monocub** (`scripts/monocub.mjs`, `MONOCUB`). Gracz zmarłego ucznia może dołączyć do GMów, gdy skończy się jego własny Class Trial - moment wybierasz ty, moduł wymaga tylko, by postać nie żyła. Zaproś go z okna **Uczniowie**. Zachowuje ten sam arkusz i dostaje dokładnie dwie rzeczy: **Move** oraz **Confusion** (1 akcja + 1 Hope), płaski rzut 2d12 bez statystyki, który podkręca rzut żyjącego ucznia w tym samym pokoju, nie mówiąc, kto to zrobił: 12 daje +1 albo -1 na następny rzut celu, 16 daje przewagę albo utrudnienie, krytyk oddaje celowi akcję albo ją marnuje. Hope Monocuba pochodzi tylko z zamiany Despair przez GMa (Fuel a Monocub albo okno Uczniowie). Pole **Uciszony** to zasada z podręcznika dla Monocuba, który natknął się na miejsce zbrodni: może działać, ale nie mówić o zbrodni do końca rozdziału; gracz jest powiadamiany, gdy to ustawiasz i zdejmujesz. Kości Monocuba widzą wszyscy w jego pokoju.
+- brak ekonomii akcji i brak Hope;
+- siatka akcji staje się Despair Calls;
+- ruch bez ograniczeń (bez kosztów pokoi, bez ścian, bez limitu Eclipse, bez pieczęci);
+- widoczność pokojów nigdy nie ukrywa ich przed nimi samymi;
+- ich rzuty są szeptem tylko do GMów i nie karmią żadnej puli;
+- nie liczą się jako świadkowie incydentu ani ciała.
 
-**Mastermind** (`scripts/mastermind.mjs`). Wybierany przed sezonem za zgodą gracza, z **Między sesjami > Mastermind**. Tożsamość nigdy nie dotyka aktora ani świata: żyje tylko w przeglądarkach GMów i synchronizuje się między GMami; gracz Masterminda dostaje tylko prywatne "to ty" i pokój swojej kryjówki. Okno wymienia Masterminda, więc nie udostępniaj ekranu, dopóki jest otwarte. Jego **pokój** (kryjówka) to region: stojąc w nim widzi każdy token na mapie, tak jak ty; wyjdzie i to znika. Zamknięte drzwi, pieczęcie, cudze sypialnie i ukryte skrytki stoją przed nim otworem wszędzie, a każdy pokój liczy się jako odwiedzony dla jego mgły - to on zbudował ten budynek. Despair zamienia się w jego Hope 1:1 z tego samego okna, gdy Mastermind zostanie już wybrany i zastosowany. Finał toczy się na zwykłym Class Trial: jeden **Final Truth Remnant** na rozdział, stawiany z zakładki **Final Truth Remnants** na pulpicie Investigation (wzmocniony przez typ, więc nikt go nie usunie - ekran końca rozdziału przypomina, jeśli żadnego nie postawiono), flaga **Final Trial** przełączana z konsoli Class Trial (ogłaszana stołowi) i werdykt finału, wydawany przyciskiem **Werdykt Final Trial** w oknie Masterminda: trafnie - Mastermind stracony, killing game się kończy; błędnie albo Mastermind już nie żyje - nikt nowy nie ginie, a stół widzi prawdę.
+Podręcznik każe GMom chodzić po mapie jako dwa rozróżnialne Monokumy; każdy wskazuje pulę jednego GMa i głos per pokój podąża za tym samym przypisaniem.
+
+**Monocub** (`scripts/monocub.mjs`, `MONOCUB`). Gracz zmarłego ucznia może dołączyć do GMów, gdy skończy się jego własny Class Trial - moment wybierasz ty, moduł wymaga tylko, by postać nie żyła. Zaproś go z okna **Uczniowie**. Zachowuje ten sam arkusz i dostaje dokładnie dwie rzeczy: **Move** oraz **Confusion** (**1 akcja + 1 Hope**), płaski rzut 2d12 bez statystyki, który podkręca rzut żyjącego ucznia w tym samym pokoju, nie mówiąc, kto to zrobił:
+
+| Confusion | Daje | Nakłada |
+|---|---|---|
+| 12 | +1 na następny rzut celu | -1 na następny rzut celu |
+| 16 | przewagę | utrudnienie |
+| Krytyk | oddaje celowi akcję | marnuje akcję |
+
+Hope Monocuba pochodzi tylko z zamiany Despair przez GMa (Fuel a Monocub albo okno Uczniowie). Pole **Uciszony** to zasada z podręcznika dla Monocuba, który natknął się na miejsce zbrodni: może działać, ale nie mówić o zbrodni do końca rozdziału; gracz jest powiadamiany, gdy to ustawiasz i zdejmujesz. Kości Monocuba widzą wszyscy w jego pokoju.
+
+**Mastermind** (`scripts/mastermind.mjs`). Wybierany przed sezonem za zgodą gracza, z **Między sesjami > Mastermind**. Tożsamość nigdy nie dotyka aktora ani świata: żyje tylko w przeglądarkach GMów i synchronizuje się między GMami; gracz Masterminda dostaje tylko prywatne "to ty" i pokój swojej kryjówki.
+
+> [!CAUTION]
+> Okno wymienia Masterminda, więc nie udostępniaj ekranu, dopóki jest otwarte.
+
+Jego **pokój** (kryjówka) to region: <ins>stojąc w nim</ins> widzi każdy token na mapie, tak jak ty; wyjdzie i to znika. Zamknięte drzwi, pieczęcie, cudze sypialnie i ukryte skrytki stoją przed nim otworem wszędzie, a każdy pokój liczy się jako odwiedzony dla jego mgły - to on zbudował ten budynek. Despair zamienia się w jego Hope **1:1** z tego samego okna, gdy Mastermind zostanie już wybrany i zastosowany. Finał toczy się na zwykłym Class Trial:
+
+| Element | Gdzie | Uwagi |
+|---|---|---|
+| Jeden **Final Truth Remnant** na rozdział | stawiany z zakładki **Final Truth Remnants** na pulpicie Investigation | wzmocniony przez typ, więc nikt go nie usunie - ekran końca rozdziału przypomina, jeśli żadnego nie postawiono |
+| Flaga **Final Trial** | przełączana z konsoli Class Trial | ogłaszana stołowi |
+| Werdykt finału | wydawany przyciskiem **Werdykt Final Trial** w oknie Masterminda | trafnie - Mastermind stracony, killing game się kończy; błędnie albo Mastermind już nie żyje - nikt nowy nie ginie, a stół widzi prawdę |
 
 ---
 
@@ -278,7 +361,18 @@ Search Tokens: **3 na pokój na porę dnia** (`ROOMS.searchTokensPerRoom`, edyto
 
 `scripts/fog.mjs`, ustawienie *pokoje decydują, co widzą gracze*. Jedna warstwa nad całą sceną, trzy stany: pokój, w którym stoisz, jest czysty; pokój odwiedzony prześwituje przez zasłonę; wszystko inne, łącznie z fragmentem mapy poza każdym regionem, to pełna mgła. Podczas Eclipse nawet pokój, w którym stoisz, jest tylko za zasłoną. Odkrywanie jest **per postać**, zapisywane przez głównego GMa, gdy token wchodzi do pokoju po raz pierwszy (z dźwiękiem dla ucznia, który wszedł), i przetrwa sesje; pełny zapis zostaje w przeglądarce GMa, a przeglądarka każdego gracza trzyma tylko wiersze jego własnych postaci. GM widzi lżejszą mgłę: każdy pokój odkryty przez klasę jest czysty, a pokoje, których nikt jeszcze nie znalazł, razem z każdym miejscem poza pokojami, leżą pod zasłoną. Mastermind widzi każdy pokój jako odwiedzony.
 
-By mgła działała, scena musi mieć wyłączone własne widzenie Foundry: token vision wyłączone, globalne światło włączone, eksploracja mgły wyłączona. **Kontrola przed sezonem** mówi, które sceny z pokojami są gotowe; `game.drpg.prepareScenes()` przygotowuje wszystkie sceny z pokojami naraz i pamięta, co zmieniło, więc `restoreSceneVisionMode` może scenę oddać. Scena z pokojami i włączonym widzeniem Foundry renderuje się graczom jako **czarny ekran** na v14 i nie mówi dlaczego - najczęstsze zgłoszenie "jest zepsute".
+By mgła działała, scena musi mieć wyłączone własne widzenie Foundry:
+
+| Ustawienie | Musi być |
+|---|---|
+| Token vision | wyłączone |
+| Globalne światło | włączone |
+| Eksploracja mgły | wyłączona |
+
+**Kontrola przed sezonem** mówi, które sceny z pokojami są gotowe; `game.drpg.prepareScenes()` przygotowuje wszystkie sceny z pokojami naraz i pamięta, co zmieniło, więc `restoreSceneVisionMode` może scenę oddać.
+
+> [!WARNING]
+> Scena z pokojami i włączonym widzeniem Foundry renderuje się graczom jako **czarny ekran** na v14 i nie mówi dlaczego - najczęstsze zgłoszenie "jest zepsute".
 
 **Widoczność tokenów** (`scripts/visibility.mjs`, *gracze widzą tylko tych, którzy są w ich pokoju*) jest wymuszana wprost na tokenach, więc drzwi, arkady i mapy bez ścian nie przeciekają. Ujawniony Remnant widzą tylko ci, którzy sami go znaleźli.
 
@@ -286,11 +380,23 @@ By mgła działała, scena musi mieć wyłączone własne widzenie Foundry: toke
 
 `scripts/movement.mjs`. Ruch wewnątrz pokoju jest darmowy. Przejście do połączonego pokoju wydaje **Free Move** tej pory dnia, potem **1 akcję** za przejście (najpierw wydaje się zbankowany Sprint). Przejście jest odrzucane przed zapisem, więc token, którego nie stać, wraca na miejsce z czerwoną kartą. Karta ruchu podaje pokój, cenę i opis pokoju, jeśli go napisałeś; przejście uruchamia też strażnika pułapek.
 
-Niektóre odmowy działają niezależnie od ustawienia *przejście między pokojami kosztuje Move*: postać w incydencie nie może opuścić pokoju; podczas Class Trial nikt nie opuszcza pokoju; pokój zapieczętowany przez Behind Closed Doors, gracz z Chained; zamknięte drzwi (Ustawienia pokoi > Drzwi); cudza sypialnia bez klucza; limit przejść Eclipse i zasada połączonych pokoi. Monokumy przechodzą przez to wszystko. Token zmarłego się nie rusza: ciało zostaje tam, gdzie upadło. Wyłączenie ustawienia oddaje ci *ekonomię* - Free Move i akcję - oraz, poza Eclipse, zasadę połączonych pokoi, do prowadzenia ręcznie.
+Niektóre odmowy działają niezależnie od ustawienia *przejście między pokojami kosztuje Move*:
+
+- postać w incydencie nie może opuścić pokoju;
+- podczas Class Trial nikt nie opuszcza pokoju;
+- pokój zapieczętowany przez Behind Closed Doors, gracz z Chained;
+- zamknięte drzwi (Ustawienia pokoi > Drzwi);
+- cudza sypialnia bez klucza;
+- limit przejść Eclipse i zasada połączonych pokoi.
+
+Monokumy przechodzą przez to wszystko. Token zmarłego się nie rusza: ciało zostaje tam, gdzie upadło. Wyłączenie ustawienia oddaje ci *ekonomię* - Free Move i akcję - oraz, poza Eclipse, zasadę połączonych pokoi, do prowadzenia ręcznie.
 
 ### 9.4 Głos
 
-`scripts/voice.mjs`, ustawienie *głos per pokój* plus LiveKit AVClient. Każdy zmapowany pokój staje się własnym pokojem breakout LiveKit; gracz słyszy tego, kto jest z nim w pokoju, a jego klient głosowy podąża za tokenem. Monokuma podąża za własnym tokenem, głosem GMa, do którego puli jest przypisany. Podczas Eclipse każdy jest we własnym kanale, a GMowie dzielą jeden. Zmarli, chyba że wrócą jako Monocub, wracają do pokoju głównego. Podsłuchu nie ma: LiveKit pokazuje kafelek każdego słuchacza w pokoju, więc GM, który chce słyszeć pokój, wchodzi do niego swoim Monokumą. **Zresetuj wszystkie pokoje głosowe** (Między sesjami) odsyła każdego do pokoju głównego. `game.drpg.voicePlan()` wypisuje, dokąd każdy *zostałby* wysłany, bez mikrofonu i bez nikogo innego połączonego, więc większość testu głosu to minuta jednej osoby; `game.drpg.diagnoseVoice()` mówi, które z pięciu ogniw jest zerwane; uruchom je na kliencie, który się skarży. Moduł głosu zbliżeniowego zainstalowany obok potrafi uciszyć stół, gdy każda kontrola raportuje sukces - diagnoza go wymienia.
+`scripts/voice.mjs`, ustawienie *głos per pokój* plus LiveKit AVClient. Każdy zmapowany pokój staje się własnym pokojem breakout LiveKit; gracz słyszy tego, kto jest z nim w pokoju, a jego klient głosowy podąża za tokenem. Monokuma podąża za własnym tokenem, głosem GMa, do którego puli jest przypisany. Podczas Eclipse każdy jest we własnym kanale, a GMowie dzielą jeden. Zmarli, chyba że wrócą jako Monocub, wracają do pokoju głównego. **Podsłuchu nie ma:** LiveKit pokazuje kafelek każdego słuchacza w pokoju, więc GM, który chce słyszeć pokój, wchodzi do niego swoim Monokumą. **Zresetuj wszystkie pokoje głosowe** (Między sesjami) odsyła każdego do pokoju głównego. `game.drpg.voicePlan()` wypisuje, dokąd każdy *zostałby* wysłany, bez mikrofonu i bez nikogo innego połączonego, więc większość testu głosu to minuta jednej osoby; `game.drpg.diagnoseVoice()` mówi, które z pięciu ogniw jest zerwane; uruchom je na kliencie, który się skarży.
+
+> [!WARNING]
+> Moduł głosu zbliżeniowego zainstalowany obok potrafi uciszyć stół, gdy każda kontrola raportuje sukces - diagnoza go wymienia.
 
 ---
 
@@ -298,11 +404,29 @@ Niektóre odmowy działają niezależnie od ustawienia *przejście między pokoj
 
 `config.mjs ITEM_*`, `scripts/inventory.mjs`, `tables.mjs`, `gm-items.mjs`, `handover.mjs`, `vault.mjs`, `use-items.mjs`.
 
-**Kategorie i limity.** Usables (do **3**; Healing przywraca Health, Sanity Relief przywraca Sanity, rodzaj wynika z tabeli, z której przedmiot został wylosowany), Murder Weapons, Cleaning Tools i Tools (razem grupa **gear**: **2 sloty**, i tylko **1** może być schowany - noszenie dwóch znaczy, że jeden jest w ręku), Truth Bullets (bez limitu), klucze do pokoi (bez limitu). Nadanie przez GMa ignoruje limit i oznacza nadmiar.
+**Kategorie i limity.**
 
-**Tiery** od 0 do 3. Usables: Tier 1 przywraca 1, Tier 2 przywraca 2, Tier 3 przywraca 2 Health albo 2 Sanity do wyboru gracza plus 2 Hope; Tier 0 to "losowa, pozornie bezużyteczna rzecz, otwarta na kreatywne użycie" i trafia do ciebie do rozstrzygnięcia. Broń i narzędzia do sprzątania: Tier 0 bezużyteczne, 1 przeznaczone do czegoś innego, ale się nada, 2 częściowo do tej roboty, 3 stworzone wyłącznie do niej. Tier Murder Weapon to obrażenia w incydencie; Tier Cleaning Tool schodzi z DC sprzątania i z Przenieś ciało; **Tool w ręku** daje przewagę na pracę nad projektem i sabotaż i zdejmuje swój Tier z progu (`TOOL_IN_HAND`).
+| Kategoria | Limit |
+|---|---|
+| Usables (Healing przywraca Health, Sanity Relief przywraca Sanity, rodzaj wynika z tabeli, z której przedmiot został wylosowany) | do **3** |
+| Murder Weapons, Cleaning Tools i Tools | razem grupa **gear**: **2 sloty**, i tylko **1** może być schowany - noszenie dwóch znaczy, że jeden jest w ręku |
+| Truth Bullets | bez limitu |
+| Klucze do pokoi | bez limitu |
 
-**Wytrzymałość** (`ITEM_DURABILITY`): Tier 0 i 1 mają 1 punkt, Tier 2 ma 2, Tier 3 ma 3. Rzut, który wypadnie z **Despair** - sukces czy porażka, nigdy krytyk - zdejmuje jeden punkt z przedmiotu trzymanego w ręku, jeśli rzut go użył: Tool przy pracy nad projektem albo sabotażu, Cleaning Tool przy sprzątaniu, Murder Weapon przy ciosie. Gdy zejdzie ostatni punkt, przedmiot się psuje. Zepsuty przedmiot zostaje w swoim slocie i jest zepsuty, dokądkolwiek trafi; posiadacz pozbywa się go, chowając go do skrytki albo wyrzucając (rzut Shadow, który zawsze zostawia ślad). Zaciemnienie Rot zużywa wszystko o jeden, ale nigdy nie zabiera ostatniego punktu.
+Nadanie przez GMa ignoruje limit i oznacza nadmiar.
+
+**Tiery** od 0 do 3 i ich **wytrzymałość** (`ITEM_DURABILITY`):
+
+| Tier | Usables | Broń i narzędzia do sprzątania | Wytrzymałość |
+|---|---|---|---|
+| 0 | "losowa, pozornie bezużyteczna rzecz, otwarta na kreatywne użycie"; trafia do ciebie do rozstrzygnięcia | bezużyteczne | **1** punkt |
+| 1 | przywraca 1 | przeznaczone do czegoś innego, ale się nada | **1** punkt |
+| 2 | przywraca 2 | częściowo do tej roboty | **2** punkty |
+| 3 | przywraca 2 Health albo 2 Sanity do wyboru gracza plus 2 Hope | stworzone wyłącznie do niej | **3** punkty |
+
+Tier Murder Weapon to obrażenia w incydencie; Tier Cleaning Tool schodzi z DC sprzątania i z Przenieś ciało; **Tool w ręku** daje przewagę na pracę nad projektem i sabotaż i zdejmuje swój Tier z progu (`TOOL_IN_HAND`).
+
+**Wytrzymałość** (ostatnia kolumna powyżej). Rzut, który wypadnie z **Despair** - sukces czy porażka, nigdy krytyk - zdejmuje jeden punkt z przedmiotu trzymanego w ręku, <ins>jeśli rzut go użył</ins>: Tool przy pracy nad projektem albo sabotażu, Cleaning Tool przy sprzątaniu, Murder Weapon przy ciosie. Gdy zejdzie ostatni punkt, przedmiot się psuje. Zepsuty przedmiot zostaje w swoim slocie i jest zepsuty, dokądkolwiek trafi; posiadacz pozbywa się go, chowając go do skrytki albo wyrzucając (rzut Shadow, który zawsze zostawia ślad). Zaciemnienie Rot zużywa wszystko o jeden, ale nigdy nie zabiera ostatniego punktu.
 
 **Tabele przedmiotów** (`scripts/tables.mjs`, Między sesjami > Tabele przedmiotów). Search losuje z tabel losowych: jedna **pula Tier** na kategorię i Tier ("DRPG Murder Weapons - Tier 2", "DRPG Usables (Healing) - Tier 1" itd.), znajdowana po nazwie, plus opcjonalne **pule pokoi**, na które można wskazać pokój w Ustawieniach pokoi. Edytor ma trzy zakładki - Pule Tier, Pule pokoi i Utwórz przedmiot - oraz przycisk **Zainstaluj / przeinstaluj**: jednorazowa instalacja własnych, zwyczajnych, szkolnych list modułu, jako 20 tabel losowych w folderze "Danganronpa RPG"; jeśli już istnieją, wybierasz między **Zachowaj moje** a przebudową. Od Tier 2 wzwyż wpis może mieć jedną dodatkową rolę ("służy też jako"), więc siekiera jest narzędziem, a mop bronią. Zmienione etykiety nie gubią starych tabel.
 
@@ -310,9 +434,12 @@ Niektóre odmowy działają niezależnie od ustawienia *przejście między pokoj
 
 **Przekazywanie** (`scripts/handover.mjs`): Truth Bullet jest *kopiowany* (oboje mają po jednym), przedmiot jest *przenoszony*, klucz jest kopiowany. Bez akcji, tylko w tym samym pokoju, odmawiane podczas Eclipse; zapis idzie przez klienta GMa, który sprawdza pokój ponownie.
 
-**Sypialnie i klucze.** Sypialnia jest zamknięta dla wszystkich poza właścicielem; właściciel nigdy nie potrzebuje klucza. Każdy inny potrzebuje przedmiotu Klucz, który właściciel może komuś skopiować przez **Daj klucz do pokoju**. Klucz, który zmienia właściciela w inny sposób - wyciągnięty komuś przez Palm, zabrany ze skrytki, zdjęty z ciała - wciąż otwiera swoje drzwi. Klucze nazywają swój pokój we fladze, więc zmiana nazwy regionu je osieroca.
+**Sypialnie i klucze.** Sypialnia jest zamknięta dla wszystkich poza właścicielem; właściciel nigdy nie potrzebuje klucza. Każdy inny potrzebuje przedmiotu Klucz, który właściciel może komuś skopiować przez **Daj klucz do pokoju**. Klucz, który zmienia właściciela w inny sposób - wyciągnięty komuś przez Palm, zabrany ze skrytki, zdjęty z ciała - wciąż otwiera swoje drzwi.
 
-**Skrytka** (`scripts/vault.mjs`). Wszystko, czego postać nie nosi, leży w skrytce: domyślnie w sypialni albo w każdym pokoju, w którym Ustawienia pokoi jej ją dają. Skrytka mieści **3** rzeczy (`VAULT_LIMIT`). Chowanie i wyjmowanie nic nie kosztuje, ale trzeba tam stać; Truth Bullets nie da się schować. **Otwarta** skrytka to szuflada: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć jedną rzecz, a właściciel się o tym nie dowiaduje. Udane Search w pokoju, w którym ktoś inny trzyma niepustą skrytkę, bierze z tej skrytki zamiast z tabeli pokoju (najpierw z otwartych; ukryta kosztuje szukającego kość utrudnienia), i tylko Search, który robi to z Despair, zostawia szufladę na tyle naruszoną, że właściciel to zauważy - nigdy kto to zrobił. **Ukrytą** skrytkę (właściciel zbudował schowek - projekt, według twojego uznania; ukrytą robisz ją, przełączając jej komórkę w Ustawieniach pokoi) trzeba najpierw znaleźć przez Analyze > Znajdź ukrytą skrytkę (Head, 16), co otwiera tę jedną skrytkę tej jednej osobie, dopóki jej nie usuniesz. Mastermind widzi każdą skrytkę. `game.drpg.inspectVaults()` pokazuje ci zawartość każdej.
+> [!WARNING]
+> Klucze nazywają swój pokój we fladze, więc zmiana nazwy regionu je osieroca.
+
+**Skrytka** (`scripts/vault.mjs`). Wszystko, czego postać nie nosi, leży w skrytce: domyślnie w sypialni albo w każdym pokoju, w którym Ustawienia pokoi jej ją dają. Skrytka mieści **3** rzeczy (`VAULT_LIMIT`). Chowanie i wyjmowanie nic nie kosztuje, ale trzeba tam stać; Truth Bullets nie da się schować. **Otwarta** skrytka to szuflada: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć jedną rzecz, a właściciel się o tym nie dowiaduje. Udane Search w pokoju, w którym ktoś inny trzyma niepustą skrytkę, bierze z tej skrytki zamiast z tabeli pokoju (najpierw z otwartych; ukryta kosztuje szukającego kość utrudnienia), i tylko Search, który robi to z Despair, zostawia szufladę na tyle naruszoną, że właściciel to zauważy - nigdy kto to zrobił. **Ukrytą** skrytkę (właściciel zbudował schowek - projekt, według twojego uznania; ukrytą robisz ją, przełączając jej komórkę w Ustawieniach pokoi) trzeba najpierw znaleźć przez Analyze > Znajdź ukrytą skrytkę (Head, **16**), co otwiera tę jedną skrytkę tej jednej osobie, dopóki jej nie usuniesz. Mastermind widzi każdą skrytkę. `game.drpg.inspectVaults()` pokazuje ci zawartość każdej.
 
 **Palm** (sekcja 5) to kradzież z kieszeni i podkładanie do kieszeni; oba rozstrzyga klient GMa według `ACTIONS.palm`, a niezgrabnego złodzieja ofiara słyszy.
 
@@ -324,13 +451,54 @@ Niektóre odmowy działają niezależnie od ustawienia *przejście między pokoj
 
 `scripts/projects.mjs`, `projects-ui.mjs`, `traps.mjs`, `config.mjs PROJECT_SCALE`, `TRAP_TRIGGERS`, `TRAP_MODIFIERS`, `INDIRECT_MURDER`.
 
-Projekty to Countdowny z Daggerheart liczące *w górę*. Skale: Trivial 3, Standard 4, Complex 6, Desperate 8 postępu. Każdy projekt ma nazwę, obrazek albo ikonę w zasobniku, skalę, pokój (albo dowolny), opcjonalnie wymaganą statystykę, widoczność (tajne projekty widzą proponujący i GMowie; udostępnij je wspólnikom) oraz flagę morderstwa pośredniego. **Projekty** (kafelek panelu) to menedżer: tworzenie, edycja, udostępnianie, dodawanie i odejmowanie postępu, usuwanie. Projekt z pokojem stoi też na mapie jako token na dwa pola z młotkiem i bez nazwy, który możesz przeciągać; gracz widzi go, gdy już stał w jego pokoju, a tajny projekt - gdy zostanie do niego dopuszczony. Podwójne kliknięcie otwiera jego kartę. *Spójrz poza oczywiste* w Observe może odkryć tajny projekt w pokoju szukającego (DC 18), co dopuszcza go do tego projektu.
+Projekty to Countdowny z Daggerheart liczące *w górę*. Skale:
+
+| Skala | Postęp |
+|---|---|
+| Trivial | **3** |
+| Standard | **4** |
+| Complex | **6** |
+| Desperate | **8** |
+
+Każdy projekt ma nazwę, obrazek albo ikonę w zasobniku, skalę, pokój (albo dowolny), opcjonalnie wymaganą statystykę, widoczność (tajne projekty widzą proponujący i GMowie; udostępnij je wspólnikom) oraz flagę morderstwa pośredniego. **Projekty** (kafelek panelu) to menedżer: tworzenie, edycja, udostępnianie, dodawanie i odejmowanie postępu, usuwanie. Projekt z pokojem stoi też na mapie jako token na dwa pola z młotkiem i bez nazwy, który możesz przeciągać; gracz widzi go, gdy już stał w jego pokoju, a tajny projekt - gdy zostanie do niego dopuszczony. Podwójne kliknięcie otwiera jego kartę. *Spójrz poza oczywiste* w Observe może odkryć tajny projekt w pokoju szukającego (DC 18), co dopuszcza go do tego projektu.
 
 **Propozycje.** Z arkusza gracz albo pracuje nad projektem dostępnym w jego pokoju, albo **proponuje** nowy. Propozycja przychodzi do ciebie jako karta; zatwierdzasz ją (poprawiając po drodze skalę, pokój albo brzmienie) albo odrzucasz. Nic nie istnieje, dopóki tego nie zrobisz. Postęp rośnie tylko przez *Pracuj nad projektem*: 12 daje +1, 18 daje +2, krytyk +2 i zwrot akcji; Contribution dodaje +1, Patronage +2, Game Integrity odejmuje 2, Earthquake odejmuje 1. Ukończony projekt szepcze do proponującego i GMów - nigdy do stołu, bo projekt może być tajny - a co teraz daje, mówisz ty.
 
-**Morderstwo pośrednie** (`INDIRECT_MURDER`). Pułapkę buduje się z projektów: przygotuj broń (Standard do Complex, 4 do 6 postępu; może wymagać konkretnego pokoju, chyba że narzędzie już zdobyto) i zastaw pułapkę (Trivial do Standard, 3 do 4; zawsze konkretny pokój). Karta radzi około 6 postępu łącznie, cztery do sześciu akcji. Pracując przy innych, zabójca rzuca Shadow przeciw 16, by ukryć zamiar: sukces - nikt nic nie widzi; sukces z Despair - nikt nie widzi, a projekt zyskuje +1; porażka - inni dostają ogólny opis ("grzebie przy probówkach"). Praca w samotności daje +1 postępu. Zacieranie śladów tej pracy to rzut Shadow: poniżej 12 ślad Obvious, 12 Evident, 18 Subtle, krytyk Hidden.
+**Morderstwo pośrednie** (`INDIRECT_MURDER`). Pułapkę buduje się z projektów: przygotuj broń (Standard do Complex, 4 do 6 postępu; może wymagać konkretnego pokoju, chyba że narzędzie już zdobyto) i zastaw pułapkę (Trivial do Standard, 3 do 4; zawsze konkretny pokój). Karta radzi około 6 postępu łącznie, cztery do sześciu akcji. Pracując przy innych, zabójca rzuca Shadow przeciw **16**, by ukryć zamiar:
 
-**Pułapki: moduł pilnuje, GM odpala.** Projekt oznaczony jako morderstwo pośrednie ma wyzwalacz, wybierany przy tworzeniu albo edycji: ktoś jest sam w pokoju; ktoś wchodzi; ktoś przeszukuje pokój (udane Search); ktoś tu odpoczywa; ktoś używa podłożonego przedmiotu; ktoś pracuje nad wskazanym projektem; ktoś sabotuje wskazany projekt; ktoś szuka tu ukrytej skrytki (trafi czy nie); albo "mój własny warunek, sam go dopilnuję". Dwa modyfikatory: **Tylko po zmroku** (Wieczór, Noc albo dowolny Eclipse) i **Nie ten, kto ją zbudował** (domyślnie włączony). Pułapka uzbraja się, gdy pasek się zapełni. Gdy warunek pasuje, alarm idzie tylko do GMów - nazywa wyzwalacz, osobę, pokój i porę dnia, i niesie wpisany warunek zabójcy - z przyciskami **Właśnie odpaliła** (otwiera ekran morderstwa z wpisanym zabójcą i zaznaczonym *pośrednie*; ofiarę wybierasz ty) i **Nie ten - pilnuj dalej**. Pułapka, która przemówiła, rozbraja się, dopóki jej nie uzbroisz ponownie, więc pułapka w holu nie wysyła dwudziestu kart na sesję. Nic nie trafia do wątku zabójcy. Wyzwalacz podłożonego przedmiotu działa przez **Podłóż przedmiot** na ukończonym projekcie: który obiekt jest pułapką i w którym pokoju czeka; przychodzi jako to, czego szukało następne udane Search w tym pokoju (o ile nie zostało przekierowane do czyjejś skrytki), a zatruta tożsamość żyje w rejestrze twojej przeglądarki, nigdy na przedmiocie.
+| Ukrywanie zamiaru (Shadow, 16) | Co się dzieje |
+|---|---|
+| Sukces | nikt nic nie widzi |
+| Sukces z Despair | nikt nie widzi, a projekt zyskuje +1 |
+| Porażka | inni dostają ogólny opis ("grzebie przy probówkach") |
+
+Praca w samotności daje **+1 postępu**. Zacieranie śladów tej pracy to rzut Shadow:
+
+| Zacieranie śladów (Shadow) | Zostawiony ślad |
+|---|---|
+| Poniżej 12 | Obvious |
+| 12 | Evident |
+| 18 | Subtle |
+| Krytyk | Hidden |
+
+**Pułapki: moduł pilnuje, GM odpala.** Projekt oznaczony jako morderstwo pośrednie ma wyzwalacz, wybierany przy tworzeniu albo edycji:
+
+- ktoś jest sam w pokoju;
+- ktoś wchodzi;
+- ktoś przeszukuje pokój (udane Search);
+- ktoś tu odpoczywa;
+- ktoś używa podłożonego przedmiotu;
+- ktoś pracuje nad wskazanym projektem;
+- ktoś sabotuje wskazany projekt;
+- ktoś szuka tu ukrytej skrytki (trafi czy nie);
+- albo "mój własny warunek, sam go dopilnuję".
+
+Dwa modyfikatory: **Tylko po zmroku** (Wieczór, Noc albo dowolny Eclipse) i **Nie ten, kto ją zbudował** (domyślnie włączony). Pułapka uzbraja się, gdy pasek się zapełni. Gdy warunek pasuje, alarm idzie tylko do GMów - nazywa wyzwalacz, osobę, pokój i porę dnia, i niesie wpisany warunek zabójcy - z przyciskami **Właśnie odpaliła** (otwiera ekran morderstwa z wpisanym zabójcą i zaznaczonym *pośrednie*; ofiarę wybierasz ty) i **Nie ten - pilnuj dalej**. Nic nie trafia do wątku zabójcy.
+
+> [!IMPORTANT]
+> Pułapka, która przemówiła, rozbraja się, dopóki jej nie uzbroisz ponownie, więc pułapka w holu nie wysyła dwudziestu kart na sesję.
+
+Wyzwalacz podłożonego przedmiotu działa przez **Podłóż przedmiot** na ukończonym projekcie: który obiekt jest pułapką i w którym pokoju czeka; przychodzi jako to, czego szukało następne udane Search w tym pokoju (o ile nie zostało przekierowane do czyjejś skrytki), a zatruta tożsamość żyje w rejestrze twojej przeglądarki, nigdy na przedmiocie.
 
 ---
 
@@ -340,7 +508,10 @@ Projekty to Countdowny z Daggerheart liczące *w górę*. Skale: Trivial 3, Stan
 
 **Rozpoczęcie** (prawa strzałka na HUD albo **Zrób to** przy linii Dalej w panelu GMa): overflow sprawdzany dla nadchodzącej pory dnia; **akcje, Free Moves i zapasy Sprint/Burst są odnawiane tutaj** - to jedyne odnowienie; tutaj kończą się też pieczęcie, Chained i Silence, bo trwają tylko do końca pory dnia; karta ogłasza liczbę przejść; każdy gracz dostaje szeptem swój przydział i pokój; a każdy klient dostaje powiadomienie podsumowujące, co ten gracz zrobił w porze dnia, która właśnie minęła (GM dostaje podsumowanie całego stołu; gdy nic się nie wydarzyło, nie ma powiadomienia). Zwykły Eclipse pozwala na **2 przejścia między połączonymi pokojami**; Eclipse **nocny** pozwala każdemu wybrać dowolny pokój na mapie (losowanie Darkness cofa to do 2). Podczas Eclipse: działa tylko ruch; można zgłosić **Direct Murder** (wydaje akcję z nowego budżetu i czeka); Calle, przekazania, inne akcje, kafelek morderstwa i odkrycie ciała są odrzucane; muzyka przełącza się na playlistę Eclipse; każdy gracz jest we własnym kanale głosowym.
 
-**Zakończenie**: **Zrób to** przy linii Dalej w panelu pokazuje tabelę ustawienia (kto ile razy przeszedł, gdzie stoi) z **Zakończ i przesuń zegar** (zwykła droga: przesuwa zegar, bez drugiego odnowienia) i **Zakończ bez przesuwania zegara**; przycisk odtwarzania na HUD kończy go i od razu przesuwa zegar. Potem zaparkowane Direct Murders są oceniane według tego, gdzie każdy faktycznie stanął: dokładnie jedna inna postać w pokoju zabójcy zostaje ofiarą, wszystko inne kończy się niepowodzeniem, a zabójca słyszy dlaczego, i tylko pierwsze ważne zgłoszenie otwiera incydent. Nic nie otwiera się bez ciebie: każde zgłoszenie w chwili złożenia wystawia w wątku zabójcy kartę **Pozwól** / **Odmów**, a o to, którego jeszcze nie rozstrzygnąłeś, jesteś pytany przy zapalonym świetle (zamknięcie tego okna oznacza odmowę); `game.drpg.ruleOnParkedMurder(killerId, true)` to skrót z konsoli, gdyby karta zginęła.
+**Zakończenie**: **Zrób to** przy linii Dalej w panelu pokazuje tabelę ustawienia (kto ile razy przeszedł, gdzie stoi) z **Zakończ i przesuń zegar** (zwykła droga: przesuwa zegar, bez drugiego odnowienia) i **Zakończ bez przesuwania zegara**; przycisk odtwarzania na HUD kończy go i od razu przesuwa zegar. Potem zaparkowane Direct Murders są oceniane według tego, gdzie każdy faktycznie stanął: <ins>dokładnie jedna inna postać w pokoju zabójcy</ins> zostaje ofiarą, wszystko inne kończy się niepowodzeniem, a zabójca słyszy dlaczego, i tylko pierwsze ważne zgłoszenie otwiera incydent.
+
+> [!IMPORTANT]
+> Nic nie otwiera się bez ciebie: każde zgłoszenie w chwili złożenia wystawia w wątku zabójcy kartę **Pozwól** / **Odmów**, a o to, którego jeszcze nie rozstrzygnąłeś, jesteś pytany przy zapalonym świetle (zamknięcie tego okna oznacza odmowę); `game.drpg.ruleOnParkedMurder(killerId, true)` to skrót z konsoli, gdyby karta zginęła.
 
 ---
 
@@ -352,7 +523,25 @@ Projekty to Countdowny z Daggerheart liczące *w górę*. Skale: Trivial 3, Stan
 
 Dwie drogi. Gracz zgłasza **Direct Murder** podczas Eclipse (zgoda gracza ofiary to umowa przy stole, nie pole wyboru); zgłoszenie czeka i jest oceniane przy zapalonym świetle. Albo otwierasz je sam z **Sprawa > Morderstwo**: zabójca, ofiara i pole *pośrednie*, które zaznacza się samo, gdy ten zabójca ma ukończoną pułapkę. Jeden incydent naraz. Jedno nazwisko w obu polach otwiera śmierć z własnej ręki: Stage 4 wciąż rzuca, Stage 5 nie może biec, a incydent idzie prosto do Stage 6; śmierć zapisuje się, gdy zamkniesz incydent.
 
-**Stage 4, rzut otwarcia.** Direct Murder otwiera się rzutem **zabójcy**: Body albo Hand przeciw **8**, z przewagą nocą. Hope: incydent się zaczyna, a sprawa zostawi **5 Key Remnants**; Despair: zaczyna się, ofiara traci całe Sanity i Role reversal na ten incydent, **4** Key Remnants; krytyk: zaczyna się, ofiara dowiaduje się, kto ją atakuje, **3**; porażka: brak incydentu, ofiara nigdy nie dowiaduje się, że coś próbowano, akcja wydana. Liczba ma minimum **3** (`KEY_REMNANTS.minimum`). Pułapka otwiera się rzutem **ofiary**: Eye albo Head przeciw **20**, z utrudnieniem nocą. Hope: coś tu nie gra - może wydać swój Free Move, by się wydostać, a jeśli to zrobi, żyje (moduł nie daje dodatkowego Move); Despair: rozumie, co zastawiono, i może powiedzieć innym, projekt zostaje aktywny; krytyk: widzi pułapkę i czyje ręce ją zbudowały; porażka: pułapka się zamyka. Każdy sukces zostawia Evident Incident Remnant, a zauważona pułapka zostawia incydent zawieszony na otwarciu, dopóki nie zamkniesz go z trackera. Pułapka zawsze zostawia sprawie pełne 5 Key Remnants. Ofierze mówi się, że incydent się zaczął, dopiero gdy naprawdę się zaczyna.
+**Stage 4, rzut otwarcia.** Direct Murder otwiera się rzutem **zabójcy**: Body albo Hand przeciw **8**, z przewagą nocą.
+
+| Rzut zabójcy | Co się dzieje | Key Remnants, które zostawi sprawa |
+|---|---|---|
+| Hope | incydent się zaczyna | **5** |
+| Despair | zaczyna się; ofiara traci całe Sanity i Role reversal na ten incydent | **4** |
+| Krytyk | zaczyna się; ofiara dowiaduje się, kto ją atakuje | **3** |
+| Porażka | brak incydentu; ofiara nigdy nie dowiaduje się, że coś próbowano; akcja wydana | - |
+
+Liczba ma minimum **3** (`KEY_REMNANTS.minimum`). Pułapka otwiera się rzutem **ofiary**: Eye albo Head przeciw **20**, z utrudnieniem nocą.
+
+| Rzut ofiary | Co się dzieje |
+|---|---|
+| Hope | coś tu nie gra - może wydać swój Free Move, by się wydostać, a jeśli to zrobi, żyje (moduł nie daje dodatkowego Move) |
+| Despair | rozumie, co zastawiono, i może powiedzieć innym; projekt zostaje aktywny |
+| Krytyk | widzi pułapkę i czyje ręce ją zbudowały |
+| Porażka | pułapka się zamyka |
+
+Każdy sukces zostawia Evident Incident Remnant, a zauważona pułapka zostawia incydent zawieszony na otwarciu, dopóki nie zamkniesz go z trackera. Pułapka zawsze zostawia sprawie pełne 5 Key Remnants. Ofierze mówi się, że incydent się zaczął, dopiero gdy naprawdę się zaczyna.
 
 ### 13.2 Incydent (Stage 5)
 
@@ -376,7 +565,10 @@ Turowy, ofiara pierwsza; runda to ofiara, a potem po kolei każdy zabójca. Za k
 | trzecia | Partners in crime | bez rzutu | Trzecia osoba dołącza do zabójcy |
 | trzecia | Averted eyes | bez rzutu | Odejdź, bez śladu po tobie |
 
-**Wejście na to.** W Direct Murder postać, której token wejdzie do pokoju, dostaje automatycznie jeden darmowy wybór spośród rozwiązań trzeciej osoby. Czwarta osoba anuluje incydent w miejscu: nikt nie ginie, nie ma Blackened, to, co już się stało, zostaje, a nowo przybyłemu nic się nie mówi. Ofiara, której skończą się Health i Sanity, ginie bez Finishing blow, i wtedy nikt nie zyskuje tego, co daje tam krytyk. Akcje rozwiązania (Survive, Role reversal, Escape together, Finishing blow) kosztują **1 Sanity** zamiast akcji, albo **1 Health**, gdy Sanity już nie ma; trzy wybory trzeciej osoby bez rzutu są darmowe. Nic tu nie zabija samo poza własnymi zakończeniami silnika. Niektóre wyniki z tabeli powyżej to proza, którą przekazujesz ty, a nie efekty nakładane przez silnik: przywrócenie ofiary po Escape together, nietykalność na ten i następny rozdział, wskazówka z Survive i śmierć napastnika przy krytycznym Role reversal (silnik zamienia strony, przywraca nowego zabójcę i zostawia ślad Evident Reinforced; śmierć zapisujesz ty).
+**Wejście na to.** W Direct Murder postać, której token wejdzie do pokoju, dostaje automatycznie jeden darmowy wybór spośród rozwiązań trzeciej osoby. **Czwarta osoba anuluje incydent** w miejscu: nikt nie ginie, nie ma Blackened, to, co już się stało, zostaje, a nowo przybyłemu nic się nie mówi. Ofiara, której skończą się Health i Sanity, ginie bez Finishing blow, i wtedy nikt nie zyskuje tego, co daje tam krytyk. Akcje rozwiązania (Survive, Role reversal, Escape together, Finishing blow) kosztują **1 Sanity** zamiast akcji, albo **1 Health**, gdy Sanity już nie ma; trzy wybory trzeciej osoby bez rzutu są darmowe. Nic tu nie zabija samo poza własnymi zakończeniami silnika.
+
+> [!IMPORTANT]
+> Niektóre wyniki z tabeli powyżej to proza, którą przekazujesz ty, a nie efekty nakładane przez silnik: przywrócenie ofiary po Escape together, nietykalność na ten i następny rozdział, wskazówka z Survive i śmierć napastnika przy krytycznym Role reversal (silnik zamienia strony, przywraca nowego zabójcę i zostawia ślad Evident Reinforced; śmierć zapisujesz ty).
 
 **Tracker incydentu** (kafelek Morderstwo, gdy trwa) odświeża się na żywo i pokazuje, kto kogo atakuje (i ewentualną trzecią osobę), etap, turę, czyja strona działa, ile ofierze zostało i liczbę Key Remnants; w Stage 6 dokłada listę tylko do odczytu ze śladami w pokoju zabójcy, każdy z jego DC usunięcia. Jego przyciski: **Poproś o rzut otwarcia ponownie** (gdy otwarcie czeka, najwyżej raz na 10 sekund), **Oddaj turę** i **Zamknij morderstwo**. Nie ma ręcznego "ktoś wchodzi": jedyną drogą jest token wchodzący do pokoju. Stage 6 zaczyna się sam - po Finishing blow, gdy ofierze skończą się Health i Sanity, po udanym Survive albo Escape together, albo od razu po śmierci z własnej ręki - albo gdy oznaczysz ofiarę jako zmarłą przez **Postać umiera** i przyjmiesz pytanie, które się wtedy pojawi. Reroll gracza na akcji kryzysowej jest oceniany według zapisu, który trzyma tracker.
 
@@ -391,7 +583,32 @@ Gdy incydent kończy się ciałem, zabójca wreszcie widzi na arkuszu zostawione
 | Evident | 15 |
 | Obvious | 18 |
 
-**Scena jest jeszcze ciepła:** -3 na każdym DC, dopóki ciało nie zostanie znalezione albo nie ruszy Investigation (`CLEANUP.freshScene`). Wyniki: krytyk - ślad znika i wraca 1 (Sanity albo akcja, którą zapłacono), a zabójca dostaje propozycję, by zamiast tego przerobić ślad; Hope - znika; Despair - znika, ale zostaje Evident Faint Tamper Remnant; porażka z Hope - zostaje plus Subtle Faint Tamper Remnant; porażka z Despair - zostaje plus Evident. Reinforced ślady nigdy nie schodzą. **Przerób ślad** to też osobna próba, o 3 łatwiejsza niż usunięcie: zabójca pisze nową nazwę (do 60 znaków) i opis (do 400), ślad zawsze staje się Tamper Remnant, a przeróbka trafia do ciebie jako karta do zatwierdzenia albo odrzucenia - nic nie jest zapisywane, dopóki nie zatwierdzisz; krytyk dodatkowo ścisza ślad o jedno pasmo i oddaje to, czym zapłacono (Sanity albo akcję). Dwie inne akcje Stage 6: **Mylny trop** (15) podkłada Prep Remnant wskazujący innego żyjącego ucznia (Evident / Subtle / Obvious; porażka z Hope zostawia Hidden Faint, porażka z Despair nic); **Przenieś ciało** (Body, 16, o 1 mniej za każdy Tier Cleaning Tool w ręku) niesie je do połączonego pokoju, który zabójca wybiera przed rzutem, nigdy do sypialni; sukces zawsze zostawia ślad Evident Tamper, porażka zostawia ciało tam, gdzie było. Gdy w pokoju jest ktokolwiek poza współzabójcą, usuwanie, przerabianie i podkładanie tropu najpierw rzucają Shadow przeciw 16, by ukryć, co się robi (przenoszenie ciała nie): sukces darmowy, sukces z Despair kosztuje 1 Sanity, porażka z Hope 1, porażka z Despair 2, a porażka pozwala innym zobaczyć mniej więcej, co się dzieje. Użyte Murder Weapon zostaje oznaczone jako zepsute przy zamknięciu incydentu, a Cleaning Tools, które zabójcy trzymali w ręku - gdy ciało zostanie znalezione; jedno i drugie zostaje w torbie jako dowód, który zabójca musi wyrzucić albo schować do skrytki.
+**Scena jest jeszcze ciepła:** **-3** na każdym DC, dopóki ciało nie zostanie znalezione albo nie ruszy Investigation (`CLEANUP.freshScene`). Wyniki:
+
+| Usuwanie | Ślad |
+|---|---|
+| Krytyk | znika i wraca 1 (Sanity albo akcja, którą zapłacono), a zabójca dostaje propozycję, by zamiast tego przerobić ślad |
+| Hope | znika |
+| Despair | znika, ale zostaje Evident Faint Tamper Remnant |
+| Porażka z Hope | zostaje, plus Subtle Faint Tamper Remnant |
+| Porażka z Despair | zostaje, plus Evident |
+
+Reinforced ślady nigdy nie schodzą.
+
+**Przerób ślad** to też osobna próba, o 3 łatwiejsza niż usunięcie: zabójca pisze nową nazwę (do 60 znaków) i opis (do 400), ślad zawsze staje się Tamper Remnant, a przeróbka trafia do ciebie jako karta do zatwierdzenia albo odrzucenia - nic nie jest zapisywane, dopóki nie zatwierdzisz; krytyk dodatkowo ścisza ślad o jedno pasmo i oddaje to, czym zapłacono (Sanity albo akcję).
+
+Dwie inne akcje Stage 6: **Mylny trop** (**15**) podkłada Prep Remnant wskazujący innego żyjącego ucznia (Evident / Subtle / Obvious; porażka z Hope zostawia Hidden Faint, porażka z Despair nic); **Przenieś ciało** (Body, **16**, o 1 mniej za każdy Tier Cleaning Tool w ręku) niesie je do połączonego pokoju, który zabójca wybiera przed rzutem, nigdy do sypialni; sukces zawsze zostawia ślad Evident Tamper, porażka zostawia ciało tam, gdzie było.
+
+Gdy w pokoju jest ktokolwiek poza współzabójcą, usuwanie, przerabianie i podkładanie tropu najpierw rzucają Shadow przeciw **16**, by ukryć, co się robi (przenoszenie ciała nie):
+
+| Ukrywanie (Shadow, 16) | Koszt |
+|---|---|
+| Sukces | darmowy |
+| Sukces z Despair | 1 Sanity |
+| Porażka z Hope | 1 Sanity |
+| Porażka z Despair | 2 Sanity |
+
+Porażka pozwala innym zobaczyć mniej więcej, co się dzieje. Użyte Murder Weapon zostaje oznaczone jako zepsute przy zamknięciu incydentu, a Cleaning Tools, które zabójcy trzymali w ręku - gdy ciało zostanie znalezione; jedno i drugie zostaje w torbie jako dowód, który zabójca musi wyrzucić albo schować do skrytki.
 
 **Okno zdrady.** Wspólnik - trzecia osoba, która stanęła po stronie zabójcy - może się na niego obrócić: oferta trwa do końca tego dnia, przeżywa zamknięcie incydentu, jest jednorazowa i nie można z niej skorzystać, gdy trwa inna walka. Otwiera drugi incydent z ciałem wciąż na podłodze. Ekran po incydencie u zabójcy też ma ten przycisk.
 
@@ -399,7 +616,10 @@ Gdy incydent kończy się ciałem, zabójca wreszcie widzi na arkuszu zostawione
 
 Zamknięcie morderstwa zapisuje **Blackened** (każdego zabójcę rozdziału, ze zdrajcą włącznie), oznacza użytą broń jako zepsutą i otwiera ekran po incydencie, "Incydent zakończony - co teraz": **Znaleziono ciało** (ogłoś), **Przejdź do Investigation**, **Wydaj Autopsy Truth Bullet**, zdrada, jeśli jest w ofercie. Przypomina też, ile Key Remnants trzeba jeszcze postawić, i o wydaniu sekcji.
 
-**Odkrycie ciała** dzieje się samo, gdy w pokoju z ciałem z tego rozdziału stoi co najmniej dwóch uczniów, w tym co najmniej jeden niezwiązany z zabójstwem - ani zapisany Blackened, ani zabójca trwającego incydentu, który wciąż sprząta w Stage 6 (zabójcy nad własną ofiarą to wrabianie, nie odkrycie; Monokumy i zmarli z tego rozdziału nie są świadkami, Monocub jest), nigdy podczas Eclipse - albo przyciskiem **Znaleziono ciało**. Najpierw pyta cię, które Faint ślady Prep należą do tego morderstwa (stają się trwałymi dowodami), oznacza narzędzia do sprzątania zabójców jako zepsute, zwołuje wszystkich do pokoju, ogłasza ciało stołowi z dźwiękiem, wstrzymuje muzykę i potem **czeka**: faza zostaje Daily Life, dopóki nie rozpoczniesz Investigation z linii Dalej albo z ekranu po incydencie. Zmiana pory dnia kończy tylko ciszę.
+**Odkrycie ciała** dzieje się samo, gdy w pokoju z ciałem z tego rozdziału stoi co najmniej dwóch uczniów, w tym co najmniej jeden <ins>niezwiązany z zabójstwem</ins> - ani zapisany Blackened, ani zabójca trwającego incydentu, który wciąż sprząta w Stage 6 (zabójcy nad własną ofiarą to wrabianie, nie odkrycie; Monokumy i zmarli z tego rozdziału nie są świadkami, Monocub jest), nigdy podczas Eclipse - albo przyciskiem **Znaleziono ciało**. Najpierw pyta cię, które Faint ślady Prep należą do tego morderstwa (stają się trwałymi dowodami), oznacza narzędzia do sprzątania zabójców jako zepsute, zwołuje wszystkich do pokoju, ogłasza ciało stołowi z dźwiękiem, wstrzymuje muzykę i potem **czeka**.
+
+> [!IMPORTANT]
+> Faza zostaje Daily Life, dopóki nie rozpoczniesz Investigation z linii Dalej albo z ekranu po incydencie. Zmiana pory dnia kończy tylko ciszę.
 
 ---
 
@@ -407,13 +627,48 @@ Zamknięcie morderstwa zapisuje **Blackened** (każdego zabójcę rozdziału, ze
 
 `scripts/remnants.mjs`, `investigation.mjs`, `truth-bullets.mjs`, `observe.mjs`, `analyze.mjs`; `config.mjs REMNANT_TYPES`, `KEY_REMNANTS`, `OBSERVE_DC`, `ANALYZE_DC`.
 
-**Remnants** to ukryte tokeny na mapie, kładzione tam, gdzie stała postać, gdy akcja go zostawiła, z typem, widocznością (Obvious, Evident, Subtle, Hidden), kto go zostawił, pokojem, rozdziałem, dniem i porą dnia, oraz tym, czy jest Reinforced (nie do sprzątnięcia) i czy jest powiązany ze zbrodnią. Typy: **Key** (twoje, nieusuwalne, staje się Truth Bulletem bez analizy), **Neutral** (nieokreślony; Analyze zamienia go w prawdziwą kategorię), **Faint** (wątpliwy; czyszczony na końcu rozdziału, chyba że powiązany z morderstwem), **Prep**, **Incident**, **Tamper** (zostawiony przez sprzątanie), **Autopsy** (wydawany, nigdy nie znajdowany przez Observe), **Final Truth** (jeden na rozdział, wskazuje Masterminda, Reinforced). Typy Truth Bullets są ich lustrem. Każdy Remnant zaczyna jako token z jedną neutralną nazwą i obrazkiem "?" (po pierwszej kopii nosi nazwę, którą mu nadałeś); GM widzi ikonę akcji, która go zostawiła (Search, projekt, sabotaż, akcja dynamiczna, sprzątanie, incydent, wyrzucenie, postawienie przez GMa, zabranie z ciała), gracz dopiero, gdy jego własna kopia zostanie rozpoznana, a podwójne kliknięcie Remnantu otwiera jego kartę śladu.
+**Remnants** to ukryte tokeny na mapie, kładzione tam, gdzie stała postać, gdy akcja go zostawiła, z typem, widocznością (Obvious, Evident, Subtle, Hidden), kto go zostawił, pokojem, rozdziałem, dniem i porą dnia, oraz tym, czy jest Reinforced (nie do sprzątnięcia) i czy jest powiązany ze zbrodnią. Typy:
 
-**Pulpit Investigation** (Sprawa > Investigation) to żywa teczka sprawy: zakładka **Ślady** wymienia każdy Remnant z filtrami (po graczu, pokoju i rozdziale), pozwala edytować nazwę, tekst dla gracza i tekst analizy, poprawić typ i oznaczyć go jako Faint, powiązany ze zbrodnią albo Reinforced; zakładka **Key Remnants** to planer; zakładka **Final Truth Remnants** stawia Final Truth Remnants; **Kto co ma** pokazuje Truth Bullets każdego ucznia, ile jeszcze nie przeanalizowano i czym są naprawdę; a stopka ma **Nowy ślad** (ślad dowolnego rodzaju, w dowolnym pokoju), **Wyczyść Faint Remnants**, **Zbierz Truth Bullets**, sekcję, dziennik dowodów Class Trial i ciało.
+| Typ | Czym jest |
+|---|---|
+| **Key** | twoje, nieusuwalne, staje się Truth Bulletem bez analizy |
+| **Neutral** | nieokreślony; Analyze zamienia go w prawdziwą kategorię |
+| **Faint** | wątpliwy; czyszczony na końcu rozdziału, chyba że powiązany z morderstwem |
+| **Prep** | - |
+| **Incident** | - |
+| **Tamper** | zostawiony przez sprzątanie |
+| **Autopsy** | wydawany, nigdy nie znajdowany przez Observe |
+| **Final Truth** | jeden na rozdział, wskazuje Masterminda, Reinforced |
 
-**Key Remnants** (`KEY_REMNANTS`). Przygotowujesz **5** tropów na rozdział, w skali Trivial, Standard, Standard, Complex, Desperate; rzut otwarcia decyduje, ile sprawa zachowa (5, 4 albo 3; pułapka zachowuje wszystkie 5), nigdy poniżej **3**. Razem mają zawęzić podejrzanych do **2 do 4** osób - ostatni krok od kręgu do nazwiska należy do Class Trial. Każdy wiersz planera ma nazwę i tekst dla gracza (co dostaje znalazca), tekst analizy (co ujawnia Analyze), twoją prywatną notatkę, pokój i widoczność; **Utwórz na mapie** stawia go w losowym miejscu wewnątrz pokoju jako Reinforced i powiązany ze zbrodnią. Karta z prośbą gracza ("patrzę na okno") ma **Utwórz tu Key Remnant**, który może wypełnić jeden z pięciu wierszy. Na starcie Class Trial moduł nalicza opłatę za nieudane śledztwo: każdy Key Remnant brakujący do **4 znalezionych** jest wart **3 Despair do puli każdego Monokumy** (`unfoundBar`, `unfoundDespair`) - całkiem nieudane śledztwo to +12 do każdej puli. Naliczane raz na rozdział i tylko dopóki plan jest jeszcze planem tego rozdziału.
+Typy Truth Bullets są ich lustrem. Każdy Remnant zaczyna jako token z jedną neutralną nazwą i obrazkiem "?" (po pierwszej kopii nosi nazwę, którą mu nadałeś); GM widzi ikonę akcji, która go zostawiła (Search, projekt, sabotaż, akcja dynamiczna, sprzątanie, incydent, wyrzucenie, postawienie przez GMa, zabranie z ciała), gracz dopiero, gdy jego własna kopia zostanie rozpoznana, a podwójne kliknięcie Remnantu otwiera jego kartę śladu.
 
-**Observe.** Gracz deklaruje, jak patrzy - **Rozejrzyj się za czymkolwiek** (najłatwiejszy ślad tutaj), **Spójrz poza oczywiste** (najtrudniejszy, a także tajny projekt w pokoju przy DC 18), **Podążaj za własnymi śladami** (najpierw jego własne), **Skup wzrok** (nazywa, czego chce, a karta pyta cię, na który ślad wskazują te słowa) albo **Zbadaj punkt zainteresowania** (coś, co nie jest śladem, do twojego rozstrzygnięcia). Przy obu ostatnich rzut pada, zanim je zobaczysz: odmowa wyboru przy Skup wzrok, Zbadaj punkt zainteresowania albo Observe w pokoju, w którym nie zostały żadne ślady, staje się kartą decyzji na tym rzucie z **Utwórz tu Key Remnant**, **Odpowiedz** i **Nic tam nie było**, co liczy się jak pudło. Rzut jest oceniany na twoim kliencie według prawdziwego typu i widoczności śladu; gracz słyszy wynik, nigdy to, jakie DC obowiązywało. Trafienie kopiuje Remnant do ekwipunku jako Neutral Truth Bullet i zostawia oryginał; pudło kosztuje 1 Sanity. Jeden ślad daje jedną kopię na osobę. Ślady związane z morderstwem są pokazywane w pierwszej kolejności. Gdy ktoś po raz pierwszy skopiuje ślad, twoja przeglądarka prosi cię o jego opis (nazwa, tekst dla gracza, tekst analizy, wstępnie wypełnione); każdy, kto skopiuje go później, dostaje te same słowa, a krytyk pyta cię ponownie tylko o większą wskazówkę.
+**Pulpit Investigation** (Sprawa > Investigation) to żywa teczka sprawy:
+
+| Zakładka | Co robi |
+|---|---|
+| **Ślady** | wymienia każdy Remnant z filtrami (po graczu, pokoju i rozdziale), pozwala edytować nazwę, tekst dla gracza i tekst analizy, poprawić typ i oznaczyć go jako Faint, powiązany ze zbrodnią albo Reinforced |
+| **Key Remnants** | planer |
+| **Final Truth Remnants** | stawia Final Truth Remnants |
+| **Kto co ma** | pokazuje Truth Bullets każdego ucznia, ile jeszcze nie przeanalizowano i czym są naprawdę |
+
+Stopka ma **Nowy ślad** (ślad dowolnego rodzaju, w dowolnym pokoju), **Wyczyść Faint Remnants**, **Zbierz Truth Bullets**, sekcję, dziennik dowodów Class Trial i ciało.
+
+**Key Remnants** (`KEY_REMNANTS`). Przygotowujesz **5** tropów na rozdział, w skali Trivial, Standard, Standard, Complex, Desperate; rzut otwarcia decyduje, ile sprawa zachowa (5, 4 albo 3; pułapka zachowuje wszystkie 5), nigdy poniżej **3**. Razem mają zawęzić podejrzanych do **2 do 4** osób - ostatni krok od kręgu do nazwiska należy do Class Trial. Każdy wiersz planera ma nazwę i tekst dla gracza (co dostaje znalazca), tekst analizy (co ujawnia Analyze), twoją prywatną notatkę, pokój i widoczność; **Utwórz na mapie** stawia go w losowym miejscu wewnątrz pokoju jako Reinforced i powiązany ze zbrodnią. Karta z prośbą gracza ("patrzę na okno") ma **Utwórz tu Key Remnant**, który może wypełnić jeden z pięciu wierszy.
+
+> [!WARNING]
+> Na starcie Class Trial moduł nalicza opłatę za nieudane śledztwo: każdy Key Remnant brakujący do **4 znalezionych** jest wart **3 Despair do puli każdego Monokumy** (`unfoundBar`, `unfoundDespair`) - całkiem nieudane śledztwo to **+12** do każdej puli. Naliczane raz na rozdział i tylko dopóki plan jest jeszcze planem tego rozdziału.
+
+**Observe.** Gracz deklaruje, jak patrzy:
+
+| Tryb | Czego szuka |
+|---|---|
+| **Rozejrzyj się za czymkolwiek** | najłatwiejszy ślad tutaj |
+| **Spójrz poza oczywiste** | najtrudniejszy, a także tajny projekt w pokoju przy DC **18** |
+| **Podążaj za własnymi śladami** | najpierw jego własne |
+| **Skup wzrok** | nazywa, czego chce, a karta pyta cię, na który ślad wskazują te słowa |
+| **Zbadaj punkt zainteresowania** | coś, co nie jest śladem, do twojego rozstrzygnięcia |
+
+Przy obu ostatnich rzut pada, zanim je zobaczysz: odmowa wyboru przy Skup wzrok, Zbadaj punkt zainteresowania albo Observe w pokoju, w którym nie zostały żadne ślady, staje się kartą decyzji na tym rzucie z **Utwórz tu Key Remnant**, **Odpowiedz** i **Nic tam nie było**, co liczy się jak pudło. Rzut jest oceniany na twoim kliencie według prawdziwego typu i widoczności śladu; gracz słyszy wynik, nigdy to, jakie DC obowiązywało. Trafienie kopiuje Remnant do ekwipunku jako Neutral Truth Bullet i zostawia oryginał; pudło kosztuje **1 Sanity**. Jeden ślad daje jedną kopię na osobę. Ślady związane z morderstwem są pokazywane w pierwszej kolejności. Gdy ktoś po raz pierwszy skopiuje ślad, twoja przeglądarka prosi cię o jego opis (nazwa, tekst dla gracza, tekst analizy, wstępnie wypełnione); każdy, kto skopiuje go później, dostaje te same słowa, a krytyk pyta cię ponownie tylko o większą wskazówkę.
 
 | Widoczność | Daily Life | Key | Faint | Prep / Incident / Tamper |
 |---|---|---|---|---|
@@ -424,7 +679,7 @@ Zamknięcie morderstwa zapisuje **Blackened** (każdego zabójcę rozdziału, ze
 
 (DC Observe, `OBSERVE_DC`. Neutral wyceniany jak Prep; Final jak Key.)
 
-**Analyze.** Head przeciw prawdziwemu typowi bulleta i pierwotnej widoczności. Key i Final Truth Bullets pokazują swój rodzaj w chwili podniesienia, ale ich tekst analizy wciąż czeka na Analyze w najłatwiejszej kolumnie (6 / 9 / 12 / 15); tylko Autopsy Truth Bullet przychodzi w pełni odczytany. Sukces ujawnia prawdziwy typ (i czy jest powiązany ze zbrodnią); porażka blokuje ten bullet dla tego gracza do końca rozdziału - kopia przekazana komuś innemu to inny przedmiot i blokady nie niesie. Ten sam kafelek zawsze oferuje prośbę o wskazówkę do ciebie (14 subtelna, 18 bezpośrednia, krytyk: jedno pytanie do wyboru gracza) i poszukiwanie ukrytej skrytki (16); gdy nie ma już bulleta do analizy, zostają tylko te dwie. Każde użycie Analyze wymaga GMa online i bez niego jest odrzucane, zanim cokolwiek zostanie opłacone.
+**Analyze.** Head przeciw prawdziwemu typowi bulleta i pierwotnej widoczności. Key i Final Truth Bullets pokazują swój rodzaj w chwili podniesienia, ale ich tekst analizy wciąż czeka na Analyze w najłatwiejszej kolumnie (6 / 9 / 12 / 15); tylko Autopsy Truth Bullet przychodzi w pełni odczytany. Sukces ujawnia prawdziwy typ (i czy jest powiązany ze zbrodnią); porażka blokuje ten bullet dla tego gracza do końca rozdziału - kopia przekazana komuś innemu to inny przedmiot i blokady nie niesie. Ten sam kafelek zawsze oferuje prośbę o wskazówkę do ciebie (**14** subtelna, **18** bezpośrednia, krytyk: jedno pytanie do wyboru gracza) i poszukiwanie ukrytej skrytki (**16**); gdy nie ma już bulleta do analizy, zostają tylko te dwie. Każde użycie Analyze wymaga GMa online i bez niego jest odrzucane, zanim cokolwiek zostanie opłacone.
 
 | Widoczność | Daily Life | Faint | Prep / Incident / Tamper |
 |---|---|---|---|
@@ -435,7 +690,10 @@ Zamknięcie morderstwa zapisuje **Blackened** (każdego zabójcę rozdziału, ze
 
 (DC Analyze, `ANALYZE_DC`. Key i Final Truth Bullets oraz Autopsy wydany jako Neutral czyta się w kolumnie Key: 6 / 9 / 12 / 15. W Class Trial Analyze kosztuje akcję, albo 1 Hope, gdy akcji nie ma, albo 1 Sanity, gdy nie ma ani jednego, ani drugiego.)
 
-**Krytyczne** Observe albo Analyze jest ci winne solidną wskazówkę dla gracza - karta mówi to na czerwono. **Sekcję** wydajesz z pulpitu albo z ekranu po incydencie zaznaczonym uczniom: nazwa, co gracz czyta, twoja notatka. Klucz odpowiedzi za każdym bulletem żyje tylko w przeglądarkach GMów i synchronizuje się między nimi; `game.drpg.exportLedger()` i `importLedger()` robią kopię i ją przywracają.
+> [!IMPORTANT]
+> **Krytyczne** Observe albo Analyze jest ci winne solidną wskazówkę dla gracza - karta mówi to na czerwono.
+
+**Sekcję** wydajesz z pulpitu albo z ekranu po incydencie zaznaczonym uczniom: nazwa, co gracz czyta, twoja notatka. Klucz odpowiedzi za każdym bulletem żyje tylko w przeglądarkach GMów i synchronizuje się między nimi; `game.drpg.exportLedger()` i `importLedger()` robią kopię i ją przywracają.
 
 ---
 
@@ -464,15 +722,23 @@ Podczas **Final Trial** działa ta sama debata i to samo głosowanie; tylko werd
 - zakończ Class Trial, jeśli wciąż trwa;
 - przejdź do następnego rozdziału, policz następną sesję i otwórz następny rozdział **następnego ranka, dzień później, z odnowionymi akcjami i Search Tokenami**.
 
-Plan Key Remnants jest archiwizowany pod swoim rozdziałem, zanim zegar się przesunie, rejestr Blackened jest czyszczony, a stara karta ciała nie przecieka do następnego rozdziału. Jeśli drugi GM naciśnie go, gdy pierwszy już przesunął rozdział, słyszy, że rozdział został już zakończony, i nic nie dzieje się dwa razy. Notka przypomina, czy w tym rozdziale postawiono Final Truth Remnant. Rozdział 6 jest ostatnim w sezonie: tam pole przejścia do następnego rozdziału startuje odznaczone i mówi o tym ostrzeżenie; zamiast przechodzić do 7, zresetuj.
+Plan Key Remnants jest archiwizowany pod swoim rozdziałem, zanim zegar się przesunie, rejestr Blackened jest czyszczony, a stara karta ciała nie przecieka do następnego rozdziału. Jeśli drugi GM naciśnie go, gdy pierwszy już przesunął rozdział, słyszy, że rozdział został już zakończony, i nic nie dzieje się dwa razy. Notka przypomina, czy w tym rozdziale postawiono Final Truth Remnant. **Rozdział 6 jest ostatnim w sezonie:** tam pole przejścia do następnego rozdziału startuje odznaczone i mówi o tym ostrzeżenie; zamiast przechodzić do 7, zresetuj.
 
-**Zresetuj sezon** (czerwony kafelek) wymazuje sezon i zachowuje obsadę: wymienia dokładnie, co znika, z liczbami - projekty, Remnants, Truth Bullets i klucz odpowiedzi, plan Key Remnants, które pokoje odkryła każda postać i które skrytki znalazła, śmierci i Monocuby, każdy noszony albo schowany przedmiot, każdy Level Up i to, co kupił, każdą kartę modułu i każdy wątek komunikatora, notatki, pule do zera i Hope z powrotem do 2, drzwi do stanu z otwarcia sezonu, incydent, Masterminda, rozprawę, Search Tokens, obowiązujące Calle, Motive, zasady killing game, zwołane zgromadzenie, overflow, reszta dziennika czatu i zegar na rozdział 1, dzień 1, rano z odnowionymi akcjami wszystkich. Każda z tych rzeczy to jedna z 29 grup do zaznaczenia w pięciu sekcjach (Sprawa, Obsada, Plansza, Dziennik, Świat), domyślnie wszystkie zaznaczone; odznacz którąś, a reset jej nie ruszy; wybór zostaje zapamiętany i przy następnym resecie wraca odznaczony. Co zostaje: obsada z nazwiskami, portretami i Ultimate, mapy, pokoje i ich właściciele, kto kogo pilnuje, zespół Monokum, nazwa kampanii. Potwierdzasz wpisując **RESET**; nic tego nie cofnie.
+**Zresetuj sezon** (czerwony kafelek) wymazuje sezon i zachowuje obsadę: wymienia dokładnie, co znika, z liczbami - projekty, Remnants, Truth Bullets i klucz odpowiedzi, plan Key Remnants, które pokoje odkryła każda postać i które skrytki znalazła, śmierci i Monocuby, każdy noszony albo schowany przedmiot, każdy Level Up i to, co kupił, każdą kartę modułu i każdy wątek komunikatora, notatki, pule do zera i Hope z powrotem do 2, drzwi do stanu z otwarcia sezonu, incydent, Masterminda, rozprawę, Search Tokens, obowiązujące Calle, Motive, zasady killing game, zwołane zgromadzenie, overflow, reszta dziennika czatu i zegar na rozdział 1, dzień 1, rano z odnowionymi akcjami wszystkich. Każda z tych rzeczy to jedna z **29** grup do zaznaczenia w pięciu sekcjach (Sprawa, Obsada, Plansza, Dziennik, Świat), domyślnie wszystkie zaznaczone; odznacz którąś, a reset jej nie ruszy; wybór zostaje zapamiętany i przy następnym resecie wraca odznaczony.
+
+**Co zostaje:** obsada z nazwiskami, portretami i Ultimate, mapy, pokoje i ich właściciele, kto kogo pilnuje, zespół Monokum, nazwa kampanii.
+
+> [!CAUTION]
+> Potwierdzasz wpisując **RESET**; nic tego nie cofnie.
 
 ---
 
 ## 17. Dźwięk i efekty
 
-`scripts/music.mjs`, `sfx.mjs`, `sound*.mjs`; `config.mjs SFX_CATEGORIES`, `SFX_EVENTS`, `SFX_SLIDERS`, `SITUATIONAL_PLAYLIST`. **Moduł nie zawiera żadnych dźwięków.** Pliki są twoje; zdarzenie bez pliku gra ciszą z wyboru, nie z winy.
+`scripts/music.mjs`, `sfx.mjs`, `sound*.mjs`; `config.mjs SFX_CATEGORIES`, `SFX_EVENTS`, `SFX_SLIDERS`, `SITUATIONAL_PLAYLIST`.
+
+> [!NOTE]
+> **Moduł nie zawiera żadnych dźwięków.** Pliki są twoje; zdarzenie bez pliku gra ciszą z wyboru, nie z winy.
 
 Okno **Dźwięk** (Teraz > Dźwięk) ma dla GMa trzy zakładki:
 
@@ -482,7 +748,17 @@ Okno **Dźwięk** (Teraz > Dźwięk) ma dla GMa trzy zakładki:
 
 Dwa **suwaki głośności**, per przeglądarka, w oknie Ustawień i w oknie Dźwięk dla graczy: *Dźwięk* dla efektów oraz *Muzyka*, która jest głośnością playlist samego Foundry, a nie drugą obok. GM znajduje też przełącznik **Różnicuj dźwięki, które słychać często**, działający dla całego stołu, obok suwaków w Ustawieniach, a pod Monokuma Legacy u góry okna Dźwięk (`SFX_VARIATION`: tempo w granicach 14%, minimum 0,5, niewielkie zmiany głośności).
 
-Katalog według kategorii: **Bezpieczeństwo** (safeword - pełna głośność niezależnie od suwaka); **Interfejs** (otwieranie i zamykanie okien, przyciski, otwarcie czatu); **Czat** (wiadomość wysłana, odebrana, gracz woła GMa, Hope Call, Despair Call, nowa zasada, Motive, zgromadzenie); **Świat** (odkryty pokój, wejście do pokoju, odrzucone przejście, wydana akcja, ukończony projekt, krytyk, Search bez wyniku, nieudane Observe, zauważony tajny projekt, nieudany albo zauważony sabotaż, złamane narzędzie, kradzież, początek i koniec Eclipse, odpalenie overflow); **Incydent** (śmierć, znalezione ciało, nieudane sprzątanie, Breakdown, Wounded, zmiana Monocuba, Confusion, twoja tura w incydencie, znaleziony Truth Bullet, rozpoznany dowód, nieudana analiza, otwarcie debaty, Objection, rebuttal, otwarcie głosowania, werdykt, Level Up). Odbiorcy każdego zdarzenia są ustalone w katalogu - śmierć słyszą tylko GMowie i uczestnicy; znalezione ciało wszyscy; rebuttal cały stół, raz, gdy się zaczyna, niezależnie od tego, czy minęła minuta Objection, czy otworzyłeś go ty.
+Katalog według kategorii:
+
+| Kategoria | Zdarzenia |
+|---|---|
+| **Bezpieczeństwo** | safeword - pełna głośność niezależnie od suwaka |
+| **Interfejs** | otwieranie i zamykanie okien, przyciski, otwarcie czatu |
+| **Czat** | wiadomość wysłana, odebrana, gracz woła GMa, Hope Call, Despair Call, nowa zasada, Motive, zgromadzenie |
+| **Świat** | odkryty pokój, wejście do pokoju, odrzucone przejście, wydana akcja, ukończony projekt, krytyk, Search bez wyniku, nieudane Observe, zauważony tajny projekt, nieudany albo zauważony sabotaż, złamane narzędzie, kradzież, początek i koniec Eclipse, odpalenie overflow |
+| **Incydent** | śmierć, znalezione ciało, nieudane sprzątanie, Breakdown, Wounded, zmiana Monocuba, Confusion, twoja tura w incydencie, znaleziony Truth Bullet, rozpoznany dowód, nieudana analiza, otwarcie debaty, Objection, rebuttal, otwarcie głosowania, werdykt, Level Up |
+
+Odbiorcy każdego zdarzenia są ustalone w katalogu - śmierć słyszą tylko GMowie i uczestnicy; znalezione ciało wszyscy; rebuttal cały stół, raz, gdy się zaczyna, niezależnie od tego, czy minęła minuta Objection, czy otworzyłeś go ty.
 
 Przeglądarka nie gra niczego, dopóki nie zostanie kliknięta; moduł takie dźwięki porzuca, zamiast kolejkować. `game.drpg.diagnoseSfx()` liczy porzucone i wymienia, co jest przypisane, wyciszone albo już zawiodło; `game.drpg.testSfx(key)` mówi, czemu dźwięk nie zagrał; `game.drpg.diagnoseMusic()` drukuje każdy stan, czy obowiązuje i do czego jest przypisany.
 
@@ -490,19 +766,43 @@ Przeglądarka nie gra niczego, dopóki nie zostanie kliknięta; moduł takie dź
 
 ## 18. Okno Ustawień, motywy i ustawienie Język
 
-Zębatka w prawym dolnym rogu otwiera **Ustawienia** (`scripts/look.mjs`): wszystko w nim należy tylko do tej przeglądarki, poza jednym przełącznikiem, który GM też tam dostaje: **Różnicuj dźwięki, które słychać często**, działającym dla całego stołu. Dwa suwaki głośności i **Dźwięki komunikatora**; **Język** - English albo Polski, per przeglądarka, domyślnie angielski, celowo osobno od języka core Foundry (zmiana prosi o przeładowanie; słownik zostaje po angielsku); **Motyw** - *Stained Glass* (obecna tożsamość: czarne, pęknięte szkło wzdłuż krawędzi ekranu, kolor w spoinach) albo *Monokuma Legacy* (wcześniejszy wygląd, z przełącznikiem czcionki pikselowej); **Skala interfejsu** od 80% do 140% na własnym kroju i panelach modułu; a pod Stained Glass puls szkła, nazwa stanu za zegarem i **Szkło rozmywa mapę** (najdroższy efekt motywu: pierwsza rzecz do wyłączenia, gdy interfejs się przycina, a `game.drpg.perf()` mówi, ile kosztuje na tej maszynie); **Ograniczone animacje** i **Wysoki kontrast** pod oboma, każde włączane też przez własne ustawienie systemu operacyjnego. Te same przełączniki są w ustawieniach modułu w Foundry.
+Zębatka w prawym dolnym rogu otwiera **Ustawienia** (`scripts/look.mjs`): wszystko w nim należy tylko do tej przeglądarki, poza jednym przełącznikiem, który GM też tam dostaje: **Różnicuj dźwięki, które słychać często**, działającym dla całego stołu. Są w nim dwa suwaki głośności i **Dźwięki komunikatora**, a także:
 
-**Książka** obok, najmniejszy z trzech przycisków w rogu (`scripts/handbooks.mjs`), otwiera podręczniki w grze, w języku modułu, prosto z `docs/handbooks`: Ulotkę ucznia i Podręcznik gracza dla wszystkich, a ten Podręcznik Mistrza Gry tylko dla GMów.
+| Ustawienie | Szczegóły |
+|---|---|
+| **Język** | English albo Polski, per przeglądarka, domyślnie angielski, celowo osobno od języka core Foundry (zmiana prosi o przeładowanie; słownik zostaje po angielsku) |
+| **Motyw** | *Stained Glass* (obecna tożsamość: czarne, pęknięte szkło wzdłuż krawędzi ekranu, kolor w spoinach) albo *Monokuma Legacy* (wcześniejszy wygląd, z przełącznikiem czcionki pikselowej) |
+| **Skala interfejsu** | od 80% do 140% na własnym kroju i panelach modułu |
+| Puls szkła, nazwa stanu za zegarem i **Szkło rozmywa mapę** | pod Stained Glass |
+| **Ograniczone animacje** i **Wysoki kontrast** | pod oboma; każde włączane też przez własne ustawienie systemu operacyjnego |
+
+Te same przełączniki są w ustawieniach modułu w Foundry.
+
+> [!TIP]
+> **Szkło rozmywa mapę** to najdroższy efekt motywu: pierwsza rzecz do wyłączenia, gdy interfejs się przycina, a `game.drpg.perf()` mówi, ile kosztuje na tej maszynie.
+
+**Książka** obok, najmniejszy z trzech przycisków w rogu (`scripts/handbooks.mjs`), otwiera podręczniki w grze, w języku modułu, prosto z `docs/handbooks`: Ulotkę ucznia i Podręcznik gracza dla wszystkich, a ten Podręcznik GM tylko dla GMów.
 
 Kliknięcie dowolnego stałego panelu - zegara, paska Despair, paska stanu, zasobnika projektów - otwiera okno, które tłumaczy, czym jest i jak stoją sprawy, pokazując każdemu użytkownikowi tylko to, co panel już mu pokazuje.
 
-**Powiadomienia** (`scripts/popup.mjs`) to karty, na których pojawiają się wyniki, odmowy i ogłoszenia; GM dostaje te skierowane do stołu albo do niego. Powiadomienie zostaje, dopóki czytający go nie zamknie - zwykłe kliknięciem w dowolne miejsce na nim, przyklejone przyciskiem X; samo zamyka się tylko powiadomienie "czekamy na GMa", gdy przyjdzie odpowiedź. Najnowsze ląduje na górze i spycha starsze w dół. Gdy jest ich więcej, niż stos pokazuje (2 na kafelku Stained Glass, 4 pod Monokuma Legacy), starsze czekają pod spodem za plakietką "+N" i wracają, w miarę jak karty są zamykane. Scena dowodów Class Trial na środku mapy pokazuje dwa i zachowuje kolejność przybycia, więc Objection czyta się po przedstawieniu, na które odpowiada.
+**Powiadomienia** (`scripts/popup.mjs`) to karty, na których pojawiają się wyniki, odmowy i ogłoszenia; GM dostaje te skierowane do stołu albo do niego. Powiadomienie zostaje, dopóki czytający go nie zamknie - zwykłe kliknięciem w dowolne miejsce na nim, przyklejone przyciskiem X; samo zamyka się tylko powiadomienie "czekamy na GMa", gdy przyjdzie odpowiedź. Najnowsze ląduje na górze i spycha starsze w dół. Gdy jest ich więcej, niż stos pokazuje (**2** na kafelku Stained Glass, **4** pod Monokuma Legacy), starsze czekają pod spodem za plakietką "+N" i wracają, w miarę jak karty są zamykane. Scena dowodów Class Trial na środku mapy pokazuje dwa i zachowuje kolejność przybycia, więc Objection czyta się po przedstawieniu, na które odpowiada.
 
 ---
 
 ## 19. Safeword
 
-`scripts/safeword.mjs`. Każdy arkusz postaci ma w lewym dolnym rogu **przycisk safeword**, podpisany słowem stołu (ustawianym w Ustawieniach sezonu; puste znaczy domyślne "Safe Word"). Jest też skrót klawiszowy, nieprzypisany, dopóki stół go nie wybierze, oraz `game.drpg.safeword()`. Nacisnąć może każdy - gracz, GM, zmarły, Monocub, widz - a jedno naciśnięcie robi trzy rzeczy: gra się zatrzymuje (robi to klient głównego GMa, więc jakiś GM musi być połączony), wszyscy widzą tę samą kartę "SCENA ZATRZYMANA" i słyszą dźwięk safeword na pełnej głośności, a każdy GM dostaje przyklejoną notkę, kto to wywołał i, jeśli naciśnięto go na arkuszu, z którego pokoju. Nikomu innemu nie mówi się kto. Panel zdarzeń trzyma kartę "Scena zatrzymana", bez nazwiska, tak długo, jak gra stoi na pauzie. Nie ma pola powodu ani celu: scena jest zatrzymywana, nie składa się oskarżenia. Wyjaśnijcie sprawę z tą osobą, potem wznówcie od punktu, na który wszyscy się zgodzą. **Notatka przed sesją** w komunikatorze (siedem pytań, na które gracz odpowiada przed każdą sesją: czy zamierza zabić, czy jest otwarty na śmierć, zgoda na tortury albo romans, triggery, jak chce grać, jaki duży projekt planuje) to druga połowa tego samego; czytaj je, zanim zdecydujesz o zgodzie na morderstwo.
+`scripts/safeword.mjs`. Każdy arkusz postaci ma w lewym dolnym rogu **przycisk safeword**, podpisany słowem stołu (ustawianym w Ustawieniach sezonu; puste znaczy domyślne "Safe Word"). Jest też skrót klawiszowy, nieprzypisany, dopóki stół go nie wybierze, oraz `game.drpg.safeword()`. **Nacisnąć może każdy** - gracz, GM, zmarły, Monocub, widz - a jedno naciśnięcie robi trzy rzeczy:
+
+1. gra się zatrzymuje (robi to klient głównego GMa, więc jakiś GM musi być połączony);
+2. wszyscy widzą tę samą kartę "SCENA ZATRZYMANA" i słyszą dźwięk safeword na pełnej głośności;
+3. każdy GM dostaje przyklejoną notkę, kto to wywołał i, jeśli naciśnięto go na arkuszu, z którego pokoju.
+
+Nikomu innemu nie mówi się kto. Panel zdarzeń trzyma kartę "Scena zatrzymana", bez nazwiska, tak długo, jak gra stoi na pauzie.
+
+> [!CAUTION]
+> Nie ma pola powodu ani celu: scena jest zatrzymywana, nie składa się oskarżenia. Wyjaśnijcie sprawę z tą osobą, potem wznówcie od punktu, na który wszyscy się zgodzą.
+
+**Notatka przed sesją** w komunikatorze (siedem pytań, na które gracz odpowiada przed każdą sesją: czy zamierza zabić, czy jest otwarty na śmierć, zgoda na tortury albo romans, triggery, jak chce grać, jaki duży projekt planuje) to druga połowa tego samego; czytaj je, zanim zdecydujesz o zgodzie na morderstwo.
 
 ---
 
@@ -510,25 +810,64 @@ Kliknięcie dowolnego stałego panelu - zegara, paska Despair, paska stanu, zaso
 
 Wszystko jest pod `game.drpg` w konsoli przeglądarki; argumenty aktora przyjmują dokument, id albo nazwę.
 
-**Zestaw testów regresji.** `game.drpg.runTests()` uruchamia wszystko; `{ tier: 1 }` uruchamia regresje źródła i niezmienniki tylko do odczytu, bezpieczne w trakcie gry; `{ tier: 0 }` czyta wyłącznie własne źródło modułu. **Tier 2 zapisuje** - otwiera incydenty, zabija ludzi i resetuje sezony na własnych, sprzątanych po sobie fixture'ach - więc nigdy nie uruchamiaj domyślnego w świecie, w którym ktoś gra; jego scenariusze potrzebują co najmniej trzech żyjących uczniów, tier 2 jest odrzucany, gdy incydent jest otwarty, a drugie uruchomienie na tym samym kliencie jest odrzucane, dopóki pierwsze trwa. Wynik to licznik "passed, failed, skipped", a po nim linie `ok`, `FAIL` i `skip`; skip to test, który powiedział, czego brakuje środowisku, nigdy wynik, który wyszedł źle.
+**Zestaw testów regresji.**
 
-**Mgła i widoczność.** `diagnoseFog()` na kliencie *gracza* (mgła GMa jest lżejsza i odsłania każdy pokój znaleziony przez klasę, więc nie pokaże problemu gracza) mówi, która z podobnych do siebie przyczyn zaszła: wyłączone ustawienie, brak nazwanych regionów, niezamontowana warstwa, wszystkie pokoje już odkryte, nieprzygotowana scena. `diagnoseScenes()` wymienia sceny z pokojami i czy każda jest gotowa; `prepareScenes()` naprawia je wszystkie; `whyBlack()` wymienia, co warstwa mgły ma na ekranie, gdy obraz jest zły; `checkRegions()` zgłasza nachodzące pokoje, granice obok ścian, przerwy za długie na drzwi i narożniki poza siatką; `doorwayReport()` tłumaczy każdy odcinek granicy bieżącego pokoju; `fogPeek()` chowa mgłę na kilka sekund; `fogAnimations(false)` wyłącza animację odsłaniania w trakcie sesji; `seedDiscovery()` zapisuje pokój, w którym każda postać już stoi; `diagnoseVisibility()` na skarżącym się kliencie tłumaczy, czemu token z innego pokoju jest widoczny.
+| Wywołanie | Co robi |
+|---|---|
+| `game.drpg.runTests()` | uruchamia wszystko |
+| `game.drpg.runTests({ tier: 1 })` | uruchamia regresje źródła i niezmienniki tylko do odczytu; bezpieczne w trakcie gry |
+| `game.drpg.runTests({ tier: 0 })` | czyta wyłącznie własne źródło modułu |
+
+> [!CAUTION]
+> **Tier 2 zapisuje** - otwiera incydenty, zabija ludzi i resetuje sezony na własnych, sprzątanych po sobie fixture'ach - więc nigdy nie uruchamiaj domyślnego w świecie, w którym ktoś gra; jego scenariusze potrzebują co najmniej trzech żyjących uczniów, tier 2 jest odrzucany, gdy incydent jest otwarty, a drugie uruchomienie na tym samym kliencie jest odrzucane, dopóki pierwsze trwa.
+
+Wynik to licznik "passed, failed, skipped", a po nim linie `ok`, `FAIL` i `skip`; skip to test, który powiedział, czego brakuje środowisku, nigdy wynik, który wyszedł źle.
+
+**Mgła i widoczność.**
+
+| Wywołanie | Co robi |
+|---|---|
+| `diagnoseFog()` | na kliencie *gracza* (mgła GMa jest lżejsza i odsłania każdy pokój znaleziony przez klasę, więc nie pokaże problemu gracza) mówi, która z podobnych do siebie przyczyn zaszła: wyłączone ustawienie, brak nazwanych regionów, niezamontowana warstwa, wszystkie pokoje już odkryte, nieprzygotowana scena |
+| `diagnoseScenes()` | wymienia sceny z pokojami i czy każda jest gotowa |
+| `prepareScenes()` | naprawia je wszystkie |
+| `whyBlack()` | wymienia, co warstwa mgły ma na ekranie, gdy obraz jest zły |
+| `checkRegions()` | zgłasza nachodzące pokoje, granice obok ścian, przerwy za długie na drzwi i narożniki poza siatką |
+| `doorwayReport()` | tłumaczy każdy odcinek granicy bieżącego pokoju |
+| `fogPeek()` | chowa mgłę na kilka sekund |
+| `fogAnimations(false)` | wyłącza animację odsłaniania w trakcie sesji |
+| `seedDiscovery()` | zapisuje pokój, w którym każda postać już stoi |
+| `diagnoseVisibility()` | na skarżącym się kliencie tłumaczy, czemu token z innego pokoju jest widoczny |
 
 **Despair i kości.** `diagnoseDespair()` i `diagnoseDice()`; `diagnoseCharacters()` to raport ustawienia obsady. Despair, który nie dochodzi, to zwykle brak połączonego głównego GMa, wyłączone *rzuty dają Despair* albo rzut reakcji.
 
-**Inne narzędzia.** `diagnoseVoice()`, `diagnoseSfx()`, `testSfx()`, `diagnoseMusic()`, `diagnoseTruthBullets()` (czy bullety i klucz odpowiedzi się zgadzają), `diagnosePatches()` (czy każde nadpisanie jest tam, gdzie się spodziewa), `diagnoseWindows()` i `diagnoseStyles()` dla uciętego okna albo źle wyglądającego arkusza, `traceClicks()` dla kliknięcia, które nic nie robi, `fileSizes()` dla hostowanego świata, który zdaje się serwować stare pliki, `perf()` dla motywu, który się przycina, `a11y()` dla kontrolek, których czytnik ekranu nie umie nazwać, oraz panelowy **Dziennik debugowania** (Diagnostyka), którego przycisk Kopiuj daje dokładnie to, czego potrzebuje zgłoszenie błędu. Naprawy: `resetAllActions()` dla zepsutego przejścia zegara, `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)`, `refreshMusic()`, `repaintFog()`, `resetAllVoice()`.
+**Inne narzędzia.** `diagnoseVoice()`, `diagnoseSfx()`, `testSfx()`, `diagnoseMusic()` oraz:
+
+| Narzędzie | Na co |
+|---|---|
+| `diagnoseTruthBullets()` | czy bullety i klucz odpowiedzi się zgadzają |
+| `diagnosePatches()` | czy każde nadpisanie jest tam, gdzie się spodziewa |
+| `diagnoseWindows()` i `diagnoseStyles()` | ucięte okno albo źle wyglądający arkusz |
+| `traceClicks()` | kliknięcie, które nic nie robi |
+| `fileSizes()` | hostowany świat, który zdaje się serwować stare pliki |
+| `perf()` | motyw, który się przycina |
+| `a11y()` | kontrolki, których czytnik ekranu nie umie nazwać |
+| panelowy **Dziennik debugowania** (Diagnostyka) | jego przycisk Kopiuj daje dokładnie to, czego potrzebuje zgłoszenie błędu |
+
+Naprawy: `resetAllActions()` dla zepsutego przejścia zegara, `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)`, `refreshMusic()`, `repaintFog()`, `resetAllVoice()`.
 
 **Częste pułapki.**
 
-- *Gracze widzą czarny ekran.* Scena ma pokoje, ale widzenie Foundry jest wciąż włączone. Kontrola przed sezonem albo `prepareScenes()`.
-- *"Rano · ECLIPSE" i morderstwa są ciągle odrzucane.* Zegar edytowano w trakcie Eclipse. Zakończ Eclipse przyciskiem odtwarzania na HUD.
-- *Nikt nie dostał akcji z powrotem.* Akcje wracają, gdy Eclipse się otwiera, nie gdy zegar się przesuwa. Użyj panelowej **Następnej pory dnia** dla granicy bez Eclipse albo zaznacz *Odnów też* w Edytuj kampanię. Nigdy obu.
-- *Search nigdy nie daje tego, co wpisałem do tabel.* Tabele są znajdowane po nazwie; trzymaj się kształtu "DRPG <kategoria> - Tier n" albo instaluj z edytora. Na pule pokoi trzeba wskazać w Ustawieniach pokoi.
-- *Przycisk Odtwórz nic nie robi.* Nie ma playlisty o dokładnej nazwie "Situational". Przycisk w zakładce Odtwarzanie ją tworzy.
-- *Cisza przez pierwsze minuty sesji.* Przeglądarka nie została kliknięta. To nie usterka; `diagnoseSfx()` liczy, co porzucono.
-- *Panel mówi, że debata jest otwarta, a rozdział się skończył.* Rozprawa przeżyła swój rozdział. Zakończ Class Trial z konsoli (ekran końca rozdziału ma na to pole).
-- *Despair Call albo decyzja nic nie zrobiły.* Dwóch GMów: zapisuje główny. Sprawdź, który połączony pełny Gamemaster jest głównym (najniższe id użytkownika), i zajrzyj do Dziennika debugowania.
-- *Drzwi zostają zamknięte po resecie sezonu.* Reset przywraca kolumnę "zaczyna zamknięte" z zakładki Drzwi.
+| Objaw | Przyczyna i naprawa |
+|---|---|
+| *Gracze widzą czarny ekran.* | Scena ma pokoje, ale widzenie Foundry jest wciąż włączone. Kontrola przed sezonem albo `prepareScenes()`. |
+| *"Rano · ECLIPSE" i morderstwa są ciągle odrzucane.* | Zegar edytowano w trakcie Eclipse. Zakończ Eclipse przyciskiem odtwarzania na HUD. |
+| *Nikt nie dostał akcji z powrotem.* | Akcje wracają, gdy Eclipse się otwiera, nie gdy zegar się przesuwa. Użyj panelowej **Następnej pory dnia** dla granicy bez Eclipse albo zaznacz *Odnów też* w Edytuj kampanię. **Nigdy obu.** |
+| *Search nigdy nie daje tego, co wpisałem do tabel.* | Tabele są znajdowane po nazwie; trzymaj się kształtu `DRPG <kategoria> - Tier n` albo instaluj z edytora. Na pule pokoi trzeba wskazać w Ustawieniach pokoi. |
+| *Przycisk Odtwórz nic nie robi.* | Nie ma playlisty o dokładnej nazwie "Situational". Przycisk w zakładce Odtwarzanie ją tworzy. |
+| *Cisza przez pierwsze minuty sesji.* | Przeglądarka nie została kliknięta. To nie usterka; `diagnoseSfx()` liczy, co porzucono. |
+| *Panel mówi, że debata jest otwarta, a rozdział się skończył.* | Rozprawa przeżyła swój rozdział. Zakończ Class Trial z konsoli (ekran końca rozdziału ma na to pole). |
+| *Despair Call albo decyzja nic nie zrobiły.* | Dwóch GMów: zapisuje główny. Sprawdź, który połączony pełny Gamemaster jest głównym (najniższe id użytkownika), i zajrzyj do Dziennika debugowania. |
+| *Drzwi zostają zamknięte po resecie sezonu.* | Reset przywraca kolumnę "zaczyna zamknięte" z zakładki Drzwi. |
 
 ---
 

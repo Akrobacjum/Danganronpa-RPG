@@ -4,7 +4,8 @@
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
-The game's proper names stay in English on every table and in every language: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Mastermind, Monokuma, Monocub, the Calls, the actions, Ultimate, Key Remnant, Vault, Stash.
+> [!NOTE]
+> The game's proper names stay in English on every table and in every language: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Mastermind, Monokuma, Monocub, the Calls, the actions, Ultimate, Key Remnant, Vault, Stash.
 
 ---
 
@@ -46,7 +47,8 @@ At character creation the spread is **+2, +1, +1, 0, 0, -1**, placed where you l
 | **Breakdown** | every point of Sanity is marked | disadvantage on every roll until some Sanity comes back |
 | **Wounded** | every point of Health is marked | one action fewer per time of day until somebody patches you up |
 
-Both apply on their own the moment the track fills; Daggerheart's own Vulnerable and Death Move are switched off. Nothing in this module kills you for reaching zero Health. Dying is something a person does to you, and it is announced.
+> [!NOTE]
+> Both apply on their own the moment the track fills; Daggerheart's own Vulnerable and Death Move are switched off. Nothing in this module kills you for reaching zero Health. Dying is something a person does to you, and it is announced.
 
 ### Rolling
 
@@ -107,14 +109,16 @@ Drag your token; the cost is applied when you arrive. A crossing that you cannot
 
 You are turned back by:
 
-- a room that is **not connected** to yours (the refusal names only the neighbouring rooms you have already been in),
-- a **locked door** (the GM locked the room),
-- a **sealed room** (the Behind Closed Doors Despair Call, for one time of day),
-- being **Chained** by a Despair Call (you cannot leave your room until the time of day ends),
-- **somebody else's bedroom** when you hold no key to it,
-- being **dead** - the body stays where it fell,
-- being in a **murder** while it runs - nobody walks out of an incident,
-- a **Class Trial** in session - nobody leaves the courtroom.
+| Cause | Details |
+|---|---|
+| a room that is **not connected** to yours | the refusal names only the neighbouring rooms you have already been in |
+| a **locked door** | the GM locked the room |
+| a **sealed room** | the Behind Closed Doors Despair Call, for one time of day |
+| being **Chained** by a Despair Call | you cannot leave your room until the time of day ends |
+| **somebody else's bedroom** | when you hold no key to it |
+| being **dead** | the body stays where it fell |
+| being in a **murder** while it runs | nobody walks out of an incident |
+| a **Class Trial** in session | nobody leaves the courtroom |
 
 ### What you can see
 
@@ -127,19 +131,23 @@ You are turned back by:
 
 With regional voice on, every room is its own voice channel: you hear only whoever stands in the room with you, and your voice client follows your token the moment it crosses into another room. During an Eclipse every player is alone in a channel of their own. A Monokuma who walks into your room hears you like anyone else, and you see them.
 
-To find out who is next door without walking in, use **Listen** (chapter 4).
+> [!TIP]
+> To find out who is next door without walking in, use **Listen** (chapter 4).
 
 ### Search tokens
 
-Every room has a number of **search tokens** per time of day (the default is 3; the GM sets it anywhere from 0 to 10). Each Search spends one. A searched-out room is searched out for everybody until the clock moves. The HUD tells you how many are left where you stand.
+Every room has a number of **search tokens** per time of day (the default is **3**; the GM sets it anywhere from **0 to 10**). Each Search spends one. A searched-out room is searched out for everybody until the clock moves. The HUD tells you how many are left where you stand.
 
 ---
 
 ## 4. Actions
 
-You get **2 actions** per time of day (1 while Wounded). The action grid on your sheet has ten tiles. A tile with a GM mark on it hands the turn to a human: your roll and your request go into your messenger thread and you wait for a ruling.
+You get **2 actions** per time of day (1 while Wounded). The action grid on your sheet has ten tiles.
 
 Every action's briefing shows its cost, the statistics it rolls, the room you are in, the numbers it will be scored against (worked out for you as you stand), and anything that will cost you Sanity.
+
+> [!NOTE]
+> A tile with a GM mark on it hands the turn to a human: your roll and your request go into your messenger thread and you wait for a ruling.
 
 ### Search - Eye or Hand, 1 action
 
@@ -153,9 +161,21 @@ Loot the room for something you name. Spends one of the room's search tokens.
 | 18+ | Tier 2 |
 | critical | one tier higher than the roll says |
 
-What you can ask for: *something to patch me up* (Healing usable), *something to settle my nerves* (Sanity Relief usable), *something that could kill* (Murder Weapon), *something to clean with* (Cleaning Tool), *something to work with* (Tool), or *something specific* - describe it and the GM rules on what was really there.
+What you can ask for:
 
-Taking a Murder Weapon or a Cleaning Tool **leaves a Prep Remnant** in the room - a trace that you were here gathering tools. A Tool leaves nothing unless what turns up is also a weapon. Some rooms are good places to look for a category and some are bad; the roll window tells you when where you stand changes your roll. If somebody else keeps a stash with something in it in this room, a successful Search takes from that stash instead - an open one first, a hidden one at a penalty.
+| You ask for | Meaning |
+|---|---|
+| *something to patch me up* | a Healing usable |
+| *something to settle my nerves* | a Sanity Relief usable |
+| *something that could kill* | a Murder Weapon |
+| *something to clean with* | a Cleaning Tool |
+| *something to work with* | a Tool |
+| *something specific* | describe it and the GM rules on what was really there |
+
+Some rooms are good places to look for a category and some are bad; the roll window tells you when where you stand changes your roll. If somebody else keeps a stash with something in it in this room, a successful Search takes from that stash instead - an open one first, a hidden one at a penalty.
+
+> [!WARNING]
+> Taking a Murder Weapon or a Cleaning Tool **leaves a Prep Remnant** in the room - a trace that you were here gathering tools. A Tool leaves nothing unless what turns up is also a weapon.
 
 ### Observe - Eye, 1 action
 
@@ -205,7 +225,10 @@ The slow game: many actions over many times of day, and the one thing that can c
 - A **Tool held ready** gives advantage and takes its tier off every threshold on the roll.
 - Some projects are secret to the people working on them. If you cannot see one, it is not on your list.
 - A project with a room also stands on the map, as a hammer token that never says which project it is. A public one appears once you have stood in its room; a secret one only for the people in on it. Double-click it for its card.
-- **Sabotage** (same tile, same statistics): break a project in the room you stand in so it needs a repair project. 12+ a simple repair, 18+ a complex one, a critical a repair of hidden difficulty. It **always leaves a trace**, even on a failure, and a roll with Despair shows you to the room. With witnesses present you first roll Shadow against 16 to cover what you are doing; failing that does not stop you, it only means everyone watched.
+- **Sabotage** (same tile, same statistics): break a project in the room you stand in so it needs a repair project. 12+ a simple repair, 18+ a complex one, a critical a repair of hidden difficulty. With witnesses present you first roll Shadow against **16** to cover what you are doing; failing that does not stop you, it only means everyone watched.
+
+> [!WARNING]
+> Sabotage **always leaves a trace**, even on a failure, and a roll with Despair shows you to the room.
 
 ### Dynamic action - any statistic, 1 action
 
@@ -218,7 +241,8 @@ Anything at all, provided you describe it in detail. The GM sets the difficulty 
 | Foreign to most people | 16-18 | Tier 2 | Subtle |
 | Demands very niche expertise | 19-21 | Tier 3 | Hidden |
 
-Note the scale is upside down on purpose: the easier the thing, the louder the trace.
+> [!IMPORTANT]
+> The scale is upside down on purpose: the easier the thing, the louder the trace.
 
 ### Rest - no roll, 1 or 2 actions
 
@@ -263,16 +287,36 @@ Four outcomes, and the interesting ones are the mismatches: caught with nothing 
 
 ### Tamper - Shadow, 1 action
 
-Two things behind the tile. An attempt costs 1 action; with no action left, it costs 1 Sanity instead.
+Two things behind the tile. An attempt costs **1 action**; with no action left, it costs **1 Sanity** instead.
 
-- **Cover your tracks.** Wipe out one trace in this room that you know is there: one you hold a Truth Bullet copy of, or a trace of the fight you are in. The easier it is to see, the harder it is to erase: **Hidden 9, Subtle 12, Evident 15, Obvious 18** - each 3 lower while no body has been found. A Cleaning Tool in hand gives advantage and takes its tier off the number. A clean success removes it; a critical also gives back what the attempt cost. A success with Despair removes it but leaves a Tamper Remnant of its own. A failure leaves the trace and adds a Tamper Remnant beside it (Subtle on Hope, Evident on Despair). Reinforced traces never come off.
-- **Misleading trail.** Leave a Prep Remnant pointing at somebody else. Needs **15**. A failure with Hope still plants one, a Hidden, Faint one that probably nobody finds; a failure with Despair plants nothing.
+**Cover your tracks.** Wipe out one trace in this room that you know is there: one you hold a Truth Bullet copy of, or a trace of the fight you are in. The easier it is to see, the harder it is to erase:
 
-If anybody else is in the room you first roll Shadow against **16** to cover what you are doing, and being caught at it costs Sanity: 1 on a success with Despair, 1 on a failure, 2 on a failure with Despair. The briefing warns you how many people are watching. Walking into an empty room first is a real alternative.
+| Visibility | Needs |
+|---|---|
+| Hidden | 9 |
+| Subtle | 12 |
+| Evident | 15 |
+| Obvious | 18 |
+
+Each is 3 lower while no body has been found. A Cleaning Tool in hand gives advantage and takes its tier off the number.
+
+| Result | What happens |
+|---|---|
+| Clean success | the trace is removed |
+| Critical | removed, and it also gives back what the attempt cost |
+| Success with Despair | removed, but it leaves a Tamper Remnant of its own |
+| Failure | the trace stays, and a Tamper Remnant is added beside it (Subtle on Hope, Evident on Despair) |
+
+Reinforced traces never come off.
+
+**Misleading trail.** Leave a Prep Remnant pointing at somebody else. Needs **15**. A failure with Hope still plants one, a Hidden, Faint one that probably nobody finds; a failure with Despair plants nothing.
+
+> [!WARNING]
+> If anybody else is in the room you first roll Shadow against **16** to cover what you are doing, and being caught at it costs Sanity: 1 on a success with Despair, 1 on a failure, 2 on a failure with Despair. The briefing warns you how many people are watching. Walking into an empty room first is a real alternative.
 
 ### Direct Murder - 1 action, GM rules
 
-A face-to-face killing, agreed with the GM beforehand and consented to by the victim's player. It can only be declared **during an Eclipse** - the one moment you can be alone with somebody. The action is spent whether or not it comes off, and nobody, not even you, learns how it went until the Eclipse ends and the room settles. If you end up alone with them and the GM allows it, the incident opens (chapter 10).
+A face-to-face killing, agreed with the GM beforehand and <ins>consented to by the victim's player</ins>. It can only be declared **during an Eclipse** - the one moment you can be alone with somebody. The action is spent whether or not it comes off, and nobody, not even you, learns how it went until the Eclipse ends and the room settles. If you end up alone with them and the GM allows it, the incident opens (chapter 10).
 
 ### Move - free, then 1 action
 
@@ -297,7 +341,10 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 | **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. |
 | **Loaded Die** | 6 | On the next roll one die is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too. |
 
-A Call that affects a roll waits on your next roll and is spent the moment you throw. Sprint and Burst bank instead and last until the time of day ends. Nobody can spend Hope Calls during an Eclipse, while Silenced by Monokuma, or while the overflow's Silence darkens the time of day.
+A Call that affects a roll waits on your next roll and is spent the moment you throw. Sprint and Burst bank instead and last until the time of day ends.
+
+> [!IMPORTANT]
+> Nobody can spend Hope Calls during an Eclipse, while Silenced by Monokuma, or while the overflow's Silence darkens the time of day.
 
 ---
 
@@ -355,7 +402,10 @@ None of these ever takes you below one action or one search token. You see "?" f
 | 2 | restores 2 Health or 2 Sanity, by its kind | partly intended for the job | 2 |
 | 3 | restores 2 Health **or** 2 Sanity - your choice - plus 2 Hope | made strictly for the job | 3 |
 
-**Durability:** every roll with Despair made using a tool costs it one point, whether or not the work succeeded. At zero it is **Broken**: it stays in your inventory, in its slot, useless - and still evidence. Two ways out: **throw it away** (a Shadow roll decides how obvious the trace is, and the trace stays in the room) or put it in your **stash**. A used usable is Broken too.
+**Durability:** every roll with Despair made using a tool costs it one point, whether or not the work succeeded. At zero it is **Broken**. A used usable is Broken too.
+
+> [!WARNING]
+> A Broken item stays in your inventory, in its slot, useless - and still evidence. Two ways out: **throw it away** (a Shadow roll decides how obvious the trace is, and the trace stays in the room) or put it in your **stash**.
 
 ### Categories and what you can carry
 
@@ -368,7 +418,8 @@ None of these ever takes you below one action or one search token. You see "?" f
 
 An item can also serve as another category (a screwdriver under Tools that is also a Murder Weapon) and still takes one slot.
 
-**Holding ready.** Gear must be held ready to count: only what is in your hand matters in an incident, a clean-up or project work. At most one thing is ever in a hand; readying one puts the others down. A Tool in hand gives advantage on project work and sabotage and takes its tier off the threshold. A Cleaning Tool in hand does the same for cleaning up. A Murder Weapon's tier is its damage.
+> [!IMPORTANT]
+> **Holding ready.** Gear must be held ready to count: only what is in your hand matters in an incident, a clean-up or project work. At most one thing is ever in a hand; readying one puts the others down. A Tool in hand gives advantage on project work and sabotage and takes its tier off the threshold. A Cleaning Tool in hand does the same for cleaning up. A Murder Weapon's tier is its damage.
 
 **Handing over.** Anyone in the same room: **Hand it over** (it leaves you for good; their limit applies) or, for a Truth Bullet, **Share a copy** (you both have it, and their copy is not bound by any failed analysis of yours). No action, and not during an Eclipse.
 
@@ -390,7 +441,7 @@ An item can also serve as another category (a screwdriver under Tools that is al
 
 A **Remnant** is a trace on the map. Most of what you do in a room leaves one: taking a weapon, a Dynamic action, sabotaging, working on a murder project, throwing something away, going through a body's pockets, a fight, a clean-up. How hard it is to see is its **visibility**: Obvious, Evident, Subtle, Hidden. Some are **Reinforced** - nobody can remove them.
 
-A trace appears on your map only once you hold a Truth Bullet copied from it (the traces of a fight you are in show as they are made). It wears a question mark until your copy is analysed, and then the icon of what left it - a Search, a Dynamic action, a project, a sabotage, the fight itself, a clean-up, a thing thrown away, a body gone through, the GM's own hand. Its frame takes the colour of what your copy says it is.
+A trace appears on your map <ins>only once you hold a Truth Bullet copied from it</ins> (the traces of a fight you are in show as they are made). It wears a question mark until your copy is analysed, and then the icon of what left it - a Search, a Dynamic action, a project, a sabotage, the fight itself, a clean-up, a thing thrown away, a body gone through, the GM's own hand. Its frame takes the colour of what your copy says it is.
 
 | Remnant | What it means |
 |---|---|
@@ -404,7 +455,19 @@ A trace appears on your map only once you hold a Truth Bullet copied from it (th
 
 ### Truth Bullets
 
-A **Truth Bullet** is what an Observe gives you: a copy of a Remnant, in your inventory under Truth Bullets. Most arrive **Neutral** - you do not yet know what kind of trace it is - and need an Analyze. A Key or a Final Truth shows its kind the moment you pick it up, but what it says still waits for an Analyze; only the Autopsy arrives fully read. A Truth Bullet card shows its name, the description the finder was given, what kind of trace it is as far as you know (Faint only once identified), how visible the original was (Obvious, Evident, Subtle or Hidden), the chapter, the room you picked it up in, and "Analyzed in vain" when an analysis of yours failed on it this chapter. The pack can be grouped by Chapter or by Location. It is the only thing you can present at a trial.
+A **Truth Bullet** is what an Observe gives you: a copy of a Remnant, in your inventory under Truth Bullets. Most arrive **Neutral** - you do not yet know what kind of trace it is - and need an Analyze. A Key or a Final Truth shows its kind the moment you pick it up, but what it says still waits for an Analyze; only the Autopsy arrives fully read.
+
+A Truth Bullet card shows:
+
+- its name,
+- the description the finder was given,
+- what kind of trace it is as far as you know (Faint only once identified),
+- how visible the original was (Obvious, Evident, Subtle or Hidden),
+- the chapter,
+- the room you picked it up in,
+- "Analyzed in vain" when an analysis of yours failed on it this chapter.
+
+The pack can be grouped by Chapter or by Location. A Truth Bullet is the only thing you can present at a trial.
 
 You cannot rename or edit an item. What a thing is called is part of the evidence.
 
@@ -425,15 +488,23 @@ Columns are Obvious / Evident / Subtle / Hidden. A faint trace is hard to spot a
 
 ## 9. Traps and projects that kill
 
-An **indirect murder** is built as projects, kept secret from everyone but the builder and the GMs - *Prepare the weapon* (Standard or Complex, 4-6 progress, may need a specific room) and *Set the trap* (Trivial or Standard, 3-4 progress, always needs a specific room). Budget about 6 progress in total.
+An **indirect murder** is built as projects, kept secret from everyone but the builder and the GMs - *Prepare the weapon* (Standard or Complex, 4-6 progress, may need a specific room) and *Set the trap* (Trivial or Standard, 3-4 progress, always needs a specific room). Budget about **6 progress** in total.
 
-Working on one when somebody else is in the room adds a **Shadow roll against 16** to hide your intent: a success and you may lie freely; a failure and the others get a general description ("fiddling with test tubes"). Alone, the project simply gains +1. Every project action also rolls Shadow to hide its traces: under 12 leaves an Obvious trace, 12+ Evident, 18+ Subtle, a critical Hidden.
+Working on one when somebody else is in the room adds a **Shadow roll against 16** to hide your intent: a success and you may lie freely; a failure and the others get a general description ("fiddling with test tubes"). Alone, the project simply gains +1. Every project action also rolls Shadow to hide its traces:
+
+| Shadow roll | Trace it leaves |
+|---|---|
+| under 12 | Obvious |
+| 12+ | Evident |
+| 18+ | Subtle |
+| critical | Hidden |
 
 A finished trap waits for a condition - somebody alone in the room, somebody entering, searching, resting, hunting for a stash, working or sabotaging a named project, or using a planted item, or a condition of the builder's own that the builder watches for - optionally only after dark (Evening, Night, or any Eclipse), and by default never the builder. The module watches for the others; the GM decides whether it fired.
 
-A **planted item** arrives as whatever the finder was searching for. It only springs for somebody who searched for a usable and then uses it.
+A **planted item** arrives as whatever the finder was searching for. It only springs for somebody who <ins>searched for a usable and then uses it</ins>.
 
-If you are the one who walks into a trap, see the next chapter - you get a roll.
+> [!TIP]
+> If you are the one who walks into a trap, see the next chapter - you get a roll.
 
 ---
 
@@ -447,13 +518,34 @@ Where a roll below lists more than one statistic, the module rolls the first; th
 
 There is exactly one, and the kind of murder decides whose it is.
 
-- **Direct murder:** the killer rolls (Body or Hand, against 8; advantage at Night). On a failure nothing happens and the victim never learns anything was attempted. On a success the incident begins. With Despair the victim loses all their Sanity on the spot and loses Role reversal for this incident. On a critical the victim learns who is attacking them.
-- **Indirect murder (a trap):** the **victim** rolls (Eye or Head, against **20**; disadvantage at Night). Being asked to roll is itself the warning. **Hope:** something is wrong with this room - a Free Move and no idea why; spend it and you live. **Despair:** you work out what has been set up here and can tell the others. **Critical:** you spot the trap and know whose hands built it. **Failure:** you notice nothing and the trap closes. On any success the trap does not close: your struggle to notice leaves an Evident trace, and the GM decides what happens next.
-- A death by one's own hand uses the killer's roll and skips straight to the clean-up.
+**Direct murder:** the killer rolls (Body or Hand, against **8**; advantage at Night).
+
+| Killer's roll | What happens |
+|---|---|
+| Failure | nothing happens and the victim never learns anything was attempted |
+| Success | the incident begins |
+| With Despair | the victim loses all their Sanity on the spot and loses Role reversal for this incident |
+| Critical | the victim learns who is attacking them |
+
+**Indirect murder (a trap):** the **victim** rolls (Eye or Head, against **20**; disadvantage at Night). Being asked to roll is itself the warning.
+
+| Victim's roll | What happens |
+|---|---|
+| Hope | something is wrong with this room - a Free Move and no idea why; spend it and you live |
+| Despair | you work out what has been set up here and can tell the others |
+| Critical | you spot the trap and know whose hands built it |
+| Failure | you notice nothing and the trap closes |
+
+On any success the trap does not close: your struggle to notice leaves an Evident trace, and the GM decides what happens next.
+
+A death by one's own hand uses the killer's roll and skips straight to the clean-up.
 
 ### If you are the victim
 
-The incident is turn-based. **You go first**, and from your second turn on every turn costs you: 1 Sanity in a direct murder, 2 when you are alone with a trap - Sanity until it runs out, then Health. Alone with a trap, you roll every crisis action with advantage. Every other tile on your sheet goes dark; the Direct Murder tile opens your crisis actions. Hope Calls still work.
+The incident is turn-based. **You go first**. Alone with a trap, you roll every crisis action with advantage. Every other tile on your sheet goes dark; the Direct Murder tile opens your crisis actions. Hope Calls still work.
+
+> [!WARNING]
+> From your second turn on, every turn costs you: **1 Sanity** in a direct murder, **2** when you are alone with a trap - Sanity until it runs out, then Health.
 
 | Crisis action | Roll | What it does |
 |---|---|---|
@@ -464,7 +556,10 @@ The incident is turn-based. **You go first**, and from your second turn on every
 | **Role reversal** | Hand / Leg / Body, 15 | Tip the scales and become the killer. Hope also restores all your Health and Sanity; a critical kills them outright. A failure with Despair costs 1 extra. Needs Self-defence first. |
 | **Use an item** | Hand, 15 | Press *use* on the item. It works on a critical or a success with Hope; a success with Despair leaves a trace and nothing else. A failure with Despair costs 1 extra. |
 
-Survive and Role reversal are resolution actions: they cost **1 Sanity** instead of an action, or **1 Health** once your Sanity is gone. A victim who runs out of both Health and Sanity dies. Nothing the killer does can take Reinforced traces off the map.
+Survive and Role reversal are resolution actions: they cost **1 Sanity** instead of an action, or **1 Health** once your Sanity is gone. Nothing the killer does can take Reinforced traces off the map.
+
+> [!CAUTION]
+> A victim who runs out of both Health and Sanity dies.
 
 ### If you are the killer
 
@@ -481,7 +576,19 @@ Your side of the same table:
 
 Finishing blow is a resolution action too: 1 Sanity, or 1 Health once your Sanity is gone.
 
-Then the **clean-up**. Your Tamper tile now lists every trace in the room you are standing in - not only yours - and you can spend **1 Sanity** per attempt: **Erase a trace** (the Tamper table, chapter 4), **Reshape a trace** (three lower than erasing - rename it and describe it as something innocent; the GM approves your words before they land, it always ends up a Tamper Remnant, and a critical makes it quieter and hands the Sanity back), **Misleading trail** (15), or **Move the body** (Body, 16 - you pick a room connected to the body's before the roll, never a bedroom; a success carries it there and always leaves an Evident trace, a critical also hands the Sanity back, and a failure leaves the body where it is). Tonight, at your own scene, it costs no action. A Cleaning Tool in hand gives advantage and takes its tier off the number. Witnesses in the room mean the same Shadow-16 concealment roll, and the same Sanity for being caught - except for Move the body, which rolls no concealment. The Murder Weapon you swung is destroyed when the clean-up closes; the Cleaning Tool is destroyed when the body is found - both stay in your inventory as broken evidence.
+Then the **clean-up**. Your Tamper tile now lists every trace in the room you are standing in - not only yours - and you can spend **1 Sanity** per attempt:
+
+| Option | Roll, and what it does |
+|---|---|
+| **Erase a trace** | the Tamper table, chapter 4 |
+| **Reshape a trace** | three lower than erasing - rename it and describe it as something innocent; the GM approves your words before they land, it always ends up a Tamper Remnant, and a critical makes it quieter and hands the Sanity back |
+| **Misleading trail** | 15 |
+| **Move the body** | Body, 16 - you pick a room connected to the body's before the roll, never a bedroom; a success carries it there and always leaves an Evident trace, a critical also hands the Sanity back, and a failure leaves the body where it is |
+
+Tonight, at your own scene, the clean-up costs no action. A Cleaning Tool in hand gives advantage and takes its tier off the number. Witnesses in the room mean the same Shadow-16 concealment roll, and the same Sanity for being caught - except for Move the body, which rolls no concealment.
+
+> [!WARNING]
+> The Murder Weapon you swung is destroyed when the clean-up closes; the Cleaning Tool is destroyed when the body is found - both stay in your inventory as broken evidence.
 
 ### If you walk in on it
 
@@ -498,11 +605,12 @@ Escape together costs the same as the victim's resolution actions: 1 Sanity, or 
 
 Having thrown in and survived, you may afterwards **turn on your partner** - the one killing that needs no declaration in advance. A fourth person walking in cancels the incident: nobody dies, the wounds stand.
 
-The module applies the damage, the traces, the turns, and a Role reversal's swap with the Health and Sanity it restores. The rest of what these tables promise is the GM's to apply: a critical Role reversal's kill, the Health and Sanity that Escape together restores, every immunity, and Survive's hint about who they were.
+> [!NOTE]
+> The module applies the damage, the traces, the turns, and a Role reversal's swap with the Health and Sanity it restores. The rest of what these tables promise is the GM's to apply: a critical Role reversal's kill, the Health and Sanity that Escape together restores, every immunity, and Survive's hint about who they were.
 
 ### The morning after
 
-Somebody finds the body. The moment two students stand in the room with it, and at least one of them is not among its killers, it is discovered - never during an Eclipse. The killers themselves, still cleaning up, can stand over it without finding it. The GM can also announce it by hand. Everyone is called to the scene, and the game holds there until the Investigation starts. A killing by one's own hand is a killing like any other - the class has only the scene to go on.
+Somebody finds the body. The moment <ins>two students stand in the room with it</ins>, and at least one of them is not among its killers, it is discovered - never during an Eclipse. The killers themselves, still cleaning up, can stand over it without finding it. The GM can also announce it by hand. Everyone is called to the scene, and the game holds there until the Investigation starts. A killing by one's own hand is a killing like any other - the class has only the scene to go on.
 
 ---
 
@@ -510,18 +618,23 @@ Somebody finds the body. The moment two students stand in the room with it, and 
 
 - Every living student receives an **Autopsy Truth Bullet** - time of discovery, cause of death, what the body shows. No roll.
 - **Observe** the traces on the map, **Analyze** what you collect, **Share** copies with people in your room. Traces tied to the crime are shown first.
-- The GMs prepared **Key Remnants** for this case - up to five, never fewer than three, and the better the killer's opening roll went, the fewer there are. Together they narrow the suspects to two to four people; a clue narrows the circle, it never names a name. Every Key Remnant below four that you fail to find is worth 3 Despair to every Monokuma.
+- The GMs prepared **Key Remnants** for this case - up to five, never fewer than three, and the better the killer's opening roll went, the fewer there are. Together they narrow the suspects to two to four people; a clue narrows the circle, it never names a name.
 - The **body** can be searched: open the dead student's sheet and press *Take* on what they carried. You get the thing itself, plus a Truth Bullet recording what you took and off whom - and the body gets a trace that somebody has been through the pockets (one per body, however many things leave it).
 - Investigators and killers alike can **Tamper**. A too-clean patch is evidence of tidying.
 - What you fail to find, you will not have at the trial.
+
+> [!WARNING]
+> Every Key Remnant below four that you fail to find is worth **3 Despair** to every Monokuma.
 
 ---
 
 ## 12. The Class Trial
 
-Everyone is in one room, and nobody leaves it. You start the trial with a fresh time of day's actions (a banked Sprint or Burst stays banked), and only Analyze is open on your sheet, with the Hope Calls and your items; inside a trial Analyze costs 1 action, or 1 Hope when your actions are gone, or 1 Sanity when both are. The trial opens as an **open discussion**: everybody talks, and a Truth Bullet can be **Presented** from your inventory for free - it goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card.
+Everyone is in one room, and nobody leaves it. You start the trial with a fresh time of day's actions (a banked Sprint or Burst stays banked), and only Analyze is open on your sheet, with the Hope Calls and your items; inside a trial Analyze costs **1 action**, or **1 Hope** when your actions are gone, or **1 Sanity** when both are.
 
-When the room is ready to argue, the GM opens the **Nonstop Debate**. The debate has a clock (the GM's budget, 180 seconds by default; overrunning turns it red and nothing else). Inside the debate, presenting a Truth Bullet becomes an **OBJECTION**, priced like Analyze - 1 action, else 1 Hope, else 1 Sanity - and when the price is all that stops you, you are offered a free Present instead:
+The trial opens as an **open discussion**: everybody talks, and a Truth Bullet can be **Presented** from your inventory for free - it goes on the table as a card for everyone, with a comment of yours, and takes nobody's turn away. Only what you can see goes on the card.
+
+When the room is ready to argue, the GM opens the **Nonstop Debate**. The debate has a clock (the GM's budget, **180 seconds** by default; overrunning turns it red and nothing else). Inside the debate, presenting a Truth Bullet becomes an **OBJECTION**, priced like Analyze - 1 action, else 1 Hope, else 1 Sanity - and when the price is all that stops you, you are offered a free Present instead:
 
 | Mode | Who may speak | How long |
 |---|---|---|
@@ -533,14 +646,17 @@ You name who you are contradicting. Nobody may object while somebody else's obje
 
 ### The vote
 
-Each living player receives a **ballot**. Vote for whoever you believe is the **Blackened**: you may vote for yourself, for Monokuma and for the dead. Nobody sees your vote; only the totals are published. A conviction needs **more than half** of the ballots issued. **A tie counts as a wrong vote** unless the table settles it.
+Each living player receives a **ballot**. Vote for whoever you believe is the **Blackened**: you may vote for yourself, for Monokuma and for the dead. Nobody sees your vote; only the totals are published.
+
+> [!IMPORTANT]
+> A conviction needs **more than half** of the ballots issued. **A tie counts as a wrong vote** unless the table settles it.
 
 | Outcome | What happens |
 |---|---|
 | **Right** | The Blackened is executed. Every survivor takes a **Level Up** (pick 1). |
 | **Wrong** | The accused is executed. The Blackened stays anonymous and in play with a **Reinforced Level Up** (pick 3) and one new rule of their choosing, and every Monokuma fills their Despair pool. |
 
-A chapter can produce two Blackened (a betrayal leaves two bodies); the vote has to name all of them.
+A chapter can produce two Blackened (a betrayal leaves two bodies); the vote has to name <ins>all of them</ins>.
 
 ### Level Up
 
@@ -572,8 +688,14 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 Once your own Class Trial has ended, you may join the GMs as a **Monocub**. Same actor, same sheet; the action panel becomes **Move** and **Confusion**.
 
 - You have the same action budget as a living student and see only your own room. Your rolls are shown to everyone standing in it.
-- **Confusion** costs **1 action and 1 Hope**, and your Hope exists only because a Monokuma converted Despair into it (Fuel a Monocub). It is a flat 2d12 with no statistic. Pick somebody in your room and help or hinder their next roll: 12+ gives +1 or -1, 16+ gives advantage or disadvantage, a critical returns their action or wastes it. They are told something steadied or rattled them, never who.
+- **Confusion** costs **1 action and 1 Hope**, and your Hope exists only because a Monokuma converted Despair into it (Fuel a Monocub). It is a flat 2d12 with no statistic. Pick somebody in your room and help or hinder their next roll (see the table below). They are told something steadied or rattled them, never who.
 - A Monocub who stumbles onto the crime scene is sworn to silence about it until the chapter ends. Confusion still works.
+
+| Confusion roll | Help | Hinder |
+|---|---|---|
+| 12+ | +1 | -1 |
+| 16+ | advantage | disadvantage |
+| critical | returns their action | wastes their action |
 
 Monokumas themselves - the GM side - have no actions and no Hope, walk through walls and locked doors, and spend Despair where you spend Hope.
 
@@ -585,7 +707,18 @@ The button in the bottom-right corner opens **GM Chat**: one thread between you 
 
 Everything that needs a human lands in the same thread: an Observe aimed at a point of interest, an Analyze hint, a Dynamic action, a project proposal, a Search for something specific, the Experience and Ultimate Calls, a Tier 0 item you want to use creatively. You see your roll, your own words, and the ruling when it comes. If no GM answers, nothing is spent.
 
-The messenger also has a **Note** tab: your plans for the session, for the GMs to read before it. The template asks seven questions - whether you plan to kill and how, whether you are open to dying, to torture, to romance, your triggers, your goals, and the game-changing projects you intend to try. The first four are boundaries, not a dare. "No changes" is a complete answer.
+The messenger also has a **Note** tab: your plans for the session, for the GMs to read before it. The template asks seven questions:
+
+- whether you plan to kill and how,
+- whether you are open to dying,
+- whether you are open to torture,
+- whether you are open to romance,
+- your triggers,
+- your goals,
+- the game-changing projects you intend to try.
+
+> [!TIP]
+> The first four are boundaries, not a dare. "No changes" is a complete answer.
 
 ---
 
@@ -593,7 +726,8 @@ The messenger also has a **Note** tab: your plans for the session, for the GMs t
 
 Bottom-left of your character sheet is a button with a word on it - **Safe Word** unless your table chose its own (a world already in play before the word became a setting keeps MISIUBOMBO). Press it and the scene stops. It also works without a sheet: through a key your table can bind in Foundry's Controls. The game pauses, every GM is told who pressed it (and from which room, when it was pressed on a sheet), and everybody sees the same card: the scene is stopped, a GM will pick this up, and play resumes from a point everyone agrees on. While the game stays paused, the Event panel says the scene is stopped.
 
-You do not have to justify it, now or later. There is no reason field. Nobody else is told who pressed it - only that the scene stopped.
+> [!CAUTION]
+> You do not have to justify it, now or later. There is no reason field. Nobody else is told who pressed it - only that the scene stopped.
 
 ---
 
@@ -626,7 +760,8 @@ You do not have to justify it, now or later. There is no reason field. Nobody el
 - **Reduced motion** and **high contrast**, under both themes; each also follows your operating system when it asks for them.
 - **Messenger sounds**, and the **Sound** and **Music** volumes.
 
-**Rolls are private:** every roll you make is whispered to you and the GMs. Nobody sees anyone else's dice - except that a roll inside a murder is shown to the people in it, and a Monocub's to their room.
+> [!NOTE]
+> **Rolls are private:** every roll you make is whispered to you and the GMs. Nobody sees anyone else's dice - except that a roll inside a murder is shown to the people in it, and a Monocub's to their room.
 
 ---
 
