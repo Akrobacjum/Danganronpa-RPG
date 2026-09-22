@@ -10661,19 +10661,15 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 /* The clock's own button: one press moves the time of day on. Sits at the end
    of the clock line, sized like the suggestion's "Do it".
 
-   ON THE LINE, OR CENTRED UNDER IT (22.09). A button is `display: flex` in Foundry's
-   own sheet, which is a BLOCK: it took a line of its own and sat at the left edge
-   under a centred line of text ("przycisk do it zmienil miejsce", Dawid, on 1.2.50). The
-   line is a wrapping row instead, centred like the text was, so the button stands at
-   its end when there is room and in the middle of the next line when there is not. */
-.drpg-gmp-standing > p {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: 6px 10px;
-}
+   ON THE LINE, OR UNDER IT WHERE THE LINE IS (22.09). A button is `display: flex` in
+   Foundry's own sheet, which is a BLOCK: it took a line of its own and sat at the left
+   edge under a centred line of text ("przycisk do it zmienil miejsce", Dawid, on
+   1.2.50). Inline, it flows with the text: at the end of the line when there is room,
+   and on the next line in the line's own alignment when there is not - centred when
+   the panel is (it centres its text only when it holds a table), left when it is not.
+   A flex row here centred the line in both cases and left the heading behind. */
 .drpg-gmp-advance {
+    display: inline-flex;
     vertical-align: middle;
     font-size: 0.85em;
 }
