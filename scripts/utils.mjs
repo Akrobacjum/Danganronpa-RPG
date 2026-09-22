@@ -913,7 +913,11 @@ function windowWidthFor(root, content, widest) {
      * the screen anyway. All that term did was make a window opened near the
      * right edge permanently narrower than the same window opened in the middle.
      */
-    const cap = parseFloat(getComputedStyle(document.body)
+    /* READ OFF THE WINDOW, which inherits the body's cap unless it states its own (22.09):
+       the project manager's matrix is a column per player, and at sixteen players the
+       table alone is wider than 1400 - so that one window carries a higher cap, and the
+       stylesheet's `max-width` reads the same token off the same element. */
+    const cap = parseFloat(getComputedStyle(root ?? document.body)
         .getPropertyValue("--drpg-window-max")) || 1400;
     const ceiling = Math.min(Math.round(viewport * 0.94), Math.round(cap));
     return Math.min(wanted, ceiling);

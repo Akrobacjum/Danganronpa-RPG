@@ -3838,18 +3838,35 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
 }
 .drpg-viewer-head {
     vertical-align: bottom;
-    padding: 4px 2px;
+    padding: 4px 3px;
     text-align: center;
 }
+/* LYING DOWN, A WORD TO A LINE (22.09, "nazwy graczy prosilbym w poziomie", Dawid, on
+   1.2.50). Standing on end, sixteen names were a row of spines to tilt your head at. A
+   name as wide as its longest word keeps the column narrow: "Player 10" is two short
+   lines, not one long one, and the header row is as tall as the longest name's words. */
 .drpg-viewer-head > span {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    white-space: nowrap;
     display: inline-block;
+    width: min-content;
+    white-space: normal;
+    line-height: 1.15;
 }
 .drpg-viewer-tick {
     text-align: center;
     padding: 2px;
+}
+/* A COLUMN OF CHECKBOXES IS AS WIDE AS ITS LONGEST WORD (22.09). A table window's form is
+   `max-content`, so no header ever wraps on its own, and "Indirect murder" held a 151 px
+   column over a 20 px box. `width: 1px` asks a cell for its narrowest, which is the word. */
+.drpg-projects table th.drpg-tight-head {
+    width: 1px;
+}
+/* AND THE MATRIX MAY BE WIDER THAN OTHER WINDOWS. Sixteen names, each as wide as its longest
+   word, are a table of about 1400 px before the window's frame; under the common 1400 cap
+   the Edit and Delete columns scrolled out of sight. The cap is still a cap - `windowWidthFor`
+   also stops at 94 % of the screen - it is this window's own, read off this window. */
+.application.dialog.drpg-window-projects {
+    --drpg-window-max: 1800px;
 }
 
 /* The pool list on a table row's "where does this live" window.
@@ -4921,6 +4938,10 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 /* Project manager: click the portrait to open the file picker. */
 .drpg-project-portrait {
     width: 1.8rem;
+    /* Foundry gives every image `max-width: 100%`, and in a table laid out at its
+       narrowest a percentage cap makes a picture worth nothing: the manager's icon column
+       closed to 20 px with a 3 px sliver of hourglass in it (22.09, sixteen players). */
+    min-width: 1.8rem;
     height: 1.8rem;
     object-fit: cover;
     border: 1px solid var(--drpg-line-strong);

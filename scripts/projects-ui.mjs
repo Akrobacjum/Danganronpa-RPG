@@ -565,7 +565,7 @@ export async function openProjectManager() {
                     <th${two}></th>
                     <th${two}>${game.i18n.localize("DRPG.Project.title")}</th>
                     <th${two}>${game.i18n.localize("DRPG.Project.room")}</th>
-                    <th${two}>${game.i18n.localize("DRPG.Project.indirect")}</th>
+                    <th${two} class="drpg-tight-head">${game.i18n.localize("DRPG.Project.indirect")}</th>
                     <th${two}>${game.i18n.localize("DRPG.Project.secret")}</th>
                     <th colspan="${span}" class="drpg-viewer-group">${game.i18n.localize("DRPG.Project.visibleTo")}</th>
                     <th${two}>${game.i18n.localize("DRPG.Project.edit")}</th>
