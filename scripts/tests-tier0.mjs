@@ -10,8 +10,8 @@ import { SETTINGS } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
 import {
-    ok, needs, equal, wait, layoutAvailable, otherSources, stripComments, moduleStyles, bodyOf,
-    topLevelFunction, withGuards, lineAt, stripStrings, STANDING, cast
+    ok, needs, equal, wait, layoutAvailable, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
+    topLevelFunction, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -4953,6 +4953,39 @@ const REGRESSIONS = [
         const init = bodyOf(module, 'Hooks.once("init"', { length: 3000 });
         const guard = init.indexOf("registerRelayGuard");
         ok(guard > 0 && guard < init.indexOf("requirementsMet()"), "the relay guard is registered after the requirements check");
+    }],
+
+    ["R152 - no update deletes or replaces a key with the old '-=' / '==' spelling, which v14 ignores", async () => {
+        /*
+         * E30, 24.09.2026; audit S17-01. `migrateRemnants` took a trace's answer key off
+         * its token with `flags.<id>.-=<key>`, the spelling the module's own notes
+         * measured removing nothing in this Foundry (actions.mjs, music.mjs, fog.mjs,
+         * migrate.mjs): the key stayed on a token every client receives, and the
+         * summary said "stripped". A key is deleted with `forcedDeletion()` or
+         * `unsetFlag`, and a value replaced with `replaceFlag` (utils.mjs).
+         *
+         * Every string and template literal of every file the module loads, this
+         * suite's own included, is read for a key segment that starts with either old
+         * spelling. A membership read is not a write and is let through: `"-=key" in
+         * flags` is how truth-bullets.mjs recognises a deletion somebody else sent.
+         * The spelling is put together at run time, so this test's source holds no
+         * match, and a sample built the same way has to be found first: a scan that
+         * finds nothing anywhere has proved nothing.
+         */
+        const DEL = "-" + "=", REP = "=" + "=";
+        const KEY = new RegExp(`(?:^|\\.)(?:${DEL}|${REP})(?=[A-Za-z0-9_$]|\\$\\{)`);
+        const read = /^\s*\]?\s*in\b/;
+        const writes = code => stringLiterals(code).filter(lit => KEY.test(lit.text) && !read.test(code.slice(lit.end)));
+        const sample = `await token.update({ [\`flags.x.${DEL}\${key}\`]: null }); if ("${DEL}kept" in flags) {}`;
+        equal(JSON.stringify(writes(sample).map(lit => lit.text)), JSON.stringify([`flags.x.${DEL}\${}`]),
+            "the scan does not find the one write it was built to find, or takes the membership read for one");
+
+        const found = [];
+        for (const [file, text] of await moduleSources()) {
+            const code = stripComments(text);
+            for (const lit of writes(code)) found.push(`${file}:${lineAt(code, lit.start)} ${JSON.stringify(lit.text).slice(0, 60)}`);
+        }
+        ok(!found.length, `a key spelled the old way, which v14 ignores (delete with forcedDeletion() or unsetFlag, replace with replaceFlag): ${found.join("; ")}`);
     }]
 ];
 

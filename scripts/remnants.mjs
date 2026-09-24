@@ -19,7 +19,7 @@ import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_D
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken } from "./movement.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, isPrimaryGm, log, warn, error, plural, workingScene, esc} from "./utils.mjs";
+import { gmIds, isPrimaryGm, log, warn, error, plural, workingScene, esc, forcedDeletion } from "./utils.mjs";
 
 /**
  * Everything the guide says a Remnant carries, recorded on the token so an
@@ -1824,6 +1824,8 @@ export function rankForObserve(room, scene = workingScene(), { preferSource = nu
  * run it strips the tokens, and the others pick the entries up over the socket.
  * Safe to run twice - a token whose flags are already gone is skipped rather
  * than overwritten with blanks, which is the mistake that would erase a case.
+ * The work for one token is `migrateRemnantToken`; this is the loop over every
+ * scene, and the summary.
  *
  * THE DELTA IS PART OF THE TOKEN, and it was the half this migration missed.
  * A Remnant token is unlinked, so it carries an ActorDelta, and the old
@@ -1842,60 +1844,132 @@ export async function migrateRemnants() {
         return null;
     }
 
-    let moved = 0, stripped = 0, already = 0, publicSeeded = 0, deltaCleaned = 0;
+    let moved = 0, filled = 0, stripped = 0, already = 0, publicSeeded = 0, deltaCleaned = 0;
+    const failed = [];
 
     for (const scene of game.scenes) {
         for (const token of scene.tokens) {
-            if (!token.getFlag(MODULE_ID, REMNANT_FLAGS.isRemnant)) continue;
-
-            const old = token.getFlag(MODULE_ID, REMNANT_FLAGS.type);
-            if (old === undefined) {
-                already++;
-                publicSeeded += await seedPublicIfMissing(token);
-                deltaCleaned += await neutraliseDeltaName(token);
-                continue;
-            }
-
-            const f = key => token.getFlag(MODULE_ID, REMNANT_FLAGS[key]);
-            await setRemnantSecret(token, {
-                type: f("type"), visibility: f("visibility"),
-                faint: Boolean(f("faint")), reinforced: Boolean(f("reinforced")),
-                note: f("note"), action: f("action"), subject: f("subject"),
-                pointsAt: f("pointsAt"), tiedToCrime: Boolean(f("tiedToCrime")),
-                sourceActor: f("sourceActor"), sourceName: f("sourceName"),
-                room: f("room"), chapter: f("chapter"), day: f("day"),
-                timeOfDay: f("timeOfDay"),
-                // The old token name WAS the label, so it is the best record of
-                // how the GM has been reading this trace on the map.
-                label: token.name
-            });
-            moved++;
-            publicSeeded += await seedPublicIfMissing(token);
-
-            // Strip the flags and neutralise the name in one write. `-=` is
-            // Foundry's delete syntax; anything less removes the value and
-            // leaves the key, which still travels.
-            const drop = {};
-            for (const key of Object.keys(REMNANT_FLAGS)) {
-                if (key === "isRemnant") continue;
-                drop[`flags.${MODULE_ID}.-=${REMNANT_FLAGS[key]}`] = null;
-            }
-            await token.update({
-                ...drop,
-                name: game.i18n.localize("DRPG.Remnant.tokenName"),
-                "texture.tint": TINTS.neutral
-            });
-            stripped++;
-            deltaCleaned += await neutraliseDeltaName(token);
+            const done = await migrateRemnantToken(token);
+            if (!done) continue;
+            if (done.ledger === "moved") moved++;
+            else if (done.ledger === "filled") filled++;
+            else if (done.ledger === "already") already++;
+            if (done.stripped) stripped++;
+            if (done.left.length) failed.push(`${scene.name}/${token.id}: ${done.left.join(", ")}`);
+            publicSeeded += done.publicSeeded;
+            deltaCleaned += done.deltaCleaned;
         }
     }
 
-    const line = `Remnants migrated: ${moved} moved into the ledger, ${stripped} tokens stripped, `
+    const line = `Remnants migrated: ${moved} moved into the ledger, ${filled} filled in, ${stripped} tokens stripped, `
         + `${already} already done, ${publicSeeded} \`public\` record(s) backfilled, `
-        + `${deltaCleaned} delta name(s) neutralised.`;
+        + `${deltaCleaned} delta name(s) neutralised, ${failed.length} still carrying their answer key.`;
     log(line);
-    ui.notifications.info(line);
-    return { moved, stripped, already, publicSeeded, deltaCleaned };
+    if (failed.length) {
+        warn(`Remnants still carrying their answer key after the migration wrote to them: ${failed.join("; ")}`);
+        ui.notifications.warn(line);
+    } else {
+        ui.notifications.info(line);
+    }
+    return { moved, filled, stripped, already, failed, publicSeeded, deltaCleaned };
+}
+
+/**
+ * What a trace's token may keep: `isRemnant`, which every GM-side query finds its
+ * tokens by, and `fromIncident`, the one field D11 puts on the token on purpose
+ * (see REMNANT_FLAGS). Everything else there is the answer key.
+ */
+const ANSWER_KEY_FLAGS = Object.entries(REMNANT_FLAGS)
+    .filter(([key]) => key !== "isRemnant" && key !== "fromIncident")
+    .map(([, flag]) => flag);
+
+/**
+ * One trace's part of `migrateRemnants` (E30, 24.09.2026; audit S17-01, S05-43).
+ *
+ * THE STRIP IS READ BACK. It was written with `-=` keys, which remove nothing in
+ * this Foundry (the measured notes in migrate.mjs, actions.mjs, music.mjs and
+ * fog.mjs), so the answer key stayed on a token every client receives while the
+ * summary counted the token as stripped. It is one write now, the flags deleted
+ * with `forcedDeletion()` (one `unsetFlag` each in a Foundry without it), and what
+ * is still on the token afterwards comes back in `left` - migrate.mjs's rule for
+ * anything that removes: read it back, do not trust the write for it.
+ *
+ * A LIVE ROW IS ONLY FILLED IN. A second run over a token whose first strip did
+ * not land found the old flags again and wrote them over the ledger row, taking
+ * every correction the GM had made since with it. So a row that exists is given
+ * only the fields it lacks, and the token's name is never taken for the label
+ * once it is the neutral one an earlier run gave it.
+ *
+ * GM-side, like the ledger: null on a player's client, and for a token that is
+ * not a trace. `ledger` says what happened to the row - "moved" (a new row from
+ * the token), "filled", "kept" (a live row lacked nothing), "already" (the token
+ * carries no type, so nothing to move). The suite runs this on its own fixture;
+ * the loop in `migrateRemnants` is for a GM.
+ *
+ * @returns {Promise<null|{ledger: string, stripped: boolean, left: string[], publicSeeded: number, deltaCleaned: number}>}
+ */
+export async function migrateRemnantToken(token) {
+    if (!game.user.isGM || !token?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return null;
+    const onToken = () => token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {};
+    const present = ANSWER_KEY_FLAGS.filter(flag => flag in onToken());
+    const done = { ledger: "already", stripped: false, left: [], publicSeeded: 0, deltaCleaned: 0 };
+
+    if (REMNANT_FLAGS.type in onToken()) done.ledger = await moveIntoLedger(token);
+    done.publicSeeded = await seedPublicIfMissing(token);
+    if (present.length) {
+        await stripAnswerKey(token, present);
+        done.left = present.filter(flag => flag in onToken());
+        done.stripped = !done.left.length;
+    }
+    done.deltaCleaned = await neutraliseDeltaName(token);
+    return done;
+}
+
+/** The token's flags into the ledger: a new row, or the fields a live row lacks. */
+async function moveIntoLedger(token) {
+    const f = key => token.getFlag(MODULE_ID, REMNANT_FLAGS[key]);
+    // The old token name WAS the label, so it is the best record of how the GM
+    // has been reading this trace on the map - unless it is already the neutral
+    // name, which says nothing about the trace.
+    const label = token.name && token.name !== game.i18n.localize("DRPG.Remnant.tokenName") ? token.name : undefined;
+    const key = keyOf(token);
+    const live = key ? readRemnantLedger()[key] : null;
+    if (live && !live.deleted) {
+        const carried = {
+            type: f("type"), visibility: f("visibility"), faint: f("faint"), reinforced: f("reinforced"),
+            note: f("note"), action: f("action"), subject: f("subject"), pointsAt: f("pointsAt"),
+            tiedToCrime: f("tiedToCrime"), sourceActor: f("sourceActor"), sourceName: f("sourceName"),
+            room: f("room"), chapter: f("chapter"), day: f("day"), timeOfDay: f("timeOfDay"), label
+        };
+        const lacking = Object.fromEntries(Object.entries(carried)
+            .filter(([field, value]) => value !== undefined && live[field] === undefined));
+        if (!Object.keys(lacking).length) return "kept";
+        await setRemnantSecret(token, lacking);
+        return "filled";
+    }
+    await setRemnantSecret(token, {
+        type: f("type"), visibility: f("visibility"),
+        faint: Boolean(f("faint")), reinforced: Boolean(f("reinforced")),
+        note: f("note"), action: f("action"), subject: f("subject"),
+        pointsAt: f("pointsAt"), tiedToCrime: Boolean(f("tiedToCrime")),
+        sourceActor: f("sourceActor"), sourceName: f("sourceName"),
+        room: f("room"), chapter: f("chapter"), day: f("day"),
+        timeOfDay: f("timeOfDay"),
+        label
+    });
+    return "moved";
+}
+
+/** The answer key off the token, and the name and tint made neutral, in one write where Foundry allows it. */
+async function stripAnswerKey(token, flags) {
+    const neutral = { name: game.i18n.localize("DRPG.Remnant.tokenName"), "texture.tint": TINTS.neutral };
+    const deletion = forcedDeletion();
+    if (deletion) {
+        await token.update({ ...Object.fromEntries(flags.map(flag => [`flags.${MODULE_ID}.${flag}`, deletion])), ...neutral });
+        return;
+    }
+    await token.update(neutral);
+    for (const flag of flags) await token.unsetFlag(MODULE_ID, flag);
 }
 
 /**

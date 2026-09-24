@@ -492,6 +492,21 @@ export async function replaceFlag(doc, key, value) {
 }
 
 /**
+ * The value that deletes a key in a document write, or null in a Foundry without one.
+ *
+ * `-=key` removes nothing in this Foundry (the measured notes in actions.mjs,
+ * music.mjs, fog.mjs and migrate.mjs) and R152 refuses that spelling anywhere in
+ * the module. v14 names the deletion `foundry.data.operators.ForcedDeletion`, and
+ * Daggerheart writes it as the global `_del`. Null means the caller unsets one
+ * flag at a time instead (E30, 24.09.2026).
+ */
+export function forcedDeletion() {
+    const Operator = foundry.data?.operators?.ForcedDeletion;
+    if (Operator) return Operator.create ? Operator.create() : new Operator();
+    return globalThis._del ?? null;
+}
+
+/**
  * Dialog content Foundry will not strip.
  *
  * `DialogV2` runs a string `content` through `cleanHTML`, whose attribute

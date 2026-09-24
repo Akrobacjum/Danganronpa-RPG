@@ -6392,6 +6392,90 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
         }
     }],
+
+    ["a legacy trace loses its answer key when migrated, and a second run keeps the GM's corrections", async () => {
+        /*
+         * E30, 24.09.2026; audit S17-01 and S05-43. A trace from before the ledger kept
+         * its answer key in flags on its token. `migrateRemnants` moved the key into the
+         * ledger and stripped the token with `-=` keys, which remove nothing on v14 as
+         * the module's own notes measured it - while its summary said "stripped" - and a
+         * second run, finding the flags still there, wrote them over the ledger row and
+         * the GM's corrections with it. The strip is read back now, and a live row is
+         * only filled in, never overwritten. One fixture token, through
+         * `migrateRemnantToken`: the suite never runs the loop, which would migrate a
+         * real table's traces.
+         */
+        const remnants = await import("./remnants.mjs");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const oldName = "SUITE Subtle Prep Remnant";
+        const legacy = { remnantType: "prep", visibility: "subtle", note: "SUITE old note", sourceName: "SUITE Someone" };
+        let token = null;
+        const flagKeys = () => JSON.stringify(Object.keys(token?._source?.flags?.[MODULE_ID] ?? {}).sort());
+        const row = () => foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.remnantSecrets)?.[remnants.keyOf(token)] ?? null);
+        const writeLegacy = (extra = {}) => token.update(Object.fromEntries(
+            Object.entries({ ...legacy, ...extra }).map(([key, value]) => [`flags.${MODULE_ID}.${key}`, value])));
+        try {
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, note: "test fixture - legacy trace"
+            });
+            ok(token, "could not place the fixture trace");
+            // Before the ledger: the answer key on the token, the label as its name, no row.
+            await token.update({ name: oldName });
+            await writeLegacy();
+            await remnants.dropRemnantSecret(token);
+            equal(remnants.remnantData(token), null, "the fixture still has a live ledger row, so it is not a trace from before the ledger");
+
+            const first = await remnants.migrateRemnantToken(token);
+            equal(flagKeys(), JSON.stringify(["isRemnant"]), "the migrated token still carries its answer key");
+            equal(first?.ledger, "moved", "the first run did not move the trace into the ledger");
+            equal(remnants.remnantData(token)?.note, legacy.note, "the token's note did not reach the ledger");
+            equal(row()?.label, oldName, "the token's old name did not reach the ledger as its label");
+
+            // A GM corrects the trace. Then a first run whose strip did not land (S05-43):
+            // the flags are back on the token, one more among them, and the name stays neutral.
+            await remnants.setRemnantSecret(token, { note: "SUITE GM correction" });
+            await writeLegacy({ subject: "SUITE subject" });
+            const second = await remnants.migrateRemnantToken(token);
+            equal(remnants.remnantData(token)?.note, "SUITE GM correction", "a second run wrote the token's stale note over the GM's correction");
+            equal(row()?.label, oldName, "a second run wrote the token's neutral name over the label");
+            equal(second?.ledger, "filled", "a second run over a live row did more, or less, than fill in what the row lacked");
+            equal(remnants.remnantData(token)?.subject, "SUITE subject", "the field the row lacked was not filled in");
+            equal(flagKeys(), JSON.stringify(["isRemnant"]), "the second run left the answer key on the token");
+        } finally {
+            if (token) {
+                try { await remnants.dropRemnantSecret(token); } catch { /* nothing filed */ }
+                try { await token.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["a replaced flag keeps nothing of the old value, and an unset flag is gone", async () => {
+        /*
+         * E30, 24.09.2026; audit S14-28. `replaceFlag` (utils.mjs) writes a flag as a
+         * replacement - the roll bookmark leans on it, or a stale `gmRuled` diverts
+         * every later Reroll - and takes v14's ForcedReplacement where there is one;
+         * `unsetFlag` is how ten places in the module delete a flag. The headless
+         * harness modelled neither until E30. Both go through the module's own
+         * helpers here, on a student, and the actor's source is read afterwards: at a
+         * table this reads v14's operators.
+         */
+        const [actor] = cast();
+        const { replaceFlag } = await import("./utils.mjs");
+        const key = "suiteOperatorProbe";
+        const stored = () => foundry.utils.deepClone(actor._source?.flags?.[MODULE_ID] ?? {});
+        try {
+            await actor.setFlag(MODULE_ID, key, { a: 1, stale: true });
+            equal(stableJson(stored()[key]), stableJson({ a: 1, stale: true }), "the fixture flag was not written");
+            await replaceFlag(actor, key, { a: 2 });
+            equal(stableJson(stored()[key]), stableJson({ a: 2 }), "replaceFlag kept something of the old value");
+            await actor.unsetFlag(MODULE_ID, key);
+            ok(!(key in stored()), `unsetFlag left the key in the actor's source: ${stableJson(stored()[key])}`);
+        } finally {
+            if (key in stored()) await actor.unsetFlag(MODULE_ID, key);
+        }
+    }],
 ];
 
 export { SCENARIOS, snapshot, restore };

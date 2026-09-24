@@ -381,6 +381,75 @@ function stripStrings(text) {
 }
 
 /**
+ * Every string and template literal in `code`: its text, and where it starts and
+ * ends (E30, 24.09.2026; audit S17-01).
+ *
+ * The other half of `stripStrings`: a test that asks what the module WRITES - a key
+ * spelled a certain way, R152 - has to read inside the literals and only there.
+ * A template's `${...}` reads as "${}" in its text, and the literals inside the
+ * hole are listed on their own. Regex literals are passed over, told apart from a
+ * division by what comes before the slash. Positions are in `code`, so `lineAt`
+ * points at the literal; hand this the output of `stripComments`. Over the
+ * module's 112 files, before this function was among them: 22,625 literals
+ * (24.09.2026).
+ *
+ * @returns {{text: string, start: number, end: number}[]}
+ */
+function stringLiterals(code, offset = 0, out = []) {
+    const text = String(code ?? "");
+    let i = 0;
+    while (i < text.length) {
+        const c = text[i];
+        if (c === '"' || c === "'") {
+            let j = i + 1, s = "";
+            while (j < text.length && text[j] !== c && text[j] !== "\n") {
+                if (text[j] === "\\") { s += text[j + 1] ?? ""; j += 2; continue; }
+                s += text[j++];
+            }
+            out.push({ text: s, start: offset + i, end: offset + Math.min(j + 1, text.length) });
+            i = j + 1;
+            continue;
+        }
+        if (c === "`") {
+            let j = i + 1, s = "";
+            while (j < text.length && text[j] !== "`") {
+                if (text[j] === "\\") { s += text[j + 1] ?? ""; j += 2; continue; }
+                if (text[j] === "$" && text[j + 1] === "{") {
+                    let k = j + 2, depth = 1;
+                    while (k < text.length && depth) {
+                        if (text[k] === "{") depth++;
+                        else if (text[k] === "}") depth--;
+                        k++;
+                    }
+                    stringLiterals(text.slice(j + 2, k - 1), offset + j + 2, out);
+                    s += "${}";
+                    j = k;
+                    continue;
+                }
+                s += text[j++];
+            }
+            out.push({ text: s, start: offset + i, end: offset + Math.min(j + 1, text.length) });
+            i = j + 1;
+            continue;
+        }
+        if (c === "/" && /[=(,:;!&|?{}[\n]\s*$/.test(text.slice(Math.max(0, i - 20), i))) {
+            let j = i + 1, inClass = false;
+            while (j < text.length && text[j] !== "\n") {
+                if (text[j] === "\\") { j += 2; continue; }
+                if (text[j] === "[") inClass = true;
+                else if (text[j] === "]") inClass = false;
+                else if (text[j] === "/" && !inClass) break;
+                j++;
+            }
+            i = j + 1;
+            continue;
+        }
+        i++;
+    }
+    return out;
+}
+
+/**
  * The windows a person leaves open while the world moves under them.
  *
  * NOT every window this module has. A confirmation, a briefing, a pick-one
@@ -541,5 +610,5 @@ export {
     Failure, Skipped, ok, needs, equal, wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     moduleSources, otherSources, stripComments, moduleStyles, bodyOf, topLevelFunction, withGuards, lineAt, stripStrings,
-    STANDING, stableJson, moduleSettingValues, worldFingerprint, watchWrites, fingerprintDiff, cast
+    stringLiterals, STANDING, stableJson, moduleSettingValues, worldFingerprint, watchWrites, fingerprintDiff, cast
 };
