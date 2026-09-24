@@ -19,7 +19,7 @@
  * the same thing, so it wrote nothing", and the first half of each one is that
  * it still says the thing.
  */
-export const layers = ["ci"];
+export const layers = ["ci", "local-gate"];
 
 const MOD = "danganronpa-rpg";
 

@@ -286,6 +286,28 @@ function scenarioProblems(repo) {
     return errs;
 }
 
+/*
+ * A scenario that takes the "local-gate" layer runs on a real Foundry through
+ * audit/live/sandbox-cluster.mjs, which has none of the harness's instruments.
+ * What the adapter cannot give it - a run() argument such as `world` or
+ * `permissionDenials`, a page hook, a verdict option - is read off the source by
+ * the adapter's own `missingFrom`, so this and the gate cannot disagree; at the
+ * gate the same finding is `adapter-missing`, which no waiver covers (E30).
+ */
+async function sandboxProblems(repo) {
+    const decls = fs.readdirSync(path.join(repo, "audit/harness/scenarios")).filter(f => /^\d\d-.*\.mjs$/.test(f))
+        .map(f => ({ f, src: read(repo, `audit/harness/scenarios/${f}`) }))
+        .filter(({ src }) => { try { return JSON.parse(src.match(LAYERS_RE)?.[1] ?? "[]").includes("local-gate"); } catch { return false; } });
+    if (!decls.length) return [];
+    const adapter = path.join(repo, "audit/live/sandbox-cluster.mjs");
+    if (!fs.existsSync(adapter)) return [`${decls.map(d => d.f).join(", ")} take the local-gate layer, and audit/live/sandbox-cluster.mjs is missing`];
+    const { missingFrom } = await import(url.pathToFileURL(adapter).href);
+    return decls.flatMap(({ f, src }) => {
+        const missing = missingFrom(src);
+        return missing.length ? [`scenarios/${f} takes the local-gate layer and needs ${missing.join(", ")}, which the sandbox adapter does not give`] : [];
+    });
+}
+
 /* --------------------------------------------------------------------------
  * Known leaks
  * -------------------------------------------------------------------------- */
@@ -372,7 +394,8 @@ async function flowProblems(repo) {
 
 /** Every registry problem, one sentence each, and a line saying what was read. */
 export async function registryProblems(repo = REPO_DEFAULT) {
-    const problems = [...scenarioProblems(repo).map(p => `scenarios: ${p}`), ...rProblems(repo).map(p => `R numbers: ${p}`),
+    const problems = [...scenarioProblems(repo).map(p => `scenarios: ${p}`), ...(await sandboxProblems(repo)).map(p => `scenarios: ${p}`),
+        ...rProblems(repo).map(p => `R numbers: ${p}`),
         ...(await flowProblems(repo)).map(p => `flows: ${p}`), ...(await leakProblems(repo)).map(p => `known leaks: ${p}`)];
     const table = readScenarioTable(read(repo, "audit/harness/README.md"));
     const block = readRBlock(read(repo, "CLAUDE.md"));

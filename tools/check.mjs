@@ -59,7 +59,8 @@
  *   gatecode  audit/gate and audit/live never fill a password, admin key or
  *             licence field: no password-type selector and no fill/type aimed at
  *             a field named like one. A detector fixture runs first, as in
- *             `contract`.
+ *             `contract`, and the part is red when the gate's writer or the
+ *             live runner is not there to be read.
  */
 
 import fs from "node:fs";
@@ -414,6 +415,8 @@ function gatecode() {
         problems.push(`the detector flags lines ${fx.join(",") || "none"} of its fixture, not ${GATECODE_FIXTURE.flags.join(",")} - it is broken`);
     }
     const files = (gitFiles("audit/gate", "audit/live") ?? []).filter(f => /\.(mjs|js)$/.test(f));
+    /* The writer and the live runner are what it exists to read: without them it read nothing. */
+    for (const need of ["audit/gate/local-gate.mjs", "audit/live/foundry.mjs"]) if (!files.includes(need)) problems.push(`${need} is missing - nothing that logs into Foundry was read`);
     for (const f of files) for (const line of hitsIn(read(f))) problems.push(`${f}:${line}: aims at a password, admin key or licence field`);
     console.log(`gatecode: ${files.length} file(s) in audit/gate and audit/live; ${problems.length} problem(s)`);
     return problems;

@@ -25,6 +25,27 @@
 #
 # The cleanup of the v1.1.X prereleases is gone with its input: those tags are
 # no longer on the remote, so it could only ever report "skipped" 88 times.
+# WHAT CHANGED FOR THE TWO-LAYER GATE (E30, decision D47, 24.09.2026). A release
+# now meets both layers before anything is built:
+#
+#   - ci: ci.yml, called on the same commit - lint, tools/check.mjs, the gate's
+#     self-test, the suite and the ci scenarios, exactly what a pull request met;
+#   - local-gate: audit/gate/verify-gate.mjs reads audit/gate/local-gate.json,
+#     which only audit/gate/local-gate.mjs writes, on a machine with a Foundry v14
+#     sandbox; its rules are listed at the top of that file. The repository
+#     variable DRPG_LOCAL_GATE picks what a required part that did not run means:
+#     "record" (unset) lets a waivable one through with the release notes'
+#     "- Not checked in a real Foundry" line, as debt in the summary; "enforce"
+#     wants the owner's waiver file, this workflow's local_gate_waiver input and
+#     an approval in the protected environment local-gate-waiver (the
+#     waiver-approval job). 1.3.0 is refused in either mode without a passed gate.
+#
+# The three shell steps that checked the manifest, the stylesheet stamp, the
+# handbooks and the notes are `node tools/check.mjs stamps notes --release`
+# now, which `npm test` also runs (R125 checks the same stamps in the suite).
+# New steps take the inputs through env: rather than ${{ }} inside a script;
+# the older build and publish steps still interpolate the tag, which by then
+# check.mjs has refused unless it reads vX.Y.Z.
 name: Release
 
 on:
@@ -37,12 +58,16 @@ on:
         description: "Release title; empty means the tag. The last stage: v1.3.0 - Stained Update"
         required: false
         default: ""
+      local_gate_waiver:
+        description: "Leave empty. Only with a waiver the owner wrote (enforce mode): the tag again. Never for 1.3.0."
+        required: false
+        default: ""
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  main-only:
     runs-on: ubuntu-latest
     steps:
       - name: Refuse anything but main
@@ -55,58 +80,85 @@ jobs:
             exit 1
           fi
 
+  ci:
+    needs: main-only
+    uses: ./.github/workflows/ci.yml
+
+  local-gate:
+    needs: main-only
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # enforce mode reads the local-gate-waiver environment's reviewers; whether
+      # this token may is to be seen on the first waiver, and when it may not,
+      # the waiver is refused (verify-gate.mjs, rule 12).
+      actions: read
+    outputs:
+      waived: ${{ steps.verify.outputs.waived }}
+    steps:
+      # The verifier reads the gated commit, the tags before this one and the
+      # history of local-gate.json, so the whole history is fetched.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.2
+      - name: Verify the local gate
+        id: verify
+        env:
+          TAG: ${{ inputs.tag }}
+          WAIVER: ${{ inputs.local_gate_waiver }}
+          DRPG_GATE_KEY: ${{ secrets.DRPG_GATE_KEY }}
+          DRPG_LOCAL_GATE: ${{ vars.DRPG_LOCAL_GATE }}
+          DRPG_WAIVER_AUTHORS: ${{ vars.DRPG_WAIVER_AUTHORS }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node audit/gate/verify-gate.mjs --tag "$TAG" --waiver "$WAIVER"
 
-      - name: Check the manifest matches the tag
-        run: |
-          manifest="$(python3 -c "import json; print(json.load(open('module.json'))['version'])")"
-          wanted="${{ inputs.tag }}"
-          if [ "v$manifest" != "$wanted" ]; then
-            echo "module.json says $manifest but the tag asked for is $wanted" >&2
-            exit 1
-          fi
+  waiver-approval:
+    # Only in enforce mode, and only when the verifier accepted a waiver: the
+    # run waits here for the owner's approval in the protected environment.
+    needs: local-gate
+    if: needs.local-gate.outputs.waived == 'true'
+    runs-on: ubuntu-latest
+    environment: local-gate-waiver
+    steps:
+      - name: The owner approved the waiver
+        env:
+          TAG: ${{ inputs.tag }}
+        run: echo "local gate waiver for $TAG approved"
 
-      - name: Check the stylesheet stamp and the notes
-        # `--drpg-css-version` is read back at load by diagnostics.mjs to catch a
-        # stale CDN copy of the stylesheet; a release whose stamp lags the manifest
-        # reports every fresh client as stale. The 1.2.42 package shipped that way.
-        run: |
-          manifest="$(python3 -c "import json; print(json.load(open('module.json'))['version'])")"
-          stamp="$(sed -n 's/.*--drpg-css-version: *"\([^"]*\)".*/\1/p' styles/danganronpa.css | head -1)"
-          if [ "$stamp" != "$manifest" ]; then
-            echo "styles/danganronpa.css stamps --drpg-css-version \"$stamp\" but module.json says $manifest" >&2
-            exit 1
-          fi
-          if [ ! -f ".github/release-notes/${{ inputs.tag }}.md" ]; then
-            echo "no release notes at .github/release-notes/${{ inputs.tag }}.md" >&2
-            exit 1
-          fi
+  release:
+    needs: [ci, local-gate, waiver-approval]
+    # Written out: without it a skipped waiver-approval would skip the release too.
+    if: ${{ !cancelled() && needs.ci.result == 'success' && needs.local-gate.result == 'success' && (needs.waiver-approval.result == 'success' || needs.waiver-approval.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # fetch-depth 0: `stages.mjs check --release` checks that every earlier
+      # shipped stage has its tag, and a shallow clone has none.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.2
 
-      - name: Check the README and the handbooks name this version
-        # The handbooks open from the corner of the screen and say which version
-        # they describe on their third line; the README says it once. All seven
-        # said 1.2.55 while the module was 1.2.56, and the sandbox showed the
-        # brochure reading "Module 1.2.55" to a player (audit S14-16, S13-42,
-        # S12-76). With a release per stage that gap would open at every one, so
-        # it is checked here, next to the stylesheet stamp, and by R125 in the
-        # suite. The handbook stamp is looked for in the first five lines only:
-        # a version quoted further down is history, not a stamp.
-        run: |
-          manifest="$(python3 -c "import json; print(json.load(open('module.json'))['version'])")"
-          bad=0
-          for f in docs/handbooks/gm-handbook.en.md docs/handbooks/gm-handbook.pl.md \
-                   docs/handbooks/player-handbook.en.md docs/handbooks/player-handbook.pl.md \
-                   docs/handbooks/player-brochure.en.md docs/handbooks/player-brochure.pl.md; do
-            if ! head -5 "$f" | grep -qF "$manifest"; then
-              echo "$f does not name version $manifest in its header" >&2
-              bad=1
-            fi
-          done
-          if ! grep -qF "describe version $manifest." README.md; then
-            echo "README.md does not say the handbooks describe version $manifest" >&2
-            bad=1
-          fi
-          exit $bad
+      - name: Check the tag, the stamps and the notes
+        # module.json, the --drpg-css-version stamp (read back at load by
+        # diagnostics.mjs to catch a stale CDN copy; the 1.2.42 package shipped
+        # with it lagging), the six handbooks' headers and the README (all seven
+        # said 1.2.55 under a 1.2.56 module: audit S14-16, S13-42, S12-76), and
+        # the notes file this release publishes.
+        env:
+          TAG: ${{ inputs.tag }}
+        run: node tools/check.mjs stamps notes --release "$TAG"
+
+      - name: Check the stage ledger
+        env:
+          TAG: ${{ inputs.tag }}
+        run: node tools/stages.mjs check --release "$TAG"
 
       - name: Build the package
         run: git archive --format=zip -o module.zip HEAD

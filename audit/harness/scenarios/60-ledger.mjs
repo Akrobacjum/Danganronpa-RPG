@@ -4,7 +4,7 @@
  * world setting stays empty, a player can pull their rows, and a primary GM
  * with an empty store can rebuild the union from what the clients hold.
  */
-export const layers = ["ci"];
+export const layers = ["ci", "local-gate"];
 
 const MOD = "danganronpa-rpg";
 

@@ -13,7 +13,8 @@
  * `status + name` in scripts/utils.mjs was reported twice with these lists;
  * globals.browser declares both names, so it would have passed. The lists are
  * what the code reads bare, measured the same day - 154 files, 0 problems,
- * 3.7 s - and no Daggerheart or module name is read bare anywhere in scripts/.
+ * 3.7 s; 163 files once audit/gate and audit/live arrived - and no Daggerheart
+ * or module name is read bare anywhere in scripts/.
  * A new bare name is added here, next to the place that needs it.
  */
 const names = list => Object.fromEntries(list.trim().split(/\s+/).map(n => [n, "readonly"]));
@@ -26,9 +27,10 @@ const BROWSER = names(`window document console fetch performance PerformanceObse
     getComputedStyle matchMedia innerWidth innerHeight devicePixelRatio location addEventListener
     CSS CSSTransition HTMLElement Element Node Event CustomEvent KeyboardEvent MouseEvent FocusEvent
     MutationObserver ResizeObserver Blob FormData URL structuredClone`);  // structuredClone: tests-kit.mjs, R159's dump fixtures
-// Response: client-entry.mjs serves the checkout's stylesheets to jsdom; structuredClone: tools/stages.mjs, lib/seed.mjs.
+// Response: client-entry.mjs serves the checkout's stylesheets to jsdom; structuredClone: tools/stages.mjs, lib/seed.mjs;
+// fetch, AbortController: the local gate's probe and verifier (audit/gate).
 const NODE = names(`process console setTimeout clearTimeout setInterval clearInterval performance URL Buffer
-    Response structuredClone`);
+    Response structuredClone fetch AbortController`);
 const RULES = { "no-undef": ["error", { typeof: true }] };
 const LANG = { ecmaVersion: "latest", sourceType: "module" };
 export default [

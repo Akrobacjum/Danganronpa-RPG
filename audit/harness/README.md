@@ -34,6 +34,15 @@ so a runner can read it without importing the file: `"ci"` (this harness),
 for the tools in `probes/` (see `probes/README.md`). `cluster.mjs` fails a file
 that declares none.
 
+Two scenarios carry `"local-gate"` as well, since E30: 14-quiet and 60-ledger,
+the ones whose `run()` asks only for what the sandbox adapter gives
+(`audit/live/sandbox-cluster.mjs`: the four clients' `eval`, `check`, `note`,
+`phase`, `settle`, `repoUrl`) and which use no harness-only page hook or
+verdict option. 11-killer-secrecy was the design's third candidate; it plants
+canary markers now (72-canary's machinery), which the adapter does not have.
+Neither has run against a real Foundry yet: the local gate records them as not
+run until a v14 sandbox exists (audit/gate/README.md).
+
 ## Numbers
 
 A scenario's number is how a comment, a commit and an audit find it a year
@@ -63,7 +72,7 @@ release or stage the status belongs to.
 | 11 | scenarios/11-killer-secrecy.mjs | ci | exists | <=1.2.50 | a bystander cannot read the killer or the accomplice |
 | 12 | scenarios/12-social.mjs | ci | exists | <=1.2.50 | private rolls, inventory limits, movement and Search between clients |
 | 13 | scenarios/13-murder-signals.mjs | ci | exists | <=1.2.50 | what a killing shows four screens; a bystander sees nothing |
-| 14 | scenarios/14-quiet.mjs | ci | exists | <=1.2.50 | a redraw that changes nothing writes nothing |
+| 14 | scenarios/14-quiet.mjs | ci, local-gate | exists | <=1.2.50 | a redraw that changes nothing writes nothing |
 | 15 | scenarios/15-held.mjs | ci | exists | 1.2.58 (E27) | other modules' client settings held on every client |
 | 16 | scenarios/16-first-run.mjs | local-gate | planned | E58 | a clean install from the manifest, and the first run |
 | 17 | scenarios/17-assistant.mjs | ci | exists | E30 | an Assistant GM (role 3) is a GM, and its relay packets are judged like a player's |
@@ -76,7 +85,7 @@ release or stage the status belongs to.
 | 41 | scenarios/41-trial-scene.mjs | ci, local-gate | planned | E13 | the Class Trial switches to the fixed hall (the harness needs scene switching first) |
 | 50 | scenarios/50-lang.mjs | ci | exists | <=1.2.50 | the Language setting on four clients |
 | 51 | scenarios/51-lang-mixed.mjs | ci | planned | E57 | English and Polish browsers at one table |
-| 60 | scenarios/60-ledger.mjs | ci | exists | <=1.2.50 | the discovery ledger is a secret per player |
+| 60 | scenarios/60-ledger.mjs | ci, local-gate | exists | <=1.2.50 | the discovery ledger is a secret per player |
 | 61 | scenarios/61-gmstore-case.mjs | ci | planned | E38 | the GM store with a second GM: backup and restore, tombstones, kept ids |
 | 62 | scenarios/62-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56) |
 | 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
