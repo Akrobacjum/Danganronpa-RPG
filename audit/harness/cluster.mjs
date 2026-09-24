@@ -5,6 +5,9 @@
  * Usage: node cluster.mjs scenarios/00-boot.mjs [--verbose]
  * Needs `npm ci` in this directory once (jsdom). DRPG_REPO points it at another
  * checkout; by default it boots the one it sits in.
+ *
+ * Exit code: 0 when every check passed, 1 when one failed, 2 when no file was
+ * named, 3 when the cluster itself failed (no results file).
  */
 
 import { fork } from "node:child_process";
@@ -28,6 +31,8 @@ const REPO_URL = url.pathToFileURL(REPO).href.replace(/\/$/, "");
 const VERBOSE = process.argv.includes("--verbose");
 const scenarioPath = process.argv[2];
 if (!scenarioPath) { console.error("usage: node cluster.mjs <scenario.mjs>"); process.exit(2); }
+/** When this run began, for the results file: a reader can tell this run's file from a stale one. */
+const STARTED_AT = new Date().toISOString();
 
 /* ----------------------------- world seed -------------------------------- */
 
@@ -237,6 +242,52 @@ const bootInfo = new Map();
 let evalSeq = 0;
 const evalPending = new Map();
 
+/*
+ * NO CLIENT OUTLIVES THE CLUSTER (E30, 24.09.2026).
+ *
+ * A fatal error here (`main().catch`, exit 3) ends this process without sending
+ * "shutdown", and the clients did not end with it. Measured on a copy of this
+ * tree with a scenario that throws while it is imported: exit 3, and all four
+ * client-entry.mjs processes were still running ten seconds later with parent
+ * PID 1 - the orphans that had to be found and killed by hand after runs. So
+ * any client still alive when this process exits is killed here. An "exit"
+ * handler does not run when the cluster is killed by a signal (the same copy,
+ * cluster killed with SIGKILL mid-run: four orphans five seconds later); that
+ * case is the client's own "disconnect" handler (client-entry.mjs), which ends
+ * a client whose channel to the cluster has closed.
+ */
+process.on("exit", () => {
+    for (const { proc } of clients.values()) {
+        if (proc.exitCode !== null || proc.signalCode !== null) continue;
+        try { proc.kill("SIGKILL"); } catch {}
+    }
+});
+
+/*
+ * PEAK MEMORY (E30, 24.09.2026). What a run costs in memory had never been
+ * measured anywhere. Each client answers "shutdown" with `bye` and its
+ * `process.resourceUsage().maxRSS` - KB, the peak over the client's whole life -
+ * and the cluster waits at most 300 ms for the four before it writes the results.
+ * A client that has not answered by then is `null` in `resources`, not a guess.
+ */
+const peakRSS = new Map();
+let onBye = null;
+
+function closeClients(ms) {
+    return new Promise(resolve => {
+        const waiting = new Set();
+        const finish = () => { clearTimeout(timer); onBye = null; resolve(); };
+        const timer = setTimeout(finish, ms);
+        onBye = who => { waiting.delete(who); if (!waiting.size) finish(); };
+        for (const [who, { proc }] of clients) {
+            if (!proc.connected) continue;
+            waiting.add(who);
+            proc.send({ t: "shutdown" });
+        }
+        if (!waiting.size) finish();
+    });
+}
+
 function spawnClient(who, userId) {
     const proc = fork(path.join(HERE, "client-entry.mjs"), [], {
         env: { ...process.env, DRPG_USER: who, DRPG_REPO: REPO },
@@ -341,6 +392,10 @@ function onClientMessage(who, entry, msg) {
             if (p) { evalPending.delete(msg.id); msg.ok ? p.resolve(msg.value) : p.reject(new Error(msg.value)); }
             break;
         }
+        case "bye":
+            peakRSS.set(who, msg.maxRSS);
+            onBye?.(who);
+            break;
     }
 }
 
@@ -415,8 +470,28 @@ async function main() {
 
     const passed = results.filter(r => r.ok).length;
     console.log(`\n[cluster] ${passed}/${results.length} checks passed in ${dt}ms`);
+
+    /* THE EXIT CODE SAYS WHAT THE CHECKS SAID (E30, 24.09.2026). It did not: on a
+       copy of this tree with one check in 14-quiet inverted, the run printed
+       "[cluster] 6/7 checks passed" and exited 0. The exit used to come from a
+       timer started after "shutdown", but the timer is unref'd and the clients
+       leave at once on "shutdown"; their channels were the last thing keeping
+       this process alive, so Node ended it - with exit code 0 - before the timer
+       fired. 11-killer-secrecy (5/6) and 40-flow (37/38), red on their known
+       leaks, exited 0 in the 1.2.60 baseline run for the same reason, and a CI
+       step reading the exit code would have been green whatever the checks
+       said. `process.exitCode` is what Node exits with when nothing is left to
+       run, so it is set before the clients go; the timer at the end stays as
+       the hard stop for a client that does not. */
+    process.exitCode = results.some(r => !r.ok) ? 1 : 0;
+    await closeClients(300);
+    const resources = Object.fromEntries([...clients.keys()].map(who => [who, peakRSS.get(who) ?? null]));
+    resources.cluster = process.resourceUsage().maxRSS;
+    console.log(`[cluster] peak memory, maxRSS in MB: ${Object.entries(resources).map(([who, kb]) => `${who} ${kb === null ? "no answer" : Math.round(kb / 1024)}`).join(", ")}`);
+
     const out = {
-        scenario: scenarioPath, passed, total: results.length, ms: dt,
+        scenario: scenarioPath, startedAt: STARTED_AT, finishedAt: new Date().toISOString(),
+        passed, total: results.length, ms: dt, resources,
         results, permissionDenials, socketTraffic: socketTraffic.slice(0, 200),
         bootInfo: Object.fromEntries([...bootInfo.entries()].map(([k, v]) => [k, { t: v.t, drpg: v.drpg, settingsRegistered: v.settingsRegistered, error: v.error?.slice?.(0, 800) }]))
     };
@@ -425,8 +500,7 @@ async function main() {
     fs.writeFileSync(outFile, JSON.stringify(out, null, 2));
     console.log(`[cluster] results -> ${outFile}`);
 
-    for (const { proc } of clients.values()) proc.send({ t: "shutdown" });
-    setTimeout(() => process.exit(results.some(r => !r.ok) ? 1 : 0), 400).unref();
+    setTimeout(() => process.exit(), 400).unref();
 }
 
 main().catch(err => { console.error("[cluster] fatal:", err); process.exit(3); });

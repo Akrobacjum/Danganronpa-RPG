@@ -19,6 +19,12 @@ const logLine = s => send({ t: "log", line: String(s) });
 globalThis.__errors = [];
 process.on("uncaughtException", err => { logLine(`UNCAUGHT: ${err.stack}`); recordError("uncaughtException", err); });
 process.on("unhandledRejection", err => { logLine(`UNHANDLED REJECTION: ${err?.stack ?? err}`); recordError("unhandledRejection", err); });
+/* A client exists only for its cluster. Its channel closing means the cluster
+   has ended - crashed, or killed by a signal, where its own "exit" handler never
+   runs - and a client left alone did not end (measured 24.09.2026: with the
+   cluster killed by SIGKILL mid-run, all four clients were still running five
+   seconds later; see cluster.mjs, NO CLIENT OUTLIVES THE CLUSTER). */
+process.on("disconnect", () => process.exit(0));
 
 /* ------------------------------ jsdom ----------------------------------- */
 
@@ -969,7 +975,15 @@ process.on("message", async msg => {
                 send({ t: "evalResult", id: msg.id, ok, value: safeJson(value) });
                 break;
             }
-            case "shutdown": process.exit(0);
+            case "shutdown": {
+                // The peak memory of this client's whole life, for the results file
+                // (cluster.mjs, PEAK MEMORY). The exit waits for send's callback:
+                // Node documents that process.exit() does not wait for pending writes.
+                const bye = { t: "bye", maxRSS: process.resourceUsage().maxRSS };
+                if (!process.send) process.exit(0);
+                process.send(bye, () => process.exit(0));
+                break;
+            }
         }
     } catch (err) {
         // The client missed whatever this message carried, so everything it
