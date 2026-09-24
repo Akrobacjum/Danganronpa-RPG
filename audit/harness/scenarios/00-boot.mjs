@@ -108,6 +108,19 @@ export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permi
         await write(writer, id, `{ "flags.world": _del }`);
     }
 
+    /* The pre steps (lib/shim.mjs, THE PRE STEPS EDIT THE UPDATE THAT IS SENT): what a
+       preUpdate listener takes out of the update is not written, and false cancels it. */
+    const pre = await p1.eval(`const a = game.actors.get("${IDS.aiko}");
+        Hooks.once("preUpdateActor", (doc, update) => { delete update.flags.world.e30drop; });
+        await a.update({ "flags.world.e30keep": 1, "flags.world.e30drop": 1 });
+        Hooks.once("preUpdateActor", () => false);
+        await a.update({ "flags.world.e30cancel": 1 });
+        return true;`);
+    const preOnGm = await read(gm, IDS.aiko);
+    check("the host: an edit a preUpdate listener makes is what is written, and false cancels the update",
+        pre === true && JSON.stringify(preOnGm) === JSON.stringify({ e30keep: 1 }), JSON.stringify(preOnGm));
+    await write(p1, IDS.aiko, `{ "flags.world": _del }`);
+
     /* Roles (lib/shim.mjs, AN ASSISTANT IS A GM): isGM from role 3, and a role
        name the harness does not know is no role at all. */
     const roles = await gm.eval(`const User = CONFIG.User.documentClass;

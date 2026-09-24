@@ -315,26 +315,47 @@ export function buildDocumentClasses(ctx) {
             return [];
         }
 
+        /*
+         * THE PRE STEPS EDIT THE UPDATE THAT IS SENT (E30, 24.09.2026).
+         *
+         * The `preUpdate` hook was handed a copy of the changes, so whatever a module
+         * guard took out of them was written anyway. Measured on this harness before
+         * the change: resource-guard.mjs emptied a player's edit of their own Stress
+         * and warned them, and the GM's copy of that Stress still went from 0 to 5.
+         * In Foundry the hook gets the update itself - expanded, with its `_id`, which
+         * the module's own readers expect (sheet.mjs filters the `_id` out; overflow.mjs
+         * and resource-guard.mjs delete by walking the nested object) - and what it
+         * leaves is what is written. So the object below goes through the document's
+         * `_preUpdate` and then the hook, and is then sent as they left it, with the
+         * same options object. Either returning false cancels; `noHook` skips the hook
+         * and not `_preUpdate`; an update the pre steps empty is not sent. The order of
+         * the two pre steps and the empty update are recalled, not read from v14
+         * (LIVE-E30-03).
+         */
+        async _runPreUpdate(update, options, { noHook = false } = {}) {
+            if (await this._preUpdate?.(update, options, ctx.gameRef().user) === false) return false;
+            if (!noHook && ctx.hooks().call(`preUpdate${this.documentName}`, this, update, options, ctx.userId()) === false) return false;
+            return Object.keys(update).some(key => key !== "_id");
+        }
+
         async update(changes = {}, context = {}) {
-            changes = sanitize(changes);
-            delete changes._id;
-            if (U.isEmpty(changes)) return this;
-            const hooks = ctx.hooks();
+            // An operator reaches the pre steps as an instance, not as the wire form
+            // `sanitize` made of it (lib/operators.mjs).
+            const update = { ...revive(U.expandObject(sanitize(changes))), _id: this.id };
+            if (!Object.keys(update).some(key => key !== "_id")) return this;
             // `noHook` skips the `pre` hook here and the `update` hook in
             // client-entry.mjs's `applyRemote`. Foundry documents it as blocking
             // "the hooks related to this operation"; whether the post-hook is one
             // of them on v14 is not measured (AUDIT §9), so the harness takes the
             // reading that proves less. Configure Ownership saves this way, and
             // anonymity.mjs guards it after the fact.
-            // An operator reaches the hook as an instance, not as the wire form
-            // `sanitize` made of it (lib/operators.mjs).
-            const pre = context?.noHook ? undefined
-                : hooks.call(`preUpdate${this.documentName}`, this, revive(U.expandObject(U.deepClone(changes))), opts(context), ctx.userId());
-            if (pre === false) return this;
+            const options = opts(context);
+            if (!(await this._runPreUpdate(update, options, { noHook: Boolean(context?.noHook) }))) return this;
             if (this.parent) {
-                await this.parent._embeddedOp("update", this.documentName, [{ _id: this.id, ...changes }], context);
+                await this.parent._embeddedOp("update", this.documentName, [update], context, options);
             } else {
-                await ctx.bus.op({ action: "update", coll: this.documentName, docId: this.id, changes, options: opts(context) });
+                const { _id, ...written } = update;
+                await ctx.bus.op({ action: "update", coll: this.documentName, docId: this.id, changes: written, options });
             }
             return this;
         }
@@ -365,19 +386,28 @@ export function buildDocumentClasses(ctx) {
             const collKey = (EMBEDDED[this.documentName] ?? {})[embeddedName];
             return ids.map(id => this._collections[collKey]?.get(id)).filter(Boolean);
         }
+        /* The same pre steps for each entry (see `_runPreUpdate`); this path had none. */
         async updateEmbeddedDocuments(embeddedName, updates = [], context = {}) {
-            await this._embeddedOp("update", embeddedName, updates.map(sanitize), context);
             const collKey = (EMBEDDED[this.documentName] ?? {})[embeddedName];
-            return updates.map(u => this._collections[collKey]?.get(u._id)).filter(Boolean);
+            const options = opts(context);
+            const kept = [];
+            for (const entry of updates) {
+                const update = revive(U.expandObject(sanitize(entry)));
+                const doc = this._collections[collKey]?.get(update._id);
+                if (doc && !(await doc._runPreUpdate(update, options, { noHook: Boolean(context?.noHook) }))) continue;
+                kept.push(update);
+            }
+            if (kept.length) await this._embeddedOp("update", embeddedName, kept, context, options);
+            return kept.map(u => this._collections[collKey]?.get(u._id)).filter(Boolean);
         }
         async deleteEmbeddedDocuments(embeddedName, ids = [], context = {}) {
             await this._embeddedOp("delete", embeddedName, ids, context);
             return [];
         }
-        _embeddedOp(action, embeddedName, payload, context = {}) {
+        _embeddedOp(action, embeddedName, payload, context = {}, options = opts(context)) {
             return ctx.bus.op({
                 action: `embedded-${action}`, coll: this.documentName, docId: this.id,
-                embeddedName, payload, options: opts(context)
+                embeddedName, payload, options
             });
         }
     }

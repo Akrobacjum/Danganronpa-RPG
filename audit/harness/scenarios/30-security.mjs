@@ -679,8 +679,27 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     const readBullet = `const b = game.actors.get("${ids.botan}").items.get("${bullet}");
         return { text: b?.getFlag("${MOD}", "playerText") ?? null, analyzed: b?.getFlag("${MOD}", "analyzed") ?? null };`;
     const bulletBefore = await gm.eval(readBullet);
+    /*
+     * THE COURTESY HALF AND THE BACKSTOP (E30, 24.09.2026). resource-guard.mjs refuses an
+     * edit of a bullet's guarded flags on the player's own client, and the primary GM puts
+     * back whatever gets past it. Until the harness let a preUpdate listener edit the update
+     * it is given, the refusal changed nothing here, so the two checks after this one passed
+     * on edits a player's client would not have sent. Measured once it did: the plain edit
+     * never left p2's client - the first check then passed on nothing having happened, and
+     * the second failed. A console gets past the courtesy half with the guard's own option
+     * (`drpgAutomated`, resource-guard.mjs SYSTEM_WRITE), which is what the backstop exists
+     * for; the two backstop checks send their edit that way, and this one checks the half
+     * that now works headless.
+     */
+    await p2.eval(`globalThis.__notifications.length = 0; const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        await b.update({ "flags.${MOD}.playerText": "SEC plain edit" }); return true;`);
+    await settle(1000);
+    const plainEdit = { gm: await gm.eval(readBullet),
+        warned: await p2.eval(`return globalThis.__notifications.some(n => n.level === "warn" && n.msg === game.i18n.localize("DRPG.Guard.itemLocked"));`) };
+    check("SECURITY: a player's plain edit of their Truth Bullet is refused on their own client and never reaches the GM",
+        JSON.stringify(plainEdit.gm) === JSON.stringify(bulletBefore) && plainEdit.warned === true, JSON.stringify({ bulletBefore, plainEdit }));
     await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
-        await b.update({ "flags.${MOD}.playerText": "SEC rewritten", "flags.${MOD}.analyzed": true }); return true;`);
+        await b.update({ "flags.${MOD}.playerText": "SEC rewritten", "flags.${MOD}.analyzed": true }, { drpgAutomated: true }); return true;`);
     await settle(1500);
     const bulletAfter = await gm.eval(readBullet);
     check("SECURITY: a player's edit of what their Truth Bullet says or is, is put back",
@@ -698,7 +717,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
         T.forgetBulletGuard(b.uuid); return true;`);
     const whispersBefore = await gm.eval(`return game.messages.size;`);
     await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
-        await b.update({ "flags.${MOD}.playerText": "SEC unrecorded" }); return true;`);
+        await b.update({ "flags.${MOD}.playerText": "SEC unrecorded" }, { drpgAutomated: true }); return true;`);
     await settle(1500);
     // A GM whisper is a private card: the words live in the store, not on the message (secret.mjs).
     const unrecorded = await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");

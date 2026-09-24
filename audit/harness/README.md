@@ -46,10 +46,15 @@ that declares none.
   tokens of such actors; everything else is refused. The rest of v14's
   permission matrix is not modelled (`User#can` is `isGM`), and the role rules
   are from memory, not v14's source: LIVE-E30-04.
-- **A `preUpdate` listener is handed a copy of the changes**, so what it
-  removes from them is written anyway. Measured 24.09.2026: resource-guard.mjs
-  emptied a player's Stress edit and warned them, and the GM's copy of that
-  Stress still went from 0 to 5. The module's guards assume the opposite.
+- **Pre-update steps** (E30). A document's `_preUpdate` and then the
+  `preUpdate` hook get the update itself (expanded, with its `_id`) and one
+  options object; what they leave is what is sent, false from either cancels,
+  and an update they empty is not sent. Until E30 the hook got a copy, and a
+  guard's edit was written anyway (measured: resource-guard.mjs emptied a
+  player's Stress edit, and the GM's copy still went from 0 to 5). The order of
+  the two steps and the empty update are recalled, not read: LIVE-E30-03. The
+  server does not diff: an update that changes nothing is still broadcast and
+  fires the update hooks.
 - **Operators** (E30). A key spelled `-=key` or `==key` changes nothing and is
   reported: on the log, as `legacyKeys` in the scenario api and as
   `legacyKeysIgnored` in the results file. `ForcedDeletion`, `ForcedReplacement`,
