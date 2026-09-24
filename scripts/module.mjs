@@ -33,6 +33,7 @@ import { registerMovement } from "./movement.mjs";
 import { registerProjectsUi } from "./projects-ui.mjs";
 import { registerProjectsMap } from "./projects-map.mjs";
 import { registerGmBridge } from "./gm-bridge.mjs";
+import { registerRerollReceipts } from "./reroll-receipts.mjs";
 import { registerInventoryLimits } from "./inventory.mjs";
 import { registerTruthBullets } from "./truth-bullets.mjs";
 import { registerTrial } from "./trial.mjs";
@@ -302,6 +303,9 @@ Hooks.once("ready", () => {
     // after the sync socket because two of them react to world-state events
     // that arrive over it, and the listener has to exist before the event does.
     safely("the trap watchers", registerTraps);
+    // Before the bridge: an undo the bridge is asked for is paid for by a
+    // receipt this writes, and the receipt has to be watching first.
+    safely("the reroll receipts", registerRerollReceipts);
     safely("the GM bridge", registerGmBridge);
     // After the API, because the migration it kicks off reads the clock, and
     // after the other socket listeners for the same reason they are ordered:

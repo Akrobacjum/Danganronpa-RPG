@@ -1070,41 +1070,40 @@ async function askCriticalTarget(def) {
     return picked === "stress" ? "stress" : "hp";
 }
 
-export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
-    const state = murderState();
+/**
+ * Why this character may not take this crisis action now, or null.
+ *
+ * MOVED OUT OF `takeCrisisAction` SO THE GM CAN ASK IT TOO (E03, 24.09.2026;
+ * audit S04-09). Every one of these checks ran on the acting player's own
+ * client and nowhere else, so the GM applied whatever arrived: a finishing blow
+ * out of turn, an action still locked, one already spent, a packet that landed
+ * after the incident had moved on to Stage 6. The bridge now asks this again on
+ * the GM's side before it resolves anything. Everything it reads is the
+ * incident's state and the character's resources, which the GM holds; the
+ * item an action spends is not here, because the player's client may already
+ * have used it by the time the packet arrives.
+ *
+ * @returns {{why: string, key: string|null, data?: object}|null} `key` is the
+ *   toast for the player's own client; null means the client says nothing,
+ *   as it never did for a tile that is not theirs to press.
+ */
+export function crisisRefusal(actor, key, state = murderState()) {
     const side = sideOf(actor);
     const def = CRISIS_ACTIONS[key];
 
-    if (!state || state.stage !== "incident" || !def || !side) return null;
-    if (def.side !== side && def.side !== "both") return null;
-
-    // An action that spends something has to be told what. Refused rather than
-    // rolled: a roll that cannot apply its own result is worse than no roll.
-    if (def.usesItem && !actor.items.get(itemId)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.useItemGone"));
-        return null;
+    if (!state || state.stage !== "incident" || !def || !side) {
+        return { why: "no incident is at its incident stage for that character", key: null };
     }
-    if (!isTheirTurn(actor)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.notYourTurn"));
-        return null;
-    }
+    if (def.side !== side && def.side !== "both") return { why: "not an action for that side", key: null };
+    if (!isTheirTurn(actor)) return { why: "not their turn", key: "DRPG.Murder.notYourTurn" };
     // The sheet greys these out, but the panel is only rebuilt on render - a
     // window left open across somebody else's turn still has live buttons.
     const offered = availableCrisisActions(actor).find(o => o.key === key);
     if (offered?.locked) {
-        ui.notifications.warn(game.i18n.format("DRPG.Murder.actionLocked", {
-            name: offered.lockedBy ?? "?"
-        }));
-        return null;
+        return { why: "that action is locked", key: "DRPG.Murder.actionLocked", data: { name: offered.lockedBy ?? "?" } };
     }
-    if (offered?.spent) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.actionSpent"));
-        return null;
-    }
-    if ((state.blocked?.[side]?.[key] ?? 0) > 0) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.actionBlocked"));
-        return null;
-    }
+    if (offered?.spent) return { why: "that action is spent", key: "DRPG.Murder.actionSpent" };
+    if ((state.blocked?.[side]?.[key] ?? 0) > 0) return { why: "that action is blocked", key: "DRPG.Murder.actionBlocked" };
     /*
      * A resolution action costs Sanity rather than an action - and Health when
      * there is no Sanity left (Z3).
@@ -1123,7 +1122,27 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      * the incident on that condition. This guard is the belt to that braces.
      */
     if (def.kind === "resolution" && !def.noRoll && isSpent(actor)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.nothingLeftToSpend"));
+        return { why: "nothing left to spend on a resolution", key: "DRPG.Murder.nothingLeftToSpend" };
+    }
+    return null;
+}
+
+export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
+    const state = murderState();
+    const side = sideOf(actor);
+    const def = CRISIS_ACTIONS[key];
+
+    const refusal = crisisRefusal(actor, key, state);
+    if (refusal && !refusal.key) return null;
+
+    // An action that spends something has to be told what. Refused rather than
+    // rolled: a roll that cannot apply its own result is worse than no roll.
+    if (def.usesItem && !actor.items.get(itemId)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Murder.useItemGone"));
+        return null;
+    }
+    if (refusal) {
+        ui.notifications.warn(game.i18n.format(refusal.key, refusal.data ?? {}));
         return null;
     }
 

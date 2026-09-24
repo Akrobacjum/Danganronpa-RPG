@@ -356,12 +356,15 @@ export function sabotageTargetsIn(room, { anyRoom = false, user = game.user } = 
  *   when the project does not exist. `changed: false` means the write was a
  *   no-op - the caller must not report success.
  */
-export async function addProgress(countdownId, amount, { by = null } = {}) {
+export async function addProgress(countdownId, amount, { by = null, actorId = null } = {}) {
     if (!amount) return null;
 
     if (!game.user.isGM) {
+        // The character whose action this is travels with it: progress taken
+        // BACK is a Reroll's undo, and the GM pays for that from the receipt
+        // for this character (reroll-receipts.mjs), not on the packet's word.
         const { requestProjectProgress } = await import("./gm-bridge.mjs");
-        return requestProjectProgress(countdownId, amount);
+        return requestProjectProgress(countdownId, amount, actorId);
     }
 
     // Whose hands moved the bar, as a USER id - the fallback audience when a
@@ -378,6 +381,26 @@ export async function addProgress(countdownId, amount, { by = null } = {}) {
     const start = project.progress?.start ?? 0;
     const raw = project.progress?.current ?? 0;
     const up = countsUp(countdownId);
+
+    /*
+     * A SABOTAGED PROJECT DOES NOT MOVE FORWARD (E03, 24.09.2026; audit S09-02).
+     * "Frozen - its progress is preserved but cannot be advanced" was the rule
+     * at the top of the sabotage section below, and the only thing enforcing it
+     * was the pickers on a player's screen: this function took any amount for
+     * any project, so a Call aimed from an old dialog, a Reroll that landed after
+     * the freeze, or a console, all advanced it. Every caller comes through here,
+     * the GM's own included, so it is enforced here. Taking progress away still
+     * works - an undo or an Earthquake is not advancing it.
+     */
+    if (amount > 0 && isFrozen(countdownId)) {
+        const current = up ? raw : Math.max(0, start - raw);
+        log(`Project "${project.name}" did not move: it is frozen by sabotage.`);
+        ui.notifications.warn(game.i18n.format("DRPG.Project.frozenNoProgress", { name: project.name }));
+        return {
+            id: countdownId, name: project.name,
+            from: current, to: current, target: start, changed: false, reason: "DRPG.Project.frozenNoProgress"
+        };
+    }
 
     // Translate "advance the project" into whichever direction this countdown
     // stores, then clamp inside the bar rather than outside the intent.
@@ -602,7 +625,7 @@ export function repairs(countdownId) {
  * @param {number} difficulty Progress the repair needs - harder sabotage, harder fix.
  * @returns {Promise<{repair: object, target: string}|null>}
  */
-export async function sabotageProject(targetId, difficulty = 3) {
+export async function sabotageProject(targetId, difficulty = 3, { saboteur = null } = {}) {
     if (!game.user.isGM) {
         const { requestSabotage } = await import("./gm-bridge.mjs");
         return requestSabotage(targetId, difficulty);
@@ -613,6 +636,14 @@ export async function sabotageProject(targetId, difficulty = 3) {
 
     if (isFrozen(targetId)) {
         ui.notifications.warn(game.i18n.format("DRPG.Project.alreadyFrozen", { name: target.name }));
+        return null;
+    }
+
+    // A repair is not a project anybody is building, it is the cost of a
+    // sabotage (E03; audit S09-02). Sabotaging it froze the repair, and the
+    // frozen original could then only be thawed by repairing the repair.
+    if (repairs(targetId)) {
+        log(`Refused to sabotage "${target.name}": it is a repair.`);
         return null;
     }
 
@@ -634,7 +665,9 @@ export async function sabotageProject(targetId, difficulty = 3) {
     });
     if (!repair) return null;
 
-    await setProjectMeta(repair.id, { repairs: targetId });
+    // Who asked, when it was a player (the bridge passes Foundry's sender): a
+    // Reroll may take back its own sabotage and nobody else's.
+    await setProjectMeta(repair.id, { repairs: targetId, ...(saboteur ? { saboteur } : {}) });
     await setProjectMeta(targetId, { frozenBy: repair.id });
 
     log(`Project "${target.name}" frozen; repair "${repair.name}" created (${difficulty} progress).`);
@@ -642,27 +675,70 @@ export async function sabotageProject(targetId, difficulty = 3) {
 }
 
 /**
+ * Why a sabotage cannot be taken back as asked, or null when it can.
+ *
+ * THE PAIR THE SABOTAGE WROTE, AND NOTHING ELSE (E03, 24.09.2026; audit S10-03,
+ * S09-02). `undoSabotage` used to thaw whatever it was given and delete whatever
+ * repair it was given, with nothing tying the two together. A player's packet
+ * naming any visible project and ANY project id as its "repair" deleted that
+ * project - a secret murder plan included, token and trap and all, with no
+ * trace of who asked. And a Reroll of a sabotage that had FAILED (no repair)
+ * thawed the target, whoever had frozen it. Now the two have to be the pair
+ * `sabotageProject` wrote - the target frozen by that repair, the repair
+ * repairing that target - and, when the sabotage recorded who asked for it,
+ * the asker has to be them.
+ *
+ * Pure (the metadata is passed in) so the suite can hold it to that.
+ *
+ * @param {object} options
+ * @param {string|null} options.targetId
+ * @param {string|null} options.repairId
+ * @param {string|null} [options.senderId]  A player's user id; null for a GM.
+ * @param {(id: string) => object} [options.meta]
+ * @returns {string|null}
+ */
+export function unsabotageRefusal({ targetId, repairId, senderId = null, meta = metaFor } = {}) {
+    if (!repairId) return "there is no repair to take back";
+    if (!targetId) return "no frozen project was named";
+    if (meta(targetId)?.frozenBy !== repairId) return "that repair is not what froze the project";
+    if (meta(repairId)?.repairs !== targetId) return "that repair does not repair the project";
+    const saboteur = meta(repairId)?.saboteur ?? null;
+    if (senderId && saboteur && saboteur !== senderId) return "the sender did not ask for that sabotage";
+    return null;
+}
+
+/**
  * Take a sabotage back: thaw the target and delete the repair it spawned.
  *
  * Used by the Reroll Hope Call, which has to undo the action before applying
  * what the new dice are worth. Both writes are world settings, so a player's
- * request goes through the GM exactly as the sabotage itself did.
+ * request goes through the GM exactly as the sabotage itself did. Only the
+ * pair the sabotage wrote is taken back - see `unsabotageRefusal`.
  *
  * @param {string|null} targetId  The project that was frozen.
  * @param {string|null} repairId  The repair project that was created.
+ * @param {object} [options]
+ * @param {string|null} [options.actorId]  The character whose Reroll this is.
+ * @param {string|null} [options.senderId] Set by the bridge for a player.
  */
-export async function undoSabotage(targetId = null, repairId = null) {
+export async function undoSabotage(targetId = null, repairId = null, { actorId = null, senderId = null } = {}) {
     if (!targetId && !repairId) return null;
 
     if (!game.user.isGM) {
         const { requestUndoSabotage } = await import("./gm-bridge.mjs");
-        return requestUndoSabotage(targetId, repairId);
+        return requestUndoSabotage(targetId, repairId, actorId);
+    }
+
+    const why = unsabotageRefusal({ targetId, repairId, senderId });
+    if (why) {
+        log(`Sabotage not undone ("${targetId}", repair "${repairId}"): ${why}.`);
+        return null;
     }
 
     // Thaw first: if the delete below fails the worst case is a stray repair bar,
     // not a project left permanently unworkable.
-    if (targetId) await setProjectMeta(targetId, { frozenBy: null });
-    if (repairId) await deleteProject(repairId);
+    await setProjectMeta(targetId, { frozenBy: null });
+    await deleteProject(repairId);
 
     log(`Sabotage undone: "${targetId}" thawed, repair "${repairId}" removed.`);
     return true;
@@ -1177,6 +1253,12 @@ export async function shareWith(countdownId, userId) {
         return requestProjectShare(countdownId, userId);
     }
 
+    // Only a SECRET project has a guest list (E03; audit S09-02). Sharing a
+    // public one wrote an ownership map that hid it from everybody but the one
+    // player, while its metadata still called it public - so the tray and the
+    // pickers disagreed about who could see it, and nothing ever resealed it.
+    if (!isSecret(countdownId)) return null;
+
     const current = rawCountdown(countdownId)?.ownership ?? {};
     const viewers = Object.entries(current)
         .filter(([key, level]) => key !== "default" && level >= OBSERVER)
@@ -1191,6 +1273,8 @@ export async function shareWith(countdownId, userId) {
 /** Take a player back off a secret project. */
 export async function unshareWith(countdownId, userId) {
     if (!game.user.isGM) return null;
+    // The same map, written the same way, for the same reason as `shareWith`.
+    if (!isSecret(countdownId)) return null;
 
     const current = rawCountdown(countdownId)?.ownership ?? {};
     const viewers = Object.entries(current)

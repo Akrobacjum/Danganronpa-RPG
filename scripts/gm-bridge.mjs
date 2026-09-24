@@ -457,16 +457,25 @@ export function ownsActor(user, actorId) {
  */
 function refuse(action, why, ctx = null) {
     warn(`Refused a "${action}" request over the socket: ${why}.`);
-    if (ctx?.asker && ctx.asker !== game.user.id) {
-        try {
-            game.socket.emit(SOCKET_EVENT, {
-                action: ACTION_REFUSED, userId: ctx.asker, requestId: ctx.requestId ?? null, what: action
-            }, { recipients: [ctx.asker] });
-        } catch {
-            // A refusal nobody hears is the old behaviour, not a new failure.
-        }
-    }
+    tellRefused(ctx?.asker, action, ctx?.requestId ?? null);
     return null;
+}
+
+/**
+ * Tell one player that the GM's client said no. Split out of `refuse` (E03) so
+ * the other listeners that judge a player's request - Daggerheart's relay in
+ * relay-guard.mjs above all - answer with the same packet and the same toast,
+ * rather than a player's refused change simply never happening.
+ */
+export function tellRefused(userId, what, requestId = null) {
+    if (!userId || userId === game.user?.id) return;
+    try {
+        game.socket.emit(SOCKET_EVENT, {
+            action: ACTION_REFUSED, userId, requestId, what
+        }, { recipients: [userId] });
+    } catch {
+        // A refusal nobody hears is the old behaviour, not a new failure.
+    }
 }
 
 /** The GM's client refused a request this client sent. */
@@ -474,6 +483,16 @@ function onRefused(payload, senderId) {
     if (payload?.action !== ACTION_REFUSED) return;
     if (!replyForMe(payload, senderId)) return;
     ui.notifications.warn(game.i18n.format("DRPG.Bridge.refused", { what: requestLabel(payload.what) }));
+    /* AND WHOEVER IS WAITING ON THE ANSWER STOPS WAITING (E03). A refused
+       request that was awaited - a sabotage, a Support Call - used to sit on
+       its promise until the three-minute ruling clock gave up, with the toast
+       above already on the screen. It settles as "nothing was done" now,
+       which is what every awaiting caller already reads a null as. */
+    if (payload.requestId) {
+        clearTimeout(awaitingAck.get(payload.requestId));
+        awaitingAck.delete(payload.requestId);
+        settleRuling(payload.requestId, null);
+    }
 }
 
     // Observe is scored on this side, because everything it is scored against -
@@ -491,7 +510,9 @@ async function handleObserveTarget(payload, senderId, ctx) {
     const result = await chooseObserveTarget({
         actorId: payload.actorId,
         declaration: payload.declaration,
-        request: payload.request
+        request: payload.request,
+        // The key is minted for this account and no other (E03; audit S05-03).
+        userId: sender.isGM ? null : sender.id
     });
 
     game.socket.emit(SOCKET_EVENT, {
@@ -533,23 +554,34 @@ async function handleCleanupTraces(payload, senderId, ctx) {
 async function handleObserveResolve(payload, senderId, ctx) {
     const sender = senderOf(senderId);
     if (!sender) return refuse(ACTION_OBSERVE_RESOLVE, "unknown sender", ctx);
-    // The key alone decides which character is affected - it was minted on
-    // this client in phase 1 - but the sender still has to be the person who
-    // asked for it, or one player could resolve another's Observe.
+    // The sender has to own the character the packet names. That alone was
+    // taken to mean "the person who asked for this key", and it did not: the
+    // key named a character of its own and nothing compared the two (audit
+    // S05-03). `resolveObserve` now holds the key to its character, its
+    // account and one use (`observeResolveRefusal`), and an undo to a Reroll.
     if (!ownsActor(sender, payload.actorId)) {
         return refuse(ACTION_OBSERVE_RESOLVE, "sender does not own that character", ctx);
     }
+    const undo = Boolean(payload.undo);
+    if (undo && !sender.isGM) {
+        const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
+        const why = await spendRerollReceipt(payload.actorId, sender.id, "observe");
+        if (why) return refuse(ACTION_OBSERVE_RESOLVE, why, ctx);
+    }
 
     const { resolveObserve } = await import("./observe.mjs");
-    await resolveObserve({
+    const result = await resolveObserve({
         key: payload.key,
         // Carried so a resolve that finds no record can still name who is
         // waiting for it (ACT-08). Already checked against the sender above.
         actorId: payload.actorId,
         total: Number(payload.total) || 0,
         isCritical: Boolean(payload.isCritical),
-        undo: Boolean(payload.undo)
+        undo,
+        senderId: sender.id,
+        senderIsGm: sender.isGM
     });
+    if (result?.refused) return refuse(ACTION_OBSERVE_RESOLVE, result.refused, ctx);
     return;
 }
 
@@ -848,8 +880,28 @@ async function handleCrisis(payload, senderId, ctx) {
         return refuse(ACTION_CRISIS, "sender does not own that character", ctx);
     }
 
-    const { resolveCrisisAction, freeResolutionFor, sideOf } = await import("./murder.mjs");
+    const { resolveCrisisAction, freeResolutionFor, sideOf, crisisRefusal } = await import("./murder.mjs");
     const actor = game.actors.get(payload.actorId);
+
+    /*
+     * JUDGED AGAIN HERE (E03, 24.09.2026; audit S04-09). The stage, the side,
+     * the turn, the locks and what the character has left to spend were all
+     * checked on the player's own client and never here, so a console could
+     * throw a finishing blow out of turn, and a packet that arrived after the
+     * GM had moved the incident on still applied. An undo is a Reroll's, and
+     * is paid for by the receipt of one; `undoLastCrisis` then checks that the
+     * action it rewinds was this character's.
+     */
+    if (!sender.isGM) {
+        if (payload.undo) {
+            const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
+            const why = await spendRerollReceipt(payload.actorId, sender.id, "crisis");
+            if (why) return refuse(ACTION_CRISIS, why, ctx);
+        } else {
+            const refusal = crisisRefusal(actor, payload.key);
+            if (refusal) return refuse(ACTION_CRISIS, refusal.why, ctx);
+        }
+    }
 
     await resolveCrisisAction({
         actorId: payload.actorId,
@@ -1070,6 +1122,24 @@ async function handleProgress(payload, senderId, ctx) {
         return refuse(ACTION_PROGRESS, `amount ${payload.amount} is out of range`, ctx);
     }
 
+    /*
+     * PROGRESS TAKEN BACK IS A REROLL'S, AND A REROLL HAS A RECEIPT (E03,
+     * 24.09.2026; audit S09-02). The one road a player's own client takes
+     * progress away down is a Reroll undoing Work on Project (reroll.mjs). The
+     * only Calls that take it away are Despair Calls, bought by a Monokuma - a
+     * GM. So a player's negative amount has to name their own character and
+     * follow a Reroll of that character's roll (reroll-receipts.mjs), or a
+     * console could walk anybody's visible project back to nothing.
+     */
+    if (amount < 0 && !sender.isGM) {
+        if (!ownsActor(sender, payload.actorId)) {
+            return refuse(ACTION_PROGRESS, "progress taken back without the sender's own character", ctx);
+        }
+        const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
+        const why = await spendRerollReceipt(payload.actorId, sender.id, "progress");
+        if (why) return refuse(ACTION_PROGRESS, why, ctx);
+    }
+
     const { addProgress } = await import("./projects.mjs");
     // Who asked, so a finished project can fall back to them when nobody
     // recorded who proposed it.
@@ -1115,9 +1185,18 @@ async function handleShare(payload, senderId, ctx) {
     // secret project is a murder plan; `resealSecretProjects` exists to keep
     // players out of exactly these, and this handler let a player back in
     // through the front door.
-    const { canSee, shareWith } = await import("./projects.mjs");
+    const { canSee, shareWith, isSecret } = await import("./projects.mjs");
     if (!canSee(payload.countdownId, sender)) {
         return refuse(ACTION_SHARE, "sender cannot see that project", ctx);
+    }
+    // Only a secret project has anybody to let in, and only a player can be
+    // let in (E03; audit S09-02) - see `shareWith`.
+    if (!isSecret(payload.countdownId)) {
+        return refuse(ACTION_SHARE, "that project is not secret", ctx);
+    }
+    const guest = game.users.get(payload.targetUserId ?? "");
+    if (!guest || guest.isGM) {
+        return refuse(ACTION_SHARE, "the project can only be shared with a player", ctx);
     }
 
     await shareWith(payload.countdownId, payload.targetUserId);
@@ -1245,7 +1324,9 @@ async function handleSabotage(payload, senderId, ctx) {
         return refuse(ACTION_SABOTAGE, `difficulty ${payload.difficulty} is out of range (1–${hardest})`, ctx);
     }
 
-    const result = await sabotageProject(payload.targetId, difficulty);
+    // Who asked, so that only their own Reroll can take it back (E03).
+    const result = await sabotageProject(payload.targetId, difficulty,
+        { saboteur: sender.isGM ? null : sender.id });
 
     // Tell the asker what actually happened - not just that the request
     // arrived. Without this a player's own sabotage always reported success
@@ -1270,12 +1351,35 @@ async function handleUnsabotage(payload, senderId, ctx) {
 
     // Same rule as freezing it. Thawing is the completion of a repair
     // project, so the sender has to be able to see what they are thawing.
-    const { canSee, undoSabotage } = await import("./projects.mjs");
+    const { canSee, undoSabotage, unsabotageRefusal } = await import("./projects.mjs");
     if (!canSee(payload.targetId, sender)) {
         return refuse(ACTION_UNSABOTAGE, "sender cannot see that project", ctx);
     }
 
-    await undoSabotage(payload.targetId, payload.repairId);
+    /*
+     * THE PAIR, THE CHARACTER AND THE REROLL (E03, 24.09.2026; audit S10-03,
+     * S09-02). This checked that the sender could see the target and nothing
+     * else, and `undoSabotage` then deleted whatever project id arrived as the
+     * "repair": one packet naming any public project and a secret murder plan's
+     * id deleted the plan, its token and its trap. The only honest sender is a
+     * Reroll taking back its own sabotage, so the pair has to be the one the
+     * sabotage wrote (`unsabotageRefusal`), the character has to be the
+     * sender's, and a Reroll of that character's roll has to have happened.
+     */
+    if (!sender.isGM) {
+        const why = unsabotageRefusal({
+            targetId: payload.targetId ?? null, repairId: payload.repairId ?? null, senderId: sender.id
+        });
+        if (why) return refuse(ACTION_UNSABOTAGE, why, ctx);
+        if (!ownsActor(sender, payload.actorId)) {
+            return refuse(ACTION_UNSABOTAGE, "sender does not own that character", ctx);
+        }
+        const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
+        const paid = await spendRerollReceipt(payload.actorId, sender.id, "sabotage");
+        if (paid) return refuse(ACTION_UNSABOTAGE, paid, ctx);
+    }
+
+    await undoSabotage(payload.targetId, payload.repairId, { senderId: sender.isGM ? null : sender.id });
     return;
 }
 
@@ -1502,7 +1606,26 @@ async function onSocket(payload, senderId) {
      */
     const handler = GM_HANDLERS[payload.action];
     if (!handler) return;
+    if (PROJECT_ORDERED.has(payload.action)) return inProjectOrder(() => handler(payload, senderId, ctx));
     return handler(payload, senderId, ctx);
+}
+
+/*
+ * ONE PROJECT WRITE AT A TIME, IN THE ORDER THEY ARRIVED (E03, 24.09.2026).
+ * A Reroll of a Sabotage sends two packets back to back: take the old freeze
+ * back, then freeze again at the new number. Both handlers await world writes,
+ * so the second could read the project while the first had not yet thawed it,
+ * find it "already frozen" and drop the new sabotage. Waiting for a Reroll
+ * receipt (reroll-receipts.mjs) would have made that gap wider. Packets from
+ * one sender arrive in order, so queueing them here keeps that order.
+ */
+const PROJECT_ORDERED = new Set([ACTION_PROGRESS, ACTION_SABOTAGE, ACTION_UNSABOTAGE]);
+let projectQueue = Promise.resolve();
+
+function inProjectOrder(work) {
+    const next = projectQueue.catch(() => null).then(work);
+    projectQueue = next;
+    return next;
 }
 
 /**
@@ -1645,9 +1768,9 @@ export function requestSabotage(targetId, difficulty, timeoutMs = TIMING.rulingM
  * already been paid for and the new roll is about to replace the old effect,
  * so there is nothing left for the player to race against.
  */
-export function requestUndoSabotage(targetId, repairId) {
+export function requestUndoSabotage(targetId, repairId, actorId = null) {
     if (!hasGm()) return null;
-    emitToGms( { action: ACTION_UNSABOTAGE, userId: game.user.id, requestId: expectAck(ACTION_UNSABOTAGE), targetId, repairId });
+    emitToGms( { action: ACTION_UNSABOTAGE, userId: game.user.id, requestId: expectAck(ACTION_UNSABOTAGE), targetId, repairId, actorId });
     return { pending: true };
 }
 
@@ -1930,10 +2053,10 @@ export function requestCleanableTraces(actorId, { mine = false } = {}, timeoutMs
             action: ACTION_CLEANUP_TRACES,
             requestId,
             userId: game.user.id,
-            // `mine` narrows the answer to traces this character left. It only
-            // ever REMOVES rows, so a forged `false` buys the sender the Stage 6
-            // list - which is refused a few lines later anyway, because the
-            // erase itself re-checks ownership. See `resolveCleanup`.
+            // `mine` narrows the answer to what this character knows is there.
+            // `false` asks for the whole room, which is Stage 6's - and the GM's
+            // side decides whether this character is in Stage 6, not this
+            // flag (E03; audit S05-04). See `cleanableTracesForPlayer`.
             actorId, mine
         });
 
@@ -2293,10 +2416,10 @@ export function requestStashSearch({ actorId, total = 0, isCritical = false }) {
 }
 
 /** Ask the GM to add project progress on our behalf. */
-export function requestProjectProgress(countdownId, amount) {
+export function requestProjectProgress(countdownId, amount, actorId = null) {
     if (!hasGm()) return null;
     emitToGms( {
-        action: ACTION_PROGRESS, countdownId, amount,
+        action: ACTION_PROGRESS, countdownId, amount, actorId,
         userId: game.user.id, requestId: expectAck(ACTION_PROGRESS)
     });
     // `changed` is unknown from here - the GM whispers back what actually

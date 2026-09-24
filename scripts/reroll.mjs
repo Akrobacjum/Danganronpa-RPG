@@ -310,8 +310,11 @@ function belongsTo(message, actor) {
     return typeof source === "string" && source === actor.uuid;
 }
 
-/** Hope / Despair / critical, read straight off the dice so it always works. */
-function dualityOfRoll(roll) {
+/** Hope / Despair / critical, read straight off the dice so it always works.
+ *  Exported for the GM's reroll receipts (reroll-receipts.mjs), which have to
+ *  read the same duality off the same message and must not grow a second
+ *  opinion of it. */
+export function dualityOfRoll(roll) {
     const hope = roll?.dHope?.total;
     const fear = roll?.dFear?.total;
     const total = roll?.total ?? 0;
@@ -478,7 +481,7 @@ async function settleProgress(actor, bookmark, after, done) {
     const was = bookmark.progress ?? 0;
     const delta = now - was;
 
-    if (delta) await addProgress(bookmark.projectId, delta);
+    if (delta) await addProgress(bookmark.projectId, delta, { actorId: actor.id });
     done.push(game.i18n.format("DRPG.Reroll.progressAdjusted", {
         name: project.name, was, now
     }));
@@ -616,9 +619,12 @@ async function settleSabotage(actor, bookmark, after, done) {
     const { undoSabotage, sabotageProject, allProjects } = await import("./projects.mjs");
 
     // 1. Unfreeze the target and remove the repair the first roll spawned.
-    if (bookmark.repairId || bookmark.targetProjectId) {
-        await undoSabotage(bookmark.targetProjectId ?? null, bookmark.repairId ?? null);
-        if (bookmark.repairId) done.push(game.i18n.localize("DRPG.Reroll.sabotageUndone"));
+    //    Only when it spawned one (E03): a sabotage that failed froze nothing,
+    //    and "thaw the target" with no repair used to thaw whatever freeze the
+    //    target had - somebody else's sabotage included.
+    if (bookmark.repairId) {
+        await undoSabotage(bookmark.targetProjectId ?? null, bookmark.repairId, { actorId: actor.id });
+        done.push(game.i18n.localize("DRPG.Reroll.sabotageUndone"));
     }
 
     // 2. Break it again, at whatever the new roll is worth.

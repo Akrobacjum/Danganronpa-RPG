@@ -265,9 +265,20 @@ export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
       * protected before is still protected: a trace nobody has found is a trace
       * nobody can reach, so the Tamper menu is still not a trace detector.
       */
+    /*
+     * THE WHOLE ROOM IS STAGE 6'S, AND THIS SIDE DECIDES WHETHER IT IS STAGE 6
+     * (E03, 24.09.2026; audit S05-04). `mine` came from the asking client,
+     * which works out `isCleaner` for itself - so a forged `false` handed any
+     * player every trace in the room they stood in, with its type, its
+     * visibility and whether it was reinforced: the Tamper menu as the trace
+     * detector the note above says it is not, and without an Observe or an
+     * Analyze. The unfiltered list goes to the killer of the incident that is
+     * in Stage 6, and to nobody else, whatever the request says.
+     */
+    const unfiltered = !mine && isCleaner(actor);
     const known = copiedRemnants(actor);
     const watched = incidentParticipant(actor);
-    const wanted = mine
+    const wanted = !unfiltered
         ? cleanableRemnants(actor).filter(t =>
               known.has(t.token.id) || (t.data.type === "incident" && watched))
         : cleanableRemnants(actor);
