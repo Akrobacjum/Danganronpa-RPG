@@ -33,7 +33,7 @@
  */
 
 import { TIMING } from "./config.mjs";
-import { isPrimaryGm, debug } from "./utils.mjs";
+import { isPrimaryGm, debug, pause } from "./utils.mjs";
 import { dualityOfRoll } from "./reroll.mjs";
 import { ownsActor } from "./gm-bridge.mjs";
 
@@ -153,15 +153,23 @@ export function rerollReceiptFor(actorId, userId) {
  * yet: the rewrite of the message and the undo are two messages to this
  * client, and the order they are handled in has not been measured at a table.
  *
+ * @param {string} actorId
+ * @param {string} userId
+ * @param {string} kind
+ * @param {(receipt: object) => string|null} [check]  One more question about the
+ *   receipt before it is spent - the Despair a Reroll moved, for one.
  * @returns {Promise<string|null>}
  */
-export async function spendRerollReceipt(actorId, userId, kind) {
+export async function spendRerollReceipt(actorId, userId, kind, check = null) {
     let why = rerollReceiptRefusal(rerollReceiptFor(actorId, userId), { kind });
     if (why && !rerollReceiptFor(actorId, userId)) {
-        await new Promise(resolve => setTimeout(resolve, TIMING.rerollReceiptRetryMs));
+        await pause(TIMING.rerollReceiptRetryMs);
         why = rerollReceiptRefusal(rerollReceiptFor(actorId, userId), { kind });
     }
     if (why) return why;
-    rerollReceiptFor(actorId, userId).used.add(kind);
+    const receipt = rerollReceiptFor(actorId, userId);
+    const also = check ? check(receipt) : null;
+    if (also) return also;
+    receipt.used.add(kind);
     return null;
 }

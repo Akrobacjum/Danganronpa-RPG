@@ -77,6 +77,18 @@ export function registerResourceGuard() {
  */
 const ITEM_GUARDED = ["name", "img", "system.description"];
 
+/*
+ * And on a Truth Bullet, the flags that say what it is (E03; audit S05-12):
+ * what it shows, whether it is analysed, its reading, its lock. This is the
+ * courtesy half - a console skips it - and the primary GM puts back anything
+ * that gets past it (`watchBulletEdits` in truth-bullets.mjs). Named here by
+ * value to keep this file out of that one's imports.
+ */
+const BULLET_GUARDED = [
+    "playerText", "analyzedText", "shownType", "analyzed", "lockedChapter", "faint",
+    "tiedToCrime", "sourceAction", "visibility", "remnantRef", "isTruthBullet"
+].map(key => `flags.${MODULE_ID}.${key}`);
+
 function onPreUpdateItem(item, changes, options) {
     try {
         if (game.user.isGM) return;
@@ -99,8 +111,9 @@ function onPreUpdateItem(item, changes, options) {
         // entirely, which is exactly how the picture and the description got
         // past this guard while the name did not.
         const flat = foundry.utils.flattenObject(changes);
+        const guarded = item.getFlag(MODULE_ID, "isTruthBullet") ? [...ITEM_GUARDED, ...BULLET_GUARDED] : ITEM_GUARDED;
         const blocked = Object.keys(flat).filter(path =>
-            ITEM_GUARDED.some(g => path === g || path.startsWith(`${g}.`)));
+            guarded.some(g => path === g || path.startsWith(`${g}.`)));
         if (!blocked.length) return;
 
         for (const path of blocked) {

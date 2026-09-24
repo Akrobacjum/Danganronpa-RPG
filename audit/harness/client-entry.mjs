@@ -51,6 +51,23 @@ for (const k of ["HTMLElement", "HTMLInputElement", "HTMLSelectElement", "HTMLTe
             return Reflect.get(target, key, receiver);
         }
     }));
+    /* AND OVER THE FORM'S OWN ATTRIBUTES, as a browser does (E03, 24.09.2026). A
+       form is `[LegacyOverrideBuiltIns]` in the HTML spec, so a control named
+       "name" wins over `form.name` - Observe's "describe the find" dialog reads
+       `f.name.value` that way. The proxy above is only reached for a key nothing
+       on the chain has, and `name` is on the prototype, so jsdom answered with the
+       form's own name attribute and the dialog's callback threw here alone. */
+    for (const key of ["name", "action", "method", "target", "id", "title"]) {
+        const own = Object.getOwnPropertyDescriptor(F, key)
+            ?? Object.getOwnPropertyDescriptor(dom.window.HTMLElement.prototype, key)
+            ?? Object.getOwnPropertyDescriptor(dom.window.Element.prototype, key);
+        if (!own?.get) continue;
+        Object.defineProperty(F, key, {
+            configurable: true,
+            get() { return this.elements?.namedItem?.(key) ?? own.get.call(this); },
+            set(value) { own.set?.call(this, value); }
+        });
+    }
 }
 if (!globalThis.requestAnimationFrame) {
     globalThis.requestAnimationFrame = fn => setTimeout(() => fn(performance.now()), 16);
@@ -235,6 +252,10 @@ const FOREIGN_SETTING_DEFAULTS = {
     "daggerheart.Countdowns": { scope: "world", default: { countdowns: {} } },
     "daggerheart.Appearance": { scope: "world", default: {} },
     "daggerheart.Automation": { scope: "world", default: { hope: true } },
+    /* Fear and its ceiling, which Daggerheart's relay writes and reads (E03): the
+       security scenario sends a player's Fear step through the real relay. */
+    "daggerheart.ResourcesFear": { scope: "world", default: 0 },
+    "daggerheart.Homebrew": { scope: "world", default: { maxFear: 12 } },
     "dice-so-nice.Appearance": { scope: "client", default: {} },
     "core.rollMode": { scope: "client", default: "publicroll" },
     /* How loud playlists are ON THIS BROWSER. Foundry's own, client-scoped, and
@@ -422,7 +443,19 @@ const game = {
     modules: modulesMap,
     system: {
         id: "daggerheart", version: "2.6.5", title: "Daggerheart",
-        api: { dice: { DualityRoll: DualityRollMock } }
+        api: {
+            dice: { DualityRoll: DualityRollMock },
+            // What Daggerheart's relay calls for a save (saveField.mjs, 2.10.5):
+            // the same one write, so the relay copied into lib/dh-relay.mjs runs as is.
+            fields: { ActionFields: { SaveField: { updateSaveMessage: async (result, message, targetId) => {
+                if (!result) return;
+                await game.messages.get(message?._id ?? message?.id)?.update({
+                    [`system.targetSaves.${targetId}`]: { value: result.roll.total, isCritical: result.roll.isCritical }
+                });
+            } } } }
+        },
+        // `game.system.settings` as Daggerheart builds it from its own settings.
+        settings: { homebrew: { maxFear: 12 }, automation: { countdownAutomation: true } }
     },
     world: { id: "drpg-audit-world", title: "DRPG Audit World" },
     version: "14.365",
@@ -432,10 +465,24 @@ const game = {
     togglePause(state) { game.paused = state ?? !game.paused; hooks.callAll("pauseGame", game.paused); },
     socket: {
         _handlers: new Map(),
+        /* The three calls of socket.io's own client that the relay guard uses
+           (E03, relay-guard.mjs): read a channel's listeners, take one off, and
+           listen to everything before anybody else. Same shapes as
+           component-emitter and socket.io-client v4 - `listeners` hands back
+           the live array, which is why the guard copies it. */
+        _any: [],
         on(channel, fn) {
             if (!this._handlers.has(channel)) this._handlers.set(channel, []);
             this._handlers.get(channel).push(fn);
         },
+        listeners(channel) { return this._handlers.get(channel) ?? []; },
+        off(channel, fn) {
+            const list = this._handlers.get(channel);
+            const at = list ? list.indexOf(fn) : -1;
+            if (at >= 0) list.splice(at, 1);
+            return this;
+        },
+        prependAny(fn) { this._any.unshift(fn); return this; },
         emit(channel, ...args) { bus.socketEmit(channel, args); }
     },
     audio: { play: async () => ({ stop() {} }), context: new globalThis.AudioContext(), unlock: Promise.resolve() },
@@ -627,8 +674,17 @@ globalThis.CONFIG = {
     // Foundry's own selection colours (CONTROLLED is its orange).
     Canvas: { dispositionColors: { CONTROLLED: 0xFF9829 } },
     DH: {
+        id: "daggerheart",
         RESOURCE: { character: { custom: {} } },
-        GENERAL: {}
+        GENERAL: {},
+        // Daggerheart's setting keys and hook names, as its config.mjs defines them.
+        SETTINGS: { gameSettings: {
+            Countdowns: "Countdowns", Automation: "Automation", Homebrew: "Homebrew",
+            Resources: { Fear: "ResourcesFear" }
+        } },
+        HOOKS: { hooksConfig: {
+            downtimeTrigger: "DhDowntimeTrigger", tagTeamStart: "DhTagTeamStart", groupRollStart: "DhGroupRollStart"
+        } }
     },
     statusEffects: [
         { id: "dead", name: "Dead", img: "icons/svg/skull.svg" },
@@ -891,7 +947,12 @@ process.on("message", async msg => {
             case "socketMsg": {
                 // Foundry hands a module socket handler `(payload, senderId)`. The
                 // emit's options (`{ recipients }`) are for the server, not the handler.
-                const handlers = game.socket._handlers.get(msg.channel) ?? [];
+                for (const fn of game.socket._any) {
+                    try { fn(msg.channel, ...(msg.args ?? []).slice(0, 1), msg.senderId); } catch (err) {
+                        recordError(`socket any-listener ${msg.channel}`, err);
+                    }
+                }
+                const handlers = [...(game.socket._handlers.get(msg.channel) ?? [])];
                 for (const fn of handlers) {
                     try { await fn(msg.args?.[0], msg.senderId); } catch (err) {
                         logLine(`socket handler ${msg.channel}: ${err.stack}`);
@@ -939,6 +1000,13 @@ function safeJson(v) {
 
 async function boot() {
     try {
+        /* DAGGERHEART'S OWN RELAY, registered the way Daggerheart registers it
+           (E03): its listener in its `init`, which runs before any module's, and
+           its GM handlers at `ready`, also first. The real code, copied - see
+           lib/dh-relay.mjs - so the guard in front of it is tested against it. */
+        const relay = await import("./lib/dh-relay.mjs");
+        game.socket.on("system.daggerheart", relay.handleSocketEvent);
+        hooks.once("ready", relay.registerSocketHooks);
         // A file: URL built by Node, not by string: "file://" + "C:\..." is not one.
         await import(url.pathToFileURL(path.join(REPO, "scripts/module.mjs")).href);
         logLine("module.mjs imported");

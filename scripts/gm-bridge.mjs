@@ -16,7 +16,7 @@ import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE, TIMING,
     LEVEL_UP, LEVEL_UP_OPTIONS
 } from "./config.mjs";
-import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, activeGmIds, dialogContent, debug, warn, error, cardHead, esc} from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, activeGmIds, dialogContent, debug, warn, error, cardHead, esc, pause } from "./utils.mjs";
 
 import { contentOf } from "./secret.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -33,6 +33,7 @@ const ACTION_UNSABOTAGE = "project.unsabotage";
 const ACTION_SENDBACK = "token.sendBack";
 const ACTION_ECLIPSE_MOVE = "eclipse.move";
 const ACTION_ARM = "call.arm";
+const ACTION_ARM_RESULT = "call.armResult";
 const ACTION_DESPAIR = "despair.adjust";
 const ACTION_DIFFICULTY = "dynamic.difficulty";
 const ACTION_DIFFICULTY_RESULT = "dynamic.difficultyResult";
@@ -197,6 +198,8 @@ export function registerGmBridge() {
     game.socket.on(SOCKET_EVENT, onAck);
     // Same reason again: the real sabotage result travels back to a player.
     game.socket.on(SOCKET_EVENT, onSabotageResult);
+    // And a Support paid for on the GM's side: what it cost, once it is armed.
+    game.socket.on(SOCKET_EVENT, onArmResult);
     // And again: the chosen Observe target travels back to the observer.
     game.socket.on(SOCKET_EVENT, onObserveTargetResult);
     game.socket.on(SOCKET_EVENT, onHopeCallResult);
@@ -408,6 +411,14 @@ function onSabotageResult(payload, senderId) {
     settleRuling(payload.requestId, payload.result ?? null);
 }
 
+/** A Call armed on somebody else's character, paid for on the GM's side (E03). */
+function onArmResult(payload, senderId) {
+    if (payload?.action !== ACTION_ARM_RESULT) return;
+    if (!replyForMe(payload, senderId)) return;
+
+    settleRuling(payload.requestId, payload.result ?? null);
+}
+
 /**
  * Who asked, and may they.
  *
@@ -594,14 +605,23 @@ async function handleAnalyzeResolve(payload, senderId, ctx) {
         return refuse(ACTION_ANALYZE_RESOLVE, "sender does not own that character", ctx);
     }
 
+    // An undo is a Reroll's, and is paid for by the receipt of one (E03).
+    const undo = Boolean(payload.undo);
+    if (undo && !sender.isGM) {
+        const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
+        const why = await spendRerollReceipt(payload.actorId, sender.id, "analyze");
+        if (why) return refuse(ACTION_ANALYZE_RESOLVE, why, ctx);
+    }
+
     const { resolveAnalyze } = await import("./analyze.mjs");
-    await resolveAnalyze({
+    const result = await resolveAnalyze({
         actorId: payload.actorId,
         itemId: payload.itemId,
         total: Number(payload.total) || 0,
         isCritical: Boolean(payload.isCritical),
-        undo: Boolean(payload.undo)
+        undo
     });
+    if (result?.refused) return refuse(ACTION_ANALYZE_RESOLVE, result.refused, ctx);
     return;
 }
 
@@ -996,8 +1016,15 @@ async function handleCleanup(payload, senderId, ctx) {
     // The two added Stage 6 actions score differently - a flat threshold
     // rather than one read off a trace's visibility - so they have their own
     // resolver. Same guard, same sender check; only the maths differs.
+    // An undo is a Reroll's, and is paid for by the receipt of one (E03).
+    if (payload.undo && !sender.isGM) {
+        const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
+        const why = await spendRerollReceipt(payload.actorId, sender.id, "cleanup");
+        if (why) return refuse(ACTION_CLEANUP, why, ctx);
+    }
+
     if (payload.key && payload.key !== "eraseTrace" && payload.key !== "transformTrace") {
-        await cleanup.resolveStageSix({
+        const result = await cleanup.resolveStageSix({
             actorId: payload.actorId,
             key: payload.key,
             targetId: payload.targetId ?? null,
@@ -1010,6 +1037,7 @@ async function handleCleanup(payload, senderId, ctx) {
             price: payload.price ?? null,
             grant: Boolean(payload.grant)
         });
+        if (result?.refused) return refuse(ACTION_CLEANUP, result.refused, ctx);
         return;
     }
 
@@ -1206,25 +1234,29 @@ async function handleShare(payload, senderId, ctx) {
 
 async function handleRemnant(payload, senderId, ctx) {
     const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_REMNANT, "unknown sender", ctx);
     if (!ownsActor(sender, payload.data?.sourceActor)) {
         return refuse(ACTION_REMNANT, "sender does not own the character leaving it", ctx);
     }
     /*
-     * NARROWED (CASE-13). A player's action leaves a Prep, Incident or
-     * Tamper trace; it never plants a Key, Final Truth or Autopsy Remnant,
-     * never a reinforced one, and never decides for itself that it is tied
-     * to the crime - `placeRemnant` decides that from the incident. Every
-     * other field was taken as sent, and a console could grow the planner
-     * a sixth clue that the sweep would never remove.
+     * REBUILT, NOT NARROWED (CASE-13, then E03; audit S05-13, S10-10). A
+     * player's action leaves a Preparation trace, or a Tamper one after a
+     * murder; it never plants a Key, Final Truth or Autopsy Remnant, never a
+     * reinforced one, and never decides for itself that it is tied to the
+     * crime. Narrowing those three still took who left it, where, pointing at
+     * whom and whether the sweep would clear it from the packet - see
+     * `narrowPlayerRemnant`, which now builds every one of them here.
      */
-    const data = { ...(payload.data ?? {}) };
-    if (!sender?.isGM) {
-        const PLAYER_TYPES = new Set(["prep", "incident", "tamper", "resolution"]);
-        if (!PLAYER_TYPES.has(data.type)) data.type = "prep";
-        data.reinforced = false;
-        if (data.tiedToCrime === true) data.tiedToCrime = null;
+    const { placeRemnant, narrowPlayerRemnant } = await import("./remnants.mjs");
+    let data = { ...(payload.data ?? {}) };
+    if (!sender.isGM) {
+        const actor = game.actors.get(payload.data.sourceActor);
+        const { locateActor } = await import("./movement.mjs");
+        const { getClock } = await import("./clock.mjs");
+        const narrowed = narrowPlayerRemnant(data, actor, locateActor(actor), getClock());
+        if (narrowed.refused) return refuse(ACTION_REMNANT, narrowed.refused, ctx);
+        data = narrowed.data;
     }
-    const { placeRemnant } = await import("./remnants.mjs");
     await placeRemnant(data);
     debug("Placed a Remnant on behalf of a player.");
     return;
@@ -1243,10 +1275,23 @@ async function handleTieTrace(payload, senderId, ctx) {
      * object is still in one of the sender's own characters' hands when this runs.
      */
     const identity = payload.identity;
+    /*
+     * AND ONLY DURING THE FIGHT, BY SOMEBODY IN IT (E03; audit S10-11). Holding
+     * the object is not enough: a player could tie their own Search's traces to
+     * the crime a week before any murder, and those would then survive the
+     * sweep and top the dashboard. The honest sender swings the object inside
+     * a crisis action, so the incident is at its incident stage and the holder
+     * is one of its participants - the victim included, whose Self-defence and
+     * Role reversal swing a weapon too.
+     */
+    const { murderState, participantIds } = await import("./murder.mjs");
+    const state = murderState();
+    const cast = state?.stage === "incident" ? new Set(participantIds(state)) : new Set();
     const holds = Boolean(identity) && game.actors.some(actor =>
-        ownsActor(sender, actor.id)
+        cast.has(actor.id)
+        && ownsActor(sender, actor.id)
         && actor.items.some(item => item.getFlag(MODULE_ID, "drpgItemId") === identity));
-    if (!holds) return refuse(ACTION_TIE_TRACE, "sender holds no object with that identity", ctx);
+    if (!holds) return refuse(ACTION_TIE_TRACE, "no participant of the running incident the sender plays holds that object", ctx);
     const { tieTraceForItem } = await import("./remnants.mjs");
     await tieTraceForItem(payload.identity);
     return;
@@ -1285,6 +1330,31 @@ async function handleRemnantEdit(payload, senderId, ctx) {
      * `remove` stays as it was - it is the Reroll's own half and
      * `retuneRemnant` already refuses to delete a reinforced trace.
      */
+    /*
+     * A PLAYER'S EDIT IS A REROLL'S (E03, 24.09.2026; audit S05-13). The two
+     * honest senders are both in reroll.mjs: lift the trace the first throw
+     * left, or retune its band to the new one. From a console, `remove` took a
+     * killer's own incident trace off the map in the middle of the
+     * investigation, and a retune turned it Hidden. So a player's edit needs a
+     * Reroll receipt for their character, and a removal also needs the trace
+     * to be fresh, untouched by a GM's hand, and not yet copied into anybody's
+     * Truth Bullet - once somebody has found it, it is evidence.
+     */
+    if (!sender.isGM) {
+        let removal = null;
+        if (payload.patch?.remove) {
+            const { remnantGmEdited } = await import("./remnants.mjs");
+            const { copiedRemnants } = await import("./truth-bullets.mjs");
+            removal = removalRefusal(token, {
+                gmEdited: remnantGmEdited(token),
+                copied: game.actors.some(a => a.type === "character" && copiedRemnants(a).has(token.id))
+            });
+        }
+        const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
+        const why = await spendRerollReceipt(source, sender.id, "remnant", () => removal);
+        if (why) return refuse(ACTION_REMNANT_EDIT, why, ctx);
+    }
+
     const { REMNANT_VISIBILITY_LABELS, CLEANUP } = await import("./config.mjs");
     const asked = payload.patch ?? {};
     const narrowed = { remove: Boolean(asked.remove) };
@@ -1295,6 +1365,17 @@ async function handleRemnantEdit(payload, senderId, ctx) {
     await retuneRemnant(payload.sceneId, payload.tokenId, narrowed);
     debug("Retuned a Remnant on behalf of a player.", narrowed);
     return;
+}
+
+/** Why a Reroll may not lift this trace, or null (E03). Pure. */
+export function removalRefusal(token, { gmEdited = false, copied = false, now = Date.now() } = {}) {
+    if (gmEdited) return "a GM has written on that trace";
+    if (copied) return "somebody has already found that trace";
+    const created = Number(token?._stats?.createdTime);
+    if (Number.isFinite(created) && now - created > TIMING.rerollWindowMinutes * 60_000) {
+        return "that trace is older than a Reroll can reach";
+    }
+    return null;
 }
 
 async function handleSabotage(payload, senderId, ctx) {
@@ -1390,8 +1471,28 @@ async function handleSendback(payload, senderId, ctx) {
     if (!ownsActor(sender, token?.actorId)) {
         return refuse(ACTION_SENDBACK, "sender does not own that token", ctx);
     }
-    const { REVERT } = await import("./movement.mjs");
-    if (token) await token.update(payload.position, { animate: false, [REVERT]: true });
+
+    /*
+     * BACK, AND ONLY BACK (E03, 24.09.2026; audit S10-40). The whole packet's
+     * `position` went into `token.update` with the flag that says "this is our
+     * own revert, charge nothing" - any x, y and elevation, and anything else a
+     * token has. Now the fields are read out by name, and the place has to be
+     * one the token was moved from in the last minute, as this client saw it.
+     * The move and the request are two messages; the first is given a moment.
+     */
+    const { REVERT, recentPositions, sendBackRefusal } = await import("./movement.mjs");
+    const asked = payload.position ?? {};
+    let why = sendBackRefusal(asked, { scene, history: recentPositions(token.id) });
+    if (why) {
+        await pause(300);
+        why = sendBackRefusal(asked, { scene, history: recentPositions(token.id) });
+    }
+    if (why) return refuse(ACTION_SENDBACK, why, ctx);
+
+    const to = { x: Number(asked.x), y: Number(asked.y) };
+    if (asked.elevation !== undefined) to.elevation = Number(asked.elevation);
+    if (asked.level !== undefined) to.level = asked.level;
+    await token.update(to, { animate: false, [REVERT]: true });
     return;
 }
 
@@ -1417,7 +1518,8 @@ async function handleLoot(payload, senderId, ctx) {
 
 async function handleArm(payload, senderId, ctx) {
     const actor = game.actors.get(payload.actorId);
-    if (!actor) return;
+    // Refused out loud: the asker now waits for an answer (E03).
+    if (!actor) return refuse(ACTION_ARM, "no such character", ctx);
     const sender = senderOf(senderId);
     if (!sender) return refuse(ACTION_ARM, "unknown sender", ctx);
 
@@ -1431,35 +1533,146 @@ async function handleArm(payload, senderId, ctx) {
         return refuse(ACTION_ARM, "sender does not own the character paying for it", ctx);
     }
 
-    // The Call has to be one the rules define, and `grants` has to be the
-    // one that Call actually buys. Without this the payload was taken at
-    // face value: "arm me a free critical" was a single socket emit away.
+    /*
+     * WHAT A PLAYER MAY ARM ON SOMEBODY ELSE, AND WHO PAYS (E03, 24.09.2026;
+     * audit S10-09, decision D2).
+     *
+     * This took any Call from either table as long as `grants` matched, so a
+     * player could arm a Monokuma's Obstacle on a rival - disadvantage on their
+     * next roll and a whisper saying Monokuma did it - and pay nothing, because
+     * the price was taken on the player's own client and nothing here looked at
+     * it. The one Call a player arms on somebody else's character is a Hope Call
+     * aimed at another player (`playerArmRefusal`), and the Hope for it is now
+     * taken HERE, from the buyer's sheet as this client sees it, after every
+     * check and before the Call is armed. The whisper's voice comes from the
+     * table the key was found in, never from the packet.
+     */
+    const { appendArmedCall, alreadyArmed, playerArmRefusal } = await import("./call-effects.mjs");
+    if (!sender.isGM) {
+        const refusal = playerArmRefusal(payload.call);
+        if (refusal) return refuse(ACTION_ARM, refusal, ctx);
+        return armPaidByPlayer(actor, game.actors.get(buyerId), payload, ctx);
+    }
+
+    // A GM's own road (a Monokuma arming from another GM's client): any Call
+    // the rules define, as long as `grants` is the one that Call buys.
     const call = HOPE_CALLS[payload.call?.key] ?? DESPAIR_CALLS[payload.call?.key];
     if (!call || call.grants !== payload.call?.grants) {
         return refuse(ACTION_ARM, `"${payload.call?.key}" does not grant "${payload.call?.grants}"`, ctx);
     }
+    const kind = HOPE_CALLS[payload.call.key] ? "hope" : "despair";
+    if (alreadyArmed(actor, call)) return refuse(ACTION_ARM, `${actor.name} already holds that Call`, ctx);
 
-    // Appended, not written over: Calls stack (CALL-02), and this path is
-    // how a player's Support reaches somebody else's sheet.
-    const { appendArmedCall } = await import("./call-effects.mjs");
-    await appendArmedCall(actor, payload.call);
-    debug(`Armed ${payload.call?.key} on ${actor.name} on behalf of a player.`);
-    // The beneficiary is not the buyer: tell them what they have been given,
-    // or they will meet a locked roll dialog with no idea why it opened up.
+    // Appended, not written over: Calls stack (CALL-02).
+    await appendArmedCall(actor, armedEntry(payload.call, call, kind));
+    debug(`Armed ${payload.call.key} on ${actor.name} on behalf of ${sender.name}.`);
+    await tellBeneficiary(actor, kind, call.grants);
+    replyArmed(ctx, { ok: true, left: null });
+    return;
+}
+
+/** The armed entry as this side builds it: the table's `grants`, never the packet's extras. */
+function armedEntry(asked, call, kind) {
+    return {
+        key: asked.key, kind, grants: call.grants,
+        amount: null, from: asked.from ?? null,
+        nonce: String(asked.nonce ?? foundry.utils.randomID()).slice(0, 32)
+    };
+}
+
+/** The beneficiary is not the buyer: tell them what they have been given, or they
+ *  will meet a locked roll dialog with no idea why it opened up. */
+async function tellBeneficiary(actor, kind, grants) {
     await whisperToOwner(actor, `${cardHead({
         action: game.i18n.localize("DRPG.Calls.armedTitle")
     })}<p>${
-        game.i18n.format(payload.call?.kind === "despair" ? "DRPG.Calls.armedByMonokuma"
-            : payload.call?.kind === "hope" ? "DRPG.Calls.armedForYou" : "DRPG.Calls.armedByNobody", {
-            what: game.i18n.localize(`DRPG.Calls.grants.${payload.call?.grants}`)
+        game.i18n.format(kind === "despair" ? "DRPG.Calls.armedByMonokuma" : "DRPG.Calls.armedForYou", {
+            what: game.i18n.localize(`DRPG.Calls.grants.${grants}`)
         })
     }</p>`);
+}
+
+function replyArmed(ctx, result) {
+    if (!ctx?.asker || ctx.asker === game.user.id || !ctx.requestId) return;
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_ARM_RESULT, requestId: ctx.requestId, userId: ctx.asker, result
+    }, { recipients: [ctx.asker] });
+}
+
+/**
+ * A player's Support on somebody else's character: checked, charged and armed on
+ * this side, in that order, and refunded if the arming itself fails.
+ */
+async function armPaidByPlayer(actor, buyer, payload, ctx) {
+    const call = HOPE_CALLS[payload.call.key];
+    if (!buyer) return refuse(ACTION_ARM, "the paying character does not exist", ctx);
+    if (buyer.id === actor.id) return refuse(ACTION_ARM, "a Call for somebody else, aimed at the buyer", ctx);
+
+    // The same purchase asked twice - a GM who came back and was asked again
+    // (`resendPendingRulings`) after arming it - is answered, not charged again.
+    const { alreadyArmed, appendArmedCall, pendingCalls } = await import("./call-effects.mjs");
+    const nonce = String(payload.call.nonce ?? "").slice(0, 32);
+    if (nonce && pendingCalls(actor).some(entry => entry.nonce === nonce)) {
+        replyArmed(ctx, { ok: true, left: null });
+        return;
+    }
+
+    const { hopeCallRefusal, hopeHeld } = await import("./calls.mjs");
+    const barred = await hopeCallRefusal(buyer);
+    if (barred) return refuse(ACTION_ARM, `the buyer may not spend a Hope Call now (${barred})`, ctx);
+
+    if (alreadyArmed(actor, call)) return refuse(ACTION_ARM, `${actor.name} already holds that Call`, ctx);
+
+    const held = hopeHeld(buyer);
+    if (held < call.cost) return refuse(ACTION_ARM, `the buyer holds ${held} Hope, the Call costs ${call.cost}`, ctx);
+
+    const { automatedUpdate, HOPE_REFUND } = await import("./resource-guard.mjs");
+    await automatedUpdate(buyer, { "system.resources.hope.value": held - call.cost });
+    try {
+        await appendArmedCall(actor, armedEntry(payload.call, call, "hope"));
+    } catch (err) {
+        error(`Could not arm ${payload.call.key} on ${actor.name}; the Hope goes back`, err);
+        const now = hopeHeld(buyer);
+        await automatedUpdate(buyer, { "system.resources.hope.value": now + call.cost }, { [HOPE_REFUND]: true });
+        return refuse(ACTION_ARM, "the Call could not be armed", ctx);
+    }
+    debug(`Armed ${payload.call.key} on ${actor.name}, paid by ${buyer.name} on this side.`);
+    await tellBeneficiary(actor, "hope", call.grants);
+    replyArmed(ctx, { ok: true, left: held - call.cost });
     return;
 }
 
 async function handleDespair(payload, senderId, ctx) {
     const sender = senderOf(senderId);
     if (!sender) return refuse(ACTION_DESPAIR, "unknown sender", ctx);
+
+    /*
+     * A PLAYER'S POINT OF DESPAIR IS A REROLL'S, ON THEIR OWN MONOKUMA (E03,
+     * 24.09.2026; audit S10-40, S02-42). This took ±1 for any pool from any
+     * player, so a loop in the console emptied a Monokuma's pool before a
+     * trial. The one honest sender is `settleDespair` in reroll.mjs, which moves
+     * one point on the Monokuma assigned to the rerolling character, in the
+     * direction the dice went. So: the sender's own character, that character's
+     * Monokuma, a Reroll receipt for it, spent once, and the delta the rewritten
+     * roll actually implies (`receiptDespairDelta`).
+     */
+    if (!sender.isGM) {
+        const actor = game.actors.get(payload.actorId ?? "");
+        if (!ownsActor(sender, actor?.id)) {
+            return refuse(ACTION_DESPAIR, "sender does not own the rerolling character", ctx);
+        }
+        const { monokumaFor } = await import("./assignments.mjs");
+        if (monokumaFor(actor)?.id !== payload.targetUserId) {
+            return refuse(ACTION_DESPAIR, "that pool is not the rerolling character's Monokuma", ctx);
+        }
+        const { spendRerollReceipt, receiptDespairDelta } = await import("./reroll-receipts.mjs");
+        const asked = Math.trunc(Number(payload.delta));
+        const why = await spendRerollReceipt(actor.id, sender.id, "despair", receipt => {
+            const owed = receiptDespairDelta(receipt);
+            return owed === asked ? null : `the Reroll moved Despair by ${owed}, not ${payload.delta}`;
+        });
+        if (why) return refuse(ACTION_DESPAIR, why, ctx);
+    }
 
     // The only legitimate player-side Despair adjustment is a reroll giving
     // one point back or taking one. Anything larger is not the rules asking.
@@ -1553,6 +1766,7 @@ async function onSocket(payload, senderId) {
     if (payload.action === ACTION_ACK || payload.action === ACTION_DIFFICULTY_RESULT
         || payload.action === ACTION_HOPE_CALL_RESULT
         || payload.action === ACTION_SABOTAGE_RESULT
+        || payload.action === ACTION_ARM_RESULT
         || payload.action === ACTION_OBSERVE_TARGET_RESULT
         || payload.action === ACTION_CLEANUP_TRACES_RESULT
         // Travels GM -> player and is handled by `onOpeningAsk` / `onOpeningCancel`.
@@ -1657,7 +1871,7 @@ export async function requestBodyLoot({ takerId, bodyId, itemId }) {
  * which the buyer has no write access to - hence "Player A lacks permission".
  * The GM owns everything, so they set it.
  */
-export async function requestArmCall(actorId, call) {
+export async function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs) {
     if (game.user.isGM) {
         const actor = game.actors.get(actorId);
         if (!actor) return null;
@@ -1666,8 +1880,38 @@ export async function requestArmCall(actorId, call) {
         return true;
     }
     if (!hasGm()) return null;
-    emitToGms( { action: ACTION_ARM, userId: game.user.id, requestId: expectAck(call?.key ?? "Call"), actorId, call });
-    return true;
+
+    /*
+     * AWAITED NOW, LIKE A SABOTAGE (E03). The GM takes the Hope for a Support on
+     * somebody else's character, and may refuse it - no Hope, a Silence, a GM
+     * who sees the world differently - so "sent" is no longer "armed". This
+     * resolves with the GM's `{ ok, left }`, or null when it was refused
+     * (`onRefused` settles it at once) or nobody answered.
+     */
+    const requestId = foundry.utils.randomID();
+    return new Promise(resolve => {
+        awaitRuling(requestId, resolve, { action: ACTION_ARM, userId: game.user.id, requestId, actorId, call });
+        // The two clocks of `requestSabotage` (COMM-17): the ack says it arrived,
+        // the answer may take longer.
+        const giveUp = () => {
+            if (!pendingRulings.has(requestId)) return;
+            pendingRulings.delete(requestId);
+            ui.notifications.warn(game.i18n.format("DRPG.Bridge.noAnswer", { what: requestLabel(ACTION_ARM) }));
+            resolve(null);
+        };
+        const ack = setTimeout(() => {
+            if (!awaitingAck.has(requestId)) return;
+            awaitingAck.delete(requestId);
+            giveUp();
+        }, ACK_TIMEOUT_MS);
+        awaitingAck.set(requestId, ack);
+        setTimeout(() => {
+            if (!pendingRulings.has(requestId)) return;
+            pendingRulings.delete(requestId);
+            ui.notifications.warn(game.i18n.format("DRPG.Bridge.noAnswer", { what: requestLabel(ACTION_ARM) }));
+            resolve(null);
+        }, timeoutMs);
+    });
 }
 
 /**
@@ -1677,15 +1921,17 @@ export async function requestArmCall(actorId, call) {
  * to be the same field, which is how the GM side had no way of telling who was
  * asking from whose pool was moving.
  */
-export async function requestDespairAdjust(targetUserId, delta) {
+export async function requestDespairAdjust(targetUserId, delta, { actorId = null } = {}) {
     if (game.user.isGM) {
         const { adjustDespair } = await import("./despair.mjs");
         return adjustDespair(targetUserId, delta);
     }
     if (!hasGm()) return null;
+    // `actorId` is the rerolling character: the GM pays a player's point from
+    // the receipt of that character's Reroll (E03).
     emitToGms( {
         action: ACTION_DESPAIR, userId: game.user.id,
-        requestId: expectAck(ACTION_DESPAIR), targetUserId, delta
+        requestId: expectAck(ACTION_DESPAIR), targetUserId, delta, actorId
     });
     return { pending: true };
 }

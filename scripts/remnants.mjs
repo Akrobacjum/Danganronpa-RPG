@@ -14,7 +14,7 @@
  */
 
 import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_DAY_LABELS,
-    observeDc } from "./config.mjs";
+    BROKEN_ITEMS, observeDc } from "./config.mjs";
 // Statically imported: `remnantsInRoom` is synchronous, and movement.mjs does
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken } from "./movement.mjs";
@@ -569,6 +569,78 @@ async function whisperTraceNow(tokenDoc, titleKey) {
     } catch (err) {
         error("Could not whisper a found trace", err);
     }
+}
+
+/* ==========================================================================
+ * A PLAYER'S TRACE, AS THE GM WRITES IT (E03, 24.09.2026; audit S05-13, S10-10)
+ * --------------------------------------------------------------------------
+ * A player's action leaves its trace through the GM, because the ledger is the
+ * GM's. The bridge used to narrow three fields of the packet and pass the rest:
+ * who left it (`sourceName` - "Left by: Player C"), which room it is in, where
+ * on which scene, what it points at, whether it is Faint (and so swept at the
+ * chapter's end), what item it is the trace of. A console could plant a
+ * Misleading trail for free and pin it on somebody else, or leave a trace that
+ * no Observe would ever find. Every honest sender builds these fields from its
+ * own character's token (`dropRemnant`), so this side now builds them the same
+ * way, from what it knows, and takes from the packet only what the player's own
+ * action decides: the band, the kind of action, and the words.
+ * ========================================================================== */
+
+/** The traces a player's own action can leave: Preparation, and after a murder the Tamper kind. */
+const PLAYER_REMNANT_TYPES = new Set(["prep", "resolution"]);
+
+/** Faint by the action that leaves it, as every honest sender sets it. */
+const PLAYER_FAINT = {
+    search: true, project: true, sabotage: true, dynamic: true, discard: BROKEN_ITEMS.faint
+};
+
+/**
+ * A player's Remnant packet, rebuilt from what the GM knows. Pure: the
+ * character, where they stand and the clock are passed in.
+ *
+ * @param {object} data     The packet's `data`.
+ * @param {Actor}  actor    The sender's character (`sourceActor`, already owned).
+ * @param {object|null} where  `locateActor(actor)`.
+ * @param {object} clock    `getClock()`.
+ * @returns {{refused: string}|{data: object}}
+ */
+export function narrowPlayerRemnant(data, actor, where, clock = {}) {
+    if (!actor) return { refused: "no character left it" };
+    if (!where?.tokenDoc || !where.scene) return { refused: "the character has no token on a scene" };
+    if (!REMNANT_VISIBILITY_LABELS[data?.visibility]) return { refused: `"${data?.visibility}" is not a visibility` };
+
+    const action = Object.hasOwn(PLAYER_FAINT, data.action) ? data.action : "manual";
+    const identity = data.itemIdentity ?? null;
+    const holds = Boolean(identity) && actor.items.some(item => item.getFlag?.(MODULE_ID, "drpgItemId") === identity);
+
+    return { data: {
+        type: PLAYER_REMNANT_TYPES.has(data.type) ? data.type : "prep",
+        visibility: data.visibility,
+        faint: PLAYER_FAINT[action] ?? false,
+        reinforced: false,
+        // `placeRemnant` decides whether a trace is the crime's, from the incident.
+        tiedToCrime: null,
+        pointsAt: null,
+        action,
+        note: String(data.note ?? "").slice(0, 400),
+        subject: String(data.subject ?? "").slice(0, 80),
+        itemIdentity: holds ? identity : null,
+        sourceActor: actor.id,
+        sourceName: actor.name,
+        room: where.room ?? null,
+        sceneId: where.scene.id,
+        x: where.tokenDoc.x,
+        y: where.tokenDoc.y,
+        chapter: clock.chapter ?? null,
+        day: clock.day ?? null,
+        timeOfDay: clock.timeOfDay ?? null
+    } };
+}
+
+/** Has a GM written on this trace by hand (`markRemnantEdited`)? */
+export function remnantGmEdited(tokenDoc) {
+    const key = tokenDoc ? keyOf(tokenDoc) : null;
+    return Boolean(key && readRemnantLedger()[key]?.gmEdited);
 }
 
 /**

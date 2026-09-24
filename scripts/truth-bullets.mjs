@@ -1127,8 +1127,106 @@ export const NOT_AN_EDIT = "drpgNotAnEdit";
  * twice - once as a flag and once wrapped in `<p>` - and would have looped
  * forever on the wrapping.
  */
+/* ==========================================================================
+ * WHAT A PLAYER CANNOT CHANGE ON THEIR OWN BULLET (E03, 24.09.2026; audit S05-12)
+ * --------------------------------------------------------------------------
+ * A player owns the character, so they own its items - Truth Bullets included -
+ * and can write any field of one from the console. The watcher below then took
+ * the change as a GM's: it carried a new description up to the trace, and the
+ * trace pushed it down onto every other player's copy, so a killer holding a
+ * copy of the knife could rewrite the lab reading the whole table would bring to
+ * the trial. And the flags that say what a bullet IS - analysed or not, what it
+ * shows, the chapter lock - were theirs to set too.
+ *
+ * So the primary GM keeps a copy of those fields for every bullet (`guard` in
+ * the bullet's secret), refreshed by every write a GM's client makes, and a
+ * player's change to any of them is put back from it - only the fields the
+ * change touched, so nothing else a player writes is undone - and the GMs are
+ * told. That the author is really a player relies on Daggerheart's relay not
+ * writing items for players (relay-guard.mjs): a relayed write is authored by
+ * the GM who ran it.
+ * ========================================================================== */
+
+const GUARDED_BULLET_FLAGS = [
+    "playerText", "analyzedText", "shownType", "analyzed", "lockedChapter", "faint",
+    "tiedToCrime", "sourceAction", "visibility", "remnantRef", "isBullet"
+].map(key => TRUTH_BULLET_FLAGS[key]);
+
+/** The guarded fields of a bullet as it stands, keyed by update path. */
+function guardedValues(item) {
+    const values = {
+        name: item.name,
+        img: item.img,
+        "system.description": item.system?.description ?? ""
+    };
+    for (const key of GUARDED_BULLET_FLAGS) {
+        values[`flags.${MODULE_ID}.${key}`] = item.getFlag(MODULE_ID, key) ?? null;
+    }
+    return values;
+}
+
+/** Which guarded paths an update touched, deletions (`-=key`) included. */
+export function guardedPathsIn(changes) {
+    const touched = [];
+    if (changes?.name !== undefined) touched.push("name");
+    if (changes?.img !== undefined) touched.push("img");
+    if (changes?.system?.description !== undefined) touched.push("system.description");
+    const flags = changes?.flags?.[MODULE_ID] ?? {};
+    for (const key of GUARDED_BULLET_FLAGS) {
+        if (key in flags || `-=${key}` in flags) touched.push(`flags.${MODULE_ID}.${key}`);
+    }
+    return touched;
+}
+
+/** Keep the GM's copy of a bullet's guarded fields up to date. */
+async function refreshGuard(item) {
+    await setSecret(item.uuid, { guard: guardedValues(item) });
+}
+
+/** Put a player's change to a guarded field back, and tell the GMs. */
+async function revertPlayerBulletEdit(item, touched, author) {
+    const guard = secretOf(item.uuid).guard ?? null;
+    const patch = {};
+    for (const path of touched) {
+        if (guard && path in guard) patch[path] = guard[path];
+    }
+    const missed = touched.filter(path => !(path in patch));
+    if (Object.keys(patch).length) {
+        await item.update(patch, { [NOT_AN_EDIT]: true });
+    }
+    warn(`Put back ${author?.name ?? "a player"}'s edit of the Truth Bullet "${item.name}": ${touched.join(", ")}${
+        missed.length ? ` (no record to restore ${missed.join(", ")})` : ""}.`);
+    await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.TruthBullet.editReverted", {
+        player: foundry.utils.escapeHTML(author?.name ?? "?"),
+        bullet: foundry.utils.escapeHTML(String(patch.name ?? item.name ?? "?"))
+    })}</p>`);
+}
+
+/** Every bullet a GM has not recorded yet is recorded as it stands - once, at load. */
+async function guardAllBullets() {
+    if (!isPrimaryGm()) return;
+    const ledger = readLedger();
+    let added = 0;
+    for (const actor of game.actors ?? []) {
+        for (const item of bulletsOf(actor)) {
+            const entry = ledger[item.uuid];
+            if (entry?.guard || entry?.deleted) continue;
+            ledger[item.uuid] = { ...(entry ?? {}), guard: guardedValues(item), updated: Date.now() };
+            added++;
+        }
+    }
+    // Today's state is taken as the truth: there is nothing older to compare it with.
+    if (added) await writeLedger(ledger);
+}
+
 function watchBulletEdits() {
-    Hooks.on("updateItem", async (item, changes, options) => {
+    Hooks.once("ready", () => guardAllBullets().catch(err => error("Could not record the Truth Bullets' guarded fields", err)));
+    Hooks.on("createItem", (item, options, userId) => {
+        if (!isPrimaryGm() || !isTruthBullet(item)) return;
+        if (!game.users.get(userId ?? "")?.isGM) return;
+        refreshGuard(item).catch(err => error("Could not record a new Truth Bullet's guarded fields", err));
+    });
+    Hooks.on("updateItem", async (item, changes, options, userId) => {
         try {
             /*
              * THE PRIMARY GM, not "a GM" - and with two Gamemasters at this
@@ -1139,6 +1237,17 @@ function watchBulletEdits() {
              * cascades. Same rule the trap relay and the search tokens use.
              */
             if (!isPrimaryGm()) return;
+            if (isTruthBullet(item)) {
+                const touched = guardedPathsIn(changes);
+                if (touched.length) {
+                    const author = game.users.get(userId ?? "");
+                    if (!author?.isGM) {
+                        await revertPlayerBulletEdit(item, touched, author);
+                        return;
+                    }
+                    await refreshGuard(item);
+                }
+            }
             if (options?.[FROM_REMNANT]) return;              // the trace talking
             if (options?.[NOT_AN_EDIT]) return;               // the module keeping books
             if (!isTruthBullet(item)) return;
@@ -1178,10 +1287,11 @@ function watchBulletEdits() {
              * thing here that knows the two halves apart.
              */
             if (changes.system?.description !== undefined && patch.playerText === undefined) {
-                const wrap = document.createElement("div");
+                // A template, whose content is inert: read for its text, never run.
+                const wrap = document.createElement("template");
                 wrap.innerHTML = String(item.system?.description ?? "");
-                for (const block of wrap.querySelectorAll(".drpg-bullet-analysis")) block.remove();
-                patch.playerText = wrap.textContent.replace(/\s+/g, " ").trim();
+                for (const block of wrap.content.querySelectorAll(".drpg-bullet-analysis")) block.remove();
+                patch.playerText = wrap.content.textContent.replace(/\s+/g, " ").trim();
             }
             if (!Object.keys(patch).length) return;
 

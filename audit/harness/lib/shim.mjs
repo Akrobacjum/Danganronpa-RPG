@@ -314,7 +314,10 @@ export function buildDocumentClasses(ctx) {
             delete changes._id;
             if (U.isEmpty(changes)) return this;
             const hooks = ctx.hooks();
-            const pre = hooks.call(`preUpdate${this.documentName}`, this, U.expandObject(U.deepClone(changes)), opts(context), ctx.userId());
+            // `noHook` skips the `pre` hook, as Foundry's client backend does - the
+            // road Configure Ownership takes, which anonymity.mjs guards after the fact.
+            const pre = context?.noHook ? undefined
+                : hooks.call(`preUpdate${this.documentName}`, this, U.expandObject(U.deepClone(changes)), opts(context), ctx.userId());
             if (pre === false) return this;
             if (this.parent) {
                 await this.parent._embeddedOp("update", this.documentName, [{ _id: this.id, ...changes }], context);

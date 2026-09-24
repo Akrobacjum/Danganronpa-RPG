@@ -139,6 +139,21 @@ export function pendingCall(actor) {
  */
 const DICE_GRANTS = new Set(["advantage", "disadvantage"]);
 
+/**
+ * Why a player's client may not arm this Call on somebody else's character, or
+ * null when it may (E03, 24.09.2026; audit S10-09). The one Call that honestly
+ * travels this way is a Hope Call aimed at another player - Support - with the
+ * `grants` the table gives it. A Despair Call is a Monokuma's, and a Monokuma is a
+ * GM, whose client arms it directly. Pure, for the suite.
+ */
+export function playerArmRefusal(call) {
+    const def = HOPE_CALLS[call?.key];
+    if (!def) return `"${call?.key}" is not a Hope Call a player can buy for somebody else`;
+    if (def.target !== "player") return `"${call.key}" is not aimed at another player`;
+    if (!def.grants || def.grants !== call.grants) return `"${call.key}" does not grant "${call?.grants}"`;
+    return null;
+}
+
 /** Is this Call already armed on this character, in a way a second copy adds nothing to? */
 export function alreadyArmed(actor, call) {
     if (!call?.grants || DICE_GRANTS.has(call.grants)) return false;
@@ -166,10 +181,12 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
     const payload = { key, kind, grants, amount, from, nonce: foundry.utils.randomID() };
 
     if (!actor.isOwner) {
+        // Answered now, not just sent (E03): the GM charges the buyer and may
+        // refuse, and null here is "not armed, and nothing was charged".
         const { requestArmCall } = await import("./gm-bridge.mjs");
         const sent = await requestArmCall(actor.id, payload);
         if (!sent) return null;
-        log(`Asked the GM to arm ${key} on ${actor.name} (${grants}).`);
+        log(`The GM armed ${key} on ${actor.name} (${grants}).`);
         return true;
     }
 
@@ -596,7 +613,9 @@ async function sealRoomEffect(actor, call, choice, done) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadySealed", { room: choice.room }));
         throw new NothingToDo(`${choice.room} is already sealed`);
     }
-    await sealRoom(choice.room);
+    // Announced only when written (E03; audit S09-11): `writeWorld` answers
+    // null on a client that cannot write, and the card said "sealed" anyway.
+    if (!await sealRoom(choice.room)) throw new Error(`could not seal ${choice.room}`);
     done.push(game.i18n.format("DRPG.Calls.sealed", { room: choice.room }));
 }
 
@@ -752,8 +771,7 @@ export function isSealed(room) {
 async function sealRoom(room) {
     const current = new Set(sealedRooms());
     current.add(room);
-    await writeWorld(SETTINGS.sealedRooms, Array.from(current));
-    return true;
+    return Boolean(await writeWorld(SETTINGS.sealedRooms, Array.from(current)));
 }
 
 /** Per-actor restrictions: { [actorId]: { silenced, chained, room } }. */

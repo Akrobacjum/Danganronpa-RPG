@@ -402,6 +402,11 @@ export async function spendDespairCall(userId, callKey, { announce: post = true 
         ui.notifications.error(game.i18n.format("DRPG.Despair.unknownCall", { key: callKey }));
         return false;
     }
+    // A GM's purchase - see `spendDespairCallFor` (E03; audit S09-11).
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Calls.despairGmOnly"));
+        return false;
+    }
 
     const held = getDespair(userId);
     if (held < call.cost) {
@@ -411,7 +416,10 @@ export async function spendDespairCall(userId, callKey, { announce: post = true 
         return false;
     }
 
-    await adjustDespair(userId, -call.cost);
+    // The pool has to have moved for the Call to be bought: `adjustDespair`
+    // answers null when this client could not write it (E03; audit S09-11).
+    const paid = await adjustDespair(userId, -call.cost);
+    if (paid === null || paid === undefined) return false;
 
     /*
      * ONE PURCHASE, ONE CARD, AND IT COMES AFTER THE EFFECT (DESP-11; the review

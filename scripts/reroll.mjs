@@ -349,7 +349,7 @@ async function settleDespair(actor, before, after, done) {
 
         const delta = after.withFear ? 1 : -1;
         const { requestDespairAdjust } = await import("./gm-bridge.mjs");
-        await requestDespairAdjust(monokuma.id, delta);
+        await requestDespairAdjust(monokuma.id, delta, { actorId: actor.id });
 
         done.push(game.i18n.format(delta > 0 ? "DRPG.Reroll.despairGained" : "DRPG.Reroll.despairReturned", {
             name: monokuma.name

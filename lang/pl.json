@@ -261,7 +261,7 @@
         "hint": "Oświetla całą mapę i pozwala mgle pokojów modułu ukrywać rzeczy: pokój, w którym jesteś, jest czysty, odwiedzone pokoje prześwitują zza zasłony, reszta tonie we mgle. Wyłączone: działa własne widzenie Foundry. GM-owie widzą wszystko."
       },
       "lockPlayerResources": {
-        "name": "Gracze nie edytują akcji, Hope ani statystyk",
+        "name": "Gracze nie edytują akcji, Hope, Health, Sanity ani statystyk",
         "hint": "Te zmieniają się przez grę - wydaj akcję, odpocznij, zdobądź Level Up. Health i Sanity też: obrażenia przychodzą z kryzysu, Calla, nieudanego rzutu albo odpoczynku, nigdy z kliknięcia w pole. GM-ów to nie dotyczy."
       },
       "chargeMovement": {
@@ -355,7 +355,8 @@
       "tokensColumn": "Tokeny",
       "sealed": "Tego pokoju nie da się przeszukać. Nie ma tu nic do znalezienia i żadna pora dnia tego nie zmieni.",
       "sealedColumn": "Bez Search",
-      "sealedNote": "„Bez Search” zamyka pokój na akcję Search całkowicie - nie na tę porę dnia, ale dopóki tego nie odznaczysz. Jego tokeny zostają na miejscu i wracają w chwili, gdy to zrobisz."
+      "sealedNote": "„Bez Search” zamyka pokój na akcję Search całkowicie - nie na tę porę dnia, ale dopóki tego nie odznaczysz. Jego tokeny zostają na miejscu i wracają w chwili, gdy to zrobisz.",
+      "notHere": "Twojej postaci nie ma w tym pokoju, więc nie da się go stąd przeszukać."
     },
     "Sheet": {
       "ultimateLabel": "Ultimate",
@@ -1913,7 +1914,8 @@
         "many": "Scalono {n} wpisów Truth Bullet z rejestrem.",
         "other": "Scalono {n} wpisów Truth Bullet z rejestrem."
       },
-      "importFailed": "Ten plik nie jest rejestrem Truth Bullets."
+      "importFailed": "Ten plik nie jest rejestrem Truth Bullets.",
+      "editReverted": "{player} zmienił swój Truth Bullet „{bullet}” - to, co mówi, albo to, czym jest. Zmiana została cofnięta: dowody zapisuje tylko GM."
     },
     "Inventory": {
       "overCap": "{actor} przekracza limit ({category}: {held}/{limit}). Dozwolone - nadał to GM.",
@@ -2125,7 +2127,9 @@
       "alreadySealed": "Pokój {room} jest już zapieczętowany.",
       "alreadySilenced": "{name} ma już nałożone uciszenie.",
       "alreadyChained": "{name} jest już w łańcuchach.",
-      "gatherRoomGone": "Zgromadzenie nie mogło się odbyć: „{room}” nie jest już pokojem na tamtej scenie. Polecenie zostało wyczyszczone - wydany na nie Despair nie wróci, a obsadę trzeba przenieść ręcznie."
+      "gatherRoomGone": "Zgromadzenie nie mogło się odbyć: „{room}” nie jest już pokojem na tamtej scenie. Polecenie zostało wyczyszczone - wydany na nie Despair nie wróci, a obsadę trzeba przenieść ręcznie.",
+      "notArmedNotCharged": "{call} nie został uzbrojony i nie pobrano za niego Hope.",
+      "despairGmOnly": "Despair Calle wydaje Monokuma, a Monokuma to GM."
     },
     "Monokuma": {
       "toggle": "Oznacz jako Monokumę",
@@ -2398,7 +2402,8 @@
       "cardNoCondition": "Bez zapisanego warunku",
       "cardOpenManager": "Otwórz okno Projekty",
       "cardShared": "Każdy żeton projektu jest kopią tego aktora. Otwórz projekt z jego żetonu na mapie.",
-      "cardUnknown": "Nie wiesz, czym to jest."
+      "cardUnknown": "Nie wiesz, czym to jest.",
+      "frozenNoProgress": "{name} jest sabotowany i nie ruszy do przodu, dopóki nie skończy się naprawa."
     },
     "RollDialog": {
       "locked": "Nie ty o tym decydujesz. Przewaga i doświadczenia to Hope Calls - zapytaj GM-a.",
@@ -2456,7 +2461,10 @@
         "body.loot": "Przeszukanie ciała",
         "advancement": {
           "apply": "Level Up"
-        }
+        },
+        "call.arm": "Call dla kogoś innego",
+        "daggerheart": "Zmiana w Daggerheart",
+        "remnant.tieForItem": "Powiązanie śladu ze zbrodnią"
       },
       "refused": "Klient GM-a odrzucił żądanie „{what}”. Nic nie zostało zastosowane.",
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
@@ -2749,7 +2757,8 @@
         "shared": "Należą do więcej niż jednego gracza:",
         "orphaned": "Bez przypisanego właściciela-gracza - oto kto ma dostęp:",
         "nobody": "zupełnie nikt"
-      }
+      },
+      "reverted": "„{actor}” był udostępniony każdemu graczowi jako Owner, więc wszyscy mogli czytać cały arkusz. Wrócił do Observer. Owner daj tylko jego jednemu graczowi."
     },
     "Errors": {
       "wrongSystem": "Moduł Danganronpa RPG wymaga systemu Daggerheart (Foundryborne). Znaleziono: {found}.",
@@ -4430,6 +4439,13 @@
       "refunded": "Odzyskujesz: {what}.",
       "refundLost": "Nie dało się zwrócić ci {what}, bo trwa zaciemnienie Despair. Powiedz GM-owi.",
       "noPrice": "Tego nie możesz zrobić."
+    },
+    "Relay": {
+      "refused": "Odrzucono zmianę Daggerhearta od {name}: {what}. Nic nie zostało zmienione.",
+      "forged": "<strong>{name}</strong> wysłał zmianę, której Daggerheart nigdy nie robi dla gracza: {what}. Nic nie zostało zmienione. Taką zmianę wpisuje się w konsoli przeglądarki.",
+      "unguarded": "Nie udało się postawić strażnika przekaźnika GM-a w Daggerheart {version}. W tej sesji zmiany, o które Daggerheart gracza prosi twoją przeglądarkę, NIE są sprawdzane. Daj znać autorowi modułu.",
+      "unreviewed": "Daggerheart {version} wysyła {cases}, czego ten moduł nie sprawdził. Twoja przeglądarka odrzuca to od graczy. Jeśli któraś funkcja Daggerhearta przestanie działać graczowi, to dlatego.",
+      "unreadable": "przypadki, których ten moduł nie potrafi odczytać"
     }
   }
 }

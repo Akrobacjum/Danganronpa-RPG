@@ -50,7 +50,7 @@ import { SETTINGS } from "./settings.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
-import { whisperToGms, debug, error } from "./utils.mjs";
+import { whisperToGms, isPrimaryGm, debug, error } from "./utils.mjs";
 
 const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
 const OBSERVER = 2; // …OBSERVER - enough to render the sheet, never to edit it.
@@ -58,6 +58,15 @@ const OBSERVER = 2; // …OBSERVER - enough to render the sheet, never to edit i
 export function registerAnonymity() {
     Hooks.on("preCreateActor", onPreCreateActor);
     Hooks.on("preUpdateActor", onPreUpdateActor);
+    // AFTER THE FACT, TOO (E03; audit S11-04) - see `lowerOwnership`.
+    Hooks.on("updateActor", actor => { lowerOwnership(actor); });
+    Hooks.on("closeDocumentOwnershipConfig", app => {
+        const doc = app?.document;
+        if (doc?.documentName === "Actor") setTimeout(() => lowerOwnership(doc), 500);
+    });
+    Hooks.once("ready", () => {
+        for (const actor of game.actors ?? []) lowerOwnership(actor);
+    });
     // ONE hook only. ApplicationV2 fires a render hook for every class in the
     // inheritance chain, so listening to both the concrete sheet and its base
     // class ran this twice and produced two identical errors.
@@ -400,6 +409,32 @@ function onPreUpdateActor(actor, changes) {
 
     ui.notifications.warn(game.i18n.format("DRPG.Anonymity.blocked", { actor: actor.name }));
     debug(`Blocked a default-ownership raise on "${actor.name}" - OBSERVER is the ceiling.`);
+}
+
+/**
+ * The same ceiling, put back after the write (E03, 24.09.2026; audit S11-04).
+ *
+ * The guard above never saw the one window a GM actually uses for this:
+ * Configure Ownership saves with `noHook: true`, which skips every `pre`
+ * hook, so "All Players: Owner" went through and handed the whole table an
+ * unredacted sheet, Truth Bullets and all. Whether the `updateActor` hook
+ * fires for that save has not been read off a live v14 table, so three roads
+ * lead here: that hook, the ownership window closing, and a sweep at `ready`.
+ * The primary GM lowers it back to OBSERVER and says so. Characters only, and
+ * only while anonymity is enforced; lowering is never undone.
+ */
+async function lowerOwnership(actor) {
+    try {
+        if (!isPrimaryGm() || !actor || actor.type !== "character" || !enforcing()) return;
+        if ((actor.ownership?.default ?? NONE) <= OBSERVER) return;
+        await actor.update({ "ownership.default": OBSERVER });
+        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Anonymity.reverted", {
+            actor: foundry.utils.escapeHTML(actor.name)
+        })}</p>`);
+        debug(`Lowered the default ownership of "${actor.name}" back to OBSERVER.`);
+    } catch (err) {
+        error(`Could not lower the default ownership of "${actor?.name}"`, err);
+    }
 }
 
 /* ==========================================================================

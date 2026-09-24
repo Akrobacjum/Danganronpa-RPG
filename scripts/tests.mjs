@@ -661,12 +661,9 @@ const REGRESSIONS = [
         // so deleting its new guard left the suite green (the review of E01).
         const IN_SCOPE = /payload\??\.(\w+Id|identity)\b|payload\.data\?\.sourceActor|\b\w+\(\s*payload\s*[,)]/;
         const EXEMPT_HANDLERS = {
-            // KNOWN, NOT FORGIVEN: any player may move any Monokuma's pool by one point,
-            // because the one honest caller is a reroll handing a point back. Audit
-            // S02-42 and S10-40, both scheduled for E03, which puts it behind the
-            // declarative handler table. This line goes when that lands - the check
-            // below fails on an exemption the handler no longer needs.
-            handleDespair: "a reroll's single point of Despair on a pool, not a character (E03: S02-42, S10-40)"
+            // Empty since E03 (24.09.2026), which bound `despair.adjust` to the
+            // rerolling character and its Reroll receipt - the one line that was
+            // here said to remove it then, and the check below held it to that.
         };
         const unguarded = [], stale = [];
         let inScope = 0, byOwner = 0, bySight = 0, byGm = 0;
@@ -723,7 +720,6 @@ const REGRESSIONS = [
         const EXEMPT = {
             // Answers only to the sender's own id, never to an id in the packet.
             "vote.mjs": "keys the tally by senderId; the payload's actor is an address, not a claim",
-            "search-tokens.mjs": "replies to whoever asked; spends against a room, not an actor",
             "murder.mjs": "GM-to-GM sync plus one request answered from the sender's own cast",
             "mastermind.mjs": "GM-to-GM sync; the one player request is answered about the sender",
             "truth-bullets.mjs": "GM-to-GM ledger sync, refused outright from a non-GM",
@@ -5097,6 +5093,160 @@ const REGRESSIONS = [
             }
         }
         ok(!bad.length, `printed into markup without escaping: ${bad.join("; ")}`);
+    }],
+
+    ["R134 - an undo from a player is paid for by a Reroll", async () => {
+        /*
+         * E03, 24.09.2026; audit S10-40 and the undo half of S10-03, S05-03, S04-09,
+         * S05-13, S05-40. Every packet that TAKES SOMETHING BACK - an Observe's bullet,
+         * a crisis action, a clean-up, an Analyze, a sabotage, progress, a trace, a
+         * point of Despair - was believed, and a console could send one without ever
+         * buying a Reroll. The handlers that carry one now ask for the receipt a
+         * Reroll leaves (reroll-receipts.mjs). Read from source, because the honest
+         * road needs a player's client and a GM's at once - 30-security drives it.
+         */
+        const bridge = stripComments((await otherSources()).find(([file]) => file.endsWith("gm-bridge.mjs"))?.[1] ?? "");
+        const PAYS = ["handleObserveResolve", "handleAnalyzeResolve", "handleCrisis", "handleCleanup",
+            "handleUnsabotage", "handleProgress", "handleRemnantEdit", "handleDespair"];
+        const unpaid = PAYS.filter(name => !bodyOf(bridge, `async function ${name}(`, { until: "\nasync function " })
+            .includes("spendRerollReceipt("));
+        ok(!unpaid.length, `these take something back for a player with no Reroll receipt: ${unpaid.join(", ")}`);
+        // And no handler outside the list reads `payload.undo` without one.
+        const stray = [...bridge.matchAll(/async function (handle\w+)\(/g)].map(m => m[1]).filter(name => {
+            const body = bodyOf(bridge, `async function ${name}(`, { until: "\nasync function " });
+            return /payload\.undo/.test(body) && !body.includes("spendRerollReceipt(");
+        });
+        ok(!stray.length, `these read payload.undo and ask for no receipt: ${stray.join(", ")}`);
+    }],
+
+    ["R138 - the GM judges a crisis action again before it lands", async () => {
+        /*
+         * E03, 24.09.2026; audit S04-09. The stage, the side, the turn, the locks and
+         * what the character had left to spend were checked on the acting player's
+         * client only. `crisisRefusal` is the one list of those checks, asked by that
+         * client and by the GM's bridge; this holds both callers to it.
+         */
+        const sources = new Map(await otherSources());
+        const murder = stripComments(sources.get("murder.mjs") ?? "");
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        ok(bodyOf(murder, "export async function takeCrisisAction(", { length: 1200 }).includes("crisisRefusal("),
+            "the player's own client no longer asks crisisRefusal");
+        const handler = bodyOf(bridge, "async function handleCrisis(", { until: "\nasync function " });
+        ok(/crisisRefusal\(actor, payload\.key\)/.test(handler), "the GM's bridge does not judge a crisis action again");
+        ok(handler.indexOf("crisisRefusal(") < handler.indexOf("resolveCrisisAction({"),
+            "the GM judges the crisis action after resolving it");
+    }],
+
+    ["R143 - ownership raised past the window's back, and a bullet a player edits, are put back", async () => {
+        /*
+         * E03, 24.09.2026; audit S11-04 and S05-12. Configure Ownership saves with
+         * `noHook`, which skips the `pre` hook that was the only guard; and a player
+         * editing their own Truth Bullet was taken for a GM correcting it. Both are put
+         * back after the fact on the primary GM, so both are read here: the hooks that
+         * do it, and the list the player's own client refuses first.
+         */
+        const sources = new Map(await otherSources());
+        const anonymity = stripComments(sources.get("anonymity.mjs") ?? "");
+        ok(/Hooks\.on\("updateActor"[^\n]*lowerOwnership/.test(anonymity), "nothing lowers a raised ownership after the write");
+        ok(/closeDocumentOwnershipConfig/.test(anonymity), "the ownership window closing is not watched");
+        ok(/"ownership\.default": OBSERVER/.test(bodyOf(anonymity, "async function lowerOwnership(", { until: "\n}\n" })),
+            "lowerOwnership does not put the default back to Observer");
+        const bullets = stripComments(sources.get("truth-bullets.mjs") ?? "");
+        const watcher = bodyOf(bullets, "function watchBulletEdits(", { length: 2400 });
+        ok(/Hooks\.on\("updateItem", async \(item, changes, options, userId\)/.test(watcher),
+            "the bullet watcher does not know who made the change");
+        ok(watcher.includes("revertPlayerBulletEdit("), "a player's edit of a bullet is not put back");
+        ok(watcher.indexOf("revertPlayerBulletEdit(") < watcher.indexOf("FROM_REMNANT"),
+            "the player's edit is looked at after the watcher has already returned for the trace's own writes");
+        const guard = stripComments(sources.get("resource-guard.mjs") ?? "");
+        for (const flag of ["playerText", "analyzedText", "shownType", "analyzed", "lockedChapter"]) {
+            ok(bodyOf(guard, "const BULLET_GUARDED", { length: 400 }).includes(`"${flag}"`),
+                `the player's own client lets a bullet's ${flag} be edited`);
+        }
+    }],
+
+    ["R144 - five doors a console used, each shut on the side that writes", async () => {
+        /*
+         * E03, 24.09.2026; audit S02-42, S09-11, S08-33. A free action for anybody
+         * (`free`), a Despair Call bought on a player's client where the pool cannot
+         * move, a sealed room announced when nothing was written, a handover in the
+         * dark, and a key copied out of a stash on the other side of the map.
+         */
+        const sources = new Map(await otherSources());
+        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        ok(/options\.free && !game\.user\.isGM/.test(bodyOf(rolls, "export async function performAction(", { length: 700 })),
+            "performAction still takes `free` from anybody");
+        const calls = stripComments(sources.get("calls.mjs") ?? "");
+        ok(/if \(!game\.user\.isGM\)/.test(bodyOf(calls, "export async function spendDespairCallFor(", { length: 700 })),
+            "spendDespairCallFor runs on a player's client");
+        const despair = stripComments(sources.get("despair.mjs") ?? "");
+        const spend = bodyOf(despair, "export async function spendDespairCall(", { until: "\n}\n" });
+        ok(/if \(!game\.user\.isGM\)/.test(spend), "spendDespairCall runs on a player's client");
+        ok(/const paid = await adjustDespair\(/.test(spend) && /paid === null/.test(spend),
+            "a Despair Call goes on when its pool did not move");
+        const effects = stripComments(sources.get("call-effects.mjs") ?? "");
+        ok(/return Boolean\(await writeWorld\(/.test(bodyOf(effects, "async function sealRoom(", { length: 300 })),
+            "sealRoom says it sealed whether or not it wrote");
+        const handover = stripComments(sources.get("handover.mjs") ?? "");
+        ok(/isEclipse\(\)/.test(bodyOf(handover, "async function verify(", { until: "\n}\n" })), "a handover is not refused during an Eclipse on the GM's side");
+        const give = bodyOf(handover, "export async function giveItem(", { until: "\n}\n" });
+        ok(give.indexOf("isStashed(item)") >= 0 && give.indexOf("isStashed(item)") < give.indexOf("BEDROOM_KEY_FLAG"),
+            "a key lying in a stash can still be handed over");
+    }],
+
+    ["R145 - Analyze, Stage 6 and a clean-up's undo, judged by the rules on the GM", async () => {
+        /*
+         * E03, 24.09.2026; audit S05-40. One Analyze per bullet per chapter was the
+         * sheet's rule alone; a misleading trail could point at the killer, the victim
+         * or a Monokuma; the body could be carried off from a room the killer was not
+         * in; and a clean-up's undo wrote the Sanity back as it stood, erasing every
+         * mark earned since.
+         */
+        const sources = new Map(await otherSources());
+        const analyze = stripComments(sources.get("analyze.mjs") ?? "");
+        const resolve = bodyOf(analyze, "export async function resolveAnalyze(", { until: "\n}\n" });
+        ok(/!undo && !isAnalysable\(item, chapter\)/.test(resolve), "a fresh Analyze does not ask whether the bullet may be analysed");
+        ok(/analysedChapter !== chapter/.test(resolve), "an undo does not ask for a throw in this chapter");
+        const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
+        const six = bodyOf(cleanup, "export async function resolveStageSix(", { until: "\n}\n" });
+        ok(six.indexOf("framingCandidates(actor)") > 0 && six.indexOf("framingCandidates(actor)") < six.indexOf("spendStress("),
+            "a misleading trail is not checked against who may be framed before it is paid for");
+        ok(six.indexOf("bodyIsHere(actor)") > 0 && six.indexOf("bodyIsHere(actor)") < six.indexOf("spendStress("),
+            "moving the body does not ask where the body is before it is paid for");
+        ok(/receipt\.stressAfter - receipt\.stressBefore/.test(cleanup), "a clean-up's undo does not take back what it moved");
+    }],
+
+    ["R146 - the stylesheet's resource lock follows the setting", async () => {
+        /*
+         * E03, 24.09.2026; audit S01-40. With "Players cannot edit..." switched off,
+         * resource-guard.mjs let an edit through and the stylesheet still swallowed
+         * the click on Hope and the traits, so the switch looked broken. The rules now
+         * hang on a body class the setting stamps.
+         */
+        const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        const rules = stripComments(css);
+        ok(!/body:not\(\.drpg-gm\)[^{]*(\.hope-value|trait-value|name\*="traits")/.test(rules),
+            "a player lock still hangs on being not-a-GM rather than on the setting");
+        ok((rules.match(/body\.drpg-player\.drpg-resources-locked/g) ?? []).length >= 4,
+            "the Hope and trait locks do not hang on drpg-resources-locked");
+        const sources = new Map(await otherSources());
+        ok(/"drpg-resources-locked", Boolean\(getSetting\(SETTINGS\.lockPlayerResources\)\)/.test(stripComments(sources.get("module.mjs") ?? "")),
+            "nothing stamps the class when the world loads");
+        ok(/lockPlayerResources, \{[\s\S]{0,500}onChange: value => document\.body\.classList\.toggle\("drpg-resources-locked"/.test(stripComments(sources.get("settings.mjs") ?? "")),
+            "switching the setting does not move the class");
+    }],
+
+    ["R147 - the relay guard stands before anything can stop the module starting", async () => {
+        /*
+         * E03, 24.09.2026; audit S16-01. A world whose module refuses to start - a
+         * required module switched off - still holds Projects and characters worth
+         * protecting, so the guard is registered first in `init`, ahead of the
+         * requirements check that returns early.
+         */
+        const module = stripComments((await otherSources()).find(([file]) => file.endsWith("module.mjs"))?.[1] ?? "");
+        const init = bodyOf(module, 'Hooks.once("init"', { length: 3000 });
+        const guard = init.indexOf("registerRelayGuard");
+        ok(guard > 0 && guard < init.indexOf("requirementsMet()"), "the relay guard is registered after the requirements check");
     }]
 ];
 
@@ -7701,6 +7851,279 @@ const INVARIANTS = [
             "a Level Up in Health reads as a sheet waiting to be set up");
         ok(!needsStartingResources(sheet(STARTING.hp, STARTING.stress + 1)),
             "a Level Up in Sanity reads as a sheet waiting to be set up");
+    }],
+
+    ["R132 - Daggerheart's GM relay has the guard in front of it", async () => {
+        /*
+         * E03, 24.09.2026; audit S16-01. Daggerheart's relay performed on every GM's
+         * client whatever document update, setting or creation a player's packet
+         * named. relay-guard.mjs takes its listener off the channel at `init` and
+         * judges every packet first. A table where the guard found nothing to wrap
+         * FAILS here: that is the hazard itself, not a fact about the environment.
+         */
+        const { relayGuardStatus, REVIEWED_CASES } = await import("./relay-guard.mjs");
+        const status = relayGuardStatus();
+        ok(["ok", "unnamed", "changed", "backstop"].includes(status.state),
+            `Daggerheart's relay is not guarded on this table: "${status.state}"`);
+        if (status.state !== "backstop") ok(status.wrapped >= 1, "the guard reports no listener wrapped");
+        if (status.state === "ok") {
+            ok(status.fingerprint.length > 0 && status.fingerprint.every(name => REVIEWED_CASES.includes(name)),
+                `the listener handles cases nobody reviewed: ${status.fingerprint.join(", ")}`);
+        } else {
+            ok(status.state !== "changed" || status.unreviewed.length > 0 || !status.fingerprint.length,
+                "the guard calls the relay changed without saying what changed");
+        }
+    }],
+
+    ["R133 - the relay passes what Daggerheart sends for a player, and nothing else", async () => {
+        /*
+         * E03, 24.09.2026; audit S16-01. `judgeRelay` asked about made-up packets and a
+         * made-up world, so every row of the table in relay-guard.mjs is held to it:
+         * the shapes only a console makes are refused, and each shape Daggerheart
+         * really sends for a player (read off 2.6.5 and 2.10.5) still passes.
+         */
+        const { judgeRelay } = await import("./relay-guard.mjs");
+        const player = { id: "SUITEPLAYER00001", name: "Suite player", isGM: false };
+        const owns = doc => ({ testUserPermission: user => user?.id === player.id, ...doc });
+        const not = doc => ({ testUserPermission: () => false, ...doc });
+        const res = { hope: { value: 2, max: 6 }, hitPoints: { value: 3, max: 6 } };
+        const docs = {
+            mine: owns({ documentName: "Actor", type: "character", name: "Mine", system: { resources: res } }),
+            theirs: not({ documentName: "Actor", type: "character", name: "Theirs", system: { resources: res } }),
+            foe: not({ documentName: "Actor", type: "adversary", name: "Foe", system: { resources: res } }),
+            user: { documentName: "User", name: "Suite player" },
+            knife: owns({ documentName: "Item", name: "Knife", parent: { documentName: "Actor" } }),
+            party: not({ documentName: "Actor", type: "party", name: "Party", system: { partyMembers: ["mine"] } }),
+            scene: { documentName: "Scene", name: "Floor", flags: { daggerheart: { sceneEnvironments: ["a", "b"] } } }
+        };
+        const countdowns = { countdowns: {
+            P1: { name: "Project", progress: { current: 2, start: 6, type: "custom", looping: "noLooping" } },
+            T1: { name: "Tick", progress: { current: 3, start: 6, type: "actionRoll", looping: "noLooping" } },
+            O1: { name: "Owned", progress: { current: 3, start: 6, type: "custom", looping: "noLooping" } }
+        } };
+        const world = {
+            doc: uuid => docs[uuid] ?? null,
+            countdowns: () => foundry.utils.deepClone(countdowns),
+            isProject: id => id === "P1",
+            levelOf: id => (id === "O1" ? 3 : 2),
+            automationOn: () => true,
+            fear: () => 4,
+            fearAllowed: () => true,
+            fearChangedAt: () => 0,
+            changedAt: () => 0,
+            message: id => (id === "M1" ? { id: "M1" } : null),
+            tokenFor: (message, tokenId) => (tokenId === "TOKMINE" ? { actor: docs.mine } : tokenId === "TOKTHEIRS" ? { actor: docs.theirs } : null),
+            now: () => 1e12
+        };
+        const judge = (action, data) => judgeRelay({ action, data }, player, world);
+        const doc = (uuid, data) => judge("DhGMUpdate", { action: "DhGMUpdateDocument", uuid, data });
+        const snapshot = change => {
+            const copy = foundry.utils.deepClone(countdowns);
+            change(copy.countdowns);
+            return judge("DhGMUpdate", { action: "DhGMUpdateCountdowns", data: copy });
+        };
+
+        const refused = {
+            "a player's own role": doc("user", { role: 4 }),
+            "ownership on their own character": doc("mine", { "ownership.SUITEPLAYER00001": 3 }),
+            "another student's Health": doc("theirs", { "system.resources.hitPoints.value": 0 }),
+            "their own Hope above its maximum": doc("mine", { "system.resources.hope.value": 9 }),
+            "an item's name": doc("knife", { name: "Spoon" }),
+            "a module flag on an item": doc("knife", { "flags.danganronpa-rpg.playerText": "x" }),
+            "a scene's environments replaced": doc("scene", { "flags.daggerheart.sceneEnvironments": ["a", "z"] }),
+            "a setting": judge("DhGMUpdate", { action: "DhGMUpdateSetting", uuid: "Automation", data: {} }),
+            "an effect": judge("DhGMUpdate", { action: "DhGMUpdateEffect", uuid: "mine", data: {} }),
+            "Countdowns as {}": judge("DhGMUpdate", { action: "DhGMUpdateCountdowns", data: {} }),
+            "Countdowns emptied": judge("DhGMUpdate", { action: "DhGMUpdateCountdowns", data: { countdowns: {} } }),
+            "a Project's progress": snapshot(all => { all.P1.progress.current = 6; }),
+            "a new countdown": snapshot(all => { all.N1 = { name: "New", progress: { current: 1, start: 1, type: "custom" } }; }),
+            "a save for somebody else's token": judge("DhGMUpdate", { action: "DhGMUpdateSaveMessage",
+                data: { message: "M1", token: "TOKTHEIRS", result: { roll: { total: 12 } } } }),
+            "a new User": judge("DhGMCreate", { documentType: "User", data: {} }),
+            "a new ChatMessage": judge("DhGMCreate", { documentType: "ChatMessage", data: {} }),
+            "a new Actor": judge("DhGMCreate", { documentType: "Actor", data: {} }),
+            "a Region": judge("DhGMCreate", { documentType: "Region", data: {} }),
+            "an unknown sub-action": judge("DhGMUpdate", { action: "DhGMUpdateSomethingNew", data: {} })
+        };
+        const let_through = Object.entries(refused).filter(([, v]) => v.verdict !== "refuse").map(([k, v]) => `${k} (${v.verdict})`);
+        ok(!let_through.length, `the relay let these through: ${let_through.join("; ")}`);
+        equal(refused["a Region"].kind, "refused", "a player's Region is called forged rather than kept to the GM");
+
+        const passed = {
+            "their own Hope": doc("mine", { "system.resources.hope.value": 1 }),
+            "an adversary their attack hit": doc("foe", { "system.resources.hitPoints.value": 1 }),
+            "their own item's quantity": doc("knife", { "system.quantity": 0 }),
+            "the scene's environments reordered": doc("scene", { "flags.daggerheart.sceneEnvironments": ["b", "a"] }),
+            "a group roll on their party": doc("party", { "system.groupRoll.aidedBy": "x" }),
+            "a save for their own token": judge("DhGMUpdate", { action: "DhGMUpdateSaveMessage",
+                data: { message: "M1", token: "TOKMINE", result: { roll: { total: 12, isCritical: false } } } }),
+            "Fear by one": judge("DhGMUpdate", { action: "DhGMUpdateFear", data: 5 }),
+            "a countdown the rules tick": snapshot(all => { all.T1.progress.current = 2; }),
+            "a countdown they own": snapshot(all => { all.O1.progress.current = 4; })
+        };
+        const stopped = Object.entries(passed).filter(([, v]) => v.verdict !== "forward" && v.verdict !== "own")
+            .map(([k, v]) => `${k} (${v.verdict}: ${v.why})`);
+        ok(!stopped.length, `the relay refused what Daggerheart sends for a player: ${stopped.join("; ")}`);
+        equal(JSON.stringify(Object.keys(passed["their own Hope"].packet.data.data)), JSON.stringify(["system.resources.hope.value"]),
+            "the packet passed on carries more than the one allowed field");
+        equal(judge("DhGMUpdate", { action: "DhGMUpdateFear", data: 12 }).ops?.[0]?.step, 1, "a Fear packet asking for +8 moves Fear by more than one");
+        const tick = passed["a countdown the rules tick"].ops?.[0]?.deltas ?? [];
+        equal(JSON.stringify(tick), JSON.stringify([{ id: "T1", current: -1, start: 0 }]), "the tick is not applied as the one difference it is");
+    }],
+
+    ["R135 - a Reroll receipt pays for one undo of each kind, for a few minutes", async () => {
+        /*
+         * E03, 24.09.2026; audit S10-40. The GM-side receipt a player's Reroll leaves
+         * (reroll-receipts.mjs), asked about made-up receipts.
+         */
+        const R = await import("./reroll-receipts.mjs");
+        const now = 1e12;
+        ok(R.rerollReceiptRefusal(null, { now }), "no receipt pays for an undo");
+        ok(!R.rerollReceiptRefusal({ at: now - 1000, used: new Set() }, { kind: "observe", now }), "a fresh receipt is refused");
+        ok(R.rerollReceiptRefusal({ at: now - 10 * 60_000, used: new Set() }, { kind: "observe", now }), "a ten-minute-old receipt still pays");
+        ok(R.rerollReceiptRefusal({ at: now, used: new Set(["despair"]) }, { kind: "despair", now }), "one receipt pays for two Despair corrections");
+        ok(!R.rerollReceiptRefusal({ at: now, used: new Set(["despair"]) }, { kind: "observe", now }), "spending one kind used up another");
+        equal(R.receiptDespairDelta({ wasFear: false, nowFear: true }), 1, "a roll that became Despair does not owe +1");
+        equal(R.receiptDespairDelta({ wasFear: true, nowFear: false }), -1, "a roll that stopped being Despair does not owe -1");
+        equal(R.receiptDespairDelta({ wasFear: true, nowFear: true }), 0, "a roll that stayed Despair owes a point");
+        equal(R.receiptDespairDelta({ wasFear: null, nowFear: false }), -1, "an unseen roll is not read off its new dice");
+    }],
+
+    ["R136 - a sabotage is taken back only as the pair it wrote", async () => {
+        /*
+         * E03, 24.09.2026; audit S10-03, S09-02. `undoSabotage` deleted whatever id
+         * arrived as the repair - a secret murder plan included.
+         */
+        const { unsabotageRefusal } = await import("./projects.mjs");
+        const meta = { T: { frozenBy: "R" }, R: { repairs: "T", saboteur: "U1" }, X: {} };
+        const ask = (targetId, repairId, senderId = null) => unsabotageRefusal({ targetId, repairId, senderId, meta: id => meta[id] ?? {} });
+        ok(ask("T", null), "a thaw with no repair is taken");
+        ok(ask(null, "R"), "a repair with no target is taken");
+        ok(ask("T", "X"), "a project that is not the repair is deleted as one");
+        ok(ask("X", "R"), "a repair is taken back for a project it does not repair");
+        ok(ask("T", "R", "U2"), "somebody else's sabotage is taken back");
+        ok(!ask("T", "R", "U1"), "the saboteur's own pair is refused");
+        ok(!ask("T", "R"), "the GM's own undo of the pair is refused");
+    }],
+
+    ["R137 - an Observe key is one character's, one account's, once", async () => {
+        /*
+         * E03, 24.09.2026; audit S05-03. A key read off another character's Reroll
+         * bookmark deleted that character's Truth Bullet and charged them the Sanity.
+         */
+        const { observeResolveRefusal } = await import("./observe.mjs");
+        const entry = { actorId: "A1", by: "U1" };
+        ok(observeResolveRefusal(entry, { actorId: "A2", senderId: "U2" }), "another character resolves the key");
+        ok(observeResolveRefusal(entry, { actorId: "A1", senderId: "U2" }), "another account resolves the key");
+        ok(observeResolveRefusal({ ...entry, result: { success: true } }, { actorId: "A1", senderId: "U1" }), "a key resolves twice");
+        ok(observeResolveRefusal(entry, { actorId: "A1", senderId: "U1", undo: true }), "an undo with nothing to undo is taken");
+        ok(!observeResolveRefusal(entry, { actorId: "A1", senderId: "U1" }), "the owner's own resolve is refused");
+        ok(!observeResolveRefusal({ ...entry, result: {} }, { actorId: "A1", senderId: "U1", undo: true }), "the owner's own undo is refused");
+        ok(!observeResolveRefusal(entry, { actorId: "A1", senderId: "G1", senderIsGm: true }), "a GM resolving it is refused");
+    }],
+
+    ["R139 - a player arms only a Support on somebody else", async () => {
+        /* E03, 24.09.2026; audit S10-09: a Monokuma's Obstacle from a player's console. */
+        const { playerArmRefusal } = await import("./call-effects.mjs");
+        ok(playerArmRefusal({ key: "obstacle", grants: "disadvantage" }), "a Despair Call is armed from a player");
+        ok(playerArmRefusal({ key: "experience", grants: "experience" }), "a Call aimed at nobody else is armed on somebody else");
+        ok(playerArmRefusal({ key: "support", grants: "critical" }), "a Support is armed with somebody else's grant");
+        ok(!playerArmRefusal({ key: "support", grants: HOPE_CALLS.support?.grants }), "a Support is refused");
+    }],
+
+    ["R140 - a player's trace is written from what the GM knows", async () => {
+        /* E03, 24.09.2026; audit S05-13, S10-10. `narrowPlayerRemnant`, field by field. */
+        const { narrowPlayerRemnant } = await import("./remnants.mjs");
+        const item = id => ({ getFlag: (scope, key) => (key === "drpgItemId" ? id : null) });
+        const actor = { id: "A1", name: "Aiko", items: [item("KNIFE")] };
+        const where = { room: "Gym", scene: { id: "S1" }, tokenDoc: { x: 100, y: 200 } };
+        const clock = { chapter: 2, day: 3, timeOfDay: "night" };
+        const forged = { sourceActor: "A1", sourceName: "Botan", room: "Hall", sceneId: "S9", x: 9, y: 9,
+            pointsAt: "C1", type: "key", visibility: "evident", faint: false, reinforced: true, tiedToCrime: true,
+            action: "search", note: "n".repeat(1000), subject: "s".repeat(200), itemIdentity: "SPOON" };
+        const { data } = narrowPlayerRemnant(forged, actor, where, clock);
+        ok(data, "an honest band was refused");
+        equal(data.sourceName, "Aiko", "who left it came from the packet");
+        equal(`${data.room}|${data.sceneId}|${data.x}|${data.y}`, "Gym|S1|100|200", "where it lies came from the packet");
+        equal(data.pointsAt, null, "what it points at came from the packet");
+        equal(data.type, "prep", "a player planted a Key Remnant");
+        equal(data.reinforced, false, "a player planted a reinforced trace");
+        equal(data.tiedToCrime, null, "a player decided the trace is the crime's");
+        equal(data.faint, true, "a Search's trace is not Faint, as every Search's is");
+        equal(data.itemIdentity, null, "an item the character does not hold is named on the trace");
+        equal(`${data.note.length}|${data.subject.length}`, "400|80", "the words are not bounded");
+        equal(narrowPlayerRemnant({ ...forged, itemIdentity: "KNIFE" }, actor, where, clock).data.itemIdentity, "KNIFE",
+            "the item the character does hold is dropped");
+        ok(narrowPlayerRemnant({ ...forged, visibility: "x" }, actor, where, clock).refused, "a visibility that does not exist is taken");
+        ok(narrowPlayerRemnant(forged, actor, null, clock).refused, "a character with no token leaves a trace somewhere");
+    }],
+
+    ["R141 - a token is sent back only to where it stood a moment ago", async () => {
+        /* E03, 24.09.2026; audit S10-40: `token.sendBack` was a free teleport. */
+        const { sendBackRefusal } = await import("./movement.mjs");
+        const scene = { dimensions: { width: 4000, height: 3000 } };
+        const now = 1e12;
+        const history = [{ x: 300, y: 300, elevation: 0, level: undefined, at: now - 5000 }];
+        ok(!sendBackRefusal({ x: 300, y: 300 }, { scene, history, now }), "the place it just left is refused");
+        ok(sendBackRefusal({ x: 900, y: 300 }, { scene, history, now }), "a place it never stood is taken");
+        ok(sendBackRefusal({ x: 300, y: 300 }, { scene, history: [{ ...history[0], at: now - 120_000 }], now }), "a place two minutes old is taken");
+        ok(sendBackRefusal({ x: 5000, y: 300 }, { scene, history, now }), "a place off the scene is taken");
+        ok(sendBackRefusal({ x: 300, y: 300, elevation: 50 }, { scene, history, now }), "another elevation is taken");
+        ok(sendBackRefusal({ x: 300, y: 300, level: "bogus" }, { scene, history, now }), "a level it was not on is taken");
+        ok(sendBackRefusal({ x: "a", y: 300 }, { scene, history, now }), "a position that is not a number is taken");
+    }],
+
+    ["R142 - a search, a used item and a fog reply are judged on the GM", async () => {
+        /* E03, 24.09.2026; audit S01-10, S07-03, S08-08, S07-17. */
+        const { searchSpendRefusal } = await import("./search-tokens.mjs");
+        const gmUser = { id: "G1", isGM: true };
+        const stranger = { id: "U9", isGM: false };
+        const actor = { id: "NOSUCHACTOR00001" };
+        ok(searchSpendRefusal({ sender: stranger, actor, where: { room: "Gym" }, roomName: "Gym" }), "a character the sender does not play searches");
+        ok(searchSpendRefusal({ sender: gmUser, actor, where: { room: "Hall" }, roomName: "Gym" }), "a room the character is not in is searched");
+        ok(!searchSpendRefusal({ sender: gmUser, actor, where: { room: "Gym" }, roomName: "Gym" }), "the room the character is in is refused");
+
+        const { usedItemRefusal } = await import("./traps.mjs");
+        const { TRAP_TRIGGERS } = await import("./config.mjs");
+        const holder = { id: "A1", items: [{ getFlag: (scope, key) => (key === "drpgItemId" ? "ID1" : null) }] };
+        const itemTrap = { trigger: { kind: Object.keys(TRAP_TRIGGERS).find(k => TRAP_TRIGGERS[k].watch === "item") } };
+        const roomTrap = { trigger: { kind: Object.keys(TRAP_TRIGGERS).find(k => TRAP_TRIGGERS[k].watch === "crossing") } };
+        const owns = (user, id) => user?.id === "U1" && id === "A1";
+        const player = { id: "U1", isGM: false };
+        ok(!usedItemRefusal({ author: player, actor: holder, used: { id: "ID1" }, trap: itemTrap, owns }), "the honest card is refused");
+        ok(usedItemRefusal({ author: stranger, actor: holder, used: { id: "ID1" }, trap: itemTrap, owns }), "a card about somebody else's character sets a trap off");
+        ok(usedItemRefusal({ author: player, actor: holder, used: { id: "ID2" }, trap: itemTrap, owns }), "an item the character does not hold sets a trap off");
+        ok(usedItemRefusal({ author: player, actor: holder, used: { id: "ID1" }, trap: roomTrap, owns }), "a trap that watches a room takes an item card");
+
+        const { fogShareRefusal } = await import("./fog.mjs");
+        const now = 1e12;
+        ok(fogShareRefusal({ sender: player, askedAt: 0, answered: new Set(), now }), "a reply nobody asked for is taken");
+        ok(fogShareRefusal({ sender: player, askedAt: now - 60_000, answered: new Set(), now }), "a reply a minute late is taken");
+        ok(fogShareRefusal({ sender: player, askedAt: now - 1000, answered: new Set(["U1"]), now }), "a second reply is taken");
+        ok(!fogShareRefusal({ sender: player, askedAt: now - 1000, answered: new Set(), now }), "the reply asked for is refused");
+    }],
+
+    ["R148 - a Reroll lifts only a fresh trace nobody has found, and Tamper lists only what you know", async () => {
+        /*
+         * E03, 24.09.2026; audit S05-13 and S05-04. The two reads a player's console
+         * turned into tools: `remnant.edit` with `remove` took a killer's own incident
+         * trace off the map mid-investigation, and `mine: false` handed anybody the
+         * whole room's traces with their types.
+         */
+        const { removalRefusal } = await import("./gm-bridge.mjs");
+        const now = 1e12;
+        const fresh = { _stats: { createdTime: now - 60_000 } };
+        ok(!removalRefusal(fresh, { now }), "a fresh trace of your own is not lifted by your Reroll");
+        ok(removalRefusal(fresh, { now, gmEdited: true }), "a trace a GM wrote on is lifted");
+        ok(removalRefusal(fresh, { now, copied: true }), "a trace somebody found is lifted");
+        ok(removalRefusal({ _stats: { createdTime: now - 3 * 3600_000 } }, { now }), "a trace three hours old is lifted");
+
+        const { cleanableTracesForPlayer, isCleaner } = await import("./cleanup.mjs");
+        const student = studentActors().find(a => canvas?.scene?.tokens?.some(t => t.actorId === a.id) && !isCleaner(a));
+        needs(student, "no student outside Stage 6 has a token on the scene on screen");
+        equal(JSON.stringify(cleanableTracesForPlayer(student.id, { mine: false })),
+            JSON.stringify(cleanableTracesForPlayer(student.id, { mine: true })),
+            "a student who is not cleaning a crime scene is handed the whole room by asking for it");
     }]
 ];
 
@@ -7755,7 +8178,14 @@ const LITERAL_KEYS = [
     // F8 and F11. Both of these are printed only in a state a GM reaches rarely -
     // a debate past its budget, a window refused at the door - which is exactly
     // when a raw key on screen goes unreported.
-    "DRPG.Floor.holdingDiscussionOver", "DRPG.Eclipse.murderWindowLocked"
+    "DRPG.Floor.holdingDiscussionOver", "DRPG.Eclipse.murderWindowLocked",
+    // E03. Every one is said by a refusal on the GM's side - to the GM, or sent back
+    // to the player it refused - which is exactly the road nobody walks on purpose.
+    "DRPG.Relay.refused", "DRPG.Relay.forged", "DRPG.Relay.unguarded", "DRPG.Relay.unreviewed",
+    "DRPG.Relay.unreadable", "DRPG.Bridge.what.daggerheart", "DRPG.Bridge.what.call.arm",
+    "DRPG.Bridge.what.remnant.tieForItem", "DRPG.SearchTokens.notHere", "DRPG.Anonymity.reverted",
+    "DRPG.TruthBullet.editReverted", "DRPG.Project.frozenNoProgress", "DRPG.Calls.notArmedNotCharged",
+    "DRPG.Calls.despairGmOnly"
 ];
 
 /* ==========================================================================
@@ -13218,7 +13648,11 @@ const SCENARIOS = [
                 "a rerolled Analyze left the sentence somewhere on the item");
 
             // AND THE FALLBACK: a secret with nothing in it asks the trace.
+            // The Reroll above lost, which locks the bullet for this chapter, and
+            // since E03 the lock holds on the GM's side too (audit S05-40): a GM
+            // lifts it, as a GM would, before the bullet is analysed again.
             await bullets.setSecret(plain.uuid, { analyzedText: "" });
+            await plain.update({ [`flags.${MODULE_ID}.${F.lockedChapter}`]: null });
             await settle();
             await analyze.resolveAnalyze({ actorId: one.id, itemId: plain.id, total: 30 });
             await settle();

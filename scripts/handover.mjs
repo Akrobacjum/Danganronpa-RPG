@@ -164,6 +164,15 @@ async function verify(fromId, toId, itemId) {
     const item = from.items.get(itemId);
     if (!item) return null;
 
+    // Not during an Eclipse, on this side too (E03; audit S08-33). The dialog
+    // checks it, and a dialog opened a moment before the lights went out and
+    // confirmed after still went through.
+    const { isEclipse } = await import("./eclipse.mjs");
+    if (isEclipse()) {
+        await whisperToOwner(from, `<p>${game.i18n.localize("DRPG.Eclipse.actionsLocked")}</p>`);
+        return null;
+    }
+
     const { sameRoom } = await import("./movement.mjs");
     if (!sameRoom(from, to)) {
         warn(`Handover refused: ${from.name} and ${to.name} are not in the same room.`);
@@ -511,6 +520,18 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
     if (!checked) return null;
     const { from, to, item } = checked;
 
+    // Something in a stash is not in a hand, and only a hand can give (ITEM-06).
+    // The sheet hides the button on a stash row; the API and a hand-built
+    // packet did not. Asked FIRST (E03; audit S08-33): below it sat after the
+    // key branch, so a key lying in a stash across the map could still be
+    // copied to anybody standing next to its owner.
+    if (isStashed(item)) {
+        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.stashed", {
+            name: foundry.utils.escapeHTML(item.name)
+        })}</p>`);
+        return null;
+    }
+
     // Truth Bullets are copied, never moved - see `shareBullet`.
     if (isTruthBullet(item)) return shareBullet({ fromId, toId, itemId });
 
@@ -522,16 +543,6 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
     const category = item.getFlag(MODULE_ID, "category");
     if (!category) {
         warn(`Handover refused: "${item.name}" is not an item this module tracks.`);
-        return null;
-    }
-
-    // Something in a stash is not in a hand, and only a hand can give (ITEM-06).
-    // The sheet hides the button on a stash row; the API and a hand-built
-    // packet did not.
-    if (isStashed(item)) {
-        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.stashed", {
-            name: foundry.utils.escapeHTML(item.name)
-        })}</p>`);
         return null;
     }
 

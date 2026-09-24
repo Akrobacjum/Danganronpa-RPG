@@ -116,19 +116,38 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     check("control: the same handover.item from Botan's own player does move the item",
         handOk.botanHas === false && handOk.aikoWrenches === 1, JSON.stringify(handOk));
 
-    // 4b. call.arm: p1 arms a Support on Botan, paid for by Botan.
+    // 4b. call.arm: p1 arms a Support on Aiko, paid for by Botan.
+    //     E03 (audit S10-09): the honest shape is a Support bought by one student for
+    //     ANOTHER student's character, and the GM takes the Hope for it. So the
+    //     control arms Botan's Support on Aiko, and reads Botan's Hope before and
+    //     after - it has to go down by exactly the price, once, on the GM.
     const call = { key: "support", grants: "advantage", kind: "hope", from: ids.botan };
-    const readArm = `return { armed: game.actors.get("${ids.botan}").getFlag("${MOD}", "pendingCall") ?? null };`;
-    const arm = await forge("call.arm", { actorId: ids.botan, call }, readArm);
+    const readArm = `return { armed: game.actors.get("${ids.aiko}").getFlag("${MOD}", "pendingCall") ?? null,
+        hope: game.actors.get("${ids.botan}").system.resources.hope.value };`;
+    await gm.eval(`await game.actors.get("${ids.botan}").update({ "system.resources.hope.value": 4 }); return true;`);
+    const arm = await forge("call.arm", { actorId: ids.aiko, call }, readArm);
     check("SECURITY: a forged call.arm paid for by Botan changed nothing on the GM", arm.unchanged, JSON.stringify(arm));
     check("SECURITY: the GM refused the forged call.arm for ownership, and told p1",
         arm.forOwnership && arm.told.some(t => t.what === "call.arm"), JSON.stringify({ reasons: arm.reasons, told: arm.told }));
-    await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        await B.requestArmCall("${ids.botan}", ${JSON.stringify(call)}); return true;`);
+    // A Despair Call from a player's own client - Obstacle on a rival, paid with
+    // nothing, because a Despair Call is a Monokuma's and a Monokuma is a GM.
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    await p2.eval(`game.socket.emit("${SOCKET}", { action: "call.arm", userId: game.user.id, requestId: "forge-obstacle",
+            actorId: "${ids.aiko}", call: { key: "obstacle", grants: "disadvantage", kind: "despair", from: "${ids.botan}" } },
+        { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }); return true;`);
+    await settle(900);
+    const obstacle = await gm.eval(`return { after: (${readArm.replace(/^return /, "").replace(/;$/, "")}),
+        reasons: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "call.arm"')).map(e => e.message) };`);
+    check("SECURITY: a player's Despair Call through call.arm arms nothing and is refused as not a Hope Call",
+        obstacle.after.armed === null && obstacle.reasons.some(r => /not a Hope Call/.test(r)), JSON.stringify(obstacle));
+    const armAnswer = await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestArmCall("${ids.aiko}", ${JSON.stringify({ ...call, nonce: "sec-support-1" })});`, { timeout: 30000 });
     await settle(900);
     const armOk = await gm.eval(readArm);
-    check("control: the same call.arm from Botan's own player does arm the Call",
-        JSON.stringify(armOk) !== JSON.stringify(arm.after) && JSON.stringify(armOk.armed ?? []).includes("support"), JSON.stringify(armOk));
+    check("control: the same Support from Botan's own player is armed on Aiko and answered",
+        JSON.stringify(armOk.armed ?? []).includes("support") && armAnswer?.ok === true, JSON.stringify({ armOk, armAnswer }));
+    check("control: the GM took the Support's price from Botan once",
+        armOk.hope === arm.before.hope - 1, JSON.stringify({ before: arm.before.hope, after: armOk.hope }));
 
     // 4c. murder.crisis: p1 throws the finishing blow as Botan, the killer.
     //     The incident is opened the way 13-murder-signals opens one; the killer's
@@ -307,6 +326,297 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     check("store: the start-up tidy keeps another world's private cards and this world's unknown ones",
         prune.other === true && prune.unstamped === true, JSON.stringify(prune));
     check("store: the start-up tidy removes this world's cards whose message is gone", prune.gone === false, JSON.stringify(prune));
+
+    /*
+     * 7. THE GM BRIDGE JUDGES WHAT A PLAYER ASKS FOR (E03, 24.09.2026; audit S10-03,
+     * S05-03, S10-40, S05-13, S10-10, S09-02, S07-17, S11-04, S05-12).
+     *
+     * Each block below sends one request a player's own client never sends - or
+     * sends it without the Reroll that is the only honest reason for it - and checks
+     * on the GM that nothing changed and that the GM said why. Each has a control
+     * beside it: the same road taken honestly still works. A "Reroll receipt" is made
+     * the way a real Reroll makes one: the player rewrites the rolls of their own
+     * character's roll message (reroll-receipts.mjs).
+     */
+    const refusedFor = async action => gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "${action}"')).map(e => e.message);`);
+    const clearFailures = () => gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    const toGms = `{ recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }`;
+    /** A roll message of the player's own character, and then its rolls rewritten - a Reroll's receipt. */
+    const rerollOn = (client, actorId, { fearBefore = false, fearAfter = false } = {}) => client.eval(`
+        const roll = fear => ({ class: "DualityRoll", formula: "1d12 + 1d12", total: 14,
+            dHope: { total: fear ? 3 : 9 }, dFear: { total: fear ? 9 : 3 } });
+        const m = await ChatMessage.create({ speaker: { actor: "${actorId}" }, content: "roll",
+            rolls: [JSON.stringify(roll(${fearBefore}))] });
+        await new Promise(r => setTimeout(r, 200));
+        await m.update({ rolls: [JSON.stringify(roll(${fearAfter}))] });
+        return m.id;`, { timeout: 30000 });
+
+    // 7a. project.unsabotage: a repair id that is not the one the sabotage made.
+    const projects = await gm.eval(`
+        const P = await import("${repoUrl}/scripts/projects.mjs");
+        const pub = await P.createProject({ name: "SEC public", target: 6, room: "Cafeteria", secret: false });
+        const sec = await P.createProject({ name: "SEC secret", target: 6, room: "Gym", secret: true });
+        return { pub: pub.id, sec: sec.id };`, { timeout: 60000 });
+    const sabotaged = await p2.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const r = await P.sabotageProject("${projects.pub}", 3); return { repair: r?.repair?.id ?? null };`, { timeout: 60000 });
+    const readPair = `const P = await import("${repoUrl}/scripts/projects.mjs");
+        const ids = P.allProjects().map(p => p.id);
+        return { secret: ids.includes("${projects.sec}"), repair: ids.includes("${sabotaged.repair}"), frozen: P.isFrozen("${projects.pub}") };`;
+    const mismatched = await forge("project.unsabotage", { targetId: projects.pub, repairId: projects.sec, actorId: ids.aiko }, readPair);
+    check("SECURITY: an unsabotage naming a project that is not the repair deletes nothing and thaws nothing",
+        Boolean(sabotaged.repair) && mismatched.after.secret && mismatched.after.repair && mismatched.after.frozen
+        && mismatched.reasons.some(r => /not what froze|does not repair/.test(r)), JSON.stringify({ sabotaged, mismatched }));
+    await clearFailures();
+    await p2.eval(`game.socket.emit("${SOCKET}", { action: "project.unsabotage", userId: game.user.id, requestId: "noreceipt",
+        targetId: "${projects.pub}", repairId: "${sabotaged.repair}", actorId: "${ids.botan}" }, ${toGms}); return true;`);
+    await settle(1200);
+    const noReceipt = { after: await gm.eval(readPair), reasons: await refusedFor("project.unsabotage") };
+    check("SECURITY: the saboteur's own unsabotage with no Reroll behind it is refused",
+        noReceipt.after.frozen && noReceipt.after.repair && noReceipt.reasons.some(r => /no Reroll/.test(r)), JSON.stringify(noReceipt));
+    await rerollOn(p2, ids.botan);
+    await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        B.requestUndoSabotage("${projects.pub}", "${sabotaged.repair}", "${ids.botan}"); return true;`);
+    await settle(1500);
+    const undone = await gm.eval(readPair);
+    check("control: after a Reroll of Botan's roll, the same unsabotage thaws the project and removes its repair",
+        undone.frozen === false && undone.repair === false && undone.secret === true, JSON.stringify(undone));
+
+    // 7b. project.progress onto a sabotaged project, and project.share of a public one.
+    const frozenAgain = await p2.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const r = await P.sabotageProject("${projects.pub}", 3); return r?.repair?.id ?? null;`, { timeout: 60000 });
+    const readProgress = `const P = await import("${repoUrl}/scripts/projects.mjs");
+        const c = P.allProjects().find(p => p.id === "${projects.pub}"); return { current: c?.progress?.current ?? null };`;
+    const onFrozen = await forge("project.progress", { countdownId: projects.pub, amount: 2, actorId: ids.aiko }, readProgress);
+    check("SECURITY: progress onto a sabotaged project does not move it",
+        Boolean(frozenAgain) && onFrozen.unchanged, JSON.stringify(onFrozen));
+    const shared = await forge("project.share", { countdownId: projects.pub, targetUserId: p1.userId },
+        `const P = await import("${repoUrl}/scripts/projects.mjs"); return { secret: P.isSecret("${projects.pub}") };`);
+    check("SECURITY: sharing a public project is refused and leaves it public",
+        shared.unchanged && shared.reasons.some(r => /not secret/.test(r)), JSON.stringify(shared));
+
+    // 7c. observe.resolve with somebody else's key.
+    const observed = await gm.eval(`
+        const R = await import("${repoUrl}/scripts/remnants.mjs");
+        await R.placeRemnant({ x: 1400, y: 400, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
+            sourceActor: "${ids.chie}", sourceName: "Chie Mori", room: "Cafeteria", subject: "SEC cup" });
+        const O = await import("${repoUrl}/scripts/observe.mjs");
+        const r = await O.chooseObserveTarget({ actorId: "${ids.botan}", declaration: "general", userId: "${p2.userId}" });
+        return { key: r?.key ?? null, ok: r?.ok ?? false, reason: r?.reason ?? null };`, { timeout: 60000 });
+    const readBullets = `return { botan: game.actors.get("${ids.botan}").items.filter(i => i.getFlag("${MOD}", "isTruthBullet")).length,
+        botanStress: game.actors.get("${ids.botan}").system.resources.stress.value };`;
+    const stolenKey = await forge("observe.resolve", { actorId: ids.aiko, key: observed.key, total: 0 }, readBullets);
+    check("SECURITY: an Observe resolved with another character's key changes nothing and is refused",
+        observed.ok && stolenKey.unchanged && stolenKey.reasons.some(r => /another character/.test(r)), JSON.stringify({ observed, stolenKey }));
+    await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        B.requestObserveResolve({ actorId: "${ids.botan}", key: "${observed.key}", total: 30, isCritical: false }); return true;`);
+    await settle(1500);
+    const found = await gm.eval(readBullets);
+    check("control: Botan's own player resolving Botan's key does find the trace",
+        found.botan === stolenKey.after.botan + 1, JSON.stringify({ before: stolenKey.after, after: found }));
+    await clearFailures();
+    await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        B.requestObserveResolve({ actorId: "${ids.botan}", key: "${observed.key}", total: 30, isCritical: false }); return true;`);
+    await settle(1200);
+    const twice = { after: await gm.eval(readBullets), reasons: await refusedFor("observe.resolve") };
+    check("SECURITY: the same Observe key resolves once",
+        twice.after.botan === found.botan && twice.reasons.some(r => /already been resolved/.test(r)), JSON.stringify(twice));
+
+    // 7d. despair.adjust with no Reroll behind it, then with one, then again.
+    const readPool = `return { pool: game.drpg.getDespair(game.user.id) };`;
+    const noReroll = await forge("despair.adjust", { targetUserId: gm.userId, delta: -1, actorId: ids.aiko }, readPool);
+    check("SECURITY: a player's Despair correction with no Reroll moves no pool",
+        noReroll.unchanged && noReroll.reasons.some(r => /no Reroll/.test(r)), JSON.stringify(noReroll));
+    await rerollOn(p1, ids.aiko, { fearBefore: false, fearAfter: true });
+    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        await B.requestDespairAdjust("${gm.userId}", 1, { actorId: "${ids.aiko}" }); return true;`);
+    await settle(1500);
+    const paidPoint = await gm.eval(readPool);
+    check("control: after a Reroll that turned Aiko's roll into Despair, her player's +1 lands",
+        paidPoint.pool === noReroll.after.pool + 1, JSON.stringify({ before: noReroll.after, after: paidPoint }));
+    await clearFailures();
+    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        await B.requestDespairAdjust("${gm.userId}", 1, { actorId: "${ids.aiko}" }); return true;`);
+    await settle(1200);
+    const secondPoint = { after: await gm.eval(readPool), reasons: await refusedFor("despair.adjust") };
+    check("SECURITY: one Reroll pays for one Despair correction",
+        secondPoint.after.pool === paidPoint.pool && secondPoint.reasons.some(r => /already undone/.test(r)), JSON.stringify(secondPoint));
+
+    // 7e. token.sendBack to somewhere the token never stood.
+    const readToken = `const t = canvas.scene.tokens.get("TOKAIKO000000000"); return { x: t.x, y: t.y, elevation: t.elevation ?? 0 };`;
+    const sceneId = await gm.eval(`return canvas.scene.id;`);
+    const teleport = await forge("token.sendBack", { sceneId, tokenId: "TOKAIKO000000000",
+        position: { x: 2500, y: 1500, elevation: 50, level: "bogus" } }, readToken);
+    check("SECURITY: a send-back to a place the token never stood moves nothing",
+        teleport.unchanged && teleport.reasons.some(r => /did not stand there/.test(r)), JSON.stringify(teleport));
+    const start = teleport.after;
+    await p1.eval(`await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: ${start.x + 100}, y: ${start.y} }); return true;`);
+    await settle(800);
+    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        B.requestSendBack(canvas.scene.id, "TOKAIKO000000000", { x: ${start.x}, y: ${start.y} }); return true;`);
+    await settle(1500);
+    const back = await gm.eval(readToken);
+    check("control: a send-back to where the token stood a moment ago puts it there",
+        back.x === start.x && back.y === start.y, JSON.stringify({ start, back }));
+
+    // 7f. remnant.place: who left it, where, and what it points at, rebuilt on the GM.
+    await p1.eval(`game.socket.emit("${SOCKET}", { action: "remnant.place", userId: game.user.id, requestId: "forge-trace",
+        data: { sourceActor: "${ids.aiko}", sourceName: "Botan Kage", room: "Storage", pointsAt: "${ids.chie}",
+            type: "tamper", visibility: "evident", x: 2300, y: 1300, sceneId: canvas.scene.id, reinforced: true,
+            tiedToCrime: false, faint: true, action: "search", note: "planted", subject: "SEC knife" } }, ${toGms}); return true;`);
+    await settle(1500);
+    const planted = await gm.eval(`
+        const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const hit = canvas.scene.tokens.contents.map(t => R.remnantData(t)).filter(Boolean).find(d => d.subject === "SEC knife");
+        return hit ? { sourceName: hit.sourceName, room: hit.room, pointsAt: hit.pointsAt ?? null, type: hit.type,
+            reinforced: hit.reinforced } : null;`);
+    check("SECURITY: a player's trace is written with their own name, their own room, pointing at nobody, as Preparation",
+        planted && planted.sourceName === "Aiko Hoshino" && planted.room === "Cafeteria" && planted.pointsAt === null
+        && planted.type === "prep" && planted.reinforced === false, JSON.stringify(planted));
+    const badBand = await forge("remnant.place", { data: { sourceActor: ids.aiko, visibility: "x", action: "search", subject: "SEC bad band" } },
+        `const R = await import("${repoUrl}/scripts/remnants.mjs");
+        return { n: canvas.scene.tokens.contents.map(t => R.remnantData(t)).filter(d => d?.subject === "SEC bad band").length };`);
+    check("SECURITY: a trace with a visibility that does not exist is refused",
+        badBand.after.n === 0 && badBand.reasons.some(r => /not a visibility/.test(r)), JSON.stringify(badBand));
+
+    // 7g. search tokens in a room the character is not in, and in the one she is.
+    const readTokens = room => `return { left: game.drpg.tokensLeft("${room}") };`;
+    const before = await gm.eval(readTokens("Dorm B"));
+    const away = await p1.eval(`return await game.drpg.searchTokens.spend("Dorm B", canvas.scene.id, { actorId: "${ids.aiko}" });`, { timeout: 30000 });
+    await settle(600);
+    const afterAway = await gm.eval(readTokens("Dorm B"));
+    check("SECURITY: a search token is not spent in a room the character is not in",
+        away === false && afterAway.left === before.left, JSON.stringify({ away, before, afterAway }));
+    const hereBefore = await gm.eval(readTokens("Cafeteria"));
+    const here = await p1.eval(`return await game.drpg.searchTokens.spend("Cafeteria", canvas.scene.id, { actorId: "${ids.aiko}" });`, { timeout: 30000 });
+    await settle(600);
+    const hereAfter = await gm.eval(readTokens("Cafeteria"));
+    check("control: a search token is spent in the room the character stands in",
+        here === true && hereAfter.left === hereBefore.left - 1, JSON.stringify({ here, hereBefore, hereAfter }));
+
+    // 7h. fog.shared that nobody asked for.
+    await p1.eval(`game.socket.emit("${SOCKET}", { action: "fog.shared",
+        store: { [canvas.scene.id]: { "${ids.aiko}": ["Storage", "Gym", "Hall", "Dorm B"] } } }, ${toGms}); return true;`);
+    await settle(1200);
+    const fogAfter = await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
+        return F.discoveredFor(canvas.scene.id, "${ids.aiko}");`);
+    check("SECURITY: a fog ledger nobody asked for adds no rooms to a character's record",
+        !JSON.stringify(fogAfter ?? []).includes("Storage"), JSON.stringify(fogAfter));
+
+    // 7i. ownership raised past the window's back, and a player's edit of their own bullet.
+    await gm.eval(`await game.actors.get("${ids.daichi}").update({ "ownership.default": 3 }, { noHook: true }); return true;`);
+    await settle(1500);
+    const ownership = await gm.eval(`return game.actors.get("${ids.daichi}").ownership.default;`);
+    check("SECURITY: a character shared as Owner with every player is put back to Observer", ownership === 2, JSON.stringify({ ownership }));
+    const bullet = await gm.eval(`return game.actors.get("${ids.botan}").items.find(i => i.getFlag("${MOD}", "isTruthBullet"))?.id ?? null;`);
+    const readBullet = `const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        return { text: b?.getFlag("${MOD}", "playerText") ?? null, analyzed: b?.getFlag("${MOD}", "analyzed") ?? null };`;
+    const bulletBefore = await gm.eval(readBullet);
+    await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        await b.update({ "flags.${MOD}.playerText": "SEC rewritten", "flags.${MOD}.analyzed": true }); return true;`);
+    await settle(1500);
+    const bulletAfter = await gm.eval(readBullet);
+    check("SECURITY: a player's edit of what their Truth Bullet says or is, is put back",
+        Boolean(bullet) && JSON.stringify(bulletAfter) === JSON.stringify(bulletBefore), JSON.stringify({ bulletBefore, bulletAfter }));
+
+    /*
+     * 8. DAGGERHEART'S GM RELAY (E03, 24.09.2026; audit S16-01).
+     *
+     * Daggerheart's own relay - copied verbatim into lib/dh-relay.mjs and registered
+     * the way Daggerheart registers it - wrote on the GM's client whatever a
+     * player's packet asked: any document, any setting. Each packet below is one a
+     * player's Daggerheart never sends; each must change nothing on the GM, be
+     * logged by name, warn the GM and tell the player. Then the three shapes
+     * Daggerheart really does send for a player must still land.
+     *
+     * Verified by hand the day it was written: with `registerRelayGuard` commented
+     * out of scripts/module.mjs, the role, the Countdowns and the ownership checks
+     * below FAILED (the relay made p1 a Gamemaster) - see the E03 release notes.
+     */
+    const DH = "system.daggerheart";
+    const relayWorld = `return {
+        role: game.users.get("${p1.userId}").role,
+        users: game.users.size,
+        countdowns: JSON.stringify(game.settings.get("daggerheart", "Countdowns")),
+        botanOwnership: JSON.stringify(game.actors.get("${ids.botan}").ownership),
+        automation: JSON.stringify(game.settings.get("daggerheart", "Automation"))
+    };`;
+    await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        await P.createProject({ name: "SEC relay project", target: 6, room: "Hall", secret: true }); return true;`, { timeout: 60000 });
+    await clearFailures();
+    await gm.eval(`globalThis.__notifications.length = 0; return true;`);
+    const relayBefore = await gm.eval(relayWorld);
+    await p1.eval(`globalThis.__refused.length = 0;
+        const send = data => game.socket.emit("${DH}", data);
+        send({ action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: game.user.uuid, data: { role: 4 } } });
+        send({ action: "DhGMUpdate", data: { action: "DhGMUpdateCountdowns", data: {} } });
+        send({ action: "DhGMUpdate", data: { action: "DhGMUpdateCountdowns", data: { countdowns: {} } } });
+        send({ action: "DhGMCreate", data: { documentType: "User", data: { name: "SEC user", role: 4 } } });
+        send({ action: "DhGMUpdate", data: { action: "DhGMUpdateSetting", uuid: "Automation", data: { hope: false } } });
+        send({ action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: game.actors.get("${ids.botan}").uuid,
+            data: { "ownership.${p1.userId}": 3 } } });
+        return true;`);
+    await settle(2500);
+    try {
+        const relayAfter = await gm.eval(relayWorld);
+        check("RELAY: a player's own role is not raised through Daggerheart's relay", relayAfter.role === relayBefore.role, JSON.stringify({ relayBefore: relayBefore.role, relayAfter: relayAfter.role }));
+        check("RELAY: the Countdowns setting - every Project - is not overwritten", relayAfter.countdowns === relayBefore.countdowns,
+            JSON.stringify({ changed: relayAfter.countdowns !== relayBefore.countdowns }));
+        check("RELAY: no user is created, no setting written and no ownership granted",
+            relayAfter.users === relayBefore.users && relayAfter.automation === relayBefore.automation
+            && relayAfter.botanOwnership === relayBefore.botanOwnership, JSON.stringify({ relayBefore, relayAfter }));
+        const told = await gm.eval(`return {
+            log: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes("Refused a Daggerheart")).map(e => e.message),
+            toasts: (globalThis.__notifications ?? []).filter(n => String(n.msg ?? "").includes("PlayerOne")).length };`);
+        const heard = await p1.eval(`return globalThis.__refused.slice();`);
+        check("RELAY: every refusal is logged on the GM by the sender's name",
+            told.log.length >= 6 && told.log.every(line => line.includes("PlayerOne")), JSON.stringify(told.log));
+        check("RELAY: the GM is warned, and the player is told", told.toasts > 0 && heard.some(r => r.what === "daggerheart"),
+            JSON.stringify({ toasts: told.toasts, heard }));
+
+        // The shapes Daggerheart really sends for a player.
+        const fearBefore = await gm.eval(`return game.settings.get("daggerheart", "ResourcesFear");`);
+        await p1.eval(`game.socket.emit("${DH}", { action: "DhGMUpdate", data: { action: "DhGMUpdateFear",
+            data: ${fearBefore + 1}, uuid: null, refresh: null } }); return true;`);
+        await settle(1200);
+        const fearAfter = await gm.eval(`return game.settings.get("daggerheart", "ResourcesFear");`);
+        check("control: a player's roll with Fear still moves Fear by one", fearAfter === fearBefore + 1, JSON.stringify({ fearBefore, fearAfter }));
+
+        const hopeBefore = await gm.eval(`return game.actors.get("${ids.aiko}").system.resources.hope.value;`);
+        await p1.eval(`game.socket.emit("${DH}", { action: "DhGMUpdate", data: { action: "DhGMUpdateDocument",
+            uuid: game.actors.get("${ids.aiko}").uuid, data: { "system.resources.hope.value": ${Math.max(0, hopeBefore - 1)} } } }); return true;`);
+        await settle(1200);
+        const hopeAfter = await gm.eval(`return game.actors.get("${ids.aiko}").system.resources.hope.value;`);
+        check("control: a player's roll still spends their own character's Hope", hopeAfter === Math.max(0, hopeBefore - 1), JSON.stringify({ hopeBefore, hopeAfter }));
+
+        const tick = await gm.eval(`
+            const all = game.settings.get("daggerheart", "Countdowns");
+            const data = foundry.utils.deepClone(all?.toObject?.() ?? all);
+            data.countdowns.SECTICK000000000 = { name: "SEC tick", type: "encounter", hidden: false, ownership: {},
+                progress: { current: 3, start: 6, type: "actionRoll", looping: "noLooping" } };
+            await game.settings.set("daggerheart", "Countdowns", data);
+            return { projects: Object.keys(data.countdowns).filter(id => id !== "SECTICK000000000") };`);
+        await settle(300);
+        await p1.eval(`const all = game.settings.get("daggerheart", "Countdowns");
+            const data = foundry.utils.deepClone(all?.toObject?.() ?? all);
+            data.countdowns.SECTICK000000000.progress.current = 2;
+            for (const id of Object.keys(data.countdowns)) if (id !== "SECTICK000000000") data.countdowns[id].progress.current = 0;
+            game.socket.emit("${DH}", { action: "DhGMUpdate", data: { action: "DhGMUpdateCountdowns", data,
+                refresh: { refreshType: "DhCoundownRefresh" } } }); return true;`);
+        await settle(1500);
+        const ticked = await gm.eval(`const all = game.settings.get("daggerheart", "Countdowns");
+            const data = all?.toObject?.() ?? all;
+            return { tick: data.countdowns.SECTICK000000000?.progress?.current,
+                projects: Object.fromEntries(Object.entries(data.countdowns)
+                    .filter(([id]) => id !== "SECTICK000000000").map(([id, c]) => [id, c.progress?.current])) };`);
+        const projectsBefore = JSON.parse(relayBefore.countdowns).countdowns ?? {};
+        check("control: an automatic countdown tick from a player's roll lands, and no Project moves with it",
+            ticked.tick === 2 && Object.entries(ticked.projects).every(([id, current]) =>
+                projectsBefore[id] === undefined || projectsBefore[id].progress?.current === current),
+            JSON.stringify({ ticked, tick: tick.projects.length }));
+    } finally {
+        await gm.eval(`const u = game.users.get("${p1.userId}"); if (u.role !== 1) await u.update({ role: 1 }); return true;`);
+    }
 
     // summary of what server refused
     check("SECURITY: server logged permission denials for player writes", (permissionDenials ?? []).length >= 2, JSON.stringify((permissionDenials||[]).slice(0,8)));

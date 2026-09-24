@@ -34,6 +34,7 @@ import { registerProjectsUi } from "./projects-ui.mjs";
 import { registerProjectsMap } from "./projects-map.mjs";
 import { registerGmBridge } from "./gm-bridge.mjs";
 import { registerRerollReceipts } from "./reroll-receipts.mjs";
+import { registerRelayGuard } from "./relay-guard.mjs";
 import { registerInventoryLimits } from "./inventory.mjs";
 import { registerTruthBullets } from "./truth-bullets.mjs";
 import { registerTrial } from "./trial.mjs";
@@ -112,6 +113,14 @@ function safely(label, fn) {
 }
 
 Hooks.once("init", () => {
+    /*
+     * FIRST, AND BEFORE THE REQUIREMENTS CHECK BELOW (E03; audit S16-01). The
+     * guard on Daggerheart's GM relay writes nothing of its own and needs no
+     * setting to stand; a world whose module refuses to start still holds
+     * Projects and characters worth protecting. See relay-guard.mjs.
+     */
+    safely("the Daggerheart relay guard", registerRelayGuard);
+
     // ONE MODULE IS NOT OPTIONAL - see requirements.mjs, and the
     // `relationships.requires` block in module.json that this reads.
     //
@@ -458,6 +467,9 @@ function applyBodyClasses() {
      * player's interface settles into place instead of a GM's jumping.
      */
     document.body.classList.toggle("drpg-player", !game.user.isGM);
+    // The stylesheet's half of "Players cannot edit..." follows the setting
+    // (E03; audit S01-40) - see PLAYER-LOCKED FIELDS in danganronpa.css.
+    document.body.classList.toggle("drpg-resources-locked", Boolean(getSetting(SETTINGS.lockPlayerResources)));
 }
 
 /**
