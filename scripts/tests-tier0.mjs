@@ -10,7 +10,7 @@ import { SETTINGS } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
 import {
-    ok, needs, equal, wait, layoutAvailable, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
+    ok, needs, env, world, equal, wait, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
     topLevelFunction, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE
 } from "./tests-kit.mjs";
@@ -960,7 +960,7 @@ const REGRESSIONS = [
            window is opened (E01, audit S14-05). It used to be asked afterwards, of
            the number of windows that had opened, and a module whose windows stopped
            opening read the same as a browser with no layout: "skip". */
-        needs(layoutAvailable(), `no layout here (${openers.length} standing windows found): a window's width needs a browser that lays out`);
+        needs(env.layout(), `${openers.length} standing windows found, and a window's width needs a browser that lays out`);
 
         const wide = [], refused = [], unplaced = [], pinnedTop = [];
         let measured = 0;
@@ -4275,10 +4275,10 @@ const REGRESSIONS = [
         ok(typeof killerIdFor === "function", "killerIdFor is not exported for the suite any more");
         const players = game.users.filter(u => !u.isGM);
         const owned = user => game.actors.find(a => a.type === "character" && a.testUserPermission(user, "OWNER"));
+        needs(world.atLeast("playersWithCharacter"), "a ticked viewer has to stand for somebody's character");
         const viewer = players.find(u => owned(u));
-        needs(viewer, "no player in this world owns a character, so a ticked viewer stands for nobody");
-        const proposer = cast().find(a => a.id !== owned(viewer).id);
-        needs(proposer, "only one character here - the proposer and the viewer cannot differ");
+        // Two living students, so the proposer and the viewer's character can differ (cast skips on fewer).
+        const proposer = cast(2).find(a => a.id !== owned(viewer).id);
 
         equal(killerIdFor(viewer.id, proposer.id), proposer.id,
             "a ticked viewer took the proposer's murder off them");
@@ -5002,7 +5002,7 @@ const REGRESSIONS = [
          * come, E91 shipped) and holds each to its known verdict. The four outcomes
          * have to appear between them, or the cases prove less than they say.
          */
-        ok(KIT_SELF_TESTS.length >= 16, `the kit carries ${KIT_SELF_TESTS.length} self-tests, and it had 16`);
+        ok(KIT_SELF_TESTS.length >= 20, `the kit carries ${KIT_SELF_TESTS.length} self-tests, and it had 20`);
         const outcomes = new Set();
         for (const c of KIT_SELF_TESTS) {
             const r = await runOne(c.entry, { tier: 0, ledger: "ledger" in c ? c.ledger : SELF_LEDGER });

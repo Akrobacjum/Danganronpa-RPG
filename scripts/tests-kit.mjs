@@ -12,6 +12,8 @@
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { studentActors } from "./monokuma.mjs";
+import { narrowScreen } from "./settings.mjs";
+import { allVaults } from "./vault.mjs";
 
 /* ==========================================================================
  * HARNESS
@@ -102,12 +104,24 @@ function must(condition, message) {
 /**
  * Stand the test down, with the reason, when the environment cannot answer it.
  *
- * `needs(canvas?.app?.renderer, "no renderer: this needs a real canvas")` - the
- * condition is what the test requires, the message says what is missing. Never
- * reach for this because an assertion came out wrong.
+ * ONLY A PROBE (E30, 24.09.2026; audit S17-03, S14-24). `needs(p, why)` takes an
+ * `env.*` probe (this browser, this Foundry) or a `world.*` probe (the world as
+ * found) from this file, and nothing else. It used to take any condition, and a
+ * dozen tests had drifted into handing it the module's own answer - `needs(app)`
+ * after opening the roll window - so the day the window stopped opening, the one
+ * test written to notice said "skip". Anything that is not a probe FAILs, however
+ * truthy, on every run and not only on the day it is false. `why` says what this
+ * test wanted it for; the probe says what was missing.
  */
-function needs(condition, why) {
-    if (!condition) throw new Skipped(why);
+function needs(p, why = "") {
+    if (!p || p[PROBE] !== true) {
+        const text = `needs() was handed ${describe(p)}, not an env.* or world.* probe - a skip may only be a fact `
+            + "the suite asked of the environment itself (the test author contract)";
+        if (current) current.failures.push(text);
+        throw new Failure(text);
+    }
+    if (current) current.probes.push(p.name);
+    if (!p.holds) throw new Skipped(`[${p.name}] ${p.fact}${why ? ` - ${why}` : ""}`, p.name);
 }
 
 /** A value in a few words, for a message that says what something was handed. */
@@ -261,8 +275,21 @@ const KIT_SELF_TESTS = [
         ok(1 === 1, "one is one");
     }] },
     { expect: "fail", says: "the marker is gone", entry: ["a precondition, and nothing else", () => { must(false, "the marker is gone"); }] },
-    { expect: "skip", says: "nothing to answer with", entry: ["a test the environment cannot answer", () => {
-        needs(false, "nothing to answer with");
+    { expect: "skip", says: "[world.moduleActive]", entry: ["a test the world cannot answer", () => {
+        needs(world.moduleActive("drpg-suite-never-installed"), "a module no world has");
+    }] },
+    { expect: "fail", says: "not an env.* or world.* probe", entry: ["needs() handed an element", () => {
+        needs(document.body, "a body is not a probe");
+    }] },
+    { expect: "fail", says: "not an env.* or world.* probe", entry: ["needs() handed a truthy condition", () => {
+        needs(true, "true is not a probe either");
+    }] },
+    { expect: "fail", says: "asked after this test wrote", entry: ["a world probe asked after a write", () => {
+        current.wrote = "a synthetic write";
+        needs(world.atLeast("scenes", 0), "any world has zero scenes or more");
+    }] },
+    { expect: "fail", says: "counts no such thing", entry: ["a world probe of something the kit does not count", () => {
+        needs(world.atLeast("unicorns", 1), "no row counts these");
     }] },
     { expect: "red", says: "until E90 (planned 9.0.90)", entry: ["red, failing on ok()", () => { ok(1 === 2, "one is two"); },
         expectedRed("E90", "the fix lands in E90")] },
@@ -362,6 +389,119 @@ const systemSheetsAvailable = () => Object.keys(CONFIG.Actor?.sheetClasses?.char
  * nothing, so a window opened through it has no element to read.
  */
 const dialogsDrawn = () => typeof foundry.applications.api.DialogV2?.prototype?.render === "function";
+
+/*
+ * WHAT A SKIP MAY STAND ON (E30, 24.09.2026; audit S17-03, S14-24).
+ *
+ * Two families and nothing else. `env.*` is this browser and this Foundry: the
+ * probes above, and the four conditions tests used to write inline (a desk-width
+ * screen, a Markdown converter, fonts, Web Animations), each asked the way the
+ * test that had it asked it. `world.*` is the world as found: what it is made of,
+ * counted one way for every test, so "not enough students" means the same thing
+ * in the seven scenarios that used to count them seven ways. A probe is a frozen
+ * object carrying a mark only this file can make, which is how `needs` tells it
+ * from a condition. The WORLD table is closed: a test cannot pass its own
+ * counter, because that would let an action's result back in as a skip; a new
+ * row is a change to this file. Rows may read the module's roster (studentActors,
+ * allVaults) to count; the headless harness's world satisfies every row and
+ * 01-runtests refuses a world.* skip there, so a broken reader turns red in the
+ * harness instead of skipping quietly.
+ */
+const PROBE = Symbol("drpg.suite.probe");
+const probe = (name, holds, fact) => Object.freeze({ [PROBE]: true, name, holds: Boolean(holds), fact });
+
+const env = Object.freeze({
+    layout: () => probe("env.layout", layoutAvailable(), "no layout here"),
+    cascade: () => probe("env.cascade", cascadeAvailable(), "no CSS cascade here: var() does not resolve"),
+    glass: () => probe("env.glass", glassTheme(), "the theme on this client is Monokuma Legacy, not Stained Glass"),
+    desk: () => probe("env.desk", !narrowScreen(), "a stacked screen, narrower than BREAKPOINTS.narrow"),
+    canvas: () => probe("env.canvas", canvasAvailable(), "no canvas renderer here"),
+    systemSheets: () => probe("env.systemSheets", systemSheetsAvailable(), "Daggerheart's sheets are not registered here"),
+    dialogs: () => probe("env.dialogs", dialogsDrawn(), "DialogV2 draws no window here"),
+    markdown: () => probe("env.markdown", Boolean(globalThis.showdown?.Converter), "no Markdown converter here"),
+    /* jsdom answers every element's fontFamily with the words "depends on user agent" (the
+       note in "the theme speaks two faces" has the story); a browser names a face. */
+    fonts: () => {
+        const face = getComputedStyle(document.body).fontFamily;
+        return probe("env.fonts", face && !/depends on user agent/i.test(face), "no font family resolves here");
+    },
+    webAnimations: () => probe("env.webAnimations", typeof HTMLElement.prototype.getAnimations === "function"
+        && typeof globalThis.CSSTransition === "function", "no Web Animations API here")
+});
+
+const viewed = () => canvas?.scene ?? null;
+const living = () => studentActors().filter(a => !a.getFlag(MODULE_ID, FLAGS.deceased));
+/* The named regions a token stands in, as Foundry keeps them (TokenDocument#regions,
+   v12 and on), not as roomOfToken reads them - the module's reading is what a test
+   then checks against this. */
+const roomsOfToken = token => [...(token?.regions ?? [])]
+    .map(r => (typeof r === "string" ? viewed()?.regions?.get(r) : r))
+    .filter(r => r?.name?.trim());
+const WORLD = {
+    scenes: ["scenes", () => game.scenes?.size ?? 0],
+    sceneOnScreen: ["scenes on screen", () => (viewed() ? 1 : 0)],
+    namedRooms: ["named rooms on the scene on screen", () => [...(viewed()?.regions ?? [])].filter(r => r.name?.trim()).length],
+    occupiedRooms: ["rooms on the scene on screen with a token in them",
+        () => new Set([...(viewed()?.tokens ?? [])].flatMap(t => roomsOfToken(t).map(r => r.id))).size],
+    studentsInRooms: ["students standing in a named room on the scene on screen",
+        () => living().filter(a => [...(viewed()?.tokens ?? [])].some(t => t.actorId === a.id && roomsOfToken(t).length)).length],
+    studentTokensOnScreen: ["students with a token on the scene on screen",
+        () => living().filter(a => [...(viewed()?.tokens ?? [])].some(t => t.actorId === a.id)).length],
+    livingStudents: ["living students", () => living().length],
+    playerAccounts: ["player accounts", () => game.users.filter(u => !u.isGM).length],
+    playersWithCharacter: ["player accounts that own a character", () => game.users.filter(u => !u.isGM
+        && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER"))).length],
+    fullGms: ["full Gamemaster accounts", () => game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER).length],
+    stashes: ["stashes", () => allVaults().length],
+    /* Read off the item's own flag, not through vaultContents: the invariant this
+       serves hunts a stashed item whose stash is gone, and must not lose the item
+       it hunts to the reader it checks. A thirteenth row, added with that test. */
+    stashedItems: ["stashed items", () => game.actors.filter(a => a.type === "character")
+        .reduce((n, a) => n + a.items.filter(i => i.getFlag(MODULE_ID, "location") === "vault").length, 0)]
+};
+
+/* A skip describes the world AS FOUND. Once a test has written to the world, what
+   it would count is partly its own doing, so asking then FAILs (the runner's write
+   watcher sets `current.wrote`). */
+function askedOfWorld(name) {
+    if (current?.wrote) {
+        const text = `${name} was asked after this test wrote to the world (${current.wrote}) - ask the world before acting`;
+        current.failures.push(text);
+        throw new Failure(text);
+    }
+}
+
+const world = Object.freeze({
+    atLeast(what, n = 1) {
+        const row = WORLD[what];
+        must(row, `world.atLeast("${what}"): the kit counts no such thing - a new row is a change to tests-kit.mjs`);
+        askedOfWorld(`world.${what}`);
+        const have = row[1]();
+        return probe(`world.${what}`, have >= n, `this world has ${have} ${row[0]}; this needs ${n}`);
+    },
+    ownedByPlayer(actor) {
+        askedOfWorld("world.ownedByPlayer");
+        return probe("world.ownedByPlayer", game.users.some(u => !u.isGM && actor?.testUserPermission(u, "OWNER")),
+            `no player owns ${actor?.name ?? "that character"} in this world`);
+    },
+    moduleActive(id) {
+        askedOfWorld("world.moduleActive");
+        return probe("world.moduleActive", game.modules.get(id)?.active, `${id} is not enabled in this world`);
+    },
+    settingRegistered(full) {
+        askedOfWorld("world.settingRegistered");
+        return probe("world.settingRegistered", game.settings.settings.has(full), `${full} is not registered by what is installed here`);
+    }
+});
+
+/** One line saying what the world tier 2 is about to build its fixtures in is made of. */
+function worldCensus() {
+    const n = what => WORLD[what][1]();
+    const scene = viewed();
+    return `world: ${n("livingStudents")} living students, ${n("playerAccounts")} player accounts (${n("playersWithCharacter")} own a character), `
+        + `${n("fullGms")} full GM, ${n("stashes")} stash(es), `
+        + (scene ? `scene on screen "${scene.name}" with ${n("namedRooms")} named rooms (${n("occupiedRooms")} occupied)` : "no scene on screen");
+}
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
@@ -809,8 +949,8 @@ function fingerprintDiff(before, after) {
     return [...keys].filter(k => before.get(k) !== after.get(k));
 }
 
-/** Three students to play with, or the scenarios cannot run. */
-function cast() {
+/** `n` living students to play with, or a skip that says the world has fewer (it used to FAIL). */
+function cast(n = 3) {
     /*
      * LIVING students, and the filter is not tidiness.
      *
@@ -830,16 +970,20 @@ function cast() {
      * Template (Copy) [dead], QA Witness, so the third seat in every murder
      * scenario was the dead one.
      */
-    const roster = studentActors().filter(a => !a.getFlag(MODULE_ID, FLAGS.deceased));
-    if (roster.length < 3) {
-        throw new Failure(`need three living students, found ${roster.length}`);
-    }
-    return roster.slice(0, 3);
+    /*
+     * A WORLD WITH FEWER IS A SKIP, NOT A FAILURE (E30, 24.09.2026; audit S14-24).
+     * `need three living students, found 2` was a FAIL - a fact about the world
+     * reported as a fault in the module - and seven scenarios counted their own
+     * cast past this function, from `game.actors`, where a corpse or a Monokuma
+     * character could stand in. They take `cast(n)` now.
+     */
+    needs(world.atLeast("livingStudents", n), `this scenario casts ${n}`);
+    return living().slice(0, n);
 }
 
 export {
     Failure, Precondition, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
-    runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, wait, settle, until,
+    runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, env, world, worldCensus, wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     moduleSources, otherSources, stripComments, moduleStyles, bodyOf, topLevelFunction, withGuards, lineAt, stripStrings,
     stringLiterals, STANDING, stableJson, moduleSettingValues, worldFingerprint, watchWrites, fingerprintDiff, cast

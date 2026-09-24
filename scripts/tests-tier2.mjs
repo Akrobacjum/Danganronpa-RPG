@@ -11,11 +11,9 @@ import { MODULE_ID, EQUIPPABLE, SFX_EVENTS, FLAGS, PRICE_CHAINS } from "./config
 import { SETTINGS, getSetting, BREAKPOINTS, narrowScreen, shortScreen } from "./settings.mjs";
 import { applyNarrowLayout, narrowLayout } from "./narrow.mjs";
 import { getClock, setClock } from "./clock.mjs";
-import { studentActors } from "./monokuma.mjs";
 import { voiceTargets } from "./voice.mjs";
 import {
-    ok, needs, equal, wait, settle, until, layoutAvailable, cascadeAvailable, canvasAvailable,
-    systemSheetsAvailable, dialogsDrawn, moduleSources, otherSources, stripComments, bodyOf,
+    ok, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf,
     STANDING, stableJson, moduleSettingValues, cast
 } from "./tests-kit.mjs";
 
@@ -214,6 +212,8 @@ async function restore(snap) {
 const SCENARIOS = [
     ["a direct murder opens on the killer and tells the victim", async () => {
         const [killer, victim] = cast();
+        // Asked of the world before the incident writes to it (E30: it was asked after).
+        needs(world.ownedByPlayer(victim), "there is nobody to tell");
         const drpg = game.drpg;
         const before = game.messages.size;
 
@@ -240,7 +240,6 @@ const SCENARIOS = [
          */
         const { contentOf } = await import("./secret.mjs");
         const owner = game.users.find(u => !u.isGM && victim.testUserPermission(u, "OWNER"));
-        needs(owner, `no player owns ${victim.name} in this world, so there is nobody to tell`);
         const toVictim = [...game.messages].slice(before).filter(m => m.whisper.includes(owner.id));
         ok(toVictim.length, `${owner.name}, who plays the victim, was sent nothing when the incident began`);
         ok(toVictim.some(m => /moving on you/i.test(contentOf(m))),
@@ -445,8 +444,7 @@ const SCENARIOS = [
         // The environment first (E01, audit S14-05): the window is Daggerheart's own,
         // so where Daggerheart's applications are not registered it cannot open, and
         // where they are, a window that does not open is this module's failure.
-        needs(systemSheetsAvailable(),
-            "Daggerheart's own applications are not registered here: its roll window cannot open");
+        needs(env.systemSheets(), "its roll window cannot open");
         game.drpg.suiteRolling = false;
         let app = null;
         try {
@@ -846,8 +844,9 @@ const SCENARIOS = [
         // test answers for all of them, holes and all. The anchor is any token
         // already standing in a room, which spares this test owning any region
         // geometry of its own.
+        needs(world.atLeast("occupiedRooms"), "the shelf is built beside a token standing in a room");
         const anchor = scene?.tokens?.find(t => roomOfToken(t));
-        ok(anchor, "no token on the active scene stands in any room - nowhere to build the fixture");
+        ok(anchor, "Foundry has a token standing in a room, and roomOfToken places none of the active scene's");
 
         const spread = [
             { type: "key", visibility: "obvious", tiedToCrime: true },   // DC 6, tied
@@ -916,14 +915,15 @@ const SCENARIOS = [
          */
         const remnants = await import("./remnants.mjs");
         const { roomOfToken } = await import("./movement.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the traces stand on the scene on screen");
+        needs(world.atLeast("occupiedRooms", 2), "the traces are left in two rooms with a token in each");
         const scene = canvas?.scene;
-        ok(scene, "no active scene");
 
         const anchors = Array.from(scene.tokens).filter(t => roomOfToken(t));
         const rooms = [...new Set(anchors.map(t => roomOfToken(t)))];
-        ok(rooms.length >= 2, "need two rooms with a token standing in them");
-        const cast = game.actors.filter(a => a.type === "character").slice(0, 2);
-        ok(cast.length >= 2, "need two characters to tell 'left by' apart");
+        ok(rooms.length >= 2, `Foundry has tokens in two rooms or more on the scene on screen, and roomOfToken finds ${rooms.length}`);
+        // Two living students to tell "left by" apart (cast; it was the first two characters, a corpse or a Monokuma included).
+        const pair = cast(2);
 
         /*
          * A CHAPTER OF ITS OWN, ABOVE ANYTHING THE WORLD HOLDS.
@@ -942,9 +942,9 @@ const SCENARIOS = [
          */
         const future = (getClock()?.chapter ?? 1) + 1;
         const spread = [
-            { room: rooms[0], who: cast[0], day: 1, timeOfDay: "morning" },
-            { room: rooms[1], who: cast[1], day: 3, timeOfDay: "night" },
-            { room: rooms[0], who: cast[1], day: 2, timeOfDay: "noon" }
+            { room: rooms[0], who: pair[0], day: 1, timeOfDay: "morning" },
+            { room: rooms[1], who: pair[1], day: 3, timeOfDay: "night" },
+            { room: rooms[0], who: pair[1], day: 2, timeOfDay: "noon" }
         ];
 
         const placed = [];
@@ -964,7 +964,7 @@ const SCENARIOS = [
             await settle();
 
             const investigation = await import("./investigation.mjs");
-            needs(dialogsDrawn(), "DialogV2 draws no window here, so the dashboard has no element to read");
+            needs(env.dialogs(), "the dashboard has no element to read");
             const before = new Set(foundry.applications.instances.keys());
             // Not awaited: it settles when the GM closes it. See R12.
             Promise.resolve(investigation.openInvestigationDashboard()).catch(() => {});
@@ -991,12 +991,12 @@ const SCENARIOS = [
 
             // The options come off the traces themselves, not off the cast.
             const people = [...control("player").options].map(o => o.value).filter(Boolean);
-            ok(people.includes(cast[1].id), "the player filter does not offer a trace's own author");
+            ok(people.includes(pair[1].id), "the player filter does not offer a trace's own author");
 
-            await choose("player", cast[1].id);
+            await choose("player", pair[1].id);
             const mine = rows();
             ok(mine < all, `filtering by player showed ${mine} of ${all} - nothing was filtered`);
-            equal(control("player").value, cast[1].id,
+            equal(control("player").value, pair[1].id,
                 "the chosen player did not survive the redraw it triggered");
 
             await choose("player", "");
@@ -1048,9 +1048,7 @@ const SCENARIOS = [
         const { incidentWitness } = await import("./settings.mjs");
         const { MODULE_ID: MOD } = await import("./config.mjs");
 
-        const cast = game.actors.filter(a => a.type === "character").slice(0, 3);
-        ok(cast.length >= 3, "need three students: a killer, a victim and a bystander");
-        const [killer, victim] = cast;
+        const [killer, victim] = cast(3);   // and a bystander
 
         const worldBefore = game.settings.get(MOD, "murderState") ?? {};
         const castBefore = game.settings.get(MOD, "incidentCast") ?? {};
@@ -1120,14 +1118,13 @@ const SCENARIOS = [
         const bullets = await import("./truth-bullets.mjs");
         const { roomOfToken } = await import("./movement.mjs");
 
+        needs(world.atLeast("sceneOnScreen"), "the fixture stands on the scene on screen");
+        needs(world.atLeast("occupiedRooms"), "the fixture is built beside a token standing in a room");
         const scene = canvas?.scene;
-        ok(scene, "no active scene");
         const anchor = scene?.tokens?.find(t => roomOfToken(t));
-        ok(anchor, "no token on the active scene stands in any room");
+        ok(anchor, "Foundry has a token standing in a room on the scene on screen, and roomOfToken places none of them");
 
-        const cast = game.actors.filter(a => a.type === "character").slice(0, 2);
-        ok(cast.length >= 2, "need two characters to watch one edit reach the other");
-        const [one, two] = cast;
+        const [one, two] = cast(2);
 
         let token = null;
         const made = [];
@@ -1234,14 +1231,13 @@ const SCENARIOS = [
         const { MODULE_ID } = await import("./config.mjs");
         const F = bullets.TRUTH_BULLET_FLAGS;
 
+        needs(world.atLeast("sceneOnScreen"), "the fixture stands on the scene on screen");
+        needs(world.atLeast("occupiedRooms"), "the fixture is built beside a token standing in a room");
         const scene = canvas?.scene;
-        ok(scene, "no active scene");
         const anchor = scene?.tokens?.find(t => roomOfToken(t));
-        ok(anchor, "no token on the active scene stands in any room");
+        ok(anchor, "Foundry has a token standing in a room on the scene on screen, and roomOfToken places none of them");
 
-        const cast = game.actors.filter(a => a.type === "character").slice(0, 2);
-        ok(cast.length >= 2, "need two characters: one who analyses and one who does not");
-        const [reader, holder] = cast;
+        const [reader, holder] = cast(2);
 
         /* NO APOSTROPHE, NO ANGLE BRACKET, and that is not fussiness - the
            first draft of this fixture read "not the victim's blood" and the
@@ -1392,10 +1388,11 @@ const SCENARIOS = [
         const { MODULE_ID } = await import("./config.mjs");
         const F = bullets.TRUTH_BULLET_FLAGS;
 
+        needs(world.atLeast("sceneOnScreen"), "the fixture stands on the scene on screen");
+        needs(world.atLeast("occupiedRooms"), "the fixture is built beside a token standing in a room");
         const scene = canvas?.scene;
-        ok(scene, "no active scene");
         const anchor = scene?.tokens?.find(t => roomOfToken(t));
-        ok(anchor, "no token on the active scene stands in any room");
+        ok(anchor, "Foundry has a token standing in a room on the scene on screen, and roomOfToken places none of them");
         const [reader] = cast();
         ok(reader, "no living student to hand the fixture to");
 
@@ -1527,11 +1524,11 @@ const SCENARIOS = [
          */
         const projects = await import("./projects.mjs");
         const fog = await import("./fog.mjs");
+        needs(world.atLeast("scenes"), "a project stands in a scene");
+        needs(world.atLeast("playerAccounts", 2), "an insider and an outsider");
         const scene = game.scenes?.current ?? game.scenes?.contents?.[0];
-        ok(scene, "no scene to stand a project in");
 
         const players = game.users.filter(u => !u.isGM);
-        ok(players.length >= 2, "this test needs two player accounts in the world");
         const [insider, outsider] = players;
 
         const room = scene.regions?.contents?.[0]?.name ?? null;
@@ -1625,17 +1622,17 @@ const SCENARIOS = [
         const tray = await import("./projects-ui.mjs");
         const fog = await import("./fog.mjs");
 
+        needs(world.atLeast("scenes"), "a project stands in a scene");
+        needs(world.atLeast("namedRooms"), "the tray gate only bites on a project with a room");
+        needs(world.atLeast("playersWithCharacter"), "discovery is recorded per character");
         const scene = game.scenes?.current ?? game.scenes?.contents?.[0];
-        ok(scene, "no scene to stand a project in");
-        const room = scene.regions?.contents?.[0]?.name ?? null;
-        needs(room, "the tray gate only bites on a project with a room, and this scene has no regions");
+        const room = scene.regions?.contents?.find(r => r.name?.trim())?.name ?? null;
 
         /* The first player who actually HOLDS somebody: discovery is recorded
            per character, so an account with no character can never discover
            anything and would make every assertion below trivially true. */
         const outsider = game.users.filter(u => !u.isGM).find(u => game.actors
             .some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
-        ok(outsider, "this test needs a player account holding a character");
 
         const mine = game.actors.filter(a => a.type === "character"
             && a.testUserPermission(outsider, "OWNER")).map(a => a.id);
@@ -2070,7 +2067,7 @@ const SCENARIOS = [
          * day 11 to day 10. Found by the a11y sweep on 21.09, measured by clicking.
          */
         const { openClockDialog } = await import("./gm-panel.mjs");
-        needs(dialogsDrawn(), "DialogV2 draws no window here, so Edit campaign has no field to click");
+        needs(env.dialogs(), "Edit campaign has no field to click");
         const before = new Set(foundry.applications.instances.keys());
         openClockDialog();
         let input = null;
@@ -2166,7 +2163,7 @@ const SCENARIOS = [
          * controls are counted inside those windows; and the nameless ones are read off
          * those windows only, not off a report that has been collecting since `ready`.
          */
-        needs(dialogsDrawn(), "DialogV2 draws no window here, so the standing windows have no controls to read");
+        needs(env.dialogs(), "the standing windows have no controls to read");
         /* A trace on the map, so the case panel draws its Traces rows. The first
            version of this ran on a scene with none, passed, and the next full run
            failed on exactly those rows. */
@@ -2239,10 +2236,11 @@ const SCENARIOS = [
         const { MODULE_ID } = await import("./config.mjs");
         const F = bullets.TRUTH_BULLET_FLAGS;
 
+        needs(world.atLeast("sceneOnScreen"), "the fixture stands on the scene on screen");
+        needs(world.atLeast("occupiedRooms"), "the fixture is built beside a token standing in a room");
         const scene = canvas?.scene;
-        ok(scene, "no active scene");
         const anchor = scene?.tokens?.find(t => roomOfToken(t));
-        ok(anchor, "no token on the active scene stands in any room");
+        ok(anchor, "Foundry has a token standing in a room on the scene on screen, and roomOfToken places none of them");
 
         /*
          * TWO STUDENTS IN ONE ROOM, ARRANGED RATHER THAN HOPED FOR.
@@ -2263,9 +2261,10 @@ const SCENARIOS = [
          * setup, not cheating: what this test asserts is what the COPY carries,
          * and the cross-room refusal is another test's subject entirely.
          */
+        needs(world.atLeast("studentsInRooms", 2), "a giver and a receiver, each standing in a room");
         const { roomOfActor } = await import("./movement.mjs");
         const chars = game.actors.filter(a => a.type === "character" && roomOfActor(a));
-        ok(chars.length >= 2, "need two students with tokens standing in named rooms");
+        ok(chars.length >= 2, `Foundry has two students or more in named rooms, and roomOfActor places ${chars.length} characters`);
         const [giver, receiver] = chars;
 
         const giverToken = scene.tokens.find(t => t.actorId === giver.id);
@@ -2393,7 +2392,7 @@ const SCENARIOS = [
          * thing being measured and not the intention.
          */
         const fog = await import("./fog.mjs");
-        needs(canvasAvailable(), "no canvas renderer here: the room outlines are PIXI");
+        needs(env.canvas(), "the room outlines are PIXI");
         const before = fog.diagnoseFog({ toChat: false });
         ok(before.currentRooms?.length,
             "nobody is standing in a named room, so no outline is being drawn to measure");
@@ -2458,8 +2457,8 @@ const SCENARIOS = [
          * to be deep enough to push the border out of range \- and it was
          * wrong. A fixture that only tried one size would have agreed with it.
          */
+        needs(world.atLeast("sceneOnScreen"), "the staircase is drawn on the scene on screen");
         const scene = canvas?.scene;
-        ok(scene, "no active scene");
         const g = scene.grid.size;
         const x0 = 200, y0 = 200, n = 8;
 
@@ -2700,14 +2699,12 @@ const SCENARIOS = [
         const T = await import("./traps.mjs");
         const { allRooms, othersInNamedRoom } = await import("./movement.mjs");
 
-        const cast = game.actors.filter(a => a.type === "character");
-        const killer = cast[0];
-        const other = cast.find(a => a.id !== killer.id);
-        ok(killer && other, "need two characters");
+        const [killer, other] = cast(2);
+        needs(world.atLeast("namedRooms"), "the trap is built in a room");
 
         // A room with nobody in it, so "alone" is a fact rather than a guess.
         const room = allRooms().find(r => othersInNamedRoom(r).length === 0) ?? allRooms()[0];
-        ok(room, "need a room on this scene");
+        ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
 
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
         let made = null;
@@ -2779,9 +2776,10 @@ const SCENARIOS = [
         const INV = await import("./inventory.mjs");
         const { allRooms } = await import("./movement.mjs");
 
+        needs(world.atLeast("namedRooms"), "the thing is planted in a room");
         const room = allRooms()[0];
-        const actor = game.actors.find(a => a.type === "character");
-        ok(room && actor, "need a room and a character");
+        const [actor] = cast(1);
+        ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
 
         const beforePlants = foundry.utils.deepClone(getSetting(SETTINGS.trapPlants) ?? {});
         const beforeLedger = foundry.utils.deepClone(getSetting(SETTINGS.trapLedger) ?? {});
@@ -2844,8 +2842,7 @@ const SCENARIOS = [
          * machinery stops offering it.
          */
         const INV = await import("./inventory.mjs");
-        const actor = studentActors()[0];
-        ok(actor, "need a student");
+        const [actor] = cast(1);
 
         const made = [];
         try {
@@ -2893,8 +2890,7 @@ const SCENARIOS = [
         const SECRET = "SUITE the poison was in the second cup";
         const { whisperToOwner } = await import("./utils.mjs");
         const { secretHtml, diagnoseSecrets } = await import("./secret.mjs");
-        const actor = studentActors()[0];
-        ok(actor, "need a student");
+        const [actor] = cast(1);
 
         let card = null;
         try {
@@ -2939,8 +2935,7 @@ const SCENARIOS = [
         const INV = await import("./inventory.mjs");
         const { roomOfActor } = await import("./movement.mjs");
 
-        const actor = studentActors()[0];
-        ok(actor, "need a student");
+        const [actor] = cast(1);
         const room = roomOfActor(actor);
         ok(room, `${actor?.name} is not standing in a room`);
 
@@ -2993,12 +2988,11 @@ const SCENARIOS = [
          * halves meet: the value is in the actor, the greying is in the DOM, and
          * the bug lived precisely in the gap.
          */
-        const actor = studentActors()[0];
-        ok(actor, "need a student");
+        const [actor] = cast(1);
         const before = foundry.utils.getProperty(actor, "system.resources.hope.value") ?? 0;
         const max = foundry.utils.getProperty(actor, "system.resources.hope.max") ?? 6;
 
-        needs(systemSheetsAvailable(), "Daggerheart's sheets are not registered here, so there is no Hope drawer to draw into");
+        needs(env.systemSheets(), "there is no Hope drawer to draw into");
         try {
             await actor.update({ "system.resources.hope.value": 0 });
             await actor.sheet.render(true);
@@ -3093,8 +3087,8 @@ const SCENARIOS = [
         const { roomOfActor } = await import("./movement.mjs");
         const { isMonokuma } = await import("./monokuma.mjs");
 
+        needs(world.atLeast("sceneOnScreen"), "the fog is read on the scene on screen");
         const scene = canvas?.scene;
-        ok(scene, "no scene to test the fog on");
 
         const standing = game.actors.filter(a =>
             a.type === "character" && roomOfActor(a));
@@ -3147,10 +3141,11 @@ const SCENARIOS = [
          */
         const remnants = await import("./remnants.mjs");
         const { roomOfToken } = await import("./movement.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture stands on the scene on screen");
+        needs(world.atLeast("occupiedRooms"), "the fixture is placed beside a token standing in a room");
         const scene = canvas?.scene;
-        ok(scene, "no active scene");
         const anchor = Array.from(scene.tokens).find(t => roomOfToken(t));
-        ok(anchor, "no token standing in a room to place a fixture beside");
+        ok(anchor, "Foundry has a token standing in a room on the scene on screen, and roomOfToken places none of them");
 
         const placed = [];
         const place = async data => {
@@ -3409,9 +3404,7 @@ const SCENARIOS = [
             "the fixture playlist did not take both tracks");
         await setSetting(SETTINGS.musicMap, { ...mapBefore, "trial.objection": playlist.id });
 
-        const cast = game.actors.filter(a => a.type === "character").slice(0, 3);
-        ok(cast.length >= 3, "need three characters");
-        const [a, b, c] = cast;
+        const [a, b, c] = cast(3);
         const before = foundry.utils.deepClone(getClock());
         const wasPaused = game.paused;
 
@@ -4060,9 +4053,7 @@ const SCENARIOS = [
         const floor = await import("./trial-floor.mjs");
         const { currentState } = await import("./music.mjs");
 
-        const cast = game.actors.filter(a => a.type === "character").slice(0, 3);
-        ok(cast.length >= 3, "need three characters to test a third party cutting in");
-        const [a, b, c] = cast;
+        const [a, b, c] = cast(3);
         const before = foundry.utils.deepClone(getClock());
         /*
          * AND THE WORLD HAS TO BE RUNNING. `currentState()` answers "paused"
@@ -4143,10 +4134,11 @@ const SCENARIOS = [
         // followed the rooms while the lights were out would be the one thing
         // in the building that could see in the dark - you would hear who came
         // in with you, and hear the room empty when somebody left.
+        needs(world.atLeast("occupiedRooms"), "a voice to take off a room");
         const before = await voiceTargets();
         ok(!before.eclipse, "an Eclipse was already running before the test began");
         const placed = [...before.byUser.values()].filter(r => r.room);
-        ok(placed.length, "nobody is standing in a room, so there is nothing to take away");
+        ok(placed.length, "Foundry has a token standing in a room, and voiceTargets() places no account in one");
 
         await setClock({ ...getClock(), eclipse: true });
         await settle();
@@ -4244,12 +4236,13 @@ const SCENARIOS = [
          * the student who built it. F4: re-sealing a revealed project kept everybody in.
          */
         const P = await import("./projects.mjs");
+        needs(world.atLeast("playersWithCharacter"), "the project is built by a character a player owns");
+        needs(world.atLeast("playerAccounts", 2), "a second player has to be kept out");
         const owner = game.users.find(u => !u.isGM
             && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
         const builder = owner && game.actors.find(a => a.type === "character" && a.testUserPermission(owner, "OWNER"));
-        ok(builder, "need a character a player owns");
         const others = game.users.filter(u => !u.isGM && !builder.testUserPermission(u, "OWNER"));
-        ok(others.length, "need a second player to be kept out");
+        ok(others.length, "every player account owns the builder, so nobody is left to keep out");
         const meta = foundry.utils.deepClone(P.projectMeta());
         let made = null;
         try {
@@ -4277,10 +4270,11 @@ const SCENARIOS = [
          * box onto the ledger as it stands, not the ledger as the window first read it.
          */
         const { applyDiscoveryChanges, discoveredFor } = await import("./fog.mjs");
+        needs(world.atLeast("namedRooms", 3), "the ledger is written for three rooms");
         const scene = canvas.scene;
-        const [student] = cast();
+        const [student] = cast(1);
         const rooms = Array.from(new Set([...(scene?.regions ?? [])].map(r => r.name).filter(Boolean)));
-        ok(student && rooms.length >= 3, "need a student and three named rooms");
+        ok(rooms.length >= 3, `three named rooms, and ${rooms.length} distinct names among them`);
         // The GM's own store since D2 - the world setting is empty and stays so.
         const stored = foundry.utils.deepClone(getSetting(SETTINGS.discoveryLedger) ?? {});
         const write = async list => {
@@ -4311,8 +4305,8 @@ const SCENARIOS = [
          * back on.
          */
         const { applyCall, sealedRooms } = await import("./call-effects.mjs");
+        needs(world.atLeast("namedRooms"), "a room to seal");
         const room = [...(canvas.scene?.regions ?? [])].map(r => r.name).find(Boolean);
-        ok(room, "need a named room");
         const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? []);
         try {
             await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, []);
@@ -4983,8 +4977,8 @@ const SCENARIOS = [
         const [who] = cast();
         const cleanup = await import("./cleanup.mjs");
         const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
         const scene = game.scenes.active ?? canvas?.scene;
-        ok(scene, "no active scene to place a fixture trace on");
         const anchor = scene?.tokens?.find(t => t.x || t.y);
         const before = {
             actions: who.system.resources.actions.value,
@@ -5118,8 +5112,8 @@ const SCENARIOS = [
         const cleanup = await import("./cleanup.mjs");
         const remnants = await import("./remnants.mjs");
         const bullets = await import("./truth-bullets.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
         const scene = game.scenes.active ?? canvas?.scene;
-        ok(scene, "no active scene to place a fixture trace on");
         const anchor = scene?.tokens?.find(t => t.x || t.y);
         const stamp = Date.now() % 100000;
         const placed = [];
@@ -5293,8 +5287,8 @@ const SCENARIOS = [
         const bullets = await import("./truth-bullets.mjs");
         const analyze = await import("./analyze.mjs");
         const F = bullets.TRUTH_BULLET_FLAGS;
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
         const scene = game.scenes.active ?? canvas?.scene;
-        ok(scene, "no active scene to place a fixture trace on");
         const anchor = scene?.tokens?.find(t => t.x || t.y);
         const said = `Fixture analysis ${Date.now() % 100000}`;
         let token = null;
@@ -5426,7 +5420,7 @@ const SCENARIOS = [
         const { openLookDialog } = await import("./look.mjs");
         // A width and a centre need layout; with none, every box is 0 wide and the loop
         // below measured nothing and passed (E01, 24.09.2026).
-        needs(layoutAvailable(), "no layout here: a window's width and centre need a browser");
+        needs(env.layout(), "a window's width and centre need a browser");
         const cap = parseFloat(getComputedStyle(document.body)
             .getPropertyValue("--drpg-window-max")) || 1400;
         const ceiling = Math.min(0.96 * window.innerWidth, cap) + 4;
@@ -5475,7 +5469,7 @@ const SCENARIOS = [
          * and a token swap that made it darker would pass any test that only checked
          * the value changed.
          */
-        needs(cascadeAvailable(), "no CSS cascade here: a colour and a size made of var() need a browser");
+        needs(env.cascade(), "a colour and a size made of var() need a browser");
         const was = document.body.classList.contains("drpg-high-contrast");
         const probe = document.createElement("div");
         probe.className = "drpg-panel";
@@ -5849,7 +5843,7 @@ const SCENARIOS = [
          */
         // Every size here is a var() of the theme's; where var() does not resolve, each
         // one reads as NaN and every ratio below as a failure (E01, 24.09.2026).
-        needs(cascadeAvailable(), "no CSS cascade here: sizes made of var() need a browser");
+        needs(env.cascade(), "sizes made of var() need a browser");
         const settings = await import("./settings.mjs");
         const was = { scale: getSetting(SETTINGS.uiScale), theme: getSetting(SETTINGS.theme) };
 
@@ -5957,7 +5951,7 @@ const SCENARIOS = [
          */
         // A width from the stylesheet's rule, which needs the cascade: with none, both
         // readings were NaN and the check below them let NaN through (E01, 24.09.2026).
-        needs(cascadeAvailable(), "no CSS cascade here: the width rule is a var() that needs a browser");
+        needs(env.cascade(), "the width rule is a var() that needs a browser");
         const settings = await import("./settings.mjs");
         const { closeOpen } = await import("./live.mjs");
         const was = { scale: getSetting(SETTINGS.uiScale), theme: getSetting(SETTINGS.theme) };
@@ -6122,9 +6116,9 @@ const SCENARIOS = [
         const row = ENFORCED.find(r => r.id === "isoWelcome");
         ok(row, "the Isometric Perspective welcome is not in the table of held settings");
         const full = `${row.module}.${row.key}`;
-        needs(game.modules.get(row.module)?.active, `${row.module} is not enabled in this world`);
+        needs(world.moduleActive(row.module), "the setting it holds belongs to that module");
+        needs(world.settingRegistered(full), "there is no setting to hold");
         const entry = game.settings.settings.get(full);
-        needs(entry, `${full} is not registered by the ${row.module} installed here`);
 
         const switchBefore = game.settings.get(MODULE_ID, SETTINGS.enforceIsoWelcome);
         const valueBefore = game.settings.get(row.module, row.key);

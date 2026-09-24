@@ -48,7 +48,7 @@
 import { log, warn } from "./utils.mjs";
 import { studentActors } from "./monokuma.mjs";
 import {
-    layoutAvailable, settle, worldFingerprint, watchWrites, fingerprintDiff, runOne, stageLedger, registerSuite
+    layoutAvailable, settle, worldFingerprint, watchWrites, fingerprintDiff, runOne, stageLedger, registerSuite, worldCensus
 } from "./tests-kit.mjs";
 import { REGRESSIONS } from "./tests-tier0.mjs";
 import { INVARIANTS } from "./tests-tier1.mjs";
@@ -238,6 +238,10 @@ async function runSuite(tier, only = null) {
     if (tier >= 2) {
         lines.push("");
         lines.push("TIER 2 - scenarios (fixtures built and put back)");
+        /* What the world is made of, in one line, before anything is built in it
+           (E30, audit S14-24): a scenario the world is too small for skips and
+           says what it lacked, and this is the line to read that against. */
+        lines.push(worldCensus());
         let snap = null;
         try {
             snap = await snapshot(studentActors());
@@ -271,6 +275,12 @@ async function runSuite(tier, only = null) {
     // worth being able to see at a glance. The red count only when there is one:
     // other tools parse "N passed, N failed, N skipped" and it is kept as it was.
     const summary = `${passed} passed, ${failed} failed, ${skipped} skipped${red ? `, ${red} red until a later stage` : ""}`;
+    // Every skip stands on a probe (needs() in tests-kit.mjs), so they are counted by it.
+    const byProbe = new Map();
+    for (const r of results) if (r.outcome === "skip") byProbe.set(r.probe, (byProbe.get(r.probe) ?? 0) + 1);
+    if (byProbe.size) {
+        notes.unshift(`skipped by probe: ${[...byProbe].sort((a, b) => b[1] - a[1]).map(([name, n]) => `${name} ${n}`).join(", ")}`);
+    }
     /*
      * A SKIP IN A BROWSER IS NEWS (E01, 24.09.2026; audit S14-05). The skipped count
      * is asserted only by the headless harness, which has no layout and expects a

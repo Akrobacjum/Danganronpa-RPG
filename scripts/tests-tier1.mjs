@@ -12,7 +12,7 @@ import {
 } from "./config.mjs";
 import { rolesOf } from "./inventory.mjs";
 import { vaultContents, stashRoomOfItem, stashIn, allVaults } from "./vault.mjs";
-import { SETTINGS, DEFAULT_SAFEWORD, getSetting, BREAKPOINTS, narrowScreen } from "./settings.mjs";
+import { SETTINGS, DEFAULT_SAFEWORD, getSetting, BREAKPOINTS } from "./settings.mjs";
 import { safeword } from "./safeword.mjs";
 import { getClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -20,7 +20,7 @@ import { detectPageTinting, stylesheetVersion } from "./diagnostics.mjs";
 import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
-    ok, needs, equal, must, wait, settle, until, layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme,
+    ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
     otherSources, stripComments, bodyOf, STANDING
 } from "./tests-kit.mjs";
 
@@ -200,7 +200,11 @@ const INVARIANTS = [
          * guard. This is the check that the guard held: it reads the world rather
          * than the code, so it also catches a stash removed by a macro, by a
          * region deleted off the map, or by a hand-edited flag.
+         *
+         * A world with nothing stashed has nothing to check, and says so (E30: this
+         * counted no assertion at all in the harness until its world had a stash).
          */
+        needs(world.atLeast("stashedItems"), "an orphan is a stashed item whose stash has gone");
         for (const actor of game.actors.filter(a => a.type === "character")) {
             for (const item of vaultContents(actor)) {
                 const room = stashRoomOfItem(item, actor);
@@ -215,6 +219,7 @@ const INVARIANTS = [
         // An actor deleted mid-season leaves their stash entries behind, and a
         // list of ghosts is what makes the Stashes tab draw a column for nobody
         // and `openStashesHere` offer a drawer that cannot be opened.
+        needs(world.atLeast("stashes"), "a stash to hold to its owner");
         for (const entry of allVaults()) {
             ok(entry.owner, `a stash in "${entry.room}" belongs to no actor that exists`);
         }
@@ -1667,7 +1672,7 @@ const INVARIANTS = [
         ok(book, "the handbooks button is not on the screen");
         // The environment first, then the button (E01, audit S14-05): a button with
         // no width in a browser that lays out is a button that is not drawn.
-        needs(layoutAvailable(), "no layout here: where the button stands needs a browser");
+        needs(env.layout(), "where the button stands needs a browser");
         ok(book.offsetWidth > 0, "the handbooks button is on the page and has no width - it is not drawn");
 
         /* Where it stands, read from the resolved insets rather than the boxes: under
@@ -1686,7 +1691,7 @@ const INVARIANTS = [
 
         // Every book in both languages ships and comes out as a handbook, with no ids
         // that could shadow Foundry's own (#chat, #players).
-        needs(globalThis.showdown?.Converter, "no Markdown converter here: this needs Foundry's own page");
+        needs(env.markdown(), "this needs Foundry's own page");
         for (const lang of ["en", "pl"]) {
             for (const id of ["player-brochure", "player-handbook", "gm-handbook"]) {
                 const html = await handbookHtml(id, lang);
@@ -1854,9 +1859,9 @@ const INVARIANTS = [
         // is (E01, audit S14-05 and S14-18): the glass theme, a browser that lays out, and a
         // desk rather than a stacked screen. On all three, a column that is not pinned is
         // the module's failure, not the environment's.
-        needs(glassTheme(), "this measures Stained Glass; the theme here is Monokuma Legacy");
-        needs(layoutAvailable(), "no layout here: the column's width needs a browser");
-        needs(!narrowScreen(), "a stacked screen: the column is pinned only on a desk");
+        needs(env.glass(), "this measures Stained Glass");
+        needs(env.layout(), "the column's width needs a browser");
+        needs(env.desk(), "the column is pinned only on a desk");
         const col = document.getElementById("ui-right-column-1");
         ok(col?.dataset.drpgPinned === "1", "the right column is not pinned on a desk-width screen under the glass");
         equal(getComputedStyle(col).marginRight, "6px", "the right column keeps its old 22 px off the tiles");
@@ -2160,8 +2165,8 @@ const INVARIANTS = [
        loops below count what they measured, because a loop over nothing passes too. */
     ["the curtain cuts a clean partition", async () => {
         const { CHECKS, refreshGlass } = await import("./glass.mjs");
-        needs(glassTheme(), "this measures Stained Glass; the theme here is Monokuma Legacy");
-        needs(layoutAvailable(), "no layout here: the curtain's canvas has no width outside a browser");
+        needs(env.glass(), "this measures Stained Glass");
+        needs(env.layout(), "the curtain's canvas has no width outside a browser");
         refreshGlass();
         await wait(300);
         const c = CHECKS[CHECKS.length - 1];
@@ -2171,8 +2176,8 @@ const INVARIANTS = [
     }],
 
     ["no chrome label is cut off", () => {
-        needs(glassTheme(), "this measures Stained Glass; the theme here is Monokuma Legacy");
-        needs(layoutAvailable(), "no layout here: a label's height needs a browser");
+        needs(env.glass(), "this measures Stained Glass");
+        needs(env.layout(), "a label's height needs a browser");
         // A box one pixel shorter than the text inside it is the "MUNUKUMA" defect: VT323's
         // capitals are tall for its em, and a box sized in another face clips them.
         const cut = [];
@@ -2192,8 +2197,8 @@ const INVARIANTS = [
     }],
 
     ["nothing in the chrome is set under the floor", () => {
-        needs(glassTheme(), "this measures Stained Glass; the theme here is Monokuma Legacy");
-        needs(layoutAvailable(), "no layout here: a label's size needs a browser");
+        needs(env.glass(), "this measures Stained Glass");
+        needs(env.layout(), "a label's size needs a browser");
         // 11 px, at every interface scale - see docs/design/typography.md.
         const floor = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-floor")) || 11;
         const small = [];
@@ -2213,7 +2218,7 @@ const INVARIANTS = [
     }],
 
     ["the theme speaks two faces", () => {
-        needs(glassTheme(), "this measures Stained Glass; the theme here is Monokuma Legacy");
+        needs(env.glass(), "this measures Stained Glass");
         // Stained Glass is VT323 and Special Elite and nothing else (docs/design/typography.md):
         // the first family every module surface resolves to is one of the two. Icon elements
         // are their own face by design, and are skipped.
@@ -2223,9 +2228,7 @@ const INVARIANTS = [
            and duly listed every element in the module - the four-item failure that
            stood in the accepted bucket for a year with those same words in it, and
            which nobody read closely enough to notice was jsdom talking. */
-        const face = getComputedStyle(document.body).fontFamily;
-        needs(face && !/depends on user agent/i.test(face),
-            "no font family resolves here: this needs a browser with the faces loaded");
+        needs(env.fonts(), "this needs a browser with the faces loaded");
         const other = new Set();
         for (const sel of ["#drpg-hud", "#drpg-gm-launcher", "#drpg-despair", "#drpg-player-status", "#drpg-events",
                            "#countdowns", "#drpg-popups", ".drpg-panel", ".drpg-messenger", "#players"]) {
@@ -2242,8 +2245,8 @@ const INVARIANTS = [
 
     ["the notice tile is always cut", async () => {
         const { LAST } = await import("./glass.mjs");
-        needs(glassTheme(), "this measures Stained Glass; the theme here is Monokuma Legacy");
-        needs(layoutAvailable(), "no layout here: the curtain's canvas has no width outside a browser");
+        needs(env.glass(), "this measures Stained Glass");
+        needs(env.layout(), "the curtain's canvas has no width outside a browser");
         // The bottom-left tile is part of the curtain's one shape, with or without a card on
         // it (1.2.36): a notice lands on glass that was already there.
         ok(LAST.blocks.length, "the curtain cut nothing in a browser that lays out");
@@ -2567,8 +2570,7 @@ const INVARIANTS = [
            Animations API; where that API is missing it falls back to Foundry's wait, as
            it should - so the timing is a question only a browser with the API can answer
            (E01, 24.09.2026: jsdom has neither, and the close waited its full second). */
-        needs(typeof probe.getAnimations === "function" && typeof globalThis.CSSTransition === "function",
-            "no Web Animations API here: whether a transition is running cannot be asked");
+        needs(env.webAnimations(), "whether a transition is running cannot be asked");
         document.body.appendChild(probe);
         try {
             const started = performance.now();
@@ -2891,8 +2893,9 @@ const INVARIANTS = [
         ok(removalRefusal(fresh, { now, restored: true }), "a trace a cleanup Reroll put back is lifted");
 
         const { cleanableTracesForPlayer, isCleaner } = await import("./cleanup.mjs");
+        needs(world.atLeast("studentTokensOnScreen"), "a student with a token has to ask for the room");
         const student = studentActors().find(a => canvas?.scene?.tokens?.some(t => t.actorId === a.id) && !isCleaner(a));
-        needs(student, "no student outside Stage 6 has a token on the scene on screen");
+        ok(student, "every student with a token on the scene on screen reads as cleaning a crime scene (isCleaner)");
         equal(JSON.stringify(cleanableTracesForPlayer(student.id, { mine: false })),
             JSON.stringify(cleanableTracesForPlayer(student.id, { mine: true })),
             "a student who is not cleaning a crime scene is handed the whole room by asking for it");
@@ -2908,8 +2911,10 @@ const INVARIANTS = [
          * headless harness (one GM, one pool): the row read "Despair".
          */
         const D = await import("./despair.mjs");
+        // The world is asked, then the module: a full GM with no pool is monokumas() failing, not a skip.
+        needs(world.atLeast("fullGms"), "a Despair pool belongs to a full Gamemaster account");
         const pools = D.monokumas();
-        needs(pools.length > 0, "this world has no full Gamemaster account, so no Despair pool to draw");
+        ok(pools.length > 0, "a full Gamemaster account exists and monokumas() finds no pool");
         D.renderDespairBar();
         const rows = [...document.querySelectorAll("#drpg-despair .drpg-despair-row")];
         const shown = rows.map(row => row.querySelector(".drpg-despair-name")?.textContent ?? null);

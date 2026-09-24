@@ -1,5 +1,11 @@
 /** Run the module's own regression suite, full tier, on the GM client. */
+import fs from "node:fs";
+import path from "node:path";
+import url from "node:url";
+
 export const layers = ["ci"];
+
+const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 
 export async function run({ gm, p1, p2, p3, check, settle }) {
     // The suite drives the whole table from the GM's client and measures state
@@ -41,17 +47,25 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
         console.log("----------------------------------------------");
     }
     check("gm: suite failures", (res?.failed ?? 99) === 0, `${res?.failed} failed`);
-    /* The skipped count is checked, not just printed. A test that cannot be answered
-       here says so and is counted apart from the failures (see `needs` in tests-kit.mjs);
-       if that number GROWS, something that used to be answerable has stopped being so
-       - which is a regression wearing the one colour nobody looks at. */
-    /* 16 on 24.09 (E01), and every one of them now asks the environment first: no
-       layout (R12, R111, R112, the curtain twice, two chrome sweeps, the window cap),
-       no fonts, no Web Animations API, no CSS cascade (three), no canvas renderer, no
-       Daggerheart sheets (two). The old 9 of 14.09 had become 12 by 1.2.56 with nobody
-       told, and three of those twelve were the module's own results skipping. */
-    check("gm: nothing new went unanswerable", (res?.skipped ?? 99) <= 16,
-        `${res?.skipped} skipped, was 16 on 24.09`);
+    /* THE SKIPS, EXACTLY (E30, 24.09.2026; audit S14-24). The skipped count is
+       checked, not just printed: a test that cannot be answered here says so and is
+       counted apart from the failures (needs() in tests-kit.mjs), and if that set
+       GROWS, something that used to be answerable has stopped being so - a
+       regression wearing the one colour nobody looks at. It was a count, `<= 16`,
+       which a test that started answering let through beside one that stopped.
+       Now every skip is held to skip-baseline.json by name and probe, both ways.
+       And no world.* skip at all: this harness builds the world it runs in, so a
+       scenario it cannot cast for is a fixture defect, not a fact about a table. */
+    const baseline = JSON.parse(fs.readFileSync(path.join(HERE, "..", "skip-baseline.json"), "utf8"));
+    const skips = (res?.results ?? []).filter(r => r.outcome === "skip");
+    const worldSkips = skips.filter(r => !String(r.probe ?? "").startsWith("env."));
+    check("gm: no test skipped for want of something in the harness's own world", worldSkips.length === 0,
+        worldSkips.map(r => `${r.name} [${r.probe ?? "no probe"}]`).join("; "));
+    const key = r => `${r.probe} | ${r.test ?? r.name}`;
+    const listed = new Set(baseline.skips.map(key)), seen = new Set(skips.map(key));
+    const unlisted = [...seen].filter(k => !listed.has(k)), answering = [...listed].filter(k => !seen.has(k));
+    check("gm: the skips are exactly the ones skip-baseline.json lists", Array.isArray(res?.results) && !unlisted.length && !answering.length,
+        `${skips.length} skipped, ${baseline.skips.length} listed; not listed: ${unlisted.join("; ") || "none"}; listed and now answering: ${answering.join("; ") || "none"}`);
     await settle(300);
     return { suite: { passed: res?.passed, failed: res?.failed, skipped: res?.skipped, red: res?.red, results: res?.results ?? null } };
 }
