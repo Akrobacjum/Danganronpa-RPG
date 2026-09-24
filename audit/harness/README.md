@@ -34,6 +34,67 @@ so a runner can read it without importing the file: `"ci"` (this harness),
 for the tools in `probes/` (see `probes/README.md`). `cluster.mjs` fails a file
 that declares none.
 
+## Numbers
+
+A scenario's number is how a comment, a commit and an audit find it a year
+later, so a number is never reused or reassigned, and a retired row stays. A new
+scenario takes the next free number in its decade - 0x the harness and the
+suite, 1x the session and the murder, 2x dice, 3x security, 4x the flows through
+a day, 5x language, 6x GM stores and migrations, 7x behaviour and secrets, 8x
+several clients and budgets, 9x measurements - and the stage that writes a
+planned file flips its row to `exists` in the same commit. A row, its file and
+the file's `layers` export must agree: `node tools/check.mjs registry` fails
+otherwise, and on a planned row whose stage has shipped. Status is `exists`,
+`planned`, `probe` (a tool in `probes/`, never a gate) or `retired`; Stage is the
+release or stage the status belongs to.
+
+<!-- scenarios:start -->
+| No. | File | Layers | Status | Stage | What it asks |
+| --- | --- | --- | --- | --- | --- |
+| 00 | scenarios/00-boot.mjs | ci | exists | <=1.2.50 | four clients boot, the API and the settings register, a player's world-setting write is refused |
+| 01 | scenarios/01-runtests.mjs | ci | exists | <=1.2.50 | the module's suite on the GM: read-only mid-game, tier 2 behind its window, then in full; a player is refused it |
+| 02 | probes/02-probe.mjs | probe | probe | E30 | a tool (probes/README.md); the number is not reused for a scenario |
+| 03 | probes/03-standalone.mjs | probe | probe | E30 | a tool (probes/README.md); the number is not reused for a scenario |
+| 04 | probes/04-music-debug.mjs | probe | probe | E30 | a tool (probes/README.md); the number is not reused for a scenario |
+| 05 | probes/05-playsound.mjs | probe | probe | E30 | a tool (probes/README.md); the number is not reused for a scenario |
+| 06 | probes/06-runtests-music.mjs | probe | probe | E30 | a tool (probes/README.md); the number is not reused for a scenario |
+| 07 | probes/07-apimap.mjs | probe | probe | E30 | a tool (probes/README.md); the number is not reused for a scenario |
+| 10 | scenarios/10-murder.mjs | ci | exists | <=1.2.50 | the crime pipeline on three live clients |
+| 11 | scenarios/11-killer-secrecy.mjs | ci | exists | <=1.2.50 | a bystander cannot read the killer or the accomplice |
+| 12 | scenarios/12-social.mjs | ci | exists | <=1.2.50 | private rolls, inventory limits, movement and Search between clients |
+| 13 | scenarios/13-murder-signals.mjs | ci | exists | <=1.2.50 | what a killing shows four screens; a bystander sees nothing |
+| 14 | scenarios/14-quiet.mjs | ci | exists | <=1.2.50 | a redraw that changes nothing writes nothing |
+| 15 | scenarios/15-held.mjs | ci | exists | 1.2.58 (E27) | other modules' client settings held on every client |
+| 16 | scenarios/16-first-run.mjs | local-gate | planned | E58 | a clean install from the manifest, and the first run |
+| 17 | scenarios/17-assistant.mjs | ci | exists | E30 | an Assistant GM (role 3) is a GM, and its relay packets are judged like a player's |
+| 18 | scenarios/18-trial.mjs | ci | planned | E40 | the trial with real ballots, a player leak scan after every step (plan v2 calls it 15-trial; 15 is 15-held) |
+| 20 | scenarios/20-crit-hope.mjs | ci | exists | <=1.2.50 | a critical pays +2 Hope, a Hope roll +1 |
+| 30 | scenarios/30-security.mjs | ci | exists | <=1.2.50 | forged packets and writes change nothing on the GM |
+| 31 | scenarios/31-fuzz.mjs | ci, local-gate | planned | E43 | malformed packets to every bridge entry and socket: no write, no GM exception, a refusal with a reason |
+| 32 | scenarios/32-case-security.mjs | ci | planned | E43 | the hostile-client matrix, delivery proven before the effect is checked |
+| 40 | scenarios/40-flow.mjs | ci | exists | <=1.2.50 | a Daily Life time of day on four clients |
+| 41 | scenarios/41-trial-scene.mjs | ci, local-gate | planned | E13 | the Class Trial switches to the fixed hall (the harness needs scene switching first) |
+| 50 | scenarios/50-lang.mjs | ci | exists | <=1.2.50 | the Language setting on four clients |
+| 51 | scenarios/51-lang-mixed.mjs | ci | planned | E57 | English and Polish browsers at one table |
+| 60 | scenarios/60-ledger.mjs | ci | exists | <=1.2.50 | the discovery ledger is a secret per player |
+| 61 | scenarios/61-gmstore-case.mjs | ci | planned | E38 | the GM store with a second GM: backup and restore, tombstones, kept ids |
+| 62 | scenarios/62-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56) |
+| 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
+| 71 | scenarios/71-sheet.mjs | local-gate | planned | E45 | the sheet on two accounts on a real v14 |
+| 72 | scenarios/72-canary.mjs | ci | planned | E30 | what a player's browser holds: the canary's self-test, and planted secrets at rest (E43 extends it to the season) |
+| 81 | scenarios/81-render-budget.mjs | local-gate | planned | E37 | render counts per event on real sheets (E53 compares) |
+| 82 | scenarios/82-two-gms.mjs | ci | planned | E38 | two GMs: sync both ways, a change of primary |
+| 83 | scenarios/83-roll-integrity.mjs | local-gate | planned | E33 | every forged roll write flagged, every legal path clean |
+| 84 | scenarios/84-viewports.mjs | local-gate | planned | E49 | 1366x768, 1280x720, interface scale 80-120% |
+| 85 | scenarios/85-chaos.mjs | ci | planned | E38 | reloads mid-vote, mid-incident and mid-card; players going offline |
+| 90 | - | - | retired | E30 | results/90-a11ycost.json came from a scratch scenario outside the repository; not reused |
+<!-- scenarios:end -->
+
+## Probes
+
+Tools, not tests: `probes/README.md`. A probe is never part of a gate, and its
+number is not reused for a scenario.
+
 ## What the harness cannot do
 
 - **No layout, canvas renderer, fonts, audio or Web Animations.** jsdom lays

@@ -18,6 +18,10 @@
  *             first and the part is red if it does not flag exactly the
  *             fixture's violations. audit/harness/probes/ is not read: a probe
  *             records, it does not verdict.
+ *   registry  the harness's scenario numbers (audit/harness/README.md) against
+ *             the files and their layers, and the suite's R numbers (the
+ *             block at the end of CLAUDE.md) against the tier files -
+ *             tools/registry.mjs, whose `--write` regenerates the block.
  */
 
 import fs from "node:fs";
@@ -27,6 +31,7 @@ import url from "node:url";
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..");
 const lint = await import(url.pathToFileURL(path.join(REPO, "scripts", "tests-lint.mjs")).href);
+const registryLib = await import(url.pathToFileURL(path.join(REPO, "tools", "registry.mjs")).href);
 
 function contract() {
     const problems = [];
@@ -62,7 +67,13 @@ function contract() {
     return problems;
 }
 
-const PARTS = { contract };
+function registry() {
+    const { problems, summary } = registryLib.registryProblems(REPO);
+    console.log(summary);
+    return problems;
+}
+
+const PARTS = { contract, registry };
 
 const asked = process.argv.slice(2).filter(a => !a.startsWith("--"));
 const unknown = asked.filter(name => !PARTS[name]);

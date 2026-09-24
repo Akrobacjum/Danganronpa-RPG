@@ -247,8 +247,13 @@ export function testsIn(text) {
     if (open < 0) return [];
     const close = src.indexOf("\n];", open);
     const end = close < 0 ? src.length : close;
+    // The name as the runner sees it: the literal decoded, so `\"` reads as `"`.
+    const decode = (quote, raw) => {
+        if (quote === '"') { try { return JSON.parse(`"${raw}"`); } catch { return raw; } }
+        return raw.replace(/\\(.)/g, "$1");
+    };
     const starts = [...src.slice(open, end).matchAll(/^ {4}\[\s*(["'`])((?:\\.|(?!\1)[^\\])*)\1/gm)]
-        .map(m => ({ name: m[2], start: open + m.index }));
+        .map(m => ({ name: decode(m[1], m[2]), start: open + m.index }));
     return starts.map((t, i) => ({ ...t, end: starts[i + 1]?.start ?? end, line: lineAt(src, t.start) }));
 }
 
