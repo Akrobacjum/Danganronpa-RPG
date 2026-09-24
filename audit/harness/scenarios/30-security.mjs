@@ -1,15 +1,16 @@
 const MOD = "danganronpa-rpg";
-export async function run({ gm, p1, p2, check, settle, permissionDenials }) {
-    const ids = await gm.eval(`return { aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id, chie: game.actors.getName("Chie Mori").id };`);
+const SOCKET = `module.${MOD}`;
+export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUrl }) {
+    const ids = await gm.eval(`return { aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id, chie: game.actors.getName("Chie Mori").id, daichi: game.actors.getName("Daichi Sato").id };`);
 
     // 1. XSS via messenger free text (player writes hostile markup)
     const xss = await p1.eval(`
-        const M = await import("file:///home/user/Danganronpa-RPG/scripts/messenger.mjs");
+        const M = await import("${repoUrl}/scripts/messenger.mjs");
         const evil = "<img src=x onerror=alert(1)><script>window.__pwned=1<\\/script>";
         const sent = await M.sendMessage(game.user.id, evil);
         // A thread card is a private card (COMM-03): the document holds a stub and the
         // words live in the sender's own store - escaped there, or nowhere.
-        const S = await import("file:///home/user/Danganronpa-RPG/scripts/secret.mjs");
+        const S = await import("${repoUrl}/scripts/secret.mjs");
         const raw = sent ? S.contentOf(sent) : "";
         const doc = sent ? (sent._source.content ?? "") : "";
         return { id: sent?.id ?? null, stored: raw.slice(0, 300), escaped: raw.includes("&lt;img") || raw.includes("&lt;"), rawTagPresent: /<img|<script/i.test(raw) || /<img|<script/i.test(doc) };
@@ -23,34 +24,155 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials }) {
     `);
     check("SECURITY: player cannot write another player's actor", String(writeOther).startsWith("denied"), String(writeOther));
 
-    // 3. player writes an NPC actor (Chie) - not owned (server refuses)
-    const writeNpc = await p1.eval(`
-        try { await game.actors.get("${ids.chie}").update({ "system.resources.hope.value": 99 }); return "WRITE SUCCEEDED"; }
+    // 3. player writes an actor nobody at the table owns (Daichi) - the server refuses.
+    //    This step used to write Chie and call her an NPC; Chie is p3's student, so it
+    //    was step 2 again. Daichi is the one actor with no owner but the GM.
+    const writeUnowned = await p1.eval(`
+        try { await game.actors.get("${ids.daichi}").update({ "system.resources.hope.value": 99 }); return "WRITE SUCCEEDED"; }
         catch (err) { return "denied: " + err.message; }
     `);
-    check("SECURITY: player cannot write an NPC actor", String(writeNpc).startsWith("denied"), String(writeNpc));
+    check("SECURITY: player cannot write an actor no player owns", String(writeUnowned).startsWith("denied"), String(writeUnowned));
 
-    // 4. player forges a gm-bridge socket asking to act as an actor they don't own
-    const forge = await p1.eval(`
-        // Try to make the GM score an Observe as Botan (p2's actor) - gm-bridge must refuse (ownsActor on senderId)
-        const SOCKET = "module.${MOD}";
-        game.socket.emit(SOCKET, { action: "observeTarget", actorId: "${ids.botan}", requestId: "forge1", userId: game.user.id, declaration: {}, request: {} });
-        return "emitted";
-    `);
-    await settle(600);
-    // did any refuse happen on gm side, and did NOTHING happen to Botan?
-    const forgeEffect = await gm.eval(`return { botanHope: game.actors.get("${ids.botan}").system.resources.hope.value };`);
-    check("SECURITY: forged socket for unowned actor did not change state", forgeEffect.botanHope !== 99, JSON.stringify(forgeEffect));
+    /*
+     * 4. FORGED GM-BRIDGE REQUESTS, AND THE REAL ACTION NAMES THIS TIME.
+     *
+     * This step sent `action: "observeTarget"`. The bridge's name is "observe.target",
+     * so the packet reached no handler, and the check after it - Botan's Hope is not
+     * 99 - could not fail: nothing in that packet would have set it (audit S14-08).
+     * The suite runs on the GM alone, who owns everything, and R1b reads the source;
+     * so there was no behavioural test anywhere that a gm-bridge handler turns away a
+     * player acting as somebody else's character.
+     *
+     * Each request below is sent three ways:
+     *   - FORGED by p1, naming p2's Botan, with p2's user id in the payload's own
+     *     `userId` claim. The bridge must judge by Foundry's `senderId` instead.
+     *   - It must CHANGE NOTHING on the GM, and the GM must say why - the refusal
+     *     reason for ownership in its log, and a `bridge.refused` packet to p1.
+     *     The reason is checked and not only the packet, because `call.arm` has a
+     *     second guard (is this a real Call) that refuses with the same packet.
+     *   - The SAME REQUEST from Botan's own player, through the module's own
+     *     request function, must take effect. Without this, "nothing changed" could
+     *     be a request that would not have worked for anybody.
+     * The scene is arranged so that ownership is the only thing in the way: Aiko is
+     * moved into Botan's room, because a handover between two rooms is refused by
+     * handover.mjs for a different reason.
+     *
+     * Verified by hand the day it was written (1.2.56): with the `ownsActor` guard
+     * disabled in the three handlers in scripts/gm-bridge.mjs (`handleShareBulletOr
+     * GiveItem`, `handleArm`, `handleCrisis`), all six SECURITY checks below FAILED
+     * - the wrench moved, the Call armed, Daichi died, and no refusal was sent - and
+     * the scenario read 9/15. Then the file was restored.
+     */
+    await p1.eval(`
+        globalThis.__refused = [];
+        game.socket.on("${SOCKET}", (payload, senderId) => {
+            if (payload?.action === "bridge.refused") globalThis.__refused.push({ what: payload.what, requestId: payload.requestId ?? null, from: senderId });
+        });
+        return true;`);
+    const setup = await gm.eval(`
+        const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const { sameRoom } = await import("${repoUrl}/scripts/movement.mjs");
+        await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 1500, y: 300 });
+        const botan = game.actors.get("${ids.botan}");
+        const item = await INV.grantItem(botan, { name: "SEC wrench", category: "tool", tier: 1 });
+        await game.drpg.setDespair(game.user.id, 6);
+        return { itemId: item?.id ?? null, sameRoom: sameRoom(game.actors.get("${ids.aiko}"), botan) };`, { timeout: 60000 });
+    check("setup: Aiko stands in Botan's room and Botan holds an item to give", setup.sameRoom === true && Boolean(setup.itemId), JSON.stringify(setup));
+    await settle(300);
 
-    // 5. can a player grant themselves resources via any exposed api that writes world/other state?
+    /** Send one forged packet from p1 and report what the GM did about it. */
+    const forge = async (action, fields, read) => {
+        await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+        const before = await gm.eval(read);
+        await p1.eval(`
+            globalThis.__refused.length = 0;
+            game.socket.emit("${SOCKET}", { action: "${action}", userId: "${p2.userId}", requestId: "forge-${action}", ...${JSON.stringify(fields)} },
+                { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+            return true;`);
+        await settle(900);
+        const after = await gm.eval(read);
+        const reasons = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+            .filter(e => e.message.includes('Refused a "${action}"')).map(e => e.message);`);
+        const told = await p1.eval(`return globalThis.__refused.slice();`);
+        return {
+            before, after, reasons, told,
+            unchanged: JSON.stringify(before) === JSON.stringify(after),
+            forOwnership: reasons.some(r => /sender does not own/.test(r))
+        };
+    };
+
+    // 4a. handover.item: p1 gives Botan's wrench to Aiko.
+    const readHandover = `const b = game.actors.get("${ids.botan}"), a = game.actors.get("${ids.aiko}");
+        return { botanHas: b.items.has("${setup.itemId}"), aikoWrenches: a.items.contents.filter(i => i.name === "SEC wrench").length };`;
+    const hand = await forge("handover.item", { fromId: ids.botan, toId: ids.aiko, itemId: setup.itemId }, readHandover);
+    check("SECURITY: a forged handover.item of Botan's item changed nothing on the GM",
+        hand.unchanged && hand.after.botanHas === true && hand.after.aikoWrenches === 0, JSON.stringify(hand));
+    check("SECURITY: the GM refused the forged handover.item for ownership, and told p1",
+        hand.forOwnership && hand.told.some(t => t.what === "handover.item"), JSON.stringify({ reasons: hand.reasons, told: hand.told }));
+    await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        B.requestGiveItem({ fromId: "${ids.botan}", toId: "${ids.aiko}", itemId: "${setup.itemId}" }); return true;`);
+    await settle(900);
+    const handOk = await gm.eval(readHandover);
+    check("control: the same handover.item from Botan's own player does move the item",
+        handOk.botanHas === false && handOk.aikoWrenches === 1, JSON.stringify(handOk));
+
+    // 4b. call.arm: p1 arms a Support on Botan, paid for by Botan.
+    const call = { key: "support", grants: "advantage", kind: "hope", from: ids.botan };
+    const readArm = `return { armed: game.actors.get("${ids.botan}").getFlag("${MOD}", "pendingCall") ?? null };`;
+    const arm = await forge("call.arm", { actorId: ids.botan, call }, readArm);
+    check("SECURITY: a forged call.arm paid for by Botan changed nothing on the GM", arm.unchanged, JSON.stringify(arm));
+    check("SECURITY: the GM refused the forged call.arm for ownership, and told p1",
+        arm.forOwnership && arm.told.some(t => t.what === "call.arm"), JSON.stringify({ reasons: arm.reasons, told: arm.told }));
+    await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        await B.requestArmCall("${ids.botan}", ${JSON.stringify(call)}); return true;`);
+    await settle(900);
+    const armOk = await gm.eval(readArm);
+    check("control: the same call.arm from Botan's own player does arm the Call",
+        JSON.stringify(armOk) !== JSON.stringify(arm.after) && JSON.stringify(armOk.armed ?? []).includes("support"), JSON.stringify(armOk));
+
+    // 4c. murder.crisis: p1 throws the finishing blow as Botan, the killer.
+    //     The incident is opened the way 13-murder-signals opens one; the killer's
+    //     player sits still so an opening roll cannot race the GM's.
+    await p2.eval(`globalThis.__dialogAuto = false; return true;`);
+    await gm.eval(`
+        await game.drpg.openMurder({ killerId: "${ids.botan}", victimId: "${ids.daichi}" });
+        await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await game.drpg.passTurn();
+        return true;`, { timeout: 60000 });
+    await settle(500);
+    const readCrisis = `return { stage: game.drpg.murderState()?.stage ?? null, dead: game.drpg.isDeceased(game.actors.get("${ids.daichi}")) };`;
+    const blow = await forge("murder.crisis", { actorId: ids.botan, key: "finishingBlow", total: 99, isCritical: false, withHope: true }, readCrisis);
+    await settle(1200); // a killing lands after a beat (10-murder waits 1.7 s); wait it out before calling it unchanged
+    const blowLater = await gm.eval(readCrisis);
+    check("SECURITY: a forged murder.crisis finishing blow as Botan killed nobody",
+        blow.unchanged && JSON.stringify(blowLater) === JSON.stringify(blow.before) && blowLater.dead === false,
+        JSON.stringify({ ...blow, later: blowLater }));
+    check("SECURITY: the GM refused the forged murder.crisis for ownership, and told p1",
+        blow.forOwnership && blow.told.some(t => t.what === "murder.crisis"), JSON.stringify({ reasons: blow.reasons, told: blow.told }));
+    await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        B.requestCrisisResult({ actorId: "${ids.botan}", key: "finishingBlow", total: 99, isCritical: false, withHope: true }); return true;`);
+    await settle(2200);
+    const blowOk = await gm.eval(readCrisis);
+    check("control: the same finishing blow from Botan's own player does kill", blowOk.dead === true, JSON.stringify(blowOk));
+    await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false }); return true;`, { timeout: 60000 });
+
+    /*
+     * 5. A player calling a GM-side pool write through the API.
+     *
+     * This was `check(..., true)` - "does not throw uncaught" - and passed whatever
+     * happened. What matters is the pool: p1 tries to drain the GM's Despair pool,
+     * and the GM's reading must not move. (It used to pass an actor id, which is not
+     * what `adjustDespair` takes - pools are keyed by the Monokuma's user id.)
+     */
+    const poolBefore = await gm.eval(`return game.drpg.getDespair(game.user.id);`);
     const selfGrant = await p1.eval(`
-        try {
-            // adjustDespair is a GM-side pool write; a player calling it should not persist (world setting write denied)
-            const r = await game.drpg.adjustDespair?.("${ids.chie}", -5);
-            return "called: " + JSON.stringify(r);
-        } catch (err) { return "threw: " + err.message; }
+        try { const r = await game.drpg.adjustDespair("${gm.userId}", -5); return { threw: null, r }; }
+        catch (err) { return { threw: err.message }; }
     `);
-    check("SECURITY: player calling adjustDespair does not throw uncaught (write silently denied)", true, String(selfGrant).slice(0, 200));
+    await settle(400);
+    const poolAfter = await gm.eval(`return game.drpg.getDespair(game.user.id);`);
+    check("SECURITY: a player calling adjustDespair on the GM's pool moves nothing",
+        poolBefore > 0 && poolAfter === poolBefore, JSON.stringify({ poolBefore, poolAfter, selfGrant }));
 
     // summary of what server refused
     check("SECURITY: server logged permission denials for player writes", (permissionDenials ?? []).length >= 2, JSON.stringify((permissionDenials||[]).slice(0,8)));

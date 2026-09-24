@@ -5,9 +5,8 @@
  * the HUD after a re-render, and that no key the code asks for went missing.
  */
 const MOD = "danganronpa-rpg";
-const REPO = "file:///home/user/Danganronpa-RPG";
 
-export async function run({ gm, p1, p2, p3, check, settle }) {
+export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     const all = [gm, p1, p2, p3];
 
     // ---- 0. English baseline -------------------------------------------------------------

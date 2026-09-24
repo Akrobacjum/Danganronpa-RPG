@@ -1,9 +1,9 @@
-export async function run({ gm, check }) {
+export async function run({ gm, check, repoUrl }) {
     const out = await gm.eval(`
-        const floor = await import("file:///home/user/Danganronpa-RPG/scripts/trial-floor.mjs");
-        const MU = await import("file:///home/user/Danganronpa-RPG/scripts/music.mjs");
-        const { SETTINGS, setSetting } = await import("file:///home/user/Danganronpa-RPG/scripts/settings.mjs");
-        const { setClock } = await import("file:///home/user/Danganronpa-RPG/scripts/clock.mjs");
+        const floor = await import("${repoUrl}/scripts/trial-floor.mjs");
+        const MU = await import("${repoUrl}/scripts/music.mjs");
+        const { SETTINGS, setSetting } = await import("${repoUrl}/scripts/settings.mjs");
+        const { setClock } = await import("${repoUrl}/scripts/clock.mjs");
         await game.settings.set("danganronpa-rpg", SETTINGS.musicEnabled, true);
         const playlist = await Playlist.create({
             name: "Probe objection fixture",

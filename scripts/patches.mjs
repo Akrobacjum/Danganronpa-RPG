@@ -33,9 +33,18 @@ const AV_MODULE = "avclient-livekit";
  *            exists at all; `ours` says the function sitting there is the
  *            module's, and is null when the wrapper leaves no mark to read
  */
+/*
+ * `owner` is whose code the target is: "foundry", the system's id, or a module's id
+ * (E01, 24.09.2026; the review of E01). The newer-Daggerheart warning lists only the
+ * rows whose owner is the system: it used to list every row that answered
+ * `present: false`, which put Isometric Perspective's override - absent whenever that
+ * recommended module is off - under the heading "places the module changes in
+ * Daggerheart" on every world without it.
+ */
 export const PATCHES = [
     {
         target: "DualityRoll.addDualityResourceUpdates",
+        owner: "daggerheart",
         file: "critical.mjs",
         why: "The module's own numbers on a critical - see CRITICAL in config.mjs.",
         when: "always",
@@ -49,6 +58,7 @@ export const PATCHES = [
     },
     {
         target: "CONFIG.Dice.randomUniform",
+        owner: "foundry",
         file: "forced-roll.mjs",
         why: "One die of the next duality roll lands on its highest face (Free Critical).",
         when: "only while a Free Critical's own roll evaluates; lifted in a finally (A4)",
@@ -59,6 +69,7 @@ export const PATCHES = [
     },
     {
         target: "InterfaceCanvasGroup.prototype.createScrollingText",
+        owner: "foundry",
         file: "no-scrolling-text.mjs",
         why: "No floating captions over tokens at all.",
         when: "always",
@@ -74,6 +85,7 @@ export const PATCHES = [
     },
     {
         target: "ApplicationV2.prototype.close",
+        owner: "foundry",
         file: "motion.mjs",
         why: "Marks a module window as closing so its exit plays, and plays the close sound.",
         when: "always",
@@ -84,6 +96,7 @@ export const PATCHES = [
     },
     {
         target: "ApplicationV2.prototype._awaitTransition",
+        owner: "foundry",
         file: "motion.mjs",
         why: "Returns at once when the window has no transition running, instead of waiting out Foundry's one-second fallback.",
         when: "always",
@@ -94,6 +107,7 @@ export const PATCHES = [
     },
     {
         target: "ui.notifications.info and .warn",
+        owner: "foundry",
         file: "voice.mjs",
         why: "Silences avclient-livekit's own toasts, which the module reports in its own words.",
         when: `only while ${AV_MODULE} is active`,
@@ -107,6 +121,7 @@ export const PATCHES = [
     },
     {
         target: "Token _refreshState (Isometric Perspective's own override)",
+        owner: "isometric-perspective",
         file: "iso-shield.mjs",
         why: "Keeps the isometric module's override out of the way while a token is edited.",
         when: "only while Isometric Perspective is active and the shield is on",
@@ -128,6 +143,7 @@ export const PATCHES = [
     },
     {
         target: "render, as an own property on each open character sheet",
+        owner: "foundry",
         file: "sheet.mjs",
         why: "A resource-only update skips one redraw, so the sheet does not flicker on every Hope or Health change.",
         when: "per sheet, armed by the first resource-only update it sees",
@@ -163,6 +179,7 @@ export function diagnosePatches() {
         }
         return {
             target: entry.target,
+            owner: entry.owner,
             file: entry.file,
             why: entry.why,
             when: entry.when,

@@ -1,10 +1,10 @@
 /** Replicate the two stubborn suite scenarios standalone, step by step. */
-export async function run({ gm, check, settle }) {
+export async function run({ gm, check, settle, repoUrl }) {
     // A) equipment loop - exactly like the suite
     const equip = await gm.eval(`
-        const INV = await import("file:///home/user/Danganronpa-RPG/scripts/inventory.mjs");
-        const { EQUIPPABLE } = await import("file:///home/user/Danganronpa-RPG/scripts/config.mjs");
-        const { studentActors } = await import("file:///home/user/Danganronpa-RPG/scripts/monokuma.mjs");
+        const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const { EQUIPPABLE } = await import("${repoUrl}/scripts/config.mjs");
+        const { studentActors } = await import("${repoUrl}/scripts/monokuma.mjs");
         const actor = studentActors()[0];
         const out = { actor: actor?.name, made: [], failedAt: null, notif: [] };
         const n0 = globalThis.__notifications.length;
@@ -21,9 +21,9 @@ export async function run({ gm, check, settle }) {
 
     // B) objection music - exactly like the suite
     const obj = await gm.eval(`
-        const floor = await import("file:///home/user/Danganronpa-RPG/scripts/trial-floor.mjs");
-        const { SETTINGS, getSetting, setSetting } = await import("file:///home/user/Danganronpa-RPG/scripts/settings.mjs");
-        const { setClock } = await import("file:///home/user/Danganronpa-RPG/scripts/clock.mjs");
+        const floor = await import("${repoUrl}/scripts/trial-floor.mjs");
+        const { SETTINGS, getSetting, setSetting } = await import("${repoUrl}/scripts/settings.mjs");
+        const { setClock } = await import("${repoUrl}/scripts/clock.mjs");
         await game.settings.set("danganronpa-rpg", SETTINGS.musicEnabled, true);
         const playlist = await Playlist.create({
             name: "Probe objection fixture",

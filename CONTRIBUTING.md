@@ -2,7 +2,8 @@
 
 Thanks for looking. This is a Foundry VTT module - plain ES modules and CSS, no
 build step, no bundler, no `npm install`. What you check out is what ships:
-the package is `git archive` of the tree.
+the package is `git archive` of the tree. The one exception is the headless
+test harness in `audit/harness`, which needs jsdom: `npm ci` there, once.
 
 ## Getting it running
 
@@ -13,14 +14,15 @@ the package is `git archive` of the tree.
 
 ## Before you open a pull request
 
-Run all three. They take about two minutes together.
+Run all three. They take about five minutes together (the suite alone is about three, measured 24.09).
 
 ```bash
-# the regression suite and the eight scenarios, headless
+# the regression suite and the ten scenarios, headless
 cd audit/harness
+npm ci        # once: installs jsdom for the harness (the module itself needs nothing)
 node cluster.mjs scenarios/01-runtests.mjs
-for s in 10-murder 11-killer-secrecy 12-social 20-crit-hope \
-         30-security 40-flow 50-lang 60-ledger; do
+for s in 10-murder 11-killer-secrecy 12-social 13-murder-signals 14-quiet \
+         20-crit-hope 30-security 40-flow 50-lang 60-ledger; do
   node cluster.mjs scenarios/$s.mjs
 done
 
@@ -28,6 +30,9 @@ done
 cd ../..
 node tools/config-prose.mjs --check lang/pl.json
 ```
+
+The harness boots the checkout it sits in; set `DRPG_REPO` to point it at
+another one.
 
 The suite must report **0 failed**. It also reports a number of skipped tests -
 those are the ones that need a real browser (layout, a canvas with a width,

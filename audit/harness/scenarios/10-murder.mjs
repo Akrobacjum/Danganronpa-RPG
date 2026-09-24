@@ -5,10 +5,12 @@
  */
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, p2, p3, check, settle }) {
+export async function run({ gm, p1, p2, p3, check, settle, repoUrl }) {
     // This scenario drives the incident from the GM's client and measures state between its
     // own steps; the killer's player client answering an opening roll it was sent would race it.
-    for (const c of [p1, p2, p3].filter(Boolean)) await c.eval(`globalThis.__dialogAuto = false; (game.socket._handlers.get("module.danganronpa-rpg") ?? []).length = 0; return true;`);
+    // The players' module socket handlers are PUT ASIDE, not thrown away: the vote in step 6
+    // reaches a player only through them, and they are handed back before it opens.
+    for (const c of [p1, p2, p3].filter(Boolean)) await c.eval(`globalThis.__dialogAuto = false; globalThis.__mutedSocket = (game.socket._handlers.get("module.danganronpa-rpg") ?? []).splice(0); return true;`);
     const ids = await gm.eval(`return {
         chie: game.actors.getName("Chie Mori").id,
         daichi: game.actors.getName("Daichi Sato").id,
@@ -32,7 +34,9 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
         return { raw: s, api };
     `);
     const rawStr = JSON.stringify(leak.raw ?? {});
-    const leaksKiller = rawStr.includes("${ids.chie}".slice(0, 8)) || rawStr.includes(ids.chie);
+    // By id or by name. The first half of this used to be `"${ids.chie}".slice(0, 8)` in
+    // plain quotes - the literal text "${ids.c", which no setting will ever contain.
+    const leaksKiller = rawStr.includes(ids.chie) || rawStr.includes("Chie Mori");
     check("p2: killer identity NOT readable from murderState world setting", !leaksKiller, rawStr.slice(0, 400));
 
     // -- 2. killer's opening roll --------------------------------------------
@@ -58,11 +62,15 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
     check("p1: death replicated to player client", deadOnP1 === true, String(deadOnP1));
 
     // -- 4. resolution & body discovery --------------------------------------
+    // The finishing blow has already moved the incident to "resolution" (Stage 6), so
+    // asking for it again must be a no-op: `beginResolution` answers null and writes
+    // nothing unless the stage is still "incident". This was `check(..., true)`, and
+    // its eval turned the null into "ok" on the way out (`typeof null` is "object").
     const resolution = await gm.eval(`
-        const r = await game.drpg.beginResolution?.() ?? "no-beginResolution";
-        return { r: typeof r === "object" ? "ok" : r, stage: game.drpg.murderState()?.stage };
+        const r = await game.drpg.beginResolution();
+        return { isNull: r === null, stage: game.drpg.murderState()?.stage };
     `, { timeout: 60000 });
-    check("gm: resolution stage", true, JSON.stringify(resolution).slice(0, 200));
+    check("gm: a second beginResolution in Stage 6 changes nothing", resolution.isNull && resolution.stage === "resolution", JSON.stringify(resolution).slice(0, 200));
 
     const discover = await p1.eval(`
         try {
@@ -100,24 +108,69 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
     check("p2: remnant truth NOT in token flags", !/towel|wiped|weapon/i.test(truthStr), truthStr.slice(0, 300));
 
     // -- 6. vote --------------------------------------------------------------
+    /*
+     * CAST THE WAY A PLAYER CASTS IT. This step used to call `game.drpg.vote` and
+     * `game.drpg.castVote`, neither of which exists, and check `true` and
+     * `... || true` around them - so the Class Trial's vote could have been broken
+     * outright and this file would still have read 17/17 (audit S01-57, S14-19).
+     *
+     * The real road: `openVote` on the GM sends each player with a living student a
+     * `vote.open` packet; their client opens the ballot window (vote.mjs `castBallot`)
+     * with one radio per candidate; pressing the button sends `vote.ballot` to the
+     * GMs, who tally it by Foundry's sender id. So all three players get their socket
+     * handlers back, and p1 and p2 an answer queued that ticks Chie's radio IN THE
+     * WINDOW'S OWN CONTENT and presses its own button - a candidate missing from the
+     * list means no vote. p3 dismisses theirs, which the tally has to count as
+     * silence, not as a vote.
+     *
+     * Expected, from vote.mjs as it stands: three ballots out (Aiko, Botan, Chie -
+     * Daichi is dead and the dead do not vote), two returned for Chie, a majority
+     * of floor(3 / 2) + 1 = 2, so Chie is accused and the vote is not tied.
+     */
     await gm.eval(`await game.drpg.setClock({ phase: "classTrial" }); await game.drpg.startFloor(); return true;`, { timeout: 60000 });
     await settle(300);
-    const voteOpen = await gm.eval(`const r = await game.drpg.openVote(); return typeof r;`, { timeout: 60000 });
-    check("gm: vote opens", voteOpen !== "undefined" || true, String(voteOpen));
-    await settle(400);
+    for (const c of [p1, p2, p3]) {
+        await c.eval(`
+            (game.socket._handlers.get("module.danganronpa-rpg") ?? []).push(...(globalThis.__mutedSocket ?? []));
+            globalThis.__mutedSocket = [];
+            globalThis.__ballotSeen = null;
+            if ("${c.who}" !== "p3") globalThis.__dialogAnswers.push(async function ballot(cfg) {
+                // Some other window first: hand the answer back and close that one.
+                if (!(cfg.classes ?? []).includes("drpg-ballot")) { globalThis.__dialogAnswers.unshift(ballot); return null; }
+                const el = document.createElement("dialog");
+                if (typeof cfg.content === "string") el.innerHTML = cfg.content; else el.append(cfg.content.cloneNode(true));
+                globalThis.__ballotSeen = [...el.querySelectorAll('input[name="choice0"]')].map(i => i.value);
+                const radio = el.querySelector('input[name="choice0"][value="${ids.chie}"]');
+                if (!radio) return null;
+                radio.checked = true;
+                const button = (cfg.buttons ?? []).find(b => b.default) ?? cfg.buttons?.[0];
+                return button.callback(new window.Event("click"), { form: null }, { element: el });
+            });
+            return true;`);
+    }
+    const voteOpen = await gm.eval(`return await game.drpg.openVote();`, { timeout: 60000 });
+    check("gm: the vote opens to the three players with a living student", voteOpen === 3, JSON.stringify(voteOpen));
+    await settle(800);
 
-    const ballot1 = await p1.eval(`
-        try { const r = await game.drpg.vote?.("${ids.chie}") ?? await game.drpg.castVote?.("${ids.chie}") ?? "no-vote-fn";
-              return String(r); } catch (err) { return "threw: " + String(err).slice(0, 200); }
-    `, { timeout: 30000 });
-    check("p1: ballot cast path exists", true, String(ballot1).slice(0, 200));
+    // `castConfirmed` is raised only after the `vote.ballot` emit returned (vote.mjs `castBallot`).
+    const ballot1 = await p1.eval(`return { seen: globalThis.__ballotSeen, confirmed: game.i18n.localize("DRPG.Vote.castConfirmed"),
+        notifs: globalThis.__notifications.slice(-3).map(n => n.level + ":" + n.msg) };`);
+    check("p1: the ballot window listed Chie and p1's vote was sent", (ballot1.seen ?? []).includes(ids.chie)
+        && ballot1.notifs.includes(`info:${ballot1.confirmed}`), JSON.stringify(ballot1).slice(0, 400));
 
     const tally = await gm.eval(`
-        await new Promise(r => setTimeout(r, 400));
-        try { const r = await game.drpg.closeVote(); return JSON.stringify(r).slice(0, 300); }
-        catch (err) { return "threw: " + String(err).slice(0, 200); }
+        const V = await import("${repoUrl}/scripts/vote.mjs");
+        const inBefore = V.votesIn();
+        const pending = (V.pendingVoters() ?? []).map(v => v.user.id);
+        const r = await game.drpg.closeVote();
+        return { inBefore, pending, r };
     `, { timeout: 60000 });
-    check("gm: vote closes and tallies", !String(tally).startsWith("threw"), String(tally));
+    const chieRow = (tally.r?.rows ?? []).find(row => row.id === ids.chie);
+    check("gm: both ballots arrived and p3 is still outstanding",
+        tally.inBefore === 2 && tally.pending.length === 1 && tally.pending[0] === p3.userId, JSON.stringify(tally).slice(0, 400));
+    check("gm: the vote closes with Chie accused on two of three ballots",
+        chieRow?.n === 2 && tally.r?.total === 3 && tally.r?.tied === false && tally.r?.accusedId === ids.chie,
+        JSON.stringify(tally.r).slice(0, 400));
 
     // -- 7. end the incident --------------------------------------------------
     const end = await gm.eval(`
@@ -127,7 +180,7 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
     check("gm: murder ends clean", !end || !end.stage || end.stage === "idle", JSON.stringify(end ?? null).slice(0, 200));
 
     // errors collected anywhere?
-    for (const c of [gm, p1, p2]) {
+    for (const c of [gm, p1, p2, p3]) {
         const errs = await c.eval(`return globalThis.__errors.concat([]).slice(0, 5);`);
         check(`${c.who}: no uncaught errors`, (errs ?? []).length === 0, JSON.stringify(errs).slice(0, 300));
     }

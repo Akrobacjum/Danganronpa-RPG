@@ -118,6 +118,22 @@ export function forgetArmedTraps() {
 }
 
 /**
+ * The armed traps a crossing into `room` asks about - the lookup `onCrossed`
+ * makes, and nothing that follows it.
+ *
+ * EXPORTED FOR R10, WHICH HAD TO STOP FIRING THE HOOK (E01, audit S14-01). R10
+ * times what a room crossing costs, and it measured that by raising
+ * `drpgRoomCrossed` sixty-one times for the first student and the first room.
+ * With a trap armed there on "enters", the first of those was a real crossing:
+ * the trap alerted its killer and stamped itself spent, from a tier the suite
+ * promises can be run during play. A query answers the same timing question
+ * and cannot spring anything.
+ */
+export function armedIn(room) {
+    return room ? (armed().byRoom.get(room) ?? []) : [];
+}
+
+/**
  * Every trap that is armed and could still fire.
  *
  * TRAP 154 LIVES HERE, and it is two rules rather than one. A frozen project is
@@ -692,8 +708,8 @@ export function registerTraps() {
 async function onCrossed({ actor, to } = {}) {
     try {
         if (!isPrimaryGm() || !to) return;
-        const here = armed().byRoom.get(to);
-        if (!here?.length) return;
+        const here = armedIn(to);
+        if (!here.length) return;
 
         // Asked once for the whole room rather than once per trap: `othersInRoom`
         // reads the canvas and there is no reason to read it twice.

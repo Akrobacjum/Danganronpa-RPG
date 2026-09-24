@@ -79,14 +79,18 @@ import { registerNarrow } from "./narrow.mjs";
 import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
-import { requirementsMet, announceMissingRequirements, announceMissingRecommendations }
-    from "./requirements.mjs";
+import { requirementsMet, announceMissingRequirements, announceMissingRecommendations,
+    announceNewerSystem, systemCompatibility } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
 import { log, error, injectSelectPickerSkin, registerTextGuard, isPrimaryGm } from "./utils.mjs";
 
-/** Minimum Daggerheart version this layer was written against. */
+/**
+ * The system this layer is written for. Its versions - the minimum and the one
+ * it was verified on - are read off the manifest by `systemCompatibility`, not
+ * stated here: the "2.6.0" that stood here was a second copy of the manifest's
+ * minimum that nobody had measured (E01, audit S01-09).
+ */
 const REQUIRED_SYSTEM = "daggerheart";
-const REQUIRED_SYSTEM_VERSION = "2.6.0";
 
 /**
  * Register one subsystem without letting it take the others down.
@@ -249,6 +253,10 @@ Hooks.once("ready", () => {
     // a window the GM reads while the rest of this hook gets on with the world.
     announceMissingRecommendations().catch(err =>
         error("Could not mention the recommended modules", err));
+    // And a Daggerheart newer than the one this was measured on (D1: no maximum
+    // in the manifest, so this is the only thing that says so). Not awaited either.
+    announceNewerSystem().catch(err =>
+        error("Could not mention the newer Daggerheart", err));
 
     // First, and before anything below reads a saved shape: bring this world's
     // data up to the shape this build expects. Primary GM only, silent when
@@ -451,10 +459,11 @@ function verifySystem() {
         return;
     }
 
-    const tooOld = foundry.utils.isNewerVersion(REQUIRED_SYSTEM_VERSION, game.system.version);
+    const { minimum } = systemCompatibility();
+    const tooOld = minimum && foundry.utils.isNewerVersion(minimum, game.system.version);
     if (tooOld && game.user.isGM) {
         ui.notifications.warn(game.i18n.format("DRPG.Errors.oldSystem", {
-            required: REQUIRED_SYSTEM_VERSION,
+            required: minimum,
             found: game.system.version
         }));
     }

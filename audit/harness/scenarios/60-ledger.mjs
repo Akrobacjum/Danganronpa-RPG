@@ -5,9 +5,8 @@
  * with an empty store can rebuild the union from what the clients hold.
  */
 const MOD = "danganronpa-rpg";
-const REPO = "file:///home/user/Danganronpa-RPG";
 
-export async function run({ gm, p1, p2, p3, check, settle }) {
+export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     // Who owns whom is read off the world, not assumed: the harness hands each
     // player one character, and this scenario needs two players with a
     // character each and one who owns neither of those two.

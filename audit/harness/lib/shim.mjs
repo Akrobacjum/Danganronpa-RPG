@@ -5,18 +5,65 @@
  * REALISM RULES (do not weaken to make the module pass - failures are findings):
  *  - Documents replicate through the parent process (the "server").
  *  - pre* hooks fire only on the initiating client; post hooks on every client.
- *  - Whisper/blind chat messages are only delivered to their audience (like the
- *    real server).
+ *  - EVERY chat message reaches EVERY client, whispers included, and each
+ *    client decides for itself what to show (`ChatMessageImpl#visible` below).
+ *    This rule said the opposite until 1.2.56 - "only delivered to their
+ *    audience (like the real server)" - and the real server does not do that
+ *    in v14: `server-backend.mjs` broadcasts `modifyDocument` with no
+ *    filter and the word "whisper" is not in the server's dist at all (audit
+ *    S14-04, read on the installed v14). The module measured it too: a
+ *    player's browser held 717 messages, the GM's count (secret.mjs header).
+ *    A harness that filtered for the module made every "a player cannot see
+ *    it" check pass by never handing the player the document.
  *  - The server rejects writes the real Foundry server would reject
  *    (world settings / other users' actors / world documents from non-GM).
+ *  - An exception that escapes module code into "Foundry" - a hook listener,
+ *    a socket handler, a dialog callback, a setting's onChange, a window's
+ *    render - is recorded in `globalThis.__errors` (see `recordError`), which
+ *    the scenarios' "no uncaught errors" checks read. Errors the module
+ *    catches itself and reports with console.error are NOT recorded: those
+ *    are the module handling a failure, not failing to.
  */
 
 import * as U from "./futil.mjs";
 import fs from "node:fs";
 import path from "node:path";
+import url from "node:url";
 
-export const REPO = process.env.DRPG_REPO || "/home/user/Danganronpa-RPG";
+/*
+ * THE CHECKOUT THIS HARNESS SITS IN, unless DRPG_REPO says otherwise.
+ *
+ * It was "/home/user/Danganronpa-RPG" - the machine the harness was written on -
+ * so a clone anywhere else booted a module that was not there, and a worktree
+ * quietly booted the main checkout's copy instead of its own. Two directories up
+ * from lib/ is audit/, three is the repository.
+ */
+const HERE = path.dirname(url.fileURLToPath(import.meta.url));
+export const REPO = path.resolve(process.env.DRPG_REPO || path.resolve(HERE, "../../.."));
+/** The same directory as a file: URL - what `import()` needs, on Windows too. */
+export const REPO_URL = url.pathToFileURL(REPO).href;
 export const MODULE_ID = "danganronpa-rpg";
+
+/**
+ * An exception that escaped module code into the host, as the scenarios see it.
+ *
+ * `globalThis.__errors` was read by every "no uncaught errors" check and written
+ * by nothing: the array was created empty and stayed empty, so those checks
+ * passed whatever happened (audit S14-09). Everything that plays Foundry's part
+ * and catches a module callback's exception now reports it here, as well as to
+ * the log the cluster prints.
+ */
+export function recordError(where, err) {
+    try {
+        (globalThis.__errors ??= []).push({
+            where: String(where),
+            message: String(err?.message ?? err),
+            stack: String(err?.stack ?? "").split("\n").slice(0, 6).join("\n")
+        });
+    } catch {
+        // Recording a failure must never become a second one.
+    }
+}
 
 /* ============================== Hooks ==================================== */
 
@@ -34,13 +81,21 @@ export class HooksImpl {
         const i = list.findIndex(e => e.fn === fn);
         if (i >= 0) list.splice(i, 1);
     }
+    /* A throwing listener is caught and the next one still runs, as this shim
+       always did; the catch now also lands in `__errors`. A listener that
+       returns a rejected promise is not caught here - it surfaces as an
+       unhandled rejection, which client-entry.mjs records. */
     call(name, ...args) {
         this.fired.push(name);
         for (const entry of [...(this._hooks.get(name) ?? [])]) {
             if (entry.once) this.off(name, entry.fn);
             let out;
             try { out = entry.fn(...args); }
-            catch (err) { this._log?.(`Hook ${name} listener threw: ${err.stack}`); continue; }
+            catch (err) {
+                this._log?.(`Hook ${name} listener threw: ${err.stack}`);
+                recordError(`Hooks.call ${name}`, err);
+                continue;
+            }
             if (out === false) return false;
         }
         return true;
@@ -50,10 +105,16 @@ export class HooksImpl {
         for (const entry of [...(this._hooks.get(name) ?? [])]) {
             if (entry.once) this.off(name, entry.fn);
             try { entry.fn(...args); }
-            catch (err) { this._log?.(`Hook ${name} listener threw: ${err.stack}`); }
+            catch (err) {
+                this._log?.(`Hook ${name} listener threw: ${err.stack}`);
+                recordError(`Hooks.callAll ${name}`, err);
+            }
         }
         return true;
     }
+    /* Not recorded: in Foundry this is the REPORTING call - a caller that
+       reaches it has already caught the error, which is the module handling
+       it (nothing in scripts/ calls it today; measured with grep on 1.2.56). */
     onError(loc, err) { this._log?.(`Hooks.onError ${loc}: ${err?.stack}`); }
 }
 
@@ -469,8 +530,17 @@ export function buildDocumentClasses(ctx) {
         static get documentName() { return "ChatMessage"; }
         // Foundry stamps every message with its creation time; the messenger's
         // read state and unread badge are built on it.
+        //
+        // AND WITH ITS AUTHOR - the creating user, unless the data names one.
+        // secret.mjs calls it "the one field Foundry stamps", and its socket
+        // handler only accepts a card's words from a GM or from that author.
+        // The shim stamped the time and not the author, so every private card a
+        // PLAYER posted arrived at the GM authorless and its words were refused
+        // ("not the author"): measured on 40-flow's Search card (1.2.56), whose
+        // words the GM never held. It went unseen because the only check on it
+        // matched the time-of-day card instead.
         static async create(data, context = {}) {
-            const stamp = d => ({ timestamp: Date.now(), ...d });
+            const stamp = d => ({ timestamp: Date.now(), ...d, author: d?.author ?? d?.user ?? ctx.userId() });
             return super.create(Array.isArray(data) ? data.map(stamp) : stamp(data), context);
         }
         get timestamp() { return this._source.timestamp ?? 0; }
@@ -482,9 +552,39 @@ export function buildDocumentClasses(ctx) {
         get content() { return this._source.content ?? ""; }
         get rolls() { return (this._source.rolls ?? []).map(r => typeof r === "string" ? JSON.parse(r) : r); }
         get isRoll() { return (this._source.rolls ?? []).length > 0; }
+        get isAuthor() { return (this._source.author ?? this._source.user ?? null) === ctx.gameRef().user?.id; }
+        /*
+         * FOUNDRY'S OWN TWO GETTERS, AND THE ONLY PLACE A WHISPER IS A WHISPER.
+         *
+         * Every client holds every message (see REALISM RULES); these decide what
+         * the chat log draws. Written to v14's `client/documents/chat-message.mjs`
+         * as the audit quoted it from the installed build (S14-04, two readers,
+         * lines 100-107) - no Foundry source is on the machine this was written
+         * on, so this is their reading, not a fresh one:
+         *
+         *   visible           whispered -> a roll is visible to all (the card shows
+         *                     that somebody rolled); anything else only to its
+         *                     author and the users on its list.
+         *   isContentVisible  of a visible message: whispered -> on the list, or
+         *                     its author unless it is blind.
+         *
+         * No clause for GMs in either: a GM reads a whisper by being on its list,
+         * and every private card this module writes puts the GMs there. The shim
+         * this replaced gave GMs a pass and folded `blind` into `visible`, and
+         * had no `isContentVisible` at all - which private-rolls.mjs asks.
+         */
         get visible() {
             const u = ctx.gameRef().user;
-            if (this.whisper.length) return u.isGM || this.whisper.includes(u.id) || (this._source.author === u.id && !this.blind);
+            if (this.whisper.length) {
+                if (this.isRoll) return true;
+                return this.isAuthor || this.whisper.includes(u?.id);
+            }
+            return true;
+        }
+        get isContentVisible() {
+            if (!this.visible) return false;
+            const whisper = this.whisper;
+            if (whisper.length) return whisper.includes(ctx.gameRef().user?.id) || (this.isAuthor && !this.blind);
             return true;
         }
         get alias() { return this.speaker.alias ?? this.author?.name ?? ""; }
@@ -751,31 +851,78 @@ export function buildPIXI() {
 export function buildApplications(ctx) {
     class ApplicationV2 {
         constructor(options = {}) {
-            this.options = U.mergeObject(U.deepClone(this.constructor.DEFAULT_OPTIONS ?? {}), options, { inplace: false });
+            // Foundry concatenates `classes` down the DEFAULT_OPTIONS chain (DialogV2's
+            // "dialog" + the caller's); mergeObject alone would replace the array.
+            const chain = [];
+            for (let c = this.constructor; c && c !== Object && c !== Function.prototype; c = Object.getPrototypeOf(c)) {
+                if (Object.hasOwn(c, "DEFAULT_OPTIONS")) chain.unshift(c.DEFAULT_OPTIONS);
+            }
+            // `content` may be an element, which mergeObject would flatten to {}.
+            const { content, ...rest } = options ?? {};
+            this.options = {};
+            for (const o of [...chain, rest]) this.options = U.mergeObject(this.options, o ?? {}, { inplace: false });
+            this.options.classes = [...new Set(chain.concat([rest]).flatMap(o => o?.classes ?? []))];
+            if (content !== undefined) this.options.content = content;
             this.element = null;
             this._rendered = false;
             this.id = this.options.id ?? `app-${U.randomID(8)}`;
             this.tabGroups = {};
+            this._listeners = new Map();
+            this.position = { ...(this.options.position ?? {}) };
         }
         static DEFAULT_OPTIONS = {};
         static PARTS = {};
         get rendered() { return this._rendered; }
         get title() { return this.options.window?.title ?? this.constructor.name; }
         get window() { return { title: this.title, controls: [] }; }
+        // EventEmitterMixin: DialogV2.wait listens for "render" and "close".
+        addEventListener(type, fn, { once = false } = {}) {
+            if (!this._listeners.has(type)) this._listeners.set(type, []);
+            this._listeners.get(type).push({ fn, once });
+        }
+        removeEventListener(type, fn) {
+            const l = this._listeners.get(type) ?? [];
+            const i = l.findIndex(e => e.fn === fn);
+            if (i >= 0) l.splice(i, 1);
+        }
+        dispatchEvent(event) {
+            let threw = false;
+            for (const e of [...(this._listeners.get(event.type) ?? [])]) {
+                if (e.once) this.removeEventListener(event.type, e.fn);
+                try { e.fn.call(this, event); } catch (err) { threw = true; ctx.log(`${this.constructor.name} ${event.type} listener threw: ${err.stack}`); }
+            }
+            return !threw;
+        }
         async render(opts2 = {}) {
             const doc = globalThis.document;
-            if (!this.element) {
-                this.element = doc.createElement("div");
+            const first = !this.element;
+            if (first) {
+                this.element = doc.createElement(this.options.tag ?? "div");
                 this.element.id = this.id;
-                this.element.classList.add(...(this.options.classes ?? []));
-                doc.body.appendChild(this.element);
+                this.element.classList.add("application", ...(this.options.classes ?? []));
+                if (this.element.tagName === "DIALOG") this.element.setAttribute("open", "");
+                // Foundry registers every rendered application here, and removes it on close.
+                globalThis.foundry?.applications?.instances?.set(this.id, this);
             }
             let context = {};
-            try { context = await this._prepareContext?.(opts2) ?? {}; } catch (err) { ctx.log(`_prepareContext threw in ${this.constructor.name}: ${err.stack}`); }
+            try { context = await this._prepareContext?.(opts2) ?? {}; } catch (err) { ctx.log(`_prepareContext threw in ${this.constructor.name}: ${err.stack}`); recordError(`${this.constructor.name}._prepareContext`, err); }
             // Handlebars parts are not rendered headlessly; call the lifecycle anyway.
+            // Not recorded: with no template rendered, a part's context has nothing
+            // real to be prepared against, so a throw here says more about the shim.
             try { await this._preparePartContext?.("main", context, opts2); } catch {}
-            try { await this._onRender?.(context, opts2); } catch (err) { ctx.log(`_onRender threw in ${this.constructor.name}: ${err.stack}`); }
+            try {
+                const html = await this._renderHTML?.(context, opts2);
+                await this._replaceHTML?.(html, this.element, opts2);
+            } catch (err) { ctx.log(`_renderHTML threw in ${this.constructor.name}: ${err.stack}`); recordError(`${this.constructor.name}._renderHTML`, err); }
+            // Inserted once its HTML is in it, as Foundry's `_insertElement` does.
+            if (first) doc.body.appendChild(this.element);
+            try { await this._onRender?.(context, opts2); } catch (err) { ctx.log(`_onRender threw in ${this.constructor.name}: ${err.stack}`); recordError(`${this.constructor.name}._onRender`, err); }
             this._rendered = true;
+            // Foundry's `_doEvent`: the "render" event (DialogV2's `render` option) BEFORE
+            // the render hooks - the a11y sweep on the hook relies on it. A render that
+            // throws stops there: no position (the window stays at 0,0) and no hooks.
+            if (!this.dispatchEvent(new globalThis.window.Event("render"))) return this;
+            if (first) this.setPosition(this.position);
             ctx.hooks().callAll("renderApplicationV2", this, this.element, context);
             ctx.hooks().callAll(`render${this.constructor.name}`, this, this.element, context);
             return this;
@@ -784,11 +931,36 @@ export function buildApplications(ctx) {
             try { await this._onClose?.(opts2); } catch {}
             this.element?.remove();
             this._rendered = false;
+            globalThis.foundry?.applications?.instances?.delete(this.id);
             ctx.hooks().callAll("closeApplicationV2", this, this.element);
+            this.dispatchEvent(new globalThis.window.Event("close"));
             return this;
         }
         async minimize() {} async maximize() {}
-        setPosition(pos = {}) { return pos; }
+        /*
+         * Foundry writes the position inline and, on a first render with no left/top,
+         * centres the window. jsdom has no layout, so an "auto" height measures 0 here.
+         */
+        setPosition(pos = {}) {
+            const el = this.element;
+            const width = typeof pos.width === "number" ? pos.width : (this.options.position?.width ?? 400);
+            const height = typeof pos.height === "number" ? pos.height : (el?.offsetHeight ?? 0);
+            const left = typeof pos.left === "number" ? pos.left : Math.max(0, (globalThis.innerWidth - width) / 2);
+            const top = typeof pos.top === "number" ? pos.top : Math.max(0, (globalThis.innerHeight - height) / 2);
+            Object.assign(this.position, { width, height, left, top });
+            if (el) {
+                el.style.left = `${left}px`;
+                el.style.top = `${top}px`;
+            }
+            return this.position;
+        }
+        // Foundry: resolve on the element's own transitionend or after the timeout.
+        async _awaitTransition(element, timeout) {
+            return Promise.race([
+                new Promise(resolve => element?.addEventListener?.("transitionend", resolve, { once: true })),
+                new Promise(resolve => setTimeout(resolve, timeout))
+            ]);
+        }
         bringToFront() {} bringToTop() {}
         changeTab() {}
     }
@@ -813,7 +985,66 @@ export function buildApplications(ctx) {
     const openDepth = new Map();
     const MAX_DEPTH = 2;
     const autoAnswered = new Map();
-    class DialogV2 {
+    class DialogV2 extends ApplicationV2 {
+        static DEFAULT_OPTIONS = { classes: ["dialog"], tag: "dialog", window: { minimizable: false }, position: { width: 400 }, form: { closeOnSubmit: true } };
+        /* The instance form, as Foundry's: a form holding the content and a footer of buttons. */
+        async _renderHTML() {
+            const doc = globalThis.document;
+            const form = doc.createElement("form");
+            form.className = "dialog-form standard-form";
+            // The content is parsed INTO the dialog's own form, so a `<form>` the content
+            // brings is dropped by the parser and its fields belong to this one. A bare
+            // <div> element is taken as markup (utils.mjs `dialogContent`).
+            const c = this.options.content;
+            const markup = (c && typeof c !== "string") ? (c.hasAttributes?.() ? c.outerHTML : c.innerHTML) : (c ?? "");
+            form.innerHTML = `<div class="dialog-content standard-form">${markup}</div>`;
+            const body = form.firstElementChild;
+            const footer = doc.createElement("footer");
+            footer.className = "form-footer";
+            for (const b of this.options.buttons ?? []) {
+                const btn = doc.createElement("button");
+                btn.type = "submit";
+                btn.dataset.action = b.action;
+                if (b.default) btn.classList.add("default");
+                btn.textContent = b.label ?? b.action;
+                footer.append(btn);
+            }
+            form.append(body, footer);
+            form.addEventListener("submit", event => { event.preventDefault(); this._onSubmit(event.submitter, event); });
+            form.addEventListener("click", event => {
+                const target = event.target?.closest?.("[data-action]");
+                if (!target) return;
+                const handler = this.options.actions?.[target.dataset.action];
+                if (typeof handler === "function") { handler.call(this, event, target); return; }
+                // jsdom does not submit a form from a button click; a browser does.
+                if (target.closest("footer.form-footer")) { event.preventDefault(); this._onSubmit(target, event); }
+            });
+            return form;
+        }
+        async _replaceHTML(result, element) { if (result) element.replaceChildren(result); }
+        async _onSubmit(target, event) {
+            const button = (this.options.buttons ?? []).find(b => b.action === target?.dataset?.action);
+            let result = null;
+            try { result = (await button?.callback?.(event, target, this)) ?? button?.action; }
+            catch (err) { ctx.log(`DialogV2 callback threw: ${err.stack}`); }
+            await this.options.submit?.(result, this);
+            return this.options.form?.closeOnSubmit !== false ? this.close({ submitted: true }) : this;
+        }
+        /* Foundry's own wait: resolve on submit (BEFORE the close), null on a dismissal. */
+        static _openWindow({ rejectClose = false, close, render, ...options } = {}) {
+            return new Promise((resolve, reject) => {
+                const originalSubmit = options.submit;
+                options.submit = async (result, dialog) => { await originalSubmit?.(result, dialog); resolve(result); };
+                const dialog = new this(options);
+                dialog.addEventListener("close", event => {
+                    if (close instanceof Function) close(event, dialog);
+                    if (rejectClose) reject(new Error("Dialog was dismissed without pressing a button."));
+                    else resolve(null);
+                }, { once: true });
+                if (render instanceof Function) dialog.addEventListener("render", event => render(event, dialog), { once: true });
+                dialog.render({ force: true });
+            });
+        }
         static async wait(config = {}) {
             const title = config.window?.title ?? "?";
             globalThis.__dialogLog.push({ kind: "wait", title, content: contentText(config.content).slice(0, 400), buttons: (config.buttons ?? []).map(b => b.action) });
@@ -822,6 +1053,9 @@ export function buildApplications(ctx) {
                 const v = typeof queued === "function" ? await queued(config) : queued;
                 return v;
             }
+            // A client told to behave like a person at a real table: the window is drawn,
+            // registered, and stays until a button is pressed or it is closed.
+            if (globalThis.__dialogWindows === true) return this._openWindow(config);
             // A client told to sit still (the suite runs on the GM alone; a player
             // auto-answering an opening roll would race it) closes every window.
             if (globalThis.__dialogAuto === false) return null;
@@ -844,8 +1078,9 @@ export function buildApplications(ctx) {
                     const fakeButton = { form: makeForm(config) };
                     try { return await def.callback(new globalThis.window.Event("click"), fakeButton, { element: makeDialogElement(config) }); }
                     // A throwing callback is a dialog that produced no answer; treat it as
-                    // dismissed (`rejectClose: false` -> null).
-                    catch (err) { ctx.log(`DialogV2 callback threw: ${err.stack}`); return null; }
+                    // dismissed (`rejectClose: false` -> null) - and record it, because it
+                    // is an exception that escaped module code, which is what __errors counts.
+                    catch (err) { ctx.log(`DialogV2 callback threw: ${err.stack}`); recordError(`DialogV2.wait "${title}" callback`, err); return null; }
                 }
                 return def.action;
             } finally {
@@ -857,7 +1092,8 @@ export function buildApplications(ctx) {
             const queued = globalThis.__dialogAnswers.shift();
             if (queued !== undefined) return typeof queued === "function" ? queued(config) : queued;
             if (globalThis.__dialogAuto === false) return null;
-            if (config.yes?.callback) { try { return await config.yes.callback(new globalThis.window.Event("click"), { form: makeForm(config) }, { element: makeDialogElement(config) }); } catch { return true; } }
+            // The catch used to be bare, so a throwing Yes was a silent "yes".
+            if (config.yes?.callback) { try { return await config.yes.callback(new globalThis.window.Event("click"), { form: makeForm(config) }, { element: makeDialogElement(config) }); } catch (err) { ctx.log(`DialogV2.confirm callback threw: ${err.stack}`); recordError(`DialogV2.confirm "${config.window?.title ?? "?"}" callback`, err); return true; } }
             return true;
         }
         static async prompt(config = {}) {
@@ -865,7 +1101,7 @@ export function buildApplications(ctx) {
             const queued = globalThis.__dialogAnswers.shift();
             if (queued !== undefined) return typeof queued === "function" ? queued(config) : queued;
             if (globalThis.__dialogAuto === false) return null;
-            if (config.ok?.callback) { try { return await config.ok.callback(new globalThis.window.Event("click"), { form: makeForm(config) }, { element: makeDialogElement(config) }); } catch { return "ok"; } }
+            if (config.ok?.callback) { try { return await config.ok.callback(new globalThis.window.Event("click"), { form: makeForm(config) }, { element: makeDialogElement(config) }); } catch (err) { ctx.log(`DialogV2.prompt callback threw: ${err.stack}`); recordError(`DialogV2.prompt "${config.window?.title ?? "?"}" callback`, err); return "ok"; } }
             return "ok";
         }
         static async input(config = {}) { return this.prompt(config); }

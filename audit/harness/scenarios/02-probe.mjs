@@ -1,7 +1,7 @@
 /** Probe: precise causes of remaining suite failures. */
-export async function run({ gm, check }) {
+export async function run({ gm, check, repoUrl }) {
     const rooms = await gm.eval(`
-        const M = await import("file:///home/user/Danganronpa-RPG/scripts/movement.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
         const scene = game.scenes.find(s => s.active);
         const toks = scene.tokens.contents.map(t => ({ name: t.name, room: M.roomOfToken(t) }));
         return { allRooms: M.allRooms(scene), toks };
@@ -9,7 +9,7 @@ export async function run({ gm, check }) {
     check("probe: rooms", true, JSON.stringify(rooms));
 
     const grant = await gm.eval(`
-        const INV = await import("file:///home/user/Danganronpa-RPG/scripts/inventory.mjs");
+        const INV = await import("${repoUrl}/scripts/inventory.mjs");
         const actor = game.actors.getName("Aiko Hoshino");
         try {
             const item = await INV.grantItem(actor, { name: "PROBE tool", category: "tool", tier: 1 });
@@ -20,7 +20,7 @@ export async function run({ gm, check }) {
     check("probe: grantItem tool", true, JSON.stringify(grant).slice(0, 900));
 
     const music = await gm.eval(`
-        const MU = await import("file:///home/user/Danganronpa-RPG/scripts/music.mjs");
+        const MU = await import("${repoUrl}/scripts/music.mjs");
         return { states: Object.keys(MU.MUSIC_STATES ?? {}), map: MU.musicMap?.() ?? null,
                  playlists: game.playlists.contents.map(p => p.name) };
     `);

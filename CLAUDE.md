@@ -31,6 +31,7 @@ If a claim cannot be measured, say that instead of rounding it up.
 | What | How |
 | --- | --- |
 | The suite, in Foundry | `game.drpg.runTests({ tier: 2 })` in the console, as GM |
+| The harness, first time | `cd audit/harness && npm ci` - installs jsdom; boots the checkout it sits in, or `DRPG_REPO` |
 | The suite, headless | `cd audit/harness && node cluster.mjs scenarios/01-runtests.mjs` |
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines) |
 | Every scenario | the ten numbered ones: 10, 11, 12, 13, 14, 20, 30, 40, 50, 60 |
@@ -48,10 +49,13 @@ width, no fonts, no audio. A test that needs one of those says so with
 
 ## What the suite's three numbers mean
 
-`126 passed, 0 failed, 9 skipped`
+`268 passed, 0 failed, 16 skipped` (headless, 1.2.57)
 
 - **failed** must be zero. It was not zero for a year, and a thirteenth failure
-  arrived unnoticed because twelve was a number people had learnt.
+  arrived unnoticed because twelve was a number people had learnt. It was not
+  zero again by 1.2.56 (eleven headless failures, all of them windows the
+  harness could not draw), which is why the harness's DialogV2 now draws real
+  windows on the GM (`__dialogWindows`).
 - **skipped** may only be a fact about the environment that the test checked
   itself. Never a result that came out wrong. The harness asserts this number
   does not grow: something that used to be answerable and stopped being so is a
@@ -113,11 +117,31 @@ Dashes are `-`, not `—`, throughout, including in prose files.
 
 1. `module.json` version and the `--drpg-css-version` stamp in
    `styles/danganronpa.css` must agree, and the workflow checks that they do.
-2. Write `.github/release-notes/vX.Y.Z.md`. The workflow refuses to run without
+2. The same version is stamped on the third line of the six handbooks in
+   `docs/handbooks/` and in the README's "They describe version X." The workflow
+   and R125 both fail when one of the seven lags.
+3. Write `.github/release-notes/vX.Y.Z.md`. The workflow refuses to run without
    it.
-3. `main` is the release branch; the tag is created there.
-4. Actions ▸ Release, dispatched on `main` with the tag.
-5. `1.3.0` is reserved for a text rework. Releases before it are `1.2.X`.
+4. Before a release, look up the current Daggerheart version. `verified` in
+   `module.json` names only a version the suite has passed on at a real table;
+   the manifest states no `maximum` (decision D1), so a newer Daggerheart loads
+   and the module warns the GM once per version.
+5. `main` is the release branch; the tag is created there, and the workflow
+   refuses a dispatch from anywhere else.
+6. Actions ▸ Release, dispatched on `main` with the tag (and a title for the
+   last one). Afterwards check that `releases/latest` is the new version: a
+   prerelease can move it.
+7. Numbering (decision D20): each stage of the 1.3.0 plan ships as the next
+   `1.2.X`; the last stage ships as `1.3.0` "Stained Update". After it, `1.3.X`
+   is balance and fixes. The 1.3.0 notes say what of the text rework the
+   `1.2.43`-`1.2.47` notes promised with it went in, and what did not.
+
+## Numbering new tests
+
+Tier-0 and tier-1 tests carry an `R` number. `R113`-`R124` are reserved for the
+design projects A5, A4, A1 and A6 of the 1.3.0 plan; every other new test takes
+the next number from `R125` up. The number is how a comment, a commit and an
+audit find the same test a year later, so it is never reused.
 
 ## What is not done
 

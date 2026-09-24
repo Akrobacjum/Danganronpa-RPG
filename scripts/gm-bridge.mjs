@@ -1009,21 +1009,59 @@ async function handleMeddle(payload, senderId, ctx) {
     return;
 }
 
+/*
+ * THE TWO RULINGS BY CARD CHECK WHOSE CHARACTER THEY ARE ABOUT (E01, 24.09.2026;
+ * audit S14-03). Both handed the payload straight to `askHopeCallByCard` /
+ * `askDynamicByCard`, which raise a `callGm` card on `payload.actorId` with the
+ * sender's words on it - so any player could put a card on somebody else's
+ * thread, in that character's name, asking for a ruling nobody at the table
+ * requested. R1b could not see it: the handler bodies never spelled
+ * `payload.actorId`, they passed the whole payload along. Both requests are made
+ * by the asking player's own client with their own character's id (calls.mjs,
+ * action-rolls.mjs), so the guard refuses nothing honest.
+ */
 async function handleHopeCall(payload, senderId, ctx) {
     const { asker } = ctx;
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_HOPE_CALL, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_HOPE_CALL, "sender does not own that character", ctx);
+    }
     await askHopeCallByCard(payload, asker);
     return;
 }
 
 async function handleDifficulty(payload, senderId, ctx) {
     const { asker } = ctx;
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_DIFFICULTY, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_DIFFICULTY, "sender does not own that character", ctx);
+    }
     await askDynamicByCard(payload, asker);
     return;
 }
 
 async function handleProgress(payload, senderId, ctx) {
     const { asker } = ctx;
-    if (!senderOf(senderId)) return refuse(ACTION_PROGRESS, "unknown sender", ctx);
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_PROGRESS, "unknown sender", ctx);
+
+    /*
+     * ONLY A PROJECT THE SENDER MAY KNOW ABOUT (E01, 24.09.2026; audit S14-03).
+     * This checked that the sender exists and nothing else, so a player who had
+     * learnt the id of a secret project - from an old packet, from a macro - could
+     * push its bar from outside it, and the finished project would then credit
+     * whoever the packet's own `userId` named. `canSee` is the secrecy gate the
+     * share and sabotage handlers already use; every road a player's own client
+     * sends progress down (an action, a Call, a Reroll) picks the project from
+     * what that player can see, so nothing honest is refused. The credit goes to
+     * the sender Foundry names, never to the payload's claim.
+     */
+    const { canSee } = await import("./projects.mjs");
+    if (!canSee(payload.countdownId, sender)) {
+        return refuse(ACTION_PROGRESS, "sender may not see that project", ctx);
+    }
 
     // Progress comes from an action or a Call, so it is small by definition.
     // A payload asking for +999 is not the rules asking.
@@ -1035,7 +1073,7 @@ async function handleProgress(payload, senderId, ctx) {
     const { addProgress } = await import("./projects.mjs");
     // Who asked, so a finished project can fall back to them when nobody
     // recorded who proposed it.
-    const result = await addProgress(payload.countdownId, amount, { by: payload.userId });
+    const result = await addProgress(payload.countdownId, amount, { by: asker });
     debug(`Applied ${payload.amount} progress to ${payload.countdownId} on behalf of a player.`, result);
 
     // Report back to whoever asked.
@@ -1114,7 +1152,22 @@ async function handleRemnant(payload, senderId, ctx) {
 }
 
 async function handleTieTrace(payload, senderId, ctx) {
-    if (!senderOf(senderId)) return refuse(ACTION_TIE_TRACE, "unknown sender", ctx);
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_TIE_TRACE, "unknown sender", ctx);
+
+    /*
+     * ONLY THE ONE HOLDING THE OBJECT (E01, 24.09.2026; audit S14-03). Tying a trace
+     * to the crime is a verdict on evidence - the trace becomes an Incident trace the
+     * chapter-end sweep will not clear - and this took any identity from any player.
+     * The one honest sender is the killer's client at the moment they swing the
+     * object (murder.mjs), before the crisis packet that could use it up, so the
+     * object is still in one of the sender's own characters' hands when this runs.
+     */
+    const identity = payload.identity;
+    const holds = Boolean(identity) && game.actors.some(actor =>
+        ownsActor(sender, actor.id)
+        && actor.items.some(item => item.getFlag(MODULE_ID, "drpgItemId") === identity));
+    if (!holds) return refuse(ACTION_TIE_TRACE, "sender holds no object with that identity", ctx);
     const { tieTraceForItem } = await import("./remnants.mjs");
     await tieTraceForItem(payload.identity);
     return;

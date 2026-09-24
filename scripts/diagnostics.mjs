@@ -937,10 +937,18 @@ export function traceClicks({ seconds = 20 } = {}) {
  * whole report exists to answer - leaving those four out would have put the
  * blind spot back in a different place.
  *
- * The four fixed entries below are the ones no script imports and every world
- * needs.
+ * THE REST IS READ OFF THE MANIFEST, NOT LISTED EITHER (E01, 24.09.2026; audit
+ * S01-26). The four entries that used to stand here by hand were module.json,
+ * en.json, danganronpa.css and motion.css - which left out stained-glass.css,
+ * pixel-icons.css, messenger.css, narrow.css and pl.json, the files the theme
+ * work of the last twenty releases actually changed. A GM told "the theme fix
+ * is not there, run fileSizes()" got a report that looked complete and was
+ * silent about exactly those. The stylesheets now come from the manifest's own
+ * `styles`, the languages from `LANGUAGES` in i18n.mjs (the manifest lists only
+ * English: Polish is loaded by the module, not by Foundry), and R126 holds this
+ * list to the manifest.
  */
-async function loadedFiles() {
+export async function loadedFiles() {
     const scripts = new Set();
     const queue = ["module.mjs"];
     while (queue.length) {
@@ -961,13 +969,25 @@ async function loadedFiles() {
         }
     }
 
-    return [
+    let styles = [];
+    let languages = [];
+    try {
+        const manifest = await fetch(`modules/${MODULE_ID}/module.json`, { cache: "reload" }).then(r => r.json());
+        styles = Array.from(manifest?.styles ?? []);
+        languages = Array.from(manifest?.languages ?? []).map(l => l?.path).filter(Boolean);
+    } catch {
+        // Falls back to what this client loaded: the manifest's styles as Foundry holds them.
+        styles = Array.from(game.modules.get(MODULE_ID)?.styles ?? []);
+    }
+    const { LANGUAGES } = await import("./i18n.mjs");
+    for (const code of Object.keys(LANGUAGES)) languages.push(`lang/${code}.json`);
+
+    return [...new Set([
         "module.json",
-        "lang/en.json",
-        "styles/danganronpa.css",
-        "styles/motion.css",
+        ...languages,
+        ...styles,
         ...[...scripts].sort().map(name => `scripts/${name}`)
-    ];
+    ])];
 }
 
 export async function fileSizes() {
@@ -977,7 +997,7 @@ export async function fileSizes() {
     lines.push(`Danganronpa RPG v${moduleVersion()}, `
         + `stylesheet v${stylesheetVersion() || "(none)"}`);
     lines.push(`Host: ${location.origin}`);
-    lines.push(`${files.length} files, crawled from module.mjs`);
+    lines.push(`${files.length} files: the manifest's stylesheets and languages, and the scripts crawled from module.mjs`);
     lines.push("");
 
     for (const file of files) {

@@ -1,6 +1,6 @@
 # Danganronpa RPG - GM Handbook
 
-*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.55, built on the Daggerheart system.*
+*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.57, built on the Daggerheart system.*
 
 This is the handbook for the people running the killing game. It follows the order a season is actually built and played: install, set up, run a day, run a murder, run an investigation, run a trial, end the chapter, start again. Where a decision is the GM's to make rather than the module's, the text says so.
 
@@ -24,7 +24,7 @@ Then install the system and the modules below from their own package pages. The 
 | Needs | Version |
 |---|---|
 | Foundry VTT | 14.364 or newer (verified on 14.365) |
-| Daggerheart (Foundryborne) | 2.6.0 or newer (verified on 2.6.5) |
+| Daggerheart (Foundryborne) | 2.6.5 or newer (verified on 2.6.5; a newer version loads and the module tells the GM once per version) |
 
 | Module | Status | Why |
 |---|---|---|
@@ -815,7 +815,7 @@ Everything is under `game.drpg` in the browser console; actor arguments accept a
 | Call | What it does |
 |---|---|
 | `game.drpg.runTests()` | runs everything |
-| `game.drpg.runTests({ tier: 1 })` | runs the source regressions and the read-only invariants; safe during play |
+| `game.drpg.runTests({ tier: 1 })` | runs the source regressions and the read-only invariants; safe during play - it checks at the end that nothing in the world moved, and says what did if something did (a player acting while it runs counts too) |
 | `game.drpg.runTests({ tier: 0 })` | reads the module's own source alone |
 
 > [!CAUTION]
