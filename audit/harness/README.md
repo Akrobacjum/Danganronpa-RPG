@@ -81,7 +81,7 @@ release or stage the status belongs to.
 | 62 | scenarios/62-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56) |
 | 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
 | 71 | scenarios/71-sheet.mjs | local-gate | planned | E45 | the sheet on two accounts on a real v14 |
-| 72 | scenarios/72-canary.mjs | ci | planned | E30 | what a player's browser holds: the canary's self-test, and planted secrets at rest (E43 extends it to the season) |
+| 72 | scenarios/72-canary.mjs | ci | exists | E30 | what a player's browser holds: the canary's self-test, and planted secrets at rest (E43 extends it to the season) |
 | 81 | scenarios/81-render-budget.mjs | local-gate | planned | E37 | render counts per event on real sheets (E53 compares) |
 | 82 | scenarios/82-two-gms.mjs | ci | planned | E38 | two GMs: sync both ways, a change of primary |
 | 83 | scenarios/83-roll-integrity.mjs | local-gate | planned | E33 | every forged roll write flagged, every legal path clean |
@@ -117,6 +117,30 @@ something failed. The results file counts `passed`, `expectedRed`, `failed` and
 `total`, and lists `knownLeaks` with their verdicts. Run against another tree
 (`DRPG_REPO`), whose scenarios may predate the registries, a labelled check
 counts as a plain one.
+
+## The canary
+
+What a player's browser holds is read whole, not asked about field by field
+(`lib/canary.mjs`, E30). A scenario plants a marker with
+`canary.marker(seed, { allowed })` - a seed of `SEEDS`, the field it goes in and
+who may hold it - and `canary.scan({ phase })` reads every player's browser for
+the markers: each client records everything that arrives as Foundry traffic, in
+order and with the phase, and `dump(who)` returns that record with the world's
+documents, world and client settings, both storages, the page, notifications,
+dialogs and the client's console. A marker where it may not be is a hit; a hit
+that an entry of `known-leaks.json` describes (its `match` rules) is that leak
+and turns the entry's check red until its stage, any other fails the scan. Each
+marker must be on the GM before any player is read, or the scenario wrote it
+where nothing reads it; a scenario sends no marker to a client that may not hold
+it (the eval refuses); and after the run the canary scans once more if something
+was planted since, and fails any entry named to be detected here that no scan
+evaluated. `72-canary` shows each surface being read, with a leak planted on
+purpose coming back as a hit, before it plants the module's secrets.
+13-murder-signals and 60-ledger have phases and no markers: their secrets are
+who and where rather than words, and their own checks stay until E43 adds
+identity markers. The results file records `canary`: markers planted, scans,
+every hit with the entry it matched, and what is not read (IndexedDB, Cache
+Storage and cookies, state that never touched the wire, the canvas, audio).
 
 ## Probes
 

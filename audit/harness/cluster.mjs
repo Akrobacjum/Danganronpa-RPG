@@ -20,6 +20,7 @@ import url from "node:url";
 import * as U from "./lib/futil.mjs";
 import { IDS, world } from "./lib/seed.mjs";
 import { readVersions } from "./lib/versions.mjs";
+import { createCanary } from "./lib/canary.mjs";
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 /*
@@ -274,9 +275,19 @@ function spawnClient(who, userId) {
         env: { ...process.env, DRPG_USER: who, DRPG_REPO: REPO },
         stdio: ["ignore", "pipe", "pipe", "ipc"]
     });
-    proc.stdout.on("data", d => { if (VERBOSE) process.stdout.write(`[${who}] ${d}`); });
-    proc.stderr.on("data", d => process.stdout.write(`[${who}:err] ${d}`));
-    const entry = { proc, userId, ready: new Promise(res => readiness.set(who, res)) };
+    /* WHAT A PLAYER WITH THE CONSOLE OPEN READS (E30, 24.09.2026): the client's
+       stdout, stderr and log lines, kept per client with the phase for the canary
+       (lib/canary.mjs), capped so a chatty run cannot grow without end. */
+    const entry = { proc, userId, ready: new Promise(res => readiness.set(who, res)), console: [], consoleDropped: 0 };
+    const keep = (stream, text) => {
+        for (const line of String(text).split("\n")) {
+            if (!line) continue;
+            if (entry.console.length >= CONSOLE_CAP) { entry.consoleDropped++; continue; }
+            entry.console.push({ phase: currentPhase, stream, text: line });
+        }
+    };
+    proc.stdout.on("data", d => { keep("out", d); if (VERBOSE) process.stdout.write(`[${who}] ${d}`); });
+    proc.stderr.on("data", d => { keep("err", d); process.stdout.write(`[${who}:err] ${d}`); });
     proc.on("message", msg => onClientMessage(who, entry, msg));
     proc.on("exit", code => { if (code) console.log(`[cluster] client ${who} exited with ${code}`); });
     clients.set(who, entry);
@@ -323,6 +334,7 @@ function onClientMessage(who, entry, msg) {
             readiness.get(who)?.(msg);
             break;
         case "log":
+            entry.console.length < CONSOLE_CAP ? entry.console.push({ phase: currentPhase, stream: "log", text: String(msg.line) }) : entry.consoleDropped++;
             if (VERBOSE || /FAILED|UNCAUGHT|REJECTION|threw|error/i.test(msg.line)) console.log(`[${who}] ${msg.line}`);
             logSink.push(`[${who}] ${msg.line}`);
             break;
@@ -381,6 +393,11 @@ function onClientMessage(who, entry, msg) {
         case "evalResult": {
             const p = evalPending.get(msg.id);
             if (p) { evalPending.delete(msg.id); msg.ok ? p.resolve(msg.value) : p.reject(new Error(msg.value)); }
+            break;
+        }
+        case "dumpResult": {
+            const p = evalPending.get(msg.id);
+            if (p) { evalPending.delete(msg.id); msg.error ? p.reject(new Error(msg.error)) : p.resolve(msg.value); }
             break;
         }
         case "bye":
@@ -463,6 +480,10 @@ function handleFor(who) {
         userId: entry.userId,
         eval(code, { timeout = 30000 } = {}) {
             if (entry.gone) return Promise.reject(new Error(`${who} has disconnected`));
+            /* A scenario never plants its own hit: code carrying a marker this
+               client may not hold is refused before it is sent (lib/canary.mjs). */
+            const refused = canary?.forbiddenIn(code, who, entry.userId) ?? [];
+            if (refused.length) return Promise.reject(new Error(`marker ${refused[0]} is not ${who}'s to hold`));
             const id = `ev${++evalSeq}`;
             return new Promise((resolve, reject) => {
                 const timer = setTimeout(() => { evalPending.delete(id); reject(new Error(`eval timeout on ${who}: ${code.slice(0, 120)}`)); }, timeout);
@@ -508,6 +529,37 @@ function phase(name, { flow = null } = {}) {
     phaseLog.push({ name: currentPhase, flow });
     console.log(`  ----  ${currentPhase}${flow ? ` [${flow}]` : ""}`);
     unknownFlow(flow, `phase "${currentPhase}"`);
+    broadcast({ t: "phase", name: currentPhase });
+}
+
+/*
+ * ONE BROWSER, WHOLE (E30, 24.09.2026): client-entry.mjs's dumpForCanary with this
+ * cluster's record of the client's console beside it. A browser that does not
+ * answer is a failed check, and the canary reads an empty dump - measured nothing,
+ * and red for it.
+ */
+const CONSOLE_CAP = 20000;
+let canary = null;
+function dump(who) {
+    const entry = clients.get(who);
+    const empty = { who, userId: entry?.userId ?? null, wire: [], world: {}, settings: {}, storage: {}, dom: "", unread: true };
+    if (!entry || entry.gone) {
+        check(`could not read ${who}'s browser (measured nothing)`, false, entry ? "it has disconnected" : "no such client");
+        return Promise.resolve(empty);
+    }
+    const id = `dump${++evalSeq}`;
+    return new Promise(resolve => {
+        const timer = setTimeout(() => {
+            evalPending.delete(id);
+            check(`could not read ${who}'s browser (measured nothing)`, false, "no answer in 30 s");
+            resolve(empty);
+        }, 30000);
+        evalPending.set(id, {
+            resolve: v => { clearTimeout(timer); resolve({ ...v, console: entry.console, consoleDropped: entry.consoleDropped }); },
+            reject: e => { clearTimeout(timer); check(`could not read ${who}'s browser (measured nothing)`, false, e.message); resolve(empty); }
+        });
+        entry.proc.send({ t: "dump", id });
+    });
 }
 
 const results = [];
@@ -714,14 +766,22 @@ async function main() {
         // `import("${repoUrl}/scripts/x.mjs")` inside an eval reaches the SAME module
         // instance the client booted, because it is the same URL.
         repoUrl: REPO_URL,
-        broadcastRaw: broadcast
+        broadcastRaw: broadcast,
+        dump
     };
+    canary = api.canary = createCanary({
+        scenario: path.basename(scenarioPath).replace(/\.mjs$/, ""), check, dump, settle, repoUrl: REPO_URL,
+        phase: () => currentPhase, gm: api.gm, players: [api.p1, api.p2, api.p3],
+        knownLeaks: [...KNOWN_LEAKS.values()]
+    });
     if (probe) {
         console.log(`[cluster] PROBE ${path.basename(scenarioPath)} - a tool, not a test: its lines record what it saw, nothing in it passes or fails, and it exits 0 unless it throws (probes/README.md)`);
     }
     if (layerProblem) check("the file declares its layers", false, layerProblem);
     if (accountsProblem) check("the file's accounts can be seeded", false, accountsProblem);
 
+    // What arrives from here on is the scenario's; the clients recorded their boot as "boot".
+    broadcast({ t: "phase", name: currentPhase });
     const t0 = Date.now();
     const checksBefore = results.length;
     let evidence, threw = false;
@@ -738,6 +798,13 @@ async function main() {
        is a run that threw, which is red already. */
     if (!probe && !threw && results.length === checksBefore) {
         check("the scenario measured something", false, "no check() ran");
+    }
+    /* The canary's last word: a scan of whatever was planted since the last one, and
+       a FAIL for a known leak this scenario is named to detect but never evaluated. */
+    let canaryResult = null;
+    if (!threw) {
+        try { canaryResult = await canary.finish(results); }
+        catch (err) { check("the canary finished its scan", false, err.stack); }
     }
     const dt = Date.now() - t0;
 
@@ -779,6 +846,7 @@ async function main() {
             closes: KNOWN_LEAKS.get(r.knownLeak)?.closes ?? null, check: r.name, ...(r.reason ? { reason: r.reason } : {}) })),
         // What run() returned: a probe's record, or a scenario's own evidence when it keeps
         // some (01-runtests keeps the suite's results list, which suite-diff --json reads).
+        canary: canaryResult ?? { planted: 0 },
         results, notes, ...(probe ? { evidence: evidence ?? null } : evidence !== undefined ? { evidence } : {}),
         permissionDenials, socketTraffic: socketTraffic.slice(0, 200), legacyKeysIgnored: legacyKeys,
         opLog: opLog.slice(0, 500), settingLog: settingLog.slice(0, 500),

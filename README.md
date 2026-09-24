@@ -277,7 +277,9 @@ players never see them, but like every chat message they reach every browser.
 Another student's sheet shows their name, face, Ultimate, Health, Sanity and
 what is in their hands, and hides their traits, Hope and the rest of their
 inventory. Where the traces lie, the GM's plan for the key clues and, until the
-lights come up, a murder declared during the Eclipse are all world data. It is
+lights come up, a murder declared during the Eclipse are all world data. A
+token the GM hides is hidden from view only: Foundry sends every token, with its
+name and position, to every browser. <!-- leak:foundry-hidden-tokens --> It is
 a curtain, not a wall, and it works at a table that does not go looking behind
 it.
 

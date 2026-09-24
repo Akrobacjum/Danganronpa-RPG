@@ -7,7 +7,7 @@ export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canary }) {
     // This scenario drives the incident from the GM's client and measures state between its
     // own steps; the killer's player client answering an opening roll it was sent would race it.
     // The players' module socket handlers are PUT ASIDE, not thrown away: the vote in step 6
@@ -90,11 +90,16 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
 
     // -- 5. traces: place a Remnant, observe it into a Truth Bullet ----------
     phase("traces", { flow: "trace-remnant" });
+    /* WHAT THE TRACE SAYS IS A MARKER (E30, 24.09.2026). It was `label: "Bloodied
+       towel", truth: "..."`, two fields placeRemnant never reads, so the checks below
+       looked for words nothing had written and could not fail. `note` and `subject`
+       are what it keeps for the GM, and the canary reads every player's browser for them. */
+    const secret = { note: canary.marker("remnant.note"), subject: canary.marker("remnant.subject") };
     const remnant = await gm.eval(`
         const scene = game.scenes.active;
         const r = await game.drpg.placeRemnant({
             room: "Gym", type: "neutral", visibility: "obvious",
-            label: "Bloodied towel", truth: "The towel wiped the murder weapon."
+            note: "${secret.note}", subject: "${secret.subject}"
         });
         await new Promise(res => setTimeout(res, 300));
         const toks = scene.tokens.contents.filter(t => t.getFlag("${MOD}", "isRemnant")).map(t => ({ id: t.id, name: t.name }));
@@ -103,7 +108,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     check("gm: remnant token placed", (remnant.toks ?? []).length > 0, JSON.stringify(remnant).slice(0, 300));
 
     const remnantName = (remnant.toks?.[0]?.name ?? "");
-    check("gm: remnant token name gives nothing away", !/towel|weapon/i.test(remnantName), remnantName);
+    check("gm: remnant token name gives nothing away", !remnantName.includes(secret.note) && !remnantName.includes(secret.subject), remnantName);
 
     // does the player's client hold the remnant's truth in readable form?
     const truthLeak = await p2.eval(`
@@ -112,7 +117,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         return { flags: t ? t.flags : null };
     `);
     const truthStr = JSON.stringify(truthLeak.flags ?? {});
-    check("p2: remnant truth NOT in token flags", !/towel|wiped|weapon/i.test(truthStr), truthStr.slice(0, 300));
+    check("p2: remnant truth NOT in token flags", !truthStr.includes(secret.note) && !truthStr.includes(secret.subject), truthStr.slice(0, 300));
+    await canary.scan({ phase: "traces" });
 
     // -- 6. vote --------------------------------------------------------------
     phase("trial", { flow: "class-trial" });

@@ -19,6 +19,27 @@ const WHO = process.env.DRPG_USER ?? "gm";
 const send = m => process.send?.(m);
 const logLine = s => send({ t: "log", line: String(s) });
 
+/*
+ * WHAT ARRIVED, IN ORDER (E30, 24.09.2026; lib/canary.mjs). Everything the cluster
+ * sends this browser as Foundry traffic - the snapshot, document changes, settings,
+ * socket packets, acks - is copied here with the scenario's phase, by a listener
+ * registered before the message loop's, so Node calls it first and a handler that
+ * throws cannot hide what arrived. eval, dump and shutdown are the harness's control
+ * channel and are not recorded: a scenario's code is not Foundry traffic. The cap is
+ * far above a scenario's traffic (the busiest, 30-security, is some thousands of
+ * messages); a dump reports what it dropped, and the canary fails a truncated record.
+ */
+let PHASE = "boot", wireDropped = 0;
+const WIRE = [], WIRE_CAP = 50000;
+const WIRE_KINDS = { snapshot: "snapshot", apply: "document", settingApplied: "setting", socketMsg: "socket", ack: "ack" };
+process.on("message", msg => {
+    if (msg?.t === "phase") { PHASE = String(msg.name); return; }
+    const kind = WIRE_KINDS[msg?.t];
+    if (!kind) return;
+    if (WIRE.length >= WIRE_CAP) { wireDropped++; return; }
+    WIRE.push({ n: WIRE.length, at: Date.now(), phase: PHASE, kind, msg: JSON.parse(JSON.stringify(msg)) });
+});
+
 // Before the handlers below, which write to it: an error during import is an error too.
 globalThis.__errors = [];
 process.on("uncaughtException", err => { logLine(`UNCAUGHT: ${err.stack}`); recordError("uncaughtException", err); });
@@ -1004,6 +1025,13 @@ process.on("message", async msg => {
                 send({ t: "evalResult", id: msg.id, ok, value: safeJson(value) });
                 break;
             }
+            case "dump": {
+                // Not through eval: safeJson turns a document into { _doc, id, name }.
+                let value = null, error = null;
+                try { value = dumpForCanary(); } catch (err) { error = String(err?.stack ?? err); }
+                send({ t: "dumpResult", id: msg.id, value, error });
+                break;
+            }
             case "shutdown": {
                 // The peak memory of this client's whole life, for the results file
                 // (cluster.mjs, PEAK MEMORY). The exit waits for send's callback:
@@ -1021,6 +1049,31 @@ process.on("message", async msg => {
         recordError(`harness message loop (${msg.t})`, err);
     }
 });
+
+/*
+ * THIS BROWSER, WHOLE, FOR THE CANARY (E30, 24.09.2026). The shape does not depend
+ * on the harness - a live driver can build it on a real table - and lib/canary.mjs
+ * reads it: the wire record, every document's source, world settings, client
+ * settings (this browser's localStorage, as Foundry keeps them), both storages, the
+ * page, the notifications and the dialogs. isGM is the client's own answer, so an
+ * Assistant GM counts as a GM.
+ */
+function dumpForCanary() {
+    const entries = store => {
+        const out = {};
+        for (let i = 0; i < (store?.length ?? 0); i++) { const k = store.key(i); out[k] = store.getItem(k); }
+        return out;
+    };
+    return JSON.parse(JSON.stringify({
+        who: WHO, userId: game.userId ?? game.user?.id ?? null, isGM: Boolean(game.user?.isGM), phase: PHASE,
+        wire: WIRE, wireDropped,
+        world: Object.fromEntries([...worldColls].map(([name, c]) => [name, c.contents.map(d => d.toObject())])),
+        settings: { world: Object.fromEntries(worldValues), client: Object.fromEntries(clientValues.entries()) },
+        storage: { local: entries(globalThis.localStorage), session: entries(globalThis.sessionStorage) },
+        dom: document.documentElement.outerHTML,
+        notifications: globalThis.__notifications, dialogs: globalThis.__dialogLog
+    }));
+}
 
 function safeJson(v) {
     const seen = new WeakSet();

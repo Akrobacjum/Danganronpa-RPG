@@ -1,10 +1,20 @@
 export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
-export async function run({ gm, p1, p2, p3, check, phase, settle }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUrl }) {
     const ids = await gm.eval(`return {
         chie: game.actors.getName("Chie Mori").id, daichi: game.actors.getName("Daichi Sato").id,
         aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id };`);
+
+    /* THE KILLER'S PLAN, WRITTEN BEFORE THE SESSION (E30, 24.09.2026). p3 plays Chie,
+       and saves the pre-session note that is for the GMs; the canary reads p1's and
+       p2's browsers for it after the incident and the trial (lib/canary.mjs). */
+    phase("before the session");
+    const plan = canary.marker("note.player", { allowed: ["gm", "p3"] });
+    await p3.eval(`const { saveNote } = await import("${repoUrl}/scripts/pre-session-note.mjs");
+        await saveNote(game.user.id, "${plan}");
+        return true;`);
+    await settle(200);
 
     // set an accomplice (thirdId) too, if the API supports it
     const cards0 = await p1.eval(`return game.messages.contents.length;`);
