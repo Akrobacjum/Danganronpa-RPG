@@ -14,6 +14,8 @@ export const SETTINGS = {
     recommendsSilenced: "recommendsSilenced",
     /** The Daggerheart version this browser's GM said not to be warned about again (E01, S01-09). */
     systemWarningSilenced: "systemWarningSilenced",
+    /** Hold Isometric Perspective's welcome window off on every client (E27, N2 - see enforced.mjs). */
+    enforceIsoWelcome: "enforceIsoWelcome",
     forcePrivateRolls: "forcePrivateRolls",
     enforceAnonymity: "enforceAnonymity",
     searchTokensPerRoom: "searchTokensPerRoom",
@@ -548,6 +550,25 @@ export function registerSettings() {
         type: Number,
         default: ROOMS.searchTokensPerRoom,
         range: { min: 0, max: 10, step: 1 }
+    });
+
+    /* ONE SWITCH PER HELD SETTING OF ANOTHER MODULE (E27, 24.09.2026; N2, D19).
+       World-scoped because it is the table's decision, not a browser's; the setting
+       it guards is client-scoped in Isometric Perspective, which is why every
+       player met the welcome window on every start while the GM's own was off.
+       On by default: the request was to take it away from the players. Each
+       client re-applies on change, which is also what gives the box back to a
+       player's Configure Settings when the GM switches the row off. */
+    game.settings.register(MODULE_ID, SETTINGS.enforceIsoWelcome, {
+        name: "DRPG.Settings.enforceIsoWelcome.name",
+        hint: "DRPG.Settings.enforceIsoWelcome.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => import("./enforced.mjs")
+            .then(m => m.applyEnforced())
+            .catch(err => console.error("danganronpa-rpg | Could not re-apply the held settings", err))
     });
 
     game.settings.register(MODULE_ID, SETTINGS.hideSystemFear, {

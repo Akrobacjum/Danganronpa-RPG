@@ -6723,7 +6723,20 @@ const INVARIANTS = [
             const text = app.element.querySelector(".drpg-handbook-text");
             const links = [...app.element.querySelectorAll(".drpg-handbook-toc a")];
             ok(links.length > 1, "the handbook window has no contents list");
-            links.at(-1).click();
+            /* AND IT OPENS NOTHING ELSE (E27, audit S12-01). This clicked the entry and
+               read `scrollTop`, which moved - while Foundry's document-wide link
+               handler opened `/game#` in a new tab, a second client of the game. The
+               suite passed through Dawid's bug. Counted here on the real window. */
+            const opens = [];
+            const realOpen = window.open;
+            window.open = (...args) => { opens.push(String(args[0])); return null; };
+            try {
+                links.at(-1).click();
+                links.at(-1).dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+            } finally {
+                window.open = realOpen;
+            }
+            equal(opens.length, 0, `a contents entry opened a browser tab: ${opens.join(", ")}`);
             ok(text.scrollTop > 0, "the contents list does not move the text");
             ok(app.element.getBoundingClientRect().bottom <= window.innerHeight + 1,
                 "the handbook window runs off the bottom of the screen");
@@ -6769,6 +6782,71 @@ const INVARIANTS = [
         ok(PATCHES.every(p => typeof p.owner === "string" && p.owner), "a patch row says nothing about whose code it changes");
         const strays = newer.missing.filter(target => !ours.has(target));
         ok(!strays.length, `the warning lists places that are not Daggerheart's: ${strays.join(", ")}`);
+    }],
+
+    ["R127 - a handbook contents entry answers its click and is not a link anything can follow", async () => {
+        /*
+         * E27, 24.09.2026; audit S12-01 (high, reproduced live). An entry was
+         * `<a href="#">` and its click handler only prevented the default. Foundry's
+         * `Game#_onClickHyperlink`, listening on the whole document, takes the nearest
+         * `a[href]` and opens it with `window.open(href, "_blank")` without asking
+         * whether anybody prevented the default - so every click on the contents list
+         * opened a second client of the game in a new tab. R111 clicked the entry and
+         * checked that the text scrolled, which it did, and passed.
+         *
+         * Asked here without the window, which needs layout: the list is built by the
+         * same function on a text of three headings, then clicked and given Enter, with
+         * a listener standing in for Foundry's (the same `closest("a[href]")`) and
+         * `window.open` counted.
+         */
+        const { fillContents } = await import("./handbooks.mjs");
+        const toc = document.createElement("nav");
+        const text = document.createElement("div");
+        text.innerHTML = "<h2>One</h2><p>a</p><h3>Two</h3><p>b</p><h2>Three</h2><p>c</p>";
+        document.body.append(toc, text);
+        const followed = [];
+        const foundryLike = event => { if (event.target.closest?.("a[href]")) followed.push("hyperlink"); };
+        const realOpen = window.open;
+        window.open = (...args) => { followed.push(`open ${args[0]}`); return null; };
+        document.addEventListener("click", foundryLike);
+        try {
+            fillContents(toc, text);
+            const entries = [...toc.children];
+            equal(entries.length, 3, "the contents list did not get one entry per heading");
+            ok(!toc.querySelector("a[href]"), "a contents entry carries an address again - Foundry will open it in a new tab");
+            ok(entries.every(e => e.getAttribute("role") === "link" && e.tabIndex === 0),
+                "a contents entry is not a focusable link to a screen reader or a keyboard");
+            // Handled, and kept here: the entry's own handler prevents the default,
+            // which is how this knows the click reached it (the stand-in above cannot
+            // hear it once propagation stops - that half is the `a[href]` question).
+            const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+            entries[2].dispatchEvent(click);
+            ok(click.defaultPrevented, "a click on a contents entry never reached its handler");
+            const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+            entries[1].dispatchEvent(enter);
+            ok(enter.defaultPrevented, "Enter on a contents entry does nothing");
+            equal(followed.length, 0, `a contents entry was followed: ${followed.join(", ")}`);
+        } finally {
+            document.removeEventListener("click", foundryLike);
+            window.open = realOpen;
+            toc.remove();
+            text.remove();
+        }
+    }],
+
+    ["R131 - a held setting of a module that is not here writes nothing", async () => {
+        /*
+         * E27, 24.09.2026; the review of E27. The stage's verify list asks that with
+         * Isometric Perspective off, the module writes nothing and hides nothing - and
+         * the harness has that module always on. Asked with a row for a module that is
+         * not installed at all, which is the same road (`entryOf` answers null): no row
+         * is held, and the purity check at the end of tier 1 says whether anything was
+         * written.
+         */
+        const { applyEnforced } = await import("./enforced.mjs");
+        const held = await applyEnforced([{ id: "suiteAbsent", module: "drpg-suite-absent-module",
+            key: "showWelcome", value: false, toggle: SETTINGS.enforceIsoWelcome }]);
+        equal(held.length, 0, "a row for a module that is not here was held");
     }],
 
     ["R112 - the curtain holds on a narrow desk, and the right column is wider", async () => {
@@ -13800,6 +13878,68 @@ const SCENARIOS = [
             const { reviveCharacter } = await import("./chapter.mjs");
             if (isDeceased(victim)) await reviveCharacter(victim);
             await settle();
+        }
+    }],
+
+    ["the table's held settings keep Isometric Perspective's welcome closed and its box out of sight", async () => {
+        /*
+         * E27, 24.09.2026; audit S16-03, project N2, D19. `showWelcome` is Isometric
+         * Perspective's own CLIENT setting, so a GM who switched it off had switched
+         * it off for one browser and every player met the window on every start.
+         * enforced.mjs holds it: written at `setup`, the box taken out of Configure
+         * Settings, a change by hand put back - and all of it let go when the GM turns
+         * the world switch off. Driven here on this client through the same function
+         * the `setup` hook and the switch call.
+         */
+        const { ENFORCED, applyEnforced } = await import("./enforced.mjs");
+        const row = ENFORCED.find(r => r.id === "isoWelcome");
+        ok(row, "the Isometric Perspective welcome is not in the table of held settings");
+        const full = `${row.module}.${row.key}`;
+        needs(game.modules.get(row.module)?.active, `${row.module} is not enabled in this world`);
+        const entry = game.settings.settings.get(full);
+        needs(entry, `${full} is not registered by the ${row.module} installed here`);
+
+        const switchBefore = game.settings.get(MODULE_ID, SETTINGS.enforceIsoWelcome);
+        const valueBefore = game.settings.get(row.module, row.key);
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.enforceIsoWelcome, true);
+            await applyEnforced();
+            await settle();
+            equal(game.settings.get(row.module, row.key), row.value, "the welcome is not held closed");
+            equal(entry.config, false, "the player's box for the welcome is still in Configure Settings");
+
+            await game.settings.set(row.module, row.key, !row.value);
+            ok(await until(() => game.settings.get(row.module, row.key) === row.value),
+                "a change made by hand was not put back");
+
+            await game.settings.set(MODULE_ID, SETTINGS.enforceIsoWelcome, false);
+            await applyEnforced();
+            await settle();
+            ok(entry.config !== false, "switching the row off did not give the box back");
+            await game.settings.set(row.module, row.key, !row.value);
+            await settle();
+            equal(game.settings.get(row.module, row.key), !row.value,
+                "with the row switched off the value is still held");
+            /* A BOX THAT CANNOT BE HIDDEN STILL HOLDS ITS VALUE (the review of E27). A
+               registry entry whose `config` cannot be assigned threw, before the value
+               was written, and the welcome came back on. Asked of this module's own
+               probe setting, registered for the test, with `config` made read-only. */
+            const probeKey = "suiteHeldProbe";
+            game.settings.register(MODULE_ID, probeKey, { scope: "client", config: true, type: Boolean, default: true });
+            const probeEntry = game.settings.settings.get(`${MODULE_ID}.${probeKey}`);
+            Object.defineProperty(probeEntry, "config", { get: () => true, configurable: true });
+            await game.settings.set(MODULE_ID, SETTINGS.enforceIsoWelcome, true);
+            const heldProbe = await applyEnforced([{ id: "suiteProbe", module: MODULE_ID, key: probeKey,
+                value: false, toggle: SETTINGS.enforceIsoWelcome }]);
+            equal(heldProbe.join(), "suiteProbe", "a row whose box cannot be hidden was not held");
+            equal(game.settings.get(MODULE_ID, probeKey), false, "a box that could not be hidden kept its value from being written");
+        } finally {
+            // The probe goes whatever happened above, so no later test meets it.
+            game.settings.settings.delete(`${MODULE_ID}.suiteHeldProbe`);
+            try { globalThis.localStorage?.removeItem(`${MODULE_ID}.suiteHeldProbe`); } catch { /* not stored here */ }
+            await game.settings.set(row.module, row.key, valueBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.enforceIsoWelcome, switchBefore);
+            await applyEnforced();
         }
     }],
 

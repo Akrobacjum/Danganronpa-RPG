@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.57";
+    --drpg-css-version: "1.2.58";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -12713,12 +12713,15 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
     border-right: 1px solid var(--drpg-line);
 }
 
+/* An entry has no `href` (E27, see `fillContents`), so the browser no longer gives it
+   a link's pointer; it is still something to click. */
 .drpg-handbook-toc a {
     display: block;
     padding: 3px 4px;
     color: var(--drpg-bone);
     text-decoration: none;
     line-height: 1.25;
+    cursor: pointer;
 }
 
 .drpg-handbook-toc a:hover,

@@ -276,6 +276,10 @@
         "name": "Replace the Daggerheart Fear tracker",
         "hint": "Hides Daggerheart's single shared Fear bar and gives every Monokuma a Despair pool of their own. Turn off to go back to the system tracker."
       },
+      "enforceIsoWelcome": {
+        "name": "Keep Isometric Perspective's welcome window closed for everyone",
+        "hint": "Isometric Perspective shows its welcome window on every start, and that is a setting of each browser, so turning it off for yourself does nothing for the players. On, the window stays closed on every client and its box disappears from everyone's settings, the GM's included. Off stops holding it: the box comes back and each browser can switch the window on again. Only does anything with Isometric Perspective enabled."
+      },
       "pixelFont": {
         "name": "Pixel font",
         "hint": "Monokuma Legacy only, and on by default there: Press Start 2P on interface chrome - HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable. The Stained Glass theme has its own two faces and ignores this."

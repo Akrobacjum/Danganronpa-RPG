@@ -17,11 +17,11 @@ test harness in `audit/harness`, which needs jsdom: `npm ci` there, once.
 Run all three. They take about five minutes together (the suite alone is about three, measured 24.09).
 
 ```bash
-# the regression suite and the ten scenarios, headless
+# the regression suite and the eleven scenarios, headless
 cd audit/harness
 npm ci        # once: installs jsdom for the harness (the module itself needs nothing)
 node cluster.mjs scenarios/01-runtests.mjs
-for s in 10-murder 11-killer-secrecy 12-social 13-murder-signals 14-quiet \
+for s in 10-murder 11-killer-secrecy 12-social 13-murder-signals 14-quiet 15-held \
          20-crit-hope 30-security 40-flow 50-lang 60-ledger; do
   node cluster.mjs scenarios/$s.mjs
 done

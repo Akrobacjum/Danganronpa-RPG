@@ -34,7 +34,7 @@ If a claim cannot be measured, say that instead of rounding it up.
 | The harness, first time | `cd audit/harness && npm ci` - installs jsdom; boots the checkout it sits in, or `DRPG_REPO` |
 | The suite, headless | `cd audit/harness && node cluster.mjs scenarios/01-runtests.mjs` |
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines) |
-| Every scenario | the ten numbered ones: 10, 11, 12, 13, 14, 20, 30, 40, 50, 60 |
+| Every scenario | the eleven numbered ones: 10, 11, 12, 13, 14, 15, 20, 30, 40, 50, 60 |
 | The Polish file | `node tools/config-prose.mjs --check lang/pl.json` - must read 497/497 |
 | The curtain, without Foundry | `python3 -m http.server 8765` then `/audit/glass-harness.html` |
 | The evidence pack, without Foundry | the same server, then `/audit/pack-harness.html` |
@@ -49,7 +49,7 @@ width, no fonts, no audio. A test that needs one of those says so with
 
 ## What the suite's three numbers mean
 
-`268 passed, 0 failed, 16 skipped` (headless, 1.2.57)
+`271 passed, 0 failed, 16 skipped` (headless, 1.2.58)
 
 - **failed** must be zero. It was not zero for a year, and a thirteenth failure
   arrived unnoticed because twelve was a number people had learnt. It was not
