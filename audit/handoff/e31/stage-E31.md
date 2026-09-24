@@ -1,0 +1,49 @@
+# E31 Jeden wzorzec mostu: tabela strażników, jeden słownik odmów i bridgeRequest
+
+## goal
+GM_HANDLERS i sockety traps.mjs to deklaracje { label, guards, sanitize, run }. Strażniki (senderOf, ownsActor, ownsActorAt, gmOnly, canSeeProject, onIncidentTurn, sameScene, isGmOnline) żyją w liściu scripts/bridge-guards.mjs, jedna kopia zamiast trzech w gm-bridge, diagnostics i search-tokens. sanitize bierze pola z białej listy. Odmowa ma jeden helper refuse(action, reason, ctx) w bridge-guards.mjs i jeden słownik: DRPG.Bridge.what.<akcja> mówi, czego dotyczy prośba, a nowe DRPG.Bridge.why.<powód> mówi dlaczego (kod powodu jedzie w pakiecie odmowy, gracz czyta go w swoim języku); wyjątek w run kończy się odmową z powodem 'failed'. Każde request* gracza idzie przez bridgeRequest z jednym wynikiem { ok, refused?, reason? } i jednym komunikatem 'GM nie odpowiedział albo odmówił'. Strażniki E03 przechodzą do tabeli bez osłabienia, a E18, E28 i E35 korzystają już z tego wzorca zamiast budować własny. Przy okazji handOff w live.mjs zamyka okno bez animacji (część S01-64).
+
+## why
+E03 wpisuje autoryzację ręcznie w ok. 33 parach handlerów, a E04-E08, E18 i E28 dokładają kolejne; bez tabeli i testu pokrycia następny handler dodany w pośpiechu ominie strażnika. Trzy wzorce czekania na GM-a w ok. 28 miejscach dają ciche odmowy, obietnice wiszące 3 minuty i sprzeczne toasty, a dzisiejszy refuse() pisze powód tylko po angielsku do logu, więc gracz nie wie, dlaczego mu odmówiono. Zaraz po E03 (D22), żeby S16-01 wyszła bez zwłoki, i przed etapami, które zmieniają handlery.
+
+## risk
+Zły strażnik w tabeli odrzuci legalne pakiety we wszystkich akcjach naraz, więc macierz ścieżek legalnych (Reroll, gracz z dwiema postaciami, asystent GM-a, własne Fear i SaveMessage Daggerheart) wchodzi w tym samym wydaniu. Zmiana kształtu wyniku w kilkunastu wołających: pominięty uzna obiekt za sukces, więc przegląd każdego wywołania request* i ESLint. Kody powodów to zamknięta lista; kod bez klucza en i pl daje FAIL R1b. Testy odmowy E03 muszą przejść bez zmian.
+
+## verify
+R1b czyta tabelę: każda akcja ma label, guards albo jawne why, sanitize i klucz DRPG.Bridge.what.* w en i pl, każdy kod DRPG.Bridge.why.* ma klucz en i pl, a akcja bez strażnika daje FAIL. Wyjątek wstrzyknięty w run daje graczowi komunikat z powodem i rozstrzygniętą obietnicę. Odmowa E03 z cudzym actorId pokazuje klientowi PL powód po polsku. Testy odmowy E03 i macierz legalnych ścieżek zielone. Grep: senderOf, ownsActor i 'GM online' w jednym pliku. GM offline przy requestSabotage, requestTieTrace i requestPlant: ten sam komunikat, brak wiszącej obietnicy. handOff przy reduced motion bez sekundowego czekania.
+
+## doneWhen
+Każda akcja mostu i socket pułapek przechodzi przez tabelę, każda odmowa przez jeden refuse() z jednym słownikiem powodów, każde żądanie gracza przez bridgeRequest, a CLAUDE.md opisuje w pięciu krokach, jak dodać akcję mostu.
+
+asks: ['R-910: oceny 9-10 przed E26 tam, gdzie się da, przy spójności modułu (prośba Dawida 24.09)']  decisions: ['D22']
+
+- D22: Opcja 1 (jak rekomendacja): E03 zaraz po E02, potem E30 i E31, a dopiero potem E04 (krytyczna S16-01 bez zwłoki; testy E03 przechodzą drugi raz na wiernym harnessie w E30, a strażniki E03 przenoszą się do tabeli w E31)
+
+### S01-64 [info] Drobne w utils/live: trzy kopie 'czy GM online', handOff czeka 1 s na animację, windowWidthFor liczy ramkę dwa razy
+status=potwierdzone cat=hygiene effort=S stage=10-testy-repo-higiena
+where: scripts/utils.mjs:113-115, 884-897; scripts/gm-bridge.mjs:438-447, 1653-1655; scripts/search-tokens.mjs:461, 475; scripts/live.mjs:494-543
+
+PROBLEM: activeGmIds, gmOnline i dwie kopie inline w search-tokens liczą to samo, a senderOf/ownsActor żyją w ciężkim gm-bridge. handOff zamyka okno z animacją, więc przy reduced motion każde przejście okno -> procedura -> okno czeka ok. 1000 ms na transitionend (reopen już używa animate:false). windowWidthFor dolicza border .window-content dwa razy.
+
+FIX: senderOf, ownsActor i gmOnline do utils.mjs (gm-bridge re-eksportuje). handOff: close({ animate: false }). windowWidthFor: padding bez borderów albo frame od offsetWidth.
+
+  - member U02-utils-api-sync-17: {"source": "U02-utils-api-sync", "severity": "info", "status": "potwierdzone", "category": "architecture", "title": "Trzy kopie pytania „czy jest GM online” i helpery zaufania poza utils.mjs", "file": "scripts/utils.mjs", "line": 113, "evidence": "utils.mjs:113-115 `activeGmIds()`; gm-bridge.mjs:1653-1655 `export function gmOnline() { return game.users.some(u => u.isGM && u.active); }`; search-tokens.mjs:461 i 475 `if (!game.users.some(u => u.isGM && u.active))`. senderOf/ownsActor (reguła CLAUDE.md dla każdego handlera socketu) żyją w gm-bridge.mjs:438-447, a traps.mjs i inne moduły importują je z mostu.", "scenario": "Nowy handler socketu w module niezależnym od mostu musi importować gm-bridge.mjs (ciężki moduł) po dwie 3-liniowe funkcje albo napisze własną kopię. Właśnie przed tym ostrzega komentarz gm-bridge.mjs:432-436.", "fix": "Przenieść senderOf, ownsActor i gmOnline do utils.mjs (gm-bridge re-eksportuje dla zgodności); search-tokens.mjs niech woła gmOnline().", "verifier": "utils.mjs:113-115 ma activeGmIds() (game.users.filter(u => u.isGM && u.active)). gm-bridge.mjs:1653-1655 ma niezalezna gmOnline() z identyczna logika (some isGM && active). search-tokens.mjs:461 i 475 maja jeszcze dwie kopie tego samego wyrazenia inline. senderOf i ownsActor (gm-bridge.mjs okolo 438-447) rzeczywiscie zyja poza utils.mjs, choc sa uzywane szerzej (np. traps.mjs, zgodnie z komentarzem w kodzie)."}
+  - member U02-utils-api-sync-18: {"source": "U02-utils-api-sync", "severity": "info", "status": "potwierdzone", "category": "perf", "title": "handOff czeka na animowane zamknięcie: przy reduced motion każde przekazanie okna to 1 s przestoju", "file": "scripts/live.mjs", "line": 540, "evidence": "live.mjs:541: `const closing = Promise.resolve(dialog?.close?.())` (z animacją), a reopen (494-505) celowo robi `app.close({ animate: false })` z uzasadnieniem \"`close()` otherwise waits for a transition that this module's own exit rule may not give it\". application.mjs:1016 `if ( options.animate !== false ) await this._awaitTransition(this.#element, 1000);`", "scenario": "GM z włączonym prefers-reduced-motion (tokeny ruchu na 0 ms) klika wiersz w GM panelu (gm-panel.mjs:742) albo krok w Season setup (season-setup.mjs:560). Każde przejście okno → procedura → okno czeka pełną sekundę na transitionend, który nie przychodzi.", "fix": "W handOff użyć `dialog.close({ animate: !prefersReducedMotion })` albo po prostu `{ animate: false }`, jak w reopen.", "verifier": "handOff (live.mjs:540-543) woła dialog?.close?.() bez opcji, czyli z domyslna animacja, ktora w ApplicationV2 czeka na transitionend przez okolo 1000 ms (znany problem tego modulu, zapisany rowniez w pamieci uzytkownika jako 'foundry-applicationv2-close-waits-transition'). reopen (live.mjs:494-505 / 502) uzywa explicite { animate: false } z uzasadnieniem w komentarzu tuz nad funkcja. Docstring handOff (live.mjs okolo 512-538) nie wspomina animacji jako swiadomej decyzji, wiec brak animate:false wyglada na przeoczenie, nie wybor."}
+  - member U02-utils-api-sync-22: {"source": "U02-utils-api-sync", "severity": "info", "status": "potwierdzone", "category": "visual", "title": "windowWidthFor dolicza ramkę .window-content dwa razy", "file": "scripts/utils.mjs", "line": 884, "evidence": "utils.mjs:884-887: `padding = paddingLeft + paddingRight + borderLeftWidth + borderRightWidth` (content)\nutils.mjs:893: `const frame = Math.max(0, root.getBoundingClientRect().width - content.clientWidth);` - clientWidth nie zawiera ramek content, więc `frame` już je obejmuje.\nutils.mjs:897: `const wanted = Math.ceil(widest + padding + frame) + 2;`", "scenario": "Jeśli motyw nada `.window-content` ramkę (np. 1-2 px w Stained Glass), każde okno z tabelą otworzy się o 2x ramkę szersze niż trzeba. To kosmetyka, ale funkcja chwali się dopasowaniem co do piksela.", "fix": "Nie dodawać borderLeft/RightWidth do `padding` (wystarczy padding treści), albo liczyć `frame` od `content.offsetWidth`.", "verifier": "utils.mjs:884-887 liczy padding jako paddingLeft+paddingRight+borderLeftWidth+borderRightWidth stylu content. utils.mjs:893 liczy frame jako root.getBoundingClientRect().width - content.clientWidth; clientWidth nie zawiera obramowania elementu content, wiec ta roznica juz obejmuje border content. utils.mjs:897 dodaje obie wielkosci (padding + frame) do widest, czyli border content jest doliczany dwukrotnie. Kosmetyczny, ale realny blad przy motywach z obramowaniem .window-content."}
+
+### S17-08 [high] Autoryzacja mostu wpisana ręcznie w ok. 33 handlerach, bez tabeli i testu pokrycia
+status=nowe cat=nowe effort=M stage=
+where: scripts/gm-bridge.mjs (GM_HANDLERS, onSocket, refuse), scripts/traps.mjs, test R1b
+
+PROBLEM: Każdy handler sam sprawdza (albo nie) nadawcę, właściciela, pokój i turę; nowe akcje z E04-E28 mogą ominąć strażnika, wyjątek w handlerze zostawia obietnicę gracza bez odpowiedzi, a refuse() pisze powód tylko po angielsku do logu.
+
+FIX: Deklaracje { label, guards, sanitize, run }, liść bridge-guards.mjs z jednym refuse(action, reason, ctx), słownik DRPG.Bridge.why.<powód> obok DRPG.Bridge.what.<akcja>, wyjątek jako odmowa z powodem i R1b czytający tabelę.
+
+
+### S17-09 [medium] Żądania gracza do GM-a: trzy wzorce ack i timeout w ok. 28 miejscach poza rodziną callGm
+status=nowe cat=nowe effort=M stage=
+where: scripts/gm-bridge.mjs (request*, expectAck, awaitRuling) i wołający
+
+PROBLEM: Raz null, raz { pending: true }, requestTieTrace bez requestId i ack; odmowy bywają ciche, obietnice wiszą 3 minuty, a toasty sobie przeczą.
+
+FIX: bridgeRequest z jednym wynikiem { ok, refused?, reason? } i jednym komunikatem dla wszystkich request* i ich wołających; E18 i E28 korzystają z niego zamiast budować własny mechanizm.
