@@ -1142,16 +1142,18 @@ export function crisisRefusal(actor, key, state = murderState()) {
  *   - the last action taken is this character's, and this one;
  *   - it was taken at the incident stage, from its own side (`crisisRefusal` on
  *     the receipt's state gives those two with no `key`);
- *   - and nothing but that action has moved the incident since (`after`, stamped
- *     by `closeReceipt`; a receipt written before this build has none, and is
- *     let through as it always was).
+ *   - and none of the moves `CRISIS_MOVES` names - a GM's Pass or resolution, a
+ *     third party walking in, the victim run out - has happened since (`after`,
+ *     stamped by `closeReceipt`; a receipt written before this build has none, and
+ *     is let through as it always was). Other writes to the incident are not
+ *     compared.
  */
 export function crisisUndoRefusal(actor, key, live = murderState()) {
     const last = live?.lastCrisis ?? null;
     if (!last || last.actorId !== actor?.id || last.key !== key) return "the last crisis action is not that character's";
     const then = crisisRefusal(actor, key, last.state ?? null);
     if (then && !then.key) return then.why;
-    if (last.after && (live.stage !== last.after.stage || (live.endedBy ?? null) !== last.after.endedBy)) {
+    if (last.after && CRISIS_MOVES.some(k => k in last.after && (live[k] ?? null) !== (last.after[k] ?? null))) {
         return "the incident has moved on since that action";
     }
     return null;
@@ -1745,7 +1747,10 @@ export async function resolveCrisisAction({
      * table keeps a turn, which is why it reads as an exception.
      */
     if (murderState()?.stage === "incident"
-        && !(isCritical && def.criticalKeepsTurn)) await passTurn();
+        && !(isCritical && def.criticalKeepsTurn)) {
+        await passTurn();
+        await victimCheck;
+    }
 
     await closeReceipt(receipt);
     return { success, band, done, ranOut };
@@ -1816,14 +1821,22 @@ function openReceipt(actorId, key, state) {
     };
 }
 
+/**
+ * What a later move writes into the incident: the stage and how it ended (a GM
+ * beginning the resolution, the victim run out), the turn (a GM's Pass), and a
+ * third party walking in. A Reroll of the last action is refused once any of
+ * them differs from what the action itself left (`crisisUndoRefusal`).
+ */
+const CRISIS_MOVES = ["stage", "endedBy", "turn", "turnSide", "killerTurnId", "thirdId"];
+
 async function closeReceipt(receipt) {
     try {
         /* WHAT THE ACTION LEFT, so a Reroll can tell its own consequences from
            a GM who has moved the incident on since (E03 second review): Survive,
            Finishing blow and Escape together end the incident themselves, and
            the undo puts the stage back with the rest of the state. */
-        const after = murderState();
-        receipt.after = { stage: after?.stage ?? null, endedBy: after?.endedBy ?? null };
+        const after = murderState() ?? {};
+        receipt.after = Object.fromEntries(CRISIS_MOVES.map(key => [key, after[key] ?? null]));
         await writeState({ lastCrisis: receipt });
     } catch (err) {
         error("Could not record what this crisis action did; a Reroll will not be able to replay it", err);
@@ -2813,10 +2826,21 @@ export function registerMurder() {
         if (!r?.hitPoints && !r?.stress) return;
         if (murderState()?.victimId !== actor.id) return;
 
-        checkVictimSpent().catch(err =>
-            error("Could not check whether the victim has run out", err));
+        // Kept, not dropped: a crisis action's receipt waits for it (`victimCheck`).
+        victimCheck = checkVictimSpent().catch(err => {
+            error("Could not check whether the victim has run out", err);
+            return false;
+        });
     });
 }
+
+/**
+ * The victim-ran-out check the `updateActor` hook last started. A turn's drain
+ * (`passTurn`) sets it off without waiting, and it may end the incident; a
+ * crisis action waits for it before stamping its receipt, so the receipt says
+ * what the action really left (E03 third review).
+ */
+let victimCheck = Promise.resolve(false);
 
 /**
  * Did this token just walk into the room the incident is happening in?

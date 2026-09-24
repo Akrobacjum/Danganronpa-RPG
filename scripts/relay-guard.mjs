@@ -209,8 +209,9 @@ export function fingerprintOf(fns) {
  * This is the one place in the module that mutates a shared socket payload,
  * which gm-bridge.mjs forbids everywhere else, and it is allowed here because
  * there is no other way left to stop the write. It is protection, not
- * fidelity: without a queue, what this file would have written itself (Fear,
- * countdown ticks) is applied here directly and may race another write.
+ * fidelity: other listeners on the channel see the renamed or narrowed packet.
+ * What this file writes itself (Fear, countdown ticks) goes through the same
+ * `enqueue` queue as the wrapper's.
  */
 function installBackstop(channel) {
     if (backstopOn) return;
@@ -907,7 +908,10 @@ async function announce() {
     if (status.state !== "unnamed" && status.state !== "changed" && status.state !== "backstop") return;
     let warned = "";
     try { warned = String(game.settings.get(MODULE_ID, SETTINGS.relayWarned) ?? ""); } catch { warned = ""; }
-    if (warned === version) return;
+    // Which warning, as well as which version: a GM told about unreviewed cases
+    // on this version is still told when the relay later falls to the backstop.
+    const stamp = status.state === "backstop" ? `backstop|${version}` : version;
+    if (warned === stamp) return;
     if (status.state === "backstop") {
         await whisperToGms(`<p class="drpg-warning">${foundry.utils.escapeHTML(
             game.i18n.format("DRPG.Relay.backstop", { version }))}</p>`);
@@ -918,5 +922,5 @@ async function announce() {
             version: foundry.utils.escapeHTML(version), cases: foundry.utils.escapeHTML(cases)
         })}</p>`);
     }
-    try { await game.settings.set(MODULE_ID, SETTINGS.relayWarned, version); } catch { /* said again next load */ }
+    try { await game.settings.set(MODULE_ID, SETTINGS.relayWarned, stamp); } catch { /* said again next load */ }
 }

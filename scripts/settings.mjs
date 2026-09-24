@@ -14,7 +14,7 @@ export const SETTINGS = {
     recommendsSilenced: "recommendsSilenced",
     /** The Daggerheart version this browser's GM said not to be warned about again (E01, S01-09). */
     systemWarningSilenced: "systemWarningSilenced",
-    /** The Daggerheart version the relay guard last warned this GM about (E03, relay-guard.mjs). */
+    /** Which relay warning this GM last had, and for which Daggerheart version (E03, relay-guard.mjs). */
     relayWarned: "relayWarned",
     /** Hold Isometric Perspective's welcome window off on every client (E27, N2 - see enforced.mjs). */
     enforceIsoWelcome: "enforceIsoWelcome",
@@ -618,9 +618,11 @@ export function registerSettings() {
         default: ""
     });
 
-    /* The Daggerheart version whose unreviewed relay cases this browser's GM
-       has been told about (E03, relay-guard.mjs) - once per version, like the
-       warning above. An UNGUARDED relay is said on every load regardless. */
+    /* The relay warning this browser's GM has been given, and for which
+       Daggerheart version (E03, relay-guard.mjs): the version alone for the
+       unreviewed cases, `backstop|<version>` for the fallback - each once per
+       version, like the warning above. An UNGUARDED relay is said on every
+       load regardless. */
     game.settings.register(MODULE_ID, SETTINGS.relayWarned, {
         scope: "client",
         config: false,

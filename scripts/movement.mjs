@@ -1176,10 +1176,9 @@ export function roomOfActor(actor) {
  * request names (`sceneId`) and the character has a token there, that scene
  * wins, so the check is made on the scene the player acted on rather than the
  * one the GM is looking at (the E03 review). Only the search spend
- * (search-tokens.mjs) and a player's trace (gm-bridge.mjs) pass it; Observe,
- * cleanup, the vault and action-rolls do not yet, and like any call without
- * `sceneId` they take the rendered token, then the scene being viewed, then any
- * scene.
+ * (search-tokens.mjs) and a player's trace (gm-bridge.mjs) pass it; no other
+ * caller does yet, and like any call without `sceneId` they take the rendered
+ * token, then the scene being viewed, then any scene.
  *
  * @param {Actor} actor
  * @param {object} [options]

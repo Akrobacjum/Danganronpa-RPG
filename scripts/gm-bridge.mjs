@@ -1355,8 +1355,9 @@ async function handleRemnantEdit(payload, senderId, ctx) {
             const { copiedRemnants } = await import("./truth-bullets.mjs");
             copied = game.actors.some(a => a.type === "character" && copiedRemnants(a).has(token.id));
         }
+        const data = remnantData(token);
         const reach = removalRefusal(token, {
-            gmEdited: remnantGmEdited(token), copied, placedAt: remnantData(token)?.placedAt ?? null
+            gmEdited: remnantGmEdited(token), copied, placedAt: data?.placedAt ?? null, restored: Boolean(data?.restored)
         });
         const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
         const why = await spendRerollReceipt(source, sender.id, "remnant", () => reach);
@@ -1382,11 +1383,14 @@ async function handleRemnantEdit(payload, senderId, ctx) {
 /**
  * Why a player's Reroll may not lift or retune this trace, or null (E03). Pure.
  * `copied` is asked only of a removal: a player's retune moves only the
- * visibility band (the type is refused above), which changes how findable a
- * trace is, not what it says.
+ * visibility band (a type in a player's packet is dropped above), which changes
+ * how findable a trace is, not what it says.
  */
-export function removalRefusal(token, { gmEdited = false, copied = false, placedAt = null, now = Date.now() } = {}) {
+export function removalRefusal(token, { gmEdited = false, copied = false, placedAt = null, restored = false, now = Date.now() } = {}) {
     if (gmEdited) return "a GM has written on that trace";
+    // Put back by a cleanup Reroll under a new id: whether somebody found the
+    // original is no longer readable, so it is not a Reroll's to touch.
+    if (restored) return "a Reroll put that trace back";
     if (copied) return "somebody has already found that trace";
     /* HOW OLD, from the ledger's own `placedAt`, else the token's `_stats`. A trace
        with neither - placed before 1.2.60 on a table whose tokens carry no

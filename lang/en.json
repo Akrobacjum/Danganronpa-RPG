@@ -3228,7 +3228,7 @@
       "unreadable": "cases this module cannot read",
       "unknownSender": "Daggerheart asked your browser to make a change for a sender Foundry did not name, and it was refused. If players' Hope, Stress or Fear stop changing when they roll, this is why - tell the module's author.",
       "busyFear": "Daggerheart moved Fear {steps} times in ten seconds for {name}. Every step was made; have a look at the chat if that seems like more rolls than there were.",
-      "backstop": "The guard on Daggerheart's GM relay could not take Daggerheart {version}'s own listener off the channel, so a fallback checks each change in front of it instead. Players' requests are still checked; a change the guard makes itself may race another write. Tell the module's author."
+      "backstop": "The guard on Daggerheart's GM relay could not take Daggerheart {version}'s own listener off the channel, so a fallback checks each change in front of it instead. Players' requests are still checked. Tell the module's author."
     }
   }
 }

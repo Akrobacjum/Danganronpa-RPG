@@ -1142,9 +1142,10 @@ export const NOT_AN_EDIT = "drpgNotAnEdit";
  * (`guards`, below), refreshed by every write a GM makes, and the primary GM
  * puts a player's change to any of them back from it - only the fields the
  * change touched, so nothing else a player writes is undone - and the GMs are
- * told. That the author is really a player relies on Daggerheart's relay not
- * writing items for players (relay-guard.mjs): a relayed write is authored by
- * the GM who ran it.
+ * told. That the author is really a player relies on Daggerheart's relay never
+ * writing a guarded field for a player: relay-guard.mjs lets it write only an
+ * item's charges and quantity, and a relayed write is authored by the GM who
+ * ran it.
  *
  * IN MEMORY, NOT IN THE LEDGER (E03 second review, 24.09.2026). The first build
  * kept the copy as `guard` in the bullet's secret, and recording it at load

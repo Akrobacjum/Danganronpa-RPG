@@ -349,10 +349,12 @@ async function settleDespair(actor, before, after, done) {
 
         const delta = after.withFear ? 1 : -1;
         const { requestDespairAdjust } = await import("./gm-bridge.mjs");
+        const { poolLabel } = await import("./despair.mjs");
         await requestDespairAdjust(monokuma.id, delta, { actorId: actor.id });
 
+        // The pool's name, as the Despair bar shows it - not the GM's account.
         done.push(game.i18n.format(delta > 0 ? "DRPG.Reroll.despairGained" : "DRPG.Reroll.despairReturned", {
-            name: monokuma.name
+            name: poolLabel(monokuma)
         }));
     } catch (err) {
         error("Could not settle Despair after a reroll", err);

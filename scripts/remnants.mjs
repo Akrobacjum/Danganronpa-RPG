@@ -446,8 +446,12 @@ export async function placeRemnant(data = {}) {
                 // WHEN, in real time, so a player's Reroll can be held to a
                 // trace it could have made (`removalRefusal`, gm-bridge.mjs).
                 // Written here rather than read off `_stats.createdTime`, which
-                // no table has shown to be on a token (E03 second review).
-                placedAt: Date.now()
+                // no table has shown to be on a token (E03 second review). A
+                // trace a cleanup Reroll puts back keeps the age it had
+                // (`recreationDataFor`); a player's placement never carries one
+                // (`narrowPlayerRemnant` builds it afresh), and no date is taken
+                // from the future.
+                placedAt: Number.isFinite(data.placedAt) && data.placedAt <= Date.now() ? data.placedAt : Date.now()
             });
         }
 
@@ -1373,6 +1377,8 @@ export function remnantData(tokenDoc) {
         // When it was placed, in real time (`placeRemnant`); null for a trace
         // placed before 1.2.60.
         placedAt: entry.placedAt ?? null,
+        // Put back by a cleanup Reroll (cleanup.mjs `undoLastCleanup`).
+        restored: Boolean(entry.restored),
         hidden: tokenDoc.hidden,
         // What a player is shown, or would be once they find it - see
         // `remnantPublic`. Included here so a GM screen reading `remnantData`

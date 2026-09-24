@@ -8143,6 +8143,7 @@ const INVARIANTS = [
         ok(!removalRefusal({}, { now, placedAt: now - 60_000 }), "a trace the ledger says was left a minute ago is not lifted");
         ok(removalRefusal(fresh, { now, placedAt: now - 3 * 3600_000 }), "the ledger's three-hour-old date loses to the token's");
         ok(removalRefusal({}, { now }), "a trace nobody wrote the age of is lifted");
+        ok(removalRefusal(fresh, { now, restored: true }), "a trace a cleanup Reroll put back is lifted");
 
         const { cleanableTracesForPlayer, isCleaner } = await import("./cleanup.mjs");
         const student = studentActors().find(a => canvas?.scene?.tokens?.some(t => t.actorId === a.id) && !isCleaner(a));
@@ -8185,20 +8186,24 @@ const INVARIANTS = [
         const K = { id: "SUITEKILLER00001" };
         const taken = { stage: "incident", killerId: K.id, victimId: V.id, turnSide: "victim" };
         const last = (actor, key, after) => ({ actorId: actor.id, key, state: taken, after });
+        const moves = (over = {}) => ({ stage: "incident", endedBy: null, turn: 2, turnSide: "killer",
+            killerTurnId: null, thirdId: null, ...over });
 
-        const swapped = { stage: "incident", killerId: V.id, victimId: K.id,
-            lastCrisis: last(V, "roleReversal", { stage: "incident", endedBy: null }) };
+        const swapped = { stage: "incident", killerId: V.id, victimId: K.id, turn: 2, turnSide: "killer",
+            lastCrisis: last(V, "roleReversal", moves()) };
         ok(!crisisUndoRefusal(V, "roleReversal", swapped), "the victim's own successful Role reversal cannot be rerolled");
-        const survived = { stage: "resolution", endedBy: "survive", killerId: K.id, victimId: V.id,
-            lastCrisis: last(V, "survive", { stage: "resolution", endedBy: "survive" }) };
+        const survived = { stage: "resolution", endedBy: "survive", killerId: K.id, victimId: V.id, turn: 2, turnSide: "killer",
+            lastCrisis: last(V, "survive", moves({ stage: "resolution", endedBy: "survive" })) };
         ok(!crisisUndoRefusal(V, "survive", survived), "a Survive that ended the incident cannot be rerolled");
         const legacy = { stage: "incident", killerId: K.id, victimId: V.id, lastCrisis: last(V, "roleReversal", undefined) };
         ok(!crisisUndoRefusal(V, "roleReversal", legacy), "a receipt from before this build is refused");
 
         ok(crisisUndoRefusal(V, "survive", { ...survived, endedBy: "gm" }), "an undo after a GM moved the incident on is taken");
+        ok(crisisUndoRefusal(V, "roleReversal", { ...swapped, turnSide: "victim", turn: 3 }), "an undo after a GM's Pass is taken");
+        ok(crisisUndoRefusal(V, "roleReversal", { ...swapped, thirdId: "SUITETHIRD000001" }), "an undo after a third party walked in is taken");
         ok(crisisUndoRefusal(K, "survive", survived), "another character takes back the victim's action");
         ok(crisisUndoRefusal(V, "roleReversal", survived), "a Reroll takes back an action that was not the last one");
-        ok(crisisUndoRefusal(V, "finishingBlow", { ...swapped, lastCrisis: last(V, "finishingBlow", { stage: "incident", endedBy: null }) }),
+        ok(crisisUndoRefusal(V, "finishingBlow", { ...swapped, lastCrisis: last(V, "finishingBlow", moves()) }),
             "the victim takes back a killer's action they could not have taken");
         ok(crisisUndoRefusal(V, "survive", { ...survived, lastCrisis: { ...survived.lastCrisis, state: { ...taken, stage: "opening" } } }),
             "an action recorded outside the incident stage is taken back");

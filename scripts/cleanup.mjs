@@ -2172,6 +2172,8 @@ function recreationDataFor(token) {
         chapter: d.chapter ?? null,
         day: d.day ?? null,
         timeOfDay: d.timeOfDay ?? null,
+        // How old it is: a trace put back is not a fresh one (E03 third review).
+        placedAt: d.placedAt ?? token._stats?.createdTime ?? null,
         // What a player was to be shown, re-applied after re-placing.
         public: d.public ?? null
     };
@@ -2218,6 +2220,12 @@ async function undoLastCleanup(actor, tokenId) {
             const { public: pub, ...data } = receipt.erased;
             const back = await placeRemnant(data);
             if (back && pub) await setRemnantPublic(back, pub);
+            // A new token id: a player's Reroll could otherwise lift or retune it
+            // as a trace nobody has found (`removalRefusal`, gm-bridge.mjs).
+            if (back) {
+                const { setRemnantSecret } = await import("./remnants.mjs");
+                await setRemnantSecret(back, { restored: true });
+            }
         } catch (err) {
             error("Could not put back the Remnant a rerolled clean-up erased", err);
         }

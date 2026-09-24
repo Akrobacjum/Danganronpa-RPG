@@ -116,8 +116,9 @@ says sent it (`senderOf(senderId)`), what that user owns (`ownsActor`, `canSee`,
 `testUserPermission`), and what the world says now: the room the character
 stands in, the incident's stage and turn, the pair a sabotage wrote, the account
 an Observe key was minted for, and a Reroll receipt (`reroll-receipts.mjs`) for
-anything taken back. Packet fields are claims. A refusal changes nothing, is
-logged on the GM, and is told to the asker (`bridge.refused`).
+anything taken back. Packet fields are claims. A refusal changes nothing and is
+logged on the GM; most are also told to the asker (`bridge.refused`), which E31
+makes every one of them.
 
 **Layer two (E28, E29).** The numbers - totals, dice, Hope paid - are checked
 against the roll message the GM can see. Until then a player with a console can
