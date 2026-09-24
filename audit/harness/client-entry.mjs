@@ -10,6 +10,7 @@ import url from "node:url";
 import { JSDOM } from "jsdom";
 import * as U from "./lib/futil.mjs";
 import { DataFieldOperator, ForcedDeletion, ForcedReplacement, revive } from "./lib/operators.mjs";
+import { readVersions } from "./lib/versions.mjs";
 import { HooksImpl, Collection, buildDocumentClasses, buildPIXI, buildApplications, RollImpl, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
 
 const WHO = process.env.DRPG_USER ?? "gm";
@@ -376,10 +377,13 @@ const modulesMap = new Map();
 function addModule(id, extra = {}) {
     modulesMap.set(id, { id, active: true, title: extra.title ?? id, version: extra.version ?? "1.0.0", esmodules: [], flags: {}, ...extra });
 }
+/* Foundry's, Daggerheart's and the companions' versions, each read with where it
+   came from (lib/versions.mjs, E30); the cluster writes the same reading into
+   every results file as `environment`. */
+const versions = readVersions(REPO);
+const COMPANION_TITLES = { "dice-so-nice": "Dice So Nice!", "isometric-perspective": "Isometric Perspective", "avclient-livekit": "LiveKit AV Client" };
 addModule(MODULE_ID, { title: moduleManifest.title, version: moduleManifest.version, relationships: moduleManifest.relationships, socket: true });
-addModule("dice-so-nice", { title: "Dice So Nice!", version: "5.1.1" });
-addModule("isometric-perspective", { title: "Isometric Perspective", version: "1.9.4" });
-addModule("avclient-livekit", { title: "LiveKit AV Client", version: "0.6.1" });
+for (const { id, version } of versions.modules) addModule(id, { title: COMPANION_TITLES[id] ?? id, version });
 
 /**
  * Daggerheart's ResourceUpdateMap stand-in: a Map keyed by resource whose
@@ -456,7 +460,7 @@ const game = {
     i18n,
     modules: modulesMap,
     system: {
-        id: "daggerheart", version: "2.6.5", title: "Daggerheart",
+        id: "daggerheart", version: versions.system.version, title: "Daggerheart",
         api: {
             dice: { DualityRoll: DualityRollMock },
             // What Daggerheart's relay calls for a save (saveField.mjs, 2.10.5):
@@ -472,8 +476,8 @@ const game = {
         settings: { homebrew: { maxFear: 12 }, automation: { countdownAutomation: true } }
     },
     world: { id: "drpg-audit-world", title: "DRPG Audit World" },
-    version: "14.365",
-    release: { generation: 14, build: 365 },
+    version: versions.foundry.version,
+    release: { generation: versions.foundry.generation, build: versions.foundry.build },
     ready: false,
     paused: false,
     togglePause(state) { game.paused = state ?? !game.paused; hooks.callAll("pauseGame", game.paused); },
@@ -521,7 +525,7 @@ const game = {
     time: { worldTime: 0, advance: async () => {} },
     canvas: null,
     drpg: undefined,
-    data: { version: "14.365" }
+    data: { version: versions.foundry.version }
 };
 globalThis.game = game;
 

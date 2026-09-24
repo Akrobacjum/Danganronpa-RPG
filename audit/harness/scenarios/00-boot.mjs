@@ -1,7 +1,7 @@
 /** Boot sanity: four clients, module registers, world sync works. */
 export const layers = ["ci"];
 
-export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permissionDenials, legacyKeys, IDS }) {
+export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permissionDenials, legacyKeys, IDS, environment }) {
     for (const [who, info] of bootInfo) {
         check(`${who}: boot completed`, info.t === "ready", info.error ?? "");
         if (info.t === "ready") {
@@ -114,6 +114,18 @@ export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permi
         return { isGM: [1, 2, 3, 4].map(role => new User({ role }).isGM), unknown: new User({ role: 4 }).hasRole("NOT_A_ROLE") };`);
     check("the host: isGM for roles 1 to 4 is false, false, true, true, and an unknown role name is no role",
         JSON.stringify(roles) === JSON.stringify({ isGM: [false, false, true, true], unknown: false }), JSON.stringify(roles));
+
+    /* Versions (lib/versions.mjs): each one the harness claims says where it was
+       read, and the GM's client reports the ones the results file records. */
+    const booted = await gm.eval(`return { foundry: game.version, release: game.release, data: game.data.version, system: game.system.version,
+        modules: Object.fromEntries([...game.modules.values()].map(m => [m.id, m.version])) };`);
+    const claimed = [environment.foundry, environment.system, environment.system.relayCode, ...environment.modules];
+    check("the host: every version it claims says where it was read, and the GM's client reports those versions",
+        claimed.every(v => Boolean(v?.version) && Boolean(v?.from)) && environment.modules.length > 0
+        && booted.foundry === environment.foundry.version && booted.data === environment.foundry.version
+        && booted.release?.generation === environment.foundry.generation && booted.release?.build === environment.foundry.build
+        && booted.system === environment.system.version && environment.modules.every(m => booted.modules[m.id] === m.version),
+        JSON.stringify({ environment, booted }));
 
     await settle(300);
 }

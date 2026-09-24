@@ -19,6 +19,7 @@ import fs from "node:fs";
 import url from "node:url";
 import * as U from "./lib/futil.mjs";
 import { IDS, world } from "./lib/seed.mjs";
+import { readVersions } from "./lib/versions.mjs";
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 /*
@@ -37,6 +38,8 @@ const scenarioPath = process.argv[2];
 if (!scenarioPath) { console.error("usage: node cluster.mjs <scenario.mjs>"); process.exit(2); }
 /** When this run began, for the results file: a reader can tell this run's file from a stale one. */
 const STARTED_AT = new Date().toISOString();
+/** The versions every client boots with, each with where it was read (lib/versions.mjs), and the live checks not yet run. */
+const ENVIRONMENT = readVersions(REPO, process.env);
 
 /* --------------------------- permission gate ------------------------------ */
 
@@ -598,6 +601,7 @@ async function main() {
         gm: handleFor("gm"), p1: handleFor("p1"), p2: handleFor("p2"), p3: handleFor("p3"),
         ...Object.fromEntries(accounts.map(account => [account.who, handleFor(account.who)])),
         check, note, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, opLog, settingLog, disconnect, bootInfo, IDS,
+        environment: ENVIRONMENT,
         // `import("${repoUrl}/scripts/x.mjs")` inside an eval reaches the SAME module
         // instance the client booted, because it is the same URL.
         repoUrl: REPO_URL,
@@ -654,7 +658,7 @@ async function main() {
 
     const out = {
         scenario: scenarioPath, kind: probe ? "probe" : "scenario", layers: scenario.layers ?? null,
-        startedAt: STARTED_AT, finishedAt: new Date().toISOString(),
+        startedAt: STARTED_AT, finishedAt: new Date().toISOString(), environment: ENVIRONMENT,
         passed, total: results.length, ms: dt, resources,
         results, notes, ...(probe ? { evidence: evidence ?? null } : {}),
         permissionDenials, socketTraffic: socketTraffic.slice(0, 200), legacyKeysIgnored: legacyKeys,

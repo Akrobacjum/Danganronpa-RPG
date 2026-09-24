@@ -77,6 +77,12 @@ that declares none.
   package's language file, so another module's keys stay unresolved.
 - **Dialogs** are answered from a queue, or drawn as real windows on the GM
   when a scenario asks (`__dialogWindows`).
-- **Versions** of Foundry, Daggerheart and the three companion modules are
-  written into `client-entry.mjs`.
+- **Versions** (E30, `lib/versions.mjs`). Foundry and Daggerheart are the
+  versions `module.json` says the module is verified on; the companion modules
+  it requires or recommends take theirs from an installed Foundry when
+  `DRPG_FOUNDRY_DATA` points at one (Daggerheart too, then), and from
+  `versions.json` otherwise, which holds the audit's reading of an installed
+  folder. Every results file records each with where it was read, and the live
+  checks not yet run, as `environment`. Refreshing `versions.json`:
+  LIVE-E30-08.
 - **No client ever reloads.**
