@@ -11,6 +11,7 @@ import { JSDOM } from "jsdom";
 import * as U from "./lib/futil.mjs";
 import { DataFieldOperator, ForcedDeletion, ForcedReplacement, revive } from "./lib/operators.mjs";
 import { readVersions } from "./lib/versions.mjs";
+import { AUTOMATION_DEFAULT, resourceTables, ResourceUpdateMap, addDualityResourceUpdates } from "./lib/daggerheart.mjs";
 import { HooksImpl, Collection, buildDocumentClasses, buildPIXI, buildApplications, RollImpl, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
 
 const WHO = process.env.DRPG_USER ?? "gm";
@@ -266,7 +267,10 @@ const clientValues = new Map();  // "ns.key" -> value (local)
 const FOREIGN_SETTING_DEFAULTS = {
     "daggerheart.Countdowns": { scope: "world", default: { countdowns: {} } },
     "daggerheart.Appearance": { scope: "world", default: {} },
-    "daggerheart.Automation": { scope: "world", default: { hope: true } },
+    /* Daggerheart's own default, every field (lib/daggerheart.mjs). It was
+       `{ hope: true }`, a shape no Daggerheart has: reroll.mjs reads `hopeFear`
+       off it. The world the harness seeds states its own value (lib/seed.mjs). */
+    "daggerheart.Automation": { scope: "world", default: AUTOMATION_DEFAULT },
     /* Fear and its ceiling, which Daggerheart's relay writes and reads (E03): the
        security scenario sends a player's Fear step through the real relay. */
     "daggerheart.ResourcesFear": { scope: "world", default: 0 },
@@ -385,59 +389,17 @@ const COMPANION_TITLES = { "dice-so-nice": "Dice So Nice!", "isometric-perspecti
 addModule(MODULE_ID, { title: moduleManifest.title, version: moduleManifest.version, relationships: moduleManifest.relationships, socket: true });
 for (const { id, version } of versions.modules) addModule(id, { title: COMPANION_TITLES[id] ?? id, version });
 
-/**
- * Daggerheart's ResourceUpdateMap stand-in: a Map keyed by resource whose
- * values are entry objects {key, value, enabled}, plus the two methods the
- * module drives (addResources / updateResources). updateResources applies the
- * pending entries to the actor and clears the map, so a second call is a no-op.
- */
-class ResourceUpdateMap extends Map {
-    constructor(actor) { super(); this.actor = actor; }
-    addResources(entries = []) {
-        for (const c of entries) {
-            const prev = this.get(c.key)?.value ?? 0;
-            this.set(c.key, { key: c.key, enabled: c.enabled ?? true, ...c, value: prev + (c.value ?? 0) });
-        }
-    }
-    async updateResources() {
-        if (!this.actor || !this.size) { this.clear(); return; }
-        const changes = {};
-        for (const [key, entry] of this) {
-            if (entry?.enabled === false) continue;
-            const res = this.actor.system?.resources?.[key];
-            if (!res) continue;
-            const max = Number(res.max ?? 99);
-            const next = Math.max(0, Math.min(max, Number(res.value ?? 0) + Number(entry.value ?? 0)));
-            changes[`system.resources.${key}.value`] = next;
-        }
-        this.clear();
-        if (Object.keys(changes).length) await this.actor.update(changes);
-    }
-}
-
 class DualityRollMock {
-    /**
-     * Daggerheart 2.6.5 stand-in for the resource funnel the module patches:
-     * hope-side pays +1 Hope; a critical pays +1 Hope and clears 1 Stress.
-     * The module's critical.mjs is expected to rewrite the critical to
-     * +2 Hope / no Stress (G-16).
-     */
+    /* The class the module finds at game.system.api.dice.DualityRoll. Its
+       resource step is Daggerheart 2.6.5's own (lib/daggerheart.mjs), called
+       through this class so critical.mjs's patch of it is what runs. */
     get advantageNumber() { return this._adv ?? 1; }
     set advantageNumber(v) { this._adv = v; }
     applyAdvantage(count = 1) { this._adv = count; return `${count}d6kh`; }
     static applyAdvantage(count = 1) { return `${count}d6kh`; }
 
     static async addDualityResourceUpdates(config) {
-        const map = config.resourceUpdates;
-        if (!map) return config;
-        const roll = config.roll ?? config;
-        const duality = roll?.result?.duality;
-        if (roll?.isCritical) {
-            map.addResources([{ key: "hope", value: 1 }, { key: "stress", value: -1 }]);
-        } else if (duality === 1) {
-            map.addResources([{ key: "hope", value: 1 }]);
-        }
-        return config;
+        return addDualityResourceUpdates(config);
     }
 }
 
@@ -472,8 +434,13 @@ const game = {
                 });
             } } } }
         },
-        // `game.system.settings` as Daggerheart builds it from its own settings.
-        settings: { homebrew: { maxFear: 12 }, automation: { countdownAutomation: true } }
+        // `game.system.settings` as Daggerheart 2.10.5 builds it from its own settings, kept
+        // in step with them (2.6.5 has none; relay-guard.mjs reads either). `automation` is
+        // the setting itself, so the stated `hopeFear` below and the one read here agree.
+        settings: {
+            homebrew: { maxFear: 12 },
+            get automation() { return settingsApi.get("daggerheart", "Automation"); }
+        }
     },
     world: { id: "drpg-audit-world", title: "DRPG Audit World" },
     version: versions.foundry.version,
@@ -530,11 +497,26 @@ const game = {
 globalThis.game = game;
 
 /*
- * Daggerheart actor surface the module drives. The roll skips the dialog when
- * game.drpg.suiteRolling is set (mirroring the real system's `dialog.configure`
- * contract); a scenario can force faces via globalThis.__forceRoll = {hope, fear}.
+ * DAGGERHEART'S TRAIT ROLL, IN 2.6.5'S ORDER (E30, 24.09.2026; lib/daggerheart.mjs).
+ *
+ * `rollTrait` builds the config the way actor.mjs does - an action unless the
+ * options say otherwise - and `diceRoll` stamps the roll's actor, data and its
+ * own resource map. The card comes first and the resource step after it, as
+ * `DualityRoll.buildPost` has them, and nothing is committed: the caller does
+ * that, as the sheet's trait button and this module's `commitResources` do. The
+ * dice are the harness's: random, or the faces in globalThis.__forceRoll =
+ * {hope, fear}. The dialog is not modelled; game.drpg.suiteRolling asks for none.
  */
-classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, config = {}) {
+classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, options = {}) {
+    return this.diceRoll({ roll: { trait: traitKey, type: "trait" }, hasRoll: true, actionType: "action", ...options });
+};
+
+classes.Actor.prototype.diceRoll = async function diceRoll(config) {
+    config.source = { ...(config.source ?? {}), actor: this.uuid };
+    config.data = this.getRollData();
+    config.resourceUpdates = new ResourceUpdateMap(this);
+
+    const traitKey = config.roll?.trait;
     const forced = globalThis.__forceRoll;
     const hope = forced?.hope ?? 1 + Math.floor(Math.random() * 12);
     const fear = forced?.fear ?? 1 + Math.floor(Math.random() * 12);
@@ -559,31 +541,21 @@ classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, config = 
         { constructor: { name: "FearDie" }, total: fear },
         { constructor: { name: "NumericTerm" }, total: mod }
     ];
-
-    const cfg = {
-        ...config,
-        actor: this,
-        roll,
-        total,
-        costs: config.costs ?? [],
-        resourceUpdates: new ResourceUpdateMap(this)
-    };
-    await game.system.api.dice.DualityRoll.addDualityResourceUpdates(cfg);
-    // the system applies its own updates at the end of its pipeline
-    await cfg.resourceUpdates.updateResources().catch(() => {});
+    config.actor = this;
+    config.roll = roll;
+    config.total = total;
+    config.costs = config.costs ?? [];
 
     // A chat card faithful enough for despair-award.readDuality: two d12 dice in
     // Hope-then-Fear order, plus the actionType the reaction guard reads.
-    const actionType = config[Symbol.for("drpgActionRoll")] || config.__drpgAction ? "action"
-        : (config.reaction ? "reaction" : "action");
     const rollJson = {
         class: "DualityRoll", formula: roll.formula, total, evaluated: true,
         dHope: { total: hope }, dFear: { total: fear },
         dice: [{ faces: 12, total: hope, results: [{ result: hope, active: true }] },
                { faces: 12, total: fear, results: [{ result: fear, active: true }] }],
-        options: { actionType }
+        options: { actionType: config.actionType }
     };
-    cfg.message = await classes.ChatMessage.create({
+    config.message = await classes.ChatMessage.create({
         author: game.userId,
         speaker: classes.ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="dice-roll">Duality: ${total}</div>`,
@@ -591,7 +563,8 @@ classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, config = 
         system: { roll: rollJson },
         flags: {}
     });
-    return cfg;
+    await game.system.api.dice.DualityRoll.addDualityResourceUpdates(config);
+    return config;
 };
 
 /* ------------------------------ canvas ----------------------------------- */
@@ -693,7 +666,9 @@ globalThis.CONFIG = {
     Canvas: { dispositionColors: { CONTROLLED: 0xFF9829 } },
     DH: {
         id: "daggerheart",
-        RESOURCE: { character: { custom: {} } },
+        // Built as resourceConfig.mjs builds it (lib/daggerheart.mjs). It was `{ character: { custom: {} } }`,
+        // and resources.mjs could not register the Actions resource on any client (E30).
+        RESOURCE: resourceTables(),
         GENERAL: {},
         // Daggerheart's setting keys and hook names, as its config.mjs defines them.
         SETTINGS: { gameSettings: {
@@ -778,6 +753,9 @@ globalThis.foundry = {
         // Foundry's drag rectangle, with its orange written in, as core has it.
         layers: { ControlsLayer: class ControlsLayer { drawSelect({ x, y, width, height }) { this.select.clear().lineStyle(3, 0xFF9829, 0.9).drawRect(x, y, width, height); } } },
         animation: { animateLinear: async () => {} },
+        /* The group whose `createScrollingText` no-scrolling-text.mjs wraps. Headless it draws
+           nothing and answers null, what the real one answers when it declines to draw. */
+        groups: { InterfaceCanvasGroup: class InterfaceCanvasGroup { createScrollingText() { return null; } } },
         loadTexture: async p => {
             const rel = String(p).replace(/^\/?modules\/danganronpa-rpg\//, "");
             const file = path.join(REPO, rel);

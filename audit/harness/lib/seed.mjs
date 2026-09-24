@@ -11,6 +11,8 @@
  * same process gets the same object, so a second world needs a copy.
  */
 
+import { AUTOMATION_DEFAULT } from "./daggerheart.mjs";
+
 export const IDS = {
     gm: "USERGM0000000000", p1: "USERP10000000000", p2: "USERP20000000000", p3: "USERP30000000000",
     // Not seeded: a scenario that wants the Assistant GM declares it (`accounts`, cluster.mjs).
@@ -80,5 +82,11 @@ export const world = {
             walls: []
         }]
     },
-    settings: {}
+    settings: {
+        /* A table that plays with Daggerheart's Hope and Fear automation on (E30,
+           24.09.2026). Daggerheart's own default has both flags off
+           (lib/daggerheart.mjs, AUTOMATION_DEFAULT), and then no roll pays Hope or
+           Fear at all; this world says which it is instead of leaning on a default. */
+        "daggerheart.Automation": { ...structuredClone(AUTOMATION_DEFAULT), hopeFear: { gm: true, players: true } }
+    }
 };

@@ -64,11 +64,18 @@ that declares none.
   `userConnected` (LIVE-E30-05); nobody comes back, a role changes only by a
   write, nobody is logged out for it, and there is no `game.users.activeGM`.
   `opLog` and `settingLog` say who wrote what.
-- **Daggerheart.** Its GM relay is 2.10.5's own code (`lib/dh-relay.mjs`). The
-  roll is a mock (`rollTrait` in `client-entry.mjs`) that gives a Hope result
-  one Hope and a critical one Hope and one Stress cleared, writes straight to
-  the actor instead of through the relay, and produces no Fear. There are no Daggerheart
-  sheets, roll dialogs, countdown windows or triggers.
+- **Daggerheart.** Its GM relay is 2.10.5's own code (`lib/dh-relay.mjs`). A
+  trait roll follows 2.6.5 (`lib/daggerheart.mjs`, E30): the config as
+  `rollTrait` and `diceRoll` build it, the card, then the resource step
+  (`addDualityResourceUpdates`, with its Hope-and-Fear automation gate, reaction,
+  `skips`, defeated-actor and reroll rules) into a `ResourceUpdateMap` that the
+  caller commits. The dice are the harness's (`__forceRoll`), the Automation
+  setting is Daggerheart's own shape (the seed turns `hopeFear` on for both), and
+  `CONFIG.DH.RESOURCE` is built as Daggerheart builds it. The commit is written
+  straight to the actor, not by `modifyResource`: Fear is produced but written
+  nowhere, and a player's resources do not go through the GM relay. There are
+  no Daggerheart sheets, roll dialogs or roll hooks, countdown ticks or windows,
+  triggers, domain cards, damage or armour.
 - **Every chat message reaches every client**, whispers included, as on v14;
   the shim's `ChatMessage#visible` decides what shows. A socket packet reaches
   only its `recipients` when it names them.

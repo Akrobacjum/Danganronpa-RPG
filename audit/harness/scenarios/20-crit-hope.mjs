@@ -10,6 +10,10 @@ export async function run({ gm, check, settle }) {
         const before = actor.system.resources.hope.value;
         globalThis.__forceRoll = { hope: 7, fear: 7 }; // tie => critical
         const cfg = await actor.rollTrait("agility", {});
+        // Committed as the sheet's trait button commits it (character.mjs #rollAttribute):
+        // Daggerheart's rollTrait only prepares the map. The harness's roll used to commit it
+        // itself, which is why this scenario never had to (E30, lib/daggerheart.mjs).
+        await cfg.resourceUpdates.updateResources();
         await new Promise(r => setTimeout(r, 400));
         const after = game.actors.getName("Chie Mori").system.resources.hope.value;
         return { before, after, delta: after - before, isCritical: cfg?.roll?.isCritical };
@@ -24,7 +28,8 @@ export async function run({ gm, check, settle }) {
         await actor.update({ "system.resources.hope.value": 0, "system.resources.hope.max": 12 });
         const before = actor.system.resources.hope.value;
         globalThis.__forceRoll = { hope: 9, fear: 4 }; // hope>fear, not crit
-        await actor.rollTrait("agility", {});
+        const plain = await actor.rollTrait("agility", {});
+        await plain.resourceUpdates.updateResources();
         await new Promise(r => setTimeout(r, 400));
         return { delta: game.actors.getName("Chie Mori").system.resources.hope.value - before };
     `, { timeout: 60000 });
