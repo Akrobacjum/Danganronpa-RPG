@@ -388,24 +388,25 @@ async function guardSearchRoom(sender, payload, ctx) {
     const actor = game.actors.get(payload.actorId ?? "") ?? null;
     const { locateActor } = await import("./movement.mjs");
     const where = actor ? locateActor(actor, { sceneId: payload.sceneId ?? null }) : null;
+    judgedPlace.set(payload, where);
     return searchSpendRefusal({ sender, actor, where, roomName: payload.roomName });
 }
+
+/** The place `guardSearchRoom` judged, for the packet it judged it for. Nothing on ctx. */
+const judgedPlace = new WeakMap();
 
 /**
  * Which scene a search is recorded against, asked once `guardSearchRoom` has
  * passed. Not a guard - it refuses nothing: a GM's is taken as asked, a
- * player's is the scene their character stands on, found again the way the
- * guard found it. Before the guard was split out one reading served both. The
- * second comes a few awaits after the first; that no other message is handled
- * between them was measured on Node 22, where the harness runs (a cached
- * `import()` settles before a timer can fire, 24.09.2026), not in a browser.
+ * player's is the scene of the very place the guard judged, read back from
+ * `judgedPlace` rather than found a second time. A second `locateActor`, an
+ * `await import()` later, could read a token moved or deleted in between and
+ * record the spend on another scene than the one checked (the review of the
+ * guard split, 24.09.2026).
  */
-async function searchSceneOf(sender, payload) {
+function searchSceneOf(sender, payload) {
     if (sender.isGM) return payload.sceneId ?? null;
-    const actor = game.actors.get(payload.actorId ?? "") ?? null;
-    const { locateActor } = await import("./movement.mjs");
-    const where = actor ? locateActor(actor, { sceneId: payload.sceneId ?? null }) : null;
-    return where?.scene?.id ?? payload.sceneId ?? null;
+    return judgedPlace.get(payload)?.scene?.id ?? payload.sceneId ?? null;
 }
 
 async function onSocketMessage(payload, senderId) {

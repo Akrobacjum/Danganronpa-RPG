@@ -741,9 +741,11 @@ async function guardRelayOwner(sender, payload, ctx) {
  * where the packet says; if the GM has not seen the move yet, it is
  * given a moment, once (`standsIn`).
  *
- * A packet with no character never reaches this - the handler drops it
- * first, silently, as it always has - so a missing one passes here rather
- * than being given a reason of its own.
+ * A packet with no character never reaches this. `guardRelayOwner` refuses
+ * one with no `actorId`, and a player's naming a character that does not
+ * exist, as "not their character"; only a GM's naming a missing character gets
+ * past it, and the handler drops that one silently (`if (!actor) return`). So a
+ * missing one passes here rather than being given a reason of its own.
  */
 async function guardRelayRoom(sender, payload, ctx) {
     const actor = payload.actorId ? game.actors.get(payload.actorId) : null;

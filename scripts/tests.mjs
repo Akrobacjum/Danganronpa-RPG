@@ -806,7 +806,19 @@ const REGRESSIONS = [
             const name = file.split("/").pop();
             if (!/payload[?.]*\.actorId|payload\.\w*[Ii]d\b/.test(text)) continue;
             if (EXEMPT[name]) continue;
-            if (text.includes("senderOf(senderId)") && /ownsActor\(sender/.test(text)) continue;
+            /* A guard counts only when code outside it names it (the review of the
+               guard split, 24.09.2026): the trap relay's ownership check moved into
+               `guardRelayOwner`, and a file-wide grep kept passing with the guard
+               defined but never asked. So the guards' own definitions are cut out,
+               and ownership is looked for in what is left plus the guards that
+               rest names - the same reading the bridge half does. */
+            let rest = text;
+            for (const [, guard] of text.matchAll(/^(?:export )?(?:async )?function (guard[A-Z]\w*)\(/gm)) {
+                const decl = topLevelFunction(rest, guard);
+                if (decl) rest = rest.replace(decl, "");
+            }
+            const asked = withGuards(text, rest);
+            if (!asked.missing.length && rest.includes("senderOf(senderId)") && /ownsActor\(sender/.test(asked.body)) continue;
             blind.push(name);
         }
         ok(!blind.length,
@@ -5186,9 +5198,12 @@ const REGRESSIONS = [
             ok(own !== null, `gm-bridge.mjs no longer has ${name} - this test reads nothing until it is pointed at it again`);
             return withGuards(bridge, own);
         };
-        const nowhere = [...new Set([...bridge.matchAll(/async function (handle\w+)\(/g)].map(m => m[1]))]
+        // Every top-level function, not only the handlers: `armPaidByPlayer` asks
+        // guards of its own, and a misspelt one would throw only when a player's
+        // Support is armed (the review of the guard split).
+        const nowhere = [...new Set([...bridge.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1]))]
             .flatMap(name => read(name).missing.map(guard => `${name} asks ${guard}`));
-        ok(!nowhere.length, `these handlers ask a guard gm-bridge.mjs does not define: ${nowhere.join(", ")}`);
+        ok(!nowhere.length, `these functions ask a guard gm-bridge.mjs does not define: ${nowhere.join(", ")}`);
         const unpaid = PAYS.filter(name => !read(name).body.includes("spendRerollReceipt("));
         ok(!unpaid.length, `these take something back for a player with no Reroll receipt: ${unpaid.join(", ")}`);
         // And no handler outside the list reads `payload.undo` without one.

@@ -570,8 +570,10 @@ async function handleCleanupTraces(payload, senderId, ctx) {
  *
  * Every check E03 added to a handler in this file is a small function,
  * `guard<Name>(sender, payload, ctx)`, that answers null to let the request
- * through or the reason, as a string, to refuse it - the string `refuse` logs
- * and the suite and 30-security match. One signature because stage E31 of the
+ * through or the reason, as a string, to refuse it - the string `refuse` logs,
+ * which 30-security reads back through `sessionFailures()` and matches (the
+ * suite checks only that the helpers behind the guards refuse or pass, never
+ * their wording). One signature because stage E31 of the
  * plan lifts these as they stand into a table in bridge-guards.mjs, and a guard
  * that leaned on something its handler had worked out first could not be
  * lifted without it. So each looks up what it needs itself (the actor, the
@@ -1315,6 +1317,11 @@ async function handleShare(payload, senderId, ctx) {
     }
     const why = await firstRefusal(sender, payload, ctx, guardShareSecret, guardShareGuest);
     if (why) return refuse(ACTION_SHARE, why, ctx);
+    // Sight asked again with nothing awaited before the write: the guards above
+    // import, and a project resealed in between must not be shared out.
+    if (!canSee(payload.countdownId, sender)) {
+        return refuse(ACTION_SHARE, "sender cannot see that project", ctx);
+    }
 
     await shareWith(payload.countdownId, payload.targetUserId);
     debug(`Shared project ${payload.countdownId} with ${payload.targetUserId} on behalf of a player.`);
@@ -1638,12 +1645,14 @@ async function handleSendback(payload, senderId, ctx) {
         return refuse(ACTION_SENDBACK, "sender does not own that token", ctx);
     }
 
+    // Imported first, so the guard's judgement and the write below have
+    // nothing but microtasks between them.
+    const { REVERT } = await import("./movement.mjs");
     // Back, and only back - see `guardSendbackPlace`.
     const why = await firstRefusal(sender, payload, ctx, guardSendbackPlace);
     if (why) return refuse(ACTION_SENDBACK, why, ctx);
 
     // Read out by name (E03): x and y, and elevation and level only when asked.
-    const { REVERT } = await import("./movement.mjs");
     const asked = payload.position ?? {};
     const to = { x: Number(asked.x), y: Number(asked.y) };
     if (asked.elevation !== undefined) to.elevation = Number(asked.elevation);
@@ -1741,18 +1750,23 @@ async function handleArm(payload, senderId, ctx) {
     }
 
     // What a player may arm on somebody else, and who pays - see `guardArmPlayerCall`.
+    // The beneficiary, read once, here - before any guard below imports - and
+    // handed down, so a character deleted in between fails the write (and the
+    // player's Hope goes back) instead of being re-read as nobody.
+    const actor = game.actors.get(payload.actorId);
     const why = await firstRefusal(sender, payload, ctx, guardArmPlayerCall, guardArmCallGrants);
     if (why) return refuse(ACTION_ARM, why, ctx);
-    if (!sender.isGM) return armPaidByPlayer(sender, payload, ctx);
+    if (!sender.isGM) return armPaidByPlayer(actor, sender, payload, ctx);
 
+    // Imported before the last guard: the check and the append that follows
+    // it have nothing but microtasks between them (CALL-02 refuses a second copy).
+    const { appendArmedCall } = await import("./call-effects.mjs");
     const twice = await firstRefusal(sender, payload, ctx, guardArmNotHeld);
     if (twice) return refuse(ACTION_ARM, twice, ctx);
-    const actor = game.actors.get(payload.actorId);
     const call = HOPE_CALLS[payload.call.key] ?? DESPAIR_CALLS[payload.call.key];
     const kind = HOPE_CALLS[payload.call.key] ? "hope" : "despair";
 
     // Appended, not written over: Calls stack (CALL-02).
-    const { appendArmedCall } = await import("./call-effects.mjs");
     await appendArmedCall(actor, armedEntry(payload.call, call, kind));
     debug(`Armed ${payload.call.key} on ${actor.name} on behalf of ${sender.name}.`);
     replyArmed(ctx, { ok: true, left: null });
@@ -1834,10 +1848,9 @@ async function guardArmBuyerHope(sender, payload, ctx) {
  * A player's Support on somebody else's character: checked, charged and armed on
  * this side, in that order, and refunded if the arming itself fails.
  */
-async function armPaidByPlayer(sender, payload, ctx) {
+async function armPaidByPlayer(actor, sender, payload, ctx) {
     const who = await firstRefusal(sender, payload, ctx, guardArmBuyer, guardArmOtherCharacter);
     if (who) return refuse(ACTION_ARM, who, ctx);
-    const actor = game.actors.get(payload.actorId);
     const buyer = game.actors.get(armBuyerId(payload));
     const call = HOPE_CALLS[payload.call.key];
 
@@ -1901,6 +1914,24 @@ async function guardDespairMonokuma(sender, payload, ctx) {
         ? null : "that pool is not the rerolling character's Monokuma";
 }
 
+/**
+ * The size of the correction: a player's is a Reroll's single point, a GM's own
+ * routed here (DESP-12) any size up to a full pool.
+ */
+function guardDespairDelta(sender, payload, ctx) {
+    const delta = Math.trunc(Number(payload.delta));
+    const cap = sender.isGM ? STARTING.despairMax : 1;
+    return !Number.isFinite(delta) || delta === 0 || Math.abs(delta) > cap
+        ? `delta ${payload.delta} is out of range` : null;
+}
+
+/** Any pool holder (DESP-13): an Assistant GM granted a pool is a Monokuma too. */
+async function guardDespairPool(sender, payload, ctx) {
+    const target = game.users.get(payload.targetUserId ?? "");
+    const { monokumas } = await import("./despair.mjs");
+    return target && monokumas().some(u => u.id === target.id) ? null : "target holds no Despair pool";
+}
+
 /** Spends the receipt, and only when the Reroll moved Despair by the point asked for. */
 async function guardDespairReceipt(sender, payload, ctx) {
     if (sender.isGM) return null;
@@ -1918,27 +1949,14 @@ async function handleDespair(payload, senderId, ctx) {
     if (!sender) return refuse(ACTION_DESPAIR, "unknown sender", ctx);
 
     // A player's point is a Reroll's, on their own Monokuma - see `guardDespairOwner`.
-    // The two older checks below come after the receipt is spent, as E03 left them.
-    const why = await firstRefusal(sender, payload, ctx, guardDespairOwner, guardDespairMonokuma, guardDespairReceipt);
+    // The size and the pool are asked BEFORE the receipt is spent (the review of
+    // the guard split): a packet that fails them must not use up the Reroll.
+    const why = await firstRefusal(sender, payload, ctx,
+        guardDespairOwner, guardDespairMonokuma, guardDespairDelta, guardDespairPool, guardDespairReceipt);
     if (why) return refuse(ACTION_DESPAIR, why, ctx);
 
-    // The only legitimate player-side Despair adjustment is a reroll giving
-    // one point back or taking one. Anything larger is not the rules asking.
     const delta = Math.trunc(Number(payload.delta));
-    // A GM's own adjustment routed here (DESP-12) may be any size; a
-    // player's is a reroll's single point.
-    const cap = sender.isGM ? STARTING.despairMax : 1;
-    if (!Number.isFinite(delta) || delta === 0 || Math.abs(delta) > cap) {
-        return refuse(ACTION_DESPAIR, `delta ${payload.delta} is out of range`, ctx);
-    }
-    // Any pool holder (DESP-13): an Assistant GM granted a pool is a
-    // Monokuma too, and their reroll corrections were silently dropped.
     const target = game.users.get(payload.targetUserId ?? "");
-    const { monokumas } = await import("./despair.mjs");
-    if (!target || !monokumas().some(u => u.id === target.id)) {
-        return refuse(ACTION_DESPAIR, "target holds no Despair pool", ctx);
-    }
-
     const { adjustDespair } = await import("./despair.mjs");
     await adjustDespair(target.id, delta);
     debug(`Adjusted Despair for ${target.name} by ${delta} on behalf of ${sender.name}.`);
@@ -1961,8 +1979,12 @@ async function handleEclipseMove(payload, senderId, ctx) {
  * is a claim and is only ever used as an address) and the reply context.
  * Every handler that acts on `payload.actorId` first establishes
  * `senderOf(senderId)` and `ownsActor(sender, ...)` - the second in its own
- * body or in a guard it asks (see `firstRefusal`); R1b in tests.mjs reads
- * this table and holds each of them to it.
+ * body or in a guard it asks (see `firstRefusal`). R1b in tests.mjs reads this
+ * table but holds a handler only to `senderOf(senderId)` in its own body and to
+ * ONE of `ownsActor(sender, ...)`, `canSee(..., sender)` or `!sender.isGM` in
+ * its body or its guards, so it does not notice ownership going missing from a
+ * handler that also checks sight (`handleProgress`, `handleUnsabotage`) or reads
+ * `!sender.isGM` (`handleArm`). E31's table will name each guard outright.
  */
 const GM_HANDLERS = {
     [ACTION_OBSERVE_TARGET]: handleObserveTarget,
