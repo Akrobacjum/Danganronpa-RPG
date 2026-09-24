@@ -127,7 +127,7 @@ function dressSelect(select) {
 /* ---- the table: which columns are numbers ---------------------------------- */
 
 /** A cell that is a figure and nothing else: "3", "2 / 4", "5/12", "-", "12%", "+2". */
-const NUMERIC = /^[+-]?[\d]+(?:[.,]\d+)?\s*(?:\/\s*[+-]?\d+(?:[.,]\d+)?)?\s*%?$|^[-–—]$/;
+const NUMERIC = /^[+-]?[\d]+(?:[.,]\d+)?\s*(?:\/\s*[+-]?\d+(?:[.,]\d+)?)?\s*%?$|^[-\u2013\u2014]$/;
 
 function dressTable(table) {
     if (table.dataset[DONE]) return;
