@@ -588,7 +588,9 @@ async function main() {
     const failed = [...bootInfo.entries()].filter(([, b]) => b.t === "bootFailed");
     for (const [who, info] of bootInfo) {
         if (info.t === "ready") {
-            console.log(`[cluster] ${who} ready: drpg=${info.drpg} (api keys: ${info.drpgKeys}), module settings: ${info.settingsRegistered}`);
+            const css = info.stylesheets;
+            console.log(`[cluster] ${who} ready: drpg=${info.drpg} (api keys: ${info.drpgKeys}), module settings: ${info.settingsRegistered}`
+                + (css ? `, stylesheets: ${css.files}/${css.of} (${css.rules} rules, ${css.ms} ms)` : ""));
         }
     }
     if (failed.length) {
@@ -663,7 +665,7 @@ async function main() {
         results, notes, ...(probe ? { evidence: evidence ?? null } : {}),
         permissionDenials, socketTraffic: socketTraffic.slice(0, 200), legacyKeysIgnored: legacyKeys,
         opLog: opLog.slice(0, 500), settingLog: settingLog.slice(0, 500),
-        bootInfo: Object.fromEntries([...bootInfo.entries()].map(([k, v]) => [k, { t: v.t, drpg: v.drpg, settingsRegistered: v.settingsRegistered, error: v.error?.slice?.(0, 800) }]))
+        bootInfo: Object.fromEntries([...bootInfo.entries()].map(([k, v]) => [k, { t: v.t, drpg: v.drpg, settingsRegistered: v.settingsRegistered, stylesheets: v.stylesheets ?? null, error: v.error?.slice?.(0, 800) }]))
     };
     // A probe's record never lands beside the scenarios' results, which a gate reads.
     const outFile = path.join(HERE, "results", probe ? "probes" : "", path.basename(scenarioPath).replace(/\.mjs$/, ".json"));

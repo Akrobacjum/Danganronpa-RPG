@@ -33,7 +33,7 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
  */
 export const UNCONFIRMED = [
     "LIVE-E30-01", "LIVE-E30-02", "LIVE-E30-03", "LIVE-E30-04",
-    "LIVE-E30-05", "LIVE-E30-06", "LIVE-E30-07", "LIVE-E30-08"
+    "LIVE-E30-05", "LIVE-E30-06", "LIVE-E30-07", "LIVE-E30-08", "LIVE-E30-09"
 ];
 
 function readJson(file) {

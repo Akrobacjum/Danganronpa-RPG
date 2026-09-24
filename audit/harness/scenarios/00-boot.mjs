@@ -128,6 +128,23 @@ export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permi
     check("the host: isGM for roles 1 to 4 is false, false, true, true, and an unknown role name is no role",
         JSON.stringify(roles) === JSON.stringify({ isGM: [false, false, true, true], unknown: false }), JSON.stringify(roles));
 
+    /* Stylesheets (lib/css.mjs): every client attached module.json's sheets in its
+       order, each under the `modules` layer, and the cascade answers a custom
+       property as the stylesheet states it for this window (1400px; the flat map
+       it replaced answered 1700px, from an @media block for a 2:1 screen). */
+    const sheets = await gm.eval(`const manifest = await fetch("/modules/danganronpa-rpg/module.json").then(r => r.json());
+        const inline = [...document.styleSheets].flatMap(s => [...s.cssRules]).filter(r => "styleSheet" in r);
+        return { styles: manifest.styles,
+            hrefs: inline.map(r => r.href.replace("modules/danganronpa-rpg/", "")), layers: inline.map(r => r.layerName),
+            filled: inline.filter(r => r.styleSheet?.cssRules?.length > 0).length,
+            windowMax: getComputedStyle(document.body).getPropertyValue("--drpg-window-max") };`);
+    const attached = [...bootInfo.values()].map(info => info.stylesheets && `${info.stylesheets.files}/${info.stylesheets.of}`);
+    check("the host: the module's stylesheets are attached on every client in module.json's order, each in layer modules",
+        sheets.styles.length > 0 && JSON.stringify(sheets.hrefs) === JSON.stringify(sheets.styles)
+        && sheets.layers.every(l => l === "modules") && sheets.filled === sheets.styles.length
+        && attached.every(a => a === `${sheets.styles.length}/${sheets.styles.length}`), JSON.stringify({ sheets, attached }));
+    check("the host: body --drpg-window-max reads 1400px through the cascade", sheets.windowMax === "1400px", JSON.stringify(sheets.windowMax));
+
     /* Versions (lib/versions.mjs): each one the harness claims says where it was
        read, and the GM's client reports the ones the results file records. */
     const booted = await gm.eval(`return { foundry: game.version, release: game.release, data: game.data.version, system: game.system.version,

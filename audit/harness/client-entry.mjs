@@ -7,10 +7,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
-import { JSDOM } from "jsdom";
+import { JSDOM, requestInterceptor } from "jsdom";
 import * as U from "./lib/futil.mjs";
 import { DataFieldOperator, ForcedDeletion, ForcedReplacement, revive } from "./lib/operators.mjs";
 import { readVersions } from "./lib/versions.mjs";
+import { attachModuleStyles, wrapGetComputedStyle } from "./lib/css.mjs";
 import { AUTOMATION_DEFAULT, resourceTables, ResourceUpdateMap, addDualityResourceUpdates, modifyResource, updateFear } from "./lib/daggerheart.mjs";
 import { HooksImpl, Collection, buildDocumentClasses, buildPIXI, buildApplications, RollImpl, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
 
@@ -31,11 +32,29 @@ process.on("disconnect", () => process.exit(0));
 
 /* ------------------------------ jsdom ----------------------------------- */
 
+/*
+ * WHAT THE PAGE CAN LOAD (E30, 24.09.2026): this checkout's files under
+ * /modules/danganronpa-rpg/, as Foundry serves them, and nothing else - any other
+ * address is a 404, so no run reaches the network. The stylesheets are the reason
+ * (lib/css.mjs); jsdom loads only stylesheets here (no scripts run, no images
+ * without the canvas package).
+ */
+const CONTENT_TYPES = { ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp", ".woff2": "font/woff2" };
+function serveCheckout(request) {
+    const match = new URL(request.url).pathname.match(/^\/modules\/danganronpa-rpg\/(.+)$/);
+    const file = match ? path.resolve(REPO, decodeURIComponent(match[1])) : null;
+    if (!file || !file.startsWith(REPO + path.sep) || !fs.existsSync(file)) return new Response("", { status: 404 });
+    return new Response(fs.readFileSync(file), { headers: { "Content-Type": CONTENT_TYPES[path.extname(file)] ?? "application/octet-stream" } });
+}
+
 const dom = new JSDOM(`<!doctype html><html><head></head><body>
   <div id="interface"><div id="ui-left"></div><div id="ui-top"></div><div id="ui-middle"></div><div id="ui-right"></div><div id="ui-bottom"></div></div>
   <div id="sidebar"><section id="chat"><ol id="chat-log"></ol><div id="chat-controls"></div></section></div>
   <div id="players"></div><div id="hotbar"></div><nav id="controls"></nav><div id="navigation"></div><div id="pause"></div>
-</body></html>`, { url: "http://localhost:30000/game", pretendToBeVisual: true });
+</body></html>`, {
+    url: "http://localhost:30000/game", pretendToBeVisual: true,
+    resources: { interceptors: [requestInterceptor(serveCheckout)] }
+});
 
 globalThis.window = dom.window;
 globalThis.document = dom.window.document;
@@ -115,48 +134,9 @@ for (const k of ["addEventListener", "removeEventListener", "dispatchEvent"]) {
     if (globalThis[k] === undefined) globalThis[k] = dom.window[k].bind(dom.window);
 }
 
-/*
- * Serve CSS custom properties from the REAL stylesheets, so the module's
- * stylesheet-version and theme-token checks measure the actual shipped files
- * (jsdom does not cascade custom props itself). Later declarations win,
- * matching the cascade for same-specificity :root rules.
- */
-const cssVars = new Map();
-for (const cssFile of ["styles/motion.css", "styles/danganronpa.css", "styles/messenger.css"]) {
-    try {
-        const text = fs.readFileSync(path.join(REPO, cssFile), "utf8");
-        for (const m of text.matchAll(/(--[\w-]+)\s*:\s*([^;}]+)[;}]/g)) cssVars.set(m[1], m[2].trim());
-    } catch {}
-}
-{
-    const realGCS = window.getComputedStyle.bind(window);
-    const wrap = el => {
-        const cs = realGCS(el);
-        return new Proxy(cs, {
-            get(target, prop) {
-                if (prop === "getPropertyValue") {
-                    return p => {
-                        if (String(p).startsWith("--") && cssVars.has(p)) return cssVars.get(p);
-                        return target.getPropertyValue(p);
-                    };
-                }
-                const v = target[prop];
-                return typeof v === "function" ? v.bind(target) : v;
-            }
-        });
-    };
-    window.getComputedStyle = wrap;
-    globalThis.getComputedStyle = wrap;
-}
-{
-    // The three module stylesheets Foundry would attach are "on the page".
-    for (const href of ["modules/danganronpa-rpg/styles/motion.css", "modules/danganronpa-rpg/styles/danganronpa.css", "modules/danganronpa-rpg/styles/messenger.css"]) {
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = href;
-        document.head.appendChild(link);
-    }
-}
+/* The module's six stylesheets are attached at boot, before the module is imported
+   (lib/css.mjs); custom properties are read through the page's own cascade. */
+globalThis.getComputedStyle = wrapGetComputedStyle(window);
 
 /* ------------------------------ fetch ------------------------------------ */
 
@@ -1031,12 +1011,19 @@ function safeJson(v) {
 
 /* ------------------------------- boot ------------------------------------- */
 
+let stylesheets = null;
+
 async function boot() {
     try {
         /* DAGGERHEART'S OWN RELAY, registered the way Daggerheart registers it
            (E03): its listener in its `init`, which runs before any module's, and
            its GM handlers at `ready`, also first. The real code, copied - see
            lib/dh-relay.mjs - so the guard in front of it is tested against it. */
+        /* The stylesheets first, as Foundry has them on the page before any module
+           script runs. An attach that did not complete is a failed boot: every
+           colour and size the module reads would come back empty. */
+        stylesheets = await attachModuleStyles(document, moduleManifest.styles ?? []);
+        if (!stylesheets.complete) throw new Error(`the module's stylesheets did not attach: ${stylesheets.files}/${stylesheets.of} in ${stylesheets.ms} ms`);
         const relay = await import("./lib/dh-relay.mjs");
         game.socket.on("system.daggerheart", relay.handleSocketEvent);
         hooks.once("ready", relay.registerSocketHooks);
@@ -1064,6 +1051,7 @@ async function boot() {
             drpg: !!game.drpg,
             drpgKeys: game.drpg ? Object.keys(game.drpg).length : 0,
             settingsRegistered: [...settingDefs.keys()].filter(k => k.startsWith(MODULE_ID)).length,
+            stylesheets,
             notifications: globalThis.__notifications,
             hooksFired: hooks.fired.slice(0, 60)
         });

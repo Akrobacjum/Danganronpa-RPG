@@ -33,9 +33,15 @@ that declares none.
 - **No layout, canvas renderer, fonts, audio or Web Animations.** jsdom lays
   nothing out. A suite test that needs one of these asks the environment first
   and is counted as skipped (`needs`, `scripts/tests-kit.mjs`).
-- **CSS.** Three of the module's six stylesheets are linked, and
-  `getPropertyValue("--x")` answers from a flat map of their custom properties,
-  the last declaration winning; everything else is jsdom's own answer.
+- **CSS** (E30, `lib/css.mjs`). The six stylesheets are attached as one inline
+  sheet of `@import ... layer(modules)` in module.json's order, served from the
+  checkout (nothing else loads: any other address is a 404), and a client whose
+  attach does not complete fails its boot. jsdom's cascade answers: selectors,
+  specificity, inheritance, `@media` against its 1024 x 768 window. A custom
+  property comes back with its `var()` substituted; a standard property that
+  uses `var()` comes back unresolved, as jsdom gives it, and `calc()` or
+  `color-mix()` is never evaluated. Whether cascade layers order anything in
+  jsdom is not verified; how v14 attaches the sheets is LIVE-E30-09.
 - **The permission gate** (`canWrite` in `cluster.mjs`) models ownership and
   roles and little else. From role 3 a user is a GM (`User#isGM`, E30) and
   writes anything but users, and world settings. Users: a Gamemaster (role 4)
