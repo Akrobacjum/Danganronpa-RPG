@@ -1,3 +1,5 @@
+export const layers = ["ci"];
+
 const MOD = "danganronpa-rpg";
 const SOCKET = `module.${MOD}`;
 export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUrl }) {

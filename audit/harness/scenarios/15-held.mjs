@@ -7,6 +7,8 @@
  * player's Configure Settings (enforced.mjs). This asks a PLAYER's client, after a
  * boot like any other, what it holds - the suite runs on the GM alone and cannot.
  */
+export const layers = ["ci"];
+
 export async function run({ p1, p2, check, settle }) {
     for (const [who, client] of [["p1", p1], ["p2", p2]]) {
         const held = await client.eval(`

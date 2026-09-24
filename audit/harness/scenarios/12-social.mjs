@@ -1,12 +1,17 @@
 /** L3: private rolls between clients, inventory limits, movement/search. */
+export const layers = ["ci"];
+
 const MOD = "danganronpa-rpg";
 export async function run({ gm, p1, p2, check, settle, repoUrl }) {
     const ids = await gm.eval(`return {
         aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id };`);
 
     // --- forced private rolls: is the setting on, and does a player's roll stay off p2? ---
+    // This was check(name, true): it printed the value and could not fail. settings.mjs
+    // registers the setting with `default: true`, no module code writes it, and nothing in
+    // this scenario does before this line, so the read is the default a new world starts with.
     const forced = await gm.eval(`return game.settings.get("${MOD}", "forcePrivateRolls");`);
-    check("forcePrivateRolls default state", true, `= ${forced}`);
+    check("forcePrivateRolls is on until a GM turns it off", forced === true, `= ${forced}`);
 
     await gm.eval(`await game.settings.set("${MOD}", "forcePrivateRolls", true); return true;`);
     await settle(200);

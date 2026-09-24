@@ -4,6 +4,8 @@
  * world setting stays empty, a player can pull their rows, and a primary GM
  * with an empty store can rebuild the union from what the clients hold.
  */
+export const layers = ["ci"];
+
 const MOD = "danganronpa-rpg";
 
 export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {

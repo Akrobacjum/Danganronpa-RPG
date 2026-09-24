@@ -18,7 +18,8 @@
 - `findings/` - surowe znaleziska z testów na żywo.
 - `harness/` - headless harness mock-Foundry (3 klienci) użyty do audytu.
   Uruchomienie: to samo polecenie co wyżej - `cd harness && npm ci && node cluster.mjs scenarios/<x>.mjs`.
-  `results/` - zapisane wyniki scenariuszy.
+  `results/` - wyniki scenariuszy, zapisywane od nowa przy każdym przebiegu; git ich nie śledzi
+  (`.gitignore`, od E30).
 
 Katalog pomocniczy do audytu - nie jest częścią ładowanego modułu Foundry
 (poza `esmodules`/`styles` z manifestu). Do usunięcia lub zachowania wg uznania.

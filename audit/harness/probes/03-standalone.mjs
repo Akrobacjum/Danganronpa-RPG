@@ -1,4 +1,6 @@
 /** Replicate the two stubborn suite scenarios standalone, step by step. */
+export const layers = ["probe"];
+
 export async function run({ gm, check, settle, repoUrl }) {
     // A) equipment loop - exactly like the suite
     const equip = await gm.eval(`

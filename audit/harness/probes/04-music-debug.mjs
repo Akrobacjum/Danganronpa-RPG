@@ -1,3 +1,5 @@
+export const layers = ["probe"];
+
 export async function run({ gm, check, repoUrl }) {
     const out = await gm.eval(`
         const floor = await import("${repoUrl}/scripts/trial-floor.mjs");

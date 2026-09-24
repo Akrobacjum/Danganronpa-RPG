@@ -3,11 +3,13 @@
  * Forks four clients (gm, p1, p2, p3), seeds a world, runs a scenario file.
  *
  * Usage: node cluster.mjs scenarios/00-boot.mjs [--verbose]
+ *        node cluster.mjs probes/07-apimap.mjs   (a probe - see probes/README.md)
  * Needs `npm ci` in this directory once (jsdom). DRPG_REPO points it at another
  * checkout; by default it boots the one it sits in.
  *
- * Exit code: 0 when every check passed, 1 when one failed, 2 when no file was
- * named, 3 when the cluster itself failed (no results file).
+ * Exit code: 0 when every check passed, 1 when one failed, 2 when nothing ran
+ * (no file named, or the file's layers give it to another runner), 3 when the
+ * cluster itself failed (no results file). A probe exits 0 unless it threw.
  */
 
 import { fork } from "node:child_process";
@@ -15,6 +17,7 @@ import path from "node:path";
 import fs from "node:fs";
 import url from "node:url";
 import * as U from "./lib/futil.mjs";
+import { IDS, world } from "./lib/seed.mjs";
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 /*
@@ -34,82 +37,7 @@ if (!scenarioPath) { console.error("usage: node cluster.mjs <scenario.mjs>"); pr
 /** When this run began, for the results file: a reader can tell this run's file from a stale one. */
 const STARTED_AT = new Date().toISOString();
 
-/* ----------------------------- world seed -------------------------------- */
-
-const IDS = {
-    gm: "USERGM0000000000", p1: "USERP10000000000", p2: "USERP20000000000", p3: "USERP30000000000",
-    aiko: "ACTORAIKO0000000", botan: "ACTORBOTAN000000", chie: "ACTORCHIE0000000", daichi: "ACTORDAICHI00000",
-    scene: "SCENEACADEMY0000"
-};
-
-function studentActor(id, name, ownerUserId) {
-    return {
-        _id: id, name, type: "character", img: "icons/svg/mystery-man.svg",
-        ownership: { default: 0, ...(ownerUserId ? { [ownerUserId]: 3 } : {}) },
-        system: {
-            resources: {
-                hope: { value: 2, max: 6 },
-                stress: { value: 0, max: 6 },
-                hitPoints: { value: 0, max: 6 },
-                actions: { value: 3, max: 3 }
-            },
-            traits: {
-                agility: { value: 1 }, strength: { value: 0 }, finesse: { value: 1 },
-                instinct: { value: 0 }, presence: { value: 1 }, knowledge: { value: 0 }
-            },
-            experiences: {},
-            biography: { background: "", connections: "", notes: "" },
-            description: ""
-        },
-        items: [], effects: [], flags: {}, statuses: []
-    };
-}
-
-const world = {
-    collections: {
-        User: [
-            { _id: IDS.gm, name: "GM", role: 4, active: true, character: null, color: "#ff0000", flags: {} },
-            { _id: IDS.p1, name: "PlayerOne", role: 1, active: true, character: IDS.aiko, color: "#00ff00", flags: {} },
-            { _id: IDS.p2, name: "PlayerTwo", role: 1, active: true, character: IDS.botan, color: "#0000ff", flags: {} },
-            { _id: IDS.p3, name: "PlayerThree", role: 1, active: true, character: IDS.chie, color: "#ffaa00", flags: {} }
-        ],
-        Actor: [
-            studentActor(IDS.aiko, "Aiko Hoshino", IDS.p1),
-            studentActor(IDS.botan, "Botan Kage", IDS.p2),
-            studentActor(IDS.chie, "Chie Mori", IDS.p3),
-            studentActor(IDS.daichi, "Daichi Sato", null),
-            { ...studentActor("ACTORMONOKUMA000", "Monokuma", null), flags: { "danganronpa-rpg": { monokuma: true } } }
-        ],
-        Item: [], ChatMessage: [], RollTable: [], Playlist: [], Macro: [], JournalEntry: [], Folder: [],
-        Scene: [{
-            _id: IDS.scene, name: "Academy - Floor 1", active: true, width: 4000, height: 3000,
-            grid: { size: 100, distance: 5, type: 1 },
-            flags: {},
-            tokens: [
-                { _id: "TOKAIKO000000000", name: "Aiko", actorId: IDS.aiko, actorLink: true, x: 300, y: 300, width: 1, height: 1, hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1 },
-                { _id: "TOKBOTAN00000000", name: "Botan", actorId: IDS.botan, actorLink: true, x: 1300, y: 300, width: 1, height: 1, hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1 },
-                { _id: "TOKCHIE000000000", name: "Chie", actorId: IDS.chie, actorLink: true, x: 350, y: 1300, width: 1, height: 1, hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1 },
-                { _id: "TOKDAICHI0000000", name: "Daichi", actorId: IDS.daichi, actorLink: true, x: 1400, y: 1300, width: 1, height: 1, hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: 1 },
-                { _id: "TOKMONOKUMA00000", name: "Monokuma", actorId: "ACTORMONOKUMA000", actorLink: true, x: 2400, y: 300, width: 1, height: 1, hidden: false, flags: {}, texture: { src: "icons/svg/mystery-man.svg" }, disposition: -1 }
-            ],
-            regions: [
-                { _id: "REGDORMA00000000", name: "Dorm A", shapes: [{ type: "rectangle", x: 200, y: 200, width: 600, height: 600 }], flags: {}, behaviors: [] },
-                { _id: "REGCAFE000000000", name: "Cafeteria", shapes: [{ type: "rectangle", x: 1200, y: 200, width: 800, height: 600 }], flags: {}, behaviors: [] },
-                { _id: "REGDORMB00000000", name: "Dorm B", shapes: [{ type: "rectangle", x: 200, y: 1200, width: 600, height: 600 }], flags: {}, behaviors: [] },
-                { _id: "REGGYM0000000000", name: "Gym", shapes: [{ type: "rectangle", x: 1200, y: 1200, width: 800, height: 600 }], flags: {}, behaviors: [] },
-                { _id: "REGHALL000000000", name: "Hall", shapes: [{ type: "rectangle", x: 2200, y: 200, width: 600, height: 600 }], flags: {}, behaviors: [] },
-                { _id: "REGSTORAGE000000", name: "Storage", shapes: [{ type: "rectangle", x: 2200, y: 1200, width: 600, height: 600 }], flags: {}, behaviors: [] }
-            ],
-            walls: []
-        }]
-    },
-    settings: {}
-};
-
 /* --------------------------- permission gate ------------------------------ */
-
-const GM_ONLY_COLLS = new Set(["Scene", "RollTable", "Playlist", "Macro", "JournalEntry", "Folder", "Actor"]);
-// Actor create/delete is GM-only; Actor *update* is ownership-based.
 
 function userRec(userId) { return world.collections.User.find(u => u._id === userId); }
 function isGM(userId) { return (userRec(userId)?.role ?? 0) >= 4; }
@@ -149,7 +77,7 @@ function canWrite(userId, op) {
         }
         return false;
     }
-    if (GM_ONLY_COLLS.has(collName)) return false;
+    // everything not allowed above is refused; per-permission creation (TRUSTED journals, player macros) is not modelled
     return false;
 }
 
@@ -430,11 +358,90 @@ function check(name, ok, details = "") {
     console.log(`${ok ? "  PASS" : "! FAIL"}  ${name}${details && !ok ? " - " + String(details).slice(0, 400) : ""}`);
 }
 
+/*
+ * A NOTE IS NOT A CHECK (E30, 24.09.2026). Scenarios printed evidence by
+ * handing it to a check that could not fail - `check(name, true, details)` -
+ * 00-boot for each client's boot notifications, 12-social for the
+ * forcePrivateRolls value; each such line added one to the passed count and
+ * measured nothing. Where there was something to assert, the check now asserts
+ * it (12-social); what is only worth seeing goes here instead (00-boot's
+ * lists): printed with its details, kept under `notes` in the results file,
+ * never counted.
+ */
+const notes = [];
+function note(name, details = "") {
+    notes.push({ name, details: String(details).slice(0, 2000) });
+    console.log(`  NOTE  ${name}${details ? " - " + String(details).slice(0, 400) : ""}`);
+}
+
 const settle = (ms = 200) => new Promise(r => setTimeout(r, ms));
+
+/* ------------------------------- layers ----------------------------------- */
+
+/*
+ * WHICH RUN A FILE BELONGS TO (E30, 24.09.2026).
+ *
+ * Every file this runs says so with `export const layers = [...]`. A scenario
+ * takes "ci" (the headless gate), "local-gate" (the gate that runs in a real
+ * Foundry, audit/live in the E30 plan) or both; a probe takes exactly
+ * ["probe"] and lives in probes/ (probes/README.md). The six probes used to
+ * sit among the scenarios as 02-07 and were counted like them.
+ *
+ * The line is read twice. A runner that picks files by layer should not have
+ * to boot four clients to learn what a file is, so it reads the source with
+ * LAYERS_RE and JSON-parses the match - which is why the line has to be a JSON
+ * array written out. This file reads it the same way before any client is
+ * forked, so a local-gate scenario exits 2 without a boot, and after the
+ * import it compares that reading with what the module exports: a declaration
+ * a source reader would miss or misread FAILs here, instead of being passed
+ * over there without a word.
+ */
+const LAYERS_RE = /export const layers = (\[[^\]]*\])/;
+const SCENARIO_LAYERS = ["ci", "local-gate"];
+
+/** The layers line as a source reader sees it: `{ raw, value }`, `{ raw }` when it is not JSON, `{}` when absent. */
+function layersLine(source) {
+    const m = source.match(LAYERS_RE);
+    if (!m) return {};
+    try { return { raw: m[1], value: JSON.parse(m[1]) }; } catch { return { raw: m[1] }; }
+}
+
+/** Why a layers value is not one this harness knows, or null. */
+function layersShapeProblem(layers) {
+    if (!Array.isArray(layers) || !layers.length) return `layers must be a non-empty array, got ${JSON.stringify(layers)}`;
+    if (layers.includes("probe")) return layers.length === 1 ? null : `"probe" stands alone, got ${JSON.stringify(layers)}`;
+    const unknown = layers.filter(l => !SCENARIO_LAYERS.includes(l));
+    if (unknown.length) return `unknown layer ${JSON.stringify(unknown)}: a scenario's layers are "ci", "local-gate" or both`;
+    if (new Set(layers).size !== layers.length) return `a layer is named twice: ${JSON.stringify(layers)}`;
+    return null;
+}
+
+/** Why the file's declaration is refused, or null. The export and its source line must agree. */
+function layersProblem(exported, line) {
+    if (exported === undefined && line.raw === undefined) {
+        return 'no layers export - see audit/harness/README.md; a scenario declares export const layers = ["ci"] (or ["local-gate"], or both), a probe ["probe"]';
+    }
+    if (line.value === undefined) {
+        return `the layers line must be a JSON array written out, e.g. export const layers = ["ci"], so a runner can read it without importing the file; the source has ${line.raw ?? "no such line"}`;
+    }
+    if (JSON.stringify(exported) !== JSON.stringify(line.value)) {
+        return `the module exports layers ${JSON.stringify(exported)}, but its source line reads ${line.raw}`;
+    }
+    return layersShapeProblem(exported);
+}
 
 /* ------------------------------- main ------------------------------------- */
 
 async function main() {
+    // The layers line, before any client is forked (WHICH RUN A FILE BELONGS TO).
+    const scenarioFile = path.resolve(scenarioPath);
+    const line = layersLine(fs.readFileSync(scenarioFile, "utf8"));
+    if (line.value !== undefined && !layersShapeProblem(line.value)
+        && !line.value.includes("ci") && !line.value.includes("probe")) {
+        console.log(`[cluster] ${scenarioPath} declares layers ${line.raw}: it belongs to the local gate, which runs it in a real Foundry (audit/live), not to this harness. Nothing ran.`);
+        process.exit(2);
+    }
+
     spawnClient("gm", IDS.gm);
     spawnClient("p1", IDS.p1);
     spawnClient("p2", IDS.p2);
@@ -451,25 +458,45 @@ async function main() {
         console.log(`[cluster] ${failed.length} client(s) failed to boot; scenario continues to gather evidence.`);
     }
 
-    const scenario = await import(url.pathToFileURL(path.resolve(scenarioPath)).href);
+    const scenario = await import(url.pathToFileURL(scenarioFile).href);
+    const layerProblem = layersProblem(scenario.layers, line);
+    const probe = !layerProblem && scenario.layers[0] === "probe";
     const api = {
         gm: handleFor("gm"), p1: handleFor("p1"), p2: handleFor("p2"), p3: handleFor("p3"),
-        check, settle, world, logSink, permissionDenials, socketTraffic, bootInfo, IDS,
+        check, note, settle, world, logSink, permissionDenials, socketTraffic, bootInfo, IDS,
         // `import("${repoUrl}/scripts/x.mjs")` inside an eval reaches the SAME module
         // instance the client booted, because it is the same URL.
         repoUrl: REPO_URL,
         broadcastRaw: broadcast
     };
+    if (probe) {
+        console.log(`[cluster] PROBE ${path.basename(scenarioPath)} - a tool, not a test: its lines record what it saw, nothing in it passes or fails, and it exits 0 unless it throws (probes/README.md)`);
+    }
+    if (layerProblem) check("the file declares its layers", false, layerProblem);
+
     const t0 = Date.now();
+    const checksBefore = results.length;
+    let evidence, threw = false;
     try {
-        await scenario.run(api);
+        evidence = await scenario.run(api);
     } catch (err) {
+        threw = true;
         check("scenario completed without throwing", false, err.stack);
+    }
+    /* A SCENARIO THAT CHECKED NOTHING IS RED (E30, 24.09.2026). On a copy of the
+       tree before this line, a scenario whose run() made no check printed
+       "[cluster] 0/0 checks passed" and exited 0: green, having measured
+       nothing. A probe is exempt - it measures nothing by definition - and so
+       is a run that threw, which is red already. */
+    if (!probe && !threw && results.length === checksBefore) {
+        check("the scenario measured something", false, "no check() ran");
     }
     const dt = Date.now() - t0;
 
     const passed = results.filter(r => r.ok).length;
-    console.log(`\n[cluster] ${passed}/${results.length} checks passed in ${dt}ms`);
+    console.log(probe
+        ? `\n[cluster] probe: ${results.length} check line(s) and ${notes.length} note(s) recorded in ${dt}ms`
+        : `\n[cluster] ${passed}/${results.length} checks passed in ${dt}ms`);
 
     /* THE EXIT CODE SAYS WHAT THE CHECKS SAID (E30, 24.09.2026). It did not: on a
        copy of this tree with one check in 14-quiet inverted, the run printed
@@ -482,20 +509,24 @@ async function main() {
        step reading the exit code would have been green whatever the checks
        said. `process.exitCode` is what Node exits with when nothing is left to
        run, so it is set before the clients go; the timer at the end stays as
-       the hard stop for a client that does not. */
-    process.exitCode = results.some(r => !r.ok) ? 1 : 0;
+       the hard stop for a client that does not. A probe's lines are records,
+       not verdicts: it exits 1 only when it threw. */
+    process.exitCode = probe ? (threw ? 1 : 0) : (results.some(r => !r.ok) ? 1 : 0);
     await closeClients(300);
     const resources = Object.fromEntries([...clients.keys()].map(who => [who, peakRSS.get(who) ?? null]));
     resources.cluster = process.resourceUsage().maxRSS;
     console.log(`[cluster] peak memory, maxRSS in MB: ${Object.entries(resources).map(([who, kb]) => `${who} ${kb === null ? "no answer" : Math.round(kb / 1024)}`).join(", ")}`);
 
     const out = {
-        scenario: scenarioPath, startedAt: STARTED_AT, finishedAt: new Date().toISOString(),
+        scenario: scenarioPath, kind: probe ? "probe" : "scenario", layers: scenario.layers ?? null,
+        startedAt: STARTED_AT, finishedAt: new Date().toISOString(),
         passed, total: results.length, ms: dt, resources,
-        results, permissionDenials, socketTraffic: socketTraffic.slice(0, 200),
+        results, notes, ...(probe ? { evidence: evidence ?? null } : {}),
+        permissionDenials, socketTraffic: socketTraffic.slice(0, 200),
         bootInfo: Object.fromEntries([...bootInfo.entries()].map(([k, v]) => [k, { t: v.t, drpg: v.drpg, settingsRegistered: v.settingsRegistered, error: v.error?.slice?.(0, 800) }]))
     };
-    const outFile = path.join(HERE, "results", path.basename(scenarioPath).replace(/\.mjs$/, ".json"));
+    // A probe's record never lands beside the scenarios' results, which a gate reads.
+    const outFile = path.join(HERE, "results", probe ? "probes" : "", path.basename(scenarioPath).replace(/\.mjs$/, ".json"));
     fs.mkdirSync(path.dirname(outFile), { recursive: true });
     fs.writeFileSync(outFile, JSON.stringify(out, null, 2));
     console.log(`[cluster] results -> ${outFile}`);

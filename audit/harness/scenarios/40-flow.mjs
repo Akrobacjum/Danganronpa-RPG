@@ -3,6 +3,8 @@
  * Clock, actions, a Search, a Hope Call that waits for the GM, the messenger,
  * the safeword, a Despair Call - and on every client: what was said to whom.
  */
+export const layers = ["ci"];
+
 const MOD = "danganronpa-rpg";
 
 export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {

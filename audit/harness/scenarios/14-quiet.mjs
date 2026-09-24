@@ -19,6 +19,8 @@
  * the same thing, so it wrote nothing", and the first half of each one is that
  * it still says the thing.
  */
+export const layers = ["ci"];
+
 const MOD = "danganronpa-rpg";
 
 export async function run({ gm, p1, check, settle, repoUrl }) {

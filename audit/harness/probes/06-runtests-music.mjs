@@ -1,3 +1,5 @@
+export const layers = ["probe"];
+
 export async function run({ gm, p1, check }) {
     await gm.eval(`await game.settings.set("danganronpa-rpg", "musicEnabled", true); return true;`);
     const res = await gm.eval(`

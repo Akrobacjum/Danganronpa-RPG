@@ -1,4 +1,6 @@
 /** Run the module's own regression suite, full tier, on the GM client. */
+export const layers = ["ci"];
+
 export async function run({ gm, p1, p2, p3, check, settle }) {
     // The suite drives the whole table from the GM's client and measures state
     // between its own steps; a player client auto-answering a dialog it was sent

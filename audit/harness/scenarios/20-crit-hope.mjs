@@ -1,4 +1,6 @@
 /** Measure end-to-end Hope delta on a critical (action roll): +2 or +3? */
+export const layers = ["ci"];
+
 export async function run({ gm, check, settle }) {
     const out = await gm.eval(`
         const actor = game.actors.getName("Chie Mori");

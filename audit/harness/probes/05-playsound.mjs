@@ -1,3 +1,5 @@
+export const layers = ["probe"];
+
 export async function run({ gm, check }) {
     const out = await gm.eval(`
         const p = await Playlist.create({ name: "PS", sounds: [{ name: "A", path: "x.wav" }] });

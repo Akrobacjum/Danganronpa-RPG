@@ -17,6 +17,8 @@
  *
  * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it.
  */
+export const layers = ["ci"];
+
 const MOD = "danganronpa-rpg";
 
 export async function run({ gm, p1, p2, p3, check, settle, repoUrl }) {

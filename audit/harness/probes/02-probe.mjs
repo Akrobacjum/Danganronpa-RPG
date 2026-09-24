@@ -1,4 +1,6 @@
 /** Probe: precise causes of remaining suite failures. */
+export const layers = ["probe"];
+
 export async function run({ gm, check, repoUrl }) {
     const rooms = await gm.eval(`
         const M = await import("${repoUrl}/scripts/movement.mjs");

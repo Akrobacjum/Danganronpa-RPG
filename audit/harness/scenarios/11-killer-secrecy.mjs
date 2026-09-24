@@ -1,3 +1,5 @@
+export const layers = ["ci"];
+
 const MOD = "danganronpa-rpg";
 export async function run({ gm, p1, p2, p3, check, settle }) {
     const ids = await gm.eval(`return {

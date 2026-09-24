@@ -1,5 +1,7 @@
-/** Boot sanity: three clients, module registers, world sync works. */
-export async function run({ gm, p1, p2, check, settle, bootInfo, permissionDenials }) {
+/** Boot sanity: four clients, module registers, world sync works. */
+export const layers = ["ci"];
+
+export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permissionDenials }) {
     for (const [who, info] of bootInfo) {
         check(`${who}: boot completed`, info.t === "ready", info.error ?? "");
         if (info.t === "ready") {
@@ -15,19 +17,39 @@ export async function run({ gm, p1, p2, check, settle, bootInfo, permissionDenia
     `);
     check("gm: module settings visible", !!key, key);
 
-    // clock via api if present
+    /* The clock through the api. This asked for "not null", which the fallback
+       string "no-getClock" passed as well as a clock did. getClock() spreads
+       DEFAULT_CLOCK (settings.mjs) under the stored clock, so a clock always
+       carries a `phase`; the check asks for that shape. */
     const clock = await gm.eval(`return game.drpg && typeof game.drpg.getClock === "function" ? game.drpg.getClock() : "no-getClock";`);
-    check("gm: clock readable via api", clock !== null && clock !== undefined, JSON.stringify(clock));
+    check("gm: getClock() through the api returns a clock with a phase",
+        clock !== null && typeof clock === "object" && typeof clock.phase === "string", JSON.stringify(clock));
 
-    // notifications that fired during boot (worth seeing, not necessarily failures)
-    for (const c of [gm, p1, p2]) {
-        const notes = await c.eval(`return globalThis.__notifications.map(n => n.level + ": " + n.msg);`);
-        check(`${c.who}: boot notifications recorded`, true, JSON.stringify(notes));
+    /* Notifications during boot. Each client's list was a check that passed on
+       a constant `true`, which measured nothing; the list is a note now, printed
+       as evidence, and what can actually be wrong with it is the check: a
+       notification at error level while the module boots. On 24.09.2026 the GM
+       showed one, at info level ("Room-based visibility switched on for 1
+       scenes."), and the players none. */
+    for (const c of [gm, p1, p2, p3]) {
+        const shown = await c.eval(`return globalThis.__notifications.map(n => ({ level: n.level, msg: n.msg }));`);
+        note(`${c.who}: boot notifications`, JSON.stringify(shown.map(n => `${n.level}: ${n.msg}`)));
+        const errors = shown.filter(n => n.level === "error");
+        check(`${c.who}: no error-level notification during boot`, errors.length === 0, JSON.stringify(errors));
     }
 
-    // missing i18n keys hit during boot
+    /* Missing i18n keys during boot: this module's own, and only those. The
+       harness loads this module's lang/en.json and nothing else, and voice.mjs
+       localizes three keys that belong to avclient-livekit (LIVEKITAVCLIENT.*)
+       to recognise that module's own notifications. Those three made this
+       scenario red on 1.2.60 (18/19) for a fact about the harness, so they are
+       kept as evidence - in the details and in a note - and only a missing
+       DRPG. key fails the check. */
     const missing = await gm.eval(`return [...globalThis.__missingI18n];`);
-    check("gm: no missing i18n keys during boot", missing.length === 0, JSON.stringify(missing));
+    const ours = missing.filter(k => k.startsWith("DRPG."));
+    const foreign = missing.filter(k => !k.startsWith("DRPG."));
+    check("gm: no DRPG. i18n key missing during boot", ours.length === 0, JSON.stringify({ missing: ours, foreign }));
+    if (foreign.length) note("gm: other modules' keys the harness has no language file for (not counted)", JSON.stringify(foreign));
 
     // player cannot write world settings (server-side rule holds)
     const denial = await p1.eval(`
