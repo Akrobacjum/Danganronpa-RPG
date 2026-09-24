@@ -7995,12 +7995,14 @@ const INVARIANTS = [
          * arrived as the repair - a secret murder plan included.
          */
         const { unsabotageRefusal } = await import("./projects.mjs");
-        const meta = { T: { frozenBy: "R" }, R: { repairs: "T", saboteur: "U1" }, X: {} };
+        const meta = { T: { frozenBy: "R" }, R: { repairs: "T", saboteur: "U1" }, X: {},
+            Y: { frozenBy: "R2" }, R2: { repairs: "Z" } };
         const ask = (targetId, repairId, senderId = null) => unsabotageRefusal({ targetId, repairId, senderId, meta: id => meta[id] ?? {} });
         ok(ask("T", null), "a thaw with no repair is taken");
         ok(ask(null, "R"), "a repair with no target is taken");
         ok(ask("T", "X"), "a project that is not the repair is deleted as one");
         ok(ask("X", "R"), "a repair is taken back for a project it does not repair");
+        ok(ask("Y", "R2"), "a repair is taken back for a project it froze but does not repair");
         ok(ask("T", "R", "U2"), "somebody else's sabotage is taken back");
         ok(!ask("T", "R", "U1"), "the saboteur's own pair is refused");
         ok(!ask("T", "R"), "the GM's own undo of the pair is refused");

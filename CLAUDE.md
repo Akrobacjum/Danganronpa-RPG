@@ -95,12 +95,43 @@ numbers came out plausible and wrong.
 
 **A socket handler that touches an actor must check who sent the message.** R1b
 in the suite reads the source for it. `senderOf(senderId)` and
-`ownsActor(sender, actor)`, both, every time.
+`ownsActor(sender, actor)`, both, every time - and the rest of what that means
+is the trust model, below.
 
 **Two functions are deliberately long.** `registerSettings` (a flat registration
 table) and `steps()` (a data table). Everything else the audit measured over 300
 lines has been split. Splitting either of those two would produce a dozen
 functions that are each one line of data.
+
+## The trust model (D2)
+
+A player's browser is trusted with nothing that belongs to somebody else.
+Protection comes in two layers, and every change should know which one it
+touches.
+
+**Layer one (E03, 1.2.60).** Every request that reaches a GM's client is judged
+there: the bridge in `gm-bridge.mjs`, the search-token, trap and fog sockets, and
+Daggerheart's own GM relay (`relay-guard.mjs`). The judgement uses who Foundry
+says sent it (`senderOf(senderId)`), what that user owns (`ownsActor`, `canSee`,
+`testUserPermission`), and what the world says now: the room the character
+stands in, the incident's stage and turn, the pair a sabotage wrote, the account
+an Observe key was minted for, and a Reroll receipt (`reroll-receipts.mjs`) for
+anything taken back. Packet fields are claims. A refusal changes nothing, is
+logged on the GM, and is told to the asker (`bridge.refused`).
+
+**Layer two (E28, E29).** The numbers - totals, dice, Hope paid - are checked
+against the roll message the GM can see. Until then a player with a console can
+still lie about their own roll and their own resources, and about nobody
+else's. A Reroll receipt proves a Reroll happened, not that it was paid for.
+
+Daggerheart's relay writes on the GM's client, so every hook there sees the GM
+as the author. That is why `relay-guard.mjs` passes only the shapes Daggerheart
+itself sends for players, and why a test like "was this edit made by a GM"
+(`truth-bullets.mjs`) is only as good as that guard. When a new Daggerheart
+changes the relay, the guard refuses what it does not recognise and tells the
+GM; it never passes it through. Read its table before a Daggerheart upgrade.
+The headless harness runs Daggerheart's real relay, copied verbatim into
+`audit/harness/lib/dh-relay.mjs` - re-copy it from the new tag, never edit it.
 
 ## The house style
 

@@ -43,6 +43,10 @@ The module was developed and played on The Forge and works the same on any Found
 > [!IMPORTANT]
 > Two of these settings start off because each needs something from you first: *Music follows the game state* (playlists mapped in the Sound window) and *Regional voice* (LiveKit AVClient and a working server).
 
+
+> [!NOTE]
+> **What a player's console can and cannot do.** Players' browsers ask yours to make most changes in this game, and Daggerheart does the same for its own rules. Your browser checks each request: who really sent it, whether that player plays the character or may see the project, and whether the room, the stage and the turn allow it. Taking something back needs a real Reroll of that character's roll just before. A request that fails changes nothing, the player is told the GM's client refused it, and the refusal is in the Debug log with their name. For a Daggerheart change you are also warned on screen, and a change only a console could produce puts a card in your chat. What is not checked yet: a player's own roll totals, and the Hope and Stress their own rolls move on their own character. If a Daggerheart feature a player uses stops with that refusal (placing an area, starting a countdown from an ability), it asked for something this game keeps to the GM: do it for them. If Daggerheart is newer than the module knows, you are told once what it refuses.
+
 ---
 
 ## 2. The season setup checklist
@@ -851,6 +855,7 @@ The result is a "passed, failed, skipped" count followed by `ok`, `FAIL` and `sk
 | `fileSizes()` | a hosted world that seems to serve the old files |
 | `perf()` | a theme that stutters |
 | `a11y()` | controls a screen reader cannot name |
+| `relayGuard()` | whether the guard on Daggerheart's GM relay is standing (`state: "ok"`), and what it has refused this session |
 | the panel's **Debug log** (Diagnostics) | its Copy button produces the paste a bug report needs |
 
 Repairs: `resetAllActions()` for a botched advance, `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)`, `refreshMusic()`, `repaintFog()`, `resetAllVoice()`.
@@ -867,6 +872,7 @@ Repairs: `resetAllActions()` for a botched advance, `ruleOnParkedMurder(killerId
 | *Silence for the first minutes of a session.* | The browser had not been clicked. Not a fault; `diagnoseSfx()` counts what was dropped. |
 | *The panel says the debate is open, but the chapter is over.* | The trial outlived its chapter. End the Class Trial from the console (the chapter-end screen has a checkbox for this). |
 | *A Despair Call or a ruling did nothing.* | Two GMs: the primary writes. Check which connected full Gamemaster is the primary (the lowest user id), and look at the Debug log. |
+| *A player says the GM's client refused a Daggerheart change.* | Their Daggerheart feature asked for something this game keeps to the GM (an area on the map, a new countdown). The warning on your screen names what; do it by hand. |
 | *A door stays locked after the season reset.* | The Doors tab's "starts locked" column is what the reset restores. |
 
 ---

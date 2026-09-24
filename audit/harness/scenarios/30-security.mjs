@@ -156,8 +156,24 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     await gm.eval(`
         await game.drpg.openMurder({ killerId: "${ids.botan}", victimId: "${ids.daichi}" });
         await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
-        await game.drpg.passTurn();
         return true;`, { timeout: 60000 });
+    await settle(500);
+    /* OUT OF TURN (E03, 24.09.2026; audit S04-09). The turn, the stage and the locks
+       were checked on the acting player's own client only. With the victim to act,
+       Botan's own player sends Botan's finishing blow - the honest request function,
+       from the right owner, at the wrong moment - and the GM has to refuse it. */
+    const toSide = side => gm.eval(`for (let i = 0; i < 4 && game.drpg.murderState()?.turnSide !== "${side}"; i++) await game.drpg.passTurn();
+        return game.drpg.murderState()?.turnSide ?? null;`, { timeout: 60000 });
+    const victimTurn = await toSide("victim");
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        B.requestCrisisResult({ actorId: "${ids.botan}", key: "finishingBlow", total: 99, isCritical: false, withHope: true }); return true;`);
+    await settle(1700);
+    const early = await gm.eval(`return { dead: game.drpg.isDeceased(game.actors.get("${ids.daichi}")),
+        reasons: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "murder.crisis"')).map(e => e.message) };`);
+    check("SECURITY: a finishing blow thrown out of turn by the killer's own player kills nobody and is refused",
+        victimTurn === "victim" && early.dead === false && early.reasons.some(r => /not their turn/.test(r)), JSON.stringify({ victimTurn, ...early }));
+    await toSide("killer");
     await settle(500);
     const readCrisis = `return { stage: game.drpg.murderState()?.stage ?? null, dead: game.drpg.isDeceased(game.actors.get("${ids.daichi}")) };`;
     const blow = await forge("murder.crisis", { actorId: ids.botan, key: "finishingBlow", total: 99, isCritical: false, withHope: true }, readCrisis);
@@ -173,6 +189,26 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     await settle(2200);
     const blowOk = await gm.eval(readCrisis);
     check("control: the same finishing blow from Botan's own player does kill", blowOk.dead === true, JSON.stringify(blowOk));
+
+    /* STAGE 6 IS DECIDED ON THE GM'S SIDE (E03; audit S05-04). The Tamper list with
+       `mine: false` is the whole room, types and all, and it used to be the asking
+       client that decided it was Stage 6. A hidden trace nobody has found lies in
+       the Cafeteria, where the killer and Aiko both stand. */
+    const planted6 = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const t = await R.placeRemnant({ x: 1700, y: 500, sceneId: canvas.scene.id, type: "prep", visibility: "hidden",
+            sourceActor: "${ids.chie}", sourceName: "Chie Mori", room: "Cafeteria", subject: "SEC stage six" });
+        return { id: t?.id ?? null, stage: game.drpg.murderState()?.stage ?? null };`, { timeout: 30000 });
+    const killerList = await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestCleanableTraces("${ids.botan}", { mine: false });`, { timeout: 30000 });
+    const aikoWhole = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestCleanableTraces("${ids.aiko}", { mine: false });`, { timeout: 30000 });
+    const aikoMine = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestCleanableTraces("${ids.aiko}", { mine: true });`, { timeout: 30000 });
+    check("control: the killer in Stage 6 is shown the whole room",
+        planted6.stage === "resolution" && (killerList ?? []).some(t => t.id === planted6.id), JSON.stringify({ planted6, killerList }));
+    check("SECURITY: anybody else asking for the whole room gets only what they know",
+        !(aikoWhole ?? []).some(t => t.id === planted6.id) && JSON.stringify(aikoWhole) === JSON.stringify(aikoMine),
+        JSON.stringify({ aikoWhole, aikoMine }));
     await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false }); return true;`, { timeout: 60000 });
 
     /*
@@ -386,10 +422,13 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     const frozenAgain = await p2.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
         const r = await P.sabotageProject("${projects.pub}", 3); return r?.repair?.id ?? null;`, { timeout: 60000 });
     const readProgress = `const P = await import("${repoUrl}/scripts/projects.mjs");
-        const c = P.allProjects().find(p => p.id === "${projects.pub}"); return { current: c?.progress?.current ?? null };`;
+        const c = P.allProjects().find(p => p.id === "${projects.pub}"); return { current: c?.current ?? null };`;
     const onFrozen = await forge("project.progress", { countdownId: projects.pub, amount: 2, actorId: ids.aiko }, readProgress);
+    // `current` is read off the project row (`allProjects`), which is where the bar's
+    // figure is: read off the wrong field, this check was null == null and measured
+    // nothing - found by taking the frozen guard out and watching it still pass.
     check("SECURITY: progress onto a sabotaged project does not move it",
-        Boolean(frozenAgain) && onFrozen.unchanged, JSON.stringify(onFrozen));
+        Boolean(frozenAgain) && typeof onFrozen.before.current === "number" && onFrozen.unchanged, JSON.stringify(onFrozen));
     const shared = await forge("project.share", { countdownId: projects.pub, targetUserId: p1.userId },
         `const P = await import("${repoUrl}/scripts/projects.mjs"); return { secret: P.isSecret("${projects.pub}") };`);
     check("SECURITY: sharing a public project is refused and leaves it public",
@@ -529,9 +568,11 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
      * logged by name, warn the GM and tell the player. Then the three shapes
      * Daggerheart really does send for a player must still land.
      *
-     * Verified by hand the day it was written: with `registerRelayGuard` commented
-     * out of scripts/module.mjs, the role, the Countdowns and the ownership checks
-     * below FAILED (the relay made p1 a Gamemaster) - see the E03 release notes.
+     * Verified by hand the day it was written (24.09.2026): with `registerRelayGuard`
+     * commented out of scripts/module.mjs, the five RELAY checks below FAILED - the
+     * relay made p1 a Gamemaster (role 1 -> 4), wrote the Countdowns and granted the
+     * ownership - and the tick control passed on nothing, which is why it now also
+     * asks that the Projects are still there.
      */
     const DH = "system.daggerheart";
     const relayWorld = `return {
@@ -611,7 +652,9 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
                     .filter(([id]) => id !== "SECTICK000000000").map(([id, c]) => [id, c.progress?.current])) };`);
         const projectsBefore = JSON.parse(relayBefore.countdowns).countdowns ?? {};
         check("control: an automatic countdown tick from a player's roll lands, and no Project moves with it",
-            ticked.tick === 2 && Object.entries(ticked.projects).every(([id, current]) =>
+            // The Projects have to be THERE to have not moved: with the guard off, the
+            // emptied Countdowns above had already wiped them and this passed on nothing.
+            ticked.tick === 2 && Object.keys(ticked.projects).length > 0 && Object.entries(ticked.projects).every(([id, current]) =>
                 projectsBefore[id] === undefined || projectsBefore[id].progress?.current === current),
             JSON.stringify({ ticked, tick: tick.projects.length }));
     } finally {

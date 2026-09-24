@@ -43,6 +43,10 @@ Moduł powstał i był grany na The Forge; działa tak samo na każdym hoście F
 > [!IMPORTANT]
 > Dwa z tych ustawień są na starcie wyłączone, bo każde najpierw czegoś od ciebie potrzebuje: *muzyka podąża za stanem gry* (playlisty zmapowane w oknie Dźwięk) i *głos per pokój* (LiveKit AVClient i działający serwer).
 
+
+> [!NOTE]
+> **Co gracz może z konsoli, a czego nie.** Przeglądarki graczy proszą twoją o większość zmian w tej grze, a Daggerheart robi to samo dla własnych reguł. Twoja przeglądarka sprawdza każdą prośbę: kto naprawdę ją wysłał, czy gracz prowadzi tę postać albo może widzieć projekt, czy pokój, etap i tura na to pozwalają. Cofnięcie czegoś wymaga prawdziwego Rerolla rzutu tej postaci chwilę wcześniej. Prośba, która nie przejdzie, niczego nie zmienia, gracz słyszy, że klient GM-a odmówił, a odmowa trafia do Debug logu z jego nazwą. Przy zmianie od Daggerhearta dostajesz też ostrzeżenie na ekranie, a zmiana, którą mogła wysłać tylko konsola, zostawia kartę na twoim czacie. Czego jeszcze nie sprawdza: sum własnych rzutów gracza oraz Hope i Stress, które jego rzuty ruszają na jego własnej postaci. Jeśli funkcja Daggerhearta używana przez gracza kończy się tą odmową (postawienie obszaru, odliczanie uruchamiane umiejętnością), prosi o coś, co ta gra zostawia GM-owi: zrób to za niego. Jeśli Daggerheart jest nowszy, niż moduł zna, dowiesz się raz, czego odmawia.
+
 ---
 
 ## 2. Lista kontrolna sezonu
@@ -851,6 +855,7 @@ Wynik to licznik "passed, failed, skipped", a po nim linie `ok`, `FAIL` i `skip`
 | `fileSizes()` | hostowany świat, który zdaje się serwować stare pliki |
 | `perf()` | motyw, który się przycina |
 | `a11y()` | kontrolki, których czytnik ekranu nie umie nazwać |
+| `relayGuard()` | czy strażnik przekaźnika GM-a w Daggerheart stoi (`state: "ok"`) i czego odmówił w tej sesji |
 | panelowy **Dziennik debugowania** (Diagnostyka) | jego przycisk Kopiuj daje dokładnie to, czego potrzebuje zgłoszenie błędu |
 
 Naprawy: `resetAllActions()` dla zepsutego przejścia zegara, `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)`, `refreshMusic()`, `repaintFog()`, `resetAllVoice()`.
@@ -867,6 +872,7 @@ Naprawy: `resetAllActions()` dla zepsutego przejścia zegara, `ruleOnParkedMurde
 | *Cisza przez pierwsze minuty sesji.* | Przeglądarka nie została kliknięta. To nie usterka; `diagnoseSfx()` liczy, co porzucono. |
 | *Panel mówi, że debata jest otwarta, a rozdział się skończył.* | Rozprawa przeżyła swój rozdział. Zakończ Class Trial z konsoli (ekran końca rozdziału ma na to pole). |
 | *Despair Call albo decyzja nic nie zrobiły.* | Dwóch GMów: zapisuje główny. Sprawdź, który połączony pełny Gamemaster jest głównym (najniższe id użytkownika), i zajrzyj do Dziennika debugowania. |
+| *Gracz mówi, że klient GM-a odrzucił zmianę Daggerhearta.* | Jego funkcja Daggerhearta poprosiła o coś, co ta gra zostawia GM-owi (obszar na mapie, nowe odliczanie). Ostrzeżenie na twoim ekranie mówi, o co; zrób to ręcznie. |
 | *Drzwi zostają zamknięte po resecie sezonu.* | Reset przywraca kolumnę "zaczyna zamknięte" z zakładki Drzwi. |
 
 ---
