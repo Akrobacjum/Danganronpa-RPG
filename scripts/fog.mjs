@@ -769,6 +769,15 @@ export function fogShareRefusal({ sender, askedAt, answered, now = Date.now(), w
     return null;
 }
 
+/**
+ * The same question with the bridge's one guard signature (see `firstRefusal` in
+ * gm-bridge.mjs, E03), asked of the primary's own record of when it asked and who
+ * has answered. It only reads them: marking the answer taken is the handler's.
+ */
+function guardFogShare(sender, payload, ctx) {
+    return fogShareRefusal({ sender, askedAt: shareAskedAt, answered: shareAnswered });
+}
+
 /** The primary's "what do you hold?". Exported for the ledger scenario, which cannot
  *  reload a browser to reach the `ready` that asks it. */
 export function askForShares() {
@@ -807,7 +816,7 @@ function registerLedgerRoad() {
                     return;
                 case FOG_SHARED: {
                     if (!isPrimaryGm()) return;
-                    const why = fogShareRefusal({ sender, askedAt: shareAskedAt, answered: shareAnswered });
+                    const why = guardFogShare(sender, payload, { asker: senderId, requestId: payload.requestId ?? null });
                     if (why) {
                         debug(`Ignored a fog ledger reply from ${sender.name}: ${why}.`);
                         return;

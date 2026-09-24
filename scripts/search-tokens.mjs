@@ -377,18 +377,35 @@ export function searchSpendRefusal({ sender, actor, where, roomName }) {
 }
 
 /**
- * Which scene a player's search is judged on, or why it is refused. A GM's is
- * taken as asked; a player's is the scene their character is standing on.
+ * Why this sender may not spend a search token in this room - or take the plant
+ * check that follows the spend - or null. The bridge's one guard signature
+ * (see `firstRefusal` in gm-bridge.mjs, E03): a GM's search is taken as asked, a
+ * player's character has to be standing in the room (`searchSpendRefusal`).
  */
-async function judgeSearch(payload, senderId) {
-    const sender = senderOf(senderId);
-    if (!sender) return { why: "unknown sender" };
-    if (sender.isGM) return { sceneId: payload.sceneId ?? null };
+async function guardSearchRoom(sender, payload, ctx) {
+    if (!sender) return "unknown sender";
+    if (sender.isGM) return null;
     const actor = game.actors.get(payload.actorId ?? "") ?? null;
     const { locateActor } = await import("./movement.mjs");
     const where = actor ? locateActor(actor, { sceneId: payload.sceneId ?? null }) : null;
-    const why = searchSpendRefusal({ sender, actor, where, roomName: payload.roomName });
-    return why ? { why } : { sceneId: where.scene?.id ?? payload.sceneId ?? null };
+    return searchSpendRefusal({ sender, actor, where, roomName: payload.roomName });
+}
+
+/**
+ * Which scene a search is recorded against, asked once `guardSearchRoom` has
+ * passed. Not a guard - it refuses nothing: a GM's is taken as asked, a
+ * player's is the scene their character stands on, found again the way the
+ * guard found it. Before the guard was split out one reading served both. The
+ * second comes a few awaits after the first; that no other message is handled
+ * between them was measured on Node 22, where the harness runs (a cached
+ * `import()` settles before a timer can fire, 24.09.2026), not in a browser.
+ */
+async function searchSceneOf(sender, payload) {
+    if (sender.isGM) return payload.sceneId ?? null;
+    const actor = game.actors.get(payload.actorId ?? "") ?? null;
+    const { locateActor } = await import("./movement.mjs");
+    const where = actor ? locateActor(actor, { sceneId: payload.sceneId ?? null }) : null;
+    return where?.scene?.id ?? payload.sceneId ?? null;
 }
 
 async function onSocketMessage(payload, senderId) {
@@ -397,9 +414,10 @@ async function onSocketMessage(payload, senderId) {
     if (payload.action === ACTION_SPEND) {
         // Exactly one GM client answers, otherwise every GM would spend a token.
         if (!isPrimaryGm()) return;
-        const judged = await judgeSearch(payload, senderId);
-        if (judged.why) {
-            warn(`Refused a search-token spend in "${payload.roomName}" from ${game.users.get(senderId ?? "")?.name ?? senderId}: ${judged.why}.`);
+        const sender = senderOf(senderId);
+        const why = await guardSearchRoom(sender, payload, { asker: senderId, requestId: payload.requestId ?? null });
+        if (why) {
+            warn(`Refused a search-token spend in "${payload.roomName}" from ${game.users.get(senderId ?? "")?.name ?? senderId}: ${why}.`);
             game.socket.emit(SOCKET_EVENT, {
                 action: ACTION_RESULT, requestId: payload.requestId, ok: false, left: null, reason: "notHere"
             }, { recipients: [senderId] });
@@ -408,7 +426,7 @@ async function onSocketMessage(payload, senderId) {
         // Answered to whoever actually asked, not to the id in the payload -
         // otherwise one player could make the GM spend a token and report the
         // result to somebody else.
-        const sceneId = judged.sceneId;
+        const sceneId = await searchSceneOf(sender, payload);
         const ok = await SearchTokens.spend(payload.roomName, sceneId);
         // Only a spend that SUCCEEDED earns a look for a plant: a refused search
         // is not a search, and a plant handed out for one would be a free item
@@ -429,14 +447,14 @@ async function onSocketMessage(payload, senderId) {
         if (!isPrimaryGm()) return;
         // The same judgement as the spend it follows, so the scene is the one
         // the spend was recorded against.
-        const judged = await judgeSearch(payload, senderId);
-        if (judged.why) {
+        const sender = senderOf(senderId);
+        if (await guardSearchRoom(sender, payload, { asker: senderId, requestId: payload.requestId ?? null })) {
             game.socket.emit(SOCKET_EVENT, {
                 action: ACTION_RESULT, requestId: payload.requestId, ok: false, plant: null, left: null
             }, { recipients: [senderId] });
             return;
         }
-        const sceneId = judged.sceneId;
+        const sceneId = await searchSceneOf(sender, payload);
         // Once per token: the entry is used up whether or not a plant was there.
         const key = searchKey(senderId, sceneId, payload.roomName);
         const at = searchedBy.get(key);

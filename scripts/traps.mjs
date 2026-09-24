@@ -687,32 +687,23 @@ export function registerTraps() {
         // Dynamically, not at the top of the file: traps.mjs already reaches
         // gm-bridge.mjs this way from `alert`, and a static edge here would add
         // one to a graph that settings.mjs was reorganised to keep acyclic.
-        const { senderOf, ownsActor } = await import("./gm-bridge.mjs");
+        const { senderOf } = await import("./gm-bridge.mjs");
         const sender = senderOf(senderId);
-        if (!ownsActor(sender, payload.actorId)) {
-            warn(`Refused a trap relay from ${sender?.name ?? senderId}: not their character.`);
+        // The two guards have the bridge's one signature and its reply context
+        // (see `firstRefusal` in gm-bridge.mjs, E03); a relay is answered to nobody.
+        const ctx = { asker: senderId, requestId: payload.requestId ?? null };
+        const whose = await guardRelayOwner(sender, payload, ctx);
+        if (whose) {
+            warn(`Refused a trap relay from ${sender?.name ?? senderId}: ${whose}.`);
             return;
         }
 
         const actor = payload.actorId ? game.actors.get(payload.actorId) : null;
         if (!actor) return;
 
-        /*
-         * THE ROOM IS WHERE THE CHARACTER IS, NOT WHERE THE PACKET SAYS (E03,
-         * 24.09.2026; audit S08-08). A crossing, a rest and a stash hunt each
-         * named their room in the packet, and the trap in that room went off -
-         * so a player could set off any trap on the map from their own
-         * bedroom, or walk through one and report being somewhere else. The
-         * relay leaves after the move has landed, so the GM finds the character
-         * where the packet says; if the GM has not seen the move yet, it is
-         * given a moment, once.
-         */
-        const field = RELAYED_ROOM[payload.kind];
-        const named = field ? payload[field] : undefined;
-        if (named !== undefined && !await standsIn(actor, named, {
-            passedThrough: field === "to", sceneId: sender?.viewedScene ?? null
-        })) {
-            warn(`Refused a trap relay from ${sender?.name ?? senderId}: ${actor.name} is not in "${named}".`);
+        const where = await guardRelayRoom(sender, payload, ctx);
+        if (where) {
+            warn(`Refused a trap relay from ${sender?.name ?? senderId}: ${where}.`);
             return;
         }
         try {
@@ -733,6 +724,37 @@ export function registerTraps() {
 
 /** Which field of each relayed event names a room: a crossing's destination, the rest's and the stash's room. */
 const RELAYED_ROOM = { crossing: "to", rest: "room", stash: "room" };
+
+/** A relay is about the sender's own character, or it is refused - see the note above `relay`. */
+async function guardRelayOwner(sender, payload, ctx) {
+    const { ownsActor } = await import("./gm-bridge.mjs");
+    return ownsActor(sender, payload.actorId) ? null : "not their character";
+}
+
+/*
+ * THE ROOM IS WHERE THE CHARACTER IS, NOT WHERE THE PACKET SAYS (E03,
+ * 24.09.2026; audit S08-08). A crossing, a rest and a stash hunt each
+ * named their room in the packet, and the trap in that room went off -
+ * so a player could set off any trap on the map from their own
+ * bedroom, or walk through one and report being somewhere else. The
+ * relay leaves after the move has landed, so the GM finds the character
+ * where the packet says; if the GM has not seen the move yet, it is
+ * given a moment, once (`standsIn`).
+ *
+ * A packet with no character never reaches this - the handler drops it
+ * first, silently, as it always has - so a missing one passes here rather
+ * than being given a reason of its own.
+ */
+async function guardRelayRoom(sender, payload, ctx) {
+    const actor = payload.actorId ? game.actors.get(payload.actorId) : null;
+    const field = RELAYED_ROOM[payload.kind];
+    const named = field ? payload[field] : undefined;
+    if (!actor || named === undefined) return null;
+    const there = await standsIn(actor, named, {
+        passedThrough: field === "to", sceneId: sender?.viewedScene ?? null
+    });
+    return there ? null : `${actor.name} is not in "${named}"`;
+}
 
 /**
  * Is this character in that room, as this client sees it - asked twice, a

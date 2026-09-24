@@ -579,7 +579,8 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
      * holding the object, is refused and the trace stays untied. There is no
      * control beside it - setting up a live incident is 10-murder's work - so it
      * was verified by hand on 24.09.2026: with the incident condition taken out of
-     * `handleTieTrace`, this check FAILED (the trace was tied).
+     * `handleTieTrace`, this check FAILED (the trace was tied). The condition has
+     * since moved, unchanged, into `guardTieTraceHolder`, which the handler asks.
      */
     const tie = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
         await R.placeRemnant({ x: 1600, y: 450, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",

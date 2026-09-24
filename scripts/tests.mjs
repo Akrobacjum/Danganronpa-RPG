@@ -350,6 +350,52 @@ function bodyOf(src, marker, { until = null, length = null } = {}) {
     return body;
 }
 
+/**
+ * One top-level function of `src`, from its declaration to the next top-level
+ * declaration - a function, or a `const X = {` table, the two ends R1b has always
+ * cut a handler at - or null when `src` declares no function of that name.
+ */
+function topLevelFunction(src, name) {
+    const text = String(src ?? "");
+    const at = text.search(new RegExp(`^(?:export )?(?:async )?function ${name}\\(`, "m"));
+    if (at < 0) return null;
+    const line = text.indexOf("\n", at);
+    if (line < 0) return text.slice(at);
+    const next = text.slice(line).search(/^(?:export )?(?:async )?function |^const \w+ = \{/m);
+    return text.slice(at, next < 0 ? text.length : line + next);
+}
+
+/**
+ * A handler's body with the bodies of the guards it asks (E03, 24.09.2026).
+ *
+ * E03 wrote each check it added to the GM bridge as a `guard<Name>(sender,
+ * payload, ctx)` function the handler asks - see the note above `firstRefusal` in
+ * gm-bridge.mjs - so that E31 can lift them into a table as they are. A test that
+ * reads a handler for a check has to read those as well, or a check that only
+ * moved would read as a check that went. Any `guard<Name>` the body names counts,
+ * called or handed to `firstRefusal`, and guards that name guards are followed. A
+ * name `src` does not define comes back in `missing`, for the caller to fail on:
+ * read as an empty guard it would pass.
+ *
+ * @returns {{body: string, guards: string[], missing: string[]}}
+ */
+function withGuards(src, body) {
+    const named = text => [...String(text).matchAll(/\bguard[A-Z]\w*/g)].map(m => m[0]);
+    const guards = [], missing = [];
+    let read = String(body ?? "");
+    const queue = named(read);
+    while (queue.length) {
+        const name = queue.shift();
+        if (guards.includes(name) || missing.includes(name)) continue;
+        const guard = topLevelFunction(src, name);
+        if (guard === null) { missing.push(name); continue; }
+        guards.push(name);
+        read += `\n${guard}`;
+        queue.push(...named(guard));
+    }
+    return { body: read, guards, missing };
+}
+
 /** Line number of an index, for a failure message somebody has to act on. */
 const lineAt = (text, index) => text.slice(0, index).split("\n").length;
 
@@ -665,30 +711,47 @@ const REGRESSIONS = [
             // rerolling character and its Reroll receipt - the one line that was
             // here said to remove it then, and the check below held it to that.
         };
-        const unguarded = [], stale = [];
-        let inScope = 0, byOwner = 0, bySight = 0, byGm = 0;
+        /*
+         * AND THE GUARDS EACH HANDLER ASKS (E03, 24.09.2026). E03 wrote the checks it
+         * added as `guard<Name>(sender, payload, ctx)` functions the handler asks in
+         * order (the note above `firstRefusal` in gm-bridge.mjs), so the ownership,
+         * sight or GM test may now stand in a guard rather than in the handler's own
+         * body - `handleTieTrace`'s ownership does, and `handleDespair`'s. A guard
+         * counts only when the handler names it, guards that name guards are read
+         * too, and a name the file does not define FAILS here rather than reading as
+         * a guard with nothing in it. What is not moved: the sender is still read
+         * from Foundry's own argument in the handler's own body, and nowhere else
+         * counts for that.
+         */
+        const unguarded = [], stale = [], undefinedGuards = [];
+        let inScope = 0, byOwner = 0, bySight = 0, byGm = 0, throughGuards = 0;
         for (const [, action, name] of rows) {
             const whole = handlerBody(name);
             if (whole === null) { unguarded.push(`${action} (no ${name})`); continue; }
             // Past the declaration, whose own `(payload, senderId, ctx)` is not a hand-off.
             const branch = whole.slice(whole.indexOf("\n"));
-            if (!IN_SCOPE.test(branch)) continue;
+            const asked = withGuards(src, branch);
+            undefinedGuards.push(...asked.missing.map(guard => `${name} asks ${guard}`));
+            if (!IN_SCOPE.test(asked.body)) continue;
             inScope++;
             const checksSender = branch.includes("senderOf(senderId)");
-            const owner = /ownsActor\(sender\b/.test(branch);
-            const sight = /canSee\([^)]*,\s*sender\)/.test(branch);
-            const gm = /!sender\??\.isGM\b/.test(branch);
+            const owner = /ownsActor\(sender\b/.test(asked.body);
+            const sight = /canSee\([^)]*,\s*sender\)/.test(asked.body);
+            const gm = /!sender\??\.isGM\b/.test(asked.body);
             const guarded = checksSender && (owner || sight || gm);
             if (EXEMPT_HANDLERS[name]) {
                 if (guarded) stale.push(name);
                 continue;
             }
             if (owner) byOwner++; else if (sight) bySight++; else if (gm) byGm++;
+            if (asked.guards.length) throughGuards++;
             if (!guarded) unguarded.push(action);
         }
+        ok(!undefinedGuards.length, `these handlers ask a guard gm-bridge.mjs does not define: ${undefinedGuards.join(", ")}`);
         ok(!stale.length, `these handlers are guarded now and still on the exemption list - take them off: ${stale.join(", ")}`);
         log(`R1b: ${rows.length} socket handlers, ${inScope} act on something named in the packet `
-            + `(${byOwner} by ownership, ${bySight} by sight of the project, ${byGm} GM-only)`);
+            + `(${byOwner} by ownership, ${bySight} by sight of the project, ${byGm} GM-only; `
+            + `${throughGuards} ask guards too)`);
         ok(inScope >= 20, `only ${inScope} handlers read anything off the packet - has the reading gone wrong?`);
 
         ok(!unguarded.length,
@@ -5108,12 +5171,29 @@ const REGRESSIONS = [
         const bridge = stripComments((await otherSources()).find(([file]) => file.endsWith("gm-bridge.mjs"))?.[1] ?? "");
         const PAYS = ["handleObserveResolve", "handleAnalyzeResolve", "handleCrisis", "handleCleanup",
             "handleUnsabotage", "handleProgress", "handleRemnantEdit", "handleDespair"];
-        const unpaid = PAYS.filter(name => !bodyOf(bridge, `async function ${name}(`, { until: "\nasync function " })
-            .includes("spendRerollReceipt("));
+        /*
+         * THROUGH THE GUARDS (E03, 24.09.2026). The receipt is spent by a
+         * `guard...Receipt` the handler asks (the note above `firstRefusal` in
+         * gm-bridge.mjs), no longer in the handler's own body, so each handler is
+         * read with the guards it asks, and a guard it names that the file does not
+         * define fails. Each handler is cut at its own end - the next top-level
+         * declaration - rather than at the next `async function`, which now is as
+         * often a guard as a handler, and a plain `function` guard before it would
+         * have been read as part of the handler above.
+         */
+        const read = name => {
+            const own = topLevelFunction(bridge, name);
+            ok(own !== null, `gm-bridge.mjs no longer has ${name} - this test reads nothing until it is pointed at it again`);
+            return withGuards(bridge, own);
+        };
+        const nowhere = [...new Set([...bridge.matchAll(/async function (handle\w+)\(/g)].map(m => m[1]))]
+            .flatMap(name => read(name).missing.map(guard => `${name} asks ${guard}`));
+        ok(!nowhere.length, `these handlers ask a guard gm-bridge.mjs does not define: ${nowhere.join(", ")}`);
+        const unpaid = PAYS.filter(name => !read(name).body.includes("spendRerollReceipt("));
         ok(!unpaid.length, `these take something back for a player with no Reroll receipt: ${unpaid.join(", ")}`);
         // And no handler outside the list reads `payload.undo` without one.
         const stray = [...bridge.matchAll(/async function (handle\w+)\(/g)].map(m => m[1]).filter(name => {
-            const body = bodyOf(bridge, `async function ${name}(`, { until: "\nasync function " });
+            const { body } = read(name);
             return /payload\.undo/.test(body) && !body.includes("spendRerollReceipt(");
         });
         ok(!stray.length, `these read payload.undo and ask for no receipt: ${stray.join(", ")}`);
@@ -5132,8 +5212,21 @@ const REGRESSIONS = [
         ok(bodyOf(murder, "export async function takeCrisisAction(", { length: 1200 }).includes("crisisRefusal("),
             "the player's own client no longer asks crisisRefusal");
         const handler = bodyOf(bridge, "async function handleCrisis(", { until: "\nasync function " });
-        ok(/crisisRefusal\(actor, payload\.key\)/.test(handler), "the GM's bridge does not judge a crisis action again");
-        ok(handler.indexOf("crisisRefusal(") < handler.indexOf("resolveCrisisAction({"),
+        /*
+         * THROUGH ITS GUARD (E03, 24.09.2026). The bridge's `crisisRefusal` is asked in
+         * `guardCrisisAction`, one of the guards `handleCrisis` asks (the note above
+         * `firstRefusal` in gm-bridge.mjs), so the call is looked for in the handler
+         * with its guards, and "before it resolves" is read off where the handler
+         * names the guard that reaches it - or the call itself, were it ever written
+         * back into the handler.
+         */
+        const asked = withGuards(bridge, handler);
+        ok(!asked.missing.length, `handleCrisis asks a guard gm-bridge.mjs does not define: ${asked.missing.join(", ")}`);
+        ok(/crisisRefusal\(actor, payload\.key\)/.test(asked.body), "the GM's bridge does not judge a crisis action again");
+        const judgedBy = handler.includes("crisisRefusal(") ? "crisisRefusal("
+            : asked.guards.find(name => handler.includes(name)
+                && withGuards(bridge, topLevelFunction(bridge, name)).body.includes("crisisRefusal("));
+        ok(Boolean(judgedBy) && handler.indexOf(judgedBy) >= 0 && handler.indexOf(judgedBy) < handler.indexOf("resolveCrisisAction({"),
             "the GM judges the crisis action after resolving it");
     }],
 
