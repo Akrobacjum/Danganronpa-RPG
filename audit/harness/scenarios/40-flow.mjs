@@ -117,7 +117,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     check("p2: the Search card's words are not in p2's copy", Boolean(theirs) && theirs.stub && !theirs.words,
         JSON.stringify(theirs ? { stub: theirs.stub, words: theirs.words } : null));
     const leaks = theirs ? foundItems.flatMap(name => pathsTo(JSON.parse(theirs.doc), name).map(at => `"${name}" at ${at}`)) : [];
-    check("p2: another player was not told what p1 searched for", foundItems.length > 0 && Boolean(theirs) && leaks.length === 0,
+    check("p2: another player was not told what p1 searched for [known leak S02-11/S10-05, fixed in E05]", foundItems.length > 0 && Boolean(theirs) && leaks.length === 0,
         JSON.stringify({ found: foundItems, leaks }));
     console.log("[qa] p1 notifications after Search:", JSON.stringify(search.notifs));
 

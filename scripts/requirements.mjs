@@ -235,6 +235,29 @@ export function systemCompatibility() {
 }
 
 /**
+ * What the newer-system warning would say, or null when the system is not newer
+ * than the one verified. The versions can be handed in, which is how R130 asks
+ * about a Daggerheart this world is not running.
+ *
+ * @returns {Promise<{found: string, verified: string, missing: string[]}|null>}
+ */
+export async function newerSystemFindings({
+    found = game.system?.version, verified = systemCompatibility().verified
+} = {}) {
+    if (!verified || !found || !foundry.utils.isNewerVersion(found, verified)) return null;
+    let missing = [];
+    try {
+        const { diagnosePatches } = await import("./patches.mjs");
+        missing = diagnosePatches()
+            .filter(row => row.owner === game.system?.id && !row.present)
+            .map(row => row.target);
+    } catch (err) {
+        error("Could not probe the patches against this Daggerheart", err);
+    }
+    return { found, verified, missing };
+}
+
+/**
  * Tell the GM, once per Daggerheart version, that the system is newer than the
  * one this module was measured on.
  *
@@ -251,25 +274,18 @@ export function systemCompatibility() {
  */
 export async function announceNewerSystem() {
     if (!game.user.isGM) return;
-    const { verified } = systemCompatibility();
-    const found = game.system?.version;
-    if (!verified || !found || !foundry.utils.isNewerVersion(found, verified)) return;
-
+    // Silenced first, so a table that said "not again" is not probed on every load.
     let silenced = "";
     try {
         silenced = String(game.settings.get(MODULE_ID, SETTINGS.systemWarningSilenced) ?? "");
     } catch {
         silenced = "";
     }
-    if (silenced === found) return;
+    if (silenced && silenced === game.system?.version) return;
 
-    let missing = [];
-    try {
-        const { diagnosePatches } = await import("./patches.mjs");
-        missing = diagnosePatches().filter(row => !row.present).map(row => row.target);
-    } catch (err) {
-        error("Could not probe the patches against this Daggerheart", err);
-    }
+    const findings = await newerSystemFindings();
+    if (!findings) return;
+    const { found, verified, missing } = findings;
 
     const system = game.system?.title ?? game.system?.id;
     const probe = missing.length

@@ -135,6 +135,18 @@ function cascadeAvailable() {
     try { return getComputedStyle(probe).fontSize === "7px"; } finally { probe.remove(); }
 }
 
+/**
+ * A hook only the suite's own live regions listen to (E01, 24.09.2026; the review of
+ * E01). The three `keepLive` tests used to ask for a redraw by raising
+ * `drpgTimeOfDayChanged` - "the event every live window listens to" - and every
+ * other listener heard it too: the trace digest was flushed to the GM early and its
+ * queue emptied, the music and the voice rooms were re-read, the Eclipse redrawn.
+ * With a Remnant on the map, tier 1 posted a GM whisper from the tier that promises
+ * a GM it changes nothing. `keepLive` takes extra hook names (`watch.hooks`), so a
+ * name nothing else knows asks for the redraw and nothing else.
+ */
+const LIVE_PROBE = "drpgSuiteLiveProbe";
+
 /** Whether this client is under the Stained Glass theme - a setting of the person running the suite. */
 const glassTheme = () => document.body.classList.contains("drpg-theme-stained-glass");
 
@@ -308,9 +320,10 @@ async function moduleStyles() {
  * `indexOf` answers -1 for a marker that is no longer there - a function renamed, a
  * line rewritten - and `slice(-1, ...)` is the last character or nothing. Every
  * positive assertion on that then fails, which is fine; every NEGATIVE one
- * (`ok(!/the bug/.test(body))`) passes, whatever the file now says. Measured before
- * this helper: 140 slices of that shape in this file, 78 of them in front of a
- * negative assertion. R102 was one: renaming `scaleWindow` would have let its bug
+ * (`ok(!/the bug/.test(body))`) passes, whatever the file now says. Counted when this
+ * helper went in: about 150 slices of that shape in this file, 146 of them converted
+ * (the rest feed only positive assertions); the audit counted 78 negative assertions
+ * in tier 0. R102 was one: renaming `scaleWindow` would have let its bug
  * back in with the suite green.
  *
  *   `until`  - the body ends where this next appears AFTER the marker (the old
@@ -643,7 +656,10 @@ const REGRESSIONS = [
          * the project (`canSee(..., sender)`), or the sender is a GM. Anything else has
          * to be on the list below with its reason written down.
          */
-        const IN_SCOPE = /payload\??\.(\w+Id)\b|payload\.data\?\.sourceActor|\b\w+\(\s*payload\s*[,)]/;
+        // `identity` too: the one handler that names an OBJECT rather than a document
+        // id (remnant.tieForItem), which the first version of this pattern let through,
+        // so deleting its new guard left the suite green (the review of E01).
+        const IN_SCOPE = /payload\??\.(\w+Id|identity)\b|payload\.data\?\.sourceActor|\b\w+\(\s*payload\s*[,)]/;
         const EXEMPT_HANDLERS = {
             // KNOWN, NOT FORGIVEN: any player may move any Monokuma's pool by one point,
             // because the one honest caller is a reroll handing a point back. Audit
@@ -6302,15 +6318,15 @@ const INVARIANTS = [
 
         // A window is anything with `.element`; nothing here needs a real one.
         const app = { element: host, options: { window: { title: "test" } } };
-        const stop = keepLive(app, { region: ".drpg-t-region", build, delay: 0 });
+        const stop = keepLive(app, { region: ".drpg-t-region", build, delay: 0, watch: { hooks: [LIVE_PROBE] } });
 
         try {
             host.querySelector("details").open = true;
             host.querySelector("input[name=typed]").value = "half a sentence";
             host.querySelector(".drpg-t-scroller").scrollTop = 120;
 
-            // The event every live window listens to.
-            Hooks.callAll("drpgTimeOfDayChanged", {}, {});
+            // A redraw, asked of this region alone (see LIVE_PROBE).
+            Hooks.callAll(LIVE_PROBE);
             await wait(140);
 
             const region = host.querySelector(".drpg-t-region");
@@ -6347,7 +6363,7 @@ const INVARIANTS = [
         document.body.appendChild(host);
 
         const app = { element: host, options: { window: { title: "test" } } };
-        const stop = keepLive(app, { region: ".drpg-t-focus", build, delay: 0 });
+        const stop = keepLive(app, { region: ".drpg-t-focus", build, delay: 0, watch: { hooks: [LIVE_PROBE] } });
 
         try {
             const field = host.querySelector("input[name=f]");
@@ -6355,7 +6371,7 @@ const INVARIANTS = [
             ok(document.activeElement === field, "could not put focus in the field");
 
             const before = built;
-            Hooks.callAll("drpgTimeOfDayChanged", {}, {});
+            Hooks.callAll(LIVE_PROBE);
             await wait(140);
             ok(built === before, "a live region redrew a field somebody was typing in");
 
@@ -6444,7 +6460,7 @@ const INVARIANTS = [
 
         const app = { element: host, options: { window: { title: "test" } } };
         const stop = keepLive(app, {
-            region: ".drpg-t-keys", build, delay: 0,
+            region: ".drpg-t-keys", build, delay: 0, watch: { hooks: [LIVE_PROBE] },
             after: () => wireKeyLimitOverride(host)
         });
 
@@ -6459,8 +6475,8 @@ const INVARIANTS = [
             box().dispatchEvent(new Event("change", { bubbles: true }));
             ok(rows().every(el => !el.disabled), "ticking the override did not free the rows");
 
-            // The event every live window listens to.
-            Hooks.callAll("drpgTimeOfDayChanged", {}, {});
+            // A redraw, asked of this region alone (see LIVE_PROBE).
+            Hooks.callAll(LIVE_PROBE);
             await wait(140);
 
             ok(box().checked === true, "the redraw unticked the override");
@@ -6727,6 +6743,32 @@ const INVARIANTS = [
             "the box has no title in the module's language");
         ok(box?.querySelector("strong"), "bold inside a box was lost");
         ok(probe.querySelector("blockquote"), "an ordinary quote was turned into a box");
+    }],
+
+    ["R130 - a newer Daggerheart is named, with only Daggerheart's own missing places", async () => {
+        /*
+         * E01, 24.09.2026; audit S01-09, and the review of E01. The warning is the one
+         * thing between a stranger's table on a newer Daggerheart and a feature that
+         * stopped without a word (D1: no maximum), and nothing tested it: the harness
+         * runs a Daggerheart that is exactly the verified one, so the path never ran.
+         * Asked here with the versions handed in. The review also found it listing
+         * Isometric Perspective's override as a missing place in Daggerheart on every
+         * world without that module; the list is Daggerheart's rows only.
+         */
+        const { newerSystemFindings, systemCompatibility } = await import("./requirements.mjs");
+        const { PATCHES } = await import("./patches.mjs");
+        const { verified, minimum } = systemCompatibility();
+        ok(verified && minimum, "the manifest states no verified or minimum Daggerheart");
+        equal(await newerSystemFindings({ found: verified, verified }), null,
+            "the verified version itself is called newer");
+        const newer = await newerSystemFindings({ found: "99.0.0", verified });
+        ok(newer, "a far newer Daggerheart is not called newer");
+        equal(newer.found, "99.0.0", "the warning names some other version");
+        const ours = new Set(PATCHES.filter(p => p.owner === game.system?.id).map(p => p.target));
+        ok(ours.size > 0, "no row of the patch table is marked as Daggerheart's");
+        ok(PATCHES.every(p => typeof p.owner === "string" && p.owner), "a patch row says nothing about whose code it changes");
+        const strays = newer.missing.filter(target => !ours.has(target));
+        ok(!strays.length, `the warning lists places that are not Daggerheart's: ${strays.join(", ")}`);
     }],
 
     ["R112 - the curtain holds on a narrow desk, and the right column is wider", async () => {
@@ -7674,12 +7716,18 @@ async function restore(snap) {
 
     // Every other setting that moved, written back as it was recorded. Compared
     // first so a setting nothing touched is not written - several have `onChange`
-    // handlers that redraw the table.
+    // handlers that redraw the table. One key that will not go back must not stop
+    // the rest (the resources, the stray tokens and the chat below): each is tried
+    // on its own, and what is still different afterwards is thrown, so the runner
+    // counts it (the review of E01).
+    const stuck = [];
     for (const [key, value] of snap.settings ?? []) {
         if (key === SETTINGS.clock) continue;
         let now;
         try { now = game.settings.get(MODULE_ID, key); } catch { continue; }
-        if (stableJson(now) !== stableJson(value)) await game.settings.set(MODULE_ID, key, value);
+        if (stableJson(now) === stableJson(value)) continue;
+        try { await game.settings.set(MODULE_ID, key, value); }
+        catch (err) { stuck.push(`${key} (${err?.message ?? err})`); }
     }
 
     // Written as values, not deltas: the delta is the thing that went wrong.
@@ -7727,6 +7775,12 @@ async function restore(snap) {
     if (strayMessages.length) await ChatMessage.deleteDocuments(strayMessages);
 
     await settle();
+    // Read back, not assumed: a write that was accepted and did not land is dirt too.
+    for (const [key, value] of moduleSettingValues()) {
+        if (key === SETTINGS.clock || !snap.settings?.has(key)) continue;
+        if (stableJson(value) !== stableJson(snap.settings.get(key))) stuck.push(key);
+    }
+    if (stuck.length) throw new Error(`these settings did not go back: ${[...new Set(stuck)].join(", ")}`);
 }
 
 /**
@@ -7767,14 +7821,18 @@ function moduleSettingValues() {
  * `runTests({ tier: 1 })` is safe during play, and it was not: five "invariants"
  * opened and closed the Class Trial on the live world, and R10 raised a room
  * crossing sixty-one times, which springs an armed trap. Nothing noticed, because
- * the only snapshot was taken for tier 2. Every setting of this module, every
- * actor's resources, module flags and items, every user's module flags, the
- * tokens on every scene and the chat are read before tier 0 and again after tier
- * 1; a difference is a failure that names what moved.
+ * the only snapshot was taken for tier 2.
  *
- * It cannot tell a test from a person. Run during play, a player who acts while
- * the suite runs moves something too - so the failure says which part moved, and
- * a second run with nobody acting is the answer to "was it the suite".
+ * WHAT IT READS, exactly: every setting of this module (world and this browser's),
+ * each actor's resources, module flags and the ids of its items, each user's module
+ * flags, WHICH tokens stand on each scene (ids only - not where), and which chat
+ * messages exist. Not playlists, not token positions, not other modules' settings:
+ * a test that moves a token or starts a track is not caught here.
+ *
+ * It cannot tell a test from a person. Run during play, a player who acts or a
+ * timer that runs out (an objection's minute on the primary GM) moves something too
+ * - so the failure names what moved and, from `watchWrites`, which test was running
+ * when it did.
  */
 function worldFingerprint() {
     const parts = new Map();
@@ -7794,6 +7852,36 @@ function worldFingerprint() {
     }
     parts.set("chat", stableJson(game.messages.map(m => m.id).sort()));
     return parts;
+}
+
+/**
+ * Which test was running when the world was written, while tier 0 and tier 1 run.
+ *
+ * The fingerprint says WHAT moved; this says WHEN (the review of E01). Run during
+ * play, the answer to "was it the suite" is in the name: a write that landed in the
+ * middle of "R10" is the suite's, and one that landed between two tests, or in a
+ * test that only reads source, is more likely the table - an objection's minute
+ * running out on the primary GM, a player's action arriving over the socket. Hooks
+ * rather than a fingerprint per test, because a fingerprint per test costs a full
+ * read of every setting a hundred and eighty times.
+ */
+function watchWrites(current) {
+    const seen = [];
+    const note = what => seen.push(`${what} (during "${current() ?? "between tests"}")`);
+    const prefix = `${MODULE_ID}.`;
+    const listeners = [
+        ["updateSetting", doc => { if (String(doc?.key).startsWith(prefix)) note(`setting ${doc.key.slice(prefix.length)}`); }],
+        ["createSetting", doc => { if (String(doc?.key).startsWith(prefix)) note(`setting ${doc.key.slice(prefix.length)}`); }],
+        ["clientSettingChanged", key => { if (String(key).startsWith(prefix)) note(`setting ${String(key).slice(prefix.length)}`); }],
+        ["createChatMessage", () => note("a chat message")],
+        ["updateActor", actor => note(`actor ${actor?.name}`)],
+        ["createItem", item => note(`an item on ${item?.parent?.name ?? "the world"}`)],
+        ["deleteItem", item => note(`an item on ${item?.parent?.name ?? "the world"}`)],
+        ["createToken", () => note("a token")],
+        ["deleteToken", () => note("a token")],
+        ["updateUser", user => note(`user ${user?.name}`)]
+    ].map(([hook, fn]) => [hook, Hooks.on(hook, fn)]);
+    return { seen, stop: () => { for (const [hook, id] of listeners) Hooks.off(hook, id); } };
 }
 
 /** The parts of two fingerprints that differ, by name. */
@@ -14033,29 +14121,41 @@ async function runSuite(tier, only = null) {
     // in the suite to be wrong about and the most expensive to skip: a divergence
     // it would have caught costs four releases, not one run.
     const untouched = worldFingerprint();
-    lines.push("TIER 0 - module-wide regression (source is read, not called)");
-    for (const [name, fn] of pick(REGRESSIONS)) {
-        try { await fn(); record(name, null); } catch (err) { record(name, err); }
-    }
-
-    if (tier >= 1) {
-        lines.push("");
-        lines.push("TIER 1 - invariants (the world is not touched)");
-        for (const [name, fn] of pick(INVARIANTS)) {
+    let running = null;
+    const writes = watchWrites(() => running);
+    try {
+        lines.push("TIER 0 - module-wide regression (source is read, not called)");
+        for (const [name, fn] of pick(REGRESSIONS)) {
+            running = name;
             try { await fn(); record(name, null); } catch (err) { record(name, err); }
+            running = null;
         }
-    }
 
-    // THE PROMISE, CHECKED (E01, audit S14-01): tier 0 and tier 1 are what a GM is
-    // told may be run during play. A write that lands a moment after its test is a
-    // write all the same, so the reading waits for one settle first.
-    await settle();
+        if (tier >= 1) {
+            lines.push("");
+            lines.push("TIER 1 - invariants (the world is not touched)");
+            for (const [name, fn] of pick(INVARIANTS)) {
+                running = name;
+                try { await fn(); record(name, null); } catch (err) { record(name, err); }
+                running = null;
+            }
+        }
+
+        // THE PROMISE, CHECKED (E01, audit S14-01): tier 0 and tier 1 are what a GM is
+        // told may be run during play. A write that lands a moment after its test is a
+        // write all the same, so the reading waits for one settle first.
+        await settle();
+    } finally {
+        writes.stop();
+    }
     const moved = fingerprintDiff(untouched, worldFingerprint());
     if (moved.length) {
         failed++;
         lines.push(`  FAIL  tier 0/1 changed the world`);
         lines.push(`        moved: ${moved.slice(0, 12).join("; ")}${moved.length > 12 ? `; and ${moved.length - 12} more` : ""}`);
-        lines.push("        (a player acting while the suite ran moves these too - if nobody did, a test did)");
+        const when = [...new Set(writes.seen)];
+        if (when.length) lines.push(`        written: ${when.slice(0, 8).join("; ")}${when.length > 8 ? `; and ${when.length - 8} more` : ""}`);
+        lines.push("        (run during play, a player acting or a timer running out moves these too; a write during a test is that test's)");
     } else {
         passed++;
         lines.push(`  ok    tier 0/1 changed nothing in the world`);

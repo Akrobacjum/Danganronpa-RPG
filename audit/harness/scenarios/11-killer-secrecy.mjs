@@ -44,7 +44,7 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
     const incidentCards = await p1.eval(`return game.messages.contents.slice(${cards0}).map(m => ({ w: m.whisper, doc: JSON.stringify(m._source) }));`);
     const naming = incidentCards.filter(c => [ids.chie, "Chie Mori", ids.botan, "Botan Kage"].some(s => c.doc.includes(s))
         || ([p3.userId, p2.userId].some(u => c.w.includes(u)) && !c.w.includes(p1.userId)));
-    check("SECRECY p1 during incident: no chat card names the killer or accomplice, or is addressed to them alone",
+    check("SECRECY p1 during incident [known leak S04-02, fixed in E06]: no chat card names the killer or accomplice, or is addressed to them alone",
         stage !== "openingRoll" && incidentCards.length > 0 && naming.length === 0,
         JSON.stringify({ stage, held: incidentCards.length, naming: naming.map(c => ({ whisper: c.w, doc: c.doc.slice(0, 260) })) }).slice(0, 1600));
 
