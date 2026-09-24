@@ -37,6 +37,21 @@ for (const k of ["HTMLElement", "HTMLInputElement", "HTMLSelectElement", "HTMLTe
         try { globalThis[k] = dom.window[k]; } catch {}
     }
 }
+// A browser's `form.killer` (named access to a form's controls); jsdom has only
+// `form.elements.killer`. Reached only when nothing on the chain has that name.
+{
+    const F = dom.window.HTMLFormElement.prototype;
+    const base = Object.getPrototypeOf(F);
+    Object.setPrototypeOf(F, new Proxy(base, {
+        get(target, key, receiver) {
+            if (typeof key === "string" && receiver instanceof dom.window.HTMLFormElement) {
+                const named = receiver.elements?.namedItem?.(key);
+                if (named) return named;
+            }
+            return Reflect.get(target, key, receiver);
+        }
+    }));
+}
 if (!globalThis.requestAnimationFrame) {
     globalThis.requestAnimationFrame = fn => setTimeout(() => fn(performance.now()), 16);
     globalThis.cancelAnimationFrame = id => clearTimeout(id);
@@ -588,6 +603,8 @@ globalThis.ui = {
 
 globalThis.CONFIG = {
     debug: { hooks: false },
+    // Foundry's own selection colours (CONTROLLED is its orange).
+    Canvas: { dispositionColors: { CONTROLLED: 0xFF9829 } },
     DH: {
         RESOURCE: { character: { custom: {} } },
         GENERAL: {}
@@ -663,6 +680,8 @@ globalThis.foundry = {
     audio: { AudioHelper: { play: async () => ({ stop() {} }), preloadSound: async () => {} } },
     av: { AVSettings: { AV_MODES: { DISABLED: 0, AUDIO: 1, VIDEO: 2, AUDIO_VIDEO: 3 } } },
     canvas: {
+        // Foundry's drag rectangle, with its orange written in, as core has it.
+        layers: { ControlsLayer: class ControlsLayer { drawSelect({ x, y, width, height }) { this.select.clear().lineStyle(3, 0xFF9829, 0.9).drawRect(x, y, width, height); } } },
         animation: { animateLinear: async () => {} },
         loadTexture: async p => {
             const rel = String(p).replace(/^\/?modules\/danganronpa-rpg\//, "");

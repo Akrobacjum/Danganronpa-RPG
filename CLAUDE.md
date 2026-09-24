@@ -49,10 +49,13 @@ width, no fonts, no audio. A test that needs one of those says so with
 
 ## What the suite's three numbers mean
 
-`126 passed, 0 failed, 9 skipped`
+`267 passed, 0 failed, 16 skipped` (headless, 1.2.57)
 
 - **failed** must be zero. It was not zero for a year, and a thirteenth failure
-  arrived unnoticed because twelve was a number people had learnt.
+  arrived unnoticed because twelve was a number people had learnt. It was not
+  zero again by 1.2.56 (eleven headless failures, all of them windows the
+  harness could not draw), which is why the harness's DialogV2 now draws real
+  windows on the GM (`__dialogWindows`).
 - **skipped** may only be a fact about the environment that the test checked
   itself. Never a result that came out wrong. The harness asserts this number
   does not grow: something that used to be answerable and stopped being so is a

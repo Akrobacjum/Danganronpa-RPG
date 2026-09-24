@@ -119,6 +119,22 @@ function layoutAvailable() {
     try { return probe.offsetWidth === 10; } finally { probe.remove(); }
 }
 
+/**
+ * Whether this browser resolves a CSS custom property through `var()` - which is
+ * what every size and colour in the theme is made of. jsdom does not: it hands back
+ * the literal `var(--drpg-dim)` as a colour, which read as "the dim ink could not be
+ * measured" and as a size of NaN (E01, 24.09.2026). Asked of a property the suite
+ * sets itself, not one the module's stylesheet should have, because the harness
+ * fakes `getPropertyValue("--...")` from a flat list and would answer yes.
+ */
+function cascadeAvailable() {
+    const probe = document.createElement("span");
+    probe.style.setProperty("--drpg-suite-probe", "7px");
+    probe.style.fontSize = "var(--drpg-suite-probe)";
+    document.body.appendChild(probe);
+    try { return getComputedStyle(probe).fontSize === "7px"; } finally { probe.remove(); }
+}
+
 /** Whether this client is under the Stained Glass theme - a setting of the person running the suite. */
 const glassTheme = () => document.body.classList.contains("drpg-theme-stained-glass");
 
@@ -6905,8 +6921,16 @@ const INVARIANTS = [
             "nothing grows the glass sheet to hold its Actions tab");
 
         // The pause veil starts at the top of the screen: #pause is a <figure>, with a margin.
-        equal(getComputedStyle(document.getElementById("pause")).marginTop, "0px",
-            "the pause overlay is pushed down the screen by its own margin again");
+        // Measured on the element where the stylesheet cascades; where it does not (the
+        // headless harness applies no stylesheet, and read jsdom's own "0" as a pass or
+        // a figure's 16 px as a fail by accident of its markup), the rule itself is read.
+        if (cascadeAvailable()) {
+            equal(getComputedStyle(document.getElementById("pause")).marginTop, "0px",
+                "the pause overlay is pushed down the screen by its own margin again");
+        } else {
+            const pauseRule = bodyOf(css, "#pause {", { until: "}" });
+            ok(/\bmargin:\s*0\s*;/.test(pauseRule), "the pause overlay's rule no longer takes the figure's margin away");
+        }
 
         // Foundry's selection is the interface colour, not its own orange.
         const { hourColour } = await import("./own-ring.mjs");
@@ -7435,6 +7459,12 @@ const INVARIANTS = [
         equal(proto._awaitTransition?.name, "drpgAwaitTransition", "the transition guard is not installed");
         equal(proto.close?.name, "drpgClose", "the close wrapper is not installed");
         const probe = document.createElement("div");
+        /* The guard asks the element whether a transition is running, through the Web
+           Animations API; where that API is missing it falls back to Foundry's wait, as
+           it should - so the timing is a question only a browser with the API can answer
+           (E01, 24.09.2026: jsdom has neither, and the close waited its full second). */
+        needs(typeof probe.getAnimations === "function" && typeof globalThis.CSSTransition === "function",
+            "no Web Animations API here: whether a transition is running cannot be asked");
         document.body.appendChild(probe);
         try {
             const started = performance.now();
@@ -13001,6 +13031,9 @@ const SCENARIOS = [
          * here on any screen.
          */
         const { openLookDialog } = await import("./look.mjs");
+        // A width and a centre need layout; with none, every box is 0 wide and the loop
+        // below measured nothing and passed (E01, 24.09.2026).
+        needs(layoutAvailable(), "no layout here: a window's width and centre need a browser");
         const cap = parseFloat(getComputedStyle(document.body)
             .getPropertyValue("--drpg-window-max")) || 1400;
         const ceiling = Math.min(0.96 * window.innerWidth, cap) + 4;
@@ -13025,7 +13058,7 @@ const SCENARIOS = [
                 const el = instance.element;
                 if (!el?.matches?.('.application.dialog[class*="drpg-"]')) continue;
                 const box = el.getBoundingClientRect();
-                if (!box.width) continue;
+                ok(box.width > 0, `${instance.constructor.name} has no width in a browser that lays out`);
                 ok(box.width <= ceiling,
                     `${instance.constructor.name} is ${Math.round(box.width)}px wide, over the ${
                         Math.round(ceiling)}px cap`);
@@ -13049,6 +13082,7 @@ const SCENARIOS = [
          * and a token swap that made it darker would pass any test that only checked
          * the value changed.
          */
+        needs(cascadeAvailable(), "no CSS cascade here: a colour and a size made of var() need a browser");
         const was = document.body.classList.contains("drpg-high-contrast");
         const probe = document.createElement("div");
         probe.className = "drpg-panel";
@@ -13388,9 +13422,14 @@ const SCENARIOS = [
                 "the fixture trap is not finished");
 
             murder.openMurderDialog().catch(() => {});
-            await wait(700);
-            const app = [...foundry.applications.instances.values()]
+            /* POLLED, NOT A FLAT 700 ms (E01, 24.09.2026). The window gathers the cast
+               and the traps before it draws, and on a slow world that took longer than
+               the flat wait: the one failure of the audit's live run of this suite was
+               this line, on a world whose run took nineteen minutes. */
+            const murderApp = () => [...foundry.applications.instances.values()]
                 .find(a => a.rendered && a.options?.classes?.includes("drpg-window-murder"));
+            await until(() => murderApp()?.element, 6000);
+            const app = murderApp();
             ok(app?.element, "the murder window did not open");
 
             const form = app.element.querySelector("form");
@@ -13415,6 +13454,9 @@ const SCENARIOS = [
          * rem, so "11px" is a fact about one client's settings rather than about this
          * module - except at the floor, which is stated in px on purpose.
          */
+        // Every size here is a var() of the theme's; where var() does not resolve, each
+        // one reads as NaN and every ratio below as a failure (E01, 24.09.2026).
+        needs(cascadeAvailable(), "no CSS cascade here: sizes made of var() need a browser");
         const settings = await import("./settings.mjs");
         const was = { scale: getSetting(SETTINGS.uiScale), theme: getSetting(SETTINGS.theme) };
 
@@ -13520,6 +13562,9 @@ const SCENARIOS = [
          * transition that never fires on the frame itself, which is a second per
          * window and the reason this measures two settings rather than five.
          */
+        // A width from the stylesheet's rule, which needs the cascade: with none, both
+        // readings were NaN and the check below them let NaN through (E01, 24.09.2026).
+        needs(cascadeAvailable(), "no CSS cascade here: the width rule is a var() that needs a browser");
         const settings = await import("./settings.mjs");
         const { closeOpen } = await import("./live.mjs");
         const was = { scale: getSetting(SETTINGS.uiScale), theme: getSetting(SETTINGS.theme) };
@@ -13560,7 +13605,7 @@ const SCENARIOS = [
 
             const one = await widthAt(1);
             const up = await widthAt(1.4);
-            ok(one !== null && up !== null, "the window could not be measured");
+            ok(Number.isFinite(one) && Number.isFinite(up), `the window could not be measured (${one}, ${up})`);
             // 92vw caps it, so this only means anything on a screen with room for it.
             if (one < innerWidth * 0.9) {
                 const ratio = up / one;

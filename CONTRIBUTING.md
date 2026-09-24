@@ -14,7 +14,7 @@ test harness in `audit/harness`, which needs jsdom: `npm ci` there, once.
 
 ## Before you open a pull request
 
-Run all three. They take about two minutes together.
+Run all three. They take about five minutes together (the suite alone is about three, measured 24.09).
 
 ```bash
 # the regression suite and the ten scenarios, headless
