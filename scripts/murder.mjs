@@ -415,9 +415,12 @@ export function swungWeaponOf(actor) {
     return id ? (actor.items.get(id) ?? null) : null;
 }
 
-/** Which side is this actor on, if any: "killer" | "victim" | "third" | null. */
-export function sideOf(actor) {
-    const state = murderState();
+/**
+ * Which side is this actor on, if any: "killer" | "victim" | "third" | null.
+ * In the running incident, or in `state` - a Reroll's receipt asks about the
+ * incident as it stood when the action was taken (gm-bridge.mjs).
+ */
+export function sideOf(actor, state = murderState()) {
     if (!state || !actor) return null;
     if (state.killerId === actor.id) return "killer";
     if (state.victimId === actor.id) return "victim";
@@ -1070,41 +1073,40 @@ async function askCriticalTarget(def) {
     return picked === "stress" ? "stress" : "hp";
 }
 
-export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
-    const state = murderState();
-    const side = sideOf(actor);
+/**
+ * Why this character may not take this crisis action now, or null.
+ *
+ * MOVED OUT OF `takeCrisisAction` SO THE GM CAN ASK IT TOO (E03, 24.09.2026;
+ * audit S04-09). Every one of these checks ran on the acting player's own
+ * client and nowhere else, so the GM applied whatever arrived: a finishing blow
+ * out of turn, an action still locked, one already spent, a packet that landed
+ * after the incident had moved on to Stage 6. The bridge now asks this again on
+ * the GM's side before it resolves anything. Everything it reads is the
+ * incident's state and the character's resources, which the GM holds; the
+ * item an action spends is not here, because the player's client may already
+ * have used it by the time the packet arrives.
+ *
+ * @returns {{why: string, key: string|null, data?: object}|null} `key` is the
+ *   toast for the player's own client; null means the client says nothing,
+ *   as it never did for a tile that is not theirs to press.
+ */
+export function crisisRefusal(actor, key, state = murderState()) {
+    const side = sideOf(actor, state);
     const def = CRISIS_ACTIONS[key];
 
-    if (!state || state.stage !== "incident" || !def || !side) return null;
-    if (def.side !== side && def.side !== "both") return null;
-
-    // An action that spends something has to be told what. Refused rather than
-    // rolled: a roll that cannot apply its own result is worse than no roll.
-    if (def.usesItem && !actor.items.get(itemId)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.useItemGone"));
-        return null;
+    if (!state || state.stage !== "incident" || !def || !side) {
+        return { why: "no incident is at its incident stage for that character", key: null };
     }
-    if (!isTheirTurn(actor)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.notYourTurn"));
-        return null;
-    }
+    if (def.side !== side && def.side !== "both") return { why: "not an action for that side", key: null };
+    if (!isTheirTurn(actor)) return { why: "not their turn", key: "DRPG.Murder.notYourTurn" };
     // The sheet greys these out, but the panel is only rebuilt on render - a
     // window left open across somebody else's turn still has live buttons.
     const offered = availableCrisisActions(actor).find(o => o.key === key);
     if (offered?.locked) {
-        ui.notifications.warn(game.i18n.format("DRPG.Murder.actionLocked", {
-            name: offered.lockedBy ?? "?"
-        }));
-        return null;
+        return { why: "that action is locked", key: "DRPG.Murder.actionLocked", data: { name: offered.lockedBy ?? "?" } };
     }
-    if (offered?.spent) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.actionSpent"));
-        return null;
-    }
-    if ((state.blocked?.[side]?.[key] ?? 0) > 0) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.actionBlocked"));
-        return null;
-    }
+    if (offered?.spent) return { why: "that action is spent", key: "DRPG.Murder.actionSpent" };
+    if ((state.blocked?.[side]?.[key] ?? 0) > 0) return { why: "that action is blocked", key: "DRPG.Murder.actionBlocked" };
     /*
      * A resolution action costs Sanity rather than an action - and Health when
      * there is no Sanity left (Z3).
@@ -1123,7 +1125,56 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      * the incident on that condition. This guard is the belt to that braces.
      */
     if (def.kind === "resolution" && !def.noRoll && isSpent(actor)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.nothingLeftToSpend"));
+        return { why: "nothing left to spend on a resolution", key: "DRPG.Murder.nothingLeftToSpend" };
+    }
+    return null;
+}
+
+/**
+ * Why a player's Reroll may not take this crisis action back, or null. Pure
+ * over `live`, for the suite (E03 second review, 24.09.2026).
+ *
+ * JUDGED AS THE ACTION WAS TAKEN, NOT AS IT LEFT THINGS. The undo puts the
+ * whole incident state back from the action's receipt, and the action is often
+ * what moved it: Role reversal swaps the seats, Survive and a Finishing blow end
+ * the incident. Asked of the live state, an honest Reroll of any of those was
+ * refused - the first E03 build did exactly that. So:
+ *   - the last action taken is this character's, and this one;
+ *   - it was taken at the incident stage, from its own side (`crisisRefusal` on
+ *     the receipt's state gives those two with no `key`);
+ *   - and none of the moves `CRISIS_MOVES` names - a GM's Pass or resolution, a
+ *     third party walking in, the victim run out - has happened since (`after`,
+ *     stamped by `closeReceipt`; a receipt written before this build has none, and
+ *     is let through as it always was). Other writes to the incident are not
+ *     compared.
+ */
+export function crisisUndoRefusal(actor, key, live = murderState()) {
+    const last = live?.lastCrisis ?? null;
+    if (!last || last.actorId !== actor?.id || last.key !== key) return "the last crisis action is not that character's";
+    const then = crisisRefusal(actor, key, last.state ?? null);
+    if (then && !then.key) return then.why;
+    if (last.after && CRISIS_MOVES.some(k => k in last.after && (live[k] ?? null) !== (last.after[k] ?? null))) {
+        return "the incident has moved on since that action";
+    }
+    return null;
+}
+
+export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
+    const state = murderState();
+    const side = sideOf(actor);
+    const def = CRISIS_ACTIONS[key];
+
+    const refusal = crisisRefusal(actor, key, state);
+    if (refusal && !refusal.key) return null;
+
+    // An action that spends something has to be told what. Refused rather than
+    // rolled: a roll that cannot apply its own result is worse than no roll.
+    if (def.usesItem && !actor.items.get(itemId)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Murder.useItemGone"));
+        return null;
+    }
+    if (refusal) {
+        ui.notifications.warn(game.i18n.format(refusal.key, refusal.data ?? {}));
         return null;
     }
 
@@ -1696,7 +1747,10 @@ export async function resolveCrisisAction({
      * table keeps a turn, which is why it reads as an exception.
      */
     if (murderState()?.stage === "incident"
-        && !(isCritical && def.criticalKeepsTurn)) await passTurn();
+        && !(isCritical && def.criticalKeepsTurn)) {
+        await passTurn();
+        await victimCheck;
+    }
 
     await closeReceipt(receipt);
     return { success, band, done, ranOut };
@@ -1767,8 +1821,22 @@ function openReceipt(actorId, key, state) {
     };
 }
 
+/**
+ * What a later move writes into the incident: the stage and how it ended (a GM
+ * beginning the resolution, the victim run out), the turn (a GM's Pass), and a
+ * third party walking in. A Reroll of the last action is refused once any of
+ * them differs from what the action itself left (`crisisUndoRefusal`).
+ */
+const CRISIS_MOVES = ["stage", "endedBy", "turn", "turnSide", "killerTurnId", "thirdId"];
+
 async function closeReceipt(receipt) {
     try {
+        /* WHAT THE ACTION LEFT, so a Reroll can tell its own consequences from
+           a GM who has moved the incident on since (E03 second review): Survive,
+           Finishing blow and Escape together end the incident themselves, and
+           the undo puts the stage back with the rest of the state. */
+        const after = murderState() ?? {};
+        receipt.after = Object.fromEntries(CRISIS_MOVES.map(key => [key, after[key] ?? null]));
         await writeState({ lastCrisis: receipt });
     } catch (err) {
         error("Could not record what this crisis action did; a Reroll will not be able to replay it", err);
@@ -2758,10 +2826,21 @@ export function registerMurder() {
         if (!r?.hitPoints && !r?.stress) return;
         if (murderState()?.victimId !== actor.id) return;
 
-        checkVictimSpent().catch(err =>
-            error("Could not check whether the victim has run out", err));
+        // Kept, not dropped: a crisis action's receipt waits for it (`victimCheck`).
+        victimCheck = checkVictimSpent().catch(err => {
+            error("Could not check whether the victim has run out", err);
+            return false;
+        });
     });
 }
+
+/**
+ * The victim-ran-out check the `updateActor` hook last started. A turn's drain
+ * (`passTurn`) sets it off without waiting, and it may end the incident; a
+ * crisis action waits for it before stamping its receipt, so the receipt says
+ * what the action really left (E03 third review).
+ */
+let victimCheck = Promise.resolve(false);
 
 /**
  * Did this token just walk into the room the incident is happening in?

@@ -76,6 +76,46 @@ export async function callBarred(actor, { despair = false } = {}) {
 }
 
 /**
+ * Why a Hope Call is barred right now, whatever it costs, or null.
+ *
+ * Split out of `hopeCallBarred` (E03) so the GM can ask it too: a Support a
+ * player buys for somebody else is now paid for on the GM's side, and the GM
+ * has to refuse it for the same reasons this client would have.
+ *
+ * @returns {Promise<string|null>} the sentence to say.
+ */
+export async function hopeCallRefusal(actor) {
+    // The Eclipse is placement-only - see the guard in action-rolls.mjs's
+    // `performAction` for the full reasoning. A Call is not a room
+    // crossing, so it waits for the same next time of day everything else
+    // does.
+    if (isEclipse()) return game.i18n.localize("DRPG.Eclipse.actionsLocked");
+
+    /*
+     * SILENCE, THE WEATHER (Z10) - not to be confused with the Silence
+     * Despair Call checked below, which a Monokuma BUYS and
+     * aims at one player. This one was drawn by the overflow and falls on
+     * everybody, which is why it is checked here rather than in the
+     * per-player restrictions: there is nobody to look up.
+     */
+    const { overflowBlocksCalls } = await import("./overflow.mjs");
+    if (overflowBlocksCalls()) return game.i18n.localize("DRPG.Overflow.silenced");
+
+    // The dead spend nothing. The sheet stops offering them the Calls panel
+    // at all, so this covers the two routes that skip the sheet: a window
+    // left open across the moment of death, and the `game.drpg` API.
+    // A Monocub is deceased but pays Hope for Meddle through its own path
+    // in monocub.mjs, not through here, so it is unaffected.
+    const { isDeceased } = await import("./chapter.mjs");
+    if (isDeceased(actor)) return game.i18n.format("DRPG.Chapter.deadCannotAct", { name: actor.name });
+
+    // Silence, bought with 4 Despair, closes this menu until this time of day ends.
+    const { isSilenced } = await import("./call-effects.mjs");
+    if (isSilenced(actor)) return game.i18n.localize("DRPG.Calls.silencedNotice");
+    return null;
+}
+
+/**
  * Is a Hope Call barred right now, whatever it costs? Says why when it is.
  *
  * Asked twice by `spendHopeCall` (ACT-09, 17.09): before anything else, and
@@ -86,48 +126,9 @@ export async function callBarred(actor, { despair = false } = {}) {
  * @returns {Promise<boolean>}
  */
 async function hopeCallBarred(actor) {
-    // The Eclipse is placement-only - see the guard in action-rolls.mjs's
-    // `performAction` for the full reasoning. A Call is not a room
-    // crossing, so it waits for the same next time of day everything else
-    // does.
-    if (isEclipse()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
-        return true;
-    }
-
-    /*
-     * SILENCE, THE WEATHER (Z10) - not to be confused with the Silence
-     * Despair Call checked below, which a Monokuma BUYS and
-     * aims at one player. This one was drawn by the overflow and falls on
-     * everybody, which is why it is checked here rather than in the
-     * per-player restrictions: there is nobody to look up.
-     */
-    const { overflowBlocksCalls } = await import("./overflow.mjs");
-    if (overflowBlocksCalls()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Overflow.silenced"));
-        return true;
-    }
-
-    // The dead spend nothing. The sheet stops offering them the Calls panel
-    // at all, so this covers the two routes that skip the sheet: a window
-    // left open across the moment of death, and the `game.drpg` API.
-    // A Monocub is deceased but pays Hope for Meddle through its own path
-    // in monocub.mjs, not through here, so it is unaffected.
-    const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(actor)) {
-        ui.notifications.warn(game.i18n.format("DRPG.Chapter.deadCannotAct", {
-            name: actor.name
-        }));
-        return true;
-    }
-
-    // Silence, bought with 4 Despair, closes this menu until this time of day ends.
-    const { isSilenced } = await import("./call-effects.mjs");
-    if (isSilenced(actor)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Calls.silencedNotice"));
-        return true;
-    }
-    return false;
+    const why = await hopeCallRefusal(actor);
+    if (why) ui.notifications.warn(why);
+    return Boolean(why);
 }
 
 /**
@@ -230,11 +231,28 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             held = now;
         }
 
-        await automatedUpdate(actor, { "system.resources.hope.value": held - call.cost });
+        /*
+         * A SUPPORT ON SOMEBODY ELSE'S CHARACTER IS PAID FOR ON THE GM'S SIDE
+         * (E03, 24.09.2026; audit S10-09, decision D2). Arming it is a write to a
+         * sheet this player does not own, so it always went through the GM - and
+         * the price stayed here, where the GM never saw it and a console did not
+         * pay it. The GM now takes the Hope when it arms the Call (`handleArm`),
+         * and refuses when there is not enough; this client charges nothing and,
+         * when the Call does not land, has nothing to give back.
+         */
+        const gmPays = !game.user.isGM && call.target === "player" && Boolean(call.grants)
+            && Boolean(choice?.target) && !choice.target.isOwner;
+        if (!gmPays) await automatedUpdate(actor, { "system.resources.hope.value": held - call.cost });
 
         // Do the thing, not just charge for it.
         const { applyCall } = await import("./call-effects.mjs");
         const { lines: done, failed } = await applyCall(actor, key, "hope", choice);
+
+        if (failed && gmPays) {
+            ui.notifications.warn(game.i18n.format("DRPG.Calls.notArmedNotCharged", { call: call.label }));
+            log(`${call.label} was not armed by the GM; ${actor.name} was not charged.`);
+            return null;
+        }
 
         // The effect did not land, so the Hope goes back. Read the value again
         // rather than restoring `held`: a roll may have granted Hope in between,
@@ -286,6 +304,14 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
     try {
         const call = DESPAIR_CALLS[key];
         if (!call) return null;
+
+        // A Monokuma's purchase, and a Monokuma is a GM (E03; audit S09-11). On a
+        // player's client the pool write is a silent no-op while the effect still
+        // went through the bridge - a free Obstacle from the console.
+        if (!game.user.isGM) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Calls.despairGmOnly"));
+            return null;
+        }
 
         // Same placement-only rule as a Hope Call - see the note above.
         if (isEclipse()) {

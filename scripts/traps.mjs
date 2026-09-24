@@ -56,7 +56,7 @@
 import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
     TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
-import { isPrimaryGm, debug, log, warn, error, esc } from "./utils.mjs";
+import { isPrimaryGm, debug, log, warn, error, esc, pause } from "./utils.mjs";
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
@@ -687,15 +687,25 @@ export function registerTraps() {
         // Dynamically, not at the top of the file: traps.mjs already reaches
         // gm-bridge.mjs this way from `alert`, and a static edge here would add
         // one to a graph that settings.mjs was reorganised to keep acyclic.
-        const { senderOf, ownsActor } = await import("./gm-bridge.mjs");
+        const { senderOf } = await import("./gm-bridge.mjs");
         const sender = senderOf(senderId);
-        if (!ownsActor(sender, payload.actorId)) {
-            warn(`Refused a trap relay from ${sender?.name ?? senderId}: not their character.`);
+        // The two guards have the bridge's one signature and its reply context
+        // (see `firstRefusal` in gm-bridge.mjs, E03); a relay is answered to nobody.
+        const ctx = { asker: senderId, requestId: payload.requestId ?? null };
+        const whose = await guardRelayOwner(sender, payload, ctx);
+        if (whose) {
+            warn(`Refused a trap relay from ${sender?.name ?? senderId}: ${whose}.`);
             return;
         }
 
         const actor = payload.actorId ? game.actors.get(payload.actorId) : null;
         if (!actor) return;
+
+        const where = await guardRelayRoom(sender, payload, ctx);
+        if (where) {
+            warn(`Refused a trap relay from ${sender?.name ?? senderId}: ${where}.`);
+            return;
+        }
         try {
             switch (payload.kind) {
                 case "crossing": await onCrossed({ actor, to: payload.to }); break;
@@ -710,6 +720,89 @@ export function registerTraps() {
             error("A trap could not react to something a player did", err);
         }
     });
+}
+
+/** Which field of each relayed event names a room: a crossing's destination, the rest's and the stash's room. */
+const RELAYED_ROOM = { crossing: "to", rest: "room", stash: "room" };
+
+/** A relay is about the sender's own character, or it is refused - see the note above `relay`. */
+async function guardRelayOwner(sender, payload, ctx) {
+    const { ownsActor } = await import("./gm-bridge.mjs");
+    return ownsActor(sender, payload.actorId) ? null : "not their character";
+}
+
+/*
+ * THE ROOM IS WHERE THE CHARACTER IS, NOT WHERE THE PACKET SAYS (E03,
+ * 24.09.2026; audit S08-08). A crossing, a rest and a stash hunt each
+ * named their room in the packet, and the trap in that room went off -
+ * so a player could set off any trap on the map from their own
+ * bedroom, or walk through one and report being somewhere else. The
+ * relay leaves after the move has landed, so the GM finds the character
+ * where the packet says; if the GM has not seen the move yet, it is
+ * given a moment, once (`standsIn`).
+ *
+ * A packet with no character never reaches this. `guardRelayOwner` refuses
+ * one with no `actorId`, and a player's naming a character that does not
+ * exist, as "not their character"; only a GM's naming a missing character gets
+ * past it, and the handler drops that one silently (`if (!actor) return`). So a
+ * missing one passes here rather than being given a reason of its own.
+ */
+async function guardRelayRoom(sender, payload, ctx) {
+    const actor = payload.actorId ? game.actors.get(payload.actorId) : null;
+    const field = RELAYED_ROOM[payload.kind];
+    const named = field ? payload[field] : undefined;
+    if (!actor || named === undefined) return null;
+    const there = await standsIn(actor, named, {
+        passedThrough: field === "to", sceneId: sender?.viewedScene ?? null
+    });
+    return there ? null : `${actor.name} is not in "${named}"`;
+}
+
+/**
+ * Is this character in that room, as this client sees it - asked twice, a
+ * moment apart? A crossing also counts a room the token passed through in the
+ * last minute: a route through three rooms reports the middle one after the
+ * token has left it.
+ *
+ * ON THE SCENE THE SENDER IS LOOKING AT, when the character has a token there
+ * (`User#viewedScene`): the relay does not say which scene it came from, and
+ * traps are keyed by room name alone, so asking every scene let a token left on
+ * an old map, or a room of the same name elsewhere, answer for this one (the E03
+ * second review). Only a character with no token on that scene falls back to
+ * every scene.
+ */
+async function standsIn(actor, room, { passedThrough = false, sceneId = null } = {}) {
+    const { placesOf, roomsVisited } = await import("./movement.mjs");
+    const there = () => {
+        const all = placesOf(actor);
+        const onScene = sceneId ? all.filter(where => where.scene?.id === sceneId) : [];
+        return (onScene.length ? onScene : all).some(where => where.room === room
+            || (passedThrough && roomsVisited(where.tokenDoc).has(room)));
+    };
+    if (there()) return true;
+    await pause(300);
+    return there();
+}
+
+/**
+ * Why a "this item was used" card may not set off a trap, or null. Pure, for the
+ * suite (E03, 24.09.2026; audit S08-08).
+ *
+ * The card's `usedItem` flag named the item, and any message carrying it went
+ * through - a player could post one from the console naming any trapped item's
+ * identity and fire that trap. The honest card is written by `use-items.mjs` on
+ * the using player's own client, about their own character, and the item is
+ * still in that character's hands afterwards (used up to its last charge or
+ * broken, not gone). And only a trap that watches for an item takes it.
+ */
+export function usedItemRefusal({ author, actor, used, trap, owns }) {
+    if (!actor) return "no character used it";
+    if (!author?.isGM && !owns(author, actor.id)) return "the card's author does not play that character";
+    if (!actor.items.some(item => item.getFlag?.(MODULE_ID, "drpgItemId") === used?.id)) {
+        return "that character does not hold the item";
+    }
+    if (TRAP_TRIGGERS[trap?.trigger?.kind]?.watch !== "item") return "that trap does not watch for an item";
+    return null;
 }
 
 /** Triggers 1 and 2. One crossing, two questions. */
@@ -854,6 +947,12 @@ async function onChatMessage(message) {
 
         const actor = game.actors.get(used.actorId ?? "")
             ?? game.actors.get(message.speaker?.actor ?? "");
+        const { ownsActor } = await import("./gm-bridge.mjs");
+        const why = usedItemRefusal({ author: message.author, actor, used, trap, owns: ownsActor });
+        if (why) {
+            warn(`A "used an item" card from ${message.author?.name ?? "?"} did not set off ${trap.name}: ${why}.`);
+            return;
+        }
         if (!passesModifiers(trap, actor)) return;
 
         await alert(trap, actor, game.i18n.format("DRPG.Trap.why.item", {

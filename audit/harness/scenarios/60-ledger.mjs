@@ -55,7 +55,11 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     check(`${p2_.who}: and nothing of Aiko's`, !mine2?.[ids.scene]?.[ids.aiko], JSON.stringify(mine2));
 
     // 3. the rebuild: a primary GM with an empty store asks the clients what they hold
-    await gm.eval(`await game.settings.set("${MOD}", "discoveryLedger", {}); game.socket.emit("module.${MOD}", { action: "fog.shareAsk" }); return true;`);
+    // Asked the way the primary asks at `ready` (E03: a reply nobody asked for is
+    // not taken any more, so the raw packet this used to emit would be answered
+    // and ignored - which is the point of the change, not a failure of it).
+    await gm.eval(`await game.settings.set("${MOD}", "discoveryLedger", {});
+        (await import("${REPO}/scripts/fog.mjs")).askForShares(); return true;`);
     await settle(1000);
     const rebuilt = await gm.eval(`return game.settings.get("${MOD}", "discoveryLedger");`);
     check("gm: the union is rebuilt from the players' rows", (rebuilt?.[ids.scene]?.[ids.aiko] ?? []).length === 2 && (rebuilt?.[ids.scene]?.[ids.botan] ?? []).length === 2, JSON.stringify(rebuilt).slice(0, 300));

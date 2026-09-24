@@ -33,6 +33,8 @@ import { registerMovement } from "./movement.mjs";
 import { registerProjectsUi } from "./projects-ui.mjs";
 import { registerProjectsMap } from "./projects-map.mjs";
 import { registerGmBridge } from "./gm-bridge.mjs";
+import { registerRerollReceipts } from "./reroll-receipts.mjs";
+import { registerRelayGuard } from "./relay-guard.mjs";
 import { registerInventoryLimits } from "./inventory.mjs";
 import { registerTruthBullets } from "./truth-bullets.mjs";
 import { registerTrial } from "./trial.mjs";
@@ -111,6 +113,14 @@ function safely(label, fn) {
 }
 
 Hooks.once("init", () => {
+    /*
+     * FIRST, AND BEFORE THE REQUIREMENTS CHECK BELOW (E03; audit S16-01). The
+     * guard on Daggerheart's GM relay writes nothing of its own and needs no
+     * setting to stand; a world whose module refuses to start still holds
+     * Projects and characters worth protecting. See relay-guard.mjs.
+     */
+    safely("the Daggerheart relay guard", registerRelayGuard);
+
     // ONE MODULE IS NOT OPTIONAL - see requirements.mjs, and the
     // `relationships.requires` block in module.json that this reads.
     //
@@ -302,6 +312,9 @@ Hooks.once("ready", () => {
     // after the sync socket because two of them react to world-state events
     // that arrive over it, and the listener has to exist before the event does.
     safely("the trap watchers", registerTraps);
+    // Before the bridge: an undo the bridge is asked for is paid for by a
+    // receipt this writes, and the receipt has to be watching first.
+    safely("the reroll receipts", registerRerollReceipts);
     safely("the GM bridge", registerGmBridge);
     // After the API, because the migration it kicks off reads the clock, and
     // after the other socket listeners for the same reason they are ordered:
@@ -454,6 +467,9 @@ function applyBodyClasses() {
      * player's interface settles into place instead of a GM's jumping.
      */
     document.body.classList.toggle("drpg-player", !game.user.isGM);
+    // The stylesheet's half of "Players cannot edit..." follows the setting
+    // (E03; audit S01-40) - see PLAYER-LOCKED FIELDS in danganronpa.css.
+    document.body.classList.toggle("drpg-resources-locked", Boolean(getSetting(SETTINGS.lockPlayerResources)));
 }
 
 /**

@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik GM
 
-*Dla modułu "Danganronpa RPG" do Foundry VTT v14, wersja 1.2.59, zbudowanego na systemie Daggerheart.*
+*Dla modułu "Danganronpa RPG" do Foundry VTT v14, wersja 1.2.60, zbudowanego na systemie Daggerheart.*
 
 To podręcznik dla osób prowadzących killing game. Idzie w kolejności, w jakiej sezon naprawdę się buduje i gra: instalacja, ustawienie, prowadzenie dnia, morderstwo, Investigation, Class Trial, koniec rozdziału i od nowa. Tam, gdzie decyzja należy do GMa, a nie do modułu, tekst mówi to wprost.
 
@@ -38,10 +38,14 @@ Moduł powstał i był grany na The Forge; działa tak samo na każdym hoście F
 
 **Start świata.** Załóż świat na systemie Daggerheart, włącz moduł i zależności, potem otwórz panel GMa (przycisk **GM** w lewej kolumnie, pod zegarem) i uruchom **Ustaw sezon**. Cała reszta to sekcja 2.
 
-**Ustawienia modułu warte znajomości.** W ustawieniach modułu w Foundry znajdziesz m.in.: *wymuszone prywatne rzuty graczy* (każdy rzut gracza jest szeptem do niego i do GMów), *anonimowe arkusze postaci* (cudzy arkusz otwiera się ocenzurowany), *Search Tokens na pokój*, *blokadę okna rzutu dla graczy*, *gracze widzą tylko tych, którzy są w ich pokoju*, *pokoje decydują, co widzą gracze* (mgła pokojów), *gracze nie edytują akcji, Hope ani statystyk*, *przejście między pokojami kosztuje Move*, *rzuty dają Despair*, *zastąpienie licznika Fear z Daggerheart*, *chroń edycję tokenów przed Isometric Perspective*, *muzyka podąża za stanem gry*, *głos per pokój*, oraz per przeglądarkę *Język* i *Motyw*. Domyślne wartości to sposób, w jaki gra ma być grana; przełączniki istnieją po to, by stół mógł któryś kawałek prowadzić ręcznie, gdy zechce.
+**Ustawienia modułu warte znajomości.** W ustawieniach modułu w Foundry znajdziesz m.in.: *wymuszone prywatne rzuty graczy* (każdy rzut gracza jest szeptem do niego i do GMów), *anonimowe arkusze postaci* (cudzy arkusz otwiera się ocenzurowany), *Search Tokens na pokój*, *blokadę okna rzutu dla graczy*, *gracze widzą tylko tych, którzy są w ich pokoju*, *pokoje decydują, co widzą gracze* (mgła pokojów), *gracze nie edytują akcji, Hope, Health, Sanity ani statystyk*, *przejście między pokojami kosztuje Move*, *rzuty dają Despair*, *zastąpienie licznika Fear z Daggerheart*, *chroń edycję tokenów przed Isometric Perspective*, *muzyka podąża za stanem gry*, *głos per pokój*, oraz per przeglądarkę *Język* i *Motyw*. Domyślne wartości to sposób, w jaki gra ma być grana; przełączniki istnieją po to, by stół mógł któryś kawałek prowadzić ręcznie, gdy zechce.
 
 > [!IMPORTANT]
 > Dwa z tych ustawień są na starcie wyłączone, bo każde najpierw czegoś od ciebie potrzebuje: *muzyka podąża za stanem gry* (playlisty zmapowane w oknie Dźwięk) i *głos per pokój* (LiveKit AVClient i działający serwer).
+
+
+> [!NOTE]
+> **Co gracz może z konsoli, a czego nie.** Przeglądarki graczy proszą twoją o większość zmian w tej grze, a Daggerheart robi to samo dla własnych reguł. Twoja przeglądarka sprawdza każdą prośbę: kto naprawdę ją wysłał, czy gracz prowadzi tę postać albo może widzieć projekt, czy pokój, etap i tura na to pozwalają. Cofnięcie czegoś jest przyjmowane tylko tuż po tym, jak ten gracz przerzucił rzut tej postaci, raz dla każdego rodzaju cofanej rzeczy; to pokazuje, że rzut na jego karcie czatu został przerzucony, a nie, że Reroll był opłacony. Prośba, która nie przejdzie, niczego nie zmienia. Większość odmów mówi też graczowi, że klient GM-a odmówił, i zostawia linię z nazwą gracza w Dzienniku debugowania głównego GM-a; kilka trafia tylko do dziennika, a prośba Daggerhearta rodzaju, którego moduł w ogóle nie zna, jest odnotowana bez nazwy. Przy zmianie od Daggerhearta dostajesz też ostrzeżenie na ekranie, a zmiana, której Daggerheart nie robi dla gracza, zostawia kartę na twoim czacie - zwykle znak, że ktoś obszedł grę, czasem funkcja Daggerhearta, której ten moduł jeszcze nie zna, więc zapytaj, zanim wyciągniesz wnioski. Fear nie jest racjonowany: każdy krok, o który prosi Daggerheart gracza, wchodzi, po jednym, a gdy klient jednego gracza ruszy go więcej niż cztery razy w dziesięć sekund, dostajesz notkę na ekranie - porównaj ją z rzutami na czacie; wolniejszych kroków nic z niczym nie porównuje. Czego jeszcze nie sprawdza: sum własnych rzutów gracza; Hope, Stress i Health na jego własnej postaci, w ich granicach; zasobów każdego aktora, który nie jest uczniem, towarzyszy też; ładunków (bez pilnowania maksimum przedmiotu) i ilości jego własnych przedmiotów; tyknięć odliczań, po jednym kroku, i dowolnej zmiany odliczania, którego właścicielem go zrobiłeś; sum rzutów obronnych na jego własnych tokenach; wpisów rzutu grupowego i tag teamu jego drużyny; oraz kolejności środowisk sceny - żadne z nich nie ma limitu częstotliwości. Jeśli funkcja Daggerhearta używana przez gracza kończy się tą odmową (postawienie obszaru, uruchomienie odliczania, leczenie albo ranienie innego ucznia umiejętnością), prosi o coś, co ta gra zostawia GM-owi: zrób to za niego. Jeśli Daggerheart jest nowszy, niż moduł zna, dowiesz się raz, czego odmawia.
 
 ---
 
@@ -273,7 +277,7 @@ Dwóch GMów to norma. Jeden z nich jest **głównym GMem** (połączony pełny 
 
 **Zdobywanie.** Gdy rzut ucznia wypadnie z wyższą kością Despair, **+1 Despair** idzie do puli Monokumy *tego ucznia* (ustawienie *rzuty dają Despair*, zapisywane przez głównego GMa). Rzuty reakcji - gołe kliknięcie statystyki - nic nie płacą; własne rzuty aktora Monokumy nic nie płacą. Uczeń ustawiony na "- nikt -" nie karmi nikogo (przydatne dla postaci wycofanej, prowadzonej jako NPC, albo Masterminda według twojego uznania).
 
-**Pule.** Każde konto pełnego Gamemastera ma pulę Despair z limitem **12** (`STARTING.despairMax`), a postacie Monokum wydają z tych pul. Widget Despair u góry ekranu pokazuje każdą pulę: wszyscy widzą liczby, GM ma dodatkowo przyciski. **Despair Flow** (Między sesjami) to jedno okno dla zespołu: którzy aktorzy są Monokumami, z puli którego GMa każdy czerpie, nazwy pul, dodatkowi posiadacze pul (Asystentowi GMa można przyznać pulę), który Monokuma pilnuje którego ucznia (z **Podziel po równo** i "- nikt -") oraz strojenie overflow. Kształt z podręcznika to co najmniej dwóch GMów dzielących uczniów ściśle między siebie, ale moduł działa i z jednym.
+**Pule.** Każde konto pełnego Gamemastera ma pulę Despair z limitem **12** (`STARTING.despairMax`), a postacie Monokum wydają z tych pul. Widget Despair u góry ekranu pokazuje każdą pulę pod jej nazwą, także gdy jest tylko jedna (nazwa ustawiona w Despair Flow, a bez niej nazwa konta): wszyscy widzą liczby, GM ma dodatkowo przyciski. **Despair Flow** (Między sesjami) to jedno okno dla zespołu: którzy aktorzy są Monokumami, z puli którego GMa każdy czerpie, nazwy pul, dodatkowi posiadacze pul (Asystentowi GMa można przyznać pulę), który Monokuma pilnuje którego ucznia (z **Podziel po równo** i "- nikt -") oraz strojenie overflow. Kształt z podręcznika to co najmniej dwóch GMów dzielących uczniów ściśle między siebie, ale moduł działa i z jednym.
 
 **Zamiana Despair w Hope** (1:1) to decyzja GMa z okna Uczniowie albo okna Masterminda, nigdy przycisk samoobsługowy: tak zasila się Monocuba i tak Mastermind utrzymuje się na powierzchni.
 
@@ -851,6 +855,7 @@ Wynik to licznik "passed, failed, skipped", a po nim linie `ok`, `FAIL` i `skip`
 | `fileSizes()` | hostowany świat, który zdaje się serwować stare pliki |
 | `perf()` | motyw, który się przycina |
 | `a11y()` | kontrolki, których czytnik ekranu nie umie nazwać |
+| `relayGuard()` | czy strażnik przekaźnika GM-a w Daggerheart stoi (`state: "ok"`) i czego odmówił w tej sesji |
 | panelowy **Dziennik debugowania** (Diagnostyka) | jego przycisk Kopiuj daje dokładnie to, czego potrzebuje zgłoszenie błędu |
 
 Naprawy: `resetAllActions()` dla zepsutego przejścia zegara, `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)`, `refreshMusic()`, `repaintFog()`, `resetAllVoice()`.
@@ -867,6 +872,9 @@ Naprawy: `resetAllActions()` dla zepsutego przejścia zegara, `ruleOnParkedMurde
 | *Cisza przez pierwsze minuty sesji.* | Przeglądarka nie została kliknięta. To nie usterka; `diagnoseSfx()` liczy, co porzucono. |
 | *Panel mówi, że debata jest otwarta, a rozdział się skończył.* | Rozprawa przeżyła swój rozdział. Zakończ Class Trial z konsoli (ekran końca rozdziału ma na to pole). |
 | *Despair Call albo decyzja nic nie zrobiły.* | Dwóch GMów: zapisuje główny. Sprawdź, który połączony pełny Gamemaster jest głównym (najniższe id użytkownika), i zajrzyj do Dziennika debugowania. |
+| *Gracz mówi, że klient GM-a odrzucił zmianę Daggerhearta.* | Jego funkcja Daggerhearta poprosiła o coś, co ta gra zostawia GM-owi (obszar na mapie, nowe odliczanie, Health innego ucznia). Ostrzeżenie na twoim ekranie mówi, o co; zrób to ręcznie. |
+| *Koszt Daggerhearta u gracza nie wszedł, gdy GM przeładowywał stronę.* | Przy dwóch GM-ach zmiany Daggerhearta za graczy robi tylko główny; wysłana w chwili jego przeładowania może przepaść. Ustaw ręcznie. |
+| *Czat mówi, że Daggerheart poprosił o zmianę od nadawcy, którego Foundry nie wskazało.* | Każda taka zmiana jest odrzucana. Jeśli Hope, Stress albo Fear graczy przestają się ruszać przy rzutach, to dlatego: daj znać autorowi modułu, z wynikiem `game.drpg.relayGuard()`. |
 | *Drzwi zostają zamknięte po resecie sezonu.* | Reset przywraca kolumnę "zaczyna zamknięte" z zakładki Drzwi. |
 
 ---

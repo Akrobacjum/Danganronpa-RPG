@@ -104,6 +104,11 @@ const GM_ROUTE_CLASS = "drpg-gm-route";
  */
 export async function performAction(actor, actionKey, options = {}) {
     try {
+        // A free action is the GM's to give (E03; audit S02-42). Analyze and
+        // Tamper already said so; the other eight took `free` from anybody,
+        // so `game.drpg.performAction(me, "listen", { free: true })` from a
+        // player's console was an action that cost nothing, as often as they liked.
+        if (options.free && !game.user.isGM) options = { ...options, free: false };
         if (!actor || actor.type !== "character") {
             ui.notifications.warn(game.i18n.localize("DRPG.Character.notACharacter"));
             return null;
@@ -1364,8 +1369,8 @@ async function searchStash(actor, def, roll, { room, category, goalKey, tier, st
      * this far only once a failure, a request sent to a GM and a stash find have
      * all returned, and each of those leaves the plant in the room (ACT-03).
      */
-async function searchDraw(room, category, tier, goalKey) {
-    const plant = await SearchTokens.takePlant(room);
+async function searchDraw(room, category, tier, goalKey, actor = null) {
+    const plant = await SearchTokens.takePlant(room, undefined, { actorId: actor?.id ?? null });
 
     return plant
         ? {
@@ -1556,7 +1561,7 @@ async function performSearch(actor, def, options) {
     // Spending it up front meant backing out of the trait picker or the roll
     // window burned one of the room's three searches for nothing - twice and
     // the room was closed for the rest of the time of day.
-    const claimed = await SearchTokens.spend(room);
+    const claimed = await SearchTokens.spend(room, undefined, { actorId: actor.id });
 
     // Kept whatever the token says - it was paid before the roll. The check
     // above the picker reads this client's copy of the counter, which can be a
@@ -1580,7 +1585,7 @@ async function performSearch(actor, def, options) {
 
     if (stashLoot.length) return searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot });
 
-    const drawn = await searchDraw(room, category, tier, goalKey);
+    const drawn = await searchDraw(room, category, tier, goalKey, actor);
     const granted = await grantDrawn(actor, drawn, { category, tier, goalKey });
     const { placed, leftTrace } = await leaveSearchTrace(actor, def, roll, { hit, category, drawn, granted, room, tier });
 

@@ -1,6 +1,6 @@
 # Danganronpa RPG - GM Handbook
 
-*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.59, built on the Daggerheart system.*
+*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.60, built on the Daggerheart system.*
 
 This is the handbook for the people running the killing game. It follows the order a season is actually built and played: install, set up, run a day, run a murder, run an investigation, run a trial, end the chapter, start again. Where a decision is the GM's to make rather than the module's, the text says so.
 
@@ -38,10 +38,14 @@ The module was developed and played on The Forge and works the same on any Found
 
 **Starting a world.** Make a world on the Daggerheart system, enable the module and its dependencies, then open the GM panel (the **GM** button in the left column, under the clock) and run **Set the season up**. Everything after that is section 2.
 
-**Module settings worth knowing.** Under Foundry's module settings you will find, among others: *Force private player rolls* (every player roll is whispered to that player and the GMs), *Keep character sheets anonymous* (another player's sheet opens redacted), *Search tokens per room*, *Lock the roll window for players*, *Players only see who is in their room*, *Rooms decide what players can see* (the room fog), *Players cannot edit Actions, Hope or statistics*, *Crossing rooms costs a Move*, *Rolls grant Despair*, *Replace the Daggerheart Fear tracker*, *Guard token editing from Isometric Perspective*, *Music follows the game state*, *Regional voice*, and the per-browser *Language* and *Theme*. The defaults are the way the game is meant to be played; the switches exist so a table can handle one piece by hand when it wants to.
+**Module settings worth knowing.** Under Foundry's module settings you will find, among others: *Force private player rolls* (every player roll is whispered to that player and the GMs), *Keep character sheets anonymous* (another player's sheet opens redacted), *Search tokens per room*, *Lock the roll window for players*, *Players only see who is in their room*, *Rooms decide what players can see* (the room fog), *Players cannot edit Actions, Hope, Health, Sanity or statistics*, *Crossing rooms costs a Move*, *Rolls grant Despair*, *Replace the Daggerheart Fear tracker*, *Guard token editing from Isometric Perspective*, *Music follows the game state*, *Regional voice*, and the per-browser *Language* and *Theme*. The defaults are the way the game is meant to be played; the switches exist so a table can handle one piece by hand when it wants to.
 
 > [!IMPORTANT]
 > Two of these settings start off because each needs something from you first: *Music follows the game state* (playlists mapped in the Sound window) and *Regional voice* (LiveKit AVClient and a working server).
+
+
+> [!NOTE]
+> **What a player's console can and cannot do.** Players' browsers ask yours to make most changes in this game, and Daggerheart does the same for its own rules. Your browser checks each request: who really sent it, whether that player plays the character or may see the project, and whether the room, the stage and the turn allow it. Taking something back is accepted only just after that player rerolled a roll of that character, once for each kind of thing taken back; that shows a roll on their chat card was rerolled, not that the Reroll was paid for. A request that fails changes nothing. Most refusals also tell the player the GM's client refused it and leave a line with their name in the primary GM's Debug log; a few are only logged, and a Daggerheart request of a kind the module does not know at all is noted without a name. For a Daggerheart change you are also warned on screen, and a change Daggerheart does not make for a player puts a card in your chat - usually a sign somebody went around the game, sometimes a Daggerheart feature this module has not met yet, so ask before you conclude. Fear is not rationed: every step a player's Daggerheart asks for lands, one at a time, and if one player's client moves it more than four times in ten seconds you get a note on screen - compare it with the rolls in chat; slower steps are not compared with anything. What is not checked yet: a player's own roll totals; Hope, Stress and Health on their own character, within their limits; the resources of any actor that is not a student, companions included; their own items' charges (not held to the item's maximum) and quantities; countdown ticks, one step each, and any change to a countdown you gave them ownership of; save totals for their own tokens; their party's group roll and tag team entries; and the order of a scene's environments - none of them with a limit on how often. If a Daggerheart feature a player uses stops with that refusal (placing an area, starting a countdown, healing or harming another student with an ability), it asked for something this game keeps to the GM: do it for them. If Daggerheart is newer than the module knows, you are told once what it refuses.
 
 ---
 
@@ -273,7 +277,7 @@ Two GMs are normal. One of them is the **primary GM** (the connected full Gamema
 
 **Earning.** When a student's roll lands with the Despair die higher, **+1 Despair** goes to the pool of *that student's* Monokuma (`Rolls grant Despair` setting, written by the primary GM). Reaction rolls - a bare statistic click - pay nothing; a Monokuma actor's own rolls pay nothing. A student assigned to "- nobody -" feeds nobody (useful for a retired or NPC-run character, or the Mastermind at your discretion).
 
-**Pools.** Every full Gamemaster account holds a Despair pool, capped at **12** (`STARTING.despairMax`), and the Monokuma characters spend from them. The Despair widget at the top of the screen shows every pool: everyone sees the counts, GMs also get the steppers. **Despair Flow** (Between sessions) is the one window for the team: which actors are Monokumas, which GM's pool each draws on, pool names, extra pool holders (an Assistant GM can be granted a pool), which Monokuma watches which student (with **Split evenly** and "- nobody -"), and the overflow's tuning. The guide's shape is at least two GMs dividing the students strictly between them, but the module works with one.
+**Pools.** Every full Gamemaster account holds a Despair pool, capped at **12** (`STARTING.despairMax`), and the Monokuma characters spend from them. The Despair widget at the top of the screen shows every pool under its name, a single one included (the name set in Despair Flow, otherwise the account name): everyone sees the counts, GMs also get the steppers. **Despair Flow** (Between sessions) is the one window for the team: which actors are Monokumas, which GM's pool each draws on, pool names, extra pool holders (an Assistant GM can be granted a pool), which Monokuma watches which student (with **Split evenly** and "- nobody -"), and the overflow's tuning. The guide's shape is at least two GMs dividing the students strictly between them, but the module works with one.
 
 **Converting Despair into Hope** (1:1) is a GM ruling from the Students window or the Mastermind window, never a self-service button: it is how a Monocub is fuelled and how a Mastermind stays afloat.
 
@@ -851,6 +855,7 @@ The result is a "passed, failed, skipped" count followed by `ok`, `FAIL` and `sk
 | `fileSizes()` | a hosted world that seems to serve the old files |
 | `perf()` | a theme that stutters |
 | `a11y()` | controls a screen reader cannot name |
+| `relayGuard()` | whether the guard on Daggerheart's GM relay is standing (`state: "ok"`), and what it has refused this session |
 | the panel's **Debug log** (Diagnostics) | its Copy button produces the paste a bug report needs |
 
 Repairs: `resetAllActions()` for a botched advance, `ruleOnParkedMurder(killerId, true)`, `applyChapterEnd({...})`, `setMotive(null)`, `refreshMusic()`, `repaintFog()`, `resetAllVoice()`.
@@ -867,6 +872,9 @@ Repairs: `resetAllActions()` for a botched advance, `ruleOnParkedMurder(killerId
 | *Silence for the first minutes of a session.* | The browser had not been clicked. Not a fault; `diagnoseSfx()` counts what was dropped. |
 | *The panel says the debate is open, but the chapter is over.* | The trial outlived its chapter. End the Class Trial from the console (the chapter-end screen has a checkbox for this). |
 | *A Despair Call or a ruling did nothing.* | Two GMs: the primary writes. Check which connected full Gamemaster is the primary (the lowest user id), and look at the Debug log. |
+| *A player says the GM's client refused a Daggerheart change.* | Their Daggerheart feature asked for something this game keeps to the GM (an area on the map, a new countdown, another student's Health). The warning on your screen names what; do it by hand. |
+| *A player's Daggerheart cost did not land while a GM was reloading.* | With two GMs, only the primary one makes Daggerheart's changes for players; one sent in the moments around its reload can be lost. Set it by hand. |
+| *Chat says Daggerheart asked for a change for a sender Foundry did not name.* | Every such change is refused. If players' Hope, Stress or Fear stop moving when they roll, this is why: tell the module's author, with `game.drpg.relayGuard()`. |
 | *A door stays locked after the season reset.* | The Doors tab's "starts locked" column is what the reset restores. |
 
 ---

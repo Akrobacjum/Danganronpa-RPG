@@ -49,7 +49,7 @@ width, no fonts, no audio. A test that needs one of those says so with
 
 ## What the suite's three numbers mean
 
-`273 passed, 0 failed, 16 skipped` (headless, 1.2.59)
+`292 passed, 0 failed, 16 skipped` (headless, 1.2.60)
 
 - **failed** must be zero. It was not zero for a year, and a thirteenth failure
   arrived unnoticed because twelve was a number people had learnt. It was not
@@ -95,12 +95,53 @@ numbers came out plausible and wrong.
 
 **A socket handler that touches an actor must check who sent the message.** R1b
 in the suite reads the source for it. `senderOf(senderId)` and
-`ownsActor(sender, actor)`, both, every time.
+`ownsActor(sender, actor)`, both, every time - and the rest of what that means
+is the trust model, below.
 
 **Two functions are deliberately long.** `registerSettings` (a flat registration
 table) and `steps()` (a data table). Everything else the audit measured over 300
 lines has been split. Splitting either of those two would produce a dozen
 functions that are each one line of data.
+
+## The trust model (D2)
+
+A player's browser is trusted with nothing that belongs to somebody else.
+Protection comes in two layers, and every change should know which one it
+touches.
+
+**Layer one (E03, 1.2.60).** Every request that reaches a GM's client is judged
+there: the bridge in `gm-bridge.mjs`, the search-token, trap and fog sockets, and
+Daggerheart's own GM relay (`relay-guard.mjs`). The judgement uses who Foundry
+says sent it (`senderOf(senderId)`), what that user owns (`ownsActor`, `canSee`,
+`testUserPermission`), and what the world says now: the room the character
+stands in, the incident's stage and turn, the pair a sabotage wrote, the account
+an Observe key was minted for, and a Reroll receipt (`reroll-receipts.mjs`) for
+anything taken back. Packet fields are claims. A refusal changes nothing and is
+logged on the GM; most are also told to the asker (`bridge.refused`), which E31
+makes every one of them.
+
+**Layer two (E28, E29).** The numbers - totals, dice, Hope paid - are checked
+against the roll message the GM can see. Until then a player with a console can
+still lie about their own roll, and move - within each resource's bounds - their
+own character's Hope, Stress and Health, the resources of any actor that is not
+a student (companions included), Fear one step at a time, and the countdowns the
+rules tick or the GM gave them; `relay-guard.mjs` lists the rest. A Reroll
+receipt proves only that the player rewrote the rolls of their
+own character's chat card a few minutes ago - which a Reroll does, and so does
+Daggerheart's own dice reroll, and so can a console. Not that a Reroll was paid
+for, nor that one happened.
+
+Daggerheart's relay writes on the GM's client, so every hook there sees the GM
+as the author. That is why `relay-guard.mjs` passes only the shapes Daggerheart
+itself sends for players, and why a test like "was this edit made by a GM"
+(`truth-bullets.mjs`) is only as good as that guard. When a new Daggerheart
+changes the relay, the guard refuses on the GM's client what it does not
+recognise and tells the GM (on a player's client it forwards everything,
+because Daggerheart's GM handlers do nothing there). Read its table before a
+Daggerheart upgrade, and see AUDIT §9 for what it assumes about Foundry and has
+not measured at a table.
+The headless harness runs Daggerheart's real relay, copied verbatim into
+`audit/harness/lib/dh-relay.mjs` - re-copy it from the new tag, never edit it.
 
 ## The house style
 

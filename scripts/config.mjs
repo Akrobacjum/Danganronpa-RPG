@@ -321,6 +321,14 @@ export const TIMING = {
     diceSettleMs: 6000,
     /** How far back a Reroll's fallback scan looks for its roll, in real minutes. */
     rerollWindowMinutes: 30,
+    /** How long after a player rewrites a roll the GM takes that Reroll's undo
+     *  (reroll-receipts.mjs). A replay leaves seconds after the rewrite; the rest
+     *  is room for a picker the replay may open on the player's screen. */
+    rerollReceiptMs: 5 * 60 * 1000,
+    /** How long the GM waits once for a receipt that has not arrived yet: the
+     *  rewrite and the undo travel as two messages, and the order they are
+     *  handled in on the GM's client has not been measured. */
+    rerollReceiptRetryMs: 400,
     /** How long an Observe waits for its ruling before the bookmark is swept. */
     pendingObserveTtlMs: 60 * 60 * 1000,
     /** How many private cards' words a browser keeps; beyond this the oldest go. */

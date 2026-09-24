@@ -146,6 +146,7 @@ import { repaintFog, diagnoseFog, applySceneVisionMode, seedDiscovery, prepareSc
     restoreSceneVisionMode, diagnoseScenes, whyBlack, fogAnimations, fogPeek, doorwayReport,
     checkRegions, whatIsHere } from "./fog.mjs";
 import { a11yReport } from "./a11y.mjs";
+import { relayGuardStatus } from "./relay-guard.mjs";
 import {
     isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isSilenced,
     meddleTargets, performMeddle, resolveMeddle, meddleDialog,
@@ -1239,6 +1240,11 @@ export const DrpgApi = {
      *  chrome that carries no name, after the sweep in a11y.mjs has done what it
      *  can. `game.drpg.a11y()` - empty is the answer to want. */
     a11y: a11yReport,
+    /** The guard on Daggerheart's GM relay (relay-guard.mjs): whether it found
+     *  Daggerheart's listener, which cases that listener handles, and how many
+     *  packets from players it has refused this session, by kind.
+     *  `game.drpg.relayGuard()` - `state: "ok"` is the answer to want. */
+    relayGuard: relayGuardStatus,
     /** What the theme costs THIS machine: the frame budget with the pulse running
      *  and with it held, one recut of the glass, and the module's hot lookups.
      *  `game.drpg.perf()` - every performance number in the audit was measured

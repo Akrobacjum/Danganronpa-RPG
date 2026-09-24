@@ -12,7 +12,8 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, activeGmIds, whisperToGms, debug, error } from "./utils.mjs";
+import { isPrimaryGm, activeGmIds, whisperToGms, debug, warn, error } from "./utils.mjs";
+import { senderOf, ownsActor } from "./gm-bridge.mjs";
 import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
 
 /**
@@ -104,10 +105,10 @@ export class SearchTokens {
      *
      * @returns {Promise<object|null>}
      */
-    static async takePlant(roomName, sceneId = this.currentSceneId) {
+    static async takePlant(roomName, sceneId = this.currentSceneId, { actorId = null } = {}) {
         if (!roomName) return null;
         if (!game.user.isGM) {
-            const { plant } = await requestPlant(roomName, sceneId);
+            const { plant } = await requestPlant(roomName, sceneId, actorId);
             return plant ?? null;
         }
         try {
@@ -183,10 +184,13 @@ export class SearchTokens {
      * Spend one token. Returns true when it was spent, false when the room is
      * exhausted. Safe to call from a player client - it forwards to the GM.
      */
-    static async spend(roomName, sceneId = this.currentSceneId) {
+    static async spend(roomName, sceneId = this.currentSceneId, { actorId = null } = {}) {
         if (!roomName) return false;
         if (!game.user.isGM) {
-            const { ok, left } = await requestSpend(roomName, sceneId);
+            // The searching character travels with the request: the GM spends a
+            // room's token only for somebody standing in it (E03).
+            const { ok, left, reason } = await requestSpend(roomName, sceneId, actorId);
+            if (reason === "notHere") ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.notHere"));
             // Bank the true count the GM just computed, so the chat card this
             // spend is about to produce reads it correctly instead of racing
             // the setting's own propagation back to this client.
@@ -355,16 +359,75 @@ export function registerSearchTokenSocket() {
     game.socket.on(SOCKET_EVENT, onSocketMessage);
 }
 
+/**
+ * Why this player may not search this room, or null. Pure, for the suite.
+ *
+ * THE SEARCHER HAS TO BE STANDING IN IT (E03, 24.09.2026; audit S01-10, S07-03).
+ * The spend took any room name from anybody, so a console could empty every
+ * room's search tokens on the map - and with the plant check that follows a
+ * spend, walk off with a planted item without rolling for it. Now the request
+ * names a character, the sender has to play it, and the GM finds it in the
+ * room by itself (`locateActor`, which does not need the GM to be looking at
+ * that scene).
+ */
+export function searchSpendRefusal({ sender, actor, where, roomName }) {
+    if (!ownsActor(sender, actor?.id)) return "sender does not own that character";
+    if (!where?.room || where.room !== roomName) return "the character is not in that room";
+    return null;
+}
+
+/**
+ * Why this sender may not spend a search token in this room - or take the plant
+ * check that follows the spend - or null. The bridge's one guard signature
+ * (see `firstRefusal` in gm-bridge.mjs, E03): a GM's search is taken as asked, a
+ * player's character has to be standing in the room (`searchSpendRefusal`).
+ */
+async function guardSearchRoom(sender, payload, ctx) {
+    if (!sender) return "unknown sender";
+    if (sender.isGM) return null;
+    const actor = game.actors.get(payload.actorId ?? "") ?? null;
+    const { locateActor } = await import("./movement.mjs");
+    const where = actor ? locateActor(actor, { sceneId: payload.sceneId ?? null }) : null;
+    judgedPlace.set(payload, where);
+    return searchSpendRefusal({ sender, actor, where, roomName: payload.roomName });
+}
+
+/** The place `guardSearchRoom` judged, for the packet it judged it for. Nothing on ctx. */
+const judgedPlace = new WeakMap();
+
+/**
+ * Which scene a search is recorded against, asked once `guardSearchRoom` has
+ * passed. Not a guard - it refuses nothing: a GM's is taken as asked, a
+ * player's is the scene of the very place the guard judged, read back from
+ * `judgedPlace` rather than found a second time. A second `locateActor`, an
+ * `await import()` later, could read a token moved or deleted in between and
+ * record the spend on another scene than the one checked (the review of the
+ * guard split, 24.09.2026).
+ */
+function searchSceneOf(sender, payload) {
+    if (sender.isGM) return payload.sceneId ?? null;
+    return judgedPlace.get(payload)?.scene?.id ?? payload.sceneId ?? null;
+}
+
 async function onSocketMessage(payload, senderId) {
     if (!payload?.action) return;
 
     if (payload.action === ACTION_SPEND) {
         // Exactly one GM client answers, otherwise every GM would spend a token.
         if (!isPrimaryGm()) return;
+        const sender = senderOf(senderId);
+        const why = await guardSearchRoom(sender, payload, { asker: senderId, requestId: payload.requestId ?? null });
+        if (why) {
+            warn(`Refused a search-token spend in "${payload.roomName}" from ${game.users.get(senderId ?? "")?.name ?? senderId}: ${why}.`);
+            game.socket.emit(SOCKET_EVENT, {
+                action: ACTION_RESULT, requestId: payload.requestId, ok: false, left: null, reason: "notHere"
+            }, { recipients: [senderId] });
+            return;
+        }
         // Answered to whoever actually asked, not to the id in the payload -
         // otherwise one player could make the GM spend a token and report the
         // result to somebody else.
-        const sceneId = payload.sceneId ?? null;
+        const sceneId = await searchSceneOf(sender, payload);
         const ok = await SearchTokens.spend(payload.roomName, sceneId);
         // Only a spend that SUCCEEDED earns a look for a plant: a refused search
         // is not a search, and a plant handed out for one would be a free item
@@ -383,7 +446,16 @@ async function onSocketMessage(payload, senderId) {
 
     if (payload.action === ACTION_TAKE_PLANT) {
         if (!isPrimaryGm()) return;
-        const sceneId = payload.sceneId ?? null;
+        // The same judgement as the spend it follows, so the scene is the one
+        // the spend was recorded against.
+        const sender = senderOf(senderId);
+        if (await guardSearchRoom(sender, payload, { asker: senderId, requestId: payload.requestId ?? null })) {
+            game.socket.emit(SOCKET_EVENT, {
+                action: ACTION_RESULT, requestId: payload.requestId, ok: false, plant: null, left: null
+            }, { recipients: [senderId] });
+            return;
+        }
+        const sceneId = await searchSceneOf(sender, payload);
         // Once per token: the entry is used up whether or not a plant was there.
         const key = searchKey(senderId, sceneId, payload.roomName);
         const at = searchedBy.get(key);
@@ -448,7 +520,7 @@ async function onSocketMessage(payload, senderId) {
             return;
         }
         pending.delete(payload.requestId);
-        resolve({ ok: payload.ok, left: payload.left, plant: payload.plant ?? null });
+        resolve({ ok: payload.ok, left: payload.left, plant: payload.plant ?? null, reason: payload.reason ?? null });
     }
 }
 
@@ -457,13 +529,13 @@ async function onSocketMessage(payload, senderId) {
  * if no GM answers in time, so a disconnected GM can never silently grant a
  * free search.
  */
-function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, timeoutMs = TIMING.searchTokenAckMs) {
+function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, actorId = null, timeoutMs = TIMING.searchTokenAckMs) {
     if (!game.users.some(u => u.isGM && u.active)) {
         ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.noGm"));
         return Promise.resolve({ ok: false, left: null, plant: null });
     }
     return askGm(ACTION_SPEND, roomName, sceneId, timeoutMs, () =>
-        ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.timeout")));
+        ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.timeout")), actorId);
 }
 
 /**
@@ -471,15 +543,15 @@ function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, timeoutMs
  * nobody answers: the search goes on as an ordinary one and the plant stays
  * where it was left, so there is nothing to tell the player.
  */
-function requestPlant(roomName, sceneId = SearchTokens.currentSceneId, timeoutMs = 5000) {
+function requestPlant(roomName, sceneId = SearchTokens.currentSceneId, actorId = null, timeoutMs = 5000) {
     if (!game.users.some(u => u.isGM && u.active)) {
         return Promise.resolve({ ok: false, left: null, plant: null });
     }
     return askGm(ACTION_TAKE_PLANT, roomName, sceneId, timeoutMs, () =>
-        debug(`No GM answered the plant check for ${roomName}.`));
+        debug(`No GM answered the plant check for ${roomName}.`), actorId);
 }
 
-function askGm(action, roomName, sceneId, timeoutMs, onTimeout) {
+function askGm(action, roomName, sceneId, timeoutMs, onTimeout, actorId = null) {
     const requestId = foundry.utils.randomID();
     return new Promise(resolve => {
         pending.set(requestId, resolve);
@@ -489,7 +561,8 @@ function askGm(action, roomName, sceneId, timeoutMs, onTimeout) {
             action,
             requestId,
             roomName,
-            sceneId
+            sceneId,
+            actorId
         }, { recipients: activeGmIds() });
         setTimeout(() => {
             if (!pending.has(requestId)) return;

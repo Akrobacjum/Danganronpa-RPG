@@ -265,9 +265,20 @@ export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
       * protected before is still protected: a trace nobody has found is a trace
       * nobody can reach, so the Tamper menu is still not a trace detector.
       */
+    /*
+     * THE WHOLE ROOM IS STAGE 6'S, AND THIS SIDE DECIDES WHETHER IT IS STAGE 6
+     * (E03, 24.09.2026; audit S05-04). `mine` came from the asking client,
+     * which works out `isCleaner` for itself - so a forged `false` handed any
+     * player every trace in the room they stood in, with its type, its
+     * visibility and whether it was reinforced: the Tamper menu as the trace
+     * detector the note above says it is not, and without an Observe or an
+     * Analyze. The unfiltered list goes to the killer of the incident that is
+     * in Stage 6, and to nobody else, whatever the request says.
+     */
+    const unfiltered = !mine && isCleaner(actor);
     const known = copiedRemnants(actor);
     const watched = incidentParticipant(actor);
-    const wanted = mine
+    const wanted = !unfiltered
         ? cleanableRemnants(actor).filter(t =>
               known.has(t.token.id) || (t.data.type === "incident" && watched))
         : cleanableRemnants(actor);
@@ -1220,6 +1231,9 @@ async function resolveTransformRoad(actor, token, data, verdict, {
     }
 
     await report(actor, data, { band, success, total, dc, done, viaAction, charged });
+    // What this attempt left the Sanity track at, so a Reroll takes back what it
+    // moved and not everything since (E03; audit S05-40).
+    receipt.stressAfter = resourceValue(actor, "stress");
     lastAttempt.set(actor.id, receipt);
     log(`Transform: ${actor.name} rolled ${total} against DC ${dc} on a ${
         data.visibility} ${data.type} - ${band}.`);
@@ -1475,6 +1489,8 @@ export async function resolveCleanup({
     }
 
     await report(actor, data, { band, success, total, dc, done, viaAction, charged });
+    // What this attempt left the Sanity track at - see the transform road above.
+    receipt.stressAfter = resourceValue(actor, "stress");
     lastAttempt.set(actorId, receipt);
 
     log(`Cleanup: ${actor.name} rolled ${total} against DC ${dc} on a ${data.visibility} ${data.type} - ${band}${
@@ -1921,6 +1937,19 @@ export async function resolveStageSix({
     }
 
     // The tool lowers the number it has to beat, "+(1*tier narzędzia)".
+    /*
+     * WHO MAY BE FRAMED, AND WHERE THE BODY HAS TO BE (E03, 24.09.2026; audit
+     * S05-40). Both were asked on the killer's own client and nowhere else, so a
+     * packet from the console could plant a trail pointing at the killer
+     * themselves, the victim or a Monokuma - the three `framingCandidates`
+     * leaves out - or carry the body off from a room the killer was not in.
+     * Asked here before anything is paid.
+     */
+    if (key === "misleadingTrail" && !(await framingCandidates(actor)).some(a => a.id === targetId)) {
+        return { refused: "that student cannot be framed" };
+    }
+    if (key === "moveBody" && !bodyIsHere(actor)) return { refused: "the body is not in the killer's room" };
+
     const relief = def.toolBonusPerTier ? cleaningTier(actor) * def.toolBonusPerTier : 0;
     const threshold = Math.max(0, (def.threshold ?? 0) - relief);
     const success = isCritical || total >= threshold;
@@ -2143,6 +2172,8 @@ function recreationDataFor(token) {
         chapter: d.chapter ?? null,
         day: d.day ?? null,
         timeOfDay: d.timeOfDay ?? null,
+        // How old it is: a trace put back is not a fresh one (E03 third review).
+        placedAt: d.placedAt ?? token._stats?.createdTime ?? null,
         // What a player was to be shown, re-applied after re-placing.
         public: d.public ?? null
     };
@@ -2189,6 +2220,12 @@ async function undoLastCleanup(actor, tokenId) {
             const { public: pub, ...data } = receipt.erased;
             const back = await placeRemnant(data);
             if (back && pub) await setRemnantPublic(back, pub);
+            // A new token id: a player's Reroll could otherwise lift or retune it
+            // as a trace nobody has found (`removalRefusal`, gm-bridge.mjs).
+            if (back) {
+                const { setRemnantSecret } = await import("./remnants.mjs");
+                await setRemnantSecret(back, { restored: true });
+            }
         } catch (err) {
             error("Could not put back the Remnant a rerolled clean-up erased", err);
         }
@@ -2229,8 +2266,20 @@ async function undoLastCleanup(actor, tokenId) {
 
     if (typeof receipt.stressBefore === "number") {
         try {
+            /* THE ATTEMPT'S OWN SANITY, NOT THE TRACK AS IT STOOD (E03, 24.09.2026;
+               audit S05-40). Writing `stressBefore` back also took away every mark
+               earned since the attempt - so an undo sent long after, with other
+               marks in between, wiped those too. Now the undo takes back what the
+               attempt moved; a receipt from before `stressAfter` existed still
+               writes the old value, which is what it recorded. */
+            const moved = typeof receipt.stressAfter === "number"
+                ? receipt.stressAfter - receipt.stressBefore : null;
+            const ceiling = resourceMax(actor, "stress") || Infinity;
+            const value = moved === null
+                ? receipt.stressBefore
+                : Math.min(ceiling, Math.max(0, resourceValue(actor, "stress") - moved));
             await automatedUpdate(actor, {
-                "system.resources.stress.value": receipt.stressBefore
+                "system.resources.stress.value": value
             });
         } catch (err) {
             error("Could not refund the Sanity a rerolled clean-up spent", err);

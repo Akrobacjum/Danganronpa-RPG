@@ -142,7 +142,7 @@ async function sweepPending() {
  *
  * @returns {Promise<{ok: boolean, key?: string, reason?: string}>}
  */
-export async function chooseObserveTarget({ actorId, declaration, request = "" } = {}) {
+export async function chooseObserveTarget({ actorId, declaration, request = "", userId = null } = {}) {
     if (!game.user.isGM) return { ok: false, reason: "notGm" };
     sweepPending();
 
@@ -189,7 +189,7 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
         const onlyKey = foundry.utils.randomID();
         readPending();
         pending.set(onlyKey, {
-            at: Date.now(), actorId, room, declaration, request,
+            at: Date.now(), actorId, by: userId, room, declaration, request,
             tokenId: null, sceneId: where.scene?.id ?? null,
             dc: PROJECT_OBSERVE.dc, data: null,
             projectId: secret.id, projectOnly: true
@@ -246,6 +246,8 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
     pending.set(key, {
         at: Date.now(),
         actorId,
+        // The account that asked for this key (E03) - see `observeResolveRefusal`.
+        by: userId,
         room,
         declaration,
         request,
@@ -461,6 +463,40 @@ async function askWhichRemnant(actor, room, request, candidates) {
  * ========================================================================== */
 
 /**
+ * Why a resolve of this Observe is refused, or null.
+ *
+ * A KEY IS ONE PERSON'S, FOR ONE CHARACTER, ONCE (E03, 24.09.2026; audit S05-03).
+ * The key was the whole of the check: the bridge made sure the sender owned the
+ * character NAMED IN THE PACKET, and this file then acted on the character named
+ * IN THE ENTRY, and never compared the two. The key sits on its owner's character
+ * as part of the Reroll bookmark (`lastAction`), which every client can read. So a
+ * player could take somebody else's key, name their own character, send a total
+ * of 0 with `undo`, and this client deleted the other player's Truth Bullet and
+ * then charged them the Sanity for a miss. The key could be used again for an
+ * hour.
+ *
+ * Now the character has to be the entry's, the account has to be the one the
+ * key was minted for, a key is resolved once, and an undo needs a result to undo.
+ * Pure, so the suite can hold it to that with an entry it made up.
+ *
+ * @param {object} entry  The pending entry.
+ * @param {object} asked
+ * @param {string|null} asked.actorId     The character the request names.
+ * @param {string|null} asked.senderId    Who sent it.
+ * @param {boolean}     asked.senderIsGm
+ * @param {boolean}     asked.undo
+ * @returns {string|null}
+ */
+export function observeResolveRefusal(entry, { actorId = null, senderId = null, senderIsGm = false, undo = false } = {}) {
+    if (!entry) return "no such Observe";
+    if (actorId && entry.actorId !== actorId) return "that Observe belongs to another character";
+    if (!senderIsGm && entry.by && entry.by !== senderId) return "that Observe was declared by somebody else";
+    if (!undo && entry.result) return "that Observe has already been resolved";
+    if (undo && !entry.result) return "that Observe has no result to take back";
+    return null;
+}
+
+/**
  * Score a thrown Observe against the target chosen in phase 1.
  *
  * @param {object} options
@@ -468,9 +504,12 @@ async function askWhichRemnant(actor, room, request, candidates) {
  * @param {number} options.total
  * @param {boolean} options.isCritical
  * @param {boolean} [options.undo]     A Reroll replacing an earlier result.
+ * @param {string|null} [options.senderId]  Who sent it, when it came over the bridge.
+ * @param {boolean} [options.senderIsGm]
+ * @returns {Promise<object|null>} `{ refused }` when `observeResolveRefusal` says no.
  */
 export async function resolveObserve({ key, total, isCritical = false, undo = false,
-    actorId = null } = {}) {
+    actorId = null, senderId = null, senderIsGm = true } = {}) {
     if (!game.user.isGM) return null;
     // THE CACHE FIRST, THEN THE SWEEP. A sweep over an unloaded cache is a sweep
     // over nothing, and it would then write that nothing back (ACT-08).
@@ -514,6 +553,9 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
         }
         return null;
     }
+
+    const refused = observeResolveRefusal(entry, { actorId, senderId, senderIsGm, undo });
+    if (refused) return { refused };
 
     const actor = game.actors.get(entry.actorId);
     if (!actor) return null;

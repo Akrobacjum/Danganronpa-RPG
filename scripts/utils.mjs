@@ -114,6 +114,12 @@ export function activeGmIds() {
     return game.users.filter(u => u.isGM && u.active).map(u => u.id);
 }
 
+/** Wait this long, and nothing else. For the one second look a GM-side guard gives
+ *  a message that may not have arrived yet (E03). */
+export function pause(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 /**
  * Exactly one client runs GM-side automation, so two GMs never both apply the
  * same effect.

@@ -747,6 +747,45 @@ function myStore() {
     return allDiscovered();
 }
 
+/*
+ * AN ANSWER IS TAKEN ONLY WHEN IT WAS ASKED FOR (E03, 24.09.2026; audit S07-17).
+ * `fog.shared` is a client's reply to the primary's "what do you hold?", and the
+ * primary merged it whenever it came: a player could send one from the console
+ * listing every room on the map for their own character, and the fog lifted for
+ * them for good - and the GM's record of where the class has been, which is an
+ * alibi, said they had been there. A player's reply now counts only in the ten
+ * seconds after the primary asked, once per player.
+ */
+let shareAskedAt = 0;
+const shareAnswered = new Set();
+const SHARE_WINDOW_MS = 10_000;
+
+/** Why a player's `fog.shared` is not taken, or null. Pure, for the suite. */
+export function fogShareRefusal({ sender, askedAt, answered, now = Date.now(), windowMs = SHARE_WINDOW_MS }) {
+    if (!sender) return "unknown sender";
+    if (sender.isGM) return null;
+    if (!askedAt || now - askedAt > windowMs) return "nobody asked";
+    if (answered?.has(sender.id)) return "already answered";
+    return null;
+}
+
+/**
+ * The same question with the bridge's one guard signature (see `firstRefusal` in
+ * gm-bridge.mjs, E03), asked of the primary's own record of when it asked and who
+ * has answered. It only reads them: marking the answer taken is the handler's.
+ */
+function guardFogShare(sender, payload, ctx) {
+    return fogShareRefusal({ sender, askedAt: shareAskedAt, answered: shareAnswered });
+}
+
+/** The primary's "what do you hold?". Exported for the ledger scenario, which cannot
+ *  reload a browser to reach the `ready` that asks it. */
+export function askForShares() {
+    shareAskedAt = Date.now();
+    shareAnswered.clear();
+    game.socket.emit(SOCKET_EVENT, { action: FOG_SHARE_ASK });
+}
+
 function registerLedgerRoad() {
     game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
         if (!payload?.action?.startsWith?.("fog.")) return;
@@ -777,6 +816,12 @@ function registerLedgerRoad() {
                     return;
                 case FOG_SHARED: {
                     if (!isPrimaryGm()) return;
+                    const why = guardFogShare(sender, payload, { asker: senderId, requestId: payload.requestId ?? null });
+                    if (why) {
+                        debug(`Ignored a fog ledger reply from ${sender.name}: ${why}.`);
+                        return;
+                    }
+                    if (!sender.isGM) shareAnswered.add(sender.id);
                     // A GM's copy is the union; a player's is trusted only for
                     // the characters they own, so nobody can write another
                     // character's history into the GM's record.
@@ -804,7 +849,7 @@ function registerLedgerRoad() {
             const primary = primaryGmId();
             if (isPrimaryGm()) {
                 if (!Object.keys(allDiscovered()).length) {
-                    game.socket.emit(SOCKET_EVENT, { action: FOG_SHARE_ASK });
+                    askForShares();
                 } else {
                     shareLedger(allDiscovered());
                 }

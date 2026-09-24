@@ -261,7 +261,7 @@
         "hint": "Lights the whole map and lets the module's room fog hide things: the room you are in is clear, rooms you have visited show through a veil, the rest is fogged. Off, Foundry's own vision applies. GMs see everything."
       },
       "lockPlayerResources": {
-        "name": "Players cannot edit Actions, Hope or statistics",
+        "name": "Players cannot edit Actions, Hope, Health, Sanity or statistics",
         "hint": "Those move through play - spend an action, take a rest, earn a Level Up. Health and Sanity are included: damage arrives from a crisis, a Call, a failed roll or a rest, never from clicking a pip. GMs are unaffected."
       },
       "chargeMovement": {
@@ -355,7 +355,8 @@
       "tokensColumn": "Tokens",
       "sealed": "This room cannot be searched. There is nothing in here to find, and no time of day changes that.",
       "sealedColumn": "No search",
-      "sealedNote": "“No search” closes a room to the Search action completely - not for this time of day, but until you clear it. Its tokens are left where they are and come back the moment you do."
+      "sealedNote": "“No search” closes a room to the Search action completely - not for this time of day, but until you clear it. Its tokens are left where they are and come back the moment you do.",
+      "notHere": "Your character is not in that room, so it cannot be searched from here."
     },
     "Sheet": {
       "ultimateLabel": "Ultimate",
@@ -1857,7 +1858,9 @@
         "one": "Merged {n} Truth Bullet record into the ledger.",
         "other": "Merged {n} Truth Bullet records into the ledger."
       },
-      "importFailed": "That file is not a Truth Bullet ledger."
+      "importFailed": "That file is not a Truth Bullet ledger.",
+      "editReverted": "{player} changed their Truth Bullet “{bullet}” - what it says or what it is. The change was put back: only a GM writes on evidence.",
+      "editUnrestored": "{player} changed the Truth Bullet “{bullet}”, and there was no record of it to put it back from. The change stayed on that one copy and went no further. Check it by hand."
     },
     "Inventory": {
       "overCap": "{actor} is over the {category} limit ({held}/{limit}). Allowed - a GM granted it.",
@@ -2057,7 +2060,9 @@
       "gatherCancel": "Call it off",
       "gatherCancelAsk": "Call off the assembly in {room}?",
       "gatherCancelled": "The assembly in {room} is called off.",
-      "gatherNoRefund": "No Despair comes back - the announcement has already been heard."
+      "gatherNoRefund": "No Despair comes back - the announcement has already been heard.",
+      "notArmedNotCharged": "{call} was not armed, and no Hope was taken.",
+      "despairGmOnly": "Despair Calls are a Monokuma's to spend, and a Monokuma is a GM."
     },
     "Monokuma": {
       "toggle": "Mark as Monokuma",
@@ -2318,7 +2323,8 @@
       },
       "completeTag": "Complete",
       "alreadyComplete": "{name} is finished. There is no work left in it.",
-      "allComplete": "Every project in {room} is already finished."
+      "allComplete": "Every project in {room} is already finished.",
+      "frozenNoProgress": "{name} has been sabotaged and cannot move forward until its repair is finished."
     },
     "RollDialog": {
       "locked": "Not yours to choose. Advantage and experiences are Hope Calls - ask the GM.",
@@ -2374,7 +2380,10 @@
         "murder.park": "Direct Murder",
         "monocub.meddle": "Confusion",
         "body.loot": "Take from the body",
-        "advancement.apply": "Level Up"
+        "advancement.apply": "Level Up",
+        "call.arm": "A Call for somebody else",
+        "daggerheart": "A Daggerheart change",
+        "remnant.tieForItem": "Tie a trace to the crime"
       },
       "refused": "The GM's client refused the “{what}” request. Nothing was applied.",
       "criticalHint": "Critical - this player is owed a substantial hint.",
@@ -2649,7 +2658,8 @@
         "shared": "Owned by more than one player:",
         "orphaned": "No player owner assigned - here is who does have access:",
         "nobody": "nobody at all"
-      }
+      },
+      "reverted": "“{actor}” was shared as Owner with every player, which lets all of them read the whole sheet. It is back to Observer. Give Owner to their one player only."
     },
     "Errors": {
       "wrongSystem": "The Danganronpa RPG module needs the Daggerheart system (Foundryborne). Found: {found}.",
@@ -3209,6 +3219,16 @@
       "plantUsableNote": "It arrives as whatever the finder was searching for - that is what makes it look ordinary. So it only springs for somebody who searched for a usable: nobody can use a tool or a weapon.",
       "plantAction": "Plant the item",
       "plantSettled": "{name} planted the item."
+    },
+    "Relay": {
+      "refused": "Refused a Daggerheart change from {name}: {what}. Nothing was changed.",
+      "forged": "<strong>{name}</strong> sent a change Daggerheart does not make for a player: {what}. Nothing was changed. If nobody at the table did anything unusual, tell the module's author - it may be a Daggerheart feature this module has not met yet.",
+      "unguarded": "The guard on Daggerheart's GM relay could not be put in place on Daggerheart {version}. This session, changes a player's Daggerheart asks your browser to make are NOT checked. Tell the module's author.",
+      "unreviewed": "Daggerheart {version} sends {cases}, which this module has not reviewed. Your browser refuses it for players. If a Daggerheart feature stops working for a player, that is why.",
+      "unreadable": "cases this module cannot read",
+      "unknownSender": "Daggerheart asked your browser to make a change for a sender Foundry did not name, and it was refused. If players' Hope, Stress or Fear stop changing when they roll, this is why - tell the module's author.",
+      "busyFear": "Daggerheart moved Fear {steps} times in ten seconds for {name}. Every step was made; have a look at the chat if that seems like more rolls than there were.",
+      "backstop": "The guard on Daggerheart's GM relay could not take Daggerheart {version}'s own listener off the channel, so a fallback checks each change in front of it instead. Players' requests are still checked. Tell the module's author."
     }
   }
 }

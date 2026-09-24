@@ -21,7 +21,7 @@
 
 import { MODULE_ID, analyzeDc, TRUTH_BULLET_TYPES } from "./config.mjs";
 import {
-    TRUTH_BULLET_FLAGS, secretOf, setSecret, isTruthBullet, bulletDescription, faintOf, NOT_AN_EDIT
+    TRUTH_BULLET_FLAGS, secretOf, setSecret, isTruthBullet, isAnalysable, bulletDescription, faintOf, NOT_AN_EDIT
 } from "./truth-bullets.mjs";
 // The trace's own `public` record, for a reading a bullet's secret was minted
 // without (T-2). Static: remnants.mjs does not import this file.
@@ -53,6 +53,18 @@ export async function resolveAnalyze({
 
     const { getClock } = await import("./clock.mjs");
     const chapter = getClock().chapter;
+
+    /*
+     * THE RULE ON THIS SIDE TOO (E03, 24.09.2026; audit S05-40). One Analyze
+     * per bullet per chapter, and none on a bullet already read, was enforced
+     * by the sheet alone: a packet from the console - `undo` included - lifted
+     * this chapter's lock and bought a second reading. A fresh throw needs a
+     * bullet that can still be analysed now; an undo needs a throw in THIS
+     * chapter to take back, recorded below when it was scored.
+     */
+    const secretNow = secretOf(item.uuid);
+    if (!undo && !isAnalysable(item, chapter)) return { refused: "that bullet cannot be analysed now" };
+    if (undo && secretNow.analysedChapter !== chapter) return { refused: "no Analyze of that bullet this chapter to take back" };
 
     // A Reroll buys back the dice, not the attempt. Whatever the first throw
     // decided about this bullet is wound back before the second is scored.
@@ -107,7 +119,10 @@ export async function resolveAnalyze({
         // What it showed before this throw, for the Reroll above to put back.
         try {
             await setSecret(item.uuid, {
-                analysedFrom: item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral"
+                analysedFrom: item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral",
+                // Which chapter the throw belongs to: a Reroll may take back
+                // this chapter's, and nothing older (E03).
+                analysedChapter: chapter
             });
         } catch (err) {
             error("Could not record what the bullet showed before its Analyze", err);

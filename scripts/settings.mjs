@@ -14,6 +14,8 @@ export const SETTINGS = {
     recommendsSilenced: "recommendsSilenced",
     /** The Daggerheart version this browser's GM said not to be warned about again (E01, S01-09). */
     systemWarningSilenced: "systemWarningSilenced",
+    /** Which relay warning this GM last had, and for which Daggerheart version (E03, relay-guard.mjs). */
+    relayWarned: "relayWarned",
     /** Hold Isometric Perspective's welcome window off on every client (E27, N2 - see enforced.mjs). */
     enforceIsoWelcome: "enforceIsoWelcome",
     forcePrivateRolls: "forcePrivateRolls",
@@ -610,6 +612,18 @@ export function registerSettings() {
        THAT version only: the next Daggerheart release is a new unknown and the GM
        hears about it again. Same shape and scope as the switch above. */
     game.settings.register(MODULE_ID, SETTINGS.systemWarningSilenced, {
+        scope: "client",
+        config: false,
+        type: String,
+        default: ""
+    });
+
+    /* The relay warning this browser's GM has been given, and for which
+       Daggerheart version (E03, relay-guard.mjs): the version alone for the
+       unreviewed cases, `backstop|<version>` for the fallback - each once per
+       version, like the warning above. An UNGUARDED relay is said on every
+       load regardless. */
+    game.settings.register(MODULE_ID, SETTINGS.relayWarned, {
         scope: "client",
         config: false,
         type: String,
@@ -1265,7 +1279,9 @@ export function registerSettings() {
         scope: "world",
         config: true,
         type: Boolean,
-        default: true
+        default: true,
+        // The stylesheet's half of the lock follows at once (E03; audit S01-40).
+        onChange: value => document.body.classList.toggle("drpg-resources-locked", Boolean(value))
     });
 
     game.settings.register(MODULE_ID, SETTINGS.chargeMovement, {

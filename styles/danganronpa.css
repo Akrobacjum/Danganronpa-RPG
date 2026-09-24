@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.59";
+    --drpg-css-version: "1.2.60";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -1497,11 +1497,14 @@ body.drpg-hide-system-fear #resource-fear {
    PLAYER-LOCKED FIELDS
    --------------------------------------------------------------------------
    Hope and the traits change through play, not by clicking. For players they
-   become display-only; the GM keeps full control. Health and Sanity stay editable -
-   players mark their own damage constantly.
+   become display-only; the GM keeps full control. Only while "Players cannot
+   edit..." is on (`drpg-resources-locked`, stamped by module.mjs and by the
+   setting's onChange): with it off, resource-guard.mjs lets the edit through,
+   and a click the stylesheet still swallowed made the switch look broken (E03;
+   audit S01-40). Health and Sanity are guarded by resource-guard.mjs, not here.
    ========================================================================== */
 
-body:not(.drpg-gm) .character-header-sheet .hope-section .hope-value {
+body.drpg-player.drpg-resources-locked .character-header-sheet .hope-section .hope-value {
     pointer-events: none;
 }
 
@@ -5566,9 +5569,9 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    stops the click landing in the first place.
    ========================================================================== */
 
-body:not(.drpg-gm) .character-header-sheet .character-traits .trait .trait-value input,
-body:not(.drpg-gm) .character-header-sheet .character-traits .trait .trait-value-area input,
-body:not(.drpg-gm) .character-header-sheet .character-traits .trait input[name*="traits"] {
+body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits .trait .trait-value input,
+body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits .trait .trait-value-area input,
+body.drpg-player.drpg-resources-locked .character-header-sheet .character-traits .trait input[name*="traits"] {
     pointer-events: none !important;
     user-select: none;
 }

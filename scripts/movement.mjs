@@ -72,6 +72,122 @@ export function registerMovement() {
     Hooks.on("updateToken", onUpdateToken);
     Hooks.on("canvasReady", primeRoomCache);
     Hooks.on("preCreateToken", onPreCreateToken);
+    Hooks.on("updateToken", noteGmPosition);
+    Hooks.on("createToken", token => gmSeen.set(token.id, positionOf(token)));
+    Hooks.once("ready", primeGmPositions);
+}
+
+/* ==========================================================================
+ * WHERE A TOKEN HAS BEEN, AS THE PRIMARY GM SAW IT (E03, 24.09.2026)
+ * --------------------------------------------------------------------------
+ * A player whose client cannot put its own token back asks the GM to
+ * (`requestSendBack`), and the GM wrote whatever position the packet named,
+ * with the flag that tells this file not to charge for the move. That is a
+ * free teleport anywhere on the map, from the console (audit S10-40). The only
+ * honest "back" is somewhere the token actually stood a moment ago, so the
+ * primary GM remembers the last few places each token was moved FROM, and the
+ * bridge sends a token only there (`sendBackRefusal`).
+ *
+ * Every update is recorded, intermediate steps of a drag included: v14 moves a
+ * token as a series of updates, and which of them carry the pending route on a
+ * client that did not drag it has not been measured. So the ring is long enough
+ * for a route with several waypoints, and the window is a minute.
+ * ========================================================================== */
+
+/** tokenId -> where it stands now, as last seen here. */
+const gmSeen = new Map();
+/** tokenId -> the places it was moved from, newest last. */
+const gmHistory = new Map();
+const GM_HISTORY_KEPT = 8;
+
+function positionOf(tokenDoc) {
+    return {
+        x: tokenDoc.x, y: tokenDoc.y,
+        elevation: tokenDoc.elevation ?? 0,
+        // The v14 name of a token's level has not been read off a live table;
+        // whatever it is called, it is recorded as undefined here until then,
+        // and a send-back that names one is refused rather than guessed at.
+        level: tokenDoc.level ?? undefined
+    };
+}
+
+function primeGmPositions() {
+    if (!isPrimaryGm()) return;
+    for (const scene of game.scenes ?? []) {
+        for (const token of scene.tokens ?? []) gmSeen.set(token.id, positionOf(token));
+    }
+}
+
+function noteGmPosition(tokenDoc, changes) {
+    if (!isPrimaryGm()) return;
+    if (changes?.x === undefined && changes?.y === undefined
+        && changes?.elevation === undefined && changes?.level === undefined) return;
+    const was = gmSeen.get(tokenDoc.id);
+    if (was) {
+        const ring = [...(gmHistory.get(tokenDoc.id) ?? []), { ...was, at: Date.now() }];
+        gmHistory.set(tokenDoc.id, ring.slice(-GM_HISTORY_KEPT));
+    }
+    gmSeen.set(tokenDoc.id, positionOf(tokenDoc));
+}
+
+/** The places this token was moved from lately, as the primary GM saw them. */
+export function recentPositions(tokenId) {
+    return [...(gmHistory.get(tokenId) ?? [])];
+}
+
+/**
+ * The rooms this token stood in during the last minute, as the primary GM saw
+ * it, the one it stands in now included. A route through three rooms reports
+ * a crossing into the middle one after the token has already left it; this is
+ * how the GM can still say the token was there (traps.mjs).
+ */
+export function roomsVisited(tokenDoc, { now = Date.now(), windowMs = 60_000 } = {}) {
+    const rooms = new Set();
+    if (!tokenDoc) return rooms;
+    const here = roomOfToken(tokenDoc);
+    if (here) rooms.add(here);
+    for (const spot of recentPositions(tokenDoc.id)) {
+        if (now - spot.at > windowMs) continue;
+        const room = roomAt(spot.x, spot.y, tokenDoc);
+        if (room) rooms.add(room);
+    }
+    return rooms;
+}
+
+/**
+ * Why a token may not be sent to this position, or null. Pure, for the suite.
+ *
+ * @param {object} position   What the packet asks for.
+ * @param {object} options
+ * @param {object} [options.scene]    For its size.
+ * @param {object[]} options.history  `recentPositions` for the token.
+ * @param {object[]} [options.centres]  The spot `positionIn` gives for each room
+ *   the token stood in during the window (`roomsVisited`). A route through
+ *   several rooms that fails at the second crossing sends the token to the room
+ *   it paid for (MAP-11), and that spot is a room's centre, which the token
+ *   never stood on - the E03 review found the honest request refused.
+ * @param {number} [options.now]
+ * @param {number} [options.windowMs]
+ * @returns {string|null}
+ */
+export function sendBackRefusal(position, { scene = null, history = [], centres = [], now = Date.now(), windowMs = 60_000 } = {}) {
+    const x = Number(position?.x);
+    const y = Number(position?.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return "the position is not a place on the map";
+    const width = Number(scene?.dimensions?.width);
+    const height = Number(scene?.dimensions?.height);
+    if (Number.isFinite(width) && Number.isFinite(height) && (x < 0 || y < 0 || x > width || y > height)) {
+        return "the position is off the scene";
+    }
+    if (position.elevation !== undefined && !Number.isFinite(Number(position.elevation))) {
+        return "the elevation is not a number";
+    }
+    const matches = history.some(h => now - h.at <= windowMs && h.x === x && h.y === y
+        && (position.elevation === undefined || h.elevation === Number(position.elevation))
+        && (position.level === undefined || h.level === position.level));
+    const centre = position.elevation === undefined && position.level === undefined
+        && centres.some(c => c && c.x === x && c.y === y);
+    return matches || centre ? null : "the token did not stand there a moment ago";
 }
 
 /**
@@ -964,7 +1080,7 @@ async function sendBack(tokenDoc, previous, room) {
 }
 
 /** A position inside a named room on the token's scene - its centre, less the token's own size. */
-function positionIn(room, tokenDoc) {
+export function positionIn(room, tokenDoc) {
     try {
         const scene = tokenDoc?.parent ?? canvas?.scene;
         const region = Array.from(scene?.regions ?? []).find(r => r.name === room);
@@ -1056,10 +1172,25 @@ export function roomOfActor(actor) {
  * anybody happens to be looking at. Used by Observe, which is scored on the GM's
  * client - see observe.mjs.
  *
+ * A CHARACTER ON SEVERAL SCENES. When the caller passes the scene a player's
+ * request names (`sceneId`) and the character has a token there, that scene
+ * wins, so the check is made on the scene the player acted on rather than the
+ * one the GM is looking at (the E03 review). Only the search spend
+ * (search-tokens.mjs) and a player's trace (gm-bridge.mjs) pass it; no other
+ * caller does yet, and like any call without `sceneId` they take the rendered
+ * token, then the scene being viewed, then any scene.
+ *
+ * @param {Actor} actor
+ * @param {object} [options]
+ * @param {string|null} [options.sceneId]  The scene to look on first.
  * @returns {{tokenDoc: TokenDocument, scene: Scene, room: string|null}|null}
  */
-export function locateActor(actor) {
+export function locateActor(actor, { sceneId = null } = {}) {
     if (!actor) return null;
+
+    const named = sceneId ? game.scenes?.get(sceneId) : null;
+    const there = named?.tokens?.find(t => t.actorId === actor.id);
+    if (there) return { tokenDoc: there, scene: named, room: roomOfToken(there) };
 
     // The rendered token first when there is one: it is the freshest position,
     // and it is the common case for a player acting on their own screen.
@@ -1074,6 +1205,18 @@ export function locateActor(actor) {
         if (tokenDoc) return { tokenDoc, scene, room: roomOfToken(tokenDoc) };
     }
     return null;
+}
+
+/** Every place this character has a token, on every scene - `locateActor` for all of them. */
+export function placesOf(actor) {
+    if (!actor) return [];
+    const places = [];
+    for (const scene of game.scenes ?? []) {
+        for (const tokenDoc of scene?.tokens ?? []) {
+            if (tokenDoc.actorId === actor.id) places.push({ tokenDoc, scene, room: roomOfToken(tokenDoc) });
+        }
+    }
+    return places;
 }
 
 /**

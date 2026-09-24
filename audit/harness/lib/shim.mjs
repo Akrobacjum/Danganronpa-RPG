@@ -314,7 +314,14 @@ export function buildDocumentClasses(ctx) {
             delete changes._id;
             if (U.isEmpty(changes)) return this;
             const hooks = ctx.hooks();
-            const pre = hooks.call(`preUpdate${this.documentName}`, this, U.expandObject(U.deepClone(changes)), opts(context), ctx.userId());
+            // `noHook` skips the `pre` hook here and the `update` hook in
+            // client-entry.mjs's `applyRemote`. Foundry documents it as blocking
+            // "the hooks related to this operation"; whether the post-hook is one
+            // of them on v14 is not measured (AUDIT §9), so the harness takes the
+            // reading that proves less. Configure Ownership saves this way, and
+            // anonymity.mjs guards it after the fact.
+            const pre = context?.noHook ? undefined
+                : hooks.call(`preUpdate${this.documentName}`, this, U.expandObject(U.deepClone(changes)), opts(context), ctx.userId());
             if (pre === false) return this;
             if (this.parent) {
                 await this.parent._embeddedOp("update", this.documentName, [{ _id: this.id, ...changes }], context);
