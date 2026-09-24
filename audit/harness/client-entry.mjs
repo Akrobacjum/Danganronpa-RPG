@@ -11,7 +11,7 @@ import { JSDOM } from "jsdom";
 import * as U from "./lib/futil.mjs";
 import { DataFieldOperator, ForcedDeletion, ForcedReplacement, revive } from "./lib/operators.mjs";
 import { readVersions } from "./lib/versions.mjs";
-import { AUTOMATION_DEFAULT, resourceTables, ResourceUpdateMap, addDualityResourceUpdates } from "./lib/daggerheart.mjs";
+import { AUTOMATION_DEFAULT, resourceTables, ResourceUpdateMap, addDualityResourceUpdates, modifyResource, updateFear } from "./lib/daggerheart.mjs";
 import { HooksImpl, Collection, buildDocumentClasses, buildPIXI, buildApplications, RollImpl, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
 
 const WHO = process.env.DRPG_USER ?? "gm";
@@ -511,6 +511,9 @@ classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, options =
     return this.diceRoll({ roll: { trait: traitKey, type: "trait" }, hasRoll: true, actionType: "action", ...options });
 };
 
+/* actor.mjs `modifyResource` (lib/daggerheart.mjs): a GM writes, a player asks the GM relay (E30, G9). */
+classes.Actor.prototype.modifyResource = function (resources) { return modifyResource(this, resources); };
+
 classes.Actor.prototype.diceRoll = async function diceRoll(config) {
     config.source = { ...(config.source ?? {}), actor: this.uuid };
     config.data = this.getRollData();
@@ -647,6 +650,8 @@ function record(level) {
 }
 globalThis.ui = {
     notifications: { info: record("info"), warn: record("warn"), error: record("error"), notify: record("notify"), remove() {}, clear() {} },
+    // Daggerheart's Fear tracker, as far as modifyResource uses it (lib/daggerheart.mjs).
+    resources: { updateFear },
     chat: { element: document.querySelector("#chat"), scrollBottom() {}, render() {}, postOne() {}, collapsed: false },
     sidebar: { element: document.querySelector("#sidebar"), tabs: {}, render() {}, expand() {}, collapse() {}, activateTab() {} },
     windows: {},

@@ -76,11 +76,12 @@ that declares none.
   `skips`, defeated-actor and reroll rules) into a `ResourceUpdateMap` that the
   caller commits. The dice are the harness's (`__forceRoll`), the Automation
   setting is Daggerheart's own shape (the seed turns `hopeFear` on for both), and
-  `CONFIG.DH.RESOURCE` is built as Daggerheart builds it. The commit is written
-  straight to the actor, not by `modifyResource`: Fear is produced but written
-  nowhere, and a player's resources do not go through the GM relay. There are
+  `CONFIG.DH.RESOURCE` is built as Daggerheart builds it. A commit is the
+  actor's `modifyResource`: a GM or an Assistant writes the change, anybody else
+  sends it to the GM relay as Daggerheart's `emitAsGM` does (Fear through the
+  Fear tracker's `updateFear`), and it returns before the write lands. There are
   no Daggerheart sheets, roll dialogs or roll hooks, countdown ticks or windows,
-  triggers, domain cards, damage or armour.
+  triggers, domain cards, damage, armour or item costs.
 - **Every chat message reaches every client**, whispers included, as on v14;
   the shim's `ChatMessage#visible` decides what shows. A socket packet reaches
   only its `recipients` when it names them.

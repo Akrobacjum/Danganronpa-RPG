@@ -20,12 +20,17 @@
  * map, and whoever asked commits it - the sheet's trait button
  * (character.mjs `#rollAttribute`) or this module's `commitResources`
  * (action-rolls.mjs). The harness's mock committed inside the roll and then
- * emptied the map, so a second commit did nothing.
+ * emptied the map, so a second commit did nothing. A commit is the actor's
+ * `modifyResource` (actor.mjs, with socket.mjs `emitGMUpdate`): each change
+ * is clamped to 0..max and written by `emitAsGM`, which a GM or an Assistant
+ * runs itself and anybody else sends to the GM relay as `DhGMUpdate` - Fear
+ * included, through the Fear tracker's `updateFear`. Neither write is waited
+ * for: `modifyResource` returns before it lands, as Daggerheart's does
+ * ("Resources are modified asynchronously").
  *
  * Not modelled: the roll's own hooks (preRoll, postRoll...), countdown ticks,
- * triggers and domain cards (`dualityUpdate`, `handleTriggers`), damage and
- * armor. `writeResources` stands in for the actor's `modifyResource`, which
- * the next commit of E30 models (C9b, the relay for a player's writes).
+ * triggers and domain cards (`dualityUpdate`, `handleTriggers`), damage,
+ * armour and item costs.
  */
 
 /** Daggerheart 2.6.5's Automation setting at its defaults (Automation.mjs `defineSchema`). */
@@ -111,7 +116,7 @@ export class ResourceUpdateMap extends Map {
     async updateResources() {
         if (this.#actor) {
             const target = this.#actor.system.partner ?? this.#actor;
-            await writeResources(target, this.#getResources());
+            await target.modifyResource(this.#getResources());
         }
     }
 }
@@ -144,26 +149,56 @@ export async function addDualityResourceUpdates(config) {
     }
 }
 
+/** socket.mjs `emitAsGM`: a GM (an Assistant too) runs the write itself; anybody else asks the GM relay. */
+async function emitAsGM(event, data) {
+    if (!game.user.isGM) return game.socket.emit(`system.${CONFIG.DH.id}`, { action: event, data });
+    return data.callback(data.data);
+}
+
+/** socket.mjs `emitGMUpdate`. The callback does not survive the socket; the relay's GM handler writes instead. */
+export async function emitGMUpdate(eventName, callback, update, uuid = null, refresh = null) {
+    return emitAsGM("DhGMUpdate", { action: eventName, callback, data: update, uuid, refresh });
+}
+
+/** fearTracker.mjs `updateFear`, what `ui.resources` offers `modifyResource` for Fear. */
+export function updateFear(value) {
+    return emitGMUpdate("DhGMUpdateFear",
+        game.settings.set.bind(game.settings, CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear), value);
+}
+
 /**
- * The harness's stand-in for the actor's `modifyResource` (actor.mjs): its
- * arithmetic - a Stress past its maximum turns into one Hit Point, `clear`
- * empties, each value is held between 0 and its maximum - written straight to
- * the actor and waited for. Fear, armour and item costs are not written: in
- * Daggerheart a player's go through the GM relay, which this commit does not
- * model (C9b does, with `modifyResource` itself).
+ * actor.mjs `modifyResource` (2.6.5), with the actor as its first argument: a
+ * Stress past its maximum becomes a Hit Point, `clear` empties, each resource is
+ * held between 0 and its maximum, Fear goes to the Fear tracker. The writes are
+ * started and not waited for, as in Daggerheart. Armour and item costs are not
+ * modelled.
  */
-async function writeResources(actor, resources) {
+export async function modifyResource(actor, resources) {
     if (!resources?.length) return;
     if (resources.find(r => r.key === "stress")) convertStressDamageToHP(actor, resources);
     const changes = {};
-    for (const r of resources) {
-        if (r.itemId || r.key === "fear" || r.key === "armor") continue;
-        const base = actor.system.resources?.[r.key];
-        if (!base) continue;
-        const value = r.clear ? (base.max && base.inverted ? base.max : 0) : (base.value ?? base) + r.value;
-        changes[`system.resources.${r.key}.value`] = Math.max(Math.min(value, base.max), 0);
+    resources.forEach(r => {
+        if (r.itemId) return;
+        const valueFunc = (base, resource, baseMax) => {
+            if (resource.clear) return baseMax && base.inverted ? baseMax : 0;
+            return (base.value ?? base) + resource.value;
+        };
+        switch (r.key) {
+            case "fear":
+                ui.resources.updateFear(valueFunc(game.settings.get(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear), r));
+                break;
+            case "armor":
+                break;
+            default:
+                if (actor.system.resources?.[r.key]) {
+                    const base = actor.system.resources[r.key];
+                    changes[`system.resources.${r.key}.value`] = Math.max(Math.min(valueFunc(base, r, base.max), base.max), 0);
+                }
+        }
+    });
+    if (Object.keys(changes).length) {
+        (async () => { await emitGMUpdate("DhGMUpdateDocument", actor.update.bind(actor), changes, actor.uuid); })();
     }
-    if (Object.keys(changes).length) await actor.update(changes);
 }
 
 /** actor.mjs, copied: Stress past its maximum is a Hit Point instead. */
