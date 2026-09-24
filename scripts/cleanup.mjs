@@ -647,9 +647,16 @@ async function askTransform(actor) {
  *
  * Empty in, empty out, and callers read empty as "they did not fill this in".
  */
-function plainText(value, max) {
+export function plainText(value, max) {
     return String(value ?? "")
         .replace(/<[^>]*>/g, " ")
+        /* AND EVERY ANGLE BRACKET LEFT OVER (E02, 24.09.2026; audit S05-05). The
+           pattern above only matches a CLOSED tag, so `<img src=x onerror=alert(1)//`
+           - 29 characters, inside the 60 a name may have - came through whole,
+           was printed into the GM's secret card by `innerHTML`, and ran there with
+           the GM's permissions. Measured. Nothing a killer writes on a trace needs
+           either character. */
+        .replace(/[<>]/g, "")
         .replace(/\s+/g, " ")
         .trim()
         .slice(0, Math.max(0, max));
@@ -731,7 +738,9 @@ async function reshapeTrace(token, data, {
         band: REMNANT_VISIBILITY_LABELS[patch.visibility ?? data.visibility]
             ?? data.visibilityLabel,
         kind: REMNANT_TYPES[patch.type]?.label ?? patch.type,
-        name: name || game.i18n.localize("DRPG.Cleanup.reshapeUnnamed")
+        // Escaped where it is printed as well as cleaned where it arrived: the card
+        // is drawn with `innerHTML` on the GM's screen (S05-05).
+        name: foundry.utils.escapeHTML(name || game.i18n.localize("DRPG.Cleanup.reshapeUnnamed"))
     }));
 }
 
@@ -836,7 +845,7 @@ async function proposeReshape(actor, token, data, {
     }
 
     done.push(game.i18n.format("DRPG.Cleanup.reshapeWaiting", {
-        name: name || game.i18n.localize("DRPG.Cleanup.reshapeUnnamed")
+        name: foundry.utils.escapeHTML(name || game.i18n.localize("DRPG.Cleanup.reshapeUnnamed"))
     }));
     return true;
 }
@@ -1993,7 +2002,8 @@ async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
     });
 
     done.push(game.i18n.format("DRPG.Cleanup.trailPlanted", {
-        name: framed?.name ?? "?", visibility
+        // A character's name is its owner's to write (S05-05, S04-10).
+        name: foundry.utils.escapeHTML(framed?.name ?? "?"), visibility
     }));
 }
 

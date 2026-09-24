@@ -1499,7 +1499,7 @@ async function grantImprovisedWeapon(actor, def, band, done) {
     }
 
     done.push(game.i18n.format("DRPG.Murder.improvised", {
-        item: item.name, tier
+        item: foundry.utils.escapeHTML(item.name), tier
     }));
     return item.id;
 }
@@ -1948,7 +1948,9 @@ async function checkVictimSpent(done = null) {
     await writeState({ stage: "resolution", endedBy: "ranOut" });
 
     const line = game.i18n.format("DRPG.Murder.ranOut", { name: victim.name });
-    if (done) done.push(line);
+    // `done` is printed into a card with `innerHTML`, and a name is its owner's to
+    // write (E02, audit S04-10); the GM's copy below escapes the whole line itself.
+    if (done) done.push(foundry.utils.escapeHTML(line));
 
     await whisperToGms(`<h3>${game.i18n.localize("DRPG.Murder.ranOutTitle")}</h3>
         <p>${foundry.utils.escapeHTML(line)}</p>
@@ -2075,7 +2077,7 @@ async function applyDamage(actor, state, def, band, done, failed = false, choice
     }
     await automatedUpdate(victim, update);
     done.push(game.i18n.format("DRPG.Murder.damaged", {
-        name: victim.name,
+        name: foundry.utils.escapeHTML(victim.name),
         what: Object.entries(hit).map(([r, n]) => `${n} ${r.toUpperCase()}`).join(", ")
     }));
 }
@@ -2377,7 +2379,7 @@ async function drain(state, amount, done) {
 
     if (Object.keys(update).length) {
         await automatedUpdate(victim, update);
-        done.push(game.i18n.format("DRPG.Murder.drained", { name: victim.name, n: amount }));
+        done.push(game.i18n.format("DRPG.Murder.drained", { name: foundry.utils.escapeHTML(victim.name), n: amount }));
     }
 }
 

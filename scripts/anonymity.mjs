@@ -208,7 +208,7 @@ function buildBodyLoot(root, actor) {
     list.className = "drpg-loot-list";
     for (const item of items) {
         const row = document.createElement("li");
-        row.innerHTML = `<img src="${item.img}" alt="" />
+        row.innerHTML = `<img src="${foundry.utils.escapeHTML(item.img ?? "")}" alt="" />
             <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>`;
 
         const take = document.createElement("button");

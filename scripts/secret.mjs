@@ -107,6 +107,53 @@ const isStub = content => String(content ?? "").includes("data-drpg-secret");
 /** How many secrets a browser keeps. Beyond this the oldest go. */
 const KEEP = TIMING.secretCardsKept;
 
+/*
+ * WHAT A PLAYER MAY PUT IN THIS STORE (E02, 24.09.2026; audit S01-03, S11-01,
+ * S11-28, S11-29).
+ *
+ * The store is the one place in the module where HTML goes into `innerHTML`
+ * without passing the server: a document's `content` is cleaned by Foundry
+ * before anybody sees it, and the whole point of this file is that the words
+ * never touch the document. So the cleaning the server would have done is done
+ * here. Words sent by a player - their own messenger bubble, the only honest
+ * case - are run through `cleanHTML` when they arrive; words written by a GM are
+ * stored as the GM wrote them, because a GM's card carries its own buttons and a
+ * GM can already run anything they like. Every entry that was not stored by a
+ * GM this way - a player's, and every entry written before this existed - is
+ * cleaned again when it is read, once per session.
+ *
+ * `cleanHTML` keeps `data-*` attributes and `<button>`, which is what a card's
+ * actions are made of; it removes `on*` handlers and `javascript:` addresses,
+ * which is what `<img src=x onerror=...>` is made of.
+ */
+
+/** Past this, a player's packet is not a messenger bubble. 32 KB is a long letter. */
+const MAX_PLAYER_BYTES = 32 * 1024;
+
+/**
+ * Pinned cards are a messenger's threads and are never aged out with the
+ * ordinary ones - but "never" was also "without limit", and a thread of years
+ * fills the browser's storage, after which every write failed silently and the
+ * answer keys in the same storage stopped saving (S11-28). The newest this many
+ * stay.
+ */
+const KEEP_PINNED = 2000;
+
+/** HTML a browser will not run, from HTML somebody else wrote. */
+function sanitize(html) {
+    const text = String(html ?? "");
+    try {
+        if (typeof foundry.utils.cleanHTML === "function") return foundry.utils.cleanHTML(text);
+    } catch (err) {
+        debug("cleanHTML refused a private card's words; showing them as text", err);
+    }
+    // No cleaner here, or it threw: the words as text, which cannot run anything.
+    return foundry.utils.escapeHTML(text);
+}
+
+/** Cleaned readings of untrusted entries, by id, for this session. */
+const cleaned = new Map();
+
 /* ==========================================================================
  * THE STORE
  * ========================================================================== */
@@ -129,6 +176,9 @@ function read() {
     return cache;
 }
 
+/** Said once per session: a store that cannot be written is losing every card after this one. */
+let toldFull = false;
+
 async function write(next) {
     cache = next;
     try {
@@ -136,19 +186,38 @@ async function write(next) {
     } catch (err) {
         error("Could not keep a private card", err);
         cache = null;
+        /* OUT LOUD FOR A GM (S11-28). The usual cause is a full localStorage, and
+           the answer keys live in the same storage - so from here on the Truth
+           Bullet and Remnant ledgers stop saving too. A line in the console was
+           the only sign. */
+        if (game.user?.isGM && !toldFull) {
+            toldFull = true;
+            ui.notifications?.error(game.i18n.localize("DRPG.Secret.storeFull"), { permanent: true });
+        }
     }
 }
 
 /** Drop the parsed copy - something else wrote the store. */
 export function forgetSecrets() {
     cache = null;
+    cleaned.clear();
 }
 
-/** The words belonging to a card, if this browser is holding them. */
+/**
+ * The words belonging to a card, if this browser is holding them - for this
+ * user only (S11-29): one browser, two logins, and the second used to read the
+ * first one's veiled cards. An entry from before the owner was recorded has no
+ * owner and is shown as before.
+ */
 export function secretHtml(message) {
     if (!message?.id) return null;
     if (!message.flags?.[MODULE_ID]?.[SECRET_FLAG]) return null;
-    return read()[message.id]?.html ?? null;
+    const entry = read()[message.id];
+    if (!entry || typeof entry.html !== "string") return null;
+    if (entry.user && entry.user !== game.user?.id) return null;
+    if (entry.trusted) return entry.html;
+    if (!cleaned.has(message.id)) cleaned.set(message.id, sanitize(entry.html));
+    return cleaned.get(message.id);
 }
 
 /**
@@ -211,22 +280,33 @@ export function contentOf(message) {
     return secretHtml(message) ?? message?.content ?? "";
 }
 
-async function remember(id, html, at, pin = false) {
+/**
+ * @param {boolean} [trusted]  Written by a GM, as the GM wrote it. Anything else
+ *   is cleaned before it is shown - see the note above `MAX_PLAYER_BYTES`.
+ */
+async function remember(id, html, at, pin = false, trusted = false) {
+    const words = trusted ? html : sanitize(html);
     // Anything holding a notice open for these words gets them now.
     const pending = waiting.get(id);
-    if (pending) pending(html);
+    if (pending) pending(words);
 
-    const store = { ...read(), [id]: { html, at: at ?? Date.now(), ...(pin ? { pin: true } : {}) } };
+    cleaned.delete(id);
+    const store = { ...read(), [id]: {
+        html: words, at: at ?? Date.now(), user: game.user?.id ?? null,
+        ...(pin ? { pin: true } : {}), ...(trusted ? { trusted: true } : {})
+    } };
 
     // Oldest first, and only as many as we are over by. A store that emptied
     // itself on every overflow would lose a whole session's narration to one
     // busy evening. PINNED cards - the messenger's threads, the longest-lived
-    // cards in the world - are never the ones to go: a thread that aged out
-    // of the store would show its oldest bubbles as dashes.
-    const ids = Object.keys(store).filter(key => !store[key].pin);
-    if (ids.length > KEEP) {
+    // cards in the world - are not aged out with the rest: a thread that aged
+    // out would show its oldest bubbles as dashes. They have a ceiling of their
+    // own (`KEEP_PINNED`), far above any thread a table writes in a season.
+    for (const [pinnedToo, cap] of [[false, KEEP], [true, KEEP_PINNED]]) {
+        const ids = Object.keys(store).filter(key => Boolean(store[key].pin) === pinnedToo);
+        if (ids.length <= cap) continue;
         ids.sort((a, b) => (store[a].at ?? 0) - (store[b].at ?? 0));
-        for (const stale of ids.slice(0, ids.length - KEEP)) delete store[stale];
+        for (const stale of ids.slice(0, ids.length - cap)) delete store[stale];
     }
     await write(store);
 
@@ -299,7 +379,7 @@ export async function postSecret(data = {}) {
     // recipient of should never be waiting on their own network round trip to
     // read what they just wrote.
     if (recipients.includes(game.user.id)) {
-        await remember(message.id, html, at, pin);
+        await remember(message.id, html, at, pin, game.user.isGM);
         refresh(message);
     }
 
@@ -337,7 +417,7 @@ export async function updateSecret(message, html, recipients = null) {
     const at = read()[message.id]?.at ?? message.timestamp ?? Date.now();
     const pin = pinned(message.flags);
     if (readers.includes(game.user.id) || !readers.length) {
-        await remember(message.id, html, at, pin);
+        await remember(message.id, html, at, pin, game.user.isGM);
         refresh(message);
     }
     const others = readers.filter(id => id !== game.user.id);
@@ -403,8 +483,18 @@ export function registerSecrets() {
                     debug(`Refused private words for ${payload.id} from ${sender?.name ?? senderId}: not the author.`);
                     return;
                 }
+                /* A PLAYER'S WORDS: bounded, cleaned, and pinned only if the card
+                   really is a thread's - read off the document, not the packet
+                   (S11-28). `remember` cleans them, because `trusted` is false. */
+                if (new Blob([payload.html]).size > MAX_PLAYER_BYTES) {
+                    debug(`Refused private words for ${payload.id} from ${sender?.name ?? senderId}: over ${MAX_PLAYER_BYTES} bytes.`);
+                    return;
+                }
+                await remember(payload.id, payload.html, payload.at, pinned(message.flags), false);
+                refresh(game.messages.get(payload.id));
+                return;
             }
-            await remember(payload.id, payload.html, payload.at, Boolean(payload.pin));
+            await remember(payload.id, payload.html, payload.at, Boolean(payload.pin), true);
             refresh(game.messages.get(payload.id));
         } catch (err) {
             error("Could not keep a private card that arrived", err);
@@ -447,6 +537,23 @@ export function registerSecrets() {
     Hooks.on("clientSettingChanged", key => {
         if (key === `${MODULE_ID}.${SETTINGS.secretCards}`) forgetSecrets();
     });
+
+    pruneOrphans().catch(err => debug("Could not tidy the private-card store", err));
+}
+
+/**
+ * Words whose card is gone, taken out at load (S11-28).
+ *
+ * `forget` runs on `deleteChatMessage`, which reaches only the clients that are
+ * connected when the log is cleared - a player who was offline kept every word
+ * of a deleted session for good. At `ready` every message of the world is in
+ * `game.messages`, so an id that is not there is a card that no longer exists.
+ */
+async function pruneOrphans() {
+    if (!game.messages) return;
+    const store = read();
+    const gone = Object.keys(store).filter(id => !game.messages.has(id));
+    if (gone.length) await forget(gone);
 }
 
 /** For the diagnostics window, and for the suite. */
@@ -456,6 +563,9 @@ export function diagnoseSecrets() {
     return {
         held: ids.length,
         cap: KEEP,
+        pinnedCap: KEEP_PINNED,
+        // What the store costs this browser's storage, the thing that runs out (S11-28).
+        bytes: new Blob([JSON.stringify(store)]).size,
         oldest: ids.length ? new Date(Math.min(...ids.map(id => store[id].at ?? 0))).toISOString() : null,
         // The question this file exists to answer, asked of the live world.
         leaking: game.messages.filter(m =>

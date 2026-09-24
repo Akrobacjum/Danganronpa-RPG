@@ -16,6 +16,34 @@ export function escapeHTML(str) {
     }[c]));
 }
 
+/**
+ * `foundry.utils.cleanHTML`, as far as this harness can stand in for it (E02,
+ * 24.09.2026). Foundry's own is an allow-list sanitiser we do not have the source
+ * of here; what the module relies on it for is the part every sanitiser agrees
+ * on - no `<script>`, `<iframe>`, `<object>` or `<embed>`, no `on*` handler
+ * attribute, no `javascript:` address - while `data-*`, `<button>`, classes and
+ * ordinary markup survive. That is what this does, on jsdom's own parser, so a
+ * test that sends `<img src=x onerror=...>` through the module measures the
+ * module's choice to clean, not this function's thoroughness.
+ */
+export function cleanHTML(raw) {
+    const doc = globalThis.document;
+    const tpl = doc.createElement("template");
+    tpl.innerHTML = String(raw ?? "");
+    for (const el of tpl.content.querySelectorAll("script, iframe, object, embed")) el.remove();
+    for (const el of tpl.content.querySelectorAll("*")) {
+        for (const attr of [...el.attributes]) {
+            const name = attr.name.toLowerCase();
+            const value = String(attr.value ?? "").trim().toLowerCase();
+            if (name.startsWith("on")) el.removeAttribute(attr.name);
+            else if ((name === "href" || name === "src" || name === "xlink:href") && value.startsWith("javascript:")) {
+                el.removeAttribute(attr.name);
+            }
+        }
+    }
+    return tpl.innerHTML;
+}
+
 export function unescapeHTML(str) {
     return String(str).replace(/&(amp|lt|gt|quot|#x27|#39);/g, m => ({
         "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#x27;": "'", "&#39;": "'"

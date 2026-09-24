@@ -1,8 +1,11 @@
 /**
- * Danganronpa RPG - the GM team panel.
+ * Danganronpa RPG - the GM team panel ("Despair Flow").
  * ---------------------------------------------------------------------------
- * Two questions that used to be two separate dialogs with two separate
- * shortcuts on screen (a gear on the Despair widget):
+ * Four tabs - pools, Monokumas, students, overflow - opened from Between
+ * sessions and from the season checklist (audit S10-73: this header described
+ * the first two and a "more" menu that no longer exists). The first two are the
+ * questions that used to be two separate dialogs with two separate shortcuts on
+ * screen (a gear on the Despair widget):
  *
  *   1. Which actors are Monokumas, and whose Despair pool each one draws on.
  *      `poolUserFor` guessed this from ownership before this existed, and
@@ -13,8 +16,7 @@
  *   2. Which Monokuma looks after which student - a division set once per
  *      season, not something that earns a permanent button on the HUD.
  *
- * Merged into one screen, reachable only from the GM panel's "more" menu -
- * setup you do once per season, not mid-session upkeep.
+ * Merged into one screen: setup you do once per season, not mid-session upkeep.
  */
 
 import {
@@ -399,7 +401,7 @@ function buildContent(actors, gms, roster, candidates, removable) {
 
         return `<tr data-actor="${actor.id}"${marked ? ' class="drpg-is-monokuma"' : ""}>
             <td>
-                <img src="${actor.img}" alt="" class="drpg-monokuma-portrait" />
+                <img src="${foundry.utils.escapeHTML(actor.img ?? "")}" alt="" class="drpg-monokuma-portrait" />
                 ${foundry.utils.escapeHTML(actor.name)}
             </td>
             <td style="text-align:center">
@@ -463,9 +465,10 @@ function buildContent(actors, gms, roster, candidates, removable) {
     ]);
 
     // Built as an element, not a string: DialogV2 runs a string `content`
-    // through `cleanHTML`, whose allow-list drops `placeholder` - so the pool
-    // name fields lost the hint telling the GM what the default is. Same reason
-    // every other form in this module goes through `dialogContent()`.
+    // through `cleanHTML`, whose allow-list drops `placeholder` on a `<textarea>`
+    // (v14 keeps it on an `<input>`). Built this way so a field that becomes a
+    // textarea keeps its hint - the same reason every other form in this module
+    // goes through `dialogContent()`.
     return dialogContent(`<form>${body}</form>`);
 }
 

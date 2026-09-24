@@ -2847,7 +2847,8 @@
       "migrated": "This world's motive was announced before motives had a deadline. It has been given {n} times of day so it keeps working. Withdraw and announce it again if that is not what you meant."
     },
     "Secret": {
-      "speaker": "Monokuma"
+      "speaker": "Monokuma",
+      "storeFull": "This browser could not keep a private card - its storage is probably full. From now on private cards arrive blank here, and the Truth Bullet and Remnant answer keys stop saving in this browser. Deleting old chat messages frees room. Do not clear this browser's stored data for the game: the answer keys live there too."
     },
     "Legacy": {
       "safeword": "MISIUBOMBO"

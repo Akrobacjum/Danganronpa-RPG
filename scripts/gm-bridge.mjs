@@ -1765,11 +1765,20 @@ async function askHopeCallByCard(payload, asker) {
     askedByCard.add(payload.requestId);
     const actor = game.actors.get(payload.actorId ?? "");
     const data = { rid: payload.requestId, asker, by: payload.actorId ?? "" };
+    /*
+     * THE PRICE FROM THIS SIDE'S TABLE, NOT THE PACKET'S (E02, 24.09.2026; audit
+     * S10-02). `cost` was the one field on this card printed raw - into
+     * `game.i18n.format`, then into the card's HTML - so a packet carrying
+     * `<img src=x onerror=...>` as its cost ran script on every GM's screen. The
+     * GM holds the same `HOPE_CALLS`, so the number never had to travel; a key
+     * this side does not know prints as "?". Every other field is escaped.
+     */
+    const call = HOPE_CALLS[payload.key] ?? null;
     await callGm(actor, {
-        title: game.i18n.format("DRPG.Calls.approveTitle", { call: payload.callLabel ?? "" }),
+        title: game.i18n.format("DRPG.Calls.approveTitle", { call: call?.label ?? payload.callLabel ?? "" }),
         request: payload.note ?? "",
         body: `<p>${esc(payload.effect ?? "")}</p><p class="notes">${
-            game.i18n.format("DRPG.Calls.approveCost", { cost: payload.cost ?? "?" })}</p>`,
+            game.i18n.format("DRPG.Calls.approveCost", { cost: Number.isFinite(call?.cost) ? call.cost : "?" })}</p>`,
         gmBody: game.i18n.localize("DRPG.Calls.approveHint"),
         actions: [
             { action: "approveCall", label: game.i18n.localize("DRPG.Calls.approveYes"), data },

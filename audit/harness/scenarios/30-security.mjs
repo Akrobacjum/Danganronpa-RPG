@@ -174,6 +174,85 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     check("SECURITY: a player calling adjustDespair on the GM's pool moves nothing",
         poolBefore > 0 && poolAfter === poolBefore, JSON.stringify({ poolBefore, poolAfter, selfGrant }));
 
+    /*
+     * 6. SCRIPT FROM A PLAYER'S CONSOLE ON THE GM'S SCREEN (E02, 24.09.2026; audit
+     * S01-03, S11-01, S10-02).
+     *
+     * A private card's words travel by socket and go into `innerHTML` on the reader's
+     * screen without passing Foundry's server, which is what cleans a document's
+     * `content`. So a player who posts a card of their own and then sends its words
+     * by hand chose what the GM's browser draws. Measured on the GM: what the store
+     * hands back for the card, which is what the chat log, the messenger and the
+     * notice all draw.
+     *
+     * jsdom does not fetch images, so an `onerror` would never FIRE here even left in;
+     * the check is that the attribute is gone, which is what stops it firing in a
+     * browser. The button with its `data-*` is the half that must survive: a GM's
+     * ruling card is made of them.
+     */
+    const EVIL = '<img src=x onerror="window.__pwned=1"><button type="button" data-drpg-call="probe" data-rid="r1">ok</button>';
+    const posted = await p1.eval(`
+        const msg = await ChatMessage.create({
+            content: '<p class="notes" data-drpg-secret>-</p>',
+            whisper: ["${gm.userId}"],
+            flags: { "${MOD}": { secret: true } }
+        });
+        game.socket.emit("${SOCKET}", { action: "secret.card", id: msg.id, html: ${JSON.stringify(EVIL)}, at: Date.now(), pin: true });
+        return msg.id;
+    `, { timeout: 30000 });
+    await settle(1200);
+    const seen = await gm.eval(`
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const m = game.messages.get(${JSON.stringify(posted)});
+        const html = m ? S.contentOf(m) : null;
+        const box = document.createElement("div");
+        box.innerHTML = html ?? "";
+        return { html: (html ?? "").slice(0, 300),
+            handler: Boolean(box.querySelector("[onerror]")),
+            button: box.querySelector("button[data-drpg-call]")?.dataset.rid ?? null,
+            pinned: Boolean(game.settings.get("${MOD}", "secretCards")?.[${JSON.stringify(posted)}]?.pin) };
+    `);
+    check("XSS: a player's private-card words reach the GM without their handler",
+        seen.html !== null && !seen.handler, JSON.stringify(seen));
+    check("XSS: the card's button and data attributes survive the cleaning",
+        seen.button === "r1", JSON.stringify(seen));
+    check("XSS: a player's packet cannot pin its card in the GM's store", seen.pinned === false, JSON.stringify(seen));
+
+    /* The same words, stored before this was fixed: an entry with no trust mark is
+       cleaned when it is read, whoever wrote it. */
+    const legacy = await gm.eval(`
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const msg = await ChatMessage.create({ content: '<p class="notes" data-drpg-secret>-</p>',
+            whisper: [game.user.id], flags: { "${MOD}": { secret: true } } });
+        const store = foundry.utils.deepClone(game.settings.get("${MOD}", "secretCards") ?? {});
+        store[msg.id] = { html: ${JSON.stringify(EVIL)}, at: Date.now() };
+        await game.settings.set("${MOD}", "secretCards", store);
+        S.forgetSecrets();
+        const html = S.contentOf(msg);
+        return { handler: /onerror/i.test(html), html: html.slice(0, 200) };
+    `, { timeout: 30000 });
+    check("XSS: words stored before the fix are cleaned when they are read", !legacy.handler, JSON.stringify(legacy));
+
+    /* The Hope Call card's price came from the packet and was printed raw into the
+       GM's card. p1 asks about their own Aiko, so ownership is not what stops it. */
+    const beforeCall = await gm.eval(`return game.messages.size;`);
+    await p1.eval(`
+        game.socket.emit("${SOCKET}", { action: "call.approve", requestId: "xss-${Date.now()}", userId: game.user.id,
+            actorId: "${ids.aiko}", actorName: "Aiko Hoshino", key: "experience", callLabel: "Experience",
+            effect: "fine", note: "please", cost: '<img src=x onerror="window.__pwned=2">' });
+        return true;
+    `);
+    await settle(1500);
+    const callCard = await gm.eval(`
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const fresh = [...game.messages].slice(${beforeCall});
+        const words = fresh.map(m => S.contentOf(m)).join(" ");
+        return { cards: fresh.length, handler: /onerror/i.test(words), cost: /approveCost|1/.test(words), sample: words.slice(0, 300) };
+    `);
+    check("XSS: a Hope Call card is raised for the player's own character", callCard.cards > 0, JSON.stringify(callCard));
+    check("XSS: the Hope Call card prints the price from the GM's table, not the packet's markup",
+        callCard.cards > 0 && !callCard.handler, JSON.stringify(callCard));
+
     // summary of what server refused
     check("SECURITY: server logged permission denials for player writes", (permissionDenials ?? []).length >= 2, JSON.stringify((permissionDenials||[]).slice(0,8)));
 }
