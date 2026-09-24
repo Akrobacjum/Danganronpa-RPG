@@ -1,5 +1,22 @@
 {
-  "dependencies": {
-    "jsdom": "^30.0.1"
+  "name": "drpg-harness",
+  "private": true,
+  "description": "Tests of the Danganronpa RPG module: headless harness, lint, checks, local gate. Nothing here ships (audit/ is export-ignored).",
+  "engines": { "node": "^22.22.2 || ^24.15.0 || >=26.0.0" },
+  "scripts": {
+    "test": "node run-all.mjs",
+    "quick": "node run-all.mjs lint check gate",
+    "lint": "node run-all.mjs lint",
+    "check": "node run-all.mjs check",
+    "suite": "node run-all.mjs suite",
+    "scenarios": "node run-all.mjs scenarios",
+    "gate:local": "node ../gate/local-gate.mjs",
+    "gate:verify": "node ../gate/verify-gate.mjs"
+  },
+  "devDependencies": {
+    "eslint": "10.11.0",
+    "espree": "11.2.0",
+    "jsdom": "30.0.1",
+    "playwright": "1.56.1"
   }
 }

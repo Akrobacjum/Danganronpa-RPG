@@ -13,6 +13,7 @@ docs/changelog-1.2.0.md export-ignore
 # nothing a module installed in a Data folder has any use for.
 CLAUDE.md export-ignore
 CONTRIBUTING.md export-ignore
+eslint.config.mjs export-ignore
 
 # tools/ is the same: the generators for the icons and the Polish config check.
 # Nothing at runtime imports them, and they shipped in the 1.2.47 and 1.2.48 zips (88 KB).
