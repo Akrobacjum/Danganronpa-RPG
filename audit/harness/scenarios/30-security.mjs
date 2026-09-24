@@ -518,6 +518,100 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     check("SECURITY: a trace with a visibility that does not exist is refused",
         badBand.after.n === 0 && badBand.reasons.some(r => /not a visibility/.test(r)), JSON.stringify(badBand));
 
+    /*
+     * 7j. remnant.edit: a Reroll re-rates the trace its first throw left, and no
+     * other. The first E03 build asked "fresh, and no GM has written on it" only of
+     * a removal, so a receipt from any Reroll turned a trace a GM had corrected to
+     * Hidden (the E03 review). Verified by hand on 24.09.2026: with the retune's
+     * `removalRefusal` call taken out of gm-bridge.mjs, the first check FAILED.
+     */
+    const traceOf = subject => `const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const t = canvas.scene.tokens.contents.find(x => R.remnantData(x)?.subject === "${subject}");
+        return t ? { id: t.id, visibility: R.remnantData(t).visibility } : null;`;
+    await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        await R.placeRemnant({ x: 1500, y: 450, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
+            sourceActor: "${ids.aiko}", sourceName: "Aiko Hoshino", room: "Cafeteria", subject: "SEC corrected" });
+        await R.placeRemnant({ x: 1550, y: 450, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
+            sourceActor: "${ids.aiko}", sourceName: "Aiko Hoshino", room: "Cafeteria", subject: "SEC rerolled" });
+        const t = canvas.scene.tokens.contents.find(x => R.remnantData(x)?.subject === "SEC corrected");
+        await R.markRemnantEdited(t); return true;`, { timeout: 60000 });
+    await settle(600);
+    const corrected = await gm.eval(traceOf("SEC corrected"));
+    const rerolled = await gm.eval(traceOf("SEC rerolled"));
+    await clearFailures();
+    await rerollOn(p1, ids.aiko);
+    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        B.requestRemnantEdit(canvas.scene.id, "${corrected?.id}", { visibility: "hidden" }); return true;`);
+    await settle(1500);
+    const correctedAfter = { after: await gm.eval(traceOf("SEC corrected")), reasons: await refusedFor("remnant.edit") };
+    check("SECURITY: a Reroll does not re-rate a trace a GM has written on",
+        Boolean(corrected) && correctedAfter.after?.visibility === corrected.visibility
+        && correctedAfter.reasons.some(r => /GM has written/.test(r)), JSON.stringify({ corrected, correctedAfter }));
+    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        B.requestRemnantEdit(canvas.scene.id, "${rerolled?.id}", { visibility: "hidden" }); return true;`);
+    await settle(1500);
+    const rerolledAfter = await gm.eval(traceOf("SEC rerolled"));
+    check("control: the same Reroll re-rates the player's own fresh trace",
+        Boolean(rerolled) && rerolled.visibility !== "hidden" && rerolledAfter?.visibility === "hidden", JSON.stringify({ rerolled, rerolledAfter }));
+
+    /*
+     * 7k. remnant.tieForItem outside a fight (audit S10-11). Holding the object is
+     * not enough: the tie is a verdict on evidence, and only a participant of the
+     * running incident swings a weapon. No incident runs here, so Aiko's player,
+     * holding the object, is refused and the trace stays untied. There is no
+     * control beside it - setting up a live incident is 10-murder's work - so it
+     * was verified by hand on 24.09.2026: with the incident condition taken out of
+     * `handleTieTrace`, this check FAILED (the trace was tied).
+     */
+    const tie = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        await R.placeRemnant({ x: 1600, y: 450, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
+            sourceActor: "${ids.aiko}", sourceName: "Aiko Hoshino", room: "Cafeteria", subject: "SEC weapon trace",
+            itemIdentity: "SECWEAPON0000001" });
+        await game.actors.get("${ids.aiko}").createEmbeddedDocuments("Item", [{ name: "SEC weapon", type: "loot",
+            flags: { "${MOD}": { drpgItemId: "SECWEAPON0000001" } } }]);
+        const M = await import("${repoUrl}/scripts/murder.mjs");
+        return { stage: M.murderState()?.stage ?? null };`, { timeout: 60000 });
+    const readTie = `const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const t = canvas.scene.tokens.contents.find(x => R.remnantData(x)?.subject === "SEC weapon trace");
+        return { found: Boolean(t), tied: Boolean(t && R.remnantData(t).tiedToCrime) };`;
+    const tiedOutside = await forge("remnant.tieForItem", { identity: "SECWEAPON0000001" }, readTie);
+    check("SECURITY: a trace is not tied to the crime by its holder while no fight is running",
+        tie.stage !== "incident" && tiedOutside.after.found && !tiedOutside.after.tied
+        && tiedOutside.reasons.some(r => /running incident/.test(r)), JSON.stringify({ tie, tiedOutside }));
+
+    /*
+     * 7l. a trap relay naming a room the character is not in (audit S08-08). The
+     * relay named its room, and the trap there went off - a trap is stamped as fired
+     * before its card is sent, so a loop of these disarmed every trap on the map.
+     * Two traps are armed, one in Storage (Aiko is not there) and one in the
+     * Cafeteria (she is); only the second may fire. Verified by hand on 24.09.2026:
+     * with the `standsIn` call taken out of traps.mjs, the first check FAILED.
+     */
+    const traps = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const away = await P.createProject({ name: "SEC trap away", target: 4, room: "Storage", secret: true });
+        const here = await P.createProject({ name: "SEC trap here", target: 4, room: "Cafeteria", secret: true });
+        for (const id of [away.id, here.id]) {
+            await P.setProjectMeta(id, { indirectMurder: true, killerId: "${ids.botan}",
+                trigger: { kind: "enters", armed: true, firedAt: null } });
+        }
+        return { away: away.id, here: here.id };`, { timeout: 60000 });
+    await settle(600);
+    const readTraps = `const P = await import("${repoUrl}/scripts/projects.mjs");
+        return { away: P.metaFor("${traps.away}").trigger?.firedAt ?? null, here: P.metaFor("${traps.here}").trigger?.firedAt ?? null };`;
+    const relayTo = room => p1.eval(`game.socket.emit("${SOCKET}", { action: "trap.event", kind: "crossing",
+        actorId: "${ids.aiko}", to: "${room}" }, ${toGms}); return true;`);
+    await relayTo("Storage");
+    await settle(1500);
+    const trapAway = await gm.eval(readTraps);
+    check("SECURITY: a crossing into a room the character is not in sets off no trap there",
+        trapAway.away === null, JSON.stringify(trapAway));
+    await relayTo("Cafeteria");
+    await settle(1500);
+    const trapHere = await gm.eval(readTraps);
+    check("control: a crossing into the room the character stands in sets off the trap there",
+        trapHere.here !== null && trapHere.away === null, JSON.stringify(trapHere));
+
+
     // 7g. search tokens in a room the character is not in, and in the one she is.
     const readTokens = room => `return { left: game.drpg.tokensLeft("${room}") };`;
     const before = await gm.eval(readTokens("Dorm B"));
@@ -542,8 +636,18 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     check("SECURITY: a fog ledger nobody asked for adds no rooms to a character's record",
         !JSON.stringify(fogAfter ?? []).includes("Storage"), JSON.stringify(fogAfter));
 
-    // 7i. ownership raised past the window's back, and a player's edit of their own bullet.
-    await gm.eval(`await game.actors.get("${ids.daichi}").update({ "ownership.default": 3 }, { noHook: true }); return true;`);
+    /*
+     * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
+     *
+     * The harness's `noHook` silences the `updateActor` hook as well as the `pre`
+     * one (lib/shim.mjs says why), so this proves the road that does not depend on
+     * it: the Configure Ownership window closing on the GM who used it. Verified by
+     * hand on 24.09.2026: with the close hook's `lowerOwnership` call removed from
+     * anonymity.mjs, this check FAILED (ownership stayed 3).
+     */
+    await gm.eval(`const a = game.actors.get("${ids.daichi}");
+        await a.update({ "ownership.default": 3 }, { noHook: true });
+        Hooks.callAll("closeDocumentOwnershipConfig", { document: a }); return true;`);
     await settle(1500);
     const ownership = await gm.eval(`return game.actors.get("${ids.daichi}").ownership.default;`);
     check("SECURITY: a character shared as Owner with every player is put back to Observer", ownership === 2, JSON.stringify({ ownership }));
@@ -559,20 +663,49 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
         Boolean(bullet) && JSON.stringify(bulletAfter) === JSON.stringify(bulletBefore), JSON.stringify({ bulletBefore, bulletAfter }));
 
     /*
+     * A bullet with no record is not called "put back". The record is dropped by
+     * hand here - the state every bullet made before E03 was in while the load-time
+     * record never ran - and the GM must be told the edit stayed, not that it was
+     * undone. Then the text is put right by the GM, so nothing after this reads a
+     * rewritten bullet.
+     */
+    await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        await T.setSecret(b.uuid, { guard: null }); return true;`);
+    const whispersBefore = await gm.eval(`return game.messages.size;`);
+    await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        await b.update({ "flags.${MOD}.playerText": "SEC unrecorded" }); return true;`);
+    await settle(1500);
+    // A GM whisper is a private card: the words live in the store, not on the message (secret.mjs).
+    const unrecorded = await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const said = game.messages.contents.slice(${whispersBefore}).map(m => S.contentOf(m) || m.content || "").join(" ");
+        return { text: b?.getFlag("${MOD}", "playerText") ?? null,
+            unrestored: said.includes(game.i18n.format("DRPG.TruthBullet.editUnrestored", { player: "", bullet: "" }).slice(-40)),
+            reverted: said.includes(game.i18n.format("DRPG.TruthBullet.editReverted", { player: "", bullet: "" }).slice(-40)) };`);
+    check("SECURITY: an edit with no record to restore it from is reported as staying, not as put back",
+        unrecorded.text === "SEC unrecorded" && unrecorded.unrestored && !unrecorded.reverted, JSON.stringify(unrecorded));
+    await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        await b.update({ "flags.${MOD}.playerText": ${JSON.stringify(bulletBefore.text)} }); return true;`);
+    await settle(800);
+
+    // The load-time record of every bullet ran on the GM (the E03 review measured it running 0 times).
+    const guardRan = await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs"); return T.bulletGuardStatus();`);
+    check("SECURITY: the GM recorded the Truth Bullets that existed at load", guardRan.runs === 1, JSON.stringify(guardRan));
+
+    /*
      * 8. DAGGERHEART'S GM RELAY (E03, 24.09.2026; audit S16-01).
      *
-     * Daggerheart's own relay - copied verbatim into lib/dh-relay.mjs and registered
-     * the way Daggerheart registers it - wrote on the GM's client whatever a
-     * player's packet asked: any document, any setting. Each packet below is one a
-     * player's Daggerheart never sends; each must change nothing on the GM, be
-     * logged by name, warn the GM and tell the player. Then the three shapes
-     * Daggerheart really does send for a player must still land.
+     * Daggerheart's own relay is copied verbatim into lib/dh-relay.mjs and registered
+     * the way Daggerheart registers it. Each packet below is one a player's
+     * Daggerheart never sends; each must change nothing on the GM, be logged by
+     * name, warn the GM and tell the player. Then the three shapes Daggerheart
+     * really does send for a player must still land.
      *
      * Verified by hand the day it was written (24.09.2026): with `registerRelayGuard`
-     * commented out of scripts/module.mjs, the five RELAY checks below FAILED - the
-     * relay made p1 a Gamemaster (role 1 -> 4), wrote the Countdowns and granted the
-     * ownership - and the tick control passed on nothing, which is why it now also
-     * asks that the Projects are still there.
+     * commented out of scripts/module.mjs, the five RELAY checks below FAILED, and
+     * the tick control passed on nothing, which is why it now also asks that the
+     * Projects are still there.
      */
     const DH = "system.daggerheart";
     const relayWorld = `return {

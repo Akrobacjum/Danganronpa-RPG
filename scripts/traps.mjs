@@ -736,15 +736,13 @@ const RELAYED_ROOM = { crossing: "to", rest: "room", stash: "room" };
  * Is this character in that room, as this client sees it - asked twice, a
  * moment apart? A crossing also counts a room the token passed through in the
  * last minute: a route through three rooms reports the middle one after the
- * token has left it.
+ * token has left it. Every token the character has is asked, on every scene:
+ * the relay does not say which scene it came from.
  */
 async function standsIn(actor, room, { passedThrough = false } = {}) {
-    const { locateActor, roomsVisited } = await import("./movement.mjs");
-    const there = () => {
-        const where = locateActor(actor);
-        if (where?.room === room) return true;
-        return passedThrough && roomsVisited(where?.tokenDoc).has(room);
-    };
+    const { placesOf, roomsVisited } = await import("./movement.mjs");
+    const there = () => placesOf(actor).some(where => where.room === room
+        || (passedThrough && roomsVisited(where.tokenDoc).has(room)));
     if (there()) return true;
     await pause(300);
     return there();

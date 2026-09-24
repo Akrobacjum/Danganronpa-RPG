@@ -467,7 +467,10 @@ export function ownsActor(user, actorId) {
  * symptom the ack was added to remove. One addressed packet closes it.
  */
 function refuse(action, why, ctx = null) {
-    warn(`Refused a "${action}" request over the socket: ${why}.`);
+    // The sender's name, from Foundry's own `senderId`: the handbook sends a GM
+    // to this line to find out who asked.
+    const who = game.users?.get(ctx?.asker ?? "")?.name;
+    warn(`Refused a "${action}" request over the socket${who ? ` from ${who}` : ""}: ${why}.`);
     tellRefused(ctx?.asker, action, ctx?.requestId ?? null);
     return null;
 }
@@ -914,6 +917,12 @@ async function handleCrisis(payload, senderId, ctx) {
      */
     if (!sender.isGM) {
         if (payload.undo) {
+            // A Reroll replays an action already taken, so its turn may be over
+            // and the action spent; that the incident is still at its incident
+            // stage, and the action is this side's, is asked all the same
+            // (`crisisRefusal` gives those two with no `key`).
+            const standing = crisisRefusal(actor, payload.key);
+            if (standing && !standing.key) return refuse(ACTION_CRISIS, standing.why, ctx);
             const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
             const why = await spendRerollReceipt(payload.actorId, sender.id, "crisis");
             if (why) return refuse(ACTION_CRISIS, why, ctx);
@@ -1253,7 +1262,7 @@ async function handleRemnant(payload, senderId, ctx) {
         const actor = game.actors.get(payload.data.sourceActor);
         const { locateActor } = await import("./movement.mjs");
         const { getClock } = await import("./clock.mjs");
-        const narrowed = narrowPlayerRemnant(data, actor, locateActor(actor), getClock());
+        const narrowed = narrowPlayerRemnant(data, actor, locateActor(actor, { sceneId: data.sceneId ?? null }), getClock());
         if (narrowed.refused) return refuse(ACTION_REMNANT, narrowed.refused, ctx);
         data = narrowed.data;
     }
@@ -1336,22 +1345,22 @@ async function handleRemnantEdit(payload, senderId, ctx) {
      * left, or retune its band to the new one. From a console, `remove` took a
      * killer's own incident trace off the map in the middle of the
      * investigation, and a retune turned it Hidden. So a player's edit needs a
-     * Reroll receipt for their character, and a removal also needs the trace
-     * to be fresh, untouched by a GM's hand, and not yet copied into anybody's
-     * Truth Bullet - once somebody has found it, it is evidence.
+     * Reroll receipt for their character, and the trace must be one a Reroll
+     * can reach: fresh, and untouched by a GM's hand. A removal also needs it
+     * not yet copied into anybody's Truth Bullet - once somebody has found it,
+     * it is evidence. (The first E03 build asked this of removals only, and a
+     * receipt from any Reroll re-banded a trace from days ago; the E03 review.)
      */
     if (!sender.isGM) {
-        let removal = null;
+        const { remnantGmEdited } = await import("./remnants.mjs");
+        let copied = false;
         if (payload.patch?.remove) {
-            const { remnantGmEdited } = await import("./remnants.mjs");
             const { copiedRemnants } = await import("./truth-bullets.mjs");
-            removal = removalRefusal(token, {
-                gmEdited: remnantGmEdited(token),
-                copied: game.actors.some(a => a.type === "character" && copiedRemnants(a).has(token.id))
-            });
+            copied = game.actors.some(a => a.type === "character" && copiedRemnants(a).has(token.id));
         }
+        const reach = removalRefusal(token, { gmEdited: remnantGmEdited(token), copied });
         const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
-        const why = await spendRerollReceipt(source, sender.id, "remnant", () => removal);
+        const why = await spendRerollReceipt(source, sender.id, "remnant", () => reach);
         if (why) return refuse(ACTION_REMNANT_EDIT, why, ctx);
     }
 
@@ -1367,7 +1376,11 @@ async function handleRemnantEdit(payload, senderId, ctx) {
     return;
 }
 
-/** Why a Reroll may not lift this trace, or null (E03). Pure. */
+/**
+ * Why a player's Reroll may not lift or retune this trace, or null (E03). Pure.
+ * `copied` is asked only of a removal: a retune of a trace somebody has found
+ * changes how findable it is, not what it says.
+ */
 export function removalRefusal(token, { gmEdited = false, copied = false, now = Date.now() } = {}) {
     if (gmEdited) return "a GM has written on that trace";
     if (copied) return "somebody has already found that trace";
@@ -1480,12 +1493,16 @@ async function handleSendback(payload, senderId, ctx) {
      * one the token was moved from in the last minute, as this client saw it.
      * The move and the request are two messages; the first is given a moment.
      */
-    const { REVERT, recentPositions, sendBackRefusal } = await import("./movement.mjs");
+    const { REVERT, recentPositions, roomsVisited, positionIn, sendBackRefusal } = await import("./movement.mjs");
     const asked = payload.position ?? {};
-    let why = sendBackRefusal(asked, { scene, history: recentPositions(token.id) });
+    const judge = () => sendBackRefusal(asked, {
+        scene, history: recentPositions(token.id),
+        centres: [...roomsVisited(token)].map(room => positionIn(room, token))
+    });
+    let why = judge();
     if (why) {
         await pause(300);
-        why = sendBackRefusal(asked, { scene, history: recentPositions(token.id) });
+        why = judge();
     }
     if (why) return refuse(ACTION_SENDBACK, why, ctx);
 
@@ -1566,8 +1583,8 @@ async function handleArm(payload, senderId, ctx) {
     // Appended, not written over: Calls stack (CALL-02).
     await appendArmedCall(actor, armedEntry(payload.call, call, kind));
     debug(`Armed ${payload.call.key} on ${actor.name} on behalf of ${sender.name}.`);
-    await tellBeneficiary(actor, kind, call.grants);
     replyArmed(ctx, { ok: true, left: null });
+    await tellBeneficiary(actor, kind, call.grants);
     return;
 }
 
@@ -1580,16 +1597,27 @@ function armedEntry(asked, call, kind) {
     };
 }
 
-/** The beneficiary is not the buyer: tell them what they have been given, or they
- *  will meet a locked roll dialog with no idea why it opened up. */
+/**
+ * The beneficiary is not the buyer: tell them what they have been given, or they
+ * will meet a locked roll dialog with no idea why it opened up.
+ *
+ * Said AFTER the buyer has had their answer, and never thrown: the Call is armed
+ * and paid for by now, and a whisper that failed used to take the answer down
+ * with it - the buyer waited out the clock and was told "not armed, not charged"
+ * about a Call that was both (the E03 review).
+ */
 async function tellBeneficiary(actor, kind, grants) {
-    await whisperToOwner(actor, `${cardHead({
-        action: game.i18n.localize("DRPG.Calls.armedTitle")
-    })}<p>${
-        game.i18n.format(kind === "despair" ? "DRPG.Calls.armedByMonokuma" : "DRPG.Calls.armedForYou", {
-            what: game.i18n.localize(`DRPG.Calls.grants.${grants}`)
-        })
-    }</p>`);
+    try {
+        await whisperToOwner(actor, `${cardHead({
+            action: game.i18n.localize("DRPG.Calls.armedTitle")
+        })}<p>${
+            game.i18n.format(kind === "despair" ? "DRPG.Calls.armedByMonokuma" : "DRPG.Calls.armedForYou", {
+                what: game.i18n.localize(`DRPG.Calls.grants.${grants}`)
+            })
+        }</p>`);
+    } catch (err) {
+        error(`Could not tell ${actor?.name ?? "the beneficiary"} about the Call armed for them`, err);
+    }
 }
 
 function replyArmed(ctx, result) {
@@ -1637,8 +1665,8 @@ async function armPaidByPlayer(actor, buyer, payload, ctx) {
         return refuse(ACTION_ARM, "the Call could not be armed", ctx);
     }
     debug(`Armed ${payload.call.key} on ${actor.name}, paid by ${buyer.name} on this side.`);
-    await tellBeneficiary(actor, "hope", call.grants);
     replyArmed(ctx, { ok: true, left: held - call.cost });
+    await tellBeneficiary(actor, "hope", call.grants);
     return;
 }
 

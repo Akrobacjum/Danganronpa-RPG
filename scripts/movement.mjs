@@ -161,11 +161,16 @@ export function roomsVisited(tokenDoc, { now = Date.now(), windowMs = 60_000 } =
  * @param {object} options
  * @param {object} [options.scene]    For its size.
  * @param {object[]} options.history  `recentPositions` for the token.
+ * @param {object[]} [options.centres]  The spot `positionIn` gives for each room
+ *   the token stood in during the window (`roomsVisited`). A route through
+ *   several rooms that fails at the second crossing sends the token to the room
+ *   it paid for (MAP-11), and that spot is a room's centre, which the token
+ *   never stood on - the E03 review found the honest request refused.
  * @param {number} [options.now]
  * @param {number} [options.windowMs]
  * @returns {string|null}
  */
-export function sendBackRefusal(position, { scene = null, history = [], now = Date.now(), windowMs = 60_000 } = {}) {
+export function sendBackRefusal(position, { scene = null, history = [], centres = [], now = Date.now(), windowMs = 60_000 } = {}) {
     const x = Number(position?.x);
     const y = Number(position?.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return "the position is not a place on the map";
@@ -180,7 +185,9 @@ export function sendBackRefusal(position, { scene = null, history = [], now = Da
     const matches = history.some(h => now - h.at <= windowMs && h.x === x && h.y === y
         && (position.elevation === undefined || h.elevation === Number(position.elevation))
         && (position.level === undefined || h.level === position.level));
-    return matches ? null : "the token did not stand there a moment ago";
+    const centre = position.elevation === undefined && position.level === undefined
+        && centres.some(c => c && c.x === x && c.y === y);
+    return matches || centre ? null : "the token did not stand there a moment ago";
 }
 
 /**
@@ -1073,7 +1080,7 @@ async function sendBack(tokenDoc, previous, room) {
 }
 
 /** A position inside a named room on the token's scene - its centre, less the token's own size. */
-function positionIn(room, tokenDoc) {
+export function positionIn(room, tokenDoc) {
     try {
         const scene = tokenDoc?.parent ?? canvas?.scene;
         const region = Array.from(scene?.regions ?? []).find(r => r.name === room);
@@ -1165,10 +1172,23 @@ export function roomOfActor(actor) {
  * anybody happens to be looking at. Used by Observe, which is scored on the GM's
  * client - see observe.mjs.
  *
+ * A CHARACTER ON SEVERAL SCENES. The scene a request names wins, when the
+ * character has a token there (`sceneId`) - a GM-side check of a player's
+ * request asks about the scene the player acted on, not the one the GM is
+ * looking at (the E03 review). Otherwise the rendered token, then the scene
+ * being viewed, then any scene.
+ *
+ * @param {Actor} actor
+ * @param {object} [options]
+ * @param {string|null} [options.sceneId]  The scene to look on first.
  * @returns {{tokenDoc: TokenDocument, scene: Scene, room: string|null}|null}
  */
-export function locateActor(actor) {
+export function locateActor(actor, { sceneId = null } = {}) {
     if (!actor) return null;
+
+    const named = sceneId ? game.scenes?.get(sceneId) : null;
+    const there = named?.tokens?.find(t => t.actorId === actor.id);
+    if (there) return { tokenDoc: there, scene: named, room: roomOfToken(there) };
 
     // The rendered token first when there is one: it is the freshest position,
     // and it is the common case for a player acting on their own screen.
@@ -1183,6 +1203,18 @@ export function locateActor(actor) {
         if (tokenDoc) return { tokenDoc, scene, room: roomOfToken(tokenDoc) };
     }
     return null;
+}
+
+/** Every place this character has a token, on every scene - `locateActor` for all of them. */
+export function placesOf(actor) {
+    if (!actor) return [];
+    const places = [];
+    for (const scene of game.scenes ?? []) {
+        for (const tokenDoc of scene?.tokens ?? []) {
+            if (tokenDoc.actorId === actor.id) places.push({ tokenDoc, scene, room: roomOfToken(tokenDoc) });
+        }
+    }
+    return places;
 }
 
 /**

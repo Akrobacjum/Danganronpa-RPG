@@ -1915,7 +1915,8 @@
         "other": "Scalono {n} wpisów Truth Bullet z rejestrem."
       },
       "importFailed": "Ten plik nie jest rejestrem Truth Bullets.",
-      "editReverted": "{player} zmienił swój Truth Bullet „{bullet}” - to, co mówi, albo to, czym jest. Zmiana została cofnięta: dowody zapisuje tylko GM."
+      "editReverted": "{player} zmienił swój Truth Bullet „{bullet}” - to, co mówi, albo to, czym jest. Zmiana została cofnięta: dowody zapisuje tylko GM.",
+      "editUnrestored": "Truth Bullet „{bullet}” został zmieniony przez: {player}, a nie było zapisu, z którego dałoby się go przywrócić. Zmiana została na tej jednej kopii i nie poszła dalej. Sprawdź go ręcznie."
     },
     "Inventory": {
       "overCap": "{actor} przekracza limit ({category}: {held}/{limit}). Dozwolone - nadał to GM.",
@@ -4442,10 +4443,12 @@
     },
     "Relay": {
       "refused": "Odrzucono zmianę Daggerhearta od {name}: {what}. Nic nie zostało zmienione.",
-      "forged": "<strong>{name}</strong> wysłał zmianę, której Daggerheart nigdy nie robi dla gracza: {what}. Nic nie zostało zmienione. Taką zmianę wpisuje się w konsoli przeglądarki.",
+      "forged": "Od <strong>{name}</strong> przyszła zmiana, której Daggerheart nie robi dla gracza: {what}. Nic nie zostało zmienione. Jeśli nikt przy stole nie zrobił nic nietypowego, daj znać autorowi modułu - to może być funkcja Daggerhearta, której ten moduł jeszcze nie zna.",
       "unguarded": "Nie udało się postawić strażnika przekaźnika GM-a w Daggerheart {version}. W tej sesji zmiany, o które Daggerheart gracza prosi twoją przeglądarkę, NIE są sprawdzane. Daj znać autorowi modułu.",
       "unreviewed": "Daggerheart {version} wysyła {cases}, czego ten moduł nie sprawdził. Twoja przeglądarka odrzuca to od graczy. Jeśli któraś funkcja Daggerhearta przestanie działać graczowi, to dlatego.",
-      "unreadable": "przypadki, których ten moduł nie potrafi odczytać"
+      "unreadable": "przypadki, których ten moduł nie potrafi odczytać",
+      "unknownSender": "Daggerheart poprosił twoją przeglądarkę o zmianę od nadawcy, którego Foundry nie wskazało, i zmiana została odrzucona. Jeśli Hope, Stress albo Fear graczy przestaną się zmieniać przy rzutach, to dlatego - daj znać autorowi modułu.",
+      "busyFear": "Daggerheart zmienił Fear {steps} razy w dziesięć sekund dla {name}. Każdy krok został wykonany; zajrzyj na czat, jeśli to więcej, niż było rzutów."
     }
   }
 }

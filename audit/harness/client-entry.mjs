@@ -842,7 +842,7 @@ function applyRemote(msg) {
         const c = coll(collName);
         const docs = msg.docs.map(d => instantiate(collName, d));
         for (const doc of docs) c.set(doc.id, doc);
-        for (const doc of docs) hooks.callAll(`create${collName}`, doc, options, userId);
+        if (!options.noHook) for (const doc of docs) hooks.callAll(`create${collName}`, doc, options, userId);
         return;
     }
     if (action === "update") {
@@ -851,7 +851,7 @@ function applyRemote(msg) {
         U.applyDocChanges(collName, doc._source, msg.changes);
         // refresh embedded collections if raw arrays were replaced wholesale
         rebuildEmbedded(doc);
-        hooks.callAll(`update${collName}`, doc, U.expandObject(U.deepClone(msg.changes)), options, userId);
+        if (!options.noHook) hooks.callAll(`update${collName}`, doc, U.expandObject(U.deepClone(msg.changes)), options, userId);
         return;
     }
     if (action === "delete") {
@@ -859,7 +859,7 @@ function applyRemote(msg) {
         const doc = c.get(msg.docId);
         if (!doc) return;
         c.delete(msg.docId);
-        hooks.callAll(`delete${collName}`, doc, options, userId);
+        if (!options.noHook) hooks.callAll(`delete${collName}`, doc, options, userId);
         return;
     }
     if (action.startsWith("embedded-")) {

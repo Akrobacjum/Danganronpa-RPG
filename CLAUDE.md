@@ -122,14 +122,20 @@ logged on the GM, and is told to the asker (`bridge.refused`).
 **Layer two (E28, E29).** The numbers - totals, dice, Hope paid - are checked
 against the roll message the GM can see. Until then a player with a console can
 still lie about their own roll and their own resources, and about nobody
-else's. A Reroll receipt proves a Reroll happened, not that it was paid for.
+else's. A Reroll receipt proves only that the player rewrote the rolls of their
+own character's chat card a few minutes ago - which a Reroll does, and so does
+Daggerheart's own dice reroll, and so can a console. Not that a Reroll was paid
+for, nor that one happened.
 
 Daggerheart's relay writes on the GM's client, so every hook there sees the GM
 as the author. That is why `relay-guard.mjs` passes only the shapes Daggerheart
 itself sends for players, and why a test like "was this edit made by a GM"
 (`truth-bullets.mjs`) is only as good as that guard. When a new Daggerheart
-changes the relay, the guard refuses what it does not recognise and tells the
-GM; it never passes it through. Read its table before a Daggerheart upgrade.
+changes the relay, the guard refuses on the GM's client what it does not
+recognise and tells the GM (on a player's client it forwards everything,
+because Daggerheart's GM handlers do nothing there). Read its table before a
+Daggerheart upgrade, and see AUDIT §9 for what it assumes about Foundry and has
+not measured at a table.
 The headless harness runs Daggerheart's real relay, copied verbatim into
 `audit/harness/lib/dh-relay.mjs` - re-copy it from the new tag, never edit it.
 

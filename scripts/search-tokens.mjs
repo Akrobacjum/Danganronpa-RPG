@@ -386,7 +386,7 @@ async function judgeSearch(payload, senderId) {
     if (sender.isGM) return { sceneId: payload.sceneId ?? null };
     const actor = game.actors.get(payload.actorId ?? "") ?? null;
     const { locateActor } = await import("./movement.mjs");
-    const where = actor ? locateActor(actor) : null;
+    const where = actor ? locateActor(actor, { sceneId: payload.sceneId ?? null }) : null;
     const why = searchSpendRefusal({ sender, actor, where, roomName: payload.roomName });
     return why ? { why } : { sceneId: where.scene?.id ?? payload.sceneId ?? null };
 }

@@ -1859,7 +1859,8 @@
         "other": "Merged {n} Truth Bullet records into the ledger."
       },
       "importFailed": "That file is not a Truth Bullet ledger.",
-      "editReverted": "{player} changed their Truth Bullet “{bullet}” - what it says or what it is. The change was put back: only a GM writes on evidence."
+      "editReverted": "{player} changed their Truth Bullet “{bullet}” - what it says or what it is. The change was put back: only a GM writes on evidence.",
+      "editUnrestored": "{player} changed the Truth Bullet “{bullet}”, and there was no record of it to put it back from. The change stayed on that one copy and went no further. Check it by hand."
     },
     "Inventory": {
       "overCap": "{actor} is over the {category} limit ({held}/{limit}). Allowed - a GM granted it.",
@@ -3221,10 +3222,12 @@
     },
     "Relay": {
       "refused": "Refused a Daggerheart change from {name}: {what}. Nothing was changed.",
-      "forged": "<strong>{name}</strong> sent a change that Daggerheart never makes for a player: {what}. Nothing was changed. A change like this is typed into a browser's console.",
+      "forged": "<strong>{name}</strong> sent a change Daggerheart does not make for a player: {what}. Nothing was changed. If nobody at the table did anything unusual, tell the module's author - it may be a Daggerheart feature this module has not met yet.",
       "unguarded": "The guard on Daggerheart's GM relay could not be put in place on Daggerheart {version}. This session, changes a player's Daggerheart asks your browser to make are NOT checked. Tell the module's author.",
       "unreviewed": "Daggerheart {version} sends {cases}, which this module has not reviewed. Your browser refuses it for players. If a Daggerheart feature stops working for a player, that is why.",
-      "unreadable": "cases this module cannot read"
+      "unreadable": "cases this module cannot read",
+      "unknownSender": "Daggerheart asked your browser to make a change for a sender Foundry did not name, and it was refused. If players' Hope, Stress or Fear stop changing when they roll, this is why - tell the module's author.",
+      "busyFear": "Daggerheart moved Fear {steps} times in ten seconds for {name}. Every step was made; have a look at the chat if that seems like more rolls than there were."
     }
   }
 }

@@ -3,43 +3,41 @@
  * ---------------------------------------------------------------------------
  * WHY THIS FILE EXISTS (E03, 24.09.2026; audit S16-01, project N4a).
  *
- * Daggerheart lets a player's browser ask a GM's browser to write things the
- * player has no permission to write: a player's roll takes Hope and Stress off
- * a character, ticks a countdown, moves Fear, marks a save on a chat card. It
- * does this with one socket channel, `system.daggerheart`, and two packets,
- * `DhGMUpdate` and `DhGMCreate`. On every GM's client, Daggerheart's handler
- * (`registerSocketHooks`, socket.mjs, identical in 2.6.5 and 2.10.5) takes the
- * packet and performs it: `document.update(data)` on whatever uuid it names,
- * `game.settings.set` on whatever setting it names, `cls.create(data)` for
- * whatever document type it names. Foundry tells a socket listener who sent the
- * packet, and Daggerheart's listener drops that on the floor.
- *
- * So a player with a console could have any GM's browser give their account
- * the Gamemaster role, give their user OWNER on somebody else's character,
- * rewrite the Countdowns setting - where this module keeps every Project,
- * secret murder plans included - or create any document at all. Every other
- * guard this module has is written on the GM's side of a socket; this was a
- * door next to all of them.
+ * Some of what a player does in Daggerheart is written by a GM's browser on
+ * the player's behalf: a roll's Hope and Stress cost, a countdown tick, a Fear
+ * step, a save marked on a chat card. The request travels on the socket
+ * channel `system.daggerheart` as `DhGMUpdate` or `DhGMCreate`, and
+ * Daggerheart's handler (`registerSocketHooks`, socket.mjs) carries it out
+ * without asking who sent it. Every other road from a player to a GM in this
+ * module asks that first (gm-bridge.mjs, `senderOf` and `ownsActor`); this file
+ * puts the same question in front of that one.
  *
  * WHAT THIS DOES. At `init` it takes Daggerheart's listener off the channel
  * and puts one of its own in front of it. On a player's client, and for the
- * packets that only redraw something, the packet goes straight through. On
- * the primary GM's client, a packet from a player is judged against the
- * shapes Daggerheart itself sends for players (`judgeRelay`, the table below,
- * read off 2.6.5 and 2.10.5), and then passed on narrowed to what was allowed,
- * written by this file, or refused. Other GMs drop these packets: one writer,
- * which also ends Daggerheart's double write with two GMs online.
+ * packets that only redraw something, the packet goes straight through -
+ * Daggerheart's GM handlers do nothing on a player's client. On the primary
+ * GM's client, a request from a player is judged against the shapes
+ * Daggerheart itself sends for players (`judgeRelay`, the table below), and
+ * then passed on narrowed to what was allowed, written by this file, or
+ * refused. Other GMs drop these packets: one writer, which also ends
+ * Daggerheart's double write with two GMs online. The table was read off
+ * 2.10.5 and checked against 2.6.5's source; the two differ only where this
+ * file does not lean on them (how `DowntimeTrigger` is dispatched, where the
+ * Fear limit is read from).
  *
  * WHEN DAGGERHEART CHANGES. This leans on Daggerheart's own code, so it checks
  * that it is looking at what was reviewed (`fingerprintOf`). A listener it
- * cannot find, a list of cases that grew, a packet it does not know: every one
- * of those fails CLOSED on the GM's client and is said out loud, once, to the
- * GM. It never quietly lets an unreviewed shape through.
+ * cannot find, a list of cases that grew, a packet it does not know, a sender
+ * Foundry does not name: on the GM's client every one of those is refused and
+ * said out loud to the GM, once. It never quietly lets an unreviewed shape
+ * through there.
  *
- * WHAT IT DOES NOT DO. A player's own Hope, Stress, Health and costs still
- * arrive through here, within the resource's bounds, because that is how
- * Daggerheart charges a player's roll; whether the roll behind them was honest
- * is the second layer of the trust model (E28, E29).
+ * WHAT IT DOES NOT DO. It narrows, it does not referee. Still taken as sent,
+ * inside the resource's bounds: a player's Hope, Stress and Health on their own
+ * character, the resources of an actor that is not a student (companions
+ * included), their own items' charges and quantities, and a countdown tick of
+ * one, with no limit on how often. Whether the roll behind any of those was
+ * honest is the second layer of the trust model (E28, E29).
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -83,8 +81,11 @@ const CASE_LINE = new RegExp("case\\s+socketEvent(?:\\$\\d+)?\\.(\\w+)", "g");
 const OWNER = 3;
 /** A countdown the GM has not touched for this long is not a stale copy on its way. */
 const RECENT_MS = 10_000;
-const FEAR_STEPS_PER_WINDOW = 2;
+/** More Fear steps than this from one player in `RECENT_MS` are pointed out to the GM (never refused). */
+const FEAR_STEPS_NOTED = 4;
 const WARN_EVERY_MS = 30_000;
+/** Distinct unreviewed packet names whispered to the GMs in one session; the rest go to the console. */
+const SHAPES_WHISPERED = 3;
 
 const status = {
     state: "idle", wrapped: 0, names: [], fingerprint: [], unreviewed: [],
@@ -214,7 +215,11 @@ function neutralise(payload, senderId) {
     if (action !== GM_UPDATE && action !== GM_CREATE) { payload.action = "__drpgRefused"; return; }
     if (!isPrimaryGm()) { payload.action = "__drpgRefused"; return; }
     const sender = senderOf(senderId);
-    if (!sender) { payload.action = "__drpgRefused"; return; }
+    if (!sender) {
+        payload.action = "__drpgRefused";
+        unknownSender(payload);
+        return;
+    }
     if (sender.isGM) return;
     const verdict = judgeRelay(payload, sender);
     if (verdict.verdict === "forward") {
@@ -222,7 +227,7 @@ function neutralise(payload, senderId) {
         return;
     }
     payload.action = "__drpgRefused";
-    if (verdict.verdict === "own") enqueue(verdict);
+    if (verdict.verdict === "own") enqueue(verdict, sender);
     if (verdict.verdict === "refuse") reportRefusal(verdict, sender);
 }
 
@@ -260,10 +265,7 @@ function onRelay(payload, senderId) {
             return;
         }
         const sender = senderOf(senderId);
-        if (!sender) {
-            debug("Daggerheart relay: a packet from nobody Foundry knows, dropped.");
-            return;
-        }
+        if (!sender) return unknownSender(payload);
         if (sender.isGM) return forward(payload, senderId);
 
         const verdict = judgeRelay(payload, sender);
@@ -282,10 +284,13 @@ function onRelay(payload, senderId) {
  * `judgeRelay(payload, sender, world)` answers one of:
  *   forward  - Daggerheart's own handler runs, on `packet` (built here, narrowed)
  *   own      - this file makes the change itself (`ops`), in a queue
- *   refuse   - nothing changes; `kind` is "forged" (a shape only a console
- *              makes), "refused" (a real Daggerheart feature this game keeps
- *              to the GM, or a limit) or "shape" (something unreviewed)
- *   drop     - Daggerheart's handler would do nothing with it either
+ *   refuse   - nothing changes; `kind` is "forged" (a shape Daggerheart does
+ *              not send for a player - as far as its source has been read),
+ *              "refused" (a real Daggerheart feature this game keeps to the
+ *              GM) or "shape" (something unreviewed)
+ *   drop     - nothing to do: Daggerheart's handler would change nothing
+ *              either, or the player's own client asked for nothing
+ * An `own` verdict may carry `noted`: what in it looked odd, for the console.
  * `world` is everything it reads, so the suite can hand it a made-up one.
  * ========================================================================== */
 
@@ -338,6 +343,8 @@ function judgeDocument(data, sender, world) {
     else if (kind === "Item") why = itemRefusal(doc, flat, sender);
     else if (kind === "Scene") why = sceneRefusal(doc, flat);
     else why = `a change to a ${kind}`;
+    // A string is a shape Daggerheart does not send; `{ refused }` is one it does.
+    if (why?.refused) return refuseAs(sub, "refused", why.refused);
     if (why) return refuseAs(sub, "forged", why);
 
     return forwardTo(sub, {
@@ -353,6 +360,11 @@ const RESOURCE_VALUE = /^system\.resources\.([\w-]+)\.value$/;
  * bounds. On the sender's own character, or on an actor that is not a student
  * (an adversary their attack damaged); never on another student, whose
  * resources move only through the GM and this module's own GM-side flows.
+ *
+ * That last one is REFUSED, not called forged: Daggerheart sends exactly this
+ * when a player's ability heals or damages somebody else (`takeHealing`,
+ * `takeDamage`, damageField.mjs). The game keeps it to the GM; nobody at the
+ * table did anything wrong by asking.
  */
 function actorRefusal(doc, flat, sender) {
     for (const [key, value] of Object.entries(flat)) {
@@ -366,7 +378,7 @@ function actorRefusal(doc, flat, sender) {
         if (Number.isFinite(max) && number > max) return `${match[1]} on ${doc.name} set above its maximum`;
     }
     if (doc.type === "character" && !doc.testUserPermission(sender, "OWNER")) {
-        return `the resources of ${doc.name}, another student`;
+        return { refused: `the resources of ${doc.name}, another student` };
     }
     return null;
 }
@@ -426,8 +438,15 @@ function partyRefusal(doc, flat, sender, world) {
  * Fear, one step at a time. Daggerheart sends the absolute value it computed on
  * the player's client - their copy of Fear plus or minus one - and a copy a
  * moment old would otherwise put back whatever the GM changed since. So only the
- * direction is taken, applied to the GM's own value, and only twice in ten
- * seconds per player.
+ * direction is taken, applied to the GM's own value.
+ *
+ * NOT RATIONED. The first version let a player move Fear twice in ten seconds
+ * and refused the third step, and honest play makes a third: a roll with Fear,
+ * a Reroll to Hope, a Reroll back to Fear (the E03 review measured Fear left at
+ * 0 where the dice said 1), or one player rolling for two characters. A refused
+ * honest step is a wrong number nobody sees. So every step lands, and a player
+ * whose client moves Fear more than `FEAR_STEPS_NOTED` times in ten seconds is
+ * pointed out to the GM, who can see the chat and judge it.
  */
 function judgeFear(data, sender, world) {
     const sub = SUB.fear;
@@ -437,10 +456,10 @@ function judgeFear(data, sender, world) {
     const gap = Math.round(asked) - fear;
     const step = Math.max(-1, Math.min(1, gap));
     if (!step) return dropAs(sub, "Fear is already there");
-    if (!world.fearAllowed(sender.id)) return refuseAs(sub, "refused", "more Fear changes than a roll makes");
-    const suspicious = Math.abs(gap) > 1 && world.now() - world.fearChangedAt() > RECENT_MS
-        ? [`Fear set to ${asked} while it stood at ${fear}`] : [];
-    return { verdict: "own", sub, ops: [{ kind: "fear", step }], suspicious };
+    const noted = Math.abs(gap) > 1 && world.now() - world.fearChangedAt() > RECENT_MS
+        ? [`Fear asked for as ${asked} while it stood at ${fear}; moved by one`] : [];
+    const steps = world.fearSteps(sender.id);
+    return { verdict: "own", sub, ops: [{ kind: "fear", step }], noted, busy: steps > FEAR_STEPS_NOTED ? steps : 0 };
 }
 
 /**
@@ -509,7 +528,9 @@ function judgeCountdowns(data, sender, world) {
 
     // D-b: a countdown a Daggerheart ability starts is the GM's to start here.
     if (created.length) return refuseAs(sub, "refused", `new countdowns (${created.join(", ")})`);
-    if (deltas.length) return { verdict: "own", sub, ops: [{ kind: "countdowns", deltas }], suspicious };
+    // With a tick in it, the rest is most likely a copy that fell behind: the
+    // tick lands, and the difference is left in the console.
+    if (deltas.length) return { verdict: "own", sub, ops: [{ kind: "countdowns", deltas }], noted: suspicious };
     if (suspicious.length) return refuseAs(sub, "forged", suspicious.join(", "));
     return dropAs(sub, "no change a player could make");
 }
@@ -543,8 +564,12 @@ function judgeSave(data, sender, world) {
     if (!token?.actor?.testUserPermission?.(sender, "OWNER")) {
         return refuseAs(sub, "refused", "a save for a token the sender does not play");
     }
+    // A save whose dialog was closed: Daggerheart sends the packet anyway, with
+    // no roll in it (`rollSave` returned nothing; chatMessage.mjs). Nothing to mark.
     const total = Number(inner.result?.roll?.total);
-    if (!Number.isFinite(total)) return refuseAs(sub, "forged", "a save with no number");
+    if (inner.result?.roll?.total === undefined || inner.result?.roll?.total === null || !Number.isFinite(total)) {
+        return dropAs(sub, "a save with no roll in it");
+    }
     return forwardTo(sub, {
         action: GM_UPDATE,
         data: {
@@ -627,18 +652,15 @@ function tokenFor(message, tokenId) {
     return null;
 }
 
-const fearSteps = new Map();
+const fearStepsOf = new Map();
 
-function fearAllowed(userId) {
+/** Count this step, and say how many this player's client has sent in `RECENT_MS`. */
+function countFearStep(userId) {
     const now = Date.now();
-    const recent = (fearSteps.get(userId) ?? []).filter(at => now - at < RECENT_MS);
-    if (recent.length >= FEAR_STEPS_PER_WINDOW) {
-        fearSteps.set(userId, recent);
-        return false;
-    }
+    const recent = (fearStepsOf.get(userId) ?? []).filter(at => now - at < RECENT_MS);
     recent.push(now);
-    fearSteps.set(userId, recent);
-    return true;
+    fearStepsOf.set(userId, recent);
+    return recent.length;
 }
 
 const changedAt = new Map();
@@ -684,7 +706,7 @@ function liveWorld() {
         levelOf,
         automationOn,
         fear: () => Number(game.settings.get(dhId(), fearKey())) || 0,
-        fearAllowed,
+        fearSteps: countFearStep,
         fearChangedAt: () => fearChangedAt,
         changedAt: id => changedAt.get(id) ?? 0,
         message: id => game.messages.get(id ?? "") ?? null,
@@ -701,9 +723,10 @@ let queue = Promise.resolve();
 
 function enqueue(verdict, sender = null) {
     queue = queue.catch(() => null).then(() => applyOps(verdict.ops ?? []));
-    if (verdict.suspicious?.length && sender) {
-        reportRefusal({ ...verdict, kind: "forged", why: verdict.suspicious.join(", ") }, sender, { partly: true });
+    if (verdict.noted?.length) {
+        warn(`Daggerheart "${verdict.sub}" from ${sender?.name ?? "a player"}: accepted in part; left out ${verdict.noted.join(", ")}.`);
     }
+    if (verdict.busy && sender) noteBusyFear(sender, verdict.busy);
     return queue;
 }
 
@@ -742,39 +765,84 @@ async function applyOps(ops) {
 
 const lastWarned = new Map();
 const shapesWarned = new Set();
+let unknownSaid = false;
 
-function reportRefusal(verdict, sender, { partly = false } = {}) {
-    const sub = verdict.sub ?? "?";
+/**
+ * Text read off a packet, made safe to show: no markup, and not a page long.
+ * A toast's escaping is not something this file has measured on v14, so what
+ * reaches one carries no angle brackets to begin with.
+ */
+export function plainWhat(text) {
+    const flat = String(text ?? "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
+    return flat.length > 160 ? `${flat.slice(0, 159)}…` : flat;
+}
+
+function reportRefusal(verdict, sender) {
+    // An unreviewed name is one bucket, not one per name a packet can invent.
+    const sub = verdict.kind === "shape" ? "unreviewed" : (verdict.sub ?? "?");
+    const what = plainWhat(verdict.why);
     status.refused[sub] = (status.refused[sub] ?? 0) + 1;
-    warn(`Refused a Daggerheart "${sub}" from ${sender.name}: ${verdict.why}.`);
+    warn(`Refused a Daggerheart "${plainWhat(verdict.sub)}" from ${sender.name}: ${what}.`);
 
     const key = `${sender.id}|${sub}`;
     const now = Date.now();
     if (now - (lastWarned.get(key) ?? 0) >= WARN_EVERY_MS) {
         lastWarned.set(key, now);
-        ui.notifications?.warn(game.i18n.format("DRPG.Relay.refused", { name: sender.name, what: verdict.why }));
+        ui.notifications?.warn(game.i18n.format("DRPG.Relay.refused", { name: plainWhat(sender.name), what }));
         if (verdict.kind === "forged") {
             whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Relay.forged", {
                 name: foundry.utils.escapeHTML(sender.name),
-                what: foundry.utils.escapeHTML(verdict.why)
+                what: foundry.utils.escapeHTML(what)
             })}</p>`).catch(err => debug("Could not tell the GMs about a refused relay packet", err));
         }
     }
-    if (verdict.kind === "shape") shapeWarning(sub);
-    if (!partly) tellRefused(sender.id, "daggerheart");
+    if (verdict.kind === "shape") shapeWarning(verdict.sub ?? "?");
+    tellRefused(sender.id, "daggerheart");
 }
 
-/** Once per name per session: Daggerheart sent something this file has not reviewed. */
+/**
+ * A packet Foundry names no sender for. Refused, as everything unjudged is -
+ * and said, because if Foundry stopped naming senders on a system channel,
+ * every player's Daggerheart cost would stop landing and nobody would know why.
+ * That Foundry v14 names them there is measured in the harness only (AUDIT §9).
+ */
+function unknownSender(payload) {
+    status.refused.unknownSender = (status.refused.unknownSender ?? 0) + 1;
+    warn(`Refused a Daggerheart "${plainWhat(payload?.data?.action ?? payload?.action)}" from a sender Foundry did not name.`);
+    if (unknownSaid) return;
+    unknownSaid = true;
+    const text = game.i18n.localize("DRPG.Relay.unknownSender");
+    ui.notifications?.warn(text);
+    whisperToGms(`<p class="drpg-warning">${foundry.utils.escapeHTML(text)}</p>`)
+        .catch(err => debug("Could not report a relay packet with no sender", err));
+}
+
+/** A player's client moving Fear more often than rolls do. Nothing refused. */
+function noteBusyFear(sender, steps) {
+    warn(`Daggerheart moved Fear ${steps} times in ten seconds for ${sender.name}.`);
+    const key = `${sender.id}|busyFear`;
+    const now = Date.now();
+    if (now - (lastWarned.get(key) ?? 0) < WARN_EVERY_MS) return;
+    lastWarned.set(key, now);
+    ui.notifications?.info(game.i18n.format("DRPG.Relay.busyFear", { name: plainWhat(sender.name), steps }));
+}
+
+/**
+ * Once per name per session: Daggerheart sent something this file has not
+ * reviewed. Only the first few names reach the GMs' chat; a new Daggerheart
+ * has a handful, and anything past that is noise to a table, so it stays in
+ * the console.
+ */
 function shapeWarning(what) {
+    what = plainWhat(what);
     if (shapesWarned.has(what)) return;
     shapesWarned.add(what);
     warn(`Daggerheart sent "${what}", which the relay guard has not reviewed; this client did not run it.`);
-    if (game.user?.isGM) {
-        whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Relay.unreviewed", {
-            version: foundry.utils.escapeHTML(String(game.system?.version ?? "?")),
-            cases: foundry.utils.escapeHTML(what)
-        })}</p>`).catch(err => debug("Could not report an unreviewed Daggerheart packet", err));
-    }
+    if (!game.user?.isGM || shapesWarned.size > SHAPES_WHISPERED) return;
+    whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Relay.unreviewed", {
+        version: foundry.utils.escapeHTML(String(game.system?.version ?? "?")),
+        cases: foundry.utils.escapeHTML(what)
+    })}</p>`).catch(err => debug("Could not report an unreviewed Daggerheart packet", err));
 }
 
 /**

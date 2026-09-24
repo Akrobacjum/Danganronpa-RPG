@@ -60,9 +60,11 @@ export function registerAnonymity() {
     Hooks.on("preUpdateActor", onPreUpdateActor);
     // AFTER THE FACT, TOO (E03; audit S11-04) - see `lowerOwnership`.
     Hooks.on("updateActor", actor => { lowerOwnership(actor); });
+    // On the client whose window it was - which may be a GM who is not the
+    // primary one, and the only client this hook fires on at all.
     Hooks.on("closeDocumentOwnershipConfig", app => {
         const doc = app?.document;
-        if (doc?.documentName === "Actor") setTimeout(() => lowerOwnership(doc), 500);
+        if (doc?.documentName === "Actor") setTimeout(() => lowerOwnership(doc, { closedHere: true }), 500);
     });
     Hooks.once("ready", () => {
         for (const actor of game.actors ?? []) lowerOwnership(actor);
@@ -417,15 +419,19 @@ function onPreUpdateActor(actor, changes) {
  * The guard above never saw the one window a GM actually uses for this:
  * Configure Ownership saves with `noHook: true`, which skips every `pre`
  * hook, so "All Players: Owner" went through and handed the whole table an
- * unredacted sheet, Truth Bullets and all. Whether the `updateActor` hook
- * fires for that save has not been read off a live v14 table, so three roads
- * lead here: that hook, the ownership window closing, and a sweep at `ready`.
- * The primary GM lowers it back to OBSERVER and says so. Characters only, and
- * only while anonymity is enforced; lowering is never undone.
+ * unredacted sheet, Truth Bullets and all. Whether `noHook` also silences the
+ * `updateActor` hook for that save has not been read off a live v14 table
+ * (AUDIT §9), so three roads lead here: that hook on the primary GM, the
+ * ownership window closing on the GM who used it, and a sweep at `ready`. The
+ * harness takes the pessimistic reading - `noHook` silences both - so what it
+ * proves is the window road. The GM lowers it back to OBSERVER and says so.
+ * Characters only, and only while anonymity is enforced; lowering is never
+ * undone.
  */
-async function lowerOwnership(actor) {
+async function lowerOwnership(actor, { closedHere = false } = {}) {
     try {
-        if (!isPrimaryGm() || !actor || actor.type !== "character" || !enforcing()) return;
+        const writer = closedHere ? Boolean(game.user?.isGM) : isPrimaryGm();
+        if (!writer || !actor || actor.type !== "character" || !enforcing()) return;
         if ((actor.ownership?.default ?? NONE) <= OBSERVER) return;
         await actor.update({ "ownership.default": OBSERVER });
         await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Anonymity.reverted", {

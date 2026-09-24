@@ -703,3 +703,21 @@ Lista z sekcji 7 pozostaje w mocy; harness nie rozstrzyga żadnej z nich. Po zad
 15. **MAP-02 po naprawie:** cudzy token wchodzący do mojego pokoju ma pojawić się dopiero na granicy, nie w starym pokoju.
 16. **UI-10 po naprawie:** trial z dwiema sticky kartami pod Stained Glass - trzecia karta (odmowa) ma wyprzeć najstarszą sticky, nie zniknąć.
 17. **COMM-11:** Controls -> Danganronpa RPG -> "Safeword - stop the scene": przypisać klawisz, nacisnąć bez otwartego arkusza.
+
+Po E03 (1.2.60) doszły te, na których opiera się ochrona po stronie GM-a, a których harness nie rozstrzyga (przegląd E03, 24.09.2026):
+
+18. **Nadawca na kanale systemu:** czy Foundry v14 podaje `senderId` słuchaczom `system.daggerheart`. Harness podaje go zawsze. Sprawdzenie: gracz rzuca z wydaniem Hope; u GM-a Hope postaci spada, a `game.drpg.relayGuard().refused` nie ma `unknownSender`. Gdyby miał, każda zmiana Daggerhearta od gracza jest odrzucana i GM dostaje o tym jedną kartę.
+19. **API socketu:** czy `game.socket` na v14 ma `listeners`, `off` i `prependAny`. `game.drpg.relayGuard().state` ma być `"ok"`, nie `"noApi"` ani `"backstop"`.
+20. **`noHook` i okno właścicieli:** czy zapis z Configure Ownership (`noHook: true`) wywołuje `updateActor` u głównego GM-a i czy hook zamknięcia okna nazywa się `closeDocumentOwnershipConfig`. Sprawdzenie: "All Players: Owner" na uczniu, zamknąć okno; `ownership.default` wraca do OBSERVER. Harness przyjmuje ostrożniejsze odczytanie (`noHook` wycisza oba hooki), więc dowodzi tylko drogi przez zamknięcie okna.
+21. **Kolejność pokwitowania Rerolla:** czy przepisanie rzutów wiadomości dociera do GM-a przed prośbą o cofnięcie (strażnik czeka raz, `TIMING.rerollReceiptRetryMs`). Sprawdzenie: prawdziwy Reroll na Observe, Sabotage, akcji kryzysowej, sprzątaniu, Analyze, postępie projektu i śladzie; żaden nie może skończyć się toastem "klient GM-a odmówił". W harnessie prawdziwy `rerollLastAction` przeszedł tylko dla Sabotage.
+22. **Ruch przez kilka pokoi:** jak v14 dzieli przeciągnięcie z kilkoma punktami trasy na aktualizacje i jak nazywa się pole poziomu tokena (`level`). Od tego zależy, czy odesłanie tokena i pułapka przy przejściu rozpoznają pokoje z trasy.
+23. **Toasty:** czy `ui.notifications` na v14 escapuje HTML. Tekst odmowy przekaźnika i tak nie niesie `<` ani `>` (`plainWhat`).
+24. **Blokada zasobów gracza:** wygląd arkusza pod `body.drpg-player.drpg-resources-locked`, z ustawieniem włączonym i wyłączonym; nie oglądany.
+
+Znane luki po E03, świadomie zostawione (nie live checki, tylko zapis):
+
+- Edycja Truth Bulleta zrobiona przez gracza, gdy żaden GM nie był online, nie jest porównywana przy wczytaniu: zapis strzegący leży w pamięci przeglądarki GM-a i nie da się odróżnić takiej edycji od poprawki innego GM-a. Czeka na wspólny zapis GM-ów (E04).
+- Przekaźnik przyjmuje bez sprawdzania rzutu: Hope, Stress i Health na własnej postaci w granicach, zasoby aktorów, którzy nie są uczniami, ładunki i ilości własnych przedmiotów, tyknięcia odliczań po jednym bez limitu. Fear nie jest limitowany, tylko odnotowywany. Uczciwość liczb to warstwa druga (E28, E29).
+- Pokwitowanie Rerolla dowodzi przepisania rzutów własnej karty, nie zapłaty; powtórzenie ostatniej akcji kryzysowej z nową sumą zależy od E28, E29.
+- Przy dwóch GM-ach zmiany Daggerhearta za graczy robi tylko główny; wysłana w chwili jego przeładowania może przepaść.
+- Postać z tokenami na kilku scenach: wyszukiwanie i ślad biorą scenę z prośby, jeśli postać ma tam token; przekaźnik pułapek pyta wszystkie sceny. Nie mierzone przy stole.

@@ -114,6 +114,12 @@ export function activeGmIds() {
     return game.users.filter(u => u.isGM && u.active).map(u => u.id);
 }
 
+/** Wait this long, and nothing else. For the one second look a GM-side guard gives
+ *  a message that may not have arrived yet (E03). */
+export function pause(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 /**
  * Exactly one client runs GM-side automation, so two GMs never both apply the
  * same effect.
@@ -124,12 +130,6 @@ export function activeGmIds() {
  * first while the real GM is the one running the game, the automation silently
  * never fires. Assistants are only used when no full GM is connected.
  */
-/** Wait this long, and nothing else. For the one second look a GM-side guard gives
- *  a message that may not have arrived yet (E03). */
-export function pause(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 export function isPrimaryGm() {
     // `game.user` is null for the first and last moments of a client's life,
     // and socket packets arrive in both.

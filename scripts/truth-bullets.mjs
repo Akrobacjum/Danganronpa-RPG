@@ -1194,17 +1194,31 @@ async function revertPlayerBulletEdit(item, touched, author) {
     if (Object.keys(patch).length) {
         await item.update(patch, { [NOT_AN_EDIT]: true });
     }
-    warn(`Put back ${author?.name ?? "a player"}'s edit of the Truth Bullet "${item.name}": ${touched.join(", ")}${
-        missed.length ? ` (no record to restore ${missed.join(", ")})` : ""}.`);
-    await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.TruthBullet.editReverted", {
-        player: foundry.utils.escapeHTML(author?.name ?? "?"),
-        bullet: foundry.utils.escapeHTML(String(patch.name ?? item.name ?? "?"))
-    })}</p>`);
+    warn(`${author?.name ?? "A player"} edited the Truth Bullet "${item.name}" (${touched.join(", ")}): ${
+        missed.length ? `no record to restore ${missed.join(", ")}` : "put back"}.`);
+    // Only what was really put back is called put back. A field with no record
+    // stays as the player wrote it, on this copy alone - the edit is never
+    // carried up to the trace - and the GMs are told to look.
+    await whisperToGms(`<p class="drpg-warning">${game.i18n.format(
+        missed.length ? "DRPG.TruthBullet.editUnrestored" : "DRPG.TruthBullet.editReverted", {
+            player: foundry.utils.escapeHTML(author?.name ?? "?"),
+            bullet: foundry.utils.escapeHTML(String(patch.name ?? item.name ?? "?"))
+        })}</p>`);
 }
 
-/** Every bullet a GM has not recorded yet is recorded as it stands - once, at load. */
+/**
+ * Every bullet a GM has not recorded yet is recorded as it stands - once, at load.
+ *
+ * NOT COMPARED, only recorded. A bullet that already has a record and differs
+ * from it at load was either edited by a player while no GM was online or
+ * corrected by a GM whose change never reached this browser's ledger - it is
+ * client-scoped, one per browser - and from here the two look the same. Putting
+ * the second back would undo a GM. That comparison waits for a record every GM
+ * shares (E04, GmStore).
+ */
 async function guardAllBullets() {
     if (!isPrimaryGm()) return;
+    guardRuns.runs++;
     const ledger = readLedger();
     let added = 0;
     for (const actor of game.actors ?? []) {
@@ -1216,11 +1230,27 @@ async function guardAllBullets() {
         }
     }
     // Today's state is taken as the truth: there is nothing older to compare it with.
+    guardRuns.recorded += added;
     if (added) await writeLedger(ledger);
 }
 
+/** How often the load-time record ran on this client, and how many bullets it recorded - for the harness. */
+const guardRuns = { runs: 0, recorded: 0 };
+export function bulletGuardStatus() {
+    return { ...guardRuns };
+}
+
 function watchBulletEdits() {
-    Hooks.once("ready", () => guardAllBullets().catch(err => error("Could not record the Truth Bullets' guarded fields", err)));
+    /*
+     * RUN NOW when the world is already up. This is called from the module's own
+     * `ready` handler, and a `Hooks.once("ready")` registered inside `ready` is
+     * never called (dice-sync.mjs says the same): the first version waited for it
+     * and recorded nothing, so no bullet made before E03 had a record to be put
+     * back from (measured by the E03 review, 24.09.2026).
+     */
+    const guardAll = () => guardAllBullets().catch(err => error("Could not record the Truth Bullets' guarded fields", err));
+    if (game.ready) guardAll();
+    else Hooks.once("ready", guardAll);
     Hooks.on("createItem", (item, options, userId) => {
         if (!isPrimaryGm() || !isTruthBullet(item)) return;
         if (!game.users.get(userId ?? "")?.isGM) return;

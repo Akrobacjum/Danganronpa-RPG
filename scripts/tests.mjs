@@ -7855,9 +7855,8 @@ const INVARIANTS = [
 
     ["R132 - Daggerheart's GM relay has the guard in front of it", async () => {
         /*
-         * E03, 24.09.2026; audit S16-01. Daggerheart's relay performed on every GM's
-         * client whatever document update, setting or creation a player's packet
-         * named. relay-guard.mjs takes its listener off the channel at `init` and
+         * E03, 24.09.2026; audit S16-01. Daggerheart's relay does not ask who sent a
+         * request. relay-guard.mjs takes its listener off the channel at `init` and
          * judges every packet first. A table where the guard found nothing to wrap
          * FAILS here: that is the hazard itself, not a fact about the environment.
          */
@@ -7880,7 +7879,7 @@ const INVARIANTS = [
          * E03, 24.09.2026; audit S16-01. `judgeRelay` asked about made-up packets and a
          * made-up world, so every row of the table in relay-guard.mjs is held to it:
          * the shapes only a console makes are refused, and each shape Daggerheart
-         * really sends for a player (read off 2.6.5 and 2.10.5) still passes.
+         * really sends for a player (read off 2.10.5, checked against 2.6.5) still passes.
          */
         const { judgeRelay } = await import("./relay-guard.mjs");
         const player = { id: "SUITEPLAYER00001", name: "Suite player", isGM: false };
@@ -7908,7 +7907,7 @@ const INVARIANTS = [
             levelOf: id => (id === "O1" ? 3 : 2),
             automationOn: () => true,
             fear: () => 4,
-            fearAllowed: () => true,
+            fearSteps: () => 1,
             fearChangedAt: () => 0,
             changedAt: () => 0,
             message: id => (id === "M1" ? { id: "M1" } : null),
@@ -7947,7 +7946,24 @@ const INVARIANTS = [
         };
         const let_through = Object.entries(refused).filter(([, v]) => v.verdict !== "refuse").map(([k, v]) => `${k} (${v.verdict})`);
         ok(!let_through.length, `the relay let these through: ${let_through.join("; ")}`);
+        // What Daggerheart itself sends is REFUSED, never called forged (the E03 review:
+        // a player's healing ability on a classmate was reported to the GM as a forgery).
         equal(refused["a Region"].kind, "refused", "a player's Region is called forged rather than kept to the GM");
+        equal(refused["another student's Health"].kind, "refused", "a player's ability on a classmate is called forged");
+        equal(refused["a new countdown"].kind, "refused", "a countdown a Daggerheart ability starts is called forged");
+        equal(refused["a player's own role"].kind, "forged", "a role change is not called forged");
+
+        // A save whose dialog was closed arrives with no roll, and is nothing to mark.
+        for (const result of [undefined, {}, { roll: {} }, { roll: { total: null } }]) {
+            equal(judge("DhGMUpdate", { action: "DhGMUpdateSaveMessage", data: { message: "M1", token: "TOKMINE", result } }).verdict,
+                "drop", `a save with no roll (${JSON.stringify(result)}) is not a quiet drop`);
+        }
+        // Fear is never rationed: a busy player is pointed out, and the step still lands.
+        const busyWorld = { ...world, fearSteps: () => 9 };
+        const busy = judgeRelay({ action: "DhGMUpdate", data: { action: "DhGMUpdateFear", data: 5 } }, player, busyWorld);
+        ok(busy.verdict === "own" && busy.ops?.[0]?.step === 1 && busy.busy === 9,
+            `a player's ninth Fear step in ten seconds is refused or not pointed out: ${JSON.stringify(busy)}`);
+        ok(!judge("DhGMUpdate", { action: "DhGMUpdateFear", data: 5 }).busy, "a player's first Fear step is pointed out as busy");
 
         const passed = {
             "their own Hope": doc("mine", { "system.resources.hope.value": 1 }),
@@ -8073,6 +8089,11 @@ const INVARIANTS = [
         ok(sendBackRefusal({ x: 300, y: 300, elevation: 50 }, { scene, history, now }), "another elevation is taken");
         ok(sendBackRefusal({ x: 300, y: 300, level: "bogus" }, { scene, history, now }), "a level it was not on is taken");
         ok(sendBackRefusal({ x: "a", y: 300 }, { scene, history, now }), "a position that is not a number is taken");
+        // MAP-11's fallback: the centre of a room the token stood in this minute.
+        const centres = [{ x: 1250, y: 250 }];
+        ok(!sendBackRefusal({ x: 1250, y: 250 }, { scene, history, centres, now }), "the centre of a room it paid for is refused");
+        ok(sendBackRefusal({ x: 1250, y: 250, elevation: 90 }, { scene, history, centres, now }), "a room's centre at another elevation is taken");
+        ok(sendBackRefusal({ x: 1260, y: 250 }, { scene, history, centres, now }), "a spot beside a room's centre is taken");
     }],
 
     ["R142 - a search, a used item and a fog reply are judged on the GM", async () => {
@@ -8187,7 +8208,7 @@ const LITERAL_KEYS = [
     "DRPG.Relay.unreadable", "DRPG.Bridge.what.daggerheart", "DRPG.Bridge.what.call.arm",
     "DRPG.Bridge.what.remnant.tieForItem", "DRPG.SearchTokens.notHere", "DRPG.Anonymity.reverted",
     "DRPG.TruthBullet.editReverted", "DRPG.Project.frozenNoProgress", "DRPG.Calls.notArmedNotCharged",
-    "DRPG.Calls.despairGmOnly"
+    "DRPG.Calls.despairGmOnly", "DRPG.Relay.unknownSender", "DRPG.Relay.busyFear", "DRPG.TruthBullet.editUnrestored"
 ];
 
 /* ==========================================================================
