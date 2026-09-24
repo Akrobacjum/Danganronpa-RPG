@@ -1,6 +1,6 @@
 # Danganronpa RPG - Ulotka ucznia
 
-*Jedna strona. Moduł 1.2.55 na Daggerheart. Nazwy zostają po angielsku: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
+*Jedna strona. Moduł 1.2.57 na Daggerheart. Nazwy zostają po angielsku: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
 
 **Jesteś:** Ultimate. Leg, Body, Hand, Eye, Shadow, Head. **Health 4, Sanity 6, Hope 2 (maks. 6)**. Sanity na zerze = **Breakdown** (utrudnienie na każdym rzucie). Health na zerze = **Wounded** (o jedną akcję mniej). Rzut z Hope daje ci 1 Hope; rzut z Despair zasila Monokumę; krytyk daje 2 Hope.
 
