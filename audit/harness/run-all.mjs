@@ -65,7 +65,7 @@ const VERBOSE = argv.includes("--verbose");
 const onlyAt = argv.indexOf("--only");
 const ONLY = onlyAt >= 0 ? argv[onlyAt + 1] : null;
 if (onlyAt >= 0 && !ONLY) usage("--only takes a scenario name, e.g. --only 14-quiet");
-const asked = argv.filter((a, i) => !a.startsWith("--") && i !== onlyAt + 1);
+const asked = argv.filter((a, i) => !a.startsWith("--") && !(onlyAt >= 0 && i === onlyAt + 1));
 for (const a of asked) if (!PART_NAMES.includes(a)) usage(`no part named "${a}"`);
 const parts = asked.length ? PART_NAMES.filter(p => asked.includes(p)) : PART_NAMES;
 
