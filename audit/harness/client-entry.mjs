@@ -989,6 +989,16 @@ process.on("message", async msg => {
                 }
                 break;
             }
+            case "userActivity": {
+                // Another client left (cluster.mjs `disconnect`): this browser learns it the
+                // way the module listens for it, `userConnected`. v14's flow is LIVE-E30-05.
+                const user = game.users.get(msg.userId);
+                if (user) {
+                    user._source.active = Boolean(msg.active);
+                    hooks.callAll("userConnected", user, Boolean(msg.active));
+                }
+                break;
+            }
             case "eval": {
                 let ok = true, value;
                 try {

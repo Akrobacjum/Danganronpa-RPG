@@ -2,7 +2,8 @@
 
 `cluster.mjs` plays the Foundry server - the world store, the permission gate
 and the socket relay - and forks one jsdom client per user (`client-entry.mjs`):
-a GM and three players, `gm`, `p1`, `p2` and `p3`. Each client boots this
+a GM and three players, `gm`, `p1`, `p2` and `p3`, and one for each account a
+scenario declares (`accounts`). Each client boots this
 checkout's module against a shim of Foundry v14 (`lib/shim.mjs`), and a scenario
 drives all of them. It is good enough for the rules, the sockets and the DOM. It
 is not a browser and it is not v14: what it cannot do is listed below, and each
@@ -35,11 +36,15 @@ that declares none.
   `getPropertyValue("--x")` answers from a flat map of their custom properties,
   the last declaration winning; everything else is jsdom's own answer.
 - **The permission gate** (`canWrite` in `cluster.mjs`) models ownership and
-  little else: a user of role 4 writes anything; a player creates chat messages
-  and changes or deletes its own, updates its own User, updates an actor it owns
-  and creates, changes or deletes that actor's items and effects, and moves the
-  tokens of such actors; everything else is refused. World settings are written
-  from role 4 only.
+  roles and little else. From role 3 a user is a GM (`User#isGM`, E30) and
+  writes anything but users, and world settings. Users: a Gamemaster (role 4)
+  writes any; nobody else creates or deletes one; an update may not set a role
+  above the writer's own, and a player updates only itself. A player creates
+  chat messages and changes or deletes its own, updates an actor it owns and
+  creates, changes or deletes that actor's items and effects, and moves the
+  tokens of such actors; everything else is refused. The rest of v14's
+  permission matrix is not modelled (`User#can` is `isGM`), and the role rules
+  are from memory, not v14's source: LIVE-E30-04.
 - **A `preUpdate` listener is handed a copy of the changes**, so what it
   removes from them is written anyway. Measured 24.09.2026: resource-guard.mjs
   emptied a player's Stress edit and warned them, and the GM's copy of that
@@ -52,8 +57,12 @@ that declares none.
   source, and the wire form they travel in is the harness's own
   (`lib/operators.mjs`). Not confirmed on v14: LIVE-E30-01 (what `-=` does),
   LIVE-E30-02 (the operator API), LIVE-E30-03 (what a hook's `changes` holds).
-- **Users.** Every seeded user is connected for the whole run: nobody logs in
-  or out, and a role changes only by a write.
+- **Users.** Four are seeded (a GM and three players), and a scenario adds more
+  with `accounts` (E30). Each is connected until a scenario calls
+  `disconnect(who)`, which ends that client and tells the others through
+  `userConnected` (LIVE-E30-05); nobody comes back, a role changes only by a
+  write, nobody is logged out for it, and there is no `game.users.activeGM`.
+  `opLog` and `settingLog` say who wrote what.
 - **Daggerheart.** Its GM relay is 2.10.5's own code (`lib/dh-relay.mjs`). The
   roll is a mock (`rollTrait` in `client-entry.mjs`) that gives a Hope result
   one Hope and a critical one Hope and one Stress cleared, writes straight to

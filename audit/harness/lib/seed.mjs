@@ -13,6 +13,8 @@
 
 export const IDS = {
     gm: "USERGM0000000000", p1: "USERP10000000000", p2: "USERP20000000000", p3: "USERP30000000000",
+    // Not seeded: a scenario that wants the Assistant GM declares it (`accounts`, cluster.mjs).
+    ag: "USERAG0000000000",
     aiko: "ACTORAIKO0000000", botan: "ACTORBOTAN000000", chie: "ACTORCHIE0000000", daichi: "ACTORDAICHI00000",
     scene: "SCENEACADEMY0000"
 };

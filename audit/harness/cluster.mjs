@@ -1,6 +1,7 @@
 /**
  * The "Foundry server": authoritative world store + permission gate + relay.
- * Forks four clients (gm, p1, p2, p3), seeds a world, runs a scenario file.
+ * Forks four clients (gm, p1, p2, p3) and one per account the scenario declares,
+ * seeds a world, runs a scenario file.
  *
  * Usage: node cluster.mjs scenarios/00-boot.mjs [--verbose]
  *        node cluster.mjs probes/07-apimap.mjs   (a probe - see probes/README.md)
@@ -40,7 +41,11 @@ const STARTED_AT = new Date().toISOString();
 /* --------------------------- permission gate ------------------------------ */
 
 function userRec(userId) { return world.collections.User.find(u => u._id === userId); }
-function isGM(userId) { return (userRec(userId)?.role ?? 0) >= 4; }
+/** The writer's role as the world holds it; 0 for a user the world does not have. */
+function roleOf(userId) { return Number(userRec(userId)?.role ?? 0); }
+/* A GM from role 3, as the shim's User#isGM (lib/shim.mjs, AN ASSISTANT IS A GM).
+   This was role 4, so an Assistant's writes were a player's here (E30, 24.09.2026). */
+function isGM(userId) { return roleOf(userId) >= 3; }
 
 function actorOwned(actorData, userId) {
     const own = actorData?.ownership ?? { default: 0 };
@@ -48,15 +53,27 @@ function actorOwned(actorData, userId) {
 }
 
 function canWrite(userId, op) {
-    if (isGM(userId)) return true;
     const { action, coll: collName } = op;
+    /*
+     * USERS, AHEAD OF THE GM SHORTCUT (E30, 24.09.2026). Once an Assistant is a GM,
+     * the shortcut below would let one raise itself to Gamemaster. What v14 allows
+     * is modelled from memory, not read (LIVE-E30-04): a Gamemaster writes any user;
+     * nobody else creates or deletes one; an update may not set a role above the
+     * writer's own; a player updates only itself, an Assistant any user.
+     */
+    if (collName === "User") {
+        const role = roleOf(userId);
+        if (role >= 4) return true;
+        if (action !== "update") return false;
+        const next = U.expandObject(U.deepClone(op.changes ?? {})).role;
+        if (next !== undefined && Number(next) > role) return false;
+        return role >= 3 || op.docId === userId;
+    }
+    if (isGM(userId)) return true;
     if (collName === "ChatMessage") {
         if (action === "create") return true;
         const doc = world.collections.ChatMessage.find(m => m._id === op.docId);
         return doc && (doc.author === userId);
-    }
-    if (collName === "User") {
-        return action === "update" && op.docId === userId;
     }
     if (collName === "Actor") {
         const doc = world.collections.Actor.find(a => a._id === op.docId);
@@ -254,7 +271,7 @@ function snapshotFor(userId) {
 
 function broadcast(msg, { except = null } = {}) {
     for (const [who, entry] of clients) {
-        if (who === except) continue;
+        if (who === except || entry.gone) continue;
         entry.proc.send(msg);
     }
 }
@@ -287,6 +304,8 @@ function onClientMessage(who, entry, msg) {
                     who, where: msg.op.action, coll: msg.op.coll, docId: msg.op.docId ?? null, ...extra, path
                 }));
                 result = applied.result;
+                opLog.push({ who, action: msg.op.action, coll: msg.op.coll, docId: msg.op.docId ?? null,
+                    embeddedName: msg.op.embeddedName ?? null, at: Date.now() });
                 broadcast(applied.broadcast);
             } catch (err) {
                 error = err.message;
@@ -296,26 +315,32 @@ function onClientMessage(who, entry, msg) {
             break;
         }
         case "setting": {
+            // From role 3: v14's SETTINGS_MODIFY is given to Assistants by default, as far
+            // as can be said without it here (LIVE-E30-04).
             let error;
             if (!isGM(entry.userId)) {
                 error = "User lacks permission to update world Setting";
                 permissionDenials.push({ who, op: `setting ${msg.key}`, error });
             } else {
                 world.settings[msg.key] = msg.value;
+                settingLog.push({ who, key: msg.key, at: Date.now() });
                 broadcast({ t: "settingApplied", key: msg.key, value: msg.value, userId: entry.userId });
             }
             entry.proc.send({ t: "ack", id: msg.id, ok: !error, result: msg.value, error });
             break;
         }
         case "socket": {
-            socketTraffic.push({ from: who, channel: msg.channel, size: JSON.stringify(msg.args ?? []).length });
             // Foundry honours `{ recipients: [userId, ...] }` on the emit: the packet reaches
             // those clients and nobody else. The relay used to broadcast everything, which hid
             // any module bug that leaned on the address - and made addressed packets land on
             // the wrong player when a scenario measured who holds what.
             const recipients = Array.isArray(msg.args?.[1]?.recipients) ? new Set(msg.args[1].recipients) : null;
+            socketTraffic.push({
+                from: who, channel: msg.channel, size: JSON.stringify(msg.args ?? []).length,
+                action: msg.args?.[0]?.action ?? null, to: recipients ? [...recipients] : "all"
+            });
             for (const [other, target] of clients) {
-                if (other === who) continue;
+                if (other === who || target.gone) continue;
                 if (recipients && !recipients.has(target.userId)) continue;
                 target.proc.send({ t: "socketMsg", channel: msg.channel, args: msg.args, senderId: entry.userId });
             }
@@ -341,6 +366,40 @@ function onClientMessage(who, entry, msg) {
 const logSink = [];
 const permissionDenials = [];
 const socketTraffic = [];
+/* WHO WROTE WHAT, AND WHO LEFT (E30, 24.09.2026). With two GM clients the question
+   a check asks is not only "did it change" but "who wrote it, and how many times":
+   every write the server applied, and every world setting, is logged with its
+   writer. `disconnect(who)` takes a client off the table the way a closed browser
+   does, so a scenario can watch the other GM take over. */
+const opLog = [];
+const settingLog = [];
+
+/**
+ * End one client and tell the others it left. Its process is asked to shut down
+ * (as at the end of a run, so its peak memory is still recorded), and killed if
+ * it has not gone in two seconds; the world marks the user inactive, and every
+ * remaining client gets `userActivity`, on which client-entry.mjs sets the user
+ * inactive and calls the `userConnected` hook with `false`. v14's own order of
+ * those two steps is not known here (LIVE-E30-05). A client that has gone gets
+ * no broadcast or packet, and its eval handle refuses.
+ */
+async function disconnect(who) {
+    const entry = clients.get(who);
+    if (!entry || entry.gone) return false;
+    entry.gone = true;
+    const exited = new Promise(resolve => {
+        if (entry.proc.exitCode !== null || entry.proc.signalCode !== null) resolve();
+        else entry.proc.once("exit", resolve);
+    });
+    if (entry.proc.connected) entry.proc.send({ t: "shutdown" });
+    const timer = setTimeout(() => { try { entry.proc.kill("SIGKILL"); } catch {} }, 2000);
+    await exited;
+    clearTimeout(timer);
+    const rec = userRec(entry.userId);
+    if (rec) rec.active = false;
+    broadcast({ t: "userActivity", userId: entry.userId, active: false });
+    return true;
+}
 
 /*
  * EVERY '-=' AND '==' KEY A RUN WROTE (E30, 24.09.2026).
@@ -371,6 +430,7 @@ function handleFor(who) {
         who,
         userId: entry.userId,
         eval(code, { timeout = 30000 } = {}) {
+            if (entry.gone) return Promise.reject(new Error(`${who} has disconnected`));
             const id = `ev${++evalSeq}`;
             return new Promise((resolve, reject) => {
                 const timer = setTimeout(() => { evalPending.delete(id); reject(new Error(`eval timeout on ${who}: ${code.slice(0, 120)}`)); }, timeout);
@@ -462,6 +522,41 @@ function layersProblem(exported, line) {
     return layersShapeProblem(exported);
 }
 
+/* ------------------------------ accounts ---------------------------------- */
+
+/*
+ * USERS A SCENARIO ADDS (E30, 24.09.2026). The seed has one GM and three players
+ * (lib/seed.mjs). A scenario that needs somebody else - 17-assistant's Assistant
+ * GM, later a second GM - exports `accounts: [{ who, id, name, role, character,
+ * color }]`: each becomes a world user before any client boots, gets a client of
+ * its own, and is handed to `run` under `who`. A list this cannot seed adds nobody
+ * and fails the run.
+ */
+let accountsProblem = null;
+const TAKEN_NAMES = ["gm", "p1", "p2", "p3", "check", "note", "settle", "world", "disconnect"];
+
+function seedAccounts(declared) {
+    if (declared === undefined) return [];
+    const names = new Set(TAKEN_NAMES), ids = new Set(world.collections.User.map(u => u._id));
+    const problems = Array.isArray(declared) ? [] : [`accounts must be an array, got ${JSON.stringify(declared)}`];
+    for (const account of Array.isArray(declared) ? declared : []) {
+        const { who, id, role } = account ?? {};
+        if (typeof who !== "string" || !/^[a-z][a-z0-9]*$/.test(who) || names.has(who)) problems.push(`"${who}" is not a free lower-case name`);
+        else if (typeof id !== "string" || !/^[A-Za-z0-9]{16}$/.test(id) || ids.has(id)) problems.push(`${who}: "${id}" is not a new sixteen-character id`);
+        else if (!Number.isInteger(role) || role < 0 || role > 4) problems.push(`${who}: role ${JSON.stringify(role)} is not 0 to 4`);
+        names.add(who);
+        ids.add(id);
+    }
+    if (problems.length) {
+        accountsProblem = problems.join("; ");
+        return [];
+    }
+    for (const { who, id, name, role, character = null, color = "#888888" } of declared) {
+        world.collections.User.push({ _id: id, name: name ?? who, role, active: true, character, color, flags: {} });
+    }
+    return declared;
+}
+
 /* ------------------------------- main ------------------------------------- */
 
 async function main() {
@@ -474,10 +569,17 @@ async function main() {
         process.exit(2);
     }
 
+    /* The scenario is imported before any client is forked (E30, 24.09.2026): what
+       it exports decides which users the world has, and a file that throws on
+       import now ends the run before four browsers boot for nothing. */
+    const scenario = await import(url.pathToFileURL(scenarioFile).href);
+    const accounts = seedAccounts(scenario.accounts);
+
     spawnClient("gm", IDS.gm);
     spawnClient("p1", IDS.p1);
     spawnClient("p2", IDS.p2);
     spawnClient("p3", IDS.p3);
+    for (const account of accounts) spawnClient(account.who, account.id);
 
     const boots = await Promise.all([...clients.keys()].map(w => clients.get(w).ready));
     const failed = [...bootInfo.entries()].filter(([, b]) => b.t === "bootFailed");
@@ -490,12 +592,12 @@ async function main() {
         console.log(`[cluster] ${failed.length} client(s) failed to boot; scenario continues to gather evidence.`);
     }
 
-    const scenario = await import(url.pathToFileURL(scenarioFile).href);
     const layerProblem = layersProblem(scenario.layers, line);
     const probe = !layerProblem && scenario.layers[0] === "probe";
     const api = {
         gm: handleFor("gm"), p1: handleFor("p1"), p2: handleFor("p2"), p3: handleFor("p3"),
-        check, note, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, bootInfo, IDS,
+        ...Object.fromEntries(accounts.map(account => [account.who, handleFor(account.who)])),
+        check, note, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, opLog, settingLog, disconnect, bootInfo, IDS,
         // `import("${repoUrl}/scripts/x.mjs")` inside an eval reaches the SAME module
         // instance the client booted, because it is the same URL.
         repoUrl: REPO_URL,
@@ -505,6 +607,7 @@ async function main() {
         console.log(`[cluster] PROBE ${path.basename(scenarioPath)} - a tool, not a test: its lines record what it saw, nothing in it passes or fails, and it exits 0 unless it throws (probes/README.md)`);
     }
     if (layerProblem) check("the file declares its layers", false, layerProblem);
+    if (accountsProblem) check("the file's accounts can be seeded", false, accountsProblem);
 
     const t0 = Date.now();
     const checksBefore = results.length;
@@ -555,6 +658,7 @@ async function main() {
         passed, total: results.length, ms: dt, resources,
         results, notes, ...(probe ? { evidence: evidence ?? null } : {}),
         permissionDenials, socketTraffic: socketTraffic.slice(0, 200), legacyKeysIgnored: legacyKeys,
+        opLog: opLog.slice(0, 500), settingLog: settingLog.slice(0, 500),
         bootInfo: Object.fromEntries([...bootInfo.entries()].map(([k, v]) => [k, { t: v.t, drpg: v.drpg, settingsRegistered: v.settingsRegistered, error: v.error?.slice?.(0, 800) }]))
     };
     // A probe's record never lands beside the scenarios' results, which a gate reads.

@@ -622,18 +622,31 @@ export function buildDocumentClasses(ctx) {
         }
     }
 
+    /*
+     * AN ASSISTANT IS A GM (E30, 24.09.2026; audit S14-28). `isGM` asked for role 4,
+     * so an Assistant GM (role 3) was a player here and nothing headless ever
+     * walked the Assistant paths the module has had for a long time - utils.mjs
+     * prefers a full GM as the primary and falls back to an Assistant, and
+     * despair.mjs grants Assistants a pool. v14's User#isGM is
+     * `hasRole("ASSISTANT")`, as far as can be said without its source here; the
+     * module's own reading of it is the same. A role name this does not know was
+     * taken as role 4, so asking for a misspelt role asked for a GM: it is false now.
+     * `can()` is still `isGM` - the permission matrix is not modelled (README.md).
+     */
     class UserImpl extends BaseDocument {
         static get documentName() { return "User"; }
-        get isGM() { return (this._source.role ?? 1) >= 4; }
+        get isGM() { return this.hasRole("ASSISTANT"); }
         get active() { return !!this._source.active; }
         get role() { return this._source.role ?? 1; }
         get character() { return ctx.gameRef().actors.get(this._source.character) ?? null; }
         get color() { return U.Color.from(this._source.color ?? 0x888888); }
         get isSelf() { return this.id === ctx.userId(); }
         get viewedScene() { return this._source.viewedScene ?? ctx.gameRef().canvas?.scene?.id ?? null; }
-        hasRole(role) {
+        hasRole(role, { exact = false } = {}) {
             const levels = { NONE: 0, PLAYER: 1, TRUSTED: 2, ASSISTANT: 3, GAMEMASTER: 4 };
-            return this.role >= (typeof role === "number" ? role : levels[role] ?? 4);
+            const level = typeof role === "number" ? role : levels[role];
+            if (level === undefined) return false;
+            return exact ? this.role === level : this.role >= level;
         }
         can(perm) { return this.isGM; }
         get targets() { return new Set(); }

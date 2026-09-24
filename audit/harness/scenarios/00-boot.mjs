@@ -108,5 +108,12 @@ export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permi
         await write(writer, id, `{ "flags.world": _del }`);
     }
 
+    /* Roles (lib/shim.mjs, AN ASSISTANT IS A GM): isGM from role 3, and a role
+       name the harness does not know is no role at all. */
+    const roles = await gm.eval(`const User = CONFIG.User.documentClass;
+        return { isGM: [1, 2, 3, 4].map(role => new User({ role }).isGM), unknown: new User({ role: 4 }).hasRole("NOT_A_ROLE") };`);
+    check("the host: isGM for roles 1 to 4 is false, false, true, true, and an unknown role name is no role",
+        JSON.stringify(roles) === JSON.stringify({ isGM: [false, false, true, true], unknown: false }), JSON.stringify(roles));
+
     await settle(300);
 }
