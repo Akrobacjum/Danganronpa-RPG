@@ -1037,10 +1037,12 @@ export const DrpgApi = {
     /*
      * THE SUITE IS FETCHED WHEN IT IS ASKED FOR, NOT AT EVERY START (C2).
      *
-     * `tests.mjs` is 5400 lines and this file was its only importer, so every
-     * client at the table - players included, none of whom can run it - parsed
-     * the whole regression suite before the world finished loading. Behind a
-     * thunk it is never fetched until somebody types the name.
+     * The suite - `tests.mjs` and, since E30, the four `tests-*.mjs` files it
+     * imports, about 15,000 lines on 24.09.2026 - has this file as its only
+     * importer. Imported at the top, every client at the table - players
+     * included, none of whom can run it - parsed the whole regression suite
+     * before the world finished loading. Behind a thunk it is never fetched
+     * until somebody types the name.
      *
      * `runTests` is already `async`, so a caller sees no difference: it awaited
      * a promise before and it awaits a promise now.

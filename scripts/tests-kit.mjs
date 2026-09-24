@@ -163,7 +163,10 @@ const until = async (check, ms = 4000) => {
     }
 };
 
-/** Fetched once per run: eighty-eight files, and every criterion wants them. */
+/**
+ * Fetched once per page load and kept: a second run in the same page reads the
+ * same text, so reload after editing a file.
+ */
 let sourceCache = null;
 
 /**
@@ -171,9 +174,10 @@ let sourceCache = null;
  *
  * CRAWLED FROM `module.mjs`, NOT LISTED. A list is the thing that rots: the
  * file added next month is exactly the one nobody remembers to add here, and it
- * would be silently exempt from all thirteen criteria while the suite kept
+ * would be silently exempt from every tier-0 criterion while the suite kept
  * reporting green. The crawl cannot have that hole - a file nothing imports is
- * a file Foundry never loads either. Measured: 88 on disk, 88 reached.
+ * a file Foundry never loads either. Measured on 1.2.60: 108 on disk, 108
+ * reached; 112 and 112 once E30 split the suite into five files.
  */
 async function moduleSources() {
     if (sourceCache) return sourceCache;
@@ -245,7 +249,7 @@ async function moduleStyles() {
  * line rewritten - and `slice(-1, ...)` is the last character or nothing. Every
  * positive assertion on that then fails, which is fine; every NEGATIVE one
  * (`ok(!/the bug/.test(body))`) passes, whatever the file now says. Counted when this
- * helper went in: about 150 slices of that shape in this file, 146 of them converted
+ * helper went in: about 150 slices of that shape in the suite, 146 of them converted
  * (the rest feed only positive assertions); the audit counted 78 negative assertions
  * in tier 0. R102 was one: renaming `scaleWindow` would have let its bug
  * back in with the suite green.

@@ -166,13 +166,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl }) {
         `killer ${JSON.stringify(trap.killer)} vs bystander ${JSON.stringify(trap.bystander)}`);
 
     /* ---- 3. and it all goes back ------------------------------------------- */
-    /* THROUGH `endMurder`, NOT BY WRITING THE SETTINGS.
-       The first draft cleared the two settings directly and the trap half then
-       failed: the third party's browser still held the old cast, so they read
-       as a witness to a murder that was over. Not a defect - `writeCast({})` is
-       what tells a participant's client to let go, and setting the world key by
-       hand goes round it. The module's own closing path is also the one worth
-       exercising here. */
+    /* Through `endMurder` again, for the reason given at the top of part 2. */
     await gm.eval(`
         await game.drpg.endMurder({ reason: "suite", followUp: false });
         return true;

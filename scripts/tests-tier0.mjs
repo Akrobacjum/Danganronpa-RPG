@@ -37,8 +37,8 @@ import {
  * that exact path. All of them are plainly visible in the text of the module.
  *
  * Foundry serves this module's own files under `/modules/danganronpa-rpg/`, so
- * the suite can fetch and read them. Eighty-odd fetches inside a hand-run test
- * is a price nobody ever sees.
+ * the suite can fetch and read them. A fetch per script - 112 on 24.09.2026 -
+ * inside a hand-run test is a price nobody ever sees.
  *
  * THE SELECTION RULE, and it is the only one: every criterion below points at a
  * defect this project actually shipped, or came within one commit of shipping.
@@ -194,7 +194,7 @@ function truthyReads(text, name) {
 }
 
 const REGRESSIONS = [
-    ["R1 · every translation key the module names out loud resolves", async () => {
+    ["R1 - every translation key the module names out loud resolves", async () => {
         /*
          * A RAW KEY ON A PLAYER'S SCREEN IS THE ONLY DEFECT IN THIS MODULE THAT
          * THE TABLE SEES BEFORE THE GM DOES. Everything else fails towards the
@@ -238,7 +238,7 @@ const REGRESSIONS = [
             [...missing].map(([k, w]) => `${k} (${w})`).join(", ")}`);
     }],
 
-    ["R1b · no socket handler takes a character on somebody's word", async () => {
+    ["R1b - no socket handler takes a character on somebody's word", async () => {
         /*
          * THE ONE INVARIANT THAT DECIDES WHETHER A PLAYER CAN ACT AS ANOTHER
          * PLAYER'S CHARACTER.
@@ -359,7 +359,8 @@ const REGRESSIONS = [
          * AND EVERY OTHER FILE THAT OPENS A SOCKET, because this test's own name
          * says "no socket handler" and until 15.09 it read exactly one file.
          *
-         * Twenty files call `game.socket.on`. The bridge is the big one and the
+         * Sixteen files call `game.socket.on` (24.09.2026, comments stripped, the
+         * suite's own files left out). The bridge is the big one and the
          * block above still reads it properly, handler by handler; the rest were
          * outside the sentence this test claims to be enforcing. That is how
          * traps.mjs came to be the one handler in the module taking a character
@@ -423,7 +424,7 @@ const REGRESSIONS = [
             + `senderOf/ownsActor, and are not on the exemption list: ${blind.join(", ")}`);
     }],
 
-    ["R2 · no styling rule in the sheet has lost its emitter", async () => {
+    ["R2 - no styling rule in the sheet has lost its emitter", async () => {
         /*
          * DEAD CSS IS INVISIBLE BY CONSTRUCTION. `.drpg-tamper-cover` was
          * written in E12 and replaced by an attribute a day later; the rule
@@ -479,7 +480,7 @@ const REGRESSIONS = [
         ok(!orphans.length, `these rules are styling nothing: ${orphans.join(", ")}`);
     }],
 
-    ["R3 · every sound a card asks for is a sound that exists", async () => {
+    ["R3 - every sound a card asks for is a sound that exists", async () => {
         /*
          * `onCreateChatMessage` reads `flags.danganronpa-rpg.sfx` and plays it.
          * A typo there is silence - no error, no warning, and the failure looks
@@ -510,7 +511,7 @@ const REGRESSIONS = [
         ok(!bad.length, `these ask for a sound that is not in the catalogue: ${bad.join(", ")}`);
     }],
 
-    ["R20 · every sound in the catalogue is a sound something plays", async () => {
+    ["R20 - every sound in the catalogue is a sound something plays", async () => {
         /*
          * R3'S MIRROR, AND IT FOUND ONE THE DAY IT WAS WRITTEN.
          *
@@ -545,7 +546,7 @@ const REGRESSIONS = [
             `these are in the Sound panel and nothing ever plays them: ${silent.join(", ")}`);
     }],
 
-    ["R4 · every setting the module reaches for is a setting it registered", async () => {
+    ["R4 - every setting the module reaches for is a setting it registered", async () => {
         /*
          * A SETTING THAT WAS NEVER REGISTERED ANSWERS WITH ITS DEFAULT AND DOES
          * NOT BLINK. Not an exception, not a warning - the wrong answer,
@@ -583,7 +584,7 @@ const REGRESSIONS = [
         ok(!noScope.length, `these do not declare a scope: ${noScope.join(", ")}`);
     }],
 
-    ["R5 · no sound is played inside a function only the GM runs", async () => {
+    ["R5 - no sound is played inside a function only the GM runs", async () => {
         /*
          * THIS IS THE BUG. `analyzeHit`, `observeFail` and `analyzeMiss` played
          * to the GM and to nobody else for four releases, because each resolver
@@ -628,7 +629,7 @@ const REGRESSIONS = [
         ok(!guilty.length, `these play to the GM and to nobody else: ${guilty.join(", ")}`);
     }],
 
-    ["R6 · no bridge request can be made by the one person it is addressed to", async () => {
+    ["R6 - no bridge request can be made by the one person it is addressed to", async () => {
         /*
          * TWO WAYS TO LOSE AN ACTION, and the bridge has to be closed against
          * both.
@@ -697,7 +698,7 @@ const REGRESSIONS = [
                 reachable.join(", ")}`);
     }],
 
-    ["R7 · Reroll reads no field of the bookmark that nothing ever writes", async () => {
+    ["R7 - Reroll reads no field of the bookmark that nothing ever writes", async () => {
         /*
          * REROLL UNDOES AN ACTION AND PLAYS IT AGAIN, and everything it needs to
          * do that comes off one flag written by whoever made the roll. A field
@@ -726,7 +727,7 @@ const REGRESSIONS = [
             `Reroll reads these and no action writes them: ${orphans.join(", ")}`);
     }],
 
-    ["R8 · every action on the sheet has a branch, and every branch has a briefing", async () => {
+    ["R8 - every action on the sheet has a branch, and every branch has a briefing", async () => {
         /*
          * A TILE THAT OPENS AN EMPTY WINDOW. `performAction` dispatches on the
          * action key, the sheet draws whatever is in `ACTIONS`, and the two are
@@ -766,7 +767,7 @@ const REGRESSIONS = [
         ok(!silent.length, `these briefings are empty or print a raw key: ${silent.join(", ")}`);
     }],
 
-    ["R9 · nothing the investigation depends on is in a world setting", async () => {
+    ["R9 - nothing the investigation depends on is in a world setting", async () => {
         /*
          * FOUNDRY SENDS THE WHOLE WORLD TO EVERY CLIENT. A world-scoped setting
          * is readable from any player's console, in full, whatever the interface
@@ -805,7 +806,7 @@ const REGRESSIONS = [
         ok(!found.length, `these are on every player's machine right now: ${found.join(", ")}`);
     }],
 
-    ["R10 · the hot lookups stay under their ceiling", async () => {
+    ["R10 - the hot lookups stay under their ceiling", async () => {
         /*
          * FOUND BY MEASUREMENT, NEVER BY FAILURE - which is the whole argument
          * for having this at all. E11's stash lookup ran 0.218 ms with twelve
@@ -864,7 +865,7 @@ const REGRESSIONS = [
         ok(!over.length, `over the ${CEILING} ms ceiling: ${over.join(", ")}`);
     }],
 
-    ["R11 · no bridge request can wait forever", async () => {
+    ["R11 - no bridge request can wait forever", async () => {
         /*
          * THE PAIR TO R6, AND THE HALF A GM'S OWN CLIENT CANNOT MEASURE.
          *
@@ -900,7 +901,7 @@ const REGRESSIONS = [
             `these wait on a ruling with no way to give up: ${unbounded.join(", ")}`);
     }],
 
-    ["R12 · every standing window fits the screen Foundry calls a minimum", async () => {
+    ["R12 - every standing window fits the screen Foundry calls a minimum", async () => {
         /*
          * TRAP 145 WAS EXACTLY THIS QUESTION and the answer had to be SEEN, not
          * reasoned about: a sixth entry in the Search menu, and whether it fit
@@ -1034,7 +1035,7 @@ const REGRESSIONS = [
         ok(!wide.length, `these do not fit the screen: ${wide.join("; ")}`);
     }],
 
-    ["R13 · every trigger a trap can name has something listening for it", async () => {
+    ["R13 - every trigger a trap can name has something listening for it", async () => {
         /*
          * BOTH DIRECTIONS, and the second one is the reason this exists.
          *
@@ -1078,7 +1079,7 @@ const REGRESSIONS = [
         ok(!unknown.length, `these listeners test for triggers that do not exist: ${unknown.join(", ")}`);
     }],
 
-    ["R16 · no private card is posted around the private channel", async () => {
+    ["R16 - no private card is posted around the private channel", async () => {
         /*
          * THE OTHER HALF OF R15, AND THE ONE THAT ROTS FIRST.
          *
@@ -1121,7 +1122,7 @@ const REGRESSIONS = [
             `these put private narration in the world database: ${guilty.join(", ")} (use announce)`);
     }],
 
-    ["R18 · using an item mid-incident costs a turn like everything else", async () => {
+    ["R18 - using an item mid-incident costs a turn like everything else", async () => {
         /*
          * IT SHIPPED THE OTHER WAY (E9, G-21). Every act inside an incident pays
          * a turn, a roll and a threshold. Using an item was reachable straight
@@ -1161,7 +1162,7 @@ const REGRESSIONS = [
             "inCrisis no longer restricts itself to the two people in the fight");
     }],
 
-    ["R19 · the windows a GM works from stay true while they are open", async () => {
+    ["R19 - the windows a GM works from stay true while they are open", async () => {
         /*
          * E22 SHIPPED THE MECHANISM AND ONE CALLER, and it took E17 to notice.
          *
@@ -1179,7 +1180,7 @@ const REGRESSIONS = [
          * Written as a list on purpose. "Which windows must be live" is a
          * judgement about how they are used, and a test whose subject is a
          * judgement should say so out loud rather than guess from a function
-         * name - the same reasoning as `STANDING` above it.
+         * name - the same reasoning as `STANDING` in tests-kit.mjs.
          */
         const MUST_BE_LIVE = {
             openGmPanel: "gm-panel",
@@ -1264,7 +1265,7 @@ const REGRESSIONS = [
         }
     }],
 
-    ["R15 · nothing reads a card's words off the document", async () => {
+    ["R15 - nothing reads a card's words off the document", async () => {
         /*
          * THE HALF OF THE PRIVACY FIX A REVIEWER WOULD NOT THINK TO CHECK.
          *
@@ -1292,7 +1293,7 @@ const REGRESSIONS = [
             `these show a dash instead of a private card: ${guilty.join(", ")} (use contentOf)`);
     }],
 
-    ["R17 · a trap can be sprung by somebody who is not the GM", async () => {
+    ["R17 - a trap can be sprung by somebody who is not the GM", async () => {
         /*
          * EIGHT OF THE NINE TRIGGERS NEVER FIRED IN PLAY, and E21 shipped that
          * way with its own scenarios green.
@@ -1342,7 +1343,7 @@ const REGRESSIONS = [
         ok(!orphan.length, `the GM side answers to events nothing sends: ${orphan.join(", ")}`);
     }],
 
-    ["R14 · every setting listener waits on the hook its setting actually fires", async () => {
+    ["R14 - every setting listener waits on the hook its setting actually fires", async () => {
         /*
          * FOUNDRY HAS TWO HOOKS HERE AND THEY DO NOT OVERLAP, and this module
          * has now got it wrong twice.
@@ -1387,7 +1388,7 @@ const REGRESSIONS = [
         }
         ok(!wrong.length, `these listeners can never run: ${wrong.join("; ")}`);
     }],
-    ["R21 \u00b7 no control is decided by a function nobody called", async () => {
+    ["R21 - no control is decided by a function nobody called", async () => {
         /*
          * A FUNCTION OBJECT IS ALWAYS TRUE, and it never says so.
          *
@@ -1431,7 +1432,7 @@ const REGRESSIONS = [
         ok(!wrong.length, wrong.join("; "));
     }],
 
-    ["R22 \u00b7 every name this module calls is a name it has", async () => {
+    ["R22 - every name this module calls is a name it has", async () => {
         /*
          * `bend is not defined`, and it lied about the files for four months.
          *
@@ -1475,7 +1476,7 @@ const REGRESSIONS = [
         ok(!wrong.length, wrong.join("; "));
     }],
 
-    ["R23 \u00b7 a document hook that checks for a GM checks for THE GM", async () => {
+    ["R23 - a document hook that checks for a GM checks for THE GM", async () => {
         /*
          * A DOCUMENT HOOK FIRES ON EVERY CLIENT, so "am I a GM" is never the
          * right question in one - with two Gamemasters at this table it is
@@ -1516,7 +1517,7 @@ const REGRESSIONS = [
         ok(!wrong.length, wrong.join("; "));
     }],
 
-    ["R24 \u00b7 an action that swings a weapon knows which weapon it swung", async () => {
+    ["R24 - an action that swings a weapon knows which weapon it swung", async () => {
         /*
          * ATTACK WITH A WEAPON DID NOT (Dawid, 29.08: "the action does not
          * always work properly").
@@ -1564,7 +1565,7 @@ const REGRESSIONS = [
             `an action marked ${missed.join(", ")} swings a weapon the roll never captured`);
     }],
 
-    ["R25 · the action budget comes back when the Eclipse opens, and only there", async () => {
+    ["R25 - the action budget comes back when the Eclipse opens, and only there", async () => {
         /*
          * Z2 (E18b, wave 5). The refill used to sit in `endEclipse`, which is
          * the moment the NEXT time of day begins - so a Direct Murder, declared
@@ -1609,7 +1610,7 @@ const REGRESSIONS = [
             + "budget the Eclipse just handed out");
     }],
 
-    ["R26 · a critical's Hope is paid once, by one payer", async () => {
+    ["R26 - a critical's Hope is paid once, by one payer", async () => {
         /*
          * A CRITICAL PAID THREE HOPE FOR A GUIDE THAT SAYS TWO, because two
          * mechanisms were implementing the same rule at once.
@@ -1669,7 +1670,7 @@ const REGRESSIONS = [
             + "which the funnel never sees");
     }],
 
-    ["R21 - the chapter ends by closing the trial, and the panel can say so", async () => {
+    ["R151 - the chapter ends by closing the trial, and the panel can say so", async () => {
         /*
          * THE LOOP DID NOT CLOSE, and every part of that was one line missing.
          *
@@ -3534,9 +3535,9 @@ const REGRESSIONS = [
          * names what is missing and points at the one button that helps.
          *
          * The other half of the lesson - tier 2 refusing to start while an incident is
-         * open - is in this file's own runner, and is deliberately not read from here:
-         * a test that reads the runner it is running inside proves nothing about the
-         * run that is happening.
+         * open - is in the suite's own runner (tests.mjs), and is deliberately not read
+         * from here: a test that reads the runner it is running inside proves nothing
+         * about the run that is happening.
          */
         const murder = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
         const body = bodyOf(murder, "function incidentTrackerHtml(", { until: "function incidentSignature(" });

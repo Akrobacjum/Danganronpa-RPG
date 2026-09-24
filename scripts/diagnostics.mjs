@@ -691,7 +691,7 @@ export function verifyStylesheet() {
     // catching, but not at the price of a permanent banner in front of every
     // player at the table for something none of them can act on. The suite
     // holds the release side of it - see "the stylesheet ships with the version
-    // it says it does" in tests.mjs, which fails before a release rather than
+    // it says it does" in tests-tier1.mjs, which fails before a release rather than
     // after one.
     console.warn(`${MODULE_ID} | Stylesheet stamped v${css}, module running v${version}. `
         + "This page is holding an older stylesheet than the scripts it loaded. Reload; if that "
@@ -928,11 +928,11 @@ export function traceClicks({ seconds = 20 } = {}) {
  * NOT A LIST (A15). This used to name twelve files by hand, which is the one
  * shape this tool must not have: it answers "I updated it and the fix is still
  * not there", and the file somebody just changed was the file most likely to be
- * missing from the twelve. `tests.mjs` crawls for the same reason and says so -
- * "a list is the thing that rots".
+ * missing from the twelve. The suite's `moduleSources` crawls for the same
+ * reason and says so - "a list is the thing that rots".
  *
- * Dynamic imports are followed too, and the same regex `tests.mjs` uses says
- * so: `from` OR `import(`. A file behind a lazy import is exactly the kind
+ * Dynamic imports are followed too, and the same regex `moduleSources` uses
+ * says so: `from` OR `import(`. A file behind a lazy import is exactly the kind
  * somebody edits and then cannot see the change in, which is the question this
  * whole report exists to answer - leaving those four out would have put the
  * blind spot back in a different place.

@@ -49,8 +49,10 @@ python3 -m http.server 8765      # then open /audit/glass-harness.html
 
 ## What a change should carry
 
-**A test, where one is possible.** The suite is in `scripts/tests.mjs` and runs
-inside a real world; the scenarios in `audit/harness/scenarios/` drive four
+**A test, where one is possible.** The suite is in `scripts/tests*.mjs` (the
+runner in `tests.mjs`, the tests in `tests-tier0.mjs`, `tests-tier1.mjs` and
+`tests-tier2.mjs`, the shared tools in `tests-kit.mjs`) and runs inside a real
+world; the scenarios in `audit/harness/scenarios/` drive four
 clients at once and are the place for anything involving sockets, permissions or
 two people doing things in the wrong order.
 

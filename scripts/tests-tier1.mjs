@@ -1477,8 +1477,7 @@ const INVARIANTS = [
             stop();
             host.remove();
         }
-    }]
-,
+    }],
 
     ["every setting that promises a redraw gets one", async () => {
         /*
@@ -2113,9 +2112,9 @@ const INVARIANTS = [
     }],
 
     ["every string the code asks for exists in the language file", () => {
-        // Only the keys spelled out as literals - a key built from a variable
-        // cannot be checked from here, and pretending otherwise would make this
-        // test lie in the reassuring direction.
+        // The keys built at run time from a value this list names (see
+        // LITERAL_KEYS below): R1 reads every key spelled out as a literal, and
+        // cannot see these.
         const missing = [];
         for (const key of LITERAL_KEYS) {
             if (!game.i18n.has(key)) missing.push(key);
@@ -2964,64 +2963,27 @@ const INVARIANTS = [
 ];
 
 /**
- * i18n keys worth checking, gathered by hand.
+ * The translation keys R1 cannot see, because no file spells them out: each is
+ * put together at run time from a known value (E30, audit S14-25).
  *
- * Deliberately not scraped from the source at runtime: the scrape would have to
- * run over files this module cannot read from the browser, and a half-scrape
- * that quietly checks forty keys out of six hundred reads as a pass.
+ * This list used to be every key worth checking, gathered by hand, with a note
+ * that reading the source from the browser was impossible. R1 reads every
+ * literal "DRPG.x" in the source, from the files Foundry serves, so the list
+ * only repeated it: on 1.2.60, R1's pattern read 69 of its 78 keys. Of the
+ * other nine, two (Murder.betrayTileLabel and betrayTileHint) were used by no
+ * file and are gone; these seven are built at run time:
+ *
+ *   murder.mjs         victimTrapSprung / victimUnderAttack, by `state.indirect`
+ *   season-setup.mjs   `DRPG.Season.step.${key}` and `.hint.`, for the resources step
+ *   gm-bridge.mjs      `DRPG.Bridge.what.${action}`, for three of its actions
+ *
+ * The rest of those two families (the other Bridge.what actions and season
+ * steps) is checked by no test.
  */
 const LITERAL_KEYS = [
     "DRPG.Murder.victimUnderAttack", "DRPG.Murder.victimTrapSprung",
-    "DRPG.Murder.briefThreshold", "DRPG.Murder.briefRoll", "DRPG.Murder.briefTake",
-    "DRPG.Murder.criticalChoiceTitle", "DRPG.Murder.criticalChoiceHp", "DRPG.Murder.criticalChoiceStress",
-    "DRPG.Murder.betrayTileLabel", "DRPG.Murder.betrayTileHint",
-    "DRPG.Murder.ranOutTwoKillers", "DRPG.Murder.ranOutEndNow", "DRPG.Murder.ranOutKeepGoing",
-    "DRPG.Calls.silencedBadge", "DRPG.Calls.chainedBadge",
-    "DRPG.Monocub.silencedBadge", "DRPG.Monocub.silencedTooltip",
-    "DRPG.Remnant.cardTitle", "DRPG.Remnant.cardWhat", "DRPG.Remnant.cardPlayer",
-    "DRPG.Project.proposalTitle", "DRPG.Project.approveButton", "DRPG.Project.declineButton",
-    "DRPG.Project.proposeButton", "DRPG.Project.createButton",
-    "DRPG.Season.title", "DRPG.Season.resetTitle", "DRPG.Season.resetWord",
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
-    "DRPG.Diagnostics.pageTinted",
-    // E12. Every one of these is said on a client that did not decide it - a
-    // GM-side refusal, a victim's whisper, a row that outlived its item - so a
-    // missing key here renders as a raw string in front of a player.
-    "DRPG.Tamper.notFound", "DRPG.Tamper.nothingOfYours", "DRPG.Tamper.onlyReinforced",
-    "DRPG.Steal.caughtTaking", "DRPG.Steal.caughtTrying", "DRPG.Steal.nobodyHere",
-    "DRPG.Steal.cardSeen", "DRPG.Steal.cardUnseen", "DRPG.Steal.cardHandsFull",
-    "DRPG.Items.rowGone",
-    "DRPG.Reroll.stealStands", "DRPG.Reroll.trailStands",
-    "DRPG.Analyze.findStash", "DRPG.Analyze.stashSent",
-    // TEAM-01 and SEASON-02. Both are printed on a road a GM reaches rarely - a
-    // pool somebody else revoked first, a cursor repair that found nothing.
-    "DRPG.Despair.poolGone", "DRPG.Despair.removePoolAsk",
-    // The tracker's own explanation for an incident nobody can finish.
-    "DRPG.Murder.trackerCastGone",
-    // N-1 and N-2: a tooltip on the clock, and the four sentences of a Level Up
-    // handed to the player - none of which a GM ever sees.
-    "DRPG.Hud.nowPlaying", "DRPG.Advance.offerTitle", "DRPG.Advance.offered",
-    "DRPG.Advance.offerTooltip", "DRPG.Advance.offerFailed",
-    // CALL-18: said on the one road where an assembly cannot be held at all.
-    "DRPG.Calls.gatherRoomGone",
-    // ACT-13: said to a Monocub who reached a tile that is not theirs.
-    "DRPG.Monocub.onlyTwoActions",
-    // ACT-08: both halves of an Observe nobody can score.
-    "DRPG.Observe.resolveLost", "DRPG.Observe.resolveLostOwner",
-    // MM-02. Said by a button that now answers Enter, so an empty field is a
-    // keystroke away rather than a deliberate click.
-    "DRPG.Monocub.giveAtLeast",
-    // F8 and F11. Both of these are printed only in a state a GM reaches rarely -
-    // a debate past its budget, a window refused at the door - which is exactly
-    // when a raw key on screen goes unreported.
-    "DRPG.Floor.holdingDiscussionOver", "DRPG.Eclipse.murderWindowLocked",
-    // E03. Every one is said by a refusal on the GM's side - to the GM, or sent back
-    // to the player it refused - which is exactly the road nobody walks on purpose.
-    "DRPG.Relay.refused", "DRPG.Relay.forged", "DRPG.Relay.unguarded", "DRPG.Relay.unreviewed",
-    "DRPG.Relay.unreadable", "DRPG.Bridge.what.daggerheart", "DRPG.Bridge.what.call.arm",
-    "DRPG.Bridge.what.remnant.tieForItem", "DRPG.SearchTokens.notHere", "DRPG.Anonymity.reverted",
-    "DRPG.TruthBullet.editReverted", "DRPG.Project.frozenNoProgress", "DRPG.Calls.notArmedNotCharged",
-    "DRPG.Calls.despairGmOnly", "DRPG.Relay.unknownSender", "DRPG.Relay.busyFear", "DRPG.TruthBullet.editUnrestored", "DRPG.Relay.backstop"
+    "DRPG.Bridge.what.daggerheart", "DRPG.Bridge.what.call.arm", "DRPG.Bridge.what.remnant.tieForItem"
 ];
 
 export { INVARIANTS };

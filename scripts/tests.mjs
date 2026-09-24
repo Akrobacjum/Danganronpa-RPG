@@ -20,7 +20,8 @@
  *          already serving it. It is the answer to a class of defect the other
  *          two tiers cannot see: not wrong logic, but code that says one thing
  *          and does another somewhere nothing throws. See the block above
- *          REGRESSIONS for the six that got out before it existed.
+ *          REGRESSIONS, in tests-tier0.mjs, for the six that got out before
+ *          it existed.
  *   Tier 1 reads. It cannot change the world, so it is safe to run at any point
  *          in a session, including during play. That used to be a promise; it is
  *          a check now (E01, audit S14-01): the world is read before tier 0 and
@@ -83,11 +84,6 @@ import { SCENARIOS, snapshot, restore } from "./tests-tier2.mjs";
  */
 let inFlight = false;
 
-/**
- * @param {object} [options]
- * @param {0|1|2} [options.tier]  0 reads the module's own source; 1 adds the
- *                                invariants; 2 also runs the scenarios.
- */
 /**
  * @param {object} [options]
  * @param {number} [options.tier=2]  0 source reads, 1 adds invariants, 2 adds scenarios.

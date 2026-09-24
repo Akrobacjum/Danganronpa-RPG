@@ -33,7 +33,7 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
     }
     check("gm: suite failures", (res?.failed ?? 99) === 0, `${res?.failed} failed`);
     /* The skipped count is checked, not just printed. A test that cannot be answered
-       here says so and is counted apart from the failures (see `needs` in tests.mjs);
+       here says so and is counted apart from the failures (see `needs` in tests-kit.mjs);
        if that number GROWS, something that used to be answerable has stopped being so
        - which is a regression wearing the one colour nobody looks at. */
     /* 16 on 24.09 (E01), and every one of them now asks the environment first: no
