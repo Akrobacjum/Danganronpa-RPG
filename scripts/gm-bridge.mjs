@@ -1765,11 +1765,20 @@ async function askHopeCallByCard(payload, asker) {
     askedByCard.add(payload.requestId);
     const actor = game.actors.get(payload.actorId ?? "");
     const data = { rid: payload.requestId, asker, by: payload.actorId ?? "" };
+    /*
+     * THE PRICE FROM THIS SIDE'S TABLE, NOT THE PACKET'S (E02, 24.09.2026; audit
+     * S10-02). `cost` was the one field on this card printed raw - into
+     * `game.i18n.format`, then into the card's HTML - so a packet carrying
+     * `<img src=x onerror=...>` as its cost ran script on every GM's screen. The
+     * GM holds the same `HOPE_CALLS`, so the number never had to travel; a key
+     * this side does not know prints as "?". Every other field is escaped.
+     */
+    const call = HOPE_CALLS[payload.key] ?? null;
     await callGm(actor, {
-        title: game.i18n.format("DRPG.Calls.approveTitle", { call: payload.callLabel ?? "" }),
+        title: game.i18n.format("DRPG.Calls.approveTitle", { call: call?.label ?? payload.callLabel ?? "" }),
         request: payload.note ?? "",
         body: `<p>${esc(payload.effect ?? "")}</p><p class="notes">${
-            game.i18n.format("DRPG.Calls.approveCost", { cost: payload.cost ?? "?" })}</p>`,
+            game.i18n.format("DRPG.Calls.approveCost", { cost: Number.isFinite(call?.cost) ? call.cost : "?" })}</p>`,
         gmBody: game.i18n.localize("DRPG.Calls.approveHint"),
         actions: [
             { action: "approveCall", label: game.i18n.localize("DRPG.Calls.approveYes"), data },
@@ -2469,21 +2478,24 @@ export async function callGm(actor, {
 export async function settleCall(message, text) {
     if (!message || !game.user.isGM) return null;
 
-    const wrap = document.createElement("div");
+    // A `<template>`, not a `<div>` (E02 review): markup parsed into a
+    // detached div still loads its images, so an `onerror` in the card's words
+    // would run right here, on the GM's client. A template's content is inert.
+    const wrap = document.createElement("template");
     wrap.innerHTML = contentOf(message);
 
-    wrap.querySelectorAll(".drpg-call-actions, .drpg-call-awaiting").forEach(el => el.remove());
+    wrap.content.querySelectorAll(".drpg-call-actions, .drpg-call-awaiting").forEach(el => el.remove());
     // Cards posted before the marker class existed carry the same sentence with
     // nothing to hook onto, so they are matched by what they say.
     const awaiting = game.i18n.localize("DRPG.Bridge.awaitingRuling");
-    for (const p of wrap.querySelectorAll("p")) {
+    for (const p of wrap.content.querySelectorAll("p")) {
         if (p.textContent.trim() === awaiting) p.remove();
     }
 
     const note = document.createElement("p");
     note.className = "drpg-call-settled";
     note.textContent = text;
-    wrap.append(note);
+    wrap.content.append(note);
 
     try {
         const { MESSENGER_FLAGS } = await import("./messenger.mjs");

@@ -583,8 +583,10 @@ async function onCreateChatMessage(message) {
      *
      * Players are untouched: their own cards are the whole point of the popup.
      */
+    // `popupForce` only from a GM (E02, audit S11-27): from a player's console it
+    // put a card that looks like the module's own in the middle of every screen.
     const forGm = message.getFlag(MODULE_ID, "gmPopup")
-        || message.getFlag(MODULE_ID, "popupForce");
+        || (message.author?.isGM && message.getFlag(MODULE_ID, "popupForce"));
     if (game.user.isGM && whisper.length && !forGm) return;
 
     // A header, when the poster gave one. An action's result card says which

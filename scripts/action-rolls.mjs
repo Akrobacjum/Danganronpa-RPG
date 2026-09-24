@@ -2179,7 +2179,7 @@ async function workOnProject(actor, def, options, chosen = null) {
     const relief = toolRelief(tool, tierOf);
     if (relief) {
         lines.push(`<p><em>${game.i18n.format("DRPG.Project.toolRelief", {
-            item: tool.name, tier: relief
+            item: foundry.utils.escapeHTML(tool.name), tier: relief
         })}</em></p>`);
     }
 
@@ -2545,7 +2545,7 @@ async function performSabotage(actor, def, options, preset = null) {
     const relief = toolRelief(tool, tierOf);
     if (relief) {
         lines.push(`<p><em>${game.i18n.format("DRPG.Project.toolRelief", {
-            item: tool.name, tier: relief
+            item: foundry.utils.escapeHTML(tool.name), tier: relief
         })}</em></p>`);
     }
 

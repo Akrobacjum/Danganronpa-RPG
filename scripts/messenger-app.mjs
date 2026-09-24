@@ -475,9 +475,11 @@ function buildBubble(message) {
 
     const body = document.createElement("div");
     body.className = "drpg-messenger-text";
-    // Both callers of createThreadMessage() already hand over safe HTML -
-    // sendMessage() escapes free text before this ever runs, postToThread()
-    // is fed the GM-bridge's own escaped ruling cards.
+    // Both callers of createThreadMessage() hand over safe HTML - sendMessage()
+    // escapes free text before this ever runs, postToThread() is fed the
+    // GM-bridge's own escaped ruling cards - and that was the whole defence until
+    // the audit sent the words by hand from a console (S11-01). `contentOf` now
+    // reads them through secret.mjs, which cleans anything a GM did not write.
     body.innerHTML = contentOf(message);
     // The GM's half of a ruling card - the reference table, the "score it
     // against" line - is not the player's to read (COMM-06). Removed, like

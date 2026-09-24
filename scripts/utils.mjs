@@ -350,14 +350,28 @@ export async function whisperToGms(content, extra = {}) {
  * Imported lazily because utils.mjs is imported by everything, secret.mjs
  * imports settings.mjs, and a cycle here would be paid on every module load.
  *
- * A private card with no recipients falls back to an ordinary create rather
- * than being dropped: eighty call sites reach these three functions and one of
- * them, some day, will be a table with no GM connected and no owner for the
- * actor. Losing the card entirely would be a worse answer than posting it the
- * way it was posted before this file existed.
+ * A PRIVATE CARD WITH NOBODY TO READ IT IS DROPPED, NOT PUBLISHED (E02,
+ * 24.09.2026; audit S01-28). It used to fall back to an ordinary create, on the
+ * reasoning that losing a card was worse than posting it the old way. It is not:
+ * a list that comes out empty - a world with no GM user, a room with no owners
+ * in it - turned the GM-only wounds list, a ruling, a veiled incident card into
+ * a PUBLIC message on every screen. A secret published is worse than a card
+ * lost, and the loss is said in the console. What stays public is what was
+ * always public: a card posted with no `whisper` list at all, which is how
+ * `announce` makes an announcement - unless it is veiled, which is never meant
+ * for everybody.
  */
 async function privately(payload) {
-    if (!payload.whisper?.length) {
+    const list = payload.whisper;
+    if (Array.isArray(list) && !list.length) {
+        warn("A private card had nobody to read it, so it was not posted rather than posted for everybody.");
+        return null;
+    }
+    if (!list?.length) {
+        if (payload.veiled) {
+            warn("A veiled card came with no readers, so it was not posted.");
+            return null;
+        }
         // `veiled` is secret.mjs's word, not a ChatMessage field.
         delete payload.veiled;
         return ChatMessage.create(payload);

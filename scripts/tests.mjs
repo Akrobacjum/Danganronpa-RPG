@@ -5008,6 +5008,95 @@ const REGRESSIONS = [
         ok(wanted.length >= 9, `only ${wanted.length} files were expected - the manifest reads wrong`);
         const missed = wanted.filter(f => !files.has(f));
         ok(!missed.length, `fileSizes() does not look at: ${missed.join(", ")}`);
+    }],
+
+    ["R128 - text a player writes cannot become markup on another screen", async () => {
+        /*
+         * E02, 24.09.2026; audit S05-05, S11-27. Two of the four roads the audit found
+         * from a player's console to script on the GM's screen are rules that can be
+         * asked directly, so they are asked here; the other two travel a socket and
+         * are driven in the harness (30-security, part 6).
+         *
+         *   - a Reshape name went through a tag stripper that only knew CLOSED tags,
+         *     and `<img src=x onerror=alert(1)//` is 29 characters of an unclosed one;
+         *   - a chat message's sound flag was honoured from any author, so a player
+         *     could play the safeword - the one sound above the volume slider - to
+         *     everybody, and reach the GMs with any other.
+         */
+        const { plainText } = await import("./cleanup.mjs");
+        const name = plainText("<img src=x onerror=alert(1)//", 60);
+        ok(!/[<>]/.test(name), `a Reshape name still carries an angle bracket: ${name}`);
+        equal(plainText("Kaede's <b>knife</b>", 60), "Kaede's knife", "an ordinary name lost more than its tags");
+
+        const { soundFromMessage } = await import("./sfx.mjs");
+        const message = (author, sfx, extra = {}) => ({
+            author,
+            getFlag: (scope, key) => scope === MODULE_ID ? ({ sfx, ...extra })[key] : undefined
+        });
+        const player = { isGM: false }, gm = { isGM: true };
+        equal(soundFromMessage(message(player, { key: "safeword", gm: true })), null,
+            "a player's message plays the safeword without being the safeword card");
+        equal(soundFromMessage(message(player, { key: "safeword", gm: true }, { safeword: true }))?.key, "safeword",
+            "the real safeword card, which any player may post, no longer sounds");
+        const ordinary = Object.keys(await import("./config.mjs").then(c => c.SFX_EVENTS))
+            .find(k => k !== "safeword");
+        ok(ordinary, "no ordinary sound to ask about");
+        const asked = soundFromMessage(message(player, { key: ordinary, gm: true }));
+        equal(asked?.key, ordinary, "a player's own card lost its sound");
+        equal(asked?.forGm, false, "a player's card still reaches the GMs with a sound");
+        equal(soundFromMessage(message(gm, { key: ordinary, gm: true }))?.forGm, true,
+            "a GM's card can no longer reach the other GMs");
+    }],
+
+    ["R129 - no item or actor field is printed into markup unescaped", async () => {
+        /*
+         * E02, 24.09.2026; audit S03-05, S10-13. An item's picture, its tier and its
+         * roles are flags a player's console can write on their own character, and the
+         * rows of the sheet printed all three into `innerHTML` beside a name that was
+         * escaped. Foundry checks only that `img` ends like a picture. The GM opening
+         * that player's sheet ran whatever the flag held. Read from source because the
+         * sheet is Daggerheart's and is not drawn headless.
+         */
+        const bad = [];
+        for (const [file, raw] of await otherSources()) {
+            const text = stripComments(raw);
+            for (const m of text.matchAll(/src="\$\{(?!foundry\.utils\.escapeHTML|esc\()[^}]*\}"/g)) {
+                bad.push(`${file}:${lineAt(text, m.index)} ${m[0]}`);
+            }
+            // A tier on a line that is building markup. `(T${tier})` inside a label
+            // that is escaped whole before it is printed (vault.mjs, gm-items.mjs) is
+            // text, not markup, and was the first run's two false alarms.
+            for (const m of text.matchAll(/T\$\{tier\}/g)) {
+                const line = text.slice(text.lastIndexOf("\n", m.index) + 1, text.indexOf("\n", m.index));
+                if (/</.test(line)) bad.push(`${file}:${lineAt(text, m.index)} ${m[0]}`);
+            }
+            for (const m of text.matchAll(/drpg-role-\$\{(?!classSafe\()/g)) bad.push(`${file}:${lineAt(text, m.index)} ${m[0]}`);
+            /*
+             * A NAME HANDED TO A SENTENCE THAT IS PRINTED AS MARKUP (E02 review,
+             * 24.09.2026). `${game.i18n.format("...", { name: actor.name })}` on a
+             * line building HTML prints the name as markup, and a character's or an
+             * item's name is the one field of a card its player can set. The review
+             * found one on a card the GM's own client writes (observe.mjs,
+             * "resolveLost") and four more on cards a player's client writes. A
+             * sentence built into plain text and escaped whole where it is printed
+             * is not markup, which is why the line has to be building some.
+             */
+            for (const m of text.matchAll(/\$\{\s*(?:game\.i18n|i18n)\.format\(/g)) {
+                const line = text.slice(text.lastIndexOf("\n", m.index) + 1, text.indexOf("\n", m.index));
+                if (!/</.test(line)) continue;
+                let depth = 1, end = m.index + m[0].length;
+                while (end < text.length && depth) {
+                    if (text[end] === "(") depth++;
+                    else if (text[end] === ")") depth--;
+                    end++;
+                }
+                const args = text.slice(m.index + m[0].length, end);
+                for (const arg of args.matchAll(/\w+:\s*([\w?.[\]]+\.name)\b/g)) {
+                    bad.push(`${file}:${lineAt(text, m.index)} ${arg[0]}`);
+                }
+            }
+        }
+        ok(!bad.length, `printed into markup without escaping: ${bad.join("; ")}`);
     }]
 ];
 
@@ -12630,6 +12719,14 @@ const SCENARIOS = [
                         "a card posted in somebody else's name took the floor");
                     ok(forged.getFlag(MODULE_ID, TRIAL_FLAGS.refused),
                         "a card posted in somebody else's name was not marked refused");
+                    /* AND IT WAS NEVER ON THE TABLE (E02, 24.09.2026; audit S06-34). The
+                       refusal came after the sticky OBJECTION! had already gone up on
+                       every screen; a card its author could not have posted raises no
+                       notice at all now. Read off the notice layer by the card's words. */
+                    const words = String(forged.content ?? "").replace(/<[^>]+>/g, "").trim();
+                    const shown = [...document.querySelectorAll("#drpg-popups *, #drpg-evidence *")]
+                        .some(el => el.textContent?.includes(words));
+                    ok(words && !shown, `a card posted in somebody else's name was shown to the table: "${words}"`);
                 }
             }
 

@@ -78,7 +78,7 @@ function holdingsHtml(who) {
                 const tier = item.getFlag(MODULE_ID, "tier");
                 return `<li>${esc(item.name)}${
                     tier !== undefined && tier !== null
-                        ? ` <span class="notes">T${tier}</span>` : ""
+                        ? ` <span class="notes">T${esc(String(tier))}</span>` : ""
                 }${isStashed(item)
                     ? ` <span class="notes">${esc(game.i18n.localize("DRPG.Items.inStash"))}</span>`
                     : ""}</li>`;

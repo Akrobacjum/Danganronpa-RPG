@@ -256,7 +256,13 @@ async function alert(trap, actor, why) {
     if (!stamped) return null;
 
     const def = TRAP_TRIGGERS[trap.trigger.kind];
-    const room = trap.room ?? roomOf(actor) ?? "?";
+    /* WHERE IT HAPPENED, for a trap that watches an OBJECT (E02, 24.09.2026; audit
+       S08-44). An item trap fires where the object is used, and that is wherever its
+       holder stands - not the room the trap's project was built in. Reading the
+       project's room put "Hiro, in the Laboratory" on a card about a knife picked up
+       in a bedroom. The room-watching triggers keep the project's room: that is the
+       room they watch. */
+    const room = (trap.trigger.kind === "item" ? roomOf(actor) : trap.room) ?? roomOf(actor) ?? trap.room ?? "?";
     const clock = getSetting(SETTINGS.clock) ?? {};
 
     const triggerLabel = localised(`DRPG.Trap.trigger.${trap.trigger.kind}`, def?.label ?? trap.trigger.kind);
@@ -281,7 +287,9 @@ async function alert(trap, actor, why) {
         // and hands them both the fact that their trap went off and the name of
         // the person who set it off, before the GM has ruled on any of it.
         gmOnly: true,
-        title: game.i18n.format("DRPG.Trap.alertTitle", { name: esc(trap.name) }),
+        // Raw here: `callGm` escapes the title itself, and escaping twice put
+        // "Tom&#39;s trap" on the card (S08-44).
+        title: game.i18n.format("DRPG.Trap.alertTitle", { name: trap.name }),
         body,
         request: trap.name,
         actions: [

@@ -1091,7 +1091,9 @@ function nextStep(clock) {
         const mode = game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`);
         return {
             text: holder
-                ? game.i18n.format("DRPG.Panel.nextFloorHeld", { mode, who: holder })
+                // Escaped: the panel is drawn with `innerHTML`, and the holder's name
+                // is their player's to write (E02, audit S10-13).
+                ? game.i18n.format("DRPG.Panel.nextFloorHeld", { mode, who: esc(holder) })
                 : game.i18n.format("DRPG.Panel.nextFloor", { mode }),
             action: "trial"
         };

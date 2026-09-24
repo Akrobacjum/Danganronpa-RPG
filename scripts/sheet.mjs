@@ -1902,12 +1902,12 @@ function injectEquippedTools(app, element) {
         li.draggable = false;
         li.innerHTML = `
             <div class="img-portait" data-tooltip="#item#${item.uuid}">
-                <img src="${item.img}" class="item-img" alt="" />
+                <img src="${foundry.utils.escapeHTML(item.img ?? "")}" class="item-img" alt="" />
             </div>
             <span class="item-name">${foundry.utils.escapeHTML(item.name)}</span>
             <div class="item-labels"><div class="label">${
                 foundry.utils.escapeHTML(ITEM_CATEGORIES[category]?.label ?? category)
-            }${tier !== undefined && tier !== null ? ` - T${tier}` : ""}</div></div>`;
+            }${tier !== undefined && tier !== null ? ` - T${foundry.utils.escapeHTML(String(tier))}` : ""}</div></div>`;
 
         guardRow(li, item, app);
         li.addEventListener("click", event => {
@@ -2239,7 +2239,7 @@ function buildItemRow(li, item, app, actor, inGroup) {
     // object in the same slot - what changes is that it says so,
     // and that the two buttons which would use it are refused.
     if (broken) li.classList.add("drpg-item-broken-row");
-    li.innerHTML = `<img src="${item.img}" alt="" />
+    li.innerHTML = `<img src="${foundry.utils.escapeHTML(item.img ?? "")}" alt="" />
                     <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>
                     ${broken ? `<span class="drpg-item-broken" data-tooltip="${
                         foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.brokenTooltip"))
@@ -2249,13 +2249,13 @@ function buildItemRow(li, item, app, actor, inGroup) {
                         foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.readyTooltip"))
                     }"><i class="fa-solid fa-hand-fist" inert></i></span>` : ""}
                     ${tags.length ? `<span class="drpg-tb-badges">${tags.map(tag =>
-                        `<span class="drpg-tb-badge drpg-role-${tag.key}" data-tooltip="${
+                        `<span class="drpg-tb-badge drpg-role-${classSafe(tag.key)}" data-tooltip="${
                             foundry.utils.escapeHTML(tag.hint)
                         }">${foundry.utils.escapeHTML(tag.label)}</span>`).join("")
                     }</span>` : ""}
                     ${wearMarkup(item)}
                     ${tier !== undefined && tier !== null
-                        ? `<span class="drpg-item-tier">T${tier}</span>` : ""}`;
+                        ? `<span class="drpg-item-tier">T${foundry.utils.escapeHTML(String(tier))}</span>` : ""}`;
     addUseButton(li, item, app);
     addEquipButton(li, item, app);
     addDiscardButton(li, item, app);
@@ -2479,7 +2479,7 @@ function buildOneStashSection(box, actor, app, room) {
             // the stash is where broken tools go to become anonymous again.
             const broken = isBroken(item);
             if (broken) li.classList.add("drpg-item-broken-row");
-            li.innerHTML = `<img src="${item.img}" alt="" />
+            li.innerHTML = `<img src="${foundry.utils.escapeHTML(item.img ?? "")}" alt="" />
                             <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>
                             ${broken ? `<span class="drpg-item-broken" data-tooltip="${
                                 foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.brokenTooltip"))
@@ -2487,7 +2487,7 @@ function buildOneStashSection(box, actor, app, room) {
                                 game.i18n.localize("DRPG.Items.broken"))}</span>` : ""}
                             ${wearMarkup(item)}
                             ${tier !== undefined && tier !== null
-                                ? `<span class="drpg-item-tier">T${tier}</span>` : ""}`;
+                                ? `<span class="drpg-item-tier">T${foundry.utils.escapeHTML(String(tier))}</span>` : ""}`;
             addStashButton(li, item, app, { stowing: false });
             guardRow(li, item, app);
             li.addEventListener("click", event => {
@@ -2705,6 +2705,21 @@ function addStashButton(li, item, app, { stowing }) {
  * people comparing notes, that is a contradiction the table has to spend the
  * trial resolving.
  */
+/**
+ * A value fit to stand in a `class` attribute: letters, digits, `-` and `_` only.
+ *
+ * E02, 24.09.2026; audit S03-05. A role key and a bullet's shown type were
+ * printed straight into `class="..."` inside `innerHTML`, and both live in item
+ * flags a player's console can write - a quote in either closed the attribute
+ * and opened an `onerror`. Every key this module itself writes (the categories,
+ * the usable kinds, the bullet types) already fits, so the real classes and the
+ * styles on them are untouched; anything else loses the characters it could
+ * break out with.
+ */
+function classSafe(value) {
+    return String(value ?? "").replace(/[^A-Za-z0-9_-]/g, "");
+}
+
 export function bulletBadges(data) {
     if (!data) return "";
 
@@ -2713,7 +2728,7 @@ export function bulletBadges(data) {
             tooltip ? ` data-tooltip="${foundry.utils.escapeHTML(tooltip)}"` : ""
         }>${foundry.utils.escapeHTML(text)}</span>`;
 
-    const badges = [badge(data.shownLabel, `type ${data.shownType}`, data.shownHint)];
+    const badges = [badge(data.shownLabel, `type ${classSafe(data.shownType)}`, data.shownHint)];
 
     /*
      * FAINT SITS WITH THE TYPE, AND ONLY ONCE THERE IS A TYPE TO SIT WITH.
@@ -3012,7 +3027,7 @@ function buildBulletRow(li, item, app) {
     li.classList.add("drpg-truth-bullet");
     li.dataset.bulletType = data.shownType;
 
-    li.innerHTML = `<img src="${item.img}" alt="" />
+    li.innerHTML = `<img src="${foundry.utils.escapeHTML(item.img ?? "")}" alt="" />
                     <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>
                     <span class="drpg-tb-badges">${bulletBadges(data)}</span>`;
 

@@ -491,9 +491,33 @@ export function registerTrial() {
     Hooks.on("createChatMessage", message => {
         if (!message.getFlag(MODULE_ID, TRIAL_FLAGS.present)) return;
 
+        /*
+         * ONLY A CARD ITS AUTHOR COULD HAVE POSTED (E02, 24.09.2026; audit S06-34).
+         * The sticky OBJECTION! went up on every screen for any message carrying
+         * the flag, before anything asked who wrote it - so a player's console
+         * could raise "Kaede objects to Shuichi" with invented evidence in somebody
+         * else's name. `seizeFloor` below refused the floor, but the table had
+         * already seen the card. The same two questions it asks, asked first: the
+         * author owns the character the card speaks as, and that character holds
+         * the evidence. A GM's card is a GM's to post.
+         *
+         * Only the POPUP waits on the answer. The card still goes on to
+         * `seizeFloor` below, which refuses it and marks it refused - that mark is
+         * how the table's log shows a forged objection for what it was, and the
+         * suite holds it ("a card posted in somebody else's name").
+         */
+        const author = message.author;
+        let authorised = Boolean(author?.isGM);
+        if (!authorised) {
+            const speaker = game.actors.get(message.speaker?.actor ?? "");
+            const itemId = message.getFlag(MODULE_ID, TRIAL_FLAGS.item);
+            authorised = Boolean(author && speaker?.testUserPermission(author, "OWNER")
+                && (!itemId || speaker.items.has(itemId)));
+        }
+
         const objection = Boolean(message.getFlag(MODULE_ID, TRIAL_FLAGS.objection));
 
-        showPopup(contentOf(message), {
+        if (authorised) showPopup(contentOf(message), {
             title: game.i18n.localize(objection ? "DRPG.Trial.objection" : "DRPG.Trial.evidence"),
             kind: objection ? "objection" : "evidence",
             // Evidence stays up until somebody closes it. A trial argues with a

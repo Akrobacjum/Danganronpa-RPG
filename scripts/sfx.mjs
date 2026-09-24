@@ -676,6 +676,43 @@ function reportUnplayable(key, src, err) {
  * ========================================================================== */
 
 /**
+ * The sound a chat message asks for, as its author was entitled to ask:
+ * `{ key, forGm }`, or null for none.
+ *
+ * WHO MAY MAKE A SOUND FOR EVERYBODY (E02, 24.09.2026; audit S11-27).
+ *
+ * The socket road for sounds already demands a GM; this one, the flag on a
+ * chat message, honoured any author. A player could create a public message
+ * carrying `{ key: "safeword", gm: true }` and play the one sound that ignores
+ * the volume slider to the whole table, in a loop, from the console.
+ *
+ * A player's own cards do carry sounds, so the rule is narrower than "GMs
+ * only". A player may not reach the GMs with a sound, and may not play one
+ * that ignores the slider - EXCEPT on the real safeword card, which any player
+ * is entitled to post and which carries the safeword marker (`SAFEWORD_FLAG`
+ * in safeword.mjs, read here by its value to keep this file out of that
+ * one's imports). A spoof that sets the marker too has called the safeword:
+ * the game pauses and the GMs are told, which is no longer a prank.
+ *
+ * Exported for the suite (R128), which asks it about messages it builds.
+ */
+export function soundFromMessage(message) {
+    const carried = message?.getFlag?.(MODULE_ID, SFX_FLAG);
+    if (!carried) return null;
+
+    const key = typeof carried === "string" ? carried : carried?.key;
+    let forGm = typeof carried === "string" ? false : Boolean(carried?.gm);
+    if (!key) return null;
+
+    const byPlayer = !message.author?.isGM;
+    if (byPlayer && !message.getFlag(MODULE_ID, "safeword")) {
+        if (SFX_EVENTS[key]?.ignoresVolume) return null;
+        forGm = false;
+    }
+    return { key, forGm };
+}
+
+/**
  * A sound carried on a chat message, heard by the people that message reached.
  *
  * THE AUDIENCE RULE IS THE POPUP'S, ON PURPOSE. `whisperToOwner` addresses the
@@ -690,12 +727,9 @@ function reportUnplayable(key, src, err) {
  * of everyone caught in the incident, and every one of them is an audience.
  */
 function onCreateChatMessage(message) {
-    const carried = message.getFlag(MODULE_ID, SFX_FLAG);
-    if (!carried) return;
-
-    const key = typeof carried === "string" ? carried : carried?.key;
-    const forGm = typeof carried === "string" ? false : Boolean(carried?.gm);
-    if (!key) return;
+    const asked = soundFromMessage(message);
+    if (!asked) return;
+    const { key, forGm } = asked;
 
     // A whisper reaches the people it names. No whisper list at all is a public
     // announcement, and everyone hears an announcement.
