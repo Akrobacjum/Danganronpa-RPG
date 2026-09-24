@@ -31,26 +31,42 @@ If a claim cannot be measured, say that instead of rounding it up.
 | What | How |
 | --- | --- |
 | The suite, in Foundry | `game.drpg.runTests()` in the console, as GM: tiers 0-1, read-only; `runTests({ tier: 2 })` also writes, and asks first in a window |
-| The harness, first time | `cd audit/harness && npm ci` - installs jsdom; boots the checkout it sits in, or `DRPG_REPO` |
-| The suite, headless | `cd audit/harness && node cluster.mjs scenarios/01-runtests.mjs` |
-| One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines) |
-| Every scenario | the eleven numbered ones: 10, 11, 12, 13, 14, 15, 20, 30, 40, 50, 60 |
-| The Polish file | `node tools/config-prose.mjs --check lang/pl.json` - must read 497/497 |
+| The harness, first time | `cd audit/harness && npm ci` - installs jsdom, ESLint, espree and Playwright (no browser); boots the checkout it sits in, or `DRPG_REPO` |
+| Everything CI runs | `npm test` in `audit/harness`: lint, `tools/check.mjs`, the gate's self-test, the suite and every scenario whose layers include `ci`. 8m08s-8m13s here (24.09, 4 cores); exit 1 on anything red |
+| The quick part | `npm run quick` - lint, the checks and the gate's self-test, 9-13 s here; `npm run lint` and `npm run check` alone |
+| The suite, headless | `npm run suite`, or `node cluster.mjs scenarios/01-runtests.mjs` |
+| One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines); `node run-all.mjs scenarios --only 40-flow` also holds it to a fresh results file |
+| Every scenario | `npm run scenarios`: the rows with layers `ci` in `audit/harness/README.md` |
+| One check | `node tools/check.mjs <part>`: stamps, notes, dashes, parity, prose, names, contract, registry, stages, tree, gatecode |
+| The Polish file | `node tools/check.mjs prose` - must read N/N, 497/497 on 24.09 |
+| The local gate | on a machine with a Foundry v14 sandbox at :30099, `npm run gate:local` (`audit/gate/README.md`) |
 | The curtain, without Foundry | `python3 -m http.server 8765` then `/audit/glass-harness.html` |
 | The evidence pack, without Foundry | the same server, then `/audit/pack-harness.html` |
 | What the theme costs | `game.drpg.perf()` at the table - the only place that number is real |
 | What a screen reader cannot read | `game.drpg.a11y()` |
 
 The headless harness (`audit/harness`) runs four jsdom clients - one GM and
-three players - against a shim of Foundry. It is good enough to drive the rules,
-the sockets and the DOM, and it is **not** a browser: no layout, no canvas
-width, no fonts, no audio. A test that needs one of those says so with
-`needs(condition, why)` and is counted as skipped, not failed.
+three players; five in 17-assistant, which adds an Assistant GM - against a
+shim of Foundry. It is good enough to drive the rules, the sockets and the DOM,
+and it is **not** a browser. A test that needs what it lacks asks an `env.*`
+probe with `needs()` and is counted as skipped, not failed. A scenario exits 1
+on a red check since E30; before, it exited 0 whatever its checks said.
 
-## What the suite's three numbers mean
+**What the harness cannot do** is listed in `audit/harness/README.md`; in
+short: no layout, canvas, fonts or audio; CSS only as far as jsdom's cascade
+goes; a permission gate that models ownership and roles and little else; v14's
+operators, pre-update steps and user roles modelled from notes, not from v14's
+source; no real server. Each assumption not confirmed on v14 has a LIVE-E30 id,
+and every results file lists them under `environment.unconfirmed`.
 
-`292 passed, 0 failed, 16 skipped` (headless, 1.2.60)
+## What the suite's four numbers mean
 
+`304 passed, 0 failed, 16 skipped` (headless, 24.09.2026, E30), and a fourth,
+`red`, printed only when it is not zero.
+
+- **passed** counts a test only when it measured something: one that ends
+  with no `ok()` or `equal()` run fails as "measured nothing" (the contract,
+  below).
 - **failed** must be zero. It was not zero for a year, and a thirteenth failure
   arrived unnoticed because twelve was a number people had learnt. It was not
   zero again by 1.2.56 (eleven headless failures, all of them windows the
@@ -59,14 +75,19 @@ width, no fonts, no audio. A test that needs one of those says so with
 - **skipped** may only be a fact about the environment that the test checked
   itself. Never a result that came out wrong. The harness asserts this number
   does not grow: something that used to be answerable and stopped being so is a
-  regression wearing the one colour nobody looks at.
+  regression wearing the one colour nobody looks at. Headless, the skips are
+  exactly `audit/harness/skip-baseline.json`'s, test by test.
+- **red** is a test marked `expectedRed(stage, why)` that failed on an
+  assertion, as it said it would. It stays green only while that holds: it
+  fails when it passes and when `tools/stages.json` says its stage shipped. 0
+  on 24.09.
 
 ## Things that will bite
 
 **Every English key needs a Polish twin.** `lang/en.json` and `lang/pl.json` are
-checked against each other by the suite (R1) and the prose in `config.mjs` by
-`tools/config-prose.mjs`. A key used with `plural()` needs `.one`/`.other` and,
-in Polish, `.few`/`.many`.
+checked against each other by the suite and by `node tools/check.mjs parity`,
+and the prose in `config.mjs` by `node tools/check.mjs prose`. A key used with
+`plural()` needs `.one`/`.other` and, in Polish, `.few`/`.many`.
 
 **The breakpoints live in `settings.mjs` and nowhere else.** `BREAKPOINTS` is
 read by the stylesheet (through two body classes stamped in `applyTheme`), by
@@ -97,6 +118,12 @@ numbers came out plausible and wrong.
 in the suite reads the source for it. `senderOf(senderId)` and
 `ownsActor(sender, actor)`, both, every time - and the rest of what that means
 is the trust model, below.
+
+**Delete a key with `forcedDeletion()` or `unsetFlag`.** A `-=key` in an update
+removes nothing on v14, and R152 fails any update in the module spelt that way;
+the harness reports one as `legacyKeys`. `forcedDeletion()` in `utils.mjs` is
+v14's `ForcedDeletion` where it exists (else Daggerheart's `_del`), and null in a
+Foundry with neither, where the caller unsets one flag at a time.
 
 **Two functions are deliberately long.** `registerSettings` (a flat registration
 table) and `steps()` (a data table). Everything else the audit measured over 300
@@ -154,28 +181,114 @@ audit found several of those and they had each survived a release.
 
 Dashes are `-`, not `—`, throughout, including in prose files.
 
+## The gate, both layers
+
+A release meets two layers (decision D47, E30), and `release.yml` checks both
+before it builds anything.
+
+1. **ci** - `npm test`, above. `.github/workflows/ci.yml` runs it on every push
+   and pull request to `main`, in three jobs; `release.yml` calls the same file
+   on the release commit.
+2. **local-gate** - what no headless run can do: the suite's tier 2 in both
+   themes on a real Foundry v14, the whole-world diff around it, the scenarios
+   whose layers include `local-gate`, and the drills a stage names in
+   `tools/stages.json`. `npm run gate:local`, on a machine with a v14 sandbox,
+   writes `audit/gate/local-gate.json`, bound to its commit;
+   `audit/gate/verify-gate.mjs` checks it in the release (its rules are in its
+   header and `audit/gate/README.md`). A part that could not run is written as
+   not run, with the reason and the real error - never as run.
+
+The gate is required for 1.3.0, for a stage that declares sockets, rolls or
+scenes, and when a runtime script that reads one of them changed since the
+previous tag. When a required part did not run, the repository variable
+`DRPG_LOCAL_GATE` decides:
+
+- **record** (unset; chosen on 24.09.2026, while no v14 sandbox exists): a part
+  not run for a waivable reason - no server, no world, the wrong Foundry, no
+  fixtures - passes when the notes' "## Checked" section has a line starting
+  "- Not checked in a real Foundry". The job summary carries it, and every
+  release since the last complete gate, as debt.
+- **enforce**: the owner's waiver file `audit/gate/waivers/vX.Y.Z.md`, the tag
+  typed again as the dispatch's `local_gate_waiver` input, the notes line, and
+  an approval in the protected environment `local-gate-waiver`.
+
+In both, a failed or errored part, a reason that is the gate's own fault, a
+missing, stale, edited or (with `DRPG_GATE_KEY` set) unsigned file, and 1.3.0
+without a passed gate are refused. As of 24.09.2026 nothing in `audit/live` has
+run against a real Foundry (its README says so first).
+
 ## Releasing
 
-1. `module.json` version and the `--drpg-css-version` stamp in
-   `styles/danganronpa.css` must agree, and the workflow checks that they do.
-2. The same version is stamped on the third line of the six handbooks in
-   `docs/handbooks/` and in the README's "They describe version X." The workflow
-   and R125 both fail when one of the seven lags.
-3. Write `.github/release-notes/vX.Y.Z.md`. The workflow refuses to run without
-   it.
-4. Before a release, look up the current Daggerheart version. `verified` in
+1. Bump the version in `module.json`, the `--drpg-css-version` stamp in
+   `styles/danganronpa.css`, the third line of the six handbooks in
+   `docs/handbooks/` and the README's "They describe version X."
+   `node tools/check.mjs stamps --release vX.Y.Z` checks all eight stamps
+   against `module.json` and the tag, R125 checks the handbooks and the README
+   in the suite, and the workflow refuses to build when one lags.
+2. Write `.github/release-notes/vX.Y.Z.md` (`node tools/check.mjs notes`). Its
+   "## Checked" section says what was measured and, on a line starting
+   "- Not checked in a real Foundry", what was not.
+3. In the same commit, `node tools/stages.mjs ship EXX` marks the stage
+   shipped. It refuses while a marker in the suite still names that stage, and
+   from then on every red still promised for it fails, on purpose.
+4. Run the local gate on that commit (`npm run gate:local`) and commit
+   `audit/gate/local-gate.json` and `audit/gate/evidence/` on top of it, in a
+   commit of their own - not amended in: the file names the commit it ran on.
+5. **An agent never writes a waiver file and never fills the waiver input.**
+   They are the owner's decision and the only way through enforce mode; an
+   agent asks.
+6. Before a release, look up the current Daggerheart version. `verified` in
    `module.json` names only a version the suite has passed on at a real table;
    the manifest states no `maximum` (decision D1), so a newer Daggerheart loads
    and the module warns the GM once per version.
-5. `main` is the release branch; the tag is created there, and the workflow
-   refuses a dispatch from anywhere else.
-6. Actions ▸ Release, dispatched on `main` with the tag (and a title for the
+7. `main` is the release branch: merge on green CI only. The tag is created
+   there, and the workflow refuses a dispatch from anywhere else.
+8. Actions ▸ Release, dispatched on `main` with the tag (and a title for the
    last one). Afterwards check that `releases/latest` is the new version: a
    prerelease can move it.
-7. Numbering (decision D20): each stage of the 1.3.0 plan ships as the next
+9. Numbering (decision D20): each stage of the 1.3.0 plan ships as the next
    `1.2.X`; the last stage ships as `1.3.0` "Stained Update". After it, `1.3.X`
    is balance and fixes. The 1.3.0 notes say what of the text rework the
    `1.2.43`-`1.2.47` notes promised with it went in, and what did not.
+
+## Test author contract
+
+Every test in `scripts/tests-tier*.mjs` keeps these, and the suite checks each
+one itself (R154-R158, tier 0). `node tools/check.mjs contract` runs the same
+detectors (`scripts/tests-lint.mjs`) in CI, and holds the harness scenarios to
+rule 4.
+
+1. **It measures something.** A test that ends without one `ok()` or `equal()`
+   having run FAILs as "measured nothing". A loop over the world counts only if
+   the world had something in it - declare what it needs with
+   `needs(world.atLeast(...))`. An assertion the test catches itself FAILs it.
+2. **A skip is a probe, never a result.** `needs()` takes only `env.*` (this
+   browser, this Foundry) or `world.*` (the world as found) from
+   `tests-kit.mjs`; anything else FAILs (R158), and a `world.*` asked after the
+   test wrote to the world FAILs. What the module does is `ok()`. A new probe is
+   a row in the kit, not a condition in a test.
+3. **Source is cut with the kit** - `bodyOf`, `fnSource`, `lineAround` (R156). A
+   `slice` bounded by `indexOf`, or `split(marker)[1]`, answers -1 or nothing
+   when the code moves, and every negative assertion after it passes.
+4. **Nothing is true by construction** - no `ok(true)`, no `|| true`, no
+   `check(name, true)` (R157).
+5. **Red on purpose says until when.** `[name, fn, expectedRed("E07", why)]` is
+   green while it fails on an assertion, FAILs as "unexpectedly passed" when it
+   passes, and FAILs once `tools/stages.json` says E07 shipped (R155). One tuple
+   per generated case. A harness check says the same with its `knownLeak` or
+   `expectedRed` option.
+6. **Tier 0 and 1 change nothing; tier 2 puts everything back.** `worldDump()`
+   is compared before and after tiers 0-1 and after every scenario's `restore()`
+   ("restore left: ..."). Leaving a path out of the dump takes a `DUMP_RULES`
+   row with a reason and an `until`; R159 holds the dump to every kind of write
+   the module makes.
+7. **World requirements skip, they do not fail.** Fixtures come from `cast(n)`
+   and `world.*`. The harness world satisfies every `world.*`, so
+   `audit/harness/skip-baseline.json` holds `env.*` probes only, and must match
+   the run exactly.
+
+R154 runs the runner itself on 19 small tests that break rules 1, 2 and 5 on
+purpose, and holds each to its known verdict.
 
 ## Numbering new tests
 
@@ -202,7 +315,9 @@ named, not numbered.
 
 `audit/AUDIT-1.2.42.md` section 9 carries the live checks - the things no
 harness can settle and that have to be tried at a real table. That list is the
-honest statement of what this module has not yet proved about itself.
+honest statement of what this module has not yet proved about itself, with two
+records beside it: the local gate's parts not run (`audit/gate/local-gate.json`)
+and the 1.2.56 performance baseline, not yet measured (`audit/perf-baseline.json`).
 
 ## Registry: R numbers
 

@@ -13,12 +13,19 @@ in `audit/AUDIT-1.2.42.md` section 9.2.
 
 ## Running
 
-`npm ci` once in this folder (it installs jsdom), then
-`node cluster.mjs scenarios/NN-name.mjs [--verbose]`. `DRPG_REPO` points it at
-another checkout; by default it boots the one it sits in. Each run writes
-`results/<scenario>.json`, which git does not track. Exit code: 0 when every
-check passed, 1 when one failed, 2 when nothing ran, 3 when the cluster itself
-failed.
+`npm ci` once in this folder (jsdom, ESLint, espree, and Playwright without a
+browser), then `npm test` - `run-all.mjs`: lint, `tools/check.mjs`, the gate's
+self-test (`audit/gate`), the suite and every scenario whose layers include
+`ci`, each cluster in its own process group, each held to a results file of its
+own run and to an exit code that agrees with its verdicts. Parts can be named
+(`node run-all.mjs lint check gate` is `npm run quick`) and `--only NN-name`
+narrows the scenarios. One scenario by hand:
+`node cluster.mjs scenarios/NN-name.mjs [--verbose]`. `DRPG_REPO` points either
+at another checkout; by default they boot the one they sit in. Each run writes
+`results/<scenario>.json` and run-all also `results/<scenario>.log` and
+`results/run-all.json`, none of which git tracks. The cluster's exit code: 0
+when every check passed, 1 when one failed, 2 when nothing ran, 3 when the
+cluster itself failed.
 
 `node suite-diff.mjs before.log after.log` compares two runs of
 `scenarios/01-runtests.mjs` test by test: a test gone or new, a status or a
