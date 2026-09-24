@@ -1,12 +1,13 @@
 /**
  * Danganronpa RPG - the suite's shared tools (E30, audit S17-02).
  * ---------------------------------------------------------------------------
- * What more than one tier uses: the three answers a test can give (it returns,
- * it throws a Failure, it throws a Skipped), the environment probes, the source
- * readers, the world readers the runner compares before and after tiers 0 and
- * 1, and cast(). It writes nothing to the world and imports no other suite
- * file, so a tier file that imports it imports no other tier. What the tiers
- * are: the header of tests.mjs.
+ * What more than one tier uses: the answers a test can give (it returns, it
+ * throws a Failure, it throws a Skipped) and how the runner judges them
+ * (runOne: what it measured, whether it is red on purpose until a named stage),
+ * the environment probes, the source readers, the world readers the runner
+ * compares before and after tiers 0 and 1, and cast(). It writes nothing to the
+ * world and imports no other suite file, so a tier file that imports it imports
+ * no other tier. What the tiers are: the header of tests.mjs.
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
@@ -17,6 +18,15 @@ import { studentActors } from "./monokuma.mjs";
  * ========================================================================== */
 
 class Failure extends Error {}
+
+/**
+ * A kit precondition that did not hold: the code under test was not where the
+ * test looked (a marker gone from the source, a file that did not load). A
+ * FAIL like any other, but never a measurement - see `must` - and never an
+ * expected red: a test marked red until a later stage has to be red because
+ * what it measures is wrong, not because it could not reach it.
+ */
+class Precondition extends Failure {}
 
 /*
  * A THIRD ANSWER, BECAUSE "FAILED" WAS BEING USED FOR TWO DIFFERENT THINGS.
@@ -42,10 +52,51 @@ class Failure extends Error {}
  * that did not come out at all. `needs` is the only way to raise one, and it
  * takes the check and the reason together so neither can be left out.
  */
-class Skipped extends Error {}
+class Skipped extends Error {
+    constructor(message, probe = null) { super(message); this.probe = probe; }
+}
+
+/*
+ * THE TEST NOW RUNNING, AND WHAT IT HAS MEASURED (E30, 24.09.2026; audit S17-03).
+ *
+ * `stackShapes` was written, the self-check reported zero failures, and the
+ * reason was that the block list it checked was empty: a loop over nothing
+ * asserts nothing and returns. So every `ok` and `equal` now counts into the
+ * running test, and `judge` fails a test that returned without one having run,
+ * or that caught one of its own failures and carried on. The runner awaits each
+ * test before the next, so one slot is enough; it is null between tests, so a
+ * callback that outlives its test counts for nobody.
+ */
+let current = null;
 
 function ok(condition, message) {
-    if (!condition) throw new Failure(message);
+    if (current) current.assertions++;
+    if (!condition) {
+        if (current) current.failures.push(String(message));
+        throw new Failure(message);
+    }
+}
+
+function equal(actual, expected, message) {
+    if (current) current.assertions++;
+    if (actual !== expected) {
+        const text = `${message} - expected ${JSON.stringify(expected)}, measured ${JSON.stringify(actual)}`;
+        if (current) current.failures.push(text);
+        throw new Failure(text);
+    }
+}
+
+/**
+ * What a test needs in order to measure at all - a marker in the source, a file
+ * that loaded - checked, and NOT counted as a measurement. A test that only cuts
+ * source with `bodyOf` has read something and asserted nothing, and the counter
+ * has to be able to tell. A failed `must` throws a Precondition.
+ */
+function must(condition, message) {
+    if (!condition) {
+        if (current) current.failures.push(String(message));
+        throw new Precondition(message);
+    }
 }
 
 /**
@@ -58,6 +109,192 @@ function ok(condition, message) {
 function needs(condition, why) {
     if (!condition) throw new Skipped(why);
 }
+
+/** A value in a few words, for a message that says what something was handed. */
+function describe(value) {
+    if (value === null || value === undefined) return String(value);
+    if (typeof value === "function") return `a function (${value.name || "anonymous"})`;
+    if (typeof value !== "object") return `${typeof value} ${String(JSON.stringify(value)).slice(0, 40)}`;
+    const name = value.constructor?.name ?? "Object";
+    let body = "";
+    try { body = JSON.stringify(value)?.slice(0, 60) ?? ""; } catch { /* a cycle: the name is enough */ }
+    return `${/^[AEIOU]/.test(name) ? "an" : "a"} ${name}${body && body !== "{}" ? ` ${body}` : ""}`;
+}
+
+/*
+ * RED ON PURPOSE, UNTIL A NAMED STAGE (E30, 24.09.2026; audit S17-03).
+ *
+ * The 1.3.0 plan writes tests before the fix they measure: a stage adds the test
+ * that says what is wrong, and a later one makes it pass. Such a test is marked
+ * with a third element, `[name, fn, expectedRed("E07", why)]`, so the runner can
+ * read every marker without running the test. It is green while it fails on an
+ * assertion, FAILs as "unexpectedly passed" when it passes, and FAILs once
+ * tools/stages.json says its stage has shipped - so a stage cannot ship with the
+ * red it was meant to turn green still counted as fine. `failing`, when given, is
+ * a piece of the failure message the red has to carry, so a case that starts
+ * failing for another reason does not hide under the marker. It never throws at
+ * load: a throw here would take the whole tier file down, so a malformed marker
+ * FAILs its own test instead (`markerProblem`).
+ */
+const RED = Symbol("drpg.suite.expectedRed");
+
+function expectedRed(stage, why, { failing = null } = {}) {
+    return Object.freeze({ [RED]: true, stage: String(stage ?? ""), why: String(why ?? "").trim(), failing });
+}
+
+/** Numeric, part by part: 1.2.100 is past 1.2.99 (tools/stages.mjs compares the same way). */
+function compareVersions(a, b) {
+    const pa = String(a).split(".").map(Number), pb = String(b).split(".").map(Number);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+        if (d) return Math.sign(d);
+    }
+    return 0;
+}
+
+/**
+ * tools/stages.json as this run reads it: `Map<id, row>`, each row with `done` -
+ * THE rule of tools/stages.mjs: a version, and this module's version at or past
+ * it. Fetched once per run by the runner. `null` when the file is not served,
+ * which is every installed module (tools/ is export-ignored from the zip): a
+ * marker's stage is then checked at release, not here, and the run says so.
+ */
+async function stageLedger() {
+    let doc = null;
+    try {
+        const res = await fetch(`/modules/${MODULE_ID}/tools/stages.json`, { cache: "no-cache" });
+        if (res.ok) doc = await res.json();
+    } catch { /* not served: the answer below says so */ }
+    if (!Array.isArray(doc?.stages)) return null;
+    const version = game.modules.get(MODULE_ID)?.version ?? "0";
+    return new Map(doc.stages.map(row => [row.id, {
+        ...row, done: Boolean(row.version) && compareVersions(version, row.version) >= 0
+    }]));
+}
+
+/** What is wrong with a red marker before anything is run, or null. */
+function markerProblem(red, ledger) {
+    if (red?.[RED] !== true || !/^E\d{2}$/.test(red.stage ?? "") || !red.why) {
+        return `expectedRed is malformed (a stage "E" and two digits, and a reason): ${describe(red)}`;
+    }
+    if (!ledger) return null;
+    const row = ledger.get(red.stage);
+    if (!row) return `expectedRed names "${red.stage}", which tools/stages.json does not know`;
+    if (row.done) {
+        return `expected red until ${red.stage}, which shipped in ${row.version} on ${row.shipped} - the marker is still here: ${red.why}`;
+    }
+    return null;
+}
+
+/**
+ * Run one test, `[name, fn, red?]`, and say what it came to:
+ * `{ tier, name, outcome: "pass"|"fail"|"skip"|"red", message?, probe?, failedAt?, assertions }`.
+ * The running-test slot is saved and put back, so the kit's self-tests can run a
+ * test inside a test.
+ */
+async function runOne([name, fn, red = null], { tier, ledger = null } = {}) {
+    const ctx = { name, tier, assertions: 0, failures: [], probes: [], wrote: null };
+    const outer = current;
+    current = ctx;
+    let err = null;
+    try { await fn(); } catch (e) { err = e; } finally { current = outer; }
+    return { tier, name, assertions: ctx.assertions, ...judge(ctx, err, red, ledger) };
+}
+
+/* THE ORDER MATTERS. A stale or malformed marker fails whatever the test did; a
+   skip is a skip; a failure the test caught fails it; a red is green only when
+   an assertion failed - a precondition, a crash or nothing measured is a FAIL. */
+function judge(ctx, err, red, ledger) {
+    const fail = message => ({ outcome: "fail", message });
+    if (red) {
+        const stale = markerProblem(red, ledger);
+        if (stale) return fail(stale);
+    }
+    if (err instanceof Skipped) return { outcome: "skip", message: err.message, probe: err.probe };
+    if (!err && ctx.failures.length) return fail(`an assertion failed and the test caught it: ${ctx.failures[0]}`);
+    if (red) {
+        if (err instanceof Failure && !(err instanceof Precondition) && (!red.failing || err.message.includes(red.failing))) {
+            const planned = ledger?.get(red.stage)?.planned;
+            return { outcome: "red", message: `until ${red.stage}${planned ? ` (planned ${planned})` : ""}: ${red.why}`, failedAt: err.message };
+        }
+        if (err instanceof Precondition) return fail(`red for the wrong reason - the test could not reach what it measures: ${err.message}`);
+        if (err) return fail(err instanceof Failure ? `red, but not where expectedRed says: ${err.message}` : `threw: ${err?.message ?? err}`);
+        if (!ctx.assertions) return fail("measured nothing: expected red, and no ok() or equal() ran");
+        return fail(`unexpectedly passed (${ctx.assertions} assertions held) - expectedRed("${red.stage}") can come off: ${red.why}`);
+    }
+    if (err) return fail(err instanceof Failure ? err.message : `threw: ${err?.message ?? err}`);
+    if (!ctx.assertions) return fail("measured nothing: no ok() or equal() ran");
+    return { outcome: "pass" };
+}
+
+/*
+ * EVERY TIER, FOR THE TESTS ABOUT TESTS (E30, 24.09.2026). R155 asks every marker
+ * in the suite whether its stage has shipped, the tier-2 ones included, from a
+ * tier-0 run. A tier file imports no suite file but this one, so the runner hands
+ * the three lists over here when it loads, and a reader that finds none fails as
+ * a precondition instead of reading an empty suite as a clean one.
+ */
+let suiteTiers = null;
+function registerSuite(tiers) { suiteTiers = tiers; }
+function suiteEntries() {
+    must(suiteTiers, "the runner has not handed the tiers to the kit - no test can be read");
+    return suiteTiers.flatMap(([tier, list]) => list.map(entry => ({ tier, name: entry[0], red: entry[2] ?? null })));
+}
+
+/*
+ * THE CONTRACT, RUN ON ITSELF (E30, 24.09.2026). Each case is a small test with a
+ * known verdict, run through `runOne` in isolation with a ledger of two made-up
+ * stages, E90 still to come and E91 shipped. R155's lesson is R21's: a checker is
+ * trusted only after it has been seen to catch what it is for. They live here,
+ * not in a tier file, because every one of them breaks the contract on purpose.
+ */
+const SELF_LEDGER = new Map([
+    ["E90", { id: "E90", planned: "9.0.90", version: null, shipped: null, done: false }],
+    ["E91", { id: "E91", planned: "9.0.91", version: "9.0.91", shipped: "2026-01-01", done: true }]
+]);
+const KIT_SELF_TESTS = [
+    { expect: "pass", says: "", entry: ["a test that measures and holds", () => { equal(2 + 2, 4, "two and two"); }] },
+    { expect: "fail", says: "measured nothing", entry: ["an empty test", () => {}] },
+    { expect: "fail", says: "measured nothing", entry: ["a loop over nothing", () => { for (const x of []) ok(x, "x"); }] },
+    { expect: "fail", says: "the test caught it", entry: ["a failure caught inside the test", () => {
+        try { ok(1 === 2, "one is two"); } catch { /* swallowed on purpose */ }
+        ok(1 === 1, "one is one");
+    }] },
+    { expect: "fail", says: "the marker is gone", entry: ["a precondition, and nothing else", () => { must(false, "the marker is gone"); }] },
+    { expect: "skip", says: "nothing to answer with", entry: ["a test the environment cannot answer", () => {
+        needs(false, "nothing to answer with");
+    }] },
+    { expect: "red", says: "until E90 (planned 9.0.90)", entry: ["red, failing on ok()", () => { ok(1 === 2, "one is two"); },
+        expectedRed("E90", "the fix lands in E90")] },
+    { expect: "fail", says: "unexpectedly passed", entry: ["red, passing", () => { ok(1 === 1, "one is one"); },
+        expectedRed("E90", "the fix lands in E90")] },
+    { expect: "fail", says: "shipped in 9.0.91", entry: ["red, its stage shipped", () => { ok(1 === 2, "one is two"); },
+        expectedRed("E91", "the fix landed in E91")] },
+    { expect: "fail", says: "does not know", entry: ["red, a stage nobody planned", () => { ok(1 === 2, "one is two"); },
+        expectedRed("E89", "a stage that is not in the ledger")] },
+    { expect: "fail", says: "red for the wrong reason", entry: ["red, failing on must()", () => { must(false, "the marker is gone"); },
+        expectedRed("E90", "the fix lands in E90")] },
+    { expect: "fail", says: "threw", entry: ["red, crashing", () => { throw new TypeError("x is not a function"); },
+        expectedRed("E90", "the fix lands in E90")] },
+    { expect: "fail", says: "not where expectedRed says", entry: ["red, failing somewhere else", () => { ok(1 === 2, "another assertion"); },
+        expectedRed("E90", "the fix lands in E90", { failing: "the assertion it names" })] },
+    { expect: "fail", says: "measured nothing", entry: ["red, measuring nothing", () => {}, expectedRed("E90", "the fix lands in E90")] },
+    { expect: "fail", says: "malformed", entry: ["red, a malformed marker", () => { ok(1 === 2, "one is two"); }, expectedRed("7", "")] },
+    { expect: "red", says: "until E91", ledger: null, entry: ["red, with no ledger served", () => { ok(1 === 2, "one is two"); },
+        expectedRed("E91", "checked at release when the ledger is not here")] }
+];
+
+/* R155's fixture: five markers against SELF_LEDGER, one live and four wrong -
+   shipped, unknown, without a reason, and a look-alike expectedRed did not make.
+   Here and not in R155, so tools/stages.mjs, which reads every expectedRed( in
+   the tier files, never meets a made-up stage. */
+const MARKER_FIXTURE = [
+    { flagged: false, marker: expectedRed("E90", "still to come") },
+    { flagged: true, marker: expectedRed("E91", "its stage has shipped") },
+    { flagged: true, marker: expectedRed("E89", "a stage the ledger does not know") },
+    { flagged: true, marker: expectedRed("E90", "") },
+    { flagged: true, marker: Object.freeze({ stage: "E90", why: "the right fields, not made by expectedRed" }) }
+];
 
 /*
  * THE ENVIRONMENT, ASKED BEFORE THE MODULE IS (E01, 24.09.2026; audit S14-05).
@@ -125,12 +362,6 @@ const systemSheetsAvailable = () => Object.keys(CONFIG.Actor?.sheetClasses?.char
  * nothing, so a window opened through it has no element to read.
  */
 const dialogsDrawn = () => typeof foundry.applications.api.DialogV2?.prototype?.render === "function";
-
-function equal(actual, expected, message) {
-    if (actual !== expected) {
-        throw new Failure(`${message} - expected ${JSON.stringify(expected)}, measured ${JSON.stringify(actual)}`);
-    }
-}
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
@@ -264,16 +495,16 @@ async function moduleStyles() {
 function bodyOf(src, marker, { until = null, length = null } = {}) {
     const text = String(src ?? "");
     const at = text.indexOf(marker);
-    ok(at >= 0, `the source no longer has "${String(marker).slice(0, 60)}" - this test reads nothing until it is pointed at the code again`);
+    must(at >= 0, `the source no longer has "${String(marker).slice(0, 60)}" - this test reads nothing until it is pointed at the code again`);
     let end = text.length;
     if (until !== null) {
         end = text.indexOf(until, at + String(marker).length);
-        ok(end >= 0, `"${String(until).slice(0, 40)}" no longer follows "${String(marker).slice(0, 60)}" in the source`);
+        must(end >= 0, `"${String(until).slice(0, 40)}" no longer follows "${String(marker).slice(0, 60)}" in the source`);
     } else if (length !== null) {
         end = at + length;
     }
     const body = text.slice(at, end);
-    ok(body.length > String(marker).length,
+    must(body.length > String(marker).length,
         `the source after "${String(marker).slice(0, 60)}" is empty - there is nothing here to test`);
     return body;
 }
@@ -607,7 +838,8 @@ function cast() {
 }
 
 export {
-    Failure, Skipped, ok, needs, equal, wait, settle, until,
+    Failure, Precondition, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
+    runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     moduleSources, otherSources, stripComments, moduleStyles, bodyOf, topLevelFunction, withGuards, lineAt, stripStrings,
     stringLiterals, STANDING, stableJson, moduleSettingValues, worldFingerprint, watchWrites, fingerprintDiff, cast

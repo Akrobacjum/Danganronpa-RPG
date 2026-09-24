@@ -662,7 +662,9 @@ async function main() {
         scenario: scenarioPath, kind: probe ? "probe" : "scenario", layers: scenario.layers ?? null,
         startedAt: STARTED_AT, finishedAt: new Date().toISOString(), environment: ENVIRONMENT,
         passed, total: results.length, ms: dt, resources,
-        results, notes, ...(probe ? { evidence: evidence ?? null } : {}),
+        // What run() returned: a probe's record, or a scenario's own evidence when it keeps
+        // some (01-runtests keeps the suite's results list, which suite-diff --json reads).
+        results, notes, ...(probe ? { evidence: evidence ?? null } : evidence !== undefined ? { evidence } : {}),
         permissionDenials, socketTraffic: socketTraffic.slice(0, 200), legacyKeysIgnored: legacyKeys,
         opLog: opLog.slice(0, 500), settingLog: settingLog.slice(0, 500),
         bootInfo: Object.fromEntries([...bootInfo.entries()].map(([k, v]) => [k, { t: v.t, drpg: v.drpg, settingsRegistered: v.settingsRegistered, stylesheets: v.stylesheets ?? null, error: v.error?.slice?.(0, 800) }]))

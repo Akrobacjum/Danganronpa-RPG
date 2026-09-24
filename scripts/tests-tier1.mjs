@@ -20,7 +20,7 @@ import { detectPageTinting, stylesheetVersion } from "./diagnostics.mjs";
 import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
-    ok, needs, equal, wait, settle, until, layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme,
+    ok, needs, equal, must, wait, settle, until, layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme,
     otherSources, stripComments, bodyOf, STANDING
 } from "./tests-kit.mjs";
 
@@ -474,12 +474,10 @@ const INVARIANTS = [
         ok(/export function tierOf\(/.test(items),
             "use-items.mjs no longer exports tierOf");
 
-        const between = (from, to) => {
-            const a = rolls.indexOf(from);
-            const b = to ? rolls.indexOf(to) : rolls.length;
-            ok(a >= 0 && b > a, `${from} is gone from action-rolls.mjs`);
-            return rolls.slice(a, b);
-        };
+        // Cut with the kit (E30): `must`, not `ok`, so finding the function is not
+        // counted as measuring it, and the end is searched after the start - the old
+        // local helper searched it from the top of the file.
+        const between = (from, to) => bodyOf(rolls, from, { until: to });
 
         // Project work: the bands come down, not the roll up.
         const project = between("async function workOnProject", "async function chooseProjectAndTrait");
@@ -517,12 +515,8 @@ const INVARIANTS = [
         const sync = stripComments(sources.get("sync.mjs") ?? "");
         ok(sync.length > 1000, "sync.mjs did not load");
 
-        const caseOf = (name, next) => {
-            const from = sync.indexOf(`case SYNC.${name}:`);
-            const to = sync.indexOf(`case SYNC.${next}:`);
-            ok(from >= 0 && to > from, `the ${name} case is gone from the sync switch`);
-            return sync.slice(from, to);
-        };
+        // Cut with the kit (E30), which asks for each case with `must`, not `ok`.
+        const caseOf = (name, next) => bodyOf(sync, `case SYNC.${name}:`, { until: `case SYNC.${next}:` });
 
         // The stamp stands still and the clock walks out from under it.
         ok(/renderDespairBar/.test(caseOf("clock", "eclipse")),
@@ -2131,7 +2125,7 @@ const INVARIANTS = [
         const { MODULE_ID } = await import("./config.mjs");
         const read = async lang => {
             const r = await fetch(`modules/${MODULE_ID}/lang/${lang}.json`);
-            ok(r.ok, `${lang}.json: HTTP ${r.status}`);
+            must(r.ok, `${lang}.json: HTTP ${r.status}`);
             return foundry.utils.expandObject(await r.json());
         };
         const flat = (o, p = "") => Object.entries(o ?? {}).flatMap(([k, v]) =>

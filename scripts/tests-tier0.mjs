@@ -11,7 +11,8 @@ import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
 import {
     ok, needs, equal, wait, layoutAvailable, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
-    topLevelFunction, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast
+    topLevelFunction, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
+    markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -4986,6 +4987,66 @@ const REGRESSIONS = [
             for (const lit of writes(code)) found.push(`${file}:${lineAt(code, lit.start)} ${JSON.stringify(lit.text).slice(0, 60)}`);
         }
         ok(!found.length, `a key spelled the old way, which v14 ignores (delete with forcedDeletion() or unsetFlag, replace with replaceFlag): ${found.join("; ")}`);
+    }],
+
+    ["R154 - the runner keeps the test author contract", async () => {
+        /*
+         * E30, 24.09.2026; audit S17-03. Every test is now run through `runOne` and
+         * judged by what it did, not only by whether it threw: a test that returns
+         * without one `ok()` or `equal()` having run measured nothing and FAILs, a
+         * failure the test caught itself FAILs, and a test marked red until a later
+         * stage is green only while it fails on an assertion. None of that shows in
+         * a green run - it shows only on the day a test breaks the contract - so the
+         * kit carries one small test per rule, each breaking it on purpose, and this
+         * runs them through the same `runOne` against a made-up ledger (E90 still to
+         * come, E91 shipped) and holds each to its known verdict. The four outcomes
+         * have to appear between them, or the cases prove less than they say.
+         */
+        ok(KIT_SELF_TESTS.length >= 16, `the kit carries ${KIT_SELF_TESTS.length} self-tests, and it had 16`);
+        const outcomes = new Set();
+        for (const c of KIT_SELF_TESTS) {
+            const r = await runOne(c.entry, { tier: 0, ledger: "ledger" in c ? c.ledger : SELF_LEDGER });
+            outcomes.add(r.outcome);
+            equal(r.outcome, c.expect, `the contract's case "${c.entry[0]}" came out wrong (${r.message ?? "no message"})`);
+            ok(String(r.message ?? "").includes(c.says), `the contract's case "${c.entry[0]}" says "${r.message}", not "${c.says}"`);
+        }
+        equal([...outcomes].sort().join(" "), "fail pass red skip", "the self-tests do not reach all four outcomes");
+    }],
+
+    ["R155 - every expectedRed names a stage that has not shipped", async () => {
+        /*
+         * E30, 24.09.2026; audit S17-03. `[name, fn, expectedRed("E07", why)]` is a
+         * promise that E07 turns the test green. The promise is held to
+         * tools/stages.json with the rule tools/stages.mjs applies - a stage has
+         * shipped when its row has a version and this module is at or past it - so
+         * the release that ships E07 turns every marker still naming E07 into a
+         * failure on that same commit. Every tier's markers are read here, tier 2's
+         * included, through the lists the runner hands the kit (registerSuite): a
+         * tier-0 run does not execute a scenario, and its marker must not wait for a
+         * tier-2 run to be read. Where the ledger is not served (an installed zip:
+         * tools/ is not in it) only the marker's shape is checked here, and the run
+         * says so in one line.
+         *
+         * The check is shown the kit's five markers first (MARKER_FIXTURE), one live
+         * and four wrong - shipped, unknown, without a reason, and a look-alike
+         * expectedRed did not make - and has to tell them apart; a checker that
+         * flags nothing proves nothing.
+         */
+        equal(JSON.stringify(MARKER_FIXTURE.map(({ marker }) => markerProblem(marker, SELF_LEDGER) !== null)),
+            JSON.stringify(MARKER_FIXTURE.map(({ flagged }) => flagged)),
+            "the marker check does not tell a live marker from a shipped, unknown, unexplained or forged one");
+        equal(MARKER_FIXTURE.filter(({ flagged }) => flagged).length, 4, "the fixture no longer holds its four wrong markers");
+
+        const entries = suiteEntries();
+        ok(entries.length >= 300, `the runner handed the kit ${entries.length} tests, and the suite has over 300`);
+        const ledger = await stageLedger();
+        if (ledger) {
+            const version = game.modules.get(MODULE_ID)?.version;
+            ok([...ledger.values()].some(row => row.version === version),
+                `tools/stages.json names no stage for this module's version ${version} - the release commit runs \`node tools/stages.mjs ship\``);
+        }
+        const stale = entries.filter(e => e.red).map(e => [e, markerProblem(e.red, ledger)]).filter(([, problem]) => problem);
+        ok(!stale.length, `${stale.length} red marker(s) to take off or move: ${stale.map(([e, problem]) => `tier ${e.tier} "${e.name}": ${problem}`).join("; ")}`);
     }]
 ];
 

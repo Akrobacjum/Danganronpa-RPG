@@ -20,6 +20,12 @@ another checkout; by default it boots the one it sits in. Each run writes
 check passed, 1 when one failed, 2 when nothing ran, 3 when the cluster itself
 failed.
 
+`node suite-diff.mjs before.log after.log` compares two runs of
+`scenarios/01-runtests.mjs` test by test: a test gone or new, a status or a
+reason changed, the order changed. The log keeps the first 30,000 characters of
+the suite's text; `--json` compares the two runs' results files instead, where
+01-runtests keeps the suite's whole list of results (`evidence.suite`).
+
 ## Layers
 
 Every file declares `export const layers = [...]`, written out as a JSON array

@@ -22,12 +22,19 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
     const asPlayer = await p1.eval(`const r = await game.drpg.runTests({ tier: 0 }); return r;`, { timeout: 60000 });
     check("p1: suite refuses non-GM", asPlayer === null, JSON.stringify(asPlayer));
 
+    /* The text is cut at 30,000 characters for the log; the suite's own list of
+       results is kept whole and written into this run's results file
+       (evidence.suite), which is what `suite-diff --json` compares (E30). */
     const res = await gm.eval(`
         const r = await game.drpg.runTests({ tier: 2 });
-        return { passed: r?.passed, failed: r?.failed, skipped: r?.skipped, text: (r?.text ?? "").slice(0, 30000) };
+        return { passed: r?.passed, failed: r?.failed, skipped: r?.skipped, red: r?.red, results: r?.results ?? null,
+            text: (r?.text ?? "").slice(0, 30000) };
     `, { timeout: 240000 });
 
     check("gm: suite ran", res && typeof res.passed === "number", JSON.stringify(res).slice(0, 300));
+    const counted = (res?.passed ?? 0) + (res?.failed ?? 0) + (res?.skipped ?? 0) + (res?.red ?? 0);
+    check("gm: every result the summary counts is in the list", Array.isArray(res?.results) && res.results.length === counted,
+        `${res?.results?.length ?? "no"} results listed, ${counted} counted`);
     if (res?.text) {
         console.log("---------------- SUITE OUTPUT ----------------");
         console.log(res.text);
@@ -46,4 +53,5 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
     check("gm: nothing new went unanswerable", (res?.skipped ?? 99) <= 16,
         `${res?.skipped} skipped, was 16 on 24.09`);
     await settle(300);
+    return { suite: { passed: res?.passed, failed: res?.failed, skipped: res?.skipped, red: res?.red, results: res?.results ?? null } };
 }

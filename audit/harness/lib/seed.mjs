@@ -2,6 +2,7 @@
  * The world every harness run starts from: four users (a GM, role 4, and three
  * players, role 1), five actors (each player's character, Daichi with no owner,
  * Monokuma), and one active scene with five tokens and six rectangular rooms.
+ * Daichi keeps a stash in the Storage room with one Tool in it (E30, below).
  *
  * Moved here verbatim from cluster.mjs (E30, 24.09.2026) so that the world is
  * one list another reader can take: the E30 plan has the sandbox seeder in
@@ -18,6 +19,7 @@ export const IDS = {
     // Not seeded: a scenario that wants the Assistant GM declares it (`accounts`, cluster.mjs).
     ag: "USERAG0000000000",
     aiko: "ACTORAIKO0000000", botan: "ACTORBOTAN000000", chie: "ACTORCHIE0000000", daichi: "ACTORDAICHI00000",
+    stashedItem: "ITEMSTASHED00000",
     scene: "SCENEACADEMY0000"
 };
 
@@ -56,7 +58,23 @@ export const world = {
             studentActor(IDS.aiko, "Aiko Hoshino", IDS.p1),
             studentActor(IDS.botan, "Botan Kage", IDS.p2),
             studentActor(IDS.chie, "Chie Mori", IDS.p3),
-            studentActor(IDS.daichi, "Daichi Sato", null),
+            /* ONE STASH WITH ONE THING IN IT (E30, 24.09.2026; audit S17-03). The two
+               stash invariants in tier 1 ("no stashed thing points at a stash that is
+               not there", "every stash belongs to somebody who exists") loop over the
+               world's stashes, and this world had none: on 24.09, with the assertion
+               counter in and nothing else changed, both FAILed "measured nothing". The
+               stash is written as vault.mjs's setStash writes one (the room's
+               drpgStashes list) and the item as inventory.mjs's addItem makes a
+               stashed Tool (category, tier, location "vault", the room stamped on it,
+               an identity). Daichi's, in Storage: nobody's bedroom and no token's
+               room, on the one student no player drives, fourth in the roster that
+               cast() takes its three from. */
+            { ...studentActor(IDS.daichi, "Daichi Sato", null), items: [{
+                _id: IDS.stashedItem, name: "Spare Screwdriver", type: "loot",
+                img: "modules/danganronpa-rpg/icons/item-tool.svg",
+                system: { description: "", quantity: 1 },
+                flags: { "danganronpa-rpg": { category: "tool", tier: 1, location: "vault", stashRoom: "Storage", drpgItemId: "SEEDSTASHEDTOOL1" } }
+            }] },
             { ...studentActor("ACTORMONOKUMA000", "Monokuma", null), flags: { "danganronpa-rpg": { monokuma: true } } }
         ],
         Item: [], ChatMessage: [], RollTable: [], Playlist: [], Macro: [], JournalEntry: [], Folder: [],
@@ -77,7 +95,8 @@ export const world = {
                 { _id: "REGDORMB00000000", name: "Dorm B", shapes: [{ type: "rectangle", x: 200, y: 1200, width: 600, height: 600 }], flags: {}, behaviors: [] },
                 { _id: "REGGYM0000000000", name: "Gym", shapes: [{ type: "rectangle", x: 1200, y: 1200, width: 800, height: 600 }], flags: {}, behaviors: [] },
                 { _id: "REGHALL000000000", name: "Hall", shapes: [{ type: "rectangle", x: 2200, y: 200, width: 600, height: 600 }], flags: {}, behaviors: [] },
-                { _id: "REGSTORAGE000000", name: "Storage", shapes: [{ type: "rectangle", x: 2200, y: 1200, width: 600, height: 600 }], flags: {}, behaviors: [] }
+                { _id: "REGSTORAGE000000", name: "Storage", shapes: [{ type: "rectangle", x: 2200, y: 1200, width: 600, height: 600 }],
+                    flags: { "danganronpa-rpg": { drpgStashes: [{ actorId: IDS.daichi, concealed: false }] } }, behaviors: [] }
             ],
             walls: []
         }]
