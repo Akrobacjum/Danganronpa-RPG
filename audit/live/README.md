@@ -19,6 +19,8 @@ nothing here is loaded.
 | `suite.mjs` | `live-stained-glass`, `live-monokuma-legacy`: the GM's theme set, a reload, `runTests({ tier: 2, confirmed: game.world.id })`, its text kept verbatim as evidence under the header `verify-gate.mjs` reads; the three players logged in and idle. `live-world-diff`: `worldDump()` around each run and around the whole visit (the theme put back), one file per dumped path under `audit/gate/.work/`, and only the paths that differ in the evidence |
 | `sandbox-cluster.mjs` | a harness scenario (layers include `local-gate`) on four real pages, with the `run()` arguments `cluster.mjs` gives - `gm`, `p1`-`p3` with `eval`, `check`, `note`, `phase`, `settle`, `repoUrl`. A scenario that asks for anything else (the world object, the canary, verdict options, a page hook not below) is `adapter-missing`, not run |
 | `page-hooks.js` | `__notifications`, `__errors`, `__missingI18n`, `__dialogAuto`, `__dialogLog` on every page. No `__forceRoll` |
+| `perf-baseline.mjs` | the 1.2.56 performance baseline (`audit/perf-baseline.json`): `--probe` records what each thing a run needs answered; `--run` refuses unless all of them did, then measures `game.drpg.perf()` in both themes on a scratch copy of the recorded world |
+| `world-manifest.mjs` | hashes a world copy's files and reads its `world.json`; `--write` records it as the baseline's `worldCopy`. It reads files only |
 | `seed-world.mjs` | the harness's world (`audit/harness/lib/seed.mjs`) created with its ids kept, in an EMPTY world whose id matches `/(gate|copy|qa)/i`; it refuses anything else |
 
 What it never does, by construction and checked by `node tools/check.mjs gatecode`:

@@ -23,6 +23,8 @@
  *   closing stage that has not shipped (none past 1.3.0), a deferral only for
  *   metadata of medium or lower (D27), a README marker for what stays, and the
  *   scenario and check that see it - and no "[known leak" bracket in a name;
+ * - the performance baseline, audit/perf-baseline.json: its shape, runs taken
+ *   only in a browser on a GPU, and the world copy taken before E04 ships;
  * - the flows, in scripts/tests-flows.mjs: each flow's scenarios are rows of
  *   the table above and tag its checks (`flow: "<id>"`), and a flow not yet
  *   covered names a stage that has not shipped. That every GM-bridge action and
@@ -309,6 +311,69 @@ async function sandboxProblems(repo) {
 }
 
 /* --------------------------------------------------------------------------
+ * The performance baseline
+ * -------------------------------------------------------------------------- */
+
+/*
+ * audit/perf-baseline.json (E30, the registries design 7.4): its shape, that
+ * every run was taken in a browser drawing on a GPU, and the deadline. The
+ * baseline is 1.2.56's cost on a copy of the table's world that no migrating
+ * release has opened; E04 (1.2.63) is the first release that may migrate it, so
+ * from E04's release on - module.json at or past E04's version, the release
+ * commit included - the copy must be `taken`, or `lost` with a reason. `not-taken`
+ * then fails: a baseline nobody can take any more is said out loud, not left
+ * pending. Nothing checks the numbers themselves: they are a table's, and only
+ * a table can re-measure them.
+ */
+const PERF_SOFTWARE = /swiftshader|llvmpipe|software/i;
+const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+
+function perfProblems(repo) {
+    let doc;
+    try { doc = JSON.parse(read(repo, "audit/perf-baseline.json")); }
+    catch (err) { return [`audit/perf-baseline.json does not parse: ${err.message}`]; }
+    const errs = [];
+    const isStr = v => typeof v === "string" && v.length > 0;
+    if (doc.schema !== 1) errs.push(`schema is ${JSON.stringify(doc.schema)}, not 1`);
+    if (!isStr(doc.about)) errs.push("`about` says nothing");
+    const b = doc.baseline ?? {};
+    if (!/^\d+\.\d+\.\d+$/.test(b.module?.version ?? "") || b.module?.tag !== `v${b.module?.version}` || !/^[0-9a-f]{40}$/.test(b.module?.commit ?? "")) {
+        errs.push("baseline.module needs a version, its v-tag and a 40-hex commit");
+    }
+    for (const k of ["world", "hardware", "scene"]) if (!isStr(b[k])) errs.push(`baseline.${k} says nothing`);
+    if (!Array.isArray(b.themes) || !b.themes.length) errs.push("baseline.themes is empty");
+    const f = doc.perfFunction ?? {};
+    if (!/^[0-9a-f]{64}$/.test(f.bodySha256 ?? "")) errs.push("perfFunction.bodySha256 is not a sha256");
+    for (const k of ["file", "export", "api", "knownBias"]) if (!isStr(f[k])) errs.push(`perfFunction.${k} says nothing`);
+    for (const k of ["sameBodyAt", "measures", "sideEffects"]) if (!Array.isArray(f[k]) || !f[k].length) errs.push(`perfFunction.${k} is empty`);
+    if (!isStr(doc.headless?.verdict) || typeof doc.headless?.why !== "object") errs.push("headless needs a verdict and a why per line");
+    const w = doc.worldCopy ?? {};
+    if (!["not-taken", "taken", "lost"].includes(w.status)) errs.push(`worldCopy.status is "${w.status}", not not-taken, taken or lost`);
+    if (w.status === "taken" && (!ISO.test(w.takenAt ?? "") || !/^[0-9a-f]{64}$/.test(w.sha256 ?? "") || !(w.files > 0))) {
+        errs.push("worldCopy is taken without takenAt, a sha256 of its files and a file count (node audit/live/world-manifest.mjs <dir> --write)");
+    }
+    if (w.status === "lost" && !isStr(w.why)) errs.push("worldCopy is lost without a why");
+    const e04 = stagesLib.stageStatus(stagesLib.loadStages(repo), "E04", stagesLib.moduleVersion(repo));
+    if (e04.shipped && w.status === "not-taken") {
+        errs.push(`E04 shipped in ${e04.version}, and worldCopy is still not-taken: the 1.2.56 baseline can no longer be taken on an unmigrated copy - record it as lost, with why`);
+    }
+    if (!["not-measured", "measured"].includes(doc.status)) errs.push(`status is "${doc.status}", not not-measured or measured`);
+    const runs = Array.isArray(doc.runs) ? doc.runs : null, attempts = Array.isArray(doc.attempts) ? doc.attempts : null;
+    if (!runs || !attempts) errs.push("attempts and runs are lists");
+    if (runs && (doc.status === "measured") !== (runs.length > 0)) errs.push(`status is ${doc.status} with ${runs.length} run(s)`);
+    (attempts ?? []).forEach((a, i) => {
+        if (!ISO.test(a?.at ?? "") || !isStr(a?.by) || !Array.isArray(a?.ran) || !Array.isArray(a?.couldNotRun)) errs.push(`attempt ${i + 1} needs at, by, ran and couldNotRun`);
+        for (const c of a?.couldNotRun ?? []) if (!isStr(c?.needs) || !isStr(c?.probe)) errs.push(`attempt ${i + 1}: a couldNotRun entry needs what it needs and what the probe returned`);
+    });
+    (runs ?? []).forEach((r, i) => {
+        if (r?.environment !== "browser") errs.push(`run ${i + 1}: environment is "${r?.environment}" - only a browser at a table goes in runs`);
+        const gl = r?.machine?.webglRenderer;
+        if (!isStr(gl) || PERF_SOFTWARE.test(gl)) errs.push(`run ${i + 1}: renderer "${gl}" is software or unknown - it prices the blur at what a GPU never charges`);
+    });
+    return errs;
+}
+
+/* --------------------------------------------------------------------------
  * Known leaks
  * -------------------------------------------------------------------------- */
 
@@ -396,16 +461,18 @@ async function flowProblems(repo) {
 export async function registryProblems(repo = REPO_DEFAULT) {
     const problems = [...scenarioProblems(repo).map(p => `scenarios: ${p}`), ...(await sandboxProblems(repo)).map(p => `scenarios: ${p}`),
         ...rProblems(repo).map(p => `R numbers: ${p}`),
-        ...(await flowProblems(repo)).map(p => `flows: ${p}`), ...(await leakProblems(repo)).map(p => `known leaks: ${p}`)];
+        ...(await flowProblems(repo)).map(p => `flows: ${p}`), ...(await leakProblems(repo)).map(p => `known leaks: ${p}`),
+        ...perfProblems(repo).map(p => `perf baseline: ${p}`)];
     const table = readScenarioTable(read(repo, "audit/harness/README.md"));
     const block = readRBlock(read(repo, "CLAUDE.md"));
     const tests = tierTests(repo);
-    let flowCount = "?", leakCount = "?";
+    let flowCount = "?", leakCount = "?", perf = "?";
     try { leakCount = JSON.parse(read(repo, "audit/harness/known-leaks.json")).leaks.length; } catch { /* reported above */ }
+    try { const p = JSON.parse(read(repo, "audit/perf-baseline.json")); perf = `${p.status}, world copy ${p.worldCopy?.status}, ${p.runs?.length} run(s), ${p.attempts?.length} attempt(s)`; } catch { /* reported above */ }
     try { flowCount = (await import(`${url.pathToFileURL(path.join(repo, "scripts", "tests-flows.mjs")).href}?${Date.now()}`)).FLOWS.length; } catch { /* reported above */ }
     const summary = `registry: ${table.rows?.length ?? 0} scenario rows; ${tests.filter(t => t.r).length} numbered tests, `
         + `${block?.grandfathered.length ?? 0} unnumbered tier-1 tests on the list, ${block?.rows.size ?? 0} registry rows, next free ${block?.next ?? "?"}; `
-        + `${flowCount} flows; ${leakCount} known leaks`;
+        + `${flowCount} flows; ${leakCount} known leaks; perf baseline ${perf}`;
     return { problems, summary };
 }
 
