@@ -1,0 +1,26 @@
+{
+  "about": "Every place a secret is known to reach a player's browser: what it is, which stage closes it, and where the harness sees it. Read by cluster.mjs (the check option knownLeak) and validated by node tools/check.mjs registry. An entry that stops reproducing fails its check, and so does an entry whose closing stage has shipped. D27: the killer's identity, the answer key, plans, GM notes, and anything critical or high may not be deferred; a metadata leak of medium or lower may be, as deferred: \"1.3.x (D27)\", described in README.md. From 1.3.0 only foundryLimit and deferred entries remain.",
+  "schema": 1,
+  "leaks": [
+    {
+      "id": "S04-02",
+      "findings": ["S04-02", "S02-02"],
+      "class": "killer-identity",
+      "severity": "high",
+      "what": "During an incident a bystander's browser holds the killer's opening roll: the chat document's speaker names the killer's actor and its whisper list names the killer's player.",
+      "closes": "E06",
+      "detectedBy": [{ "scenario": "11-killer-secrecy", "check": "SECRECY p1 during incident: no chat card names the killer or accomplice, or is addressed to them alone" }],
+      "measuredAt": "E30 C19 on 46133ec, 24.09.2026: p1 held a card by p3, speaker ACTORCHIE0000000 / Chie Mori, whisper [GM, p3], content \"Duality: 3\" - the killer's opening roll"
+    },
+    {
+      "id": "S02-11",
+      "findings": ["S02-11", "S10-05"],
+      "class": "metadata",
+      "severity": "high",
+      "what": "A Search's private card carries what was found, where, and whether a trace was left, in flags.danganronpa-rpg.summary, which every browser holds.",
+      "closes": "E05",
+      "detectedBy": [{ "scenario": "40-flow", "check": "p2: another player was not told what p1 searched for" }],
+      "measuredAt": "E30 C19 on 46133ec, 24.09.2026: \"Cereal bar\" at flags.danganronpa-rpg.summary.item on p2's copy of p1's Search card"
+    }
+  ]
+}

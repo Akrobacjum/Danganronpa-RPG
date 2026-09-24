@@ -38,6 +38,35 @@ const scenarioPath = process.argv[2];
 if (!scenarioPath) { console.error("usage: node cluster.mjs <scenario.mjs>"); process.exit(2); }
 /** When this run began, for the results file: a reader can tell this run's file from a stale one. */
 const STARTED_AT = new Date().toISOString();
+
+/*
+ * RED ON PURPOSE, HELD TO A STAGE (E30, 24.09.2026). A known leak was a bracket in a
+ * check's name - "[known leak S04-02, fixed in E06]" - and the check failed on every
+ * run, so a scenario that should be green exited 1 and a new failure in it could
+ * hide beside the old one. It is now an option: `check(name, ok, details, {
+ * knownLeak: "S04-02", measured })` names an entry of known-leaks.json, and
+ * `expectedRed: { stage, why }` a red that is not a leak. The verdict is
+ * tools/stages.mjs's redVerdict, the rule the suite's expectedRed uses: an unknown
+ * entry, a closing stage that has shipped, a check whose precondition failed
+ * (`measured` not true) or one that stopped failing is a FAIL; only a measured
+ * failure of a live entry is red. The registries are read from the harness's own
+ * checkout; run against another tree (DRPG_REPO), whose scenarios may predate
+ * them, a labelled check counts as a plain one and the run says so.
+ */
+const OWN_TREE = path.resolve(HERE, "../..");
+const stagesLib = await import(url.pathToFileURL(path.join(OWN_TREE, "tools", "stages.mjs")).href);
+let LEDGER = null, KNOWN_LEAKS = null, MODULE_VERSION = null;
+try {
+    LEDGER = stagesLib.loadStages(OWN_TREE);
+    MODULE_VERSION = stagesLib.moduleVersion(REPO);
+    const doc = JSON.parse(fs.readFileSync(path.join(HERE, "known-leaks.json"), "utf8"));
+    if (doc.schema !== 1 || !Array.isArray(doc.leaks)) throw new Error("schema is not 1, or there is no leaks list");
+    KNOWN_LEAKS = new Map(doc.leaks.map(entry => [entry.id, entry]));
+} catch (err) {
+    console.error(`[cluster] fatal: the registries could not be read: ${err.message}`);
+    process.exit(3);
+}
+const VERDICTS = REPO === OWN_TREE;
 /** The versions every client boots with, each with where it was read (lib/versions.mjs), and the live checks not yet run. */
 const ENVIRONMENT = readVersions(REPO, process.env);
 
@@ -469,7 +498,7 @@ async function loadFlows() {
 }
 function unknownFlow(flow, where) {
     if (flow && knownFlows && !knownFlows.has(flow)) {
-        results.push({ name: `${where}: "${flow}" is a flow of scripts/tests-flows.mjs`, ok: false, details: "no such flow", phase: currentPhase });
+        results.push({ name: `${where}: "${flow}" is a flow of scripts/tests-flows.mjs`, ok: false, status: "fail", details: "no such flow", phase: currentPhase });
         console.log(`! FAIL  ${where}: "${flow}" is not a flow of scripts/tests-flows.mjs`);
     }
 }
@@ -482,10 +511,34 @@ function phase(name, { flow = null } = {}) {
 }
 
 const results = [];
+/** The verdict on one check: `{ status: "pass"|"fail"|"expectedRed", reason, until? }`. */
+function verdictOf(ok, opts) {
+    const marked = opts.knownLeak !== undefined || opts.expectedRed !== undefined;
+    if (!marked || !VERDICTS) return { status: ok ? "pass" : "fail", reason: "" };
+    if (opts.knownLeak !== undefined) {
+        const entry = KNOWN_LEAKS.get(opts.knownLeak);
+        if (!entry) return { status: "fail", reason: `unknown known leak ${opts.knownLeak}: add it to audit/harness/known-leaks.json or drop the option` };
+        const v = stagesLib.redVerdict({ ok, measured: opts.measured, stage: entry.closes ?? null, label: `known leak ${entry.id}`,
+            foundryLimit: Boolean(entry.foundryLimit), deferred: Boolean(entry.deferred), stages: LEDGER, moduleVersion: MODULE_VERSION,
+            undo: "delete its entry in audit/harness/known-leaks.json and the check's knownLeak option, in the commit that fixed it" });
+        return { ...v, until: entry.closes ? `until ${entry.closes}` : entry.foundryLimit ? "a Foundry limit" : "deferred to 1.3.x (D27)" };
+    }
+    const red = opts.expectedRed ?? {};
+    if (!/^E\d{2}$/.test(String(red.stage ?? "")) || !String(red.why ?? "").trim()) {
+        return { status: "fail", reason: `expectedRed needs a stage and a reason: ${JSON.stringify(red)}` };
+    }
+    const v = stagesLib.redVerdict({ ok, measured: opts.measured, stage: red.stage, label: `expected red (${red.why})`,
+        stages: LEDGER, moduleVersion: MODULE_VERSION });
+    return { ...v, until: `until ${red.stage}` };
+}
 function check(name, ok, details = "", opts = {}) {
     const flow = opts.flow ?? currentFlow;
-    results.push({ name, ok: !!ok, details: String(details).slice(0, 2000), phase: currentPhase, ...(flow ? { flow } : {}) });
-    console.log(`${ok ? "  PASS" : "! FAIL"}  ${name}${details && !ok ? " - " + String(details).slice(0, 400) : ""}`);
+    const v = verdictOf(Boolean(ok), opts);
+    results.push({ name, ok: !!ok, status: v.status, ...(v.reason ? { reason: v.reason } : {}),
+        ...(opts.knownLeak !== undefined ? { knownLeak: opts.knownLeak } : {}), ...(v.until ? { until: v.until } : {}),
+        details: String(details).slice(0, 2000), phase: currentPhase, ...(flow ? { flow } : {}) });
+    if (v.status === "expectedRed") console.log(`  RED*  ${name} - ${opts.knownLeak !== undefined ? `known leak ${opts.knownLeak}, ` : ""}${v.until}`);
+    else console.log(`${v.status === "pass" ? "  PASS" : "! FAIL"}  ${name}${v.reason ? ` - ${v.reason}` : ""}${details && v.status === "fail" ? " - " + String(details).slice(0, 400) : ""}`);
     if (opts.flow) unknownFlow(opts.flow, `check "${name}"`);
 }
 
@@ -496,12 +549,12 @@ function tally() {
         if (r.flow) {
             flows[r.flow] ??= { checks: 0, failed: 0 };
             flows[r.flow].checks++;
-            if (!r.ok) flows[r.flow].failed++;
+            if (r.status === "fail") flows[r.flow].failed++;
         }
     }
     for (const p of phaseLog) {
         const mine = results.filter(r => r.phase === p.name);
-        if (!phases.some(q => q.name === p.name)) phases.push({ name: p.name, flow: p.flow, checks: mine.length, failed: mine.filter(r => !r.ok).length });
+        if (!phases.some(q => q.name === p.name)) phases.push({ name: p.name, flow: p.flow, checks: mine.length, failed: mine.filter(r => r.status === "fail").length });
     }
     return { flows, phases };
 }
@@ -688,10 +741,16 @@ async function main() {
     }
     const dt = Date.now() - t0;
 
-    const passed = results.filter(r => r.ok).length;
+    const passed = results.filter(r => r.status === "pass").length;
+    const reds = results.filter(r => r.status === "expectedRed");
+    const failedCount = results.filter(r => r.status === "fail").length;
+    const redNote = reds.length ? `, ${reds.length} expected red (${reds.map(r => `${r.knownLeak ?? "red"} ${r.until}`).join("; ")})` : "";
+    if (!VERDICTS && results.some(r => r.knownLeak !== undefined)) {
+        console.log(`[cluster] ${REPO} is not the harness's own tree: known-leak and expected-red options are counted as plain checks`);
+    }
     console.log(probe
         ? `\n[cluster] probe: ${results.length} check line(s) and ${notes.length} note(s) recorded in ${dt}ms`
-        : `\n[cluster] ${passed}/${results.length} checks passed in ${dt}ms`);
+        : `\n[cluster] ${passed}/${results.length} checks passed${redNote}, ${failedCount} failed in ${dt}ms`);
 
     /* THE EXIT CODE SAYS WHAT THE CHECKS SAID (E30, 24.09.2026). It did not: on a
        copy of this tree with one check in 14-quiet inverted, the run printed
@@ -706,7 +765,7 @@ async function main() {
        run, so it is set before the clients go; the timer at the end stays as
        the hard stop for a client that does not. A probe's lines are records,
        not verdicts: it exits 1 only when it threw. */
-    process.exitCode = probe ? (threw ? 1 : 0) : (results.some(r => !r.ok) ? 1 : 0);
+    process.exitCode = probe ? (threw ? 1 : 0) : (failedCount > 0 ? 1 : 0);
     await closeClients(300);
     const resources = Object.fromEntries([...clients.keys()].map(who => [who, peakRSS.get(who) ?? null]));
     resources.cluster = process.resourceUsage().maxRSS;
@@ -715,7 +774,9 @@ async function main() {
     const out = {
         scenario: scenarioPath, kind: probe ? "probe" : "scenario", layers: scenario.layers ?? null,
         startedAt: STARTED_AT, finishedAt: new Date().toISOString(), environment: ENVIRONMENT,
-        passed, total: results.length, ms: dt, resources, ...tally(),
+        passed, expectedRed: reds.length, failed: failedCount, total: results.length, ms: dt, resources, ...tally(),
+        knownLeaks: results.filter(r => r.knownLeak !== undefined).map(r => ({ id: r.knownLeak, verdict: r.status,
+            closes: KNOWN_LEAKS.get(r.knownLeak)?.closes ?? null, check: r.name, ...(r.reason ? { reason: r.reason } : {}) })),
         // What run() returned: a probe's record, or a scenario's own evidence when it keeps
         // some (01-runtests keeps the suite's results list, which suite-diff --json reads).
         results, notes, ...(probe ? { evidence: evidence ?? null } : evidence !== undefined ? { evidence } : {}),

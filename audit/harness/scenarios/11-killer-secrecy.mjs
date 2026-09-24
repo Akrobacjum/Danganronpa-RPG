@@ -47,9 +47,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle }) {
     const incidentCards = await p1.eval(`return game.messages.contents.slice(${cards0}).map(m => ({ w: m.whisper, doc: JSON.stringify(m._source) }));`);
     const naming = incidentCards.filter(c => [ids.chie, "Chie Mori", ids.botan, "Botan Kage"].some(s => c.doc.includes(s))
         || ([p3.userId, p2.userId].some(u => c.w.includes(u)) && !c.w.includes(p1.userId)));
-    check("SECRECY p1 during incident [known leak S04-02, fixed in E06]: no chat card names the killer or accomplice, or is addressed to them alone",
-        stage !== "openingRoll" && incidentCards.length > 0 && naming.length === 0,
-        JSON.stringify({ stage, held: incidentCards.length, naming: naming.map(c => ({ whisper: c.w, doc: c.doc.slice(0, 260) })) }).slice(0, 1600));
+    /* The precondition is its own check, so the leak check can only be red for the
+       leak (E30): an expected red that could also mean "the roll was never thrown"
+       would hide a broken scenario behind a known leak. */
+    const reached = stage !== "openingRoll" && incidentCards.length > 0;
+    check("p1 holds the incident's cards once the opening roll is thrown", reached, JSON.stringify({ stage, held: incidentCards.length }));
+    check("SECRECY p1 during incident: no chat card names the killer or accomplice, or is addressed to them alone",
+        naming.length === 0,
+        JSON.stringify({ stage, held: incidentCards.length, naming: naming.map(c => ({ whisper: c.w, doc: c.doc.slice(0, 260) })) }).slice(0, 1600),
+        { knownLeak: "S04-02", measured: reached });
 
     // Drive to resolution + discovery + trial
     phase("discovery", { flow: "body-discovery" });

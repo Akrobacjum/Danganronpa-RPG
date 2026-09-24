@@ -19,6 +19,10 @@
  *   kept), a removed test's row, and the tier-1 tests older than 1.2.61 that
  *   carry no number.
  *
+ * - the known leaks, in audit/harness/known-leaks.json: each entry's shape, a
+ *   closing stage that has not shipped (none past 1.3.0), a deferral only for
+ *   metadata of medium or lower (D27), a README marker for what stays, and the
+ *   scenario and check that see it - and no "[known leak" bracket in a name;
  * - the flows, in scripts/tests-flows.mjs: each flow's scenarios are rows of
  *   the table above and tag its checks (`flow: "<id>"`), and a flow not yet
  *   covered names a stage that has not shipped. That every GM-bridge action and
@@ -283,6 +287,78 @@ function scenarioProblems(repo) {
 }
 
 /* --------------------------------------------------------------------------
+ * Known leaks
+ * -------------------------------------------------------------------------- */
+
+const LEAK_CLASSES = ["killer-identity", "answer-key", "plan", "gm-notes", "metadata"];
+const SEVERITIES = ["critical", "high", "medium", "low", "info"];
+
+async function leakProblems(repo) {
+    const errs = [];
+    let doc;
+    try { doc = JSON.parse(read(repo, "audit/harness/known-leaks.json")); }
+    catch (err) { return [`audit/harness/known-leaks.json does not parse: ${err.message}`]; }
+    if (doc.schema !== 1 || !Array.isArray(doc.leaks)) return ["audit/harness/known-leaks.json: schema is not 1, or there is no leaks list"];
+    const stages = stagesLib.loadStages(repo), mod = stagesLib.moduleVersion(repo);
+    const readme = read(repo, "README.md");
+    const table = readScenarioTable(read(repo, "audit/harness/README.md"));
+    const rows = new Map((table.rows ?? []).map(r => [r.file, r]));
+    let seeds = null;
+    const canary = path.join(repo, "audit", "harness", "lib", "canary.mjs");
+    if (fs.existsSync(canary)) {
+        try { seeds = (await import(`${url.pathToFileURL(canary).href}?${Date.now()}`)).SEEDS; } catch { /* reported by its own run */ }
+    }
+    const ids = new Set();
+    for (const e of doc.leaks) {
+        const at = `leak ${e.id ?? "(no id)"}`;
+        if (!e.id) { errs.push(`${at}: no id`); continue; }
+        if (ids.has(e.id)) errs.push(`${at}: the id is used twice`);
+        ids.add(e.id);
+        if (!e.id.startsWith("foundry-") && !(Array.isArray(e.findings) && e.findings.length)) errs.push(`${at}: names no plan finding`);
+        if (!LEAK_CLASSES.includes(e.class)) errs.push(`${at}: class "${e.class}" is not one of ${LEAK_CLASSES.join(", ")}`);
+        if (!SEVERITIES.includes(e.severity)) errs.push(`${at}: severity "${e.severity}" is not one of ${SEVERITIES.join(", ")}`);
+        if (!String(e.what ?? "").trim()) errs.push(`${at}: says nothing of what reaches whom`);
+        if (!String(e.measuredAt ?? "").trim()) errs.push(`${at}: no measuredAt - an entry is written from a run that reproduced it`);
+        const kinds = ["closes", "foundryLimit", "deferred"].filter(k => e[k] !== undefined && e[k] !== null);
+        if (kinds.length !== 1) errs.push(`${at}: needs exactly one of closes, foundryLimit and deferred, and has ${kinds.join(", ") || "none"}`);
+        if (e.closes !== undefined) {
+            const s = stagesLib.stageStatus(stages, e.closes, mod);
+            if (!s.known) errs.push(`${at}: closes in ${e.closes}, which tools/stages.json does not know`);
+            else if (s.shipped) errs.push(`${at}: was to close in ${e.closes}, which shipped in ${s.version} - fix it, or move it to a later stage in the open`);
+            else if (e.closes === "E26") errs.push(`${at}: closes in E26 - nothing may remain open at 1.3.0; close it earlier, or record what stays (foundryLimit, deferred)`);
+        }
+        if (e.deferred !== undefined) {
+            if (e.deferred !== "1.3.x (D27)") errs.push(`${at}: deferred is exactly "1.3.x (D27)"`);
+            if (e.class !== "metadata" || !["medium", "low", "info"].includes(e.severity)) {
+                errs.push(`${at}: a ${e.class} leak of severity ${e.severity} may not be deferred (D27)`);
+            }
+        }
+        if (e.foundryLimit !== undefined || e.deferred !== undefined) {
+            if (e.readme !== `leak:${e.id}` || !readme.includes(`<!-- leak:${e.id} -->`)) errs.push(`${at}: what stays needs its paragraph in README.md, marked <!-- leak:${e.id} -->`);
+        }
+        const by = Array.isArray(e.detectedBy) ? e.detectedBy : [];
+        if (!by.length && !String(e.notMeasuredBecause ?? "").trim()) errs.push(`${at}: detected by nothing, and no notMeasuredBecause`);
+        for (const d of by) {
+            const rel = `scenarios/${d.scenario}.mjs`;
+            if (!rows.has(rel)) { errs.push(`${at}: detected by ${d.scenario}, which is not a row of audit/harness/README.md`); continue; }
+            const file = path.join(repo, "audit/harness", rel);
+            const text = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+            if (d.check !== undefined && !text.includes(JSON.stringify(d.check).slice(1, -1))) errs.push(`${at}: ${d.scenario} has no check named "${d.check}"`);
+            if (d.seed !== undefined && seeds && !Object.keys(seeds).some(seed => seed === d.seed || (d.seed.endsWith(".*") && seed.startsWith(d.seed.slice(0, -1))))) {
+                errs.push(`${at}: seed ${d.seed} is not in lib/canary.mjs's SEEDS`);
+            }
+        }
+    }
+    const dir = path.join(repo, "audit/harness/scenarios");
+    for (const file of fs.readdirSync(dir).filter(f => f.endsWith(".mjs"))) {
+        const text = fs.readFileSync(path.join(dir, file), "utf8");
+        if (text.includes("[known leak")) errs.push(`scenarios/${file}: a "[known leak" bracket - a known leak is the check option knownLeak, with measured`);
+        for (const m of text.matchAll(/knownLeak:\s*"([^"]+)"/g)) if (!ids.has(m[1])) errs.push(`scenarios/${file}: knownLeak "${m[1]}" is not an entry of known-leaks.json`);
+    }
+    return errs;
+}
+
+/* --------------------------------------------------------------------------
  * Flows
  * -------------------------------------------------------------------------- */
 
@@ -336,15 +412,16 @@ async function flowProblems(repo) {
 /** Every registry problem, one sentence each, and a line saying what was read. */
 export async function registryProblems(repo = REPO_DEFAULT) {
     const problems = [...scenarioProblems(repo).map(p => `scenarios: ${p}`), ...rProblems(repo).map(p => `R numbers: ${p}`),
-        ...(await flowProblems(repo)).map(p => `flows: ${p}`)];
+        ...(await flowProblems(repo)).map(p => `flows: ${p}`), ...(await leakProblems(repo)).map(p => `known leaks: ${p}`)];
     const table = readScenarioTable(read(repo, "audit/harness/README.md"));
     const block = readRBlock(read(repo, "CLAUDE.md"));
     const tests = tierTests(repo);
-    let flowCount = "?";
+    let flowCount = "?", leakCount = "?";
+    try { leakCount = JSON.parse(read(repo, "audit/harness/known-leaks.json")).leaks.length; } catch { /* reported above */ }
     try { flowCount = (await import(`${url.pathToFileURL(path.join(repo, "scripts", "tests-flows.mjs")).href}?${Date.now()}`)).FLOWS.length; } catch { /* reported above */ }
     const summary = `registry: ${table.rows?.length ?? 0} scenario rows; ${tests.filter(t => t.r).length} numbered tests, `
         + `${block?.grandfathered.length ?? 0} unnumbered tier-1 tests on the list, ${block?.rows.size ?? 0} registry rows, next free ${block?.next ?? "?"}; `
-        + `${flowCount} flows`;
+        + `${flowCount} flows; ${leakCount} known leaks`;
     return { problems, summary };
 }
 

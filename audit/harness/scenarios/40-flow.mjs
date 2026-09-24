@@ -122,8 +122,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     check("p2: the Search card's words are not in p2's copy", Boolean(theirs) && theirs.stub && !theirs.words,
         JSON.stringify(theirs ? { stub: theirs.stub, words: theirs.words } : null));
     const leaks = theirs ? foundItems.flatMap(name => pathsTo(JSON.parse(theirs.doc), name).map(at => `"${name}" at ${at}`)) : [];
-    check("p2: another player was not told what p1 searched for [known leak S02-11/S10-05, fixed in E05]", foundItems.length > 0 && Boolean(theirs) && leaks.length === 0,
-        JSON.stringify({ found: foundItems, leaks }));
+    // The precondition apart from the leak (E30): p2 holding the card is checked above.
+    check("gm: the Search put something on Aiko's sheet", foundItems.length > 0, JSON.stringify(foundItems));
+    check("p2: another player was not told what p1 searched for", leaks.length === 0, JSON.stringify({ found: foundItems, leaks }),
+        { knownLeak: "S02-11", measured: foundItems.length > 0 && Boolean(theirs) });
     console.log("[qa] p1 notifications after Search:", JSON.stringify(search.notifs));
 
     // ---- 3. a Hope Call that waits for the GM (Ultimate) ------------------------------------

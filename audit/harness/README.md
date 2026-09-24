@@ -102,6 +102,22 @@ when their runs show checks under it; `node tools/check.mjs registry` holds the
 names to this table and to the tags, and the suite's R160 holds every GM-bridge
 action and socket listener to a flow.
 
+A check that is red on purpose says so in its options, never in its name:
+`{ knownLeak: "S04-02", measured }` names an entry of `known-leaks.json`, and
+`{ expectedRed: { stage, why }, measured }` a red that is not a leak. `measured`
+is required with either: it is the check's precondition, true only when the
+check reached what it measures, and the precondition is also a check of its
+own, so a red can only mean the thing it names. The verdict is
+`tools/stages.mjs`'s: a measured failure of a live entry is `expectedRed` (printed
+`RED*`, not counted as failed); a check that stopped failing, whose entry is
+unknown, whose precondition failed, or whose closing stage has shipped is a
+failure. The summary keeps its prefix - `[cluster] 6/7 checks passed, 1 expected
+red (S04-02 until E06), 0 failed in 3638ms` - and the exit code is 1 only when
+something failed. The results file counts `passed`, `expectedRed`, `failed` and
+`total`, and lists `knownLeaks` with their verdicts. Run against another tree
+(`DRPG_REPO`), whose scenarios may predate the registries, a labelled check
+counts as a plain one.
+
 ## Probes
 
 Tools, not tests: `probes/README.md`. A probe is never part of a gate, and its

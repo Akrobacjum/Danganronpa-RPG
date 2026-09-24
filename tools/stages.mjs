@@ -86,10 +86,11 @@ export function stageStatus(stages, id, modVersion) {
  * @param {string} [a.label]      what the red is, for the reason ("known leak S04-02")
  * @param {boolean} [a.foundryLimit]  red for good, for a reason outside the module: no stage to hold it to
  * @param {boolean} [a.deferred]      red past 1.3.0 (D27): no stage to hold it to
+ * @param {string} [a.undo]       what to do once it no longer reproduces
  * @returns {{status: "pass"|"expectedRed"|"fail", reason: string}}
  */
 export function redVerdict({ ok, measured, stage = null, label = "an expected red", foundryLimit = false, deferred = false,
-    stages, moduleVersion: modVersion }) {
+    undo = "take the marker off", stages, moduleVersion: modVersion }) {
     if (!stage && !foundryLimit && !deferred) return { status: ok ? "pass" : "fail", reason: "" };
     if (stage) {
         const s = stageStatus(stages, stage, modVersion);
@@ -100,7 +101,7 @@ export function redVerdict({ ok, measured, stage = null, label = "an expected re
         }
     }
     if (measured !== true) return { status: "fail", reason: `${label} measured nothing: its precondition failed` };
-    if (ok) return { status: "fail", reason: `unexpectedly passed: ${label} no longer reproduces - take the marker off` };
+    if (ok) return { status: "fail", reason: `unexpectedly passed: ${label} no longer reproduces - ${undo}` };
     const until = stage ? `until ${stage}` : foundryLimit ? "a Foundry limit" : "deferred to 1.3.x (D27)";
     return { status: "expectedRed", reason: `${label}, ${until}` };
 }
