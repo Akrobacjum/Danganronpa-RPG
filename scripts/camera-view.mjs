@@ -218,5 +218,8 @@ function relabel(box, userId) {
 
     // `.player-name` carries `.ellipsis`, so a long name is clipped rather than
     // breaking the tile - which makes the full one worth having on hover.
-    label.dataset.tooltip = name;
+    // Escaped (E02 review): Foundry draws a `data-tooltip` as markup - this
+    // module's own tooltips put `<em>` in theirs (events.mjs) - and the name is
+    // a player's own character's, which a console can rename to anything.
+    label.dataset.tooltip = foundry.utils.escapeHTML(name);
 }

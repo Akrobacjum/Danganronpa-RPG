@@ -2478,21 +2478,24 @@ export async function callGm(actor, {
 export async function settleCall(message, text) {
     if (!message || !game.user.isGM) return null;
 
-    const wrap = document.createElement("div");
+    // A `<template>`, not a `<div>` (E02 review): markup parsed into a
+    // detached div still loads its images, so an `onerror` in the card's words
+    // would run right here, on the GM's client. A template's content is inert.
+    const wrap = document.createElement("template");
     wrap.innerHTML = contentOf(message);
 
-    wrap.querySelectorAll(".drpg-call-actions, .drpg-call-awaiting").forEach(el => el.remove());
+    wrap.content.querySelectorAll(".drpg-call-actions, .drpg-call-awaiting").forEach(el => el.remove());
     // Cards posted before the marker class existed carry the same sentence with
     // nothing to hook onto, so they are matched by what they say.
     const awaiting = game.i18n.localize("DRPG.Bridge.awaitingRuling");
-    for (const p of wrap.querySelectorAll("p")) {
+    for (const p of wrap.content.querySelectorAll("p")) {
         if (p.textContent.trim() === awaiting) p.remove();
     }
 
     const note = document.createElement("p");
     note.className = "drpg-call-settled";
     note.textContent = text;
-    wrap.append(note);
+    wrap.content.append(note);
 
     try {
         const { MESSENGER_FLAGS } = await import("./messenger.mjs");

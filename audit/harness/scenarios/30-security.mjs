@@ -253,6 +253,61 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     check("XSS: the Hope Call card prints the price from the GM's table, not the packet's markup",
         callCard.cards > 0 && !callCard.handler, JSON.stringify(callCard));
 
+    /* A CHARACTER'S NAME ON A CARD THE GM'S OWN BROWSER WRITES (E02 review). The GM's
+       note about an Observe with no record printed the observer's name raw, and a
+       card written on the GM's client is stored as the GM's own and never cleaned.
+       p1 renames their own Aiko - a player owns their character - and resolves an
+       Observe the GM has no record of. */
+    const nameBefore = await gm.eval(`return game.actors.get("${ids.aiko}").name;`);
+    const renamed = await p1.eval(`
+        try { await game.actors.get("${ids.aiko}").update({ name: '<img src=x onerror="window.__pwned=3">Aiko' }); return true; }
+        catch (err) { return err.message; }`);
+    await settle(600);
+    const beforeLost = await gm.eval(`return game.messages.size;`);
+    await p1.eval(`
+        game.socket.emit("${SOCKET}", { action: "observe.resolve", requestId: "lost-${Date.now()}", userId: game.user.id,
+            actorId: "${ids.aiko}", key: "no-such-key", total: 7 },
+            { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+        return true;`);
+    await settle(1500);
+    const lostCard = await gm.eval(`
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const fresh = [...game.messages].slice(${beforeLost});
+        const words = fresh.map(m => S.contentOf(m)).join(" ");
+        const box = document.createElement("template");
+        box.innerHTML = words;
+        return { cards: fresh.length, renamed: game.actors.get("${ids.aiko}").name.includes("onerror"),
+            handler: Boolean(box.content.querySelector("[onerror]")), sample: words.slice(0, 300) };
+    `);
+    await gm.eval(`await game.actors.get("${ids.aiko}").update({ name: ${JSON.stringify(nameBefore)} }); return true;`);
+    check("XSS: a renamed character's name reaches the GM's own Observe note as text",
+        renamed === true && lostCard.renamed && lostCard.cards > 0 && !lostCard.handler, JSON.stringify({ renamed, ...lostCard }));
+
+    /* ONE BROWSER, SEVERAL WORLDS (E02 review). The store of private cards is a client
+       setting: one entry in the browser for every world it opens. The start-up tidy
+       took out every card not in THIS world's chat log, so opening a second world
+       emptied the first one's. Planted on p1: a card of another world, a card of this
+       world whose message is gone, and one from before cards recorded their world. */
+    const prune = await p1.eval(`
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const saved = foundry.utils.deepClone(game.settings.get("${MOD}", "secretCards") ?? {});
+        const store = foundry.utils.deepClone(saved);
+        store.otherWorld0000001 = { html: "theirs", at: Date.now(), world: "some-other-world" };
+        store.thisWorldGone0001 = { html: "ours, deleted", at: Date.now(), world: game.world.id };
+        store.unstampedGone0001 = { html: "unknown", at: Date.now() };
+        await game.settings.set("${MOD}", "secretCards", store);
+        S.forgetSecrets();
+        await S.pruneOrphans();
+        const after = game.settings.get("${MOD}", "secretCards") ?? {};
+        const result = { other: "otherWorld0000001" in after, gone: "thisWorldGone0001" in after, unstamped: "unstampedGone0001" in after };
+        await game.settings.set("${MOD}", "secretCards", saved);
+        S.forgetSecrets();
+        return result;
+    `, { timeout: 30000 });
+    check("store: the start-up tidy keeps another world's private cards and this world's unknown ones",
+        prune.other === true && prune.unstamped === true, JSON.stringify(prune));
+    check("store: the start-up tidy removes this world's cards whose message is gone", prune.gone === false, JSON.stringify(prune));
+
     // summary of what server refused
     check("SECURITY: server logged permission denials for player writes", (permissionDenials ?? []).length >= 2, JSON.stringify((permissionDenials||[]).slice(0,8)));
 }

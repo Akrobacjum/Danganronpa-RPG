@@ -5071,6 +5071,30 @@ const REGRESSIONS = [
                 if (/</.test(line)) bad.push(`${file}:${lineAt(text, m.index)} ${m[0]}`);
             }
             for (const m of text.matchAll(/drpg-role-\$\{(?!classSafe\()/g)) bad.push(`${file}:${lineAt(text, m.index)} ${m[0]}`);
+            /*
+             * A NAME HANDED TO A SENTENCE THAT IS PRINTED AS MARKUP (E02 review,
+             * 24.09.2026). `${game.i18n.format("...", { name: actor.name })}` on a
+             * line building HTML prints the name as markup, and a character's or an
+             * item's name is the one field of a card its player can set. The review
+             * found one on a card the GM's own client writes (observe.mjs,
+             * "resolveLost") and four more on cards a player's client writes. A
+             * sentence built into plain text and escaped whole where it is printed
+             * is not markup, which is why the line has to be building some.
+             */
+            for (const m of text.matchAll(/\$\{\s*(?:game\.i18n|i18n)\.format\(/g)) {
+                const line = text.slice(text.lastIndexOf("\n", m.index) + 1, text.indexOf("\n", m.index));
+                if (!/</.test(line)) continue;
+                let depth = 1, end = m.index + m[0].length;
+                while (end < text.length && depth) {
+                    if (text[end] === "(") depth++;
+                    else if (text[end] === ")") depth--;
+                    end++;
+                }
+                const args = text.slice(m.index + m[0].length, end);
+                for (const arg of args.matchAll(/\w+:\s*([\w?.[\]]+\.name)\b/g)) {
+                    bad.push(`${file}:${lineAt(text, m.index)} ${arg[0]}`);
+                }
+            }
         }
         ok(!bad.length, `printed into markup without escaping: ${bad.join("; ")}`);
     }]

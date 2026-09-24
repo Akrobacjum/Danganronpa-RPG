@@ -49,7 +49,7 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { debug, error } from "./utils.mjs";
+import { debug, warn, error } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_SECRET = "secret.card";
@@ -293,6 +293,10 @@ async function remember(id, html, at, pin = false, trusted = false) {
     cleaned.delete(id);
     const store = { ...read(), [id]: {
         html: words, at: at ?? Date.now(), user: game.user?.id ?? null,
+        // Which world the card is in: the store is a CLIENT setting, one per
+        // browser for every world it opens, and `pruneOrphans` must only ever
+        // judge this world's cards against this world's chat log.
+        world: game.world?.id ?? null,
         ...(pin ? { pin: true } : {}), ...(trusted ? { trusted: true } : {})
     } };
 
@@ -359,6 +363,16 @@ export async function postSecret(data = {}) {
     }
 
     const html = rest.content ?? "";
+
+    /* TOO LONG IS SAID HERE, TO THE WRITER (E02 review). The receiving side
+       refuses a player's card past `MAX_PLAYER_BYTES`, and it used to be the
+       only side that knew: the card was posted, the GM saw a dash, and the
+       player was told nothing. A player's own browser checks first now and
+       posts nothing. */
+    if (!game.user.isGM && new Blob([html]).size > MAX_PLAYER_BYTES) {
+        ui.notifications?.warn(game.i18n.format("DRPG.Secret.tooLong", { kb: MAX_PLAYER_BYTES / 1024 }));
+        return null;
+    }
     const message = await ChatMessage.create({
         ...rest,
         ...(veiled ? { speaker: { alias: game.i18n.localize("DRPG.Secret.speaker") } } : {}),
@@ -487,7 +501,10 @@ export function registerSecrets() {
                    really is a thread's - read off the document, not the packet
                    (S11-28). `remember` cleans them, because `trusted` is false. */
                 if (new Blob([payload.html]).size > MAX_PLAYER_BYTES) {
-                    debug(`Refused private words for ${payload.id} from ${sender?.name ?? senderId}: over ${MAX_PLAYER_BYTES} bytes.`);
+                    // A warning, not a debug line (E02 review): the sender's own
+                    // browser refuses this before posting (`postSecret`), so a
+                    // packet this size came from somewhere else.
+                    warn(`Refused private words for ${payload.id} from ${sender?.name ?? senderId}: over ${MAX_PLAYER_BYTES} bytes.`);
                     return;
                 }
                 await remember(payload.id, payload.html, payload.at, pinned(message.flags), false);
@@ -548,11 +565,37 @@ export function registerSecrets() {
  * connected when the log is cleared - a player who was offline kept every word
  * of a deleted session for good. At `ready` every message of the world is in
  * `game.messages`, so an id that is not there is a card that no longer exists.
+ *
+ * THIS WORLD'S CARDS ONLY (E02 review, 24.09.2026). The store is a client
+ * setting, and a client setting is one entry in the browser's storage for every
+ * world that browser opens. The first version of this took out everything not
+ * in THIS world's chat log - so a GM who opened a test world lost every private
+ * card of the campaign, messenger threads included, and those words exist
+ * nowhere else. Each card now records its world. A card from before that has no
+ * record: when it is in this world's log it is claimed for this world, and
+ * otherwise it is left alone, because it may be another world's.
+ *
+ * Exported for the security scenario, which plants one of each and runs it.
  */
-async function pruneOrphans() {
+export async function pruneOrphans() {
     if (!game.messages) return;
+    const here = game.world?.id ?? null;
+    if (!here) return;
     const store = read();
-    const gone = Object.keys(store).filter(id => !game.messages.has(id));
+    const gone = [];
+    const claimed = [];
+    for (const [id, entry] of Object.entries(store)) {
+        if (entry?.world === here) {
+            if (!game.messages.has(id)) gone.push(id);
+        } else if (!entry?.world && game.messages.has(id)) {
+            claimed.push(id);
+        }
+    }
+    if (claimed.length) {
+        const next = { ...read() };
+        for (const id of claimed) next[id] = { ...next[id], world: here };
+        await write(next);
+    }
     if (gone.length) await forget(gone);
 }
 

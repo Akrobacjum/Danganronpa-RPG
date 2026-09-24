@@ -1337,7 +1337,7 @@ function soundPlayPane() {
                     { name: SITUATIONAL_PLAYLIST })}</p>
                 ${cue
                     ? `${playable ? "" : `<p class="notes" data-drpg-no-cue>${
-                        game.i18n.format("DRPG.Music.situationalMade", { name: cue.name })}</p>`}
+                        game.i18n.format("DRPG.Music.situationalMade", { name: foundry.utils.escapeHTML(cue.name) })}</p>`}
                     <label>${game.i18n.localize("DRPG.Music.track")}
                     <select name="playTrack" data-drpg-enter="[data-drpg-play]"
                         >${trackOptions(cue)}</select></label>`

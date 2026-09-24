@@ -503,7 +503,10 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
         const stranded = actorId ? game.actors.get(actorId) : null;
         await whisperToGms(`<p class="drpg-warning">${game.i18n.format(
             undo ? "DRPG.Observe.rerollLost" : "DRPG.Observe.resolveLost",
-            { name: stranded?.name ?? "?", total }
+            // Escaped (E02 review): this card is written on the GM's client and
+            // stored as the GM's own, and the name is the one field of it a
+            // player can set - by renaming their character from the console.
+            { name: foundry.utils.escapeHTML(stranded?.name ?? "?"), total }
         )}</p>`);
         if (stranded) {
             await whisperToOwner(stranded, `<p class="drpg-warning">${
