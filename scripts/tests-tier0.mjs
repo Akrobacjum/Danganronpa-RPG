@@ -14,7 +14,7 @@ import {
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
-    DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf
+    DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -5125,6 +5125,64 @@ const REGRESSIONS = [
             "dumpDiff does not report exactly the changed leaf and the added item, or reports the write stamp");
         const gone = dumpDiff(after, before).find(d => d.path === "Actor.SUITEPROBEACTOR1.items.SUITEPROBEITEM01");
         ok(gone && gone.after === undefined, "dumpDiff does not report a unit that went");
+    }],
+
+    ["R160 - every way a player reaches the GM belongs to a flow", async () => {
+        /*
+         * E30, 24.09.2026; audit S17-03. A flow crosses browsers - asked on one, judged
+         * on the GM's, shown on a third - so the suite, in one browser, cannot drive one
+         * end to end; the harness can, and FLOWS (tests-flows.mjs) says which scenario
+         * does, or which stage will write one. That list is only worth anything if
+         * nothing reaches the GM outside it: every GM_HANDLERS action and every file
+         * that listens on the module's socket belongs to exactly one flow (or is exempt
+         * with a reason), and no flow names an action, a file, a game.drpg call or a
+         * function that is gone. Read off the source served here: GM_HANDLERS's rows,
+         * their ACTION_ constants resolved to the wire names, and `game.socket.on(` in
+         * each file. On 24.09: 33 actions, 16 listener files. A read of fewer than 30 or
+         * 10 means the source moved and this measured nothing, and fails as such.
+         */
+        const sources = new Map(await otherSources());
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const table = bodyOf(bridge, "const GM_HANDLERS = {", { until: "\n};" });
+        const wire = new Map([...bridge.matchAll(/(?:export )?const (ACTION_\w+) = "([^"]+)"/g)].map(m => [m[1], m[2]]));
+        const rows = [...table.matchAll(/\[(ACTION_\w+)\]\s*:/g)].map(m => m[1]);
+        const unnamed = rows.filter(name => !wire.has(name));
+        ok(!unnamed.length, `GM_HANDLERS rows whose ACTION_ constant is not a string: ${unnamed.join(", ")}`);
+        const actions = rows.map(name => wire.get(name)).filter(Boolean);
+        const listeners = [...sources].filter(([, text]) => /game\.socket\.on\(/.test(stripComments(text))).map(([file]) => file);
+        ok(actions.length >= 30, `read ${actions.length} GM_HANDLERS actions, and there were 33 - the table has moved, and this measured nothing`);
+        ok(listeners.length >= 10, `read ${listeners.length} files listening on the socket, and there were 16 - this measured nothing`);
+
+        const owners = new Map();
+        const claim = (what, id) => owners.set(what, [...(owners.get(what) ?? []), id]);
+        for (const flow of FLOWS) {
+            for (const action of flow.entry?.bridge ?? []) claim(`bridge ${action}`, flow.id);
+            for (const file of flow.entry?.sockets ?? []) claim(`socket ${file}`, flow.id);
+        }
+        const unclaimed = [...actions.map(a => `bridge ${a}`), ...listeners.filter(f => !(f in FLOW_EXEMPT)).map(f => `socket ${f}`)]
+            .filter(what => !owners.has(what));
+        ok(!unclaimed.length, `reaches the GM and belongs to no flow (add it to FLOWS in tests-flows.mjs): ${unclaimed.join(", ")}`);
+        const twice = [...owners].filter(([, ids]) => ids.length > 1).map(([what, ids]) => `${what} (${ids.join(", ")})`);
+        ok(!twice.length, `claimed by more than one flow: ${twice.join("; ")}`);
+        const gone = [...owners.keys()].filter(what => what.startsWith("bridge ")
+            ? !actions.includes(what.slice(7)) : !listeners.includes(what.slice(7)));
+        ok(!gone.length, `a flow names what no longer reaches the GM: ${gone.join(", ")}`);
+        const exemptGone = Object.keys(FLOW_EXEMPT).filter(file => !listeners.includes(file));
+        ok(!exemptGone.length, `exempt, and not listening on the socket any more: ${exemptGone.join(", ")}`);
+
+        const starts = [];
+        for (const flow of FLOWS) {
+            for (const name of flow.entry?.api ?? []) if (typeof game.drpg?.[name] !== "function") starts.push(`${flow.id}: game.drpg.${name}`);
+            for (const call of flow.entry?.calls ?? []) {
+                const [file, fn] = call.split("#");
+                if (topLevelFunction(stripComments(sources.get(file) ?? ""), fn) === null) starts.push(`${flow.id}: ${call}`);
+            }
+        }
+        ok(!starts.length, `a flow starts from something that is not there: ${starts.join("; ")}`);
+        const shapeless = FLOWS.filter(f => !["covered", "partial", "planned"].includes(f.status)
+            || (f.status === "covered" ? !f.scenarios?.length : !/^E\d+$/.test(f.stage ?? "")));
+        ok(!shapeless.length, `a flow with no scenario that drives it and no stage to write one: ${shapeless.map(f => f.id).join(", ")}`);
+        equal(new Set(FLOWS.map(f => f.id)).size, FLOWS.length, "two flows share an id");
     }]
 ];
 

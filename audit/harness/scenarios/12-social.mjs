@@ -2,11 +2,12 @@
 export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
-export async function run({ gm, p1, p2, check, settle, repoUrl }) {
+export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
     const ids = await gm.eval(`return {
         aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id };`);
 
     // --- forced private rolls: is the setting on, and does a player's roll stay off p2? ---
+    phase("private rolls", { flow: "private-rolls" });
     // This was check(name, true): it printed the value and could not fail. settings.mjs
     // registers the setting with `default: true`, no module code writes it, and nothing in
     // this scenario does before this line, so the read is the default a new world starts with.
@@ -57,6 +58,7 @@ export async function run({ gm, p1, p2, check, settle, repoUrl }) {
     console.log("[qa] what p2's console can still read of Aiko's private roll (documented, README 'Privacy'):", JSON.stringify(onP2.readable));
 
     // --- inventory carry limit (Gear = 2 shared slots) ---
+    phase("inventory");
     const inv = await gm.eval(`
         const INV = await import("${repoUrl}/scripts/inventory.mjs");
         const actor = game.actors.get("${ids.botan}");
@@ -71,6 +73,7 @@ export async function run({ gm, p1, p2, check, settle, repoUrl }) {
     check("INVENTORY: Gear limit of 2 is enforced (3rd blocked or stashed)", inv.carried <= 2, JSON.stringify(inv));
 
     // --- movement / search tokens per room ---
+    phase("movement");
     const search = await gm.eval(`
         const st = await import("${repoUrl}/scripts/search-tokens.mjs");
         const M = await import("${repoUrl}/scripts/movement.mjs");
@@ -82,6 +85,7 @@ export async function run({ gm, p1, p2, check, settle, repoUrl }) {
     check("MOVEMENT: player's room resolved + search tokens present", !!search.room, JSON.stringify(search).slice(0, 300));
 
     // --- anonymity audit (module's own) ---
+    phase("anonymity");
     const anon = await gm.eval(`
         try { const r = game.drpg.auditAnonymity ? await game.drpg.auditAnonymity() : "no-fn"; return typeof r === "object" ? JSON.stringify(r).slice(0,300) : String(r); }
         catch (e) { return "threw:" + e.message; }

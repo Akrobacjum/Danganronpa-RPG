@@ -21,7 +21,7 @@ export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, p2, p3, check, settle, repoUrl }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     for (const c of [p1, p2, p3].filter(Boolean)) {
         await c.eval(`globalThis.__dialogAuto = false; return true;`);
     }
@@ -76,6 +76,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl }) {
     };
 
     /* ---- 1. a DIRECT murder: the killer is in the room ---------------------- */
+    phase("direct", { flow: "murder-incident" });
     await gm.eval(`
         await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}" });
         await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
@@ -117,6 +118,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl }) {
        follow. Asserted BEFORE as well as after, because "they get it" is only
        half the rule - the other half is that a student standing elsewhere on
        the map gets nothing, and the same person plays both parts here. */
+    phase("walk-in", { flow: "murder-incident" });
     const walkedIn = await gm.eval(`
         await game.drpg.thirdPartyEnters(game.actors.get("${ids.botan}"));
         return Boolean(game.drpg.murderState()?.thirdId);
@@ -133,6 +135,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl }) {
         JSON.stringify(third.bystander));
 
     /* ---- 2. the same murder, sprung by a trap ------------------------------- */
+    phase("trap", { flow: "trap-fire" });
     /* THROUGH `endMurder`, NOT BY WRITING THE SETTINGS.
        The first draft cleared the two settings directly and the trap half then
        failed: the third party's browser still held the old cast, so they read
@@ -168,6 +171,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl }) {
         `killer ${JSON.stringify(trap.killer)} vs bystander ${JSON.stringify(trap.bystander)}`);
 
     /* ---- 3. and it all goes back ------------------------------------------- */
+    phase("after", { flow: "murder-incident" });
     /* Through `endMurder` again, for the reason given at the top of part 2. */
     await gm.eval(`
         await game.drpg.endMurder({ reason: "suite", followUp: false });

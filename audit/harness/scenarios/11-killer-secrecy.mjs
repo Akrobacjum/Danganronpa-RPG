@@ -1,7 +1,7 @@
 export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
-export async function run({ gm, p1, p2, p3, check, settle }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle }) {
     const ids = await gm.eval(`return {
         chie: game.actors.getName("Chie Mori").id, daichi: game.actors.getName("Daichi Sato").id,
         aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id };`);
@@ -15,6 +15,7 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
     await settle(300);
 
     // Phase 1: incident active. Can an uninvolved player (aiko/p1) read the killer?
+    phase("incident", { flow: "murder-incident" });
     const p1read = await p1.eval(`
         const s = game.settings.get("${MOD}", "murderState") ?? {};
         return { killerId: s.killerId ?? null, thirdId: s.thirdId ?? null, victimId: s.victimId ?? null, stage: s.stage };
@@ -51,6 +52,7 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
         JSON.stringify({ stage, held: incidentCards.length, naming: naming.map(c => ({ whisper: c.w, doc: c.doc.slice(0, 260) })) }).slice(0, 1600));
 
     // Drive to resolution + discovery + trial
+    phase("discovery", { flow: "body-discovery" });
     await gm.eval(`
         await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await game.drpg.passTurn();
@@ -64,6 +66,7 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
     await settle(400);
 
     // Phase 2: class trial in progress - the killer is THE mystery being solved.
+    phase("trial", { flow: "class-trial" });
     const p1trial = await p1.eval(`
         const s = game.settings.get("${MOD}", "murderState") ?? {};
         return { killerId: s.killerId ?? null, thirdId: s.thirdId ?? null, active: s.active, stage: s.stage };

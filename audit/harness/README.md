@@ -90,6 +90,18 @@ release or stage the status belongs to.
 | 90 | - | - | retired | E30 | results/90-a11ycost.json came from a scratch scenario outside the repository; not reused |
 <!-- scenarios:end -->
 
+## Checks
+
+`check(name, ok, details, opts)` records one verdict. `phase(name, { flow })`
+names the stretch of a scenario that follows and the flow of
+`scripts/tests-flows.mjs` it drives, and every check after it carries both
+(`opts.flow` overrides it for one check); the results file sums checks and
+failures per flow (`flows`) and per phase (`phases`), and a flow the checkout
+does not know is a failed check. A flow names the scenarios that drive it only
+when their runs show checks under it; `node tools/check.mjs registry` holds the
+names to this table and to the tags, and the suite's R160 holds every GM-bridge
+action and socket listener to a flow.
+
 ## Probes
 
 Tools, not tests: `probes/README.md`. A probe is never part of a gate, and its

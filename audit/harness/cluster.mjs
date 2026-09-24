@@ -447,10 +447,63 @@ function handleFor(who) {
     };
 }
 
+/*
+ * PHASES AND FLOWS (E30, 24.09.2026). `phase(name, { flow })` names the stretch of
+ * a scenario that follows, and the flow of scripts/tests-flows.mjs it drives; every
+ * check after it carries both, until the next phase (a check's own `flow` option
+ * wins). The results file sums them per flow and per phase, so "which scenario
+ * drives this flow, and did it pass" is read off the run rather than off a list.
+ * A flow the checkout's FLOWS does not know is a failed check: a typo would
+ * otherwise tag nothing and look like coverage.
+ */
+let currentPhase = "start", currentFlow = null;
+const phaseLog = [];
+let knownFlows = null;
+async function loadFlows() {
+    try {
+        const m = await import(url.pathToFileURL(path.join(REPO, "scripts", "tests-flows.mjs")).href);
+        knownFlows = new Set(m.FLOWS.map(f => f.id));
+    } catch {
+        console.log(`[cluster] ${REPO} has no scripts/tests-flows.mjs: flow tags are not checked in this run`);
+    }
+}
+function unknownFlow(flow, where) {
+    if (flow && knownFlows && !knownFlows.has(flow)) {
+        results.push({ name: `${where}: "${flow}" is a flow of scripts/tests-flows.mjs`, ok: false, details: "no such flow", phase: currentPhase });
+        console.log(`! FAIL  ${where}: "${flow}" is not a flow of scripts/tests-flows.mjs`);
+    }
+}
+function phase(name, { flow = null } = {}) {
+    currentPhase = String(name);
+    currentFlow = flow;
+    phaseLog.push({ name: currentPhase, flow });
+    console.log(`  ----  ${currentPhase}${flow ? ` [${flow}]` : ""}`);
+    unknownFlow(flow, `phase "${currentPhase}"`);
+}
+
 const results = [];
-function check(name, ok, details = "") {
-    results.push({ name, ok: !!ok, details: String(details).slice(0, 2000) });
+function check(name, ok, details = "", opts = {}) {
+    const flow = opts.flow ?? currentFlow;
+    results.push({ name, ok: !!ok, details: String(details).slice(0, 2000), phase: currentPhase, ...(flow ? { flow } : {}) });
     console.log(`${ok ? "  PASS" : "! FAIL"}  ${name}${details && !ok ? " - " + String(details).slice(0, 400) : ""}`);
+    if (opts.flow) unknownFlow(opts.flow, `check "${name}"`);
+}
+
+/** Checks and failures per flow and per phase, for the results file. */
+function tally() {
+    const flows = {}, phases = [];
+    for (const r of results) {
+        if (r.flow) {
+            flows[r.flow] ??= { checks: 0, failed: 0 };
+            flows[r.flow].checks++;
+            if (!r.ok) flows[r.flow].failed++;
+        }
+    }
+    for (const p of phaseLog) {
+        const mine = results.filter(r => r.phase === p.name);
+        if (!phases.some(q => q.name === p.name)) phases.push({ name: p.name, flow: p.flow, checks: mine.length, failed: mine.filter(r => !r.ok).length });
+    }
+    return { flows, phases };
 }
 
 /*
@@ -577,6 +630,7 @@ async function main() {
        import now ends the run before four browsers boot for nothing. */
     const scenario = await import(url.pathToFileURL(scenarioFile).href);
     const accounts = seedAccounts(scenario.accounts);
+    await loadFlows();
 
     spawnClient("gm", IDS.gm);
     spawnClient("p1", IDS.p1);
@@ -602,7 +656,7 @@ async function main() {
     const api = {
         gm: handleFor("gm"), p1: handleFor("p1"), p2: handleFor("p2"), p3: handleFor("p3"),
         ...Object.fromEntries(accounts.map(account => [account.who, handleFor(account.who)])),
-        check, note, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, opLog, settingLog, disconnect, bootInfo, IDS,
+        check, note, phase, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, opLog, settingLog, disconnect, bootInfo, IDS,
         environment: ENVIRONMENT,
         // `import("${repoUrl}/scripts/x.mjs")` inside an eval reaches the SAME module
         // instance the client booted, because it is the same URL.
@@ -661,7 +715,7 @@ async function main() {
     const out = {
         scenario: scenarioPath, kind: probe ? "probe" : "scenario", layers: scenario.layers ?? null,
         startedAt: STARTED_AT, finishedAt: new Date().toISOString(), environment: ENVIRONMENT,
-        passed, total: results.length, ms: dt, resources,
+        passed, total: results.length, ms: dt, resources, ...tally(),
         // What run() returned: a probe's record, or a scenario's own evidence when it keeps
         // some (01-runtests keeps the suite's results list, which suite-diff --json reads).
         results, notes, ...(probe ? { evidence: evidence ?? null } : evidence !== undefined ? { evidence } : {}),

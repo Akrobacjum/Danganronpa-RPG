@@ -21,7 +21,8 @@
  *   registry  the harness's scenario numbers (audit/harness/README.md) against
  *             the files and their layers, and the suite's R numbers (the
  *             block at the end of CLAUDE.md) against the tier files -
- *             tools/registry.mjs, whose `--write` regenerates the block.
+ *             tools/registry.mjs, whose `--write` regenerates the block - and
+ *             the flows of scripts/tests-flows.mjs against both.
  */
 
 import fs from "node:fs";
@@ -67,8 +68,8 @@ function contract() {
     return problems;
 }
 
-function registry() {
-    const { problems, summary } = registryLib.registryProblems(REPO);
+async function registry() {
+    const { problems, summary } = await registryLib.registryProblems(REPO);
     console.log(summary);
     return problems;
 }
@@ -83,7 +84,7 @@ if (unknown.length) {
 }
 let red = false;
 for (const name of asked.length ? asked : Object.keys(PARTS)) {
-    const problems = PARTS[name]();
+    const problems = await PARTS[name]();
     for (const p of problems) console.log(`${name}: ${p}`);
     if (problems.length) red = true;
 }

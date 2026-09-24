@@ -19,6 +19,11 @@
  *   kept), a removed test's row, and the tier-1 tests older than 1.2.61 that
  *   carry no number.
  *
+ * - the flows, in scripts/tests-flows.mjs: each flow's scenarios are rows of
+ *   the table above and tag its checks (`flow: "<id>"`), and a flow not yet
+ *   covered names a stage that has not shipped. That every GM-bridge action and
+ *   socket listener belongs to a flow is the suite's R160, which reads the source.
+ *
  * Node only, no dependencies; it reads the tier files as text with the suite's
  * own detectors (scripts/tests-lint.mjs) and the stage ledger with
  * tools/stages.mjs, so the three readers cannot disagree.
@@ -124,10 +129,12 @@ function sinceOf(repo, numbers) {
 export function renderRBlock(repo, existing) {
     const tests = tierTests(repo).filter(t => t.r && t.tier < 2);
     const rows = new Map();
-    const fresh = new Set(tests.map(t => t.r).filter(r => !existing?.rows.has(r)));
+    /* A reserved row is a placeholder: the test that takes its number is new. */
+    const keptRow = r => { const row = existing?.rows.get(r); return row && !/^reserved: /.test(row.title) && row.since !== "-" ? row : null; };
+    const fresh = new Set(tests.map(t => t.r).filter(r => !keptRow(r)));
     const since = fresh.size ? sinceOf(repo, fresh) : new Map();
     for (const t of tests) {
-        const kept = existing?.rows.get(t.r);
+        const kept = keptRow(t.r);
         rows.set(t.r, { r: t.r, tier: String(t.tier), since: kept?.since ?? since.get(t.r),
             title: t.r === "R151" ? `${t.title} (R21 until 1.2.61)` : t.title });
     }
@@ -276,21 +283,72 @@ function scenarioProblems(repo) {
 }
 
 /* --------------------------------------------------------------------------
+ * Flows
+ * -------------------------------------------------------------------------- */
+
+async function flowProblems(repo) {
+    const errs = [];
+    const file = path.join(repo, "scripts", "tests-flows.mjs");
+    if (!fs.existsSync(file)) return ["scripts/tests-flows.mjs is missing"];
+    if (/(?:^|[^\w.])import\s*(?:[\w{*]|\()/m.test(lint.blankLiterals(lint.blankComments(fs.readFileSync(file, "utf8"))))) {
+        errs.push("scripts/tests-flows.mjs imports something - it must not, so Node and the suite can read it alike");
+    }
+    let flows, exempt;
+    try { ({ FLOWS: flows, FLOW_EXEMPT: exempt } = await import(`${url.pathToFileURL(file).href}?${Date.now()}`)); }
+    catch (err) { return [...errs, `scripts/tests-flows.mjs does not load: ${err.message}`]; }
+    const table = readScenarioTable(read(repo, "audit/harness/README.md"));
+    const rows = new Map((table.rows ?? []).map(r => [r.file, r]));
+    const doc = stagesLib.loadStages(repo), mod = stagesLib.moduleVersion(repo);
+    const ids = new Set();
+    for (const flow of flows ?? []) {
+        const at = `flow ${flow.id}`;
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(flow.id ?? "")) errs.push(`${at}: the id is not kebab-case`);
+        if (ids.has(flow.id)) errs.push(`${at}: the id is used twice`);
+        ids.add(flow.id);
+        if (!["covered", "partial", "planned"].includes(flow.status)) errs.push(`${at}: status "${flow.status}" is not covered, partial or planned`);
+        if (flow.status === "covered") {
+            if (!/^(?:<=)?\d+\.\d+\.\d+/.test(flow.stage ?? "")) errs.push(`${at}: covered, and its stage "${flow.stage}" is not the release it arrived in`);
+            if (!flow.scenarios?.length) errs.push(`${at}: covered by no scenario`);
+        } else {
+            const s = stagesLib.stageStatus(doc, flow.stage, mod);
+            if (!s.known) errs.push(`${at}: ${flow.status} until ${flow.stage}, which tools/stages.json does not know`);
+            else if (s.shipped) errs.push(`${at}: ${flow.status} until ${flow.stage}, which shipped in ${s.version} - finish the flow or move it to a later stage`);
+        }
+        for (const id of flow.scenarios ?? []) {
+            const rel = `scenarios/${id}.mjs`;
+            if (!rows.has(rel)) { errs.push(`${at}: names scenario ${id}, which is not a row of audit/harness/README.md`); continue; }
+            if (flow.status === "planned") continue;
+            const text = fs.existsSync(path.join(repo, "audit/harness", rel)) ? read(repo, `audit/harness/${rel}`) : null;
+            if (text === null) errs.push(`${at}: names scenario ${id}, and ${rel} does not exist`);
+            else if (!text.includes(`flow: "${flow.id}"`)) errs.push(`${at}: names scenario ${id}, which tags no check with flow: "${flow.id}"`);
+        }
+    }
+    for (const name of Object.keys(exempt ?? {})) {
+        if (!fs.existsSync(path.join(repo, "scripts", name))) errs.push(`FLOW_EXEMPT names ${name}, which is not in scripts/`);
+    }
+    return errs;
+}
+
+/* --------------------------------------------------------------------------
  * all
  * -------------------------------------------------------------------------- */
 
 /** Every registry problem, one sentence each, and a line saying what was read. */
-export function registryProblems(repo = REPO_DEFAULT) {
-    const problems = [...scenarioProblems(repo).map(p => `scenarios: ${p}`), ...rProblems(repo).map(p => `R numbers: ${p}`)];
+export async function registryProblems(repo = REPO_DEFAULT) {
+    const problems = [...scenarioProblems(repo).map(p => `scenarios: ${p}`), ...rProblems(repo).map(p => `R numbers: ${p}`),
+        ...(await flowProblems(repo)).map(p => `flows: ${p}`)];
     const table = readScenarioTable(read(repo, "audit/harness/README.md"));
     const block = readRBlock(read(repo, "CLAUDE.md"));
     const tests = tierTests(repo);
+    let flowCount = "?";
+    try { flowCount = (await import(`${url.pathToFileURL(path.join(repo, "scripts", "tests-flows.mjs")).href}?${Date.now()}`)).FLOWS.length; } catch { /* reported above */ }
     const summary = `registry: ${table.rows?.length ?? 0} scenario rows; ${tests.filter(t => t.r).length} numbered tests, `
-        + `${block?.grandfathered.length ?? 0} unnumbered tier-1 tests on the list, ${block?.rows.size ?? 0} registry rows, next free ${block?.next ?? "?"}`;
+        + `${block?.grandfathered.length ?? 0} unnumbered tier-1 tests on the list, ${block?.rows.size ?? 0} registry rows, next free ${block?.next ?? "?"}; `
+        + `${flowCount} flows`;
     return { problems, summary };
 }
 
-function main(argv) {
+async function main(argv) {
     const repo = REPO_DEFAULT;
     if (argv.includes("--write")) {
         const claude = read(repo, "CLAUDE.md");
@@ -302,12 +360,12 @@ function main(argv) {
         if (next !== claude) fs.writeFileSync(path.join(repo, "CLAUDE.md"), next);
         console.log(`registry: CLAUDE.md's R-number block ${next === claude ? "was already current" : "written"}`);
     }
-    const { problems, summary } = registryProblems(repo);
+    const { problems, summary } = await registryProblems(repo);
     console.log(summary);
     for (const p of problems) console.log(`registry: ${p}`);
     return problems.length ? 1 : 0;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(import.meta.url)) {
-    process.exitCode = main(process.argv.slice(2));
+    process.exitCode = await main(process.argv.slice(2));
 }

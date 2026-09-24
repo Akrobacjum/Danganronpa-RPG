@@ -18,6 +18,7 @@ import {
     stripComments, lineAt, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     FIXTURES as LINT_FIXTURES
 } from "./tests-lint.mjs";
+import { FLOWS, FLOW_EXEMPT } from "./tests-flows.mjs";
 
 /* ==========================================================================
  * HARNESS
@@ -1232,7 +1233,7 @@ export {
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, bodyOf, topLevelFunction, fnSource, lineAround,
     withGuards, lineAt, stripStrings, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
-    LINT_FIXTURES,
+    LINT_FIXTURES, FLOWS, FLOW_EXEMPT,
     stringLiterals, STANDING, stableJson, moduleSettingValues, watchWrites, cast,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS
 };

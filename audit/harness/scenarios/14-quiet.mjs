@@ -23,12 +23,13 @@ export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, check, settle, repoUrl }) {
+export async function run({ gm, p1, check, phase, settle, repoUrl }) {
     /* ---- 1. the clock ------------------------------------------------------
        `renderHud` stamps the phase and the hour on the body for the strip, the
        tray and the curtain's seams to read. Setting a dataset attribute to the
        value it already holds still queues a MutationRecord, so an unguarded
        write woke all three body observers on every redraw. */
+    phase("the clock", { flow: "clock-day" });
     const hud = await gm.eval(`
         const H = await import("${repoUrl}/scripts/hud.mjs");
         H.renderHud();
@@ -61,6 +62,7 @@ export async function run({ gm, p1, check, settle, repoUrl }) {
        It redrew by removing its node and prepending a new one, on every module
        setting write and every update of any student. Under Stained Glass that
        pair of child-list mutations is a recut of the curtain. */
+    phase("the status strip");
     const strip = await p1.eval(`
         const S = await import("${repoUrl}/scripts/player-status.mjs");
         S.renderPlayerStatus();
@@ -85,6 +87,7 @@ export async function run({ gm, p1, check, settle, repoUrl }) {
        A control the sweep cannot name used to be left unmarked, so every later
        sweep read its whole subtree again for the life of the session. It is
        marked now - and a control that CAN be named still gets its name. */
+    phase("accessibility");
     const swept = await gm.eval(`
         const A = await import("${repoUrl}/scripts/a11y.mjs");
         const panel = document.createElement("div");
