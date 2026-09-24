@@ -8147,6 +8147,25 @@ const INVARIANTS = [
         equal(JSON.stringify(cleanableTracesForPlayer(student.id, { mine: false })),
             JSON.stringify(cleanableTracesForPlayer(student.id, { mine: true })),
             "a student who is not cleaning a crime scene is handed the whole room by asking for it");
+    }],
+
+    ["R149 - every Despair pool is shown under its own name, a lone one included", async () => {
+        /*
+         * 24.09.2026, reported from a table that went from two GMs to one: the only
+         * pool's row read "Despair" instead of the name the GM gave it in Despair
+         * Flow - a rule for one pool, not a regression, and not what anybody wanted.
+         * Drawing the bar touches the page only, not the world, so this draws it and
+         * reads each row as the table sees it. Measured before the fix in the
+         * headless harness (one GM, one pool): the row read "Despair".
+         */
+        const D = await import("./despair.mjs");
+        const pools = D.monokumas();
+        needs(pools.length > 0, "this world has no full Gamemaster account, so no Despair pool to draw");
+        D.renderDespairBar();
+        const rows = [...document.querySelectorAll("#drpg-despair .drpg-despair-row")];
+        const shown = rows.map(row => row.querySelector(".drpg-despair-name")?.textContent ?? null);
+        equal(JSON.stringify(shown), JSON.stringify(pools.map(user => D.poolLabel(user))),
+            "a pool's row does not carry that pool's name");
     }]
 ];
 

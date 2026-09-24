@@ -517,9 +517,9 @@ export function renderDespairBar() {
         /*
          * A HEADING, BECAUSE THE ROWS DO NOT SAY WHAT THEY ARE.
          *
-         * Each row carries a pool's name or a generic label, so a strip of
-         * numbers at the top of the screen was identifiable only to somebody
-         * who already knew what it was. One line in the same pixel type as the
+         * Each row carries a pool's name, so a strip of numbers at the top of
+         * the screen was identifiable only to somebody who already knew what
+         * it was. One line in the same pixel type as the
          * rest of the HUD beside it.
          *
          * It is inside the wrapper rather than above it because the wrapper is
@@ -532,7 +532,7 @@ export function renderDespairBar() {
         heading.textContent = game.i18n.localize("DRPG.Despair.widgetTitle");
         wrapper.append(heading);
 
-        for (const user of gms) wrapper.append(buildRow(user, gms.length > 1));
+        for (const user of gms) wrapper.append(buildRow(user));
 
         // UNDER THE POOLS (Dawid, 29.08). It reads as the consequence of the
         // rows above it rather than as a heading for them, which is what it is:
@@ -646,7 +646,7 @@ function buildOverflowCaption() {
     }
 }
 
-function buildRow(user, showName) {
+function buildRow(user) {
     const held = getDespair(user.id);
     const max = despairMax();
     const isGM = game.user.isGM;
@@ -661,21 +661,23 @@ function buildRow(user, showName) {
     row.className = "drpg-despair-row";
     row.dataset.userId = user.id;
 
-    if (showName) {
-        const name = document.createElement("span");
-        name.className = "drpg-despair-name";
-        name.textContent = poolLabel(user);
-        // Deliberately NOT that user's own Foundry account colour - every
-        // Monokuma pool reads as the same purple regardless of whichever
-        // colour a GM happened to pick for their account. Two rows are told
-        // apart by name, not by borrowing account theming into game UI.
-        row.append(name);
-    } else {
-        const label = document.createElement("span");
-        label.className = "drpg-despair-name";
-        label.textContent = game.i18n.localize("DRPG.Despair.label");
-        row.append(label);
-    }
+    /*
+     * THE POOL'S NAME, EVEN WHEN IT IS THE ONLY POOL (24.09.2026, reported from a
+     * table). A lone pool used to read "Despair", on the reasoning that one row
+     * needs no telling apart. But the name is the Monokuma's, set by the GM in
+     * Despair Flow for the table to see, and a table that went from two GMs to
+     * one watched it turn into the generic word overnight - which looked like
+     * a regression, and was a rule nobody had asked for. With no name set, the
+     * account's name stands in, as it always has with two.
+     */
+    const name = document.createElement("span");
+    name.className = "drpg-despair-name";
+    name.textContent = poolLabel(user);
+    // Deliberately NOT that user's own Foundry account colour - every
+    // Monokuma pool reads as the same purple regardless of whichever
+    // colour a GM happened to pick for their account. Two rows are told
+    // apart by name, not by borrowing account theming into game UI.
+    row.append(name);
 
     const pips = document.createElement("div");
     pips.className = "drpg-despair-pips";
