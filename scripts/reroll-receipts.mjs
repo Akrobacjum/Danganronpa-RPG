@@ -149,9 +149,13 @@ export function rerollReceiptFor(actorId, userId) {
  * Spend one undo of `kind` from the receipt for `actorId` and `userId`.
  *
  * Returns why it was refused, or null when the undo is paid for - in which case
- * that kind is used up. Waits once, briefly, for a receipt that is not there
- * yet: the rewrite of the message and the undo are two messages to this
- * client, and the order they are handled in has not been measured at a table.
+ * that kind is used up. Asks once more, a moment later, after ANY refusal: the
+ * rewrite of the message and the undo are two messages to this client, and the
+ * order they are handled in has not been measured at a table. The first build
+ * waited only when there was no receipt at all, so after a character's first
+ * Reroll a late rewrite met the previous, spent or stale receipt and was
+ * refused at once (the E03 second review). A refusal that stands costs the
+ * player that moment.
  *
  * @param {string} actorId
  * @param {string} userId
@@ -161,15 +165,16 @@ export function rerollReceiptFor(actorId, userId) {
  * @returns {Promise<string|null>}
  */
 export async function spendRerollReceipt(actorId, userId, kind, check = null) {
-    let why = rerollReceiptRefusal(rerollReceiptFor(actorId, userId), { kind });
-    if (why && !rerollReceiptFor(actorId, userId)) {
+    const judge = () => {
+        const receipt = rerollReceiptFor(actorId, userId);
+        return rerollReceiptRefusal(receipt, { kind }) ?? (check ? check(receipt) : null);
+    };
+    let why = judge();
+    if (why) {
         await pause(TIMING.rerollReceiptRetryMs);
-        why = rerollReceiptRefusal(rerollReceiptFor(actorId, userId), { kind });
+        why = judge();
     }
     if (why) return why;
-    const receipt = rerollReceiptFor(actorId, userId);
-    const also = check ? check(receipt) : null;
-    if (also) return also;
-    receipt.used.add(kind);
+    rerollReceiptFor(actorId, userId).used.add(kind);
     return null;
 }

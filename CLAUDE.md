@@ -121,8 +121,11 @@ logged on the GM, and is told to the asker (`bridge.refused`).
 
 **Layer two (E28, E29).** The numbers - totals, dice, Hope paid - are checked
 against the roll message the GM can see. Until then a player with a console can
-still lie about their own roll and their own resources, and about nobody
-else's. A Reroll receipt proves only that the player rewrote the rolls of their
+still lie about their own roll, and move - within each resource's bounds - their
+own character's Hope, Stress and Health, the resources of any actor that is not
+a student (companions included), Fear one step at a time, and the countdowns the
+rules tick or the GM gave them; `relay-guard.mjs` lists the rest. A Reroll
+receipt proves only that the player rewrote the rolls of their
 own character's chat card a few minutes ago - which a Reroll does, and so does
 Daggerheart's own dice reroll, and so can a console. Not that a Reroll was paid
 for, nor that one happened.

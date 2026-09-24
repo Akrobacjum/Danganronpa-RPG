@@ -26,18 +26,31 @@
  * Fear limit is read from).
  *
  * WHEN DAGGERHEART CHANGES. This leans on Daggerheart's own code, so it checks
- * that it is looking at what was reviewed (`fingerprintOf`). A listener it
- * cannot find, a list of cases that grew, a packet it does not know, a sender
- * Foundry does not name: on the GM's client every one of those is refused and
- * said out loud to the GM, once. It never quietly lets an unreviewed shape
- * through there.
+ * that it is looking at what was reviewed (`fingerprintOf`), and on the primary
+ * GM's client it refuses what it does not know:
+ *   - a list of cases that grew, or a listener it cannot name: the unreviewed
+ *     shapes are refused, and the GM is told once per Daggerheart version;
+ *   - a packet name it does not know: refused, and the first few names are said
+ *     in the GMs' chat (`SHAPES_WHISPERED`), the rest in the console;
+ *   - a listener it cannot find, or a socket it cannot take one off: the
+ *     last-resort backstop refuses in its place, and the GM is told once per
+ *     version; where even that is impossible the relay is NOT guarded, and the
+ *     GM is told so on every load, because that is a security state;
+ *   - a sender Foundry does not name: refused, and said once per session. A
+ *     named sender this client sees as disconnected is refused quietly.
  *
- * WHAT IT DOES NOT DO. It narrows, it does not referee. Still taken as sent,
- * inside the resource's bounds: a player's Hope, Stress and Health on their own
- * character, the resources of an actor that is not a student (companions
- * included), their own items' charges and quantities, and a countdown tick of
- * one, with no limit on how often. Whether the roll behind any of those was
- * honest is the second layer of the trust model (E28, E29).
+ * WHAT IT DOES NOT DO. It narrows, it does not referee. Still taken as sent: a
+ * player's Hope, Stress and Health on their own character, and the resources of
+ * an actor that is not a student (companions included), each between 0 and its
+ * maximum; their own items' charges (not below 0; the item's own maximum is a
+ * formula this file does not evaluate) and quantities (whole, not below 0); a
+ * Fear step of one either way, never refused, only pointed out past
+ * `FEAR_STEPS_NOTED`; a tick of one on any automated countdown that is not a
+ * project, and any change between 0 and its start to a countdown the player
+ * owns; a save total for a token they play; the group-roll and tag-team data of
+ * a party one of their characters is in; a new order for a scene's
+ * environments. None has a limit on how often. Whether the roll behind any of
+ * those was honest is the second layer of the trust model (E28, E29).
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -129,14 +142,18 @@ function ensureWrapped() {
         if (typeof sock?.listeners !== "function" || typeof sock?.off !== "function" || typeof sock?.on !== "function") {
             status.state = "noApi";
             installBackstop(channel);
+            if (backstopOn) status.state = "backstop";
             return;
         }
         // A COPY: the emitter hands back its own live array, and `off` below edits it.
         const loose = [...sock.listeners(channel)].filter(fn => !fn.__drpgRelayGuard);
         if (!loose.length) {
             if (!originals.length) {
+                // Asked again at `setup` and `ready`: a backstop that is already
+                // standing is what this state is, not "not found".
                 status.state = "notFound";
                 installBackstop(channel);
+                if (backstopOn) status.state = "backstop";
             }
             return;
         }
@@ -162,6 +179,11 @@ function ensureWrapped() {
     } catch (err) {
         status.state = "noApi";
         error("Could not put the guard in front of Daggerheart's GM relay", err);
+        try {
+            const channel = channelName();
+            if (channel) installBackstop(channel);
+            if (backstopOn) status.state = "backstop";
+        } catch { /* nothing left to try; `announce` says the relay is unguarded */ }
     }
 }
 
@@ -212,12 +234,16 @@ function installBackstop(channel) {
 function neutralise(payload, senderId) {
     const action = payload?.action;
     if (!game.user?.isGM || UI_ONLY.has(action)) return;
-    if (action !== GM_UPDATE && action !== GM_CREATE) { payload.action = "__drpgRefused"; return; }
+    if (action !== GM_UPDATE && action !== GM_CREATE) {
+        if (isPrimaryGm()) shapeWarning(String(action));
+        payload.action = "__drpgRefused";
+        return;
+    }
     if (!isPrimaryGm()) { payload.action = "__drpgRefused"; return; }
     const sender = senderOf(senderId);
     if (!sender) {
+        noSender(payload, senderId);
         payload.action = "__drpgRefused";
-        unknownSender(payload);
         return;
     }
     if (sender.isGM) return;
@@ -257,7 +283,8 @@ function onRelay(payload, senderId) {
         // do nothing on a player's client, so there is nothing to judge.
         if (UI_ONLY.has(action) || !game.user?.isGM) return forward(payload, senderId);
         if (action !== GM_UPDATE && action !== GM_CREATE) {
-            shapeWarning(String(action));
+            // Said by the primary GM only, so one GM speaks for the table.
+            if (isPrimaryGm()) shapeWarning(String(action));
             return;
         }
         if (!isPrimaryGm()) {
@@ -265,7 +292,7 @@ function onRelay(payload, senderId) {
             return;
         }
         const sender = senderOf(senderId);
-        if (!sender) return unknownSender(payload);
+        if (!sender) return noSender(payload, senderId);
         if (sender.isGM) return forward(payload, senderId);
 
         const verdict = judgeRelay(payload, sender);
@@ -424,8 +451,10 @@ function partyRefusal(doc, flat, sender, world) {
     }
     const members = doc.system?.partyMembers;
     if (!members) {
+        // A Daggerheart whose party no longer lists its members: nothing to
+        // judge the sender against, so it is refused rather than let through.
         shapeWarning("party members");
-        return null;
+        return { refused: `the party ${doc.name}, whose members this Daggerheart does not list` };
     }
     // Asked of each member document itself, so the judgement reads only what it
     // is handed - the suite gives it made-up documents.
@@ -784,7 +813,9 @@ function reportRefusal(verdict, sender) {
     status.refused[sub] = (status.refused[sub] ?? 0) + 1;
     warn(`Refused a Daggerheart "${plainWhat(verdict.sub)}" from ${sender.name}: ${what}.`);
 
-    const key = `${sender.id}|${sub}`;
+    // The kind is in the key: a refused request must not use up the window a
+    // forged one needs to reach the GMs' chat (E03 second review).
+    const key = `${sender.id}|${sub}|${verdict.kind}`;
     const now = Date.now();
     if (now - (lastWarned.get(key) ?? 0) >= WARN_EVERY_MS) {
         lastWarned.set(key, now);
@@ -801,11 +832,25 @@ function reportRefusal(verdict, sender) {
 }
 
 /**
- * A packet Foundry names no sender for. Refused, as everything unjudged is -
- * and said, because if Foundry stopped naming senders on a system channel,
- * every player's Daggerheart cost would stop landing and nobody would know why.
- * That Foundry v14 names them there is measured in the harness only (AUDIT §9).
+ * A packet with no sender this client can judge. Refused either way.
+ *
+ * A sender Foundry did not name - no id, or one no user has - is said, once a
+ * session, because if Foundry stopped naming senders on a system channel every
+ * player's Daggerheart cost would stop landing and nobody would know why.
+ * Whether Foundry v14 names them there is NOT measured: the harness stamps a
+ * sender on every packet it relays (cluster.mjs), so it cannot tell. Live check
+ * in AUDIT §9.2, item 18.
+ *
+ * A named user this client sees as disconnected - a tab closed right after a
+ * roll, a reconnect in flight - is not that failure, and is only logged.
  */
+function noSender(payload, senderId) {
+    const named = senderId ? game.users?.get(senderId) : null;
+    if (!named) return unknownSender(payload);
+    status.refused.inactiveSender = (status.refused.inactiveSender ?? 0) + 1;
+    warn(`Refused a Daggerheart "${plainWhat(payload?.data?.action ?? payload?.action)}" from ${plainWhat(named.name)}, who is not connected here.`);
+}
+
 function unknownSender(payload) {
     status.refused.unknownSender = (status.refused.unknownSender ?? 0) + 1;
     warn(`Refused a Daggerheart "${plainWhat(payload?.data?.action ?? payload?.action)}" from a sender Foundry did not name.`);
@@ -847,8 +892,8 @@ function shapeWarning(what) {
 
 /**
  * At `ready`, on the primary GM: an unguarded relay is said on every load, and
- * loudly, because it is a security state; an unreviewed Daggerheart once per
- * version.
+ * loudly, because it is a security state; an unreviewed Daggerheart, or a relay
+ * held only by the backstop, once per version.
  */
 async function announce() {
     if (!isPrimaryGm()) return;
@@ -859,14 +904,19 @@ async function announce() {
         await whisperToGms(`<p class="drpg-warning">${foundry.utils.escapeHTML(text)}</p>`);
         return;
     }
-    if (status.state !== "unnamed" && status.state !== "changed") return;
+    if (status.state !== "unnamed" && status.state !== "changed" && status.state !== "backstop") return;
     let warned = "";
     try { warned = String(game.settings.get(MODULE_ID, SETTINGS.relayWarned) ?? ""); } catch { warned = ""; }
     if (warned === version) return;
-    const cases = status.unreviewed.length ? status.unreviewed.join(", ")
-        : game.i18n.localize("DRPG.Relay.unreadable");
-    await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Relay.unreviewed", {
-        version: foundry.utils.escapeHTML(version), cases: foundry.utils.escapeHTML(cases)
-    })}</p>`);
+    if (status.state === "backstop") {
+        await whisperToGms(`<p class="drpg-warning">${foundry.utils.escapeHTML(
+            game.i18n.format("DRPG.Relay.backstop", { version }))}</p>`);
+    } else {
+        const cases = status.unreviewed.length ? status.unreviewed.join(", ")
+            : game.i18n.localize("DRPG.Relay.unreadable");
+        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Relay.unreviewed", {
+            version: foundry.utils.escapeHTML(version), cases: foundry.utils.escapeHTML(cases)
+        })}</p>`);
+    }
     try { await game.settings.set(MODULE_ID, SETTINGS.relayWarned, version); } catch { /* said again next load */ }
 }

@@ -1172,11 +1172,14 @@ export function roomOfActor(actor) {
  * anybody happens to be looking at. Used by Observe, which is scored on the GM's
  * client - see observe.mjs.
  *
- * A CHARACTER ON SEVERAL SCENES. The scene a request names wins, when the
- * character has a token there (`sceneId`) - a GM-side check of a player's
- * request asks about the scene the player acted on, not the one the GM is
- * looking at (the E03 review). Otherwise the rendered token, then the scene
- * being viewed, then any scene.
+ * A CHARACTER ON SEVERAL SCENES. When the caller passes the scene a player's
+ * request names (`sceneId`) and the character has a token there, that scene
+ * wins, so the check is made on the scene the player acted on rather than the
+ * one the GM is looking at (the E03 review). Only the search spend
+ * (search-tokens.mjs) and a player's trace (gm-bridge.mjs) pass it; Observe,
+ * cleanup, the vault and action-rolls do not yet, and like any call without
+ * `sceneId` they take the rendered token, then the scene being viewed, then any
+ * scene.
  *
  * @param {Actor} actor
  * @param {object} [options]

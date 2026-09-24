@@ -442,7 +442,12 @@ export async function placeRemnant(data = {}) {
                 sourceActor, sourceName, room, chapter, day, timeOfDay,
                 // Kept for the GM's own screens, which used to read it off the
                 // token's name - see `label` above.
-                label
+                label,
+                // WHEN, in real time, so a player's Reroll can be held to a
+                // trace it could have made (`removalRefusal`, gm-bridge.mjs).
+                // Written here rather than read off `_stats.createdTime`, which
+                // no table has shown to be on a token (E03 second review).
+                placedAt: Date.now()
             });
         }
 
@@ -1365,6 +1370,9 @@ export function remnantData(tokenDoc) {
         // between two traces left in the same time of day, which is most of
         // them during an incident.
         updated: entry.updated ?? null,
+        // When it was placed, in real time (`placeRemnant`); null for a trace
+        // placed before 1.2.60.
+        placedAt: entry.placedAt ?? null,
         hidden: tokenDoc.hidden,
         // What a player is shown, or would be once they find it - see
         // `remnantPublic`. Included here so a GM screen reading `remnantData`

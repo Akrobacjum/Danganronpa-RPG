@@ -1138,13 +1138,22 @@ export const NOT_AN_EDIT = "drpgNotAnEdit";
  * the trial. And the flags that say what a bullet IS - analysed or not, what it
  * shows, the chapter lock - were theirs to set too.
  *
- * So the primary GM keeps a copy of those fields for every bullet (`guard` in
- * the bullet's secret), refreshed by every write a GM's client makes, and a
- * player's change to any of them is put back from it - only the fields the
+ * So every GM's browser keeps a copy of those fields for every bullet
+ * (`guards`, below), refreshed by every write a GM makes, and the primary GM
+ * puts a player's change to any of them back from it - only the fields the
  * change touched, so nothing else a player writes is undone - and the GMs are
  * told. That the author is really a player relies on Daggerheart's relay not
  * writing items for players (relay-guard.mjs): a relayed write is authored by
  * the GM who ran it.
+ *
+ * IN MEMORY, NOT IN THE LEDGER (E03 second review, 24.09.2026). The first build
+ * kept the copy as `guard` in the bullet's secret, and recording it at load
+ * stamped every entry written before E03 - and a stub for every bullet this
+ * browser had no entry for - as the newest. The ledger's merge keeps the newest
+ * entry whole, so the other GMs' real answer keys, and a restored backup, lost
+ * to those stamps. The copy is a GM's view of the bullets as they stand, which
+ * every GM can rebuild at load from the items themselves; it has no business
+ * travelling with the answer key.
  * ========================================================================== */
 
 const GUARDED_BULLET_FLAGS = [
@@ -1178,14 +1187,17 @@ export function guardedPathsIn(changes) {
     return touched;
 }
 
-/** Keep the GM's copy of a bullet's guarded fields up to date. */
-async function refreshGuard(item) {
-    await setSecret(item.uuid, { guard: guardedValues(item) });
+/** uuid -> the guarded fields as a GM last left them, on this browser. */
+const guards = new Map();
+
+/** Keep this GM's copy of a bullet's guarded fields up to date. */
+function refreshGuard(item) {
+    guards.set(item.uuid, guardedValues(item));
 }
 
 /** Put a player's change to a guarded field back, and tell the GMs. */
 async function revertPlayerBulletEdit(item, touched, author) {
-    const guard = secretOf(item.uuid).guard ?? null;
+    const guard = guards.get(item.uuid) ?? null;
     const patch = {};
     for (const path of touched) {
         if (guard && path in guard) patch[path] = guard[path];
@@ -1207,37 +1219,35 @@ async function revertPlayerBulletEdit(item, touched, author) {
 }
 
 /**
- * Every bullet a GM has not recorded yet is recorded as it stands - once, at load.
+ * Every bullet is recorded as it stands - once, at load, on every GM's browser,
+ * so whichever GM is primary later has a copy to put a player's edit back from.
  *
- * NOT COMPARED, only recorded. A bullet that already has a record and differs
- * from it at load was either edited by a player while no GM was online or
- * corrected by a GM whose change never reached this browser's ledger - it is
- * client-scoped, one per browser - and from here the two look the same. Putting
- * the second back would undo a GM. That comparison waits for a record every GM
- * shares (E04, GmStore).
+ * TAKEN AS THE TRUTH, NOT COMPARED. An edit a player made while no GM was
+ * online is already in the item by now, and nothing older survives a reload to
+ * compare it with. That comparison waits for a record every GM shares (E04,
+ * GmStore); until then it is a known gap (AUDIT §9).
  */
-async function guardAllBullets() {
-    if (!isPrimaryGm()) return;
+function guardAllBullets() {
+    if (!game.user?.isGM) return;
     guardRuns.runs++;
-    const ledger = readLedger();
-    let added = 0;
     for (const actor of game.actors ?? []) {
-        for (const item of bulletsOf(actor)) {
-            const entry = ledger[item.uuid];
-            if (entry?.guard || entry?.deleted) continue;
-            ledger[item.uuid] = { ...(entry ?? {}), guard: guardedValues(item), updated: Date.now() };
-            added++;
-        }
+        for (const item of bulletsOf(actor)) refreshGuard(item);
     }
-    // Today's state is taken as the truth: there is nothing older to compare it with.
-    guardRuns.recorded += added;
-    if (added) await writeLedger(ledger);
+    guardRuns.recorded = guards.size;
 }
 
-/** How often the load-time record ran on this client, and how many bullets it recorded - for the harness. */
+/**
+ * Drop this browser's copy of one bullet - the state a bullet this GM never saw
+ * a GM write is in. For the harness, which has no second browser to start cold.
+ */
+export function forgetBulletGuard(uuid) {
+    guards.delete(uuid);
+}
+
+/** How often the load-time record ran here, how many bullets it held then and now - for the harness. */
 const guardRuns = { runs: 0, recorded: 0 };
 export function bulletGuardStatus() {
-    return { ...guardRuns };
+    return { ...guardRuns, known: guards.size };
 }
 
 function watchBulletEdits() {
@@ -1248,16 +1258,24 @@ function watchBulletEdits() {
      * and recorded nothing, so no bullet made before E03 had a record to be put
      * back from (measured by the E03 review, 24.09.2026).
      */
-    const guardAll = () => guardAllBullets().catch(err => error("Could not record the Truth Bullets' guarded fields", err));
+    const guardAll = () => {
+        try { guardAllBullets(); } catch (err) { error("Could not record the Truth Bullets' guarded fields", err); }
+    };
     if (game.ready) guardAll();
     else Hooks.once("ready", guardAll);
     Hooks.on("createItem", (item, options, userId) => {
-        if (!isPrimaryGm() || !isTruthBullet(item)) return;
+        if (!game.user?.isGM || !isTruthBullet(item)) return;
         if (!game.users.get(userId ?? "")?.isGM) return;
-        refreshGuard(item).catch(err => error("Could not record a new Truth Bullet's guarded fields", err));
+        refreshGuard(item);
     });
+    Hooks.on("deleteItem", item => { guards.delete(item.uuid); });
     Hooks.on("updateItem", async (item, changes, options, userId) => {
         try {
+            // Every GM's copy follows a GM's write - the next primary may be any
+            // of them. Memory only: nothing is written, so no GM doubles anything.
+            const touched = isTruthBullet(item) ? guardedPathsIn(changes) : [];
+            const author = game.users.get(userId ?? "");
+            if (touched.length && author?.isGM && game.user?.isGM) refreshGuard(item);
             /*
              * THE PRIMARY GM, not "a GM" - and with two Gamemasters at this
              * table that is not pedantry. `updateItem` fires on every client,
@@ -1267,16 +1285,9 @@ function watchBulletEdits() {
              * cascades. Same rule the trap relay and the search tokens use.
              */
             if (!isPrimaryGm()) return;
-            if (isTruthBullet(item)) {
-                const touched = guardedPathsIn(changes);
-                if (touched.length) {
-                    const author = game.users.get(userId ?? "");
-                    if (!author?.isGM) {
-                        await revertPlayerBulletEdit(item, touched, author);
-                        return;
-                    }
-                    await refreshGuard(item);
-                }
+            if (touched.length && !author?.isGM) {
+                await revertPlayerBulletEdit(item, touched, author);
+                return;
             }
             if (options?.[FROM_REMNANT]) return;              // the trace talking
             if (options?.[NOT_AN_EDIT]) return;               // the module keeping books

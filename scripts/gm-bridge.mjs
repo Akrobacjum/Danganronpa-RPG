@@ -903,7 +903,7 @@ async function handleCrisis(payload, senderId, ctx) {
         return refuse(ACTION_CRISIS, "sender does not own that character", ctx);
     }
 
-    const { resolveCrisisAction, freeResolutionFor, sideOf, crisisRefusal } = await import("./murder.mjs");
+    const { resolveCrisisAction, freeResolutionFor, sideOf, crisisRefusal, crisisUndoRefusal } = await import("./murder.mjs");
     const actor = game.actors.get(payload.actorId);
 
     /*
@@ -917,12 +917,9 @@ async function handleCrisis(payload, senderId, ctx) {
      */
     if (!sender.isGM) {
         if (payload.undo) {
-            // A Reroll replays an action already taken, so its turn may be over
-            // and the action spent; that the incident is still at its incident
-            // stage, and the action is this side's, is asked all the same
-            // (`crisisRefusal` gives those two with no `key`).
-            const standing = crisisRefusal(actor, payload.key);
-            if (standing && !standing.key) return refuse(ACTION_CRISIS, standing.why, ctx);
+            // Judged as the action was taken, not as it left things - see `crisisUndoRefusal`.
+            const undoWhy = crisisUndoRefusal(actor, payload.key);
+            if (undoWhy) return refuse(ACTION_CRISIS, undoWhy, ctx);
             const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
             const why = await spendRerollReceipt(payload.actorId, sender.id, "crisis");
             if (why) return refuse(ACTION_CRISIS, why, ctx);
@@ -1358,7 +1355,9 @@ async function handleRemnantEdit(payload, senderId, ctx) {
             const { copiedRemnants } = await import("./truth-bullets.mjs");
             copied = game.actors.some(a => a.type === "character" && copiedRemnants(a).has(token.id));
         }
-        const reach = removalRefusal(token, { gmEdited: remnantGmEdited(token), copied });
+        const reach = removalRefusal(token, {
+            gmEdited: remnantGmEdited(token), copied, placedAt: remnantData(token)?.placedAt ?? null
+        });
         const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
         const why = await spendRerollReceipt(source, sender.id, "remnant", () => reach);
         if (why) return refuse(ACTION_REMNANT_EDIT, why, ctx);
@@ -1368,7 +1367,11 @@ async function handleRemnantEdit(payload, senderId, ctx) {
     const asked = payload.patch ?? {};
     const narrowed = { remove: Boolean(asked.remove) };
     if (REMNANT_VISIBILITY_LABELS[asked.visibility]) narrowed.visibility = asked.visibility;
-    if (CLEANUP.transform?.types?.includes(asked.type)) narrowed.type = asked.type;
+    // The type is a GM's to change, never a player's: the one honest player
+    // sender (reroll.mjs) sends a band and nothing else, and a trace's type
+    // decides who may tamper with it and how hard it is to Observe (E03 second
+    // review). The killer's own re-typing goes through cleanup.mjs on the GM.
+    if (sender.isGM && CLEANUP.transform?.types?.includes(asked.type)) narrowed.type = asked.type;
 
     const { retuneRemnant } = await import("./remnants.mjs");
     await retuneRemnant(payload.sceneId, payload.tokenId, narrowed);
@@ -1378,16 +1381,21 @@ async function handleRemnantEdit(payload, senderId, ctx) {
 
 /**
  * Why a player's Reroll may not lift or retune this trace, or null (E03). Pure.
- * `copied` is asked only of a removal: a retune of a trace somebody has found
- * changes how findable it is, not what it says.
+ * `copied` is asked only of a removal: a player's retune moves only the
+ * visibility band (the type is refused above), which changes how findable a
+ * trace is, not what it says.
  */
-export function removalRefusal(token, { gmEdited = false, copied = false, now = Date.now() } = {}) {
+export function removalRefusal(token, { gmEdited = false, copied = false, placedAt = null, now = Date.now() } = {}) {
     if (gmEdited) return "a GM has written on that trace";
     if (copied) return "somebody has already found that trace";
-    const created = Number(token?._stats?.createdTime);
-    if (Number.isFinite(created) && now - created > TIMING.rerollWindowMinutes * 60_000) {
-        return "that trace is older than a Reroll can reach";
-    }
+    /* HOW OLD, from the ledger's own `placedAt`, else the token's `_stats`. A trace
+       with neither - placed before 1.2.60 on a table whose tokens carry no
+       `_stats` - is refused: "old enough that nobody wrote down when" is the
+       case this check is for (the E03 second review found the first build let
+       every such trace through). */
+    const when = Number(placedAt ?? token?._stats?.createdTime);
+    if (!Number.isFinite(when)) return "there is no record of when that trace was left";
+    if (now - when > TIMING.rerollWindowMinutes * 60_000) return "that trace is older than a Reroll can reach";
     return null;
 }
 

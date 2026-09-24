@@ -8140,6 +8140,9 @@ const INVARIANTS = [
         ok(removalRefusal(fresh, { now, gmEdited: true }), "a trace a GM wrote on is lifted");
         ok(removalRefusal(fresh, { now, copied: true }), "a trace somebody found is lifted");
         ok(removalRefusal({ _stats: { createdTime: now - 3 * 3600_000 } }, { now }), "a trace three hours old is lifted");
+        ok(!removalRefusal({}, { now, placedAt: now - 60_000 }), "a trace the ledger says was left a minute ago is not lifted");
+        ok(removalRefusal(fresh, { now, placedAt: now - 3 * 3600_000 }), "the ledger's three-hour-old date loses to the token's");
+        ok(removalRefusal({}, { now }), "a trace nobody wrote the age of is lifted");
 
         const { cleanableTracesForPlayer, isCleaner } = await import("./cleanup.mjs");
         const student = studentActors().find(a => canvas?.scene?.tokens?.some(t => t.actorId === a.id) && !isCleaner(a));
@@ -8166,6 +8169,40 @@ const INVARIANTS = [
         const shown = rows.map(row => row.querySelector(".drpg-despair-name")?.textContent ?? null);
         equal(JSON.stringify(shown), JSON.stringify(pools.map(user => D.poolLabel(user))),
             "a pool's row does not carry that pool's name");
+    }],
+
+    ["R150 - a crisis action is taken back as it was taken, not as it left things", async () => {
+        /*
+         * E03 second review, 24.09.2026. The first E03 build judged a player's crisis
+         * undo against the live incident, which the action itself had moved: a
+         * successful Role reversal swaps the seats, Survive ends the incident, so
+         * the honest Reroll of either was refused. `crisisUndoRefusal` asked about
+         * made-up incidents: the receipt's own state decides, and only a GM's later
+         * move refuses.
+         */
+        const { crisisUndoRefusal } = await import("./murder.mjs");
+        const V = { id: "SUITEVICTIM00001" };
+        const K = { id: "SUITEKILLER00001" };
+        const taken = { stage: "incident", killerId: K.id, victimId: V.id, turnSide: "victim" };
+        const last = (actor, key, after) => ({ actorId: actor.id, key, state: taken, after });
+
+        const swapped = { stage: "incident", killerId: V.id, victimId: K.id,
+            lastCrisis: last(V, "roleReversal", { stage: "incident", endedBy: null }) };
+        ok(!crisisUndoRefusal(V, "roleReversal", swapped), "the victim's own successful Role reversal cannot be rerolled");
+        const survived = { stage: "resolution", endedBy: "survive", killerId: K.id, victimId: V.id,
+            lastCrisis: last(V, "survive", { stage: "resolution", endedBy: "survive" }) };
+        ok(!crisisUndoRefusal(V, "survive", survived), "a Survive that ended the incident cannot be rerolled");
+        const legacy = { stage: "incident", killerId: K.id, victimId: V.id, lastCrisis: last(V, "roleReversal", undefined) };
+        ok(!crisisUndoRefusal(V, "roleReversal", legacy), "a receipt from before this build is refused");
+
+        ok(crisisUndoRefusal(V, "survive", { ...survived, endedBy: "gm" }), "an undo after a GM moved the incident on is taken");
+        ok(crisisUndoRefusal(K, "survive", survived), "another character takes back the victim's action");
+        ok(crisisUndoRefusal(V, "roleReversal", survived), "a Reroll takes back an action that was not the last one");
+        ok(crisisUndoRefusal(V, "finishingBlow", { ...swapped, lastCrisis: last(V, "finishingBlow", { stage: "incident", endedBy: null }) }),
+            "the victim takes back a killer's action they could not have taken");
+        ok(crisisUndoRefusal(V, "survive", { ...survived, lastCrisis: { ...survived.lastCrisis, state: { ...taken, stage: "opening" } } }),
+            "an action recorded outside the incident stage is taken back");
+        ok(crisisUndoRefusal(V, "survive", { stage: "incident" }), "an undo with no receipt at all is taken");
     }]
 ];
 
@@ -8227,7 +8264,7 @@ const LITERAL_KEYS = [
     "DRPG.Relay.unreadable", "DRPG.Bridge.what.daggerheart", "DRPG.Bridge.what.call.arm",
     "DRPG.Bridge.what.remnant.tieForItem", "DRPG.SearchTokens.notHere", "DRPG.Anonymity.reverted",
     "DRPG.TruthBullet.editReverted", "DRPG.Project.frozenNoProgress", "DRPG.Calls.notArmedNotCharged",
-    "DRPG.Calls.despairGmOnly", "DRPG.Relay.unknownSender", "DRPG.Relay.busyFear", "DRPG.TruthBullet.editUnrestored"
+    "DRPG.Calls.despairGmOnly", "DRPG.Relay.unknownSender", "DRPG.Relay.busyFear", "DRPG.TruthBullet.editUnrestored", "DRPG.Relay.backstop"
 ];
 
 /* ==========================================================================

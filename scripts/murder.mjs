@@ -415,9 +415,12 @@ export function swungWeaponOf(actor) {
     return id ? (actor.items.get(id) ?? null) : null;
 }
 
-/** Which side is this actor on, if any: "killer" | "victim" | "third" | null. */
-export function sideOf(actor) {
-    const state = murderState();
+/**
+ * Which side is this actor on, if any: "killer" | "victim" | "third" | null.
+ * In the running incident, or in `state` - a Reroll's receipt asks about the
+ * incident as it stood when the action was taken (gm-bridge.mjs).
+ */
+export function sideOf(actor, state = murderState()) {
     if (!state || !actor) return null;
     if (state.killerId === actor.id) return "killer";
     if (state.victimId === actor.id) return "victim";
@@ -1088,7 +1091,7 @@ async function askCriticalTarget(def) {
  *   as it never did for a tile that is not theirs to press.
  */
 export function crisisRefusal(actor, key, state = murderState()) {
-    const side = sideOf(actor);
+    const side = sideOf(actor, state);
     const def = CRISIS_ACTIONS[key];
 
     if (!state || state.stage !== "incident" || !def || !side) {
@@ -1123,6 +1126,33 @@ export function crisisRefusal(actor, key, state = murderState()) {
      */
     if (def.kind === "resolution" && !def.noRoll && isSpent(actor)) {
         return { why: "nothing left to spend on a resolution", key: "DRPG.Murder.nothingLeftToSpend" };
+    }
+    return null;
+}
+
+/**
+ * Why a player's Reroll may not take this crisis action back, or null. Pure
+ * over `live`, for the suite (E03 second review, 24.09.2026).
+ *
+ * JUDGED AS THE ACTION WAS TAKEN, NOT AS IT LEFT THINGS. The undo puts the
+ * whole incident state back from the action's receipt, and the action is often
+ * what moved it: Role reversal swaps the seats, Survive and a Finishing blow end
+ * the incident. Asked of the live state, an honest Reroll of any of those was
+ * refused - the first E03 build did exactly that. So:
+ *   - the last action taken is this character's, and this one;
+ *   - it was taken at the incident stage, from its own side (`crisisRefusal` on
+ *     the receipt's state gives those two with no `key`);
+ *   - and nothing but that action has moved the incident since (`after`, stamped
+ *     by `closeReceipt`; a receipt written before this build has none, and is
+ *     let through as it always was).
+ */
+export function crisisUndoRefusal(actor, key, live = murderState()) {
+    const last = live?.lastCrisis ?? null;
+    if (!last || last.actorId !== actor?.id || last.key !== key) return "the last crisis action is not that character's";
+    const then = crisisRefusal(actor, key, last.state ?? null);
+    if (then && !then.key) return then.why;
+    if (last.after && (live.stage !== last.after.stage || (live.endedBy ?? null) !== last.after.endedBy)) {
+        return "the incident has moved on since that action";
     }
     return null;
 }
@@ -1788,6 +1818,12 @@ function openReceipt(actorId, key, state) {
 
 async function closeReceipt(receipt) {
     try {
+        /* WHAT THE ACTION LEFT, so a Reroll can tell its own consequences from
+           a GM who has moved the incident on since (E03 second review): Survive,
+           Finishing blow and Escape together end the incident themselves, and
+           the undo puts the stage back with the rest of the state. */
+        const after = murderState();
+        receipt.after = { stage: after?.stage ?? null, endedBy: after?.endedBy ?? null };
         await writeState({ lastCrisis: receipt });
     } catch (err) {
         error("Could not record what this crisis action did; a Reroll will not be able to replay it", err);

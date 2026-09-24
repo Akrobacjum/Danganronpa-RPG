@@ -519,11 +519,15 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
         badBand.after.n === 0 && badBand.reasons.some(r => /not a visibility/.test(r)), JSON.stringify(badBand));
 
     /*
-     * 7j. remnant.edit: a Reroll re-rates the trace its first throw left, and no
-     * other. The first E03 build asked "fresh, and no GM has written on it" only of
-     * a removal, so a receipt from any Reroll turned a trace a GM had corrected to
-     * Hidden (the E03 review). Verified by hand on 24.09.2026: with the retune's
-     * `removalRefusal` call taken out of gm-bridge.mjs, the first check FAILED.
+     * 7j. remnant.edit: a Reroll receipt pays for one re-rating of one fresh trace
+     * of the rerolling player's own character that no GM has written on. It is not
+     * tied to the particular trace the first throw left - a trace records no
+     * message it came from, so the GM cannot tell which one that was - which is why
+     * the control below re-rates a trace the GM placed. The first E03 build asked
+     * "fresh, and no GM has written on it" only of a removal, so a receipt from any
+     * Reroll turned a trace a GM had corrected to Hidden (the E03 review). Verified
+     * by hand on 24.09.2026: with the retune's `removalRefusal` call taken out of
+     * gm-bridge.mjs, the first check FAILED.
      */
     const traceOf = subject => `const R = await import("${repoUrl}/scripts/remnants.mjs");
         const t = canvas.scene.tokens.contents.find(x => R.remnantData(x)?.subject === "${subject}");
@@ -533,6 +537,10 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
             sourceActor: "${ids.aiko}", sourceName: "Aiko Hoshino", room: "Cafeteria", subject: "SEC corrected" });
         await R.placeRemnant({ x: 1550, y: 450, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
             sourceActor: "${ids.aiko}", sourceName: "Aiko Hoshino", room: "Cafeteria", subject: "SEC rerolled" });
+        await R.placeRemnant({ x: 1500, y: 500, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
+            sourceActor: "${ids.aiko}", sourceName: "Aiko Hoshino", room: "Cafeteria", subject: "SEC stale" });
+        const stale = canvas.scene.tokens.contents.find(x => R.remnantData(x)?.subject === "SEC stale");
+        await R.setRemnantSecret(stale, { placedAt: Date.now() - 2 * 3600_000 });
         const t = canvas.scene.tokens.contents.find(x => R.remnantData(x)?.subject === "SEC corrected");
         await R.markRemnantEdited(t); return true;`, { timeout: 60000 });
     await settle(600);
@@ -547,6 +555,16 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     check("SECURITY: a Reroll does not re-rate a trace a GM has written on",
         Boolean(corrected) && correctedAfter.after?.visibility === corrected.visibility
         && correctedAfter.reasons.some(r => /GM has written/.test(r)), JSON.stringify({ corrected, correctedAfter }));
+    // Two hours old by the ledger: the same receipt, still unspent, does not reach it.
+    const staleBefore = await gm.eval(traceOf("SEC stale"));
+    await clearFailures();
+    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        B.requestRemnantEdit(canvas.scene.id, "${staleBefore?.id}", { visibility: "hidden" }); return true;`);
+    await settle(1500);
+    const staleAfter = { after: await gm.eval(traceOf("SEC stale")), reasons: await refusedFor("remnant.edit") };
+    check("SECURITY: a Reroll does not re-rate a trace older than a Reroll can reach",
+        Boolean(staleBefore) && staleAfter.after?.visibility === staleBefore.visibility
+        && staleAfter.reasons.some(r => /older than a Reroll/.test(r)), JSON.stringify({ staleBefore, staleAfter }));
     await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
         B.requestRemnantEdit(canvas.scene.id, "${rerolled?.id}", { visibility: "hidden" }); return true;`);
     await settle(1500);
@@ -643,7 +661,10 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
      * one (lib/shim.mjs says why), so this proves the road that does not depend on
      * it: the Configure Ownership window closing on the GM who used it. Verified by
      * hand on 24.09.2026: with the close hook's `lowerOwnership` call removed from
-     * anonymity.mjs, this check FAILED (ownership stayed 3).
+     * anonymity.mjs, this check FAILED (ownership stayed 3). The harness has one
+     * GM, who is also the primary, so this passes the same under the old
+     * primary-only rule: a GM who is not the primary closing the window is not
+     * measured (AUDIT §9.2, item 20).
      */
     await gm.eval(`const a = game.actors.get("${ids.daichi}");
         await a.update({ "ownership.default": 3 }, { noHook: true });
@@ -663,15 +684,15 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
         Boolean(bullet) && JSON.stringify(bulletAfter) === JSON.stringify(bulletBefore), JSON.stringify({ bulletBefore, bulletAfter }));
 
     /*
-     * A bullet with no record is not called "put back". The record is dropped by
-     * hand here - the state every bullet made before E03 was in while the load-time
-     * record never ran - and the GM must be told the edit stayed, not that it was
-     * undone. Then the text is put right by the GM, so nothing after this reads a
+     * A bullet with no record is not called "put back". The GM's copy is dropped
+     * by hand here - the state a bullet is in on a browser that never saw a GM
+     * write it - and the GM must be told the edit stayed, not that it was undone.
+     * Then the text is put right by the GM, so nothing after this reads a
      * rewritten bullet.
      */
     await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
         const b = game.actors.get("${ids.botan}").items.get("${bullet}");
-        await T.setSecret(b.uuid, { guard: null }); return true;`);
+        T.forgetBulletGuard(b.uuid); return true;`);
     const whispersBefore = await gm.eval(`return game.messages.size;`);
     await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
         await b.update({ "flags.${MOD}.playerText": "SEC unrecorded" }); return true;`);
@@ -689,9 +710,28 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
         await b.update({ "flags.${MOD}.playerText": ${JSON.stringify(bulletBefore.text)} }); return true;`);
     await settle(800);
 
-    // The load-time record of every bullet ran on the GM (the E03 review measured it running 0 times).
-    const guardRan = await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs"); return T.bulletGuardStatus();`);
-    check("SECURITY: the GM recorded the Truth Bullets that existed at load", guardRan.runs === 1, JSON.stringify(guardRan));
+    /*
+     * The load-time record ran on the GM, once (the E03 review measured it running
+     * 0 times), and the GM holds a copy of every bullet in the world now - the ones
+     * made during this scenario by a GM's write. The fixture world has no bullet at
+     * load, so this does NOT show a bullet that existed at load being recorded;
+     * that is `guardAllBullets` walking `bulletsOf`, read, not measured here.
+     */
+    const guardRan = await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const bullets = game.actors.contents.flatMap(a => T.bulletsOf(a)).length;
+        return { ...T.bulletGuardStatus(), bullets };`);
+    check("SECURITY: the GM's record of the Truth Bullets ran once at load and covers every bullet in the world",
+        guardRan.runs === 1 && guardRan.bullets > 0 && guardRan.known === guardRan.bullets, JSON.stringify(guardRan));
+    /*
+     * And it never touches the answer key. The first E03 build kept the copy in the
+     * bullet's secret, stamped fresh at load, and the ledger's newest-wins merge
+     * then threw away the other GMs' real entries (the E03 second review). The copy
+     * lives in the GM's memory now; the secret must not carry it.
+     */
+    const inLedger = await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        return game.actors.contents.flatMap(a => T.bulletsOf(a)).filter(b => "guard" in (T.secretOf(b.uuid) ?? {})).length;`);
+    check("SECURITY: the GM's copy of a bullet's fields is not written into the Truth Bullet answer key",
+        inLedger === 0 && guardRan.bullets > 0, JSON.stringify({ inLedger, bullets: guardRan.bullets }));
 
     /*
      * 8. DAGGERHEART'S GM RELAY (E03, 24.09.2026; audit S16-01).

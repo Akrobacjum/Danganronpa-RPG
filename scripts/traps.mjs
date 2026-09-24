@@ -709,7 +709,9 @@ export function registerTraps() {
          */
         const field = RELAYED_ROOM[payload.kind];
         const named = field ? payload[field] : undefined;
-        if (named !== undefined && !await standsIn(actor, named, { passedThrough: field === "to" })) {
+        if (named !== undefined && !await standsIn(actor, named, {
+            passedThrough: field === "to", sceneId: sender?.viewedScene ?? null
+        })) {
             warn(`Refused a trap relay from ${sender?.name ?? senderId}: ${actor.name} is not in "${named}".`);
             return;
         }
@@ -736,13 +738,23 @@ const RELAYED_ROOM = { crossing: "to", rest: "room", stash: "room" };
  * Is this character in that room, as this client sees it - asked twice, a
  * moment apart? A crossing also counts a room the token passed through in the
  * last minute: a route through three rooms reports the middle one after the
- * token has left it. Every token the character has is asked, on every scene:
- * the relay does not say which scene it came from.
+ * token has left it.
+ *
+ * ON THE SCENE THE SENDER IS LOOKING AT, when the character has a token there
+ * (`User#viewedScene`): the relay does not say which scene it came from, and
+ * traps are keyed by room name alone, so asking every scene let a token left on
+ * an old map, or a room of the same name elsewhere, answer for this one (the E03
+ * second review). Only a character with no token on that scene falls back to
+ * every scene.
  */
-async function standsIn(actor, room, { passedThrough = false } = {}) {
+async function standsIn(actor, room, { passedThrough = false, sceneId = null } = {}) {
     const { placesOf, roomsVisited } = await import("./movement.mjs");
-    const there = () => placesOf(actor).some(where => where.room === room
-        || (passedThrough && roomsVisited(where.tokenDoc).has(room)));
+    const there = () => {
+        const all = placesOf(actor);
+        const onScene = sceneId ? all.filter(where => where.scene?.id === sceneId) : [];
+        return (onScene.length ? onScene : all).some(where => where.room === room
+            || (passedThrough && roomsVisited(where.tokenDoc).has(room)));
+    };
     if (there()) return true;
     await pause(300);
     return there();

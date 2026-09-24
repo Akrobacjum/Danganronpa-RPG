@@ -424,7 +424,9 @@ function onPreUpdateActor(actor, changes) {
  * (AUDIT §9), so three roads lead here: that hook on the primary GM, the
  * ownership window closing on the GM who used it, and a sweep at `ready`. The
  * harness takes the pessimistic reading - `noHook` silences both - so what it
- * proves is the window road. The GM lowers it back to OBSERVER and says so.
+ * proves is the window road, on a table with one GM, who is also the primary:
+ * a GM who is not the primary closing the window is not measured. The GM
+ * lowers it back to OBSERVER and says so.
  * Characters only, and only while anonymity is enforced; lowering is never
  * undone.
  */
@@ -433,15 +435,27 @@ async function lowerOwnership(actor, { closedHere = false } = {}) {
         const writer = closedHere ? Boolean(game.user?.isGM) : isPrimaryGm();
         if (!writer || !actor || actor.type !== "character" || !enforcing()) return;
         if ((actor.ownership?.default ?? NONE) <= OBSERVER) return;
-        await actor.update({ "ownership.default": OBSERVER });
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Anonymity.reverted", {
-            actor: foundry.utils.escapeHTML(actor.name)
-        })}</p>`);
-        debug(`Lowered the default ownership of "${actor.name}" back to OBSERVER.`);
+        // Two roads can arrive on one client before the first write has come
+        // back (the hook and the window closing): one lowers, one says so.
+        if (lowering.has(actor.id)) return;
+        lowering.add(actor.id);
+        try {
+            const updated = await actor.update({ "ownership.default": OBSERVER });
+            if (!updated) return;   // somebody else's write got there first
+            await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Anonymity.reverted", {
+                actor: foundry.utils.escapeHTML(actor.name)
+            })}</p>`);
+            debug(`Lowered the default ownership of "${actor.name}" back to OBSERVER.`);
+        } finally {
+            lowering.delete(actor.id);
+        }
     } catch (err) {
         error(`Could not lower the default ownership of "${actor?.name}"`, err);
     }
 }
+
+/** Actors this client is lowering right now. */
+const lowering = new Set();
 
 /* ==========================================================================
  * AUDIT
