@@ -49,7 +49,7 @@ width, no fonts, no audio. A test that needs one of those says so with
 
 ## What the suite's three numbers mean
 
-`273 passed, 0 failed, 16 skipped` (headless, 1.2.59)
+`292 passed, 0 failed, 16 skipped` (headless, 1.2.60)
 
 - **failed** must be zero. It was not zero for a year, and a thirteenth failure
   arrived unnoticed because twelve was a number people had learnt. It was not
