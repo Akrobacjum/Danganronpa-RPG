@@ -204,6 +204,19 @@ function markerProblem(red, ledger) {
     return null;
 }
 
+/** What is wrong with a DUMP_RULES row's `until` or `why`, or null: the ledger holds it as it holds a red marker. */
+function untilProblem(rule, ledger) {
+    if (!String(rule?.why ?? "").trim()) return "a dump rule with no reason";
+    const until = String(rule?.until ?? "");
+    if (until === "never" || until === "1.3.x (D27)") return null;
+    if (!/^E\d{2}$/.test(until)) return `until "${until}" is not a stage, "1.3.x (D27)" or "never"`;
+    if (!ledger) return null;
+    const row = ledger.get(until);
+    if (!row) return `until names "${until}", which tools/stages.json does not know`;
+    if (row.done) return `until ${until}, which shipped in ${row.version} on ${row.shipped} - the rule is still here`;
+    return null;
+}
+
 /**
  * Run one test, `[name, fn, red?]`, and say what it came to:
  * `{ tier, name, outcome: "pass"|"fail"|"skip"|"red", message?, probe?, failedAt?, assertions }`.
@@ -319,6 +332,17 @@ const KIT_SELF_TESTS = [
    shipped, unknown, without a reason, and a look-alike expectedRed did not make.
    Here and not in R155, so tools/stages.mjs, which reads every expectedRed( in
    the tier files, never meets a made-up stage. */
+/* ...and for a dump rule's `until`: one of each kind that passes, four that do not. */
+const UNTIL_FIXTURE = [
+    { flagged: false, rule: { until: "never", why: "a reason" } },
+    { flagged: false, rule: { until: "1.3.x (D27)", why: "a reason" } },
+    { flagged: false, rule: { until: "E90", why: "a reason" } },
+    { flagged: true, rule: { until: "E91", why: "its stage has shipped" } },
+    { flagged: true, rule: { until: "E89", why: "a stage the ledger does not know" } },
+    { flagged: true, rule: { until: "soon", why: "not a stage" } },
+    { flagged: true, rule: { until: "never", why: " " } }
+];
+
 const MARKER_FIXTURE = [
     { flagged: false, marker: expectedRed("E90", "still to come") },
     { flagged: true, marker: expectedRed("E91", "its stage has shipped") },
@@ -915,80 +939,258 @@ function moduleSettingValues() {
     return out;
 }
 
-/**
- * What tier 0 and tier 1 promise not to change, as one comparable string per part.
+/*
+ * THE WORLD, READ WHOLE (E30, 24.09.2026; audit S17-04).
  *
- * WHY THIS EXISTS (E01, 24.09.2026; audit S14-01). The handbook tells a GM that
- * `runTests({ tier: 1 })` is safe during play, and it was not: five "invariants"
- * opened and closed the Class Trial on the live world, and R10 raised a room
- * crossing sixty-one times, which springs an armed trap. Nothing noticed, because
- * the only snapshot was taken for tier 2.
+ * The fingerprint this replaces read what E01 knew to read - the module's
+ * settings, each actor's resources, flags and item ids, user flags, which
+ * tokens stood where, which messages existed - and nothing else: a test that
+ * moved a token, started a track or wrote another module's setting was not
+ * caught, and tier 2's restore was checked by its own read-back of the
+ * module's settings alone. worldDump reads everything on this client that a
+ * test can write, with a named rule (DUMP_RULES) for each thing it leaves out
+ * or reads narrowly, and the same dump now judges tiers 0-1 ("changed
+ * nothing") and every scenario's restore ("put back what it found").
  *
- * WHAT IT READS, exactly: every setting of this module (world and this browser's),
- * each actor's resources, module flags and the ids of its items, each user's module
- * flags, WHICH tokens stand on each scene (ids only - not where), and which chat
- * messages exist. Not playlists, not token positions, not other modules' settings:
- * a test that moves a token or starts a track is not caught here.
- *
- * It cannot tell a test from a person. Run during play, a player who acts or a
- * timer that runs out (an objection's minute on the primary GM) moves something too
- * - so the failure names what moved and, from `watchWrites`, which test was running
- * when it did.
+ * A dump is a Map of units - one setting, one document with its embedded
+ * lists split off, one piece of state outside documents - each one stable
+ * JSON, so two dumps compare unit by unit and only a unit that differs is
+ * walked to its leaves. What it cannot read: other clients' client settings
+ * (a GM-run dump reads this browser's), and anything a future store keeps
+ * outside registered settings and documents - R159 fails when the module
+ * starts writing one.
  */
-function worldFingerprint() {
-    const parts = new Map();
-    for (const [key, value] of moduleSettingValues()) parts.set(`setting ${key}`, stableJson(value));
-    for (const actor of game.actors) {
-        parts.set(`actor ${actor.name} (${actor.id})`, stableJson({
-            resources: actor.system?.resources ?? null,
-            flags: actor.flags?.[MODULE_ID] ?? null,
-            items: actor.items.map(i => i.id).sort()
-        }));
+
+/* Other namespaces' settings the module writes (R159 holds this list to the source). */
+const DUMP_FOREIGN_SETTINGS = ["core.globalPlaylistVolume", "core.permissions", "isometric-perspective.showWelcome"];
+
+/*
+ * WHAT THE DUMP LEAVES OUT OR READS NARROWLY, each with why and until when. A
+ * row is added with a measurement in its `why` (the run, the date, what moved),
+ * never on a guess; `until` is a stage (held to tools/stages.json by R155),
+ * "1.3.x (D27)" or "never". `match` is a unit's path with `*` for any one id and
+ * `a|b` for either name.
+ */
+const DUMP_RULES = [
+    { match: "*", strip: ["_stats"], until: "never",
+        why: "Foundry's write stamp moves on every write, a restore that writes the old value back included; the values under it are compared, the stamp is not" },
+    { match: "Playlist.*.sounds.*", strip: ["pausedTime"], until: "never",
+        why: "advances by itself while a track plays; `playing` and `path` are compared" },
+    { match: "Setting.*", skip: true, until: "never",
+        why: "world settings are read by key in the settings part, for the namespaces this module writes; other modules' settings move with their own UI" },
+    { match: "User.*", keep: ["role", "character", "flags", "permissions"], until: "never",
+        why: "the rest of a User is the person's own (avatar, colour, hotbar), and a password field must never reach a report" },
+    { match: "ChatMessage.*", keep: ["flags", "whisper", "blind", "speaker", "author"], hash: ["content"], until: "never",
+        why: "a card is kilobytes of HTML a report cannot print; restore deletes the new ones, and an old card the suite edited shows as a changed hash" },
+    { match: "Scene.*.walls|lights|sounds|drawings|templates.*", idsOnly: true, until: "never",
+        why: "the module never writes these (R159's census); they are most of a scene's size" },
+    { match: "*", emptyFlagScopes: "absent", until: "never",
+        why: "Foundry keeps a flag scope its last flag leaves as {}, and getFlag reads an empty scope and no scope alike; "
+            + "measured 24.09.2026 on the dump's second run, after restore deleted the last grant a student had (Actor "
+            + "flags.danganronpa-rpg (none) -> {}) and after the stash test put its room's list back (a region, the same) - "
+            + "in the harness, whose deletion is v14's ForcedDeletion as the shim models it, not in a real v14" }
+];
+
+const ruleMatches = (pattern, path) => {
+    if (pattern === "*") return true;
+    const want = pattern.split("."), have = path.split(".");
+    return want.length === have.length && want.every((seg, i) => seg === "*" || seg.split("|").includes(have[i]));
+};
+
+/** A short, stable stand-in for a text too long or too private to print: FNV-1a, 32 bits. */
+function hashText(text) {
+    let h = 0x811c9dc5;
+    for (const ch of String(text)) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
+    return `#${h.toString(16).padStart(8, "0")}`;
+}
+
+/* A document class by name: Foundry's CONFIG entry, or the harness's registry. */
+const docClass = name => CONFIG?.[name]?.documentClass ?? globalThis.getDocumentClass?.(name) ?? null;
+
+/* One document, and its embedded ones, into `out` - under the rules for its path. */
+function dumpDocument(out, path, name, data) {
+    const rules = DUMP_RULES.filter(r => ruleMatches(r.match, path));
+    if (rules.some(r => r.skip)) return;
+    const embedded = docClass(name)?.metadata?.embedded ?? {};
+    const unit = { ...data };
+    for (const [childName, key] of Object.entries(embedded)) {
+        const list = unit[key];
+        delete unit[key];
+        if (!Array.isArray(list)) continue;
+        for (const child of list) if (child?._id) dumpDocument(out, `${path}.${key}.${child._id}`, childName, child);
     }
-    for (const user of game.users) {
-        parts.set(`user ${user.name} (${user.id})`, stableJson(user.flags?.[MODULE_ID] ?? null));
+    if (rules.some(r => r.idsOnly)) { out.set(path, stableJson({ _id: unit._id })); return; }
+    if (rules.some(r => r.emptyFlagScopes === "absent") && unit.flags && typeof unit.flags === "object") {
+        unit.flags = Object.fromEntries(Object.entries(unit.flags).filter(([, v]) =>
+            !(v && typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length)));
     }
-    for (const scene of game.scenes) {
-        parts.set(`scene ${scene.name} (${scene.id})`, stableJson(scene.tokens.map(t => t.id).sort()));
+    const keep = rules.find(r => r.keep)?.keep;
+    let kept = keep ? Object.fromEntries(Object.entries(unit).filter(([k]) => keep.includes(k) || k === "_id")) : unit;
+    for (const field of rules.flatMap(r => r.strip ?? [])) delete kept[field];
+    for (const field of rules.flatMap(r => r.hash ?? [])) {
+        if (unit[field] !== undefined) kept = { ...kept, [field]: hashText(stableJson(unit[field])) };
     }
-    parts.set("chat", stableJson(game.messages.map(m => m.id).sort()));
-    return parts;
+    out.set(path, stableJson(kept));
 }
 
 /**
- * Which test was running when the world was written, while tier 0 and tier 1 run.
- *
- * The fingerprint says WHAT moved; this says WHEN (the review of E01). Run during
- * play, the answer to "was it the suite" is in the name: a write that landed in the
- * middle of "R10" is the suite's, and one that landed between two tests, or in a
- * test that only reads source, is more likely the table - an objection's minute
- * running out on the primary GM, a player's action arriving over the socket. Hooks
- * rather than a fingerprint per test, because a fingerprint per test costs a full
- * read of every setting a hundred and eighty times.
+ * Everything on this client a test can write, as `Map<unit, stable JSON>`:
+ * this module's and the system's settings in both scopes (`world:` / `client:`),
+ * the foreign ones in DUMP_FOREIGN_SETTINGS, keys under this module's name in the
+ * client store that no registered setting claims (`client-orphan:`), every
+ * document of every world collection with its embedded ones, and the pause, the
+ * active and the viewed scene (`state:`). Async, so a store read asynchronously
+ * can join it without changing a caller.
  */
-function watchWrites(current) {
+async function worldDump() {
+    const out = new Map();
+    const spaces = [`${MODULE_ID}.`, `${game.system?.id}.`];
+    const settingKeys = new Set([...game.settings.settings.keys()].filter(full => spaces.some(p => full.startsWith(p))));
+    for (const full of DUMP_FOREIGN_SETTINGS) settingKeys.add(full);
+    for (const full of [...settingKeys].sort()) {
+        const dot = full.indexOf(".");
+        let value;
+        try { value = game.settings.get(full.slice(0, dot), full.slice(dot + 1)); } catch { continue; }
+        // The scope after the read: the harness registers a foreign setting on first
+        // read, and before it the first dump filed core.globalPlaylistVolume as world.
+        const def = game.settings.settings.get(full);
+        out.set(`${def?.scope === "client" ? "client" : "world"}:${full}`, stableJson(value));
+    }
+    const client = game.settings.storage?.get?.("client");
+    if (client && typeof client.key === "function") {
+        for (let i = 0; i < client.length; i++) {
+            const key = client.key(i);
+            if (!key?.startsWith(`${MODULE_ID}.`) || game.settings.settings.has(key)) continue;
+            out.set(`client-orphan:${key}`, stableJson(client.getItem(key)));
+        }
+    }
+    for (const [name, collection] of game.collections ?? []) {
+        for (const doc of collection) dumpDocument(out, `${name}.${doc.id}`, name, doc.toObject());
+    }
+    out.set("state:paused", stableJson(Boolean(game.paused)));
+    out.set("state:activeScene", stableJson(game.scenes?.active?.id ?? null));
+    out.set("state:viewedScene", stableJson(canvas?.scene?.id ?? null));
+    return out;
+}
+
+/** A dump of made-up document sources of one type, as worldDump would file them (R159's unit checks). */
+function dumpOf(name, sources) {
+    const out = new Map();
+    for (const data of sources) dumpDocument(out, `${name}.${data._id}`, name, structuredClone(data));
+    return out;
+}
+
+/**
+ * Every unit path a document type can have in a dump - `Actor.*`, `Actor.*.items.*`,
+ * `Actor.*.items.*.effects.*` - with how the dump reads each: skipped, as ids only,
+ * or read (R159).
+ */
+function dumpPathsOf(kind) {
+    const paths = [];
+    const walk = (name, prefix, depth) => {
+        for (const [child, key] of Object.entries(docClass(name)?.metadata?.embedded ?? {})) {
+            const path = `${prefix}.${key}.*`;
+            if (child === kind) paths.push(path);
+            if (depth < 3) walk(child, path, depth + 1);
+        }
+    };
+    for (const name of game.collections?.keys?.() ?? []) {
+        if (name === kind) paths.push(`${name}.*`);
+        walk(name, `${name}.*`, 1);
+    }
+    return paths.map(path => {
+        const rules = DUMP_RULES.filter(r => ruleMatches(r.match, path));
+        return { path, read: rules.some(r => r.skip) ? "skipped" : rules.some(r => r.idsOnly) ? "ids only" : "read" };
+    });
+}
+
+/* Two values' differing leaves, as paths under `path`. Arrays compare whole. */
+function leafDiff(a, b, path, out) {
+    const plain = v => v && typeof v === "object" && !Array.isArray(v);
+    if (plain(a) && plain(b)) {
+        for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) leafDiff(a[k], b[k], `${path}.${k}`, out);
+        return;
+    }
+    if (stableJson(a) !== stableJson(b)) out.push({ path, before: a, after: b });
+}
+
+/** What differs between two dumps: `[{ unit, path, before, after }]`, a unit added or gone as one entry. */
+function dumpDiff(before, after) {
+    const out = [];
+    for (const unit of new Set([...before.keys(), ...after.keys()])) {
+        const a = before.get(unit), b = after.get(unit);
+        if (a === b) continue;
+        if (a === undefined || b === undefined) {
+            out.push({ unit, path: unit, before: a === undefined ? undefined : "present", after: b === undefined ? undefined : "present" });
+            continue;
+        }
+        const leaves = [];
+        leafDiff(JSON.parse(a), JSON.parse(b), unit, leaves);
+        out.push(...leaves.map(d => ({ ...d, unit })));
+    }
+    return out;
+}
+
+/**
+ * One difference, for a person: `Actor "Aiko Hoshino" (ACTORAIKO0000000)
+ * system.resources.hope.value 2 -> 3`. Values are cut at 60 characters; a string
+ * longer than 200, or anything from a `client:` ledger (the GM's own copy of the
+ * secrets), is printed as a hash, so a trace's answer never lands in a results file.
+ */
+function describeDiff(d) {
+    const ledger = d.unit.startsWith("client:") || d.unit.startsWith("client-orphan:");
+    const show = v => {
+        if (v === undefined) return "(none)";
+        const text = typeof v === "string" ? v : JSON.stringify(v);
+        if (ledger || text.length > 200) return hashText(text);
+        return text.length > 60 ? `${text.slice(0, 57)}...` : text;
+    };
+    const [top, id, ...rest] = d.path.split(".");
+    const doc = game.collections?.get?.(top)?.get?.(id);
+    const where = doc ? `${top} "${doc.name ?? ""}" (${id})${rest.length ? ` ${rest.join(".")}` : ""}` : d.path;
+    if (d.path === d.unit && (d.before === undefined || d.after === undefined)) {
+        return `${where} ${d.before === undefined ? "appeared" : "is gone"}`;
+    }
+    return `${where} ${show(d.before)} -> ${show(d.after)}`;
+}
+
+/**
+ * Which test was running when the world was written - on for the whole run, tier 2
+ * included (E30).
+ *
+ * The dump says WHAT moved; this says WHEN (the review of E01). Run during play,
+ * the answer to "was it the suite" is in the name: a write that landed in the
+ * middle of "R10" is the suite's, and one that landed between two tests is more
+ * likely the table. Every world collection is watched, and the embedded kinds a
+ * test writes (Token, Item, ActiveEffect, Region, TableResult, PlaylistSound,
+ * JournalEntryPage). A write this client made also marks the running test as one
+ * that has written (`current.wrote`), for the world-after-write rule: a world.*
+ * probe asked after that FAILs. A write another client made does not - it is the
+ * table's, or an answer to the test, not the test acting.
+ */
+function watchWrites(running) {
     const seen = [];
-    const note = what => seen.push(`${what} (during "${current() ?? "between tests"}")`);
-    const prefix = `${MODULE_ID}.`;
+    const mine = userId => !userId || userId === game.user?.id;
+    const note = (what, userId) => {
+        seen.push(`${what} (during "${running() ?? "between tests"}")`);
+        if (current && !current.wrote && mine(userId)) current.wrote = what;
+    };
+    const names = new Set([...(game.collections?.keys?.() ?? []), "Token", "Item", "ActiveEffect", "Region", "TableResult",
+        "PlaylistSound", "JournalEntryPage"]);
+    names.delete("Setting");
     const listeners = [
-        ["updateSetting", doc => { if (String(doc?.key).startsWith(prefix)) note(`setting ${doc.key.slice(prefix.length)}`); }],
-        ["createSetting", doc => { if (String(doc?.key).startsWith(prefix)) note(`setting ${doc.key.slice(prefix.length)}`); }],
-        ["clientSettingChanged", key => { if (String(key).startsWith(prefix)) note(`setting ${String(key).slice(prefix.length)}`); }],
-        ["createChatMessage", () => note("a chat message")],
-        ["updateActor", actor => note(`actor ${actor?.name}`)],
-        ["createItem", item => note(`an item on ${item?.parent?.name ?? "the world"}`)],
-        ["deleteItem", item => note(`an item on ${item?.parent?.name ?? "the world"}`)],
-        ["createToken", () => note("a token")],
-        ["deleteToken", () => note("a token")],
-        ["updateUser", user => note(`user ${user?.name}`)]
-    ].map(([hook, fn]) => [hook, Hooks.on(hook, fn)]);
-    return { seen, stop: () => { for (const [hook, id] of listeners) Hooks.off(hook, id); } };
-}
-
-/** The parts of two fingerprints that differ, by name. */
-function fingerprintDiff(before, after) {
-    const keys = new Set([...before.keys(), ...after.keys()]);
-    return [...keys].filter(k => before.get(k) !== after.get(k));
+        ["updateSetting", (doc, _c, _o, userId) => note(`setting ${doc?.key}`, userId)],
+        ["createSetting", (doc, _o, userId) => note(`setting ${doc?.key}`, userId)],
+        ["clientSettingChanged", key => note(`setting ${key}`, null)]
+    ];
+    for (const name of names) {
+        const what = doc => `${name} ${doc?.name ? `"${doc.name}" ` : ""}(${doc?.id ?? "?"})${doc?.parent ? ` on ${doc.parent.name ?? doc.parent.id}` : ""}`;
+        listeners.push([`create${name}`, (doc, _o, userId) => note(`${what(doc)} created`, userId)]);
+        listeners.push([`update${name}`, (doc, _c, _o, userId) => note(`${what(doc)} updated`, userId)]);
+        listeners.push([`delete${name}`, (doc, _o, userId) => note(`${what(doc)} deleted`, userId)]);
+    }
+    const ids = listeners.map(([hook, fn]) => [hook, Hooks.on(hook, fn)]);
+    return { seen, stop: () => { for (const [hook, id] of ids) Hooks.off(hook, id); } };
 }
 
 /** `n` living students to play with, or a skip that says the world has fewer (it used to FAIL). */
@@ -1025,10 +1227,12 @@ function cast(n = 3) {
 
 export {
     Failure, Precondition, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
-    runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, env, world, worldCensus, wait, settle, until,
+    runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
+    wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, bodyOf, topLevelFunction, fnSource, lineAround,
     withGuards, lineAt, stripStrings, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES,
-    stringLiterals, STANDING, stableJson, moduleSettingValues, worldFingerprint, watchWrites, fingerprintDiff, cast
+    stringLiterals, STANDING, stableJson, moduleSettingValues, watchWrites, cast,
+    worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS
 };

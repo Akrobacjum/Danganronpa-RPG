@@ -241,7 +241,23 @@ const i18n = {
 
 const settingDefs = new Map();   // "ns.key" -> def
 const worldValues = new Map();   // "ns.key" -> value (synced)
-const clientValues = new Map();  // "ns.key" -> value (local)
+/*
+ * CLIENT SETTINGS LIVE IN THIS BROWSER'S localStorage, AS FOUNDRY KEEPS THEM (E30,
+ * 24.09.2026). They were a Map beside jsdom's localStorage, so two things could not
+ * be modelled: `game.settings.storage.get("client")` is localStorage in Foundry, and
+ * the suite's world dump reads it for keys under the module's name that no setting
+ * claims; and a test that cleans up after itself by removing its key from
+ * localStorage (the held-settings scenario) removed it from a store the settings did
+ * not use. Values are JSON, as Foundry writes them.
+ */
+const clientStore = globalThis.localStorage;
+const clientValues = {
+    has: key => clientStore.getItem(key) !== null,
+    get: key => JSON.parse(clientStore.getItem(key)),
+    set: (key, value) => clientStore.setItem(key, JSON.stringify(value ?? null)),
+    entries: () => Array.from({ length: clientStore.length }, (_, i) => clientStore.key(i))
+        .map(key => { try { return [key, JSON.parse(clientStore.getItem(key))]; } catch { return [key, clientStore.getItem(key)]; } })
+};
 
 /** Foreign namespaces whose settings the system/other modules would register. */
 const FOREIGN_SETTING_DEFAULTS = {
@@ -331,7 +347,7 @@ const settingsApi = {
         }
         return value;
     },
-    storage: { get: scope => (scope === "world" ? worldValues : clientValues) }
+    storage: { get: scope => (scope === "world" ? worldValues : clientStore) }
 };
 function coerce(def, raw) {
     if (def.type === Number) return Number(raw);
@@ -475,6 +491,20 @@ const game = {
     data: { version: versions.foundry.version }
 };
 globalThis.game = game;
+
+/*
+ * THE HARNESS'S OWN READING OF THIS CLIENT'S WORLD (E30, 24.09.2026). The suite's
+ * worldDump judges whether a run changed the world; this is the oracle it is
+ * checked against in 01-runtests, read straight from the stores the shim keeps -
+ * world settings, this browser's client settings, every document's source - and
+ * so independent of the dump's rules and of the module.
+ */
+globalThis.__harnessWorldState = () => JSON.parse(JSON.stringify({
+    world: Object.fromEntries(worldValues),
+    client: Object.fromEntries(clientValues.entries()),
+    docs: Object.fromEntries([...worldColls].map(([name, c]) => [name, c.contents.map(d => d.toObject())])),
+    paused: game.paused
+}));
 
 /*
  * DAGGERHEART'S TRAIT ROLL, IN 2.6.5'S ORDER (E30, 24.09.2026; lib/daggerheart.mjs).

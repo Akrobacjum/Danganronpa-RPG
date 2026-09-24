@@ -48,7 +48,7 @@
 import { log, warn } from "./utils.mjs";
 import { studentActors } from "./monokuma.mjs";
 import {
-    layoutAvailable, settle, worldFingerprint, watchWrites, fingerprintDiff, runOne, stageLedger, registerSuite, worldCensus
+    layoutAvailable, settle, worldDump, dumpDiff, describeDiff, watchWrites, runOne, stageLedger, registerSuite, worldCensus
 } from "./tests-kit.mjs";
 import { REGRESSIONS } from "./tests-tier0.mjs";
 import { INVARIANTS } from "./tests-tier1.mjs";
@@ -172,7 +172,8 @@ async function runSuite(tier, only = null) {
     // pass E17 makes on the way in and on the way out. It is the cheapest thing
     // in the suite to be wrong about and the most expensive to skip: a divergence
     // it would have caught costs four releases, not one run.
-    const untouched = worldFingerprint();
+    const more = (list, n) => (list.length > n ? `; and ${list.length - n} more` : "");
+    const untouched = await worldDump();
     let running = null;
     const writes = watchWrites(() => running);
     try {
@@ -195,79 +196,108 @@ async function runSuite(tier, only = null) {
 
         // THE PROMISE, CHECKED (E01, audit S14-01): tier 0 and tier 1 are what a GM is
         // told may be run during play. A write that lands a moment after its test is a
-        // write all the same, so the reading waits for one settle first.
+        // write all the same, so the reading waits for one settle first. The whole world
+        // is read (worldDump, E30), not the parts E01 knew to fingerprint.
         await settle();
-    } finally {
-        writes.stop();
-    }
-    const moved = fingerprintDiff(untouched, worldFingerprint());
-    const purity = { tier: 1, name: "tier 0/1 changed nothing in the world", assertions: null };
-    if (moved.length) {
-        const when = [...new Set(writes.seen)];
-        record({ ...purity, outcome: "fail", message: [
-            `moved: ${moved.slice(0, 12).join("; ")}${moved.length > 12 ? `; and ${moved.length - 12} more` : ""}`,
-            ...(when.length ? [`written: ${when.slice(0, 8).join("; ")}${when.length > 8 ? `; and ${when.length - 8} more` : ""}`] : []),
-            "(run during play, a player acting or a timer running out moves these too; a write during a test is that test's)"
-        ].join("\n") });
-    } else {
-        record({ ...purity, outcome: "pass" });
-    }
-
-    /*
-     * TIER 2 WILL NOT START ON TOP OF AN INCIDENT (20.09).
-     *
-     * Every scenario's `finally` ends the murder and restores the fixtures, which is
-     * right for the ones it opened and wrong for one a table is in the middle of: a
-     * suite run started during a fight closes that fight, and the world it puts back
-     * is the one the suite recorded a moment ago rather than the one the incident had
-     * moved on from. Paid for in the QA world, where a run that died left an incident
-     * behind and the next run cheerfully closed it.
-     *
-     * Tier 0 and tier 1 are unaffected - they read and never write - so this refuses
-     * the scenarios only, and says which state it found.
-     */
-    if (tier >= 2 && game.drpg?.murderState?.()) {
-        lines.push("");
-        lines.push("TIER 2 - REFUSED: an incident is open in this world.");
-        record({ tier: 2, name: "tier 2 would not start on top of an open incident", outcome: "fail", assertions: null,
-            message: "Close it from the incident tracker (Close the murder) and run again.\n"
-                + "The scenarios end every incident they find, so this one would go with them." });
-        tier = 1;
-    }
-
-    if (tier >= 2) {
-        lines.push("");
-        lines.push("TIER 2 - scenarios (fixtures built and put back)");
-        /* What the world is made of, in one line, before anything is built in it
-           (E30, audit S14-24): a scenario the world is too small for skips and
-           says what it lacked, and this is the line to read that against. */
-        lines.push(worldCensus());
-        let snap = null;
-        try {
-            snap = await snapshot(studentActors());
-        } catch (err) {
-            record({ tier: 2, name: "could not record the world before testing", outcome: "fail", assertions: null,
-                message: err?.message ?? String(err) });
+        const moved = dumpDiff(untouched, await worldDump());
+        const purity = { tier: 1, name: "tier 0/1 changed nothing in the world", assertions: null };
+        if (moved.length) {
+            const when = [...new Set(writes.seen)];
+            record({ ...purity, outcome: "fail", message: [
+                `moved: ${moved.slice(0, 12).map(describeDiff).join("; ")}${more(moved, 12)}`,
+                ...(when.length ? [`written: ${when.slice(0, 8).join("; ")}${more(when, 8)}`] : []),
+                "(run during play, a player acting or a timer running out moves these too; a write during a test is that test's)"
+            ].join("\n") });
+        } else {
+            record({ ...purity, outcome: "pass" });
         }
 
-        if (snap) {
-            for (const entry of pick(SCENARIOS)) {
-                record(await runOne(entry, { tier: 2, ledger }));
-                // After EVERY scenario, not once at the end: a scenario that
-                // fails half way leaves an incident open, and the next one
-                // would then be testing the wreckage of the last.
-                try {
-                    await game.drpg.endMurder({ reason: "test", followUp: false });
-                    await restore(snap);
-                } catch (err) {
-                    // A FAILURE, not a footnote (E01, audit S14-10). This was a
-                    // line in the report with nothing counted, so a run that left
-                    // the world dirty could still say "0 failed" at the top.
-                    record({ tier: 2, name: `could not restore the world after "${entry[0]}"`, outcome: "fail", assertions: null,
-                        message: err?.message ?? String(err) });
+        /*
+         * TIER 2 WILL NOT START ON TOP OF AN INCIDENT (20.09).
+         *
+         * Every scenario's `finally` ends the murder and restores the fixtures, which is
+         * right for the ones it opened and wrong for one a table is in the middle of: a
+         * suite run started during a fight closes that fight, and the world it puts back
+         * is the one the suite recorded a moment ago rather than the one the incident had
+         * moved on from. Paid for in the QA world, where a run that died left an incident
+         * behind and the next run cheerfully closed it.
+         *
+         * Tier 0 and tier 1 are unaffected - they read and never write - so this refuses
+         * the scenarios only, and says which state it found.
+         */
+        if (tier >= 2 && game.drpg?.murderState?.()) {
+            lines.push("");
+            lines.push("TIER 2 - REFUSED: an incident is open in this world.");
+            record({ tier: 2, name: "tier 2 would not start on top of an open incident", outcome: "fail", assertions: null,
+                message: "Close it from the incident tracker (Close the murder) and run again.\n"
+                    + "The scenarios end every incident they find, so this one would go with them." });
+            tier = 1;
+        }
+
+        if (tier >= 2) {
+            lines.push("");
+            lines.push("TIER 2 - scenarios (fixtures built and put back)");
+            /* What the world is made of, in one line, before anything is built in it
+               (E30, audit S14-24): a scenario the world is too small for skips and
+               says what it lacked, and this is the line to read that against. */
+            lines.push(worldCensus());
+            let snap = null;
+            try {
+                snap = await snapshot(studentActors());
+            } catch (err) {
+                record({ tier: 2, name: "could not record the world before testing", outcome: "fail", assertions: null,
+                    message: err?.message ?? String(err) });
+            }
+
+            if (snap) {
+                /*
+                 * EVERY RESTORE, CHECKED AGAINST THE WHOLE WORLD (E30, 24.09.2026; audit
+                 * S17-04). restore() read back only the module's settings; a token, a
+                 * track or another module's setting a scenario left behind went unseen,
+                 * and the next scenario measured against it. The world as tier 2 found
+                 * it is read once, and again after every restore; what differs is a
+                 * failure named after the scenario that left it - reported once, by that
+                 * scenario - and a last reading after the run catches a write that
+                 * landed after the last restore.
+                 */
+                const asFound = await worldDump();
+                const reported = new Set();
+                for (const entry of pick(SCENARIOS)) {
+                    running = entry[0];
+                    record(await runOne(entry, { tier: 2, ledger }));
+                    running = null;
+                    // After EVERY scenario, not once at the end: a scenario that
+                    // fails half way leaves an incident open, and the next one
+                    // would then be testing the wreckage of the last.
+                    let broke = null;
+                    try {
+                        await game.drpg.endMurder({ reason: "test", followUp: false });
+                        await restore(snap);
+                    } catch (err) {
+                        broke = err;
+                    }
+                    const left = dumpDiff(asFound, await worldDump()).filter(d => !reported.has(d.path));
+                    if (broke || left.length) {
+                        // A FAILURE, not a footnote (E01, audit S14-10): a run that left
+                        // the world dirty must not say "0 failed" at the top.
+                        record({ tier: 2, name: `could not restore the world after "${entry[0]}"`, outcome: "fail", assertions: null,
+                            message: [
+                                ...(broke ? [broke?.message ?? String(broke)] : []),
+                                ...(left.length ? [`restore left: ${left.slice(0, 12).map(describeDiff).join("; ")}${more(left, 12)}`] : [])
+                            ].join("\n") });
+                        left.forEach(d => reported.add(d.path));
+                    }
                 }
+                await settle();
+                const late = dumpDiff(asFound, await worldDump()).filter(d => !reported.has(d.path));
+                record({ tier: 2, name: "tier 2 put the world back as it found it", assertions: null,
+                    ...(late.length
+                        ? { outcome: "fail", message: `left after the last restore: ${late.slice(0, 12).map(describeDiff).join("; ")}${more(late, 12)}` }
+                        : { outcome: "pass" }) });
             }
         }
+    } finally {
+        writes.stop();
     }
 
     // the skipped count is always printed, including as a zero: a run that says

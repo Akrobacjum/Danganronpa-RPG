@@ -13,7 +13,8 @@ import {
     ok, needs, env, world, equal, must, wait, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
-    scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES
+    scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
+    DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -4984,6 +4985,17 @@ const REGRESSIONS = [
         }
         const stale = entries.filter(e => e.red).map(e => [e, markerProblem(e.red, ledger)]).filter(([, problem]) => problem);
         ok(!stale.length, `${stale.length} red marker(s) to take off or move: ${stale.map(([e, problem]) => `tier ${e.tier} "${e.name}": ${problem}`).join("; ")}`);
+
+        /* And every row of DUMP_RULES, which says until when the world dump may leave
+           something out (E30, C15): "never", "1.3.x (D27)", or a stage held to the
+           same ledger - so the release of that stage fails while the row is still
+           there. The kit's UNTIL_FIXTURE first: three that pass, four that do not. */
+        equal(JSON.stringify(UNTIL_FIXTURE.map(({ rule }) => untilProblem(rule, SELF_LEDGER) !== null)),
+            JSON.stringify(UNTIL_FIXTURE.map(({ flagged }) => flagged)),
+            "the until check does not tell a live row from a shipped, unknown, malformed or unexplained one");
+        ok(DUMP_RULES.length > 0, "the world dump has no rules to read");
+        const rules = DUMP_RULES.map(rule => [rule, untilProblem(rule, ledger)]).filter(([, problem]) => problem);
+        ok(!rules.length, `dump rule(s) to take off or move: ${rules.map(([rule, problem]) => `"${rule.match}": ${problem}`).join("; ")}`);
     }],
 
     ["R156 - no test cuts the source it reads with a bare indexOf", async () => {
@@ -5053,6 +5065,66 @@ const REGRESSIONS = [
         equal(scan.tests, suiteEntries().length, "the scan finds a different number of tests in the tier files than the runner was handed");
         ok(scan.read > 50, `the scan read ${scan.read} needs() calls, and the suite has over fifty`);
         ok(!scan.found.length, `a skip asked of something that is not a probe: ${scan.found.join("; ")}`);
+    }],
+
+    ["R159 - worldDump reads every kind of write the module makes", async () => {
+        /*
+         * E30, 24.09.2026; audit S17-04. The world dump is what says tier 0/1 changed
+         * nothing and that each scenario's restore put the world back, so a write it
+         * cannot see is a write both of those are silent about. Read off the module's
+         * own source:
+         * - every document type it creates, updates or deletes (create/update/delete
+         *   EmbeddedDocuments("X"), X.create, X.createDocuments, X.updateDocuments,
+         *   X.deleteDocuments) is one the dump reads - not skipped, not ids only. On
+         *   24.09: Token, Item, TableResult, ActiveEffect, ChatMessage, Playlist,
+         *   Actor, Folder, RollTable (RenderTexture.create is PIXI's and
+         *   Operator.create v14's operators; neither is a document type);
+         * - every setting of another namespace it writes by name, and every setting
+         *   enforced.mjs holds, is in DUMP_FOREIGN_SETTINGS (core.globalPlaylistVolume,
+         *   core.permissions, isometric-perspective.showWelcome);
+         * - no file writes localStorage, sessionStorage or IndexedDB itself: a store
+         *   outside registered settings and documents is one the dump does not read,
+         *   and the first file that opens one fails this until the dump reads it too.
+         * Then dumpDiff on made-up dumps: a changed leaf and an added unit are
+         * reported, a write stamp that moved is not, and a unit that went is.
+         */
+        const { ENFORCED } = await import("./enforced.mjs");
+        const kinds = new Set(), foreign = new Set(), stores = [];
+        for (const [file, raw] of await otherSources()) {
+            const code = stripComments(raw);
+            for (const m of code.matchAll(/(?:create|update|delete)EmbeddedDocuments\(\s*"(\w+)"/g)) kinds.add(m[1]);
+            for (const m of code.matchAll(/\b([A-Z]\w+)\.(?:create|createDocuments|updateDocuments|deleteDocuments)\(/g)) kinds.add(m[1]);
+            for (const m of code.matchAll(/game\.settings\.set\(\s*"([\w-]+)",\s*"([\w.-]+)"/g)) {
+                if (m[1] !== MODULE_ID && m[1] !== game.system.id) foreign.add(`${m[1]}.${m[2]}`);
+            }
+            for (const m of code.matchAll(/\b(?:localStorage|sessionStorage)\.setItem\(|\bindexedDB\.open\(/g)) {
+                stores.push(`${file}:${lineAt(code, m.index)}`);
+            }
+        }
+        const written = [...kinds].map(kind => [kind, dumpPathsOf(kind)]).filter(([, paths]) => paths.length);
+        const names = written.map(([kind]) => kind);
+        for (const kind of ["Actor", "ChatMessage", "Token", "Item"]) {
+            ok(names.includes(kind), `the scan found no write of ${kind} - it no longer reads the module's writes`);
+        }
+        const unread = written.flatMap(([kind, paths]) => paths.filter(p => p.read !== "read").map(p => `${kind} at ${p.path} (${p.read})`));
+        ok(!unread.length, `the module writes what the dump does not read: ${unread.join("; ")}`);
+
+        for (const row of ENFORCED) foreign.add(`${row.module}.${row.key}`);
+        ok(foreign.size >= 3, `the scan found ${foreign.size} settings of other namespaces, and there were three`);
+        const missing = [...foreign].filter(full => !DUMP_FOREIGN_SETTINGS.includes(full));
+        ok(!missing.length, `the module writes another namespace's setting the dump does not read: ${missing.join(", ")}`);
+        ok(!stores.length, `a store the dump does not read: ${stores.join(", ")} - read it in worldDump before it ships`);
+
+        const actor = { _id: "SUITEPROBEACTOR1", name: "Probe", type: "character", system: { hope: 2 }, flags: {},
+            items: [], effects: [], _stats: { modifiedTime: 1 } };
+        const before = dumpOf("Actor", [actor]);
+        const after = dumpOf("Actor", [{ ...actor, system: { hope: 3 }, _stats: { modifiedTime: 2 },
+            items: [{ _id: "SUITEPROBEITEM01", name: "Probe item", type: "loot", flags: {}, effects: [] }] }]);
+        equal(JSON.stringify(dumpDiff(before, after).map(d => d.path).sort()),
+            JSON.stringify(["Actor.SUITEPROBEACTOR1.items.SUITEPROBEITEM01", "Actor.SUITEPROBEACTOR1.system.hope"]),
+            "dumpDiff does not report exactly the changed leaf and the added item, or reports the write stamp");
+        const gone = dumpDiff(after, before).find(d => d.path === "Actor.SUITEPROBEACTOR1.items.SUITEPROBEITEM01");
+        ok(gone && gone.after === undefined, "dumpDiff does not report a unit that went");
     }]
 ];
 

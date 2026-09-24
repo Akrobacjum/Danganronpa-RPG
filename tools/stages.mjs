@@ -123,11 +123,21 @@ export function stageMarkers(repoDir = REPO) {
             out.push({ file: `scripts/${file}`, line: m.line, kind: "expectedRed", stage: m.stage });
         }
     }
+    /* DUMP_RULES alone: the kit's self-test fixtures name made-up stages on purpose
+       (UNTIL_FIXTURE, E89-E91), and they are not rules. A kit without the table is
+       reported, so a renamed table is not read as one with nothing in it. */
     const kit = path.join(dir, "tests-kit.mjs");
     if (fs.existsSync(kit)) {
         const code = blankComments(fs.readFileSync(kit, "utf8"));
-        for (const m of code.matchAll(/\buntil:\s*"(E\d\d)"/g)) {
-            out.push({ file: "scripts/tests-kit.mjs", line: lineAt(code, m.index), kind: "until", stage: m[1] });
+        const start = code.search(/^const DUMP_RULES = \[/m);
+        if (start < 0) {
+            out.push({ file: "scripts/tests-kit.mjs", line: 1, kind: "until", stage: null, missing: "no DUMP_RULES table" });
+        } else {
+            const end = code.indexOf("\n];", start);
+            const rules = code.slice(start, end < 0 ? code.length : end);
+            for (const m of rules.matchAll(/\buntil:\s*"(E\d\d)"/g)) {
+                out.push({ file: "scripts/tests-kit.mjs", line: lineAt(code, start + m.index), kind: "until", stage: m[1] });
+            }
         }
     }
     return out;
@@ -183,6 +193,7 @@ export function problems(doc, { modVersion, markers = [] } = {}) {
     }
     for (const m of markers) {
         const where = `${m.file}:${m.line}`;
+        if (m.missing) { errs.push(`${where}: ${m.missing} - the dump rules' stages cannot be read`); continue; }
         if (m.stage === null) { errs.push(`${where}: expectedRed's stage is not written out as a string, so it cannot be checked here`); continue; }
         const row = rows.find(r => r.id === m.stage);
         if (!row) errs.push(`${where}: ${m.kind} names "${m.stage}", which is not a stage in tools/stages.json`);

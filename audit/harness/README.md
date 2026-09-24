@@ -97,7 +97,15 @@ that declares none.
 - **Every chat message reaches every client**, whispers included, as on v14;
   the shim's `ChatMessage#visible` decides what shows. A socket packet reaches
   only its `recipients` when it names them.
-- **Client settings** live in each client process's memory, for one run.
+- **Client settings** live in each client's jsdom `localStorage`, as JSON, as
+  Foundry keeps them (E30), and `game.settings.storage.get("client")` is that
+  storage: a test that removes its own key from `localStorage` removes the
+  setting. Each client process has its own, for one run; jsdom's quota applies.
+- **The world, read by the harness** (E30). `__harnessWorldState()` on a client
+  returns its world settings, its client settings and every document's source,
+  read from the shim's own stores. 01-runtests compares two readings around a
+  read-only suite run, independently of the suite's `worldDump`. Documents
+  carry `metadata.embedded`, as Foundry's classes do.
 - **Languages.** The harness loads this module's `lang/en.json` and no other
   package's language file, so another module's keys stay unresolved.
 - **Dialogs** are answered from a queue, or drawn as real windows on the GM

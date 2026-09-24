@@ -242,12 +242,11 @@ async function restore(snap) {
     if (strayMessages.length) await ChatMessage.deleteDocuments(strayMessages);
 
     await settle();
-    // Read back, not assumed: a write that was accepted and did not land is dirt too.
-    for (const [key, value] of moduleSettingValues()) {
-        if (key === SETTINGS.clock || !snap.settings?.has(key)) continue;
-        if (stableJson(value) !== stableJson(snap.settings.get(key))) stuck.push(key);
-    }
-    if (stuck.length) throw new Error(`these settings did not go back: ${[...new Set(stuck)].join(", ")}`);
+    /* Read back, not assumed - by the runner now (E30): after every restore it reads
+       the whole world (worldDump) and names whatever is not as tier 2 found it. The
+       read-back that was here compared the module's settings alone. What is left here
+       is the writes that threw. */
+    if (stuck.length) throw new Error(`these settings would not be written back: ${[...new Set(stuck)].join(", ")}`);
 }
 
 const SCENARIOS = [
@@ -3438,7 +3437,11 @@ const SCENARIOS = [
          * never turned it on - and call that "playlists need audio". It reads the
          * playlist's `playing` flags, which need no audio at all (see above); it
          * needed the switch. The snapshot puts the switch back.
+         *
+         * The cast is taken before the first write (E30: a world.* probe asked after
+         * the test has written FAILs, and this one was asked after the switch).
          */
+        const [a, b, c] = cast(3);
         const musicWasOn = getSetting(SETTINGS.musicEnabled);
         await setSetting(SETTINGS.musicEnabled, true);
 
@@ -3454,7 +3457,6 @@ const SCENARIOS = [
             "the fixture playlist did not take both tracks");
         await setSetting(SETTINGS.musicMap, { ...mapBefore, "trial.objection": playlist.id });
 
-        const [a, b, c] = cast(3);
         const before = foundry.utils.deepClone(getClock());
         const wasPaused = game.paused;
 

@@ -203,6 +203,10 @@ export function buildDocumentClasses(ctx) {
             }
         }
         static get documentName() { return this.name.replace(/Document$/, ""); }
+        /* Foundry's Document classes say which embedded collections they hold, by
+           document name and field (Actor: { ActiveEffect: "effects", Item: "items" });
+           the suite's world dump splits a document's embedded lists off by it (E30). */
+        static get metadata() { return { name: this.documentName, embedded: { ...(EMBEDDED[this.documentName] ?? {}) } }; }
         get documentName() { return this.constructor.documentName; }
         get id() { return this._source._id; }
         get name() { return this._source.name ?? ""; }
