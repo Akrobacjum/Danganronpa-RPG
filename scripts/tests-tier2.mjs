@@ -12,6 +12,7 @@ import { SETTINGS, getSetting, BREAKPOINTS, narrowScreen, shortScreen } from "./
 import { applyNarrowLayout, narrowLayout } from "./narrow.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { voiceTargets } from "./voice.mjs";
+import { forcedDeletion } from "./utils.mjs";
 import {
     ok, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, cast
@@ -95,9 +96,17 @@ async function snapshot(cast) {
             // the fixture richer or poorer than the GM last saw it, and the
             // next run measures against a world the suite itself moved.
             actions: a.system?.resources?.actions?.value ?? 0,
-            burst: a.getFlag(MODULE_ID, "freeActionGrants") ?? 0,
-            sprint: a.getFlag(MODULE_ID, "freeMoveGrants") ?? 0,
-            freeMove: a.getFlag(MODULE_ID, "freeMoveUsed") ?? false,
+            /* THE CEILING AS WELL AS THE COUNT, AND EVERY FLAG OF THIS MODULE AS IT
+               WAS (E30, 24.09.2026). The whole-world dump found both on its first runs:
+               a phase change sets `actions.max` (resetActionsFor), so after the Eclipse
+               scenario every student's ceiling read 2 where the world had 3; and the
+               flags were put back one named field at a time - the grants recorded as
+               `?? 0` - so a student who had none came back with flags the world never
+               had ("flags.danganronpa-rpg (none) -> {"freeActionGrants":0,...}", and
+               after two more scenarios {"deceased":false,"monocub":false,...}). The
+               whole namespace is recorded now, absent keys as absent. */
+            actionsMax: a.system?.resources?.actions?.max ?? null,
+            flags: foundry.utils.deepClone(a.flags?.[MODULE_ID] ?? {}),
             deceased: a.getFlag(MODULE_ID, "deceased") ?? null
         })),
         // WHICH TOKENS AND MESSAGES EXISTED, not how many.
@@ -121,8 +130,25 @@ async function snapshot(cast) {
             }
             return ids;
         }, [])),
-        messages: new Set(game.messages.map(m => m.id))
+        messages: new Set(game.messages.map(m => m.id)),
+        /* EVERY OTHER WORLD DOCUMENT THAT EXISTED, by collection (E30, 24.09.2026). The
+           dump's first run found two actors the module makes when it first needs them
+           - "Remnant", under the traces, and "DRPG Project", under project tokens -
+           standing in a world that had neither, from the first scenario that dropped
+           one to the end of the run. Users and settings are never created or removed
+           here, and chat has its own line above. */
+        documents: new Map([...(game.collections ?? [])]
+            .filter(([name]) => !["User", "Setting", "ChatMessage"].includes(name))
+            .map(([name, collection]) => [name, new Set(collection.map(d => d.id))]))
     };
+}
+
+/* A value that a write puts in place whole: v14's ForcedReplacement for an object,
+   which a plain update would merge into what is there; anything else as it is. */
+function replaced(value) {
+    const Operator = foundry.data?.operators?.ForcedReplacement;
+    if (!Operator || !value || typeof value !== "object") return value;
+    return Operator.create ? Operator.create(value) : new Operator(value);
 }
 
 async function restore(snap) {
@@ -173,18 +199,25 @@ async function restore(snap) {
         const actor = game.actors.get(row.id);
         if (!actor) continue;
         if (!row.deceased && actor.getFlag(MODULE_ID, "deceased")) await reviveCharacter(actor);
-        await actor.update({
+        const update = {
             "system.resources.hitPoints.value": row.hp,
             "system.resources.stress.value": row.stress,
             "system.resources.hope.value": row.hope,
             "system.resources.actions.value": row.actions,
-            // Written as values rather than deleted: `-=key` does nothing in
-            // this Foundry without a forced replacement, so a "restore" that
-            // unsets can leave the world dirty and quietly poison the next run.
-            [`flags.${MODULE_ID}.freeActionGrants`]: row.burst,
-            [`flags.${MODULE_ID}.freeMoveGrants`]: row.sprint,
-            [`flags.${MODULE_ID}.freeMoveUsed`]: row.freeMove
-        });
+            ...(row.actionsMax === null ? {} : { "system.resources.actions.max": row.actionsMax })
+        };
+        /* Each flag of this module back as it was: one the world did not have is
+           deleted with v14's forced deletion (`-=key` removes nothing in this
+           Foundry, and a restore that only overwrites leaves a flag the world never
+           had), one that changed is written back whole - an object with v14's forced
+           replacement, which a plain write would merge into - and one that matches
+           is not written at all. */
+        const now = actor.flags?.[MODULE_ID] ?? {};
+        for (const key of new Set([...Object.keys(now), ...Object.keys(row.flags)])) {
+            if (!(key in row.flags)) update[`flags.${MODULE_ID}.${key}`] = forcedDeletion();
+            else if (stableJson(now[key]) !== stableJson(row.flags[key])) update[`flags.${MODULE_ID}.${key}`] = replaced(row.flags[key]);
+        }
+        await actor.update(update);
     }
     // Anything that appeared while the scenario ran, removed.
     for (const scene of game.scenes) {
@@ -192,6 +225,14 @@ async function restore(snap) {
             .filter(t => t.getFlag(MODULE_ID, "isRemnant") && !snap.remnants.has(`${scene.id}.${t.id}`))
             .map(t => t.id);
         if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
+    }
+
+    // The documents that appeared - the helper actors the module makes on first need
+    // among them - removed, after the tokens that may stand on them.
+    for (const [name, before] of snap.documents ?? []) {
+        const collection = game.collections.get(name);
+        const strays = (collection?.contents ?? []).filter(d => !before.has(d.id));
+        if (strays.length) await strays[0].constructor.deleteDocuments(strays.map(d => d.id));
     }
 
     // The chat the scenarios produced. Kept out of the log on purpose: a suite
@@ -2940,6 +2981,15 @@ const SCENARIOS = [
         ok(room, `${actor?.name} is not standing in a room`);
 
         const had = Boolean(V.stashIn(room, actor.id));
+        /* The room's list AS IT WAS (E30, 24.09.2026). The finally put the stash back
+           with setStash, which writes a list, so a room that had no list was left
+           with an empty one: "regions.REGDORMA00000000.flags.danganronpa-rpg (none) ->
+           {"drpgStashes":[]}" on the dump's first run. It is not the same room - an
+           absent list is read as the bedroom owner's own stash (stashesIn), an empty
+           one as no stash at all - so in a world with an owned bedroom this took the
+           owner's stash away. */
+        const region = V.regionsByName().get(room);
+        const listBefore = foundry.utils.deepClone(region?.getFlag(MODULE_ID, V.VAULT_FLAGS.stashes));
         let item = null;
         try {
             if (!had) await V.setStash(room, actor.id, { present: true });
@@ -2964,8 +3014,8 @@ const SCENARIOS = [
                 "an empty stash refused to be removed");
         } finally {
             if (item) await item.delete().catch(() => {});
-            if (had) await V.setStash(room, actor.id, { present: true }).catch(() => {});
-            else await V.setStash(room, actor.id, { present: false }).catch(() => {});
+            if (listBefore === undefined) await region?.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: forcedDeletion() });
+            else await region?.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: listBefore });
             await settle();
         }
     }],
