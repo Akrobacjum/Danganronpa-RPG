@@ -247,6 +247,17 @@ const FOREIGN_SETTING_DEFAULTS = {
     "core.globalPlaylistVolume": { scope: "client", default: 1 }
 };
 
+/*
+ * ANOTHER MODULE'S OWN SETTING, REGISTERED THE WAY THAT MODULE DOES (E27, 24.09.2026).
+ * Isometric Perspective registers `showWelcome` in its `init` - client-scoped,
+ * shown in Configure Settings, on by default - and reads it in its `ready`.
+ * enforced.mjs holds it off for the table; without the entry here, "is it
+ * registered" answered no and the held-settings test could only skip.
+ */
+settingDefs.set("isometric-perspective.showWelcome", {
+    name: "Show Welcome Screen", scope: "client", config: true, type: Boolean, default: true
+});
+
 const settingsApi = {
     register(ns, key, def) { settingDefs.set(`${ns}.${key}`, def); },
     registerMenu() {},

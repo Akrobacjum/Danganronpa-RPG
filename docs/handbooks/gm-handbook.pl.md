@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik GM
 
-*Dla modułu "Danganronpa RPG" do Foundry VTT v14, wersja 1.2.57, zbudowanego na systemie Daggerheart.*
+*Dla modułu "Danganronpa RPG" do Foundry VTT v14, wersja 1.2.58, zbudowanego na systemie Daggerheart.*
 
 To podręcznik dla osób prowadzących killing game. Idzie w kolejności, w jakiej sezon naprawdę się buduje i gra: instalacja, ustawienie, prowadzenie dnia, morderstwo, Investigation, Class Trial, koniec rozdziału i od nowa. Tam, gdzie decyzja należy do GMa, a nie do modułu, tekst mówi to wprost.
 
