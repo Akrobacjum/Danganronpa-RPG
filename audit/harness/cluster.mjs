@@ -3,6 +3,8 @@
  * Forks four clients (gm, p1, p2, p3), seeds a world, runs a scenario file.
  *
  * Usage: node cluster.mjs scenarios/00-boot.mjs [--verbose]
+ * Needs `npm ci` in this directory once (jsdom). DRPG_REPO points it at another
+ * checkout; by default it boots the one it sits in.
  */
 
 import { fork } from "node:child_process";
@@ -12,7 +14,17 @@ import url from "node:url";
 import * as U from "./lib/futil.mjs";
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
-const REPO = process.env.DRPG_REPO || "/home/user/Danganronpa-RPG";
+/*
+ * THE CHECKOUT THIS FILE IS IN, two directories up - it was a hard-coded
+ * "/home/user/Danganronpa-RPG", and the scenarios imported from that path
+ * directly. With DRPG_REPO set, the clients booted one tree and the scenarios'
+ * own `import()`s loaded a second copy of the module, with its own state, from
+ * another (audit S14-11). Resolved once here, handed to every client through
+ * DRPG_REPO and to every scenario as `repoUrl`, so there is one tree.
+ */
+const REPO = path.resolve(process.env.DRPG_REPO || path.resolve(HERE, "../.."));
+/** What a scenario puts in front of "/scripts/x.mjs" inside an eval. No trailing slash. */
+const REPO_URL = url.pathToFileURL(REPO).href.replace(/\/$/, "");
 const VERBOSE = process.argv.includes("--verbose");
 const scenarioPath = process.argv[2];
 if (!scenarioPath) { console.error("usage: node cluster.mjs <scenario.mjs>"); process.exit(2); }
@@ -217,16 +229,6 @@ function embKey(collName, embeddedName) {
     return k;
 }
 
-/** Who may see a chat message create. null = everyone. */
-function chatAudience(data) {
-    const whisper = data.whisper ?? [];
-    if (!whisper.length) return null;
-    const gms = world.collections.User.filter(u => u.role >= 4).map(u => u._id);
-    const audience = new Set([...whisper, ...gms]);
-    if (data.author) audience.add(data.author);
-    return audience;
-}
-
 /* ------------------------------ clients ----------------------------------- */
 
 const clients = new Map(); // who -> {proc, ready, userId}
@@ -249,25 +251,27 @@ function spawnClient(who, userId) {
     return entry;
 }
 
+/*
+ * EVERY DOCUMENT TO EVERY CLIENT, CHAT WHISPERS INCLUDED.
+ *
+ * Both of these used to cut a whispered ChatMessage out for anybody not on its
+ * list, under a comment saying the real server does that. It does not: v14's
+ * server broadcasts `modifyDocument` with no filter, and a whisper is hidden by
+ * the client's own `ChatMessage#visible` (audit S14-04; the module measured 717
+ * messages on a player's browser, the GM's count - secret.mjs). So a whispered
+ * card whose words leaked into `content`, or whose speaker named the killer,
+ * never reached the player here and every privacy check passed. The filter is
+ * in `ChatMessageImpl#visible` in lib/shim.mjs now, where Foundry keeps it.
+ */
 function snapshotFor(userId) {
-    // Foundry replicates all world documents to every client (visibility is
-    // client-side) EXCEPT chat whispers, which the server filters. Mirror that.
     const collections = {};
-    for (const [name, docs] of Object.entries(world.collections)) {
-        if (name === "ChatMessage") {
-            collections[name] = docs.filter(m => {
-                const aud = chatAudience(m);
-                return !aud || aud.has(userId) || isGM(userId);
-            }).map(U.deepClone);
-        } else collections[name] = docs.map(U.deepClone);
-    }
+    for (const [name, docs] of Object.entries(world.collections)) collections[name] = docs.map(U.deepClone);
     return { t: "snapshot", collections, settings: { ...world.settings }, you: userId };
 }
 
-function broadcast(msg, { except = null, audience = null } = {}) {
+function broadcast(msg, { except = null } = {}) {
     for (const [who, entry] of clients) {
         if (who === except) continue;
-        if (audience && !audience.has(entry.userId) && !isGM(entry.userId)) continue;
         entry.proc.send(msg);
     }
 }
@@ -298,10 +302,7 @@ function onClientMessage(who, entry, msg) {
                 }
                 const applied = applyOp(entry.userId, msg.op);
                 result = applied.result;
-                const audience = msg.op.coll === "ChatMessage" && msg.op.action === "create"
-                    ? chatAudience(msg.op.data[0] ?? {})
-                    : null;
-                broadcast(applied.broadcast, { audience });
+                broadcast(applied.broadcast);
             } catch (err) {
                 error = err.message;
                 permissionDenials.push({ who, op: `${msg.op.action} ${msg.op.coll}`, error });
@@ -399,6 +400,9 @@ async function main() {
     const api = {
         gm: handleFor("gm"), p1: handleFor("p1"), p2: handleFor("p2"), p3: handleFor("p3"),
         check, settle, world, logSink, permissionDenials, socketTraffic, bootInfo, IDS,
+        // `import("${repoUrl}/scripts/x.mjs")` inside an eval reaches the SAME module
+        // instance the client booted, because it is the same URL.
+        repoUrl: REPO_URL,
         broadcastRaw: broadcast
     };
     const t0 = Date.now();

@@ -31,6 +31,7 @@ If a claim cannot be measured, say that instead of rounding it up.
 | What | How |
 | --- | --- |
 | The suite, in Foundry | `game.drpg.runTests({ tier: 2 })` in the console, as GM |
+| The harness, first time | `cd audit/harness && npm ci` - installs jsdom; boots the checkout it sits in, or `DRPG_REPO` |
 | The suite, headless | `cd audit/harness && node cluster.mjs scenarios/01-runtests.mjs` |
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines) |
 | Every scenario | the ten numbered ones: 10, 11, 12, 13, 14, 20, 30, 40, 50, 60 |

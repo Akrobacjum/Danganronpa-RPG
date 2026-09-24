@@ -6,16 +6,19 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import url from "node:url";
 import { JSDOM } from "jsdom";
 import * as U from "./lib/futil.mjs";
-import { HooksImpl, Collection, buildDocumentClasses, buildPIXI, buildApplications, RollImpl, REPO, MODULE_ID } from "./lib/shim.mjs";
+import { HooksImpl, Collection, buildDocumentClasses, buildPIXI, buildApplications, RollImpl, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
 
 const WHO = process.env.DRPG_USER ?? "gm";
 const send = m => process.send?.(m);
 const logLine = s => send({ t: "log", line: String(s) });
 
-process.on("uncaughtException", err => logLine(`UNCAUGHT: ${err.stack}`));
-process.on("unhandledRejection", err => logLine(`UNHANDLED REJECTION: ${err?.stack ?? err}`));
+// Before the handlers below, which write to it: an error during import is an error too.
+globalThis.__errors = [];
+process.on("uncaughtException", err => { logLine(`UNCAUGHT: ${err.stack}`); recordError("uncaughtException", err); });
+process.on("unhandledRejection", err => { logLine(`UNHANDLED REJECTION: ${err?.stack ?? err}`); recordError("unhandledRejection", err); });
 
 /* ------------------------------ jsdom ----------------------------------- */
 
@@ -51,6 +54,25 @@ window.scrollTo ??= () => {};
 for (const k of ["innerWidth", "innerHeight", "outerWidth", "outerHeight", "devicePixelRatio", "scrollX", "scrollY"]) {
     if (globalThis[k] === undefined) Object.defineProperty(globalThis, k, { get: () => dom.window[k], configurable: true });
 }
+/*
+ * WINDOW'S OWN LISTENER METHODS, CALLED BARE - a browser's global object IS the
+ * window, so `addEventListener("resize", ...)` is `window.addEventListener`.
+ * Node's global is not an EventTarget, and jsdom keeps them on `window` only.
+ *
+ * Measured the day `__errors` started being filled (1.2.56, the ten numbered
+ * scenarios): every client threw "addEventListener is not defined" three times
+ * at boot, 40 of each across the ten logs - once as an unhandled rejection out
+ * of glass.mjs's `observe`, and twice inside the module's own catches, "Could
+ * not register the stained glass" (glass.mjs `registerGlass`) and "Could not
+ * register the theme" (settings.mjs `watchScreen`). So headless, neither the
+ * glass nor the theme ever finished registering, and nobody noticed because the
+ * harness only printed the line. The module is right - the suite's R22 lists
+ * these three names as ambient for exactly this reason - and the harness was
+ * not a browser here.
+ */
+for (const k of ["addEventListener", "removeEventListener", "dispatchEvent"]) {
+    if (globalThis[k] === undefined) globalThis[k] = dom.window[k].bind(dom.window);
+}
 
 /*
  * Serve CSS custom properties from the REAL stylesheets, so the module's
@@ -61,7 +83,7 @@ for (const k of ["innerWidth", "innerHeight", "outerWidth", "outerHeight", "devi
 const cssVars = new Map();
 for (const cssFile of ["styles/motion.css", "styles/danganronpa.css", "styles/messenger.css"]) {
     try {
-        const text = fs.readFileSync(path.join(process.env.DRPG_REPO || "/home/user/Danganronpa-RPG", cssFile), "utf8");
+        const text = fs.readFileSync(path.join(REPO, cssFile), "utf8");
         for (const m of text.matchAll(/(--[\w-]+)\s*:\s*([^;}]+)[;}]/g)) cssVars.set(m[1], m[2].trim());
     } catch {}
 }
@@ -149,7 +171,7 @@ globalThis.__notifications = [];
 globalThis.__dialogLog = [];
 globalThis.__dialogAnswers = [];
 globalThis.__missingI18n = new Set();
-globalThis.__errors = [];
+// `globalThis.__errors` is created at the top of this file, before anything can throw.
 
 const ctx = {
     bus,
@@ -248,7 +270,7 @@ const settingsApi = {
             await bus.setSetting(full, JSON.parse(JSON.stringify(value ?? null)));
         } else {
             clientValues.set(full, JSON.parse(JSON.stringify(value ?? null)));
-            try { def.onChange?.(value); } catch (err) { logLine(`setting onChange ${full}: ${err.stack}`); }
+            try { def.onChange?.(value); } catch (err) { logLine(`setting onChange ${full}: ${err.stack}`); recordError(`setting onChange ${full}`, err); }
             hooks.callAll("clientSettingChanged", full, value);
         }
         return value;
@@ -822,7 +844,7 @@ process.on("message", async msg => {
             case "settingApplied": {
                 worldValues.set(msg.key, msg.value);
                 const def = settingDefs.get(msg.key);
-                if (def) { try { def.onChange?.(coerce(def, msg.value)); } catch (err) { logLine(`setting onChange ${msg.key}: ${err.stack}`); } }
+                if (def) { try { def.onChange?.(coerce(def, msg.value)); } catch (err) { logLine(`setting onChange ${msg.key}: ${err.stack}`); recordError(`setting onChange ${msg.key}`, err); } }
                 hooks.callAll("updateSetting", { key: msg.key, value: msg.value }, {}, msg.userId);
                 break;
             }
@@ -831,7 +853,10 @@ process.on("message", async msg => {
                 // emit's options (`{ recipients }`) are for the server, not the handler.
                 const handlers = game.socket._handlers.get(msg.channel) ?? [];
                 for (const fn of handlers) {
-                    try { await fn(msg.args?.[0], msg.senderId); } catch (err) { logLine(`socket handler ${msg.channel}: ${err.stack}`); }
+                    try { await fn(msg.args?.[0], msg.senderId); } catch (err) {
+                        logLine(`socket handler ${msg.channel}: ${err.stack}`);
+                        recordError(`socket handler ${msg.channel} (${msg.args?.[0]?.action ?? "?"})`, err);
+                    }
                 }
                 break;
             }
@@ -846,7 +871,10 @@ process.on("message", async msg => {
             case "shutdown": process.exit(0);
         }
     } catch (err) {
+        // The client missed whatever this message carried, so everything it
+        // reads afterwards may be wrong: recorded, not only printed.
         logLine(`message loop error on ${msg.t}: ${err.stack}`);
+        recordError(`harness message loop (${msg.t})`, err);
     }
 });
 
@@ -871,7 +899,8 @@ function safeJson(v) {
 
 async function boot() {
     try {
-        await import(`file://${path.join(REPO, "scripts/module.mjs")}`);
+        // A file: URL built by Node, not by string: "file://" + "C:\..." is not one.
+        await import(url.pathToFileURL(path.join(REPO, "scripts/module.mjs")).href);
         logLine("module.mjs imported");
     } catch (err) {
         logLine(`IMPORT FAILED: ${err.stack}`);

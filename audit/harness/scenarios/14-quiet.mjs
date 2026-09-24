@@ -21,14 +21,14 @@
  */
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, check, settle }) {
+export async function run({ gm, p1, check, settle, repoUrl }) {
     /* ---- 1. the clock ------------------------------------------------------
        `renderHud` stamps the phase and the hour on the body for the strip, the
        tray and the curtain's seams to read. Setting a dataset attribute to the
        value it already holds still queues a MutationRecord, so an unguarded
        write woke all three body observers on every redraw. */
     const hud = await gm.eval(`
-        const H = await import("file:///home/user/Danganronpa-RPG/scripts/hud.mjs");
+        const H = await import("${repoUrl}/scripts/hud.mjs");
         H.renderHud();
         await new Promise(r => setTimeout(r, 150));
         let records = 0;
@@ -60,7 +60,7 @@ export async function run({ gm, p1, check, settle }) {
        setting write and every update of any student. Under Stained Glass that
        pair of child-list mutations is a recut of the curtain. */
     const strip = await p1.eval(`
-        const S = await import("file:///home/user/Danganronpa-RPG/scripts/player-status.mjs");
+        const S = await import("${repoUrl}/scripts/player-status.mjs");
         S.renderPlayerStatus();
         await new Promise(r => setTimeout(r, 150));
         const host = document.querySelector("#ui-right-column-1") ?? document.getElementById("interface");
@@ -84,7 +84,7 @@ export async function run({ gm, p1, check, settle }) {
        sweep read its whole subtree again for the life of the session. It is
        marked now - and a control that CAN be named still gets its name. */
     const swept = await gm.eval(`
-        const A = await import("file:///home/user/Danganronpa-RPG/scripts/a11y.mjs");
+        const A = await import("${repoUrl}/scripts/a11y.mjs");
         const panel = document.createElement("div");
         panel.className = "drpg-panel";
         panel.innerHTML = "<button id='drpg-suite-nameless'></button>"

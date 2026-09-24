@@ -19,7 +19,7 @@
  */
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, p2, p3, check, settle }) {
+export async function run({ gm, p1, p2, p3, check, settle, repoUrl }) {
     for (const c of [p1, p2, p3].filter(Boolean)) {
         await c.eval(`globalThis.__dialogAuto = false; return true;`);
     }
@@ -52,9 +52,9 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
 
             if (!c) continue;
             out[who] = await c.eval(`
-                const S = await import("file:///home/user/Danganronpa-RPG/scripts/settings.mjs");
-                const M = await import("file:///home/user/Danganronpa-RPG/scripts/music.mjs");
-                const hud = await import("file:///home/user/Danganronpa-RPG/scripts/hud.mjs");
+                const S = await import("${repoUrl}/scripts/settings.mjs");
+                const M = await import("${repoUrl}/scripts/music.mjs");
+                const hud = await import("${repoUrl}/scripts/hud.mjs");
                 hud.renderHud();
                 await new Promise(r => setTimeout(r, 120));
                 await M.applyMurderMusic();

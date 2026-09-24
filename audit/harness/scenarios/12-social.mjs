@@ -1,6 +1,6 @@
 /** L3: private rolls between clients, inventory limits, movement/search. */
 const MOD = "danganronpa-rpg";
-export async function run({ gm, p1, p2, check, settle }) {
+export async function run({ gm, p1, p2, check, settle, repoUrl }) {
     const ids = await gm.eval(`return {
         aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id };`);
 
@@ -11,34 +11,49 @@ export async function run({ gm, p1, p2, check, settle }) {
     await gm.eval(`await game.settings.set("${MOD}", "forcePrivateRolls", true); return true;`);
     await settle(200);
 
-    // p1 (Aiko) rolls. Count chat messages visible to p2 before/after.
-    const before2 = await p2.eval(`return game.messages.contents.length;`);
+    /*
+     * p1 (Aiko) rolls; what does p2's browser hold of it?
+     *
+     * This used to count Aiko's rolls in p2's `game.messages` and pass on zero -
+     * which it always was, because the harness never delivered a whisper to anybody
+     * off its list. Foundry delivers every message to every browser (lib/shim.mjs,
+     * REALISM RULES), so p2 now holds the roll, and the question is the one Foundry
+     * itself answers: is it whispered past p2, so that p2's chat log will not draw
+     * it? `isContentVisible` is Foundry's rule, and private-rolls.mjs hides a card
+     * by it at render time.
+     *
+     * NOT "the content is a stub": a roll is not a secret.mjs card. The README says
+     * so outright ("Privacy": rolls are whispered, so other players never see them,
+     * but like every chat message they reach every browser) - the dice stay in the
+     * document on every client, a curtain and not a wall. What p2's console can read
+     * is printed below, so that nobody mistakes this check for more than it is.
+     */
     const rollRes = await p1.eval(`
         const actor = game.actors.get("${ids.aiko}");
         globalThis.__forceRoll = { hope: 7, fear: 4 };
         const before = game.messages.contents.length;
-        await actor.rollTrait("agility", {});
+        const cfg = await actor.rollTrait("agility", {});
         const mine = game.messages.contents.length - before;
-        return { mine };
+        return { mine, id: cfg?.message?.id ?? null };
     `, { timeout: 60000 });
     await settle(400);
-    const after2 = await p2.eval(`
-        const msgs = game.messages.contents;
-        // any message whose content or speaker reveals Aiko's roll to p2?
-        const leak = msgs.filter(m => {
-            const c = (m._source.content ?? "");
-            const isRoll = (m._source.rolls ?? []).length > 0;
-            const fromAiko = (m._source.speaker?.actor === "${ids.aiko}") || (m._source.author === "${gm.userId}");
-            return isRoll && fromAiko;
-        }).length;
-        return { total: msgs.length, leak };
+    const onP2 = await p2.eval(`
+        const m = game.messages.get("${rollRes.id}");
+        if (!m) return { held: false };
+        return { held: true, isRoll: m.isRoll, whisper: m.whisper, visible: m.visible, contentVisible: m.isContentVisible,
+                 readable: (m._source.content ?? "").replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim().slice(0, 80) };
     `);
-    check("p1 made a roll", (rollRes.mine ?? 0) >= 1, JSON.stringify(rollRes));
-    check("PRIVACY: p2 cannot see Aiko's roll message", after2.leak === 0, JSON.stringify(after2));
+    check("p1 made a roll", (rollRes.mine ?? 0) >= 1 && Boolean(rollRes.id), JSON.stringify(rollRes));
+    // Without this the next check could pass by never having been handed the document.
+    check("p2's browser holds Aiko's roll, as every Foundry client does", onP2.held === true, JSON.stringify(onP2));
+    check("PRIVACY: Aiko's roll is whispered past p2, so p2's chat log does not show it",
+        onP2.held === true && onP2.whisper.length > 0 && !onP2.whisper.includes(p2.userId) && onP2.contentVisible === false,
+        JSON.stringify(onP2));
+    console.log("[qa] what p2's console can still read of Aiko's private roll (documented, README 'Privacy'):", JSON.stringify(onP2.readable));
 
     // --- inventory carry limit (Gear = 2 shared slots) ---
     const inv = await gm.eval(`
-        const INV = await import("file:///home/user/Danganronpa-RPG/scripts/inventory.mjs");
+        const INV = await import("${repoUrl}/scripts/inventory.mjs");
         const actor = game.actors.get("${ids.botan}");
         for (const it of actor.items.contents.filter(i => i.name.startsWith("L3"))) await it.delete();
         const a = await INV.grantItem(actor, { name: "L3 knife", category: "crimeTool", tier: 1 });
@@ -52,8 +67,8 @@ export async function run({ gm, p1, p2, check, settle }) {
 
     // --- movement / search tokens per room ---
     const search = await gm.eval(`
-        const st = await import("file:///home/user/Danganronpa-RPG/scripts/search-tokens.mjs");
-        const M = await import("file:///home/user/Danganronpa-RPG/scripts/movement.mjs");
+        const st = await import("${repoUrl}/scripts/search-tokens.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
         const room = M.roomOfActor(game.actors.get("${ids.aiko}"));
         let tokens = null;
         try { tokens = game.drpg.searchTokens ? game.drpg.searchTokens(room) : null; } catch (e) { tokens = "err:"+e.message; }
