@@ -1,8 +1,8 @@
 /**
  * Danganronpa RPG - the regression suite.
  * ---------------------------------------------------------------------------
- *     game.drpg.runTests()            everything
- *     game.drpg.runTests({ tier: 1 }) regressions + invariants, world untouched
+ *     game.drpg.runTests()            tiers 0 and 1: source regressions and invariants, read-only
+ *     game.drpg.runTests({ tier: 2 }) adds the scenarios, which write - and asks first, in a window
  *     game.drpg.runTests({ tier: 0 }) the module-wide regression pass alone
  *
  * WHAT IS IN HERE AND WHY. Not "coverage" - the things that have actually been
@@ -45,7 +45,7 @@
  * in tests-tier2.mjs.
  */
 
-import { log, warn } from "./utils.mjs";
+import { log, warn, esc, plural, dialogContent } from "./utils.mjs";
 import { studentActors } from "./monokuma.mjs";
 import {
     layoutAvailable, settle, worldDump, dumpDiff, describeDiff, watchWrites, runOne, stageLedger, registerSuite, worldCensus
@@ -89,17 +89,23 @@ let inFlight = false;
 
 /**
  * @param {object} [options]
- * @param {number} [options.tier=2]  0 source reads, 1 adds invariants, 2 adds scenarios.
+ * @param {0|1|2} [options.tier=1]  0 reads the module's source; 1 adds the read-only
+ *   invariants - the default, safe during play, and checked to be (the whole world is
+ *   read before and after); 2 adds the scenarios, which WRITE, and asks first.
  * @param {string} [options.only]    Run only these tests, in every tier up to `tier`:
  *   an R number ("R15") names that one test, anything else is a piece of a name.
  *   For the loop of fixing one thing: a full run is four minutes, and the
  *   scenario being fixed is one of them. The world is still snapshotted and
  *   restored around the scenarios that run.
+ * @param {string} [options.confirmed] Tier 2 only: THIS world's id (game.world.id),
+ *   for a caller that cannot answer a window (the headless harness). Anything else -
+ *   `true` included - opens the window, so a line copied from a handbook into a
+ *   campaign world still asks.
  * @returns {Promise<{passed: number, failed: number, skipped: number, red: number, text: string,
  *   results: {tier: number, name: string, outcome: "pass"|"fail"|"skip"|"red", message?: string,
- *   probe?: string, assertions: number|null}[], refused?: string}|null>}
+ *   probe?: string, assertions: number|null}[], refused?: "running"|"cancelled"}|null>}
  */
-export async function runTests({ tier = 2, only = null } = {}) {
+export async function runTests({ tier = 1, only = null, confirmed = null } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -111,17 +117,66 @@ export async function runTests({ tier = 2, only = null } = {}) {
         warn("Refused a second regression suite: one is already running on this client.");
         return { passed: 0, failed: 0, skipped: 0, red: 0, results: [], text: why, refused: "running" };
     }
+    /*
+     * READING BY DEFAULT (E30, 24.09.2026; decision D25, audit S17-06). The default
+     * was tier 2, which opens incidents, kills students and resets seasons in
+     * fixtures it builds and removes - one bare `runTests()` in a campaign world was a
+     * suite writing to it. The default is now the tiers that only read, and tier 2
+     * asks, in a window that names the world, with Cancel first and the default.
+     * An incident already open keeps the old path: tiers 0 and 1 run, and tier 2 is
+     * refused and counted - no window, since there is nothing to confirm.
+     */
+    tier = [0, 1, 2].includes(Number(tier)) ? Number(tier) : 1;
     inFlight = true;
-    // Every roll the scenarios make skips the configuration window - see
-    // `suiteRolling` in action-rolls.mjs for why, and the scenario named "the
-    // roll window opens, locked" for what still covers it.
-    if (game.drpg) game.drpg.suiteRolling = true;
     try {
+        if (tier === 2 && !game.drpg?.murderState?.()) {
+            if (await confirmTier2(confirmed) !== "run") {
+                const text = game.i18n.localize("DRPG.Tests.tier2Cancelled");
+                ui.notifications.info(text);
+                return { passed: 0, failed: 0, skipped: 0, red: 0, results: [], text, refused: "cancelled" };
+            }
+        }
+        // Every roll the scenarios make skips the configuration window - see
+        // `suiteRolling` in action-rolls.mjs for why, and the scenario named "the
+        // roll window opens, locked" for what still covers it.
+        if (game.drpg) game.drpg.suiteRolling = true;
         return await runSuite(tier, only);
     } finally {
         if (game.drpg) game.drpg.suiteRolling = false;
         inFlight = false;
     }
+}
+
+/**
+ * "run" when this world's id was handed over, or when the GM pressed Run in the
+ * window; anything else (Cancel, Enter, the window closed) is a no.
+ */
+async function confirmTier2(confirmed) {
+    const { id, title } = game.world;
+    if (confirmed === id) return "run";
+    if (confirmed !== null && confirmed !== undefined) {
+        warn(game.i18n.format("DRPG.Tests.confirmedNotThisWorld", { given: String(confirmed), id }));
+    }
+    const others = game.users.filter(u => u.active && u.id !== game.user.id).length;
+    return foundry.applications.api.DialogV2.wait({
+        classes: ["drpg-panel", "drpg-window-suite-tier2"],
+        window: { title: game.i18n.format("DRPG.Tests.tier2Title", { title }) },
+        content: dialogContent(`<p class="drpg-warning">${esc(game.i18n.localize("DRPG.Tests.tier2What"))}</p>
+            <p><strong>${esc(game.i18n.format("DRPG.Tests.tier2Where", { title, id }))}</strong></p>
+            ${others ? `<p class="drpg-warning">${esc(plural("DRPG.Tests.tier2Online", { n: others }))}</p>` : ""}
+            <p class="notes">${esc(game.i18n.localize("DRPG.Tests.tier2Advice"))}</p>`),
+        /* CANCEL FIRST AND DEFAULT. HTML's implicit submission (Enter in a form) takes
+           the FIRST submit button in tree order, and `default` is the button Foundry
+           marks; Cancel is both, and the window has no input to hold focus, so Enter
+           can only cancel. (The season reset puts Cancel last with a typed word - there
+           the word is the confirmation; here there is none.) That Enter cancels in a
+           real v14 window is a live check, not measured here. */
+        buttons: [
+            { action: "cancel", label: game.i18n.localize("DRPG.Tests.cancel"), default: true },
+            { action: "run", label: game.i18n.format("DRPG.Tests.tier2Run", { title }), class: "drpg-gm-route" }
+        ],
+        rejectClose: false
+    });
 }
 
 /*

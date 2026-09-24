@@ -285,9 +285,11 @@ it.
 other GMs' changes are sent to it, and any GM can answer a card.
 
 **Tests.** A GM can run the regression suite from the console with
-`game.drpg.runTests()`. The default level writes to the world, so run it on a
-test world. `game.drpg.runTests({ tier: 1 })` only reads and is safe during
-play. [CONTRIBUTING.md](CONTRIBUTING.md) covers the rest, including the
+`game.drpg.runTests()`: the read-only tiers, safe during play, and it checks at
+the end that nothing in the world moved. `game.drpg.runTests({ tier: 2 })` adds
+the scenarios, which write to the world; it asks first, in a window that names
+the world, and Cancel is the default. Run it on a copy of a world, never on a
+campaign. [CONTRIBUTING.md](CONTRIBUTING.md) covers the rest, including the
 headless harness.
 
 ## Credits

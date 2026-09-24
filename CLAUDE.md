@@ -30,7 +30,7 @@ If a claim cannot be measured, say that instead of rounding it up.
 
 | What | How |
 | --- | --- |
-| The suite, in Foundry | `game.drpg.runTests({ tier: 2 })` in the console, as GM |
+| The suite, in Foundry | `game.drpg.runTests()` in the console, as GM: tiers 0-1, read-only; `runTests({ tier: 2 })` also writes, and asks first in a window |
 | The harness, first time | `cd audit/harness && npm ci` - installs jsdom; boots the checkout it sits in, or `DRPG_REPO` |
 | The suite, headless | `cd audit/harness && node cluster.mjs scenarios/01-runtests.mjs` |
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines) |

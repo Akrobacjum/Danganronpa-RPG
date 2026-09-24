@@ -1,4 +1,8 @@
-/** Run the module's own regression suite, full tier, on the GM client. */
+/**
+ * Run the module's own regression suite on the GM client: read-only in a world
+ * mid-game (A1, A2), with no argument (A3), tier 2 refused at its window (B), and
+ * the full run, tier 2 confirmed by this world's id (C).
+ */
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
@@ -95,12 +99,53 @@ export async function run({ gm, p1, p2, p3, check, note, settle }) {
     /* The text is cut at 30,000 characters for the log; the suite's own list of
        results is kept whole and written into this run's results file
        (evidence.suite), which is what `suite-diff --json` compares (E30). */
-    /* 600 s, not 240 (E30): a hang detector, not a benchmark. The whole-world dump
-       after every restore brought the run near the old bound here (E30 C15b), and a
-       CI runner's speed is its own. The time is recorded as a note. */
+    /* A3: no argument reads (E30, D25). runTests() runs tiers 0 and 1 and opens no
+       incident - the default used to be tier 2, which opens several. */
+    const a3 = await gm.eval(`
+        const r = await game.drpg.runTests();
+        return { tiers: [...new Set((r?.results ?? []).map(x => x.tier))], murder: game.drpg.murderState() ?? null, failed: r?.failed };
+    `, { timeout: 240000 });
+    check("gm: A3 - runTests() runs tiers 0 and 1 only and opens no incident",
+        a3 && a3.tiers.length > 0 && a3.tiers.every(t => t <= 1) && a3.murder === null && a3.failed === 0, JSON.stringify(a3).slice(0, 300));
+
+    /* B: tier 2 asks first, in a window that names the world, Cancel first and the
+       only default - and `confirmed: true` is not this world's id, so it asks too.
+       The window is answered from the queue with "cancel", as a GM pressing Enter
+       would; that Enter picks Cancel in a real v14 window is a live check. */
+    const b = await gm.eval(`
+        const seen = [];
+        const answer = cfg => {
+            seen.push({ title: cfg.window?.title ?? "", content: cfg.content?.textContent ?? String(cfg.content ?? ""),
+                buttons: (cfg.buttons ?? []).map(x => ({ action: x.action, default: Boolean(x.default) })) });
+            return "cancel";
+        };
+        globalThis.__dialogAnswers.push(answer);
+        const plain = await game.drpg.runTests({ tier: 2 });
+        globalThis.__dialogAnswers.push(answer);
+        const asTrue = await game.drpg.runTests({ tier: 2, confirmed: true });
+        return { seen, world: { id: game.world.id, title: game.world.title }, murder: game.drpg.murderState() ?? null,
+            plain: { refused: plain?.refused ?? null, passed: plain?.passed, results: plain?.results?.length ?? null },
+            asTrue: { refused: asTrue?.refused ?? null, results: asTrue?.results?.length ?? null } };
+    `, { timeout: 60000 });
+    const win = b?.seen?.[0];
+    check("gm: B - the tier-2 window names this world, by title and by id",
+        Boolean(win) && win.title.includes(b.world.title) && win.content.includes(b.world.title) && win.content.includes(b.world.id),
+        JSON.stringify(win ?? null).slice(0, 400));
+    check("gm: B - Cancel is the first button and the only default",
+        win?.buttons?.[0]?.action === "cancel" && win.buttons[0].default && win.buttons.filter(x => x.default).length === 1,
+        JSON.stringify(win?.buttons ?? null));
+    check("gm: B - a cancelled tier 2 runs nothing and says so",
+        b?.plain?.refused === "cancelled" && b.plain.passed === 0 && b.plain.results === 0 && b.murder === null, JSON.stringify(b?.plain ?? null));
+    check("gm: B - confirmed: true is not this world's id, and asks",
+        b?.seen?.length === 2 && b.asTrue.refused === "cancelled" && b.asTrue.results === 0, JSON.stringify({ seen: b?.seen?.length, asTrue: b?.asTrue }));
+
+    /* C: the full run, tier 2 confirmed with this world's id. 600 s, not 240 (E30): a
+       hang detector, not a benchmark. The whole-world dump after every restore brought
+       the run near the old bound (E30 C15b), and a CI runner's speed is its own. The
+       time is recorded as a note. */
     const started = Date.now();
     const res = await gm.eval(`
-        const r = await game.drpg.runTests({ tier: 2 });
+        const r = await game.drpg.runTests({ tier: 2, confirmed: game.world.id });
         return { passed: r?.passed, failed: r?.failed, skipped: r?.skipped, red: r?.red, results: r?.results ?? null,
             text: (r?.text ?? "").slice(0, 30000) };
     `, { timeout: 600000 });

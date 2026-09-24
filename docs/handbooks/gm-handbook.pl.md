@@ -818,14 +818,14 @@ Wszystko jest pod `game.drpg` w konsoli przeglądarki; argumenty aktora przyjmuj
 
 | Wywołanie | Co robi |
 |---|---|
-| `game.drpg.runTests()` | uruchamia wszystko |
-| `game.drpg.runTests({ tier: 1 })` | uruchamia regresje źródła i niezmienniki tylko do odczytu; bezpieczne w trakcie gry - na końcu sprawdza, czy nic w świecie się nie ruszyło, i mówi co, jeśli jednak tak (liczy się też gracz, który coś zrobił w trakcie) |
+| `game.drpg.runTests()` | uruchamia regresje źródła i niezmienniki tylko do odczytu; bezpieczne w trakcie gry - na końcu sprawdza, czy nic w świecie się nie ruszyło, i mówi co, jeśli jednak tak (liczy się też gracz, który coś zrobił w trakcie) |
+| `game.drpg.runTests({ tier: 2 })` | dokłada scenariusze, które zapisują; najpierw pyta, w oknie, które podaje nazwę świata, z Anuluj jako pierwszym i domyślnym przyciskiem; tylko na kopii świata |
 | `game.drpg.runTests({ tier: 0 })` | czyta wyłącznie własne źródło modułu |
 
 > [!CAUTION]
-> **Tier 2 zapisuje** - otwiera incydenty, zabija ludzi i resetuje sezony na własnych, sprzątanych po sobie fixture'ach - więc nigdy nie uruchamiaj domyślnego w świecie, w którym ktoś gra; jego scenariusze potrzebują co najmniej trzech żyjących uczniów, tier 2 jest odrzucany, gdy incydent jest otwarty, a drugie uruchomienie na tym samym kliencie jest odrzucane, dopóki pierwsze trwa.
+> **Tier 2 zapisuje** - otwiera incydenty, zabija ludzi i resetuje sezony na własnych, sprzątanych po sobie fixture'ach - więc nigdy nie uruchamiaj tieru 2 w świecie, w którym ktoś gra; scenariusze, którym świat nie daje dość ludzi albo pokoi, są pomijane i mówią, czego światu brakuje, tier 2 jest odrzucany, gdy incydent jest otwarty, a drugie uruchomienie na tym samym kliencie jest odrzucane, dopóki pierwsze trwa.
 
-Wynik to licznik "passed, failed, skipped", a po nim linie `ok`, `FAIL` i `skip`; skip to test, który powiedział, czego brakuje środowisku, nigdy wynik, który wyszedł źle.
+Wynik to licznik "passed, failed, skipped" - z dopiskiem ", red until a later stage", gdy jakiś test jest oznaczony, że ma nie przechodzić do wydania wskazanego etapu - a po nim linie `ok`, `FAIL`, `skip` i `red`; skip to test, który powiedział, czego brakuje środowisku, nigdy wynik, który wyszedł źle.
 
 **Mgła i widoczność.**
 

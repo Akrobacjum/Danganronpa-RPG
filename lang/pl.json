@@ -3044,7 +3044,21 @@
       "tracing": "Obserwuję kliknięcia przez {seconds} sekund. Kliknij kontrolkę, która działa źle."
     },
     "Tests": {
-      "alreadyRunning": "Pakiet testów już działa na tym kliencie. Poczekaj, aż skończy - drugi przebieg zrobiłby zrzut świata, w którym pierwszy ma jeszcze rozstawione fikstury, i ustawiłby go jako bazę."
+      "alreadyRunning": "Pakiet testów już działa na tym kliencie. Poczekaj, aż skończy - drugi przebieg zrobiłby zrzut świata, w którym pierwszy ma jeszcze rozstawione fikstury, i ustawiłby go jako bazę.",
+      "tier2Title": "Tier 2 zapisuje do świata {title}",
+      "tier2What": "Scenariusze budują w tym świecie własne fixture'y i sprzątają po sobie: otwierają i zamykają incydenty, zabijają i wskrzeszają uczniów, zapisują ustawienia świata i usuwają czat, który wytworzą. Po każdym scenariuszu cały świat jest czytany od nowa, a wszystko, co zostało, liczy się jako błąd.",
+      "tier2Where": "Świat: {title} ({id})",
+      "tier2Online": {
+        "one": "{n} inna osoba jest teraz połączona z tym światem.",
+        "few": "{n} inne osoby są teraz połączone z tym światem.",
+        "many": "{n} innych osób jest teraz połączonych z tym światem.",
+        "other": "{n} innych osób jest teraz połączonych z tym światem."
+      },
+      "tier2Advice": "Uruchamiaj go na kopii świata, nigdy na kampanii, w którą ktoś gra. Bez argumentów runTests() uruchamia tylko tiery do odczytu.",
+      "tier2Run": "Uruchom tier 2 na {title}",
+      "cancel": "Anuluj",
+      "tier2Cancelled": "Nic nie zostało uruchomione: tier 2 nie został potwierdzony.",
+      "confirmedNotThisWorld": "runTests({ confirmed }) podaje {given}, a ten świat to {id}: pytam w oknie."
     },
     "Season": {
       "missingPool": "jeszcze nie ma puli Despair (ma ją każde pełne konto Gamemastera)",

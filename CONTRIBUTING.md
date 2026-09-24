@@ -35,9 +35,12 @@ The harness boots the checkout it sits in; set `DRPG_REPO` to point it at
 another one.
 
 The suite must report **0 failed**. It also reports a number of skipped tests -
-those are the ones that need a real browser (layout, a canvas with a width,
-loaded fonts, audio) and say so individually. That number should not grow: if
-something that used to be answerable has stopped being so, that is a regression.
+each one stands on an `env.*` probe (a real browser's layout, a canvas with a
+width, loaded fonts, a CSS cascade) and says which. The headless run's list is
+`audit/harness/skip-baseline.json`, test by test: 01-runtests fails on a skip
+that is not in it and on one in it that now answers, and on any `world.*` skip,
+since the harness builds its own world. If something that used to be answerable
+has stopped being so, that is a regression.
 
 If you touched the theme or the layout, also open `audit/glass-harness.html`
 over a local server and look at it at a few sizes - the curtain's self-check can
@@ -51,8 +54,9 @@ python3 -m http.server 8765      # then open /audit/glass-harness.html
 
 **A test, where one is possible.** The suite is in `scripts/tests*.mjs` (the
 runner in `tests.mjs`, the tests in `tests-tier0.mjs`, `tests-tier1.mjs` and
-`tests-tier2.mjs`, the shared tools in `tests-kit.mjs`) and runs inside a real
-world; the scenarios in `audit/harness/scenarios/` drive four
+`tests-tier2.mjs`, the shared tools in `tests-kit.mjs`, and in `tests-lint.mjs`
+the contract's detectors, which `node tools/check.mjs contract` also runs) and
+runs inside a real world; the scenarios in `audit/harness/scenarios/` drive four
 clients at once and are the place for anything involving sockets, permissions or
 two people doing things in the wrong order.
 
