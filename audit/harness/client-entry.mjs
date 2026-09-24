@@ -9,6 +9,7 @@ import path from "node:path";
 import url from "node:url";
 import { JSDOM } from "jsdom";
 import * as U from "./lib/futil.mjs";
+import { DataFieldOperator, ForcedDeletion, ForcedReplacement, revive } from "./lib/operators.mjs";
 import { HooksImpl, Collection, buildDocumentClasses, buildPIXI, buildApplications, RollImpl, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
 
 const WHO = process.env.DRPG_USER ?? "gm";
@@ -211,12 +212,19 @@ globalThis.__dialogAnswers = [];
 globalThis.__missingI18n = new Set();
 // `globalThis.__errors` is created at the top of this file, before anything can throw.
 
+/* A legacy key met where no server applies it - a document's updateSource or
+   clone, or foundry.utils.mergeObject - is reported to the cluster, which keeps
+   every report in one list (cluster.mjs, legacyKeys). */
+const reportLegacy = record => send({ t: "legacyKey", ...record });
+U.reportLegacyKeysTo(reportLegacy);
+
 const ctx = {
     bus,
     hooks: () => hooks,
     gameRef: () => game,
     userId: () => game.userId,
     log: logLine,
+    reportLegacy,
     classes: null
 };
 const classes = buildDocumentClasses(ctx);
@@ -775,10 +783,20 @@ globalThis.foundry = {
     documents: {},
     dice: { Roll: RollImpl, terms: {} },
     abstract: { DataModel: class {}, TypeDataModel: class {} },
-    data: { fields: {}, validators: { isValidId: s => /^[A-Za-z0-9]{16}$/.test(s) } },
+    // The operators as lib/operators.mjs models them (E30); `_del` and `_replace` below.
+    data: {
+        fields: {}, validators: { isValidId: s => /^[A-Za-z0-9]{16}$/.test(s) },
+        operators: { DataFieldOperator, ForcedDeletion, ForcedReplacement }
+    },
     helpers: { media: { ImageHelper: {} } },
     packages: {}
 };
+
+/* The two globals Daggerheart deletes and replaces with (both of its builds
+   declare them in eslint.config.mjs). A value and a function here; whether v14's
+   `_del` is also callable is LIVE-E30-02 (lib/operators.mjs). */
+globalThis._del = ForcedDeletion.create();
+globalThis._replace = value => ForcedReplacement.create(value);
 
 globalThis.ChatMessage = classes.ChatMessage;
 globalThis.Actor = classes.Actor;
@@ -851,13 +869,16 @@ function applyRemote(msg) {
         if (!options.noHook) for (const doc of docs) hooks.callAll(`create${collName}`, doc, options, userId);
         return;
     }
+    /* The cluster has applied this write and reported any legacy key in it; the
+       client applies the same write the same way (futil.mjs applyUpdate) and says
+       nothing more. A hook is handed the operators as instances (lib/operators.mjs). */
     if (action === "update") {
         const doc = coll(collName).get(msg.docId);
         if (!doc) return;
         U.applyDocChanges(collName, doc._source, msg.changes);
         // refresh embedded collections if raw arrays were replaced wholesale
         rebuildEmbedded(doc);
-        if (!options.noHook) hooks.callAll(`update${collName}`, doc, U.expandObject(U.deepClone(msg.changes)), options, userId);
+        if (!options.noHook) hooks.callAll(`update${collName}`, doc, revive(U.expandObject(U.deepClone(msg.changes))), options, userId);
         return;
     }
     if (action === "delete") {
@@ -888,9 +909,10 @@ function applyRemote(msg) {
                 const doc = parent._collections[embKey]?.get(u._id);
                 if (!raw || !doc) continue;
                 const { _id, ...changes } = u;
-                U.mergeObject(raw, changes, { performDeletions: true });
-                U.mergeObject(doc._source, changes, { performDeletions: true });
-                hooks.callAll(`update${msg.embeddedName}`, doc, U.expandObject(U.deepClone(changes)), options, userId);
+                U.applyUpdate(raw, changes);
+                // One object, not two, once a parent's update has rebuilt the collection (rebuildEmbedded).
+                if (doc._source !== raw) U.applyUpdate(doc._source, changes);
+                hooks.callAll(`update${msg.embeddedName}`, doc, revive(U.expandObject(U.deepClone(changes))), options, userId);
             }
         } else if (kind === "delete") {
             for (const id of msg.ids) {

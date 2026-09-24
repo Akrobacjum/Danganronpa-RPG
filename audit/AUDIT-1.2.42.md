@@ -714,6 +714,12 @@ Po E03 (1.2.60) doszły te, na których opiera się ochrona po stronie GM-a, a k
 23. **Toasty:** czy `ui.notifications` na v14 escapuje HTML. Tekst odmowy przekaźnika i tak nie niesie `<` ani `>` (`plainWhat`).
 24. **Blokada zasobów gracza:** wygląd arkusza pod `body.drpg-player.drpg-resources-locked`, z ustawieniem włączonym i wyłączonym; nie oglądany.
 
+Po E30 (1.2.61) harness modeluje fragmenty v14, których nikt nie sprawdził na prawdziwym Foundry. Każdy ma identyfikator LIVE-E30-nn, pod którym wymienia go `audit/harness/README.md` ("What the harness cannot do"):
+
+25. **LIVE-E30-01 - klucz `-=` na v14:** aktualizacja z kluczem `flags.<scope>.-=<klucz>` na aktorze i na tokenie (tak zdejmował flagi `migrateRemnants` przed E30). Czy klucz zostaje, czy zapisuje się dosłowny klucz `-=...` i czy konsola pokazuje ostrzeżenie o przestarzałej składni. Harness przyjmuje, że klucz niczego nie usuwa, i zgłasza każdy taki zapis.
+26. **LIVE-E30-02 - API operatorów:** czy `foundry.data.operators.ForcedDeletion` i `ForcedReplacement` mają `create`, czy tylko konstruktor, i czy `_del` jest wartością, czy funkcją (Daggerheart 2.10.5 raz woła `_del()`, action-base-config.mjs:584). W harnessie `_del` jest wartością, a `create()` zwraca jedną wspólną instancję.
+27. **LIVE-E30-03 - co dostaje hook:** kształt `changes` w `preUpdateActor` i `updateActor` po `unsetFlag`, `_del` i `_replace`: instancja operatora, zwykła wartość czy brak klucza. Harness podaje instancję.
+
 Znane luki po E03, świadomie zostawione (nie live checki, tylko zapis):
 
 - Edycja Truth Bulleta zrobiona przez gracza, gdy żaden GM nie był online, nie jest porównywana przy wczytaniu: kopia strzegąca żyje tylko w pamięci przeglądarki GM-a i powstaje przy wczytaniu z przedmiotów takich, jakie są, więc nie ma czego starszego porównać. Czeka na wspólny zapis GM-ów (E04).

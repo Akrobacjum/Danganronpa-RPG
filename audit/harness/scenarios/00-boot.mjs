@@ -1,7 +1,7 @@
 /** Boot sanity: four clients, module registers, world sync works. */
 export const layers = ["ci"];
 
-export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permissionDenials }) {
+export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permissionDenials, legacyKeys, IDS }) {
     for (const [who, info] of bootInfo) {
         check(`${who}: boot completed`, info.t === "ready", info.error ?? "");
         if (info.t === "ready") {
@@ -62,6 +62,51 @@ export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permi
         } catch (err) { return "denied: " + err.message; }
     `);
     check("p1: world-setting write denied by server", String(denial).startsWith("denied"), denial);
+
+    /*
+     * THE HOST IS THE FOUNDRY IT SAYS IT IS (E30, 24.09.2026). Each E30 commit that
+     * brings a piece of the harness closer to v14 adds here the check that it did,
+     * so a later change that quietly takes the piece away turns boot red. The
+     * writes go on a probe flag in the `world` scope, which no module code reads:
+     * on Daichi, whom only the GM may write, and on Aiko, p1's own. Each is read
+     * back on the GM and on p1.
+     */
+    const read = (c, id) => c.eval(`return foundry.utils.deepClone(game.actors.get("${id}")._source.flags?.world ?? null);`);
+    const onBoth = async id => ({ gm: await read(gm, id), p1: await read(p1, id) });
+    const same = views => JSON.stringify(views.gm) === JSON.stringify(views.p1);
+    const write = (c, id, changes) => c.eval(`await game.actors.get("${id}").update(${changes}); return true;`);
+
+    /* Operators (lib/operators.mjs): a `-=` key removes nothing, stores nothing
+       under its own name, and is reported; `_del`, `_replace` and
+       foundry.data.operators delete and replace; unsetFlag removes. */
+    await write(gm, IDS.daichi, `{ "flags.world.e30probe": { keep: 1, gone: 2 } }`);
+    const reportedBefore = legacyKeys.length;
+    await write(gm, IDS.daichi, `{ "flags.world.e30probe.-=gone": null }`);
+    const legacy = await onBoth(IDS.daichi);
+    const reported = legacyKeys.slice(reportedBefore);
+    check("the host: a '-=' key removes nothing on any client, is not stored as a key, and is reported",
+        legacy.gm?.e30probe?.gone === 2 && same(legacy) && !("-=gone" in (legacy.gm?.e30probe ?? {}))
+        && reported.length === 1 && reported[0].who === "gm" && reported[0].path === "flags.world.e30probe.-=gone",
+        JSON.stringify({ legacy, reported }));
+
+    for (const [writer, id] of [[gm, IDS.daichi], [p1, IDS.aiko]]) {
+        await write(writer, id, `{ "flags.world.e30probe": { keep: 1, gone: 2, bookmark: { actionKey: "search", itemId: "abc" } } }`);
+        await write(writer, id, `{ "flags.world.e30probe.gone": _del, "flags.world.e30probe.bookmark": _replace({ actionKey: "listen" }) }`);
+        const globals = await onBoth(id);
+        await write(writer, id, `{ "flags.world.e30probe.keep": foundry.data.operators.ForcedDeletion.create(),
+            "flags.world.e30probe.bookmark": foundry.data.operators.ForcedReplacement.create({ actionKey: "observe" }) }`);
+        const operators = await onBoth(id);
+        check(`the host: _del, _replace and foundry.data.operators, written by ${writer.who}, delete and replace on every client`,
+            same(globals) && JSON.stringify(globals.gm?.e30probe) === JSON.stringify({ keep: 1, bookmark: { actionKey: "listen" } })
+            && same(operators) && JSON.stringify(operators.gm?.e30probe) === JSON.stringify({ bookmark: { actionKey: "observe" } }),
+            JSON.stringify({ globals, operators }));
+
+        await writer.eval(`await game.actors.get("${id}").unsetFlag("world", "e30probe"); return true;`);
+        const unset = await onBoth(id);
+        check(`the host: unsetFlag, called by ${writer.who}, removes the flag on every client`,
+            same(unset) && unset.gm !== null && !("e30probe" in unset.gm), JSON.stringify(unset));
+        await write(writer, id, `{ "flags.world": _del }`);
+    }
 
     await settle(300);
 }

@@ -100,7 +100,11 @@ function ensureEmbeddedIds(collName, doc) {
     }
 }
 
-function applyOp(userId, op) {
+/**
+ * Apply one permitted write to the world. `onLegacyKey(path, extra)` hears every
+ * `-=` or `==` key the write carried, which changes nothing (futil.mjs applyUpdate).
+ */
+function applyOp(userId, op, onLegacyKey = null) {
     const collName = op.coll;
     const list = world.collections[collName] ?? (world.collections[collName] = []);
     switch (op.action) {
@@ -113,7 +117,7 @@ function applyOp(userId, op) {
         case "update": {
             const doc = list.find(d => d._id === op.docId);
             if (!doc) throw new Error(`${collName} ${op.docId} does not exist`);
-            U.applyDocChanges(collName, doc, op.changes);
+            U.applyDocChanges(collName, doc, op.changes, { onLegacyKey: path => onLegacyKey?.(path) });
             return { broadcast: { t: "apply", action: "update", collName, docId: op.docId, changes: op.changes, userId, options: op.options }, result: op.docId };
         }
         case "delete": {
@@ -140,7 +144,7 @@ function applyOp(userId, op) {
                 const raw = (doc[key] ?? []).find(d => d._id === u._id);
                 if (!raw) continue;
                 const { _id, ...changes } = u;
-                U.mergeObject(raw, changes, { performDeletions: true });
+                U.applyUpdate(raw, changes, { onLegacyKey: path => onLegacyKey?.(path, { embeddedName: op.embeddedName, embeddedId: _id }) });
             }
             return { broadcast: { t: "apply", action: "embedded-update", collName, docId: op.docId, embeddedName: op.embeddedName, updates: op.payload, userId, options: op.options }, result: op.payload.map(u => u._id) };
         }
@@ -279,7 +283,9 @@ function onClientMessage(who, entry, msg) {
                 if (!canWrite(entry.userId, msg.op)) {
                     throw new Error(`User lacks permission: ${msg.op.action} ${msg.op.coll}${msg.op.embeddedName ? "." + msg.op.embeddedName : ""}`);
                 }
-                const applied = applyOp(entry.userId, msg.op);
+                const applied = applyOp(entry.userId, msg.op, (path, extra = {}) => reportLegacyKey({
+                    who, where: msg.op.action, coll: msg.op.coll, docId: msg.op.docId ?? null, ...extra, path
+                }));
                 result = applied.result;
                 broadcast(applied.broadcast);
             } catch (err) {
@@ -324,12 +330,38 @@ function onClientMessage(who, entry, msg) {
             peakRSS.set(who, msg.maxRSS);
             onBye?.(who);
             break;
+        case "legacyKey": {
+            const { t, ...record } = msg;
+            reportLegacyKey({ who, ...record });
+            break;
+        }
     }
 }
 
 const logSink = [];
 const permissionDenials = [];
 const socketTraffic = [];
+
+/*
+ * EVERY '-=' AND '==' KEY A RUN WROTE (E30, 24.09.2026).
+ *
+ * A write that spells a deletion `-=key` (or a replacement `==key`) changes nothing
+ * in this harness, as the module's own notes measured it on v14 (lib/operators.mjs;
+ * whether v14 also warns is LIVE-E30-01), so each one is said here - on the log
+ * whatever --verbose says, in the scenario api as `legacyKeys`, and in the results
+ * file as `legacyKeysIgnored` - instead of passing as a write that worked. The one
+ * kind that still deletes is foundry.utils.mergeObject's, a utility and not a
+ * document write (futil.mjs); it is listed with `where` naming it.
+ */
+const legacyKeys = [];
+function reportLegacyKey(record) {
+    legacyKeys.push(record);
+    const at = [record.who, record.coll, record.docId, record.embeddedName, record.embeddedId].filter(Boolean).join(" ");
+    const spelling = /(?:^|\.)(-=|==)[^.]*$/.exec(record.path ?? "")?.[1] ?? "-=";
+    console.log(record.where === "foundry.utils.mergeObject"
+        ? `[harness] '${spelling}' deleted by foundry.utils.mergeObject, which is not a document write: ${at} ${record.path}`
+        : `[harness] v14 ignores '${spelling}' (${record.where}): ${at} ${record.path}`);
+}
 
 /* --------------------------- scenario API --------------------------------- */
 
@@ -463,7 +495,7 @@ async function main() {
     const probe = !layerProblem && scenario.layers[0] === "probe";
     const api = {
         gm: handleFor("gm"), p1: handleFor("p1"), p2: handleFor("p2"), p3: handleFor("p3"),
-        check, note, settle, world, logSink, permissionDenials, socketTraffic, bootInfo, IDS,
+        check, note, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, bootInfo, IDS,
         // `import("${repoUrl}/scripts/x.mjs")` inside an eval reaches the SAME module
         // instance the client booted, because it is the same URL.
         repoUrl: REPO_URL,
@@ -522,7 +554,7 @@ async function main() {
         startedAt: STARTED_AT, finishedAt: new Date().toISOString(),
         passed, total: results.length, ms: dt, resources,
         results, notes, ...(probe ? { evidence: evidence ?? null } : {}),
-        permissionDenials, socketTraffic: socketTraffic.slice(0, 200),
+        permissionDenials, socketTraffic: socketTraffic.slice(0, 200), legacyKeysIgnored: legacyKeys,
         bootInfo: Object.fromEntries([...bootInfo.entries()].map(([k, v]) => [k, { t: v.t, drpg: v.drpg, settingsRegistered: v.settingsRegistered, error: v.error?.slice?.(0, 800) }]))
     };
     // A probe's record never lands beside the scenarios' results, which a gate reads.

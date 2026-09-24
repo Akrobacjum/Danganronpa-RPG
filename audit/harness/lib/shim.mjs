@@ -26,6 +26,7 @@
  */
 
 import * as U from "./futil.mjs";
+import { ForcedDeletion, revive } from "./operators.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
@@ -248,21 +249,26 @@ export function buildDocumentClasses(ctx) {
 
         getFlag(scope, key) { return U.getProperty(this._source.flags, `${scope}.${key}`); }
         async setFlag(scope, key, value) { return this.update({ [`flags.${scope}.${key}`]: value }); }
+        /* A ForcedDeletion write (E30, 24.09.2026). This was `{"flags.scope.-=key": null}`,
+           which removes nothing once a `-=` key is ignored the way the module's own notes
+           measured it on v14 (lib/operators.mjs) - and ten module sites unset a flag,
+           restore()'s revive of a murdered fixture among them. How v14's own unsetFlag
+           spells the write is not known here (LIVE-E30-03); that it removes is. */
         async unsetFlag(scope, key) {
-            const parts = `${scope}.${key}`.split(".");
-            const tail = parts.pop();
-            return this.update({ [`flags.${parts.join(".")}.-=${tail}`]: null });
+            return this.update({ [`flags.${scope}.${key}`]: ForcedDeletion.create() });
         }
 
+        /* Local writes, the two that never reach the server: a legacy key here changes
+           nothing either, and is reported by the client (cluster.mjs, legacyKeys). */
         updateSource(changes = {}) {
-            U.mergeObject(this._source, changes, { performDeletions: true });
+            U.applyUpdate(this._source, changes, { onLegacyKey: path => ctx.reportLegacy?.({ where: "updateSource", coll: this.documentName, docId: this.id, path }) });
             this._exposeSource();   // a field that only arrives with an update is still a field
             return changes;
         }
         toObject() { return U.deepClone(this._source); }
         toJSON() { return this.toObject(); }
         clone(changes = {}) {
-            const data = U.mergeObject(this.toObject(), changes, { inplace: false, performDeletions: true });
+            const data = U.applyUpdate(this.toObject(), changes, { onLegacyKey: path => ctx.reportLegacy?.({ where: "clone", coll: this.documentName, docId: this.id, path }) });
             return new this.constructor(data, { parent: this.parent });
         }
         prepareData() {}
@@ -320,8 +326,10 @@ export function buildDocumentClasses(ctx) {
             // of them on v14 is not measured (AUDIT §9), so the harness takes the
             // reading that proves less. Configure Ownership saves this way, and
             // anonymity.mjs guards it after the fact.
+            // An operator reaches the hook as an instance, not as the wire form
+            // `sanitize` made of it (lib/operators.mjs).
             const pre = context?.noHook ? undefined
-                : hooks.call(`preUpdate${this.documentName}`, this, U.expandObject(U.deepClone(changes)), opts(context), ctx.userId());
+                : hooks.call(`preUpdate${this.documentName}`, this, revive(U.expandObject(U.deepClone(changes))), opts(context), ctx.userId());
             if (pre === false) return this;
             if (this.parent) {
                 await this.parent._embeddedOp("update", this.documentName, [{ _id: this.id, ...changes }], context);
