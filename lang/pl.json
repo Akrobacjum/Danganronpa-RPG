@@ -276,6 +276,10 @@
         "name": "Zastąp licznik Fear z Daggerheart",
         "hint": "Ukrywa wspólny pasek Fear z Daggerheart i daje każdemu Monokumie własną pulę Despair. Wyłącz, by wrócić do licznika systemu."
       },
+      "enforceIsoWelcome": {
+        "name": "Trzymaj okno powitalne Isometric Perspective zamknięte u wszystkich",
+        "hint": "Isometric Perspective pokazuje okno powitalne przy każdym starcie, a to ustawienie każdej przeglądarki z osobna, więc wyłączenie go u siebie nic nie daje graczom. Włączone: okno nie otwiera się u nikogo, a graczom znika jego przełącznik z ustawień. Wyłączone: każda przeglądarka decyduje sama."
+      },
       "pixelFont": {
         "name": "Czcionka pikselowa",
         "hint": "Tylko Monokuma Legacy, tam domyślnie włączona: Press Start 2P na elementach interfejsu - HUD, Despair, imię postaci, etykiety statystyk, zakładki. Dzienniki, czat i pola edycji zachowują zwykły krój, by długi tekst dało się czytać. Motyw Stained Glass ma własne dwa kroje i to ignoruje."

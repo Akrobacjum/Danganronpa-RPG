@@ -79,6 +79,7 @@ import { registerNarrow } from "./narrow.mjs";
 import { registerA11y } from "./a11y.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
+import { registerEnforced } from "./enforced.mjs";
 import { requirementsMet, announceMissingRequirements, announceMissingRecommendations,
     announceNewerSystem, systemCompatibility } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
@@ -230,6 +231,14 @@ Hooks.once("init", () => {
 Hooks.once("setup", () => {
     if (!requirementsMet()) return;
     safely("the Actions resource", registerActionResource);
+    /*
+     * Other modules' client settings the table plays with (E27, enforced.mjs). At
+     * `setup` and nowhere later: every module has registered its settings in its own
+     * `init` by now, and Isometric Perspective reads `showWelcome` in its `ready` -
+     * a value written in this module's `ready` would arrive after the window had
+     * already opened, on the first start after an update.
+     */
+    safely("the table's held settings", registerEnforced);
     /*
      * What a critical pays (G-16). At `setup` rather than `init`, because it
      * patches `game.system.api.dice.DualityRoll` and the system builds that

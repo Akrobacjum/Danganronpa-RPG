@@ -295,17 +295,35 @@ class HandbookApp extends foundry.applications.api.ApplicationV2 {
  * body and interface are among them. By the two boxes rather than by
  * `offsetTop`, which is only relative to the text while nothing between them
  * is positioned.
+ *
+ * NO `href` (E27, 24.09.2026; audit S12-01, Dawid's "switching opens a new
+ * tab"). An entry used to be `<a href="#">` whose handler called only
+ * `preventDefault()`. Foundry listens for clicks on the whole document
+ * (`Game#_onClickHyperlink`), takes any `a[href]` it finds and opens it with
+ * `window.open(href, "_blank")` without asking whether the default was
+ * prevented - so every entry opened a second full Foundry client in a new tab,
+ * reproduced in the sandbox on 23.09. An entry is not navigation, so it has no
+ * address to follow; without one it is no longer a link the browser will focus
+ * or activate, so it says what it is (`role="link"`), takes the focus
+ * (`tabindex`) and answers Enter itself. The propagation stops too, so no other
+ * document-wide listener takes the click for something it is not.
  */
-function fillContents(toc, text) {
+export function fillContents(toc, text) {
     for (const heading of text.querySelectorAll("h2, h3")) {
         const link = document.createElement("a");
-        link.href = "#";
+        link.setAttribute("role", "link");
+        link.tabIndex = 0;
         link.className = `drpg-handbook-toc-${heading.tagName.toLowerCase()}`;
         link.textContent = heading.textContent;
-        link.addEventListener("click", event => {
+        const go = event => {
             event.preventDefault();
+            event.stopPropagation();
             const top = text.scrollTop + heading.getBoundingClientRect().top - text.getBoundingClientRect().top;
             text.scrollTop = top - 8;
+        };
+        link.addEventListener("click", go);
+        link.addEventListener("keydown", event => {
+            if (event.key === "Enter") go(event);
         });
         toc.append(link);
     }
