@@ -3,7 +3,8 @@
 `cluster.mjs` plays the Foundry server - the world store, the permission gate
 and the socket relay - and forks one jsdom client per user (`client-entry.mjs`):
 a GM and three players, `gm`, `p1`, `p2` and `p3`, and one for each account a
-scenario declares (`accounts`). Each client boots this
+scenario declares (`accounts`; 17-assistant adds an Assistant GM, `ag`, for five
+clients). Each client boots this
 checkout's module against a shim of Foundry v14 (`lib/shim.mjs`), and a scenario
 drives all of them. It is good enough for the rules, the sockets and the DOM. It
 is not a browser and it is not v14: what it cannot do is listed below, and each

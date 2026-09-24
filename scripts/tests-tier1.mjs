@@ -2959,6 +2959,38 @@ const INVARIANTS = [
         ok(crisisUndoRefusal(V, "survive", { ...survived, lastCrisis: { ...survived.lastCrisis, state: { ...taken, stage: "opening" } } }),
             "an action recorded outside the incident stage is taken back");
         ok(crisisUndoRefusal(V, "survive", { stage: "incident" }), "an undo with no receipt at all is taken");
+    }],
+
+    ["R153 - an Assistant's relay packet is judged like a player's", async () => {
+        /*
+         * E30, 24.09.2026. Only a full Gamemaster's request goes to Daggerheart's
+         * handler unjudged; an Assistant GM's is judged by the table a player's is.
+         * Daggerheart makes an Assistant's own changes on the Assistant's client, so
+         * none of its own comes over the relay. Asked of the module's own two
+         * functions, with made-up users and a made-up world; the relay with an
+         * Assistant at the table is 17-assistant's (C2, C3).
+         */
+        const { forwardsUnjudged, judgeRelay } = await import("./relay-guard.mjs");
+        const R = CONST.USER_ROLES;
+        const gamemaster = { id: "SUITEGM000000001", name: "Suite GM", role: R.GAMEMASTER, isGM: true };
+        const assistant = { id: "SUITEASSIST00001", name: "Suite Assistant", role: R.ASSISTANT, isGM: true };
+        const player = { id: "SUITEPLAYER00001", name: "Suite player", role: R.PLAYER, isGM: false };
+        equal(JSON.stringify([gamemaster, assistant, player].map(user => forwardsUnjudged(user))), JSON.stringify([true, false, false]),
+            "who goes to Daggerheart unjudged, of a Gamemaster, an Assistant and a player");
+
+        const docs = {
+            self: { documentName: "User", name: "Suite Assistant" },
+            mine: { documentName: "Actor", type: "character", name: "Mine", testUserPermission: () => true,
+                system: { resources: { hope: { value: 2, max: 6 } } } }
+        };
+        const world = { doc: uuid => docs[uuid] ?? null, now: () => 1e12 };
+        const verdict = (action, data) => judgeRelay({ action, data }, assistant, world).verdict;
+        equal(verdict("DhGMUpdate", { action: "DhGMUpdateDocument", uuid: "self", data: { role: 4 } }), "refuse",
+            "an Assistant's request to change a user");
+        equal(verdict("DhGMCreate", { documentType: "User", data: { name: "Suite user", role: 4 } }), "refuse",
+            "an Assistant's request to create a user");
+        equal(verdict("DhGMUpdate", { action: "DhGMUpdateDocument", uuid: "mine", data: { "system.resources.hope.value": 1 } }), "forward",
+            "an Assistant's request in a shape Daggerheart sends for a player");
     }]
 ];
 
