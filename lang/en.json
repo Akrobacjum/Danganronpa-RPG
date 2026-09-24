@@ -278,7 +278,7 @@
       },
       "enforceIsoWelcome": {
         "name": "Keep Isometric Perspective's welcome window closed for everyone",
-        "hint": "Isometric Perspective shows its welcome window on every start, and that is a setting of each browser, so turning it off for yourself does nothing for the players. On, the window stays closed on every client and the players' box for it disappears from their settings. Off leaves each browser to its own choice."
+        "hint": "Isometric Perspective shows its welcome window on every start, and that is a setting of each browser, so turning it off for yourself does nothing for the players. On, the window stays closed on every client and its box disappears from everyone's settings, the GM's included. Off stops holding it: the box comes back and each browser can switch the window on again. Only does anything with Isometric Perspective enabled."
       },
       "pixelFont": {
         "name": "Pixel font",

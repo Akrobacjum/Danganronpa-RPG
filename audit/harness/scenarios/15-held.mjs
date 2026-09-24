@@ -12,9 +12,16 @@ export async function run({ p1, p2, check, settle }) {
         const held = await client.eval(`
             const entry = game.settings.settings.get("isometric-perspective.showWelcome");
             return { value: game.settings.get("isometric-perspective", "showWelcome"),
+                     atReady: globalThis.__isoWelcomeAtReady,
                      config: entry?.config, registered: Boolean(entry) };
         `);
-        check(`${who}: the welcome setting is registered here, as Isometric Perspective does`, held.registered, JSON.stringify(held));
+        // A precondition of the harness, not a finding: it registers the setting itself.
+        check(`${who}: (harness) the welcome setting is registered, as Isometric Perspective does`, held.registered, JSON.stringify(held));
+        /* WHAT ISOMETRIC PERSPECTIVE SAW IN ITS OWN `ready` (the review of E27). A value
+           held only after that moment still reads false afterwards - and is the window
+           opening on the first start after the update. The harness stands in for that
+           module's `ready` and records what it read. */
+        check(`${who}: the welcome was already held when Isometric Perspective read it at ready`, held.atReady === false, JSON.stringify(held));
         check(`${who}: the welcome window is held closed after boot`, held.value === false, JSON.stringify(held));
         check(`${who}: the player's box for it is out of Configure Settings`, held.config === false, JSON.stringify(held));
     }

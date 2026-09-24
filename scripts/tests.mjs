@@ -6784,7 +6784,7 @@ const INVARIANTS = [
         ok(!strays.length, `the warning lists places that are not Daggerheart's: ${strays.join(", ")}`);
     }],
 
-    ["R127 - a handbook contents entry scrolls and is not a link anything can follow", async () => {
+    ["R127 - a handbook contents entry answers its click and is not a link anything can follow", async () => {
         /*
          * E27, 24.09.2026; audit S12-01 (high, reproduced live). An entry was
          * `<a href="#">` and its click handler only prevented the default. Foundry's
@@ -6816,7 +6816,12 @@ const INVARIANTS = [
             ok(!toc.querySelector("a[href]"), "a contents entry carries an address again - Foundry will open it in a new tab");
             ok(entries.every(e => e.getAttribute("role") === "link" && e.tabIndex === 0),
                 "a contents entry is not a focusable link to a screen reader or a keyboard");
-            entries[2].click();
+            // Handled, and kept here: the entry's own handler prevents the default,
+            // which is how this knows the click reached it (the stand-in above cannot
+            // hear it once propagation stops - that half is the `a[href]` question).
+            const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+            entries[2].dispatchEvent(click);
+            ok(click.defaultPrevented, "a click on a contents entry never reached its handler");
             const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
             entries[1].dispatchEvent(enter);
             ok(enter.defaultPrevented, "Enter on a contents entry does nothing");
@@ -6827,6 +6832,21 @@ const INVARIANTS = [
             toc.remove();
             text.remove();
         }
+    }],
+
+    ["R131 - a held setting of a module that is not here writes nothing", async () => {
+        /*
+         * E27, 24.09.2026; the review of E27. The stage's verify list asks that with
+         * Isometric Perspective off, the module writes nothing and hides nothing - and
+         * the harness has that module always on. Asked with a row for a module that is
+         * not installed at all, which is the same road (`entryOf` answers null): no row
+         * is held, and the purity check at the end of tier 1 says whether anything was
+         * written.
+         */
+        const { applyEnforced } = await import("./enforced.mjs");
+        const held = await applyEnforced([{ id: "suiteAbsent", module: "drpg-suite-absent-module",
+            key: "showWelcome", value: false, toggle: SETTINGS.enforceIsoWelcome }]);
+        equal(held.length, 0, "a row for a module that is not here was held");
     }],
 
     ["R112 - the curtain holds on a narrow desk, and the right column is wider", async () => {
@@ -13900,7 +13920,23 @@ const SCENARIOS = [
             await settle();
             equal(game.settings.get(row.module, row.key), !row.value,
                 "with the row switched off the value is still held");
+            /* A BOX THAT CANNOT BE HIDDEN STILL HOLDS ITS VALUE (the review of E27). A
+               registry entry whose `config` cannot be assigned threw, before the value
+               was written, and the welcome came back on. Asked of this module's own
+               probe setting, registered for the test, with `config` made read-only. */
+            const probeKey = "suiteHeldProbe";
+            game.settings.register(MODULE_ID, probeKey, { scope: "client", config: true, type: Boolean, default: true });
+            const probeEntry = game.settings.settings.get(`${MODULE_ID}.${probeKey}`);
+            Object.defineProperty(probeEntry, "config", { get: () => true, configurable: true });
+            await game.settings.set(MODULE_ID, SETTINGS.enforceIsoWelcome, true);
+            const heldProbe = await applyEnforced([{ id: "suiteProbe", module: MODULE_ID, key: probeKey,
+                value: false, toggle: SETTINGS.enforceIsoWelcome }]);
+            equal(heldProbe.join(), "suiteProbe", "a row whose box cannot be hidden was not held");
+            equal(game.settings.get(MODULE_ID, probeKey), false, "a box that could not be hidden kept its value from being written");
         } finally {
+            // The probe goes whatever happened above, so no later test meets it.
+            game.settings.settings.delete(`${MODULE_ID}.suiteHeldProbe`);
+            try { globalThis.localStorage?.removeItem(`${MODULE_ID}.suiteHeldProbe`); } catch { /* not stored here */ }
             await game.settings.set(row.module, row.key, valueBefore);
             await game.settings.set(MODULE_ID, SETTINGS.enforceIsoWelcome, switchBefore);
             await applyEnforced();

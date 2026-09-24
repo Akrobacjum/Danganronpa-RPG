@@ -257,6 +257,16 @@ const FOREIGN_SETTING_DEFAULTS = {
 settingDefs.set("isometric-perspective.showWelcome", {
     name: "Show Welcome Screen", scope: "client", config: true, type: Boolean, default: true
 });
+/* ...and READ the way that module does: once, in its `ready`, which is what decides
+   whether the window opens. Recorded so 15-held can ask what Isometric Perspective
+   would have seen at that moment - the stage's real risk is the value arriving after
+   it, which a reading taken later cannot tell apart (the review of E27 moved the
+   write into `ready` and every other check still passed). Registered here, before
+   the module is imported, as a module earlier in the load order would be. */
+hooks.once("ready", () => {
+    try { globalThis.__isoWelcomeAtReady = settingsApi.get("isometric-perspective", "showWelcome"); }
+    catch (err) { globalThis.__isoWelcomeAtReady = `unreadable: ${err.message}`; }
+});
 
 const settingsApi = {
     register(ns, key, def) { settingDefs.set(`${ns}.${key}`, def); },
