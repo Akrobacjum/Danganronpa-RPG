@@ -786,9 +786,7 @@ const INVARIANTS = [
             await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => r.text()));
 
         // One writer, so the two roads cannot part company.
-        const at = src.indexOf("async function reshapeTrace");
-        ok(at > 0, "reshapeTrace is gone, so the two reshape roads write separately again");
-        const body = src.slice(at, at + 1400);
+        const body = bodyOf(src, "async function reshapeTrace", { length: 1400 });
         ok(/type:\s*CLEANUP\.transformAction\?\.becomes/.test(body),
             "reshapeTrace no longer forces the type - something else decides it");
         ok(/setRemnantPublic/.test(body),
@@ -815,9 +813,7 @@ const INVARIANTS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => r.text()));
 
-        const at = src.indexOf("async function bodyDestinations");
-        ok(at > 0, "bodyDestinations is gone; the destination rules live in two places again");
-        const body = src.slice(at, at + 500);
+        const body = bodyOf(src, "async function bodyDestinations", { length: 500 });
         ok(/neighbouringRooms/.test(body),
             "a body can be dragged to a room that does not connect to this one");
         ok(/vaultOwnerOf/.test(body),
@@ -841,9 +837,7 @@ const INVARIANTS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/murder.mjs`).then(r => r.text()));
 
-        const at = src.indexOf("export function betrayalTarget");
-        ok(at > 0, "betrayalTarget is gone");
-        const body = src.slice(at, at + 2600);
+        const body = bodyOf(src, "export function betrayalTarget", { length: 2600 });
         // The offer lives in the cast (CASE-04), never on the actor: a flag is
         // world data every client receives.
         ok(/readCast\(\)\.betrayal/.test(body),
@@ -876,24 +870,21 @@ const INVARIANTS = [
 
         // Armed from the one state writer, so the six roads into a resolution
         // cannot each grow their own copy of the rule.
-        const ws = src.indexOf("async function writeState");
-        ok(ws > 0, "writeState is gone");
+
         // THE WHOLE FUNCTION, NOT A FIXED SLICE. This read 1200 characters, and
         // when LIVE-001 (1b) split the write into a cast half and a public half
         // the arming moved past that mark - `stripComments` keeps every
         // comment's length, so the note above the arming counts too. The suite
         // then reported the window "armed somewhere else" while it sat exactly
         // where it always had. A function ends at its own closing brace.
-        const writer = src.slice(ws, src.indexOf("\n}", ws) + 2);
+        const writer = bodyOf(src, "async function writeState", { until: "\n}" });
         ok(/armBetrayalWindow/.test(writer),
             "the window is armed somewhere other than the single state writer");
         ok(/before\.stage !== "resolution"/.test(writer),
             "the window is armed off the state rather than the transition, so it re-arms");
 
         // Single use, spent before the attempt rather than after it.
-        const bp = src.indexOf("export async function betrayAsPlayer");
-        ok(bp > 0, "betrayAsPlayer is gone");
-        ok(/clearBetrayalOffer\(\)/.test(src.slice(bp, bp + 1400)),
+        ok(/clearBetrayalOffer\(\)/.test(bodyOf(src, "export async function betrayAsPlayer", { length: 1400 })),
             "the offer is not spent when it is taken, so it can be taken twice");
     }],
 
@@ -908,9 +899,7 @@ const INVARIANTS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(r => r.text()));
 
-        const at = src.indexOf("function lockedInIncident");
-        ok(at > 0, "lockedInIncident is gone, so an incident is draggable out of");
-        const body = src.slice(at, at + 600);
+        const body = bodyOf(src, "function lockedInIncident", { length: 600 });
 
         /*
          * THE GUARANTEE IS THE SAME; THE ROAD TO IT MOVED (LIVE-001).
@@ -929,9 +918,7 @@ const INVARIANTS = [
             "the lock no longer asks who is in the incident");
         const settingsSrc = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/settings.mjs`).then(r => r.text()));
-        const fnAt = settingsSrc.indexOf("function incidentParticipants");
-        ok(fnAt > 0, "incidentParticipants is gone, so nothing can be held in place");
-        const fnBody = settingsSrc.slice(fnAt, fnAt + 400);
+        const fnBody = bodyOf(settingsSrc, "function incidentParticipants", { length: 400 });
         for (const who of ["killerId", "victimId", "thirdId"]) {
             ok(new RegExp(`cast\\.${who}`).test(fnBody),
                 `${who} is not in the participant list, so they can walk out of an incident`);
@@ -951,17 +938,13 @@ const INVARIANTS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => r.text()));
 
-        const at = src.indexOf("function witnessesTo");
-        ok(at > 0, "witnessesTo is gone, so accomplices count as witnesses again");
-        const body = src.slice(at, at + 400);
+        const body = bodyOf(src, "function witnessesTo", { length: 400 });
         ok(/isCleaner\(actor\)/.test(body),
             "the exemption is not limited to the killers, so an innocent gets it too");
         ok(/killerIds/.test(body),
             "the exemption reads its own list instead of the one the stage admits people by");
 
-        const conceal = src.indexOf("async function concealFromWitnesses");
-        ok(conceal > 0, "concealFromWitnesses is gone");
-        ok(/witnessesTo\(/.test(src.slice(conceal, conceal + 500)),
+        ok(/witnessesTo\(/.test(bodyOf(src, "async function concealFromWitnesses", { length: 500 })),
             "the Shadow roll still counts everybody in the room, accomplices included");
     }],
 
@@ -1513,8 +1496,7 @@ const INVARIANTS = [
         ok(promised.size, "no setting seems to promise a refresh - did onWorldChange move?");
 
         // Only the table, not the whole file: `SYNC.x` appears throughout.
-        const table = sync.split("const SETTING_KINDS")[1]?.split("};")[0] ?? "";
-        ok(table, "SETTING_KINDS is not where this test looks for it");
+        const table = bodyOf(sync, "const SETTING_KINDS", { until: "};" });
         const wired = new Set([...table.matchAll(/^\s*(\w+):\s*SYNC\./gm)].map(m => m[1]));
 
         const silent = [...promised].filter(key => !wired.has(key));
@@ -1881,8 +1863,7 @@ const INVARIANTS = [
 
         // Listen names only the rooms the listener has discovered.
         const listen = src("action-rolls.mjs");
-        const at = listen.indexOf("async function performListen");
-        const body = listen.slice(at, listen.indexOf("\n}", at));
+        const body = bodyOf(listen, "async function performListen", { until: "\n}" });
         ok(/roomsKnownToMe\(\)/.test(body) && /DRPG\.Listen\.unknownRoom/.test(body),
             "Listen names every neighbouring room again, discovered or not");
         ok(/<option value="\$\{i\}">/.test(body), "Listen's options carry room names in the page");
@@ -1996,8 +1977,7 @@ const INVARIANTS = [
             await settle();
         }
         const heading = src("tables.mjs");
-        const at = heading.indexOf("function wirePaneHeading(");
-        const body = heading.slice(at, heading.indexOf("\n}", at));
+        const body = bodyOf(heading, "function wirePaneHeading(", { until: "\n}" });
         ok(/const renameButton = pane\.querySelector/.test(body) && /const deleteButton = pane\.querySelector/.test(body),
             "the table heading's buttons are used where nothing looks them up");
 

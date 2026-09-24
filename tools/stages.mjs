@@ -33,6 +33,9 @@ import { execFileSync } from "node:child_process";
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..");
+/* The suite's own reading of a marker (scripts/tests-lint.mjs, which imports nothing, so
+   Node can load it): the suite and this tool cannot disagree about what a marker is. */
+const { redMarkers, blankComments, lineAt } = await import(url.pathToFileURL(path.join(REPO, "scripts", "tests-lint.mjs")).href);
 
 const VERSION_RE = /^\d+\.\d+\.\d+$/;
 const TOUCHES = ["sockets", "rolls", "scenes"];
@@ -106,19 +109,6 @@ export function redVerdict({ ok, measured, stage = null, label = "an expected re
  * What names a stage in the suite's source.
  * -------------------------------------------------------------------------- */
 
-/* Comments out, lines kept: a comment that quotes `expectedRed("E07", ...)` as an
-   example is not a marker, and a line number has to point at the code. The same
-   three rules as stripComments in tests-kit.mjs, which Node cannot import (the
-   kit imports settings.mjs, and that throws outside Foundry). */
-function withoutComments(text) {
-    return text
-        .replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "))
-        .replace(/^([ \t]*)\/\/.*$/gm, "$1")
-        .replace(/([^:\w])\/\/[^\n]*$/gm, "$1");
-}
-
-const lineAt = (text, index) => text.slice(0, index).split("\n").length;
-
 /**
  * Every `expectedRed(` in the tier files and every `until: "Exx"` in the kit
  * (DUMP_RULES), with where it is. A marker whose stage is not written out as a
@@ -129,14 +119,13 @@ export function stageMarkers(repoDir = REPO) {
     const out = [];
     const dir = path.join(repoDir, "scripts");
     for (const file of fs.readdirSync(dir).filter(f => /^tests-tier\d+\.mjs$/.test(f)).sort()) {
-        const code = withoutComments(fs.readFileSync(path.join(dir, file), "utf8"));
-        for (const m of code.matchAll(/\bexpectedRed\(\s*(?:(["'`])([^"'`\n]*)\1)?/g)) {
-            out.push({ file: `scripts/${file}`, line: lineAt(code, m.index), kind: "expectedRed", stage: m[1] ? m[2] : null });
+        for (const m of redMarkers(fs.readFileSync(path.join(dir, file), "utf8")).found) {
+            out.push({ file: `scripts/${file}`, line: m.line, kind: "expectedRed", stage: m.stage });
         }
     }
     const kit = path.join(dir, "tests-kit.mjs");
     if (fs.existsSync(kit)) {
-        const code = withoutComments(fs.readFileSync(kit, "utf8"));
+        const code = blankComments(fs.readFileSync(kit, "utf8"));
         for (const m of code.matchAll(/\buntil:\s*"(E\d\d)"/g)) {
             out.push({ file: "scripts/tests-kit.mjs", line: lineAt(code, m.index), kind: "until", stage: m[1] });
         }

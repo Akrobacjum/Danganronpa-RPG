@@ -10,9 +10,10 @@ import { SETTINGS } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
 import {
-    ok, needs, env, world, equal, wait, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
-    topLevelFunction, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
-    markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE
+    ok, needs, env, world, equal, must, wait, moduleSources, otherSources, stripComments, moduleStyles, bodyOf,
+    topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
+    markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
+    scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -268,22 +269,15 @@ const REGRESSIONS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(r => r.text()));
 
-        const from = src.indexOf("const GM_HANDLERS = {");
-        ok(from > 0, "GM_HANDLERS is not in gm-bridge.mjs any more");
-        const table = src.slice(from, src.indexOf("\n};", from));
+        const table = bodyOf(src, "const GM_HANDLERS = {", { until: "\n};" });
         const rows = [...table.matchAll(/\[(ACTION_\w+)\]: (\w+),/g)];
         ok(rows.length > 20,
             `only ${rows.length} socket handlers were found - has GM_HANDLERS been restructured?`);
         ok(src.includes("GM_HANDLERS[payload.action]"), "onSocket no longer dispatches through GM_HANDLERS");
 
         // The handler's body: from its declaration to the next top-level function.
-        const handlerBody = name => {
-            const at = src.search(new RegExp(`^async function ${name}\\(`, "m"));
-            if (at < 0) return null;
-            const after = src.slice(at + 10);
-            const next = after.search(/^(?:export )?(?:async )?function |^const \w+ = \{/m);
-            return next < 0 ? after : after.slice(0, next);
-        };
+        // One top-level function, to the next declaration or table (the kit's reader; null when absent).
+        const handlerBody = name => topLevelFunction(src, name);
 
         /*
          * WHAT COUNTS AS "ACTING ON SOMETHING FROM THE PACKET", WIDENED (E01, 24.09.2026;
@@ -327,7 +321,7 @@ const REGRESSIONS = [
             const whole = handlerBody(name);
             if (whole === null) { unguarded.push(`${action} (no ${name})`); continue; }
             // Past the declaration, whose own `(payload, senderId, ctx)` is not a hand-off.
-            const branch = whole.slice(whole.indexOf("\n"));
+            const branch = bodyOf(whole, "\n");
             const asked = withGuards(src, branch);
             undefinedGuards.push(...asked.missing.map(guard => `${name} asks ${guard}`));
             if (!IN_SCOPE.test(asked.body)) continue;
@@ -745,9 +739,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
-        const from = rolls.indexOf("export async function performAction");
-        ok(from > 0, "performAction is not where this test expects it");
-        const body = rolls.slice(from, rolls.indexOf("\n}\n", from));
+        const body = bodyOf(rolls, "export async function performAction", { until: "\n}\n" });
 
         const cases = new Set([...body.matchAll(/case\s+"(\w+)"/g)].map(m => m[1]));
         const noBranch = Object.keys(ACTIONS).filter(k => !cases.has(k));
@@ -1200,13 +1192,9 @@ const REGRESSIONS = [
         for (const [opener, file] of Object.entries(MUST_BE_LIVE)) {
             const text = stripComments(
                 await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text()));
-            const from = text.indexOf(`function ${opener}(`);
-            if (from < 0) { dead.push(`${opener} is not in ${file}.mjs any more`); continue; }
-
-            // Up to the next top-level function, which is where its body ends.
-            const rest = text.slice(from + 10);
-            const next = rest.search(/^(?:export )?(?:async )?function /m);
-            const body = next < 0 ? rest : rest.slice(0, next);
+            // Up to the next top-level declaration, which is where its body ends (null: none).
+            const body = topLevelFunction(text, opener);
+            if (body === null) { dead.push(`${opener} is not in ${file}.mjs any more`); continue; }
             /*
              * ONE HOP, because the GM panel does it through `keepPanelFresh` -
              * two regions on different clocks, which is worth its own function.
@@ -1215,11 +1203,7 @@ const REGRESSIONS = [
              * three would be hiding.
              */
             const helpers = [...text.matchAll(/function (\w+)\([^)]*\)\s*\{/g)]
-                .filter(m => {
-                    const rest = text.slice(m.index + m[0].length);
-                    const stop = rest.search(/^(?:export )?(?:async )?function /m);
-                    return (stop < 0 ? rest : rest.slice(0, stop)).includes("keepLive(");
-                })
+                .filter(m => topLevelFunction(text, m[1])?.includes("keepLive("))
                 .map(m => m[1]);
 
             const reaches = body.includes("keepLive(")
@@ -1502,9 +1486,10 @@ const REGRESSIONS = [
         for (const [file, raw] of await otherSources()) {
             const text = stripComments(raw);
             for (const m of text.matchAll(/Hooks\.on\(\s*"((?:create|update|delete)[A-Z]\w*)"/g)) {
+                // From the bracket the match opened to the one that closes it.
+                const from = m.index + "Hooks.on".length;
                 let depth = 0;
-                let j = text.indexOf("(", m.index);
-                const from = j;
+                let j = from;
                 for (; j < text.length; j++) {
                     if (text[j] === "(") depth++;
                     else if (text[j] === ")" && --depth === 0) break;
@@ -1591,11 +1576,7 @@ const REGRESSIONS = [
         const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
         ok(eclipse.length > 1000, "eclipse.mjs did not load");
 
-        const startAt = eclipse.indexOf("export async function startEclipse");
-        const endAt = eclipse.indexOf("export async function endEclipse");
-        ok(startAt >= 0 && endAt > startAt, "eclipse.mjs no longer opens and closes an Eclipse");
-
-        const opening = eclipse.slice(startAt, endAt);
+        const opening = bodyOf(eclipse, "export async function startEclipse", { until: "export async function endEclipse" });
         ok(/resetAllActions\s*\(/.test(opening),
             "the Eclipse no longer refills the action budget as it opens");
 
@@ -1656,11 +1637,7 @@ const REGRESSIONS = [
          * `adjustCritHopeTopUp` from here, because the reroll path below calls
          * it. What must not come back is this hook spending it.
          */
-        const hookAt = award.indexOf("async function onChatMessage");
-        ok(hookAt >= 0, "despair-award no longer has a chat-message hook to check");
-        const after = award.slice(hookAt + 10);
-        const nextFn = after.search(/^(?:export )?(?:async )?function /m);
-        const hookBody = nextFn < 0 ? after : after.slice(0, nextFn);
+        const hookBody = fnSource(award, "onChatMessage");
         ok(!/CritHope/.test(hookBody),
             "the chat-message hook is paying a critical's Hope again; the funnel in "
             + "critical.mjs already pays it in full, and both together hand out three");
@@ -1860,11 +1837,9 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const tokens = stripComments(sources.get("search-tokens.mjs") ?? "");
         const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
-        const from = tokens.indexOf("payload.action === ACTION_SPEND");
-        const to = tokens.indexOf("payload.action === ACTION_TAKE_PLANT");
-        ok(from > 0 && to > from, "the spend and plant socket branches are gone or reordered");
-        ok(!/takePlant/.test(tokens.slice(from, to)), "the token spend takes the plant out of the room again");
-        ok(/searchedBy\.get\(/.test(tokens.slice(to, to + 800)),
+        const spendBranch = bodyOf(tokens, "payload.action === ACTION_SPEND", { until: "payload.action === ACTION_TAKE_PLANT" });
+        ok(!/takePlant/.test(spendBranch), "the token spend takes the plant out of the room again");
+        ok(/searchedBy\.get\(/.test(bodyOf(tokens, "payload.action === ACTION_TAKE_PLANT", { length: 800 })),
             "a player can ask for a plant in a room they never spent a token in");
         const draw = bodyOf(rolls, "async function searchDraw(", { until: "async function performSearch(" });
         ok(draw.includes("SearchTokens.takePlant("), "the Search no longer asks for a plant");
@@ -1887,9 +1862,8 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
-        const at = eclipse.indexOf("export async function startEclipse");
-        const start = eclipse.slice(at, eclipse.indexOf("\nexport ", at + 10));
-        ok(at > 0 && /clearSeals\(\)/.test(start), "the Eclipse opens with the seals and restrictions still on");
+        const start = bodyOf(eclipse, "export async function startEclipse", { until: "\nexport " });
+        ok(/clearSeals\(\)/.test(start), "the Eclipse opens with the seals and restrictions still on");
         const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
         ok(!/setTimeOfDay\(/.test(panel), "Edit campaign runs the whole time-of-day boundary again");
     }],
@@ -1901,9 +1875,8 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const vault = stripComments(sources.get("vault.mjs") ?? "");
-        const at = vault.indexOf("export async function plantOnPerson");
-        const plant = vault.slice(at, vault.indexOf("\nexport ", at + 10));
-        ok(at > 0 && /def\.plant\?\.threshold/.test(plant) && /def\.plant\?\.unseen/.test(plant),
+        const plant = bodyOf(vault, "export async function plantOnPerson", { until: "\nexport " });
+        ok(/def\.plant\?\.threshold/.test(plant) && /def\.plant\?\.unseen/.test(plant),
             "a plant is judged against the steal thresholds again");
         const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
         ok(!/viaAction\s*&&\s*data\.sourceActor\s*!==\s*actor\.id/.test(cleanup),
@@ -1925,22 +1898,18 @@ const REGRESSIONS = [
          * both assertions were about an empty string.
          */
         const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
-        const at = cleanup.indexOf("async function concealFromWitnesses");
-        const conceal = cleanup.slice(at, cleanup.indexOf("\nasync function ", at + 10));
-        ok(at > 0 && /return "rolled";/.test(conceal) && !/return true;/.test(conceal),
+        const conceal = bodyOf(cleanup, "async function concealFromWitnesses", { until: "\nasync function " });
+        ok(/return "rolled";/.test(conceal) && !/return true;/.test(conceal),
             "concealFromWitnesses no longer tells its callers a concealment roll landed");
 
-        const from = cleanup.indexOf("async function releaseTamper");
-        ok(from > 0, "nothing releases a Tamper price when its window is closed");
         /*
          * Bounded by the next DECLARATION, not by a character count and not by a
          * comment: `stripComments` blanks a comment to spaces rather than deleting
          * it, so there is no "/**" left to look for - and 900 characters runs into
-         * `stageSixDef`, which asks `isCleaner` for its own good reasons.
+         * `stageSixDef`, which asks `isCleaner` for its own good reasons. The kit's
+         * fnSource reads it that way (E30).
          */
-        const rest = cleanup.slice(from + 10);
-        const next = rest.search(/\n(?:export |async function |function )/);
-        const release = rest.slice(0, next < 0 ? 900 : next);
+        const release = fnSource(cleanup, "releaseTamper");
         const kept = bodyOf(release, "if (rolled)", { until: "if (charge)" });
         ok(kept.length > 20 && !/refundPrice\(/.test(kept),
             "a closed window after a landed concealment roll hands the price back again");
@@ -2029,14 +1998,13 @@ const REGRESSIONS = [
          */
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(r => r.text()));
-        const start = src.indexOf("export async function performAction");
-        ok(start > 0, "performAction is no longer where this test looks for it");
-        const body = src.slice(start, src.indexOf("const def =", start) + 40);
+        const body = bodyOf(src, "export async function performAction", { until: "\n}\n" });
 
         const gate = body.indexOf('"classTrial"');
         const fight = body.indexOf("DRPG.Murder.actionsLocked");
         const dead = body.indexOf("DRPG.Chapter.deadCannotAct");
         const dispatch = body.indexOf("const def =");
+        must(dispatch > 0, "performAction no longer looks its action up as `const def =` - the order below has no end to measure to");
         ok(gate > 0, "performAction no longer refuses anything during a Class Trial");
         ok(/actionKey !== "analyze" && getClock\(\)\.phase === "classTrial"/.test(body),
             "the trial gate no longer keeps Analyze open, which is the one tile it must");
@@ -2163,9 +2131,7 @@ const REGRESSIONS = [
          * "nobody to aim at" note or no fieldset at all, so there is no select for
          * Enter to come from.
          */
-        const at = dialog.indexOf("buttons: (offerPresent ? [");
-        ok(at > 0, "the buttons array changed shape: the offerPresent branch is gone");
-        const firstButton = dialog.slice(at, dialog.indexOf("}", at));
+        const firstButton = bodyOf(dialog, "buttons: (offerPresent ? [", { until: "}" });
         ok(!/disabled:/.test(firstButton),
             "the free Present is disabled, which kills Enter from the target select");
         ok(/default: true/.test(firstButton),
@@ -2253,8 +2219,7 @@ const REGRESSIONS = [
             "a closed roll window keeps the price it never rolled for");
 
         for (const road of ["analyseBullet", "askForHint", "locateStash"]) {
-            const slice = bodyOf(src, `async function ${road}`);
-            const body = slice.slice(0, slice.indexOf("\nasync function ", 10) + 1 || undefined);
+            const body = fnSource(src, road);
             ok(body.includes("refundPrice("),
                 `${road} cannot hand the price back when the road turns out to be empty`);
         }
@@ -2297,9 +2262,7 @@ const REGRESSIONS = [
         const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
 
         for (const fn of ["attemptCleanup", "attemptStageSix"]) {
-            const at = cleanup.indexOf(`export async function ${fn}`);
-            ok(at > 0, `${fn} has moved`);
-            const body = cleanup.slice(at, cleanup.indexOf("\nexport ", at + 10));
+            const body = bodyOf(cleanup, `export async function ${fn}`, { until: "\nexport " });
             const conceal = body.indexOf("concealFromWitnesses(");
             const charge = body.indexOf("chargeTamper(");
             const dice = body.indexOf("rollTrait(");
@@ -2315,8 +2278,8 @@ const REGRESSIONS = [
 
         // Every GM-side charge is the no-claim fallback, and the only other writer
         // of the Sanity track in a refund path is `handBack`.
-        for (const at of [...cleanup.matchAll(/await spendStress\(actor\)/g)].map(m => m.index)) {
-            const before = cleanup.slice(Math.max(0, at - 260), at);
+        for (const spent of [...cleanup.matchAll(/await spendStress\(actor\)/g)].map(m => m.index)) {
+            const before = cleanup.slice(Math.max(0, spent - 260), spent);
             ok(/validPrice\(|!paidStep|for \(let i = 0/.test(before),
                 "a GM-side Sanity charge is back that no missing price claim explains");
         }
@@ -2431,8 +2394,8 @@ const REGRESSIONS = [
         // A looted trace is usually already revealed, so `revealSourceOf` returns
         // before it reconciles the new copy: the loot mint reads the ledger itself.
         const handover = stripComments(sources.get("handover.mjs") ?? "");
-        const loot = bodyOf(handover, "async function mintLootBullet(");
-        ok(/analyzedText/.test(loot.slice(0, loot.indexOf("\n}") + 1)),
+        const loot = bodyOf(handover, "async function mintLootBullet(", { until: "\n}" });
+        ok(/analyzedText/.test(loot),
             "a bullet taken off a body is born with nothing to say when it is analysed");
     }],
 
@@ -2526,8 +2489,10 @@ const REGRESSIONS = [
              * behind its own comment, and a blanked comment still takes up its
              * lines, so counting lines was never going to find it.
              */
-            const opened = lines.slice(0, i + 1).join("\n").lastIndexOf("{");
-            const rule = lines.slice(0, i + 1).join("\n").slice(Math.max(0, opened - 200), opened);
+            // The selector of the rule this declaration sits in: the text between the
+            // "{" that opened the rule and the brace before it (a match, not a cut).
+            const upTo = `${lines.slice(0, i).join("\n")}\n${line.slice(0, at.index)}`;
+            const rule = upTo.match(/([^{}]*)\{[^{}]*$/)?.[1] ?? "";
             if (rule.includes('.application.sheet:not([class*="drpg-"])')) return;
             bare.push(`danganronpa.css:${i + 1}`);
         });
@@ -2542,8 +2507,7 @@ const REGRESSIONS = [
         const utils = stripComments(new Map(await otherSources()).get("utils.mjs") ?? "");
         // To the function's own end, not a fixed count: comments are blanked, not
         // removed, so a longer note inside it pushed the line past a 2000-character cut.
-        const fitAt = utils.indexOf("function windowWidthFor");
-        const fit = utils.slice(fitAt, utils.indexOf("\n}", fitAt) + 2);
+        const fit = bodyOf(utils, "function windowWidthFor", { until: "\n}" });
         ok(fit.includes("--drpg-window-max"),
             "the measured-window fit no longer reads the cap out of the stylesheet");
         ok(!/viewport - here/.test(fit),
@@ -2654,9 +2618,7 @@ const REGRESSIONS = [
          */
         const hud = stripComments(new Map(await otherSources()).get("hud.mjs") ?? "");
         ok(hud.length > 1000, "hud.mjs did not load");
-        const at = hud.indexOf("function control(");
-        ok(at > 0, "hud.mjs no longer builds its clock controls in one place");
-        const body = hud.slice(at);
+        const body = bodyOf(hud, "function control(");
 
         const born = body.indexOf("controlsBusy()");
         const listener = body.indexOf("addEventListener");
@@ -2667,7 +2629,7 @@ const REGRESSIONS = [
         ok(guard > listener && guard < awaited,
             "the clock's controls no longer refuse a second press before running the first");
 
-        const caught = body.slice(body.indexOf("catch", awaited), body.indexOf("finally", awaited));
+        const caught = bodyOf(bodyOf(body, "await handler()"), "catch", { until: "finally" });
         ok(/\berror\(/.test(caught) && /ui\.notifications\.error\(/.test(caught),
             "a clock control that throws is silent again");
 
@@ -2760,7 +2722,7 @@ const REGRESSIONS = [
         ok(picker.length > 300, "wirePortraitPickers is gone or has moved past panelTabs");
         const cb = picker.indexOf("callback:");
         ok(cb > 0, "wirePortraitPickers no longer hands the FilePicker a callback");
-        ok(picker.slice(cb).includes("querySelector"),
+        ok(bodyOf(picker, "callback:").includes("querySelector"),
             "the picker's callback writes to the nodes it captured before the picker opened; a "
             + "live window has replaced both by the time somebody chooses a file");
         const insync = picker.indexOf('getAttribute("src")');
@@ -2956,9 +2918,7 @@ const REGRESSIONS = [
         const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
         const css = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "));
 
-        const at = css.indexOf("body.drpg-theme-monokuma-legacy {");
-        ok(at > 0, "Monokuma Legacy no longer states a ladder of its own");
-        const block = css.slice(at, css.indexOf("}", at));
+        const block = bodyOf(css, "body.drpg-theme-monokuma-legacy {", { until: "}" });
         ok(block.includes("--font-size-8:"), "the ladder block is not the one that states the rungs");
 
         const WANT = [8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 28, 30, 32, 36, 40, 48, 64, 80];
@@ -2983,7 +2943,8 @@ const REGRESSIONS = [
             }
         }
 
-        const root = css.slice(css.indexOf("--drpg-text-xs:"), css.indexOf("--drpg-text-xl:") + 120);
+        // The declaration block the rungs are stated in, from the first of them to its end.
+        const root = bodyOf(css, "--drpg-text-xs:", { until: "}" });
         for (const rung of ["xs", "sm", "md", "base", "lg", "xl"]) {
             const line = root.match(new RegExp(`--drpg-text-${rung}:([^;]+);`));
             ok(line && line[1].includes("var(--drpg-legacy-scale"),
@@ -3117,9 +3078,7 @@ const REGRESSIONS = [
         const live = stripComments(sources.get("live.mjs") ?? "");
         const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
 
-        const at = live.indexOf("export function handOff");
-        ok(at > 0, "handOff is gone from live.mjs, so every round trip is hand-rolled again");
-        const body = live.slice(at, live.indexOf("\nexport ", at + 10));
+        const body = bodyOf(live, "export function handOff", { until: "\nexport " });
         ok(body.length > 100, "handOff's body could not be read");
         ok(!/\bawait\b/.test(body),
             "handOff awaits the close, so the opener's promise resolves before the round "
@@ -3157,9 +3116,7 @@ const REGRESSIONS = [
          * window is built out of several of the module's settings.
          */
         const panel = stripComments(new Map(await otherSources()).get("gm-panel.mjs") ?? "");
-        const at = panel.indexOf("export async function applyAliveStates");
-        ok(at > 0, "applyAliveStates is gone, so the apply loop is back inside the window");
-        const body = panel.slice(at, panel.indexOf("\nasync function", at + 10));
+        const body = bodyOf(panel, "export async function applyAliveStates", { until: "\nasync function" });
         ok(/Object\.entries\(chosen\)/.test(body),
             "the apply loop is driven by something other than the answer it was given");
         ok(!/\bstudents\b/.test(body),
@@ -3386,9 +3343,7 @@ const REGRESSIONS = [
          * does.
          */
         const tables = stripComments(new Map(await otherSources()).get("tables.mjs") ?? "");
-        const at = tables.indexOf("export function classifyTableName");
-        ok(at > 0, "classifyTableName is gone, so a created pool is filed by guesswork");
-        const body = tables.slice(at, tables.indexOf("\nexport ", at + 10));
+        const body = bodyOf(tables, "export function classifyTableName", { until: "\nexport " });
         ok(/ITEM_TIERS\.includes\(tier\)/.test(body),
             "the tier is unbounded, so \"DRPG Tools - Tier 9\" would be recognised as a tier "
             + "nothing draws from");
@@ -3406,10 +3361,7 @@ const REGRESSIONS = [
            reported the fix gone beside a fix that had been carried over intact. */
         ok(/typeof action\.newPool === "string"\) \{\s*await createPoolFrom\(action\)/.test(tables),
             "the create button no longer reaches createPoolFrom");
-        const from = tables.indexOf("async function createPoolFrom(");
-        ok(from > 0, "createPoolFrom is gone - the create path has moved again");
-        const end = tables.slice(from).search(/\r?\n\}\r?\n/);
-        const create = tables.slice(from, from + (end > 0 ? end : 4000));
+        const create = bodyOf(tables, "async function createPoolFrom(", { until: "\n}\n" });
         ok(/const known = classifyTableName\(name\)/.test(create),
             "the create path does not read the name back, so both tabs write the same flags");
         ok(/roomPool: true/.test(create),
@@ -3429,9 +3381,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const live = stripComments(sources.get("live.mjs") ?? "");
-        const at = live.indexOf("export async function reopen");
-        ok(at > 0, "reopen is gone from live.mjs");
-        const body = live.slice(at, live.indexOf("\nexport ", at + 10));
+        const body = bodyOf(live, "export async function reopen", { until: "\nexport " });
         ok(/await app\.close\(\{ animate: false \}\)/.test(body),
             "reopen does not wait for the old copy to go, or it waits on a transition that "
             + "may never come");
@@ -3632,9 +3582,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const music = stripComments(sources.get("music.mjs") ?? "");
-        const at = music.indexOf("export function nowPlayingHere");
-        ok(at > 0, "nothing reads what this client is playing");
-        const body = music.slice(at, music.indexOf("\n}", at) + 2);
+        const body = bodyOf(music, "export function nowPlayingHere", { until: "\n}" });
         ok(/sound\.sound\?\.playing/.test(body),
             "the reader asks the document what is playing instead of this browser");
         ok(!/playlist\.playing/.test(body),
@@ -3892,8 +3840,9 @@ const REGRESSIONS = [
             "a request nobody was there to take is still reported as sent");
 
         const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
-        const proposal = rolls.slice(rolls.indexOf("DRPG.Project.proposalTitle") - 400,
-            rolls.indexOf("DRPG.Project.proposalSent"));
+        // The 400 characters before the proposal's title and everything from it to the "sent" line.
+        const proposal = bodyOf(rolls, "DRPG.Project.proposalTitle", { back: 400 })
+            + bodyOf(rolls, "DRPG.Project.proposalTitle", { until: "DRPG.Project.proposalSent" });
         ok(/const sent = await promptAndCallGm\(/.test(proposal),
             "the proposal does not read the answer");
         ok(/if \(sent === null\) return null;/.test(proposal),
@@ -4149,9 +4098,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const inv = stripComments(sources.get("investigation.mjs") ?? "");
-        const start = inv.indexOf("export async function openNewTrace");
-        ok(start > 0, "the case panel cannot place a trace by hand any more");
-        const body = inv.slice(start, inv.indexOf("export", start + 40));
+        const body = bodyOf(inv, "export async function openNewTrace", { until: "export" });
         ok(body.length > 400, "openNewTrace has moved or been hollowed out");
 
         ok(/if \(!game\.user\.isGM\)/.test(body.slice(0, 400)),
@@ -4403,9 +4350,7 @@ const REGRESSIONS = [
          * `game.drpg` road, sold the same Call without a word. Review of stage D.
          */
         const src = stripComments(new Map(await otherSources()).get("calls.mjs") ?? "");
-        const at = src.indexOf("export async function callBarred(");
-        const body = src.slice(at, src.indexOf("\n}", at));
-        ok(at > 0, "callBarred has moved or gone");
+        const body = bodyOf(src, "export async function callBarred(", { until: "\n}" });
         const despair = body.indexOf("if (despair)"), silence = body.indexOf("overflowBlocksCalls()");
         ok(despair > 0 && silence > despair,
             "the Silence is asked before the Despair branch returns, so it bars a Monokuma's Calls");
@@ -4418,9 +4363,7 @@ const REGRESSIONS = [
          * the map on the primary GM's screen, not the assembly's. Review of stage D.
          */
         const src = stripComments(new Map(await otherSources()).get("call-effects.mjs") ?? "");
-        const at = src.indexOf("async function fallbackGather(");
-        ok(at > 0, "the fallback placement has moved or gone");
-        const body = src.slice(at, src.indexOf("\n}", at));
+        const body = bodyOf(src, "async function fallbackGather(", { until: "\n}" });
         ok(/async function fallbackGather\(scene,/.test(body), "the fallback is not handed a scene");
         ok(!/canvas\.scene|canvas\.grid/.test(body),
             "the fallback reads the scene on this GM's screen instead of the assembly's");
@@ -4472,9 +4415,7 @@ const REGRESSIONS = [
          * is not there.
          */
         const src = stripComments(new Map(await otherSources()).get("remnant-ring.mjs") ?? "");
-        const at = src.indexOf("function gmRemnantCard(");
-        ok(at > 0, "gmRemnantCard has moved or gone");
-        const body = src.slice(at, src.indexOf("\nfunction ", at + 20));
+        const body = bodyOf(src, "function gmRemnantCard(", { until: "\nfunction " });
         const declared = body.search(/\bconst pub\s*=/);
         const firstRead = body.search(/\bpub\./);
         ok(firstRead < 0 || (declared >= 0 && declared < firstRead),
@@ -4495,9 +4436,7 @@ const REGRESSIONS = [
          * window element itself.
          */
         const src = stripComments(new Map(await otherSources()).get("motion.mjs") ?? "");
-        const at = src.indexOf("function animateWindowIn(");
-        ok(at > 0, "animateWindowIn has moved or gone");
-        const fn = src.slice(at, src.indexOf("\nfunction ", at + 20));
+        const fn = bodyOf(src, "function animateWindowIn(", { until: "\nfunction " });
         const glass = bodyOf(fn, "if (glassOn())", { until: "return;" });
         ok(glass.length > 40, "the entrance no longer has a glass branch");
         const onWindow = bodyOf(glass, "play(el,", { until: "ARRIVE())" });
@@ -4527,9 +4466,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const map = stripComments(sources.get("projects-map.mjs") ?? "");
-        const at = map.indexOf("function showProjectCard(");
-        ok(at > 0, "the project token's card is gone");
-        const show = map.slice(at, map.indexOf("\nfunction ", at + 20));
+        const show = bodyOf(map, "function showProjectCard(", { until: "\nfunction " });
         ok(/const token = actor\.isToken \? actor\.token : null/.test(show),
             "the card takes its project from somewhere other than the token it was opened from");
         ok(!/getActiveTokens/.test(show),
@@ -4737,7 +4674,7 @@ const REGRESSIONS = [
             // that is escaped whole before it is printed (vault.mjs, gm-items.mjs) is
             // text, not markup, and was the first run's two false alarms.
             for (const m of text.matchAll(/T\$\{tier\}/g)) {
-                const line = text.slice(text.lastIndexOf("\n", m.index) + 1, text.indexOf("\n", m.index));
+                const line = lineAround(text, m.index);
                 if (/</.test(line)) bad.push(`${file}:${lineAt(text, m.index)} ${m[0]}`);
             }
             for (const m of text.matchAll(/drpg-role-\$\{(?!classSafe\()/g)) bad.push(`${file}:${lineAt(text, m.index)} ${m[0]}`);
@@ -4752,7 +4689,7 @@ const REGRESSIONS = [
              * is not markup, which is why the line has to be building some.
              */
             for (const m of text.matchAll(/\$\{\s*(?:game\.i18n|i18n)\.format\(/g)) {
-                const line = text.slice(text.lastIndexOf("\n", m.index) + 1, text.indexOf("\n", m.index));
+                const line = lineAround(text, m.index);
                 if (!/</.test(line)) continue;
                 let depth = 1, end = m.index + m[0].length;
                 while (end < text.length && depth) {
@@ -5047,6 +4984,75 @@ const REGRESSIONS = [
         }
         const stale = entries.filter(e => e.red).map(e => [e, markerProblem(e.red, ledger)]).filter(([, problem]) => problem);
         ok(!stale.length, `${stale.length} red marker(s) to take off or move: ${stale.map(([e, problem]) => `tier ${e.tier} "${e.name}": ${problem}`).join("; ")}`);
+    }],
+
+    ["R156 - no test cuts the source it reads with a bare indexOf", async () => {
+        /*
+         * E30, 24.09.2026; audit S17-03. `src.slice(src.indexOf(marker))` answers -1
+         * for a marker that has moved, a slice from -1 is the last character, and
+         * every NEGATIVE assertion after it passes whatever the file now says; a
+         * guarded start with a bare indexOf END runs to the end of the file, so a
+         * positive one can match code in another function. `split(marker)[1]` does
+         * the same with an empty string. Counted before E30 converted them, with the
+         * detector below: 62 in the tier files (48 in tier 0; 12 in tier 1, one of
+         * them a split; 2 in tier 2), guarded or not - a guard is still a hand-made
+         * cut with its own end. Cut with the kit: bodyOf, fnSource, lineAround.
+         *
+         * bareCuts is tests-lint.mjs's, the one `node tools/check.mjs contract` runs
+         * in Node. It is shown its fixture first and must flag exactly the fixture's
+         * five cuts, and then it must read every tier file - every test the runner
+         * was handed, and the suite's slice and split calls: 124 before the
+         * conversion, 62 after it (24.09) - or a clean result means nothing.
+         */
+        const fx = LINT_FIXTURES.bareCuts;
+        equal(JSON.stringify(bareCuts(fx.text).found.map(f => f.line).sort((a, b) => a - b)), JSON.stringify(fx.flags),
+            "the cut detector does not flag exactly the cuts in its own fixture");
+        const scan = await scanSuite(bareCuts);
+        equal(scan.files.join(" "), "tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files");
+        equal(scan.tests, suiteEntries().length, "the scan finds a different number of tests in the tier files than the runner was handed");
+        ok(scan.read > 40, `the scan read ${scan.read} slice and split calls in the tier files, and there were 62`);
+        ok(!scan.found.length, `cut with bodyOf, fnSource or lineAround instead: ${scan.found.join("; ")}`);
+    }],
+
+    ["R157 - no assertion is true by construction", async () => {
+        /*
+         * E30, 24.09.2026; audit S17-03. `ok(true, ...)`, a `|| true` at the top of a
+         * condition, `equal(x, x, ...)`: each counts as a measurement and cannot
+         * fail, which is the assertion counter's blind spot - it counts that an
+         * assertion ran, not that it could have come out the other way. There were
+         * none in the tier files when this was written (read 24.09: 1,896 ok, equal
+         * and needs calls); the harness scenarios had two `check(name, true)`, which
+         * E30 took out, and `node tools/check.mjs contract` holds them to the same
+         * rule. equal() with a literal on ONE side still compares, and is not
+         * flagged. Fixture first, as in R156.
+         */
+        const fx = LINT_FIXTURES.vacuousAsserts;
+        equal(JSON.stringify(vacuousAsserts(fx.text).found.map(f => f.line).sort((a, b) => a - b)), JSON.stringify(fx.flags),
+            "the vacuous-assertion detector does not flag exactly its fixture's seven");
+        const scan = await scanSuite(vacuousAsserts);
+        equal(scan.files.join(" "), "tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files");
+        equal(scan.tests, suiteEntries().length, "the scan finds a different number of tests in the tier files than the runner was handed");
+        ok(scan.read > 1000, `the scan read ${scan.read} assertions, and the suite has well over a thousand`);
+        ok(!scan.found.length, `an assertion that holds whatever the code does: ${scan.found.join("; ")}`);
+    }],
+
+    ["R158 - needs() is asked only of a probe", async () => {
+        /*
+         * E30, 24.09.2026; audit S17-03. The kit refuses anything but an env.* or
+         * world.* probe at run time (needs(), tests-kit.mjs), and that is the
+         * guarantee - but only on the day the line runs, and a tier-2 skip is not run
+         * in a tier-0 pass. This is the early signal: the first argument of every
+         * needs( in the tier files is a call of env.* or world.*, read off the text
+         * (66 calls on 24.09). Fixture first, as in R156.
+         */
+        const fx = LINT_FIXTURES.needsArgs;
+        equal(JSON.stringify(needsArgs(fx.text).found.map(f => f.line).sort((a, b) => a - b)), JSON.stringify(fx.flags),
+            "the needs() detector does not flag exactly its fixture's three");
+        const scan = await scanSuite(needsArgs);
+        equal(scan.files.join(" "), "tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files");
+        equal(scan.tests, suiteEntries().length, "the scan finds a different number of tests in the tier files than the runner was handed");
+        ok(scan.read > 50, `the scan read ${scan.read} needs() calls, and the suite has over fifty`);
+        ok(!scan.found.length, `a skip asked of something that is not a probe: ${scan.found.join("; ")}`);
     }]
 ];
 

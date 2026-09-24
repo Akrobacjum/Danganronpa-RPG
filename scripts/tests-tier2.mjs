@@ -13,7 +13,7 @@ import { applyNarrowLayout, narrowLayout } from "./narrow.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { voiceTargets } from "./voice.mjs";
 import {
-    ok, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf,
+    ok, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, cast
 } from "./tests-kit.mjs";
 
@@ -3522,11 +3522,7 @@ const SCENARIOS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/events.mjs`).then(r => r.text()));
 
-        const at = src.indexOf("function incidentCard");
-        ok(at > 0, "incidentCard is gone from events.mjs");
-        const rest = src.slice(at + 10);
-        const next = rest.search(/^(?:export )?(?:async )?function /m);
-        const body = rest.slice(0, next < 0 ? rest.length : next);
+        const body = fnSource(src, "incidentCard");
 
         ok(/incidentCast\(\)/.test(body),
             "the incident card no longer merges the cast, so every id it reads is "

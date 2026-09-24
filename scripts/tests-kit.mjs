@@ -14,6 +14,10 @@ import { MODULE_ID, FLAGS } from "./config.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { narrowScreen } from "./settings.mjs";
 import { allVaults } from "./vault.mjs";
+import {
+    stripComments, lineAt, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    FIXTURES as LINT_FIXTURES
+} from "./tests-lint.mjs";
 
 /* ==========================================================================
  * HARNESS
@@ -570,37 +574,45 @@ async function moduleSources() {
     return out;
 }
 
+/** Whether a file is one of the suite's own: tests.mjs and every tests-*.mjs. */
+const isSuiteFile = file => /^tests(-[\w-]+)?\.mjs$/.test(file);
+
 /** The same, minus the suite's own files - tests.mjs and every tests-*.mjs quote each pattern they hunt for. */
 async function otherSources() {
     const all = await moduleSources();
-    return [...all].filter(([file]) => !/^tests(-[\w-]+)?\.mjs$/.test(file));
+    return [...all].filter(([file]) => !isSuiteFile(file));
 }
 
 /**
- * Source with its comments taken out.
- *
- * LEARNED IN E22, AT THE COST OF A FALSE PASS AND A FALSE FAIL. A test that
- * read its own module found the broken CSS *quoted in the comment above the
- * fix* and reported the fix as missing. Anything that greps this module for
- * evidence has to look at the code, because the comments here are long and full
- * of the exact strings the code is not supposed to contain any more.
+ * The tier files - the suite's own files that hold its tests, what the contract's
+ * static checks read (R155-R158). Not the kit, the runner or tests-lint.mjs: those
+ * are where the cutters, the detectors and their deliberate violations live.
  */
-function stripComments(text) {
-    // NEWLINES SURVIVE, and the first run is why. Collapsing a block comment to
-    // one space shortens the file by every line it spanned, so every `file:line`
-    // this tier reported pointed at innocent code - `movement.mjs:629`, which is
-    // a variable declaration, for a call that lives two hundred lines further
-    // down. A failure message nobody can follow is worse than no message.
-    return text
-        .replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "))
-        .replace(/^([ \t]*)\/\/.*$/gm, "$1")
-        // AND THE ONE THAT SITS AFTER CODE. R22 read `// safely() may retry`
-        // as a call to a function nobody declared, and `// strip accents (ą…)`
-        // as another. The character in front has to be neither `:` nor a word
-        // character, which is what keeps `https://` and every other protocol
-        // out of it.
-        .replace(/([^:\w])\/\/[^\n]*$/gm, "$1");
+async function suiteSources() {
+    const all = await moduleSources();
+    return [...all].filter(([file]) => isSuiteFile(file) && /^tests-tier\d+\.mjs$/.test(file));
 }
+
+/**
+ * One of tests-lint.mjs's detectors over every tier file, for the meta-tests
+ * (R156-R158): which files it read, how many tests they hold, how many calls it
+ * looked at, and what it found, as `file:line what`.
+ */
+async function scanSuite(detector) {
+    const files = await suiteSources();
+    let tests = 0, read = 0;
+    const found = [];
+    for (const [file, text] of files) {
+        tests += testsIn(text).length;
+        const r = detector(text);
+        read += r.read;
+        found.push(...r.found.map(f => `${file}:${f.line} ${f.what}`));
+    }
+    return { files: files.map(([file]) => file).sort(), tests, read, found };
+}
+
+/* stripComments and lineAt live in tests-lint.mjs, which the Node check reads
+   too, and reach the tiers from here (E30). */
 
 /** Every stylesheet in module.json, concatenated, comments removed. */
 async function moduleStyles() {
@@ -628,14 +640,21 @@ async function moduleStyles() {
  *   `until`  - the body ends where this next appears AFTER the marker (the old
  *              `src.indexOf(until)` searched from the top of the file, so an `until`
  *              that also appears earlier gave an empty body - a second quiet pass);
- *   `length` - the body is this many characters from the marker.
+ *   `length` - the body is this many characters from the marker;
+ *   `back`   - the body is the text BEFORE the marker, this many characters of it
+ *              (E30: what a line is guarded by, read upwards from the line).
  *
- * Either way the body must reach past the marker itself, or there is nothing to read.
+ * The body must reach past the marker itself, or there is nothing to read.
  */
-function bodyOf(src, marker, { until = null, length = null } = {}) {
+function bodyOf(src, marker, { until = null, length = null, back = null } = {}) {
     const text = String(src ?? "");
     const at = text.indexOf(marker);
     must(at >= 0, `the source no longer has "${String(marker).slice(0, 60)}" - this test reads nothing until it is pointed at the code again`);
+    if (back !== null) {
+        const before = text.slice(Math.max(0, at - back), at);
+        must(before.trim().length > 0, `nothing stands before "${String(marker).slice(0, 60)}" in the source`);
+        return before;
+    }
     let end = text.length;
     if (until !== null) {
         end = text.indexOf(until, at + String(marker).length);
@@ -662,6 +681,31 @@ function topLevelFunction(src, name) {
     if (line < 0) return text.slice(at);
     const next = text.slice(line).search(/^(?:export )?(?:async )?function |^const \w+ = \{/m);
     return text.slice(at, next < 0 ? text.length : line + next);
+}
+
+/**
+ * The same, or a precondition that fails when `src` declares no top-level function
+ * of that name (E30). "The rest of the function" was cut by hand in a dozen tests -
+ * a slice from the name to wherever a `search` for the next declaration landed,
+ * each with its own end - and a renamed function then read as an empty one.
+ */
+function fnSource(src, name) {
+    const body = topLevelFunction(src, name);
+    must(body !== null, `the source no longer declares a top-level function ${name}() - this test reads nothing until it is pointed at the code again`);
+    return body;
+}
+
+/**
+ * The line of `text` that position `i` is on, without its line break (E30). The
+ * hand-made version, `text.slice(text.lastIndexOf("\n", i) + 1, text.indexOf("\n", i))`,
+ * dropped the last character of a file's last line and read the next line when `i`
+ * stood on a line break.
+ */
+function lineAround(text, i) {
+    const s = String(text ?? "");
+    must(Number.isInteger(i) && i >= 0 && i < s.length, `lineAround was handed ${i}, which is not a position in the text`);
+    const end = s.indexOf("\n", i);
+    return s.slice(s.lastIndexOf("\n", i - 1) + 1, end < 0 ? s.length : end);
 }
 
 /**
@@ -695,8 +739,6 @@ function withGuards(src, body) {
     return { body: read, guards, missing };
 }
 
-/** Line number of an index, for a failure message somebody has to act on. */
-const lineAt = (text, index) => text.slice(0, index).split("\n").length;
 
 /**
  * Source with its STRING CONTENTS blanked, `${...}` expressions kept.
@@ -985,6 +1027,8 @@ export {
     Failure, Precondition, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
     runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, env, world, worldCensus, wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
-    moduleSources, otherSources, stripComments, moduleStyles, bodyOf, topLevelFunction, withGuards, lineAt, stripStrings,
+    moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, bodyOf, topLevelFunction, fnSource, lineAround,
+    withGuards, lineAt, stripStrings, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    LINT_FIXTURES,
     stringLiterals, STANDING, stableJson, moduleSettingValues, worldFingerprint, watchWrites, fingerprintDiff, cast
 };
