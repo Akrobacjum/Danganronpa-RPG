@@ -113,11 +113,31 @@ Dashes are `-`, not `—`, throughout, including in prose files.
 
 1. `module.json` version and the `--drpg-css-version` stamp in
    `styles/danganronpa.css` must agree, and the workflow checks that they do.
-2. Write `.github/release-notes/vX.Y.Z.md`. The workflow refuses to run without
+2. The same version is stamped on the third line of the six handbooks in
+   `docs/handbooks/` and in the README's "They describe version X." The workflow
+   and R125 both fail when one of the seven lags.
+3. Write `.github/release-notes/vX.Y.Z.md`. The workflow refuses to run without
    it.
-3. `main` is the release branch; the tag is created there.
-4. Actions ▸ Release, dispatched on `main` with the tag.
-5. `1.3.0` is reserved for a text rework. Releases before it are `1.2.X`.
+4. Before a release, look up the current Daggerheart version. `verified` in
+   `module.json` names only a version the suite has passed on at a real table;
+   the manifest states no `maximum` (decision D1), so a newer Daggerheart loads
+   and the module warns the GM once per version.
+5. `main` is the release branch; the tag is created there, and the workflow
+   refuses a dispatch from anywhere else.
+6. Actions ▸ Release, dispatched on `main` with the tag (and a title for the
+   last one). Afterwards check that `releases/latest` is the new version: a
+   prerelease can move it.
+7. Numbering (decision D20): each stage of the 1.3.0 plan ships as the next
+   `1.2.X`; the last stage ships as `1.3.0` "Stained Update". After it, `1.3.X`
+   is balance and fixes. The 1.3.0 notes say what of the text rework the
+   `1.2.43`-`1.2.47` notes promised with it went in, and what did not.
+
+## Numbering new tests
+
+Tier-0 and tier-1 tests carry an `R` number. `R113`-`R124` are reserved for the
+design projects A5, A4, A1 and A6 of the 1.3.0 plan; every other new test takes
+the next number from `R125` up. The number is how a comment, a commit and an
+audit find the same test a year later, so it is never reused.
 
 ## What is not done
 

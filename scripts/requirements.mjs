@@ -213,3 +213,96 @@ export async function announceMissingRecommendations() {
             { modules: missing.map(m => m.title).join(", ") }));
     }
 }
+
+/* ==========================================================================
+ * THE SYSTEM, NEWER THAN ANYBODY MEASURED (E01, 24.09.2026; audit S01-09, D1)
+ * ========================================================================== */
+
+/**
+ * The Daggerheart versions the manifest states: `{ minimum, verified }`.
+ *
+ * Read back from `relationships.systems` for the same reason the required
+ * modules are: that is where Foundry reads it, so it is the copy people keep up
+ * to date. `module.mjs` used to hold its own "2.6.0", which nobody had measured.
+ */
+export function systemCompatibility() {
+    const systems = game.modules.get(MODULE_ID)?.relationships?.systems;
+    const entry = [...(systems ?? [])].find(s => s?.id === game.system?.id);
+    return {
+        minimum: entry?.compatibility?.minimum ?? null,
+        verified: entry?.compatibility?.verified ?? null
+    };
+}
+
+/**
+ * Tell the GM, once per Daggerheart version, that the system is newer than the
+ * one this module was measured on.
+ *
+ * WHY THIS AND NOT A BLOCK (decision D1). The manifest states no maximum, so a
+ * newer Daggerheart loads - which is what a table that updates its system wants,
+ * and what makes this warning the only thing standing between a stranger's GM
+ * and a roll window that stopped working without a word. Foundry's own notice
+ * says "unverified" and nothing about what. This says what the module leans on,
+ * and runs the patch probe (`diagnosePatches`) so a wrapper that no longer finds
+ * its target is named here rather than discovered mid-trial.
+ *
+ * Silenced per version (`systemWarningSilenced`), per browser, like the
+ * recommended-modules window above.
+ */
+export async function announceNewerSystem() {
+    if (!game.user.isGM) return;
+    const { verified } = systemCompatibility();
+    const found = game.system?.version;
+    if (!verified || !found || !foundry.utils.isNewerVersion(found, verified)) return;
+
+    let silenced = "";
+    try {
+        silenced = String(game.settings.get(MODULE_ID, SETTINGS.systemWarningSilenced) ?? "");
+    } catch {
+        silenced = "";
+    }
+    if (silenced === found) return;
+
+    let missing = [];
+    try {
+        const { diagnosePatches } = await import("./patches.mjs");
+        missing = diagnosePatches().filter(row => !row.present).map(row => row.target);
+    } catch (err) {
+        error("Could not probe the patches against this Daggerheart", err);
+    }
+
+    const system = game.system?.title ?? game.system?.id;
+    const probe = missing.length
+        ? `<p>${game.i18n.localize("DRPG.Requirements.newerSystemPatches")}</p>
+           <ul>${missing.map(target => `<li><code>${esc(target)}</code></li>`).join("")}</ul>`
+        : `<p class="notes">${game.i18n.localize("DRPG.Requirements.newerSystemAllPatches")}</p>`;
+
+    try {
+        const DialogV2 = foundry.applications.api.DialogV2;
+        const answer = await DialogV2.wait({
+            window: { title: game.i18n.format("DRPG.Requirements.newerSystemTitle", { system }) },
+            classes: ["drpg-panel"],
+            content: `<form class="drpg-requirements">
+                <p>${game.i18n.format("DRPG.Requirements.newerSystemIntro",
+                    { system: esc(system), found: esc(found), verified: esc(verified) })}</p>
+                ${probe}
+                <label class="drpg-inline-check"><input type="checkbox" name="silence" />
+                    ${game.i18n.format("DRPG.Requirements.newerSystemSilence", { found: esc(found) })}</label>
+            </form>`,
+            buttons: [{
+                action: "ok",
+                label: game.i18n.localize("DRPG.Requirements.understood"),
+                default: true,
+                callback: (event, button, dialog) => ({
+                    silence: Boolean(dialog.element.querySelector("[name=silence]")?.checked)
+                })
+            }],
+            rejectClose: false
+        });
+        if (answer?.silence) await game.settings.set(MODULE_ID, SETTINGS.systemWarningSilenced, found);
+    } catch (err) {
+        error("Could not show the newer-system window", err);
+        ui.notifications.warn(game.i18n.format("DRPG.Requirements.newerSystemNotice",
+            { system, found, verified }));
+    }
+}

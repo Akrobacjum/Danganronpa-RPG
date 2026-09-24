@@ -24,7 +24,7 @@ Potem zainstaluj system i poniższe moduły z ich własnych stron. Moduł odmawi
 | Wymaga | Wersja |
 |---|---|
 | Foundry VTT | 14.364 lub nowsza (sprawdzone na 14.365) |
-| Daggerheart (Foundryborne) | 2.6.0 lub nowsza (sprawdzone na 2.6.5) |
+| Daggerheart (Foundryborne) | 2.6.5 lub nowsza (sprawdzone na 2.6.5; nowsza wersja się ładuje, a moduł mówi o tym GM-owi raz na wersję) |
 
 | Moduł | Status | Po co |
 |---|---|---|
@@ -815,7 +815,7 @@ Wszystko jest pod `game.drpg` w konsoli przeglądarki; argumenty aktora przyjmuj
 | Wywołanie | Co robi |
 |---|---|
 | `game.drpg.runTests()` | uruchamia wszystko |
-| `game.drpg.runTests({ tier: 1 })` | uruchamia regresje źródła i niezmienniki tylko do odczytu; bezpieczne w trakcie gry |
+| `game.drpg.runTests({ tier: 1 })` | uruchamia regresje źródła i niezmienniki tylko do odczytu; bezpieczne w trakcie gry - na końcu sprawdza, czy nic w świecie się nie ruszyło, i mówi co, jeśli jednak tak (liczy się też gracz, który coś zrobił w trakcie) |
 | `game.drpg.runTests({ tier: 0 })` | czyta wyłącznie własne źródło modułu |
 
 > [!CAUTION]

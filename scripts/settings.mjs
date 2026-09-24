@@ -12,6 +12,8 @@ import { MODULE_ID, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./c
 export const SETTINGS = {
     /** This browser has been told which recommended modules are missing (M-1). */
     recommendsSilenced: "recommendsSilenced",
+    /** The Daggerheart version this browser's GM said not to be warned about again (E01, S01-09). */
+    systemWarningSilenced: "systemWarningSilenced",
     forcePrivateRolls: "forcePrivateRolls",
     enforceAnonymity: "enforceAnonymity",
     searchTokensPerRoom: "searchTokensPerRoom",
@@ -581,6 +583,16 @@ export function registerSettings() {
         config: false,
         type: Boolean,
         default: false
+    });
+    /* A VERSION, NOT A SWITCH (E01, 24.09.2026; audit S01-09). The warning about a
+       Daggerheart newer than the one this module was measured on is silenced for
+       THAT version only: the next Daggerheart release is a new unknown and the GM
+       hears about it again. Same shape and scope as the switch above. */
+    game.settings.register(MODULE_ID, SETTINGS.systemWarningSilenced, {
+        scope: "client",
+        config: false,
+        type: String,
+        default: ""
     });
 
     game.settings.register(MODULE_ID, SETTINGS.pixelFont, {

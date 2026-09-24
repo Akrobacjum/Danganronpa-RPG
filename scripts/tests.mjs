@@ -22,7 +22,9 @@
  *          and does another somewhere nothing throws. See the block above
  *          REGRESSIONS for the six that got out before it existed.
  *   Tier 1 reads. It cannot change the world, so it is safe to run at any point
- *          in a session, including during play.
+ *          in a session, including during play. That used to be a promise; it is
+ *          a check now (E01, audit S14-01): the world is read before tier 0 and
+ *          after tier 1, and any difference is a failure that names what moved.
  *   Tier 2 writes. It opens incidents, kills people and resets seasons - so it
  *          builds its own fixtures, records what it displaced, and puts
  *          everything back. Never run it in a world somebody is playing in.
@@ -97,6 +99,45 @@ function ok(condition, message) {
 function needs(condition, why) {
     if (!condition) throw new Skipped(why);
 }
+
+/*
+ * THE ENVIRONMENT, ASKED BEFORE THE MODULE IS (E01, 24.09.2026; audit S14-05).
+ *
+ * The contract above says a skip is a fact about the environment. A dozen tests
+ * had drifted into asking `needs()` about the module's own answer instead -
+ * `needs(app)` after opening the roll window, `needs(c)` after cutting the
+ * curtain - so the day the roll window stops opening, the one test written to
+ * notice says "skip". These three ask the environment with a probe the suite
+ * owns, before the module does anything; what the module then does is `ok()`.
+ */
+
+/** Whether this browser lays a page out at all: a 10 px box the suite adds, measured. */
+function layoutAvailable() {
+    const probe = document.createElement("div");
+    probe.style.cssText = "position: absolute; left: -100px; top: 0; width: 10px; height: 10px; visibility: hidden";
+    document.body.appendChild(probe);
+    try { return probe.offsetWidth === 10; } finally { probe.remove(); }
+}
+
+/** Whether this client is under the Stained Glass theme - a setting of the person running the suite. */
+const glassTheme = () => document.body.classList.contains("drpg-theme-stained-glass");
+
+/** Whether the canvas has a renderer to draw PIXI with. */
+const canvasAvailable = () => Boolean(canvas?.ready && typeof canvas?.app?.renderer?.render === "function");
+
+/**
+ * Whether Daggerheart's own sheets are registered in this environment - the
+ * opener of the roll window and the home of the Hope drawer. The headless
+ * harness stands a stub where the sheet would be, and says so by this answer.
+ */
+const systemSheetsAvailable = () => Object.keys(CONFIG.Actor?.sheetClasses?.character ?? {}).length > 0;
+
+/**
+ * Whether `DialogV2` draws a window here. Foundry's is an ApplicationV2 with a
+ * `render`; the headless harness answers `DialogV2.wait` from a queue and draws
+ * nothing, so a window opened through it has no element to read.
+ */
+const dialogsDrawn = () => typeof foundry.applications.api.DialogV2?.prototype?.render === "function";
 
 function equal(actual, expected, message) {
     if (actual !== expected) {
@@ -242,6 +283,42 @@ async function moduleStyles() {
         parts.push(await fetch(`/modules/${MODULE_ID}/${href}`).then(r => r.text()));
     }
     return parts.join("\n").replace(/\/\*[\s\S]*?\*\//g, " ");
+}
+
+/**
+ * The stretch of `src` that starts at `marker`, or a failure that says the marker is gone.
+ *
+ * WHY THIS AND NOT `src.slice(src.indexOf(marker))` (E01, 24.09.2026; audit S14-21).
+ * `indexOf` answers -1 for a marker that is no longer there - a function renamed, a
+ * line rewritten - and `slice(-1, ...)` is the last character or nothing. Every
+ * positive assertion on that then fails, which is fine; every NEGATIVE one
+ * (`ok(!/the bug/.test(body))`) passes, whatever the file now says. Measured before
+ * this helper: 140 slices of that shape in this file, 78 of them in front of a
+ * negative assertion. R102 was one: renaming `scaleWindow` would have let its bug
+ * back in with the suite green.
+ *
+ *   `until`  - the body ends where this next appears AFTER the marker (the old
+ *              `src.indexOf(until)` searched from the top of the file, so an `until`
+ *              that also appears earlier gave an empty body - a second quiet pass);
+ *   `length` - the body is this many characters from the marker.
+ *
+ * Either way the body must reach past the marker itself, or there is nothing to read.
+ */
+function bodyOf(src, marker, { until = null, length = null } = {}) {
+    const text = String(src ?? "");
+    const at = text.indexOf(marker);
+    ok(at >= 0, `the source no longer has "${String(marker).slice(0, 60)}" - this test reads nothing until it is pointed at the code again`);
+    let end = text.length;
+    if (until !== null) {
+        end = text.indexOf(until, at + String(marker).length);
+        ok(end >= 0, `"${String(until).slice(0, 40)}" no longer follows "${String(marker).slice(0, 60)}" in the source`);
+    } else if (length !== null) {
+        end = at + length;
+    }
+    const body = text.slice(at, end);
+    ok(body.length > String(marker).length,
+        `the source after "${String(marker).slice(0, 60)}" is empty - there is nothing here to test`);
+    return body;
 }
 
 /** Line number of an index, for a failure message somebody has to act on. */
@@ -501,9 +578,11 @@ const REGRESSIONS = [
          * person owns the character named in the payload (`ownsActor`). The
          * payload's own `userId` is a claim and is only ever used as an address.
          *
-         * Thirteen of the thirty-one handlers act on a character, and all
-         * thirteen carry that preamble by hand - measured, not assumed. What this
-         * test is for is the fourteenth: a handler added in a hurry, in a file
+         * How many handlers act on something the packet names, and by which guard,
+         * is counted by the test itself and written to the log - the numbers that
+         * used to stand here ("thirteen of the thirty-one") had gone stale by the
+         * time the audit read them (S10-70). What this test is for is the next
+         * one: a handler added in a hurry, in a file
          * nobody reads top to bottom, that takes an `actorId` and simply uses it. Nothing
          * about the module's behaviour would say so, and the failure is a
          * player moving somebody else's student.
@@ -525,7 +604,7 @@ const REGRESSIONS = [
         ok(src.includes("GM_HANDLERS[payload.action]"), "onSocket no longer dispatches through GM_HANDLERS");
 
         // The handler's body: from its declaration to the next top-level function.
-        const bodyOf = name => {
+        const handlerBody = name => {
             const at = src.search(new RegExp(`^async function ${name}\\(`, "m"));
             if (at < 0) return null;
             const after = src.slice(at + 10);
@@ -533,19 +612,59 @@ const REGRESSIONS = [
             return next < 0 ? after : after.slice(0, next);
         };
 
-        const unguarded = [];
+        /*
+         * WHAT COUNTS AS "ACTING ON SOMETHING FROM THE PACKET", WIDENED (E01, 24.09.2026;
+         * audit S14-03, S10-70). This used to look for the text `payload.actorId` and
+         * nothing else, so a handler that read `payload.fromId` or `payload.thiefId`, or
+         * handed the whole payload to a helper, was outside the test - and three real
+         * holes went through that way: the Hope Call and Dynamic rulings raised a card
+         * on anybody's character (the payload went to a helper), and project progress
+         * reached secret projects (a `countdownId`, not an `actorId`). Now any id read
+         * off the packet, the Remnant's `data.sourceActor`, or the payload passed on
+         * whole, puts a handler in scope; and in scope it has to name the sender from
+         * Foundry's own argument and then show ONE of the three guards this module uses:
+         * the sender owns the character (`ownsActor(sender, ...)`), the sender may see
+         * the project (`canSee(..., sender)`), or the sender is a GM. Anything else has
+         * to be on the list below with its reason written down.
+         */
+        const IN_SCOPE = /payload\??\.(\w+Id)\b|payload\.data\?\.sourceActor|\b\w+\(\s*payload\s*[,)]/;
+        const EXEMPT_HANDLERS = {
+            // KNOWN, NOT FORGIVEN: any player may move any Monokuma's pool by one point,
+            // because the one honest caller is a reroll handing a point back. Audit
+            // S02-42 and S10-40, both scheduled for E03, which puts it behind the
+            // declarative handler table. This line goes when that lands - the check
+            // below fails on an exemption the handler no longer needs.
+            handleDespair: "a reroll's single point of Despair on a pool, not a character (E03: S02-42, S10-40)"
+        };
+        const unguarded = [], stale = [];
+        let inScope = 0, byOwner = 0, bySight = 0, byGm = 0;
         for (const [, action, name] of rows) {
-            const branch = bodyOf(name);
-            if (branch === null) { unguarded.push(`${action} (no ${name})`); continue; }
-            if (!/payload\.actorId/.test(branch)) continue;
+            const whole = handlerBody(name);
+            if (whole === null) { unguarded.push(`${action} (no ${name})`); continue; }
+            // Past the declaration, whose own `(payload, senderId, ctx)` is not a hand-off.
+            const branch = whole.slice(whole.indexOf("\n"));
+            if (!IN_SCOPE.test(branch)) continue;
+            inScope++;
             const checksSender = branch.includes("senderOf(senderId)");
-            const checksOwner = /ownsActor\(sender/.test(branch);
-            if (!checksSender || !checksOwner) unguarded.push(action);
+            const owner = /ownsActor\(sender\b/.test(branch);
+            const sight = /canSee\([^)]*,\s*sender\)/.test(branch);
+            const gm = /!sender\??\.isGM\b/.test(branch);
+            const guarded = checksSender && (owner || sight || gm);
+            if (EXEMPT_HANDLERS[name]) {
+                if (guarded) stale.push(name);
+                continue;
+            }
+            if (owner) byOwner++; else if (sight) bySight++; else if (gm) byGm++;
+            if (!guarded) unguarded.push(action);
         }
+        ok(!stale.length, `these handlers are guarded now and still on the exemption list - take them off: ${stale.join(", ")}`);
+        log(`R1b: ${rows.length} socket handlers, ${inScope} act on something named in the packet `
+            + `(${byOwner} by ownership, ${bySight} by sight of the project, ${byGm} GM-only)`);
+        ok(inScope >= 20, `only ${inScope} handlers read anything off the packet - has the reading gone wrong?`);
 
         ok(!unguarded.length,
-            `these socket handlers act on payload.actorId without checking that the `
-            + `sender owns it: ${unguarded.join(", ")}`);
+            `these socket handlers act on something named in the packet without checking that the `
+            + `sender may: ${unguarded.join(", ")}`);
 
         /*
          * AND EVERY OTHER FILE THAT OPENS A SOCKET, because this test's own name
@@ -1000,14 +1119,22 @@ const REGRESSIONS = [
          * somebody else's laptop.
          *
          * AND THE TRAP CHECK, added with E21: a room crossing now asks whether
-         * anything is armed, several hundred times a session. It is measured
-         * with nothing armed, which is both the common case and the one where a
-         * regression would hide.
+         * anything is armed, several hundred times a session.
+         *
+         * ASKED, NOT RAISED (E01, 24.09.2026; audit S14-01). This used to time
+         * `Hooks.callAll("drpgRoomCrossed", ...)` sixty-one times for the first
+         * student and the first room - and a hook is not a measurement, it is the
+         * event. A trap armed on "enters" in that room fired on the first call and
+         * stamped itself spent, and every other listener (voice, fog, music) took
+         * sixty-one crossings nobody made, from the tier that promises a GM it can
+         * be run during play. `armedIn` is the lookup the crossing makes, and the
+         * lookup is the part that can go quadratic.
          */
         const M = await import("./movement.mjs");
         const V = await import("./vault.mjs");
         const R = await import("./remnants.mjs");
         const C = await import("./cleanup.mjs");
+        const T = await import("./traps.mjs");
 
         const actor = studentActors()[0];
         ok(actor, "need a student");
@@ -1026,8 +1153,7 @@ const REGRESSIONS = [
             stashItemsIn: time(() => V.stashItemsIn(actor, room)),
             remnantsInRoom: time(() => R.remnantsInRoom(room)),
             cleanableRemnants: time(() => C.cleanableRemnants(actor)),
-            crossingWithTraps: time(() => Hooks.callAll("drpgRoomCrossed",
-                { actor, from: null, to: room, tokenDoc: null, cost: 0 }), 60)
+            crossingWithTraps: time(() => T.armedIn(room), 60)
         };
         const CEILING = 2.0;   // ms per call, on a machine also running Foundry
         const over = Object.entries(measured)
@@ -1126,6 +1252,14 @@ const REGRESSIONS = [
         }
         ok(openers.length >= 15, `only ${openers.length} standing windows were found`);
 
+        /* The source half above has already run and would have failed loudly. What
+           needs a browser is the half below - a window reports a width only where
+           there is layout - so that is asked of the environment here, before any
+           window is opened (E01, audit S14-05). It used to be asked afterwards, of
+           the number of windows that had opened, and a module whose windows stopped
+           opening read the same as a browser with no layout: "skip". */
+        needs(layoutAvailable(), `no layout here (${openers.length} standing windows found): a window's width needs a browser that lays out`);
+
         const wide = [], refused = [], unplaced = [], pinnedTop = [];
         let measured = 0;
         for (const [file, name] of openers) {
@@ -1194,10 +1328,6 @@ const REGRESSIONS = [
             await wait(60);
         }
         log(`R12: ${measured} windows measured, ${refused.length} declined (${refused.join(", ") || "none"})`);
-        /* The source half above has already run and would have failed loudly. What
-           needs a browser is this half: an ApplicationV2 registers itself and reports
-           a width only where there is layout. */
-        needs(measured > 0, `no standing window would open here (${openers.length} found, ${measured} measured): this needs a browser that lays out`);
         ok(measured >= 10, `only ${measured} windows actually opened - this measured nothing`);
         ok(!unplaced.length, `these windows opened without a position - their render threw: ${unplaced.join(", ")}`);
         ok(!pinnedTop.length, `these windows cannot be dragged down - a height they do not show: ${pinnedTop.join("; ")}`);
@@ -1324,7 +1454,7 @@ const REGRESSIONS = [
 
         // And the check itself still means what the caller assumes.
         const sheet = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(r => r.text()));
-        const body = sheet.slice(sheet.indexOf("function inCrisis"), sheet.indexOf("function inCrisis") + 400);
+        const body = bodyOf(sheet, "function inCrisis", { length: 400 });
         ok(/stage\s*!==\s*"incident"/.test(body),
             "inCrisis no longer asks whether the incident has actually started");
         ok(/"victim"/.test(body) && /"killer"/.test(body),
@@ -1927,8 +2057,7 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const chapter = stripComments(sources.get("chapter.mjs") ?? "");
         const effects = stripComments(sources.get("call-effects.mjs") ?? "");
-        const check = chapter.slice(chapter.indexOf("async function checkBodyFound"),
-            chapter.indexOf("export async function openBodyDiscoveryDialog"));
+        const check = bodyOf(chapter, "async function checkBodyFound", { until: "export async function openBodyDiscoveryDialog" });
         ok(check.length > 200, "checkBodyFound is gone or has moved past openBodyDiscoveryDialog");
         ok(/FLAGS\.monocub/.test(check), "a Monocub counts as a body again");
         ok(/deathRecord\(/.test(check), "a body from an earlier chapter counts as a body again");
@@ -1936,8 +2065,7 @@ const REGRESSIONS = [
             "the GM's own announcement no longer waits in the discovery queue");
         ok(/export function maybeBodyFound[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
             "the automatic discovery check no longer waits in the discovery queue");
-        const gather = effects.slice(effects.indexOf("export async function gatherEveryone"),
-            effects.indexOf("async function fallbackGather"));
+        const gather = bodyOf(effects, "export async function gatherEveryone", { until: "async function fallbackGather" });
         ok(/isDeceased\(/.test(gather), "gatherEveryone moves the dead again");
     }],
 
@@ -1948,7 +2076,7 @@ const REGRESSIONS = [
          * meantime. The check and the write have to come before the first execution.
          */
         const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
-        const apply = vote.slice(vote.indexOf("export async function applyVerdict"));
+        const apply = bodyOf(vote, "export async function applyVerdict");
         const lock = apply.indexOf("verdictApplied: true");
         const kill = apply.indexOf("killCharacter(");
         ok(lock > 0 && kill > 0, "applyVerdict no longer writes the lock or no longer executes anybody");
@@ -1967,13 +2095,12 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const vault = stripComments(sources.get("vault.mjs") ?? "");
-        const open = vault.slice(vault.indexOf("export async function openRoomSetupDialog"));
+        const open = bodyOf(vault, "export async function openRoomSetupDialog");
         ok(open.length > 1000, "openRoomSetupDialog is gone");
         // fog.mjs still exports it - suite fixtures seed a scene's ledger through
         // it - but Room Setup must not be the window that calls it.
         ok(!/saveDiscoveryMatrix/.test(vault), "Room Setup writes the whole fog matrix again");
-        const form = vault.slice(vault.indexOf("function readRoomSetupForm("),
-            vault.indexOf("function wireRoomRatio("));
+        const form = bodyOf(vault, "function readRoomSetupForm(", { until: "function wireRoomRatio(" });
         ok(/defaultChecked/.test(form),
             "the Fog tab no longer compares a box with what the window drew, so every box is a decision again");
         const claim = open.indexOf("bedroomClaimedTwice(");
@@ -1984,8 +2111,7 @@ const REGRESSIONS = [
             "Discover all / Hide all submit the window again, which throws away the other tabs' edits");
         // `type: "button"` is not enough on its own: DialogV2 makes every entry in
         // `buttons` an action, so the click has to stop before the window hears it.
-        const bulk = vault.slice(vault.indexOf("function wireFogButtons("),
-            vault.indexOf("function wireTwoRoomsCheck("));
+        const bulk = bodyOf(vault, "function wireFogButtons(", { until: "function wireTwoRoomsCheck(" });
         ok(/stopPropagation\(\)/.test(bulk),
             "Discover all / Hide all let the click reach DialogV2, which closes the window on it");
     }],
@@ -1998,7 +2124,7 @@ const REGRESSIONS = [
         const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
         ok(/traces\.filter\([^)]*\)\s*=>\s*q\(`name\./.test(inv),
             "the dashboard's Save reads a row the filter is hiding as blanks again");
-        const plan = inv.slice(inv.indexOf("async function saveKeyPlan"), inv.indexOf("function stripDraft"));
+        const plan = bodyOf(inv, "async function saveKeyPlan", { until: "function stripDraft" });
         ok(plan.length > 200, "saveKeyPlan is gone or has moved past stripDraft");
         ok(/repointed/.test(plan) && /stored\.name/.test(plan),
             "a Key plan row is pushed onto its trace whether or not anybody edited it");
@@ -2038,12 +2164,11 @@ const REGRESSIONS = [
         ok(!/takePlant/.test(tokens.slice(from, to)), "the token spend takes the plant out of the room again");
         ok(/searchedBy\.get\(/.test(tokens.slice(to, to + 800)),
             "a player can ask for a plant in a room they never spent a token in");
-        const draw = rolls.slice(rolls.indexOf("async function searchDraw("),
-            rolls.indexOf("async function performSearch("));
+        const draw = bodyOf(rolls, "async function searchDraw(", { until: "async function performSearch(" });
         ok(draw.includes("SearchTokens.takePlant("), "the Search no longer asks for a plant");
         equal((rolls.match(/SearchTokens\.takePlant\(/g) ?? []).length, 1,
             "something other than the draw takes the plant out of the room");
-        const search = rolls.slice(rolls.indexOf("async function performSearch("));
+        const search = bodyOf(rolls, "async function performSearch(");
         const take = search.indexOf("searchDraw(");
         ok(take > 0, "performSearch no longer draws anything");
         for (const marker of ["searchSpecific(", "searchNothing(", "searchStash("]) {
@@ -2114,7 +2239,7 @@ const REGRESSIONS = [
         const rest = cleanup.slice(from + 10);
         const next = rest.search(/\n(?:export |async function |function )/);
         const release = rest.slice(0, next < 0 ? 900 : next);
-        const kept = release.slice(release.indexOf("if (rolled)"), release.indexOf("if (charge)"));
+        const kept = bodyOf(release, "if (rolled)", { until: "if (charge)" });
         ok(kept.length > 20 && !/refundPrice\(/.test(kept),
             "a closed window after a landed concealment roll hands the price back again");
         ok(!/spendStress\(/.test(release),
@@ -2139,12 +2264,11 @@ const REGRESSIONS = [
                 `${file} asks whether to carry on after a concealment roll again`);
         }
         ok(!/sabotageCarryOn/.test(rolls), "the walk-away question is back in Sabotage");
-        const sabotage = rolls.slice(rolls.indexOf("async function performSabotage"),
-            rolls.indexOf("async function performTamper"));
+        const sabotage = bodyOf(rolls, "async function performSabotage", { until: "async function performTamper" });
         ok(sabotage.length > 400, "performSabotage is gone or has moved past Tamper");
         // Only the branch the room watched. The concealment roll's own cancel still
         // refunds - nothing was rolled there - and that is `abort` further up.
-        const watched = sabotage.slice(sabotage.indexOf("sabotageWatched"));
+        const watched = bodyOf(sabotage, "sabotageWatched");
         ok(!/^[\s\S]{0,700}?abort\(/.test(watched),
             "a watched Sabotage hands the action back again instead of going ahead");
     }],
@@ -2157,11 +2281,11 @@ const REGRESSIONS = [
          * it had never reached the trial.
          */
         const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
-        const status = inv.slice(inv.indexOf("export function keyPlanStatus"), inv.indexOf("export async function chargeForUnfoundKeys"));
+        const status = bodyOf(inv, "export function keyPlanStatus", { until: "export async function chargeForUnfoundKeys" });
         ok(status.length > 400, "keyPlanStatus is gone or has moved past the charge");
         ok(/offPlan/.test(status) && /foundAny/.test(status),
             "keyPlanStatus counts the plan's rows only again");
-        const charge = inv.slice(inv.indexOf("export async function chargeForUnfoundKeys"));
+        const charge = bodyOf(inv, "export async function chargeForUnfoundKeys");
         ok(/unfoundBar - status\.foundAny/.test(charge),
             "the charge reads the plan's own rows instead of every Key Remnant found");
     }],
@@ -2184,7 +2308,7 @@ const REGRESSIONS = [
         ok(/\[LOADED_DIE\]:\s*armed\??\.nonce/.test(rolls),
             "throwDice no longer marks the roll with the purchase it was bought with");
         ok(/spent\.has\(mark\)/.test(forced), "one Loaded Die can load every roll window opened while it was held");
-        const grants = dialog.slice(dialog.indexOf("function grantsFor"));
+        const grants = bodyOf(dialog, "function grantsFor");
         ok(/LOADED_DIE/.test(grants.slice(0, 400)),
             "the roll window shows or spends the Loaded Die on a roll that does not carry it");
     }],
@@ -2223,7 +2347,7 @@ const REGRESSIONS = [
         // crossing cost off did not turn off the trial.
         const move = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(r => r.text()));
-        const cross = move.slice(move.indexOf("function canCross"));
+        const cross = bodyOf(move, "function canCross");
         const locked = cross.indexOf('"classTrial"');
         const charged = cross.indexOf("SETTINGS.chargeMovement");
         ok(locked > 0, "a crossing is no longer refused during a Class Trial");
@@ -2238,11 +2362,10 @@ const REGRESSIONS = [
          */
         const callsSrc = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/calls.mjs`).then(r => r.text()));
-        const hopeGate = callsSrc.slice(callsSrc.indexOf("function hopeCallBarred"),
-            callsSrc.indexOf("export async function spendHopeCall"));
+        const hopeGate = bodyOf(callsSrc, "function hopeCallBarred", { until: "export async function spendHopeCall" });
         ok(hopeGate.length > 100 && !hopeGate.includes("classTrial"),
             "Hope Calls are barred during a trial now, which is the opposite of the decision");
-        const despairGate = callsSrc.slice(callsSrc.indexOf("export async function spendDespairCallFor"));
+        const despairGate = bodyOf(callsSrc, "export async function spendDespairCallFor");
         ok(despairGate.includes("classTrial"),
             "a Despair Call is no longer refused during a Class Trial");
     }],
@@ -2264,10 +2387,9 @@ const REGRESSIONS = [
          */
         const clockSrc = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/clock.mjs`).then(r => r.text()));
-        const reconcile = clockSrc.slice(clockSrc.indexOf("async function reconcilePhase("),
-            clockSrc.indexOf("async function reconcileEclipseEnded("));
+        const reconcile = bodyOf(clockSrc, "async function reconcilePhase(", { until: "async function reconcileEclipseEnded(" });
         ok(reconcile.length > 200, "reconcilePhase has moved or gone");
-        const entering = reconcile.slice(reconcile.indexOf('if (to === "classTrial")'));
+        const entering = bodyOf(reconcile, 'if (to === "classTrial")');
         ok(reconcile.includes('if (to === "classTrial")') && entering.includes("openTrialBudget("),
             "a phase moving into a Class Trial no longer hands out the time of day's actions");
         ok(/patch\.phase !== before\.phase[\s\S]{0,200}reconcilePhase\(/.test(clockSrc),
@@ -2297,8 +2419,7 @@ const REGRESSIONS = [
         ok(/export function floorRefusal\(/.test(floorSrc), "floorRefusal is not exported any more");
         ok(/export function targetRefusal\(/.test(floorSrc), "targetRefusal is not exported any more");
 
-        const open = floorSrc.slice(floorSrc.indexOf("export async function openObjection"),
-            floorSrc.indexOf("export async function openRebuttal"));
+        const open = bodyOf(floorSrc, "export async function openObjection", { until: "export async function openRebuttal" });
         ok(open.includes("floorRefusal(") && open.includes("targetRefusal("),
             "openObjection stopped asking the two refusals");
         ok(!/floor\.mode === FLOOR_MODES\.objection/.test(open),
@@ -2321,10 +2442,8 @@ const REGRESSIONS = [
          * Present in place of an impossible Objection is a different act nobody
          * asked for (Dawid, 17.09).
          */
-        const dialog = trialSrc.slice(trialSrc.indexOf("export async function presentDialog"),
-            trialSrc.indexOf("export async function presentBullet"));
-        const offer = dialog.slice(dialog.indexOf("const offerPresent"),
-            dialog.indexOf(";", dialog.indexOf("const offerPresent")));
+        const dialog = bodyOf(trialSrc, "export async function presentDialog", { until: "export async function presentBullet" });
+        const offer = bodyOf(dialog, "const offerPresent", { until: ";" });
         ok(/!floorBlock/.test(offer), "the free Present is offered while the floor itself is blocked");
         ok(offer.includes('"noPrice"'),
             "the free Present is offered to characters who are quoted no price at all");
@@ -2369,7 +2488,7 @@ const REGRESSIONS = [
          */
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/trial.mjs`).then(r => r.text()));
-        const seize = src.slice(src.indexOf("async function seizeFloor"));
+        const seize = bodyOf(src, "async function seizeFloor");
         ok(seize.length > 500, "seizeFloor is gone, so an objection is free again");
 
         ok(/let seizing = Promise\.resolve\(\);/.test(src),
@@ -2414,8 +2533,7 @@ const REGRESSIONS = [
          */
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/action-rolls.mjs`).then(r => r.text()));
-        const analyze = src.slice(src.indexOf("async function performAnalyze"),
-            src.indexOf("async function analyseBullet"));
+        const analyze = bodyOf(src, "async function performAnalyze", { until: "async function analyseBullet" });
         ok(analyze.length > 500, "performAnalyze moved or vanished");
 
         ok(!analyze.includes("canAfford("),
@@ -2433,7 +2551,7 @@ const REGRESSIONS = [
             "a closed roll window keeps the price it never rolled for");
 
         for (const road of ["analyseBullet", "askForHint", "locateStash"]) {
-            const slice = src.slice(src.indexOf(`async function ${road}`));
+            const slice = bodyOf(src, `async function ${road}`);
             const body = slice.slice(0, slice.indexOf("\nasync function ", 10) + 1 || undefined);
             ok(body.includes("refundPrice("),
                 `${road} cannot hand the price back when the road turns out to be empty`);
@@ -2450,8 +2568,7 @@ const REGRESSIONS = [
 
         const messenger = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/messenger-app.mjs`).then(r => r.text()));
-        const body = messenger.slice(messenger.indexOf("function refundOnCard("),
-            messenger.indexOf("async function ruleCreateItem("));
+        const body = bodyOf(messenger, "function refundOnCard(", { until: "async function ruleCreateItem(" });
         ok(body.length > 300 && body.includes("async function ruleDecline("),
             "the refusal's refund has moved out of refundOnCard and ruleDecline");
         ok(body.includes("PRICE_CHAINS"),
@@ -2505,19 +2622,18 @@ const REGRESSIONS = [
             "nothing bounds the step a Tamper packet claims to have paid");
         ok(/async function handBack\(/.test(cleanup),
             "the critical is back to healing Sanity the attempt may never have spent");
-        const conceal = cleanup.slice(cleanup.indexOf("async function concealFromWitnesses"));
+        const conceal = bodyOf(cleanup, "async function concealFromWitnesses");
         ok(/restoreStress\(/.test(conceal.slice(0, 1600)),
             "the concealment's own refund is gone - that one is not the attempt's price");
 
         // The step travels: the roll context, both sides of the bridge, the replay.
         const bridge = stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? "");
-        const socket = bridge.slice(bridge.indexOf("async function handleCleanup("),
-            bridge.indexOf("async function handleMeddle("));
+        const socket = bodyOf(bridge, "async function handleCleanup(", { until: "async function handleMeddle(" });
         ok((socket.match(/price: payload\.price/g) ?? []).length >= 2,
             "the socket branch drops the price claim for one of the two resolvers, "
             + "so every remote Tamper on that road pays twice");
         const reroll = stripComments(new Map(await otherSources()).get("reroll.mjs") ?? "");
-        const replay = reroll.slice(reroll.indexOf("async function settleCleanup"));
+        const replay = bodyOf(reroll, "async function settleCleanup");
         ok(/price: bookmark\.cleanupPrice/.test(replay.slice(0, 2400)),
             "a rerolled clean-up forgets which step it paid, so the GM charges it again");
     }],
@@ -2536,20 +2652,17 @@ const REGRESSIONS = [
          */
         const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
 
-        const cost = sheet.slice(sheet.indexOf("function costOf("),
-            sheet.indexOf("function costLabelFor("));
+        const cost = bodyOf(sheet, "function costOf(", { until: "function costLabelFor(" });
         ok(cost.includes("priceQuoteFor("),
             "costOf is back to counting a flat cost for a priced action");
         ok(!/key === "tamper" && isCleaner\(actor\)/.test(cost),
             "costOf carries its own copy of D3 again, beside the skip list that already says it");
 
-        const label = sheet.slice(sheet.indexOf("function costLabelFor("),
-            sheet.indexOf("function costLabelFor(") + 900);
+        const label = bodyOf(sheet, "function costLabelFor(", { length: 900 });
         ok(label.includes("priceLabel("),
             "the tile's price label no longer says which step will pay");
 
-        const button = sheet.slice(sheet.indexOf("function actionButton("),
-            sheet.indexOf("function actionButton(") + 6000);
+        const button = bodyOf(sheet, "function actionButton(", { length: 6000 });
         ok(/const affordable = priced \? !priced\.blocked/.test(button),
             "a priced tile is dimmed by its action step rather than by the whole chain");
         ok(button.includes("stripeKindFor("),
@@ -2562,8 +2675,7 @@ const REGRESSIONS = [
             "the sheet decides the killer's discount for itself again");
 
         // A full Sanity track only stops a WATCHED attempt (Dawid, 17.09).
-        const tamper = sheet.slice(sheet.indexOf("function tamperBlock("),
-            sheet.indexOf("async function askTamper("));
+        const tamper = bodyOf(sheet, "function tamperBlock(", { until: "async function askTamper(" });
         ok(tamper.includes("witnessesTo(") && tamper.includes("DRPG.Tamper.watchedNoSanity"),
             "the Tamper tile refuses every attempt on a full Sanity track again");
         ok(!tamper.includes("DRPG.Cleanup.noStressForThis"),
@@ -2575,12 +2687,10 @@ const REGRESSIONS = [
          * flickering, so the repaint owes what the render owed - minus a tile that
          * is in flight, whose `disabled` the delegate is still holding.
          */
-        const repaint = sheet.slice(sheet.indexOf("function repaintInPlace("),
-            sheet.indexOf("function refreshPricedTiles("));
+        const repaint = bodyOf(sheet, "function repaintInPlace(", { until: "function refreshPricedTiles(" });
         ok(repaint.includes("refreshPricedTiles("),
             "a Hope or Sanity change leaves the priced tiles showing yesterday's price");
-        const tiles = sheet.slice(sheet.indexOf("function refreshPricedTiles("),
-            sheet.indexOf("function refreshPricedTiles(") + 900);
+        const tiles = bodyOf(sheet, "function refreshPricedTiles(", { length: 900 });
         ok(/node\.disabled/.test(tiles),
             "the repaint re-enables a tile mid-action, so the same action can be fired twice");
     }],
@@ -2612,14 +2722,14 @@ const REGRESSIONS = [
          * have when T-2 met it.
          */
         const analyze = stripComments(sources.get("analyze.mjs") ?? "");
-        const identify = analyze.slice(analyze.indexOf("async function identify("));
+        const identify = bodyOf(analyze, "async function identify(");
         ok(/secret\.analyzedText\s*\|\|\s*remnantPublic(?:ById)?\(/.test(identify),
             "identify no longer asks the trace when a bullet's secret holds no reading");
 
         // A looted trace is usually already revealed, so `revealSourceOf` returns
         // before it reconciles the new copy: the loot mint reads the ledger itself.
         const handover = stripComments(sources.get("handover.mjs") ?? "");
-        const loot = handover.slice(handover.indexOf("async function mintLootBullet("));
+        const loot = bodyOf(handover, "async function mintLootBullet(");
         ok(/analyzedText/.test(loot.slice(0, loot.indexOf("\n}") + 1)),
             "a bullet taken off a body is born with nothing to say when it is analysed");
     }],
@@ -2641,7 +2751,7 @@ const REGRESSIONS = [
         ok(groups.length >= 20, `only ${groups.length} reset groups - the table lost rows`);
 
         const setup = stripComments(sources.get("season-setup.mjs") ?? "");
-        const wipe = setup.slice(setup.indexOf("async function wipeSeason"));
+        const wipe = bodyOf(setup, "async function wipeSeason");
         const named = new Set([
             ...[...wipe.matchAll(/await step\("(\w+)"/g)].map(m => m[1]),
             ...[...wipe.matchAll(/\["(\w+)", "[^"]+", SETTINGS\./g)].map(m => m[1])
@@ -2812,15 +2922,14 @@ const REGRESSIONS = [
          * the tile kept, and never edits the string it finds.
          */
         const sheet = stripComments(new Map(await otherSources()).get("sheet.mjs") ?? "");
-        const paint = sheet.slice(sheet.indexOf("function paintTamper"),
-            sheet.indexOf("function actionButton("));
+        const paint = bodyOf(sheet, "function paintTamper", { until: "function actionButton(" });
         ok(paint.length > 200, "paintTamper has moved or gone");
         ok(!/\.replace\(/.test(paint),
             "paintTamper edits the tooltip it finds again, so it can eat another line");
         ok(paint.includes("drpgTipHead") && paint.includes("drpgTipTail"),
             "paintTamper no longer rebuilds the tooltip from the halves the tile kept");
 
-        const button = sheet.slice(sheet.indexOf("function actionButton("));
+        const button = bodyOf(sheet, "function actionButton(");
         ok(/dataset\.drpgTipHead =/.test(button) && /dataset\.drpgTipTail =/.test(button),
             "the tile stopped keeping the two halves the repaint needs");
     }],
@@ -2860,7 +2969,7 @@ const REGRESSIONS = [
         ok(/\berror\(/.test(caught) && /ui\.notifications\.error\(/.test(caught),
             "a clock control that throws is silent again");
 
-        const release = hud.slice(hud.indexOf("function releaseControls"));
+        const release = bodyOf(hud, "function releaseControls");
         ok(/querySelectorAll/.test(release) && /drpg-hud-button/.test(release),
             "the latch releases only the button it captured, so a rebuilt row stays dim");
     }],
@@ -2880,8 +2989,7 @@ const REGRESSIONS = [
          */
         const clock = stripComments(new Map(await otherSources()).get("clock.mjs") ?? "");
         ok(clock.length > 1000, "clock.mjs did not load");
-        const body = clock.slice(clock.indexOf("export async function rewindTimeOfDay"),
-            clock.indexOf("export async function setTimeOfDay"));
+        const body = bodyOf(clock, "export async function rewindTimeOfDay", { until: "export async function setTimeOfDay" });
         ok(body.length > 200, "rewindTimeOfDay has moved or gone");
 
         const guard = body.indexOf("eclipse");
@@ -2907,8 +3015,7 @@ const REGRESSIONS = [
         const chapter = stripComments(sources.get("chapter.mjs") ?? "");
         const inv = stripComments(sources.get("investigation.mjs") ?? "");
 
-        const open = chapter.slice(chapter.indexOf("export async function openBodyDiscoveryDialog"),
-            chapter.indexOf("function allBullets"));
+        const open = bodyOf(chapter, "export async function openBodyDiscoveryDialog", { until: "function allBullets" });
         ok(open.length > 200, "openBodyDiscoveryDialog is gone or has moved past allBullets");
         const gm = open.indexOf("game.user.isGM");
         const dark = open.indexOf("isEclipse()");
@@ -2929,7 +3036,7 @@ const REGRESSIONS = [
             "the footer leads with the body button - Enter presses the first submit, and this is "
             + "the one that gets disabled");
 
-        const wire = inv.slice(inv.indexOf("function wireCase("), inv.indexOf("function wireCaseFilters("));
+        const wire = bodyOf(inv, "function wireCase(", { until: "function wireCaseFilters(" });
         ok(wire.length > 100, "wireCase has moved or gone");
         ok(!wire.includes("bodyFound"),
             "the greying rides `wireCase`, which keepLive defers while the GM is typing; it belongs "
@@ -2947,8 +3054,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const utils = stripComments(sources.get("utils.mjs") ?? "");
-        const picker = utils.slice(utils.indexOf("export function wirePortraitPickers"),
-            utils.indexOf("export function panelTabs"));
+        const picker = bodyOf(utils, "export function wirePortraitPickers", { until: "export function panelTabs" });
         ok(picker.length > 300, "wirePortraitPickers is gone or has moved past panelTabs");
         const cb = picker.indexOf("callback:");
         ok(cb > 0, "wirePortraitPickers no longer hands the FilePicker a callback");
@@ -2960,8 +3066,7 @@ const REGRESSIONS = [
             "nothing puts the picture back in step with the hidden field after a rebuild");
 
         const inv = stripComments(sources.get("investigation.mjs") ?? "");
-        const helper = inv.slice(inv.indexOf("export function wireKeyLimitOverride"),
-            inv.indexOf("export async function openInvestigationDashboard"));
+        const helper = bodyOf(inv, "export function wireKeyLimitOverride", { until: "export async function openInvestigationDashboard" });
         ok(helper.length > 200,
             "wireKeyLimitOverride is gone or has moved past openInvestigationDashboard");
         ok(/addEventListener\("change", apply\)/.test(helper),
@@ -2969,14 +3074,13 @@ const REGRESSIONS = [
         ok(helper.indexOf("apply();") > helper.indexOf("addEventListener"),
             "the override is wired but never applied, so a redraw that restores the tick leaves "
             + "the rows disabled");
-        const wire = inv.slice(inv.indexOf("function wireCase("), inv.indexOf("function wireCaseFilters("));
+        const wire = bodyOf(inv, "function wireCase(", { until: "function wireCaseFilters(" });
         ok(wire.includes("wireKeyLimitOverride("),
             "the dashboard stopped re-wiring the Key Remnant limit override after a rebuild");
 
         // The order both halves of this depend on, one file up.
         const live = stripComments(sources.get("live.mjs") ?? "");
-        const rebuild = live.slice(live.indexOf("const rebuild = (force = false)"),
-            live.indexOf("const schedule ="));
+        const rebuild = bodyOf(live, "const rebuild = (force = false)", { until: "const schedule =" });
         const restored = rebuild.indexOf("restore(next, carried)");
         const after = rebuild.indexOf("after(next)");
         ok(restored > 0 && after > 0,
@@ -2998,15 +3102,14 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const ui2 = stripComments(sources.get("trial-floor-ui.mjs") ?? "");
-        const manage = ui2.slice(ui2.indexOf("export async function manageClassTrial"),
-            ui2.indexOf("export async function openVoteDialog"));
+        const manage = bodyOf(ui2, "export async function manageClassTrial", { until: "export async function openVoteDialog" });
         ok(manage.length > 500, "manageClassTrial is gone or has moved past the vote window");
 
         ok(manage.includes("setInterval("), "the trial console stopped counting the debate down");
         ok(/\}, 1000\)/.test(manage), "the console's tick is no longer once a second");
         ok(manage.includes("live.refresh("),
             "the tick paints something of its own instead of going through the live region");
-        const tick = manage.slice(manage.indexOf("setInterval("), manage.indexOf("}, 1000)"));
+        const tick = bodyOf(manage, "setInterval(", { until: "}, 1000)" });
         ok(tick.includes("isConnected") && tick.includes("clearInterval("),
             "the console's tick outlives the window");
         ok(tick.includes("trialFloor()"), "the tick runs while no floor is open");
@@ -3016,8 +3119,7 @@ const REGRESSIONS = [
             "the console's watch was narrowed to a list of settings, so the floor and the trial "
             + "record no longer wake it");
 
-        const view = ui2.slice(ui2.indexOf("function trialConsoleHtml("),
-            ui2.indexOf("function trialSignature("));
+        const view = bodyOf(ui2, "function trialConsoleHtml(", { until: "function trialSignature(" });
         ok(view.includes("DRPG.Floor.holdingDiscussionOver") && view.includes("Math.max(left, 0)"),
             "an overrun mode prints a clock running backwards again");
 
@@ -3027,10 +3129,10 @@ const REGRESSIONS = [
         const EMIT = 'Hooks.callAll("drpgBallotsChanged")';
         ok(vote.split(EMIT).length - 1 >= 4,
             "one of the four vote events stopped being reported");
-        const cast = vote.slice(vote.indexOf("function onBallotCast"), vote.indexOf("function refuseBallot"));
+        const cast = bodyOf(vote, "function onBallotCast", { until: "function refuseBallot" });
         ok(cast.indexOf("ballots.set(") < cast.indexOf(EMIT),
             "the ballot is reported before it is in the tally, so a listener redraws the stale list");
-        const close = vote.slice(vote.indexOf("export async function closeVote"));
+        const close = bodyOf(vote, "export async function closeVote");
         ok(close.indexOf("ballots = null") > 0 && close.indexOf("ballots = null") < close.indexOf(EMIT),
             "the vote is reported closed before the tally is cleared");
         ok(close.indexOf(EMIT) < close.indexOf("DRPG.Vote.nobodyVoted"),
@@ -3038,8 +3140,7 @@ const REGRESSIONS = [
             + "leaves the console printing its voters");
 
         const floorSrc = stripComments(sources.get("trial-floor.mjs") ?? "");
-        const extend = floorSrc.slice(floorSrc.indexOf("export async function extendFloor"),
-            floorSrc.indexOf("export async function endFloor"));
+        const extend = bodyOf(floorSrc, "export async function extendFloor", { until: "export async function endFloor" });
         ok(extend.includes("secondsLeft("),
             "extendFloor stopped asking how much is left, so an overrun mode stays overrun");
         ok(extend.includes("Math.max("), "extendFloor no longer clamps an expired clock at zero");
@@ -3058,8 +3159,7 @@ const REGRESSIONS = [
          * ruling card was never settled.
          */
         const murderSrc = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
-        const dialog = murderSrc.slice(murderSrc.indexOf("export async function openMurderDialog"),
-            murderSrc.indexOf("async function rollOpening"));
+        const dialog = bodyOf(murderSrc, "export async function openMurderDialog", { until: "async function rollOpening" });
         ok(dialog.length > 500, "openMurderDialog is gone or has moved past rollOpening");
 
         ok(dialog.includes("isEclipse("),
@@ -3075,7 +3175,7 @@ const REGRESSIONS = [
         ok(/isComplete\(/.test(dialog),
             "the armed set went back to hand-rolled arithmetic and counts a project with no target");
 
-        const tail = dialog.slice(dialog.indexOf("await openMurder("));
+        const tail = bodyOf(dialog, "await openMurder(");
         ok(/const opened = await openMurder\(/.test(dialog) && /if \(!opened\) return null;/.test(tail),
             "a refused murder still opens the tracker and warns the GM twice");
         ok(tail.indexOf("if (!opened)") < tail.indexOf("openIncidentTracker()"),
@@ -3201,8 +3301,7 @@ const REGRESSIONS = [
          * shrunk every Legacy label by 15 % at 1080p the day it shipped.
          */
         const settings = stripComments(new Map(await otherSources()).get("settings.mjs") ?? "");
-        const apply = settings.slice(settings.indexOf("export function applyTheme"),
-            settings.indexOf("function scaleWindow"));
+        const apply = bodyOf(settings, "export function applyTheme", { until: "function scaleWindow" });
         ok(apply.length > 400, "applyTheme has moved or gone");
 
         ok(/document\.body\.style\.setProperty\("--drpg-legacy-scale"/.test(apply)
@@ -3241,13 +3340,12 @@ const REGRESSIONS = [
             "the prose window's width stopped following the slider");
         ok(/--drpg-popup-wide: calc\(44rem \* var\(--drpg-legacy-scale/.test(css),
             "the wide window's width stopped following the slider");
-        const wide = css.slice(css.indexOf("@media (min-aspect-ratio: 2/1)"));
+        const wide = bodyOf(css, "@media (min-aspect-ratio: 2/1)");
         ok(wide.includes("--drpg-legacy-scale"),
             "on an ultrawide screen the GM panel is the one window whose box ignores the slider");
 
         const settings = stripComments(new Map(await otherSources()).get("settings.mjs") ?? "");
-        const body = settings.slice(settings.indexOf("function scaleWindow"),
-            settings.indexOf('Hooks.on("renderApplicationV2"'));
+        const body = bodyOf(settings, "function scaleWindow", { until: 'Hooks.on("renderApplicationV2"' });
         ok(body.length > 400, "scaleWindow has moved or gone");
         ok(body.includes("if (!el) return;"), "scaleWindow's door is not the element test");
         ok(!/if \(!el \|\|[^\n]*stained-glass/.test(body),
@@ -3327,14 +3425,13 @@ const REGRESSIONS = [
         ok(/\.then\(/.test(body) && /\.catch\(/.test(body),
             "handOff no longer builds the round trip in the same turn, or it can reject");
 
-        const row = panel.slice(panel.indexOf("function wireAliveRow("),
-            panel.indexOf("function wireAliveTable("));
+        const row = bodyOf(panel, "function wireAliveRow(", { until: "function wireAliveTable(" });
         ok(row.length > 200, "wireAliveRow has moved or gone");
         ok(row.includes("handOff("), "the row buttons do not hand over");
         ok(!/dialog\.close\(\)/.test(row),
             "a row button still closes the window itself, so the close resolves the opener");
 
-        const tail = panel.slice(panel.indexOf("const chosen = await tableDialog"));
+        const tail = bodyOf(panel, "const chosen = await tableDialog");
         ok(tail.indexOf("if (roundTrip) return roundTrip;") > 0,
             "the round trip is not returned, so the GM panel reopens itself over it");
         ok(tail.indexOf("if (roundTrip)") < tail.indexOf('chosen === "items"'),
@@ -3373,8 +3470,7 @@ const REGRESSIONS = [
 
         // The whole opener, not its head: `keepLive` is an argument to the
         // `tableDialog` call, so a slice that stops at that call cannot see the watch.
-        const window = panel.slice(panel.indexOf("async function openWhoIsAliveDialog"),
-            panel.indexOf("export async function applyAliveStates"));
+        const window = bodyOf(panel, "async function openWhoIsAliveDialog", { until: "export async function applyAliveStates" });
         ok(/const buildDonors = \(\) =>/.test(window),
             "the donation controls are built from a string read once");
         ok(/const donors = buildDonors\(\);/.test(window),
@@ -3405,16 +3501,14 @@ const REGRESSIONS = [
 
         ok(/export async function markDeceased\(/.test(chapter),
             "markDeceased is gone, so a repair has nothing quiet to call");
-        const mark = chapter.slice(chapter.indexOf("export async function markDeceased"),
-            chapter.indexOf("export async function killCharacter"));
+        const mark = bodyOf(chapter, "export async function markDeceased", { until: "export async function killCharacter" });
         ok(/FLAGS\.deceased/.test(mark) && /toggleStatusEffect\("dead"/.test(mark),
             "markDeceased does not write the record and the token marker");
         for (const loud of ["whisperToGms", "tieChapterTraces", "offerStageSix", "bulletsOf"]) {
             ok(!mark.includes(loud), `markDeceased ${loud}s - it is meant to be the quiet half`);
         }
 
-        const kill = chapter.slice(chapter.indexOf("export async function killCharacter"),
-            chapter.indexOf("export async function reviveCharacter"));
+        const kill = bodyOf(chapter, "export async function killCharacter", { until: "export async function reviveCharacter" });
         ok(kill.length > 400, "killCharacter has moved or gone");
         ok(/await markDeceased\(actor\)/.test(kill),
             "killCharacter writes the deceased flag itself again, so there are two answers "
@@ -3427,8 +3521,7 @@ const REGRESSIONS = [
                 `killCharacter's order broke: ${order[i - 1]} no longer comes before ${order[i]}`);
         }
 
-        const set = cub.slice(cub.indexOf("export async function setMonocub"),
-            cub.indexOf("export async function setSilenced"));
+        const set = bodyOf(cub, "export async function setMonocub", { until: "export async function setSilenced" });
         ok(/const was = isMonocub\(actor\)/.test(set),
             "setMonocub does not read what it is about to change");
         ok(/if \(was === Boolean\(value\)\)/.test(set),
@@ -3452,8 +3545,8 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
-        const clockWin = panel.slice(panel.indexOf("export async function openClockDialog"));
-        const list = clockWin.slice(clockWin.indexOf("const stated"), clockWin.indexOf("const result"));
+        const clockWin = bodyOf(panel, "export async function openClockDialog");
+        const list = bodyOf(clockWin, "const stated", { until: "const result" });
         ok(list.length > 80, "the chapter list has moved or gone");
         ok(/Math\.max\(CHAPTERS_PER_SEASON/.test(list),
             "the chapter list is six long whatever the clock says, so a campaign past "
@@ -3468,7 +3561,7 @@ const REGRESSIONS = [
         // whose value is out of range fails constraint validation, so Apply there
         // submitted nothing at all.
         const season = stripComments(sources.get("season-setup.mjs") ?? "");
-        const field = season.slice(season.indexOf('name="chapter"'), season.indexOf('name="chapter"') + 240);
+        const field = bodyOf(season, 'name="chapter"', { length: 240 });
         ok(/max="\$\{Math\.max\(CHAPTERS_PER_SEASON/.test(field),
             "the Season setup window still caps its chapter field at six");
     }],
@@ -3483,7 +3576,7 @@ const REGRESSIONS = [
          * nobody reads.
          */
         const panel = stripComments(new Map(await otherSources()).get("gm-panel.mjs") ?? "");
-        const win = panel.slice(panel.indexOf("export async function openClockDialog"));
+        const win = bodyOf(panel, "export async function openClockDialog");
         ok(!/result\.timeOfDay\s*!==\s*undefined/.test(win),
             "the Eclipse warning is gated on a field the form always fills");
         ok(/before\.timeOfDay/.test(win),
@@ -3510,8 +3603,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const utils = stripComments(sources.get("utils.mjs") ?? "");
-        const guard = utils.slice(utils.indexOf("export function guardTextFields"),
-            utils.indexOf("export function registerTextGuard"));
+        const guard = bodyOf(utils, "export function guardTextFields", { until: "export function registerTextGuard" });
         ok(guard.length > 200, "guardTextFields has moved or gone");
         ok(/data-drpg-enter/.test(guard), "nothing reads the marker, so Enter still submits");
         ok(/button\.focus\(\)[\s\S]{0,60}button\.click\(\)/.test(guard),
@@ -3523,8 +3615,7 @@ const REGRESSIONS = [
             "the field rule moved below the button rule - R44 reads the first one's position");
 
         const mm = stripComments(sources.get("mastermind.mjs") ?? "");
-        const box = mm.slice(mm.indexOf("function mastermindHopeBox("),
-            mm.indexOf("function wireMastermindGive("));
+        const box = bodyOf(mm, "function mastermindHopeBox(", { until: "function wireMastermindGive(" });
         ok((box.match(/data-drpg-enter="\[data-drpg-give\]"/g) ?? []).length === 2,
             "both fields in the give-Hope row have to name the button - Enter in a select "
             + "submits exactly like Enter in a number");
@@ -3556,15 +3647,13 @@ const REGRESSIONS = [
          * are what it actually listens to.
          */
         const music = stripComments(new Map(await otherSources()).get("music.mjs") ?? "");
-        const pane = music.slice(music.indexOf("function soundPlayPane("),
-            music.indexOf("function soundPlayPane(") + 600);
+        const pane = bodyOf(music, "function soundPlayPane(", { length: 600 });
         ok(/function soundPlayPane\(\)\s*\{/.test(music) && /situationalPlaylist\(\)/.test(pane),
             "the cue pane is handed its playlist when the window opens, so the picker cannot see a "
             + "new track");
         ok(/html: soundPlayPane\(\)/.test(music),
             "the window is built from something other than the builder");
-        const live = music.slice(music.indexOf("keepLive(dialog, {"),
-            music.indexOf("keepLive(dialog, {") + 600);
+        const live = bodyOf(music, "keepLive(dialog, {", { length: 600 });
         ok(/region: "\.drpg-music-now"/.test(live), "the cue pane is not the live region");
         ok(/build: soundPlayPane\b/.test(live), "the live region is built by something else");
         ok(/after: \(\) => wireSoundPlay\(/.test(live),
@@ -3578,7 +3667,7 @@ const REGRESSIONS = [
 
         // The make-cue handler used to build a label and a select by hand and put
         // them in the DOM, because there was no rebuild to do it. There is now.
-        const made = music.slice(music.indexOf("data-drpg-make-cue"));
+        const made = bodyOf(music, "data-drpg-make-cue");
         ok(!/document\.createElement\("select"\)/.test(made),
             "the make-cue handler still sews a picker into the DOM by hand");
         ok(/situationalMade/.test(music),
@@ -3648,7 +3737,7 @@ const REGRESSIONS = [
             "reopen opens before it closes, which is the defect with an extra window");
 
         const tables = stripComments(sources.get("tables.mjs") ?? "");
-        const tail = tables.slice(tables.indexOf("typeof action.newPool === \"string\""));
+        const tail = bodyOf(tables, "typeof action.newPool === \"string\"");
         equal((tail.match(/reopen\("drpg-window-tables"/g) ?? []).length, 3,
             "the three paths that warn and go straight back to the window do not all use "
             + "reopen");
@@ -3678,8 +3767,7 @@ const REGRESSIONS = [
         ok(/paintDraft\(dialog\.element, draft\)/.test(season),
             "a carried draft is never painted back");
 
-        const rows = season.slice(season.indexOf("function wireSetupSteps("),
-            season.indexOf("export async function openSeasonSetup("));
+        const rows = bodyOf(season, "function wireSetupSteps(", { until: "export async function openSeasonSetup(" });
         ok(/handOff\(dialog, \(\) => openSeasonSetup\(\{ draft \}\)\)/.test(rows),
             "the row still closes and reopens on its own, so the close answers the caller");
         ok(!/await dialog\.close\(\)/.test(rows),
@@ -3687,13 +3775,12 @@ const REGRESSIONS = [
         ok(/step\.fixedKey \?\? "DRPG\.Season\.fixed"/.test(rows),
             "every fix row reports the same sentence, which counts characters");
 
-        const builder = season.slice(season.indexOf("function setupRows("),
-            season.indexOf("function readSeasonForm("));
+        const builder = bodyOf(season, "function setupRows(", { until: "function readSeasonForm(" });
         ok(/!\(step\.fix \|\| step\.open\)/.test(builder),
             "a row with nothing to fix and nothing to open still offers a button");
 
-        const opener = season.slice(season.indexOf("export async function openSeasonSetup("));
-        const tail = opener.slice(opener.indexOf("rejectClose: false"));
+        const opener = bodyOf(season, "export async function openSeasonSetup(");
+        const tail = bodyOf(opener, "rejectClose: false");
         ok(/if \(roundTrip\) return roundTrip;/.test(tail),
             "the round trip is not returned, so the GM panel reopens itself over it");
     }],
@@ -3712,8 +3799,7 @@ const REGRESSIONS = [
          * has paid for that trap twice.
          */
         const team = stripComments(new Map(await otherSources()).get("gm-team-dialog.mjs") ?? "");
-        const ask = team.slice(team.indexOf("async function confirmRemovePool"),
-            team.indexOf("function gmTeamButtons("));
+        const ask = bodyOf(team, "async function confirmRemovePool", { until: "function gmTeamButtons(" });
         ok(ask.length > 200, "nothing asks before a pool is revoked");
         ok(!/DialogV2\.confirm\(/.test(ask),
             "the question is asked with DialogV2.confirm, whose Yes is the first submit");
@@ -3722,7 +3808,7 @@ const REGRESSIONS = [
         ok(/removePoolAsk/.test(ask) && /getDespair\(/.test(ask),
             "the question does not say how much Despair goes with the pool");
 
-        const remove = team.slice(team.indexOf('result?.op === "remove"'));
+        const remove = bodyOf(team, 'result?.op === "remove"');
         ok(/confirmRemovePool\(/.test(remove), "the revoke path does not ask");
         ok(/extraPoolUserIds\(\)\.includes/.test(remove),
             "the id from a select built when the window opened is used without re-checking");
@@ -3753,8 +3839,7 @@ const REGRESSIONS = [
          * run that is happening.
          */
         const murder = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
-        const body = murder.slice(murder.indexOf("function incidentTrackerHtml("),
-            murder.indexOf("function incidentSignature("));
+        const body = bodyOf(murder, "function incidentTrackerHtml(", { until: "function incidentSignature(" });
         ok(body.length > 400, "the tracker's body builder has moved or gone");
         ok(/const lost = \[/.test(body), "nothing notices that the cast cannot be found");
         ok(/trackerCastGone/.test(body), "the missing cast is not reported to the GM");
@@ -3784,13 +3869,13 @@ const REGRESSIONS = [
         ok(own.length > 500, "own-ring.mjs is gone, so nothing marks the students' tokens");
         ok(/drawRect\(/.test(own) && !/drawCircle\(/.test(own),
             "the student frame is not the token's square any more");
-        const whose = own.slice(own.indexOf("function frameOf"), own.indexOf("function hourColour"));
+        const whose = bodyOf(own, "function frameOf", { until: "function hourColour" });
         ok(/hasPlayerOwner/.test(whose), "only the viewer's token is framed again, not every student's");
         ok(/type !== "character"/.test(whose), "a frame reaches tokens that are not characters");
         ok(/whose === "mine" \? cssColour\("--drpg-bone"/.test(own),
             "the viewer's own frame is not bone");
 
-        const mine = own.slice(own.indexOf("function isMine"), own.indexOf("function hourColour"));
+        const mine = bodyOf(own, "function isMine", { until: "function hourColour" });
         ok(/game\.user\?\.character/.test(mine),
             "the ring no longer prefers the character the viewer is playing");
         ok(/!game\.user\?\.isGM && actor\.isOwner/.test(mine),
@@ -3856,8 +3941,7 @@ const REGRESSIONS = [
         const hud = stripComments(sources.get("hud.mjs") ?? "");
         ok(/function paintTrackLine\(/.test(hud), "the clock has no band to paint");
         ok(/drpg-hud-track/.test(hud), "the band has no class, so the stylesheet cannot reach it");
-        const wiring = hud.slice(hud.indexOf("export function registerHud"),
-            hud.indexOf("export function registerHud") + 2000);
+        const wiring = bodyOf(hud, "export function registerHud", { length: 2000 });
         for (const hook of ["updatePlaylistSound", "deletePlaylistSound"]) {
             ok(wiring.includes(hook), `the band does not wake on ${hook}`);
         }
@@ -3888,8 +3972,7 @@ const REGRESSIONS = [
 
         ok(/export async function offerAdvancement\(/.test(level),
             "nothing can hand a Level Up to the player");
-        const offer = level.slice(level.indexOf("export async function offerAdvancement"),
-            level.indexOf("export function pendingAdvance"));
+        const offer = bodyOf(level, "export async function offerAdvancement", { until: "export function pendingAdvance" });
         ok(offer.length > 200, "offerAdvancement has moved or gone");
         ok(/if \(!game\.user\.isGM\)/.test(offer), "anybody can offer themselves a Level Up");
         // Recorded by the primary GM, in its own store - see R98 for why not a flag.
@@ -3899,8 +3982,7 @@ const REGRESSIONS = [
             "the offer is announced to the table - which advancement somebody earned "
             + "also says how they voted");
 
-        const picker = level.slice(level.indexOf("export async function openAdvancement"),
-            level.indexOf("function buildContent"));
+        const picker = bodyOf(level, "export async function openAdvancement", { until: "function buildContent" });
         ok(/const offer = !game\.user\.isGM \? pendingAdvance\(actor\) : null;/.test(picker),
             "the picker decides whether a player may open it by something other than the offer");
         ok(/if \(asPlayer\) kind = offer\.kind;/.test(picker),
@@ -3909,14 +3991,13 @@ const REGRESSIONS = [
         ok(/requestAdvancement\(\{ actorId: actor\.id, picks: result, kind \}\)/.test(picker),
             "a player's picks are applied on their own client");
 
-        const applied = level.slice(level.indexOf("export async function applyAdvancement"));
+        const applied = bodyOf(level, "export async function applyAdvancement");
         ok(/if \(!game\.user\.isGM\)/.test(applied), "the apply is no longer the GM's alone");
         ok(/await withdrawOffer\(actor\.id\)/.test(applied),
             "the offer is not spent by being taken, so it can be taken twice");
 
         const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
-        const handler = bridge.slice(bridge.indexOf("async function handleAdvancement("),
-            bridge.indexOf("async function handleShareBulletOrGiveItem("));
+        const handler = bodyOf(bridge, "async function handleAdvancement(", { until: "async function handleShareBulletOrGiveItem(" });
         ok(handler.length > 300, "the GM side of the handover is gone");
         ok(/\[ACTION_ADVANCEMENT\]: handleAdvancement,/.test(bridge),
             "the handover's handler is not in GM_HANDLERS, so the GM never hears the picks");
@@ -3932,8 +4013,7 @@ const REGRESSIONS = [
             "a pick may name something that is not an option");
 
         const sheet = stripComments(sources.get("sheet.mjs") ?? "");
-        const button = sheet.slice(sheet.indexOf("function injectAdvanceButton"),
-            sheet.indexOf("function injectItemButton"));
+        const button = bodyOf(sheet, "function injectAdvanceButton", { until: "function injectItemButton" });
         ok(/if \(!game\.user\.isGM && !offer\) return;/.test(button),
             "the button is on every player's sheet whether or not anything was offered");
         ok(/is-offered/.test(button), "nothing lights the button up, so nobody notices it");
@@ -3955,8 +4035,7 @@ const REGRESSIONS = [
          * without both propagation stops the delegated handler still fires.
          */
         const calls = stripComments(new Map(await otherSources()).get("calls.mjs") ?? "");
-        const gate = calls.slice(calls.indexOf("function wireNoteGate"),
-            calls.indexOf("export async function confirmCall"));
+        const gate = bodyOf(calls, "function wireNoteGate", { until: "export async function confirmCall" });
         ok(gate.length > 200, "nothing refuses an empty note before the submit starts");
         ok(/\{ capture: true \}/.test(gate),
             "the refusal listens in the bubble phase, where the window is already closing");
@@ -3964,8 +4043,7 @@ const REGRESSIONS = [
             ok(gate.includes(stop), `the refusal does not call ${stop}`);
         }
 
-        const confirm = calls.slice(calls.indexOf("export async function confirmCall"),
-            calls.indexOf("export async function askHopeCallApproval"));
+        const confirm = bodyOf(calls, "export async function confirmCall", { until: "export async function askHopeCallApproval" });
         ok(/render: \(event, dialog\) => wireNoteGate\(dialog, call\)/.test(confirm),
             "the gate is never wired to the window");
         ok(!/return null;\s*\}\s*return written;/.test(confirm),
@@ -3992,8 +4070,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const despair = stripComments(sources.get("despair.mjs") ?? "");
-        const spend = despair.slice(despair.indexOf("export async function spendDespairCall"),
-            despair.indexOf("export function renderDespairBar"));
+        const spend = bodyOf(despair, "export async function spendDespairCall", { until: "export function renderDespairBar" });
         ok(spend.length > 300, "spendDespairCall has moved or gone");
         ok(/\{ announce: post = true \} = \{\}/.test(spend),
             "the card cannot be turned off, so the road that posts its own posts two");
@@ -4003,8 +4080,7 @@ const REGRESSIONS = [
             "the pool is charged after the card, so a failed card would keep the Despair");
 
         const calls = stripComments(sources.get("calls.mjs") ?? "");
-        const road = calls.slice(calls.indexOf("export async function spendDespairCallFor"),
-            calls.indexOf("export async function confirmCall"));
+        const road = bodyOf(calls, "export async function spendDespairCallFor", { until: "export async function confirmCall" });
         ok(/spendDespairCall\(user\.id, key, \{ announce: false \}\)/.test(road),
             "the sheet's road still lets the purchase announce itself");
         ok(/DRPG\.Despair\.spent/.test(road),
@@ -4030,8 +4106,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const calls = stripComments(sources.get("calls.mjs") ?? "");
-        const barred = calls.slice(calls.indexOf("export async function callBarred"),
-            calls.indexOf("async function hopeCallBarred"));
+        const barred = bodyOf(calls, "export async function callBarred", { until: "async function hopeCallBarred" });
         ok(barred.length > 200, "there is no one reader for what shuts a Call");
         ok(/isEclipse\(\)/.test(barred) && /overflowBlocksCalls\(\)/.test(barred),
             "the shared reader does not know about the Eclipse or the overflow's Silence");
@@ -4044,8 +4119,7 @@ const REGRESSIONS = [
         // To the next top-level function, not a fixed number of characters: the
         // confirmation is a hundred lines down and a 3000-character window stopped
         // short of it, so the order assertions below compared against -1.
-        const run = sheet.slice(sheet.indexOf("async function runCall"),
-            sheet.indexOf("function roomBlockFor"));
+        const run = bodyOf(sheet, "async function runCall", { until: "function roomBlockFor" });
         ok(/const barred = await callBarred\(actor, \{ despair \}\);/.test(run),
             "the sheet does not ask before it starts asking the player questions");
         ok(run.indexOf("callBarred(actor") < run.indexOf("confirmCall("),
@@ -4066,13 +4140,11 @@ const REGRESSIONS = [
          */
         const effects = stripComments(new Map(await otherSources()).get("call-effects.mjs") ?? "");
 
-        const schedule = effects.slice(effects.indexOf("export async function scheduleGather"),
-            effects.indexOf("export async function runPendingGather"));
+        const schedule = bodyOf(effects, "export async function scheduleGather", { until: "export async function runPendingGather" });
         ok(/sceneId: scene\.id/.test(schedule),
             "the order does not remember which scene its room is on");
 
-        const run = effects.slice(effects.indexOf("export async function runPendingGather"),
-            effects.indexOf("export async function gatherEveryone"));
+        const run = bodyOf(effects, "export async function runPendingGather", { until: "export async function gatherEveryone" });
         ok(/game\.scenes\.get\(order\.sceneId\)/.test(run),
             "the order is carried out on whichever scene this GM is looking at");
         // `lastIndexOf`: the refusal branch does its own clear, and the one that
@@ -4085,7 +4157,7 @@ const REGRESSIONS = [
         ok(/gatherEveryone\(order\.room, scene\)/.test(run),
             "the scene is worked out and then not passed on");
 
-        const gather = effects.slice(effects.indexOf("export async function gatherEveryone"));
+        const gather = bodyOf(effects, "export async function gatherEveryone");
         ok(/gatherEveryone\(room, onScene = null\)/.test(gather),
             "the scene cannot be handed to it, so a deferred assembly has no way to say where");
         ok(/\[\.\.\.scene\.tokens\]/.test(gather),
@@ -4111,7 +4183,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
-        const prompt = bridge.slice(bridge.indexOf("export async function promptAndCallGm"));
+        const prompt = bodyOf(bridge, "export async function promptAndCallGm");
         ok(/const sent = await callGm\(/.test(prompt),
             "promptAndCallGm throws away what callGm answered");
         ok(/return sent === false \? null : text;/.test(prompt),
@@ -4151,8 +4223,7 @@ const REGRESSIONS = [
          * an extra step.
          */
         const dialog = stripComments(new Map(await otherSources()).get("roll-dialog.mjs") ?? "");
-        const open = dialog.slice(dialog.indexOf("function onRenderApplication"),
-            dialog.indexOf("function forceReaction"));
+        const open = bodyOf(dialog, "function onRenderApplication", { until: "function forceReaction" });
         ok(open.length > 400, "the render hook has moved or gone");
         ok(/advantageSources\(actor\)/.test(open),
             "the unlocked road reads Breakdown alone again, so a bought die is lost");
@@ -4184,8 +4255,7 @@ const REGRESSIONS = [
             "the list of what a Monocub may dispatch is gone, or it has grown");
 
         const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
-        const perform = rolls.slice(rolls.indexOf("export async function performAction"),
-            rolls.indexOf("async function performBetrayal"));
+        const perform = bodyOf(rolls, "export async function performAction", { until: "async function performBetrayal" });
         ok(/MONOCUB\.dispatchable\.includes\(actionKey\)/.test(perform),
             "nothing refuses a Monocub the rest of the grid");
         const gate = perform.indexOf("MONOCUB.dispatchable");
@@ -4219,8 +4289,7 @@ const REGRESSIONS = [
          * the ordinary evidence it stands in for" - so no second number is invented.
          */
         const cfg = stripComments(new Map(await otherSources()).get("config.mjs") ?? "");
-        const fn = cfg.slice(cfg.indexOf("export function analyzeDc"),
-            cfg.indexOf("export function analyzeDc") + 300);
+        const fn = bodyOf(cfg, "export function analyzeDc", { length: 300 });
         // ANALYZE_TYPE_ALIAS since 21.09: Observe's aliases spread, plus autopsy.
         ok(/(?:OBSERVE|ANALYZE)_TYPE_ALIAS\[realType\] \?\? realType/.test(fn),
             "Analyze still has no answer for a trace whose real type is neutral");
@@ -4252,8 +4321,7 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
 
-        const builder = rolls.slice(rolls.indexOf("function declineAction"),
-            rolls.indexOf("function missAction"));
+        const builder = bodyOf(rolls, "function declineAction", { until: "function missAction" });
         ok(builder.length > 200, "the refusal button is hand-written again");
         ok(/paid: receipt \? \(receipt\.pay \?\? "action"\) : "none"/.test(builder),
             "a free action's card is indistinguishable from a card with no receipt");
@@ -4277,8 +4345,7 @@ const REGRESSIONS = [
             + "the constant hands back Sanity nobody spent");
 
         const app = stripComments(sources.get("messenger-app.mjs") ?? "");
-        const miss = app.slice(app.indexOf("async function ruleObserveMiss("),
-            app.indexOf("function refundOnCard("));
+        const miss = bodyOf(app, "async function ruleObserveMiss(", { until: "function refundOnCard(" });
         ok(miss.length > 200, "the GM's \"nothing was there\" has no handler of its own");
         ok(/observeMiss: ruleObserveMiss,/.test(app), "the miss is not in CARD_ACTIONS");
         ok(/chargeObserveMiss\(actor\)/.test(miss), "the miss charges nothing");
@@ -4310,8 +4377,7 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const settings = stripComments(sources.get("settings.mjs") ?? "");
         ok(/observePending: "observePending"/.test(settings), "the store has no setting");
-        const reg = settings.slice(settings.indexOf("SETTINGS.observePending"),
-            settings.indexOf("SETTINGS.observePending") + 400);
+        const reg = bodyOf(settings, "SETTINGS.observePending", { length: 400 });
         ok(/scope: "client"/.test(reg),
             "the pending Observes are world-scoped, so every player can read the answer key");
 
@@ -4324,8 +4390,7 @@ const REGRESSIONS = [
             "some mutation of the store is not written through, which is the half-fix "
             + "that keeps a Reroll broken");
 
-        const resolve = observe.slice(observe.indexOf("export async function resolveObserve"),
-            observe.indexOf("async function undoPrevious"));
+        const resolve = bodyOf(observe, "export async function resolveObserve", { until: "async function undoPrevious" });
         ok(resolve.indexOf("readPending()") < resolve.indexOf("sweepPending()"),
             "the sweep runs over an unloaded cache, and then writes that nothing back");
         ok(/resolveLost/.test(resolve) && /resolveLostOwner/.test(resolve),
@@ -4354,8 +4419,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const live = stripComments(sources.get("live.mjs") ?? "");
-        const rebuild = live.slice(live.indexOf("const rebuild = (force = false)"),
-            live.indexOf("const schedule ="));
+        const rebuild = bodyOf(live, "const rebuild = (force = false)", { until: "const schedule =" });
         ok(rebuild.length > 200, "keepLive's rebuild has moved or gone");
         ok(/Hooks\.callAll\("drpgWindowUpdated", next\)/.test(rebuild),
             "a rebuilt region is never announced, so nothing can dress it");
@@ -4416,10 +4480,9 @@ const REGRESSIONS = [
             "the description is written under the wrong key, so the bullet is blank");
 
         /* The door. A window nothing opens is a window nobody has. */
-        const dash = inv.slice(inv.indexOf("export async function openInvestigationDashboard"));
+        const dash = bodyOf(inv, "export async function openInvestigationDashboard");
         ok(/action: "newTrace"/.test(dash), "the dashboard has no button for it");
-        const door = inv.slice(inv.indexOf("async function runDashboardButton("),
-            inv.indexOf("export async function openInvestigationDashboard"));
+        const door = bodyOf(inv, "async function runDashboardButton(", { until: "export async function openInvestigationDashboard" });
         ok(/if \(action === "newTrace"\)/.test(door), "the button leads nowhere");
 
         const api = stripComments(sources.get("api.mjs") ?? "");
@@ -4457,19 +4520,16 @@ const REGRESSIONS = [
         ok(callers === 1,
             `reshapeTrace is awaited ${callers} times - it must be reachable only `
             + "through the approval, or there is a road that writes without a ruling");
-        const ruling = src.slice(src.indexOf("export async function applyReshapeRuling"),
-            src.indexOf("export async function declineReshapeRuling"));
+        const ruling = bodyOf(src, "export async function applyReshapeRuling", { until: "export async function declineReshapeRuling" });
         ok(ruling.length > 300, "applyReshapeRuling has gone or moved below the decline");
         ok(/await reshapeTrace\(/.test(ruling),
             "the one write left is not the one behind the GM's button");
 
         /* Both roads ask. */
-        const transform = src.slice(src.indexOf("async function resolveTransformRoad("),
-            src.indexOf("const back = CLEANUP.transformAction?.refundStress"));
+        const transform = bodyOf(src, "async function resolveTransformRoad(", { until: "const back = CLEANUP.transformAction?.refundStress" });
         ok(/await proposeReshape\(/.test(transform),
             "the Tamper action still applies the lie itself");
-        const critical = src.slice(src.indexOf("if (rewrite) {"),
-            src.indexOf("} else if (outcome.removes"));
+        const critical = bodyOf(src, "if (rewrite) {", { until: "} else if (outcome.removes" });
         ok(/await proposeReshape\(/.test(critical),
             "a critical clean-up still applies the lie itself");
 
@@ -4486,7 +4546,7 @@ const REGRESSIONS = [
             "the approval is not GM-gated on the client that runs it");
 
         /* A decline is a ruling, not a refund - the whole point of where this sits. */
-        const decline = src.slice(src.indexOf("export async function declineReshapeRuling"));
+        const decline = bodyOf(src, "export async function declineReshapeRuling");
         ok(!/refundPrice|handBack|automatedUpdate/.test(decline.slice(0, 900)),
             "declining hands the price back, which turns every ruling into a free retry");
 
@@ -4601,15 +4661,14 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const settings = stripComments(sources.get("settings.mjs") ?? "");
-        const scale = settings.slice(settings.indexOf("function scaleWindow("),
-            settings.indexOf("\n}", settings.indexOf("function scaleWindow(")));
+        const scale = bodyOf(settings, "function scaleWindow(", { until: "\n}" });
         ok(!/window-resize-handle.*remove\(\)|resizable = false/.test(scale),
             "the sheet's handle is removed by a one-way edit a theme switch cannot undo");
         const glass = await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(r => r.text());
         ok(/body\.drpg-theme-stained-glass \.application\.sheet\.actor\.character > \.window-resize-handle\s*\{\s*display: none/.test(glass),
             "nothing hides the character sheet's handle under the glass");
         const css = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
-        const band = css.slice(css.indexOf(".drpg-hud-track {"), css.indexOf("@keyframes drpg-track-scroll"));
+        const band = bodyOf(css, ".drpg-hud-track {", { until: "@keyframes drpg-track-scroll" });
         ok(/\.drpg-hud-track \{[^}]*width: 0;[^}]*min-width: 100%/.test(band),
             "the track band adds its text's width to the clock's");
         ok(/\.drpg-hud-track > span \{[^}]*min-width: 100%/.test(band),
@@ -4624,12 +4683,12 @@ const REGRESSIONS = [
          * carried each Monokuma's tick but not the pool chosen beside it.
          */
         const src = stripComments(new Map(await otherSources()).get("gm-team-dialog.mjs") ?? "");
-        const add = src.slice(src.indexOf('result?.op === "add"'), src.indexOf('result?.op === "remove"'));
-        const remove = src.slice(src.indexOf('result?.op === "remove"'), src.indexOf('if (!result || result === "cancel")'));
+        const add = bodyOf(src, 'result?.op === "add"', { until: 'result?.op === "remove"' });
+        const remove = bodyOf(src, 'result?.op === "remove"', { until: 'if (!result || result === "cancel")' });
         ok(/reopen\("drpg-window-gmteam"/.test(add) && /reopen\("drpg-window-gmteam"/.test(remove),
             "a refused add or revoke opens the window while the old copy is still closing");
-        const read = src.slice(src.indexOf("function readTeamDraft("), src.indexOf("function paintTeamDraft("));
-        const paint = src.slice(src.indexOf("function paintTeamDraft("));
+        const read = bodyOf(src, "function readTeamDraft(", { until: "function paintTeamDraft(" });
+        const paint = bodyOf(src, "function paintTeamDraft(");
         ok(/monokumaPools\[actor\.id\] = select\.value/.test(read), "the draft forgets each Monokuma's pool");
         ok(/draft\.monokumaPools/.test(paint), "a carried pool is never put back");
     }],
@@ -4737,9 +4796,9 @@ const REGRESSIONS = [
         const at = src.indexOf("function animateWindowIn(");
         ok(at > 0, "animateWindowIn has moved or gone");
         const fn = src.slice(at, src.indexOf("\nfunction ", at + 20));
-        const glass = fn.slice(fn.indexOf("if (glassOn())"), fn.indexOf("return;", fn.indexOf("if (glassOn())")));
+        const glass = bodyOf(fn, "if (glassOn())", { until: "return;" });
         ok(glass.length > 40, "the entrance no longer has a glass branch");
-        const onWindow = glass.slice(glass.indexOf("play(el,"), glass.indexOf("ARRIVE())", glass.indexOf("play(el,")));
+        const onWindow = bodyOf(glass, "play(el,", { until: "ARRIVE())" });
         ok(onWindow.length > 0 && !/opacity/.test(onWindow),
             "the window itself fades in under glass, so its glass is blind until the last frame");
         ok(/for \(const child of el\.children\)[\s\S]{0,80}opacity: 0/.test(glass),
@@ -4778,8 +4837,8 @@ const REGRESSIONS = [
         ok(/Hooks\.on\("renderActorSheetV2"[\s\S]{0,120}showProjectCard/.test(map),
             "nothing draws the card when a project token's sheet opens");
 
-        const card = map.slice(map.indexOf("function projectCard("), map.indexOf("function unknownProjectCard("));
-        const gm = card.slice(card.indexOf("if (game.user.isGM)"));
+        const card = bodyOf(map, "function projectCard(", { until: "function unknownProjectCard(" });
+        const gm = bodyOf(card, "if (game.user.isGM)");
         for (const key of ["cardKnownBy", "cardSecrecy", "DRPG.Project.indirect", "data-drpg-project-manager"]) {
             ok(gm.includes(key) && card.indexOf(key) >= card.indexOf("if (game.user.isGM)"),
                 `"${key}" is printed outside the GM's branch, so a player reads it`);
@@ -4810,14 +4869,12 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const despair = stripComments(sources.get("despair.mjs") ?? "");
         const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
-        const adjust = despair.slice(despair.indexOf("export async function adjustDespair("),
-            despair.indexOf("\nexport ", despair.indexOf("export async function adjustDespair(") + 20));
+        const adjust = bodyOf(despair, "export async function adjustDespair(", { until: "\nexport " });
         ok(/sendDespairToPrimary\(userId, delta\)/.test(adjust),
             "an assistant GM's Despair is not sent to the primary");
         ok(!/requestDespairAdjust|hasGm/.test(adjust),
             "adjustDespair reaches for a road that loops or a name that is not exported");
-        const send = bridge.slice(bridge.indexOf("export function sendDespairToPrimary("),
-            bridge.indexOf("\n}", bridge.indexOf("export function sendDespairToPrimary(")));
+        const send = bodyOf(bridge, "export function sendDespairToPrimary(", { until: "\n}" });
         ok(send.length > 40, "gm-bridge has no way to send a GM's Despair to the primary");
         ok(!/adjustDespair/.test(send), "the send calls adjustDespair, which would loop back to it");
     }],
@@ -4844,33 +4901,81 @@ const REGRESSIONS = [
         ok(game.settings.settings.get(`${MODULE_ID}.advanceOffers`)?.scope === "client",
             "the offer store is not client-scoped, so it reaches every browser");
 
-        const pending = level.slice(level.indexOf("export function pendingAdvance("),
-            level.indexOf("\n}", level.indexOf("export function pendingAdvance(")));
+        const pending = bodyOf(level, "export function pendingAdvance(", { until: "\n}" });
         ok(/readOffers\(\)/.test(pending) && !/getFlag/.test(pending),
             "pendingAdvance reads something other than this browser's store");
-        const record = level.slice(level.indexOf("export async function recordOffer("),
-            level.indexOf("export function offersFor("));
+        const record = bodyOf(level, "export async function recordOffer(", { until: "export function offersFor(" });
         ok(/if \(!isPrimaryGm\(\)\) return null;/.test(record),
             "a client other than the primary GM writes the authority");
 
-        const handler = bridge.slice(bridge.indexOf("async function handleAdvancement("),
-            bridge.indexOf("async function handleAdvancementOffer("));
+        const handler = bodyOf(bridge, "async function handleAdvancement(", { until: "async function handleAdvancementOffer(" });
         ok(/advancing\.has\(actor\.id\)/.test(handler) && /finally \{\s*advancing\.delete/.test(handler),
             "two packets inside the apply's round trips both spend the offer");
         ok(/experienceNew[\s\S]{0,80}\.trim\(\)/.test(handler),
             "a new experience with no name spends the offer on the GM's side");
-        const offer = bridge.slice(bridge.indexOf("async function handleAdvancementOffer("),
-            bridge.indexOf("async function handleAdvancementAsk("));
+        const offer = bodyOf(bridge, "async function handleAdvancementOffer(", { until: "async function handleAdvancementAsk(" });
         ok(/if \(!sender\?\.isGM\)/.test(offer), "a player can record an offer through the bridge");
-        ok(/\{ recipients: \[userId\] \}/.test(bridge.slice(bridge.indexOf("export async function sendOffersTo("))),
+        ok(/\{ recipients: \[userId\] \}/.test(bodyOf(bridge, "export async function sendOffersTo(")),
             "an owner's offers are broadcast rather than addressed to them");
         ok(/game\.socket\.on\(SOCKET_EVENT, onAdvancementOffers\);\s*askForOffers\(\);/.test(bridge),
             "an owner never asks for their offers, so one made while they were away never lights");
 
-        const button = sheet.slice(sheet.indexOf("function injectAdvanceButton"),
-            sheet.indexOf("function injectItemButton"));
+        const button = bodyOf(sheet, "function injectAdvanceButton", { until: "function injectItemButton" });
         ok(/!app\.document\.isOwner/.test(button),
             "the lit badge shows on characters the viewer does not own");
+    }],
+
+    ["R125 - the README and the six handbooks name the version they ship with", async () => {
+        /*
+         * E01, 24.09.2026; audit S14-16, S13-42, S12-76. The handbooks open from the
+         * corner of the screen and say on their third line which version they
+         * describe; all six said 1.2.55 while the module was 1.2.56, and the sandbox
+         * showed a player the brochure reading "Module 1.2.55". With every stage of the
+         * 1.3.0 plan shipping as its own 1.2.X (D20), that gap opens at every release
+         * unless something fails on it - the release workflow checks the same thing,
+         * and this is the half that fails in the suite, before anybody dispatches it.
+         *
+         * The stamp is looked for in the first five lines: a version quoted further
+         * down a handbook is history, not a stamp.
+         */
+        const version = moduleVersion();
+        ok(/^\d+\.\d+\.\d+$/.test(version), `the module's own version reads "${version}"`);
+        const HANDBOOKS = ["gm-handbook.en", "gm-handbook.pl", "player-handbook.en",
+            "player-handbook.pl", "player-brochure.en", "player-brochure.pl"];
+        const stale = [];
+        for (const name of HANDBOOKS) {
+            const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${name}.md`);
+            ok(res.ok, `docs/handbooks/${name}.md did not load`);
+            const head = (await res.text()).split("\n").slice(0, 5).join("\n");
+            if (!head.includes(version)) stale.push(`${name} (${head.match(/\d+\.\d+\.\d+/)?.[0] ?? "no version"})`);
+        }
+        const readme = await fetch(`/modules/${MODULE_ID}/README.md`);
+        ok(readme.ok, "README.md did not load");
+        const said = (await readme.text()).match(/describe version (\d+\.\d+\.\d+)\./)?.[1] ?? "nothing";
+        if (said !== version) stale.push(`README (${said})`);
+        ok(!stale.length, `module.json says ${version}, these say otherwise: ${stale.join(", ")}`);
+    }],
+
+    ["R126 - fileSizes reads every stylesheet and language the module loads", async () => {
+        /*
+         * E01, 24.09.2026; audit S01-26. The list `fileSizes()` walks used to name four
+         * files by hand beside the crawled scripts, and left out four of the six
+         * stylesheets and the Polish file - the ones the theme work changed. A GM
+         * asked to paste the report after a theme fix "did not arrive" got a list that
+         * looked complete. It reads the manifest now, and this holds it there.
+         */
+        const { loadedFiles } = await import("./diagnostics.mjs");
+        const files = new Set(await loadedFiles());
+        const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+        const { LANGUAGES } = await import("./i18n.mjs");
+        const wanted = [
+            ...Array.from(manifest.styles ?? []),
+            ...Object.keys(LANGUAGES).map(code => `lang/${code}.json`),
+            "module.json", "scripts/module.mjs"
+        ];
+        ok(wanted.length >= 9, `only ${wanted.length} files were expected - the manifest reads wrong`);
+        const missed = wanted.filter(f => !files.has(f));
+        ok(!missed.length, `fileSizes() does not look at: ${missed.join(", ")}`);
     }]
 ];
 
@@ -5200,8 +5305,7 @@ const INVARIANTS = [
         ok(overflow.length > 1000 && season.length > 1000, "the overflow sources did not load");
 
         // ONE: the counter's own writer asks.
-        const add = overflow.slice(overflow.indexOf("export async function addOverflow"),
-                                   overflow.indexOf("let arming"));
+        const add = bodyOf(overflow, "export async function addOverflow", { until: "let arming" });
         ok(add.length > 100, "addOverflow is gone");
         ok(/armAhead\s*\(/.test(add),
             "the counter no longer asks whether it is full when it changes - "
@@ -5215,14 +5319,13 @@ const INVARIANTS = [
             + "and Darkness have nothing left to reduce");
 
         // TWO: the season reset clears it, through the one definition of empty.
-        const wipe = season.slice(season.indexOf("async function wipeSeason"));
+        const wipe = bodyOf(season, "async function wipeSeason");
         ok(wipe.length > 500, "wipeSeason is gone");
         ok(/resetOverflow\(/.test(wipe),
             "a season reset empties the Despair pools and leaves their overflow standing");
 
         // Both halves, or a new season inherits an armed darkening.
-        const reset = overflow.slice(overflow.indexOf("export async function resetOverflow"),
-                                     overflow.indexOf("export async function resetOverflow") + 600);
+        const reset = bodyOf(overflow, "export async function resetOverflow", { length: 600 });
         ok(/count:\s*0/.test(reset) && /active:\s*null/.test(reset),
             "resetOverflow no longer clears both the counter and the armed stamp");
     }],
@@ -5255,8 +5358,7 @@ const INVARIANTS = [
         const tables = stripComments(sources.get("tables.mjs") ?? "");
         ok(tables.length > 1000, "tables.mjs did not load");
 
-        const edit = tables.slice(tables.indexOf("async function editResult"),
-                                  tables.indexOf("async function dropResult"));
+        const edit = bodyOf(tables, "async function editResult", { until: "async function dropResult" });
         ok(edit.length > 100, "editResult is gone");
         ok(/description:\s*value\s*\}/.test(edit),
             "an emptied description is being written as something other than empty - "
@@ -5267,8 +5369,7 @@ const INVARIANTS = [
         // The other two are guarded for EVERY module window at once, so they
         // are read from the guard rather than from this one caller.
         const utils = stripComments(sources.get("utils.mjs") ?? "");
-        const guard = utils.slice(utils.indexOf("export function guardTextFields"),
-                                  utils.indexOf("export function registerTextGuard"));
+        const guard = bodyOf(utils, "export function guardTextFields", { until: "export function registerTextGuard" });
         ok(guard.length > 100, "guardTextFields is gone from utils.mjs");
 
         // A window torn down under a focused field still writes it.
@@ -5300,8 +5401,7 @@ const INVARIANTS = [
          * bubbles to nothing. Measured: typed, clicked another table, the entry
          * kept its old text.
          */
-        const rows = tables.slice(tables.indexOf("function tableItemsHtml"),
-                                  tables.indexOf("async function addResult"));
+        const rows = bodyOf(tables, "function tableItemsHtml", { until: "async function addResult" });
         ok(/data-drpg-initial/.test(rows),
             "table rows no longer carry the value they were rendered with, so there is "
             + "nothing to compare against and every blur is a write again");
@@ -5313,8 +5413,7 @@ const INVARIANTS = [
             "an unchanged field is written again - which is how untouched rows lost their "
             + "descriptions to nothing more than focus passing over them");
 
-        const showFn = tables.slice(tables.indexOf("const flush = async"),
-                                    tables.indexOf("show(current);"));
+        const showFn = bodyOf(tables, "const flush = async", { until: "show(current);" });
         ok(/await flush\(\)/.test(showFn) && showFn.indexOf("await flush()") < showFn.indexOf("innerHTML"),
             "the list redraws without writing what was on screen first, so a description "
             + "typed and then clicked away from is lost with the row it was in");
@@ -5445,8 +5544,7 @@ const INVARIANTS = [
         const clock = stripComments(sources.get("clock.mjs") ?? "");
         ok(eclipse.length > 1000 && clock.length > 1000, "the clock sources did not load");
 
-        const opening = eclipse.slice(eclipse.indexOf("export async function startEclipse"),
-                                      eclipse.indexOf("export async function endEclipse"));
+        const opening = bodyOf(eclipse, "export async function startEclipse", { until: "export async function endEclipse" });
         ok(/checkOverflow\s*\(/.test(opening),
             "an Eclipse no longer checks the overflow as it opens");
         ok(/checkOverflow\s*\(/.test(clock),
@@ -5870,7 +5968,7 @@ const INVARIANTS = [
          * is one word at one call site.
          */
         const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text());
-        const call = src.slice(src.indexOf("callGm(trap.killer"), src.indexOf("callGm(trap.killer") + 400);
+        const call = bodyOf(src, "callGm(trap.killer", { length: 400 });
         ok(call.length > 20, "traps.mjs no longer calls callGm the way this test expects");
         ok(/gmOnly:\s*true/.test(call),
             "the trap alert does not pass gmOnly - it will be posted into the killer's own thread");
@@ -6551,7 +6649,10 @@ const INVARIANTS = [
 
         const book = document.getElementById("drpg-book-launcher");
         ok(book, "the handbooks button is not on the screen");
-        needs(book?.offsetWidth > 0, "no layout here: where the button stands needs a browser");
+        // The environment first, then the button (E01, audit S14-05): a button with
+        // no width in a browser that lays out is a button that is not drawn.
+        needs(layoutAvailable(), "no layout here: where the button stands needs a browser");
+        ok(book.offsetWidth > 0, "the handbooks button is on the page and has no width - it is not drawn");
 
         /* Where it stands, read from the resolved insets rather than the boxes: under
            Stained Glass the three are turned with their pane, and a turned box is wider
@@ -6629,9 +6730,15 @@ const INVARIANTS = [
         equal(BREAKPOINTS.narrow, 1224, "the desk layout is back at widths where the rail and the strip overlap");
 
         // Wider toward the tiles: the column's margin, and the width it asks for where it fits.
-        if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
+        // What this half needs is three facts about where it runs, asked before the column
+        // is (E01, audit S14-05 and S14-18): the glass theme, a browser that lays out, and a
+        // desk rather than a stacked screen. On all three, a column that is not pinned is
+        // the module's failure, not the environment's.
+        needs(glassTheme(), "this measures Stained Glass; the theme here is Monokuma Legacy");
+        needs(layoutAvailable(), "no layout here: the column's width needs a browser");
+        needs(!narrowScreen(), "a stacked screen: the column is pinned only on a desk");
         const col = document.getElementById("ui-right-column-1");
-        needs(col?.dataset.drpgPinned === "1", "the right column is not pinned here (a stacked screen or no layout)");
+        ok(col?.dataset.drpgPinned === "1", "the right column is not pinned on a desk-width screen under the glass");
         equal(getComputedStyle(col).marginRight, "6px", "the right column keeps its old 22 px off the tiles");
         const scale = Number.parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-scale")) || 1;
         const width = document.getElementById("drpg-player-status")?.offsetWidth ?? 0;
@@ -6663,8 +6770,7 @@ const INVARIANTS = [
 
         // A removed stash is forgotten by whoever had found it.
         const vault = src("vault.mjs");
-        const set = vault.slice(vault.indexOf("export async function setStash"),
-            vault.indexOf("\n}", vault.indexOf("export async function setStash")));
+        const set = bodyOf(vault, "export async function setStash", { until: "\n}" });
         ok(set.indexOf("forgetStashFound(") > 0 && set.indexOf("forgetStashFound(") < set.lastIndexOf("return list"),
             "setStash forgets the finders after it has already returned");
 
@@ -6695,8 +6801,7 @@ const INVARIANTS = [
          */
         const popup = stripComments((new Map(await otherSources())).get("popup.mjs") ?? "");
         ok(!/setTimeout\(dismiss/.test(popup), "a notice leaves by itself on a timer again");
-        ok(!/drpg-dismiss"\)\);\s*\}\s*\}/.test(popup.slice(popup.indexOf("function trimStack"),
-            popup.indexOf("function unparkInto"))), "the stack dismisses its oldest cards again");
+        ok(!/drpg-dismiss"\)\);\s*\}\s*\}/.test(bodyOf(popup, "function trimStack", { until: "function unparkInto" })), "the stack dismisses its oldest cards again");
 
         const { showPopup } = await import("./popup.mjs");
         const host = () => document.getElementById("drpg-popups");
@@ -6773,8 +6878,7 @@ const INVARIANTS = [
 
         // The project tokens wait for ready before they write.
         const map = src("projects-map.mjs");
-        const sync = map.slice(map.indexOf("export async function syncProjectTokens"),
-            map.indexOf("export async function syncProjectTokens") + 900);
+        const sync = bodyOf(map, "export async function syncProjectTokens", { length: 900 });
         ok(/if \(!game\.ready\)/.test(sync), "the project sync writes a world setting before ready again");
 
         // A project's icon under the isometric view: smaller than the full picture that
@@ -6792,7 +6896,7 @@ const INVARIANTS = [
             .replace(/\/\*[\s\S]*?\*\//g, " ");
         ok(/\.drpg-gmp-advance \{[^}]*display: inline-flex/.test(css),
             "the Next time of day button is a block of its own again");
-        const head = css.slice(css.indexOf(".drpg-viewer-head > span {"), css.indexOf(".drpg-viewer-tick {"));
+        const head = bodyOf(css, ".drpg-viewer-head > span {", { until: ".drpg-viewer-tick {" });
         ok(head.length > 0 && !/writing-mode/.test(head), "the players' names stand on end again");
         ok(/fa-music/.test(src("hud.mjs")), "the track band has lost its notes");
         // The CALL, with its semicolon: `holdActionsTab(app, element)` alone also matches
@@ -6921,56 +7025,67 @@ const INVARIANTS = [
 
     /* ---- the audit of 1.2.27: the three things it could not check by reading ------------
        Each of these was a defect nobody saw until a screenshot arrived from a tablet, and
-       each is cheap to measure on a live client. They only run under the theme they are
-       about; under Monokuma Legacy they pass by saying so. */
+       each is cheap to measure on a live client. They only measure under the theme they
+       are about, and under Monokuma Legacy they SAY so, as a skip. They used to `return`,
+       which the runner prints as "ok" - so this comment's old claim that they "pass by
+       saying so" was the one thing they never did (E01, 24.09.2026; audit S14-18). The
+       loops below count what they measured, because a loop over nothing passes too. */
     ["the curtain cuts a clean partition", async () => {
         const { CHECKS, refreshGlass } = await import("./glass.mjs");
-        if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
+        needs(glassTheme(), "this measures Stained Glass; the theme here is Monokuma Legacy");
+        needs(layoutAvailable(), "no layout here: the curtain's canvas has no width outside a browser");
         refreshGlass();
         await wait(300);
         const c = CHECKS[CHECKS.length - 1];
-        needs(c, "the curtain cut nothing: its canvas has no width outside a browser");
         ok(c, "the curtain never reported a self-check - it did not cut");
         ok(!c.overlaps && !c.nonconvex && !c.blockFails && !c.edgeGaps,
             `overlaps ${c.overlaps}, non-convex ${c.nonconvex}, blocks off their pane ${c.blockFails}, gaps at the edge ${c.edgeGaps}`);
     }],
 
     ["no chrome label is cut off", () => {
-        if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
+        needs(glassTheme(), "this measures Stained Glass; the theme here is Monokuma Legacy");
+        needs(layoutAvailable(), "no layout here: a label's height needs a browser");
         // A box one pixel shorter than the text inside it is the "MUNUKUMA" defect: VT323's
         // capitals are tall for its em, and a box sized in another face clips them.
         const cut = [];
+        let measured = 0;
         for (const sel of ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#drpg-events", "#countdowns"]) {
             const host = document.querySelector(sel);
             if (!host) continue;
             for (const el of host.querySelectorAll("div, span, b, h4")) {
                 if (!el.offsetWidth || el.children.length) continue;
+                measured++;
                 if (getComputedStyle(el).overflow === "visible") continue;
                 if (el.scrollHeight > el.clientHeight + 1) cut.push(`${sel} ${el.className || el.tagName} ${el.scrollHeight}>${el.clientHeight}`);
             }
         }
+        ok(measured > 0, "no label in the chrome has a width - nothing was measured");
         ok(!cut.length, cut.slice(0, 4).join("; "));
     }],
 
     ["nothing in the chrome is set under the floor", () => {
-        if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
+        needs(glassTheme(), "this measures Stained Glass; the theme here is Monokuma Legacy");
+        needs(layoutAvailable(), "no layout here: a label's size needs a browser");
         // 11 px, at every interface scale - see docs/design/typography.md.
         const floor = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-floor")) || 11;
         const small = [];
+        let measured = 0;
         for (const sel of ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#drpg-events", "#countdowns", ".drpg-panel"]) {
             for (const host of document.querySelectorAll(sel)) {
                 for (const el of host.querySelectorAll("*")) {
                     if (!el.offsetWidth || !el.textContent.trim() || el.matches("i, [class*='fa-']")) continue;
+                    measured++;
                     const size = parseFloat(getComputedStyle(el).fontSize);
                     if (size && size < floor - 0.5) small.push(`${el.className || el.tagName} ${size.toFixed(1)}px`);
                 }
             }
         }
+        ok(measured > 0, "no text in the chrome has a width - nothing was measured");
         ok(!small.length, small.slice(0, 4).join("; "));
     }],
 
     ["the theme speaks two faces", () => {
-        if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
+        needs(glassTheme(), "this measures Stained Glass; the theme here is Monokuma Legacy");
         // Stained Glass is VT323 and Special Elite and nothing else (docs/design/typography.md):
         // the first family every module surface resolves to is one of the two. Icon elements
         // are their own face by design, and are skipped.
@@ -6999,11 +7114,12 @@ const INVARIANTS = [
 
     ["the notice tile is always cut", async () => {
         const { LAST } = await import("./glass.mjs");
-        if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
+        needs(glassTheme(), "this measures Stained Glass; the theme here is Monokuma Legacy");
+        needs(layoutAvailable(), "no layout here: the curtain's canvas has no width outside a browser");
         // The bottom-left tile is part of the curtain's one shape, with or without a card on
         // it (1.2.36): a notice lands on glass that was already there.
+        ok(LAST.blocks.length, "the curtain cut nothing in a browser that lays out");
         const tile = LAST.blocks.find(b => b.cls === "note-block");
-        needs(LAST.blocks.length, "the curtain cut nothing: its canvas has no width outside a browser");
         ok(tile, "no pane was cut for the notices");
         ok(tile.x === 16 && tile.w > 100, `the notice tile is at ${tile.x},${tile.y} ${tile.w}x${tile.h}`);
     }],
@@ -7308,219 +7424,6 @@ const INVARIANTS = [
             "--drpg-css-version in danganronpa.css does not match module.json");
     }],
 
-    ["a chapter's Key Remnant plan is filed, not dropped, when the chapter ends", async () => {
-        /*
-         * `keyPlan()` MANUFACTURES a plan for whatever chapter the clock says,
-         * which is right - last murder's clues are not this murder's blanks -
-         * and it is exactly why the words a GM wrote had nowhere to go. The
-         * first fold only fired when a plan for a different chapter was saved
-         * OVER the old one, which is not what ending a chapter does, so the
-         * archive measured empty a chapter later. `archiveKeyPlan` is the
-         * explicit fold the chapter-end screen now calls.
-         */
-        const { archiveKeyPlan } = await import("./investigation.mjs");
-        const before = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
-        try {
-            const chapter = getClock().chapter;
-            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
-                chapter,
-                entries: [{ scale: "standard", name: "A muddy print",
-                    text: "It points at the east stair.", note: "Sakura size 9.",
-                    tokenId: null, sceneId: null }]
-            });
-
-            ok(await archiveKeyPlan(chapter), "the plan was not filed");
-            const after = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
-            const kept = after.archive?.[chapter];
-            ok(Array.isArray(kept), `chapter ${chapter} is not in the archive`);
-            equal(kept[0]?.name, "A muddy print", "the archived row lost its name");
-            equal(kept[0]?.text, "It points at the east stair.",
-                "the archived row lost the words the players read");
-
-            // A plan with nothing written in it is not worth a shelf.
-            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
-                chapter, entries: [{ scale: "standard", name: "", text: "", note: "", tokenId: null }]
-            });
-            ok(!await archiveKeyPlan(chapter), "an empty plan was filed anyway");
-        } finally {
-            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, before);
-        }
-    }],
-
-    ["the unfound-Key charge refuses once the clock has left the chapter", async () => {
-        /*
-         * THIS ONE BILLED A REAL WORLD BEFORE IT WORKED, which is why it is in
-         * the suite. The first guard compared `keyPlan().chapter` with the
-         * clock and could never fire - `keyPlan()` manufactures a plan for the
-         * chapter the clock is on, so the two agree by construction. Run
-         * against a world that had just closed a case it read "0 of 5 found",
-         * concluded the whole bar was missed, and moved 12 Despair.
-         *
-         * The stored setting is the only thing that remembers which chapter was
-         * actually planned, so that is what the guard reads. The pools are
-         * measured either side here, because "returned null" and "charged
-         * nothing" are two different claims and it was the second one that
-         * failed.
-         *
-         * AND `keysCharged` IS CLEARED FIRST, or this test asks nothing. The
-         * function opens with `if (trialProgress().keysCharged) return null`,
-         * and on any world where a trial has already billed for its Key
-         * Remnants that stamp is standing - so the first version of this test
-         * got its `null` from the stamp, passed against the guard that could
-         * never fire, and would have let the whole defect back in. The stamp
-         * is also what the assertions read afterwards: the guard returns
-         * BEFORE `setTrialProgress`, so a charge that got past it leaves the
-         * stamp behind even when the pools happen not to move.
-         */
-        const { chargeForUnfoundKeys } = await import("./investigation.mjs");
-        const { monokumas, getDespair } = await import("./despair.mjs");
-        const { trialProgress, setTrialProgress } = await import("./vote.mjs");
-        const plan = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
-        const charged = trialProgress().keysCharged ?? false;
-        const clock = getClock();
-        const pools = () => monokumas().map(u => getDespair(u.id));
-        const before = pools();
-        try {
-            await setTrialProgress({ keysCharged: false });
-            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
-                chapter: clock.chapter,
-                entries: [{ scale: "standard", name: "A muddy print", text: "",
-                    note: "", tokenId: null, sceneId: null }]
-            });
-            await setClock({ ...clock, chapter: clock.chapter + 1 });
-
-            equal(await chargeForUnfoundKeys(), null,
-                "the charge went through for a chapter nobody can investigate any more");
-            ok(!trialProgress().keysCharged,
-                "the refused charge stamped the trial anyway, so the honest one can never be asked");
-            equal(JSON.stringify(pools()), JSON.stringify(before),
-                "the refused charge moved Despair anyway");
-        } finally {
-            await setClock(clock);
-            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, plan);
-            await setTrialProgress({ keysCharged: charged });
-            /* AND THE POOLS GO BACK, because the run where this test EARNS its
-               keep is the run where the charge goes through - so the failing
-               path is exactly the one that leaves 12 Despair in a real world.
-               Proved by doing it: the sharpened version of this test billed the
-               QA world on its first honest run. Written as values, since
-               `adjustDespair` takes a delta and the delta is what went wrong. */
-            const { setDespair } = await import("./despair.mjs");
-            const users = monokumas();
-            for (let i = 0; i < users.length; i++) {
-                if (getDespair(users[i].id) !== before[i]) await setDespair(users[i].id, before[i]);
-            }
-        }
-    }],
-
-    ["closing the trial puts the room back into Daily Life", async () => {
-        /*
-         * The one route back, exercised rather than read. A trial that ends without
-         * this leaves the campaign in `classTrial` - which since T-1 means every
-         * action tile but Analyze, every room crossing, every Despair Call and
-         * Confusion stay shut; it holds every HUD on "Class Trial"; and it cannot be
-         * undone from anywhere except Edit Campaign by hand.
-         *
-         * The elapsed clock is restarted too, and that is not decoration: the Daily
-         * Life that follows a trial is measured from the trial ending, not from the
-         * afternoon that led up to the body.
-         */
-        const { startFloor, trialFloor } = await import("./trial-floor.mjs");
-        const { closeTrial } = await import("./trial-floor-ui.mjs");
-        const clock = foundry.utils.deepClone(getClock());
-        try {
-            await startFloor({});
-            equal(getClock().phase, "classTrial",
-                "opening the floor did not put the campaign into the trial");
-            ok(trialFloor(), "the floor did not open");
-
-            const started = getClock().timeOfDayStartedAt;
-            ok(await closeTrial(), "closeTrial refused");
-            equal(getClock().phase, "dailyLife",
-                "the trial closed and left the campaign in the Class Trial");
-            equal(trialFloor(), null, "the trial closed with the floor still open");
-            ok(getClock().timeOfDayStartedAt !== started,
-                "the elapsed clock did not restart, so the Daily Life after the trial is "
-                + "measured from before the body was found");
-        } finally {
-            await setClock(clock);
-            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
-        }
-    }],
-
-    ["the End of chapter screen closes the trial", async () => {
-        /*
-         * THE WIRING, EXERCISED. `applyChapterEnd` is the screen without the screen -
-         * see its own header for why it was split out - so this asks the question a GM
-         * asks by pressing the button, rather than asking whether a word appears in a
-         * file. The first attempt at this test did the latter and passed against a call
-         * deliberately disabled.
-         *
-         * Only `endTrial` is ticked. The clock deliberately does not move: what is
-         * under test is that the room empties, and a chapter that also advanced would
-         * make the failure harder to read.
-         */
-        const { applyChapterEnd } = await import("./chapter.mjs");
-        const { startFloor, trialFloor } = await import("./trial-floor.mjs");
-        const clock = foundry.utils.deepClone(getClock());
-        try {
-            await startFloor({});
-            equal(getClock().phase, "classTrial", "the fixture did not open a trial");
-
-            await applyChapterEnd({ endTrial: true });
-
-            equal(getClock().phase, "dailyLife",
-                "the chapter ended and left the campaign in the Class Trial - every HUD "
-                + "reads Class Trial into the next chapter and the panel says so too");
-            equal(trialFloor(), null,
-                "the chapter ended with the debate floor still open");
-
-            /* AND IT DOES NOTHING WHEN THERE IS NOTHING TO DO. The box is disabled out
-               of a trial, but a macro can pass anything, and "close the trial" out of
-               Daily Life must not restart the elapsed clock on a time of day that is
-               half spent. */
-            const started = getClock().timeOfDayStartedAt;
-            await applyChapterEnd({ endTrial: true });
-            equal(getClock().timeOfDayStartedAt, started,
-                "closing a trial that was not sitting restarted the time of day");
-        } finally {
-            await setClock(clock);
-            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
-        }
-    }],
-
-    ["a trial record remembers the chapter it was stamped with", async () => {
-        /*
-         * `trialProgress()` answers BLANK for a record from another chapter, and it is
-         * right to: a fresh trial must not think its vote is already in. But the blank
-         * is also what hid the state the panel could not name - a trial still sitting
-         * for a chapter that has been ended - so `trialProgressChapter()` reads the
-         * stamp itself. If it ever starts answering from the same blank, the backstop
-         * line goes quiet and nothing says so.
-         */
-        const { trialProgress, trialProgressChapter, setTrialProgress } = await import("./vote.mjs");
-        const stored = foundry.utils.deepClone(
-            game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
-        const clock = foundry.utils.deepClone(getClock());
-        try {
-            await setTrialProgress({ voteClosed: true, verdictApplied: true });
-            const was = getClock().chapter;
-            equal(trialProgressChapter(), was, "the stamp does not read back");
-
-            await setClock({ chapter: was + 1 });
-            equal(trialProgressChapter(), was,
-                "the stamp followed the clock instead of staying with its own trial");
-            equal(trialProgress().verdictApplied, false,
-                "the new chapter inherited the last trial's verdict");
-            equal(trialProgress().keysCharged, false,
-                "a fresh chapter's record is missing `keysCharged`, so the same record "
-                + "has two shapes depending on whether its trial has been charged");
-        } finally {
-            await setClock(clock);
-            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
-        }
-    }],
-
     ["a window closes without waiting for a transition that never started", async () => {
         /*
          * AWAIT-CLOSE-SITES and RM-CLOSE-1000. Foundry waits up to a second for a close to
@@ -7640,6 +7543,21 @@ async function snapshot(cast) {
      */
     const { monokumas, getDespair } = await import("./despair.mjs");
     return {
+        /*
+         * EVERY SETTING THIS MODULE REGISTERED, not a list of the ones somebody
+         * remembered (E01, 24.09.2026; audit S14-10). The list below this line
+         * grew one field per bug - Despair on 10.09, Hope, the action budget,
+         * the motive - and the audit found five it had still not reached:
+         * the sealed rooms and the Eclipse crossings that "ending an Eclipse the
+         * way the game does" clears, the search tokens `advanceTimeOfDay` zeroes,
+         * the murders `judgePendingMurders` rules on, the overflow rules. Each
+         * left the QA world different after a clean run, which is the thing this
+         * snapshot exists to prevent. A setting added next month is in here the
+         * day it is registered. The named fields are kept: `restore` still writes
+         * the clock through `setClock` and Despair through `setDespair`, and the
+         * comments on them are the record of why each one matters.
+         */
+        settings: moduleSettingValues(),
         clock: foundry.utils.deepClone(getClock()),
         despair: monokumas().map(user => ({ id: user.id, value: getDespair(user.id) })),
         overflow: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {}),
@@ -7712,6 +7630,28 @@ async function snapshot(cast) {
 async function restore(snap) {
     const { reviveCharacter } = await import("./chapter.mjs");
     const { setDespair, getDespair } = await import("./despair.mjs");
+
+    /*
+     * THE CLOCK FIRST (E01, 24.09.2026; audit S14-10). It used to go back last, and
+     * `setClock` is not a plain write: a change of phase resets every student's
+     * actions and can charge Despair for unfound Keys (`reconcilePhase`). Last, it
+     * undid the resources and pools this function had just put back. It did not
+     * bite only because every scenario that changes the phase changes it back
+     * itself. First, whatever the phase change does is then overwritten by the
+     * recorded values below - which is what "put back" means.
+     */
+    if (stableJson(getClock()) !== stableJson(snap.clock)) await setClock(snap.clock);
+
+    // Every other setting that moved, written back as it was recorded. Compared
+    // first so a setting nothing touched is not written - several have `onChange`
+    // handlers that redraw the table.
+    for (const [key, value] of snap.settings ?? []) {
+        if (key === SETTINGS.clock) continue;
+        let now;
+        try { now = game.settings.get(MODULE_ID, key); } catch { continue; }
+        if (stableJson(now) !== stableJson(value)) await game.settings.set(MODULE_ID, key, value);
+    }
+
     // Written as values, not deltas: the delta is the thing that went wrong.
     for (const row of snap.despair ?? []) {
         if (getDespair(row.id) !== row.value) await setDespair(row.id, row.value);
@@ -7756,8 +7696,80 @@ async function restore(snap) {
     const strayMessages = game.messages.filter(m => !snap.messages.has(m.id)).map(m => m.id);
     if (strayMessages.length) await ChatMessage.deleteDocuments(strayMessages);
 
-    await setClock(snap.clock);
     await settle();
+}
+
+/**
+ * JSON with its object keys sorted, so two readings of the same value compare
+ * equal whatever order a round trip through the server left the keys in.
+ */
+function stableJson(value) {
+    return JSON.stringify(value ?? null, (key, v) => (v && typeof v === "object" && !Array.isArray(v))
+        ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]]))
+        : v);
+}
+
+/**
+ * Every setting this module registered, by key, as its value reads now.
+ *
+ * Read off the registry's own keys ("danganronpa-rpg.clock"), not off `def.namespace`:
+ * the first version filtered on that field, the headless harness registers settings
+ * without it, and this map came back empty - so the check below it compared two empty
+ * readings and passed a tier-1 test written on purpose to write a setting (measured
+ * 24.09). The key is the one thing every registry has.
+ */
+function moduleSettingValues() {
+    const out = new Map();
+    const prefix = `${MODULE_ID}.`;
+    for (const full of game.settings.settings.keys()) {
+        if (!full.startsWith(prefix)) continue;
+        const key = full.slice(prefix.length);
+        try { out.set(key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))); }
+        catch { /* registered but unreadable here; nothing to compare or put back */ }
+    }
+    return out;
+}
+
+/**
+ * What tier 0 and tier 1 promise not to change, as one comparable string per part.
+ *
+ * WHY THIS EXISTS (E01, 24.09.2026; audit S14-01). The handbook tells a GM that
+ * `runTests({ tier: 1 })` is safe during play, and it was not: five "invariants"
+ * opened and closed the Class Trial on the live world, and R10 raised a room
+ * crossing sixty-one times, which springs an armed trap. Nothing noticed, because
+ * the only snapshot was taken for tier 2. Every setting of this module, every
+ * actor's resources, module flags and items, every user's module flags, the
+ * tokens on every scene and the chat are read before tier 0 and again after tier
+ * 1; a difference is a failure that names what moved.
+ *
+ * It cannot tell a test from a person. Run during play, a player who acts while
+ * the suite runs moves something too - so the failure says which part moved, and
+ * a second run with nobody acting is the answer to "was it the suite".
+ */
+function worldFingerprint() {
+    const parts = new Map();
+    for (const [key, value] of moduleSettingValues()) parts.set(`setting ${key}`, stableJson(value));
+    for (const actor of game.actors) {
+        parts.set(`actor ${actor.name} (${actor.id})`, stableJson({
+            resources: actor.system?.resources ?? null,
+            flags: actor.flags?.[MODULE_ID] ?? null,
+            items: actor.items.map(i => i.id).sort()
+        }));
+    }
+    for (const user of game.users) {
+        parts.set(`user ${user.name} (${user.id})`, stableJson(user.flags?.[MODULE_ID] ?? null));
+    }
+    for (const scene of game.scenes) {
+        parts.set(`scene ${scene.name} (${scene.id})`, stableJson(scene.tokens.map(t => t.id).sort()));
+    }
+    parts.set("chat", stableJson(game.messages.map(m => m.id).sort()));
+    return parts;
+}
+
+/** The parts of two fingerprints that differ, by name. */
+function fingerprintDiff(before, after) {
+    const keys = new Set([...before.keys(), ...after.keys()]);
+    return [...keys].filter(k => before.get(k) !== after.get(k));
 }
 
 /** Three students to play with, or the scenarios cannot run. */
@@ -7805,10 +7817,24 @@ const SCENARIOS = [
         equal(state.stage, "incident", "stage after the opening roll");
         equal(state.turnSide, "victim", "the victim opens the incident");
 
-        const told = [...game.messages].slice(before).some(m =>
-            m.whisper.includes(game.users.find(u => victim.testUserPermission(u, "OWNER"))?.id ?? "")
-            || /moving on you/i.test(m.content ?? ""));
-        ok(told, "the victim was never told the incident began");
+        /*
+         * THE VICTIM'S PLAYER, NOT THE FIRST OWNER (E01, 24.09.2026; audit S14-06). This
+         * used to ask `game.users.find(u => victim.testUserPermission(u, "OWNER"))`, and
+         * a GM owns every actor - so it found a GM, and every card whispered to the GMs
+         * at the opening (they are copied on all of them) counted as telling the victim.
+         * The other half read `m.content`, which on a private card is the stub
+         * secret.mjs leaves in the document, so it could never match. It passed with the
+         * victim told nothing. Now: the player who owns the victim, a whisper to them,
+         * and the words that whisper carries, read the way the card is read.
+         */
+        const { contentOf } = await import("./secret.mjs");
+        const owner = game.users.find(u => !u.isGM && victim.testUserPermission(u, "OWNER"));
+        needs(owner, `no player owns ${victim.name} in this world, so there is nobody to tell`);
+        const toVictim = [...game.messages].slice(before).filter(m => m.whisper.includes(owner.id));
+        ok(toVictim.length, `${owner.name}, who plays the victim, was sent nothing when the incident began`);
+        ok(toVictim.some(m => /moving on you/i.test(contentOf(m))),
+            `${owner.name} was whispered to, but not told the incident began: `
+            + toVictim.map(m => contentOf(m).replace(/<[^>]+>/g, "").slice(0, 60)).join(" | "));
     }],
 
     ["two killers act back to back, not alternating with the victim", async () => {
@@ -8005,6 +8031,11 @@ const SCENARIOS = [
          * dice say.
          */
         const [who] = cast();
+        // The environment first (E01, audit S14-05): the window is Daggerheart's own,
+        // so where Daggerheart's applications are not registered it cannot open, and
+        // where they are, a window that does not open is this module's failure.
+        needs(systemSheetsAvailable(),
+            "Daggerheart's own applications are not registered here: its roll window cannot open");
         game.drpg.suiteRolling = false;
         let app = null;
         try {
@@ -8016,7 +8047,6 @@ const SCENARIOS = [
 
             app = [...foundry.applications.instances.values()]
                 .find(w => w.element?.classList?.contains("roll-selection"));
-            needs(app, "the roll window did not open: its opener is Daggerheart's sheet, which this environment does not draw");
             ok(app, "the roll window did not open for a bare statistic click");
 
             const root = app.element;
@@ -8523,6 +8553,7 @@ const SCENARIOS = [
             await settle();
 
             const investigation = await import("./investigation.mjs");
+            needs(dialogsDrawn(), "DialogV2 draws no window here, so the dashboard has no element to read");
             const before = new Set(foundry.applications.instances.keys());
             // Not awaited: it settles when the GM closes it. See R12.
             Promise.resolve(investigation.openInvestigationDashboard()).catch(() => {});
@@ -8530,7 +8561,6 @@ const SCENARIOS = [
             for (const [id, app] of foundry.applications.instances.entries()) {
                 if (!before.has(id)) dialog = app;
             }
-            needs(dialog?.element, "the dashboard did not open: a DialogV2 has no element outside a browser");
             ok(dialog?.element, "the dashboard did not open");
 
             const bar = () => dialog.element.querySelector(".drpg-trace-filters");
@@ -9629,6 +9659,7 @@ const SCENARIOS = [
          * day 11 to day 10. Found by the a11y sweep on 21.09, measured by clicking.
          */
         const { openClockDialog } = await import("./gm-panel.mjs");
+        needs(dialogsDrawn(), "DialogV2 draws no window here, so Edit campaign has no field to click");
         const before = new Set(foundry.applications.instances.keys());
         openClockDialog();
         let input = null;
@@ -9637,7 +9668,7 @@ const SCENARIOS = [
             input = document.querySelector('input[name="day"][data-drpg-chrome="step"]');
         }
         try {
-            needs(input, "the Edit campaign window did not draw its day stepper here");
+            ok(input, "the Edit campaign window did not draw its day stepper");
             const label = input.closest("label");
             ok(label, "the day field is no longer inside its label");
             equal(label.control, input, "the day's label names something other than the day field");
@@ -9712,7 +9743,19 @@ const SCENARIOS = [
          * module's own sweep about all of them together. Hidden tabs count: their
          * controls are in the DOM and a reader reaches them when the tab is shown.
          */
-        const { nameControls, a11yReport } = await import("./a11y.mjs");
+        const { nameControls, CONTROLS } = await import("./a11y.mjs");
+        /*
+         * WHAT OPENED, NOT WHAT WAS CALLED (E01, 24.09.2026; audit S14-07). This used to
+         * count `opened++` after each opener was merely called - not awaited, so a
+         * render that rejected never reached the catch - and then read `a11yReport`,
+         * which answers "every control has a name" when it has met no controls at all.
+         * With no window drawn it passed, and in the headless harness no window is
+         * drawn. So: the environment is asked first whether a window can be drawn at
+         * all; the windows are counted as the new instances Foundry registered; the
+         * controls are counted inside those windows; and the nameless ones are read off
+         * those windows only, not off a report that has been collecting since `ready`.
+         */
+        needs(dialogsDrawn(), "DialogV2 draws no window here, so the standing windows have no controls to read");
         /* A trace on the map, so the case panel draws its Traces rows. The first
            version of this ran on a scene with none, passed, and the next full run
            failed on exactly those rows. */
@@ -9724,23 +9767,34 @@ const SCENARIOS = [
             note: "test fixture - accessibility sweep"
         }) : null;
         const before = new Set(foundry.applications.instances.keys());
-        let opened = 0;
         for (const [file, text] of await otherSources()) {
             for (const m of text.matchAll(/^export (?:async )?function (open[A-Z]\w*|manage[A-Z]\w*)\s*\(/gm)) {
                 if (!STANDING.includes(m[1])) continue;
                 try {
                     const mod = await import(`./${file}`);
-                    mod[m[1]]?.();
-                    opened++;
+                    // Not awaited - half of these settle when the window is closed (see R12).
+                    Promise.resolve(mod[m[1]]?.()).catch(() => {});
                 } catch { /* a window that needs a world state this one lacks */ }
             }
         }
         await new Promise(resolve => setTimeout(resolve, 2500));
         try {
-            needs(opened >= 10, `only ${opened} standing windows could be opened here`);
-            nameControls();
-            const report = a11yReport();
-            ok(!/carry no name/.test(report), report);
+            const fresh = [...foundry.applications.instances.values()]
+                .filter(app => !before.has(app.id) && app.element?.isConnected);
+            ok(fresh.length >= 10, `only ${fresh.length} standing windows opened - this measured too little`);
+            let controls = 0;
+            const nameless = [];
+            for (const app of fresh) {
+                nameControls(app.element);
+                for (const el of app.element.querySelectorAll(CONTROLS)) {
+                    controls++;
+                    if (el.dataset.drpgNamed === "none") {
+                        nameless.push(`${app.title ?? app.id}: ${el.outerHTML.slice(0, 100)}`);
+                    }
+                }
+            }
+            ok(controls > 0, `${fresh.length} windows opened with no controls in them - nothing was read`);
+            ok(!nameless.length, `${nameless.length} controls carry no name a screen reader can read: ${nameless.slice(0, 6).join(" | ")}`);
         } finally {
             for (const app of [...foundry.applications.instances.values()]) {
                 if (before.has(app.id)) continue;
@@ -9928,6 +9982,7 @@ const SCENARIOS = [
          * thing being measured and not the intention.
          */
         const fog = await import("./fog.mjs");
+        needs(canvasAvailable(), "no canvas renderer here: the room outlines are PIXI");
         const before = fog.diagnoseFog({ toChat: false });
         ok(before.currentRooms?.length,
             "nobody is standing in a named room, so no outline is being drawn to measure");
@@ -9941,7 +9996,6 @@ const SCENARIOS = [
             return null;
         };
         const group = find(canvas.stage, "drpgRoomOutline");
-        needs(group, "no outline group: the room outlines are PIXI and need a real canvas");
         ok(group, "the room outline group is not on the canvas");
 
         /* NOT the glow: it strokes the same path several times wider, so measuring it
@@ -10533,6 +10587,7 @@ const SCENARIOS = [
         const before = foundry.utils.getProperty(actor, "system.resources.hope.value") ?? 0;
         const max = foundry.utils.getProperty(actor, "system.resources.hope.max") ?? 6;
 
+        needs(systemSheetsAvailable(), "Daggerheart's sheets are not registered here, so there is no Hope drawer to draw into");
         try {
             await actor.update({ "system.resources.hope.value": 0 });
             await actor.sheet.render(true);
@@ -10544,7 +10599,6 @@ const SCENARIOS = [
             const total = () => (actor.sheet.element
                 ?.querySelectorAll(".drpg-hope-panel .drpg-action-grid > *") ?? []).length;
 
-            needs(total() > 0, "the Hope drawer drew nothing: the sheet is Daggerheart's and this environment does not draw it");
             ok(total() > 0, "the Hope drawer drew no Calls at all");
             const broke = greyed();
             ok(broke > 0, "nothing was greyed out at zero Hope, so this proves nothing");
@@ -10921,6 +10975,16 @@ const SCENARIOS = [
          */
         const { SETTINGS, getSetting, setSetting } = await import("./settings.mjs");
         const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+        /*
+         * AND THE MUSIC ON, because a world's own switch is not the environment
+         * (E01, 24.09.2026; audit S14-05). "Follow the game with music" defaults to
+         * off, and this test used to find no track playing in any world that had
+         * never turned it on - and call that "playlists need audio". It reads the
+         * playlist's `playing` flags, which need no audio at all (see above); it
+         * needed the switch. The snapshot puts the switch back.
+         */
+        const musicWasOn = getSetting(SETTINGS.musicEnabled);
+        await setSetting(SETTINGS.musicEnabled, true);
 
         const playlist = await Playlist.create({
             name: "Suite objection fixture",
@@ -10952,7 +11016,6 @@ const SCENARIOS = [
             await floor.openObjection(a.id, b.id);
             await settle();
             const first = nowPlaying();
-            needs(first, "no track started: playlists need audio, which this environment has none of");
             ok(first, "an objection started no track at all");
 
             /*
@@ -10981,6 +11044,7 @@ const SCENARIOS = [
             await setClock({ phase: before.phase });
             try { await playlist?.stopAll(); } catch { /* nothing was playing */ }
             await setSetting(SETTINGS.musicMap, mapBefore);
+            await setSetting(SETTINGS.musicEnabled, musicWasOn);
             if (playlist) await playlist.delete();
             await settle();
             if (wasPaused) await game.togglePause(true);
@@ -11199,7 +11263,9 @@ const SCENARIOS = [
                 seen += host.querySelectorAll("button, a[href], [role=\"button\"], input, select, textarea").length;
             }
         }
-        needs(seen > 0, "no module control is on screen here: this needs the interface drawn");
+        // The module draws these itself, headless included - so none on screen is the
+        // module's failure, not the environment's (E01, audit S14-05).
+        ok(seen > 0, "no module control is on screen - the module's interface did not draw");
         const report = a11yReport();
         ok(!/carry no name/.test(report), report);
 
@@ -11390,7 +11456,7 @@ const SCENARIOS = [
             "a project token with no tint was left with no frame at all");
 
         const src = stripComments((await moduleSources()).get("remnant-ring.mjs") ?? "");
-        const paint = src.slice(src.indexOf("function paint("));
+        const paint = bodyOf(src, "function paint(");
         ok(/projectIdOf\(\s*token\.document\s*\)/.test(paint),
             "paint() stopped asking whether a token is a project, so project tokens lose their frame");
         ok(/!isRemnant\s*&&\s*!project/.test(paint),
@@ -12097,7 +12163,17 @@ const SCENARIOS = [
         const trial = await import("./trial.mjs");
         const clock = foundry.utils.deepClone(getClock());
         const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
-        const messagesBefore = game.messages.size;
+        /*
+         * CARDS ON THE TABLE, NOT MESSAGES (E01, 24.09.2026). This compared
+         * `game.messages.size` before and after, and passed in a full run only because
+         * an earlier scenario had left the floor in a state where nothing else was
+         * posted. Run alone - and after the snapshot learnt to put every setting back -
+         * it failed on a private whisper to the GM that the fixture's own steps send,
+         * which is not a card anybody at the table sees. What the rule forbids is an
+         * objection card: a message carrying the `present` flag.
+         */
+        const presented = () => game.messages.filter(m => m.getFlag(MODULE_ID, trial.TRIAL_FLAGS.present)).length;
+        const presentedBefore = presented();
 
         try {
             await setClock({ ...clock, phase: "classTrial" });
@@ -12136,7 +12212,7 @@ const SCENARIOS = [
                 await settle();
                 equal(await trial.presentBullet(other, item, { objection: true, targetId: who.id }),
                     false, "an objection during somebody else's minute posted a card");
-                equal(game.messages.size, messagesBefore,
+                equal(presented(), presentedBefore,
                     "a refused objection still put a card on the table");
             } finally {
                 await item.delete();
@@ -13592,7 +13668,230 @@ const SCENARIOS = [
             if (isDeceased(victim)) await reviveCharacter(victim);
             await settle();
         }
-    }]
+    }],
+
+    /*
+     * MOVED FROM TIER 1 (E01, 24.09.2026; audit S14-01). Each of the five below writes
+     * the world while it runs - four open and close the Class Trial with `startFloor`,
+     * which resets every student's actions, zeroes the trial record, can charge Despair
+     * for unfound Keys again and clears the body announcement - and tier 1 promised a
+     * GM it could be run during play. Their own `finally` blocks put most of it back,
+     * but "most" was the defect: nothing checked, and the trial queue was set to {}
+     * even when a real trial was sitting. Here they run under the snapshot, and tier
+     * 0/1 is now asserted not to change the world at all (see `worldFingerprint`).
+     */
+    ["a chapter's Key Remnant plan is filed, not dropped, when the chapter ends", async () => {
+        /*
+         * `keyPlan()` MANUFACTURES a plan for whatever chapter the clock says,
+         * which is right - last murder's clues are not this murder's blanks -
+         * and it is exactly why the words a GM wrote had nowhere to go. The
+         * first fold only fired when a plan for a different chapter was saved
+         * OVER the old one, which is not what ending a chapter does, so the
+         * archive measured empty a chapter later. `archiveKeyPlan` is the
+         * explicit fold the chapter-end screen now calls.
+         */
+        const { archiveKeyPlan } = await import("./investigation.mjs");
+        const before = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
+        try {
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
+                chapter,
+                entries: [{ scale: "standard", name: "A muddy print",
+                    text: "It points at the east stair.", note: "Sakura size 9.",
+                    tokenId: null, sceneId: null }]
+            });
+
+            ok(await archiveKeyPlan(chapter), "the plan was not filed");
+            const after = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
+            const kept = after.archive?.[chapter];
+            ok(Array.isArray(kept), `chapter ${chapter} is not in the archive`);
+            equal(kept[0]?.name, "A muddy print", "the archived row lost its name");
+            equal(kept[0]?.text, "It points at the east stair.",
+                "the archived row lost the words the players read");
+
+            // A plan with nothing written in it is not worth a shelf.
+            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
+                chapter, entries: [{ scale: "standard", name: "", text: "", note: "", tokenId: null }]
+            });
+            ok(!await archiveKeyPlan(chapter), "an empty plan was filed anyway");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, before);
+        }
+    }],
+
+    ["the unfound-Key charge refuses once the clock has left the chapter", async () => {
+        /*
+         * THIS ONE BILLED A REAL WORLD BEFORE IT WORKED, which is why it is in
+         * the suite. The first guard compared `keyPlan().chapter` with the
+         * clock and could never fire - `keyPlan()` manufactures a plan for the
+         * chapter the clock is on, so the two agree by construction. Run
+         * against a world that had just closed a case it read "0 of 5 found",
+         * concluded the whole bar was missed, and moved 12 Despair.
+         *
+         * The stored setting is the only thing that remembers which chapter was
+         * actually planned, so that is what the guard reads. The pools are
+         * measured either side here, because "returned null" and "charged
+         * nothing" are two different claims and it was the second one that
+         * failed.
+         *
+         * AND `keysCharged` IS CLEARED FIRST, or this test asks nothing. The
+         * function opens with `if (trialProgress().keysCharged) return null`,
+         * and on any world where a trial has already billed for its Key
+         * Remnants that stamp is standing - so the first version of this test
+         * got its `null` from the stamp, passed against the guard that could
+         * never fire, and would have let the whole defect back in. The stamp
+         * is also what the assertions read afterwards: the guard returns
+         * BEFORE `setTrialProgress`, so a charge that got past it leaves the
+         * stamp behind even when the pools happen not to move.
+         */
+        const { chargeForUnfoundKeys } = await import("./investigation.mjs");
+        const { monokumas, getDespair } = await import("./despair.mjs");
+        const { trialProgress, setTrialProgress } = await import("./vote.mjs");
+        const plan = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
+        const charged = trialProgress().keysCharged ?? false;
+        const clock = getClock();
+        const pools = () => monokumas().map(u => getDespair(u.id));
+        const before = pools();
+        try {
+            await setTrialProgress({ keysCharged: false });
+            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
+                chapter: clock.chapter,
+                entries: [{ scale: "standard", name: "A muddy print", text: "",
+                    note: "", tokenId: null, sceneId: null }]
+            });
+            await setClock({ ...clock, chapter: clock.chapter + 1 });
+
+            equal(await chargeForUnfoundKeys(), null,
+                "the charge went through for a chapter nobody can investigate any more");
+            ok(!trialProgress().keysCharged,
+                "the refused charge stamped the trial anyway, so the honest one can never be asked");
+            equal(JSON.stringify(pools()), JSON.stringify(before),
+                "the refused charge moved Despair anyway");
+        } finally {
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, plan);
+            await setTrialProgress({ keysCharged: charged });
+            /* AND THE POOLS GO BACK, because the run where this test EARNS its
+               keep is the run where the charge goes through - so the failing
+               path is exactly the one that leaves 12 Despair in a real world.
+               Proved by doing it: the sharpened version of this test billed the
+               QA world on its first honest run. Written as values, since
+               `adjustDespair` takes a delta and the delta is what went wrong. */
+            const { setDespair } = await import("./despair.mjs");
+            const users = monokumas();
+            for (let i = 0; i < users.length; i++) {
+                if (getDespair(users[i].id) !== before[i]) await setDespair(users[i].id, before[i]);
+            }
+        }
+    }],
+
+    ["closing the trial puts the room back into Daily Life", async () => {
+        /*
+         * The one route back, exercised rather than read. A trial that ends without
+         * this leaves the campaign in `classTrial` - which since T-1 means every
+         * action tile but Analyze, every room crossing, every Despair Call and
+         * Confusion stay shut; it holds every HUD on "Class Trial"; and it cannot be
+         * undone from anywhere except Edit Campaign by hand.
+         *
+         * The elapsed clock is restarted too, and that is not decoration: the Daily
+         * Life that follows a trial is measured from the trial ending, not from the
+         * afternoon that led up to the body.
+         */
+        const { startFloor, trialFloor } = await import("./trial-floor.mjs");
+        const { closeTrial } = await import("./trial-floor-ui.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        try {
+            await startFloor({});
+            equal(getClock().phase, "classTrial",
+                "opening the floor did not put the campaign into the trial");
+            ok(trialFloor(), "the floor did not open");
+
+            const started = getClock().timeOfDayStartedAt;
+            ok(await closeTrial(), "closeTrial refused");
+            equal(getClock().phase, "dailyLife",
+                "the trial closed and left the campaign in the Class Trial");
+            equal(trialFloor(), null, "the trial closed with the floor still open");
+            ok(getClock().timeOfDayStartedAt !== started,
+                "the elapsed clock did not restart, so the Daily Life after the trial is "
+                + "measured from before the body was found");
+        } finally {
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+        }
+    }],
+
+    ["the End of chapter screen closes the trial", async () => {
+        /*
+         * THE WIRING, EXERCISED. `applyChapterEnd` is the screen without the screen -
+         * see its own header for why it was split out - so this asks the question a GM
+         * asks by pressing the button, rather than asking whether a word appears in a
+         * file. The first attempt at this test did the latter and passed against a call
+         * deliberately disabled.
+         *
+         * Only `endTrial` is ticked. The clock deliberately does not move: what is
+         * under test is that the room empties, and a chapter that also advanced would
+         * make the failure harder to read.
+         */
+        const { applyChapterEnd } = await import("./chapter.mjs");
+        const { startFloor, trialFloor } = await import("./trial-floor.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        try {
+            await startFloor({});
+            equal(getClock().phase, "classTrial", "the fixture did not open a trial");
+
+            await applyChapterEnd({ endTrial: true });
+
+            equal(getClock().phase, "dailyLife",
+                "the chapter ended and left the campaign in the Class Trial - every HUD "
+                + "reads Class Trial into the next chapter and the panel says so too");
+            equal(trialFloor(), null,
+                "the chapter ended with the debate floor still open");
+
+            /* AND IT DOES NOTHING WHEN THERE IS NOTHING TO DO. The box is disabled out
+               of a trial, but a macro can pass anything, and "close the trial" out of
+               Daily Life must not restart the elapsed clock on a time of day that is
+               half spent. */
+            const started = getClock().timeOfDayStartedAt;
+            await applyChapterEnd({ endTrial: true });
+            equal(getClock().timeOfDayStartedAt, started,
+                "closing a trial that was not sitting restarted the time of day");
+        } finally {
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+        }
+    }],
+
+    ["a trial record remembers the chapter it was stamped with", async () => {
+        /*
+         * `trialProgress()` answers BLANK for a record from another chapter, and it is
+         * right to: a fresh trial must not think its vote is already in. But the blank
+         * is also what hid the state the panel could not name - a trial still sitting
+         * for a chapter that has been ended - so `trialProgressChapter()` reads the
+         * stamp itself. If it ever starts answering from the same blank, the backstop
+         * line goes quiet and nothing says so.
+         */
+        const { trialProgress, trialProgressChapter, setTrialProgress } = await import("./vote.mjs");
+        const stored = foundry.utils.deepClone(
+            game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const clock = foundry.utils.deepClone(getClock());
+        try {
+            await setTrialProgress({ voteClosed: true, verdictApplied: true });
+            const was = getClock().chapter;
+            equal(trialProgressChapter(), was, "the stamp does not read back");
+
+            await setClock({ chapter: was + 1 });
+            equal(trialProgressChapter(), was,
+                "the stamp followed the clock instead of staying with its own trial");
+            equal(trialProgress().verdictApplied, false,
+                "the new chapter inherited the last trial's verdict");
+            equal(trialProgress().keysCharged, false,
+                "a fresh chapter's record is missing `keysCharged`, so the same record "
+                + "has two shapes depending on whether its trial has been charged");
+        } finally {
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+        }
+    }],
 ];
 
 /* ==========================================================================
@@ -13688,6 +13987,7 @@ async function runSuite(tier, only = null) {
     // pass E17 makes on the way in and on the way out. It is the cheapest thing
     // in the suite to be wrong about and the most expensive to skip: a divergence
     // it would have caught costs four releases, not one run.
+    const untouched = worldFingerprint();
     lines.push("TIER 0 - module-wide regression (source is read, not called)");
     for (const [name, fn] of pick(REGRESSIONS)) {
         try { await fn(); record(name, null); } catch (err) { record(name, err); }
@@ -13699,6 +13999,21 @@ async function runSuite(tier, only = null) {
         for (const [name, fn] of pick(INVARIANTS)) {
             try { await fn(); record(name, null); } catch (err) { record(name, err); }
         }
+    }
+
+    // THE PROMISE, CHECKED (E01, audit S14-01): tier 0 and tier 1 are what a GM is
+    // told may be run during play. A write that lands a moment after its test is a
+    // write all the same, so the reading waits for one settle first.
+    await settle();
+    const moved = fingerprintDiff(untouched, worldFingerprint());
+    if (moved.length) {
+        failed++;
+        lines.push(`  FAIL  tier 0/1 changed the world`);
+        lines.push(`        moved: ${moved.slice(0, 12).join("; ")}${moved.length > 12 ? `; and ${moved.length - 12} more` : ""}`);
+        lines.push("        (a player acting while the suite ran moves these too - if nobody did, a test did)");
+    } else {
+        passed++;
+        lines.push(`  ok    tier 0/1 changed nothing in the world`);
     }
 
     /*
@@ -13749,7 +14064,12 @@ async function runSuite(tier, only = null) {
                         await game.drpg.endMurder({ reason: "test", followUp: false });
                         await restore(snap);
                     } catch (err) {
-                        lines.push(`        (could not restore after "${name}": ${err.message})`);
+                        // A FAILURE, not a footnote (E01, audit S14-10). This was a
+                        // line in the report with nothing counted, so a run that left
+                        // the world dirty could still say "0 failed" at the top.
+                        failed++;
+                        lines.push(`  FAIL  could not restore the world after "${name}"`);
+                        lines.push(`        ${err?.message ?? err}`);
                     }
                 }
             }
@@ -13760,9 +14080,22 @@ async function runSuite(tier, only = null) {
     // "0 skipped" is a run in a browser that could answer everything, and that is
     // worth being able to see at a glance
     const summary = `${passed} passed, ${failed} failed, ${skipped} skipped`;
-    const text = [`Danganronpa RPG - regression suite`, summary, "", ...lines].join("\n");
+    /*
+     * A SKIP IN A BROWSER IS NEWS (E01, 24.09.2026; audit S14-05). The skipped count
+     * is asserted only by the headless harness, which has no layout and expects a
+     * handful. In a browser that lays out, most of the reasons a test gives for not
+     * answering - no layout, no canvas, no fonts - are false, so whatever is left is
+     * either a real fact about this table (the Legacy theme, a world with nobody
+     * playing a character) or a test that stopped being able to answer. It is said
+     * out loud with the number rather than folded into a green notice.
+     */
+    const inBrowser = layoutAvailable();
+    const skipNote = inBrowser && skipped
+        ? `${skipped} test${skipped === 1 ? "" : "s"} could not answer in a browser that lays out - read each reason below`
+        : null;
+    const text = [`Danganronpa RPG - regression suite`, summary, ...(skipNote ? [skipNote] : []), "", ...lines].join("\n");
     console.log(text);
-    if (failed) ui.notifications.warn(summary);
+    if (failed || skipNote) ui.notifications.warn(skipNote ? `${summary} - ${skipNote}` : summary);
     else ui.notifications.info(summary);
     log(`Regression suite: ${summary}`);
     return { passed, failed, skipped, text };
