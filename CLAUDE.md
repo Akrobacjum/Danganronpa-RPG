@@ -120,7 +120,8 @@ in the suite reads the source for it. `senderOf(senderId)` and
 is the trust model, below.
 
 **Delete a key with `forcedDeletion()` or `unsetFlag`.** A `-=key` in an update
-removes nothing on v14, and R152 fails any update in the module spelt that way;
+removes nothing in this Foundry (the module's own notes; LIVE-E30-01 is the check
+that confirms it on v14), and R152 fails any update in the module spelt that way;
 the harness reports one as `legacyKeys`. `forcedDeletion()` in `utils.mjs` is
 v14's `ForcedDeletion` where it exists (else Daggerheart's `_del`), and null in a
 Foundry with neither, where the caller unsets one flag at a time.

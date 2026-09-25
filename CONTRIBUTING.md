@@ -51,10 +51,11 @@ python3 -m http.server 8765      # then open /audit/glass-harness.html
 
 **A test, where one is possible.** The suite is in `scripts/tests*.mjs` (the
 runner in `tests.mjs`, the tests in `tests-tier0.mjs`, `tests-tier1.mjs` and
-`tests-tier2.mjs`, the shared tools in `tests-kit.mjs`, and in `tests-lint.mjs`
-the contract's detectors, which `node tools/check.mjs contract` also runs) and
-runs inside a real world; the scenarios in `audit/harness/scenarios/` drive four
-clients at once and are the place for anything involving sockets, permissions or
+`tests-tier2.mjs`, the shared tools in `tests-kit.mjs`, in `tests-lint.mjs` the
+contract's detectors, which `node tools/check.mjs contract` also runs, and in
+`tests-flows.mjs` the flows, every way a player reaches the GM) and runs inside a real world; the
+scenarios in `audit/harness/scenarios/` drive four clients at once (five in
+`17-assistant`) and are the place for anything involving sockets, permissions or
 two people doing things in the wrong order.
 
 **Both languages.** Every string is a key in `lang/en.json` with a twin in

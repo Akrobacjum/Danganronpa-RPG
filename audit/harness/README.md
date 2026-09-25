@@ -171,12 +171,16 @@ number is not reused for a scenario.
 - **CSS** (E30, `lib/css.mjs`). The six stylesheets are attached as one inline
   sheet of `@import ... layer(modules)` in module.json's order, served from the
   checkout (nothing else loads: any other address is a 404), and a client whose
-  attach does not complete fails its boot. jsdom's cascade answers: selectors,
-  specificity, inheritance, `@media` against its 1024 x 768 window. A custom
-  property comes back with its `var()` substituted; a standard property that
-  uses `var()` comes back unresolved, as jsdom gives it, and `calc()` or
-  `color-mix()` is never evaluated. Whether cascade layers order anything in
-  jsdom is not verified; how v14 attaches the sheets is LIVE-E30-09.
+  attach does not complete fails its boot. jsdom 30.0.1's cascade answers:
+  selectors, specificity, inheritance. It applies a media list only when the
+  list is empty, `all` or `screen`: every feature query (`max-width`,
+  `prefers-color-scheme` ...) reads false whatever the window, and `@supports`,
+  `@container` and `@layer` blocks are not read at all (measured in the E30
+  review, 25.09.2026: the module's 28 feature `@media` blocks, its `@container`
+  and its `@supports` all stay unapplied headless). A custom property comes back
+  with its `var()` substituted; a standard property that uses `var()` comes back
+  unresolved, as jsdom gives it, and `calc()` or `color-mix()` is never
+  evaluated. How v14 attaches the sheets is LIVE-E30-09.
 - **The permission gate** (`canWrite` in `cluster.mjs`) models ownership and
   roles and little else. From role 3 a user is a GM (`User#isGM`, E30) and
   writes anything but users, and world settings. Users: a Gamemaster (role 4)
