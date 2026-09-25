@@ -3261,6 +3261,62 @@ const INVARIANTS = [
         ok(handed.length === 2 && handed[0] !== handed[1] && !judged.has(handed[1]),
             "the runner handed the guard and the run the same object - this measures nothing about ctx");
         equal(JSON.stringify(scenes), JSON.stringify([A]), "the run did not find, through ctx, the place its guard judged");
+    }],
+
+    ["R167 - handOff closes a window without waiting for its transition", async () => {
+        /*
+         * E31, 25.09.2026; audit S01-64. `handOff` (live.mjs) closes a window and then
+         * runs what the window hands over to - reopen the GM panel, the next Season
+         * setup step. It waited for the window's closing animation, up to a second,
+         * for a window the GM had finished with; it closes as `reopen` does now, with
+         * `{ animate: false }`. Driven with spy windows, nothing on the screen: the
+         * close is asked for without its transition, the work runs only once the
+         * close has resolved, and a window that will not close - throwing, or
+         * refusing - runs nothing and answers null. The second the transition took
+         * is not measurable here (the harness's windows close at once): LIVE-E31-05.
+         */
+        const { handOff } = await import("./live.mjs");
+        const order = [];
+        const spy = { close: async options => { order.push(`close ${JSON.stringify(options ?? null)}`); await wait(10); order.push("closed"); } };
+        const answer = await handOff(spy, () => { order.push("work"); return "reopened"; });
+        equal(JSON.stringify(order), JSON.stringify(['close {"animate":false}', "closed", "work"]),
+            "the window was closed with its transition, or the work ran before the close resolved");
+        equal(answer, "reopened", "handOff did not answer what the work gave");
+        let ran = 0;
+        const throwing = { close: () => { throw new Error("R167 planted: the window will not close"); } };
+        const refusing = { close: () => Promise.reject(new Error("R167 planted: the close refused")) };
+        equal(await handOff(throwing, () => { ran++; }), null, "a window whose close threw did not answer null");
+        equal(await handOff(refusing, () => { ran++; }), null, "a window whose close refused did not answer null");
+        equal(ran, 0, "a window that would not close still ran what it handed over to");
+    }],
+
+    ["R168 - a window's width counts its content's border once", async () => {
+        /*
+         * E31, 25.09.2026; audit S01-64. `windowWidthFor` (utils.mjs) sizes a table
+         * window from the widest row: the content's padding, and the frame around the
+         * content - measured, the window's width less the content's `clientWidth`,
+         * which already holds the content's border. It added that border a second
+         * time. Measured here on elements of its own, not the module's windows: a
+         * content box with 3 px borders and 4 px padding must be sized
+         * `ceil(widest + 8 + frame) + 2`, where `frame` is read off the same elements,
+         * so it holds in jsdom (where it is 0) and in a browser alike. The elements
+         * are removed again; nothing in the world is touched.
+         */
+        const { windowWidthFor } = await import("./utils.mjs");
+        const root = document.createElement("div");
+        const content = document.createElement("div");
+        content.style.cssText = "padding: 0 4px; border: 3px solid transparent; box-sizing: content-box;";
+        root.appendChild(content);
+        document.body.appendChild(root);
+        try {
+            const frame = Math.max(0, root.getBoundingClientRect().width - content.clientWidth);
+            const widest = 300;
+            const want = Math.ceil(widest + 8 + frame) + 2;
+            must(Math.round(window.innerWidth * 0.94) > want + 20, `the window is ${window.innerWidth} px wide, too narrow for the ceiling to stay out of this`);
+            equal(windowWidthFor(root, content, widest), want, "a bordered content box is sized with its border counted twice, or not at all");
+        } finally {
+            root.remove();
+        }
     }]
 ];
 

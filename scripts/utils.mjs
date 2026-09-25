@@ -914,12 +914,16 @@ export function fitWindowToTable(dialog) {
  * set that remembered which windows had been sized went with it: nothing read
  * it once the flag was gone.
  */
-function windowWidthFor(root, content, widest) {
+export function windowWidthFor(root, content, widest) {
     const styles = getComputedStyle(content);
+    // The content's padding only. Its border used to be added here as well, and
+    // `frame` below already holds it - `clientWidth` stops inside the border - so
+    // a bordered content box was sized two borders too wide (E31, 25.09.2026;
+    // audit S01-64; R168). No rule of this module's stylesheets borders
+    // `.window-content`, so the error was 0 px here; Foundry's own CSS is not
+    // measured.
     const padding = (parseFloat(styles.paddingLeft) || 0)
-        + (parseFloat(styles.paddingRight) || 0)
-        + (parseFloat(styles.borderLeftWidth) || 0)
-        + (parseFloat(styles.borderRightWidth) || 0);
+        + (parseFloat(styles.paddingRight) || 0);
 
     // The window frame itself is wider than its content box. Measuring the
     // difference rather than guessing a constant: the frame carries its own
