@@ -84,7 +84,9 @@ part did not run, the repository variable `DRPG_LOCAL_GATE` decides:
 
 In both modes a failed or errored part, a reason that is the gate's own fault,
 a missing, stale, edited or (with `DRPG_GATE_KEY` set) unsigned file, and
-**1.3.0** are refused. 1.3.0 ships only on verdict `passed`.
+**1.3.0** are refused. 1.3.0 ships only on verdict `passed`. So is a part whose
+status is none of `passed`, `failed`, `error` and `not-run`, a passed suite run
+that passed no test, and a passed world diff that dumped no path.
 
 Waiver file (enforce mode; the owner writes it, never an agent):
 

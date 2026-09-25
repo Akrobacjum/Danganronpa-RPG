@@ -15,7 +15,9 @@
  *   8  its dates are possible: startedAt <= finishedAt <= now + 5 min, and not before the commit;
  *   9  every part that ran has its evidence, byte for byte, and the numbers re-counted from it; a
  *      live part's header names this version, the Foundry and the Daggerheart module.json is verified on;
- *  10  a failed or errored part refuses, always;
+ *      a passed suite run passed at least one test, and a passed world diff dumped at least one path;
+ *  10  a failed or errored part refuses, always, and so does a status that is not passed, failed,
+ *      error or not-run; 1.3.0 wants the file's verdict to be passed;
  *  11  the gate is required when the version is 1.3.0, the stage declares it touches sockets, rolls or
  *      scenes, or a runtime script that reads one of them changed since the previous tag;
  *  12  required and a required part not run: the MODE decides (below);
@@ -155,6 +157,8 @@ export async function verify({ repo, tag, waiver = "", mode = "record", key = ""
                     refusals.push(`${p.id}: the numbers in local-gate.json (${JSON.stringify(p.summary)}) are not the evidence's (${JSON.stringify(sum)})`);
                 }
                 if ((p.status === "passed") !== (sum ? sum.failed === 0 : false)) refusals.push(`${p.id}: status ${p.status} does not follow from the evidence's "${sum ? `${sum.failed} failed` : "no summary"}"`);
+                /* A run with nothing failed can still be a run that measured nothing (E30 review, 25.09.2026). */
+                if (p.status === "passed" && sum && !(sum.passed > 0)) refusals.push(`${p.id}: passed on a suite run that passed no test ("${sum.passed} passed, ${sum.failed} failed, ${sum.skipped} skipped")`);
                 if (p.layer === "live") {
                     if (head.module !== version) refusals.push(`${p.id}: the evidence ran module ${head.module}, not ${version}`);
                     if (head.foundry !== verified.foundry) refusals.push(`${p.id}: ran on Foundry ${head.foundry}, module.json is verified on ${verified.foundry} - update verified, or run on that Foundry`);
@@ -166,12 +170,25 @@ export async function verify({ repo, tag, waiver = "", mode = "record", key = ""
                 if (body?.evidence !== G.EVIDENCE_SCHEMA || body.part !== p.id) { refusals.push(`${p.id}: ${e.path} is not ${G.EVIDENCE_SCHEMA} evidence for this part`); continue; }
                 const failed = Number(body.body?.failed ?? body.body?.differs?.length ?? NaN);
                 if ((p.status === "passed") !== (failed === 0)) refusals.push(`${p.id}: status ${p.status} does not follow from the evidence (${failed} failed or differing)`);
+                // An empty diff of two empty dumps is not a world put back (E30 review, 25.09.2026).
+                if (p.status === "passed" && Array.isArray(body.body?.differs) && !(Number(body.body.dumped) > 0)) {
+                    refusals.push(`${p.id}: passed on a world diff that dumped ${JSON.stringify(body.body.dumped ?? null)} paths - it compared nothing`);
+                }
             }
         }
     }
     /* 10 */
     const broken = (doc.parts ?? []).filter(p => p.status === "failed" || p.status === "error");
     for (const p of broken) refusals.push(`${p.id} ${p.status}${p.why ? `: ${p.why}` : ""} - a failed or errored part is never waived; fix it and run the gate again`);
+    /* A status the writer does not write reads as none of the above to rules 9, 10 and 12, and let a part whose
+       evidence failed through, 1.3.0 included (E30 review, 25.09.2026: `skipped` with 3 failed in its evidence,
+       verdict incomplete, passed in both modes). */
+    for (const p of doc.parts ?? []) {
+        if (!G.STATUSES.includes(p.status)) refusals.push(`${p.id}: status ${JSON.stringify(p.status)} is not ${G.STATUSES.join(", ")} - the writer writes only those`);
+    }
+    if (G.NO_WAIVER.includes(version) && doc.verdict !== "passed") {
+        refusals.push(`${version} ships only on verdict passed, and local-gate.json says ${doc.verdict}`);
+    }
     /* 11 */
     const because = G.requiredBecause(repo, version, "HEAD");
     const required = because.length > 0;
@@ -295,7 +312,7 @@ function playSandbox(repo, doc, { key = "", failOne = false } = {}) {
             extra = { summary: { passed: 305, failed, skipped: 3 } };
         } else {
             rel = `audit/gate/evidence/${p.id}.json`;
-            text = JSON.stringify({ evidence: G.EVIDENCE_SCHEMA, part: p.id, env, body: p.id === "live-world-diff" ? { differs: [] } : { passed: 7, failed, total: 7 } });
+            text = JSON.stringify({ evidence: G.EVIDENCE_SCHEMA, part: p.id, env, body: p.id === "live-world-diff" ? { dumped: 412, differs: [] } : { passed: 7, failed, total: 7 } });
         }
         fs.writeFileSync(path.join(repo, rel), text);
         const { reason: _r, why: _w, ...rest } = p;
@@ -305,6 +322,16 @@ function playSandbox(repo, doc, { key = "", failOne = false } = {}) {
     return G.seal({ ...doc, parts }, key);
 }
 const save = (repo, doc) => fs.writeFileSync(path.join(repo, "audit/gate/local-gate.json"), JSON.stringify(doc, null, 2) + "\n");
+/** `doc` with part `id`'s evidence file rewritten by `edit(text)` and the part changed by `change`, sealed again. */
+function reEvidence(repo, doc, id, edit, change = {}) {
+    const parts = doc.parts.map(p => {
+        if (p.id !== id) return p;
+        const rel = p.evidence[0].path, text = edit(fs.readFileSync(path.join(repo, rel), "utf8"));
+        fs.writeFileSync(path.join(repo, rel), text);
+        return { ...p, ...change, evidence: [{ path: rel, sha256: G.fileSha256(path.join(repo, rel)), bytes: Buffer.byteLength(text) }] };
+    });
+    return G.seal({ ...doc, parts });
+}
 const ENV_OK = async () => ({ ok: true });
 
 async function selfTest() {
@@ -355,6 +382,22 @@ async function selfTest() {
         await expect("key set but file unsigned: refused", v(fresh(), { key: "k1" }), { ok: false, says: "unsigned" });
         await expect("key set and the wrong key signed it: refused", v(G.seal(fresh(), "k2"), { key: "k1" }), { ok: false, says: "signature" });
         await expect("key set and the right key signed it: pass", v(G.seal(fresh(), "k1"), { key: "k1" }), { ok: true });
+        /* What a passed part must have measured, and the statuses the writer writes (E30 review, 25.09.2026). */
+        await expect("a live suite run passed with no test passed: refused", async () => {
+            const doc = reEvidence(base, fresh(), "live-stained-glass", t => t.replace("305 passed", "0 passed"), { summary: { passed: 0, failed: 0, skipped: 3 } });
+            try { save(base, doc); return await verify({ repo: base, tag, envCheck: ENV_OK }); }
+            finally { reEvidence(base, fresh(), "live-stained-glass", t => t.replace("0 passed", "305 passed")); }
+        }, { ok: false, says: "passed no test" });
+        await expect("a world diff passed on no path dumped: refused", async () => {
+            const doc = reEvidence(base, fresh(), "live-world-diff", t => t.replace('"dumped":412', '"dumped":0'));
+            try { save(base, doc); return await verify({ repo: base, tag, envCheck: ENV_OK }); }
+            finally { reEvidence(base, fresh(), "live-world-diff", t => t.replace('"dumped":0', '"dumped":412')); }
+        }, { ok: false, says: "compared nothing" });
+        await expect("a status the writer does not write, on a failed run: refused", async () => {
+            const doc = reEvidence(base, fresh(), "live-stained-glass", t => t.replace(", 0 failed,", ", 3 failed,"), { status: "skipped", summary: { passed: 305, failed: 3, skipped: 3 } });
+            try { save(base, doc); return await verify({ repo: base, tag, envCheck: ENV_OK }); }
+            finally { reEvidence(base, fresh(), "live-stained-glass", t => t.replace(", 3 failed,", ", 0 failed,")); }
+        }, { ok: false, says: "the writer writes only those" });
 
         /* Not-run parts, in each mode. */
         const notRunDoc = runWriter(base);
@@ -404,6 +447,16 @@ async function selfTest() {
             write(last, "audit/gate/waivers/v1.3.0.md", `Parts not run: ${lastDoc.parts.map(p => p.id).join(", ")}\n`);
             return verify({ repo: last, tag: "v1.3.0", mode: "enforce", waiver: "v1.3.0", envCheck: ENV_OK });
         }, { ok: false, says: "only on a passed gate" });
+        fs.rmSync(path.join(last, "audit/gate/waivers"), { recursive: true, force: true });
+        const lastPassed = playSandbox(last, lastDoc);
+        await expect("1.3.0 with every part passed: pass", async () => { save(last, lastPassed); return verify({ repo: last, tag: "v1.3.0", mode: "record", envCheck: ENV_OK }); }, { ok: true });
+        await expect("1.3.0 with a part of another status: refused, verdict named (record and enforce)", async () => {
+            const doc = reEvidence(last, JSON.parse(JSON.stringify(lastPassed)), "live-stained-glass", t => t.replace(", 0 failed,", ", 3 failed,"), { status: "skipped", summary: { passed: 305, failed: 3, skipped: 3 } });
+            save(last, doc);
+            const record = await verify({ repo: last, tag: "v1.3.0", mode: "record", envCheck: ENV_OK });
+            const enforce = await verify({ repo: last, tag: "v1.3.0", mode: "enforce", envCheck: ENV_OK });
+            return { ...record, ok: record.ok || enforce.ok, refusals: record.refusals.filter(r => enforce.refusals.includes(r)) };
+        }, { ok: false, says: "ships only on verdict passed" });
         void quietDoc;
 
         /* Not required: nothing that reads sockets, rolls or scenes changed, and the stage declares nothing. */
