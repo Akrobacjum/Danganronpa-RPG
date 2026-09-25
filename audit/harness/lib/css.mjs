@@ -10,8 +10,20 @@
  * from inside an `@media` block, or from under the glass theme's class, answered
  * for every element on every page. Now all six are imported in module.json's
  * order through jsdom's resource loader (client-entry.mjs serves the checkout),
- * and jsdom's own cascade answers: selectors, specificity, inheritance and
- * `@media` against the window. How v14 attaches them is LIVE-E30-09.
+ * and jsdom's own cascade answers: selectors, specificity, inheritance. How v14
+ * attaches them is LIVE-E30-09.
+ *
+ * WHAT JSDOM'S CASCADE LEAVES OUT (jsdom 30.0.1, measured 25.09.2026 at its
+ * 1024 x 768 window; this said "@media against the window" until then, which
+ * it does not do). An `@media` block applies only when its media list is empty,
+ * `all` or `screen` (MediaList-impl.js evaluateMediaList): every feature query
+ * is false whatever the window - `(max-width: 5000px)`, `screen and
+ * (min-width: 1px)` and `(prefers-reduced-motion: reduce)` did not apply,
+ * `screen` and `all` did. `@supports`, `@container` and `@layer` blocks are not
+ * read at all (css/helpers/computed-style.js handleSheet walks only imports,
+ * `@media` and style rules), and the imports' `layer(modules)` is read as no
+ * layer. In the module's six sheets that leaves 28 `@media` blocks (all feature
+ * queries), one `@container` and one `@supports` that never apply here.
  *
  * What jsdom does not do is substitute `var()`: a custom property that is built
  * from another comes back as its source text, and a standard property that uses

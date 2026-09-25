@@ -130,8 +130,10 @@ export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permi
 
     /* Stylesheets (lib/css.mjs): every client attached module.json's sheets in its
        order, each under the `modules` layer, and the cascade answers a custom
-       property as the stylesheet states it for this window (1400px; the flat map
-       it replaced answered 1700px, from an @media block for a 2:1 screen). */
+       property as the stylesheet states it outside any @media block (1400px; the
+       flat map it replaced answered 1700px, from the `(min-aspect-ratio: 2/1)`
+       block - which jsdom 30.0.1 applies at no window size: it applies only an
+       @media list that is empty, `all` or `screen`, lib/css.mjs). */
     const sheets = await gm.eval(`const manifest = await fetch("/modules/danganronpa-rpg/module.json").then(r => r.json());
         const inline = [...document.styleSheets].flatMap(s => [...s.cssRules]).filter(r => "styleSheet" in r);
         return { styles: manifest.styles,
