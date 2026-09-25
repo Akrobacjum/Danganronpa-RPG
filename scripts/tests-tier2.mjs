@@ -6435,7 +6435,7 @@ const SCENARIOS = [
         }
     }],
 
-    ["a legacy trace loses its answer key when migrated, and a second run keeps the GM's corrections", async () => {
+    ["a legacy trace loses its answer key when migrated, and the migration keeps the GM's corrections and promotions", async () => {
         /*
          * E30, 24.09.2026; audit S17-01 and S05-43. A trace from before the ledger kept
          * its answer key in flags on its token. `migrateRemnants` moved the key into the
@@ -6443,51 +6443,126 @@ const SCENARIOS = [
          * the module's own notes measured it - while its summary said "stripped" - and a
          * second run, finding the flags still there, wrote them over the ledger row and
          * the GM's corrections with it. The strip is read back now, and a live row is
-         * only filled in, never overwritten. One fixture token, through
+         * only filled in, never overwritten. Fixture tokens, through
          * `migrateRemnantToken`: the suite never runs the loop, which would migrate a
          * real table's traces.
+         *
+         * AND WHAT THE GM TICKED STAYS TICKED (E30 fix, 25.09.2026; audit S06-02).
+         * `promoteFaintPrep` (chapter.mjs) writes the GM's choice at a body discovery
+         * onto the token - `faint: false`, `tiedToCrime: true` - where nothing reads it,
+         * and those are the only answer-key flags a trace placed since the ledger can
+         * carry. The first E30 build stripped them and wrote nothing. Now a promoted
+         * trace with a live row gets the promotion in its row; one with no row on this
+         * browser keeps its flags and is reported; a row that does not read back
+         * strips nothing; and whatever else is on a token afterwards - a key but the
+         * two it may keep, a name that is not the neutral one - comes back in `left`.
          */
         const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
         const scene = game.scenes.active ?? canvas?.scene;
         const anchor = scene?.tokens?.find(t => t.x || t.y);
         const oldName = "SUITE Subtle Prep Remnant";
         const legacy = { remnantType: "prep", visibility: "subtle", note: "SUITE old note", sourceName: "SUITE Someone" };
-        let token = null;
-        const flagKeys = () => JSON.stringify(Object.keys(token?._source?.flags?.[MODULE_ID] ?? {}).sort());
-        const row = () => foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.remnantSecrets)?.[remnants.keyOf(token)] ?? null);
-        const writeLegacy = (extra = {}) => token.update(Object.fromEntries(
-            Object.entries({ ...legacy, ...extra }).map(([key, value]) => [`flags.${MODULE_ID}.${key}`, value])));
+        // What promoteFaintPrep writes onto a ticked trace (chapter.mjs).
+        const promotion = { faint: false, tiedToCrime: true };
+        const placed = [];
+        const place = async (extra = {}) => {
+            const t = await remnants.placeRemnant({ type: "prep", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "test fixture - migrated trace", tiedToCrime: false, ...extra });
+            ok(t, "could not place a fixture trace");
+            placed.push(t);
+            return t;
+        };
+        const flagKeys = t => JSON.stringify(Object.keys(t?._source?.flags?.[MODULE_ID] ?? {}).sort());
+        const row = t => foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.remnantSecrets)?.[remnants.keyOf(t)] ?? null);
+        const writeFlags = (t, flags) => t.update(Object.fromEntries(
+            Object.entries(flags).map(([key, value]) => [`flags.${MODULE_ID}.${key}`, value])));
+        const sorted = list => JSON.stringify([...(list ?? [])].sort());
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set");
+        const realSet = settings.set;
+        const putSetBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
         try {
-            token = await remnants.placeRemnant({
-                type: "prep", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, note: "test fixture - legacy trace"
-            });
-            ok(token, "could not place the fixture trace");
             // Before the ledger: the answer key on the token, the label as its name, no row.
+            const token = await place();
             await token.update({ name: oldName });
-            await writeLegacy();
+            await writeFlags(token, legacy);
             await remnants.dropRemnantSecret(token);
             equal(remnants.remnantData(token), null, "the fixture still has a live ledger row, so it is not a trace from before the ledger");
 
             const first = await remnants.migrateRemnantToken(token);
-            equal(flagKeys(), JSON.stringify(["isRemnant"]), "the migrated token still carries its answer key");
+            equal(flagKeys(token), JSON.stringify(["isRemnant"]), "the migrated token still carries its answer key");
             equal(first?.ledger, "moved", "the first run did not move the trace into the ledger");
             equal(remnants.remnantData(token)?.note, legacy.note, "the token's note did not reach the ledger");
-            equal(row()?.label, oldName, "the token's old name did not reach the ledger as its label");
+            equal(row(token)?.label, oldName, "the token's old name did not reach the ledger as its label");
 
             // A GM corrects the trace. Then a first run whose strip did not land (S05-43):
             // the flags are back on the token, one more among them, and the name stays neutral.
             await remnants.setRemnantSecret(token, { note: "SUITE GM correction" });
-            await writeLegacy({ subject: "SUITE subject" });
+            await writeFlags(token, { ...legacy, subject: "SUITE subject" });
             const second = await remnants.migrateRemnantToken(token);
             equal(remnants.remnantData(token)?.note, "SUITE GM correction", "a second run wrote the token's stale note over the GM's correction");
-            equal(row()?.label, oldName, "a second run wrote the token's neutral name over the label");
+            equal(row(token)?.label, oldName, "a second run wrote the token's neutral name over the label");
             equal(second?.ledger, "filled", "a second run over a live row did more, or less, than fill in what the row lacked");
             equal(remnants.remnantData(token)?.subject, "SUITE subject", "the field the row lacked was not filled in");
-            equal(flagKeys(), JSON.stringify(["isRemnant"]), "the second run left the answer key on the token");
+            equal(flagKeys(token), JSON.stringify(["isRemnant"]), "the second run left the answer key on the token");
+
+            // What else is on a token is read back and reported, not deleted unread: a key
+            // the migration does not know, and a name that is not the neutral one.
+            await writeFlags(token, { suiteStray: "SUITE stray" });
+            await token.update({ name: "SUITE label again" });
+            const third = await remnants.migrateRemnantToken(token);
+            equal(third?.ledger, "already", "a token with no answer-key flag was not counted as already done");
+            equal(sorted(third?.left), sorted(["name", "suiteStray"]), "what else is on the token did not come back in `left`");
+            ok(flagKeys(token).includes("suiteStray"), "the migration deleted a key it does not know instead of reporting it");
+
+            // A Faint Prep promotion, with the trace's row on this browser: carried, then stripped.
+            const promoted = await place({ faint: true });
+            await writeFlags(promoted, promotion);
+            const carried = await remnants.migrateRemnantToken(promoted);
+            equal(JSON.stringify(carried?.carried ?? null), JSON.stringify({ faint: [true, false], tiedToCrime: [false, true] }),
+                "the promotion carried into the row is not the one the token held");
+            equal(remnants.remnantData(promoted)?.faint, false, "the promotion's faint: false did not reach the row");
+            equal(remnants.remnantData(promoted)?.tiedToCrime, true, "the promotion's tiedToCrime: true did not reach the row");
+            equal(carried?.ledger, "filled", "the promoted trace's row was not written");
+            equal(flagKeys(promoted), JSON.stringify(["isRemnant"]), "the promoted token still carries the flags");
+
+            // The same promotion with no row on this browser: nothing stripped, reported.
+            const orphan = await place({ faint: true });
+            await remnants.dropRemnantSecret(orphan);
+            await writeFlags(orphan, promotion);
+            const alone = await remnants.migrateRemnantToken(orphan);
+            equal(flagKeys(orphan), sorted(["faint", "isRemnant", "tiedToCrime"]), "a promotion with no row to carry it into was stripped");
+            equal(alone?.ledger, "noRow", "a trace with flags, no type and no row was not reported as such");
+            equal(sorted(alone?.left), sorted(["faint", "tiedToCrime"]), "the flags left on the trace were not reported");
+            equal(remnants.remnantData(orphan), null, "a row was made up for a trace this browser has no record of");
+
+            // A row write that does not land strips nothing.
+            const unlucky = await place();
+            await writeFlags(unlucky, legacy);
+            await remnants.dropRemnantSecret(unlucky);
+            settings.set = async function (namespace, key, value) {
+                if (namespace === MODULE_ID && key === SETTINGS.remnantSecrets) throw new Error("SUITE: the ledger write is refused");
+                return realSet.call(this, namespace, key, value);
+            };
+            let refused = null;
+            try {
+                refused = await remnants.migrateRemnantToken(unlucky);
+            } finally {
+                putSetBack();
+            }
+            ok(flagKeys(unlucky).includes("remnantType"), "the answer key left the token although its row was never written");
+            equal(refused?.stripped, false, "a token whose row was never written was counted as stripped");
+            ok((refused?.unwritten ?? []).includes("type"), "the row that did not read back was not reported");
         } finally {
-            if (token) {
-                try { await remnants.dropRemnantSecret(token); } catch { /* nothing filed */ }
-                try { await token.delete(); } catch { /* already gone */ }
+            putSetBack();
+            for (const t of placed) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
             }
             await settle();
         }

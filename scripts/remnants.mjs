@@ -1844,34 +1844,47 @@ export async function migrateRemnants() {
         return null;
     }
 
-    let moved = 0, filled = 0, stripped = 0, already = 0, publicSeeded = 0, deltaCleaned = 0;
-    const failed = [];
+    // One count per `ledger` answer, so every token the loop meets is in exactly one.
+    const counts = { moved: 0, filled: 0, kept: 0, already: 0, noRow: 0 };
+    let stripped = 0, publicSeeded = 0, deltaCleaned = 0;
+    const failed = [], carried = [], leftAlone = [];
 
     for (const scene of game.scenes) {
         for (const token of scene.tokens) {
             const done = await migrateRemnantToken(token);
             if (!done) continue;
-            if (done.ledger === "moved") moved++;
-            else if (done.ledger === "filled") filled++;
-            else if (done.ledger === "already") already++;
+            counts[done.ledger] = (counts[done.ledger] ?? 0) + 1;
+            const where = `${scene.name}/${token.id}`;
+            if (done.carried) {
+                carried.push(`${where}: ${Object.entries(done.carried)
+                    .map(([field, [before, after]]) => `${field} ${before} -> ${after}`).join(", ")}`);
+            }
+            if (done.ledger === "noRow") leftAlone.push(`${where}: ${done.left.join(", ")}`);
+            else if (done.unwritten.length) failed.push(`${where}: its row did not read back (${done.unwritten.join(", ")}), so nothing was taken off`);
+            else if (done.left.length) failed.push(`${where}: ${done.left.join(", ")}`);
             if (done.stripped) stripped++;
-            if (done.left.length) failed.push(`${scene.name}/${token.id}: ${done.left.join(", ")}`);
             publicSeeded += done.publicSeeded;
             deltaCleaned += done.deltaCleaned;
         }
     }
 
-    const line = `Remnants migrated: ${moved} moved into the ledger, ${filled} filled in, ${stripped} tokens stripped, `
-        + `${already} already done, ${publicSeeded} \`public\` record(s) backfilled, `
+    const line = `Remnants migrated: ${counts.moved} moved into the ledger, ${counts.filled} filled in, ${counts.kept} kept as they were, `
+        + `${counts.already} already done, ${counts.noRow} left alone (no ledger row on this browser), `
+        + `${carried.length} Faint Prep promotion(s) carried${carried.length ? ` (${carried.join("; ")})` : ""}, `
+        + `${stripped} tokens stripped, ${publicSeeded} \`public\` record(s) backfilled, `
         + `${deltaCleaned} delta name(s) neutralised, ${failed.length} still carrying their answer key.`;
     log(line);
-    if (failed.length) {
-        warn(`Remnants still carrying their answer key after the migration wrote to them: ${failed.join("; ")}`);
-        ui.notifications.warn(line);
-    } else {
-        ui.notifications.info(line);
+    if (carried.length) {
+        warn(`Faint Prep promotions carried from their tokens into the ledger (a GM who had set one back on purpose `
+            + `sets it again in the Investigation dashboard): ${carried.join("; ")}`);
     }
-    return { moved, filled, stripped, already, failed, publicSeeded, deltaCleaned };
+    if (leftAlone.length) {
+        warn(`Traces left as they were - answer-key flags, no type, and no ledger row on this browser to carry them into: ${leftAlone.join("; ")}`);
+    }
+    if (failed.length) warn(`Remnants still carrying their answer key after the migration: ${failed.join("; ")}`);
+    if (carried.length || leftAlone.length || failed.length) ui.notifications.warn(line);
+    else ui.notifications.info(line);
+    return { ...counts, stripped, failed, carried, leftAlone, publicSeeded, deltaCleaned };
 }
 
 /**
@@ -1879,8 +1892,9 @@ export async function migrateRemnants() {
  * tokens by, and `fromIncident`, the one field D11 puts on the token on purpose
  * (see REMNANT_FLAGS). Everything else there is the answer key.
  */
+const TOKEN_KEEPS = [REMNANT_FLAGS.isRemnant, REMNANT_FLAGS.fromIncident];
 const ANSWER_KEY_FLAGS = Object.entries(REMNANT_FLAGS)
-    .filter(([key]) => key !== "isRemnant" && key !== "fromIncident")
+    .filter(([, flag]) => !TOKEN_KEEPS.includes(flag))
     .map(([, flag]) => flag);
 
 /**
@@ -1900,54 +1914,123 @@ const ANSWER_KEY_FLAGS = Object.entries(REMNANT_FLAGS)
  * only the fields it lacks, and the token's name is never taken for the label
  * once it is the neutral one an earlier run gave it.
  *
+ * EXCEPT A FAINT PREP PROMOTION, which is carried in one direction (E30 fix,
+ * 25.09.2026; audit S06-02). `promoteFaintPrep` (chapter.mjs) writes the GM's ticks
+ * at a body discovery onto the token as `faint: false`, `tiedToCrime: true`, where
+ * nothing reads them - the row keeps `faint: true` - and they are the only
+ * answer-key flags a trace placed since the ledger can carry. The first E30 build
+ * stripped them with nothing written, which deleted the GM's choice outright. So a
+ * token's `faint: false` goes over a row's `faint: true`, and its `tiedToCrime:
+ * true` over anything but `true`, and never the other way: a stale original must
+ * not undo a correction. The one thing this can get wrong: the Investigation
+ * dashboard (investigation.mjs, `setRemnantFlags`) lets a GM set a trace back to
+ * Faint, or untie it, after a promotion, and a migration afterwards re-applies the
+ * promotion - nothing records which of the two came last. Carrying only a promotion
+ * whose token is newer than its row was weighed and not taken: the row's `updated`
+ * moves with every ledger write (a public name, a retune), which most promoted
+ * traces get after the discovery, so it would drop most real promotions to save a
+ * rare reversal. Every promotion carried is listed, before and after, in the
+ * summary and a warning, so a GM can put that reversal back from the dashboard.
+ *
+ * NOTHING LEAVES A TOKEN BEFORE ITS ROW READS BACK. `writeRemnantLedger` catches a
+ * failed write and logs it, so a strip that trusted the write could take the
+ * answer key off the token with no row holding it - and with no other GM online,
+ * off the table. The row is read again from storage, the cache dropped first, and
+ * a field it does not hold as written leaves the token untouched and comes back in
+ * `unwritten`. A token with flags, no type and no row on this browser has nothing
+ * to be carried into and is left as it is (`ledger: "noRow"`).
+ *
+ * WHAT IS LEFT IS READ WHOLE. `left` is every key under this module's flags but
+ * the two a token may keep (a key with no value holds nothing and is not counted),
+ * the name when it is neither the neutral one nor, on a token players can see, the
+ * row's public name, and a delta name that is not the neutral one. A key the
+ * migration does not know is reported there, not deleted unread. The neutral name
+ * is the one in this client's language, so a world whose traces were placed in the
+ * other language reads their names as left; that is reported, not solved.
+ *
  * GM-side, like the ledger: null on a player's client, and for a token that is
  * not a trace. `ledger` says what happened to the row - "moved" (a new row from
- * the token), "filled", "kept" (a live row lacked nothing), "already" (the token
- * carries no type, so nothing to move). The suite runs this on its own fixture;
- * the loop in `migrateRemnants` is for a GM.
+ * the token), "filled" (fields written into a live row: what it lacked, a
+ * promotion), "kept" (a live row lacked nothing), "already" (no answer-key flag on
+ * the token), "noRow" (above). `carried` is the promotion as `{ field: [before,
+ * after] }`, or null. The suite runs this on its own fixtures; the loop in
+ * `migrateRemnants` is for a GM.
  *
- * @returns {Promise<null|{ledger: string, stripped: boolean, left: string[], publicSeeded: number, deltaCleaned: number}>}
+ * @returns {Promise<null|{ledger: string, carried: object|null, stripped: boolean, left: string[],
+ *   unwritten: string[], publicSeeded: number, deltaCleaned: number}>}
  */
 export async function migrateRemnantToken(token) {
     if (!game.user.isGM || !token?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return null;
     const onToken = () => token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {};
+    const key = keyOf(token);
+    const liveRow = () => {
+        const row = key ? readRemnantLedger()[key] : null;
+        return row && !row.deleted ? row : null;
+    };
     const present = ANSWER_KEY_FLAGS.filter(flag => flag in onToken());
-    const done = { ledger: "already", stripped: false, left: [], publicSeeded: 0, deltaCleaned: 0 };
+    const done = { ledger: "already", carried: null, stripped: false, left: [], unwritten: [], publicSeeded: 0, deltaCleaned: 0 };
 
-    if (REMNANT_FLAGS.type in onToken()) done.ledger = await moveIntoLedger(token);
-    done.publicSeeded = await seedPublicIfMissing(token);
     if (present.length) {
+        const typed = REMNANT_FLAGS.type in onToken();
+        const live = liveRow();
+        if (!typed && !live) {
+            done.ledger = "noRow";
+            done.left = leftOnToken(token, null);
+            return done;
+        }
+        const written = await moveIntoLedger(token, live, typed);
+        done.ledger = written.ledger;
+        done.carried = written.carried;
+        forgetRemnantLedger();
+        const row = liveRow();
+        done.unwritten = Object.entries(written.fields)
+            .filter(([field, value]) => value !== undefined && row?.[field] !== value)
+            .map(([field]) => field);
+        if (!row && !done.unwritten.length) done.unwritten = ["the row"];
+        if (done.unwritten.length) {
+            done.left = leftOnToken(token, row);
+            return done;
+        }
+        done.publicSeeded = await seedPublicIfMissing(token);
         await stripAnswerKey(token, present);
-        done.left = present.filter(flag => flag in onToken());
-        done.stripped = !done.left.length;
+        done.stripped = !present.some(flag => flag in onToken());
+    } else {
+        done.publicSeeded = await seedPublicIfMissing(token);
     }
     done.deltaCleaned = await neutraliseDeltaName(token);
+    done.left = leftOnToken(token, liveRow());
     return done;
 }
 
-/** The token's flags into the ledger: a new row, or the fields a live row lacks. */
-async function moveIntoLedger(token) {
+/**
+ * The token's flags into the ledger: a new row, or the fields a live row lacks and
+ * a Faint Prep promotion (see `migrateRemnantToken`). `fields` is what was written.
+ */
+async function moveIntoLedger(token, live, typed) {
     const f = key => token.getFlag(MODULE_ID, REMNANT_FLAGS[key]);
     // The old token name WAS the label, so it is the best record of how the GM
     // has been reading this trace on the map - unless it is already the neutral
-    // name, which says nothing about the trace.
-    const label = token.name && token.name !== game.i18n.localize("DRPG.Remnant.tokenName") ? token.name : undefined;
-    const key = keyOf(token);
-    const live = key ? readRemnantLedger()[key] : null;
-    if (live && !live.deleted) {
+    // name, which says nothing about the trace, or the token has no type: a trace
+    // placed since the ledger never wore its label as a name.
+    const label = typed && token.name && token.name !== game.i18n.localize("DRPG.Remnant.tokenName") ? token.name : undefined;
+    if (live) {
         const carried = {
             type: f("type"), visibility: f("visibility"), faint: f("faint"), reinforced: f("reinforced"),
             note: f("note"), action: f("action"), subject: f("subject"), pointsAt: f("pointsAt"),
             tiedToCrime: f("tiedToCrime"), sourceActor: f("sourceActor"), sourceName: f("sourceName"),
             room: f("room"), chapter: f("chapter"), day: f("day"), timeOfDay: f("timeOfDay"), label
         };
-        const lacking = Object.fromEntries(Object.entries(carried)
+        const fields = Object.fromEntries(Object.entries(carried)
             .filter(([field, value]) => value !== undefined && live[field] === undefined));
-        if (!Object.keys(lacking).length) return "kept";
-        await setRemnantSecret(token, lacking);
-        return "filled";
+        const promotion = {};
+        if (f("faint") === false && live.faint === true) promotion.faint = [true, false];
+        if (f("tiedToCrime") === true && live.tiedToCrime !== true) promotion.tiedToCrime = [live.tiedToCrime ?? null, true];
+        for (const [field, [, after]] of Object.entries(promotion)) fields[field] = after;
+        if (!Object.keys(fields).length) return { ledger: "kept", fields, carried: null };
+        await setRemnantSecret(token, fields);
+        return { ledger: "filled", fields, carried: Object.keys(promotion).length ? promotion : null };
     }
-    await setRemnantSecret(token, {
+    const fields = {
         type: f("type"), visibility: f("visibility"),
         faint: Boolean(f("faint")), reinforced: Boolean(f("reinforced")),
         note: f("note"), action: f("action"), subject: f("subject"),
@@ -1956,8 +2039,23 @@ async function moveIntoLedger(token) {
         room: f("room"), chapter: f("chapter"), day: f("day"),
         timeOfDay: f("timeOfDay"),
         label
-    });
-    return "moved";
+    };
+    await setRemnantSecret(token, fields);
+    return { ledger: "moved", fields, carried: null };
+}
+
+/** What is still on a trace's token that the answer key could be in (see `migrateRemnantToken`). */
+function leftOnToken(token, row) {
+    const neutral = game.i18n.localize("DRPG.Remnant.tokenName");
+    const flags = token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {};
+    const left = Object.entries(flags)
+        .filter(([flag, value]) => !TOKEN_KEEPS.includes(flag) && value !== null && value !== undefined)
+        .map(([flag]) => flag);
+    const shown = row?.public?.name;
+    if (token.name !== neutral && !(shown && !token.hidden && token.name === shown)) left.push("name");
+    const deltaName = token.delta?.name;
+    if (typeof deltaName === "string" && deltaName && deltaName !== neutral) left.push("delta name");
+    return left;
 }
 
 /** The answer key off the token, and the name and tint made neutral, in one write where Foundry allows it. */
