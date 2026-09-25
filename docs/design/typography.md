@@ -3,7 +3,7 @@
 Two faces, both OFL, both shipped in `fonts/`. The rules below are the ones
 `styles/stained-glass.css` follows; the audit page (`docs/design/`) shows them
 on screen. Anything this file forbids is a defect, not a preference - there is
-a test for the two that can be tested (`scripts/tests.mjs`).
+a test for the two that can be tested (`scripts/tests-tier1.mjs`).
 
 ## The faces
 

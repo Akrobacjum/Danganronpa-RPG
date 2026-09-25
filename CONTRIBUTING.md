@@ -1,9 +1,10 @@
 # Contributing
 
 Thanks for looking. This is a Foundry VTT module - plain ES modules and CSS, no
-build step, no bundler, no `npm install`. What you check out is what ships:
-the package is `git archive` of the tree. The one exception is the headless
-test harness in `audit/harness`, which needs jsdom: `npm ci` there, once.
+build step, no bundler. The module installs nothing: what you check out is what
+ships, and the package is `git archive` of the tree. Its tests do install
+something: `npm ci` in `audit/harness`, once, brings jsdom, ESLint, espree and
+Playwright (no browser download), and none of it ships.
 
 ## Getting it running
 
@@ -14,30 +15,29 @@ test harness in `audit/harness`, which needs jsdom: `npm ci` there, once.
 
 ## Before you open a pull request
 
-Run all three. They take about five minutes together (the suite alone is about three, measured 24.09).
+Run the one command CI runs. It takes about eight minutes (the suite five, the
+scenarios three, lint and the checks ten seconds; measured 24.09 on four cores).
 
 ```bash
-# the regression suite and the eleven scenarios, headless
 cd audit/harness
-npm ci        # once: installs jsdom for the harness (the module itself needs nothing)
-node cluster.mjs scenarios/01-runtests.mjs
-for s in 10-murder 11-killer-secrecy 12-social 13-murder-signals 14-quiet 15-held \
-         20-crit-hope 30-security 40-flow 50-lang 60-ledger; do
-  node cluster.mjs scenarios/$s.mjs
-done
-
-# the Polish file covers the prose in config.mjs
-cd ../..
-node tools/config-prose.mjs --check lang/pl.json
+npm ci        # once: the harness's dependencies (the module itself needs nothing)
+npm test      # lint, tools/check.mjs, the gate's self-test, the suite, every ci scenario
 ```
 
-The harness boots the checkout it sits in; set `DRPG_REPO` to point it at
-another one.
+`npm run quick` is the ten-second part: lint, the checks (the Polish file's
+coverage of `config.mjs` among them) and the gate's self-test. `npm test`
+exits 1 when anything is red, prints a table, and keeps each run's log and
+results in `audit/harness/results/`. The harness boots the checkout it sits
+in; set `DRPG_REPO` to point it at another one. One scenario on its own:
+`node cluster.mjs scenarios/40-flow.mjs --verbose`.
 
 The suite must report **0 failed**. It also reports a number of skipped tests -
-those are the ones that need a real browser (layout, a canvas with a width,
-loaded fonts, audio) and say so individually. That number should not grow: if
-something that used to be answerable has stopped being so, that is a regression.
+each one stands on an `env.*` probe (a real browser's layout, a canvas with a
+width, loaded fonts, a CSS cascade) and says which. The headless run's list is
+`audit/harness/skip-baseline.json`, test by test: 01-runtests fails on a skip
+that is not in it and on one in it that now answers, and on any `world.*` skip,
+since the harness builds its own world. If something that used to be answerable
+has stopped being so, that is a regression.
 
 If you touched the theme or the layout, also open `audit/glass-harness.html`
 over a local server and look at it at a few sizes - the curtain's self-check can
@@ -49,9 +49,13 @@ python3 -m http.server 8765      # then open /audit/glass-harness.html
 
 ## What a change should carry
 
-**A test, where one is possible.** The suite is in `scripts/tests.mjs` and runs
-inside a real world; the scenarios in `audit/harness/scenarios/` drive four
-clients at once and are the place for anything involving sockets, permissions or
+**A test, where one is possible.** The suite is in `scripts/tests*.mjs` (the
+runner in `tests.mjs`, the tests in `tests-tier0.mjs`, `tests-tier1.mjs` and
+`tests-tier2.mjs`, the shared tools in `tests-kit.mjs`, in `tests-lint.mjs` the
+contract's detectors, which `node tools/check.mjs contract` also runs, and in
+`tests-flows.mjs` the flows, every way a player reaches the GM) and runs inside a real world; the
+scenarios in `audit/harness/scenarios/` drive four clients at once (five in
+`17-assistant`) and are the place for anything involving sockets, permissions or
 two people doing things in the wrong order.
 
 **Both languages.** Every string is a key in `lang/en.json` with a twin in

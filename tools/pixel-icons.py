@@ -102,7 +102,6 @@ def _(px):
     for i, x in enumerate((6, 10, 14, 18)): rect(px, x, 5 + (i == 3), 3, 8)
     rect(px, 6, 12, 15, 7); rect(px, 3, 10, 3, 7); rect(px, 8, 19, 11, 2)
     for x in (9, 13, 17): px.discard((x, 12)); px.discard((x, 13))
-    for y in range(10, 12): px.discard((6, y)) if False else None
 @icon('loaded')           # Free Critical: a loaded die, one face pinned to 12
 def _(px):
     rect(px, 3, 3, 18, 18); inner = set(); rect(inner, 5, 5, 14, 14); px -= inner

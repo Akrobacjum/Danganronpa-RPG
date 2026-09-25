@@ -1,0 +1,68 @@
+# The 'ci' layer of the release gate (E30, decision D47): `npm test` in
+# audit/harness, split into three jobs that run side by side. release.yml calls
+# this file before it builds, so a release and a pull request meet the same steps.
+#
+# Measured 24.09.2026 in a 4-core container (audit/harness/run-all.mjs, one run
+# of everything, 8m08s wall): lint 3.4 s, check 2.9 s, the suite 309.5 s, the
+# other fourteen scenarios 171.7 s together (30-security 65.5 s of it). Peak
+# memory: the suite's GM client 474 MB, every other client 217-232 MB, each
+# cluster 58-63 MB, run-all 302 MB with ESLint loaded. GitHub's runner is not
+# that container and none of this has run on Actions yet: the first runs are the
+# measurement, and every results JSON records its time and each client's maxRSS,
+# uploaded below.
+#
+# workflow_dispatch lets anyone with write access run it on any branch - the
+# mutation branches of the E30 gate design among them. Making these jobs
+# required for a merge is a branch-protection setting on GitHub, not this file.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: ${{ matrix.minutes }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "lint, check, gate", parts: "lint check gate", minutes: 10 }
+          - { name: "suite", parts: "suite", minutes: 25 }
+          - { name: "scenarios", parts: "scenarios", minutes: 25 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.2
+          cache: npm
+          cache-dependency-path: audit/harness/package-lock.json
+      - name: Install the harness
+        working-directory: audit/harness
+        # Playwright is a devDependency for the local gate's live runner, which
+        # never runs here; 1.56.1 has no install script, and this keeps it so.
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+        run: npm ci
+      - name: npm test (${{ matrix.parts }})
+        working-directory: audit/harness
+        env:
+          PARTS: ${{ matrix.parts }}
+        run: node run-all.mjs $PARTS
+      - name: Keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ strategy.job-index }}
+          path: audit/harness/results/
+          if-no-files-found: ignore
+          retention-days: 14

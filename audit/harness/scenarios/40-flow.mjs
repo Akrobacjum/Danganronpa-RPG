@@ -3,9 +3,11 @@
  * Clock, actions, a Search, a Hope Call that waits for the GM, the messenger,
  * the safeword, a Despair Call - and on every client: what was said to whom.
  */
+export const layers = ["ci"];
+
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO }) {
     const players = [p1, p2, p3];
     const ids = await gm.eval(`return {
         aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id,
@@ -44,6 +46,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
         : (typeof obj === "string" && obj.includes(needle) ? [at] : []);
 
     // ---- 0. season setup basics: Monokuma pool, clock at day 1 morning ----------------------
+    phase("season setup", { flow: "clock-day" });
     await gm.eval(`
         await game.drpg.setMonokuma(game.actors.get("${ids.monokuma}"), true).catch(() => {});
         await game.drpg.setClock({ chapter: 1, day: 1, session: 1, timeOfDay: "morning", phase: "dailyLife", campaign: "QA season" });
@@ -52,6 +55,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     await settle(500);
 
     // ---- 1. the clock: GM advances, everybody sees it, actions refill -----------------------
+    phase("the clock", { flow: "clock-day" });
     await clearLogs();
     const before = {};
     for (const c of players) before[c.who] = await c.eval(`return game.drpg.actionsLeft(game.actors.get("${own[c.who]}"));`);
@@ -76,6 +80,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     check("p3: the time-of-day card reached a bystander", advCards.some(c => c.visible && /noon/i.test(c.says)), JSON.stringify(advCards));
 
     // ---- 2. a Search by p1 (dialogs answered with defaults) ----------------------------------
+    phase("a Search", { flow: "search-observe" });
     await clearLogs();
     const tokensBefore = await gm.eval(`const M = await import("${REPO}/scripts/movement.mjs"); const room = M.roomOfActor(game.actors.get("${ids.aiko}")); return { room, tokens: game.drpg.tokensLeft(room), items: game.actors.get("${ids.aiko}").items.contents.map(i => i.id) };`);
     const search0 = { gm: await count(gm), p2: await count(p2) };
@@ -89,7 +94,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
         return { left0, left: game.drpg.actionsLeft(actor), r: typeof r, err, notifs: globalThis.__notifications.map(n => n.level + ": " + n.msg), dialogs: globalThis.__dialogLog.map(d => d.title) };`, { timeout: 90000 });
     await settle(600);
     const tokensAfter = await gm.eval(`return game.drpg.tokensLeft("${tokensBefore.room}");`);
-    check("p1: Search ran without throwing", !search.err, search.err ?? "");
+    check("p1: Search ran without throwing", !search.err, search.err ?? "", { flow: "action-roll" });
     check("p1: Search charged one action", search.left === search.left0 - 1, `${search.left0} -> ${search.left} (dialogs: ${search.dialogs.join(" | ")})`);
     check("gm: Search spent one of the room's tokens", tokensAfter === tokensBefore.tokens - 1, `${tokensBefore.room}: ${tokensBefore.tokens} -> ${tokensAfter}`);
     /*
@@ -117,11 +122,24 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     check("p2: the Search card's words are not in p2's copy", Boolean(theirs) && theirs.stub && !theirs.words,
         JSON.stringify(theirs ? { stub: theirs.stub, words: theirs.words } : null));
     const leaks = theirs ? foundItems.flatMap(name => pathsTo(JSON.parse(theirs.doc), name).map(at => `"${name}" at ${at}`)) : [];
-    check("p2: another player was not told what p1 searched for [known leak S02-11/S10-05, fixed in E05]", foundItems.length > 0 && Boolean(theirs) && leaks.length === 0,
-        JSON.stringify({ found: foundItems, leaks }));
+    // The precondition apart from the leak (E30): p2 holding the card is checked above.
+    check("gm: the Search put something on Aiko's sheet", foundItems.length > 0, JSON.stringify(foundItems));
+    /* THE KNOWN PATH APART FROM THE REST (E30 fix, 25.09.2026). S02-11 is the card's
+       summary flag; the found item anywhere else in p2's copy is a plain check, so a
+       second leak cannot stay red under the first. Measured with the item also written
+       into the card's popupTitle flag: the plain check failed, the known one stayed
+       expected red. */
+    const inSummary = leaks.filter(at => at.includes(` at flags.${MOD}.summary.`));
+    const elsewhere = leaks.filter(at => !inSummary.includes(at));
+    check("p2: nothing but the Search card's summary flag says what p1 found", elsewhere.length === 0,
+        JSON.stringify({ found: foundItems, leaks: elsewhere }));
+    check("p2: the Search card's summary flag does not say what p1 found", inSummary.length === 0,
+        JSON.stringify({ found: foundItems, leaks: inSummary }),
+        { knownLeak: "S02-11", measured: foundItems.length > 0 && Boolean(theirs) });
     console.log("[qa] p1 notifications after Search:", JSON.stringify(search.notifs));
 
     // ---- 3. a Hope Call that waits for the GM (Ultimate) ------------------------------------
+    phase("a Hope Call", { flow: "hope-call" });
     await clearLogs();
     await gm.eval(`await game.actors.get("${ids.botan}").update({ "system.resources.hope.value": 3 }); return true;`);
     await settle(300);
@@ -155,6 +173,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     console.log("[qa] gm notifications after Ultimate:", JSON.stringify(gmNotifs));
 
     // ---- 4. messenger both ways -------------------------------------------------------------
+    phase("the messenger", { flow: "messenger" });
     await clearLogs();
     // A player's thread is keyed by the PLAYER's user id, whoever writes into it.
     await p3.eval(`await game.drpg.sendMessengerMessage("${p3.userId}", "Can I ask about the vending machine?"); return true;`, { timeout: 30000 });
@@ -181,6 +200,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     check("p3: holds the words of their own thread", p3Words >= 2, `${p3Words} of the thread's cards have words on p3`);
 
     // ---- 5. the safeword ---------------------------------------------------------------------
+    phase("the safeword", { flow: "safeword" });
     await clearLogs();
     const sw0 = {};
     for (const c of [gm, p1, p2]) sw0[c.who] = await count(c);
@@ -194,6 +214,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     await gm.eval(`if (game.paused) game.togglePause(false); return true;`);
 
     // ---- 6. a Despair Call aimed at p1 -----------------------------------------------------------
+    phase("a Despair Call", { flow: "despair" });
     await clearLogs();
     await gm.eval(`await game.drpg.setDespair(game.user.id, 6).catch(() => {}); return true;`);
     const pain0 = await count(p1);
@@ -241,6 +262,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
         JSON.stringify({ p2: p2Rail, gm: gmCaption }));
 
     // ---- 7. uncaught errors ------------------------------------------------------------------
+    phase("errors");
     for (const c of [gm, ...players]) {
         const errs = await c.eval(`return globalThis.__errors.slice(0, 5);`);
         check(`${c.who}: no uncaught errors`, (errs ?? []).length === 0, JSON.stringify(errs).slice(0, 400));

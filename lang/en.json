@@ -2928,7 +2928,19 @@
       "tracing": "Watching clicks for {seconds} seconds. Click the control that misbehaves."
     },
     "Tests": {
-      "alreadyRunning": "The regression suite is already running on this client. Wait for it to finish - a second run would take its snapshot of a world the first one has fixtures standing in, and put that back as the baseline."
+      "alreadyRunning": "The regression suite is already running on this client. Wait for it to finish - a second run would take its snapshot of a world the first one has fixtures standing in, and put that back as the baseline.",
+      "tier2Title": "Tier 2 writes to {title}",
+      "tier2What": "The scenarios build their own fixtures in this world and put them back: they open and close incidents, kill and revive students, write world settings and delete the chat they produce. After each scenario the whole world is read again, and anything left behind is reported as a failure.",
+      "tier2Where": "World: {title} ({id})",
+      "tier2Online": {
+        "one": "{n} other person is connected to this world right now.",
+        "other": "{n} other people are connected to this world right now."
+      },
+      "tier2Advice": "Run it on a copy of a world, never on a campaign somebody is playing. Without arguments, runTests() runs the read-only tiers.",
+      "tier2Run": "Run tier 2 on {title}",
+      "cancel": "Cancel",
+      "tier2Cancelled": "Nothing ran: tier 2 was not confirmed.",
+      "confirmedNotThisWorld": "runTests({ confirmed }) names {given}, but this world is {id}: asking instead."
     },
     "Season": {
       "missingPool": "no Despair pool yet (every full Gamemaster account holds one)",

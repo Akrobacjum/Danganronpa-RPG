@@ -1979,7 +1979,7 @@ async function handleEclipseMove(payload, senderId, ctx) {
  * is a claim and is only ever used as an address) and the reply context.
  * Every handler that acts on `payload.actorId` first establishes
  * `senderOf(senderId)` and `ownsActor(sender, ...)` - the second in its own
- * body or in a guard it asks (see `firstRefusal`). R1b in tests.mjs reads this
+ * body or in a guard it asks (see `firstRefusal`). R1b (tests-tier0.mjs) reads this
  * table but holds a handler only to `senderOf(senderId)` in its own body and to
  * ONE of `ownsActor(sender, ...)`, `canSee(..., sender)` or `!sender.isGM` in
  * its body or its guards, so it does not notice ownership going missing from a

@@ -4,9 +4,11 @@
  * world setting stays empty, a player can pull their rows, and a primary GM
  * with an empty store can rebuild the union from what the clients hold.
  */
+export const layers = ["ci", "local-gate"];
+
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO }) {
     // Who owns whom is read off the world, not assumed: the harness hands each
     // player one character, and this scenario needs two players with a
     // character each and one who owns neither of those two.
@@ -27,6 +29,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     const [p1_, p2_, p3_] = [pA, pB, pZ];
 
     // 1. the GM records two characters' discoveries
+    phase("record", { flow: "discovery-ledger" });
     await gm.eval(`const F = await import("${REPO}/scripts/fog.mjs");
         await F.setDiscovery(canvas.scene, { actorId: "${ids.aiko}", rooms: ${JSON.stringify(ids.rooms.slice(0, 2))}, value: true });
         await F.setDiscovery(canvas.scene, { actorId: "${ids.botan}", rooms: ${JSON.stringify(ids.rooms.slice(1, 3))}, value: true });
@@ -47,6 +50,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     check(`${p3_.who}: a bystander holds no rows at all`, !mine3?.[ids.scene]?.[ids.aiko] && !mine3?.[ids.scene]?.[ids.botan], JSON.stringify(mine3));
 
     // 2. the pull: p2 loses its rows and asks the primary GM for them
+    phase("pull", { flow: "discovery-ledger" });
     await p2_.eval(`await game.settings.set("${MOD}", "discoveryMine", {}); return true;`);
     await p2_.eval(`game.socket.emit("module.${MOD}", { action: "fog.request" }, { recipients: [game.users.find(u => u.isGM).id] }); return true;`);
     await settle(800);
@@ -55,6 +59,7 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     check(`${p2_.who}: and nothing of Aiko's`, !mine2?.[ids.scene]?.[ids.aiko], JSON.stringify(mine2));
 
     // 3. the rebuild: a primary GM with an empty store asks the clients what they hold
+    phase("rebuild", { flow: "discovery-ledger" });
     // Asked the way the primary asks at `ready` (E03: a reply nobody asked for is
     // not taken any more, so the raw packet this used to emit would be answered
     // and ignored - which is the point of the change, not a failure of it).
@@ -65,12 +70,14 @@ export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {
     check("gm: the union is rebuilt from the players' rows", (rebuilt?.[ids.scene]?.[ids.aiko] ?? []).length === 2 && (rebuilt?.[ids.scene]?.[ids.botan] ?? []).length === 2, JSON.stringify(rebuilt).slice(0, 300));
 
     // 4. a player cannot write another character's history into the union
+    phase("forged history", { flow: "discovery-ledger" });
     await p3_.eval(`game.socket.emit("module.${MOD}", { action: "fog.shared", store: { "${ids.scene}": { "${ids.aiko}": ["Forged Room"] } } }, { recipients: [game.users.find(u => u.isGM).id] }); return true;`);
     await settle(600);
     const forged = await gm.eval(`return game.settings.get("${MOD}", "discoveryLedger");`);
     check("gm: a forged row from a bystander is refused", !(forged?.[ids.scene]?.[ids.aiko] ?? []).includes("Forged Room"), JSON.stringify(forged).slice(0, 300));
 
     // 5. the reset empties everyone
+    phase("reset", { flow: "discovery-ledger" });
     await gm.eval(`const F = await import("${REPO}/scripts/fog.mjs"); await F.resetLedger(); return true;`);
     await settle(600);
     const after = await p1_.eval(`return game.settings.get("${MOD}", "discoveryMine");`);

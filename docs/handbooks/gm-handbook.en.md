@@ -1,6 +1,6 @@
 # Danganronpa RPG - GM Handbook
 
-*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.60, built on the Daggerheart system.*
+*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.61, built on the Daggerheart system.*
 
 This is the handbook for the people running the killing game. It follows the order a season is actually built and played: install, set up, run a day, run a murder, run an investigation, run a trial, end the chapter, start again. Where a decision is the GM's to make rather than the module's, the text says so.
 
@@ -818,14 +818,14 @@ Everything is under `game.drpg` in the browser console; actor arguments accept a
 
 | Call | What it does |
 |---|---|
-| `game.drpg.runTests()` | runs everything |
-| `game.drpg.runTests({ tier: 1 })` | runs the source regressions and the read-only invariants; safe during play - it checks at the end that nothing in the world moved, and says what did if something did (a player acting while it runs counts too) |
+| `game.drpg.runTests()` | runs the source regressions and the read-only invariants; safe during play - it checks at the end that nothing in the world moved, and says what did if something did (a player acting while it runs counts too) |
+| `game.drpg.runTests({ tier: 2 })` | adds the scenarios, which write; asks first, in a window that names the world, with Cancel first and the default; only on a copy of a world |
 | `game.drpg.runTests({ tier: 0 })` | reads the module's own source alone |
 
 > [!CAUTION]
-> **Tier 2 writes** - it opens incidents, kills people and resets seasons in fixtures it builds and removes - so never run the default in a world somebody is playing in; its scenarios need at least three living students, tier 2 is refused while an incident is open, and a second run on the same client is refused while one is in flight.
+> **Tier 2 writes** - it opens incidents, kills people and resets seasons in fixtures it builds and removes - so never run tier 2 in a world somebody is playing in; scenarios that need more people or rooms than the world has are skipped and say what the world lacks, tier 2 is refused while an incident is open, and a second run on the same client is refused while one is in flight.
 
-The result is a "passed, failed, skipped" count followed by `ok`, `FAIL` and `skip` lines; a skip is a test that said what the environment lacks, never a result that came out wrong.
+The result is a "passed, failed, skipped" count - with ", red until a later stage" after it when a test is marked to fail until a named stage ships - followed by `ok`, `FAIL`, `skip` and `red` lines; a skip is a test that said what the environment lacks, never a result that came out wrong.
 
 **Fog and visibility.**
 

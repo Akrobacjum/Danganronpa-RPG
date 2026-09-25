@@ -1,0 +1,22 @@
+{
+  "$comment": "Every suite test the headless harness cannot answer, with the probe that says why (needs() in scripts/tests-kit.mjs). 01-runtests fails on a skip not listed here (something stopped being answerable) and on a listed one that now answers (keep the list exact, and say in the commit why it moved). env.* only: the harness builds its own world, so a world.* skip there is a fixture defect, and 01-runtests refuses it whatever this file says.",
+  "measured": "01-runtests on the E30 branch at C13, 24.09.2026, module 1.2.60: 16 skipped, env.layout 8, env.cascade 3, env.systemSheets 2, env.fonts 1, env.webAnimations 1, env.canvas 1",
+  "skips": [
+    { "test": "R12 - every standing window fits the screen Foundry calls a minimum", "probe": "env.layout" },
+    { "test": "R111 - the book in the corner opens the handbooks", "probe": "env.layout" },
+    { "test": "R112 - the curtain holds on a narrow desk, and the right column is wider", "probe": "env.layout" },
+    { "test": "the curtain cuts a clean partition", "probe": "env.layout" },
+    { "test": "no chrome label is cut off", "probe": "env.layout" },
+    { "test": "nothing in the chrome is set under the floor", "probe": "env.layout" },
+    { "test": "the theme speaks two faces", "probe": "env.fonts" },
+    { "test": "the notice tile is always cut", "probe": "env.layout" },
+    { "test": "a window closes without waiting for a transition that never started", "probe": "env.webAnimations" },
+    { "test": "the roll window opens, locked, and a bare statistic is a reaction", "probe": "env.systemSheets" },
+    { "test": "no piece of a room's outline is shorter than the line it is drawn with", "probe": "env.canvas" },
+    { "test": "topping up Hope lights the Calls it just paid for", "probe": "env.systemSheets" },
+    { "test": "no module window is wider than the cap, and they open on the centre", "probe": "env.layout" },
+    { "test": "high contrast raises the ink and moves no size", "probe": "env.cascade" },
+    { "test": "the slider moves the type under Monokuma Legacy and moves nothing under the glass", "probe": "env.cascade" },
+    { "test": "a prose window's box follows the slider under Monokuma Legacy", "probe": "env.cascade" }
+  ]
+}

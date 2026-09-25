@@ -1,0 +1,109 @@
+{
+  "schema": "drpg-local-gate/1",
+  "writtenBy": "audit/gate/local-gate.mjs",
+  "module": {
+    "id": "danganronpa-rpg",
+    "version": "1.2.61"
+  },
+  "commit": "ae52d30fb32eb7d67b92187a087604f4cb42c599",
+  "bound": {
+    "scripts": "1e6ad10ae9892c284236926b7e792bec188c7293",
+    "styles": "dd1d67325e67b7b898859918beadfc7106a950ef",
+    "lang": "a1a011253923e8e5e0e59afed845fd3ef1e765de",
+    "fonts": "285990edcaa5a47a91f00390ecf70c59630da540",
+    "icons": "61fff800a2dc045b02f681d4aa217e43110eab84",
+    "module.json": "eb039b97e84d4d650dd45172ce8113dc25e0db2d",
+    "audit/gate/local-gate.mjs": "c14592cd32b3e81fb34f96f6b4f2e718f0935be7",
+    "audit/gate/gate-lib.mjs": "1990fd1ad45cf2b35898e92ef399abee1d4f9316",
+    "audit/live": "45ce138875b15d3427bbb3068444421b55d95129",
+    "audit/harness/lib/seed.mjs": "0a3fa9f87ebfb8025a9914e4d630bfdc83d09ce9",
+    "audit/harness/scenarios/14-quiet.mjs": "33fe577903cd8a2670667fe4c83e95b0664eeb5f",
+    "audit/harness/scenarios/60-ledger.mjs": "8a9b0cd763ce5f6a02f939eefd5eb2cc551382a8"
+  },
+  "startedAt": "2026-09-25T18:38:35.409Z",
+  "finishedAt": "2026-09-25T18:38:35.519Z",
+  "host": {
+    "node": "v22.22.2",
+    "platform": "linux-x64",
+    "playwright": "1.56.1"
+  },
+  "sandbox": {
+    "url": "http://localhost:30099",
+    "reachable": false,
+    "error": "connect ECONNREFUSED 127.0.0.1:30099",
+    "http": null,
+    "raw": null,
+    "foundry": null,
+    "world": null,
+    "system": null,
+    "systemVersion": null
+  },
+  "fixtures": {
+    "dir": null,
+    "why": "DRPG_FIXTURES is not set"
+  },
+  "parts": [
+    {
+      "id": "live-stained-glass",
+      "layer": "live",
+      "theme": "stainedGlass",
+      "status": "not-run",
+      "reason": "no-server",
+      "why": "nothing answered at http://localhost:30099 (connect ECONNREFUSED 127.0.0.1:30099)",
+      "evidence": []
+    },
+    {
+      "id": "live-monokuma-legacy",
+      "layer": "live",
+      "theme": "monokumaLegacy",
+      "status": "not-run",
+      "reason": "no-server",
+      "why": "nothing answered at http://localhost:30099 (connect ECONNREFUSED 127.0.0.1:30099)",
+      "evidence": []
+    },
+    {
+      "id": "live-world-diff",
+      "layer": "live",
+      "status": "not-run",
+      "reason": "no-server",
+      "why": "nothing answered at http://localhost:30099 (connect ECONNREFUSED 127.0.0.1:30099)",
+      "evidence": []
+    },
+    {
+      "id": "sandbox-14-quiet",
+      "layer": "sandbox",
+      "scenario": "audit/harness/scenarios/14-quiet.mjs",
+      "status": "not-run",
+      "reason": "no-server",
+      "why": "nothing answered at http://localhost:30099 (connect ECONNREFUSED 127.0.0.1:30099)",
+      "evidence": []
+    },
+    {
+      "id": "sandbox-60-ledger",
+      "layer": "sandbox",
+      "scenario": "audit/harness/scenarios/60-ledger.mjs",
+      "status": "not-run",
+      "reason": "no-server",
+      "why": "nothing answered at http://localhost:30099 (connect ECONNREFUSED 127.0.0.1:30099)",
+      "evidence": []
+    },
+    {
+      "id": "drill-migrate-remnants-old-world",
+      "layer": "drill",
+      "fixture": "migrate-remnants-old-world",
+      "status": "not-run",
+      "reason": "no-fixtures",
+      "why": "DRPG_FIXTURES is not set; no scenario declares export const fixture = \"migrate-remnants-old-world\" yet",
+      "evidence": []
+    }
+  ],
+  "counts": {
+    "passed": 0,
+    "failed": 0,
+    "error": 0,
+    "notRun": 6
+  },
+  "verdict": "incomplete",
+  "digest": "sha256:197e63e8b9d5d7e54b82fc0f80448c7d02cd3a5729c64f114b4f2797137fb2e2",
+  "hmac": null
+}

@@ -3,6 +3,11 @@
  * the module's state handling depends on merge/expand/diff behaviour.
  */
 
+import { ForcedDeletion, ForcedReplacement, isOperator, kindOf, replacementOf, LEGACY } from "./operators.mjs";
+
+/** An object to walk into: not null, not an array, not an operator in either form (lib/operators.mjs). */
+const walkable = v => v !== null && typeof v === "object" && !Array.isArray(v) && !isOperator(v);
+
 export function randomID(length = 16) {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let out = "";
@@ -53,6 +58,10 @@ export function unescapeHTML(str) {
 export function deepClone(v) {
     if (v === null || typeof v !== "object") return v;
     if (v instanceof Date) return new Date(v);
+    // Operators are leaves: a deletion is one shared value, a replacement is copied
+    // as a replacement - walked like a plain object, either became a plain object.
+    if (v instanceof ForcedDeletion) return v;
+    if (v instanceof ForcedReplacement) return new ForcedReplacement(deepClone(v.replacement));
     if (Array.isArray(v)) return v.map(deepClone);
     const out = {};
     for (const k of Object.keys(v)) out[k] = deepClone(v[k]);
@@ -95,12 +104,13 @@ export function setProperty(obj, path, value) {
     return changed;
 }
 
+/** An operator (lib/operators.mjs) is a value here, never a branch - in `flattenObject` too. */
 export function expandObject(obj) {
     const out = {};
     for (const [k, v] of Object.entries(obj ?? {})) {
-        const val = (v !== null && typeof v === "object" && !Array.isArray(v)) ? expandObject(v) : v;
+        const val = walkable(v) ? expandObject(v) : v;
         if (k.includes(".")) setProperty(out, k, val);
-        else if (out[k] !== null && typeof out[k] === "object" && val !== null && typeof val === "object" && !Array.isArray(val)) {
+        else if (out[k] !== null && typeof out[k] === "object" && !isOperator(out[k]) && walkable(val)) {
             Object.assign(out[k], val);
         } else out[k] = val;
     }
@@ -110,27 +120,46 @@ export function expandObject(obj) {
 export function flattenObject(obj, _d = 0) {
     const out = {};
     for (const [k, v] of Object.entries(obj ?? {})) {
-        if (v !== null && typeof v === "object" && !Array.isArray(v) && _d < 32 && Object.keys(v).length) {
+        if (walkable(v) && _d < 32 && Object.keys(v).length) {
             for (const [ik, iv] of Object.entries(flattenObject(v, _d + 1))) out[`${k}.${ik}`] = iv;
         } else out[k] = v;
     }
     return out;
 }
 
-/** Foundry mergeObject subset: insertKeys/insertValues/overwrite true, recursive, performDeletions option. */
+/*
+ * WHERE A LEGACY KEY IS SAID WHEN NO DOCUMENT WRITE CARRIES IT (E30, 24.09.2026).
+ * A document write is reported by whoever applies it (the cluster, or the shim's
+ * updateSource and clone); `mergeObject` is a utility the module may call on any
+ * object, so the host that loads this file says where its reports go
+ * (client-entry.mjs sends them to the cluster). Nothing is reported until it does.
+ */
+let legacySink = null;
+export function reportLegacyKeysTo(fn) { legacySink = typeof fn === "function" ? fn : null; }
+
+/**
+ * Foundry mergeObject subset: insertKeys/insertValues/overwrite true, recursive, performDeletions option.
+ *
+ * `-=key` with `performDeletions` still deletes here: the utility is not a document
+ * write, and none of the module's five callers passes `performDeletions` (grep,
+ * 24.09.2026). Each such deletion is reported through `reportLegacyKeysTo`, so the
+ * day one does, the run says so.
+ */
 export function mergeObject(original, other = {}, { insertKeys = true, insertValues = true, overwrite = true, recursive = true, inplace = true, performDeletions = false } = {}) {
     if (!inplace) original = deepClone(original);
     const expanded = expandObject(other);
     for (const [k, v] of Object.entries(expanded)) {
-        _mergeKey(original, k, v, { insertKeys, insertValues, overwrite, recursive, performDeletions });
+        _mergeKey(original, k, v, { insertKeys, insertValues, overwrite, recursive, performDeletions, at: "" });
     }
     return original;
 }
 
 function _mergeKey(target, key, value, opts) {
     if (key.startsWith("-=")) {
-        if (opts.performDeletions) delete target[key.slice(2)];
-        else target[key] = value;
+        if (opts.performDeletions) {
+            legacySink?.({ where: "foundry.utils.mergeObject", path: opts.at ? `${opts.at}.${key}` : key });
+            delete target[key.slice(2)];
+        } else target[key] = value;
         return;
     }
     const exists = key in target;
@@ -138,8 +167,9 @@ function _mergeKey(target, key, value, opts) {
     const bothObjects = exists && tv !== null && typeof tv === "object" && !Array.isArray(tv)
         && value !== null && typeof value === "object" && !Array.isArray(value);
     if (bothObjects && opts.recursive) {
+        const at = opts.at ? `${opts.at}.${key}` : key;
         for (const [ik, iv] of Object.entries(value)) {
-            _mergeKey(tv, ik, iv, { ...opts, insertKeys: opts.insertValues });
+            _mergeKey(tv, ik, iv, { ...opts, insertKeys: opts.insertValues, at });
         }
         return;
     }
@@ -215,11 +245,48 @@ export const EMBEDDED_ARRAYS = {
 };
 
 /**
+ * One document write applied to a document's source, the way v14 applies it as
+ * far as the harness models it (lib/operators.mjs) - E30, 24.09.2026:
+ *   - a key spelled the old way, `-=key` or `==key`, changes nothing and is handed
+ *     to `onLegacyKey(path)`; it is neither a deletion nor a literal key;
+ *   - a ForcedDeletion removes its key; a ForcedReplacement puts a copy of its
+ *     value in place of the key's whole value;
+ *   - a plain object merges into a plain object, key by key; over anything else
+ *     it is built fresh the same way, so an operator or a legacy key inside a new
+ *     branch is read, not stored;
+ *   - anything else is a copy of the value.
+ * Before this, every write went through `mergeObject(..., { performDeletions: true })`,
+ * which deleted on `-=` and stored an operator as the plain object JSON had made of
+ * it. For a write with no operator and no legacy key the two give the same source.
+ */
+export function applyUpdate(target, changes, { onLegacyKey = null } = {}) {
+    return applyExpanded(target, expandObject(changes), onLegacyKey, "");
+}
+
+function applyExpanded(target, expanded, onLegacyKey, at) {
+    for (const [k, v] of Object.entries(expanded)) {
+        const where = at ? `${at}.${k}` : k;
+        if (LEGACY.test(k)) { onLegacyKey?.(where); continue; }
+        const kind = kindOf(v);
+        if (kind === "ForcedDeletion") { delete target[k]; continue; }
+        if (kind === "ForcedReplacement") { target[k] = deepClone(replacementOf(v)); continue; }
+        if (walkable(v)) {
+            if (!walkable(target[k])) target[k] = {};
+            applyExpanded(target[k], v, onLegacyKey, where);
+            continue;
+        }
+        target[k] = deepClone(v);
+    }
+    return target;
+}
+
+/**
  * Foundry update semantics for a parent document: an array under an embedded
  * key is a DIFFERENTIAL update - entries merge into the existing element with
- * the same _id - never a wholesale replacement. Everything else merges.
+ * the same _id - never a wholesale replacement. Everything else merges, through
+ * `applyUpdate`; a legacy key's path is reported with the embedded entry's id in it.
  */
-export function applyDocChanges(collName, raw, changes) {
+export function applyDocChanges(collName, raw, changes, { onLegacyKey = null } = {}) {
     const expanded = expandObject(deepClone(changes));
     for (const key of EMBEDDED_ARRAYS[collName] ?? []) {
         if (!Array.isArray(expanded[key])) continue;
@@ -230,12 +297,12 @@ export function applyDocChanges(collName, raw, changes) {
             const target = p?._id && raw[key].find(x => x._id === p._id);
             if (target) {
                 const { _id, ...rest } = p;
-                mergeObject(target, rest, { performDeletions: true });
+                applyExpanded(target, expandObject(rest), onLegacyKey, `${key}.${_id}`);
             }
             // no matching _id: real Foundry rejects; the harness drops it
         }
     }
-    mergeObject(raw, expanded, { performDeletions: true });
+    applyExpanded(raw, expanded, onLegacyKey, "");
 }
 
 export function fromUuidParts(uuid) {

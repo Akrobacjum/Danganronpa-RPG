@@ -1,5 +1,7 @@
-/** Boot sanity: three clients, module registers, world sync works. */
-export async function run({ gm, p1, p2, check, settle, bootInfo, permissionDenials }) {
+/** Boot sanity: four clients, module registers, world sync works. */
+export const layers = ["ci"];
+
+export async function run({ gm, p1, p2, p3, check, note, settle, bootInfo, permissionDenials, legacyKeys, IDS, environment }) {
     for (const [who, info] of bootInfo) {
         check(`${who}: boot completed`, info.t === "ready", info.error ?? "");
         if (info.t === "ready") {
@@ -15,19 +17,39 @@ export async function run({ gm, p1, p2, check, settle, bootInfo, permissionDenia
     `);
     check("gm: module settings visible", !!key, key);
 
-    // clock via api if present
+    /* The clock through the api. This asked for "not null", which the fallback
+       string "no-getClock" passed as well as a clock did. getClock() spreads
+       DEFAULT_CLOCK (settings.mjs) under the stored clock, so a clock always
+       carries a `phase`; the check asks for that shape. */
     const clock = await gm.eval(`return game.drpg && typeof game.drpg.getClock === "function" ? game.drpg.getClock() : "no-getClock";`);
-    check("gm: clock readable via api", clock !== null && clock !== undefined, JSON.stringify(clock));
+    check("gm: getClock() through the api returns a clock with a phase",
+        clock !== null && typeof clock === "object" && typeof clock.phase === "string", JSON.stringify(clock));
 
-    // notifications that fired during boot (worth seeing, not necessarily failures)
-    for (const c of [gm, p1, p2]) {
-        const notes = await c.eval(`return globalThis.__notifications.map(n => n.level + ": " + n.msg);`);
-        check(`${c.who}: boot notifications recorded`, true, JSON.stringify(notes));
+    /* Notifications during boot. Each client's list was a check that passed on
+       a constant `true`, which measured nothing; the list is a note now, printed
+       as evidence, and what can actually be wrong with it is the check: a
+       notification at error level while the module boots. On 24.09.2026 the GM
+       showed one, at info level ("Room-based visibility switched on for 1
+       scenes."), and the players none. */
+    for (const c of [gm, p1, p2, p3]) {
+        const shown = await c.eval(`return globalThis.__notifications.map(n => ({ level: n.level, msg: n.msg }));`);
+        note(`${c.who}: boot notifications`, JSON.stringify(shown.map(n => `${n.level}: ${n.msg}`)));
+        const errors = shown.filter(n => n.level === "error");
+        check(`${c.who}: no error-level notification during boot`, errors.length === 0, JSON.stringify(errors));
     }
 
-    // missing i18n keys hit during boot
+    /* Missing i18n keys during boot: this module's own, and only those. The
+       harness loads this module's lang/en.json and nothing else, and voice.mjs
+       localizes three keys that belong to avclient-livekit (LIVEKITAVCLIENT.*)
+       to recognise that module's own notifications. Those three made this
+       scenario red on 1.2.60 (18/19) for a fact about the harness, so they are
+       kept as evidence - in the details and in a note - and only a missing
+       DRPG. key fails the check. */
     const missing = await gm.eval(`return [...globalThis.__missingI18n];`);
-    check("gm: no missing i18n keys during boot", missing.length === 0, JSON.stringify(missing));
+    const ours = missing.filter(k => k.startsWith("DRPG."));
+    const foreign = missing.filter(k => !k.startsWith("DRPG."));
+    check("gm: no DRPG. i18n key missing during boot", ours.length === 0, JSON.stringify({ missing: ours, foreign }));
+    if (foreign.length) note("gm: other modules' keys the harness has no language file for (not counted)", JSON.stringify(foreign));
 
     // player cannot write world settings (server-side rule holds)
     const denial = await p1.eval(`
@@ -40,6 +62,102 @@ export async function run({ gm, p1, p2, check, settle, bootInfo, permissionDenia
         } catch (err) { return "denied: " + err.message; }
     `);
     check("p1: world-setting write denied by server", String(denial).startsWith("denied"), denial);
+
+    /*
+     * THE HOST IS THE FOUNDRY IT SAYS IT IS (E30, 24.09.2026). Each E30 commit that
+     * brings a piece of the harness closer to v14 adds here the check that it did,
+     * so a later change that quietly takes the piece away turns boot red. The
+     * writes go on a probe flag in the `world` scope, which no module code reads:
+     * on Daichi, whom only the GM may write, and on Aiko, p1's own. Each is read
+     * back on the GM and on p1.
+     */
+    const read = (c, id) => c.eval(`return foundry.utils.deepClone(game.actors.get("${id}")._source.flags?.world ?? null);`);
+    const onBoth = async id => ({ gm: await read(gm, id), p1: await read(p1, id) });
+    const same = views => JSON.stringify(views.gm) === JSON.stringify(views.p1);
+    const write = (c, id, changes) => c.eval(`await game.actors.get("${id}").update(${changes}); return true;`);
+
+    /* Operators (lib/operators.mjs): a `-=` key removes nothing, stores nothing
+       under its own name, and is reported; `_del`, `_replace` and
+       foundry.data.operators delete and replace; unsetFlag removes. */
+    await write(gm, IDS.daichi, `{ "flags.world.e30probe": { keep: 1, gone: 2 } }`);
+    const reportedBefore = legacyKeys.length;
+    await write(gm, IDS.daichi, `{ "flags.world.e30probe.-=gone": null }`);
+    const legacy = await onBoth(IDS.daichi);
+    const reported = legacyKeys.slice(reportedBefore);
+    check("the host: a '-=' key removes nothing on any client, is not stored as a key, and is reported",
+        legacy.gm?.e30probe?.gone === 2 && same(legacy) && !("-=gone" in (legacy.gm?.e30probe ?? {}))
+        && reported.length === 1 && reported[0].who === "gm" && reported[0].path === "flags.world.e30probe.-=gone",
+        JSON.stringify({ legacy, reported }));
+
+    for (const [writer, id] of [[gm, IDS.daichi], [p1, IDS.aiko]]) {
+        await write(writer, id, `{ "flags.world.e30probe": { keep: 1, gone: 2, bookmark: { actionKey: "search", itemId: "abc" } } }`);
+        await write(writer, id, `{ "flags.world.e30probe.gone": _del, "flags.world.e30probe.bookmark": _replace({ actionKey: "listen" }) }`);
+        const globals = await onBoth(id);
+        await write(writer, id, `{ "flags.world.e30probe.keep": foundry.data.operators.ForcedDeletion.create(),
+            "flags.world.e30probe.bookmark": foundry.data.operators.ForcedReplacement.create({ actionKey: "observe" }) }`);
+        const operators = await onBoth(id);
+        check(`the host: _del, _replace and foundry.data.operators, written by ${writer.who}, delete and replace on every client`,
+            same(globals) && JSON.stringify(globals.gm?.e30probe) === JSON.stringify({ keep: 1, bookmark: { actionKey: "listen" } })
+            && same(operators) && JSON.stringify(operators.gm?.e30probe) === JSON.stringify({ bookmark: { actionKey: "observe" } }),
+            JSON.stringify({ globals, operators }));
+
+        await writer.eval(`await game.actors.get("${id}").unsetFlag("world", "e30probe"); return true;`);
+        const unset = await onBoth(id);
+        check(`the host: unsetFlag, called by ${writer.who}, removes the flag on every client`,
+            same(unset) && unset.gm !== null && !("e30probe" in unset.gm), JSON.stringify(unset));
+        await write(writer, id, `{ "flags.world": _del }`);
+    }
+
+    /* The pre steps (lib/shim.mjs, THE PRE STEPS EDIT THE UPDATE THAT IS SENT): what a
+       preUpdate listener takes out of the update is not written, and false cancels it. */
+    const pre = await p1.eval(`const a = game.actors.get("${IDS.aiko}");
+        Hooks.once("preUpdateActor", (doc, update) => { delete update.flags.world.e30drop; });
+        await a.update({ "flags.world.e30keep": 1, "flags.world.e30drop": 1 });
+        Hooks.once("preUpdateActor", () => false);
+        await a.update({ "flags.world.e30cancel": 1 });
+        return true;`);
+    const preOnGm = await read(gm, IDS.aiko);
+    check("the host: an edit a preUpdate listener makes is what is written, and false cancels the update",
+        pre === true && JSON.stringify(preOnGm) === JSON.stringify({ e30keep: 1 }), JSON.stringify(preOnGm));
+    await write(p1, IDS.aiko, `{ "flags.world": _del }`);
+
+    /* Roles (lib/shim.mjs, AN ASSISTANT IS A GM): isGM from role 3, and a role
+       name the harness does not know is no role at all. */
+    const roles = await gm.eval(`const User = CONFIG.User.documentClass;
+        return { isGM: [1, 2, 3, 4].map(role => new User({ role }).isGM), unknown: new User({ role: 4 }).hasRole("NOT_A_ROLE") };`);
+    check("the host: isGM for roles 1 to 4 is false, false, true, true, and an unknown role name is no role",
+        JSON.stringify(roles) === JSON.stringify({ isGM: [false, false, true, true], unknown: false }), JSON.stringify(roles));
+
+    /* Stylesheets (lib/css.mjs): every client attached module.json's sheets in its
+       order, each under the `modules` layer, and the cascade answers a custom
+       property as the stylesheet states it outside any @media block (1400px; the
+       flat map it replaced answered 1700px, from the `(min-aspect-ratio: 2/1)`
+       block - which jsdom 30.0.1 applies at no window size: it applies only an
+       @media list that is empty, `all` or `screen`, lib/css.mjs). */
+    const sheets = await gm.eval(`const manifest = await fetch("/modules/danganronpa-rpg/module.json").then(r => r.json());
+        const inline = [...document.styleSheets].flatMap(s => [...s.cssRules]).filter(r => "styleSheet" in r);
+        return { styles: manifest.styles,
+            hrefs: inline.map(r => r.href.replace("modules/danganronpa-rpg/", "")), layers: inline.map(r => r.layerName),
+            filled: inline.filter(r => r.styleSheet?.cssRules?.length > 0).length,
+            windowMax: getComputedStyle(document.body).getPropertyValue("--drpg-window-max") };`);
+    const attached = [...bootInfo.values()].map(info => info.stylesheets && `${info.stylesheets.files}/${info.stylesheets.of}`);
+    check("the host: the module's stylesheets are attached on every client in module.json's order, each in layer modules",
+        sheets.styles.length > 0 && JSON.stringify(sheets.hrefs) === JSON.stringify(sheets.styles)
+        && sheets.layers.every(l => l === "modules") && sheets.filled === sheets.styles.length
+        && attached.every(a => a === `${sheets.styles.length}/${sheets.styles.length}`), JSON.stringify({ sheets, attached }));
+    check("the host: body --drpg-window-max reads 1400px through the cascade", sheets.windowMax === "1400px", JSON.stringify(sheets.windowMax));
+
+    /* Versions (lib/versions.mjs): each one the harness claims says where it was
+       read, and the GM's client reports the ones the results file records. */
+    const booted = await gm.eval(`return { foundry: game.version, release: game.release, data: game.data.version, system: game.system.version,
+        modules: Object.fromEntries([...game.modules.values()].map(m => [m.id, m.version])) };`);
+    const claimed = [environment.foundry, environment.system, environment.system.relayCode, ...environment.modules];
+    check("the host: every version it claims says where it was read, and the GM's client reports those versions",
+        claimed.every(v => Boolean(v?.version) && Boolean(v?.from)) && environment.modules.length > 0
+        && booted.foundry === environment.foundry.version && booted.data === environment.foundry.version
+        && booted.release?.generation === environment.foundry.generation && booted.release?.build === environment.foundry.build
+        && booted.system === environment.system.version && environment.modules.every(m => booted.modules[m.id] === m.version),
+        JSON.stringify({ environment, booted }));
 
     await settle(300);
 }

@@ -4,6 +4,8 @@
  * check: the strings, the config.mjs prose, the glossary, the plural forms,
  * the HUD after a re-render, and that no key the code asks for went missing.
  */
+export const layers = ["ci"];
+
 const MOD = "danganronpa-rpg";
 
 export async function run({ gm, p1, p2, p3, check, settle, repoUrl: REPO }) {

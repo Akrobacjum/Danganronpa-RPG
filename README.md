@@ -205,7 +205,7 @@ Player Handbook and a one-page Student Brochure for the table. They ship with
 the module. The small book button in the bottom-right corner opens them in the
 game, in the language you picked for the module, and only GMs see the GM
 Handbook. You can also read them here, in [docs/handbooks](docs/handbooks).
-They describe version 1.2.60. If a later version and a handbook ever disagree,
+They describe version 1.2.61. If a later version and a handbook ever disagree,
 trust the module.
 
 ## Installation
@@ -277,7 +277,9 @@ players never see them, but like every chat message they reach every browser.
 Another student's sheet shows their name, face, Ultimate, Health, Sanity and
 what is in their hands, and hides their traits, Hope and the rest of their
 inventory. Where the traces lie, the GM's plan for the key clues and, until the
-lights come up, a murder declared during the Eclipse are all world data. It is
+lights come up, a murder declared during the Eclipse are all world data. A
+token the GM hides is hidden from view only: Foundry sends every token, with its
+name and position, to every browser. <!-- leak:foundry-hidden-tokens --> It is
 a curtain, not a wall, and it works at a table that does not go looking behind
 it.
 
@@ -285,9 +287,11 @@ it.
 other GMs' changes are sent to it, and any GM can answer a card.
 
 **Tests.** A GM can run the regression suite from the console with
-`game.drpg.runTests()`. The default level writes to the world, so run it on a
-test world. `game.drpg.runTests({ tier: 1 })` only reads and is safe during
-play. [CONTRIBUTING.md](CONTRIBUTING.md) covers the rest, including the
+`game.drpg.runTests()`: the read-only tiers, safe during play, and it checks at
+the end that nothing in the world moved. `game.drpg.runTests({ tier: 2 })` adds
+the scenarios, which write to the world; it asks first, in a window that names
+the world, and Cancel is the default. Run it on a copy of a world, never on a
+campaign. [CONTRIBUTING.md](CONTRIBUTING.md) covers the rest, including the
 headless harness.
 
 ## Credits

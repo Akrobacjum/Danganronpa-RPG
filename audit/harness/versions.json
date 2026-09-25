@@ -1,0 +1,9 @@
+{
+  "note": "The companion modules' versions when DRPG_FOUNDRY_DATA is not set. Re-read them from an installed Data folder to update (LIVE-E30-08).",
+  "readFrom": "an installed Foundry Data folder, as audit S14-28 read it",
+  "modules": {
+    "dice-so-nice": "6.2.9",
+    "isometric-perspective": "14.0.2",
+    "avclient-livekit": "0.6.8"
+  }
+}

@@ -7,26 +7,75 @@
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
-import { JSDOM } from "jsdom";
+import { JSDOM, requestInterceptor } from "jsdom";
 import * as U from "./lib/futil.mjs";
+import { DataFieldOperator, ForcedDeletion, ForcedReplacement, revive } from "./lib/operators.mjs";
+import { readVersions } from "./lib/versions.mjs";
+import { attachModuleStyles, wrapGetComputedStyle } from "./lib/css.mjs";
+import { AUTOMATION_DEFAULT, resourceTables, ResourceUpdateMap, addDualityResourceUpdates, modifyResource, updateFear } from "./lib/daggerheart.mjs";
 import { HooksImpl, Collection, buildDocumentClasses, buildPIXI, buildApplications, RollImpl, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
 
 const WHO = process.env.DRPG_USER ?? "gm";
 const send = m => process.send?.(m);
 const logLine = s => send({ t: "log", line: String(s) });
 
+/*
+ * WHAT ARRIVED, IN ORDER (E30, 24.09.2026; lib/canary.mjs). Everything the cluster
+ * sends this browser as Foundry traffic - the snapshot, document changes, settings,
+ * socket packets, acks - is copied here with the scenario's phase, by a listener
+ * registered before the message loop's, so Node calls it first and a handler that
+ * throws cannot hide what arrived. eval, dump and shutdown are the harness's control
+ * channel and are not recorded: a scenario's code is not Foundry traffic. The cap is
+ * far above a scenario's traffic (the busiest, 30-security, is some thousands of
+ * messages); a dump reports what it dropped, and the canary fails a truncated record.
+ */
+let PHASE = "boot", wireDropped = 0;
+const WIRE = [], WIRE_CAP = 50000;
+const WIRE_KINDS = { snapshot: "snapshot", apply: "document", settingApplied: "setting", socketMsg: "socket", ack: "ack" };
+process.on("message", msg => {
+    if (msg?.t === "phase") { PHASE = String(msg.name); return; }
+    const kind = WIRE_KINDS[msg?.t];
+    if (!kind) return;
+    if (WIRE.length >= WIRE_CAP) { wireDropped++; return; }
+    WIRE.push({ n: WIRE.length, at: Date.now(), phase: PHASE, kind, msg: JSON.parse(JSON.stringify(msg)) });
+});
+
 // Before the handlers below, which write to it: an error during import is an error too.
 globalThis.__errors = [];
 process.on("uncaughtException", err => { logLine(`UNCAUGHT: ${err.stack}`); recordError("uncaughtException", err); });
 process.on("unhandledRejection", err => { logLine(`UNHANDLED REJECTION: ${err?.stack ?? err}`); recordError("unhandledRejection", err); });
+/* A client exists only for its cluster. Its channel closing means the cluster
+   has ended - crashed, or killed by a signal, where its own "exit" handler never
+   runs - and a client left alone did not end (measured 24.09.2026: with the
+   cluster killed by SIGKILL mid-run, all four clients were still running five
+   seconds later; see cluster.mjs, NO CLIENT OUTLIVES THE CLUSTER). */
+process.on("disconnect", () => process.exit(0));
 
 /* ------------------------------ jsdom ----------------------------------- */
+
+/*
+ * WHAT THE PAGE CAN LOAD (E30, 24.09.2026): this checkout's files under
+ * /modules/danganronpa-rpg/, as Foundry serves them, and nothing else - any other
+ * address is a 404, so no run reaches the network. The stylesheets are the reason
+ * (lib/css.mjs); jsdom loads only stylesheets here (no scripts run, no images
+ * without the canvas package).
+ */
+const CONTENT_TYPES = { ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp", ".woff2": "font/woff2" };
+function serveCheckout(request) {
+    const match = new URL(request.url).pathname.match(/^\/modules\/danganronpa-rpg\/(.+)$/);
+    const file = match ? path.resolve(REPO, decodeURIComponent(match[1])) : null;
+    if (!file || !file.startsWith(REPO + path.sep) || !fs.existsSync(file)) return new Response("", { status: 404 });
+    return new Response(fs.readFileSync(file), { headers: { "Content-Type": CONTENT_TYPES[path.extname(file)] ?? "application/octet-stream" } });
+}
 
 const dom = new JSDOM(`<!doctype html><html><head></head><body>
   <div id="interface"><div id="ui-left"></div><div id="ui-top"></div><div id="ui-middle"></div><div id="ui-right"></div><div id="ui-bottom"></div></div>
   <div id="sidebar"><section id="chat"><ol id="chat-log"></ol><div id="chat-controls"></div></section></div>
   <div id="players"></div><div id="hotbar"></div><nav id="controls"></nav><div id="navigation"></div><div id="pause"></div>
-</body></html>`, { url: "http://localhost:30000/game", pretendToBeVisual: true });
+</body></html>`, {
+    url: "http://localhost:30000/game", pretendToBeVisual: true,
+    resources: { interceptors: [requestInterceptor(serveCheckout)] }
+});
 
 globalThis.window = dom.window;
 globalThis.document = dom.window.document;
@@ -106,48 +155,9 @@ for (const k of ["addEventListener", "removeEventListener", "dispatchEvent"]) {
     if (globalThis[k] === undefined) globalThis[k] = dom.window[k].bind(dom.window);
 }
 
-/*
- * Serve CSS custom properties from the REAL stylesheets, so the module's
- * stylesheet-version and theme-token checks measure the actual shipped files
- * (jsdom does not cascade custom props itself). Later declarations win,
- * matching the cascade for same-specificity :root rules.
- */
-const cssVars = new Map();
-for (const cssFile of ["styles/motion.css", "styles/danganronpa.css", "styles/messenger.css"]) {
-    try {
-        const text = fs.readFileSync(path.join(REPO, cssFile), "utf8");
-        for (const m of text.matchAll(/(--[\w-]+)\s*:\s*([^;}]+)[;}]/g)) cssVars.set(m[1], m[2].trim());
-    } catch {}
-}
-{
-    const realGCS = window.getComputedStyle.bind(window);
-    const wrap = el => {
-        const cs = realGCS(el);
-        return new Proxy(cs, {
-            get(target, prop) {
-                if (prop === "getPropertyValue") {
-                    return p => {
-                        if (String(p).startsWith("--") && cssVars.has(p)) return cssVars.get(p);
-                        return target.getPropertyValue(p);
-                    };
-                }
-                const v = target[prop];
-                return typeof v === "function" ? v.bind(target) : v;
-            }
-        });
-    };
-    window.getComputedStyle = wrap;
-    globalThis.getComputedStyle = wrap;
-}
-{
-    // The three module stylesheets Foundry would attach are "on the page".
-    for (const href of ["modules/danganronpa-rpg/styles/motion.css", "modules/danganronpa-rpg/styles/danganronpa.css", "modules/danganronpa-rpg/styles/messenger.css"]) {
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = href;
-        document.head.appendChild(link);
-    }
-}
+/* The module's six stylesheets are attached at boot, before the module is imported
+   (lib/css.mjs); custom properties are read through the page's own cascade. */
+globalThis.getComputedStyle = wrapGetComputedStyle(window);
 
 /* ------------------------------ fetch ------------------------------------ */
 
@@ -205,12 +215,19 @@ globalThis.__dialogAnswers = [];
 globalThis.__missingI18n = new Set();
 // `globalThis.__errors` is created at the top of this file, before anything can throw.
 
+/* A legacy key met where no server applies it - a document's updateSource or
+   clone, or foundry.utils.mergeObject - is reported to the cluster, which keeps
+   every report in one list (cluster.mjs, legacyKeys). */
+const reportLegacy = record => send({ t: "legacyKey", ...record });
+U.reportLegacyKeysTo(reportLegacy);
+
 const ctx = {
     bus,
     hooks: () => hooks,
     gameRef: () => game,
     userId: () => game.userId,
     log: logLine,
+    reportLegacy,
     classes: null
 };
 const classes = buildDocumentClasses(ctx);
@@ -245,13 +262,32 @@ const i18n = {
 
 const settingDefs = new Map();   // "ns.key" -> def
 const worldValues = new Map();   // "ns.key" -> value (synced)
-const clientValues = new Map();  // "ns.key" -> value (local)
+/*
+ * CLIENT SETTINGS LIVE IN THIS BROWSER'S localStorage, AS FOUNDRY KEEPS THEM (E30,
+ * 24.09.2026). They were a Map beside jsdom's localStorage, so two things could not
+ * be modelled: `game.settings.storage.get("client")` is localStorage in Foundry, and
+ * the suite's world dump reads it for keys under the module's name that no setting
+ * claims; and a test that cleans up after itself by removing its key from
+ * localStorage (the held-settings scenario) removed it from a store the settings did
+ * not use. Values are JSON, as Foundry writes them.
+ */
+const clientStore = globalThis.localStorage;
+const clientValues = {
+    has: key => clientStore.getItem(key) !== null,
+    get: key => JSON.parse(clientStore.getItem(key)),
+    set: (key, value) => clientStore.setItem(key, JSON.stringify(value ?? null)),
+    entries: () => Array.from({ length: clientStore.length }, (_, i) => clientStore.key(i))
+        .map(key => { try { return [key, JSON.parse(clientStore.getItem(key))]; } catch { return [key, clientStore.getItem(key)]; } })
+};
 
 /** Foreign namespaces whose settings the system/other modules would register. */
 const FOREIGN_SETTING_DEFAULTS = {
     "daggerheart.Countdowns": { scope: "world", default: { countdowns: {} } },
     "daggerheart.Appearance": { scope: "world", default: {} },
-    "daggerheart.Automation": { scope: "world", default: { hope: true } },
+    /* Daggerheart's own default, every field (lib/daggerheart.mjs). It was
+       `{ hope: true }`, a shape no Daggerheart has: reroll.mjs reads `hopeFear`
+       off it. The world the harness seeds states its own value (lib/seed.mjs). */
+    "daggerheart.Automation": { scope: "world", default: AUTOMATION_DEFAULT },
     /* Fear and its ceiling, which Daggerheart's relay writes and reads (E03): the
        security scenario sends a player's Fear step through the real relay. */
     "daggerheart.ResourcesFear": { scope: "world", default: 0 },
@@ -332,7 +368,7 @@ const settingsApi = {
         }
         return value;
     },
-    storage: { get: scope => (scope === "world" ? worldValues : clientValues) }
+    storage: { get: scope => (scope === "world" ? worldValues : clientStore) }
 };
 function coerce(def, raw) {
     if (def.type === Number) return Number(raw);
@@ -362,64 +398,25 @@ const modulesMap = new Map();
 function addModule(id, extra = {}) {
     modulesMap.set(id, { id, active: true, title: extra.title ?? id, version: extra.version ?? "1.0.0", esmodules: [], flags: {}, ...extra });
 }
+/* Foundry's, Daggerheart's and the companions' versions, each read with where it
+   came from (lib/versions.mjs, E30); the cluster writes the same reading into
+   every results file as `environment`. */
+const versions = readVersions(REPO);
+const COMPANION_TITLES = { "dice-so-nice": "Dice So Nice!", "isometric-perspective": "Isometric Perspective", "avclient-livekit": "LiveKit AV Client" };
 addModule(MODULE_ID, { title: moduleManifest.title, version: moduleManifest.version, relationships: moduleManifest.relationships, socket: true });
-addModule("dice-so-nice", { title: "Dice So Nice!", version: "5.1.1" });
-addModule("isometric-perspective", { title: "Isometric Perspective", version: "1.9.4" });
-addModule("avclient-livekit", { title: "LiveKit AV Client", version: "0.6.1" });
-
-/**
- * Daggerheart's ResourceUpdateMap stand-in: a Map keyed by resource whose
- * values are entry objects {key, value, enabled}, plus the two methods the
- * module drives (addResources / updateResources). updateResources applies the
- * pending entries to the actor and clears the map, so a second call is a no-op.
- */
-class ResourceUpdateMap extends Map {
-    constructor(actor) { super(); this.actor = actor; }
-    addResources(entries = []) {
-        for (const c of entries) {
-            const prev = this.get(c.key)?.value ?? 0;
-            this.set(c.key, { key: c.key, enabled: c.enabled ?? true, ...c, value: prev + (c.value ?? 0) });
-        }
-    }
-    async updateResources() {
-        if (!this.actor || !this.size) { this.clear(); return; }
-        const changes = {};
-        for (const [key, entry] of this) {
-            if (entry?.enabled === false) continue;
-            const res = this.actor.system?.resources?.[key];
-            if (!res) continue;
-            const max = Number(res.max ?? 99);
-            const next = Math.max(0, Math.min(max, Number(res.value ?? 0) + Number(entry.value ?? 0)));
-            changes[`system.resources.${key}.value`] = next;
-        }
-        this.clear();
-        if (Object.keys(changes).length) await this.actor.update(changes);
-    }
-}
+for (const { id, version } of versions.modules) addModule(id, { title: COMPANION_TITLES[id] ?? id, version });
 
 class DualityRollMock {
-    /**
-     * Daggerheart 2.6.5 stand-in for the resource funnel the module patches:
-     * hope-side pays +1 Hope; a critical pays +1 Hope and clears 1 Stress.
-     * The module's critical.mjs is expected to rewrite the critical to
-     * +2 Hope / no Stress (G-16).
-     */
+    /* The class the module finds at game.system.api.dice.DualityRoll. Its
+       resource step is Daggerheart 2.6.5's own (lib/daggerheart.mjs), called
+       through this class so critical.mjs's patch of it is what runs. */
     get advantageNumber() { return this._adv ?? 1; }
     set advantageNumber(v) { this._adv = v; }
     applyAdvantage(count = 1) { this._adv = count; return `${count}d6kh`; }
     static applyAdvantage(count = 1) { return `${count}d6kh`; }
 
     static async addDualityResourceUpdates(config) {
-        const map = config.resourceUpdates;
-        if (!map) return config;
-        const roll = config.roll ?? config;
-        const duality = roll?.result?.duality;
-        if (roll?.isCritical) {
-            map.addResources([{ key: "hope", value: 1 }, { key: "stress", value: -1 }]);
-        } else if (duality === 1) {
-            map.addResources([{ key: "hope", value: 1 }]);
-        }
-        return config;
+        return addDualityResourceUpdates(config);
     }
 }
 
@@ -442,7 +439,7 @@ const game = {
     i18n,
     modules: modulesMap,
     system: {
-        id: "daggerheart", version: "2.6.5", title: "Daggerheart",
+        id: "daggerheart", version: versions.system.version, title: "Daggerheart",
         api: {
             dice: { DualityRoll: DualityRollMock },
             // What Daggerheart's relay calls for a save (saveField.mjs, 2.10.5):
@@ -454,12 +451,17 @@ const game = {
                 });
             } } } }
         },
-        // `game.system.settings` as Daggerheart builds it from its own settings.
-        settings: { homebrew: { maxFear: 12 }, automation: { countdownAutomation: true } }
+        // `game.system.settings` as Daggerheart 2.10.5 builds it from its own settings, kept
+        // in step with them (2.6.5 has none; relay-guard.mjs reads either). `automation` is
+        // the setting itself, so the stated `hopeFear` below and the one read here agree.
+        settings: {
+            homebrew: { maxFear: 12 },
+            get automation() { return settingsApi.get("daggerheart", "Automation"); }
+        }
     },
     world: { id: "drpg-audit-world", title: "DRPG Audit World" },
-    version: "14.365",
-    release: { generation: 14, build: 365 },
+    version: versions.foundry.version,
+    release: { generation: versions.foundry.generation, build: versions.foundry.build },
     ready: false,
     paused: false,
     togglePause(state) { game.paused = state ?? !game.paused; hooks.callAll("pauseGame", game.paused); },
@@ -507,16 +509,48 @@ const game = {
     time: { worldTime: 0, advance: async () => {} },
     canvas: null,
     drpg: undefined,
-    data: { version: "14.365" }
+    data: { version: versions.foundry.version }
 };
 globalThis.game = game;
 
 /*
- * Daggerheart actor surface the module drives. The roll skips the dialog when
- * game.drpg.suiteRolling is set (mirroring the real system's `dialog.configure`
- * contract); a scenario can force faces via globalThis.__forceRoll = {hope, fear}.
+ * THE HARNESS'S OWN READING OF THIS CLIENT'S WORLD (E30, 24.09.2026). The suite's
+ * worldDump judges whether a run changed the world; this is the oracle it is
+ * checked against in 01-runtests, read straight from the stores the shim keeps -
+ * world settings, this browser's client settings, every document's source - and
+ * so independent of the dump's rules and of the module.
  */
-classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, config = {}) {
+globalThis.__harnessWorldState = () => JSON.parse(JSON.stringify({
+    world: Object.fromEntries(worldValues),
+    client: Object.fromEntries(clientValues.entries()),
+    docs: Object.fromEntries([...worldColls].map(([name, c]) => [name, c.contents.map(d => d.toObject())])),
+    paused: game.paused
+}));
+
+/*
+ * DAGGERHEART'S TRAIT ROLL, IN 2.6.5'S ORDER (E30, 24.09.2026; lib/daggerheart.mjs).
+ *
+ * `rollTrait` builds the config the way actor.mjs does - an action unless the
+ * options say otherwise - and `diceRoll` stamps the roll's actor, data and its
+ * own resource map. The card comes first and the resource step after it, as
+ * `DualityRoll.buildPost` has them, and nothing is committed: the caller does
+ * that, as the sheet's trait button and this module's `commitResources` do. The
+ * dice are the harness's: random, or the faces in globalThis.__forceRoll =
+ * {hope, fear}. The dialog is not modelled; game.drpg.suiteRolling asks for none.
+ */
+classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, options = {}) {
+    return this.diceRoll({ roll: { trait: traitKey, type: "trait" }, hasRoll: true, actionType: "action", ...options });
+};
+
+/* actor.mjs `modifyResource` (lib/daggerheart.mjs): a GM writes, a player asks the GM relay (E30, G9). */
+classes.Actor.prototype.modifyResource = function (resources) { return modifyResource(this, resources); };
+
+classes.Actor.prototype.diceRoll = async function diceRoll(config) {
+    config.source = { ...(config.source ?? {}), actor: this.uuid };
+    config.data = this.getRollData();
+    config.resourceUpdates = new ResourceUpdateMap(this);
+
+    const traitKey = config.roll?.trait;
     const forced = globalThis.__forceRoll;
     const hope = forced?.hope ?? 1 + Math.floor(Math.random() * 12);
     const fear = forced?.fear ?? 1 + Math.floor(Math.random() * 12);
@@ -541,31 +575,21 @@ classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, config = 
         { constructor: { name: "FearDie" }, total: fear },
         { constructor: { name: "NumericTerm" }, total: mod }
     ];
-
-    const cfg = {
-        ...config,
-        actor: this,
-        roll,
-        total,
-        costs: config.costs ?? [],
-        resourceUpdates: new ResourceUpdateMap(this)
-    };
-    await game.system.api.dice.DualityRoll.addDualityResourceUpdates(cfg);
-    // the system applies its own updates at the end of its pipeline
-    await cfg.resourceUpdates.updateResources().catch(() => {});
+    config.actor = this;
+    config.roll = roll;
+    config.total = total;
+    config.costs = config.costs ?? [];
 
     // A chat card faithful enough for despair-award.readDuality: two d12 dice in
     // Hope-then-Fear order, plus the actionType the reaction guard reads.
-    const actionType = config[Symbol.for("drpgActionRoll")] || config.__drpgAction ? "action"
-        : (config.reaction ? "reaction" : "action");
     const rollJson = {
         class: "DualityRoll", formula: roll.formula, total, evaluated: true,
         dHope: { total: hope }, dFear: { total: fear },
         dice: [{ faces: 12, total: hope, results: [{ result: hope, active: true }] },
                { faces: 12, total: fear, results: [{ result: fear, active: true }] }],
-        options: { actionType }
+        options: { actionType: config.actionType }
     };
-    cfg.message = await classes.ChatMessage.create({
+    config.message = await classes.ChatMessage.create({
         author: game.userId,
         speaker: classes.ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="dice-roll">Duality: ${total}</div>`,
@@ -573,7 +597,8 @@ classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, config = 
         system: { roll: rollJson },
         flags: {}
     });
-    return cfg;
+    await game.system.api.dice.DualityRoll.addDualityResourceUpdates(config);
+    return config;
 };
 
 /* ------------------------------ canvas ----------------------------------- */
@@ -656,6 +681,8 @@ function record(level) {
 }
 globalThis.ui = {
     notifications: { info: record("info"), warn: record("warn"), error: record("error"), notify: record("notify"), remove() {}, clear() {} },
+    // Daggerheart's Fear tracker, as far as modifyResource uses it (lib/daggerheart.mjs).
+    resources: { updateFear },
     chat: { element: document.querySelector("#chat"), scrollBottom() {}, render() {}, postOne() {}, collapsed: false },
     sidebar: { element: document.querySelector("#sidebar"), tabs: {}, render() {}, expand() {}, collapse() {}, activateTab() {} },
     windows: {},
@@ -675,7 +702,9 @@ globalThis.CONFIG = {
     Canvas: { dispositionColors: { CONTROLLED: 0xFF9829 } },
     DH: {
         id: "daggerheart",
-        RESOURCE: { character: { custom: {} } },
+        // Built as resourceConfig.mjs builds it (lib/daggerheart.mjs). It was `{ character: { custom: {} } }`,
+        // and resources.mjs could not register the Actions resource on any client (E30).
+        RESOURCE: resourceTables(),
         GENERAL: {},
         // Daggerheart's setting keys and hook names, as its config.mjs defines them.
         SETTINGS: { gameSettings: {
@@ -760,6 +789,9 @@ globalThis.foundry = {
         // Foundry's drag rectangle, with its orange written in, as core has it.
         layers: { ControlsLayer: class ControlsLayer { drawSelect({ x, y, width, height }) { this.select.clear().lineStyle(3, 0xFF9829, 0.9).drawRect(x, y, width, height); } } },
         animation: { animateLinear: async () => {} },
+        /* The group whose `createScrollingText` no-scrolling-text.mjs wraps. Headless it draws
+           nothing and answers null, what the real one answers when it declines to draw. */
+        groups: { InterfaceCanvasGroup: class InterfaceCanvasGroup { createScrollingText() { return null; } } },
         loadTexture: async p => {
             const rel = String(p).replace(/^\/?modules\/danganronpa-rpg\//, "");
             const file = path.join(REPO, rel);
@@ -769,10 +801,20 @@ globalThis.foundry = {
     documents: {},
     dice: { Roll: RollImpl, terms: {} },
     abstract: { DataModel: class {}, TypeDataModel: class {} },
-    data: { fields: {}, validators: { isValidId: s => /^[A-Za-z0-9]{16}$/.test(s) } },
+    // The operators as lib/operators.mjs models them (E30); `_del` and `_replace` below.
+    data: {
+        fields: {}, validators: { isValidId: s => /^[A-Za-z0-9]{16}$/.test(s) },
+        operators: { DataFieldOperator, ForcedDeletion, ForcedReplacement }
+    },
     helpers: { media: { ImageHelper: {} } },
     packages: {}
 };
+
+/* The two globals Daggerheart deletes and replaces with (both of its builds
+   declare them in eslint.config.mjs). A value and a function here; whether v14's
+   `_del` is also callable is LIVE-E30-02 (lib/operators.mjs). */
+globalThis._del = ForcedDeletion.create();
+globalThis._replace = value => ForcedReplacement.create(value);
 
 globalThis.ChatMessage = classes.ChatMessage;
 globalThis.Actor = classes.Actor;
@@ -845,13 +887,16 @@ function applyRemote(msg) {
         if (!options.noHook) for (const doc of docs) hooks.callAll(`create${collName}`, doc, options, userId);
         return;
     }
+    /* The cluster has applied this write and reported any legacy key in it; the
+       client applies the same write the same way (futil.mjs applyUpdate) and says
+       nothing more. A hook is handed the operators as instances (lib/operators.mjs). */
     if (action === "update") {
         const doc = coll(collName).get(msg.docId);
         if (!doc) return;
         U.applyDocChanges(collName, doc._source, msg.changes);
         // refresh embedded collections if raw arrays were replaced wholesale
         rebuildEmbedded(doc);
-        if (!options.noHook) hooks.callAll(`update${collName}`, doc, U.expandObject(U.deepClone(msg.changes)), options, userId);
+        if (!options.noHook) hooks.callAll(`update${collName}`, doc, revive(U.expandObject(U.deepClone(msg.changes))), options, userId);
         return;
     }
     if (action === "delete") {
@@ -882,9 +927,10 @@ function applyRemote(msg) {
                 const doc = parent._collections[embKey]?.get(u._id);
                 if (!raw || !doc) continue;
                 const { _id, ...changes } = u;
-                U.mergeObject(raw, changes, { performDeletions: true });
-                U.mergeObject(doc._source, changes, { performDeletions: true });
-                hooks.callAll(`update${msg.embeddedName}`, doc, U.expandObject(U.deepClone(changes)), options, userId);
+                U.applyUpdate(raw, changes);
+                // One object, not two, once a parent's update has rebuilt the collection (rebuildEmbedded).
+                if (doc._source !== raw) U.applyUpdate(doc._source, changes);
+                hooks.callAll(`update${msg.embeddedName}`, doc, revive(U.expandObject(U.deepClone(changes))), options, userId);
             }
         } else if (kind === "delete") {
             for (const id of msg.ids) {
@@ -961,6 +1007,16 @@ process.on("message", async msg => {
                 }
                 break;
             }
+            case "userActivity": {
+                // Another client left (cluster.mjs `disconnect`): this browser learns it the
+                // way the module listens for it, `userConnected`. v14's flow is LIVE-E30-05.
+                const user = game.users.get(msg.userId);
+                if (user) {
+                    user._source.active = Boolean(msg.active);
+                    hooks.callAll("userConnected", user, Boolean(msg.active));
+                }
+                break;
+            }
             case "eval": {
                 let ok = true, value;
                 try {
@@ -969,7 +1025,22 @@ process.on("message", async msg => {
                 send({ t: "evalResult", id: msg.id, ok, value: safeJson(value) });
                 break;
             }
-            case "shutdown": process.exit(0);
+            case "dump": {
+                // Not through eval: safeJson turns a document into { _doc, id, name }.
+                let value = null, error = null;
+                try { value = dumpForCanary(); } catch (err) { error = String(err?.stack ?? err); }
+                send({ t: "dumpResult", id: msg.id, value, error });
+                break;
+            }
+            case "shutdown": {
+                // The peak memory of this client's whole life, for the results file
+                // (cluster.mjs, PEAK MEMORY). The exit waits for send's callback:
+                // Node documents that process.exit() does not wait for pending writes.
+                const bye = { t: "bye", maxRSS: process.resourceUsage().maxRSS };
+                if (!process.send) process.exit(0);
+                process.send(bye, () => process.exit(0));
+                break;
+            }
         }
     } catch (err) {
         // The client missed whatever this message carried, so everything it
@@ -978,6 +1049,31 @@ process.on("message", async msg => {
         recordError(`harness message loop (${msg.t})`, err);
     }
 });
+
+/*
+ * THIS BROWSER, WHOLE, FOR THE CANARY (E30, 24.09.2026). The shape does not depend
+ * on the harness - a live driver can build it on a real table - and lib/canary.mjs
+ * reads it: the wire record, every document's source, world settings, client
+ * settings (this browser's localStorage, as Foundry keeps them), both storages, the
+ * page, the notifications and the dialogs. isGM is the client's own answer, so an
+ * Assistant GM counts as a GM.
+ */
+function dumpForCanary() {
+    const entries = store => {
+        const out = {};
+        for (let i = 0; i < (store?.length ?? 0); i++) { const k = store.key(i); out[k] = store.getItem(k); }
+        return out;
+    };
+    return JSON.parse(JSON.stringify({
+        who: WHO, userId: game.userId ?? game.user?.id ?? null, isGM: Boolean(game.user?.isGM), phase: PHASE,
+        wire: WIRE, wireDropped,
+        world: Object.fromEntries([...worldColls].map(([name, c]) => [name, c.contents.map(d => d.toObject())])),
+        settings: { world: Object.fromEntries(worldValues), client: Object.fromEntries(clientValues.entries()) },
+        storage: { local: entries(globalThis.localStorage), session: entries(globalThis.sessionStorage) },
+        dom: document.documentElement.outerHTML,
+        notifications: globalThis.__notifications, dialogs: globalThis.__dialogLog
+    }));
+}
 
 function safeJson(v) {
     const seen = new WeakSet();
@@ -998,12 +1094,19 @@ function safeJson(v) {
 
 /* ------------------------------- boot ------------------------------------- */
 
+let stylesheets = null;
+
 async function boot() {
     try {
         /* DAGGERHEART'S OWN RELAY, registered the way Daggerheart registers it
            (E03): its listener in its `init`, which runs before any module's, and
            its GM handlers at `ready`, also first. The real code, copied - see
            lib/dh-relay.mjs - so the guard in front of it is tested against it. */
+        /* The stylesheets first, as Foundry has them on the page before any module
+           script runs. An attach that did not complete is a failed boot: every
+           colour and size the module reads would come back empty. */
+        stylesheets = await attachModuleStyles(document, moduleManifest.styles ?? []);
+        if (!stylesheets.complete) throw new Error(`the module's stylesheets did not attach: ${stylesheets.files}/${stylesheets.of} in ${stylesheets.ms} ms`);
         const relay = await import("./lib/dh-relay.mjs");
         game.socket.on("system.daggerheart", relay.handleSocketEvent);
         hooks.once("ready", relay.registerSocketHooks);
@@ -1031,6 +1134,7 @@ async function boot() {
             drpg: !!game.drpg,
             drpgKeys: game.drpg ? Object.keys(game.drpg).length : 0,
             settingsRegistered: [...settingDefs.keys()].filter(k => k.startsWith(MODULE_ID)).length,
+            stylesheets,
             notifications: globalThis.__notifications,
             hooksFired: hooks.fired.slice(0, 60)
         });

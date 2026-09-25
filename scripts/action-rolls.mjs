@@ -67,7 +67,7 @@ export const DRPG_ACTION_ROLL = "drpgActionRoll";
 /**
  * Is the regression suite throwing these dice?
  *
- * A global rather than an import, and deliberately: tests.mjs imports this file
+ * A global rather than an import, and deliberately: the suite imports this file
  * and half the module besides, so the arrow has to point this way. Read at roll
  * time, never cached, and false for everything a player ever does.
  */

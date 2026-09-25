@@ -11,3 +11,10 @@ AUDYT-*.html
 
 # Font surgery backups (F5.5) - never ship, never commit.
 fonts/*.orig
+
+# The harness writes its results on every run (E30). Nothing reads a committed
+# copy, and the committed one went stale: on 1.2.60 its 01-runtests.json still
+# read 141 passed and 9 skipped, from 1.2.50.
+audit/harness/results/
+# The local gate's working folder (E30).
+audit/gate/.work/

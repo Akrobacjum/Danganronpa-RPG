@@ -1,0 +1,97 @@
+{
+  "about": "What the module costs a real table, measured by game.drpg.perf() and audit/live/perf-baseline.mjs in a browser drawing on real hardware. Nothing measured headless goes in runs (CLAUDE.md: perf() at the table is the only place that number is real). E30 opens it with the 1.2.56 baseline, not yet measured; E33 adds a run after E29; E53 compares.",
+  "schema": 1,
+  "baseline": {
+    "module": {
+      "version": "1.2.56",
+      "tag": "v1.2.56",
+      "commit": "6d69c5ab1b8c05d2e52d9f737b9371e97320a1ea"
+    },
+    "world": "a copy of the table's world that no release with a new migration clause or a GM-store move has opened (before E04, 1.2.63, at the latest)",
+    "hardware": "a laptop at 1366x768 whose browser draws on its GPU",
+    "scene": "the largest isometric scene in that world",
+    "themes": [
+      "stained-glass",
+      "legacy"
+    ]
+  },
+  "perfFunction": {
+    "file": "scripts/diagnostics.mjs",
+    "export": "perfReport",
+    "api": "game.drpg.perf",
+    "bodySha256": "f8f5739123aee922c1e7d1804211e3e358307bfaf0e21fac8f4a0cde0e0f7830",
+    "bodyIs": "the text from the line `export async function perfReport(` through its closing `}` and that line's newline: diagnostics.mjs:1381-1514 at v1.2.56, 1401-1534 at e4724f5 (134 lines both)",
+    "sameBodyAt": [
+      "v1.2.56",
+      "e4724f5"
+    ],
+    "measures": [
+      "screen: innerWidth x innerHeight (the viewport, not the screen) and devicePixelRatio",
+      "asIs: ms per requestAnimationFrame averaged over 60 frames, as the page stands",
+      "pulseHeld, pulseCost: the same with body.drpg-no-pulse; Stained Glass only",
+      "blurHeld, blurCost: the same with body.drpg-no-blur; Stained Glass only",
+      "windowOpen: a bare .drpg-panel probe 460x320 appended, two frames waited; the 4th of six sorted readings",
+      "glassRecut: mean of ten drpgGlassRebuild(); Stained Glass only",
+      "roomOfActor, othersInRoom: ms per call, 200 calls after one warm call, on the first character"
+    ],
+    "sideEffects": [
+      "report() whispers the text to the caller (toChat defaults to true): a ChatMessage in the world, so perf() is never run on the campaign world",
+      "body classes drpg-no-pulse and drpg-no-blur are toggled for the length of each reading"
+    ],
+    "knownBias": "five MutationObservers watch the body's class (selection.mjs, glass.mjs, fog.mjs, own-ring.mjs, remnant-ring.mjs), so the pulse and blur costs include their one-off reactions (U03-diag-a11y-chrome-32); E53's perf() that discards a warm-up is a different method and is recorded as one"
+  },
+  "headless": {
+    "verdict": "no line of perf() is a table number headless",
+    "measuredWith": "jsdom 30.0.1, Node 22.22.2 (the E30 registries design, 7.2)",
+    "why": {
+      "screen": "jsdom reports 1024 x 768 at DPR 1",
+      "asIs": "with pretendToBeVisual, rAF ran at 16.48 ms a frame over 60 frames with nothing painted: a timer",
+      "pulseCost, blurCost": "about 0 by construction: CSS is never drawn",
+      "windowOpen": "two timer ticks",
+      "glassRecut": "getBoundingClientRect is all zeros, so the recut cuts an empty screen",
+      "roomOfActor, othersInRoom": "V8 in Node over the harness world (5 tokens, 6 regions); R10 guards them with a 2.0 ms ceiling, an order-of-magnitude guard, not the table's number",
+      "headless Chromium": "software compositing: perfReport's own comment has 150 ms a frame against 16.7 for the blur alone in the glass harness"
+    }
+  },
+  "worldCopy": {
+    "status": "not-taken",
+    "takenAt": null,
+    "worldId": null,
+    "foundry": null,
+    "system": null,
+    "migratedVersionAtFirstLoad": null,
+    "files": null,
+    "sha256": null,
+    "location": "DRPG_FIXTURES (outside the repository)",
+    "why": null
+  },
+  "status": "not-measured",
+  "attempts": [
+    {
+      "at": "2026-09-24T21:08:57.017Z",
+      "stage": "E30",
+      "by": "node audit/live/perf-baseline.mjs --probe",
+      "ran": [
+        "perfReport body sha256 at v1.2.56 f8f5739123aee922c1e7d1804211e3e358307bfaf0e21fac8f4a0cde0e0f7830, at HEAD f8f5739123aee922c1e7d1804211e3e358307bfaf0e21fac8f4a0cde0e0f7830: identical"
+      ],
+      "couldNotRun": [
+        {
+          "needs": "Foundry VTT v14 on http://127.0.0.1:30099",
+          "probe": "connect ECONNREFUSED 127.0.0.1:30099",
+          "why": "nothing answered: no Foundry binary or licence where this ran"
+        },
+        {
+          "needs": "the world copy",
+          "probe": "DRPG_FIXTURES is not set",
+          "why": "private fixtures live outside the repository"
+        },
+        {
+          "needs": "a browser drawing on a GPU at 1366x768",
+          "probe": "Chromium 141.0.7390.37 reports WebGL renderer \"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\"",
+          "why": "a software renderer prices the blur and the pulse at what a GPU never charges"
+        }
+      ]
+    }
+  ],
+  "runs": []
+}

@@ -16,10 +16,10 @@
  * and puts one of its own in front of it. On a player's client, and for the
  * packets that only redraw something, the packet goes straight through -
  * Daggerheart's GM handlers do nothing on a player's client. On the primary
- * GM's client, a request from a player is judged against the shapes
- * Daggerheart itself sends for players (`judgeRelay`, the table below), and
- * then passed on narrowed to what was allowed, written by this file, or
- * refused. Other GMs drop these packets: one writer, which also ends
+ * GM's client, a request from a player or an Assistant GM is judged against
+ * the shapes Daggerheart itself sends for players (`judgeRelay`, the table
+ * below), and then passed on narrowed to what was allowed, written by this
+ * file, or refused. Other GMs drop these packets: one writer, which also ends
  * Daggerheart's double write with two GMs online. The table was read off
  * 2.10.5 and checked against 2.6.5's source; the two differ only where this
  * file does not lean on them (how `DowntimeTrigger` is dispatched, where the
@@ -247,7 +247,7 @@ function neutralise(payload, senderId) {
         payload.action = "__drpgRefused";
         return;
     }
-    if (sender.isGM) return;
+    if (forwardsUnjudged(sender)) return;
     const verdict = judgeRelay(payload, sender);
     if (verdict.verdict === "forward") {
         payload.data = verdict.packet.data;
@@ -256,6 +256,15 @@ function neutralise(payload, senderId) {
     payload.action = "__drpgRefused";
     if (verdict.verdict === "own") enqueue(verdict, sender);
     if (verdict.verdict === "refuse") reportRefusal(verdict, sender);
+}
+
+/**
+ * Only a full Gamemaster's request goes to Daggerheart's handler unjudged (E30).
+ * Daggerheart makes an Assistant's own changes on the Assistant's client, so it
+ * never relays one; a request from an Assistant is judged like a player's.
+ */
+export function forwardsUnjudged(sender) {
+    return sender?.role === CONST.USER_ROLES.GAMEMASTER;
 }
 
 /** What the guard is doing, for `game.drpg.relayGuard()` and the suite. */
@@ -294,7 +303,7 @@ function onRelay(payload, senderId) {
         }
         const sender = senderOf(senderId);
         if (!sender) return noSender(payload, senderId);
-        if (sender.isGM) return forward(payload, senderId);
+        if (forwardsUnjudged(sender)) return forward(payload, senderId);
 
         const verdict = judgeRelay(payload, sender);
         if (verdict.verdict === "forward") return forward(verdict.packet, senderId);

@@ -1,9 +1,12 @@
+export const layers = ["ci"];
+
 const MOD = "danganronpa-rpg";
 const SOCKET = `module.${MOD}`;
-export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUrl }) {
+export async function run({ gm, p1, p2, check, phase, settle, permissionDenials, repoUrl }) {
     const ids = await gm.eval(`return { aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id, chie: game.actors.getName("Chie Mori").id, daichi: game.actors.getName("Daichi Sato").id };`);
 
     // 1. XSS via messenger free text (player writes hostile markup)
+    phase("messenger markup", { flow: "messenger" });
     const xss = await p1.eval(`
         const M = await import("${repoUrl}/scripts/messenger.mjs");
         const evil = "<img src=x onerror=alert(1)><script>window.__pwned=1<\\/script>";
@@ -18,6 +21,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     check("XSS: messenger escapes hostile markup at write", xss.escaped && !xss.rawTagPresent, JSON.stringify(xss));
 
     // 2. player writes another player's actor directly (server must refuse)
+    phase("actor writes");
     const writeOther = await p1.eval(`
         try { await game.actors.get("${ids.botan}").update({ "system.resources.hope.value": 99 }); return "WRITE SUCCEEDED"; }
         catch (err) { return "denied: " + err.message; }
@@ -63,6 +67,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
      * - the wrench moved, the Call armed, Daichi died, and no refusal was sent - and
      * the scenario read 9/15. Then the file was restored.
      */
+    phase("an item handed over", { flow: "give-take-stash" });
     await p1.eval(`
         globalThis.__refused = [];
         game.socket.on("${SOCKET}", (payload, senderId) => {
@@ -121,6 +126,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     //     ANOTHER student's character, and the GM takes the Hope for it. So the
     //     control arms Botan's Support on Aiko, and reads Botan's Hope before and
     //     after - it has to go down by exactly the price, once, on the GM.
+    phase("a Call armed", { flow: "call-arm" });
     const call = { key: "support", grants: "advantage", kind: "hope", from: ids.botan };
     const readArm = `return { armed: game.actors.get("${ids.aiko}").getFlag("${MOD}", "pendingCall") ?? null,
         hope: game.actors.get("${ids.botan}").system.resources.hope.value };`;
@@ -152,6 +158,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
     // 4c. murder.crisis: p1 throws the finishing blow as Botan, the killer.
     //     The incident is opened the way 13-murder-signals opens one; the killer's
     //     player sits still so an opening roll cannot race the GM's.
+    phase("crisis actions", { flow: "murder-incident" });
     await p2.eval(`globalThis.__dialogAuto = false; return true;`);
     await gm.eval(`
         await game.drpg.openMurder({ killerId: "${ids.botan}", victimId: "${ids.daichi}" });
@@ -219,6 +226,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
      * and the GM's reading must not move. (It used to pass an actor id, which is not
      * what `adjustDespair` takes - pools are keyed by the Monokuma's user id.)
      */
+    phase("the GM's pool", { flow: "despair" });
     const poolBefore = await gm.eval(`return game.drpg.getDespair(game.user.id);`);
     const selfGrant = await p1.eval(`
         try { const r = await game.drpg.adjustDespair("${gm.userId}", -5); return { threw: null, r }; }
@@ -245,6 +253,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
      * browser. The button with its `data-*` is the half that must survive: a GM's
      * ruling card is made of them.
      */
+    phase("private cards", { flow: "messenger" });
     const EVIL = '<img src=x onerror="window.__pwned=1"><button type="button" data-drpg-call="probe" data-rid="r1">ok</button>';
     const posted = await p1.eval(`
         const msg = await ChatMessage.create({
@@ -290,6 +299,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
 
     /* The Hope Call card's price came from the packet and was printed raw into the
        GM's card. p1 asks about their own Aiko, so ownership is not what stops it. */
+    phase("a Hope Call card", { flow: "hope-call" });
     const beforeCall = await gm.eval(`return game.messages.size;`);
     await p1.eval(`
         game.socket.emit("${SOCKET}", { action: "call.approve", requestId: "xss-${Date.now()}", userId: game.user.id,
@@ -313,6 +323,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
        card written on the GM's client is stored as the GM's own and never cleaned.
        p1 renames their own Aiko - a player owns their character - and resolves an
        Observe the GM has no record of. */
+    phase("an Observe note", { flow: "search-observe" });
     const nameBefore = await gm.eval(`return game.actors.get("${ids.aiko}").name;`);
     const renamed = await p1.eval(`
         try { await game.actors.get("${ids.aiko}").update({ name: '<img src=x onerror="window.__pwned=3">Aiko' }); return true; }
@@ -343,6 +354,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
        took out every card not in THIS world's chat log, so opening a second world
        emptied the first one's. Planted on p1: a card of another world, a card of this
        world whose message is gone, and one from before cards recorded their world. */
+    phase("the private card store", { flow: "messenger" });
     const prune = await p1.eval(`
         const S = await import("${repoUrl}/scripts/secret.mjs");
         const saved = foundry.utils.deepClone(game.settings.get("${MOD}", "secretCards") ?? {});
@@ -389,6 +401,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
         return m.id;`, { timeout: 30000 });
 
     // 7a. project.unsabotage: a repair id that is not the one the sabotage made.
+    phase("projects", { flow: "projects" });
     const projects = await gm.eval(`
         const P = await import("${repoUrl}/scripts/projects.mjs");
         const pub = await P.createProject({ name: "SEC public", target: 6, room: "Cafeteria", secret: false });
@@ -435,6 +448,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
         shared.unchanged && shared.reasons.some(r => /not secret/.test(r)), JSON.stringify(shared));
 
     // 7c. observe.resolve with somebody else's key.
+    phase("Observe keys", { flow: "search-observe" });
     const observed = await gm.eval(`
         const R = await import("${repoUrl}/scripts/remnants.mjs");
         await R.placeRemnant({ x: 1400, y: 400, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
@@ -442,6 +456,24 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
         const O = await import("${repoUrl}/scripts/observe.mjs");
         const r = await O.chooseObserveTarget({ actorId: "${ids.botan}", declaration: "general", userId: "${p2.userId}" });
         return { key: r?.key ?? null, ok: r?.ok ?? false, reason: r?.reason ?? null };`, { timeout: 60000 });
+    /* observe.target for another player's character (E30 fix, 25.09.2026). The handler's
+       ownsActor check was read by R1b alone: with it taken out, this scenario stayed
+       green (E30's gate mutation run). Here p1 asks for a key to Botan's Observe; the
+       GM's store of pending Observes must not grow, and the same request from Botan's
+       own player must. Measured with the check taken out of handleObserveTarget on a
+       scratch copy: this check failed, the control passed. */
+    const readKeys = `return { pending: Object.keys(game.settings.get("${MOD}", "observePending") ?? {}).length };`;
+    const targeted = await forge("observe.target", { actorId: ids.botan, declaration: "general", request: "" }, readKeys);
+    check("SECURITY: a forged observe.target for Botan mints no Observe key, and the GM refuses it for ownership and tells p1",
+        targeted.unchanged && targeted.forOwnership && targeted.told.some(t => t.what === "observe.target"), JSON.stringify(targeted));
+    const ownTarget = await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const r = await B.requestObserveTarget({ actorId: "${ids.botan}", declaration: "general" });
+        return { ok: r?.ok ?? null, key: Boolean(r?.key) };`, { timeout: 30000 });
+    const keysAfter = await gm.eval(readKeys);
+    check("control: the same observe.target from Botan's own player does mint a key",
+        ownTarget.ok === true && ownTarget.key && keysAfter.pending === targeted.after.pending + 1,
+        JSON.stringify({ ownTarget, before: targeted.after, after: keysAfter }));
+
     const readBullets = `return { botan: game.actors.get("${ids.botan}").items.filter(i => i.getFlag("${MOD}", "isTruthBullet")).length,
         botanStress: game.actors.get("${ids.botan}").system.resources.stress.value };`;
     const stolenKey = await forge("observe.resolve", { actorId: ids.aiko, key: observed.key, total: 0 }, readBullets);
@@ -462,6 +494,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
         twice.after.botan === found.botan && twice.reasons.some(r => /already been resolved/.test(r)), JSON.stringify(twice));
 
     // 7d. despair.adjust with no Reroll behind it, then with one, then again.
+    phase("Despair corrections", { flow: "despair" });
     const readPool = `return { pool: game.drpg.getDespair(game.user.id) };`;
     const noReroll = await forge("despair.adjust", { targetUserId: gm.userId, delta: -1, actorId: ids.aiko }, readPool);
     check("SECURITY: a player's Despair correction with no Reroll moves no pool",
@@ -482,6 +515,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
         secondPoint.after.pool === paidPoint.pool && secondPoint.reasons.some(r => /already undone/.test(r)), JSON.stringify(secondPoint));
 
     // 7e. token.sendBack to somewhere the token never stood.
+    phase("a send-back", { flow: "crossing-fee-refund" });
     const readToken = `const t = canvas.scene.tokens.get("TOKAIKO000000000"); return { x: t.x, y: t.y, elevation: t.elevation ?? 0 };`;
     const sceneId = await gm.eval(`return canvas.scene.id;`);
     const teleport = await forge("token.sendBack", { sceneId, tokenId: "TOKAIKO000000000",
@@ -499,6 +533,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
         back.x === start.x && back.y === start.y, JSON.stringify({ start, back }));
 
     // 7f. remnant.place: who left it, where, and what it points at, rebuilt on the GM.
+    phase("a player's traces", { flow: "trace-remnant" });
     await p1.eval(`game.socket.emit("${SOCKET}", { action: "remnant.place", userId: game.user.id, requestId: "forge-trace",
         data: { sourceActor: "${ids.aiko}", sourceName: "Botan Kage", room: "Storage", pointsAt: "${ids.chie}",
             type: "tamper", visibility: "evident", x: 2300, y: 1300, sceneId: canvas.scene.id, reinforced: true,
@@ -606,6 +641,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
      * Cafeteria (she is); only the second may fire. Verified by hand on 24.09.2026:
      * with the `standsIn` call taken out of traps.mjs, the first check FAILED.
      */
+    phase("traps", { flow: "trap-fire" });
     const traps = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
         const away = await P.createProject({ name: "SEC trap away", target: 4, room: "Storage", secret: true });
         const here = await P.createProject({ name: "SEC trap here", target: 4, room: "Cafeteria", secret: true });
@@ -632,6 +668,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
 
 
     // 7g. search tokens in a room the character is not in, and in the one she is.
+    phase("search tokens", { flow: "search-observe" });
     const readTokens = room => `return { left: game.drpg.tokensLeft("${room}") };`;
     const before = await gm.eval(readTokens("Dorm B"));
     const away = await p1.eval(`return await game.drpg.searchTokens.spend("Dorm B", canvas.scene.id, { actorId: "${ids.aiko}" });`, { timeout: 30000 });
@@ -647,6 +684,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
         here === true && hereAfter.left === hereBefore.left - 1, JSON.stringify({ here, hereBefore, hereAfter }));
 
     // 7h. fog.shared that nobody asked for.
+    phase("the fog ledger", { flow: "discovery-ledger" });
     await p1.eval(`game.socket.emit("${SOCKET}", { action: "fog.shared",
         store: { [canvas.scene.id]: { "${ids.aiko}": ["Storage", "Gym", "Hall", "Dorm B"] } } }, ${toGms}); return true;`);
     await settle(1200);
@@ -667,22 +705,56 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
      * primary-only rule: a GM who is not the primary closing the window is not
      * measured (AUDIT §9.2, item 20).
      */
+    phase("ownership");
     await gm.eval(`const a = game.actors.get("${ids.daichi}");
         await a.update({ "ownership.default": 3 }, { noHook: true });
         Hooks.callAll("closeDocumentOwnershipConfig", { document: a }); return true;`);
     await settle(1500);
     const ownership = await gm.eval(`return game.actors.get("${ids.daichi}").ownership.default;`);
     check("SECURITY: a character shared as Owner with every player is put back to Observer", ownership === 2, JSON.stringify({ ownership }));
+    phase("Truth Bullet edits", { flow: "truth-bullets" });
     const bullet = await gm.eval(`return game.actors.get("${ids.botan}").items.find(i => i.getFlag("${MOD}", "isTruthBullet"))?.id ?? null;`);
     const readBullet = `const b = game.actors.get("${ids.botan}").items.get("${bullet}");
         return { text: b?.getFlag("${MOD}", "playerText") ?? null, analyzed: b?.getFlag("${MOD}", "analyzed") ?? null };`;
     const bulletBefore = await gm.eval(readBullet);
+    /*
+     * THE COURTESY HALF AND THE BACKSTOP (E30, 24.09.2026). resource-guard.mjs refuses an
+     * edit of a bullet's guarded flags on the player's own client, and the primary GM puts
+     * back whatever gets past it. Until the harness let a preUpdate listener edit the update
+     * it is given, the refusal changed nothing here, so the two checks after this one passed
+     * on edits a player's client would not have sent. Measured once it did: the plain edit
+     * never left p2's client - the first check then passed on nothing having happened, and
+     * the second failed. A console gets past the courtesy half with the guard's own option
+     * (`drpgAutomated`, resource-guard.mjs SYSTEM_WRITE), which is what the backstop exists
+     * for; the two backstop checks send their edit that way, and this one checks the half
+     * that now works headless.
+     */
+    await p2.eval(`globalThis.__notifications.length = 0; const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        await b.update({ "flags.${MOD}.playerText": "SEC plain edit" }); return true;`);
+    await settle(1000);
+    const plainEdit = { gm: await gm.eval(readBullet),
+        warned: await p2.eval(`return globalThis.__notifications.some(n => n.level === "warn" && n.msg === game.i18n.localize("DRPG.Guard.itemLocked"));`) };
+    check("SECURITY: a player's plain edit of their Truth Bullet is refused on their own client and never reaches the GM",
+        JSON.stringify(plainEdit.gm) === JSON.stringify(bulletBefore) && plainEdit.warned === true, JSON.stringify({ bulletBefore, plainEdit }));
+    /* What the GMs were told since a message count, read the way the check after this
+       one reads it: a GM whisper is a private card, its words in the store (secret.mjs). */
+    const gmSaid = from => gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        const said = game.messages.contents.slice(${from}).map(m => S.contentOf(m) || m.content || "").join(" ");
+        return { reverted: said.includes(game.i18n.format("DRPG.TruthBullet.editReverted", { player: "", bullet: "" }).slice(-40)),
+            unrestored: said.includes(game.i18n.format("DRPG.TruthBullet.editUnrestored", { player: "", bullet: "" }).slice(-40)) };`);
+    const beforeRewrite = await gm.eval(`return game.messages.size;`);
     await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
-        await b.update({ "flags.${MOD}.playerText": "SEC rewritten", "flags.${MOD}.analyzed": true }); return true;`);
+        await b.update({ "flags.${MOD}.playerText": "SEC rewritten", "flags.${MOD}.analyzed": true }, { drpgAutomated: true }); return true;`);
     await settle(1500);
     const bulletAfter = await gm.eval(readBullet);
-    check("SECURITY: a player's edit of what their Truth Bullet says or is, is put back",
-        Boolean(bullet) && JSON.stringify(bulletAfter) === JSON.stringify(bulletBefore), JSON.stringify({ bulletBefore, bulletAfter }));
+    /* And the GMs were told it was put back (E30 fix, 25.09.2026): an unchanged bullet
+       alone is also what an edit that never reached the GM looks like. Measured with the
+       option taken off this edit, so p2's own guard cancels it: the unchanged-bullet
+       half passed, this check failed. */
+    const toldRewrite = await gmSaid(beforeRewrite);
+    check("SECURITY: a player's edit of what their Truth Bullet says or is, is put back, and the GMs are told so",
+        Boolean(bullet) && JSON.stringify(bulletAfter) === JSON.stringify(bulletBefore) && toldRewrite.reverted && !toldRewrite.unrestored,
+        JSON.stringify({ bulletBefore, bulletAfter, toldRewrite }));
 
     /*
      * A bullet with no record is not called "put back". The GM's copy is dropped
@@ -696,7 +768,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
         T.forgetBulletGuard(b.uuid); return true;`);
     const whispersBefore = await gm.eval(`return game.messages.size;`);
     await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
-        await b.update({ "flags.${MOD}.playerText": "SEC unrecorded" }); return true;`);
+        await b.update({ "flags.${MOD}.playerText": "SEC unrecorded" }, { drpgAutomated: true }); return true;`);
     await settle(1500);
     // A GM whisper is a private card: the words live in the store, not on the message (secret.mjs).
     const unrecorded = await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
@@ -748,6 +820,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials, repoUr
      * the tick control passed on nothing, which is why it now also asks that the
      * Projects are still there.
      */
+    phase("Daggerheart's relay");
     const DH = "system.daggerheart";
     const relayWorld = `return {
         role: game.users.get("${p1.userId}").role,

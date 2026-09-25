@@ -26,6 +26,7 @@
  */
 
 import * as U from "./futil.mjs";
+import { ForcedDeletion, revive } from "./operators.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import url from "node:url";
@@ -202,6 +203,10 @@ export function buildDocumentClasses(ctx) {
             }
         }
         static get documentName() { return this.name.replace(/Document$/, ""); }
+        /* Foundry's Document classes say which embedded collections they hold, by
+           document name and field (Actor: { ActiveEffect: "effects", Item: "items" });
+           the suite's world dump splits a document's embedded lists off by it (E30). */
+        static get metadata() { return { name: this.documentName, embedded: { ...(EMBEDDED[this.documentName] ?? {}) } }; }
         get documentName() { return this.constructor.documentName; }
         get id() { return this._source._id; }
         get name() { return this._source.name ?? ""; }
@@ -248,21 +253,26 @@ export function buildDocumentClasses(ctx) {
 
         getFlag(scope, key) { return U.getProperty(this._source.flags, `${scope}.${key}`); }
         async setFlag(scope, key, value) { return this.update({ [`flags.${scope}.${key}`]: value }); }
+        /* A ForcedDeletion write (E30, 24.09.2026). This was `{"flags.scope.-=key": null}`,
+           which removes nothing once a `-=` key is ignored the way the module's own notes
+           measured it on v14 (lib/operators.mjs) - and ten module sites unset a flag,
+           restore()'s revive of a murdered fixture among them. How v14's own unsetFlag
+           spells the write is not known here (LIVE-E30-03); that it removes is. */
         async unsetFlag(scope, key) {
-            const parts = `${scope}.${key}`.split(".");
-            const tail = parts.pop();
-            return this.update({ [`flags.${parts.join(".")}.-=${tail}`]: null });
+            return this.update({ [`flags.${scope}.${key}`]: ForcedDeletion.create() });
         }
 
+        /* Local writes, the two that never reach the server: a legacy key here changes
+           nothing either, and is reported by the client (cluster.mjs, legacyKeys). */
         updateSource(changes = {}) {
-            U.mergeObject(this._source, changes, { performDeletions: true });
+            U.applyUpdate(this._source, changes, { onLegacyKey: path => ctx.reportLegacy?.({ where: "updateSource", coll: this.documentName, docId: this.id, path }) });
             this._exposeSource();   // a field that only arrives with an update is still a field
             return changes;
         }
         toObject() { return U.deepClone(this._source); }
         toJSON() { return this.toObject(); }
         clone(changes = {}) {
-            const data = U.mergeObject(this.toObject(), changes, { inplace: false, performDeletions: true });
+            const data = U.applyUpdate(this.toObject(), changes, { onLegacyKey: path => ctx.reportLegacy?.({ where: "clone", coll: this.documentName, docId: this.id, path }) });
             return new this.constructor(data, { parent: this.parent });
         }
         prepareData() {}
@@ -309,24 +319,47 @@ export function buildDocumentClasses(ctx) {
             return [];
         }
 
+        /*
+         * THE PRE STEPS EDIT THE UPDATE THAT IS SENT (E30, 24.09.2026).
+         *
+         * The `preUpdate` hook was handed a copy of the changes, so whatever a module
+         * guard took out of them was written anyway. Measured on this harness before
+         * the change: resource-guard.mjs emptied a player's edit of their own Stress
+         * and warned them, and the GM's copy of that Stress still went from 0 to 5.
+         * In Foundry the hook gets the update itself - expanded, with its `_id`, which
+         * the module's own readers expect (sheet.mjs filters the `_id` out; overflow.mjs
+         * and resource-guard.mjs delete by walking the nested object) - and what it
+         * leaves is what is written. So the object below goes through the document's
+         * `_preUpdate` and then the hook, and is then sent as they left it, with the
+         * same options object. Either returning false cancels; `noHook` skips the hook
+         * and not `_preUpdate`; an update the pre steps empty is not sent. The order of
+         * the two pre steps and the empty update are recalled, not read from v14
+         * (LIVE-E30-03).
+         */
+        async _runPreUpdate(update, options, { noHook = false } = {}) {
+            if (await this._preUpdate?.(update, options, ctx.gameRef().user) === false) return false;
+            if (!noHook && ctx.hooks().call(`preUpdate${this.documentName}`, this, update, options, ctx.userId()) === false) return false;
+            return Object.keys(update).some(key => key !== "_id");
+        }
+
         async update(changes = {}, context = {}) {
-            changes = sanitize(changes);
-            delete changes._id;
-            if (U.isEmpty(changes)) return this;
-            const hooks = ctx.hooks();
+            // An operator reaches the pre steps as an instance, not as the wire form
+            // `sanitize` made of it (lib/operators.mjs).
+            const update = { ...revive(U.expandObject(sanitize(changes))), _id: this.id };
+            if (!Object.keys(update).some(key => key !== "_id")) return this;
             // `noHook` skips the `pre` hook here and the `update` hook in
             // client-entry.mjs's `applyRemote`. Foundry documents it as blocking
             // "the hooks related to this operation"; whether the post-hook is one
             // of them on v14 is not measured (AUDIT §9), so the harness takes the
             // reading that proves less. Configure Ownership saves this way, and
             // anonymity.mjs guards it after the fact.
-            const pre = context?.noHook ? undefined
-                : hooks.call(`preUpdate${this.documentName}`, this, U.expandObject(U.deepClone(changes)), opts(context), ctx.userId());
-            if (pre === false) return this;
+            const options = opts(context);
+            if (!(await this._runPreUpdate(update, options, { noHook: Boolean(context?.noHook) }))) return this;
             if (this.parent) {
-                await this.parent._embeddedOp("update", this.documentName, [{ _id: this.id, ...changes }], context);
+                await this.parent._embeddedOp("update", this.documentName, [update], context, options);
             } else {
-                await ctx.bus.op({ action: "update", coll: this.documentName, docId: this.id, changes, options: opts(context) });
+                const { _id, ...written } = update;
+                await ctx.bus.op({ action: "update", coll: this.documentName, docId: this.id, changes: written, options });
             }
             return this;
         }
@@ -357,19 +390,28 @@ export function buildDocumentClasses(ctx) {
             const collKey = (EMBEDDED[this.documentName] ?? {})[embeddedName];
             return ids.map(id => this._collections[collKey]?.get(id)).filter(Boolean);
         }
+        /* The same pre steps for each entry (see `_runPreUpdate`); this path had none. */
         async updateEmbeddedDocuments(embeddedName, updates = [], context = {}) {
-            await this._embeddedOp("update", embeddedName, updates.map(sanitize), context);
             const collKey = (EMBEDDED[this.documentName] ?? {})[embeddedName];
-            return updates.map(u => this._collections[collKey]?.get(u._id)).filter(Boolean);
+            const options = opts(context);
+            const kept = [];
+            for (const entry of updates) {
+                const update = revive(U.expandObject(sanitize(entry)));
+                const doc = this._collections[collKey]?.get(update._id);
+                if (doc && !(await doc._runPreUpdate(update, options, { noHook: Boolean(context?.noHook) }))) continue;
+                kept.push(update);
+            }
+            if (kept.length) await this._embeddedOp("update", embeddedName, kept, context, options);
+            return kept.map(u => this._collections[collKey]?.get(u._id)).filter(Boolean);
         }
         async deleteEmbeddedDocuments(embeddedName, ids = [], context = {}) {
             await this._embeddedOp("delete", embeddedName, ids, context);
             return [];
         }
-        _embeddedOp(action, embeddedName, payload, context = {}) {
+        _embeddedOp(action, embeddedName, payload, context = {}, options = opts(context)) {
             return ctx.bus.op({
                 action: `embedded-${action}`, coll: this.documentName, docId: this.id,
-                embeddedName, payload, options: opts(context)
+                embeddedName, payload, options
             });
         }
     }
@@ -614,18 +656,31 @@ export function buildDocumentClasses(ctx) {
         }
     }
 
+    /*
+     * AN ASSISTANT IS A GM (E30, 24.09.2026; audit S14-28). `isGM` asked for role 4,
+     * so an Assistant GM (role 3) was a player here and nothing headless ever
+     * walked the Assistant paths the module has had for a long time - utils.mjs
+     * prefers a full GM as the primary and falls back to an Assistant, and
+     * despair.mjs grants Assistants a pool. v14's User#isGM is
+     * `hasRole("ASSISTANT")`, as far as can be said without its source here; the
+     * module's own reading of it is the same. A role name this does not know was
+     * taken as role 4, so asking for a misspelt role asked for a GM: it is false now.
+     * `can()` is still `isGM` - the permission matrix is not modelled (README.md).
+     */
     class UserImpl extends BaseDocument {
         static get documentName() { return "User"; }
-        get isGM() { return (this._source.role ?? 1) >= 4; }
+        get isGM() { return this.hasRole("ASSISTANT"); }
         get active() { return !!this._source.active; }
         get role() { return this._source.role ?? 1; }
         get character() { return ctx.gameRef().actors.get(this._source.character) ?? null; }
         get color() { return U.Color.from(this._source.color ?? 0x888888); }
         get isSelf() { return this.id === ctx.userId(); }
         get viewedScene() { return this._source.viewedScene ?? ctx.gameRef().canvas?.scene?.id ?? null; }
-        hasRole(role) {
+        hasRole(role, { exact = false } = {}) {
             const levels = { NONE: 0, PLAYER: 1, TRUSTED: 2, ASSISTANT: 3, GAMEMASTER: 4 };
-            return this.role >= (typeof role === "number" ? role : levels[role] ?? 4);
+            const level = typeof role === "number" ? role : levels[role];
+            if (level === undefined) return false;
+            return exact ? this.role === level : this.role >= level;
         }
         can(perm) { return this.isGM; }
         get targets() { return new Set(); }
