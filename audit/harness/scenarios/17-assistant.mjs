@@ -146,21 +146,30 @@ export async function run({ gm, ag, p1, p2, p3, check, settle, opLog, socketTraf
         check("C1: the Assistant's own write of role 4 is refused (the harness's model of v14, LIVE-E30-04)",
             String(c1).startsWith("denied") && c1Role === 3, JSON.stringify({ c1, c1Role }));
 
+        /* C2 and C3 also ask for the refusal, on the primary GM and nowhere else (E30 fix,
+           25.09.2026): "the role did not change" alone passes as well on a request that
+           never arrived. Measured with the two emits sent to a channel nobody listens on:
+           the old checks passed, these two failed. */
+        await clearRefusals([gm, ag]);
         await ag.eval(`game.socket.emit("${DH}", { action: "DhGMUpdate", data: { action: "DhGMUpdateDocument",
             uuid: game.user.uuid, data: { role: 4 } } }); return true;`);
         await settle(1200);
-        const c2Role = await roleOfAg();
-        check("C2: a request through Daggerheart's relay does not give the Assistant role 4", c2Role === 3, JSON.stringify({ c2Role }));
+        const c2 = { role: await roleOfAg(), gm: await refusalsOn(gm), ag: await refusalsOn(ag) };
+        check("C2: a request through Daggerheart's relay does not give the Assistant role 4, and the primary GM refuses it",
+            c2.role === 3 && c2.gm.length === 1 && c2.gm[0].includes("from Assistant") && c2.ag.length === 0, JSON.stringify(c2));
         // Put back before C3: a role-4 Assistant would sort ahead of the GM and become the primary.
         await putBack();
         await settle(400);
 
+        await clearRefusals([gm, ag]);
         const usersBefore = await gm.eval(`return game.users.size;`);
         await ag.eval(`game.socket.emit("${DH}", { action: "DhGMCreate", data: { documentType: "User",
             data: { name: "E30 relay user", role: 4 } } }); return true;`);
         await settle(1200);
         const usersAfter = await gm.eval(`return game.users.size;`);
-        check("C3: a request through Daggerheart's relay does not create a user", usersAfter === usersBefore, JSON.stringify({ usersBefore, usersAfter }));
+        const c3 = { usersBefore, usersAfter, gm: await refusalsOn(gm), ag: await refusalsOn(ag) };
+        check("C3: a request through Daggerheart's relay does not create a user, and the primary GM refuses it",
+            usersAfter === usersBefore && c3.gm.length === 1 && c3.gm[0].includes("from Assistant") && c3.ag.length === 0, JSON.stringify(c3));
     } finally {
         await putBack();
         await settle(400);

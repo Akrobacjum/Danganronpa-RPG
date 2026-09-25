@@ -456,6 +456,24 @@ export async function run({ gm, p1, p2, check, phase, settle, permissionDenials,
         const O = await import("${repoUrl}/scripts/observe.mjs");
         const r = await O.chooseObserveTarget({ actorId: "${ids.botan}", declaration: "general", userId: "${p2.userId}" });
         return { key: r?.key ?? null, ok: r?.ok ?? false, reason: r?.reason ?? null };`, { timeout: 60000 });
+    /* observe.target for another player's character (E30 fix, 25.09.2026). The handler's
+       ownsActor check was read by R1b alone: with it taken out, this scenario stayed
+       green (E30's gate mutation run). Here p1 asks for a key to Botan's Observe; the
+       GM's store of pending Observes must not grow, and the same request from Botan's
+       own player must. Measured with the check taken out of handleObserveTarget on a
+       scratch copy: this check failed, the control passed. */
+    const readKeys = `return { pending: Object.keys(game.settings.get("${MOD}", "observePending") ?? {}).length };`;
+    const targeted = await forge("observe.target", { actorId: ids.botan, declaration: "general", request: "" }, readKeys);
+    check("SECURITY: a forged observe.target for Botan mints no Observe key, and the GM refuses it for ownership and tells p1",
+        targeted.unchanged && targeted.forOwnership && targeted.told.some(t => t.what === "observe.target"), JSON.stringify(targeted));
+    const ownTarget = await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const r = await B.requestObserveTarget({ actorId: "${ids.botan}", declaration: "general" });
+        return { ok: r?.ok ?? null, key: Boolean(r?.key) };`, { timeout: 30000 });
+    const keysAfter = await gm.eval(readKeys);
+    check("control: the same observe.target from Botan's own player does mint a key",
+        ownTarget.ok === true && ownTarget.key && keysAfter.pending === targeted.after.pending + 1,
+        JSON.stringify({ ownTarget, before: targeted.after, after: keysAfter }));
+
     const readBullets = `return { botan: game.actors.get("${ids.botan}").items.filter(i => i.getFlag("${MOD}", "isTruthBullet")).length,
         botanStress: game.actors.get("${ids.botan}").system.resources.stress.value };`;
     const stolenKey = await forge("observe.resolve", { actorId: ids.aiko, key: observed.key, total: 0 }, readBullets);
@@ -718,12 +736,25 @@ export async function run({ gm, p1, p2, check, phase, settle, permissionDenials,
         warned: await p2.eval(`return globalThis.__notifications.some(n => n.level === "warn" && n.msg === game.i18n.localize("DRPG.Guard.itemLocked"));`) };
     check("SECURITY: a player's plain edit of their Truth Bullet is refused on their own client and never reaches the GM",
         JSON.stringify(plainEdit.gm) === JSON.stringify(bulletBefore) && plainEdit.warned === true, JSON.stringify({ bulletBefore, plainEdit }));
+    /* What the GMs were told since a message count, read the way the check after this
+       one reads it: a GM whisper is a private card, its words in the store (secret.mjs). */
+    const gmSaid = from => gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        const said = game.messages.contents.slice(${from}).map(m => S.contentOf(m) || m.content || "").join(" ");
+        return { reverted: said.includes(game.i18n.format("DRPG.TruthBullet.editReverted", { player: "", bullet: "" }).slice(-40)),
+            unrestored: said.includes(game.i18n.format("DRPG.TruthBullet.editUnrestored", { player: "", bullet: "" }).slice(-40)) };`);
+    const beforeRewrite = await gm.eval(`return game.messages.size;`);
     await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
         await b.update({ "flags.${MOD}.playerText": "SEC rewritten", "flags.${MOD}.analyzed": true }, { drpgAutomated: true }); return true;`);
     await settle(1500);
     const bulletAfter = await gm.eval(readBullet);
-    check("SECURITY: a player's edit of what their Truth Bullet says or is, is put back",
-        Boolean(bullet) && JSON.stringify(bulletAfter) === JSON.stringify(bulletBefore), JSON.stringify({ bulletBefore, bulletAfter }));
+    /* And the GMs were told it was put back (E30 fix, 25.09.2026): an unchanged bullet
+       alone is also what an edit that never reached the GM looks like. Measured with the
+       option taken off this edit, so p2's own guard cancels it: the unchanged-bullet
+       half passed, this check failed. */
+    const toldRewrite = await gmSaid(beforeRewrite);
+    check("SECURITY: a player's edit of what their Truth Bullet says or is, is put back, and the GMs are told so",
+        Boolean(bullet) && JSON.stringify(bulletAfter) === JSON.stringify(bulletBefore) && toldRewrite.reverted && !toldRewrite.unrestored,
+        JSON.stringify({ bulletBefore, bulletAfter, toldRewrite }));
 
     /*
      * A bullet with no record is not called "put back". The GM's copy is dropped
