@@ -2007,8 +2007,11 @@ const REGRESSIONS = [
         const dispatch = body.indexOf("const def =");
         must(dispatch > 0, "performAction no longer looks its action up as `const def =` - the order below has no end to measure to");
         ok(gate > 0, "performAction no longer refuses anything during a Class Trial");
-        ok(/actionKey !== "analyze" && getClock\(\)\.phase === "classTrial"/.test(body),
-            "the trial gate no longer keeps Analyze open, which is the one tile it must");
+        /* Above the dispatch, as the gate is (E30 review, 25.09.2026): since E30 `body` is
+           the whole function, and the exemption read anywhere in it would hold after it
+           moved below the dispatch while another "classTrial" kept `gate` above. */
+        ok(/actionKey !== "analyze" && getClock\(\)\.phase === "classTrial"/.test(bodyOf(body, "const def =", { back: body.length })),
+            "the trial gate no longer keeps Analyze open above the dispatch, which is the one tile it must");
         ok(fight > 0 && dead > 0, "the fight or the death refusal moved out of performAction");
         ok(gate > fight && gate > dead,
             "the trial gate rose above the fight or the death check, which outrank it");
@@ -2634,7 +2637,11 @@ const REGRESSIONS = [
         ok(/\berror\(/.test(caught) && /ui\.notifications\.error\(/.test(caught),
             "a clock control that throws is silent again");
 
-        const release = bodyOf(hud, "function releaseControls");
+        /* releaseControls ALONE (E30 review, 25.09.2026). Read from its name to the end of
+           the file, the second half passed on `control()` below it, which creates each
+           button with the same class - so the latch could lose the class and this stay
+           green. */
+        const release = fnSource(hud, "releaseControls");
         ok(/querySelectorAll/.test(release) && /drpg-hud-button/.test(release),
             "the latch releases only the button it captured, so a rebuilt row stays dim");
     }],
@@ -5017,6 +5024,14 @@ const REGRESSIONS = [
          * five cuts, and then it must read every tier file - every test the runner
          * was handed, and the suite's slice and split calls: 124 before the
          * conversion, 62 after it (24.09) - or a clean result means nothing.
+         *
+         * WHAT IT DOES NOT FLAG (E30 review, 25.09.2026): `bodyOf(src, marker)` with
+         * neither `until` nor `length`. That reads to the end of the file as well -
+         * guarded at its start, unbounded at its end - so a positive assertion after
+         * it can still match code in another function. There were 41 such calls in
+         * the tier files on 25.09 (39 before the conversion); R54's `releaseControls`
+         * read was one that did, and is bounded now. The other 40, and a rule here,
+         * are E40's.
          */
         const fx = LINT_FIXTURES.bareCuts;
         equal(JSON.stringify(bareCuts(fx.text).found.map(f => f.line).sort((a, b) => a - b)), JSON.stringify(fx.flags),
