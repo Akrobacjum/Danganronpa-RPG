@@ -57,10 +57,11 @@
  *   tree      nothing git tracks under audit/harness/results (the harness
  *             writes there on every run) and no node_modules.
  *   gatecode  audit/gate and audit/live never fill a password, admin key or
- *             licence field: no password-type selector and no fill/type aimed at
- *             a field named like one. A detector fixture runs first, as in
- *             `contract`, and the part is red when the gate's writer or the
- *             live runner is not there to be read.
+ *             licence field: no password-type selector and no fill, type or
+ *             press aimed at a field named like one, read a statement at a time
+ *             so a locator chain and a call split over lines count. A detector
+ *             fixture runs first, as in `contract`, and the part is red when the
+ *             gate's writer or the live runner is not there to be read.
  */
 
 import fs from "node:fs";
@@ -391,10 +392,28 @@ function tree() {
     return listed.slice(0, 20).map(f => `${f} is tracked - it is written by a run or an install, never committed`);
 }
 
-/* Aimed at a secret: a password-type selector, or a fill/type whose target or
-   value names a password, an admin key or a licence. Read with comments blanked,
-   so a sentence saying what the runner never does is not a hit. */
-const SECRET_FIELD = /(?:type\s*=\s*\\?["']?password|\.(?:fill|type|pressSequentially|setInputFiles)\s*\(\s*[^)]*?(?:passw|admin[-_ ]?key|adminKey|licen[cs]e))/i;
+/*
+ * Aimed at a secret: a password-type selector; a fill, type or press whose own
+ * arguments name a password, an admin key or a licence; or one that a locator
+ * naming one leads to in the same statement - `page.locator('input[name=
+ * "password"]').fill(pw)`, `page.getByLabel("Password").fill(pw)`, the form
+ * Playwright's own documentation writes. Read a statement at a time, with
+ * comments blanked (a sentence saying what the runner never does is not a hit):
+ * a statement ends at a `;` outside brackets, or at a line end outside brackets
+ * unless the next line goes on with `.` or `?.`, so `page.fill(` with its
+ * selector on the next line and a locator chain written one call per line are
+ * each one statement. Brackets are counted on lint.blankLiterals, so one inside
+ * a selector or a regex does not count. The locator form stops at a `;`, so a
+ * statement cannot lend its word to the next one.
+ *
+ * Until 25.09.2026 the test was one line at a time and only the first two
+ * forms: the fixture below, read that way, flagged lines 1, 3 and 5 of the
+ * eight it flags now - a locator chain, getByLabel, a two-line page.fill(,
+ * press and a chain one call per line all went through.
+ */
+const SECRET_WORD = String.raw`(?:passw|admin[-_ ]?key|licen[cs]e)`;
+const SECRET_ACTION = String.raw`\.(?:fill|type|press|pressSequentially|setInputFiles)\s*\(`;
+const SECRET_FIELD = new RegExp(String.raw`type\s*=\s*\\?["']?password|${SECRET_ACTION}[^)]*?${SECRET_WORD}|${SECRET_WORD}[^;]*?${SECRET_ACTION}`, "i");
 const GATECODE_FIXTURE = {
     text: [
         'await page.fill("input[name=password]", pw);',
@@ -402,14 +421,44 @@ const GATECODE_FIXTURE = {
         "await page.locator('input[type=\"password\"]').count();",
         'await page.fill("#world-search", id);',
         "await page.locator('#key').type(LICENSE);",
-        'const why = "password-required";'
+        'const why = "password-required";',
+        "await page.locator('input[name=\"password\"]').fill(pw);",
+        'await page.getByLabel("Password").fill(pw);',
+        "await page.fill(",
+        '    "input[name=password]", pw);',
+        "await page.press('input[name=\"password\"]', \"Enter\");",
+        'const hint = "admin key"; await page.fill("#world-search", hint);',
+        'await page.getByPlaceholder("Admin Key")',
+        "    .fill(key);",
+        'await page.getByRole("button", { name: "Join" })',
+        "    .click();"
     ].join("\n"),
-    flags: [1, 3, 5]
+    flags: [1, 3, 5, 7, 8, 9, 11, 13]
 };
+
+/** The statements of `text` with comments blanked, as SECRET_FIELD reads them: `[{ line, text }]`, a statement's lines joined by spaces. */
+function statementsOf(text) {
+    const code = lint.blankComments(text), blank = lint.blankLiterals(code);
+    const out = [];
+    let depth = 0, start = 0;
+    const flush = end => {
+        const piece = code.slice(start, end);
+        if (piece.trim()) out.push({ line: lint.lineAt(code, start + piece.search(/\S/)), text: piece.replace(/\s*\n\s*/g, " ") });
+        start = end;
+    };
+    for (let i = 0; i < blank.length; i++) {
+        const c = blank[i];
+        if (c === "(" || c === "[") depth++;
+        else if ((c === ")" || c === "]") && depth > 0) depth--;
+        else if (depth === 0 && (c === ";" || (c === "\n" && !/^\s*\??\./.test(blank.slice(i + 1, i + 200))))) flush(i + 1);
+    }
+    flush(code.length);
+    return out;
+}
 
 function gatecode() {
     const problems = [];
-    const hitsIn = text => lint.blankComments(text).split("\n").flatMap((line, i) => SECRET_FIELD.test(line) ? [i + 1] : []);
+    const hitsIn = text => statementsOf(text).filter(s => SECRET_FIELD.test(s.text)).map(s => s.line);
     const fx = hitsIn(GATECODE_FIXTURE.text);
     if (JSON.stringify(fx) !== JSON.stringify(GATECODE_FIXTURE.flags)) {
         problems.push(`the detector flags lines ${fx.join(",") || "none"} of its fixture, not ${GATECODE_FIXTURE.flags.join(",")} - it is broken`);
