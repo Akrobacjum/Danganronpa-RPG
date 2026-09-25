@@ -4,6 +4,9 @@
  *     node audit/gate/local-gate.mjs [--parts live,sandbox,drills] [--merge] [--dry-run]
  *     npm run gate:local                (from audit/harness)
  *
+ * --dry-run probes the sandbox and lists the parts this version's gate has,
+ * each not-run with reason dry-run; it runs no part and writes nothing.
+ *
  * Runs what the headless harness cannot - the suite's tier 2 in both themes on
  * a real Foundry v14, the whole-world diff around it, the scenarios whose
  * layers include "local-gate" through audit/live's adapter, and the drills on
@@ -94,7 +97,15 @@ const all = G.partsFor(REPO, version).filter(p => LAYERS.includes(p.layer));
 let parts;
 const serverWhy = `nothing answered at ${URL_} (${sandbox.error})`;
 
-if (!sandbox.reachable) {
+if (DRY) {
+    /* A dry run runs nothing. It was handed to audit/live as `dry`, which never read
+       it (E30 review, 25.09.2026): against a loopback stand-in answering /api/status
+       as a v14 world, `--dry-run` went on into the live runner, which fetched all 123
+       module files from it to compare with this commit. Past that comparison the
+       runner launches the browser and runs the parts (read in foundry.mjs, not run:
+       there is no v14 here). */
+    parts = all.map(p => notRun(p, "dry-run", sandbox.reachable ? `--dry-run: ${URL_} answered (HTTP ${sandbox.http}); no part was run` : `--dry-run: ${serverWhy}`));
+} else if (!sandbox.reachable) {
     parts = all.map(p => p.layer === "drill" && !fixtureDir(p.fixture)
         ? notRun(p, "no-fixtures", fixtureWhy(p.fixture))
         : notRun(p, "no-server", serverWhy));
@@ -105,7 +116,7 @@ if (!sandbox.reachable) {
     try {
         const live = await import(url.pathToFileURL(path.join(REPO, "audit", "live", "foundry.mjs")).href);
         parts = await live.runGate({ repo: REPO, url: URL_, world: WORLD, users: USERS, fixtures: FIXTURES, status: sandbox.status,
-            parts: all, evidenceDir: EVIDENCE, version, commit, requireHarness, notRun, fixtureDir, fixtureWhy, dry: DRY });
+            parts: all, evidenceDir: EVIDENCE, version, commit, requireHarness, notRun, fixtureDir, fixtureWhy });
     } catch (err) {
         parts = all.map(p => ({ ...p, status: "error", why: `the runner broke: ${String(err.stack ?? err).split("\n").slice(0, 3).join(" / ")}`, evidence: [] }));
     }

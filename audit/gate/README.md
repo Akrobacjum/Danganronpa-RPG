@@ -43,7 +43,8 @@ only), `DRPG_SANDBOX_WORLD` (the only world it may write to; must match
 PlayerTwo, PlayerThree, none with a password), `DRPG_FIXTURES` (the private
 world copies for drills), `DRPG_GATE_KEY` (signs the file). Options:
 `--parts live,sandbox,drills`, `--merge` (replace only the parts run now),
-`--dry-run`.
+`--dry-run` (probe the sandbox and list the parts, each not-run with reason
+`dry-run`; nothing runs and nothing is written).
 
 It refuses to write outside a git checkout, with uncommitted changes in a bound
 path, or without a readable module.json. Otherwise it always writes, whatever
