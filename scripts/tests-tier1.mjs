@@ -3012,8 +3012,11 @@ const INVARIANTS = [
          * and then answered at most once more - its reply, or the run's own refusal;
          * an exception anywhere (preparing, a guard, the run) is logged and told as one
          * refusal, "the handler failed"; a queue keeps the order packets arrived in
-         * even when the first run is the slower one. What reaches the GM's socket is
-         * handed to this function by the three listeners, which R1b reads.
+         * even when the first run is the slower one. Every refusal carries the code
+         * of the closed list its English reason stands for (E31 C4): "not their
+         * character" goes as notYours, an exception as failed, and a reason no
+         * pattern takes as refused. What reaches the GM's socket is handed to this
+         * function by the three listeners, which R1b reads.
          */
         const { judge, knownSender, pick, as } = await import("./bridge-guards.mjs");
         const { sessionFailures } = await import("./utils.mjs");
@@ -3021,11 +3024,12 @@ const INVARIANTS = [
         const send = (to, packet) => sent.push({ to, ...packet });
         const decl = (run, more = {}) => ({ label: "x", guards: [knownSender], sanitize: pick({ n: as.num }), run, answer: "ack", ...more });
         const TABLE = {
-            "r162.refused": decl(() => { ran.push("refused"); }, { guards: [knownSender, () => "a planted refusal"] }),
+            "r162.refused": decl(() => { ran.push("refused"); }, { guards: [knownSender, () => "not their character"] }),
+            "r162.unlisted": decl(() => { ran.push("unlisted"); }, { guards: [knownSender, () => "a planted refusal no pattern takes"] }),
             "r162.ack": decl(payload => { ran.push(`ack ${payload.n} ${Object.keys(payload).join(",")}`); }),
             "r162.reply": decl(() => ({ reply: { answer: 42 } }), { answer: "reply" }),
             "r162.later": decl(() => ({ later: true }), { answer: "reply" }),
-            "r162.runRefuses": decl(() => ({ refused: "the run said no" })),
+            "r162.runRefuses": decl(() => ({ refused: "no such character" })),
             "r162.throwsRun": decl(() => { throw new Error("R162 planted: the run"); }),
             "r162.throwsGuard": decl(() => { ran.push("guard"); }, { guards: [knownSender, () => { throw new Error("R162 planted: a guard"); }] }),
             "r162.throwsPrepare": decl(() => { ran.push("prepare"); }, { prepare: () => { throw new Error("R162 planted: prepare"); } }),
@@ -3033,21 +3037,26 @@ const INVARIANTS = [
         };
         const ask = (action, extra = {}, from = me) =>
             judge(TABLE, { action, requestId: `rid-${action}`, userId: from, n: 1, stray: "not on the list", ...extra }, from, { send });
-        const kinds = () => sent.map(p => (p.action === "bridge.refused" ? `${p.action} ${p.what}` : p.action));
+        const kinds = () => sent.map(p => (p.action === "bridge.refused" ? `${p.action} ${p.what} ${p.reason}` : p.action));
         const clear = () => { sent.length = 0; ran.length = 0; };
 
         equal(ask("r162.unknown"), false, "an action no table has was taken for judging");
         equal(sent.length, 0, "an action no table has was answered");
 
         await ask("r162.refused");
-        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.refused r162.refused"]),
-            "a guard's refusal was not the one answer - an acknowledgement went first, or no refusal went at all");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.refused r162.refused notYours"]),
+            "a guard's refusal was not the one answer, with its reason - an acknowledgement went first, or no refusal went at all");
         ok(sent[0].to === me && sent[0].requestId === "rid-r162.refused" && !ran.length,
             `the refusal went to the wrong place, or the run ran after it: ${JSON.stringify({ sent, ran })}`);
 
         clear();
+        await ask("r162.unlisted");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.refused r162.unlisted refused"]),
+            "a reason no pattern takes was not told as the fallback, refused");
+
+        clear();
         await ask("r162.ack", {}, "R162NOSUCHUSER00");
-        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.refused r162.ack"]), "a sender Foundry does not know was not refused");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.refused r162.ack unknownSender"]), "a sender Foundry does not know was not refused as one");
 
         clear();
         await ask("r162.ack");
@@ -3065,14 +3074,15 @@ const INVARIANTS = [
 
         clear();
         await ask("r162.runRefuses");
-        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.refused r162.runRefuses"]),
-            "a run's own refusal did not follow its acknowledgement, once");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.refused r162.runRefuses missing"]),
+            "a run's own refusal did not follow its acknowledgement, once, with its reason");
 
         for (const where of ["Run", "Guard", "Prepare"]) {
             clear();
             await ask(`r162.throws${where}`);
             const refusals = sent.filter(p => p.action === "bridge.refused");
             equal(refusals.length, 1, `an exception in the ${where.toLowerCase()} was not told as one refusal`);
+            equal(refusals[0]?.reason, "failed", `an exception in the ${where.toLowerCase()} was not told as failed`);
             ok(sessionFailures().some(e => e.message.includes(`Refused a "r162.throws${where}"`) && e.message.includes("the handler failed")),
                 `an exception in the ${where.toLowerCase()} was not logged as "the handler failed"`);
             if (where !== "Run") {
@@ -3096,19 +3106,20 @@ const INVARIANTS = [
  * literal "DRPG.x" in the source, from the files Foundry serves, so the list
  * only repeated it: on 1.2.60, R1's pattern read 69 of its 78 keys. Of the
  * other nine, two (Murder.betrayTileLabel and betrayTileHint) were used by no
- * file and are gone; these seven are built at run time:
+ * file and are gone; seven were built at run time. Four are left here:
  *
  *   murder.mjs         victimTrapSprung / victimUnderAttack, by `state.indirect`
  *   season-setup.mjs   `DRPG.Season.step.${key}` and `.hint.`, for the resources step
- *   gm-bridge.mjs      `DRPG.Bridge.what.${action}`, for three of its actions
  *
- * The rest of those two families (the other Bridge.what actions and season
- * steps) is checked by no test.
+ * The other three were `DRPG.Bridge.what.${action}` keys, and left in E31
+ * (25.09.2026): R1b checks that whole family now, in both files - the label of
+ * every action in the bridge's tables, every request named to `tellRefused` by
+ * hand, and the sentence of every reason (`DRPG.Bridge.why.${code}`). The rest
+ * of the season steps is checked by no test.
  */
 const LITERAL_KEYS = [
     "DRPG.Murder.victimUnderAttack", "DRPG.Murder.victimTrapSprung",
-    "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
-    "DRPG.Bridge.what.daggerheart", "DRPG.Bridge.what.call.arm", "DRPG.Bridge.what.remnant.tieForItem"
+    "DRPG.Season.step.resources", "DRPG.Season.hint.resources"
 ];
 
 export { INVARIANTS };

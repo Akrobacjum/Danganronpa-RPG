@@ -906,9 +906,13 @@ const BRIDGE_TABLE_FILES = Object.freeze([["gm-bridge.mjs", "BRIDGE_ACTIONS"], [
  *      that names it, or by a claim - a guard of the declaration whose source
  *      reads `payload.<field>`, or a written reason of at least 20 characters;
  *   7. every `runGuards` entry is named in the run, or in a function of the
- *      table's file the run names.
+ *      table's file the run names;
+ *   8. every code of `reasons` has its sentence, `DRPG.Bridge.why.<code>`, in en
+ *      and pl, and so has the message they are said in (`notDone`,
+ *      `nothingSpent`); and every request named to `tellRefused` outside the
+ *      runner (`told`: relay-guard.mjs's "daggerheart") has its label.
  */
-function bridgeTableProblems(tables, { en, pl, guards }) {
+function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }) {
     const problems = [], local = [];
     let actions = 0, withIds = 0, byGuardClaim = 0, inWords = 0;
     const source = fn => String(fn ?? "");
@@ -973,6 +977,12 @@ function bridgeTableProblems(tables, { en, pl, guards }) {
             }
         }
     }
+    const said = [...reasons.map(code => [`DRPG.Bridge.why.${code}`, `reason ${code}`]),
+        ["DRPG.Bridge.notDone", "the message"], ["DRPG.Bridge.nothingSpent", "the message"],
+        ...told.map(what => [`DRPG.Bridge.what.${what}`, `tellRefused names "${what}"`])];
+    for (const [key, whose] of said) {
+        for (const [lang, keys] of [["en", en], ["pl", pl]]) if (!keys.has(key)) problems.push(`${whose}: ${key} is missing in ${lang}.json`);
+    }
     return { problems, local, actions, withIds, byGuardClaim, inWords };
 }
 
@@ -1007,6 +1017,158 @@ function payloadReads(decl, lookup) {
         if (/\}\s*=\s*payload\b(?!\s*\??\.)/.test(source)) unreadable.add("{ ... } = payload");
     }
     return { fields: [...fields].sort(), unreadable: [...unreadable], handedTo: [...seen] };
+}
+
+/*
+ * EVERY REASON THE BRIDGE CAN REFUSE WITH, READ OUT OF THE SOURCE (E31, 25.09.2026).
+ *
+ * A player is told why a request was not carried out by a code of the closed
+ * list in bridge-guards.mjs (`REASONS`), which `reasonOf` reads off the English
+ * reason with an ordered list of patterns. A reason no pattern takes is still
+ * refused, and the player is told only that - the one sentence that says
+ * nothing. So R164 reads every reason the bridge can give and holds each to
+ * exactly one pattern, and this is the reader: pure, handed the functions to
+ * read, so the test runs it on a fixture with planted faults first.
+ *
+ * A reason is a string or template literal standing where a reason stands, by
+ * what the function is (`reads`):
+ *   "returns"  a guard, or a function whose return value is the reason: what a
+ *              `return` gives, either branch of a returned `?:`, either side of `??`;
+ *   "why"      a function answering `{ why }` (crisisRefusal): the value of `why:`;
+ *   "refused"  a run, or a resolver answering `{ refused }`: the value of `refused:`;
+ *   "refuse"   the runner: the second argument of each `refuse(` call.
+ * A template's `${...}` is read as "7". What it cannot read, it names rather
+ * than skips: a value in one of those places that is not a literal, null, or a
+ * call of a function on the `delegates` list (or `firstRefusal`) - unless it is
+ * a plain name or a member of one, in a function that asks a listed function,
+ * which is where such a name gets its reason (`twice`, `result.refused`). And a
+ * call of any `...Refusal(` function that is not on the list, so a new one
+ * cannot be missed. `texts` are reasons read elsewhere (the factories' guards
+ * carry theirs). Every code a pattern names must be on the list, and every
+ * pattern's code must take at least one reason read, or the pattern is dead.
+ *
+ * @returns {{problems: string[], texts: {text: string, from: string, code: string|null}[], byCode: Map<string, number>}}
+ */
+function refusalProblems({ functions = [], texts = [], delegates = new Set(), patterns = [], reasons = [] }) {
+    const problems = [], read = [...texts];
+    const asks = new Set([...delegates, "firstRefusal"]);
+    for (const { name, source, reads } of functions) {
+        const code = stripComments(String(source ?? ""));
+        const blank = blankLiterals(code);
+        const all = stringLiterals(code);
+        const literals = all.filter(l => !all.some(o => o !== l && o.start <= l.start && l.end <= o.end));
+        // The code with each literal gone whole, holes and all: what the shape of an expression is read from.
+        const units = blank.split("");
+        for (const l of literals) for (let i = l.start; i < l.end; i++) if (units[i] !== "\n") units[i] = " ";
+        const flat = units.join("");
+        const callsListed = [...blank.matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)].some(m => asks.has(m[1]));
+        const opens = c => c === "(" || c === "[" || c === "{";
+        const closes = c => c === ")" || c === "]" || c === "}";
+        // Where the expression that starts at `from` ends: one of `stops`, or a closing bracket, at its own depth.
+        const endOf = (from, stops) => {
+            let depth = 0, i = from;
+            for (; i < flat.length; i++) {
+                const c = flat[i];
+                if (opens(c)) depth++;
+                else if (closes(c)) { if (!depth) break; depth--; }
+                else if (!depth && stops.includes(c)) break;
+            }
+            return i;
+        };
+        // A `?` of a conditional, not of `?.` or `??`.
+        const conditional = i => flat[i] === "?" && flat[i + 1] !== "." && flat[i + 1] !== "?" && flat[i - 1] !== "?";
+        // The first top-level `?` of a conditional in [s, e), and its `:`.
+        const ternary = (s, e) => {
+            let depth = 0;
+            for (let i = s; i < e; i++) {
+                if (opens(flat[i])) depth++;
+                else if (closes(flat[i])) depth--;
+                else if (!depth && conditional(i)) {
+                    let inner = 0, d = 0;
+                    for (let j = i + 1; j < e; j++) {
+                        if (opens(flat[j])) d++;
+                        else if (closes(flat[j])) d--;
+                        else if (!d && conditional(j)) inner++;
+                        else if (!d && flat[j] === ":") { if (!inner) return [i, j]; inner--; }
+                    }
+                    return null;
+                }
+            }
+            return null;
+        };
+        const nullish = (s, e) => {
+            let depth = 0;
+            for (let i = s; i < e - 1; i++) {
+                if (opens(flat[i])) depth++;
+                else if (closes(flat[i])) depth--;
+                else if (!depth && flat[i] === "?" && flat[i + 1] === "?") return i;
+            }
+            return -1;
+        };
+        const take = (s, e, what) => {
+            // Trimmed on the code itself: in `flat` a literal is blank, and would be trimmed away.
+            const a = s + /^\s*(?:await\s+)?/.exec(code.slice(s, e))[0].length;
+            let b = e;
+            while (b > a && /\s/.test(code[b - 1])) b--;
+            const whole = literals.find(l => l.start === a && l.end === b);
+            if (whole) { read.push({ text: whole.text.replaceAll("${}", "7"), from: name }); return; }
+            const shape = flat.slice(a, b);
+            if (!shape || /^(?:null|undefined|true|false)$/.test(shape)) return;
+            const branch = ternary(a, b);
+            if (branch) { take(branch[0] + 1, branch[1], what); take(branch[1] + 1, b, what); return; }
+            const either = nullish(a, b);
+            if (either >= 0) { take(a, either, what); take(either + 2, b, what); return; }
+            if (flat[a] === "(" && endOf(a + 1, "") === b - 1) { take(a + 1, b - 1, what); return; }
+            const call = /^([A-Za-z_$][\w$]*(?:\??\.[A-Za-z_$][\w$]*)*)\s*\(/.exec(shape);
+            if (call) {
+                const callee = call[1].split(/\??\./).pop();
+                // A `...Refusal(` that is not on the list is named once, by the scan below.
+                if (!asks.has(callee) && !/Refusal$/.test(callee)) problems.push(`${name}: ${what} what ${callee}() gives, and ${callee} is not on the list of functions a refusal is handed to`);
+                return;
+            }
+            if (/^[A-Za-z_$][\w$]*(?:\??\.[A-Za-z_$][\w$]*)*$/.test(shape) && callsListed) return;
+            problems.push(`${name}: ${what} ${JSON.stringify(code.slice(a, b).slice(0, 80))}, which this reader cannot hold to a reason`);
+        };
+        if (reads === "returns") {
+            for (const m of flat.matchAll(/\breturn\b/g)) take(m.index + 6, endOf(m.index + 6, ";"), "returns");
+        } else if (reads === "why" || reads === "refused") {
+            for (const m of flat.matchAll(new RegExp(`[{,]\\s*${reads}\\s*([:,}])`, "g"))) {
+                if (m[1] !== ":") {
+                    if (!callsListed) problems.push(`${name}: answers { ${reads} } by name, and asks no listed function for it`);
+                    continue;
+                }
+                const at = m.index + m[0].length;
+                take(at, endOf(at, ","), `answers ${reads}:`);
+            }
+        } else if (reads === "refuse") {
+            for (const m of flat.matchAll(/\brefuse\s*\(/g)) {
+                const first = endOf(m.index + m[0].length, ",");
+                if (flat[first] !== ",") continue;
+                const second = endOf(first + 1, ",");
+                // A name hands on a reason read elsewhere - a guard's, a run's.
+                if (/^[A-Za-z_$][\w$]*(?:\??\.[A-Za-z_$][\w$]*)*$/.test(flat.slice(first + 1, second).trim())) continue;
+                take(first + 1, second, "refuses with");
+            }
+        }
+        for (const m of blank.matchAll(/\b([A-Za-z_$][\w$]*Refusal)\s*\(/g)) {
+            if (asks.has(m[1]) || /\bfunction\s+$/.test(blank.slice(Math.max(0, m.index - 20), m.index))) continue;
+            problems.push(`${name}: calls ${m[1]}(), which is not on the list of functions a refusal is handed to`);
+        }
+    }
+    const byCode = new Map(), live = new Set();
+    for (const entry of read) {
+        const taken = patterns.filter(([, pattern]) => pattern.test(entry.text));
+        entry.code = taken.length === 1 ? taken[0][0] : null;
+        for (const [code] of taken) live.add(code);
+        if (taken.length === 1) byCode.set(entry.code, (byCode.get(entry.code) ?? 0) + 1);
+        else if (!taken.length) problems.push(`${entry.from}: ${JSON.stringify(entry.text)} is taken by no reason of the closed list`);
+        else problems.push(`${entry.from}: ${JSON.stringify(entry.text)} is taken by ${taken.length} patterns (${taken.map(([c]) => c).join(", ")})`);
+    }
+    for (const code of new Set(patterns.map(([c]) => c))) {
+        if (!reasons.includes(code)) problems.push(`a pattern names ${code}, which is not on the closed list`);
+        else if (!live.has(code)) problems.push(`${code}: no reason read takes its pattern - it is dead, or a reason moved out of its reach`);
+    }
+    return { problems, texts: read, byCode };
 }
 
 /**
@@ -1480,7 +1642,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, lineAt, stripStrings, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT,
     stringLiterals, STANDING, stableJson, moduleSettingValues, watchWrites, cast,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS

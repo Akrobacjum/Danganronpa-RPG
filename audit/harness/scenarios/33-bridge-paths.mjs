@@ -318,11 +318,11 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             const why = game.i18n.localize("DRPG.Bridge.why.notYours");
             return { said, what, why, want: game.i18n.format("DRPG.Bridge.notDone", { what, why }) };`);
         b3.told = (await refusedSince(p1, mark)).filter(t => t.what === "handover.item").length;
+        // Green since E31 C4: the packet carries the reason's code, and the player's client says it in its own language.
         check("B3: p1, reading Polish, is told in Polish what was not carried out and why",
-            b3.said.at(-1) === b3.want && b3.what === "Przekazanie przedmiotu" && !b3.why.startsWith("DRPG.") && !b3.want.startsWith("DRPG."),
-            JSON.stringify(b3),
-            untilE31("the refusal packet carries no reason (gm-bridge.mjs tellRefused), so the player's message cannot say why",
-                polish === true && b3.told === 1 && b3.said.length >= 1));
+            polish === true && b3.told === 1 && b3.said.length >= 1
+            && b3.said.at(-1) === b3.want && b3.what === "Przekazanie przedmiotu" && !b3.why.startsWith("DRPG.") && !b3.want.startsWith("DRPG."),
+            JSON.stringify({ polish, ...b3 }));
     } finally {
         // Back to English. The Polish file was merged into the translations in place, so English is merged back the same way.
         await p1.eval(`await game.settings.set("${MOD}", "language", "en");
@@ -547,10 +547,10 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     for (const c of players) got[c.who] = await refusedSince(c);
     const all = Object.values(got).flat();
     const reasons = await p1.eval(`try { return (await import("${repoUrl}/scripts/bridge-guards.mjs")).REASONS ?? null; } catch { return null; }`);
+    // Green since E31 C4.
     check("B1: every refusal a player was sent in this run carries a reason from the closed list",
-        Array.isArray(reasons) && reasons.length >= 30 && all.every(r => reasons.includes(r.reason)),
-        JSON.stringify({ reasons: Array.isArray(reasons) ? reasons.length : reasons, got }),
-        untilE31("the refusal packet carries no reason, and there is no list of reasons to hold it to", all.length >= 5));
+        all.length >= 5 && Array.isArray(reasons) && reasons.length >= 30 && all.every(r => reasons.includes(r.reason)),
+        JSON.stringify({ reasons: Array.isArray(reasons) ? reasons.length : reasons, got }));
 
     const playerErrors = {};
     for (const c of players) playerErrors[c.who] = await errorsOf(c);

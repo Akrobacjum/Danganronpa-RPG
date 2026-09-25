@@ -24,7 +24,7 @@
  */
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, TIMING } from "./config.mjs";
-import { activeGmIds, warn, error, pause } from "./utils.mjs";
+import { activeGmIds, debug, warn, error, pause } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 /** GM -> player: "your request arrived and was refused" - see `refuse`. */
@@ -87,27 +87,26 @@ export function gmOnline() {
  * Every check E03 added to a bridge handler is a small function,
  * `guard<Name>(sender, payload, ctx)`, that answers null to let the request
  * through or the reason, as a string, to refuse it - the string `refuse` logs,
- * which 30-security reads back through `sessionFailures()` and matches (the
- * suite checks only that the helpers behind the guards refuse or pass, never
- * their wording), and a handler asks them through `firstRefusal`, below. One
- * signature so that stage E31 could lift them as they stood into this file,
- * below, next to the questions every handler opens with: a guard that leaned on
- * something its handler had worked out first could not have been lifted. So each looks up what it needs itself (the actor, the
+ * which 30-security reads back through `sessionFailures()` and matches. One
+ * signature so that stage E31 could lift them as they stood into this file: a
+ * guard that leaned on something its handler had worked out first could not
+ * have been lifted. So each looks up what it needs itself (the actor, the
  * token) and puts nothing on `ctx`, and each says for itself whom it is asked
  * of - a player, an undo, progress taken back.
  *
- * A handler asks its guards in the order written where it asks them, and that
- * is the order the checks ran in before they were split out. The order is part
- * of the rule, not a layout: some guards rely on the checks before them having
- * passed (a token that exists, a Call that is a Hope Call). Guards change
- * nothing, with one exception - a guard named `...Receipt` spends a Reroll
- * receipt, and it is the last guard its handler asks. What a handler still
- * checks after its guards - the two older checks in `handleDespair` (the size
- * of the step, the pool it names), the resolvers' own refusals - can refuse an
- * undo already paid for, as it could before the split. The checks each handler
- * opens with (the sender, ownership, sight of the project) are still written
- * in the handler - older than E03, but for the one unknown-sender line E03 gave
- * `handleRemnant`, which is the same line every other handler opens with.
+ * SINCE E31 (25.09.2026) a declaration lists its guards and the runner, `judge`,
+ * asks them through `firstRefusal`, in the order listed: the order its handler
+ * asked them in, with the checks the handler opened with (the sender,
+ * ownership, sight of the project) made by the factories further down and put
+ * first, where the handler had them. The order is part of the rule, not a
+ * layout: some guards rely on the checks before them having passed (a token
+ * that exists, a Call that is a Hope Call). Guards change nothing, with one
+ * exception - a guard named `...Receipt` spends a Reroll receipt, and it is the
+ * last in its list (R1b, R134). What a run still checks after its guards - the
+ * resolvers' own refusals - can refuse an undo already paid for, as it could
+ * before the split. The wording of every reason is held to the closed list of
+ * reasons below by R164; the suite had checked only that the helpers behind the
+ * guards refuse or pass.
  */
 
 /** Ask each guard in turn: the first reason given, or null when every one passes. */
@@ -117,6 +116,126 @@ export async function firstRefusal(sender, payload, ctx, ...guards) {
         if (why) return why;
     }
     return null;
+}
+
+/*
+ * WHY, IN THE PLAYER'S LANGUAGE (E31, 25.09.2026; audit S17-08).
+ *
+ * A refusal told the player only what was not done - "The GM's client refused
+ * the “Hand over an item” request" - and why was in the GM's log, in English,
+ * with the numbers and names it was worked out from. The packet carries a code
+ * as well now, one of the closed list below, and the player's client says the
+ * sentence that code names, in the player's own language
+ * (`DRPG.Bridge.why.<code>`, through `sayNotDone`). The code is all that
+ * travels: no text, no number, no name, so nothing the GM's side worked out
+ * reaches a player who was refused it, and a packet cannot name a translation
+ * key outside the list.
+ *
+ * The English reason stays the source of truth: every guard and run returns it
+ * as before, the GM's log prints it, and `reasonOf` reads the code off it with
+ * the patterns below - anchored, the first that matches wins. R164 reads every
+ * reason the guards, the runs and the functions they hand the question to can
+ * give, out of the source, and holds each to exactly one pattern; a text none
+ * takes would be told as `refused`, with a debug line naming it. Four codes
+ * have no pattern: `relay` (relay-guard.mjs tells its own), `refused` (the
+ * fallback), and `noGm` and `noAnswer`, which only the asking player's client
+ * can know.
+ */
+export const REASONS = Object.freeze([
+    "unknownSender", "notYours", "gmOnly", "cannotSee", "missing", "badRequest", "outOfRange", "busy",
+    "notOffered", "notSecret", "notAPlayer", "notHolding", "alreadyHeld", "notASupport", "hopeBarred",
+    "notEnoughHope", "noReroll", "rerollSpent", "traceOutOfReach", "notInIncident", "notYourTurn",
+    "actionLocked", "actionSpent", "actionBlocked", "nothingLeft", "movedOn", "notThatRepair",
+    "notWhereItStood", "alreadyDone", "nothingToUndo", "cannotNow", "cannotFrame", "notThere",
+    "relay", "failed", "refused", "noGm", "noAnswer"
+]);
+
+/** The English reasons each code takes, in the order they are tried. */
+export const REASON_PATTERNS = Object.freeze([
+    // First: a thrown error's own message follows the colon and could read like any reason below.
+    ["failed", /^the handler failed: /],
+    ["failed", /^the Call could not be armed$/],
+    ["failed", /^the ruling card could not be posted$/],
+    ["unknownSender", /^unknown sender$/],
+    ["notYours", /^sender does not own /],
+    ["notYours", /^sender did not leave that Remnant$/],
+    ["notYours", /^progress taken back without the sender's own character$/],
+    ["notYours", /^not their character$/],
+    ["notYours", /^that Observe belongs to another character$/],
+    ["notYours", /^that Observe was declared by somebody else$/],
+    ["gmOnly", /^only a GM /],
+    ["cannotSee", /^sender (?:may not|cannot) see that project$/],
+    ["missing", /^no such character$/],
+    ["missing", /^the paying character does not exist$/],
+    ["missing", /^no such Observe$/],
+    ["missing", /^no character left it$/],
+    ["badRequest", /^that offer buys .+ pick\(s\), the packet carried .+$/],
+    ["badRequest", /^a pick names something that is not an option$/],
+    ["badRequest", /^a new experience has no name$/],
+    ["badRequest", /^no such Level Up: /],
+    ["badRequest", /^".*" does not grant ".*"$/],
+    ["badRequest", /^".*" is not a visibility$/],
+    ["badRequest", /^not an action for that side$/],
+    ["badRequest", /^that pool is not the rerolling character's Monokuma$/],
+    ["badRequest", /^target holds no Despair pool$/],
+    ["badRequest", /^a GM asks for nothing here$/],
+    // Two patterns, not one with an optional group: R22 reads `range(` in a regex literal as a call.
+    ["outOfRange", /^(?:amount|difficulty|delta) .+ is out of range$/],
+    ["outOfRange", /^difficulty .+ is out of range \(.*\)$/],
+    ["busy", /^.+ is already being written$/],
+    ["notOffered", /^no Level Up is on offer /],
+    ["notSecret", /^that project is not secret$/],
+    ["notAPlayer", /^the project can only be shared with a player$/],
+    ["notHolding", /^no participant of the running incident the sender plays holds that object$/],
+    ["alreadyHeld", /^.+ already holds that Call$/],
+    ["notASupport", /^".*" is not a Hope Call a player can buy for somebody else$/],
+    ["notASupport", /^".*" is not aimed at another player$/],
+    ["notASupport", /^a Call for somebody else, aimed at the buyer$/],
+    ["hopeBarred", /^the buyer may not spend a Hope Call now \(.*\)$/],
+    ["notEnoughHope", /^the buyer holds .+ Hope, the Call costs .+$/],
+    ["noReroll", /^no Reroll of that character by the sender$/],
+    ["noReroll", /^the sender's last Reroll of that character is too old$/],
+    ["noReroll", /^the Reroll moved Despair by .+, not .+$/],
+    ["rerollSpent", /^that Reroll has already undone one ".*"$/],
+    ["traceOutOfReach", /^a GM has written on that trace$/],
+    ["traceOutOfReach", /^a Reroll put that trace back$/],
+    ["traceOutOfReach", /^somebody has already found that trace$/],
+    ["traceOutOfReach", /^there is no record of when that trace was left$/],
+    ["traceOutOfReach", /^that trace is older than a Reroll can reach$/],
+    ["notInIncident", /^no incident is at its incident stage for that character$/],
+    ["notYourTurn", /^not their turn$/],
+    ["actionLocked", /^that action is locked$/],
+    ["actionSpent", /^that action is spent$/],
+    ["actionBlocked", /^that action is blocked$/],
+    ["nothingLeft", /^nothing left to spend on a resolution$/],
+    ["movedOn", /^the incident has moved on since that action$/],
+    ["movedOn", /^the last crisis action is not that character's$/],
+    ["notThatRepair", /^there is no repair to take back$/],
+    ["notThatRepair", /^no frozen project was named$/],
+    ["notThatRepair", /^that repair is not what froze the project$/],
+    ["notThatRepair", /^that repair does not repair the project$/],
+    ["notThatRepair", /^the sender did not ask for that sabotage$/],
+    ["notWhereItStood", /^the position is not a place on the map$/],
+    ["notWhereItStood", /^the position is off the scene$/],
+    ["notWhereItStood", /^the elevation is not a number$/],
+    ["notWhereItStood", /^the token did not stand there a moment ago$/],
+    ["alreadyDone", /^that Observe has already been resolved$/],
+    ["nothingToUndo", /^that Observe has no result to take back$/],
+    ["nothingToUndo", /^no Analyze of that bullet this chapter to take back$/],
+    ["cannotNow", /^that bullet cannot be analysed now$/],
+    ["cannotFrame", /^that student cannot be framed$/],
+    ["notThere", /^the body is not in the killer's room$/],
+    ["notThere", /^the character has no token on a scene$/],
+    ["notThere", /^the character is not in that room$/],
+    ["notThere", /^.+ is not in ".*"$/]
+].map(([code, pattern]) => Object.freeze([code, pattern])));
+
+/** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */
+export function reasonOf(why) {
+    const text = String(why ?? "");
+    for (const [code, pattern] of REASON_PATTERNS) if (pattern.test(text)) return code;
+    debug(`No reason of the closed list takes "${text}"; the player is told only that it was refused.`);
+    return "refused";
 }
 
 /**
@@ -133,27 +252,30 @@ export async function firstRefusal(sender, payload, ctx, ...guards) {
  *
  * The English line is the GM's record, and 30-security reads it back through
  * `sessionFailures()`: `Refused a "<action>" request over the socket from
- * <name>: <why>.`
+ * <name>: <why>.` The asker is told the code `reasonOf` reads off `why`, and
+ * nothing else of it (E31).
  */
 export function refuse(action, why, ctx = null, send = emitTo) {
     // The sender's name, from Foundry's own `senderId`: the handbook sends a GM
     // to this line to find out who asked.
     const who = game.users?.get(ctx?.asker ?? "")?.name;
     warn(`Refused a "${action}" request over the socket${who ? ` from ${who}` : ""}: ${why}.`);
-    if (!ctx?.quiet) tellRefused(ctx?.asker, action, ctx?.requestId ?? null, send);
+    if (!ctx?.quiet) tellRefused(ctx?.asker, action, ctx?.requestId ?? null, reasonOf(why), send);
     return null;
 }
 
 /**
- * Tell one player that the GM's client said no. Split out of `refuse` (E03) so
- * the other listeners that judge a player's request - Daggerheart's relay in
- * relay-guard.mjs above all - answer with the same packet and the same toast,
- * rather than a player's refused change simply never happening.
+ * Tell one player that the GM's client said no, and which reason of the closed
+ * list says why. Split out of `refuse` (E03) so the other listeners that judge
+ * a player's request - Daggerheart's relay in relay-guard.mjs above all -
+ * answer with the same packet and the same message, rather than a player's
+ * refused change simply never happening. A reason not on the list goes as
+ * `refused`.
  */
-export function tellRefused(userId, what, requestId = null, send = emitTo) {
+export function tellRefused(userId, what, requestId = null, reason = "refused", send = emitTo) {
     if (!userId) return;
     try {
-        send(userId, { action: ACTION_REFUSED, userId, requestId, what });
+        send(userId, { action: ACTION_REFUSED, userId, requestId, what, reason: REASONS.includes(reason) ? reason : "refused" });
     } catch {
         // A refusal nobody hears is the old behaviour, not a new failure.
     }
@@ -163,6 +285,38 @@ export function tellRefused(userId, what, requestId = null, send = emitTo) {
 function emitTo(userId, packet) {
     if (!userId || userId === game.user?.id) return;
     game.socket.emit(SOCKET_EVENT, packet, { recipients: [userId] });
+}
+
+/**
+ * What a request is called on the player's screen.
+ *
+ * The same name as the thing they pressed, from the language file, rather
+ * than an English literal typed beside each emit (COMM-14): the message that
+ * says a request was not carried out has to name it in the language the rest
+ * of the screen is in. Moved here from gm-bridge.mjs with `sayNotDone` (E31).
+ */
+export function requestLabel(action) {
+    const key = `DRPG.Bridge.what.${action}`;
+    return game.i18n.has(key) ? game.i18n.localize(key) : String(action ?? "?");
+}
+
+/**
+ * The one message a player is shown when a request of theirs was not carried
+ * out (E31): what, and why, composed on the player's own client in the
+ * player's language - `DRPG.Bridge.notDone` with the request's label and the
+ * sentence of its reason, and "Nothing was spent." where the asker says so. A
+ * code not on the closed list is shown as `refused`, so a packet cannot pick
+ * the sentence. Returns the text it showed.
+ */
+export function sayNotDone(action, reason, { nothingSpent = false, notify = text => ui.notifications.warn(text) } = {}) {
+    const code = REASONS.includes(reason) ? reason : "refused";
+    const said = game.i18n.format("DRPG.Bridge.notDone", {
+        what: requestLabel(action),
+        why: game.i18n.localize(`DRPG.Bridge.why.${code}`)
+    });
+    const text = nothingSpent ? `${said} ${game.i18n.localize("DRPG.Bridge.nothingSpent")}` : said;
+    notify(text);
+    return text;
 }
 
 /* ==========================================================================
@@ -639,9 +793,13 @@ export function guardRelayActor(sender, payload, ctx) {
  * written beside the declaration.
  * ========================================================================== */
 
-/** Tag a factory's guard with what it is and which fields it judges. */
-function made(guard, factory, covers) {
-    return Object.freeze(Object.assign(guard, { factory, covers: Object.freeze([...covers]) }));
+/**
+ * Tag a factory's guard with what it is, which fields it judges and the reason
+ * it refuses with (`inRange`'s is the function that writes it), which R164
+ * holds to the closed list of reasons.
+ */
+function made(guard, factory, covers, why) {
+    return Object.freeze(Object.assign(guard, { factory, covers: Object.freeze([...covers]), why }));
 }
 
 /** The sender is a connected user Foundry named - the first question of nearly every declaration. */
@@ -653,7 +811,7 @@ export function knownSender(sender, payload, ctx) {
 export function owns(field, why) {
     const named = typeof field === "function" ? field : payload => payload?.[field];
     return made((sender, payload, ctx) => ownsActor(sender, named(payload)) ? null : why,
-        "owns", typeof field === "function" ? [] : [field]);
+        "owns", typeof field === "function" ? [] : [field], why);
 }
 
 /**
@@ -663,17 +821,17 @@ export function owns(field, why) {
  */
 export function ownsActorAt(locate, why, covers) {
     return made(async (sender, payload, ctx) => ownsActor(sender, await locate(payload)) ? null : why,
-        "ownsActorAt", covers);
+        "ownsActorAt", covers, why);
 }
 
 /** Only a GM may ask this; an Assistant GM is a GM. */
 export function gmOnly(why) {
-    return made((sender, payload, ctx) => !sender?.isGM ? why : null, "gmOnly", []);
+    return made((sender, payload, ctx) => !sender?.isGM ? why : null, "gmOnly", [], why);
 }
 
 /** Only a player asks this: a GM who does is refused, quietly where the declaration is quiet. */
 export function playersOnly(why) {
-    return made((sender, payload, ctx) => sender?.isGM ? why : null, "playersOnly", []);
+    return made((sender, payload, ctx) => sender?.isGM ? why : null, "playersOnly", [], why);
 }
 
 /** The sender may see the project the packet names in `field` (`canSee`, projects.mjs). */
@@ -681,13 +839,13 @@ export function canSeeProject(field, why) {
     return made(async (sender, payload, ctx) => {
         const { canSee } = await import("./projects.mjs");
         return canSee(payload?.[field], sender) ? null : why;
-    }, "canSeeProject", [field]);
+    }, "canSeeProject", [field], why);
 }
 
 /** The whole number in `field` passes `fits`, or the refusal `template` writes for the value as sent. */
 export function inRange(field, fits, template) {
     return made((sender, payload, ctx) => fits(Math.trunc(Number(payload?.[field]))) ? null : template(payload?.[field]),
-        "inRange", [field]);
+        "inRange", [field], template);
 }
 
 /* ==========================================================================

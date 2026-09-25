@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeTableProblems, payloadReads
+    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -263,8 +263,10 @@ const REGRESSIONS = [
          * sight (the note E03 left above the table said so). It reads the
          * declarations themselves now, per field: every id or value a run receives
          * is named by a guard or by a claim written beside it, and the other rules
-         * of `bridgeTableProblems` (the kit) with it. The reader is run first on a
-         * fixture with three planted faults, which must come back exactly.
+         * of `bridgeTableProblems` (the kit) with it - since C4 of E31 also that
+         * every reason a refusal can carry is said in both languages, and so is
+         * every request named to `tellRefused` by hand. The reader is run first on
+         * a fixture with four planted faults, which must come back exactly.
          *
          * READ LIVE rather than exercised, because the thing being checked is the
          * SHAPE of the judgement, not its outcome: a request that never runs in a
@@ -283,12 +285,24 @@ const REGRESSIONS = [
                 sanitize: G.pick({ actorId: G.as.id, undo: G.as.bool }), run: fine, answer: "ack" }
         } }];
         const labels = Object.keys(FIXTURE[0].table).map(action => `DRPG.Bridge.what.${action}`);
-        const planted = bridgeTableProblems(FIXTURE, { en: new Set(labels), pl: new Set(labels.filter(k => !k.endsWith(".nopl"))), guards: G });
+        const said = ["DRPG.Bridge.notDone", "DRPG.Bridge.nothingSpent", "DRPG.Bridge.why.fixtureSaid"];
+        const planted = bridgeTableProblems(FIXTURE, {
+            en: new Set([...labels, ...said, "DRPG.Bridge.why.fixtureUnsaid"]),
+            pl: new Set([...labels.filter(k => !k.endsWith(".nopl")), ...said]),
+            guards: G, reasons: ["fixtureSaid", "fixtureUnsaid"] });
         equal(JSON.stringify(planted.problems), JSON.stringify([
             "fixture.mjs fixture.unclaimed: targetId reaches the run with no guard naming it and no claim saying who judges it",
             "fixture.mjs fixture.nopl: DRPG.Bridge.what.fixture.nopl is missing in pl.json",
-            "fixture.mjs fixture.receipt: guardObserveReceipt spends a Reroll receipt and is not the last guard"
-        ]), "the table reader does not find exactly the three faults planted for it - it would misread the module's tables too");
+            "fixture.mjs fixture.receipt: guardObserveReceipt spends a Reroll receipt and is not the last guard",
+            "reason fixtureUnsaid: DRPG.Bridge.why.fixtureUnsaid is missing in pl.json"
+        ]), "the table reader does not find exactly the four faults planted for it - it would misread the module's tables too");
+
+        // The requests named to `tellRefused` by hand, outside the runner: a literal second argument.
+        const toldIn = text => [...stripComments(text).matchAll(/\btellRefused\(\s*[^,()]+,\s*"([^"]+)"/g)].map(m => m[1]);
+        equal(JSON.stringify(toldIn('tellRefused(sender.id, "fixture.told", null, "relay"); tellRefused(ctx?.asker, action);')),
+            JSON.stringify(["fixture.told"]), "the reader of tellRefused's calls does not find the one planted for it");
+        const told = (await otherSources()).filter(([file]) => file !== "bridge-guards.mjs").flatMap(([, raw]) => toldIn(raw));
+        ok(told.length >= 1, "no request is named to tellRefused by hand - relay-guard.mjs's call is gone, or this reads the wrong thing");
 
         // Both language files, fetched and flattened as Foundry merges them (pl nests `advancement.apply`).
         const language = async lang => {
@@ -299,10 +313,11 @@ const REGRESSIONS = [
             return new Set(flat(foundry.utils.expandObject(await res.json())));
         };
         const tables = await bridgeTables();
-        const read = bridgeTableProblems(tables, { en: await language("en"), pl: await language("pl"), guards: G });
+        const read = bridgeTableProblems(tables, { en: await language("en"), pl: await language("pl"), guards: G, reasons: G.REASONS, told });
         log(`R1b: ${read.actions} bridge actions in ${tables.length} tables, ${read.withIds} receive an id or a value a guard `
             + `or a claim must judge; ${read.byGuardClaim} such fields are claimed by a guard that reads them, `
-            + `${read.inWords} by a written reason; ${read.local.length} local guard(s)`);
+            + `${read.inWords} by a written reason; ${read.local.length} local guard(s); ${G.REASONS.length} reasons `
+            + `and ${told.length} request(s) named to tellRefused by hand, looked for in en and pl`);
         ok(read.actions >= 34, `only ${read.actions} bridge actions were read - the tables are not where this test looks`);
         ok(read.withIds >= 20, `only ${read.withIds} bridge actions receive an id - has the reading gone wrong?`);
         ok(!read.problems.length, `the bridge's tables: ${read.problems.join("; ")}`);
@@ -5310,6 +5325,113 @@ const REGRESSIONS = [
         log(`R163: ${runs} runs read, and ${handed} functions they hand their payload to`);
         ok(runs >= 34, `only ${runs} runs were read - the tables are not where this test looks`);
         ok(!problems.length, `a run and its whitelist disagree: ${problems.join("; ")}`);
+    }],
+
+    ["R164 - every refusal the bridge can give maps to one reason of a closed list", async () => {
+        /*
+         * E31, 25.09.2026; audit S17-08. A refused request tells its player why with
+         * a code of the closed list in bridge-guards.mjs (`REASONS`), which `reasonOf`
+         * reads off the English reason the guard or the run gave, with an ordered
+         * list of anchored patterns. A reason no pattern takes is still refused, and
+         * the player hears only "the GM's client refused it" - the sentence that
+         * says nothing, and a failure nobody would see. So every reason the bridge
+         * can give is read out of the source and held to exactly one pattern (two
+         * would make the answer depend on their order), and a pattern no reason
+         * reaches is dead.
+         *
+         * WHERE THE REASONS ARE: the guards the tables name, and every guard the
+         * leaf exports (a run asks some itself); the runs, and the functions of
+         * their own file they call; the functions a guard or a run hands the
+         * question to (DELEGATES, below), wherever they are declared; the reasons
+         * the factories' guards carry (`owns`, `inRange`, ...: read off the live
+         * guards, not their text); and the runner's own. `refusalProblems` (the
+         * kit) reads them, and says what it cannot read rather than skipping it: a
+         * returned value that is not a literal or a listed function's answer, and a
+         * `...Refusal(` function nobody listed - so a new one cannot be missed.
+         *
+         * WHAT IT CANNOT SEE: a name that takes its reason from a function that is
+         * not on the list, in a function that also asks one that is (it takes the
+         * name for the listed one's answer), and a reason built outside the places
+         * a reason stands. The reader is shown planted faults first.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const planted = refusalProblems({
+            functions: [
+                { name: "guardOne", reads: "returns", source: 'function guardOne(sender, payload) { return payload.x ? null : "fixture: one"; }' },
+                { name: "guardNone", reads: "returns", source: 'function guardNone(sender, payload) { return "fixture: none"; }' },
+                { name: "guardName", reads: "returns", source: "function guardName(sender, payload) { const why = String(payload.x); return why; }" },
+                { name: "guardUnlisted", reads: "returns", source: "function guardUnlisted(sender, payload) { return payload.x ? null : fixtureRefusal(payload); }" },
+                { name: "guardTwice", reads: "returns", source: "function guardTwice(sender, payload) { return `fixture: ${payload.n} twice`; }" },
+                { name: "run", reads: "refused", source: 'async function run(payload) { const r = await fixtureResolve(payload); if (r?.refused) return { refused: r.refused }; return { refused: "fixture: one" }; }' }
+            ],
+            delegates: new Set(["fixtureResolve"]),
+            patterns: [["one", /^fixture: one$/], ["two", /^fixture: .+ twice$/], ["twoAgain", /twice$/], ["idle", /^fixture: never$/]],
+            reasons: ["one", "two", "twoAgain", "idle"]
+        });
+        equal(JSON.stringify(planted.problems), JSON.stringify([
+            'guardName: returns "why", which this reader cannot hold to a reason',
+            "guardUnlisted: calls fixtureRefusal(), which is not on the list of functions a refusal is handed to",
+            'guardNone: "fixture: none" is taken by no reason of the closed list',
+            'guardTwice: "fixture: 7 twice" is taken by 2 patterns (two, twoAgain)',
+            "idle: no reason read takes its pattern - it is dead, or a reason moved out of its reach"
+        ]), "the reason reader does not find exactly the five faults planted for it - it would misread the module too");
+
+        /* The functions a guard or a run hands the question to, and how each is read:
+           its return value is the reason, its `why:` or its `refused:`. Two pass on a
+           listed function's reason (`resolveObserve` observeResolveRefusal's, the
+           receipt's `spendRerollReceipt` rerollReceiptRefusal's or its caller's check),
+           and one is wrapped: `hopeCallRefusal` says, in the GM's language, what the
+           guard asking it puts inside its own English reason. */
+        const DELEGATES = {
+            rerollReceiptRefusal: "returns", crisisRefusal: "why", crisisUndoRefusal: "returns", unsabotageRefusal: "returns",
+            sendBackRefusal: "returns", playerArmRefusal: "returns", observeResolveRefusal: "returns", removalRefusal: "returns",
+            searchSpendRefusal: "returns", narrowPlayerRemnant: "refused", resolveAnalyze: "refused", resolveStageSix: "refused",
+            resolveObserve: "passes", spendRerollReceipt: "passes", hopeCallRefusal: "wraps"
+        };
+        const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
+        const functions = [], texts = [];
+        for (const [name, reads] of Object.entries(DELEGATES)) {
+            const found = sources.map(([file, text]) => [file, topLevelFunction(text, name)]).filter(([, fn]) => fn);
+            must(found.length === 1, `${name} is declared in ${found.length} files - the list of functions a refusal is handed to names one that moved`);
+            if (reads !== "passes" && reads !== "wraps") functions.push({ name: `${found[0][0]} ${name}`, source: found[0][1], reads });
+        }
+
+        const tables = await bridgeTables();
+        const guards = new Set();
+        for (const { table } of tables) for (const decl of Object.values(table)) for (const guard of [...decl.guards, ...(decl.runGuards ?? [])]) guards.add(guard);
+        for (const [name, value] of Object.entries(G)) if (typeof value === "function" && /^guard[A-Z]/.test(name)) guards.add(value);
+        let factories = 0;
+        for (const guard of guards) {
+            if (!guard.factory) { functions.push({ name: guard.name, source: String(guard), reads: "returns" }); continue; }
+            factories++;
+            const why = typeof guard.why === "function" ? guard.why(7) : guard.why;
+            must(typeof why === "string" && why.length > 0, `a ${guard.factory} guard carries no reason - the factories no longer say what they refuse with`);
+            texts.push({ text: why, from: `a ${guard.factory} guard` });
+        }
+        for (const { file, table, text } of tables) {
+            const seen = new Set();
+            const queue = Object.values(table).map(decl => decl.run.name);
+            for (const name of queue) must(topLevelFunction(text, name), `${file}: the run ${name || "(unnamed)"} is not a function of its own file - this reads nothing of it`);
+            while (queue.length) {
+                const name = queue.shift();
+                if (seen.has(name)) continue;
+                seen.add(name);
+                const source = topLevelFunction(text, name);
+                if (!source) continue;
+                functions.push({ name: `${file} ${name}`, source, reads: "refused" });
+                for (const m of stripStrings(source).matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)) queue.push(m[1]);
+            }
+        }
+        const leaf = sources.find(([file]) => file === "bridge-guards.mjs")?.[1] ?? "";
+        functions.push({ name: "bridge-guards.mjs judge", source: fnSource(leaf, "judge"), reads: "refuse" });
+
+        const read = refusalProblems({ functions, texts, delegates: new Set(Object.keys(DELEGATES)), patterns: G.REASON_PATTERNS, reasons: G.REASONS });
+        const distinct = new Set(read.texts.map(t => t.text)).size;
+        log(`R164: ${distinct} reasons read, in ${read.texts.length} places: ${functions.length} functions and ${factories} factory guards; `
+            + `${read.byCode.size} of the ${G.REASONS.length} codes take them`);
+        ok(G.REASON_PATTERNS.every(([, pattern]) => pattern.source.startsWith("^")), "a reason's pattern is not anchored at the start");
+        ok(distinct >= 75, `only ${distinct} reasons were read - the reader has lost the guards, the runs or the functions they ask`);
+        ok(!read.problems.length, `the bridge's reasons: ${read.problems.join("; ")}`);
     }]
 ];
 

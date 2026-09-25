@@ -18,14 +18,14 @@ import {
 } from "./config.mjs";
 import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, activeGmIds, dialogContent, debug, warn, error, cardHead, esc } from "./utils.mjs";
 import {
-    gmOnline, firstRefusal, guardObserveReceipt, guardAnalyzeReceipt, guardCrisisAction, guardCrisisUndo,
-    guardCrisisReceipt, guardCleanupReceipt, guardProgressOwner, guardProgressReceipt, guardShareSecret,
-    guardShareGuest, guardTieTraceHolder, guardRemnantEditReceipt, guardUnsabotagePair, guardUnsabotageOwner,
-    guardUnsabotageReceipt, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
-    guardArmCallGrants, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
-    guardArmBuyerHope, guardDespairOwner, guardDespairMonokuma, guardDespairDelta, guardDespairPool,
-    guardDespairReceipt, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
-    playersOnly, canSeeProject, inRange, as, pick, judge
+    gmOnline, firstRefusal, requestLabel, sayNotDone, guardObserveReceipt, guardAnalyzeReceipt,
+    guardCrisisAction, guardCrisisUndo, guardCrisisReceipt, guardCleanupReceipt, guardProgressOwner,
+    guardProgressReceipt, guardShareSecret, guardShareGuest, guardTieTraceHolder, guardRemnantEditReceipt,
+    guardUnsabotagePair, guardUnsabotageOwner, guardUnsabotageReceipt, guardSendbackPlace, armBuyerId,
+    guardArmCharacter, guardArmPlayerCall, guardArmCallGrants, guardArmNotHeld, guardArmBuyer,
+    guardArmOtherCharacter, guardArmHopeCallAllowed, guardArmBuyerHope, guardDespairOwner, guardDespairMonokuma,
+    guardDespairDelta, guardDespairPool, guardDespairReceipt, table, tokenActorOf, remnantSourceOf, knownSender,
+    owns, ownsActorAt, gmOnly, playersOnly, canSeeProject, inRange, as, pick, judge
 } from "./bridge-guards.mjs";
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
 export { removalRefusal } from "./bridge-guards.mjs";
@@ -325,19 +325,6 @@ const awaitingAck = new Map();
 const ACK_TIMEOUT_MS = TIMING.ackMs;
 
 /** Watch for a "got it" and complain if none arrives. Returns the request id. */
-/**
- * What a request is called on the player's screen.
- *
- * The same name as the thing they pressed, from the language file, rather
- * than an English literal typed beside each emit (COMM-14): the toast that
- * says "no GM answered" or "the GM's client refused" has to name the request
- * in the language the rest of the screen is in.
- */
-function requestLabel(action) {
-    const key = `DRPG.Bridge.what.${action}`;
-    return game.i18n.has(key) ? game.i18n.localize(key) : String(action ?? "?");
-}
-
 function expectAck(action) {
     const requestId = foundry.utils.randomID();
     const timer = setTimeout(() => {
@@ -432,11 +419,11 @@ function onArmResult(payload, senderId) {
     settleRuling(payload.requestId, payload.result ?? null);
 }
 
-/** The GM's client refused a request this client sent. */
+/** The GM's client refused a request this client sent: what, and why, in this client's language (E31). */
 function onRefused(payload, senderId) {
     if (payload?.action !== ACTION_REFUSED) return;
     if (!replyForMe(payload, senderId)) return;
-    ui.notifications.warn(game.i18n.format("DRPG.Bridge.refused", { what: requestLabel(payload.what) }));
+    sayNotDone(payload.what, payload.reason);
     /* AND WHOEVER IS WAITING ON THE ANSWER STOPS WAITING (E03). A refused
        request that was awaited - a sabotage, a Support Call - used to sit on
        its promise until the three-minute ruling clock gave up, with the toast
@@ -877,8 +864,8 @@ async function handleMeddle(payload, sender, ctx) {
  * requested. R1b could not see it: the handler bodies never spelled
  * `payload.actorId`, they passed the whole payload along. Both requests are made
  * by the asking player's own client with their own character's id (calls.mjs,
- * action-rolls.mjs), so the guard - `owns("actorId")` in each declaration now -
- * refuses nothing honest. The answer comes later, from the card, so the run
+ * action-rolls.mjs), so the guard - an `owns` on `actorId` in each declaration
+ * now - refuses nothing honest. The answer comes later, from the card, so the run
  * answers `{ later: true }`.
  */
 async function handleHopeCall(payload, sender, ctx) {

@@ -838,7 +838,7 @@ function reportRefusal(verdict, sender) {
         }
     }
     if (verdict.kind === "shape") shapeWarning(verdict.sub ?? "?");
-    tellRefused(sender.id, "daggerheart");
+    tellRefused(sender.id, "daggerheart", null, "relay");
 }
 
 /**
