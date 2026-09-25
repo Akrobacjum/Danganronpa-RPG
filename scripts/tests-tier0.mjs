@@ -4920,11 +4920,19 @@ const REGRESSIONS = [
          */
         const DEL = "-" + "=", REP = "=" + "=";
         const KEY = new RegExp(`(?:^|\\.)(?:${DEL}|${REP})(?=[A-Za-z0-9_$]|\\$\\{)`);
+        /* AND JOINED ON WITH `+` (E30 review, 25.09.2026): `"flags.x.-=" + key` and
+           `"flags.x." + "-=" + key` hold the spelling in a literal that ends where the key
+           is added on, and the scan above looked only inside one literal. None in the
+           module on 25.09 with this rule too. */
+        const TAIL = new RegExp(`(?:^|\\.)(?:${DEL}|${REP})$`);
+        const joined = /^\s*\+/;
         const read = /^\s*\]?\s*in\b/;
-        const writes = code => stringLiterals(code).filter(lit => KEY.test(lit.text) && !read.test(code.slice(lit.end)));
-        const sample = `await token.update({ [\`flags.x.${DEL}\${key}\`]: null }); if ("${DEL}kept" in flags) {}`;
-        equal(JSON.stringify(writes(sample).map(lit => lit.text)), JSON.stringify([`flags.x.${DEL}\${}`]),
-            "the scan does not find the one write it was built to find, or takes the membership read for one");
+        const writes = code => stringLiterals(code).filter(lit => !read.test(code.slice(lit.end))
+            && (KEY.test(lit.text) || (TAIL.test(lit.text) && joined.test(code.slice(lit.end)))));
+        const sample = `await token.update({ [\`flags.x.${DEL}\${key}\`]: null }); if ("${DEL}kept" in flags) {}`
+            + ` await token.update({ ["flags.y.${DEL}" + key]: null, ["flags.z." + "${REP}" + key]: {} });`;
+        equal(JSON.stringify(writes(sample).map(lit => lit.text)), JSON.stringify([`flags.x.${DEL}\${}`, `flags.y.${DEL}`, REP]),
+            "the scan does not find the three writes it was built to find, or takes the membership read for one");
 
         const found = [];
         for (const [file, text] of await moduleSources()) {
@@ -5084,7 +5092,7 @@ const REGRESSIONS = [
         ok(!scan.found.length, `a skip asked of something that is not a probe: ${scan.found.join("; ")}`);
     }],
 
-    ["R159 - worldDump reads every kind of write the module makes", async () => {
+    ["R159 - worldDump reads every document type and setting that a write in the module names", async () => {
         /*
          * E30, 24.09.2026; audit S17-04. The world dump is what says tier 0/1 changed
          * nothing and that each scenario's restore put the world back, so a write it
@@ -5104,6 +5112,15 @@ const REGRESSIONS = [
          *   and the first file that opens one fails this until the dump reads it too.
          * Then dumpDiff on made-up dumps: a changed leaf and an added unit are
          * reported, a write stamp that moved is not, and a unit that went is.
+         *
+         * WHAT THIS DOES NOT READ, said since the E30 review (25.09.2026), when its name
+         * still promised "every kind of write": a write through a document already in
+         * hand - `doc.update`, `setFlag`, `unsetFlag`, `doc.delete` - names no type and is
+         * not scanned, and a type with no path in the dump at all is dropped with
+         * RenderTexture and Operator rather than failed (both E40's). A row that keeps
+         * some fields of a type (DUMP_RULES) is not held to the fields the module
+         * writes either: ChatMessage kept no `rolls`, which reroll.mjs rewrites on a
+         * card, until that review - the made-up card below is the check that it does now.
          */
         const { ENFORCED } = await import("./enforced.mjs");
         const kinds = new Set(), foreign = new Set(), stores = [];
@@ -5142,6 +5159,14 @@ const REGRESSIONS = [
             "dumpDiff does not report exactly the changed leaf and the added item, or reports the write stamp");
         const gone = dumpDiff(after, before).find(d => d.path === "Actor.SUITEPROBEACTOR1.items.SUITEPROBEITEM01");
         ok(gone && gone.after === undefined, "dumpDiff does not report a unit that went");
+
+        const card = { _id: "SUITEPROBECARD01", content: "<p>probe</p>", rolls: ["{\"total\":7}"], system: { applied: false },
+            flags: {}, whisper: [], speaker: {}, author: "SUITEPROBEUSER01", _stats: { modifiedTime: 1 } };
+        equal(JSON.stringify(dumpDiff(dumpOf("ChatMessage", [card]),
+            dumpOf("ChatMessage", [{ ...card, rolls: ["{\"total\":9}"], system: { applied: true }, _stats: { modifiedTime: 2 } }]))
+            .map(d => d.path).sort()),
+            JSON.stringify(["ChatMessage.SUITEPROBECARD01.rolls", "ChatMessage.SUITEPROBECARD01.system"]),
+            "a card whose rolls and system data were rewritten reads the same to the dump");
     }],
 
     ["R160 - every way a player reaches the GM belongs to a flow", async () => {

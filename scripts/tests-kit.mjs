@@ -1015,9 +1015,11 @@ function moduleSettingValues() {
 const DUMP_FOREIGN_SETTINGS = ["core.globalPlaylistVolume", "core.permissions", "isometric-perspective.showWelcome"];
 
 /*
- * WHAT THE DUMP LEAVES OUT OR READS NARROWLY, each with why and until when. A
- * row is added with a measurement in its `why` (the run, the date, what moved),
- * never on a guess; `until` is a stage (held to tools/stages.json by R155),
+ * WHAT THE DUMP LEAVES OUT OR READS NARROWLY, each with why and until when. The
+ * first six rows were written from the design's reading of Foundry and of this
+ * module, not from a run; the empty flag scope was measured, and says so. A row
+ * added from here on carries its measurement in its `why` (the run, the date, what
+ * moved), never a guess. `until` is a stage (held to tools/stages.json by R155),
  * "1.3.x (D27)" or "never". `match` is a unit's path with `*` for any one id and
  * `a|b` for either name.
  */
@@ -1030,8 +1032,10 @@ const DUMP_RULES = [
         why: "world settings are read by key in the settings part, for the namespaces this module writes; other modules' settings move with their own UI" },
     { match: "User.*", keep: ["role", "character", "flags", "permissions"], until: "never",
         why: "the rest of a User is the person's own (avatar, colour, hotbar), and a password field must never reach a report" },
-    { match: "ChatMessage.*", keep: ["flags", "whisper", "blind", "speaker", "author"], hash: ["content"], until: "never",
-        why: "a card is kilobytes of HTML a report cannot print; restore deletes the new ones, and an old card the suite edited shows as a changed hash" },
+    { match: "ChatMessage.*", keep: ["flags", "whisper", "blind", "speaker", "author"], hash: ["content", "rolls", "system"], until: "never",
+        why: "a card is kilobytes of HTML a report cannot print; restore deletes the new ones, and an old card the suite edited shows as "
+            + "a changed hash - its words, its rolls (reroll.mjs rewrites them on the card: `message.update({ rolls })`) and its system "
+            + "data, the last two hashed since the E30 review (25.09.2026); the message's other fields are not read" },
     { match: "Scene.*.walls|lights|sounds|drawings|templates.*", idsOnly: true, until: "never",
         why: "the module never writes these (R159's census); they are most of a scene's size" },
     { match: "*", emptyFlagScopes: "absent", until: "never",

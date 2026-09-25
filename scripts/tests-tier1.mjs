@@ -21,7 +21,7 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    otherSources, stripComments, bodyOf, STANDING
+    otherSources, stripComments, bodyOf, fnSource, STANDING
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -2987,6 +2987,18 @@ const INVARIANTS = [
             "an Assistant's request to create a user");
         equal(verdict("DhGMUpdate", { action: "DhGMUpdateDocument", uuid: "mine", data: { "system.resources.hope.value": 1 } }), "forward",
             "an Assistant's request in a shape Daggerheart sends for a player");
+
+        /* AND THE TWO PLACES THAT ASK IT (E30 review, 25.09.2026). E30 made the change
+           where the guard decides - `neutralise` and `onRelay` - and the verdicts above read
+           the same before it. So each is read here: it asks forwardsUnjudged(sender) before
+           judgeRelay, and names no sender.isGM. */
+        const guard = stripComments(new Map(await otherSources()).get("relay-guard.mjs") ?? "");
+        for (const name of ["neutralise", "onRelay"]) {
+            const body = fnSource(guard, name);
+            const asks = body.indexOf("forwardsUnjudged(sender)"), judges = body.indexOf("judgeRelay(");
+            ok(asks > 0 && judges > asks, `${name} does not ask forwardsUnjudged(sender) before judgeRelay`);
+            ok(!/\bsender\.isGM\b/.test(body), `${name} decides on sender.isGM`);
+        }
     }]
 ];
 
