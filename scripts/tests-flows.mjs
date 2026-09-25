@@ -33,6 +33,11 @@
  * And 11-killer-secrecy drives the discovery and checks nothing while it does (its
  * first tagged run: 0 body-discovery checks), so body-discovery names 10-murder.
  * A scenario is named here when its run shows checks under the flow.
+ *
+ * E31 (25.09.2026) adds 33-bridge-paths to the nine flows its checks are tagged
+ * with. eclipse-route-veto goes from planned to partial with it: 33 drives
+ * `eclipse.move` only as far as a GM who is connected and does not answer (its
+ * check B6), not a move allowed or refused, so the flow stays E39's to complete.
  */
 
 export const FLOWS = Object.freeze([
@@ -46,21 +51,21 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["call.arm"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask"], sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
         entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],
         status: "partial", stage: "E37" },
     { id: "crossing-fee-refund", what: "A token sent back to where it stood, and the crossing it paid for handed back",
-        entry: { bridge: ["token.sendBack"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
+        entry: { bridge: ["token.sendBack"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "despair", what: "Despair: a correction from a player's Reroll, a Despair Call from a GM, the pools every screen shows",
-        entry: { bridge: ["despair.adjust"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["despair.adjust"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
         entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security"], status: "covered", stage: "<=1.2.50" },
     { id: "eclipse-route-veto", what: "A move during an Eclipse: asked of the GM, allowed or refused",
-        entry: { bridge: ["eclipse.move"] }, scenarios: [], status: "planned", stage: "E39" },
+        entry: { bridge: ["eclipse.move"] }, scenarios: ["33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",
         entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "vault.steal", "body.loot"] },
-        scenarios: ["30-security"], status: "partial", stage: "E39" },
+        scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
         entry: {}, scenarios: [], status: "planned", stage: "E33" },
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
@@ -80,21 +85,21 @@ export const FLOWS = Object.freeze([
         entry: { sockets: ["dice-sync.mjs"] }, scenarios: ["12-social", "20-crit-hope"], status: "covered", stage: "<=1.2.50" },
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
         entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage"] },
-        scenarios: ["30-security"], status: "partial", stage: "E39" },
+        scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "safeword", what: "The safeword: one press stops the table on every screen",
         entry: { sockets: ["safeword.mjs"] }, scenarios: ["40-flow"], status: "covered", stage: "<=1.2.50" },
     { id: "search-observe", what: "A Search or an Observe: the GM judges it, spends the room's token, grants the find, and only the searcher reads the card",
         entry: { bridge: ["observe.target", "observe.resolve"], sockets: ["search-tokens.mjs"] },
-        scenarios: ["40-flow", "30-security"], status: "partial", stage: "E39" },
+        scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "season-reset", what: "The season reset, from the GM panel",
         entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: [], status: "planned", stage: "E40" },
     { id: "sound", what: "A sound played for other browsers",
         entry: { sockets: ["sfx.mjs"] }, scenarios: [], status: "planned", stage: "E50" },
     { id: "trace-remnant", what: "Traces: placed, tied to the crime, re-rated by a Reroll, cleaned up",
         entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces"], sockets: ["remnants.mjs"] },
-        scenarios: ["10-murder", "30-security"], status: "partial", stage: "E39" },
+        scenarios: ["10-murder", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "trap-fire", what: "A trap: a crossing reported to the GM, the trap sprung once",
-        entry: { sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security"], status: "partial", stage: "E39" },
+        entry: { sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, and a player's edit is put back",
         entry: { sockets: ["truth-bullets.mjs"] }, scenarios: ["30-security"], status: "partial", stage: "E38" },
     { id: "voice", what: "Voice rooms: who hears whom",

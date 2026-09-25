@@ -90,6 +90,7 @@ release or stage the status belongs to.
 | 30 | scenarios/30-security.mjs | ci | exists | <=1.2.50 | forged packets and writes change nothing on the GM |
 | 31 | scenarios/31-fuzz.mjs | ci, local-gate | planned | E43 | malformed packets to every bridge entry and socket: no write, no GM exception, a refusal with a reason |
 | 32 | scenarios/32-case-security.mjs | ci | planned | E43 | the hostile-client matrix, delivery proven before the effect is checked |
+| 33 | scenarios/33-bridge-paths.mjs | ci | exists | E31 | every legal road through the GM bridge, and what a player is told when a request is not carried out |
 | 40 | scenarios/40-flow.mjs | ci | exists | <=1.2.50 | a Daily Life time of day on four clients |
 | 41 | scenarios/41-trial-scene.mjs | ci, local-gate | planned | E13 | the Class Trial switches to the fixed hall (the harness needs scene switching first) |
 | 50 | scenarios/50-lang.mjs | ci | exists | <=1.2.50 | the Language setting on four clients |
