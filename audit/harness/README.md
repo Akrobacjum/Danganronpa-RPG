@@ -29,6 +29,12 @@ at another checkout; by default they boot the one they sit in. Each run writes
 when every check passed, 1 when one failed, 2 when nothing ran, 3 when the
 cluster itself failed.
 
+The lint part also shows `drpg/bridge-result` (E31) - the rule in
+eslint.config.mjs that keeps a request's answer where it was asked - its
+fixture, `lint-fixtures/bridge-result.mjs`, linted as a file of scripts/
+(nothing is written): red unless the rule reports exactly the seven lines the
+fixture marks.
+
 `node suite-diff.mjs before.log after.log` compares two runs of
 `scenarios/01-runtests.mjs` test by test: a test gone or new, a status or a
 reason changed, the order changed. The log keeps the first 30,000 characters of
@@ -258,4 +264,15 @@ number is not reused for a scenario.
   folder. Every results file records each with where it was read, and the live
   checks not yet run, as `environment`. Refreshing `versions.json`:
   LIVE-E30-08.
+- **The bridge at a real table** (E31). The socket is a relay between
+  processes on one machine, so a request's two clocks - the GM's "got it"
+  within `TIMING.ackMs`, its answer within its declaration's `timeoutMs` -
+  never meet a real server's latency:
+  how long an acknowledgement takes behind queued project writes, a GM who
+  leaves mid-request and a planted item that arrives after its five seconds are
+  LIVE-E31-02, -03 and -04. A Reroll's receipt is made by rewriting the rolls of
+  the player's own roll message, not by `Roll#reroll` (LIVE-E31-01); windows
+  close at once, so what `handOff` saves under reduced motion is not measured
+  (LIVE-E31-05); and a refusal is read in Polish by a client whose language was
+  switched mid-run, not by a Polish player at a table (LIVE-E31-06).
 - **No client ever reloads.**

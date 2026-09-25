@@ -727,6 +727,15 @@ Po E30 (1.2.61) harness modeluje fragmenty v14, których nikt nie sprawdził na 
 33. **LIVE-E30-09 - jak v14 dołącza CSS modułu:** w konsoli GM-a `[...document.styleSheets].flatMap(s => { try { return [...s.cssRules]; } catch { return []; } }).filter(r => r.href?.includes("danganronpa-rpg")).map(r => [r.href, r.layerName])` - czy są wszystkie arkusze z `module.json` w tej kolejności, każdy przez `@import` w warstwie `modules`, oraz co zwraca `getComputedStyle(document.body).getPropertyValue("--drpg-window-max")` na zwykłym ekranie. Harness dołącza je tak od E30 (`audit/harness/lib/css.mjs`), z opisu w `diagnostics.mjs`, nie z odczytu v14.
 34. **LIVE-E30-10 - okno tier 2 w prawdziwym v14:** `game.drpg.runTests({ tier: 2 })` jako GM: czy rysuje się okno DialogV2, którego tytuł i tekst nazywają świat, czy Cancel stoi pierwszy i jest jedynym przyciskiem domyślnym, i czy Enter zaraz po otwarciu wybiera Cancel (nic się nie uruchamia, wynik to odmowa bez zmian w świecie). Harness sprawdza tylko konfigurację okna, którą moduł podaje (01-runtests B), nie narysowane okno ani klawisz.
 
+Po E31 (1.2.62) doszły te, których harness nie rozstrzyga (plan E31, sekcja 7; wymienia je `audit/harness/README.md`, "What the harness cannot do"):
+
+35. **LIVE-E31-01 - Reroll przez tabelę:** prawdziwy Reroll na Observe, Analyze, akcji kryzysowej, sprzątaniu, sabotażu, postępie projektu, śladzie i Despair: u GM-a żadnego `Refused a`, u gracza żadnego komunikatu „... nie została wykonana”. Harness modeluje pokwitowanie przepisaniem rzutów, nie `Roll#reroll`.
+36. **LIVE-E31-02 - czas potwierdzenia:** potwierdzenie przychodzi teraz po strażnikach, nie przed nimi. Na prawdziwym serwerze zmierzyć, ile trwa od prośby do potwierdzenia przy Rerollu sabotażu (dwie prośby projektu w kolejce) i przy odesłaniu tokena; budżet to `TIMING.ackMs` (8 s).
+37. **LIVE-E31-03 - GM wychodzi w trakcie:** gracz prosi o sabotaż, GM zamyka kartę przed odpowiedzią: jeden komunikat „Klient GM-a nie odpowiedział na czas.” (po 8 s, gdy potwierdzenie nie przyszło; po zegarze odpowiedzi, `TIMING.rulingMs`, gdy przyszło), obietnica rozstrzygnięta; gdy GM wróci przed tym zegarem, prośba jest ponawiana raz, z tym samym id.
+38. **LIVE-E31-04 - podłożony przedmiot po czasie:** wolny serwer, odpowiedź na sprawdzenie podłożenia po 5 s (`TIMING.plantRequestMs`): przedmiot wraca do pokoju (`late`).
+39. **LIVE-E31-05 - handOff przy reduced motion:** z włączonym przełącznikiem ruchu wiersz w panelu GM-a (gm-panel.mjs:742) i krok Season setup (season-setup.mjs:560): okno wraca bez sekundowej pauzy.
+40. **LIVE-E31-06 - polski gracz, angielski GM:** odmowa prośby gracza z językiem polskim: komunikat po polsku, linia w logu GM-a po angielsku, z nazwą gracza.
+
 Znane luki po E03, świadomie zostawione (nie live checki, tylko zapis):
 
 - Edycja Truth Bulleta zrobiona przez gracza, gdy żaden GM nie był online, nie jest porównywana przy wczytaniu: kopia strzegąca żyje tylko w pamięci przeglądarki GM-a i powstaje przy wczytaniu z przedmiotów takich, jakie są, więc nie ma czego starszego porównać. Czeka na wspólny zapis GM-ów (E04).
