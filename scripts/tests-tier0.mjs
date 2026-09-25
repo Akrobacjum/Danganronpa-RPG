@@ -269,6 +269,10 @@ const REGRESSIONS = [
          */
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(r => r.text()));
+        // The guards the handlers ask are defined in bridge-guards.mjs since E31 lifted them there (25.09.2026).
+        const guardsSrc = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/bridge-guards.mjs`).then(r => r.text()));
+        const withLeaf = `${src}\n${guardsSrc}`;
 
         const table = bodyOf(src, "const GM_HANDLERS = {", { until: "\n};" });
         const rows = [...table.matchAll(/\[(ACTION_\w+)\]: (\w+),/g)];
@@ -323,7 +327,7 @@ const REGRESSIONS = [
             if (whole === null) { unguarded.push(`${action} (no ${name})`); continue; }
             // Past the declaration, whose own `(payload, senderId, ctx)` is not a hand-off.
             const branch = bodyOf(whole, "\n");
-            const asked = withGuards(src, branch);
+            const asked = withGuards(withLeaf, branch);
             undefinedGuards.push(...asked.missing.map(guard => `${name} asks ${guard}`));
             if (!IN_SCOPE.test(asked.body)) continue;
             inScope++;
@@ -340,7 +344,7 @@ const REGRESSIONS = [
             if (asked.guards.length) throughGuards++;
             if (!guarded) unguarded.push(action);
         }
-        ok(!undefinedGuards.length, `these handlers ask a guard gm-bridge.mjs does not define: ${undefinedGuards.join(", ")}`);
+        ok(!undefinedGuards.length, `these handlers ask a guard neither gm-bridge.mjs nor bridge-guards.mjs defines: ${undefinedGuards.join(", ")}`);
         ok(!stale.length, `these handlers are guarded now and still on the exemption list - take them off: ${stale.join(", ")}`);
         log(`R1b: ${rows.length} socket handlers, ${inScope} act on something named in the packet `
             + `(${byOwner} by ownership, ${bySight} by sight of the project, ${byGm} GM-only; `
@@ -411,7 +415,7 @@ const REGRESSIONS = [
                 const decl = topLevelFunction(rest, guard);
                 if (decl) rest = rest.replace(decl, "");
             }
-            const asked = withGuards(text, rest);
+            const asked = withGuards(`${text}\n${guardsSrc}`, rest);
             if (!asked.missing.length && rest.includes("senderOf(senderId)") && /ownsActor\(sender/.test(asked.body)) continue;
             blind.push(name);
         }
@@ -4725,6 +4729,8 @@ const REGRESSIONS = [
          * road needs a player's client and a GM's at once - 30-security drives it.
          */
         const bridge = stripComments((await otherSources()).find(([file]) => file.endsWith("gm-bridge.mjs"))?.[1] ?? "");
+        // The guards live in bridge-guards.mjs since E31 lifted them there (25.09.2026).
+        const both = `${bridge}\n${stripComments((await otherSources()).find(([file]) => file.endsWith("bridge-guards.mjs"))?.[1] ?? "")}`;
         const PAYS = ["handleObserveResolve", "handleAnalyzeResolve", "handleCrisis", "handleCleanup",
             "handleUnsabotage", "handleProgress", "handleRemnantEdit", "handleDespair"];
         /*
@@ -4740,14 +4746,14 @@ const REGRESSIONS = [
         const read = name => {
             const own = topLevelFunction(bridge, name);
             ok(own !== null, `gm-bridge.mjs no longer has ${name} - this test reads nothing until it is pointed at it again`);
-            return withGuards(bridge, own);
+            return withGuards(both, own);
         };
         // Every top-level function, not only the handlers: `armPaidByPlayer` asks
         // guards of its own, and a misspelt one would throw only when a player's
         // Support is armed (the review of the guard split).
         const nowhere = [...new Set([...bridge.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1]))]
             .flatMap(name => read(name).missing.map(guard => `${name} asks ${guard}`));
-        ok(!nowhere.length, `these functions ask a guard gm-bridge.mjs does not define: ${nowhere.join(", ")}`);
+        ok(!nowhere.length, `these functions ask a guard neither gm-bridge.mjs nor bridge-guards.mjs defines: ${nowhere.join(", ")}`);
         const unpaid = PAYS.filter(name => !read(name).body.includes("spendRerollReceipt("));
         ok(!unpaid.length, `these take something back for a player with no Reroll receipt: ${unpaid.join(", ")}`);
         // And no handler outside the list reads `payload.undo` without one.
@@ -4771,6 +4777,8 @@ const REGRESSIONS = [
         ok(bodyOf(murder, "export async function takeCrisisAction(", { length: 1200 }).includes("crisisRefusal("),
             "the player's own client no longer asks crisisRefusal");
         const handler = bodyOf(bridge, "async function handleCrisis(", { until: "\nasync function " });
+        // Its guards live in bridge-guards.mjs since E31 lifted them there (25.09.2026).
+        const both = `${bridge}\n${stripComments(sources.get("bridge-guards.mjs") ?? "")}`;
         /*
          * THROUGH ITS GUARD (E03, 24.09.2026). The bridge's `crisisRefusal` is asked in
          * `guardCrisisAction`, one of the guards `handleCrisis` asks (the note above
@@ -4779,12 +4787,12 @@ const REGRESSIONS = [
          * names the guard that reaches it - or the call itself, were it ever written
          * back into the handler.
          */
-        const asked = withGuards(bridge, handler);
-        ok(!asked.missing.length, `handleCrisis asks a guard gm-bridge.mjs does not define: ${asked.missing.join(", ")}`);
+        const asked = withGuards(both, handler);
+        ok(!asked.missing.length, `handleCrisis asks a guard neither gm-bridge.mjs nor bridge-guards.mjs defines: ${asked.missing.join(", ")}`);
         ok(/crisisRefusal\(actor, payload\.key\)/.test(asked.body), "the GM's bridge does not judge a crisis action again");
         const judgedBy = handler.includes("crisisRefusal(") ? "crisisRefusal("
             : asked.guards.find(name => handler.includes(name)
-                && withGuards(bridge, topLevelFunction(bridge, name)).body.includes("crisisRefusal("));
+                && withGuards(both, topLevelFunction(both, name)).body.includes("crisisRefusal("));
         ok(Boolean(judgedBy) && handler.indexOf(judgedBy) >= 0 && handler.indexOf(judgedBy) < handler.indexOf("resolveCrisisAction({"),
             "the GM judges the crisis action after resolving it");
     }],

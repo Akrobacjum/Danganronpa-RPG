@@ -58,7 +58,7 @@ import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { isPrimaryGm, debug, log, warn, error, esc, pause } from "./utils.mjs";
 // Statically: the leaf imports config.mjs and utils.mjs only, so this edge closes no cycle (E31).
-import { senderOf, ownsActor } from "./bridge-guards.mjs";
+import { senderOf, ownsActor, guardRelayOwner, guardRelayRoom } from "./bridge-guards.mjs";
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
@@ -725,39 +725,7 @@ export function registerTraps() {
 }
 
 /** Which field of each relayed event names a room: a crossing's destination, the rest's and the stash's room. */
-const RELAYED_ROOM = { crossing: "to", rest: "room", stash: "room" };
-
-/** A relay is about the sender's own character, or it is refused - see the note above `relay`. */
-async function guardRelayOwner(sender, payload, ctx) {
-    return ownsActor(sender, payload.actorId) ? null : "not their character";
-}
-
-/*
- * THE ROOM IS WHERE THE CHARACTER IS, NOT WHERE THE PACKET SAYS (E03,
- * 24.09.2026; audit S08-08). A crossing, a rest and a stash hunt each
- * named their room in the packet, and the trap in that room went off -
- * so a player could set off any trap on the map from their own
- * bedroom, or walk through one and report being somewhere else. The
- * relay leaves after the move has landed, so the GM finds the character
- * where the packet says; if the GM has not seen the move yet, it is
- * given a moment, once (`standsIn`).
- *
- * A packet with no character never reaches this. `guardRelayOwner` refuses
- * one with no `actorId`, and a player's naming a character that does not
- * exist, as "not their character"; only a GM's naming a missing character gets
- * past it, and the handler drops that one silently (`if (!actor) return`). So a
- * missing one passes here rather than being given a reason of its own.
- */
-async function guardRelayRoom(sender, payload, ctx) {
-    const actor = payload.actorId ? game.actors.get(payload.actorId) : null;
-    const field = RELAYED_ROOM[payload.kind];
-    const named = field ? payload[field] : undefined;
-    if (!actor || named === undefined) return null;
-    const there = await standsIn(actor, named, {
-        passedThrough: field === "to", sceneId: sender?.viewedScene ?? null
-    });
-    return there ? null : `${actor.name} is not in "${named}"`;
-}
+export const RELAYED_ROOM = { crossing: "to", rest: "room", stash: "room" };
 
 /**
  * Is this character in that room, as this client sees it - asked twice, a
@@ -772,7 +740,7 @@ async function guardRelayRoom(sender, payload, ctx) {
  * second review). Only a character with no token on that scene falls back to
  * every scene.
  */
-async function standsIn(actor, room, { passedThrough = false, sceneId = null } = {}) {
+export async function standsIn(actor, room, { passedThrough = false, sceneId = null } = {}) {
     const { placesOf, roomsVisited } = await import("./movement.mjs");
     const there = () => {
         const all = placesOf(actor);
