@@ -121,7 +121,10 @@ function sinceOf(repo, numbers) {
             try { text += execFileSync("git", ["-C", repo, "show", `v${version}:${file}`], { encoding: "utf8", maxBuffer: 64 << 20, stdio: ["ignore", "pipe", "ignore"] }); }
             catch { /* not in this release */ }
         }
-        for (const m of text.matchAll(/^ {4}\["(R\d+[a-z]?)\s*(?:·|-)/gm)) {
+        /* The separator as the tags spell it: " - ", " · ", or " \u00b7 " written as an
+           escape - R21-R24 were, and read as new, R22-R24 took the stage being worked
+           on (E30) instead of <=1.2.50 (E30 review, 25.09.2026). */
+        for (const m of text.matchAll(/^ {4}\["(R\d+[a-z]?)\s*(?:·|\\u00b7|-)/gm)) {
             if (numbers.has(m[1]) && !out.has(m[1])) out.set(m[1], version === "1.2.50" ? "<=1.2.50" : version);
         }
     }

@@ -363,9 +363,9 @@ Next free: R161. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 fo
 | R19 | 0 | <=1.2.50 | the windows a GM works from stay true while they are open |
 | R20 | 0 | <=1.2.50 | every sound in the catalogue is a sound something plays |
 | R21 | 0 | <=1.2.50 | no control is decided by a function nobody called |
-| R22 | 0 | E30 | every name this module calls is a name it has |
-| R23 | 0 | E30 | a document hook that checks for a GM checks for THE GM |
-| R24 | 0 | E30 | an action that swings a weapon knows which weapon it swung |
+| R22 | 0 | <=1.2.50 | every name this module calls is a name it has |
+| R23 | 0 | <=1.2.50 | a document hook that checks for a GM checks for THE GM |
+| R24 | 0 | <=1.2.50 | an action that swings a weapon knows which weapon it swung |
 | R25 | 0 | <=1.2.50 | the action budget comes back when the Eclipse opens, and only there |
 | R26 | 0 | <=1.2.50 | a critical's Hope is paid once, by one payer |
 | R27 | 0 | <=1.2.50 | the state colour's sweep has no specificity to win with |
