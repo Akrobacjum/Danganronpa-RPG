@@ -1011,8 +1011,8 @@ export async function rifleStashDialog(actor) {
     if (!ownerId || !itemId) return false;
 
     const { requestVaultSteal } = await import("./gm-bridge.mjs");
-    await requestVaultSteal({ thiefId: actor.id, ownerId, itemId });
-    return true;
+    const res = await requestVaultSteal({ thiefId: actor.id, ownerId, itemId });
+    return res.ok;
 }
 
 /**

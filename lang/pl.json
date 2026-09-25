@@ -605,7 +605,6 @@
       "dynamicSet": "Ustal trudność",
       "dynamicRefuse": "Odmów",
       "dynamicWaiting": "Czekamy na GM-a…",
-      "dynamicNoRuling": "Żaden GM nie odpowiedział. Próba odwołana, nic nie wydano.",
       "dynamicDescription": "Dowolna akcja, byle opisana szczegółowo - GM ustala trudność i statystykę. Progi są łagodniejsze niż w akcjach standardowych, celowo, jako nagroda za pomysł.",
       "difficulty": "Trudność",
       "proceed": "Zrób to",
@@ -688,8 +687,7 @@
       "stashNothing": "Przeczesujesz pokój i nie znajdujesz niczego, co ktoś próbował schować.",
       "stashFound": "Jest tu skrytka i należy do: {who}. Możesz się do niej dostać - panel w zakładce Ekwipunek pokazuje, co w niej jest.",
       "stashFoundGm": "{finder} - rzut {total}, znaleziona ukryta skrytka ({who}) w: {room}. {who} nic o tym nie wie.",
-      "stashSent": "Przeczesujesz pokój w poszukiwaniu czegoś, co tu nie pasuje.",
-      "needGm": "Ta droga kończy się u GM-a, a żaden GM nie jest połączony. Nic nie wydano."
+      "stashSent": "Przeczesujesz pokój w poszukiwaniu czegoś, co tu nie pasuje."
     },
     "Items": {
       "autoReadied": "{item} od razu trafia do ręki: schowany może być tylko jeden {group}.",
@@ -1175,7 +1173,6 @@
       "bodyNotHere": "Ciała nie ma w tym pokoju. Musisz nad nim stać, by je gdziekolwiek zanieść.",
       "nothingHere": "W tym pokoju nie ma czego sprzątać.",
       "allReinforced": "Każdy ślad tutaj jest Reinforced. Nic z tego nie schodzi.",
-      "noRuling": "Żaden GM nie odpowiedział na czas. Spróbuj, gdy któryś będzie przy stole.",
       "rerollLost": "Przyszedł Reroll sprzątania bez zapisu tutaj. Oceń nową liczbę ręcznie względem tego śladu, potem przywróć Remnant albo zwróć Sanity, jak wypadnie.",
       "reinforcedFlag": "Reinforced - nie da się usunąć",
       "reinforced": "{what} nie schodzi. Cokolwiek to zostawiło, zostawiło na dobre.",
@@ -1244,7 +1241,6 @@
       "transformNote": "Nikt nie widzi, jak decydujesz. Kto to potem znajdzie, znajdzie to, co zostawiasz, nie to, co tu było. Tak czy inaczej staje się Tamper Remnant.",
       "transformErase": "Usuń",
       "transformChange": "Zostaw coś innego",
-      "needGm": "Żaden GM nie jest połączony, więc nie da się niczego ocenić. Nic nie wydano.",
       "priceGone": "Maskowanie pochłonęło to, co miała kosztować ta próba. Nic więcej nie wydano.",
       "actionBack": {
         "one": "Odzyskujesz {n} akcję.",
@@ -1814,7 +1810,6 @@
       "requestPrompt": "Czego szukasz? GM dopasowuje to do pokoju, nie widząc twojego rzutu, więc niczego to nie ułatwia ani nie utrudnia.",
       "requestSkipped": "Nic nie nazwano - liczy się jako zwykłe rozejrzenie.",
       "sent": "GM ocenia, co się znalazło.",
-      "noRuling": "Żaden GM nie rozstrzygnął, na co patrzysz. Twoja akcja nie przepada.",
       "failedTitle": "Nic nie znajdujesz",
       "failed": "Nic nie przykuwa twojej uwagi. Tracisz {stress} Sanity.",
       "projectFoundTitle": "Coś tu nie jest tym, na co wygląda",
@@ -2034,7 +2029,6 @@
       "approveYes": "Stosuje się",
       "approveNo": "Nie tym razem",
       "refused": "{call}: GM powiedział „nie tym razem”. Nic nie wydano.",
-      "noAnswer": "{call}: brak odpowiedzi od GM-a. Nic nie wydano.",
       "notEnoughHope": "{call} kosztuje {cost} Hope, a masz {held}.",
       "sprinted": {
         "one": "{n} dodatkowe przejście o tej porze dnia, za darmo.",
@@ -2522,8 +2516,6 @@
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",
       "awaitingRuling": "Czeka na decyzję.",
-      "noGm": "Żaden GM nie jest połączony, więc nie dało się tego wysłać.",
-      "noAnswer": "Żaden GM nie odpowiedział na prośbę „{what}”. Nic nie zastosowano - spróbuj ponownie, gdy GM będzie połączony.",
       "declined": "{name} - próba odrzucona. Twoja akcja wraca.",
       "declinedGm": "Odrzucono. {name} odzyskuje akcję.",
       "settledAnswered": "Odpowiedział: {name}.",

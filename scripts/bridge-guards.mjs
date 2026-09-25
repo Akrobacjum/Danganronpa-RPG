@@ -21,10 +21,16 @@
  * before this file). R161 holds that shape: the names defined here and nowhere
  * else, the predicate spelt only in `activeGmIds`, nothing importing them from
  * gm-bridge.mjs, and no cycle anywhere in what Foundry serves.
+ *
+ * The rest of the bridge's plumbing came here with them (E31), for the same
+ * reason - more than one file needs it: the guards E03 wrote, the parts of a
+ * declaration and the runner that judges one (`judge`), the closed list of
+ * reasons a refusal carries, and, on the asking side, the one wait for an
+ * answer (`bridgeRequest`) and the one message when there is none.
  */
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, TIMING } from "./config.mjs";
-import { activeGmIds, debug, warn, error, pause } from "./utils.mjs";
+import { activeGmIds, isPrimaryGm, debug, warn, error, pause } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 /** GM -> player: "your request arrived and was refused" - see `refuse`. */
@@ -977,12 +983,241 @@ export function judge(table, payload, senderId, { send = emitTo } = {}) {
     return decl.queue ? inQueue(decl.queue, work) : work();
 }
 
-/** Send a run's answer back to the asker. */
+/** Send a run's answer back to the asker: `bridge.done`, which `bridgeRequest` waits for. */
 function answer(decl, ctx, value, send) {
-    // Until the player's side waits in one place (E31's next step), each awaited
-    // request still listens for the packet it always had.
-    const shape = decl.replyAs;
-    send(ctx.asker, shape
-        ? { action: shape.action, requestId: ctx.requestId, userId: ctx.asker, [shape.field]: value }
-        : { action: "bridge.done", requestId: ctx.requestId, userId: ctx.asker, value });
+    send(ctx.asker, { action: ACTION_DONE, requestId: ctx.requestId, userId: ctx.asker, value });
+}
+
+/* ==========================================================================
+ * THE ASKING SIDE: ONE WAIT, ONE RESULT, ONE MESSAGE (E31, 25.09.2026; audit S17-09)
+ * --------------------------------------------------------------------------
+ * A player's request to the GM used to wait in one of four ways, each written
+ * out beside its request: sent with an eight-second clock for the "got it" and
+ * a toast when none came, answering `{ pending: true }` the moment it left
+ * whatever then happened; two clocks and a packet of its own for the answer;
+ * one long clock; or no request id at all. Each said its own sentence when it
+ * failed - "no GM answered", "no ruling", "not sent" - and a refused request
+ * could say two (the refusal, then the clock's). A caller could not tell a
+ * request that was carried out from one that was refused, because the answer
+ * was `{ pending: true }` or null either way.
+ *
+ * `bridgeRequest` is the one wait. It resolves once and never rejects, with
+ *   { ok: true, pending: true }            acknowledged (an "ack" request), or sent (a "none")
+ *   { ok: true, value }                    answered (a "reply" request), or done on the GM's own client
+ *   { ok: false, refused: true, reason }   refused by the GM's client, with the code of the closed list
+ *   { ok: false, reason }                  noGm, noAnswer or failed, decided on this side
+ * and every failure is said once, in this client's language, by `sayNotDone`,
+ * unless the caller asked for quiet. How long to wait is the declaration's:
+ * `answer` (none, ack, reply), `patient` (a person is deciding, so no clock for
+ * the "got it", and the question is asked again when a GM's world has loaded),
+ * `resend`, `timeoutMs` - read off the table by the file that owns it (`ask` in
+ * gm-bridge.mjs), so the policy is written once.
+ *
+ * Built by `createWaiter` from what it needs - an emit, the GMs connected, who
+ * this client is, the message, a clock - so R165 drives it with fakes and a
+ * clock of tens of milliseconds; the module's one waiter is below it.
+ * ========================================================================== */
+
+/** GM -> player: "your request was carried out", with its answer - see `answer`. */
+const ACTION_DONE = "bridge.done";
+
+/**
+ * Is this reply addressed to me, and did a GM actually send it?
+ *
+ * A reply is an authority - "the GM ruled 15", "the freeze took" - so a player
+ * able to forge one could hand another player any answer they liked, including
+ * settling a request that was waiting for a real ruling. Moved here from
+ * gm-bridge.mjs with the wait it guards (E31).
+ */
+export function replyForMe(payload, senderId) {
+    if (payload?.userId !== game.user?.id) return false;
+    return Boolean(game.users.get(senderId)?.isGM);
+}
+
+/**
+ * A waiter: `request` asks, `onReply` takes the GM's answers, `resendOnGmReady`
+ * asks once more for what is still waiting when a GM's world has loaded.
+ *
+ * @param {object} deps
+ * @param {(packet: object, recipients: string[]) => void} deps.emit  may throw
+ * @param {() => string[]} deps.gmIds          the GMs connected now
+ * @param {() => {id: string, isGM: boolean, isPrimary: boolean}} deps.me
+ * @param {(action: string, reason: string, opts: {nothingSpent: boolean}) => void} deps.notify  the one message
+ * @param {(senderId: string) => boolean} deps.fromGm  was a reply sent by a GM
+ */
+export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = { set: setTimeout, clear: clearTimeout },
+    newId = () => foundry.utils.randomID(), report = (text, err) => error(text, err) } = {}) {
+    // Waiting for an answer, by request id.
+    const pending = new Map();
+    // Given up on, answered or refused, by request id, for as long as the request's own clock ran: a late
+    // "got it", answer or refusal for one of these is dropped - a done goes to its `late` - so no request
+    // is ever said twice.
+    const closed = new Map();
+
+    const settle = (entry, result) => {
+        if (entry.settled) return;
+        entry.settled = true;
+        entry.resolve(result);
+    };
+    const tell = (entry, reason) => {
+        if (!entry.quiet) notify(entry.action, reason, { nothingSpent: entry.nothingSpent });
+    };
+    const close = entry => {
+        pending.delete(entry.id);
+        for (const key of ["ackTimer", "answerTimer"]) {
+            if (entry[key] !== null) clock.clear(entry[key]);
+            entry[key] = null;
+        }
+        closed.set(entry.id, entry.late);
+        clock.set(() => closed.delete(entry.id), entry.timeoutMs);
+    };
+    const fail = (entry, reason) => {
+        tell(entry, reason);
+        settle(entry, { ok: false, reason });
+    };
+
+    function request(action, payload = {}, { settle: kind = "ack", patient = false, resend = false, ackMs = TIMING.ackMs,
+        timeoutMs = TIMING.rulingMs, local = null, quiet = false, nothingSpent = false, late = null } = {}) {
+        return new Promise(resolve => {
+            const entry = { id: null, action, kind, patient, resend, resent: false, quiet, nothingSpent, late, timeoutMs,
+                resolve, settled: false, ackTimer: null, answerTimer: null, packet: null };
+            try {
+                const self = me();
+                // 1. The GM's own client does it here; a GM does not talk to itself down a socket.
+                if (self.isGM && typeof local === "function") {
+                    Promise.resolve().then(local).then(value => settle(entry, { ok: true, value }), err => {
+                        report(`The GM's own client failed while carrying out "${action}"`, err);
+                        fail(entry, "failed");
+                    });
+                    return;
+                }
+                // 2. The primary GM is the one who answers: a request it sends itself goes nowhere.
+                if (self.isPrimary) {
+                    report(`"${action}" was asked of the bridge by the primary GM, who is the one who answers it`);
+                    settle(entry, { ok: false, reason: "failed" });
+                    return;
+                }
+                // 3. Nobody to ask: said now, and nothing is sent.
+                const to = gmIds();
+                if (!to.length) return fail(entry, "noGm");
+                const packet = { ...payload, action, userId: self.id };
+                // 4. Nobody waits on a report.
+                if (kind === "none") {
+                    emit(packet, to);
+                    return settle(entry, { ok: true, pending: true });
+                }
+                // 5. One id, one entry, two clocks from the send: the "got it", and the answer.
+                entry.id = newId();
+                entry.packet = { ...packet, requestId: entry.id };
+                pending.set(entry.id, entry);
+                if (!patient) {
+                    entry.ackTimer = clock.set(() => {
+                        entry.ackTimer = null;
+                        close(entry);
+                        fail(entry, "noAnswer");
+                    }, ackMs);
+                }
+                entry.answerTimer = clock.set(() => {
+                    entry.answerTimer = null;
+                    close(entry);
+                    // An acknowledged "ack" request has had its answer; its clock only ends the wait for a late refusal.
+                    if (!entry.settled) fail(entry, "noAnswer");
+                }, timeoutMs);
+                emit(entry.packet, to);
+            } catch (err) {
+                // 7. It never rejects: an emit that throws is a request that failed here.
+                report(`Could not send "${action}" to the GM`, err);
+                if (entry.id && pending.has(entry.id)) close(entry);
+                fail(entry, "failed");
+            }
+        });
+    }
+
+    /** 6. A GM's "got it", answer or refusal, for this client. Returns whether it was one. */
+    function onReply(packet, senderId) {
+        const action = packet?.action;
+        if (action !== ACTION_ACK && action !== ACTION_DONE && action !== ACTION_REFUSED) return false;
+        if (packet.userId !== me().id || !fromGm(senderId)) return false;
+        const id = packet.requestId ?? null;
+        const entry = id ? pending.get(id) : null;
+        if (!entry) {
+            if (id && closed.has(id)) {
+                const late = closed.get(id);
+                if (action === ACTION_DONE && typeof late === "function") {
+                    try { late(packet.value ?? null); } catch (err) { report(`A late answer to "${packet.what ?? "a request"}" could not be taken`, err); }
+                }
+                return true;
+            }
+            // Not a request this client is waiting on - one sent before a reload, a forged one: the refusal is still said.
+            if (action === ACTION_REFUSED) notify(packet.what, packet.reason, { nothingSpent: false });
+            return true;
+        }
+        if (action === ACTION_ACK) {
+            if (entry.ackTimer !== null) clock.clear(entry.ackTimer);
+            entry.ackTimer = null;
+            if (entry.kind === "ack") settle(entry, { ok: true, pending: true });
+            return true;
+        }
+        close(entry);
+        if (action === ACTION_DONE) {
+            settle(entry, { ok: true, value: packet.value ?? null });
+            return true;
+        }
+        const reason = REASONS.includes(packet.reason) ? packet.reason : "refused";
+        tell(entry, reason);
+        // An acknowledged "ack" request has settled already: the refusal is its one message.
+        settle(entry, { ok: false, refused: true, reason });
+        return true;
+    }
+
+    /** 8. Ask once more, with the same id, for every request still waiting that asked for it. */
+    function resendOnGmReady() {
+        for (const entry of pending.values()) {
+            if (!entry.resend || entry.resent || entry.settled) continue;
+            entry.resent = true;
+            try {
+                const to = gmIds();
+                if (to.length) emit(entry.packet, to);
+            } catch (err) {
+                report(`Could not ask the GM again for "${entry.action}"`, err);
+            }
+        }
+    }
+
+    return { request, onReply, resendOnGmReady, waiting: () => pending.size };
+}
+
+/* The module's one waiter. Addressed to the GMs connected and to nobody else - no
+   broadcast: a request with no GM is refused before it is sent, and one sent to a
+   GM who dropped a moment later is reported by its clock. */
+const waiter = createWaiter({
+    emit: (packet, recipients) => game.socket.emit(SOCKET_EVENT, packet, { recipients }),
+    gmIds: () => activeGmIds(),
+    me: () => ({ id: game.user?.id ?? null, isGM: Boolean(game.user?.isGM), isPrimary: isPrimaryGm() }),
+    notify: (action, reason, opts) => sayNotDone(action, reason, opts),
+    fromGm: senderId => Boolean(game.users.get(senderId)?.isGM)
+});
+
+/**
+ * Ask the GM's client for something, and wait for it as its declaration says.
+ * See the note above `createWaiter` for what it answers.
+ *
+ * @param {string} action   the declaration's name, e.g. "project.sabotage"
+ * @param {object} payload  the fields its whitelist reads
+ * @param {object} [opts]   settle ("none" | "ack" | "reply"), patient, resend, ackMs, timeoutMs,
+ *                          local (the GM's own client does it), quiet, nothingSpent, late
+ * @returns {Promise<{ok: boolean, pending?: true, value?: *, refused?: true, reason?: string}>}
+ */
+export function bridgeRequest(action, payload = {}, opts = {}) {
+    return waiter.request(action, payload, opts);
+}
+
+/** The GMs' answers to this client's requests, on every client: one listener, registered once (module.mjs). */
+export function registerBridgeReplies() {
+    game.socket.on(SOCKET_EVENT, (packet, senderId) => { waiter.onReply(packet, senderId); });
+}
+
+/** A primary GM's world has loaded: ask again what is still waiting (gm-bridge.mjs's `onGmReady`). */
+export function resendOnGmReady() {
+    waiter.resendOnGmReady();
 }

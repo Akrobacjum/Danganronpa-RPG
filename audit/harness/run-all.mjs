@@ -168,8 +168,24 @@ async function lint() {
         if (res?.messages.some(m => m.ruleId === "no-undef" && m.message.includes(PROBE))) heard++;
         else problems.push(`${dir}/: a name no file defines was not reported there - no-undef is not on for that folder`);
     }
+    /* THE BRIDGE-RESULT RULE, SHOWN ITS FIXTURE (E31, 25.09.2026). drpg/bridge-result
+       reads a use of a request's answer, and a rule that reported nothing would pass
+       every tree. Its fixture is linted as a file of scripts/ (nothing written) and
+       must be reported on exactly the lines it marks "reported", and nothing else. */
+    const fixturePath = path.join(REPO, "audit", "harness", "lint-fixtures", "bridge-result.mjs");
+    const fixture = fs.existsSync(fixturePath) ? fs.readFileSync(fixturePath, "utf8") : "";
+    const marked = fixture.split("\n").flatMap((line, i) => (/\/\/ reported$/.test(line) ? [i + 1] : []));
+    const [fx] = await eslint.lintText(fixture, { filePath: path.join(REPO, "scripts", "__bridge-result__.mjs") });
+    const flagged = (fx?.messages ?? []).filter(m => m.ruleId === "drpg/bridge-result").map(m => m.line);
+    const otherwise = (fx?.messages ?? []).filter(m => m.ruleId !== "drpg/bridge-result");
+    if (!marked.length) problems.push("audit/harness/lint-fixtures/bridge-result.mjs marks no line - drpg/bridge-result is shown nothing");
+    else if (JSON.stringify(flagged) !== JSON.stringify(marked)) {
+        problems.push(`drpg/bridge-result reported lines ${flagged.join(", ") || "none"} of its fixture, which marks ${marked.join(", ")}`);
+    }
+    for (const m of otherwise) problems.push(`the bridge-result fixture:${m.line}: ${m.message}`);
     const counts = `${results.length} files, ${messages} problem(s); `
-        + `no-undef at error level in ${ruled}/${results.length}, a planted undefined name reported in ${heard}/${probeDirs.length} folders`;
+        + `no-undef at error level in ${ruled}/${results.length}, a planted undefined name reported in ${heard}/${probeDirs.length} folders; `
+        + `drpg/bridge-result reports ${flagged.length} of its fixture's lines, which marks ${marked.length}`;
     console.log(`lint: ${counts}`);
     for (const p of problems.slice(0, 40)) console.log(`  ${p}`);
     return { status: problems.length ? "red" : "green", ms: Date.now() - t0, counts, problems };

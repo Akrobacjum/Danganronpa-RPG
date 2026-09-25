@@ -350,7 +350,9 @@ async function settleDespair(actor, before, after, done) {
         const delta = after.withFear ? 1 : -1;
         const { requestDespairAdjust } = await import("./gm-bridge.mjs");
         const { poolLabel } = await import("./despair.mjs");
-        await requestDespairAdjust(monokuma.id, delta, { actorId: actor.id });
+        const res = await requestDespairAdjust(monokuma.id, delta, { actorId: actor.id });
+        // Only what was asked for and not refused (E31): the refusal has been said.
+        if (!res.ok) return;
 
         // The pool's name, as the Despair bar shows it - not the GM's account.
         done.push(game.i18n.format(delta > 0 ? "DRPG.Reroll.despairGained" : "DRPG.Reroll.despairReturned", {
@@ -625,8 +627,8 @@ async function settleSabotage(actor, bookmark, after, done) {
     //    and "thaw the target" with no repair used to thaw whatever freeze the
     //    target had - somebody else's sabotage included.
     if (bookmark.repairId) {
-        await undoSabotage(bookmark.targetProjectId ?? null, bookmark.repairId, { actorId: actor.id });
-        done.push(game.i18n.localize("DRPG.Reroll.sabotageUndone"));
+        const undone = await undoSabotage(bookmark.targetProjectId ?? null, bookmark.repairId, { actorId: actor.id });
+        if (undone) done.push(game.i18n.localize("DRPG.Reroll.sabotageUndone"));
     }
 
     // 2. Break it again, at whatever the new roll is worth.
@@ -731,7 +733,7 @@ async function settleObserve(actor, bookmark, after, done) {
     }
 
     const { requestObserveResolve } = await import("./gm-bridge.mjs");
-    await requestObserveResolve({
+    const res = await requestObserveResolve({
         actorId: actor.id,
         key: bookmark.observeKey,
         total: after.total,
@@ -739,7 +741,7 @@ async function settleObserve(actor, bookmark, after, done) {
         undo: true
     });
 
-    done.push(game.i18n.localize("DRPG.Reroll.observeReplayed"));
+    if (res.ok) done.push(game.i18n.localize("DRPG.Reroll.observeReplayed"));
     return { observeKey: bookmark.observeKey };
 }
 
@@ -770,7 +772,7 @@ async function settleCrisis(actor, bookmark, after, done) {
     }
 
     const { requestCrisisResult } = await import("./gm-bridge.mjs");
-    await requestCrisisResult({
+    const res = await requestCrisisResult({
         actorId: actor.id,
         key: bookmark.crisis,
         total: after.total,
@@ -779,7 +781,7 @@ async function settleCrisis(actor, bookmark, after, done) {
         undo: true
     });
 
-    done.push(game.i18n.localize("DRPG.Reroll.crisisReplayed"));
+    if (res.ok) done.push(game.i18n.localize("DRPG.Reroll.crisisReplayed"));
     return { crisis: bookmark.crisis };
 }
 
@@ -827,7 +829,7 @@ async function settleCleanup(actor, bookmark, after, done) {
     }
 
     const { requestCleanup } = await import("./gm-bridge.mjs");
-    await requestCleanup({
+    const res = await requestCleanup({
         actorId: actor.id,
         tokenId: bookmark.cleanup,
         total: after.total,
@@ -847,7 +849,7 @@ async function settleCleanup(actor, bookmark, after, done) {
         undo: true
     });
 
-    done.push(game.i18n.localize("DRPG.Reroll.cleanupReplayed"));
+    if (res.ok) done.push(game.i18n.localize("DRPG.Reroll.cleanupReplayed"));
     return { cleanup: bookmark.cleanup };
 }
 
@@ -890,7 +892,7 @@ async function settleAnalyze(actor, bookmark, after, done) {
     }
 
     const { requestAnalyzeResolve } = await import("./gm-bridge.mjs");
-    await requestAnalyzeResolve({
+    const res = await requestAnalyzeResolve({
         actorId: actor.id,
         itemId: bookmark.bulletId,
         total: after.total,
@@ -898,7 +900,7 @@ async function settleAnalyze(actor, bookmark, after, done) {
         undo: true
     });
 
-    done.push(game.i18n.localize("DRPG.Reroll.analyzeReplayed"));
+    if (res.ok) done.push(game.i18n.localize("DRPG.Reroll.analyzeReplayed"));
     return { bulletId: bookmark.bulletId };
 }
 
@@ -1022,8 +1024,8 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
     }
 
     if (visibility === null) {
-        await retuneRemnant(bookmark.remnantScene, bookmark.remnantId, { remove: true });
-        done.push(game.i18n.localize("DRPG.Reroll.remnantRemoved"));
+        const removed = await retuneRemnant(bookmark.remnantScene, bookmark.remnantId, { remove: true });
+        if (removed) done.push(game.i18n.localize("DRPG.Reroll.remnantRemoved"));
         return { remnantId: null, remnantScene: null };
     }
 

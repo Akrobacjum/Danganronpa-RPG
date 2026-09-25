@@ -16,16 +16,16 @@ import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE, TIMING,
     LEVEL_UP, LEVEL_UP_OPTIONS
 } from "./config.mjs";
-import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, activeGmIds, dialogContent, debug, warn, error, cardHead, esc } from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, error, cardHead, esc } from "./utils.mjs";
 import {
-    gmOnline, firstRefusal, requestLabel, sayNotDone, guardObserveReceipt, guardAnalyzeReceipt,
-    guardCrisisAction, guardCrisisUndo, guardCrisisReceipt, guardCleanupReceipt, guardProgressOwner,
-    guardProgressReceipt, guardShareSecret, guardShareGuest, guardTieTraceHolder, guardRemnantEditReceipt,
-    guardUnsabotagePair, guardUnsabotageOwner, guardUnsabotageReceipt, guardSendbackPlace, armBuyerId,
-    guardArmCharacter, guardArmPlayerCall, guardArmCallGrants, guardArmNotHeld, guardArmBuyer,
-    guardArmOtherCharacter, guardArmHopeCallAllowed, guardArmBuyerHope, guardDespairOwner, guardDespairMonokuma,
-    guardDespairDelta, guardDespairPool, guardDespairReceipt, table, tokenActorOf, remnantSourceOf, knownSender,
-    owns, ownsActorAt, gmOnly, playersOnly, canSeeProject, inRange, as, pick, judge
+    firstRefusal, guardObserveReceipt, guardAnalyzeReceipt, guardCrisisAction, guardCrisisUndo,
+    guardCrisisReceipt, guardCleanupReceipt, guardProgressOwner, guardProgressReceipt, guardShareSecret,
+    guardShareGuest, guardTieTraceHolder, guardRemnantEditReceipt, guardUnsabotagePair, guardUnsabotageOwner,
+    guardUnsabotageReceipt, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
+    guardArmCallGrants, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
+    guardArmBuyerHope, guardDespairOwner, guardDespairMonokuma, guardDespairDelta, guardDespairPool,
+    guardDespairReceipt, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
+    playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady
 } from "./bridge-guards.mjs";
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
 export { removalRefusal } from "./bridge-guards.mjs";
@@ -40,23 +40,17 @@ const ACTION_REMNANT = "remnant.place";
 const ACTION_TIE_TRACE = "remnant.tieForItem";
 const ACTION_REMNANT_EDIT = "remnant.edit";
 const ACTION_SABOTAGE = "project.sabotage";
-const ACTION_SABOTAGE_RESULT = "project.sabotageResult";
 const ACTION_UNSABOTAGE = "project.unsabotage";
 const ACTION_SENDBACK = "token.sendBack";
 const ACTION_ECLIPSE_MOVE = "eclipse.move";
 const ACTION_ARM = "call.arm";
-const ACTION_ARM_RESULT = "call.armResult";
 const ACTION_DESPAIR = "despair.adjust";
 const ACTION_DIFFICULTY = "dynamic.difficulty";
-const ACTION_DIFFICULTY_RESULT = "dynamic.difficultyResult";
 /** player -> GM: "may I spend this Call, and here is what for". */
 const ACTION_HOPE_CALL = "call.approve";
-const ACTION_HOPE_CALL_RESULT = "call.approveResult";
 const ACTION_OBSERVE_TARGET = "observe.target";
-const ACTION_OBSERVE_TARGET_RESULT = "observe.targetResult";
 const ACTION_OBSERVE_RESOLVE = "observe.resolve";
 const ACTION_CLEANUP_TRACES = "cleanup.traces";
-const ACTION_CLEANUP_TRACES_RESULT = "cleanup.tracesResult";
 const ACTION_ANALYZE_RESOLVE = "analyze.resolve";
 /* N-2: the player picked their own Level Up and the GM's client writes it. */
 const ACTION_ADVANCEMENT = "advancement.apply";
@@ -82,52 +76,26 @@ const ACTION_CLEANUP = "murder.cleanup";
 const ACTION_BETRAYAL = "murder.betrayal";
 const ACTION_PARK_MURDER = "murder.park";
 const ACTION_MEDDLE = "monocub.meddle";
-const ACTION_ACK = "bridge.ack";
-/** GM -> player: "your request arrived and was refused" - see `refuse`. */
-const ACTION_REFUSED = "bridge.refused";
+/** GM -> player: a request carried out, with its answer - see `bridgeRequest` in bridge-guards.mjs. */
+const ACTION_DONE = "bridge.done";
 /** A GM's world has finished loading - see `registerGmBridge`. */
 const ACTION_GM_READY = "bridge.gmReady";
 const ACTION_LOOT = "body.loot";
 
 /**
- * Player-side promises waiting on a GM ruling, keyed by request id.
+ * A primary GM has finished loading and can answer questions again.
  *
- * Each entry is `{ resolve, payload, resent }` rather than a bare `resolve`,
- * so a request that went unanswered can be ASKED AGAIN - see
- * `resendPendingRulings`, which is what makes a GM's reload survivable.
+ * THE GM'S BROWSER IS ALLOWED TO CRASH. A ruling lives in a card or a dialog on
+ * their screen and in nothing else: reloading with it open threw the question
+ * away, and the player sat on "Awaiting a ruling." until their own clock gave
+ * up. The action was spent and the roll was thrown, so what they lost was real,
+ * and neither side had any way back to it (B-F5-1). The asking client is the
+ * one that survives all this, so it is the one that repeats itself: when the
+ * primary GM's world has loaded and this browser is still waiting, each request
+ * that asked for it goes out again once, with the SAME request id, so the answer
+ * lands in the promise already waiting for it (`resendOnGmReady`,
+ * bridge-guards.mjs). Once per request, and only while it is still waiting.
  */
-const pendingRulings = new Map();
-
-/**
- * Ask again for every ruling still outstanding, once per request.
- *
- * THE GM'S BROWSER IS ALLOWED TO CRASH. A ruling lives in a dialog open on
- * their screen and in nothing else: reloading with that window open threw the
- * question away, and the player sat on "Awaiting a ruling." until their own
- * three-minute timeout gave up. The action was spent and the roll was thrown,
- * so what they lost was real, and neither side had any way back to it (B-F5-1).
- *
- * The asking client is the one that survives all this, so it is the one that
- * repeats itself: when a GM connects and this browser is still waiting, the
- * original request goes out again with the SAME request id, so the answer
- * lands in the promise that is already waiting for it. Three minutes is long
- * enough for a browser to restart, which is what makes repeating the question
- * a real repair rather than a nicety.
- *
- * Once per request, and only while it is still outstanding: an answered
- * request is gone from this map, so nothing can ask a GM the same question
- * twice over.
- */
-function resendPendingRulings() {
-    for (const entry of pendingRulings.values()) {
-        if (entry.resent || !entry.payload) continue;
-        entry.resent = true;
-        emitToGms(entry.payload);
-        debug(`Re-sent a ruling request after a GM reconnected: ${entry.payload.action}`);
-    }
-}
-
-/** A GM has finished loading and can answer questions again. */
 function onGmReady(payload, senderId) {
     if (payload?.action !== ACTION_GM_READY) return;
     if (!game.users.get(senderId)?.isGM) return;
@@ -136,47 +104,9 @@ function onGmReady(payload, senderId) {
     // again, and the primary was answering the same request twice. When the
     // primary role has moved to the newcomer, the newcomer IS the primary.
     if (senderId !== primaryGmId()) return;
-    resendPendingRulings();
+    resendOnGmReady();
     // And the Level Ups: a primary that has just arrived is the one holding them.
     askForOffers();
-}
-
-/**
- * A player's request goes to the GMs, and to nobody else.
- *
- * Every request in this file used to be emitted with no `recipients`, so
- * Foundry relayed it to every connected client. A player's client dropped it
- * at `onSocket` - but the packet had already arrived, and a console listener
- * on any player's browser printed, in clear, who parked a direct murder and in
- * which room, who was stealing what from whom, which project was being
- * sabotaged, every crisis total and every Hope Call note. The replies were
- * addressed all along (`recipients: [asker]`); the questions were not.
- *
- * Addressed to the GMs who are connected. `hasGm()` runs before every request
- * but two - `askForOffers`, which asks only for what is there, and
- * `sendDespairToPrimary`, whose caller has checked - so the list is empty only
- * when a GM drops between the check and the emit, and the broadcast fallback is
- * for that moment, where a packet to nobody would otherwise be silently lost.
- */
-function emitToGms(payload) {
-    const recipients = activeGmIds();
-    if (recipients.length) game.socket.emit(SOCKET_EVENT, payload, { recipients });
-    else game.socket.emit(SOCKET_EVENT, payload);
-}
-
-/** Remember a request, and how to ask it again. */
-function awaitRuling(requestId, resolve, payload) {
-    pendingRulings.set(requestId, { resolve, payload, resent: false });
-    emitToGms(payload);
-}
-
-/** Hand an arrived answer to whoever is waiting for it. */
-function settleRuling(requestId, value) {
-    const entry = pendingRulings.get(requestId);
-    if (!entry) return false;
-    pendingRulings.delete(requestId);
-    entry.resolve(value);
-    return true;
 }
 
 export function registerGmBridge() {
@@ -204,21 +134,8 @@ export function registerGmBridge() {
         });
     }
     game.socket.on(SOCKET_EVENT, onSocket);
-    // The answer travels back to the asking player, who is not a GM - so this
-    // listener has to sit outside the `isPrimaryGm` gate in `onSocket`.
-    game.socket.on(SOCKET_EVENT, onRulingResult);
-    // Same reason as above: the acknowledgement travels back to a player.
-    game.socket.on(SOCKET_EVENT, onAck);
-    // Same reason again: the real sabotage result travels back to a player.
-    game.socket.on(SOCKET_EVENT, onSabotageResult);
-    // And a Support paid for on the GM's side: what it cost, once it is armed.
-    game.socket.on(SOCKET_EVENT, onArmResult);
-    // And again: the chosen Observe target travels back to the observer.
-    game.socket.on(SOCKET_EVENT, onObserveTargetResult);
-    game.socket.on(SOCKET_EVENT, onHopeCallResult);
-    game.socket.on(SOCKET_EVENT, onRefused);
-    // And again: a killer's own cleanable-trace list travels back to them.
-    game.socket.on(SOCKET_EVENT, onCleanupTracesResult);
+    // The answers to this client's own requests - "got it", done, refused - come
+    // back through the one listener `registerBridgeReplies` puts up (module.mjs).
     // The one request that travels the other way - GM to player - so it cannot
     // sit behind the `isPrimaryGm` gate in `onSocket` either.
     game.socket.on(SOCKET_EVENT, onOpeningAsk);
@@ -293,147 +210,9 @@ export function cancelOpeningRoll({ userId }) {
 
 /** Send a thrown opening roll to the GM, who owns Stage 4's state. */
 export function requestOpeningResult({ actorId, side, total, isCritical, withHope }) {
-    if (game.user.isGM) {
-        return import("./murder.mjs")
-            .then(m => m.resolveOpening({ actorId, side, total, isCritical, withHope }));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms({
-        action: ACTION_OPENING_RESULT,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_OPENING_RESULT),
-        actorId, side, total, isCritical, withHope
+    return ask(ACTION_OPENING_RESULT, { actorId, side, total, isCritical, withHope }, {
+        local: () => import("./murder.mjs").then(m => m.resolveOpening({ actorId, side, total, isCritical, withHope }))
     });
-    return { pending: true };
-}
-
-/* ==========================================================================
- * ACKNOWLEDGEMENTS
- * --------------------------------------------------------------------------
- * Most of these requests are fire-and-forget: emit, return `{pending:true}`,
- * hope. `hasGm()` only proves a GM was connected at the moment of asking, so a
- * GM who dropped a second later took the request with them and the player was
- * never told - a sabotage, a project, a Remnant simply never happened.
- *
- * So every request now carries an id, and the receiving GM says "got it". No
- * answer inside the window means nobody is listening, and the player finds out
- * rather than waiting for something that is not coming.
- * ========================================================================== */
-
-const awaitingAck = new Map();
-const ACK_TIMEOUT_MS = TIMING.ackMs;
-
-/** Watch for a "got it" and complain if none arrives. Returns the request id. */
-function expectAck(action) {
-    const requestId = foundry.utils.randomID();
-    const timer = setTimeout(() => {
-        if (!awaitingAck.has(requestId)) return;
-        awaitingAck.delete(requestId);
-        ui.notifications.warn(game.i18n.format("DRPG.Bridge.noAnswer", { what: requestLabel(action) }));
-        warn(`No GM acknowledged "${action}" within ${ACK_TIMEOUT_MS}ms.`);
-    }, ACK_TIMEOUT_MS);
-    awaitingAck.set(requestId, timer);
-    return requestId;
-}
-
-/**
- * Is this reply addressed to me, and did a GM actually send it?
- *
- * The four listeners below all run on a PLAYER's client, waiting for an answer.
- * They used to check only the address. A reply is an authority - "the GM ruled
- * 15", "the GM picked this Remnant", "the freeze took" - so a player able to
- * forge one could hand another player any answer they liked, including resolving
- * a promise that was waiting for a real ruling.
- */
-function replyForMe(payload, senderId) {
-    if (payload.userId !== game.user.id) return false;
-    return Boolean(game.users.get(senderId)?.isGM);
-}
-
-function onAck(payload, senderId) {
-    if (payload?.action !== ACTION_ACK) return;
-    if (!replyForMe(payload, senderId)) return;
-    const timer = awaitingAck.get(payload.requestId);
-    if (timer === undefined) return;
-    clearTimeout(timer);
-    awaitingAck.delete(payload.requestId);
-    debug(`Bridge request ${payload.requestId} acknowledged.`);
-}
-
-function onRulingResult(payload, senderId) {
-    if (payload?.action !== ACTION_DIFFICULTY_RESULT) return;
-    if (!replyForMe(payload, senderId)) return;
-
-    // `false` is the GM saying no; `null` is nobody saying anything.
-    settleRuling(payload.requestId, payload.ruling === false ? false : (payload.ruling ?? null));
-}
-
-/** The GM has answered a Call that needed their say-so. */
-function onHopeCallResult(payload, senderId) {
-    if (payload?.action !== ACTION_HOPE_CALL_RESULT) return;
-    if (!replyForMe(payload, senderId)) return;
-
-    settleRuling(payload.requestId, payload.verdict ?? null);
-}
-
-/** The GM has settled which Remnant this Observe is aimed at. */
-function onObserveTargetResult(payload, senderId) {
-    if (payload?.action !== ACTION_OBSERVE_TARGET_RESULT) return;
-    if (!replyForMe(payload, senderId)) return;
-
-    settleRuling(payload.requestId, payload.result ?? null);
-}
-
-/** The GM has computed which of a killer's traces their own client may act on. */
-function onCleanupTracesResult(payload, senderId) {
-    if (payload?.action !== ACTION_CLEANUP_TRACES_RESULT) return;
-    if (!replyForMe(payload, senderId)) return;
-
-    settleRuling(payload.requestId, payload.result ?? []);
-}
-
-/**
- * The real freeze-and-repair result, once the GM's client has actually written
- * it - not just acknowledged the request. `sabotageProject` used to return
- * `{pending: true}` to a player immediately after the socket emit and call that
- * good enough: the roll reported the target frozen and a repair project created
- * before either had actually happened. A player who then tried Work on Project
- * on the same target - which is exactly the "did the freeze take" question a
- * bug report would test first - could land inside that window and find it not
- * frozen yet. Waiting for this reply closes it: the action does not tell the
- * player "frozen now" until it is.
- */
-function onSabotageResult(payload, senderId) {
-    if (payload?.action !== ACTION_SABOTAGE_RESULT) return;
-    if (!replyForMe(payload, senderId)) return;
-
-    settleRuling(payload.requestId, payload.result ?? null);
-}
-
-/** A Call armed on somebody else's character, paid for on the GM's side (E03). */
-function onArmResult(payload, senderId) {
-    if (payload?.action !== ACTION_ARM_RESULT) return;
-    if (!replyForMe(payload, senderId)) return;
-
-    settleRuling(payload.requestId, payload.result ?? null);
-}
-
-/** The GM's client refused a request this client sent: what, and why, in this client's language (E31). */
-function onRefused(payload, senderId) {
-    if (payload?.action !== ACTION_REFUSED) return;
-    if (!replyForMe(payload, senderId)) return;
-    sayNotDone(payload.what, payload.reason);
-    /* AND WHOEVER IS WAITING ON THE ANSWER STOPS WAITING (E03). A refused
-       request that was awaited - a sabotage, a Support Call - used to sit on
-       its promise until the three-minute ruling clock gave up, with the toast
-       above already on the screen. It settles as "nothing was done" now,
-       which is what every awaiting caller already reads a null as. */
-    if (payload.requestId) {
-        clearTimeout(awaitingAck.get(payload.requestId));
-        awaitingAck.delete(payload.requestId);
-        settleRuling(payload.requestId, null);
-    }
 }
 
 /*
@@ -602,14 +381,7 @@ export async function sendOffersTo(userId) {
 
 /** A GM other than the primary: have the primary record or withdraw an offer. */
 export function requestOfferRecord(actorId, kind) {
-    // The caller is a GM, so a GM is connected - asked anyway, as every request is
-    // (R6): one rule for every road out of this file.
-    if (!hasGm()) return null;
-    emitToGms({
-        action: ACTION_ADVANCEMENT_OFFER, userId: game.user.id,
-        requestId: expectAck(ACTION_ADVANCEMENT_OFFER), actorId, kind
-    });
-    return { pending: true };
+    return ask(ACTION_ADVANCEMENT_OFFER, { actorId, kind });
 }
 
 /** An owner's browser: take the set the primary sent. Outside the primary gate. */
@@ -621,10 +393,15 @@ function onAdvancementOffers(payload, senderId) {
         .catch(err => error("Could not keep the Level Ups offered to you", err));
 }
 
-/** An owner's browser: ask the primary for this user's offers. */
+/**
+ * An owner's browser: ask the primary for this user's offers. A background
+ * question nobody waits on (the answer is a packet of its own), so it is quiet,
+ * and with no GM connected it is not sent - it used to be broadcast to every
+ * client then.
+ */
 function askForOffers() {
     if (game.user.isGM) return;
-    emitToGms({ action: ACTION_ADVANCEMENT_ASK, userId: game.user.id });
+    void ask(ACTION_ADVANCEMENT_ASK, {});
 }
 
     // Handing something to another character writes to a sheet the sender does
@@ -1100,7 +877,7 @@ async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
     const call = HOPE_CALLS[payload.call.key];
 
     // The same purchase asked twice - a GM who came back and was asked again
-    // (`resendPendingRulings`) after arming it - is answered, not charged again.
+    // (`resendOnGmReady`) after arming it - is answered, not charged again.
     // Not a guard, and asked before the three below: it answers "armed" rather
     // than refusing, and a purchase already paid for can fail the Hope check it
     // passed the first time.
@@ -1163,9 +940,6 @@ async function handleEclipseMove(payload, sender, ctx) {
  * table, R163 the fields each run reads, and 33-bridge-paths drives the legal
  * roads through it.
  *
- * Until the player's side waits in one place (E31's next step), an awaited
- * request is still answered with the packet it has always listened for
- * (`replyAs`).
  *
  * `project.create` USED TO BE IN THE TABLE, and it is gone rather than mended.
  * Nothing sent it: a project is created by the GM, from the panel or from an
@@ -1183,16 +957,14 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ actorId: as.id, declaration: as.raw, request: as.text }),
         run: handleObserveTarget,
         answer: "reply", patient: true, resend: true,
-        claims: { declaration: "compared to DECLARATIONS by chooseObserveTarget (observe.mjs); an unknown one is answered with a reason, never used" },
-        replyAs: { action: ACTION_OBSERVE_TARGET_RESULT, field: "result" }
+        claims: { declaration: "compared to DECLARATIONS by chooseObserveTarget (observe.mjs); an unknown one is answered with a reason, never used" }
     },
     [ACTION_CLEANUP_TRACES]: {
         label: "DRPG.Bridge.what.cleanup.traces",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, mine: as.bool }),
         run: handleCleanupTraces,
-        answer: "reply", resend: true,
-        replyAs: { action: ACTION_CLEANUP_TRACES_RESULT, field: "result" }
+        answer: "reply", resend: true
     },
     [ACTION_OBSERVE_RESOLVE]: {
         label: "DRPG.Bridge.what.observe.resolve",
@@ -1411,7 +1183,8 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, ownsActorAt(payload => payload?.data?.sourceActor, "sender does not own the character leaving it", ["data"])],
         sanitize: pick({ data: as.raw }),
         run: handleRemnant,
-        answer: "ack",
+        // Answered once placed (E31): the item a planted trace stands for leaves the sheet only then.
+        answer: "reply",
         claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs); a GM's is placed as written" }
     },
     [ACTION_TIE_TRACE]: {
@@ -1460,8 +1233,7 @@ export const BRIDGE_ACTIONS = table({
         ],
         sanitize: pick({ targetId: as.id, difficulty: as.num }),
         run: handleSabotage,
-        answer: "reply", resend: true, queue: "project",
-        replyAs: { action: ACTION_SABOTAGE_RESULT, field: "result" }
+        answer: "reply", resend: true, queue: "project"
     },
     [ACTION_UNSABOTAGE]: {
         label: "DRPG.Bridge.what.project.unsabotage",
@@ -1537,8 +1309,7 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ actorId: as.id, call: as.raw }),
         run: handleArm,
         answer: "reply", resend: true,
-        claims: { actorId: guardArmCharacter, call: guardArmPlayerCall },
-        replyAs: { action: ACTION_ARM_RESULT, field: "result" }
+        claims: { actorId: guardArmCharacter, call: guardArmPlayerCall }
     },
     [ACTION_DESPAIR]: {
         label: "DRPG.Bridge.what.despair.adjust",
@@ -1590,6 +1361,32 @@ function onSocket(payload, senderId) {
     return isPrimaryGm() && game.user ? judge(BRIDGE_ACTIONS, payload, senderId) : null;
 }
 
+/* ==========================================================================
+ * ASKING THE GM (E31, 25.09.2026; audit S17-09)
+ * --------------------------------------------------------------------------
+ * Every request below goes through `ask`, which reads how to wait off the
+ * action's declaration in BRIDGE_ACTIONS - its `answer`, whether it is
+ * `patient`, whether it is asked again when a GM's world has loaded, how long
+ * its clock runs - and hands it to `bridgeRequest` (bridge-guards.mjs), the one
+ * wait. Each answers the bridge's result, `{ ok, pending?, value?, refused?,
+ * reason? }`, which is truthy whatever it says: so it is read in the function
+ * that asked for it, and does not leave it (the lint rule drpg/bridge-result,
+ * eslint.config.mjs). A failure has been told to the player once, in their
+ * language, by the time the result arrives; a caller says only what follows
+ * from it. A GM does the work on its own client (`local`), as each request
+ * did, and a request with no GM connected is refused before anything is sent.
+ * ========================================================================== */
+
+/** Ask for `action` as its declaration says; `opts` adds what only the caller knows (local, quiet, nothingSpent, a clock). */
+function ask(action, payload, opts = {}) {
+    const decl = BRIDGE_ACTIONS[action];
+    return bridgeRequest(action, payload, {
+        settle: decl.answer, patient: Boolean(decl.patient), resend: Boolean(decl.resend), quiet: Boolean(decl.quiet),
+        ...(decl.timeoutMs ? { timeoutMs: decl.timeoutMs } : {}),
+        ...opts
+    });
+}
+
 /**
  * Take something off a body.
  *
@@ -1599,17 +1396,10 @@ function onSocket(payload, senderId) {
  * own. ONE request rather than three, because three would have intermediate
  * states in which the knife has left the body and arrived nowhere.
  */
-export async function requestBodyLoot({ takerId, bodyId, itemId }) {
-    if (game.user.isGM) {
-        const { lootBody } = await import("./handover.mjs");
-        return lootBody({ takerId, bodyId, itemId });
-    }
-    if (!hasGm()) return null;
-    emitToGms( {
-        action: ACTION_LOOT, userId: game.user.id,
-        requestId: expectAck(ACTION_LOOT), takerId, bodyId, itemId
+export function requestBodyLoot({ takerId, bodyId, itemId }) {
+    return ask(ACTION_LOOT, { takerId, bodyId, itemId }, {
+        local: () => import("./handover.mjs").then(m => m.lootBody({ takerId, bodyId, itemId }))
     });
-    return true;
 }
 
 /**
@@ -1618,47 +1408,23 @@ export async function requestBodyLoot({ takerId, bodyId, itemId }) {
  * Support gives another player advantage. Flags live on the beneficiary's actor,
  * which the buyer has no write access to - hence "Player A lacks permission".
  * The GM owns everything, so they set it.
+ *
+ * AWAITED, LIKE A SABOTAGE (E03). The GM takes the Hope for a Support on
+ * somebody else's character, and may refuse it - no Hope, a Silence, a GM who
+ * sees the world differently - so "sent" is not "armed". The answer's `value`
+ * is the GM's `{ ok, left }`; a GM arming it on its own client answers `true`,
+ * or null for a character that is not there.
  */
-export async function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs) {
-    if (game.user.isGM) {
-        const actor = game.actors.get(actorId);
-        if (!actor) return null;
-        const { appendArmedCall } = await import("./call-effects.mjs");
-        await appendArmedCall(actor, call);
-        return true;
-    }
-    if (!hasGm()) return null;
-
-    /*
-     * AWAITED NOW, LIKE A SABOTAGE (E03). The GM takes the Hope for a Support on
-     * somebody else's character, and may refuse it - no Hope, a Silence, a GM
-     * who sees the world differently - so "sent" is no longer "armed". This
-     * resolves with the GM's `{ ok, left }`, or null when it was refused
-     * (`onRefused` settles it at once) or nobody answered.
-     */
-    const requestId = foundry.utils.randomID();
-    return new Promise(resolve => {
-        awaitRuling(requestId, resolve, { action: ACTION_ARM, userId: game.user.id, requestId, actorId, call });
-        // The two clocks of `requestSabotage` (COMM-17): the ack says it arrived,
-        // the answer may take longer.
-        const giveUp = () => {
-            if (!pendingRulings.has(requestId)) return;
-            pendingRulings.delete(requestId);
-            ui.notifications.warn(game.i18n.format("DRPG.Bridge.noAnswer", { what: requestLabel(ACTION_ARM) }));
-            resolve(null);
-        };
-        const ack = setTimeout(() => {
-            if (!awaitingAck.has(requestId)) return;
-            awaitingAck.delete(requestId);
-            giveUp();
-        }, ACK_TIMEOUT_MS);
-        awaitingAck.set(requestId, ack);
-        setTimeout(() => {
-            if (!pendingRulings.has(requestId)) return;
-            pendingRulings.delete(requestId);
-            ui.notifications.warn(game.i18n.format("DRPG.Bridge.noAnswer", { what: requestLabel(ACTION_ARM) }));
-            resolve(null);
-        }, timeoutMs);
+export function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs) {
+    return ask(ACTION_ARM, { actorId, call }, {
+        timeoutMs,
+        local: async () => {
+            const actor = game.actors.get(actorId);
+            if (!actor) return null;
+            const { appendArmedCall } = await import("./call-effects.mjs");
+            await appendArmedCall(actor, call);
+            return true;
+        }
     });
 }
 
@@ -1667,28 +1433,20 @@ export async function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs)
  *
  * `userId` is the sender, `targetUserId` the Monokuma being adjusted. They used
  * to be the same field, which is how the GM side had no way of telling who was
- * asking from whose pool was moving.
+ * asking from whose pool was moving. `actorId` is the rerolling character: the
+ * GM pays a player's point from the receipt of that character's Reroll (E03).
  */
-export async function requestDespairAdjust(targetUserId, delta, { actorId = null } = {}) {
-    if (game.user.isGM) {
-        const { adjustDespair } = await import("./despair.mjs");
-        return adjustDespair(targetUserId, delta);
-    }
-    if (!hasGm()) return null;
-    // `actorId` is the rerolling character: the GM pays a player's point from
-    // the receipt of that character's Reroll (E03).
-    emitToGms( {
-        action: ACTION_DESPAIR, userId: game.user.id,
-        requestId: expectAck(ACTION_DESPAIR), targetUserId, delta, actorId
+export function requestDespairAdjust(targetUserId, delta, { actorId = null } = {}) {
+    return ask(ACTION_DESPAIR, { targetUserId, delta, actorId }, {
+        local: () => import("./despair.mjs").then(m => m.adjustDespair(targetUserId, delta))
     });
-    return { pending: true };
 }
 
 /**
  * An assistant GM's Despair change, sent to the primary to write (DESP-12).
  *
- * NOT `requestDespairAdjust`, whose first line hands any GM caller straight back
- * to `adjustDespair` - which, on an assistant, would route here again for ever.
+ * NOT `requestDespairAdjust`, whose GM road hands the change straight back to
+ * `adjustDespair` - which, on an assistant, would route here again for ever.
  * 1.2.47 wired the receiving half (`handleDespair` admits a GM sender at any size)
  * and reached for the sending half through `hasGm`, which this file never
  * exported: the import came back undefined, the call threw, `adjustDespair`'s
@@ -1696,14 +1454,10 @@ export async function requestDespairAdjust(targetUserId, delta, { actorId = null
  * clients each writing the whole pools object from their own cache - stayed open.
  *
  * The caller has already checked that the primary is online and is somebody else.
- * The dispatcher runs handlers on the primary GM only, so there is one writer.
+ * The runner judges on the primary GM only, so there is one writer.
  */
 export function sendDespairToPrimary(targetUserId, delta) {
-    emitToGms({
-        action: ACTION_DESPAIR, userId: game.user.id,
-        requestId: expectAck(ACTION_DESPAIR), targetUserId, delta
-    });
-    return { pending: true };
+    return ask(ACTION_DESPAIR, { targetUserId, delta });
 }
 
 /**
@@ -1716,96 +1470,60 @@ export function sendDespairToPrimary(targetUserId, delta) {
  * whenever the GM's client got around to it. A player who then tried to keep
  * working the same project immediately afterwards could land inside that gap
  * and find it not frozen yet, and the "repair created" text was reading a
- * repair object that did not exist yet either. This resolves once the GM's
- * client answers with what it actually wrote - the same pattern already used
- * for a Dynamic ruling - so the roll does not call itself done until it is.
+ * repair object that did not exist yet either. This answers once the GM's
+ * client says what it actually wrote (`value`), so the roll does not call
+ * itself done until it is. Two clocks (COMM-17): the "got it" says the request
+ * arrived, and the answer - two world writes and a repair project - may take
+ * longer than that on a slow client.
  */
 export function requestSabotage(targetId, difficulty, timeoutMs = TIMING.rulingMs) {
-    if (!hasGm()) return Promise.resolve(null);
-
-    const requestId = foundry.utils.randomID();
-    return new Promise(resolve => {
-        awaitRuling(requestId, resolve, {
-            action: ACTION_SABOTAGE, userId: game.user.id, requestId, targetId, difficulty
-        });
-
-        // Two clocks (COMM-17). The ack says the request ARRIVED, and eight
-        // seconds without one means no GM is listening. The result - two world
-        // writes and a repair project on the GM's client - may take longer than
-        // that on a slow client, and this used to give up on the result at the
-        // ack's deadline: the player was told nothing was applied, and then the
-        // freeze landed anyway.
-        const giveUp = () => {
-            if (!pendingRulings.has(requestId)) return;
-            pendingRulings.delete(requestId);
-            ui.notifications.warn(game.i18n.format("DRPG.Bridge.noAnswer", { what: requestLabel(ACTION_SABOTAGE) }));
-            resolve(null);
-        };
-        const ack = setTimeout(() => {
-            if (!awaitingAck.has(requestId)) return;
-            awaitingAck.delete(requestId);
-            giveUp();
-        }, ACK_TIMEOUT_MS);
-        awaitingAck.set(requestId, ack);
-        setTimeout(() => {
-            if (!pendingRulings.has(requestId)) return;
-            pendingRulings.delete(requestId);
-            ui.notifications.warn(game.i18n.format("DRPG.Bridge.noAnswer", { what: requestLabel(ACTION_SABOTAGE) }));
-            resolve(null);
-        }, timeoutMs);
-    });
+    return ask(ACTION_SABOTAGE, { targetId, difficulty }, { timeoutMs });
 }
 
 /**
- * Taking a sabotage back writes the same two settings. This one stays
- * fire-and-forget: it is only ever called by Reroll, after the Call has
- * already been paid for and the new roll is about to replace the old effect,
- * so there is nothing left for the player to race against.
+ * Taking a sabotage back writes the same two settings. It is only ever called by
+ * Reroll, after the Call has already been paid for and the new roll is about to
+ * replace the old effect, so the player has nothing to race against and the
+ * "got it" is all it waits for.
  */
 export function requestUndoSabotage(targetId, repairId, actorId = null) {
-    if (!hasGm()) return null;
-    emitToGms( { action: ACTION_UNSABOTAGE, userId: game.user.id, requestId: expectAck(ACTION_UNSABOTAGE), targetId, repairId, actorId });
-    return { pending: true };
+    return ask(ACTION_UNSABOTAGE, { targetId, repairId, actorId });
 }
 
 /** A player whose token cannot be moved back asks the GM to do it. */
 export function requestSendBack(sceneId, tokenId, position) {
-    if (!hasGm()) return null;
-    emitToGms( { action: ACTION_SENDBACK, userId: game.user.id, requestId: expectAck(ACTION_SENDBACK), sceneId, tokenId, position });
-    return { pending: true };
+    return ask(ACTION_SENDBACK, { sceneId, tokenId, position });
 }
 
 /** Count an Eclipse crossing on the GM's copy of the world setting. */
 export function requestEclipseMove(actorId) {
-    if (!hasGm()) return null;
-    emitToGms( { action: ACTION_ECLIPSE_MOVE, userId: game.user.id, requestId: expectAck(ACTION_ECLIPSE_MOVE), actorId });
-    return { pending: true };
+    return ask(ACTION_ECLIPSE_MOVE, { actorId });
 }
 
 /**
  * The trace that handed over this object is evidence now.
  *
  * Asked by the killer's own client at the moment they swing, answered on the
- * GM's, because the answer key is theirs. Nothing comes back: a trace that
+ * GM's, because the answer key is theirs. Nothing waits on it: a trace that
  * cannot be re-labelled must not stop a murder that is already happening, and
- * the GM can tick the box by hand in the case dashboard.
+ * the GM can tick the box by hand in the case dashboard. It carries a request
+ * id since E31, like every request, so a refusal reaches the killer. No
+ * identity is a caller's mistake, not the player's, and is said to nobody.
  */
 export function requestTieTrace(identity) {
-    if (!identity) return null;
-    if (game.user.isGM) {
-        return import("./remnants.mjs").then(m => m.tieTraceForItem(identity));
-    }
-    if (!hasGm()) return null;
-    emitToGms(
-        { action: ACTION_TIE_TRACE, userId: game.user.id, identity });
-    return { pending: true };
+    if (!identity) return Promise.resolve({ ok: false, reason: "badRequest" });
+    return ask(ACTION_TIE_TRACE, { identity }, {
+        local: () => import("./remnants.mjs").then(m => m.tieTraceForItem(identity))
+    });
 }
 
-/** Creating tokens is GM-only, so a player's Remnant is placed for them. */
+/**
+ * Creating tokens is GM-only, so a player's Remnant is placed for them. Answered
+ * when it is placed (E31), not when it arrived: the item a planted trace stands
+ * for is taken off the sheet only then, and "trace left" is said only then.
+ */
 export function requestRemnant(data) {
-    if (!hasGm()) return null;
-    emitToGms( { action: ACTION_REMNANT, userId: game.user.id, requestId: expectAck(ACTION_REMNANT), data });
-    return { pending: true };
+    return ask(ACTION_REMNANT, { data });
 }
 
 /**
@@ -1814,48 +1532,9 @@ export function requestRemnant(data) {
  * Editing tokens is GM-only, same as creating them.
  */
 export function requestRemnantEdit(sceneId, tokenId, patch) {
-    if (!hasGm()) return null;
-    emitToGms( { action: ACTION_REMNANT_EDIT, userId: game.user.id, requestId: expectAck(ACTION_REMNANT_EDIT), sceneId, tokenId, patch });
-    return { pending: true };
+    return ask(ACTION_REMNANT_EDIT, { sceneId, tokenId, patch });
 }
 
-/**
- * The refusal: `gmOnline()` plus the toast that says why nothing happened.
- * Every request in this file goes through it, and a request with no GM to
- * answer it IS a refusal, which is what a toast is for (E1). Anything that
- * only wants to know - a tile deciding whether to dim - asks `gmOnline()`.
- */
-function hasGm() {
-    if (gmOnline()) return true;
-    ui.notifications.warn(game.i18n.localize("DRPG.Bridge.noGm"));
-    return false;
-}
-
-/**
- * Ask a GM how hard a described action is.
- *
- * The guide gives the threshold to the GM: "the player describes something, the
- * GM picks a threshold". The picker used to render on the player's own client,
- * so the person being tested chose their own difficulty - and would always
- * choose the easiest band. The dialog now opens on the GM's screen and the
- * answer comes back over the socket.
- *
- * Generous timeout on purpose: a GM reading a description and making a ruling is
- * a human taking their time, not a machine failing to answer.
- *
- * @returns {Promise<{tier: number, trait: string}|null>} null if refused or unanswered.
- */
-/**
- * "May I spend this, and here is what for." Waits for a human (Dawid, 29.08).
- *
- * The same shape as `requestDynamicDifficulty` below, and for the same reason:
- * a question only a person can answer, so the timeout is generous and a silence
- * is a refusal rather than an error. Nothing is charged on this side - see
- * `spendHopeCall`, which pays only against a yes.
- *
- * @returns {Promise<boolean|null>} true to allow, false to refuse, null if
- *   nobody answered.
- */
 /*
  * A RULING THAT NEEDS A HUMAN IS A CARD, LIKE EVERY OTHER RULING (COMM-04).
  *
@@ -1865,10 +1544,11 @@ function hasGm() {
  * existed. If that dialog sat behind a sheet the player waited out the whole
  * timeout looking at nothing. Now both are `callGm` cards in the player's
  * thread with the answers on them - any GM may press either - and the answer
- * travels back over the same result packet the dialog used to send.
+ * travels back as the request's `bridge.done` (`answerHopeCall`,
+ * `answerDynamic`).
  *
- * `askedByCard` is the dedupe: a player's client re-sends an unanswered
- * request when a GM's world finishes loading, and the card is already up.
+ * `askedByCard` is the dedupe: a player's client asks again for an unanswered
+ * ruling when a GM's world finishes loading, and the card is already up.
  */
 const askedByCard = new Set();
 
@@ -1923,11 +1603,15 @@ async function askDynamicByCard(payload, ctx) {
     return posted === false ? { refused: "the ruling card could not be posted" } : { later: true };
 }
 
-/** A GM's answer to a Hope Call card, sent to the player who asked. */
+/**
+ * A GM's answer to a Hope Call card, sent to the player who asked: the request's
+ * `bridge.done`, `true` to allow and `false` to refuse. Returns true once sent,
+ * as it always did (40-flow reads it).
+ */
 export function answerHopeCall(requestId, asker, verdict) {
     if (!game.user.isGM || !requestId || !asker) return false;
     game.socket.emit(SOCKET_EVENT, {
-        action: ACTION_HOPE_CALL_RESULT, requestId, userId: asker, verdict: Boolean(verdict)
+        action: ACTION_DONE, requestId, userId: asker, value: Boolean(verdict)
     }, { recipients: [asker] });
     return true;
 }
@@ -1936,92 +1620,71 @@ export function answerHopeCall(requestId, asker, verdict) {
 export function answerDynamic(requestId, asker, ruling) {
     if (!game.user.isGM || !requestId || !asker) return false;
     game.socket.emit(SOCKET_EVENT, {
-        action: ACTION_DIFFICULTY_RESULT, requestId, userId: asker, ruling: ruling ?? false
+        action: ACTION_DONE, requestId, userId: asker, value: ruling ?? false
     }, { recipients: [asker] });
     return true;
 }
 
+/**
+ * "May I spend this, and here is what for." Waits for a human (Dawid, 29.08).
+ *
+ * The same shape as `requestDynamicDifficulty` below, and for the same reason:
+ * a question only a person can answer, so the clock is generous, there is no
+ * clock for the "got it" (`patient`), and the question is asked again when a
+ * GM's world has loaded. Nothing is charged on this side - see `spendHopeCall`,
+ * which pays only against a yes - so a failure says "Nothing was spent."
+ *
+ * @returns {Promise<object>} the bridge's result; `value` true to allow, false to refuse.
+ */
 export function requestHopeCallApproval(
     { actorId, actorName, key, callLabel, effect, cost, note }, timeoutMs = TIMING.hopeCallRulingMs) {
-    if (!hasGm()) return Promise.resolve(null);
-
-    const requestId = foundry.utils.randomID();
-    return new Promise(resolve => {
-        awaitRuling(requestId, resolve, {
-            action: ACTION_HOPE_CALL,
-            requestId,
-            userId: game.user.id,
-            actorId, actorName, key, callLabel, effect, cost, note
-        });
-
-        setTimeout(() => {
-            if (!pendingRulings.has(requestId)) return;
-            pendingRulings.delete(requestId);
-            // No toast here: `spendHopeCall` reports a null with the Call's name.
-            resolve(null);
-        }, timeoutMs);
-    });
+    return ask(ACTION_HOPE_CALL, { actorId, actorName, key, callLabel, effect, cost, note }, { timeoutMs, nothingSpent: true });
 }
 
+/**
+ * Ask a GM how hard a described action is.
+ *
+ * The guide gives the threshold to the GM: "the player describes something, the
+ * GM picks a threshold". The picker used to render on the player's own client,
+ * so the person being tested chose their own difficulty - and would always
+ * choose the easiest band. The card now goes to the GMs and the answer comes
+ * back over the socket.
+ *
+ * Generous clock on purpose: a GM reading a description and making a ruling is
+ * a human taking their time, not a machine failing to answer.
+ *
+ * @returns {Promise<object>} the bridge's result; `value` `{tier, trait}`, or false when the GM refused.
+ */
 export function requestDynamicDifficulty({ description, actorName, room, actorId = null }, timeoutMs = TIMING.rulingMs) {
-    if (!hasGm()) return Promise.resolve(null);
-
-    const requestId = foundry.utils.randomID();
-    return new Promise(resolve => {
-        awaitRuling(requestId, resolve, {
-            action: ACTION_DIFFICULTY,
-            requestId,
-            userId: game.user.id,
-            description, actorName, room, actorId
-        });
-
-        setTimeout(() => {
-            if (!pendingRulings.has(requestId)) return;
-            pendingRulings.delete(requestId);
-            ui.notifications.warn(game.i18n.localize("DRPG.Action.dynamicNoRuling"));
-            resolve(null);
-        }, timeoutMs);
-    });
+    return ask(ACTION_DIFFICULTY, { description, actorName, room, actorId }, { timeoutMs, nothingSpent: true });
 }
 
 /**
  * Ask a GM which Remnant this Observe is aimed at, before the dice are thrown.
  *
- * A GM runs this locally instead of talking to themselves - the same shape as
- * `requestProjectCreate`. Everyone else waits on the socket.
+ * A GM runs this locally instead of talking to themselves. Everyone else waits
+ * on the socket, as patiently as for the Dynamic ruling, since a "specific"
+ * declaration opens a picker a human has to read.
  *
- * The reply says only whether there is something to look at. The Remnant, its
+ * The answer says only whether there is something to look at. The Remnant, its
  * kind and its difficulty stay on the GM's client: the observer is told what
  * they found, never what they were up against.
  *
- * Timeout matches the Dynamic ruling, since a "specific" declaration opens a
- * picker a human has to read.
+ * ONE OF THE TWO REQUESTS THAT ANSWER THEIR VALUE, NOT THE BRIDGE'S RESULT
+ * (E31), with `requestCleanableTraces`: the GM's `{ ok, key?, reason? }`, or
+ * null when the request was not carried out, which has been said once already
+ * with "Nothing was spent.". Its callers and 30-security read `.ok` and `.key`
+ * off it, and the GM's own `ok: false` (an empty room, a declaration it does not
+ * know) is a ruling, told apart from null.
  *
  * @returns {Promise<{ok: boolean, key?: string, reason?: string}|null>}
  */
-export function requestObserveTarget({ actorId, declaration, request = "" }, timeoutMs = TIMING.rulingMs) {
-    if (game.user.isGM) {
-        return import("./observe.mjs")
-            .then(m => m.chooseObserveTarget({ actorId, declaration, request }));
-    }
-    if (!hasGm()) return Promise.resolve(null);
-
-    const requestId = foundry.utils.randomID();
-    return new Promise(resolve => {
-        awaitRuling(requestId, resolve, {
-            action: ACTION_OBSERVE_TARGET,
-            requestId,
-            userId: game.user.id,
-            actorId, declaration, request
-        });
-
-        setTimeout(() => {
-            if (!pendingRulings.has(requestId)) return;
-            pendingRulings.delete(requestId);
-            ui.notifications.warn(game.i18n.localize("DRPG.Observe.noRuling"));
-            resolve(null);
-        }, timeoutMs);
+export async function requestObserveTarget({ actorId, declaration, request = "" }, timeoutMs = TIMING.rulingMs) {
+    const res = await ask(ACTION_OBSERVE_TARGET, { actorId, declaration, request }, {
+        timeoutMs, nothingSpent: true,
+        local: () => import("./observe.mjs").then(m => m.chooseObserveTarget({ actorId, declaration, request }))
     });
+    return res.ok ? res.value ?? null : null;
 }
 
 /**
@@ -2031,81 +1694,53 @@ export function requestObserveTarget({ actorId, declaration, request = "" }, tim
  * A GM runs this locally instead of talking to themselves - the same shape as
  * `requestObserveTarget`. Everyone else waits on the socket.
  *
+ * THE ONE REQUEST THAT ANSWERS A LIST, NOT THE BRIDGE'S RESULT (E31). It writes
+ * nothing, and an empty list - nothing to act on - is the safe answer to every
+ * failure, which has been told once already; its three callers and
+ * 30-security read an array, and a null on a refusal used to crash one of them.
+ * `quiet` for a sheet that asks in the background.
+ *
  * @returns {Promise<Array<{id: string, label: string, reinforced: boolean}>>}
  *   Never DC, never `tiedToCrime` - see `cleanableTracesForPlayer` in
  *   cleanup.mjs, which is the only thing that ever builds this array.
  */
-export function requestCleanableTraces(actorId, { mine = false } = {}, timeoutMs = TIMING.rulingMs) {
-    if (game.user.isGM) {
-        return import("./cleanup.mjs").then(m => m.cleanableTracesForPlayer(actorId, { mine }));
-    }
-    if (!hasGm()) return Promise.resolve([]);
-
-    const requestId = foundry.utils.randomID();
-    return new Promise(resolve => {
-        awaitRuling(requestId, resolve, {
-            action: ACTION_CLEANUP_TRACES,
-            requestId,
-            userId: game.user.id,
-            // `mine` narrows the answer to what this character knows is there.
-            // `false` asks for the whole room, which is Stage 6's - and the GM's
-            // side decides whether this character is in Stage 6, not this
-            // flag (E03; audit S05-04). See `cleanableTracesForPlayer`.
-            actorId, mine
-        });
-
-        setTimeout(() => {
-            if (!pendingRulings.has(requestId)) return;
-            pendingRulings.delete(requestId);
-            ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.noRuling"));
-            resolve([]);
-        }, timeoutMs);
+export async function requestCleanableTraces(actorId, { mine = false, quiet = false } = {}, timeoutMs = TIMING.rulingMs) {
+    const res = await ask(ACTION_CLEANUP_TRACES, {
+        // `mine` narrows the answer to what this character knows is there.
+        // `false` asks for the whole room, which is Stage 6's - and the GM's
+        // side decides whether this character is in Stage 6, not this
+        // flag (E03; audit S05-04). See `cleanableTracesForPlayer`.
+        actorId, mine
+    }, {
+        timeoutMs, quiet,
+        local: () => import("./cleanup.mjs").then(m => m.cleanableTracesForPlayer(actorId, { mine }))
     });
+    return res.ok && Array.isArray(res.value) ? res.value : [];
 }
 
 /**
  * Hand a thrown Observe to the GM to be scored.
  *
- * Fire-and-forget by design: the answer is the whisper the player gets when the
- * GM's client has finished - a Truth Bullet on their sheet or 2 Sanity - so
- * there is nothing for a second reply to add.
+ * The answer is the whisper the player gets when the GM's client has finished -
+ * a Truth Bullet on their sheet or 2 Sanity - so the request waits only for the
+ * "got it", and a refusal after it is still told.
  */
 export function requestObserveResolve({ actorId, key, total, isCritical, undo = false }) {
-    if (game.user.isGM) {
-        return import("./observe.mjs")
-            .then(m => m.resolveObserve({ key, total, isCritical, undo, actorId }));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_OBSERVE_RESOLVE,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_OBSERVE_RESOLVE),
-        actorId, key, total, isCritical, undo
+    return ask(ACTION_OBSERVE_RESOLVE, { actorId, key, total, isCritical, undo }, {
+        local: () => import("./observe.mjs").then(m => m.resolveObserve({ key, total, isCritical, undo, actorId }))
     });
-    return { pending: true };
 }
 
 /**
  * Hand a thrown Analyze to the GM to be scored.
  *
- * Fire-and-forget like its Observe counterpart: the answer is the whisper the
- * player gets once the GM's client has converted the bullet or locked it.
+ * Like its Observe counterpart: the answer is the whisper the player gets once
+ * the GM's client has converted the bullet or locked it.
  */
 export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo = false }) {
-    if (game.user.isGM) {
-        return import("./analyze.mjs")
-            .then(m => m.resolveAnalyze({ actorId, itemId, total, isCritical, undo }));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_ANALYZE_RESOLVE,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_ANALYZE_RESOLVE),
-        actorId, itemId, total, isCritical, undo
+    return ask(ACTION_ANALYZE_RESOLVE, { actorId, itemId, total, isCritical, undo }, {
+        local: () => import("./analyze.mjs").then(m => m.resolveAnalyze({ actorId, itemId, total, isCritical, undo }))
     });
-    return { pending: true };
 }
 
 /**
@@ -2116,21 +1751,12 @@ export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo
  * picks; the GM's client checks the offer again and writes.
  */
 export function requestAdvancement({ actorId, picks, kind }) {
-    if (game.user.isGM) {
-        return import("./level-up.mjs").then(m => {
+    return ask(ACTION_ADVANCEMENT, { actorId, picks, kind }, {
+        local: () => import("./level-up.mjs").then(m => {
             const actor = game.actors.get(actorId);
             return actor ? m.applyAdvancement(actor, picks, kind) : null;
-        });
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_ADVANCEMENT,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_ADVANCEMENT),
-        actorId, picks, kind
+        })
     });
-    return { pending: true };
 }
 
 /**
@@ -2140,34 +1766,16 @@ export function requestAdvancement({ actorId, picks, kind }) {
  * travels with the copy can only be written on a GM's client anyway.
  */
 export function requestShareBullet({ fromId, toId, itemId }) {
-    if (game.user.isGM) {
-        return import("./handover.mjs").then(m => m.shareBullet({ fromId, toId, itemId }));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_SHARE_BULLET,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_SHARE_BULLET),
-        fromId, toId, itemId
+    return ask(ACTION_SHARE_BULLET, { fromId, toId, itemId }, {
+        local: () => import("./handover.mjs").then(m => m.shareBullet({ fromId, toId, itemId }))
     });
-    return { pending: true };
 }
 
 /** Move one of my items onto somebody else's sheet, and off mine. */
 export function requestGiveItem({ fromId, toId, itemId }) {
-    if (game.user.isGM) {
-        return import("./handover.mjs").then(m => m.giveItem({ fromId, toId, itemId }));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_GIVE_ITEM,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_GIVE_ITEM),
-        fromId, toId, itemId
+    return ask(ACTION_GIVE_ITEM, { fromId, toId, itemId }, {
+        local: () => import("./handover.mjs").then(m => m.giveItem({ fromId, toId, itemId }))
     });
-    return { pending: true };
 }
 
 /** Hand a thrown crisis action to the GM to be scored and applied. */
@@ -2188,21 +1796,11 @@ export function requestCrisisResult({
     // The weapon the roll was thrown with. Remembered GM-side for Stage 6.
     swungId = null
 }) {
-    if (game.user.isGM) {
-        return import("./murder.mjs")
-            .then(m => m.resolveCrisisAction({
-                actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId
-            }));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_CRISIS,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_CRISIS),
-        actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId
+    return ask(ACTION_CRISIS, { actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId }, {
+        local: () => import("./murder.mjs").then(m => m.resolveCrisisAction({
+            actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId
+        }))
     });
-    return { pending: true };
 }
 
 /** Hand a thrown Stage 6 clean-up to the GM to be scored against the trace. */
@@ -2231,8 +1829,11 @@ export function requestCleanup({
     // in the branch that reads its own threshold, which is the safe default.
     const aimed = key === "eraseTrace" || key === "transformTrace";
     const mode = key === "transformTrace" ? "transform" : "erase";
-    if (game.user.isGM) {
-        return import("./cleanup.mjs").then(m => aimed
+    return ask(ACTION_CLEANUP, {
+        actorId, tokenId, total, isCritical, withHope, undo, key, targetId, transform,
+        change, viaAction, price, grant
+    }, {
+        local: () => import("./cleanup.mjs").then(m => aimed
             ? m.resolveCleanup({
                 actorId, tokenId, total, isCritical, withHope, undo, transform,
                 mode, change, viaAction, price, grant
@@ -2240,18 +1841,15 @@ export function requestCleanup({
             : m.resolveStageSix({
                 actorId, key, targetId, total, isCritical, withHope, viaAction,
                 price, grant
-            }));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_CLEANUP,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_CLEANUP),
-        actorId, tokenId, total, isCritical, withHope, undo, key, targetId, transform,
-        change, viaAction, price, grant
+            }))
     });
-    return { pending: true };
+}
+
+/** Record a direct murder declared during an Eclipse. See eclipse.mjs. */
+export function requestParkMurder({ killerId, room = null, note = "" }) {
+    return ask(ACTION_PARK_MURDER, { killerId, room, note }, {
+        local: () => import("./eclipse.mjs").then(m => m.writeParkedMurder({ killerId, room, note }))
+    });
 }
 
 /**
@@ -2260,52 +1858,17 @@ export function requestCleanup({
  * No dice and no numbers travel - this is a declaration, and the GM's own
  * confirmation is what turns it into a second incident.
  */
-/** Record a direct murder declared during an Eclipse. See eclipse.mjs. */
-export function requestParkMurder({ killerId, room = null, note = "" }) {
-    if (game.user.isGM) {
-        return import("./eclipse.mjs").then(m => m.writeParkedMurder({ killerId, room, note }));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_PARK_MURDER,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_PARK_MURDER),
-        killerId, room, note
-    });
-    return { pending: true };
-}
-
 export function requestBetrayal({ actorId }) {
-    if (game.user.isGM) {
-        return import("./murder.mjs").then(m => m.betrayAsPlayer(actorId));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_BETRAYAL,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_BETRAYAL),
-        actorId
+    return ask(ACTION_BETRAYAL, { actorId }, {
+        local: () => import("./murder.mjs").then(m => m.betrayAsPlayer(actorId))
     });
-    return { pending: true };
 }
 
 /** Hand a thrown Meddle to the GM to be scored and applied to the target. */
 export function requestMeddleResolve({ actorId, targetId, help, total, isCritical }) {
-    if (game.user.isGM) {
-        return import("./monocub.mjs")
-            .then(m => m.resolveMeddle({ actorId, targetId, help, total, isCritical }));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_MEDDLE,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_MEDDLE),
-        actorId, targetId, help, total, isCritical
+    return ask(ACTION_MEDDLE, { actorId, targetId, help, total, isCritical }, {
+        local: () => import("./monocub.mjs").then(m => m.resolveMeddle({ actorId, targetId, help, total, isCritical }))
     });
-    return { pending: true };
 }
 
 /**
@@ -2315,19 +1878,9 @@ export function requestMeddleResolve({ actorId, targetId, help, total, isCritica
  * an action, a search token and a penalised roll - see `stealFromVault`.
  */
 export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false, clumsy = false }) {
-    if (game.user.isGM) {
-        return import("./vault.mjs")
-            .then(m => m.stealFromVault({ thiefId, ownerId, itemId, viaSearch, clumsy }));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_VAULT_STEAL,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_VAULT_STEAL),
-        thiefId, ownerId, itemId, viaSearch, clumsy
+    return ask(ACTION_VAULT_STEAL, { thiefId, ownerId, itemId, viaSearch, clumsy }, {
+        local: () => import("./vault.mjs").then(m => m.stealFromVault({ thiefId, ownerId, itemId, viaSearch, clumsy }))
     });
-    return { pending: true };
 }
 
 /**
@@ -2341,20 +1894,11 @@ export function requestSteal({
     thiefId, victimId, itemId = null,
     total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
 }) {
-    if (game.user.isGM) {
-        return import("./vault.mjs").then(m => m.stealFromPerson({
+    return ask(ACTION_STEAL, { thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical }, {
+        local: () => import("./vault.mjs").then(m => m.stealFromPerson({
             thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
-        }));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_STEAL,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_STEAL),
-        thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
+        }))
     });
-    return { pending: true };
 }
 
 /**
@@ -2370,55 +1914,33 @@ export function requestPlant({
     plannerId, victimId, itemId,
     total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
 }) {
-    if (game.user.isGM) {
-        return import("./vault.mjs").then(m => m.plantOnPerson({
+    return ask(ACTION_PLANT, { plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical }, {
+        local: () => import("./vault.mjs").then(m => m.plantOnPerson({
             plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
-        }));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_PLANT,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_PLANT),
-        plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
+        }))
     });
-    return { pending: true };
 }
 
 /**
  * Hand a Locate-a-hidden-stash roll to the GM to be scored.
  *
- * Fire-and-forget, like Observe: the answer is the whisper the finder gets, and
- * the write it may cause is a flag on their own sheet. The number travels; the
- * threshold, the room and which stash it opens are all decided on the far side
- * - see `resolveStashSearch`.
+ * Like Observe: the answer is the whisper the finder gets, and the write it may
+ * cause is a flag on their own sheet. The number travels; the threshold, the
+ * room and which stash it opens are all decided on the far side - see
+ * `resolveStashSearch`.
  */
 export function requestStashSearch({ actorId, total = 0, isCritical = false }) {
-    if (game.user.isGM) {
-        return import("./vault.mjs").then(m => m.resolveStashSearch({ actorId, total, isCritical }));
-    }
-    if (!hasGm()) return null;
-
-    emitToGms( {
-        action: ACTION_FIND_STASH,
-        userId: game.user.id,
-        requestId: expectAck(ACTION_FIND_STASH),
-        actorId, total, isCritical
+    return ask(ACTION_FIND_STASH, { actorId, total, isCritical }, {
+        local: () => import("./vault.mjs").then(m => m.resolveStashSearch({ actorId, total, isCritical }))
     });
-    return { pending: true };
 }
 
-/** Ask the GM to add project progress on our behalf. */
+/**
+ * Ask the GM to add project progress on our behalf. What actually changed is
+ * whispered back by the GM's client; the request knows only that it arrived.
+ */
 export function requestProjectProgress(countdownId, amount, actorId = null) {
-    if (!hasGm()) return null;
-    emitToGms( {
-        action: ACTION_PROGRESS, countdownId, amount, actorId,
-        userId: game.user.id, requestId: expectAck(ACTION_PROGRESS)
-    });
-    // `changed` is unknown from here - the GM whispers back what actually
-    // happened. Claiming success would be a guess.
-    return { pending: true, changed: null };
+    return ask(ACTION_PROGRESS, { countdownId, amount, actorId });
 }
 
 /**
@@ -2427,9 +1949,7 @@ export function requestProjectProgress(countdownId, amount, actorId = null) {
  * on conspiracies - but the write itself has to happen GM-side.
  */
 export function requestProjectShare(countdownId, userId) {
-    if (!hasGm()) return null;
-    emitToGms( { action: ACTION_SHARE, userId: game.user.id, requestId: expectAck(ACTION_SHARE), countdownId, targetUserId: userId });
-    return { pending: true };
+    return ask(ACTION_SHARE, { countdownId, targetUserId: userId });
 }
 
 /* ==========================================================================

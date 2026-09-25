@@ -1206,7 +1206,7 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      */
     if (isFreeTake(def, side, state)) {
         const { requestCrisisResult } = await import("./gm-bridge.mjs");
-        return requestCrisisResult({
+        const res = await requestCrisisResult({
             actorId: actor.id, key, total: 0, isCritical: false,
             // Trap 114: an action with no roll still has to name a band, because
             // every outcome in this table is written per band. Hope, because
@@ -1215,6 +1215,8 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
             // attempt.
             withHope: true, free: true, itemId
         });
+        if (!res.ok) return null;
+        return game.user.isGM ? res.value : { pending: true };
     }
 
     // Three of the third party's four options have no threshold, no stat and no
@@ -1222,9 +1224,11 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
     // a side or you leave. They skip the dice entirely and are applied as taken.
     if (def.noRoll) {
         const { requestCrisisResult } = await import("./gm-bridge.mjs");
-        return requestCrisisResult({
+        const res = await requestCrisisResult({
             actorId: actor.id, key, total: 0, isCritical: false, withHope: true, itemId
         });
+        if (!res.ok) return null;
+        return game.user.isGM ? res.value : { pending: true };
     }
 
     const { rollTrait } = await import("./action-rolls.mjs");
@@ -1315,11 +1319,17 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
          */
         const identity = swung.getFlag(MODULE_ID, "drpgItemId");
         if (identity) {
-            import("./remnants.mjs")
-                .then(m => (game.user.isGM
-                    ? m.tieTraceForItem(identity)
-                    : import("./gm-bridge.mjs").then(b => b.requestTieTrace?.(identity))))
-                .catch(err => debug("Could not tie the weapon's own trace to the murder", err));
+            // Not awaited, so the swing goes on whatever the ledger says; a GM's
+            // own client ties it there (`local`). A destructured import since E31,
+            // so the lint rule that holds a request's answer to its caller sees it.
+            void (async () => {
+                try {
+                    const { requestTieTrace } = await import("./gm-bridge.mjs");
+                    void requestTieTrace(identity);
+                } catch (err) {
+                    debug("Could not tie the weapon's own trace to the murder", err);
+                }
+            })();
         }
     }
 
@@ -3983,13 +3993,17 @@ export async function throwOpeningRoll(side, actorId) {
     }
 
     const { requestOpeningResult } = await import("./gm-bridge.mjs");
-    return requestOpeningResult({
+    const res = await requestOpeningResult({
         actorId: actor.id,
         side,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
         withHope: Boolean(roll.withHope)
     });
+    // Read here and not handed on (E31): a GM's own client answers what it
+    // resolved, a player's that the GM has it.
+    if (!res.ok) return null;
+    return game.user.isGM ? res.value : { pending: true };
 }
 
 /**

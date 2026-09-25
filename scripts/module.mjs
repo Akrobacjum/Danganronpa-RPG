@@ -33,6 +33,7 @@ import { registerMovement } from "./movement.mjs";
 import { registerProjectsUi } from "./projects-ui.mjs";
 import { registerProjectsMap } from "./projects-map.mjs";
 import { registerGmBridge } from "./gm-bridge.mjs";
+import { registerBridgeReplies } from "./bridge-guards.mjs";
 import { registerRerollReceipts } from "./reroll-receipts.mjs";
 import { registerRelayGuard } from "./relay-guard.mjs";
 import { registerInventoryLimits } from "./inventory.mjs";
@@ -307,6 +308,10 @@ Hooks.once("ready", () => {
     // is listening on, and the clock, the Eclipse and every Despair Call
     // restriction advance on the GM's screen alone.
     safely("world-state sync", registerSync);
+    // Before the three files that ask the GM through it - the search tokens, the
+    // trap relay and the bridge: the "got it", the answer and the refusal of every
+    // request this client makes come back through this one listener (E31).
+    safely("the bridge replies", registerBridgeReplies);
     safely("the search-token socket", registerSearchTokenSocket);
     // Five listeners for the eight watched triggers - see traps.mjs. Registered
     // after the sync socket because two of them react to world-state events

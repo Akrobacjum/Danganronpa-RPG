@@ -93,8 +93,8 @@ export async function shareBulletDialog(actor, item) {
     if (!targetId) return false;
 
     const { requestShareBullet } = await import("./gm-bridge.mjs");
-    await requestShareBullet({ fromId: actor.id, toId: targetId, itemId: item.id });
-    return true;
+    const res = await requestShareBullet({ fromId: actor.id, toId: targetId, itemId: item.id });
+    return res.ok;
 }
 
 /**
@@ -112,8 +112,8 @@ export async function handOverDialog(actor, item, { copying = false } = {}) {
     if (!targetId) return false;
 
     const { requestGiveItem } = await import("./gm-bridge.mjs");
-    await requestGiveItem({ fromId: actor.id, toId: targetId, itemId: item.id });
-    return true;
+    const res = await requestGiveItem({ fromId: actor.id, toId: targetId, itemId: item.id });
+    return res.ok;
 }
 
 /**

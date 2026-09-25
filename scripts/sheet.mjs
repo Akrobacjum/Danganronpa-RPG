@@ -4024,7 +4024,8 @@ async function askTamper(actor, key) {
         // tidying after themselves from a killer standing on their own scene.
         const stageSix = cleanup.isCleaner(actor);
         const [mine, candidates] = await Promise.all([
-            requestCleanableTraces(actor.id, { mine: !stageSix }),
+            // Quiet: the sheet asks as it draws, and a message here would be for nothing the player pressed.
+            requestCleanableTraces(actor.id, { mine: !stageSix, quiet: true }),
             cleanup.framingCandidates(actor)
         ]);
 

@@ -259,8 +259,9 @@ async function takeFromBody(body, item) {
     }
 
     const { requestBodyLoot } = await import("./gm-bridge.mjs");
-    await requestBodyLoot({ takerId: taker.id, bodyId: body.id, itemId: item.id });
-    ui.notifications.info(game.i18n.format("DRPG.Loot.took", { item: item.name }));
+    const res = await requestBodyLoot({ takerId: taker.id, bodyId: body.id, itemId: item.id });
+    // Only what the GM has: a refusal has been said, and "you took it" beside it would be two answers.
+    if (res.ok) ui.notifications.info(game.i18n.format("DRPG.Loot.took", { item: item.name }));
 }
 
 /**

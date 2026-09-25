@@ -618,34 +618,53 @@ const REGRESSIONS = [
          * NOT deliver back to its sender: the request is gone, no error, no
          * refusal, and the action the player paid for simply did not happen.
          *
-         * A table with no GM connected is the other end of it. `hasGm()` has to
-         * refuse immediately, because the alternative is a player watching a
+         * A table with no GM connected is the other end of it. The request has to
+         * be refused at once, because the alternative is a player watching a
          * spinner for three minutes and then losing the action anyway.
          *
-         * THE FIRST HALF IS NOT WHERE IT LOOKS. Nine of these have no GM branch
-         * of their own and all nine are correct: the branch lives in the domain
-         * function that calls them - `sabotageProject` does the work itself when
-         * it is the GM and only reaches for the bridge otherwise. So the question
-         * is not "does the bridge have a branch" but "can a GM get here at all",
-         * which is the call site's business, and that is what this reads.
+         * SINCE E31 (25.09.2026) both are one function's: every request asks
+         * through `bridgeRequest` (bridge-guards.mjs), which refuses with `noGm`
+         * before it sends anything and runs a GM's request on the GM's own client
+         * when the request says how (`local`). So the first half reads that every
+         * request asks through it and emits nothing of its own, and that the one
+         * wait asks for a GM before it emits.
+         *
+         * THE SECOND HALF IS NOT WHERE IT LOOKS. A dozen requests have no `local`
+         * and all of them are correct: the branch lives in the domain function
+         * that calls them - `sabotageProject` does the work itself when it is the
+         * GM and only reaches for the bridge otherwise. So the question is not
+         * "does the request have a branch" but "can a GM get here at all", which
+         * is the call site's business, and that is what this reads.
          */
         const sources = new Map(await otherSources());
         const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
-        ok(bridge.length > 1000, "gm-bridge.mjs did not load");
+        const leaf = stripComments(sources.get("bridge-guards.mjs") ?? "");
+        ok(bridge.length > 1000 && leaf.length > 1000, "gm-bridge.mjs or bridge-guards.mjs did not load");
 
-        const requests = [...bridge.matchAll(/^export\s+(?:async\s+)?function\s+(request\w+)\s*\(/gm)];
+        const requests = [...bridge.matchAll(/^export\s+(?:async\s+)?function\s+(request\w+)\s*\(/gm)].map(m => m[1]);
         ok(requests.length > 20, `only ${requests.length} bridge requests found`);
 
-        const noRefusal = [], reachable = [];
-        for (let i = 0; i < requests.length; i++) {
-            const name = requests[i][1];
-            const to = i + 1 < requests.length ? requests[i + 1].index : bridge.length;
-            const body = bridge.slice(requests[i].index, to);
-            if (!body.includes("hasGm(")) noRefusal.push(name);
+        // Every request asks through the one wait, and emits nothing itself - shown a request that does first.
+        const ownRoad = (text, name) => { const body = fnSource(text, name); return !/\bask\(|\bbridgeRequest\(/.test(body) || /\.emit\(/.test(body); };
+        equal(ownRoad('export function requestFixture(a) {\n    game.socket.emit("x", { a });\n}\n', "requestFixture"), true,
+            "the reader does not see a request that emits for itself");
+        const own = requests.filter(name => ownRoad(bridge, name));
+        ok(!own.length, `these do not ask through bridgeRequest, or emit for themselves: ${own.join(", ")}`);
 
-            // Does the bridge answer for the GM itself? Then any call site is
+        // With no GM, the one wait refuses before it sends: `noGm` is settled before its first emit.
+        const sendsFirst = text => {
+            const refuses = text.search(/fail\(entry, "noGm"\)/), sends = text.search(/\bemit\(/);
+            return !(refuses > 0 && sends > refuses);
+        };
+        equal(sendsFirst('function createWaiter() {\n    emit(packet, to);\n    if (!to.length) return fail(entry, "noGm");\n}\n'), true,
+            "the reader does not see a wait that sends before it asks for a GM");
+        ok(!sendsFirst(fnSource(leaf, "createWaiter")), "the one wait sends before it asks whether a GM is there");
+
+        const reachable = [];
+        for (const name of requests) {
+            // Does the request answer for the GM itself? Then any call site is
             // safe and there is nothing more to ask.
-            if (/game\.user\.isGM/.test(body)) continue;
+            if (/\blocal:/.test(fnSource(bridge, name))) continue;
 
             for (const [file, raw] of sources) {
                 if (file === "gm-bridge.mjs") continue;
@@ -665,14 +684,12 @@ const REGRESSIONS = [
                      * next person to edit this will not know is load-bearing.
                      */
                     const before = text.slice(Math.max(0, call.index - 300), call.index);
-                    if (!/game\.user\??\.isGM/.test(before)) {
+                    if (!/game\.user\??\.isGM|isPrimaryGm\(\)/.test(before)) {
                         reachable.push(`${file}:${lineAt(text, call.index)} → ${name}`);
                     }
                 }
             }
         }
-        ok(!noRefusal.length,
-            `these hang instead of refusing when no GM is connected: ${noRefusal.join(", ")}`);
         ok(!reachable.length,
             `a GM reaching these talks to itself down a socket and the action is lost: ${
                 reachable.join(", ")}`);
@@ -851,32 +868,35 @@ const REGRESSIONS = [
          * a player who lost an action because nobody answered; it was fixed once
          * and has had no test since.
          *
-         * WHAT THIS CANNOT DO, said plainly: it cannot watch a table with no GM,
-         * because it runs on the GM's machine and `hasGm()` is true by
-         * construction. Faking that would mean reaching into `game.users` mid
-         * run, which is a lie told to every other listener in the world at the
-         * same time. So the machine checks the shape - every waiting request has
-         * a bounded timeout that RESOLVES rather than rejects - and the live half
-         * stays on the human list: disconnect the GM, act as a player, and watch
-         * the refusal come back at once.
+         * SINCE E31 (25.09.2026) there is one wait, `createWaiter` in
+         * bridge-guards.mjs, and R165 drives it with a clock of tens of
+         * milliseconds: no answer, a late answer, a GM who never says "got it".
+         * What this reads is that nothing waits anywhere else - no request makes a
+         * promise of its own, nor does the trap relay - and that each of the one
+         * wait's two clocks settles the request it runs for. Shown a request with
+         * a promise of its own, and a clock that settles nothing, first.
          */
         const sources = new Map(await otherSources());
         const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
-        const requests = [...bridge.matchAll(/^export\s+(?:async\s+)?function\s+(request\w+)\s*\(/gm)];
+        const leaf = stripComments(sources.get("bridge-guards.mjs") ?? "");
+        const requests = [...bridge.matchAll(/^export\s+(?:async\s+)?function\s+(request\w+)\s*\(/gm)].map(m => m[1]);
         ok(requests.length > 20, "gm-bridge.mjs did not load");
 
-        const unbounded = [];
-        for (let i = 0; i < requests.length; i++) {
-            const name = requests[i][1];
-            const to = i + 1 < requests.length ? requests[i + 1].index : bridge.length;
-            const body = bridge.slice(requests[i].index, to);
-            // A request that never makes a Promise cannot hang: it emits and
-            // returns `{ pending: true }` in the same tick.
-            if (!/new Promise/.test(body)) continue;
-            if (!/setTimeout\([\s\S]{0,400}?resolve\(/.test(body)) unbounded.push(name);
-        }
-        ok(!unbounded.length,
-            `these wait on a ruling with no way to give up: ${unbounded.join(", ")}`);
+        const waitsAlone = (text, name) => /new Promise/.test(fnSource(text, name));
+        equal(waitsAlone("export function requestFixture() {\n    return new Promise(resolve => setTimeout(resolve, 10));\n}\n", "requestFixture"), true,
+            "the reader does not see a request that waits on a promise of its own");
+        const alone = requests.filter(name => waitsAlone(bridge, name));
+        ok(!alone.length, `these wait on a promise of their own, outside the one wait: ${alone.join(", ")}`);
+        ok(!/new Promise/.test(fnSource(stripComments(sources.get("traps.mjs") ?? ""), "registerTraps")),
+            "the trap relay waits on a promise of its own");
+
+        // Each clock of the one wait settles the request: it closes it and fails it as not answered.
+        const settles = (text, clock) => new RegExp(`${clock} = clock\\.set\\(\\(\\) => \\{[^}]*close\\(entry\\);[^}]*fail\\(entry, "noAnswer"\\)`).test(text);
+        equal(settles("entry.ackTimer = clock.set(() => {\n    entry.ackTimer = null;\n    close(entry);\n});", "entry\\.ackTimer"), false,
+            "the reader takes a clock that settles nothing for one that does");
+        const wait = fnSource(leaf, "createWaiter");
+        ok(settles(wait, "entry\\.ackTimer"), "the one wait's clock for the \"got it\" does not settle the request");
+        ok(settles(wait, "entry\\.answerTimer"), "the one wait's clock for the answer does not settle the request");
     }],
 
     ["R12 - every standing window fits the screen Foundry calls a minimum", async () => {

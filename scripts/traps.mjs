@@ -58,7 +58,7 @@ import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { isPrimaryGm, debug, log, warn, error, esc, pause } from "./utils.mjs";
 // Statically: the leaf imports config.mjs and utils.mjs only, so this edge closes no cycle (E31).
-import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, judge, table, pick, as, knownSender } from "./bridge-guards.mjs";
+import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
@@ -650,11 +650,10 @@ export function registerTraps() {
      */
     const relay = (kind, payload) => {
         if (isPrimaryGm()) return false;
-        try {
-            game.socket.emit(SOCKET_EVENT, { action: TRAP_EVENT, kind, ...payload });
-        } catch (err) {
-            error("Could not tell the GM about something a trap might be watching for", err);
-        }
+        // To the GMs and nobody else (E31): it was emitted with no recipients, so
+        // every connected browser received every crossing, and nothing read it
+        // there. A report nobody waits on, so what it cannot do is said to nobody.
+        void askTraps(TRAP_EVENT, { kind, ...payload });
         return true;
     };
 
@@ -711,6 +710,12 @@ export const TRAP_ACTIONS = table({
         }
     }
 });
+
+/** Ask the primary GM for a trap action, as TRAP_ACTIONS says to wait for it (`ask` in gm-bridge.mjs is the same). */
+function askTraps(action, payload) {
+    const decl = TRAP_ACTIONS[action];
+    return bridgeRequest(action, payload, { settle: decl.answer, quiet: Boolean(decl.quiet) });
+}
 
 /** A relayed event, handed to the listener that would have caught it on this client. */
 async function handleTrapEvent(payload, sender, ctx) {

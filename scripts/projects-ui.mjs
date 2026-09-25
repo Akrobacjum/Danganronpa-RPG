@@ -1121,7 +1121,8 @@ export async function openShareDialog(preselectId = null) {
     if (!result || result === "cancel") return;
 
     if (result.revoke) await unshareWith(result.project, result.player);
-    else await shareWith(result.project, result.player);
+    // "Project shared." only when it was (E31): a refusal has been said, and a public project is not shared.
+    else if (!await shareWith(result.project, result.player)) return;
 
     ui.notifications.info(game.i18n.localize(result.revoke ? "DRPG.Project.revoked" : "DRPG.Project.shared"));
 }

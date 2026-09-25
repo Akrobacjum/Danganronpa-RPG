@@ -368,11 +368,10 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         check("B4a: an exception in the send-back is one refusal: p1 is told once, the GM logs it with the error, the token stays",
             b4.thrown >= 1 && b4.told === 1 && b4.logged.some(line => line.includes("E31 injected")) && b4.token.x === home.x + 100,
             JSON.stringify(b4));
+        // Green since E31 C5: the one wait answers the "got it", and says the refusal after it once.
         check("B4b: the send-back had answered as accepted before the one message, which says it failed on the GM's client",
-            b4.sent.answer?.ok === true && b4.sent.answer?.pending === true && b4.said.length === 1 && b4.said[0].at >= b4.sent.at
-            && !b4.failed.startsWith("DRPG.") && b4.said[0].msg.includes(b4.failed), JSON.stringify(b4),
-            untilE31("a request answers { pending: true } when it is sent and has no result shape or reason to report a failure in",
-                b4.thrown >= 1));
+            b4.thrown >= 1 && b4.sent.answer?.ok === true && b4.sent.answer?.pending === true && b4.said.length === 1
+            && b4.said[0].at >= b4.sent.at && !b4.failed.startsWith("DRPG.") && b4.said[0].msg.includes(b4.failed), JSON.stringify(b4));
     } finally {
         await gm.eval(`const t = canvas.scene.tokens.get("TOKAIKO000000000"); delete t.update;
             await t.update({ x: ${home.x}, y: ${home.y} }); return true;`);
@@ -407,9 +406,9 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         // Green since E31 C3: the runner's refusal settles the request as soon as the run throws.
         check("B5a: an exception in a sabotage settles p1's request within 10 s, not 180, with one message",
             b5.thrown >= 1 && b5.answer !== "still waiting" && b5.ms < 10000 && b5.said.length === 1, JSON.stringify(b5));
+        // Green since E31 C5.
         check("B5b: the sabotage's answer is a refusal whose reason is that it failed",
-            b5.answer?.ok === false && b5.answer?.refused === true && b5.answer?.reason === "failed", JSON.stringify(b5),
-            untilE31("a request answers null for every failure and a refusal carries no reason", b5.thrown >= 1));
+            b5.thrown >= 1 && b5.answer?.ok === false && b5.answer?.refused === true && b5.answer?.reason === "failed", JSON.stringify(b5));
     } finally {
         await gm.eval(`globalThis.__e31InjectSabotage = false; game.settings.set = globalThis.__e31RealSet; return true;`);
     }
@@ -430,10 +429,10 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         restored = await gm.eval(`game.socket._handlers.set("${SOCKET}", globalThis.__e31Handlers);
             return game.socket._handlers.get("${SOCKET}").length;`);
     }
+    // Green since E31 C5.
     check("B6: with the GM connected and silent, p1's Eclipse move settles as not answered after the acknowledgement clock, with one message",
-        silent?.answer?.ok === false && silent?.answer?.reason === "noAnswer" && silent.ms >= 7000 && silent.ms < 12000
-        && silent.said.length === 1, JSON.stringify({ muted, restored, silent }),
-        untilE31("a request answers { pending: true } as it is sent, whether or not anybody hears it", muted > 0 && restored === muted));
+        muted > 0 && restored === muted && silent?.answer?.ok === false && silent?.answer?.reason === "noAnswer"
+        && silent.ms >= 7000 && silent.ms < 12000 && silent.said.length === 1, JSON.stringify({ muted, restored, silent }));
     // Before E31 the old clock's toast comes eight seconds after the send; let it land before anything counts messages again.
     if (silent && silent.ms < 7000) await settle(8500 - silent.ms);
 
@@ -444,10 +443,10 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     await settle(1200);
     const relayed = socketTraffic.slice(traffic).filter(s => s.from === "p1" && s.action === "trap.event").map(s => s.to);
     const gmIds = [IDS.gm, IDS.ag];
+    // Green since E31 C5: the relay asks through the one wait, which addresses the GMs.
     check("B7: a crossing p1's client reports to the traps reaches the GMs and no player's browser",
         relayed.length >= 1 && relayed.every(to => Array.isArray(to) && to.length > 0 && to.every(id => gmIds.includes(id))),
-        JSON.stringify(relayed),
-        untilE31("traps.mjs emits the relay with no recipients, so every connected client receives it", relayed.length >= 1));
+        JSON.stringify(relayed));
 
     // B8: a Search for a room Aiko is not in, on the scene she is on.
     phase("a refused search", { flow: "search-observe" });

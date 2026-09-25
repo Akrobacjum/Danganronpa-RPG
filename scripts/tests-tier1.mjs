@@ -3094,6 +3094,136 @@ const INVARIANTS = [
         clear();
         await Promise.all([ask("r162.queued", { n: 1 }), ask("r162.queued", { n: 2 })]);
         equal(JSON.stringify(ran), JSON.stringify(["queued 1", "queued 2"]), "a queue did not keep the order its packets arrived in");
+    }],
+
+    ["R165 - one wait: a request settles once, never rejects, and one message says what and why", async () => {
+        /*
+         * E31, 25.09.2026; audit S17-09. Every request a client makes of the GM
+         * waits in `createWaiter` (bridge-guards.mjs), which the module builds once
+         * around the real socket. Driven here with fakes - an emit that records, a
+         * clock of tens of milliseconds, a message that records - so nothing leaves
+         * this client and nothing in the world is touched. What it must do: with no
+         * GM, refuse at once and send nothing; an "ack" request settles on the "got
+         * it", and a refusal after it is still said, once; a "reply" request
+         * settles on its answer; a refusal settles it, with the code; no "got it"
+         * in time is `noAnswer`; a patient request has no clock for the "got it"
+         * and is asked again once, with the same id, when a GM's world has loaded;
+         * an answer after the clock goes to `late`, and says nothing; an emit that
+         * throws is `failed`; a GM's own client does the work itself; and the
+         * primary GM, who answers requests, cannot send one. Every failure is one
+         * message, none for a quiet request, and no promise rejects.
+         */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const make = ({ gms = ["R165GM"], who = { id: "R165ME", isGM: false, isPrimary: false }, emitThrows = false } = {}) => {
+            const sent = [], said = [], reported = [];
+            const waiter = createWaiter({
+                emit: (packet, to) => { if (emitThrows) throw new Error("R165 planted: the socket"); sent.push({ packet, to }); },
+                gmIds: () => gms,
+                me: () => who,
+                notify: (action, reason, opts) => said.push(`${action} ${reason}${opts?.nothingSpent ? " +nothingSpent" : ""}`),
+                fromGm: id => id === "R165GM",
+                report: text => reported.push(text)
+            });
+            const reply = (action, extra = {}) => waiter.onReply({ action, userId: who.id, requestId: sent.at(-1)?.packet.requestId, ...extra }, "R165GM");
+            return { waiter, sent, said, reported, reply };
+        };
+        const fast = { ackMs: 30, timeoutMs: 200 };
+
+        // No GM: refused at once, nothing sent, said once.
+        let w = make({ gms: [] });
+        equal(JSON.stringify(await w.waiter.request("r165.x", { a: 1 }, { ...fast, nothingSpent: true })), JSON.stringify({ ok: false, reason: "noGm" }),
+            "a request with no GM was not refused as noGm");
+        equal(JSON.stringify({ sent: w.sent.length, said: w.said }), JSON.stringify({ sent: 0, said: ["r165.x noGm +nothingSpent"] }),
+            "a request with no GM sent something, or was not said once");
+
+        // "ack": settled by the "got it"; a refusal after it is said once, and changes nothing.
+        w = make();
+        let asked = w.waiter.request("r165.ack", { a: 1 }, { ...fast, settle: "ack" });
+        equal(JSON.stringify(w.sent[0]?.to), JSON.stringify(["R165GM"]), "a request went somewhere other than the GMs");
+        ok(w.sent[0]?.packet.action === "r165.ack" && w.sent[0]?.packet.userId === "R165ME" && typeof w.sent[0]?.packet.requestId === "string",
+            `a request left without its action, its asker or its id: ${JSON.stringify(w.sent[0]?.packet)}`);
+        w.reply("bridge.ack");
+        equal(JSON.stringify(await asked), JSON.stringify({ ok: true, pending: true }), "an acknowledged request did not settle as sent");
+        w.reply("bridge.refused", { what: "r165.ack", reason: "failed" });
+        w.reply("bridge.refused", { what: "r165.ack", reason: "failed" });
+        equal(JSON.stringify(w.said), JSON.stringify(["r165.ack failed"]), "a refusal after the acknowledgement was not said exactly once");
+
+        // "reply": settled by its answer.
+        w = make();
+        asked = w.waiter.request("r165.reply", {}, { ...fast, settle: "reply" });
+        w.reply("bridge.ack");
+        w.reply("bridge.done", { value: { answer: 42 } });
+        equal(JSON.stringify(await asked), JSON.stringify({ ok: true, value: { answer: 42 } }), "a reply did not settle with its answer");
+
+        // Refused before any "got it": settled with the code, said once; a code off the list is `refused`.
+        w = make();
+        asked = w.waiter.request("r165.no", {}, { ...fast, settle: "reply" });
+        w.reply("bridge.refused", { what: "r165.no", reason: "notYours" });
+        equal(JSON.stringify(await asked), JSON.stringify({ ok: false, refused: true, reason: "notYours" }), "a refusal did not settle with its code");
+        asked = w.waiter.request("r165.odd", {}, { ...fast, settle: "ack" });
+        w.reply("bridge.refused", { what: "r165.odd", reason: "DRPG.Anything.else" });
+        equal((await asked).reason, "refused", "a code off the closed list was taken as sent");
+        equal(JSON.stringify(w.said), JSON.stringify(["r165.no notYours", "r165.odd refused"]), "each refusal was not said exactly once");
+
+        // A reply from somebody who is not a GM, or to somebody else, is not a reply.
+        w = make();
+        asked = w.waiter.request("r165.forged", {}, { ackMs: 40, timeoutMs: 200, settle: "ack" });
+        w.waiter.onReply({ action: "bridge.ack", userId: "R165ME", requestId: w.sent[0].packet.requestId }, "R165PLAYER");
+        w.waiter.onReply({ action: "bridge.ack", userId: "SOMEBODYELSE0000", requestId: w.sent[0].packet.requestId }, "R165GM");
+        equal((await asked).reason, "noAnswer", "an acknowledgement from a player, or to another user, was taken");
+
+        // No "got it" in time: not answered - by the clock for the "got it", long before the answer's -
+        // said once; a late answer is dropped and says nothing.
+        w = make();
+        const t0 = Date.now();
+        asked = w.waiter.request("r165.silent", {}, { ackMs: 30, timeoutMs: 2000, settle: "ack" });
+        equal(JSON.stringify(await asked), JSON.stringify({ ok: false, reason: "noAnswer" }), "no acknowledgement in time was not noAnswer");
+        ok(Date.now() - t0 < 1000, `no acknowledgement was noticed only by the answer's clock, after ${Date.now() - t0} ms`);
+        w.reply("bridge.ack");
+        w.reply("bridge.refused", { what: "r165.silent", reason: "failed" });
+        equal(JSON.stringify(w.said), JSON.stringify(["r165.silent noAnswer"]), "a request given up on was said twice");
+
+        // Patient: no clock for the "got it"; asked again once, with the same id; then answered.
+        w = make();
+        let settled = null;
+        asked = w.waiter.request("r165.patient", {}, { ackMs: 20, timeoutMs: 400, settle: "reply", patient: true, resend: true });
+        asked.then(r => { settled = r; });
+        await wait(60);
+        equal(settled, null, "a patient request gave up on the clock for the acknowledgement");
+        w.waiter.resendOnGmReady();
+        w.waiter.resendOnGmReady();
+        equal(w.sent.length, 2, "a patient request was not asked again exactly once when a GM's world loaded");
+        equal(w.sent[1]?.packet.requestId, w.sent[0]?.packet.requestId, "the request was asked again under another id");
+        w.reply("bridge.done", { value: true });
+        equal(JSON.stringify(await asked), JSON.stringify({ ok: true, value: true }), "a patient request did not settle with its answer");
+
+        // An answer after the clock goes to `late`, and says nothing more.
+        w = make();
+        const late = [];
+        asked = w.waiter.request("r165.late", {}, { ackMs: 1000, timeoutMs: 40, settle: "reply", quiet: true, late: value => late.push(value) });
+        equal(JSON.stringify(await asked), JSON.stringify({ ok: false, reason: "noAnswer" }), "a request past its clock did not settle as not answered");
+        w.reply("bridge.done", { value: "found" });
+        equal(JSON.stringify({ late, said: w.said }), JSON.stringify({ late: ["found"], said: [] }),
+            "a late answer did not go to `late`, or a quiet request said something");
+
+        // An emit that throws is `failed`, said once; nothing rejects.
+        w = make({ emitThrows: true });
+        equal(JSON.stringify(await w.waiter.request("r165.throws", {}, fast)), JSON.stringify({ ok: false, reason: "failed" }),
+            "an emit that threw did not settle as failed");
+        equal(JSON.stringify(w.said), JSON.stringify(["r165.throws failed"]), "an emit that threw was not said once");
+
+        // A GM's own client does it here; a local that throws is `failed`.
+        w = make({ who: { id: "R165ME", isGM: true, isPrimary: true } });
+        equal(JSON.stringify(await w.waiter.request("r165.local", {}, { ...fast, local: () => 7 })), JSON.stringify({ ok: true, value: 7 }),
+            "a GM's own request was not done on its own client");
+        equal(JSON.stringify(await w.waiter.request("r165.localThrows", {}, { ...fast, local: () => { throw new Error("R165 planted: local"); } })),
+            JSON.stringify({ ok: false, reason: "failed" }), "a GM's own request that threw did not settle as failed");
+        // The primary GM, who answers requests, cannot send one: failed, nothing sent, nothing said.
+        equal(JSON.stringify(await w.waiter.request("r165.primary", {}, fast)), JSON.stringify({ ok: false, reason: "failed" }),
+            "the primary GM sent itself a request");
+        equal(JSON.stringify({ sent: w.sent.length, said: w.said }), JSON.stringify({ sent: 0, said: ["r165.localThrows failed"] }),
+            "the primary's own requests sent something, or said something other than the one failure");
+        equal(w.waiter.waiting(), 0, "a request is still waiting after this test");
     }]
 ];
 
