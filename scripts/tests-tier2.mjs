@@ -6439,13 +6439,13 @@ const SCENARIOS = [
         /*
          * E30, 24.09.2026; audit S17-01 and S05-43. A trace from before the ledger kept
          * its answer key in flags on its token. `migrateRemnants` moved the key into the
-         * ledger and stripped the token with `-=` keys, which remove nothing on v14 as
-         * the module's own notes measured it - while its summary said "stripped" - and a
-         * second run, finding the flags still there, wrote them over the ledger row and
-         * the GM's corrections with it. The strip is read back now, and a live row is
-         * only filled in, never overwritten. Fixture tokens, through
-         * `migrateRemnantToken`: the suite never runs the loop, which would migrate a
-         * real table's traces.
+         * ledger and stripped the token with `-=` keys, which remove nothing in this
+         * Foundry (the module's own notes; LIVE-E30-01 confirms it on v14) - while its
+         * summary said "stripped" - and a second run, finding the flags still there,
+         * wrote them over the ledger row and the GM's corrections with it. The strip is
+         * read back now, and a live row is only filled in, never overwritten. Fixture
+         * tokens, through `migrateRemnantToken`: the suite never runs the loop, which
+         * would migrate a real table's traces.
          *
          * AND WHAT THE GM TICKED STAYS TICKED (E30 fix, 25.09.2026; audit S06-02).
          * `promoteFaintPrep` (chapter.mjs) writes the GM's choice at a body discovery
