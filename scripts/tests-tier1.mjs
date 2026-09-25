@@ -2280,6 +2280,8 @@ const INVARIANTS = [
          * Everything ELSE still fails, which is the point of listing the
          * exception rather than loosening the sweep.
          */
+        // A world with no trace on any scene has nothing here to read (E30 review, 25.09.2026).
+        needs(world.atLeast("remnantTokens"), "the scan reads every trace token");
         const allowed = new Set(["isRemnant", "fromIncident"]);
         const leaks = [];
         for (const scene of game.scenes) {
@@ -2301,6 +2303,7 @@ const INVARIANTS = [
         // from a player's console while `token.name` said a perfectly safe
         // "Trace" over it. Both halves are scanned, or the second one leaks
         // for exactly as long as nobody thinks to look at it.
+        needs(world.atLeast("remnantTokens"), "the scan reads every trace token's name");
         const expected = game.i18n.localize("DRPG.Remnant.tokenName");
         const talkative = [];
         for (const scene of game.scenes) {
@@ -2322,7 +2325,16 @@ const INVARIANTS = [
         // characters in two rooms was sent to both on every pass - a full
         // disconnect and reconnect twice a minute, forever, which at the table
         // is a dropout every sixty seconds for one unlucky player.
+        /* Every assertion below runs once per account voiceTargets places, and it
+           places a connected player's character, a Monokuma whose pool a connected GM
+           holds, and during an Eclipse everybody (voice.mjs) - so in a world with none
+           of those this FAILed "measured nothing" (E30 review, 25.09.2026). The accounts
+           this is about are the players', asked of the world first: with no player
+           connected it skips, even where a GM's pool would still be placed (the harness
+           with its three players gone: the GM alone, placed). */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "voiceTargets places a connected player's character");
         const { rows, byUser } = await voiceTargets();
+        ok(byUser.size > 0, "voiceTargets places none of the connected players who own a character");
 
         for (const [userId, chosen] of byUser) {
             const theirs = rows.filter(r => r.user?.id === userId);
@@ -2418,15 +2430,20 @@ const INVARIANTS = [
      * across the catalogue, because the flag is written by GMs.
      */
     ["no item claims a role that does not exist", () => {
+        // A world with no role on any item has nothing here to read (E30 review, 25.09.2026).
+        needs(world.atLeast("itemsWithRoles"), "the scan reads the roles items carry");
         const known = new Set(Object.keys(ITEM_CATEGORIES));
         const wrong = [];
+        let read = 0;
         for (const actor of game.actors) {
             for (const item of actor.items) {
                 for (const role of rolesOf(item)) {
+                    read++;
                     if (!known.has(role)) wrong.push(`${actor.name}/${item.name}: "${role}"`);
                 }
             }
         }
+        ok(read > 0, "rolesOf reads no role off the items whose flag names one");
         ok(!wrong.length, `these items carry a role no category answers to - ${wrong.join(", ")}`);
     }],
 

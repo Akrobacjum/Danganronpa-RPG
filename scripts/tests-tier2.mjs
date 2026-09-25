@@ -251,7 +251,7 @@ async function restore(snap) {
 
 const SCENARIOS = [
     ["a direct murder opens on the killer and tells the victim", async () => {
-        const [killer, victim] = cast();
+        const [killer, victim] = cast(2);
         // Asked of the world before the incident writes to it (E30: it was asked after).
         needs(world.ownedByPlayer(victim), "there is nobody to tell");
         const drpg = game.drpg;
@@ -350,7 +350,7 @@ const SCENARIOS = [
     }],
 
     ["a Finishing Blow actually kills", async () => {
-        const [killer, victim] = cast();
+        const [killer, victim] = cast(2);
         const drpg = game.drpg;
         const { isDeceased } = await import("./chapter.mjs");
 
@@ -382,7 +382,7 @@ const SCENARIOS = [
         // time `endEclipse` would call `openMurder` for a parked declaration -
         // so the guard added for this bug fix cannot silently swallow the one
         // call it is supposed to let through.
-        const [killer, victim] = cast();
+        const [killer, victim] = cast(2);
         const murder = await import("./murder.mjs");
         const eclipse = await import("./eclipse.mjs");
 
@@ -434,7 +434,7 @@ const SCENARIOS = [
         // scenario actually pins down is the shape `cleanableTracesForPlayer`
         // hands back over the bridge: it is what a player's client receives
         // instead, and it must never carry the answer key.
-        const [killer, victim] = cast();
+        const [killer, victim] = cast(2);
         const drpg = game.drpg;
         const murder = await import("./murder.mjs");
         // The bridge is where the player-facing entry point lives; cleanup.mjs
@@ -480,7 +480,7 @@ const SCENARIOS = [
          * rather than submitted: this asks what the window IS, not what the
          * dice say.
          */
-        const [who] = cast();
+        const [who] = cast(1);
         // The environment first (E01, audit S14-05): the window is Daggerheart's own,
         // so where Daggerheart's applications are not registered it cannot open, and
         // where they are, a window that does not open is this module's failure.
@@ -522,7 +522,7 @@ const SCENARIOS = [
     }],
 
     ["a Burst pays for a whole action, exactly once, and comes back if refunded", async () => {
-        const [who] = cast();
+        const [who] = cast(1);
         const actions = await import("./actions.mjs");
         const { grantFreeActions, freeActionsLeft, spendAction, refundAction } = actions;
 
@@ -607,7 +607,7 @@ const SCENARIOS = [
          * when they can pay nothing, the refusal says WHICH kind of nothing it is,
          * because C5 offers a free Present for one of them and not for the other.
          */
-        const [who] = cast();
+        const [who] = cast(1);
         const P = await import("./price.mjs");
         const { grantFreeActions } = await import("./actions.mjs");
         const clock = foundry.utils.deepClone(getClock());
@@ -713,7 +713,7 @@ const SCENARIOS = [
     }],
 
     ["payPrice writes one field, refundPrice puts it back", async () => {
-        const [who] = cast();
+        const [who] = cast(1);
         const P = await import("./price.mjs");
         const actions = await import("./actions.mjs");
         const clock = foundry.utils.deepClone(getClock());
@@ -809,7 +809,7 @@ const SCENARIOS = [
          * nothing in this Foundry without a forced replacement, so a fixture that
          * "cleaned up" that way would leave the world dirty for every test after it.
          */
-        const [who] = cast();
+        const [who] = cast(1);
         const P = await import("./price.mjs");
         const before = {
             deceased: Boolean(who.getFlag(MODULE_ID, FLAGS.deceased)),
@@ -1433,7 +1433,7 @@ const SCENARIOS = [
         const scene = canvas?.scene;
         const anchor = scene?.tokens?.find(t => roomOfToken(t));
         ok(anchor, "Foundry has a token standing in a room on the scene on screen, and roomOfToken places none of them");
-        const [reader] = cast();
+        const [reader] = cast(1);
         ok(reader, "no living student to hand the fixture to");
 
         // Escape-safe on purpose, for the reason the two-tier scenario above gives.
@@ -2140,7 +2140,7 @@ const SCENARIOS = [
          * name onto that token the moment it was set published it before anybody had
          * looked - reached from the case panel's "New trace" (N-4), review of stage D.
          */
-        const [one] = cast();
+        const [one] = cast(1);
         const remnants = await import("./remnants.mjs");
         const bullets = await import("./truth-bullets.mjs");
         const scene = game.scenes.active ?? canvas?.scene;
@@ -2626,7 +2626,7 @@ const SCENARIOS = [
          * who was merely unlucky - which is the one distinction the duality
          * die exists to make.
          */
-        const [killer, victim] = cast();
+        const [killer, victim] = cast(2);
         const drpg = game.drpg;
         const murder = await import("./murder.mjs");
 
@@ -2661,7 +2661,7 @@ const SCENARIOS = [
          * afterwards. The last one is the point - a grant that survived its
          * turn would be a permanent free Survive.
          */
-        const [killer, victim] = cast();
+        const [killer, victim] = cast(2);
         const drpg = game.drpg;
         const murder = await import("./murder.mjs");
 
@@ -4408,7 +4408,7 @@ const SCENARIOS = [
          */
         const { pendingCalls, appendArmedCall, alreadyArmed, consumeCalls } =
             await import("./call-effects.mjs");
-        const [who] = cast();
+        const [who] = cast(1);
         const before = foundry.utils.deepClone(who.getFlag(MODULE_ID, FLAGS.pendingCall) ?? null);
         try {
             await who.unsetFlag(MODULE_ID, FLAGS.pendingCall);
@@ -4465,7 +4465,7 @@ const SCENARIOS = [
          * SENTENCE each refusal gives, because "it returned null" is also what an
          * action with nothing to do returns.
          */
-        const [who, other] = cast();
+        const [who, other] = cast(2);
         const rolls = await import("./action-rolls.mjs");
         const calls = await import("./calls.mjs");
         const monocub = await import("./monocub.mjs");
@@ -4531,7 +4531,7 @@ const SCENARIOS = [
          * the phase itself, so a refill written only into the window would leave
          * this one locked against whatever actions people were holding.
          */
-        const [who, hurt] = cast();
+        const [who, hurt] = cast(2);
         const actions = await import("./actions.mjs");
         const { startFloor, endFloor } = await import("./trial-floor.mjs");
         const clock = foundry.utils.deepClone(getClock());
@@ -4686,7 +4686,7 @@ const SCENARIOS = [
          * is asserted here through `presentBullet` because that is what the window's
          * first button calls.
          */
-        const [who, other] = cast();
+        const [who, other] = cast(2);
         const floorMod = await import("./trial-floor.mjs");
         const trial = await import("./trial.mjs");
         const price = await import("./price.mjs");
@@ -4968,7 +4968,7 @@ const SCENARIOS = [
          * pocket full of Hope cannot analyse. Driven through `performAction`, which
          * refuses at the quote before it opens anything.
          */
-        const [who] = cast();
+        const [who] = cast(1);
         const rolls = await import("./action-rolls.mjs");
         const clock = foundry.utils.deepClone(getClock());
         const before = {
@@ -5022,7 +5022,7 @@ const SCENARIOS = [
          * having paid nothing on the client and the GM charges the Sanity itself,
          * exactly as every packet used to.
          */
-        const [who] = cast();
+        const [who] = cast(1);
         const cleanup = await import("./cleanup.mjs");
         const remnants = await import("./remnants.mjs");
         needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
@@ -5156,7 +5156,7 @@ const SCENARIOS = [
          * character has not found, and a Truth Bullet copied off it is what puts
          * it on that register.
          */
-        const [who] = cast();
+        const [who] = cast(1);
         const cleanup = await import("./cleanup.mjs");
         const remnants = await import("./remnants.mjs");
         const bullets = await import("./truth-bullets.mjs");
@@ -5330,7 +5330,7 @@ const SCENARIOS = [
          * revealed, or filed on another GM's browser - gets the words from the
          * trace itself when it is identified.
          */
-        const [one] = cast();
+        const [one] = cast(1);
         const remnants = await import("./remnants.mjs");
         const bullets = await import("./truth-bullets.mjs");
         const analyze = await import("./analyze.mjs");
@@ -6120,7 +6120,7 @@ const SCENARIOS = [
         // A LIVING student (review of stage D): `studentActors()[0]` could be a dead one,
         // whom the scenario revived first - and a Monocub, whose revive the restore does not
         // undo. `cast()` is what every other fixture scenario stands on.
-        const [victim] = cast();
+        const [victim] = cast(1);
 
         const said = [];
         const info = ui.notifications.info.bind(ui.notifications);
@@ -6503,7 +6503,7 @@ const SCENARIOS = [
          * helpers here, on a student, and the actor's source is read afterwards: at a
          * table this reads v14's operators.
          */
-        const [actor] = cast();
+        const [actor] = cast(1);
         const { replaceFlag } = await import("./utils.mjs");
         const key = "suiteOperatorProbe";
         const stored = () => foundry.utils.deepClone(actor._source?.flags?.[MODULE_ID] ?? {});

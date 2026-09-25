@@ -480,13 +480,33 @@ const WORLD = {
     playerAccounts: ["player accounts", () => game.users.filter(u => !u.isGM).length],
     playersWithCharacter: ["player accounts that own a character", () => game.users.filter(u => !u.isGM
         && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER"))).length],
+    /* Connected now, which is what voiceTargets places: a player who is not here has
+       no voice room to be sent to (E30 review, 25.09.2026). */
+    connectedPlayersWithCharacter: ["connected player accounts that own a character", () => game.users.filter(u => !u.isGM
+        && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER"))).length],
     fullGms: ["full Gamemaster accounts", () => game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER).length],
     stashes: ["stashes", () => allVaults().length],
     /* Read off the item's own flag, not through vaultContents: the invariant this
        serves hunts a stashed item whose stash is gone, and must not lose the item
-       it hunts to the reader it checks. A thirteenth row, added with that test. */
+       it hunts to the reader it checks. A row of its own, added with that test. */
     stashedItems: ["stashed items", () => game.actors.filter(a => a.type === "character")
-        .reduce((n, a) => n + a.items.filter(i => i.getFlag(MODULE_ID, "location") === "vault").length, 0)]
+        .reduce((n, a) => n + a.items.filter(i => i.getFlag(MODULE_ID, "location") === "vault").length, 0)],
+    /*
+     * WHAT THREE WORLD SCANS READ (E30 review, 25.09.2026). "no Remnant token carries
+     * the answer key", "a Remnant token's name gives nothing away" and "no item claims
+     * a role that does not exist" gather what is wrong across the whole world and
+     * assert once, after the loop - so over a world with no trace and no item role
+     * they passed having read nothing, and the headless run was such a world: the
+     * seed had neither, and tier 1 runs before tier 2 places a trace. Both rows read
+     * the documents' own flags, as the scans do, on every scene and every actor.
+     */
+    remnantTokens: ["trace tokens on every scene", () => [...(game.scenes ?? [])]
+        .reduce((n, scene) => n + [...(scene.tokens ?? [])].filter(t => t.getFlag(MODULE_ID, "isRemnant")).length, 0)],
+    itemsWithRoles: ["items that name a role beyond their category", () => [...game.actors]
+        .reduce((n, a) => n + [...a.items].filter(i => {
+            const roles = i.getFlag(MODULE_ID, "roles");
+            return Array.isArray(roles) && roles.length > 0;
+        }).length, 0)]
 };
 
 /* A skip describes the world AS FOUND. Once a test has written to the world, what
