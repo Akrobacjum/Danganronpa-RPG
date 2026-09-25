@@ -54,7 +54,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         for (let i = 0; i < 80 && game.drpg.murderState()?.stage === "openingRoll"; i++) await new Promise(r => setTimeout(r, 100));
         return game.drpg.murderState()?.stage ?? null;`, { timeout: 30000 });
     await settle(300);
-    const incidentCards = await p1.eval(`return game.messages.contents.slice(${cards0}).map(m => ({ w: m.whisper, doc: JSON.stringify(m._source) }));`);
+    const incidentCards = await p1.eval(`return game.messages.contents.slice(${cards0}).map(m => ({ w: m.whisper, doc: JSON.stringify(m._source),
+        author: m._source.author ?? null, speaker: m._source.speaker?.actor ?? null, rolls: (m._source.rolls ?? []).length }));`);
     const naming = incidentCards.filter(c => [ids.chie, "Chie Mori", ids.botan, "Botan Kage"].some(s => c.doc.includes(s))
         || ([p3.userId, p2.userId].some(u => c.w.includes(u)) && !c.w.includes(p1.userId)));
     /* The precondition is its own check, so the leak check can only be red for the
@@ -62,9 +63,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
        would hide a broken scenario behind a known leak. */
     const reached = stage !== "openingRoll" && incidentCards.length > 0;
     check("p1 holds the incident's cards once the opening roll is thrown", reached, JSON.stringify({ stage, held: incidentCards.length }));
-    check("SECRECY p1 during incident: no chat card names the killer or accomplice, or is addressed to them alone",
-        naming.length === 0,
-        JSON.stringify({ stage, held: incidentCards.length, naming: naming.map(c => ({ whisper: c.w, doc: c.doc.slice(0, 260) })) }).slice(0, 1600),
+    /* THE KNOWN CARD APART FROM THE REST (E30 fix, 25.09.2026). S04-02 is the killer's
+       own opening roll: thrown on the killer's player's client, so p3 wrote it, Chie
+       speaks it, and it holds a roll. Any other card that names the killer or the
+       accomplice is a plain check, so a second leak cannot stay red under the first.
+       Measured with a public card naming Chie posted during the incident: the plain
+       check failed, the known one stayed expected red. */
+    const killersRoll = c => c.author === p3.userId && c.speaker === ids.chie && c.rolls > 0;
+    const card = c => ({ whisper: c.w, doc: c.doc.slice(0, 260) });
+    const knownCard = naming.filter(killersRoll), otherCards = naming.filter(c => !killersRoll(c));
+    check("SECRECY p1 during incident: no card but the killer's own opening roll names the killer or accomplice, or is addressed to them alone",
+        otherCards.length === 0,
+        JSON.stringify({ stage, held: incidentCards.length, naming: otherCards.map(card) }).slice(0, 1600));
+    check("SECRECY p1 during incident: the killer's opening roll names neither the killer nor the killer's player",
+        knownCard.length === 0,
+        JSON.stringify({ stage, held: incidentCards.length, naming: knownCard.map(card) }).slice(0, 1600),
         { knownLeak: "S04-02", measured: reached });
 
     // Drive to resolution + discovery + trial

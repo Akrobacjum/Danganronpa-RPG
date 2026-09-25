@@ -124,7 +124,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     const leaks = theirs ? foundItems.flatMap(name => pathsTo(JSON.parse(theirs.doc), name).map(at => `"${name}" at ${at}`)) : [];
     // The precondition apart from the leak (E30): p2 holding the card is checked above.
     check("gm: the Search put something on Aiko's sheet", foundItems.length > 0, JSON.stringify(foundItems));
-    check("p2: another player was not told what p1 searched for", leaks.length === 0, JSON.stringify({ found: foundItems, leaks }),
+    /* THE KNOWN PATH APART FROM THE REST (E30 fix, 25.09.2026). S02-11 is the card's
+       summary flag; the found item anywhere else in p2's copy is a plain check, so a
+       second leak cannot stay red under the first. Measured with the item also written
+       into the card's popupTitle flag: the plain check failed, the known one stayed
+       expected red. */
+    const inSummary = leaks.filter(at => at.includes(` at flags.${MOD}.summary.`));
+    const elsewhere = leaks.filter(at => !inSummary.includes(at));
+    check("p2: nothing but the Search card's summary flag says what p1 found", elsewhere.length === 0,
+        JSON.stringify({ found: foundItems, leaks: elsewhere }));
+    check("p2: the Search card's summary flag does not say what p1 found", inSummary.length === 0,
+        JSON.stringify({ found: foundItems, leaks: inSummary }),
         { knownLeak: "S02-11", measured: foundItems.length > 0 && Boolean(theirs) });
     console.log("[qa] p1 notifications after Search:", JSON.stringify(search.notifs));
 

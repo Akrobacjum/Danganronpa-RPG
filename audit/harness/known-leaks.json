@@ -10,7 +10,7 @@
       "what": "During an incident a bystander's browser holds the killer's opening roll: the chat document's speaker names the killer's actor and its whisper list names the killer's player.",
       "closes": "E06",
       "detectedBy": [
-        {"scenario": "11-killer-secrecy", "check": "SECRECY p1 during incident: no chat card names the killer or accomplice, or is addressed to them alone"}
+        {"scenario": "11-killer-secrecy", "check": "SECRECY p1 during incident: the killer's opening roll names neither the killer nor the killer's player"}
       ],
       "measuredAt": "E30 C19 on 46133ec, 24.09.2026: p1 held a card by p3, speaker ACTORCHIE0000000 / Chie Mori, whisper [GM, p3], content \"Duality: 3\" - the killer's opening roll"
     },
@@ -22,7 +22,7 @@
       "what": "A Search's private card carries what was found, where, and whether a trace was left, in flags.danganronpa-rpg.summary, which every browser holds.",
       "closes": "E05",
       "detectedBy": [
-        {"scenario": "40-flow", "check": "p2: another player was not told what p1 searched for"}
+        {"scenario": "40-flow", "check": "p2: the Search card's summary flag does not say what p1 found"}
       ],
       "measuredAt": "E30 C19 on 46133ec, 24.09.2026: \"Cereal bar\" at flags.danganronpa-rpg.summary.item on p2's copy of p1's Search card"
     },
