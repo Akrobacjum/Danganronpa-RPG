@@ -129,8 +129,9 @@ own, so a red can only mean the thing it names. The verdict is
 `tools/stages.mjs`'s: a measured failure of a live entry is `expectedRed` (printed
 `RED*`, not counted as failed); a check that stopped failing, whose entry is
 unknown, whose precondition failed, or whose closing stage has shipped is a
-failure. The summary keeps its prefix - `[cluster] 6/7 checks passed, 1 expected
-red (S04-02 until E06), 0 failed in 3638ms` - and the exit code is 1 only when
+failure. The summary keeps its prefix - `[cluster] 9/10 checks passed, 1 expected
+red (S04-02 until E06), 0 failed in 3963ms` (11-killer-secrecy, 25.09.2026) - and
+the exit code is 1 only when
 something failed. The results file counts `passed`, `expectedRed`, `failed` and
 `total`, and lists `knownLeaks` with their verdicts. Run against another tree
 (`DRPG_REPO`), whose scenarios may predate the registries, a labelled check

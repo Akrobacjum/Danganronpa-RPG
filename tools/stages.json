@@ -6,7 +6,7 @@
     {"id": "E27", "planned": "1.2.58", "version": "1.2.58", "shipped": "2026-09-24", "touches": [], "drills": []},
     {"id": "E02", "planned": "1.2.59", "version": "1.2.59", "shipped": "2026-09-24", "touches": ["sockets"], "drills": []},
     {"id": "E03", "planned": "1.2.60", "version": "1.2.60", "shipped": "2026-09-24", "touches": ["sockets", "rolls", "scenes"], "drills": []},
-    {"id": "E30", "planned": "1.2.61", "version": null, "shipped": null, "touches": null, "drills": ["migrate-remnants-old-world"]},
+    {"id": "E30", "planned": "1.2.61", "version": "1.2.61", "shipped": "2026-09-25", "touches": null, "drills": ["migrate-remnants-old-world"]},
     {"id": "E31", "planned": "1.2.62", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E04", "planned": "1.2.63", "version": null, "shipped": null, "touches": null, "drills": []},
     {"id": "E05", "planned": "1.2.64", "version": null, "shipped": null, "touches": null, "drills": []},
