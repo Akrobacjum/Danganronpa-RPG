@@ -19,7 +19,9 @@ self-test (`audit/gate`), the suite and every scenario whose layers include
 `ci`, each cluster in its own process group, each held to a results file of its
 own run and to an exit code that agrees with its verdicts. Parts can be named
 (`node run-all.mjs lint check gate` is `npm run quick`) and `--only NN-name`
-narrows the scenarios. One scenario by hand:
+narrows the scenarios (a name that matches no file in scenarios/ is a usage
+error, exit 2, and a part named on the command line that it leaves empty is
+red). One scenario by hand:
 `node cluster.mjs scenarios/NN-name.mjs [--verbose]`. `DRPG_REPO` points either
 at another checkout; by default they boot the one they sit in. Each run writes
 `results/<scenario>.json` and run-all also `results/<scenario>.log` and
@@ -174,7 +176,8 @@ number is not reused for a scenario.
   attach does not complete fails its boot. jsdom 30.0.1's cascade answers:
   selectors, specificity, inheritance. It applies a media list only when the
   list is empty, `all` or `screen`: every feature query (`max-width`,
-  `prefers-color-scheme` ...) reads false whatever the window, and `@supports`,
+  `prefers-color-scheme` ...) reads false whatever the window, the imports'
+  `layer(modules)` is read as no layer, and `@supports`,
   `@container` and `@layer` blocks are not read at all (measured in the E30
   review, 25.09.2026: the module's 28 feature `@media` blocks, its `@container`
   and its `@supports` all stay unapplied headless). A custom property comes back
@@ -185,7 +188,9 @@ number is not reused for a scenario.
   roles and little else. From role 3 a user is a GM (`User#isGM`, E30) and
   writes anything but users, and world settings. Users: a Gamemaster (role 4)
   writes any; nobody else creates or deletes one; an update may not set a role
-  above the writer's own, and a player updates only itself. A player creates
+  above the writer's own (a ForcedReplacement counts as the role it puts in; a
+  ForcedDeletion of the role, or a role that is not a number, is refused), and
+  a player updates only itself. A player creates
   chat messages and changes or deletes its own, updates an actor it owns and
   creates, changes or deletes that actor's items and effects, and moves the
   tokens of such actors; everything else is refused. The rest of v14's

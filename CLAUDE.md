@@ -217,7 +217,9 @@ previous tag. When a required part did not run, the repository variable
 
 In both, a failed or errored part, a reason that is the gate's own fault, a
 missing, stale, edited or (with `DRPG_GATE_KEY` set) unsigned file, and 1.3.0
-without a passed gate are refused. As of 24.09.2026 nothing in `audit/live` has
+without a passed gate are refused. So are a part whose status is none of passed,
+failed, error and not-run, a passed suite run that passed no test, and a passed
+world diff that dumped no path. As of 24.09.2026 nothing in `audit/live` has
 run against a real Foundry (its README says so first).
 
 ## Releasing
