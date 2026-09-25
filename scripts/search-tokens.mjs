@@ -13,7 +13,7 @@
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, activeGmIds, whisperToGms, debug, warn, error } from "./utils.mjs";
-import { senderOf, ownsActor } from "./gm-bridge.mjs";
+import { senderOf, ownsActor, gmOnline } from "./bridge-guards.mjs";
 import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
 
 /**
@@ -379,7 +379,7 @@ export function searchSpendRefusal({ sender, actor, where, roomName }) {
 /**
  * Why this sender may not spend a search token in this room - or take the plant
  * check that follows the spend - or null. The bridge's one guard signature
- * (see `firstRefusal` in gm-bridge.mjs, E03): a GM's search is taken as asked, a
+ * (see `firstRefusal` in bridge-guards.mjs, E03): a GM's search is taken as asked, a
  * player's character has to be standing in the room (`searchSpendRefusal`).
  */
 async function guardSearchRoom(sender, payload, ctx) {
@@ -530,7 +530,7 @@ async function onSocketMessage(payload, senderId) {
  * free search.
  */
 function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, actorId = null, timeoutMs = TIMING.searchTokenAckMs) {
-    if (!game.users.some(u => u.isGM && u.active)) {
+    if (!gmOnline()) {
         ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.noGm"));
         return Promise.resolve({ ok: false, left: null, plant: null });
     }
@@ -544,7 +544,7 @@ function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, actorId =
  * where it was left, so there is nothing to tell the player.
  */
 function requestPlant(roomName, sceneId = SearchTokens.currentSceneId, actorId = null, timeoutMs = 5000) {
-    if (!game.users.some(u => u.isGM && u.active)) {
+    if (!gmOnline()) {
         return Promise.resolve({ ok: false, left: null, plant: null });
     }
     return askGm(ACTION_TAKE_PLANT, roomName, sceneId, timeoutMs, () =>

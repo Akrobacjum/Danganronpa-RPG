@@ -9,7 +9,7 @@
  * channel `system.daggerheart` as `DhGMUpdate` or `DhGMCreate`, and
  * Daggerheart's handler (`registerSocketHooks`, socket.mjs) carries it out
  * without asking who sent it. Every other road from a player to a GM in this
- * module asks that first (gm-bridge.mjs, `senderOf` and `ownsActor`); this file
+ * module asks that first (bridge-guards.mjs, `senderOf` and `ownsActor`); this file
  * puts the same question in front of that one.
  *
  * WHAT THIS DOES. At `init` it takes Daggerheart's listener off the channel
@@ -56,7 +56,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, whisperToGms, debug, warn, error } from "./utils.mjs";
-import { senderOf, tellRefused } from "./gm-bridge.mjs";
+import { senderOf, tellRefused } from "./bridge-guards.mjs";
 
 const GM_UPDATE = "DhGMUpdate";
 const GM_CREATE = "DhGMCreate";

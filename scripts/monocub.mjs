@@ -242,7 +242,7 @@ export async function performMeddle(actor, targetId, help) {
     // is the bridge's exported question; its toasting `hasGm` is private to it,
     // so the toast is this line's own.
     if (!game.user.isGM) {
-        const { gmOnline } = await import("./gm-bridge.mjs");
+        const { gmOnline } = await import("./bridge-guards.mjs");
         if (!gmOnline()) {
             ui.notifications.warn(game.i18n.localize("DRPG.Bridge.noGm"));
             return null;

@@ -787,7 +787,7 @@ function lineAround(text, i) {
  *
  * E03 wrote each check it added to the GM bridge as a `guard<Name>(sender,
  * payload, ctx)` function the handler asks - see the note above `firstRefusal` in
- * gm-bridge.mjs - so that E31 can lift them into a table as they are. A test that
+ * bridge-guards.mjs - so that E31 can lift them into a table as they are. A test that
  * reads a handler for a check has to read those as well, or a check that only
  * moved would read as a check that went. Any `guard<Name>` the body names counts,
  * called or handed to `firstRefusal`, and guards that name guards are followed. A
@@ -811,6 +811,52 @@ function withGuards(src, body) {
         queue.push(...named(guard));
     }
     return { body: read, guards, missing };
+}
+
+/**
+ * The files a module imports statically - `import ... from "./x.mjs"`,
+ * `export ... from "./x.mjs"`, `import "./x.mjs"` - by file name, in the order
+ * first met (E31, 25.09.2026). A dynamic `import("./x.mjs")` is not one: it
+ * runs after both files have loaded, so it cannot make a load-order cycle. Read
+ * off a line that starts with `import` or `export`, so hand it source with the
+ * comments stripped; a specifier inside a string that opens a line is read too,
+ * which is why R161 is shown its fixture first.
+ */
+function staticImports(text) {
+    const out = [];
+    const pattern = /^[ \t]*(?:import|export)\b[^;]*?\bfrom\s*["']\.\/([\w-]+\.mjs)["']|^[ \t]*import\s*["']\.\/([\w-]+\.mjs)["']/gm;
+    for (const m of String(text ?? "").matchAll(pattern)) {
+        const file = m[1] ?? m[2];
+        if (!out.includes(file)) out.push(file);
+    }
+    return out;
+}
+
+/**
+ * Every cycle in the static import graph of `files` (a Map of file name to
+ * source): the strongly connected components with more than one file, and a
+ * file that imports itself, each sorted, the list sorted (Tarjan, E31). An edge
+ * to a file outside the map is not followed.
+ */
+function importCycles(files) {
+    const graph = new Map([...files].map(([file, text]) => [file, staticImports(text).filter(dep => files.has(dep))]));
+    const index = new Map(), low = new Map(), stack = [], onStack = new Set(), found = [];
+    let next = 0;
+    const visit = v => {
+        index.set(v, next); low.set(v, next); next++;
+        stack.push(v); onStack.add(v);
+        for (const w of graph.get(v)) {
+            if (!index.has(w)) { visit(w); low.set(v, Math.min(low.get(v), low.get(w))); }
+            else if (onStack.has(w)) low.set(v, Math.min(low.get(v), index.get(w)));
+        }
+        if (low.get(v) !== index.get(v)) return;
+        const component = [];
+        let w;
+        do { w = stack.pop(); onStack.delete(w); component.push(w); } while (w !== v);
+        if (component.length > 1 || graph.get(v).includes(v)) found.push(component.sort());
+    };
+    for (const v of graph.keys()) if (!index.has(v)) visit(v);
+    return found.sort((a, b) => a[0].localeCompare(b[0]));
 }
 
 
@@ -1285,7 +1331,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, lineAt, stripStrings, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, lineAt, stripStrings, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT,
     stringLiterals, STANDING, stableJson, moduleSettingValues, watchWrites, cast,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS

@@ -17,6 +17,7 @@ import {
     LEVEL_UP, LEVEL_UP_OPTIONS
 } from "./config.mjs";
 import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, activeGmIds, dialogContent, debug, warn, error, cardHead, esc, pause } from "./utils.mjs";
+import { senderOf, ownsActor, gmOnline, firstRefusal, refuse } from "./bridge-guards.mjs";
 
 import { contentOf } from "./secret.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -419,79 +420,6 @@ function onArmResult(payload, senderId) {
     settleRuling(payload.requestId, payload.result ?? null);
 }
 
-/**
- * Who asked, and may they.
- *
- * Every request below arrives as a plain socket message, and the primary GM used
- * to act on all of them without asking who sent it or whether the numbers were
- * sane. Anyone with a console could adjust a Despair pool, push progress onto
- * somebody else's project, or teleport a token. These two helpers are the whole
- * defence: the sender has to be a real, connected user, and anything scoped to an
- * actor has to be an actor that sender actually owns.
- *
- * Who sent this, according to Foundry rather than according to the packet.
- *
- * This used to read `payload.userId` - a field the sender writes about itself.
- * Every guard in this file is built on the answer (`ownsActor` below decides
- * whether a request may touch a given character), so trusting the claim meant a
- * player could put any other user's id in the field and act as them: take a
- * crisis action with somebody else's character, spend their project progress,
- * empty their stash. The real id is Foundry's own second argument to a socket
- * handler and cannot be set by the sender - see `handleCustomSocket` in the
- * server's `sockets.mjs`, which stamps `this.user.id` on every delivery.
- */
-/*
- * EXPORTED SO THE OTHER SOCKET IN THE MODULE CAN USE THE SAME TWO, rather than
- * grow its own pair a year later that is subtly different. traps.mjs runs the
- * one socket handler outside this file that acts on a named character; it now
- * opens with these, and R1b reads both files for the shape.
- */
-export function senderOf(senderId) {
-    const user = game.users.get(senderId ?? "");
-    return user?.active ? user : null;
-}
-
-export function ownsActor(user, actorId) {
-    if (!user || !actorId) return false;
-    if (user.isGM) return true;
-    return Boolean(game.actors.get(actorId)?.testUserPermission(user, "OWNER"));
-}
-
-/**
- * Refuse loudly in the log rather than silently doing the wrong thing - and
- * tell the asker (COMM-16).
- *
- * The acknowledgement leaves before any guard runs, so a request this side
- * then refuses used to be acknowledged to the player and dropped: a roll that
- * reported success and a world that did not change, which is the exact
- * symptom the ack was added to remove. One addressed packet closes it.
- */
-function refuse(action, why, ctx = null) {
-    // The sender's name, from Foundry's own `senderId`: the handbook sends a GM
-    // to this line to find out who asked.
-    const who = game.users?.get(ctx?.asker ?? "")?.name;
-    warn(`Refused a "${action}" request over the socket${who ? ` from ${who}` : ""}: ${why}.`);
-    tellRefused(ctx?.asker, action, ctx?.requestId ?? null);
-    return null;
-}
-
-/**
- * Tell one player that the GM's client said no. Split out of `refuse` (E03) so
- * the other listeners that judge a player's request - Daggerheart's relay in
- * relay-guard.mjs above all - answer with the same packet and the same toast,
- * rather than a player's refused change simply never happening.
- */
-export function tellRefused(userId, what, requestId = null) {
-    if (!userId || userId === game.user?.id) return;
-    try {
-        game.socket.emit(SOCKET_EVENT, {
-            action: ACTION_REFUSED, userId, requestId, what
-        }, { recipients: [userId] });
-    } catch {
-        // A refusal nobody hears is the old behaviour, not a new failure.
-    }
-}
-
 /** The GM's client refused a request this client sent. */
 function onRefused(payload, senderId) {
     if (payload?.action !== ACTION_REFUSED) return;
@@ -563,44 +491,6 @@ async function handleCleanupTraces(payload, senderId, ctx) {
         result
     }, { recipients: [asker] });
     return;
-}
-
-/*
- * THE GUARDS, ONE SIGNATURE EACH (E03, 24.09.2026; the plan's patch to E03).
- *
- * Every check E03 added to a handler in this file is a small function,
- * `guard<Name>(sender, payload, ctx)`, that answers null to let the request
- * through or the reason, as a string, to refuse it - the string `refuse` logs,
- * which 30-security reads back through `sessionFailures()` and matches (the
- * suite checks only that the helpers behind the guards refuse or pass, never
- * their wording). One signature because stage E31 of the
- * plan lifts these as they stand into a table in bridge-guards.mjs, and a guard
- * that leaned on something its handler had worked out first could not be
- * lifted without it. So each looks up what it needs itself (the actor, the
- * token) and puts nothing on `ctx`, and each says for itself whom it is asked
- * of - a player, an undo, progress taken back.
- *
- * A handler asks its guards in the order written where it asks them, and that
- * is the order the checks ran in before they were split out. The order is part
- * of the rule, not a layout: some guards rely on the checks before them having
- * passed (a token that exists, a Call that is a Hope Call). Guards change
- * nothing, with one exception - a guard named `...Receipt` spends a Reroll
- * receipt, and it is the last guard its handler asks. What a handler still
- * checks after its guards - the two older checks in `handleDespair` (the size
- * of the step, the pool it names), the resolvers' own refusals - can refuse an
- * undo already paid for, as it could before the split. The checks each handler
- * opens with (the sender, ownership, sight of the project) are still written
- * in the handler - older than E03, but for the one unknown-sender line E03 gave
- * `handleRemnant`, which is the same line every other handler opens with.
- */
-
-/** Ask each guard in turn: the first reason given, or null when every one passes. */
-async function firstRefusal(sender, payload, ctx, ...guards) {
-    for (const guard of guards) {
-        const why = await guard(sender, payload, ctx);
-        if (why) return why;
-    }
-    return null;
 }
 
 /** An Observe taken back is a Reroll's, and is paid for by the receipt of one (E03). Spends it. */
@@ -2340,11 +2230,6 @@ export function requestRemnantEdit(sceneId, tokenId, patch) {
     if (!hasGm()) return null;
     emitToGms( { action: ACTION_REMNANT_EDIT, userId: game.user.id, requestId: expectAck(ACTION_REMNANT_EDIT), sceneId, tokenId, patch });
     return { pending: true };
-}
-
-/** Is a GM connected right now? The question alone, no toast (audit A16). */
-export function gmOnline() {
-    return game.users.some(u => u.isGM && u.active);
 }
 
 /**

@@ -57,6 +57,8 @@ import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
     TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { isPrimaryGm, debug, log, warn, error, esc, pause } from "./utils.mjs";
+// Statically: the leaf imports config.mjs and utils.mjs only, so this edge closes no cycle (E31).
+import { senderOf, ownsActor } from "./bridge-guards.mjs";
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
@@ -684,13 +686,13 @@ export function registerTraps() {
         if (payload?.action !== TRAP_EVENT) return;
         if (!isPrimaryGm()) return;
 
-        // Dynamically, not at the top of the file: traps.mjs already reaches
-        // gm-bridge.mjs this way from `alert`, and a static edge here would add
-        // one to a graph that settings.mjs was reorganised to keep acyclic.
-        const { senderOf } = await import("./gm-bridge.mjs");
+        // The pair comes from bridge-guards.mjs, a leaf, at the top of the file. It
+        // was taken late from gm-bridge.mjs, whose static edge would have added one
+        // to a graph that settings.mjs was reorganised to keep acyclic; the leaf
+        // imports nothing that can import it back (E31, R161).
         const sender = senderOf(senderId);
         // The two guards have the bridge's one signature and its reply context
-        // (see `firstRefusal` in gm-bridge.mjs, E03); a relay is answered to nobody.
+        // (see `firstRefusal` in bridge-guards.mjs, E03); a relay is answered to nobody.
         const ctx = { asker: senderId, requestId: payload.requestId ?? null };
         const whose = await guardRelayOwner(sender, payload, ctx);
         if (whose) {
@@ -727,7 +729,6 @@ const RELAYED_ROOM = { crossing: "to", rest: "room", stash: "room" };
 
 /** A relay is about the sender's own character, or it is refused - see the note above `relay`. */
 async function guardRelayOwner(sender, payload, ctx) {
-    const { ownsActor } = await import("./gm-bridge.mjs");
     return ownsActor(sender, payload.actorId) ? null : "not their character";
 }
 
@@ -947,7 +948,6 @@ async function onChatMessage(message) {
 
         const actor = game.actors.get(used.actorId ?? "")
             ?? game.actors.get(message.speaker?.actor ?? "");
-        const { ownsActor } = await import("./gm-bridge.mjs");
         const why = usedItemRefusal({ author: message.author, actor, used, trap, owns: ownsActor });
         if (why) {
             warn(`A "used an item" card from ${message.author?.name ?? "?"} did not set off ${trap.name}: ${why}.`);

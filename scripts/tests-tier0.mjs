@@ -14,7 +14,7 @@ import {
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
-    DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT
+    DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -307,7 +307,7 @@ const REGRESSIONS = [
         /*
          * AND THE GUARDS EACH HANDLER ASKS (E03, 24.09.2026). E03 wrote the checks it
          * added as `guard<Name>(sender, payload, ctx)` functions the handler asks in
-         * order (the note above `firstRefusal` in gm-bridge.mjs), so the ownership,
+         * order (the note above `firstRefusal` in bridge-guards.mjs), so the ownership,
          * sight or GM test may now stand in a guard rather than in the handler's own
          * body - `handleTieTrace`'s ownership does, and `handleDespair`'s. A guard
          * counts only when the handler names it, guards that name guards are read
@@ -4730,7 +4730,7 @@ const REGRESSIONS = [
         /*
          * THROUGH THE GUARDS (E03, 24.09.2026). The receipt is spent by a
          * `guard...Receipt` the handler asks (the note above `firstRefusal` in
-         * gm-bridge.mjs), no longer in the handler's own body, so each handler is
+         * bridge-guards.mjs), no longer in the handler's own body, so each handler is
          * read with the guards it asks, and a guard it names that the file does not
          * define fails. Each handler is cut at its own end - the next top-level
          * declaration - rather than at the next `async function`, which now is as
@@ -4774,7 +4774,7 @@ const REGRESSIONS = [
         /*
          * THROUGH ITS GUARD (E03, 24.09.2026). The bridge's `crisisRefusal` is asked in
          * `guardCrisisAction`, one of the guards `handleCrisis` asks (the note above
-         * `firstRefusal` in gm-bridge.mjs), so the call is looked for in the handler
+         * `firstRefusal` in bridge-guards.mjs), so the call is looked for in the handler
          * with its guards, and "before it resolves" is read off where the handler
          * names the guard that reaches it - or the call itself, were it ever written
          * back into the handler.
@@ -5225,6 +5225,61 @@ const REGRESSIONS = [
             || (f.status === "covered" ? !f.scenarios?.length : !/^E\d+$/.test(f.stage ?? "")));
         ok(!shapeless.length, `a flow with no scenario that drives it and no stage to write one: ${shapeless.map(f => f.id).join(", ")}`);
         equal(new Set(FLOWS.map(f => f.id)).size, FLOWS.length, "two flows share an id");
+    }],
+
+    ["R161 - who asks, and whether a GM is there, is answered in one leaf, with no import cycle", async () => {
+        /*
+         * E31, 25.09.2026; audit S01-64, S17-08. `senderOf` and `ownsActor`, the first two
+         * questions every road to the GM asks, lived in gm-bridge.mjs, so a file that wanted one
+         * of them loaded the whole bridge for it; and "is a GM connected" was written out four
+         * times beside `activeGmIds` (gm-bridge, search-tokens twice, diagnostics). They live in
+         * bridge-guards.mjs now, which imports config.mjs and utils.mjs only, so any module can
+         * take them statically without closing a cycle. This holds that shape: the three names
+         * defined there and nowhere else, the predicate spelt only in `activeGmIds`, nothing
+         * taking them (or `tellRefused`) from gm-bridge.mjs any more, and no cycle in the static
+         * import graph of what Foundry serves. Each reader is shown a planted fault first.
+         */
+        const PREDICATE = /(?<![!\w.])(\w+)\.isGM\s*&&\s*\1\.active\b|(?<![!\w.])(\w+)\.active\s*&&\s*\2\.isGM\b/g;
+        const MOVED = ["senderOf", "ownsActor", "gmOnline", "tellRefused"];
+        const definers = (files, name) => [...files].filter(([, text]) =>
+            new RegExp(`^(?:export )?(?:async )?function ${name}\\(|^(?:export )?(?:const|let) ${name}\\s*=`, "m").test(text)).map(([file]) => file);
+        const takenFromBridge = files => [...files].flatMap(([file, text]) => [...text.matchAll(
+            /import\s*\{([^}]*)\}\s*from\s*"\.\/gm-bridge\.mjs"|\{([^}]*)\}\s*=\s*await\s+import\(\s*"\.\/gm-bridge\.mjs"\s*\)/g)]
+            .flatMap(m => (m[1] ?? m[2]).split(",").map(part => part.trim().split(/\s+as\s+|\s*:\s*/)[0]))
+            .filter(name => MOVED.includes(name)).map(name => `${file}: ${name}`));
+
+        const planted = new Map([
+            ["a.mjs", `import { b } from './b.mjs';\nexport function gmOnline() { return game.users.some(u => u.isGM && u.active); }`],
+            ["b.mjs", `import { a } from './a.mjs';\nexport { a as c } from './c.mjs';\nconst { ownsActor } = await import("./gm-bridge.mjs");`],
+            ["c.mjs", `export const gmOnline = () => false;\nconst later = () => import('./a.mjs');\nconst some = game.users.filter(u => !u.isGM && u.active);`]
+        ]);
+        equal(JSON.stringify(importCycles(planted)), JSON.stringify([["a.mjs", "b.mjs"]]),
+            "the cycle reader does not find exactly the cycle planted for it - it would read the module's graph wrong too");
+        equal(JSON.stringify(definers(planted, "gmOnline")), JSON.stringify(["a.mjs", "c.mjs"]),
+            "the definition reader does not find both planted definitions");
+        equal([...planted.values()].flatMap(text => [...text.matchAll(PREDICATE)]).length, 1,
+            "the predicate reader does not find the one planted copy, or reads a player's `!u.isGM` as one");
+        equal(JSON.stringify(takenFromBridge(planted)), JSON.stringify(["b.mjs: ownsActor"]),
+            "the importer reader does not find the planted import from gm-bridge.mjs");
+
+        const sources = new Map([...await moduleSources()].map(([file, text]) => [file, stripComments(text)]));
+        must(sources.has("bridge-guards.mjs") && sources.has("gm-bridge.mjs") && sources.has("utils.mjs"),
+            "bridge-guards.mjs, gm-bridge.mjs or utils.mjs is not served - this test reads nothing until they are");
+        const served = new Map([...sources].filter(([file]) => !/^tests(-[\w-]+)?\.mjs$/.test(file)));
+        equal(JSON.stringify(staticImports(sources.get("bridge-guards.mjs")).sort()), JSON.stringify(["config.mjs", "utils.mjs"]),
+            "bridge-guards.mjs imports something besides config.mjs and utils.mjs, and could close a cycle");
+        for (const name of ["senderOf", "ownsActor", "gmOnline"]) {
+            equal(JSON.stringify(definers(served, name)), JSON.stringify(["bridge-guards.mjs"]),
+                `${name} is defined somewhere other than bridge-guards.mjs - a second copy of a guard is the one that drifts`);
+        }
+        const spelt = [...served].flatMap(([file, text]) => [...text.matchAll(PREDICATE)].map(m => `${file}:${lineAt(text, m.index)}`));
+        ok(spelt.length === 1 && spelt[0].startsWith("utils.mjs:") && [...fnSource(served.get("utils.mjs"), "activeGmIds").matchAll(PREDICATE)].length === 1,
+            `"a GM who is connected" is spelt out somewhere other than activeGmIds in utils.mjs: ${spelt.join(", ")}`);
+        const taken = takenFromBridge(served);
+        ok(!taken.length, `these still take the leaf's names from gm-bridge.mjs: ${taken.join(", ")}`);
+        const cycles = importCycles(sources);
+        ok(!cycles.length, `the static import graph of the served files has a cycle: ${cycles.map(c => c.join(" <-> ")).join("; ")}`);
+        log(`R161: ${sources.size} served files, ${[...sources.values()].reduce((n, text) => n + staticImports(text).length, 0)} static imports, 0 cycles`);
     }]
 ];
 

@@ -17,6 +17,7 @@ import { listExperiences } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings } from "./voice.mjs";
 import { isPrimaryGm, log, debug } from "./utils.mjs";
+import { gmOnline } from "./bridge-guards.mjs";
 
 /**
  * Why Dice So Nice might be rolling unskinned dice.
@@ -1148,7 +1149,7 @@ export function diagnoseVoice() {
         regions.length ? ` (${regions.join(", ")})` : "  ← nothing to assign anyone to"}`);
 
     lines.push(`This client runs the assignment loop: ${isPrimaryGm() ? "yes" : "no"}`);
-    if (!isPrimaryGm() && !game.users.find(u => u.isGM && u.active)) {
+    if (!isPrimaryGm() && !gmOnline()) {
         lines.push("   ← and no GM is connected, so nobody is running it at all.");
     }
 

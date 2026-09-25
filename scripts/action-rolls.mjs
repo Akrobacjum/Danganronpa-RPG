@@ -3910,7 +3910,7 @@ async function performAnalyze(actor, def, options) {
      * BEFORE the price and before the dice (T-1). Without this the action was
      * paid for, the dice were thrown, and the packet was dropped on the way out.
      */
-    const { gmOnline } = await import("./gm-bridge.mjs");
+    const { gmOnline } = await import("./bridge-guards.mjs");
     if (!gmOnline()) {
         ui.notifications.warn(game.i18n.localize("DRPG.Analyze.needGm"));
         return null;
@@ -3947,7 +3947,8 @@ async function performAnalyze(actor, def, options) {
  * the roll is trying to find out. See analyze.mjs.
  */
 async function analyseBullet(actor, def, roll, subject, charge = null) {
-    const { requestAnalyzeResolve, gmOnline } = await import("./gm-bridge.mjs");
+    const { requestAnalyzeResolve } = await import("./gm-bridge.mjs");
+    const { gmOnline } = await import("./bridge-guards.mjs");
 
     /*
      * THE LAST GM CAN LEAVE WHILE THE DICE ARE IN THE AIR, and then there is
@@ -4070,7 +4071,8 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
      */
     Hooks.callAll("drpgStashHunted", { actor, room, total: roll.total });
 
-    const { requestStashSearch, gmOnline } = await import("./gm-bridge.mjs");
+    const { requestStashSearch } = await import("./gm-bridge.mjs");
+    const { gmOnline } = await import("./bridge-guards.mjs");
 
     // The same rule as `analyseBullet`: only a road with nobody left on it hands
     // the price back (T-1).
@@ -4433,7 +4435,7 @@ async function performDirectMurder(actor, def, options) {
     // client has written it, and with no GM connected `requestParkMurder`
     // refuses. Charging first and then telling the player "your move is made"
     // left them one action down with nothing declared anywhere.
-    const { gmOnline } = await import("./gm-bridge.mjs");
+    const { gmOnline } = await import("./bridge-guards.mjs");
     if (!game.user.isGM && !gmOnline()) {
         ui.notifications.warn(game.i18n.localize("DRPG.Bridge.noGm"));
         return null;
