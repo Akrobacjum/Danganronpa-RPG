@@ -8,16 +8,22 @@
  * or the one this file sits in - the same rule as cluster.mjs.
  *
  *   lint       ESLint over the repository with the root eslint.config.mjs
- *              (no-undef). Red on any problem, and red when the files it read
- *              do not include every scripts/*.mjs: a config pattern that stops
- *              matching would otherwise read as "0 problems".
+ *              (no-undef). Red on any problem; red when the files it read do
+ *              not include every scripts/*.mjs; red when a file it read has
+ *              no-undef off, or when a name no file defines, planted in each
+ *              linted folder, is not reported. ESLint reads every .mjs
+ *              whatever the config says, so a `files` pattern that stops
+ *              matching leaves its files read with no rule at all, "0
+ *              problems" - which the first check alone did not see.
  *   check      node tools/check.mjs, every part.
  *   gate       node ../gate/verify-gate.mjs --self-test: the release gate's
  *              verifier, on a throwaway repository it builds itself.
  *   suite      scenarios/01-runtests.mjs - the module's own suite, tiers 0-2,
  *              on the harness's disposable world.
  *   scenarios  every other scenarios/*.mjs whose `layers` include "ci", in
- *              number order; `--only 14-quiet` narrows it to one.
+ *              number order; `--only 14-quiet` narrows it to one. An --only
+ *              that names no file in scenarios/ is a usage error, and a part
+ *              named on the command line that it leaves empty is red.
  *
  * WHY THIS FILE AND NOT A LINE OF SHELL PER SCENARIO. Until E30 nothing ran the
  * harness as a whole, and the cluster's exit code said 0 whatever its checks
@@ -68,6 +74,11 @@ if (onlyAt >= 0 && !ONLY) usage("--only takes a scenario name, e.g. --only 14-qu
 const asked = argv.filter((a, i) => !a.startsWith("--") && !(onlyAt >= 0 && i === onlyAt + 1));
 for (const a of asked) if (!PART_NAMES.includes(a)) usage(`no part named "${a}"`);
 const parts = asked.length ? PART_NAMES.filter(p => asked.includes(p)) : PART_NAMES;
+/* An --only that names nothing ran nothing and read "run-all: green", exit 0 (E30
+   review, 25.09.2026: `scenarios --only 14-quite`). It has to name a file. */
+if (ONLY && !scenarioFiles().some(s => s.name === ONLY || s.name.startsWith(`${ONLY}-`))) {
+    usage(`--only ${ONLY} names no file in scenarios/`);
+}
 
 /* --------------------------------- running --------------------------------- */
 
@@ -128,11 +139,37 @@ async function lint() {
     for (const r of results) {
         for (const m of r.messages) problems.push(`${path.relative(REPO, r.filePath)}:${m.line ?? 0}: ${m.message}${m.ruleId ? ` (${m.ruleId})` : ""}`);
     }
+    const messages = problems.length;
     const read = new Set(results.map(r => path.relative(REPO, r.filePath).split(path.sep).join("/")));
     const scripts = fs.readdirSync(path.join(REPO, "scripts")).filter(f => f.endsWith(".mjs")).map(f => `scripts/${f}`);
     const unread = scripts.filter(f => !read.has(f));
     for (const f of unread) problems.push(`${f} was not linted - does eslint.config.mjs still match it?`);
-    const counts = `${results.length} files, ${problems.length - unread.length} problem(s)`;
+    /* READ IS NOT RULED (E30 review, 25.09.2026). ESLint's flat config lints every
+       .mjs by default, so a file its `files` pattern stopped matching is still read,
+       with no rule: on a scratch copy with the scripts pattern misspelt, a
+       scripts/*.mjs reading an undefined name gave 0 messages and
+       calculateConfigForFile had no no-undef, while the check above passed. So every
+       file read must have no-undef at error level, and a name no file defines,
+       planted in each folder the config covers, must be reported (lintText, nothing
+       written). An ignore pattern that swallowed a folder fails the probe too. */
+    const rel = file => path.relative(REPO, file).split(path.sep).join("/");
+    let ruled = 0;
+    for (const r of results) {
+        const rule = (await eslint.calculateConfigForFile(r.filePath))?.rules?.["no-undef"];
+        const level = Array.isArray(rule) ? rule[0] : rule;
+        if (level === 2 || level === "error") ruled++;
+        else problems.push(`${rel(r.filePath)} is linted with no-undef ${JSON.stringify(level ?? "off")} - does eslint.config.mjs still match it?`);
+    }
+    const PROBE = "drpgLintProbeUndefinedName";
+    const probeDirs = ["scripts", "tools", "audit/harness", "audit/harness/lib", "audit/gate", "audit/live"];
+    let heard = 0;
+    for (const dir of probeDirs) {
+        const [res] = await eslint.lintText(`export const probe = ${PROBE};\n`, { filePath: path.join(REPO, dir, "__lint-probe__.mjs") });
+        if (res?.messages.some(m => m.ruleId === "no-undef" && m.message.includes(PROBE))) heard++;
+        else problems.push(`${dir}/: a name no file defines was not reported there - no-undef is not on for that folder`);
+    }
+    const counts = `${results.length} files, ${messages} problem(s); `
+        + `no-undef at error level in ${ruled}/${results.length}, a planted undefined name reported in ${heard}/${probeDirs.length} folders`;
     console.log(`lint: ${counts}`);
     for (const p of problems.slice(0, 40)) console.log(`  ${p}`);
     return { status: problems.length ? "red" : "green", ms: Date.now() - t0, counts, problems };
@@ -224,8 +261,10 @@ async function scenarioPart(which) {
     if (ONLY) list = list.filter(s => s.name === ONLY || s.name.startsWith(`${ONLY}-`));
     if (!list.length) {
         const why = ONLY ? `no ${which === "suite" ? "suite" : "ci scenario"} matches --only ${ONLY}` : `no ${which} to run`;
+        // Skipped only when nobody asked for the part by name: `run-all.mjs --only 14-quiet` has no suite to run.
+        const skipped = ONLY && !asked.includes(which);
         console.log(`${which}: ${why}`);
-        return { status: ONLY ? "skipped" : "red", ms: 0, counts: why, problems: ONLY ? [] : [why], scenarios: [] };
+        return { status: skipped ? "skipped" : "red", ms: 0, counts: why, problems: skipped ? [] : [why], scenarios: [] };
     }
     console.log(`${which}: ${list.map(s => s.name).join(", ")}`);
     const scenarios = [];
