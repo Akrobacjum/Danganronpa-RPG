@@ -860,6 +860,155 @@ function importCycles(files) {
 }
 
 
+/*
+ * THE BRIDGE'S TABLES, READ LIVE (E31, 25.09.2026; audit S17-08).
+ *
+ * R1b used to read gm-bridge.mjs's text: a row per handler, and in each handler
+ * `senderOf(senderId)` and one of three guard shapes - which could not tell
+ * ownership going missing from a handler that also checked sight. The requests
+ * are declarations now, so it reads the declarations themselves. The table files
+ * are imported, which also proves each still exports its table; the source text
+ * is read only where a declaration names a function whose body matters (the
+ * run, and what the run hands its packet to).
+ */
+async function bridgeTables() {
+    const out = [];
+    for (const [file, name] of BRIDGE_TABLE_FILES) {
+        const module = await import(`./${file}`);
+        must(module[name] && typeof module[name] === "object",
+            `${file} no longer exports ${name} - the bridge's tables cannot be read until it does`);
+        const res = await fetch(`/modules/${MODULE_ID}/scripts/${file}`);
+        must(res.ok, `${file} is not served (HTTP ${res.status})`);
+        out.push({ file, name, table: module[name], module, text: stripComments(await res.text()) });
+    }
+    return out;
+}
+
+/** The tables and the files that hold them (E31: the bridge and the trap relay; the search tokens join in C6). */
+const BRIDGE_TABLE_FILES = Object.freeze([["gm-bridge.mjs", "BRIDGE_ACTIONS"], ["traps.mjs", "TRAP_ACTIONS"]]);
+
+/**
+ * Everything wrong with the bridge's tables, one sentence each (R1b). Pure: it
+ * is handed the tables (as `bridgeTables()` gives them), the language keys of
+ * each file, flattened, and bridge-guards.mjs's namespace, so R1b can run it on
+ * a fixture with known faults before it runs it on the module.
+ *
+ *   1. the label is `DRPG.Bridge.what.<action>`, in en and pl;
+ *   2. guards is a list, empty only with a written `why`; sanitize was made by
+ *      `pick`; run is a function; answer is none, ack or reply; a "none" is quiet;
+ *   3. every guard (and every `runGuards` entry) is exported by
+ *      bridge-guards.mjs, made by one of its factories, or a `guard<Name>`
+ *      exported by the table's own file (counted, as `local`);
+ *   4. the first guard is `knownSender` or a `gmOnly`, or reads no sender and is
+ *      followed by `knownSender`;
+ *   5. a guard that spends a Reroll receipt is the last one;
+ *   6. every id or raw field the run receives is covered: by a factory guard
+ *      that names it, or by a claim - a guard of the declaration whose source
+ *      reads `payload.<field>`, or a written reason of at least 20 characters;
+ *   7. every `runGuards` entry is named in the run, or in a function of the
+ *      table's file the run names.
+ */
+function bridgeTableProblems(tables, { en, pl, guards }) {
+    const problems = [], local = [];
+    let actions = 0, withIds = 0, byGuardClaim = 0, inWords = 0;
+    const source = fn => String(fn ?? "");
+    const exported = new Set(Object.values(guards).filter(value => typeof value === "function"));
+    const FACTORIES = ["owns", "ownsActorAt", "gmOnly", "playersOnly", "canSeeProject", "inRange"];
+    // Past the parameter list: every guard takes `sender`, and only a body can be said to read it.
+    const readsSender = fn => /\bsender\b/.test(source(fn).replace(/^[^)]*\)/, ""));
+    const readsField = (fn, field) => new RegExp(`\\bpayload\\??\\.${field}\\b`).test(source(fn));
+    for (const { file, table, module, text } of tables) {
+        for (const [action, decl] of Object.entries(table)) {
+            actions++;
+            const at = `${file} ${action}`;
+            const label = `DRPG.Bridge.what.${action}`;
+            if (decl.label !== label) problems.push(`${at}: its label is ${JSON.stringify(decl.label)}, not ${label}`);
+            else for (const [lang, keys] of [["en", en], ["pl", pl]]) if (!keys.has(label)) problems.push(`${at}: ${label} is missing in ${lang}.json`);
+
+            const list = Array.isArray(decl.guards) ? decl.guards : null;
+            if (!list) problems.push(`${at}: guards is not a list`);
+            else if (!list.length && String(decl.why ?? "").trim().length < 20) problems.push(`${at}: no guard, and no written why`);
+            if (typeof decl.sanitize !== "function" || decl.sanitize.picked !== true) problems.push(`${at}: sanitize was not made by pick`);
+            if (typeof decl.run !== "function") problems.push(`${at}: run is not a function`);
+            if (!["none", "ack", "reply"].includes(decl.answer)) problems.push(`${at}: answer is ${JSON.stringify(decl.answer)}, not none, ack or reply`);
+            if (decl.answer === "none" && !decl.quiet) problems.push(`${at}: nobody is waiting on it, and it is not quiet`);
+
+            const all = [...(list ?? []), ...(decl.runGuards ?? [])];
+            for (const guard of all) {
+                if (typeof guard !== "function") { problems.push(`${at}: a guard is not a function`); continue; }
+                if (exported.has(guard) || (FACTORIES.includes(guard.factory) && typeof guards[guard.factory] === "function")) continue;
+                if (/^guard[A-Z]\w*$/.test(guard.name) && module?.[guard.name] === guard) { local.push(`${file} ${guard.name}`); continue; }
+                problems.push(`${at}: ${guard.name || "an unnamed guard"} is not exported by bridge-guards.mjs, made by one of its factories, or a guard<Name> exported by ${file}`);
+            }
+
+            if (list?.length) {
+                const [first, second] = list;
+                const opens = first === guards.knownSender || first?.factory === "gmOnly"
+                    || (typeof first === "function" && !readsSender(first) && second === guards.knownSender);
+                if (!opens) problems.push(`${at}: its first guard is not knownSender or gmOnly, nor a check that reads no sender followed by knownSender`);
+                list.forEach((guard, i) => {
+                    if (i < list.length - 1 && /spendRerollReceipt\(/.test(source(guard))) {
+                        problems.push(`${at}: ${guard.name} spends a Reroll receipt and is not the last guard`);
+                    }
+                });
+            }
+
+            const kinds = decl.sanitize?.fields ?? {};
+            const judged = Object.keys(kinds).filter(field => kinds[field] === "id" || kinds[field] === "raw");
+            if (judged.length) withIds++;
+            for (const field of judged) {
+                if (all.some(guard => guard?.covers?.includes(field))) continue;
+                const claim = decl.claims?.[field];
+                if (typeof claim === "function" && list?.includes(claim) && readsField(claim, field)) { byGuardClaim++; continue; }
+                if (typeof claim === "string" && claim.trim().length >= 20) { inWords++; continue; }
+                problems.push(`${at}: ${field} reaches the run with no guard naming it and no claim saying who judges it`);
+            }
+
+            if (decl.runGuards?.length) {
+                const run = source(decl.run);
+                const named = [...run.matchAll(/\b([A-Za-z_]\w*)\(/g)].map(m => topLevelFunction(text, m[1])).filter(Boolean).join("\n");
+                for (const guard of decl.runGuards) {
+                    if (!new RegExp(`\\b${guard.name}\\b`).test(`${run}\n${named}`)) problems.push(`${at}: runGuards names ${guard.name}, which its run never asks`);
+                }
+            }
+        }
+    }
+    return { problems, local, actions, withIds, byGuardClaim, inWords };
+}
+
+/**
+ * Every field a declaration's run reads off `payload` (R163): in the run, in the
+ * functions it hands `payload` to (followed, through `lookup`, which gives a
+ * function's source by name or null), and in its `runGuards`, which are asked
+ * with the run's copy. `unreadable` names the forms a text reader cannot follow
+ * - a computed read, a spread, a destructuring of the whole packet - which R163
+ * fails rather than skips.
+ */
+function payloadReads(decl, lookup) {
+    const sources = [], seen = new Set();
+    const queue = [stripComments(String(decl.run ?? ""))];
+    while (queue.length) {
+        const source = queue.shift();
+        sources.push(source);
+        // A call, not a declaration: a run's own `function name(payload, ...)` line names no function it hands its packet to.
+        for (const m of source.matchAll(/(?<!\bfunction\s+)\b([A-Za-z_$][\w$]*)\(([^()]*)\)/g)) {
+            if (!/(?:^|[\s,(])payload\s*(?:,|$)/.test(m[2]) || seen.has(m[1])) continue;
+            seen.add(m[1]);
+            const found = lookup(m[1]);
+            if (found) queue.push(stripComments(found));
+        }
+    }
+    for (const guard of decl.runGuards ?? []) sources.push(stripComments(String(guard)));
+    const fields = new Set(), unreadable = new Set();
+    for (const source of sources) {
+        for (const m of source.matchAll(/\bpayload\??\.([A-Za-z_$][\w$]*)/g)) fields.add(m[1]);
+        if (/\bpayload\s*\??\.?\s*\[/.test(source)) unreadable.add("payload[...]");
+        if (/\.\.\.\s*payload\b(?!\s*\??\.)/.test(source)) unreadable.add("...payload");
+        if (/\}\s*=\s*payload\b(?!\s*\??\.)/.test(source)) unreadable.add("{ ... } = payload");
+    }
+    return { fields: [...fields].sort(), unreadable: [...unreadable], handedTo: [...seen] };
+}
+
 /**
  * Source with its STRING CONTENTS blanked, `${...}` expressions kept.
  *
@@ -1331,7 +1480,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, lineAt, stripStrings, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, lineAt, stripStrings, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT,
     stringLiterals, STANDING, stableJson, moduleSettingValues, watchWrites, cast,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS

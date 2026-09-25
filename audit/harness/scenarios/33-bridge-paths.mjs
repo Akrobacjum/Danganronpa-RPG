@@ -16,7 +16,7 @@
  *      player hears; a GM who is connected and silent is reported when the acknowledgement does not
  *      come; the trap relay reaches the GMs only; a refused search is told once.
  *   C  with no GM connected, three requests settle at once, send nothing and say the same thing.
- *   D  no exception escaped into Foundry on any client, apart from the two B injects on purpose.
+ *   D  no exception escaped into Foundry on any client (until E31's runner, the two B injects were excused).
  * The two exceptions are injected through world objects the handlers write - Aiko's token's
  * `update` for the send-back, `game.settings.set` for the sabotage - so the same injection works
  * before the table exists and after it.
@@ -301,9 +301,8 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     await settle(1200);
     const toP1 = socketTraffic.slice(traffic).filter(s => s.from === "gm" && Array.isArray(s.to) && s.to.includes(IDS.p1));
     const b2 = { refused: toP1.filter(s => s.action === "bridge.refused").length, acks: toP1.filter(s => s.action === "bridge.ack").length };
-    check("B2: a refused request is not acknowledged - the refusal is the one answer", b2.acks === 0, JSON.stringify(b2),
-        untilE31("gm-bridge.mjs acknowledges a request before any guard has judged it; the runner acknowledges after them",
-            b2.refused === 1));
+    // Green since E31 C3: the runner acknowledges only once the guards have passed.
+    check("B2: a refused request is not acknowledged - the refusal is the one answer", b2.acks === 0 && b2.refused === 1, JSON.stringify(b2));
 
     // B3: the refusal says why, in the language the player reads.
     phase("a refusal in Polish", { flow: "give-take-stash" });
@@ -365,10 +364,10 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             said: await noticesSince(p1, n),
             failed: await p1.eval(`return game.i18n.localize("DRPG.Bridge.why.failed");`)
         };
+        // Green since E31 C3: the runner turns a throw into one refusal.
         check("B4a: an exception in the send-back is one refusal: p1 is told once, the GM logs it with the error, the token stays",
-            b4.told === 1 && b4.logged.some(line => line.includes("E31 injected")) && b4.token.x === home.x + 100, JSON.stringify(b4),
-            untilE31("the acknowledgement leaves before the handler runs and nothing catches a throw after it, so the player hears nothing",
-                b4.thrown >= 1));
+            b4.thrown >= 1 && b4.told === 1 && b4.logged.some(line => line.includes("E31 injected")) && b4.token.x === home.x + 100,
+            JSON.stringify(b4));
         check("B4b: the send-back had answered as accepted before the one message, which says it failed on the GM's client",
             b4.sent.answer?.ok === true && b4.sent.answer?.pending === true && b4.said.length === 1 && b4.said[0].at >= b4.sent.at
             && !b4.failed.startsWith("DRPG.") && b4.said[0].msg.includes(b4.failed), JSON.stringify(b4),
@@ -405,9 +404,9 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await settle(800);
         const b5 = { ...answered, thrown: await gm.eval(`return globalThis.__e31Thrown.sabotage;`),
             logged: await refusalsLogged(gm, "project.sabotage"), said: (await noticesSince(p1, n)).map(x => x.msg) };
+        // Green since E31 C3: the runner's refusal settles the request as soon as the run throws.
         check("B5a: an exception in a sabotage settles p1's request within 10 s, not 180, with one message",
-            b5.answer !== "still waiting" && b5.ms < 10000 && b5.said.length === 1, JSON.stringify(b5),
-            untilE31("the handler's throw reaches nobody, so an awaited request waits out its three-minute clock", b5.thrown >= 1));
+            b5.thrown >= 1 && b5.answer !== "still waiting" && b5.ms < 10000 && b5.said.length === 1, JSON.stringify(b5));
         check("B5b: the sabotage's answer is a refusal whose reason is that it failed",
             b5.answer?.ok === false && b5.answer?.refused === true && b5.answer?.reason === "failed", JSON.stringify(b5),
             untilE31("a request answers null for every failure and a refusal carries no reason", b5.thrown >= 1));
@@ -474,10 +473,10 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         return item?.id ?? null;`, { timeout: 60000 });
     await settle(800);
 
+    // Since E31 C3 the runner catches the two exceptions B injects, so none is excused here.
     const gmSide = { gm: await errorsOf(gm), ag: await errorsOf(ag) };
-    const escaped = Object.values(gmSide).flat().filter(line => !line.includes("E31 injected"));
-    check("D: no exception escaped into Foundry on the GM's or the Assistant's client, apart from the two injected in B",
-        escaped.length === 0, JSON.stringify(gmSide));
+    check("D: no exception escaped into Foundry on the GM's or the Assistant's client",
+        Object.values(gmSide).every(list => list.length === 0), JSON.stringify(gmSide));
 
     await disconnect("gm");
     await settle(800);

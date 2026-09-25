@@ -2383,7 +2383,14 @@
         "advancement.apply": "Level Up",
         "call.arm": "A Call for somebody else",
         "daggerheart": "A Daggerheart change",
-        "remnant.tieForItem": "Tie a trace to the crime"
+        "remnant.tieForItem": "Tie a trace to the crime",
+        "observe.target": "Choose what to Observe",
+        "cleanup.traces": "Traces within reach",
+        "advancement.offer": "Level Up offer",
+        "advancement.ask": "Your Level Up offers",
+        "call.approve": "Hope Call approval",
+        "dynamic.difficulty": "Dynamic action difficulty",
+        "trap.event": "A report for the traps"
       },
       "refused": "The GM's client refused the “{what}” request. Nothing was applied.",
       "criticalHint": "Critical - this player is owed a substantial hint.",

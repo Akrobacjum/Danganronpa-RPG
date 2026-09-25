@@ -2999,6 +2999,91 @@ const INVARIANTS = [
             ok(asks > 0 && judges > asks, `${name} does not ask forwardsUnjudged(sender) before judgeRelay`);
             ok(!/\bsender\.isGM\b/.test(body), `${name} decides on sender.isGM`);
         }
+    }],
+
+    ["R162 - the runner judges before it answers, answers once, and tells an exception as failed", async () => {
+        /*
+         * E31, 25.09.2026; audit S17-08. `judge` (bridge-guards.mjs) carries out every
+         * declaration of the bridge's tables. Driven here over a table of its own, with
+         * a `send` that records instead of emitting, so nothing leaves this client and
+         * nothing in the world is touched. What it must do: an action no table has is
+         * not its to judge; a guard's refusal is the one answer (no acknowledgement
+         * before it, and the run never starts); a request that passes is acknowledged
+         * and then answered at most once more - its reply, or the run's own refusal;
+         * an exception anywhere (preparing, a guard, the run) is logged and told as one
+         * refusal, "the handler failed"; a queue keeps the order packets arrived in
+         * even when the first run is the slower one. What reaches the GM's socket is
+         * handed to this function by the three listeners, which R1b reads.
+         */
+        const { judge, knownSender, pick, as } = await import("./bridge-guards.mjs");
+        const { sessionFailures } = await import("./utils.mjs");
+        const me = game.user.id, sent = [], ran = [];
+        const send = (to, packet) => sent.push({ to, ...packet });
+        const decl = (run, more = {}) => ({ label: "x", guards: [knownSender], sanitize: pick({ n: as.num }), run, answer: "ack", ...more });
+        const TABLE = {
+            "r162.refused": decl(() => { ran.push("refused"); }, { guards: [knownSender, () => "a planted refusal"] }),
+            "r162.ack": decl(payload => { ran.push(`ack ${payload.n} ${Object.keys(payload).join(",")}`); }),
+            "r162.reply": decl(() => ({ reply: { answer: 42 } }), { answer: "reply" }),
+            "r162.later": decl(() => ({ later: true }), { answer: "reply" }),
+            "r162.runRefuses": decl(() => ({ refused: "the run said no" })),
+            "r162.throwsRun": decl(() => { throw new Error("R162 planted: the run"); }),
+            "r162.throwsGuard": decl(() => { ran.push("guard"); }, { guards: [knownSender, () => { throw new Error("R162 planted: a guard"); }] }),
+            "r162.throwsPrepare": decl(() => { ran.push("prepare"); }, { prepare: () => { throw new Error("R162 planted: prepare"); } }),
+            "r162.queued": decl(async payload => { await wait(payload.n === 1 ? 80 : 0); ran.push(`queued ${payload.n}`); }, { queue: "r162" })
+        };
+        const ask = (action, extra = {}, from = me) =>
+            judge(TABLE, { action, requestId: `rid-${action}`, userId: from, n: 1, stray: "not on the list", ...extra }, from, { send });
+        const kinds = () => sent.map(p => (p.action === "bridge.refused" ? `${p.action} ${p.what}` : p.action));
+        const clear = () => { sent.length = 0; ran.length = 0; };
+
+        equal(ask("r162.unknown"), false, "an action no table has was taken for judging");
+        equal(sent.length, 0, "an action no table has was answered");
+
+        await ask("r162.refused");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.refused r162.refused"]),
+            "a guard's refusal was not the one answer - an acknowledgement went first, or no refusal went at all");
+        ok(sent[0].to === me && sent[0].requestId === "rid-r162.refused" && !ran.length,
+            `the refusal went to the wrong place, or the run ran after it: ${JSON.stringify({ sent, ran })}`);
+
+        clear();
+        await ask("r162.ack", {}, "R162NOSUCHUSER00");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.refused r162.ack"]), "a sender Foundry does not know was not refused");
+
+        clear();
+        await ask("r162.ack");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack"]), "a request that passed was not acknowledged once and left at that");
+        equal(JSON.stringify(ran), JSON.stringify(["ack 1 n"]), "the run was not handed the whitelisted copy - only `n` is on its list");
+
+        clear();
+        await ask("r162.reply");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.done"]), "a reply was not an acknowledgement and one answer");
+        equal(sent[1]?.value?.answer, 42, "the answer sent is not the one the run returned");
+
+        clear();
+        await ask("r162.later");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack"]), "a ruling to be given later from a card was answered now");
+
+        clear();
+        await ask("r162.runRefuses");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.refused r162.runRefuses"]),
+            "a run's own refusal did not follow its acknowledgement, once");
+
+        for (const where of ["Run", "Guard", "Prepare"]) {
+            clear();
+            await ask(`r162.throws${where}`);
+            const refusals = sent.filter(p => p.action === "bridge.refused");
+            equal(refusals.length, 1, `an exception in the ${where.toLowerCase()} was not told as one refusal`);
+            ok(sessionFailures().some(e => e.message.includes(`Refused a "r162.throws${where}"`) && e.message.includes("the handler failed")),
+                `an exception in the ${where.toLowerCase()} was not logged as "the handler failed"`);
+            if (where !== "Run") {
+                ok(!sent.some(p => p.action === "bridge.ack") && !ran.length,
+                    `an exception in the ${where.toLowerCase()} was acknowledged, or the run went on: ${JSON.stringify({ sent, ran })}`);
+            }
+        }
+
+        clear();
+        await Promise.all([ask("r162.queued", { n: 1 }), ask("r162.queued", { n: 2 })]);
+        equal(JSON.stringify(ran), JSON.stringify(["queued 1", "queued 2"]), "a queue did not keep the order its packets arrived in");
     }]
 ];
 

@@ -2461,11 +2461,18 @@
         "monocub.meddle": "Confusion",
         "body.loot": "Przeszukanie ciała",
         "advancement": {
-          "apply": "Level Up"
+          "apply": "Level Up",
+          "offer": "Oferta Level Up",
+          "ask": "Twoje oferty Level Up"
         },
         "call.arm": "Call dla kogoś innego",
         "daggerheart": "Zmiana w Daggerheart",
-        "remnant.tieForItem": "Powiązanie śladu ze zbrodnią"
+        "remnant.tieForItem": "Powiązanie śladu ze zbrodnią",
+        "observe.target": "Wybór celu Observe",
+        "cleanup.traces": "Ślady w zasięgu",
+        "call.approve": "Zgoda na Hope Call",
+        "dynamic.difficulty": "Trudność akcji Dynamic",
+        "trap.event": "Zgłoszenie dla pułapek"
       },
       "refused": "Klient GM-a odrzucił żądanie „{what}”. Nic nie zostało zastosowane.",
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",

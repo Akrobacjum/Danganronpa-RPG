@@ -24,7 +24,7 @@
  */
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, TIMING } from "./config.mjs";
-import { activeGmIds, warn, pause } from "./utils.mjs";
+import { activeGmIds, warn, error, pause } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 /** GM -> player: "your request arrived and was refused" - see `refuse`. */
@@ -123,21 +123,24 @@ export async function firstRefusal(sender, payload, ctx, ...guards) {
  * Refuse loudly in the log rather than silently doing the wrong thing - and
  * tell the asker (COMM-16).
  *
- * The acknowledgement leaves before any guard runs, so a request this side
- * then refuses used to be acknowledged to the player and dropped: a roll that
+ * The acknowledgement left before any guard ran, so a request this side then
+ * refused used to be acknowledged to the player and dropped: a roll that
  * reported success and a world that did not change, which is the exact
- * symptom the ack was added to remove. One addressed packet closes it.
+ * symptom the ack was added to remove. One addressed packet closed it; since
+ * E31 the acknowledgement leaves only once the guards have passed (`judge`,
+ * below), so the refusal is the one answer a refused request gets. A quiet
+ * declaration - a report nobody waits on - is refused in the log alone.
  *
  * The English line is the GM's record, and 30-security reads it back through
  * `sessionFailures()`: `Refused a "<action>" request over the socket from
  * <name>: <why>.`
  */
-export function refuse(action, why, ctx = null) {
+export function refuse(action, why, ctx = null, send = emitTo) {
     // The sender's name, from Foundry's own `senderId`: the handbook sends a GM
     // to this line to find out who asked.
     const who = game.users?.get(ctx?.asker ?? "")?.name;
     warn(`Refused a "${action}" request over the socket${who ? ` from ${who}` : ""}: ${why}.`);
-    tellRefused(ctx?.asker, action, ctx?.requestId ?? null);
+    if (!ctx?.quiet) tellRefused(ctx?.asker, action, ctx?.requestId ?? null, send);
     return null;
 }
 
@@ -147,15 +150,19 @@ export function refuse(action, why, ctx = null) {
  * relay-guard.mjs above all - answer with the same packet and the same toast,
  * rather than a player's refused change simply never happening.
  */
-export function tellRefused(userId, what, requestId = null) {
-    if (!userId || userId === game.user?.id) return;
+export function tellRefused(userId, what, requestId = null, send = emitTo) {
+    if (!userId) return;
     try {
-        game.socket.emit(SOCKET_EVENT, {
-            action: ACTION_REFUSED, userId, requestId, what
-        }, { recipients: [userId] });
+        send(userId, { action: ACTION_REFUSED, userId, requestId, what });
     } catch {
         // A refusal nobody hears is the old behaviour, not a new failure.
     }
+}
+
+/** The emit a refusal and the runner use unless handed another (R162 hands a recorder). Never to this client itself. */
+function emitTo(userId, packet) {
+    if (!userId || userId === game.user?.id) return;
+    game.socket.emit(SOCKET_EVENT, packet, { recipients: [userId] });
 }
 
 /* ==========================================================================
@@ -563,7 +570,7 @@ export async function guardRelayOwner(sender, payload, ctx) {
  * A packet with no character never reaches this. `guardRelayOwner` refuses
  * one with no `actorId`, and a player's naming a character that does not
  * exist, as "not their character"; only a GM's naming a missing character gets
- * past it, and the handler drops that one silently (`if (!actor) return`). So a
+ * past it, and `guardRelayActor`, asked before this one, refuses it (E31). So a
  * missing one passes here rather than being given a reason of its own.
  */
 export async function guardRelayRoom(sender, payload, ctx) {
@@ -576,4 +583,248 @@ export async function guardRelayRoom(sender, payload, ctx) {
         passedThrough: field === "to", sceneId: sender?.viewedScene ?? null
     });
     return there ? null : `${actor.name} is not in "${named}"`;
+}
+
+/** A table of declarations, frozen with every declaration and guard list in it: nothing edits one at run time. */
+export function table(declarations) {
+    for (const decl of Object.values(declarations)) {
+        for (const key of ["guards", "runGuards", "claims"]) if (decl[key]) Object.freeze(decl[key]);
+        Object.freeze(decl);
+    }
+    return Object.freeze(declarations);
+}
+
+/** The character a token stands for - token.sendBack's owner question, asked of the scene and token the packet names. */
+export function tokenActorOf(payload) {
+    return game.scenes.get(payload?.sceneId ?? "")?.tokens?.get(payload?.tokenId ?? "")?.actorId ?? null;
+}
+
+/**
+ * The character a Remnant's ledger says left it - remnant.edit's owner question.
+ * From the ledger, which the GM holds: the token has carried no `sourceActor`
+ * flag since the answer key moved off it (CASE-09), so a read off the token was
+ * always undefined and every legitimate edit was refused. The scene falls back
+ * to the one this client is viewing, as the handler's did.
+ */
+export async function remnantSourceOf(payload) {
+    const scene = game.scenes.get(payload?.sceneId ?? "") ?? canvas?.scene;
+    const token = scene?.tokens?.get(payload?.tokenId ?? "");
+    const { remnantData } = await import("./remnants.mjs");
+    return remnantData(token)?.sourceActor ?? null;
+}
+
+/*
+ * A GM'S RELAY NAMING A CHARACTER THIS CLIENT DOES NOT HAVE (E31, 25.09.2026).
+ * The trap relay's handler dropped it without a word (`if (!actor) return`);
+ * named, it is a quiet refusal with a log line. It can only meet a GM's packet:
+ * `guardRelayOwner` refuses a player's missing character first, as "not their
+ * character".
+ */
+export function guardRelayActor(sender, payload, ctx) {
+    return payload?.actorId && game.actors.get(payload.actorId) ? null : "no such character";
+}
+
+/* ==========================================================================
+ * THE BUILDING BLOCKS OF A DECLARATION (E31)
+ * --------------------------------------------------------------------------
+ * A declaration in one of the three tables (gm-bridge.mjs, traps.mjs,
+ * search-tokens.mjs) names its guards in the order they are asked. The
+ * questions most of them ask are made here, by a factory, rather than written
+ * out in each handler as they were: who asked (`knownSender`), whether they own
+ * the character a field names (`owns`, `ownsActorAt`), whether they are a GM
+ * (`gmOnly`) or not (`playersOnly`), whether they may see the project a field
+ * names (`canSeeProject`), and whether a number is in range (`inRange`). A
+ * factory's guard carries `factory` and `covers`, the fields it judges, so R1b
+ * can hold every id a run receives to a guard that names it or to a claim
+ * written beside the declaration.
+ * ========================================================================== */
+
+/** Tag a factory's guard with what it is and which fields it judges. */
+function made(guard, factory, covers) {
+    return Object.freeze(Object.assign(guard, { factory, covers: Object.freeze([...covers]) }));
+}
+
+/** The sender is a connected user Foundry named - the first question of nearly every declaration. */
+export function knownSender(sender, payload, ctx) {
+    return sender ? null : "unknown sender";
+}
+
+/** The sender owns the character the packet names in `field` (or, given a function, the one it finds). */
+export function owns(field, why) {
+    const named = typeof field === "function" ? field : payload => payload?.[field];
+    return made((sender, payload, ctx) => ownsActor(sender, named(payload)) ? null : why,
+        "owns", typeof field === "function" ? [] : [field]);
+}
+
+/**
+ * The sender owns the character found at what the packet names - a token's
+ * actor, the character a Remnant's ledger says left it - through `locate`,
+ * which may be async. `covers` are the fields `locate` reads.
+ */
+export function ownsActorAt(locate, why, covers) {
+    return made(async (sender, payload, ctx) => ownsActor(sender, await locate(payload)) ? null : why,
+        "ownsActorAt", covers);
+}
+
+/** Only a GM may ask this; an Assistant GM is a GM. */
+export function gmOnly(why) {
+    return made((sender, payload, ctx) => !sender?.isGM ? why : null, "gmOnly", []);
+}
+
+/** Only a player asks this: a GM who does is refused, quietly where the declaration is quiet. */
+export function playersOnly(why) {
+    return made((sender, payload, ctx) => sender?.isGM ? why : null, "playersOnly", []);
+}
+
+/** The sender may see the project the packet names in `field` (`canSee`, projects.mjs). */
+export function canSeeProject(field, why) {
+    return made(async (sender, payload, ctx) => {
+        const { canSee } = await import("./projects.mjs");
+        return canSee(payload?.[field], sender) ? null : why;
+    }, "canSeeProject", [field]);
+}
+
+/** The whole number in `field` passes `fits`, or the refusal `template` writes for the value as sent. */
+export function inRange(field, fits, template) {
+    return made((sender, payload, ctx) => fits(Math.trunc(Number(payload?.[field]))) ? null : template(payload?.[field]),
+        "inRange", [field]);
+}
+
+/* ==========================================================================
+ * WHAT A RUN IS HANDED (E31)
+ * --------------------------------------------------------------------------
+ * The guards read the packet as it came, as E03 wrote them. The run reads a new
+ * object with only the fields its declaration lists, each passed through one of
+ * these: an id (a string of at most 128 characters, else null), text, a number
+ * (`Number(x) || 0`, which every handler wrote for itself), a flag, one of a
+ * list, or the value as sent (`raw`, for what a guard or a resolver bounds, and
+ * which R1b holds to a guard or a claim). No length bound is added to text: a
+ * bound could cut a note a player wrote honestly, and E43's fuzz stage owns it.
+ * ========================================================================== */
+
+const kind = (name, convert) => Object.freeze(Object.assign(convert, { kind: name }));
+
+export const as = Object.freeze({
+    id: kind("id", value => typeof value === "string" && value.length > 0 && value.length <= 128 ? value : null),
+    text: kind("text", value => value === null || value === undefined ? "" : String(value)),
+    maybeText: kind("text", value => value === null || value === undefined ? null : String(value)),
+    num: kind("num", value => Number(value) || 0),
+    bool: kind("bool", value => Boolean(value)),
+    oneOf: (...allowed) => Object.freeze(Object.assign(value => allowed.includes(value) ? value : null,
+        { kind: "oneOf", allowed: Object.freeze(allowed) })),
+    raw: kind("raw", value => value)
+});
+
+/** A sanitizer that builds a new object with exactly these fields; `fields` says which, and of what kind. */
+export function pick(spec) {
+    const entries = Object.entries(spec);
+    const fields = Object.freeze(Object.fromEntries(entries.map(([name, convert]) => [name, convert.kind])));
+    const sanitize = payload => {
+        const clean = {};
+        for (const [name, convert] of entries) clean[name] = convert(payload?.[name]);
+        return clean;
+    };
+    return Object.freeze(Object.assign(sanitize, { fields, picked: true }));
+}
+
+/* ==========================================================================
+ * THE RUNNER (E31)
+ * --------------------------------------------------------------------------
+ * One function carries out every declaration of the three tables, so the order
+ * a request is judged in is written once: what the declaration prepares (an
+ * import, a one-time read that must come before the guards, as it did in the
+ * handlers - see `prepare` in gm-bridge.mjs), then who sent it, then its guards
+ * in the order listed, and only when every one has passed, the acknowledgement,
+ * the whitelisted copy of the packet, and the run.
+ *
+ * THE ACKNOWLEDGEMENT MOVED AFTER THE GUARDS. It used to leave before the
+ * handler was even looked up, so a refused request was acknowledged first, and
+ * another file's packet that carried a request id got a stray one
+ * (`searchTokens.spend`, `searchTokens.takePlant` and `voice.applied`, measured
+ * by the E31 design's probe of `onSocket`). Now a request gets either one
+ * refusal, or an acknowledgement followed by at most one more packet: its answer,
+ * or a refusal from the run.
+ *
+ * AND A THROW IS A REFUSAL. A handler that threw after the acknowledgement
+ * reached nobody: the player's request had been "got", the answer never came,
+ * and an awaited one sat on its three-minute clock. Whatever throws here -
+ * preparing, a guard, the whitelist, the run - is logged with its stack and ends
+ * as one refusal, "the handler failed", told to the asker.
+ *
+ * NOTHING SHARED BETWEEN LISTENERS IS WRITTEN TO. `senderId` is Foundry's own
+ * argument and cannot be forged; the `userId` inside the packet is a claim. An
+ * earlier attempt made the one into the other by overwriting `payload.userId`
+ * in the bridge's listener, which broke every request in the module that waits
+ * for an answer: Foundry hands the SAME packet object to every listener in
+ * turn, and on the asking player's own client that rewrote a reply's address to
+ * the GM who sent it, a moment before the reply's own listener compared it with
+ * `game.user.id`. Observe hung on a promise that could never resolve; so did a
+ * Dynamic ruling and a sabotage. The runner reads the packet and hands the run a
+ * new object built from it; it writes to neither.
+ * ========================================================================== */
+
+/** GM -> player: "your request passed its guards and is being carried out". */
+const ACTION_ACK = "bridge.ack";
+
+/*
+ * ONE WRITE AT A TIME, IN THE ORDER THEY ARRIVED, PER NAMED QUEUE (E03,
+ * 24.09.2026; moved here from gm-bridge.mjs by E31). A Reroll of a Sabotage
+ * sends two packets back to back: take the old freeze back, then freeze again
+ * at the new number. Both runs await world writes, so the second could read the
+ * project while the first had not yet thawed it, find it "already frozen" and
+ * drop the new sabotage. Packets from one sender arrive in order, so queueing
+ * them keeps that order; the guards run inside the queue, so the second
+ * packet's guards see the first packet's write.
+ */
+const queues = new Map();
+
+function inQueue(name, work) {
+    const next = (queues.get(name) ?? Promise.resolve()).catch(() => null).then(work);
+    queues.set(name, next);
+    return next;
+}
+
+/**
+ * Judge one packet against one table and carry it out: `false` when the table
+ * has no such action (another listener's packet), otherwise a promise that
+ * settles when the request has been refused or carried out. It never rejects.
+ *
+ * A run returns nothing, `{ reply }` (what an "answer: reply" declaration sends
+ * back), `{ refused: "<English reason>" }`, or `{ later: true }` for a ruling a
+ * GM answers from a card.
+ */
+export function judge(table, payload, senderId, { send = emitTo } = {}) {
+    const action = payload?.action;
+    const decl = typeof action === "string" && Object.hasOwn(table, action) ? table[action] : null;
+    if (!decl) return false;
+    const ctx = { asker: senderId ?? null, requestId: payload.requestId ?? null, action, quiet: Boolean(decl.quiet) };
+    const work = async () => {
+        try {
+            const prepared = decl.prepare ? await decl.prepare(payload) : null;
+            const sender = senderOf(senderId);
+            const why = await firstRefusal(sender, payload, ctx, ...decl.guards);
+            if (why) return refuse(action, why, ctx, send);
+            if (decl.answer !== "none" && ctx.requestId) {
+                send(ctx.asker, { action: ACTION_ACK, requestId: ctx.requestId, userId: ctx.asker });
+            }
+            const out = await decl.run(decl.sanitize(payload, sender), sender, ctx, prepared);
+            if (out?.refused) return refuse(action, out.refused, ctx, send);
+            if (decl.answer === "reply" && !out?.later && ctx.requestId) answer(decl, ctx, out?.reply ?? null, send);
+            return true;
+        } catch (err) {
+            error(`The GM's client failed while carrying out "${action}"`, err);
+            return refuse(action, `the handler failed: ${err?.message ?? err}`, ctx, send);
+        }
+    };
+    return decl.queue ? inQueue(decl.queue, work) : work();
+}
+
+/** Send a run's answer back to the asker. */
+function answer(decl, ctx, value, send) {
+    // Until the player's side waits in one place (E31's next step), each awaited
+    // request still listens for the packet it always had.
+    const shape = decl.replyAs;
+    send(ctx.asker, shape
+        ? { action: shape.action, requestId: ctx.requestId, userId: ctx.asker, [shape.field]: value }
+        : { action: "bridge.done", requestId: ctx.requestId, userId: ctx.asker, value });
 }

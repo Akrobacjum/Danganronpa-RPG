@@ -14,7 +14,8 @@ import {
     topLevelFunction, fnSource, lineAround, withGuards, lineAt, stripStrings, stringLiterals, STANDING, cast,
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
-    DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles
+    DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
+    bridgeTables, bridgeTableProblems, payloadReads
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -246,126 +247,85 @@ const REGRESSIONS = [
          * THE ONE INVARIANT THAT DECIDES WHETHER A PLAYER CAN ACT AS ANOTHER
          * PLAYER'S CHARACTER.
          *
-         * `onSocket` dispatches through `GM_HANDLERS`, one function per request,
-         * and every handler that acts on `payload.actorId` has to establish two
-         * things first: who really sent this (`senderOf(senderId)`, from
-         * Foundry's own argument, which cannot be forged), and whether that
-         * person owns the character named in the payload (`ownsActor`). The
-         * payload's own `userId` is a claim and is only ever used as an address.
+         * Every request a player's client sends the primary GM is a declaration in
+         * one of the bridge's tables (E31, 25.09.2026: BRIDGE_ACTIONS in
+         * gm-bridge.mjs, TRAP_ACTIONS in traps.mjs), judged by one runner: who really
+         * sent it (`senderOf(senderId)`, Foundry's own argument, which cannot be
+         * forged), then the guards the declaration names, in order, and only then
+         * the run, with a copy of the packet that holds only the fields the
+         * declaration lists. The payload's own `userId` is a claim and is only ever
+         * used as an address.
          *
-         * How many handlers act on something the packet names, and by which guard,
-         * is counted by the test itself and written to the log - the numbers that
-         * used to stand here ("thirteen of the thirty-one") had gone stale by the
-         * time the audit read them (S10-70). What this test is for is the next
-         * one: a handler added in a hurry, in a file
-         * nobody reads top to bottom, that takes an `actorId` and simply uses it. Nothing
-         * about the module's behaviour would say so, and the failure is a
-         * player moving somebody else's student.
+         * This used to read gm-bridge.mjs's text: a handler per request, holding
+         * `senderOf(senderId)` in its own body and ONE of `ownsActor(sender, ...)`,
+         * `canSee(..., sender)` or `!sender.isGM` in its body or its guards - so it
+         * could not see ownership going missing from a handler that also checked
+         * sight (the note E03 left above the table said so). It reads the
+         * declarations themselves now, per field: every id or value a run receives
+         * is named by a guard or by a claim written beside it, and the other rules
+         * of `bridgeTableProblems` (the kit) with it. The reader is run first on a
+         * fixture with three planted faults, which must come back exactly.
          *
-         * READ FROM SOURCE rather than exercised, because the thing being
-         * checked is the SHAPE of a guard, not its outcome: a handler that
-         * never runs in a test world is exactly the one most likely to be
-         * missing it.
+         * READ LIVE rather than exercised, because the thing being checked is the
+         * SHAPE of the judgement, not its outcome: a request that never runs in a
+         * test world is exactly the one most likely to be missing it.
          */
-        const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(r => r.text()));
-        // The guards the handlers ask are defined in bridge-guards.mjs since E31 lifted them there (25.09.2026).
-        const guardsSrc = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/bridge-guards.mjs`).then(r => r.text()));
-        const withLeaf = `${src}\n${guardsSrc}`;
+        const G = await import("./bridge-guards.mjs");
+        const fine = () => null;
+        const FIXTURE = [{ file: "fixture.mjs", name: "FIXTURE", module: {}, text: "", table: {
+            "fixture.fine": { label: "DRPG.Bridge.what.fixture.fine", guards: [G.knownSender, G.owns("actorId", "not theirs")],
+                sanitize: G.pick({ actorId: G.as.id, n: G.as.num }), run: fine, answer: "ack" },
+            "fixture.unclaimed": { label: "DRPG.Bridge.what.fixture.unclaimed", guards: [G.knownSender, G.owns("actorId", "not theirs")],
+                sanitize: G.pick({ actorId: G.as.id, targetId: G.as.id }), run: fine, answer: "ack" },
+            "fixture.nopl": { label: "DRPG.Bridge.what.fixture.nopl", guards: [G.knownSender],
+                sanitize: G.pick({ n: G.as.num }), run: fine, answer: "ack" },
+            "fixture.receipt": { label: "DRPG.Bridge.what.fixture.receipt", guards: [G.knownSender, G.guardObserveReceipt, G.owns("actorId", "not theirs")],
+                sanitize: G.pick({ actorId: G.as.id, undo: G.as.bool }), run: fine, answer: "ack" }
+        } }];
+        const labels = Object.keys(FIXTURE[0].table).map(action => `DRPG.Bridge.what.${action}`);
+        const planted = bridgeTableProblems(FIXTURE, { en: new Set(labels), pl: new Set(labels.filter(k => !k.endsWith(".nopl"))), guards: G });
+        equal(JSON.stringify(planted.problems), JSON.stringify([
+            "fixture.mjs fixture.unclaimed: targetId reaches the run with no guard naming it and no claim saying who judges it",
+            "fixture.mjs fixture.nopl: DRPG.Bridge.what.fixture.nopl is missing in pl.json",
+            "fixture.mjs fixture.receipt: guardObserveReceipt spends a Reroll receipt and is not the last guard"
+        ]), "the table reader does not find exactly the three faults planted for it - it would misread the module's tables too");
 
-        const table = bodyOf(src, "const GM_HANDLERS = {", { until: "\n};" });
-        const rows = [...table.matchAll(/\[(ACTION_\w+)\]: (\w+),/g)];
-        ok(rows.length > 20,
-            `only ${rows.length} socket handlers were found - has GM_HANDLERS been restructured?`);
-        ok(src.includes("GM_HANDLERS[payload.action]"), "onSocket no longer dispatches through GM_HANDLERS");
-
-        // The handler's body: from its declaration to the next top-level function.
-        // One top-level function, to the next declaration or table (the kit's reader; null when absent).
-        const handlerBody = name => topLevelFunction(src, name);
-
-        /*
-         * WHAT COUNTS AS "ACTING ON SOMETHING FROM THE PACKET", WIDENED (E01, 24.09.2026;
-         * audit S14-03, S10-70). This used to look for the text `payload.actorId` and
-         * nothing else, so a handler that read `payload.fromId` or `payload.thiefId`, or
-         * handed the whole payload to a helper, was outside the test - and three real
-         * holes went through that way: the Hope Call and Dynamic rulings raised a card
-         * on anybody's character (the payload went to a helper), and project progress
-         * reached secret projects (a `countdownId`, not an `actorId`). Now any id read
-         * off the packet, the Remnant's `data.sourceActor`, or the payload passed on
-         * whole, puts a handler in scope; and in scope it has to name the sender from
-         * Foundry's own argument and then show ONE of the three guards this module uses:
-         * the sender owns the character (`ownsActor(sender, ...)`), the sender may see
-         * the project (`canSee(..., sender)`), or the sender is a GM. Anything else has
-         * to be on the list below with its reason written down.
-         */
-        // `identity` too: the one handler that names an OBJECT rather than a document
-        // id (remnant.tieForItem), which the first version of this pattern let through,
-        // so deleting its new guard left the suite green (the review of E01).
-        const IN_SCOPE = /payload\??\.(\w+Id|identity)\b|payload\.data\?\.sourceActor|\b\w+\(\s*payload\s*[,)]/;
-        const EXEMPT_HANDLERS = {
-            // Empty since E03 (24.09.2026), which bound `despair.adjust` to the
-            // rerolling character and its Reroll receipt - the one line that was
-            // here said to remove it then, and the check below held it to that.
+        // Both language files, fetched and flattened as Foundry merges them (pl nests `advancement.apply`).
+        const language = async lang => {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`);
+            must(res.ok, `${lang}.json: HTTP ${res.status}`);
+            const flat = (o, p = "") => Object.entries(o ?? {}).flatMap(([k, v]) =>
+                typeof v === "object" && v !== null ? flat(v, p ? `${p}.${k}` : k) : [p ? `${p}.${k}` : k]);
+            return new Set(flat(foundry.utils.expandObject(await res.json())));
         };
-        /*
-         * AND THE GUARDS EACH HANDLER ASKS (E03, 24.09.2026). E03 wrote the checks it
-         * added as `guard<Name>(sender, payload, ctx)` functions the handler asks in
-         * order (the note above `firstRefusal` in bridge-guards.mjs), so the ownership,
-         * sight or GM test may now stand in a guard rather than in the handler's own
-         * body - `handleTieTrace`'s ownership does, and `handleDespair`'s. A guard
-         * counts only when the handler names it, guards that name guards are read
-         * too, and a name the file does not define FAILS here rather than reading as
-         * a guard with nothing in it. What is not moved: the sender is still read
-         * from Foundry's own argument in the handler's own body, and nowhere else
-         * counts for that.
-         */
-        const unguarded = [], stale = [], undefinedGuards = [];
-        let inScope = 0, byOwner = 0, bySight = 0, byGm = 0, throughGuards = 0;
-        for (const [, action, name] of rows) {
-            const whole = handlerBody(name);
-            if (whole === null) { unguarded.push(`${action} (no ${name})`); continue; }
-            // Past the declaration, whose own `(payload, senderId, ctx)` is not a hand-off.
-            const branch = bodyOf(whole, "\n");
-            const asked = withGuards(withLeaf, branch);
-            undefinedGuards.push(...asked.missing.map(guard => `${name} asks ${guard}`));
-            if (!IN_SCOPE.test(asked.body)) continue;
-            inScope++;
-            const checksSender = branch.includes("senderOf(senderId)");
-            const owner = /ownsActor\(sender\b/.test(asked.body);
-            const sight = /canSee\([^)]*,\s*sender\)/.test(asked.body);
-            const gm = /!sender\??\.isGM\b/.test(asked.body);
-            const guarded = checksSender && (owner || sight || gm);
-            if (EXEMPT_HANDLERS[name]) {
-                if (guarded) stale.push(name);
-                continue;
-            }
-            if (owner) byOwner++; else if (sight) bySight++; else if (gm) byGm++;
-            if (asked.guards.length) throughGuards++;
-            if (!guarded) unguarded.push(action);
-        }
-        ok(!undefinedGuards.length, `these handlers ask a guard neither gm-bridge.mjs nor bridge-guards.mjs defines: ${undefinedGuards.join(", ")}`);
-        ok(!stale.length, `these handlers are guarded now and still on the exemption list - take them off: ${stale.join(", ")}`);
-        log(`R1b: ${rows.length} socket handlers, ${inScope} act on something named in the packet `
-            + `(${byOwner} by ownership, ${bySight} by sight of the project, ${byGm} GM-only; `
-            + `${throughGuards} ask guards too)`);
-        ok(inScope >= 20, `only ${inScope} handlers read anything off the packet - has the reading gone wrong?`);
+        const tables = await bridgeTables();
+        const read = bridgeTableProblems(tables, { en: await language("en"), pl: await language("pl"), guards: G });
+        log(`R1b: ${read.actions} bridge actions in ${tables.length} tables, ${read.withIds} receive an id or a value a guard `
+            + `or a claim must judge; ${read.byGuardClaim} such fields are claimed by a guard that reads them, `
+            + `${read.inWords} by a written reason; ${read.local.length} local guard(s)`);
+        ok(read.actions >= 34, `only ${read.actions} bridge actions were read - the tables are not where this test looks`);
+        ok(read.withIds >= 20, `only ${read.withIds} bridge actions receive an id - has the reading gone wrong?`);
+        ok(!read.problems.length, `the bridge's tables: ${read.problems.join("; ")}`);
 
-        ok(!unguarded.length,
-            `these socket handlers act on something named in the packet without checking that the `
-            + `sender may: ${unguarded.join(", ")}`);
+        // The runner judges them only if the listeners hand it their packets - and nothing else runs it.
+        for (const { file, name, text } of tables) {
+            ok(new RegExp(`\\bjudge\\(${name}, payload, senderId\\)`).test(text), `${file} no longer hands its packets to judge(${name}, ...)`);
+        }
+        const runners = (await otherSources()).filter(([, raw]) =>
+            /import\s*\{[^}]*\bjudge\b[^}]*\}\s*from\s*"\.\/bridge-guards\.mjs"/.test(stripComments(raw))).map(([file]) => file).sort();
+        equal(JSON.stringify(runners), JSON.stringify(tables.map(t => t.file).sort()),
+            "a file other than the tables' own imports the bridge's runner");
 
         /*
          * AND EVERY OTHER FILE THAT OPENS A SOCKET, because this test's own name
          * says "no socket handler" and until 15.09 it read exactly one file.
          *
          * Sixteen files call `game.socket.on` (24.09.2026, comments stripped, the
-         * suite's own files left out). The bridge is the big one and the
-         * block above still reads it properly, handler by handler; the rest were
-         * outside the sentence this test claims to be enforcing. That is how
-         * traps.mjs came to be the one handler in the module taking a character
-         * on the packet's word - a forged relay could fire and disarm anybody's
-         * trap - with a green suite the whole time.
+         * suite's own files left out). The tables' own files are read properly
+         * above; the rest were outside the sentence this test claims to be
+         * enforcing. That is how traps.mjs came to be the one handler in the
+         * module taking a character on the packet's word - a forged relay could
+         * fire and disarm anybody's trap - with a green suite the whole time.
          *
          * WHAT THIS HALF CAN AND CANNOT DO. It is a coarse read: for each file,
          * if a socket handler body anywhere in it reaches for an actor id out of
@@ -376,7 +336,9 @@ const REGRESSIONS = [
          *
          * The exemptions are listed rather than inferred, one line of reason
          * each, so that adding a file to this list is a decision somebody writes
-         * down instead of a silence.
+         * down instead of a silence - and an exemption for a file that no longer
+         * listens fails, so the list cannot outlive what it excuses (E31:
+         * call-effects.mjs was on it, and has no listener).
          */
         const EXEMPT = {
             // Answers only to the sender's own id, never to an id in the packet.
@@ -385,23 +347,25 @@ const REGRESSIONS = [
             "mastermind.mjs": "GM-to-GM sync; the one player request is answered about the sender",
             "truth-bullets.mjs": "GM-to-GM ledger sync, refused outright from a non-GM",
             "remnants.mjs": "GM-to-GM ledger sync, refused outright from a non-GM",
-            "secret.mjs": "GM-to-GM sync of private cards",
-            "fog.mjs": "every branch checks sender.isGM and that the packet is addressed to this user",
+            "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
+            "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns",
             "sync.mjs": "world-state fan-out from a GM; carries no actor id",
             "safeword.mjs": "deliberately trusts nothing from the packet - reads the sender's name",
             "dice-sync.mjs": "dice appearance only; no actor anywhere in it",
             "sfx.mjs": "plays a sound; no actor anywhere in it",
             "voice.mjs": "room membership, keyed by the sender",
-            "voice-client.mjs": "room membership, keyed by the sender",
-            "call-effects.mjs": "GM-to-GM sync of running effects"
+            "voice-client.mjs": "room membership, keyed by the sender"
         };
 
-        const blind = [];
+        const tableFiles = new Set(tables.map(t => t.file));
+        const leafSrc = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/bridge-guards.mjs`).then(r => r.text()));
+        const blind = [], idle = [];
         for (const [file, raw] of await otherSources()) {
             const text = stripComments(raw);
-            if (!/game\.socket\.on\(/.test(text)) continue;
-            if (file.endsWith("gm-bridge.mjs")) continue;      // read properly above
             const name = file.split("/").pop();
+            const listens = /game\.socket\.on\(/.test(text);
+            if (EXEMPT[name] && !listens) idle.push(name);
+            if (!listens || tableFiles.has(name)) continue;
             if (!/payload[?.]*\.actorId|payload\.\w*[Ii]d\b/.test(text)) continue;
             if (EXEMPT[name]) continue;
             /* A guard counts only when code outside it names it (the review of the
@@ -409,16 +373,17 @@ const REGRESSIONS = [
                `guardRelayOwner`, and a file-wide grep kept passing with the guard
                defined but never asked. So the guards' own definitions are cut out,
                and ownership is looked for in what is left plus the guards that
-               rest names - the same reading the bridge half does. */
+               rest names - the file's own or the leaf's, where E31 put E03's. */
             let rest = text;
             for (const [, guard] of text.matchAll(/^(?:export )?(?:async )?function (guard[A-Z]\w*)\(/gm)) {
                 const decl = topLevelFunction(rest, guard);
                 if (decl) rest = rest.replace(decl, "");
             }
-            const asked = withGuards(`${text}\n${guardsSrc}`, rest);
+            const asked = withGuards(`${text}\n${leafSrc}`, rest);
             if (!asked.missing.length && rest.includes("senderOf(senderId)") && /ownsActor\(sender/.test(asked.body)) continue;
             blind.push(name);
         }
+        ok(!idle.length, `exempt from the rule, and no longer listening on the socket - take them off the list: ${idle.join(", ")}`);
         ok(!blind.length,
             `these files open a socket and act on an id from the packet without `
             + `senderOf/ownsActor, and are not on the exemption list: ${blind.join(", ")}`);
@@ -3661,9 +3626,13 @@ const REGRESSIONS = [
         const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
         const handler = bodyOf(bridge, "async function handleAdvancement(", { until: "async function handleShareBulletOrGiveItem(" });
         ok(handler.length > 300, "the GM side of the handover is gone");
-        ok(/\[ACTION_ADVANCEMENT\]: handleAdvancement,/.test(bridge),
-            "the handover's handler is not in GM_HANDLERS, so the GM never hears the picks");
-        ok(/ownsActor\(sender, payload\.actorId\)/.test(handler),
+        // The declaration, since E31 (25.09.2026): its run is the handler read above, and
+        // ownership is its guard - the runner asks it before the run.
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const apply = BRIDGE_ACTIONS["advancement.apply"];
+        ok(apply?.run?.name === "handleAdvancement",
+            "the handover's run is not in BRIDGE_ACTIONS, so the GM never hears the picks");
+        ok((apply?.guards ?? []).some(guard => guard.factory === "owns" && guard.covers?.includes("actorId")),
             "the packet's character is taken on trust");
         ok(/pendingAdvance\(actor\)/.test(handler),
             "the GM applies a Level Up nobody offered");
@@ -4564,8 +4533,10 @@ const REGRESSIONS = [
             "two packets inside the apply's round trips both spend the offer");
         ok(/experienceNew[\s\S]{0,80}\.trim\(\)/.test(handler),
             "a new experience with no name spends the offer on the GM's side");
-        const offer = bodyOf(bridge, "async function handleAdvancementOffer(", { until: "async function handleAdvancementAsk(" });
-        ok(/if \(!sender\?\.isGM\)/.test(offer), "a player can record an offer through the bridge");
+        // The GM test is the declaration's first guard since E31 (25.09.2026), asked before its run.
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const first = BRIDGE_ACTIONS["advancement.offer"]?.guards?.[0];
+        ok(first?.factory === "gmOnly" && /!sender\?\.isGM/.test(String(first)), "a player can record an offer through the bridge");
         ok(/\{ recipients: \[userId\] \}/.test(bodyOf(bridge, "export async function sendOffersTo(")),
             "an owner's offers are broadcast rather than addressed to them");
         ok(/game\.socket\.on\(SOCKET_EVENT, onAdvancementOffers\);\s*askForOffers\(\);/.test(bridge),
@@ -4728,40 +4699,44 @@ const REGRESSIONS = [
          * Reroll leaves (reroll-receipts.mjs). Read from source, because the honest
          * road needs a player's client and a GM's at once - 30-security drives it.
          */
-        const bridge = stripComments((await otherSources()).find(([file]) => file.endsWith("gm-bridge.mjs"))?.[1] ?? "");
-        // The guards live in bridge-guards.mjs since E31 lifted them there (25.09.2026).
-        const both = `${bridge}\n${stripComments((await otherSources()).find(([file]) => file.endsWith("bridge-guards.mjs"))?.[1] ?? "")}`;
-        const PAYS = ["handleObserveResolve", "handleAnalyzeResolve", "handleCrisis", "handleCleanup",
-            "handleUnsabotage", "handleProgress", "handleRemnantEdit", "handleDespair"];
+        const sources = new Map(await otherSources());
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const leaf = stripComments(sources.get("bridge-guards.mjs") ?? "");
+        must(bridge.length > 1000 && leaf.length > 1000, "gm-bridge.mjs or bridge-guards.mjs did not load");
+        const both = `${bridge}\n${leaf}`;
         /*
-         * THROUGH THE GUARDS (E03, 24.09.2026). The receipt is spent by a
-         * `guard...Receipt` the handler asks (the note above `firstRefusal` in
-         * bridge-guards.mjs), no longer in the handler's own body, so each handler is
-         * read with the guards it asks, and a guard it names that the file does not
-         * define fails. Each handler is cut at its own end - the next top-level
-         * declaration - rather than at the next `async function`, which now is as
-         * often a guard as a handler, and a plain `function` guard before it would
-         * have been read as part of the handler above.
+         * THROUGH THE TABLE (E31, 25.09.2026). A request that takes something back is
+         * a declaration of the bridge's tables, and its receipt is spent by one of the
+         * guards it names (a `guard...Receipt`: the note above `firstRefusal` in
+         * bridge-guards.mjs), which the runner asks before the run. So each declaration
+         * is read as its guards, with the guards those name; the receipt's has to be
+         * the last, since a guard asked after it could refuse an undo already paid
+         * for; and a guard named anywhere that nothing defines fails, rather than
+         * reading as a guard with nothing in it.
          */
-        const read = name => {
-            const own = topLevelFunction(bridge, name);
-            ok(own !== null, `gm-bridge.mjs no longer has ${name} - this test reads nothing until it is pointed at it again`);
-            return withGuards(both, own);
-        };
-        // Every top-level function, not only the handlers: `armPaidByPlayer` asks
-        // guards of its own, and a misspelt one would throw only when a player's
-        // Support is armed (the review of the guard split).
-        const nowhere = [...new Set([...bridge.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1]))]
-            .flatMap(name => read(name).missing.map(guard => `${name} asks ${guard}`));
-        ok(!nowhere.length, `these functions ask a guard neither gm-bridge.mjs nor bridge-guards.mjs defines: ${nowhere.join(", ")}`);
-        const unpaid = PAYS.filter(name => !read(name).body.includes("spendRerollReceipt("));
+        const PAYS = ["observe.resolve", "analyze.resolve", "murder.crisis", "murder.cleanup",
+            "project.unsabotage", "project.progress", "remnant.edit", "despair.adjust"];
+        const all = Object.assign({}, ...(await bridgeTables()).map(t => t.table));
+        const spends = guard => withGuards(both, String(guard)).body.includes("spendRerollReceipt(");
+        const unpaid = [], early = [];
+        for (const action of PAYS) {
+            const guards = all[action]?.guards;
+            must(Array.isArray(guards), `${action} is no longer a declaration of the bridge's tables - this test reads nothing until it is pointed at it again`);
+            const paying = guards.map(spends);
+            if (!paying.includes(true)) unpaid.push(action);
+            else if (paying.indexOf(true) !== guards.length - 1) early.push(action);
+        }
         ok(!unpaid.length, `these take something back for a player with no Reroll receipt: ${unpaid.join(", ")}`);
-        // And no handler outside the list reads `payload.undo` without one.
-        const stray = [...bridge.matchAll(/async function (handle\w+)\(/g)].map(m => m[1]).filter(name => {
-            const { body } = read(name);
-            return /payload\.undo/.test(body) && !body.includes("spendRerollReceipt(");
-        });
+        ok(!early.length, `these spend the receipt before a guard that could still refuse: ${early.join(", ")}`);
+        // And nothing outside the list reads `undo` - on its whitelist or in a guard - without one.
+        const stray = Object.entries(all).filter(([action, decl]) => !PAYS.includes(action)
+            && ("undo" in (decl.sanitize?.fields ?? {}) || decl.guards.some(guard => /payload\??\.undo\b/.test(String(guard)))))
+            .map(([action]) => action);
         ok(!stray.length, `these read payload.undo and ask for no receipt: ${stray.join(", ")}`);
+        // Every guard a function of the bridge names is defined, the player's road of call.arm among them.
+        const nowhere = [...new Set([...bridge.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1]))]
+            .flatMap(name => withGuards(both, topLevelFunction(bridge, name)).missing.map(guard => `${name} asks ${guard}`));
+        ok(!nowhere.length, `these functions ask a guard neither gm-bridge.mjs nor bridge-guards.mjs defines: ${nowhere.join(", ")}`);
     }],
 
     ["R138 - the GM judges a crisis action again before it lands", async () => {
@@ -4773,28 +4748,26 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const murder = stripComments(sources.get("murder.mjs") ?? "");
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
         ok(bodyOf(murder, "export async function takeCrisisAction(", { length: 1200 }).includes("crisisRefusal("),
             "the player's own client no longer asks crisisRefusal");
-        const handler = bodyOf(bridge, "async function handleCrisis(", { until: "\nasync function " });
-        // Its guards live in bridge-guards.mjs since E31 lifted them there (25.09.2026).
-        const both = `${bridge}\n${stripComments(sources.get("bridge-guards.mjs") ?? "")}`;
         /*
-         * THROUGH ITS GUARD (E03, 24.09.2026). The bridge's `crisisRefusal` is asked in
-         * `guardCrisisAction`, one of the guards `handleCrisis` asks (the note above
-         * `firstRefusal` in bridge-guards.mjs), so the call is looked for in the handler
-         * with its guards, and "before it resolves" is read off where the handler
-         * names the guard that reaches it - or the call itself, were it ever written
-         * back into the handler.
+         * THROUGH THE TABLE (E31, 25.09.2026). The bridge's `crisisRefusal` is asked in
+         * `guardCrisisAction`, one of the guards murder.crisis's declaration names, and
+         * the runner asks every guard before the run (R162 drives it). So "before it
+         * lands" is being among the guards: moved into the run, the check would come
+         * after the action was already taken, which is what this fails.
          */
-        const asked = withGuards(both, handler);
-        ok(!asked.missing.length, `handleCrisis asks a guard neither gm-bridge.mjs nor bridge-guards.mjs defines: ${asked.missing.join(", ")}`);
-        ok(/crisisRefusal\(actor, payload\.key\)/.test(asked.body), "the GM's bridge does not judge a crisis action again");
-        const judgedBy = handler.includes("crisisRefusal(") ? "crisisRefusal("
-            : asked.guards.find(name => handler.includes(name)
-                && withGuards(both, topLevelFunction(both, name)).body.includes("crisisRefusal("));
-        ok(Boolean(judgedBy) && handler.indexOf(judgedBy) >= 0 && handler.indexOf(judgedBy) < handler.indexOf("resolveCrisisAction({"),
-            "the GM judges the crisis action after resolving it");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const guards = BRIDGE_ACTIONS["murder.crisis"]?.guards;
+        must(Array.isArray(guards), "murder.crisis is no longer a declaration of BRIDGE_ACTIONS - this test reads nothing until it is pointed at it again");
+        const leaf = stripComments(sources.get("bridge-guards.mjs") ?? "");
+        const asked = guards.map(guard => withGuards(leaf, String(guard)));
+        const missing = asked.flatMap(a => a.missing);
+        ok(!missing.length, `murder.crisis's guards ask a guard bridge-guards.mjs does not define: ${missing.join(", ")}`);
+        ok(asked.some(a => /crisisRefusal\(actor, payload\.key\)/.test(a.body)),
+            "the GM does not judge a crisis action again before it lands - no guard of murder.crisis asks crisisRefusal");
+        ok(!/crisisRefusal\(/.test(String(BRIDGE_ACTIONS["murder.crisis"].run)),
+            "murder.crisis's run judges the action itself, after the runner has accepted it");
     }],
 
     ["R143 - ownership raised past the window's back, and a bullet a player edits, are put back", async () => {
@@ -5186,21 +5159,16 @@ const REGRESSIONS = [
          * nothing reaches the GM outside it: every GM_HANDLERS action and every file
          * that listens on the module's socket belongs to exactly one flow (or is exempt
          * with a reason), and no flow names an action, a file, a game.drpg call or a
-         * function that is gone. Read off the source served here: GM_HANDLERS's rows,
-         * their ACTION_ constants resolved to the wire names, and `game.socket.on(` in
-         * each file. On 24.09: 33 actions, 16 listener files. A read of fewer than 30 or
-         * 10 means the source moved and this measured nothing, and fails as such.
+         * function that is gone. Read off the bridge's tables (E31: the declarations the
+         * runner judges, by their wire names) and `game.socket.on(` in each file served
+         * here. On 25.09: 34 actions, 16 listener files. A read of fewer than 34 or 10
+         * means the source moved and this measured nothing, and fails as such.
          */
         const sources = new Map(await otherSources());
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
-        const table = bodyOf(bridge, "const GM_HANDLERS = {", { until: "\n};" });
-        const wire = new Map([...bridge.matchAll(/(?:export )?const (ACTION_\w+) = "([^"]+)"/g)].map(m => [m[1], m[2]]));
-        const rows = [...table.matchAll(/\[(ACTION_\w+)\]\s*:/g)].map(m => m[1]);
-        const unnamed = rows.filter(name => !wire.has(name));
-        ok(!unnamed.length, `GM_HANDLERS rows whose ACTION_ constant is not a string: ${unnamed.join(", ")}`);
-        const actions = rows.map(name => wire.get(name)).filter(Boolean);
+        // The bridge's tables, read live since E31 (25.09.2026): 33 actions in gm-bridge.mjs and the trap relay's one.
+        const actions = (await bridgeTables()).flatMap(t => Object.keys(t.table));
         const listeners = [...sources].filter(([, text]) => /game\.socket\.on\(/.test(stripComments(text))).map(([file]) => file);
-        ok(actions.length >= 30, `read ${actions.length} GM_HANDLERS actions, and there were 33 - the table has moved, and this measured nothing`);
+        ok(actions.length >= 34, `read ${actions.length} bridge actions, and there were 34 - the tables have moved, and this measured nothing`);
         ok(listeners.length >= 10, `read ${listeners.length} files listening on the socket, and there were 16 - this measured nothing`);
 
         const owners = new Map();
@@ -5288,6 +5256,60 @@ const REGRESSIONS = [
         const cycles = importCycles(sources);
         ok(!cycles.length, `the static import graph of the served files has a cycle: ${cycles.map(c => c.join(" <-> ")).join("; ")}`);
         log(`R161: ${sources.size} served files, ${[...sources.values()].reduce((n, text) => n + staticImports(text).length, 0)} static imports, 0 cycles`);
+    }],
+
+    ["R163 - a run reads exactly what its whitelist lets through", async () => {
+        /*
+         * E31, 25.09.2026; audit S17-08. Each declaration's run is handed a copy of
+         * the packet with only the fields its `sanitize` lists (`pick`,
+         * bridge-guards.mjs). A field left off that list is not refused - it arrives
+         * as nothing: leave `unseenTotal` off Palm's list and every Palm scores its
+         * unseen roll as 0 and is seen, a legal road that "works" with the wrong
+         * result and that no refusal check notices (the E31 design's L2). So the
+         * reads of `payload` in each run, in the functions it hands `payload` to, and
+         * in its `runGuards`, must be exactly the fields its list names, and a read
+         * this cannot follow - `payload[...]`, `...payload`, the packet destructured
+         * - fails rather than being skipped. The reader is shown planted faults first.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const problemsOf = (label, decl, lookup) => {
+            const r = payloadReads(decl, lookup);
+            const listed = Object.keys(decl.sanitize?.fields ?? {}).sort();
+            const out = [];
+            if (r.unreadable.length) out.push(`${label}: its run reads the packet as ${r.unreadable.join(", ")}, which this cannot follow`);
+            const dropped = r.fields.filter(field => !listed.includes(field));
+            if (dropped.length) out.push(`${label}: its run reads ${dropped.join(", ")}, which its whitelist drops`);
+            const unread = listed.filter(field => !r.fields.includes(field));
+            if (unread.length) out.push(`${label}: its whitelist lets ${unread.join(", ")} through, and nothing reads it`);
+            return out;
+        };
+        const helperFixture = (sender, payload) => payload.stray;
+        const planted = [
+            ...problemsOf("fixture.read", { run: async (payload, sender, ctx) => { await helperFixture(sender, payload); return payload.known; },
+                sanitize: G.pick({ known: G.as.num, unread: G.as.num }) }, name => name === "helperFixture" ? String(helperFixture) : null),
+            ...problemsOf("fixture.computed", { run: (payload, sender, ctx) => payload[ctx.field], sanitize: G.pick({}) }, () => null)
+        ];
+        equal(JSON.stringify(planted), JSON.stringify([
+            "fixture.read: its run reads stray, which its whitelist drops",
+            "fixture.read: its whitelist lets unread through, and nothing reads it",
+            "fixture.computed: its run reads the packet as payload[...], which this cannot follow"
+        ]), "the whitelist reader does not find exactly the faults planted for it");
+
+        const leaf = stripComments(new Map(await otherSources()).get("bridge-guards.mjs") ?? "");
+        must(leaf.length > 1000, "bridge-guards.mjs did not load");
+        const problems = [];
+        let runs = 0, handed = 0;
+        for (const { file, table, text } of await bridgeTables()) {
+            for (const [action, decl] of Object.entries(table)) {
+                runs++;
+                const lookup = name => topLevelFunction(text, name) ?? topLevelFunction(leaf, name);
+                handed += payloadReads(decl, lookup).handedTo.filter(name => lookup(name)).length;
+                problems.push(...problemsOf(`${file} ${action}`, decl, lookup));
+            }
+        }
+        log(`R163: ${runs} runs read, and ${handed} functions they hand their payload to`);
+        ok(runs >= 34, `only ${runs} runs were read - the tables are not where this test looks`);
+        ok(!problems.length, `a run and its whitelist disagree: ${problems.join("; ")}`);
     }]
 ];
 

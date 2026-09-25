@@ -16,7 +16,7 @@
  * holds its scenarios and stages to audit/harness/README.md and tools/stages.json.
  * It imports nothing, so Node can read it as it is.
  *
- *   entry.bridge   the GM_HANDLERS actions, by their wire name
+ *   entry.bridge   the bridge's table actions (BRIDGE_ACTIONS, TRAP_ACTIONS), by their wire name
  *   entry.sockets  the files that listen on the module's socket for it
  *   entry.api      the game.drpg calls that start it (R160 asks that they exist)
  *   entry.calls    "file.mjs#function" for a start that is not on game.drpg
@@ -99,7 +99,7 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces"], sockets: ["remnants.mjs"] },
         scenarios: ["10-murder", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "trap-fire", what: "A trap: a crossing reported to the GM, the trap sprung once",
-        entry: { sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+        entry: { bridge: ["trap.event"], sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, and a player's edit is put back",
         entry: { sockets: ["truth-bullets.mjs"] }, scenarios: ["30-security"], status: "partial", stage: "E38" },
     { id: "voice", what: "Voice rooms: who hears whom",

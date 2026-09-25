@@ -58,7 +58,7 @@ import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { isPrimaryGm, debug, log, warn, error, esc, pause } from "./utils.mjs";
 // Statically: the leaf imports config.mjs and utils.mjs only, so this edge closes no cycle (E31).
-import { senderOf, ownsActor, guardRelayOwner, guardRelayRoom } from "./bridge-guards.mjs";
+import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, judge, table, pick, as, knownSender } from "./bridge-guards.mjs";
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
@@ -641,11 +641,12 @@ export function registerTraps() {
      * so a forged packet also disarms the trap until a GM presses Rearm. Any
      * player could have burned every armed trap on the map in a loop.
      *
-     * So the handler now asks Foundry who really sent this and whether they own
-     * the character the packet names - the same `senderOf`/`ownsActor` pair the
-     * GM bridge applies to all thirty of its own handlers. A relay is a client
-     * reporting something ITS OWN student did; there is no legitimate packet
-     * here about somebody else's.
+     * So the relay now asks Foundry who really sent this and whether they own
+     * the character the packet names - the same `senderOf`/`ownsActor` pair every
+     * request to the GM bridge is judged by. Since E31 it is a declaration that
+     * the bridge's own runner judges (`TRAP_ACTIONS`, below). A relay is a client
+     * reporting something ITS OWN student did; there is no legitimate packet here
+     * about somebody else's.
      */
     const relay = (kind, payload) => {
         if (isPrimaryGm()) return false;
@@ -682,46 +683,47 @@ export function registerTraps() {
     // one of the five that was ever working.
     Hooks.on("createChatMessage", onChatMessage);
 
-    game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
-        if (payload?.action !== TRAP_EVENT) return;
-        if (!isPrimaryGm()) return;
+    // The primary GM judges it, by the declaration below; nobody waits on a report,
+    // so a refusal is logged on the GM and told to nobody (`quiet`).
+    game.socket.on(SOCKET_EVENT, (payload, senderId) => isPrimaryGm() ? judge(TRAP_ACTIONS, payload, senderId) : null);
+}
 
-        // The pair comes from bridge-guards.mjs, a leaf, at the top of the file. It
-        // was taken late from gm-bridge.mjs, whose static edge would have added one
-        // to a graph that settings.mjs was reorganised to keep acyclic; the leaf
-        // imports nothing that can import it back (E31, R161).
-        const sender = senderOf(senderId);
-        // The two guards have the bridge's one signature and its reply context
-        // (see `firstRefusal` in bridge-guards.mjs, E03); a relay is answered to nobody.
-        const ctx = { asker: senderId, requestId: payload.requestId ?? null };
-        const whose = await guardRelayOwner(sender, payload, ctx);
-        if (whose) {
-            warn(`Refused a trap relay from ${sender?.name ?? senderId}: ${whose}.`);
-            return;
+/**
+ * What a relay is, as the bridge's runner judges it (E31, 25.09.2026): who sent
+ * it, that they play the character it names, that the character exists, and
+ * that it stands in the room the report names - the guards E03 wrote for the
+ * relay, now in bridge-guards.mjs, in the order the listener asked them. The
+ * run is the switch the listener ran. Which project an action touched is taken
+ * as sent: nothing ties the action kind to a room or asks `canSee` of the
+ * project, which the E31 design wrote down rather than fixed.
+ */
+export const TRAP_ACTIONS = table({
+    [TRAP_EVENT]: {
+        label: "DRPG.Bridge.what.trap.event",
+        guards: [knownSender, guardRelayOwner, guardRelayActor, guardRelayRoom],
+        sanitize: pick({ kind: as.oneOf("crossing", "action", "rest", "stash"), actorId: as.id, to: as.maybeText,
+            room: as.maybeText, actionKey: as.text, hit: as.bool, projectId: as.id }),
+        run: handleTrapEvent,
+        answer: "none", quiet: true,
+        claims: {
+            actorId: guardRelayOwner,
+            projectId: "taken as sent: which project an action touched; the trap it could set off is found from it on this side"
         }
+    }
+});
 
-        const actor = payload.actorId ? game.actors.get(payload.actorId) : null;
-        if (!actor) return;
-
-        const where = await guardRelayRoom(sender, payload, ctx);
-        if (where) {
-            warn(`Refused a trap relay from ${sender?.name ?? senderId}: ${where}.`);
-            return;
-        }
-        try {
-            switch (payload.kind) {
-                case "crossing": await onCrossed({ actor, to: payload.to }); break;
-                case "action": await onActionResolved({
-                    actor, actionKey: payload.actionKey,
-                    outcome: { success: payload.hit }, projectId: payload.projectId
-                }); break;
-                case "rest": await onRested({ actor, room: payload.room }); break;
-                case "stash": await onStashHunted({ actor, room: payload.room }); break;
-            }
-        } catch (err) {
-            error("A trap could not react to something a player did", err);
-        }
-    });
+/** A relayed event, handed to the listener that would have caught it on this client. */
+async function handleTrapEvent(payload, sender, ctx) {
+    const actor = game.actors.get(payload.actorId);
+    switch (payload.kind) {
+        case "crossing": await onCrossed({ actor, to: payload.to }); break;
+        case "action": await onActionResolved({
+            actor, actionKey: payload.actionKey,
+            outcome: { success: payload.hit }, projectId: payload.projectId
+        }); break;
+        case "rest": await onRested({ actor, room: payload.room }); break;
+        case "stash": await onStashHunted({ actor, room: payload.room }); break;
+    }
 }
 
 /** Which field of each relayed event names a room: a crossing's destination, the rest's and the stash's room. */
