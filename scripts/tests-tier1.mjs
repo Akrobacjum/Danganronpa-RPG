@@ -3030,6 +3030,8 @@ const INVARIANTS = [
             "r162.reply": decl(() => ({ reply: { answer: 42 } }), { answer: "reply" }),
             "r162.later": decl(() => ({ later: true }), { answer: "reply" }),
             "r162.runRefuses": decl(() => ({ refused: "no such character" })),
+            "r162.tell": decl(() => { ran.push("tell"); }, { guards: [knownSender, () => "not their character"], tell: "traceOutOfReach" }),
+            "r162.tellThrows": decl(() => { throw new Error("R162 planted: a run under a tell"); }, { tell: "traceOutOfReach" }),
             "r162.throwsRun": decl(() => { throw new Error("R162 planted: the run"); }),
             "r162.throwsGuard": decl(() => { ran.push("guard"); }, { guards: [knownSender, () => { throw new Error("R162 planted: a guard"); }] }),
             "r162.throwsPrepare": decl(() => { ran.push("prepare"); }, { prepare: () => { throw new Error("R162 planted: prepare"); } }),
@@ -3076,6 +3078,17 @@ const INVARIANTS = [
         await ask("r162.runRefuses");
         equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.refused r162.runRefuses missing"]),
             "a run's own refusal did not follow its acknowledgement, once, with its reason");
+
+        // A declaration's `tell` is the code its guards' refusals are told with, whatever the guard's own reason;
+        // a failure of its run is still told as failed.
+        clear();
+        await ask("r162.tell");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.refused r162.tell traceOutOfReach"]),
+            "a guard's refusal was not told with the declaration's `tell`");
+        clear();
+        await ask("r162.tellThrows");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.refused r162.tellThrows failed"]),
+            "a run that threw under a `tell` was not told as failed");
 
         for (const where of ["Run", "Guard", "Prepare"]) {
             clear();

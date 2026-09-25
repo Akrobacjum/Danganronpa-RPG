@@ -911,8 +911,10 @@ const BRIDGE_TABLE_FILES = Object.freeze([
  *      table's file the run names;
  *   8. every code of `reasons` has its sentence, `DRPG.Bridge.why.<code>`, in en
  *      and pl, and so has the message they are said in (`notDone`,
- *      `nothingSpent`); and every request named to `tellRefused` outside the
- *      runner (`told`: relay-guard.mjs's "daggerheart") has its label.
+ *      `nothingSpent`); every request named to `tellRefused` outside the runner
+ *      (`told`: relay-guard.mjs's "daggerheart") has its label; and a
+ *      declaration's `tell`, the one code its guards' refusals are told with, is
+ *      a code of `reasons`.
  */
 function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }) {
     const problems = [], local = [];
@@ -938,6 +940,9 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
             if (typeof decl.run !== "function") problems.push(`${at}: run is not a function`);
             if (!["none", "ack", "reply"].includes(decl.answer)) problems.push(`${at}: answer is ${JSON.stringify(decl.answer)}, not none, ack or reply`);
             if (decl.answer === "none" && !decl.quiet) problems.push(`${at}: nobody is waiting on it, and it is not quiet`);
+            if (decl.tell !== undefined && !reasons.includes(decl.tell)) {
+                problems.push(`${at}: it tells its refusals as ${JSON.stringify(decl.tell)}, which is not a code of the closed list`);
+            }
 
             const all = [...(list ?? []), ...(decl.runGuards ?? [])];
             for (const guard of all) {

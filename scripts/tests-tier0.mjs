@@ -266,8 +266,9 @@ const REGRESSIONS = [
          * is named by a guard or by a claim written beside it, and the other rules
          * of `bridgeTableProblems` (the kit) with it - since C4 of E31 also that
          * every reason a refusal can carry is said in both languages, and so is
-         * every request named to `tellRefused` by hand. The reader is run first on
-         * a fixture with four planted faults, which must come back exactly.
+         * every request named to `tellRefused` by hand, and a declaration's `tell`
+         * is one of the closed list's codes. The reader is run first on a fixture
+         * with five planted faults, which must come back exactly.
          *
          * READ LIVE rather than exercised, because the thing being checked is the
          * SHAPE of the judgement, not its outcome: a request that never runs in a
@@ -283,7 +284,9 @@ const REGRESSIONS = [
             "fixture.nopl": { label: "DRPG.Bridge.what.fixture.nopl", guards: [G.knownSender],
                 sanitize: G.pick({ n: G.as.num }), run: fine, answer: "ack" },
             "fixture.receipt": { label: "DRPG.Bridge.what.fixture.receipt", guards: [G.knownSender, G.guardObserveReceipt, G.owns("actorId", "not theirs")],
-                sanitize: G.pick({ actorId: G.as.id, undo: G.as.bool }), run: fine, answer: "ack" }
+                sanitize: G.pick({ actorId: G.as.id, undo: G.as.bool }), run: fine, answer: "ack" },
+            "fixture.tell": { label: "DRPG.Bridge.what.fixture.tell", guards: [G.knownSender],
+                sanitize: G.pick({ n: G.as.num }), run: fine, answer: "ack", tell: "fixtureNowhere" }
         } }];
         const labels = Object.keys(FIXTURE[0].table).map(action => `DRPG.Bridge.what.${action}`);
         const said = ["DRPG.Bridge.notDone", "DRPG.Bridge.nothingSpent", "DRPG.Bridge.why.fixtureSaid"];
@@ -295,8 +298,9 @@ const REGRESSIONS = [
             "fixture.mjs fixture.unclaimed: targetId reaches the run with no guard naming it and no claim saying who judges it",
             "fixture.mjs fixture.nopl: DRPG.Bridge.what.fixture.nopl is missing in pl.json",
             "fixture.mjs fixture.receipt: guardObserveReceipt spends a Reroll receipt and is not the last guard",
+            "fixture.mjs fixture.tell: it tells its refusals as \"fixtureNowhere\", which is not a code of the closed list",
             "reason fixtureUnsaid: DRPG.Bridge.why.fixtureUnsaid is missing in pl.json"
-        ]), "the table reader does not find exactly the four faults planted for it - it would misread the module's tables too");
+        ]), "the table reader does not find exactly the five faults planted for it - it would misread the module's tables too");
 
         // The requests named to `tellRefused` by hand, outside the runner: a literal second argument.
         const toldIn = text => [...stripComments(text).matchAll(/\btellRefused\(\s*[^,()]+,\s*"([^"]+)"/g)].map(m => m[1]);

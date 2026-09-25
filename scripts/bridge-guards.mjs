@@ -135,7 +135,8 @@ export async function firstRefusal(sender, payload, ctx, ...guards) {
  * (`DRPG.Bridge.why.<code>`, through `sayNotDone`). The code is all that
  * travels: no text, no number, no name, so nothing the GM's side worked out
  * reaches a player who was refused it, and a packet cannot name a translation
- * key outside the list.
+ * key outside the list. A declaration may name the one code every refusal by
+ * its guards is told with (`tell`); the GM's log keeps each guard's reason.
  *
  * The English reason stays the source of truth: every guard and run returns it
  * as before, the GM's log prints it, and `reasonOf` reads the code off it with
@@ -263,12 +264,12 @@ export function reasonOf(why) {
  * <name>: <why>.` The asker is told the code `reasonOf` reads off `why`, and
  * nothing else of it (E31).
  */
-export function refuse(action, why, ctx = null, send = emitTo) {
+export function refuse(action, why, ctx = null, send = emitTo, code = reasonOf(why)) {
     // The sender's name, from Foundry's own `senderId`: the handbook sends a GM
     // to this line to find out who asked.
     const who = game.users?.get(ctx?.asker ?? "")?.name;
     warn(`Refused a "${action}" request over the socket${who ? ` from ${who}` : ""}: ${why}.`);
-    if (!ctx?.quiet) tellRefused(ctx?.asker, action, ctx?.requestId ?? null, reasonOf(why), send);
+    if (!ctx?.quiet) tellRefused(ctx?.asker, action, ctx?.requestId ?? null, code, send);
     return null;
 }
 
@@ -825,11 +826,17 @@ export function owns(field, why) {
 /**
  * The sender owns the character found at what the packet names - a token's
  * actor, the character a Remnant's ledger says left it - through `locate`,
- * which may be async. `covers` are the fields `locate` reads.
+ * which may be async. `covers` are the fields `locate` reads. With `retryMs`,
+ * a refusal is asked once more after that long before it stands, as a Reroll
+ * receipt's is (`spendRerollReceipt`).
  */
-export function ownsActorAt(locate, why, covers) {
-    return made(async (sender, payload, ctx) => ownsActor(sender, await locate(payload)) ? null : why,
-        "ownsActorAt", covers, why);
+export function ownsActorAt(locate, why, covers, { retryMs = 0 } = {}) {
+    return made(async (sender, payload, ctx) => {
+        if (ownsActor(sender, await locate(payload))) return null;
+        if (!retryMs) return why;
+        await pause(retryMs);
+        return ownsActor(sender, await locate(payload)) ? null : why;
+    }, "ownsActorAt", covers, why);
 }
 
 /** Only a GM may ask this; an Assistant GM is a GM. */
@@ -969,7 +976,7 @@ export function judge(table, payload, senderId, { send = emitTo } = {}) {
             const prepared = decl.prepare ? await decl.prepare(payload) : null;
             const sender = senderOf(senderId);
             const why = await firstRefusal(sender, payload, ctx, ...decl.guards);
-            if (why) return refuse(action, why, ctx, send);
+            if (why) return refuse(action, why, ctx, send, decl.tell ?? reasonOf(why));
             if (decl.answer !== "none" && ctx.requestId) {
                 send(ctx.asker, { action: ACTION_ACK, requestId: ctx.requestId, userId: ctx.asker });
             }

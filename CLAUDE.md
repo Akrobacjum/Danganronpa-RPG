@@ -209,7 +209,9 @@ steps; R1b, R162-R166 and the lint rule are there to catch a skipped one.
    check that must not wait between itself and the write goes in `prepare`
    (imports) or in the run. `answer` is `"ack"`, `"reply"`, or `"none"` for a
    report nobody waits on (and then `quiet`); `patient`, `resend` and
-   `timeoutMs` say how the asker waits.
+   `timeoutMs` say how the asker waits. `tell` names one code of `REASONS`
+   that every refusal by the guards is told with; the GM's log keeps each
+   guard's own reason.
 3. **Write the run** `(payload, sender, ctx, prepared)`. It reads only the
    whitelisted payload, refuses by returning `{ refused: "<English reason>" }` -
    the text must map to exactly one code of `REASONS` (R164), and a new code

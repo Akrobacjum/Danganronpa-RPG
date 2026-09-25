@@ -1203,13 +1203,18 @@ export const BRIDGE_ACTIONS = table({
             // of their own action is. Anyone else editing evidence is the one thing
             // an investigation cannot survive. From the ledger, which this GM holds
             // (`remnantSourceOf`) - the token has carried no `sourceActor` flag since
-            // the answer key moved off it (CASE-09).
-            ownsActorAt(remnantSourceOf, "sender did not leave that Remnant", ["sceneId", "tokenId"]),
+            // the answer key moved off it (CASE-09). A refusal is asked again after
+            // the receipt's retry, as the receipt's own is.
+            ownsActorAt(remnantSourceOf, "sender did not leave that Remnant", ["sceneId", "tokenId"],
+                { retryMs: TIMING.rerollReceiptRetryMs }),
             guardRemnantEditReceipt
         ],
         sanitize: pick({ sceneId: as.id, tokenId: as.id, patch: as.raw }),
         run: handleRemnantEdit,
         answer: "ack",
+        // Every refusal by these guards is told to the asker as this one code; the
+        // GM's log keeps each guard's own reason (E31 review).
+        tell: "traceOutOfReach",
         claims: { patch: "narrowed in the run: remove as a flag, a visibility from REMNANT_VISIBILITY_LABELS, a type from a GM only" }
     },
     [ACTION_SABOTAGE]: {
