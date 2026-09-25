@@ -21,6 +21,7 @@ import * as U from "./lib/futil.mjs";
 import { IDS, world } from "./lib/seed.mjs";
 import { readVersions } from "./lib/versions.mjs";
 import { createCanary } from "./lib/canary.mjs";
+import { kindOf, replacementOf } from "./lib/operators.mjs";
 
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 /*
@@ -98,8 +99,19 @@ function canWrite(userId, op) {
         const role = roleOf(userId);
         if (role >= 4) return true;
         if (action !== "update") return false;
-        const next = U.expandObject(U.deepClone(op.changes ?? {})).role;
-        if (next !== undefined && Number(next) > role) return false;
+        /* A role written through an operator (E30 review, 25.09.2026). A ForcedReplacement
+           reaches here in its wire form, an object: Number() of it was NaN, NaN > role was
+           false, and applyUpdate honoured the operator. Measured through this cluster, p1
+           (role 1) updating itself: { role: 4 } refused; { role: _replace(4) } written, p1
+           at role 4; { role: _del } written, p1 with no role. A replacement is read for the
+           role it puts in; a deletion, or a value that is not a number, is refused. */
+        const raw = U.expandObject(U.deepClone(op.changes ?? {})).role;
+        if (raw !== undefined) {
+            const kind = kindOf(raw);
+            if (kind === "ForcedDeletion") return false;
+            const next = Number(kind === "ForcedReplacement" ? replacementOf(raw) : raw);
+            if (!Number.isFinite(next) || next > role) return false;
+        }
         return role >= 3 || op.docId === userId;
     }
     if (isGM(userId)) return true;
@@ -289,7 +301,24 @@ function spawnClient(who, userId) {
     proc.stdout.on("data", d => { keep("out", d); if (VERBOSE) process.stdout.write(`[${who}] ${d}`); });
     proc.stderr.on("data", d => { keep("err", d); process.stdout.write(`[${who}:err] ${d}`); });
     proc.on("message", msg => onClientMessage(who, entry, msg));
-    proc.on("exit", code => { if (code) console.log(`[cluster] client ${who} exited with ${code}`); });
+    /*
+     * A CLIENT THAT EXITS BEFORE IT IS READY (E30 review, 25.09.2026). Readiness resolved
+     * only on "ready" or "bootFailed", so main() waited on a client that exited first - at
+     * import, before "hello". Measured on 00-boot with a preload that ends a client as it
+     * starts: with p2 alone gone, the first packet relayed to its closed channel threw an
+     * unhandled 'error' event and the cluster died 2.3 s in (exit 1, no results file);
+     * with all four gone, nothing was left to wait on, and Node ended the cluster 0.1 s in
+     * with exit 0, no results file and no check. The exit is now the client's failed boot,
+     * and a client that has exited, at any point, is gone: no broadcast, packet or eval
+     * goes to its closed channel, and a send that races the exit is logged, not thrown.
+     */
+    proc.on("exit", (code, signal) => {
+        if (code) console.log(`[cluster] client ${who} exited with ${code}`);
+        entry.gone = true;
+        entry.goneWhy ??= `exited (${code ?? signal})`;
+        if (!bootInfo.has(who)) onClientMessage(who, entry, { t: "bootFailed", error: `exited with ${code ?? signal} before it was ready` });
+    });
+    proc.on("error", err => console.log(`[cluster] client ${who}: ${err.message}`));
     clients.set(who, entry);
     return entry;
 }
@@ -436,6 +465,7 @@ async function disconnect(who) {
     const entry = clients.get(who);
     if (!entry || entry.gone) return false;
     entry.gone = true;
+    entry.goneWhy = "has disconnected";
     const exited = new Promise(resolve => {
         if (entry.proc.exitCode !== null || entry.proc.signalCode !== null) resolve();
         else entry.proc.once("exit", resolve);
@@ -479,7 +509,7 @@ function handleFor(who) {
         who,
         userId: entry.userId,
         eval(code, { timeout = 30000 } = {}) {
-            if (entry.gone) return Promise.reject(new Error(`${who} has disconnected`));
+            if (entry.gone) return Promise.reject(new Error(`${who} ${entry.goneWhy ?? "has gone"}`));
             /* A scenario never plants its own hit: code carrying a marker this
                client may not hold is refused before it is sent (lib/canary.mjs). */
             const refused = canary?.forbiddenIn(code, who, entry.userId) ?? [];
@@ -544,7 +574,7 @@ function dump(who) {
     const entry = clients.get(who);
     const empty = { who, userId: entry?.userId ?? null, wire: [], world: {}, settings: {}, storage: {}, dom: "", unread: true };
     if (!entry || entry.gone) {
-        check(`could not read ${who}'s browser (measured nothing)`, false, entry ? "it has disconnected" : "no such client");
+        check(`could not read ${who}'s browser (measured nothing)`, false, entry ? `it ${entry.goneWhy ?? "has gone"}` : "no such client");
         return Promise.resolve(empty);
     }
     const id = `dump${++evalSeq}`;
@@ -694,11 +724,11 @@ function layersProblem(exported, line) {
  * and fails the run.
  */
 let accountsProblem = null;
-const TAKEN_NAMES = ["gm", "p1", "p2", "p3", "check", "note", "settle", "world", "disconnect"];
 
-function seedAccounts(declared) {
+/** `taken`: the names run() is handed already - the API's keys, the four clients and `canary`. */
+function seedAccounts(declared, taken) {
     if (declared === undefined) return [];
-    const names = new Set(TAKEN_NAMES), ids = new Set(world.collections.User.map(u => u._id));
+    const names = new Set(taken), ids = new Set(world.collections.User.map(u => u._id));
     const problems = Array.isArray(declared) ? [] : [`accounts must be an array, got ${JSON.stringify(declared)}`];
     for (const account of Array.isArray(declared) ? declared : []) {
         const { who, id, role } = account ?? {};
@@ -734,7 +764,20 @@ async function main() {
        it exports decides which users the world has, and a file that throws on
        import now ends the run before four browsers boot for nothing. */
     const scenario = await import(url.pathToFileURL(scenarioFile).href);
-    const accounts = seedAccounts(scenario.accounts);
+    /* What run() is handed, the clients' handles added once they are forked. An account's
+       `who` may be none of these names (E30 review, 25.09.2026): the list of taken names was
+       kept by hand, lacked phase, dump, canary and environment, and an account named `phase`
+       got a client whose handle the function then replaced. */
+    const api = {
+        check, note, phase, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, opLog, settingLog, disconnect, bootInfo, IDS,
+        environment: ENVIRONMENT,
+        // `import("${repoUrl}/scripts/x.mjs")` inside an eval reaches the SAME module
+        // instance the client booted, because it is the same URL.
+        repoUrl: REPO_URL,
+        broadcastRaw: broadcast,
+        dump
+    };
+    const accounts = seedAccounts(scenario.accounts, [...Object.keys(api), "gm", "p1", "p2", "p3", "canary"]);
     await loadFlows();
 
     spawnClient("gm", IDS.gm);
@@ -758,17 +801,8 @@ async function main() {
 
     const layerProblem = layersProblem(scenario.layers, line);
     const probe = !layerProblem && scenario.layers[0] === "probe";
-    const api = {
-        gm: handleFor("gm"), p1: handleFor("p1"), p2: handleFor("p2"), p3: handleFor("p3"),
-        ...Object.fromEntries(accounts.map(account => [account.who, handleFor(account.who)])),
-        check, note, phase, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, opLog, settingLog, disconnect, bootInfo, IDS,
-        environment: ENVIRONMENT,
-        // `import("${repoUrl}/scripts/x.mjs")` inside an eval reaches the SAME module
-        // instance the client booted, because it is the same URL.
-        repoUrl: REPO_URL,
-        broadcastRaw: broadcast,
-        dump
-    };
+    Object.assign(api, { gm: handleFor("gm"), p1: handleFor("p1"), p2: handleFor("p2"), p3: handleFor("p3") },
+        Object.fromEntries(accounts.map(account => [account.who, handleFor(account.who)])));
     canary = api.canary = createCanary({
         scenario: path.basename(scenarioPath).replace(/\.mjs$/, ""), check, dump, settle, repoUrl: REPO_URL,
         phase: () => currentPhase, gm: api.gm, players: [api.p1, api.p2, api.p3],
