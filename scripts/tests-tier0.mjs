@@ -4938,9 +4938,11 @@ const REGRESSIONS = [
          * kit carries one small test per rule, each breaking it on purpose, and this
          * runs them through the same `runOne` against a made-up ledger (E90 still to
          * come, E91 shipped) and holds each to its known verdict. The four outcomes
-         * have to appear between them, or the cases prove less than they say.
+         * have to appear between them, or the cases prove less than they say. Twenty
+         * cases at first; two more since the E30 review (25.09.2026), a breach of the
+         * contract in a test marked red, which the runner had taken for the red.
          */
-        ok(KIT_SELF_TESTS.length >= 20, `the kit carries ${KIT_SELF_TESTS.length} self-tests, and it had 20`);
+        ok(KIT_SELF_TESTS.length >= 22, `the kit carries ${KIT_SELF_TESTS.length} self-tests, and it had 22`);
         const outcomes = new Set();
         for (const c of KIT_SELF_TESTS) {
             const r = await runOne(c.entry, { tier: 0, ledger: "ledger" in c ? c.ledger : SELF_LEDGER });

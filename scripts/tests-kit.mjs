@@ -6,7 +6,8 @@
  * (runOne: what it measured, whether it is red on purpose until a named stage),
  * the environment probes, the source readers, the world readers the runner
  * compares before and after tiers 0 and 1, and cast(). It writes nothing to the
- * world and imports no other suite file, so a tier file that imports it imports
+ * world and imports no tier file - of the suite's files only tests-lint.mjs and
+ * tests-flows.mjs, which import nothing - so a tier file that imports it imports
  * no other tier. What the tiers are: the header of tests.mjs.
  */
 
@@ -34,6 +35,16 @@ class Failure extends Error {}
  * what it measures is wrong, not because it could not reach it.
  */
 class Precondition extends Failure {}
+
+/**
+ * The test broke the contract itself: needs() handed something that is not a probe,
+ * or a world probe asked after the test wrote to the world. Neither is a measurement
+ * nor a precondition - the test is wrong - so it FAILs whatever expectedRed says. As a
+ * plain Failure it was taken for the promised red: on a copy of this kit, a test
+ * marked expectedRed("E90") that handed needs() `true`, and one that asked a world
+ * probe after a write, both came out "red" (E30 review, 25.09.2026).
+ */
+class ContractBreach extends Failure {}
 
 /*
  * A THIRD ANSWER, BECAUSE "FAILED" WAS BEING USED FOR TWO DIFFERENT THINGS.
@@ -123,7 +134,7 @@ function needs(p, why = "") {
         const text = `needs() was handed ${describe(p)}, not an env.* or world.* probe - a skip may only be a fact `
             + "the suite asked of the environment itself (the test author contract)";
         if (current) current.failures.push(text);
-        throw new Failure(text);
+        throw new ContractBreach(text);
     }
     if (current) current.probes.push(p.name);
     if (!p.holds) throw new Skipped(`[${p.name}] ${p.fact}${why ? ` - ${why}` : ""}`, p.name);
@@ -234,8 +245,9 @@ async function runOne([name, fn, red = null], { tier, ledger = null } = {}) {
 }
 
 /* THE ORDER MATTERS. A stale or malformed marker fails whatever the test did; a
-   skip is a skip; a failure the test caught fails it; a red is green only when
-   an assertion failed - a precondition, a crash or nothing measured is a FAIL. */
+   skip is a skip; a breach of the contract fails whatever the marker says; a
+   failure the test caught fails it; a red is green only when an assertion failed -
+   a precondition, a crash or nothing measured is a FAIL. */
 function judge(ctx, err, red, ledger) {
     const fail = message => ({ outcome: "fail", message });
     if (red) {
@@ -243,6 +255,7 @@ function judge(ctx, err, red, ledger) {
         if (stale) return fail(stale);
     }
     if (err instanceof Skipped) return { outcome: "skip", message: err.message, probe: err.probe };
+    if (err instanceof ContractBreach) return fail(err.message);
     if (!err && ctx.failures.length) return fail(`an assertion failed and the test caught it: ${ctx.failures[0]}`);
     if (red) {
         if (err instanceof Failure && !(err instanceof Precondition) && (!red.failing || err.message.includes(red.failing))) {
@@ -325,6 +338,15 @@ const KIT_SELF_TESTS = [
         expectedRed("E90", "the fix lands in E90", { failing: "the assertion it names" })] },
     { expect: "fail", says: "measured nothing", entry: ["red, measuring nothing", () => {}, expectedRed("E90", "the fix lands in E90")] },
     { expect: "fail", says: "malformed", entry: ["red, a malformed marker", () => { ok(1 === 2, "one is two"); }, expectedRed("7", "")] },
+    /* A breach of the contract is not the red a marker promises (E30 review, 25.09.2026):
+       before ContractBreach, both of these came out "red". */
+    { expect: "fail", says: "not an env.* or world.* probe", entry: ["red, needs() handed a truthy condition", () => {
+        needs(true, "true is not a probe, marked or not");
+    }, expectedRed("E90", "the fix lands in E90")] },
+    { expect: "fail", says: "asked after this test wrote", entry: ["red, a world probe asked after a write", () => {
+        current.wrote = "a synthetic write";
+        needs(world.atLeast("scenes", 0), "any world has zero scenes or more");
+    }, expectedRed("E90", "the fix lands in E90")] },
     { expect: "red", says: "until E91", ledger: null, entry: ["red, with no ledger served", () => { ok(1 === 2, "one is two"); },
         expectedRed("E91", "checked at release when the ledger is not here")] }
 ];
@@ -376,8 +398,11 @@ function layoutAvailable() {
  * what every size and colour in the theme is made of. jsdom does not: it hands back
  * the literal `var(--drpg-dim)` as a colour, which read as "the dim ink could not be
  * measured" and as a size of NaN (E01, 24.09.2026). Asked of a property the suite
- * sets itself, not one the module's stylesheet should have, because the harness
- * fakes `getPropertyValue("--...")` from a flat list and would answer yes.
+ * sets itself, not one the module's stylesheet should have: the harness then
+ * answered `getPropertyValue("--...")` from a flat list of the stylesheets'
+ * properties and would have said yes. Since E30 (lib/css.mjs) jsdom's own cascade
+ * answers there, custom properties substituted, and a standard property made of
+ * `var()` still comes back unresolved - so this reads false headless, as before.
  */
 function cascadeAvailable() {
     const probe = document.createElement("span");
@@ -413,9 +438,12 @@ const canvasAvailable = () => Boolean(canvas?.ready && typeof canvas?.app?.rende
 const systemSheetsAvailable = () => Object.keys(CONFIG.Actor?.sheetClasses?.character ?? {}).length > 0;
 
 /**
- * Whether `DialogV2` draws a window here. Foundry's is an ApplicationV2 with a
- * `render`; the headless harness answers `DialogV2.wait` from a queue and draws
- * nothing, so a window opened through it has no element to read.
+ * Whether `DialogV2` draws a window here: Foundry's is an ApplicationV2 with a
+ * `render`. So is the headless harness's since E01 (lib/shim.mjs), which draws a
+ * real window when a scenario asks for one (`__dialogWindows`, as 01-runtests does
+ * on the GM) and otherwise answers `wait` from a queue - so this holds on every
+ * harness client and skips nowhere today (E30 review, 25.09.2026). It stays for a
+ * DialogV2 that cannot draw.
  */
 const dialogsDrawn = () => typeof foundry.applications.api.DialogV2?.prototype?.render === "function";
 
@@ -516,7 +544,7 @@ function askedOfWorld(name) {
     if (current?.wrote) {
         const text = `${name} was asked after this test wrote to the world (${current.wrote}) - ask the world before acting`;
         current.failures.push(text);
-        throw new Failure(text);
+        throw new ContractBreach(text);
     }
 }
 
@@ -597,7 +625,8 @@ let sourceCache = null;
  * would be silently exempt from every tier-0 criterion while the suite kept
  * reporting green. The crawl cannot have that hole - a file nothing imports is
  * a file Foundry never loads either. Measured on 1.2.60: 108 on disk, 108
- * reached; 112 and 112 once E30 split the suite into five files.
+ * reached; 112 and 112 once E30 split the suite into five files; 114 and 114 with
+ * tests-lint.mjs and tests-flows.mjs beside them (25.09.2026).
  */
 async function moduleSources() {
     if (sourceCache) return sourceCache;
@@ -1247,7 +1276,7 @@ function cast(n = 3) {
 }
 
 export {
-    Failure, Precondition, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
+    Failure, Precondition, ContractBreach, Skipped, ok, needs, equal, must, describe, expectedRed, compareVersions, stageLedger, markerProblem,
     runOne, registerSuite, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE, UNTIL_FIXTURE, untilProblem, env, world, worldCensus,
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,

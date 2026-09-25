@@ -35,14 +35,19 @@
  * only passes in a foreground window is a suite that fails in CI and in a
  * backgrounded tab for reasons that have nothing to do with the module.
  *
- * FIVE FILES (E30, audit S17-02). This file is the runner, and the only one of
- * the five anything outside the suite imports (api.mjs, lazily). The tests are
- * in tests-tier0.mjs, tests-tier1.mjs and tests-tier2.mjs, and what more than
- * one tier uses is in tests-kit.mjs. They sit flat in scripts/ because the
- * source crawl - moduleSources() here, loadedFiles() in diagnostics.mjs - only
- * follows "./x.mjs". A tier file imports no suite file but the kit, which writes
- * nothing to the world; the fixtures that write, snapshot() and restore(), are
- * in tests-tier2.mjs.
+ * SEVEN FILES (E30, audit S17-02). This file is the runner, and the only one the
+ * module itself imports (api.mjs, lazily). The tests are in tests-tier0.mjs,
+ * tests-tier1.mjs and tests-tier2.mjs, and what more than one tier uses is in
+ * tests-kit.mjs. The kit takes the contract's detectors from tests-lint.mjs and
+ * the flows from tests-flows.mjs; those two import nothing, so bare Node reads
+ * them too - tests-lint.mjs in tools/check.mjs, tools/stages.mjs and
+ * tools/registry.mjs, tests-flows.mjs in tools/registry.mjs and the harness's
+ * cluster - and audit/live's runner imports the kit in the page, for worldDump.
+ * They sit flat in scripts/ because the source crawl -
+ * moduleSources() here, loadedFiles() in diagnostics.mjs - only follows
+ * "./x.mjs". A tier file imports no suite file but the kit, which writes nothing
+ * to the world; the fixtures that write, snapshot() and restore(), are in
+ * tests-tier2.mjs.
  */
 
 import { log, warn, esc, plural, dialogContent } from "./utils.mjs";
@@ -218,6 +223,27 @@ async function runSuite(tier, only = null) {
         failed++;
         lines.push(`  FAIL  ${r.name}`, ...detail(r.message));
     };
+
+    /*
+     * AN `only` THAT RAN NOTHING IS NOT A GREEN RUN (E30 review, 25.09.2026). A name
+     * that matched no test in the tiers asked for printed "1 passed, 0 failed" - the
+     * purity line alone - and so did `runTests({ only: "legacy trace" })` once the
+     * default became tier 1, the test it names being a tier-2 scenario. Said as a
+     * failure, with the tier where the name does match, if there is one.
+     */
+    if (only !== null && only !== undefined && only !== "") {
+        const tiers = [[0, REGRESSIONS], [1, INVARIANTS], [2, SCENARIOS]];
+        if (!tiers.some(([t, list]) => t <= tier && pick(list).length)) {
+            const later = tiers.filter(([t, list]) => t > tier && pick(list).length);
+            record({ tier, name: `only "${only}" names a test in tiers 0-${tier}`, outcome: "fail", assertions: null,
+                message: later.length
+                    ? later.map(([t, list]) => {
+                        const n = pick(list).length;
+                        return `it names ${n} test${n === 1 ? "" : "s"} in tier ${t} - runTests({ tier: ${t}, only: ${JSON.stringify(only)} })`;
+                    }).join("; ")
+                    : "no test in any tier has that in its name" });
+        }
+    }
 
     // The stage ledger, once per run: a red marker is held to it (expectedRed in tests-kit.mjs).
     const ledger = await stageLedger();
