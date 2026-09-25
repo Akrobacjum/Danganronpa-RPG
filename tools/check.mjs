@@ -33,10 +33,12 @@
  *             every English .one/.other family has its Polish .few and .many.
  *   prose     config.mjs's prose against lang/pl.json (tools/config-prose.mjs).
  *   names     every name scripts/ takes from `./x.mjs` - static imports,
- *             re-exports, and the dynamic forms the module uses - is exported by
- *             x.mjs, following `export *`. A dynamic import with a computed path
- *             is counted, not checked. no-undef (npm run lint) cannot see a
- *             renamed export: the importing file still declares the name.
+ *             re-exports, and the dynamic forms the module uses, a namespace
+ *             held in a variable (`const m = await import(...)`, then `m.a`)
+ *             among them - is exported by x.mjs, following `export *`. A dynamic
+ *             import with a computed path, and a namespace variable handed on
+ *             whole, are counted, not checked. no-undef (npm run lint) cannot
+ *             see a renamed export: the importing file still declares the name.
  *   contract  the test author contract, read off the text: in
  *             scripts/tests-tier*.mjs no cut bounded by a bare indexOf, no
  *             assertion true by construction, no needs() of anything but a
@@ -254,22 +256,25 @@ function names() {
         for (const s of stars.get(f) ?? []) for (const x of all(s, seen)) if (x !== "default") out.add(x);
         return out;
     };
-    const count = { static: 0, dynamic: 0, computed: 0 };
-    const visit = (node, fn) => {
+    const count = { static: 0, dynamic: 0, computed: 0, namespaces: 0, namespaceReads: 0, namespaceWhole: 0 };
+    const visit = (node, fn, parent = null) => {
         if (!node || typeof node.type !== "string") return;
-        fn(node);
+        fn(node, parent);
         for (const [k, v] of Object.entries(node)) {
             if (k === "parent") continue;
-            if (Array.isArray(v)) v.forEach(c => c && typeof c.type === "string" && visit(c, fn));
-            else if (v && typeof v.type === "string") visit(v, fn);
+            if (Array.isArray(v)) v.forEach(c => c && typeof c.type === "string" && visit(c, fn, node));
+            else if (v && typeof v.type === "string") visit(v, fn, node);
         }
     };
+    const SCOPES = /^(?:Program|BlockStatement|StaticBlock|FunctionDeclaration|FunctionExpression|ArrowFunctionExpression)$/;
     const local = src => src?.type === "Literal" && String(src.value).startsWith(".");
     const want = (f, line, target, name, how) => {
         if (!exported.has(target)) { problems.push(`scripts/${f}:${line}: ${how} a file that is not in scripts/ (${target})`); return; }
         if (!all(target).has(name)) problems.push(`scripts/${f}:${line}: ${how} ${target} for ${name}, which it does not export`);
     };
     for (const [f, tree] of trees) {
+        const parentOf = new Map();
+        visit(tree, (node, parent) => parentOf.set(node, parent));
         for (const n of tree.body) {
             if (!((n.type === "ImportDeclaration" || n.type === "ExportNamedDeclaration") && local(n.source))) continue;
             for (const s of n.specifiers ?? []) {
@@ -290,6 +295,38 @@ function names() {
                         count.dynamic++;
                         want(f, node.loc.start.line, path.basename(init.source.value), p.key.name ?? p.key.value, "destructures import() of");
                     }
+                }
+            }
+            /* const calls = await import("./call-effects.mjs"); ... calls.shieldCalls() - the namespace held in a
+               variable, every plain member read of it in the block that declares it (E30 review, 25.09.2026: 15
+               such variables in the runtime scripts were read by nothing here, and a renamed shieldCalls in
+               call-effects.mjs left this part green). A use that is not a plain member read - the namespace
+               handed on whole, `calls[key]` - is counted, not checked. */
+            if (node.type === "VariableDeclarator" && node.id.type === "Identifier") {
+                const imp = node.init?.type === "AwaitExpression" ? node.init.argument : null;
+                if (imp?.type === "ImportExpression" && local(imp.source)) {
+                    const target = path.basename(imp.source.value), name = node.id.name;
+                    let scope = parentOf.get(node);
+                    while (scope && !SCOPES.test(scope.type)) scope = parentOf.get(scope);
+                    count.namespaces++;
+                    const seen = new Set();   // a shorthand property's key and value: two nodes, one place in the text
+                    visit(scope, (m, parent) => {
+                        if (m.type !== "Identifier" || m.name !== name || m === node.id || seen.has(m.start)) return;
+                        seen.add(m.start);
+                        if (parent?.type === "MemberExpression" && parent.property === m && !parent.computed) return;
+                        if (parent?.type === "Property" && parent.key === m && !parent.computed && !parent.shorthand) return;
+                        if (parent?.type === "MemberExpression" && parent.object === m && !parent.computed) {
+                            count.namespaceReads++;
+                            want(f, parent.loc.start.line, target, parent.property.name, `reads the namespace ${name} = import() of`);
+                        } else if (parent?.type === "VariableDeclarator" && parent.init === m && parent.id.type === "ObjectPattern") {
+                            // const { a, b } = calls
+                            for (const p of parent.id.properties) {
+                                if (p.type !== "Property" || p.computed) { count.namespaceWhole++; continue; }
+                                count.namespaceReads++;
+                                want(f, parent.loc.start.line, target, p.key.name ?? p.key.value, `destructures the namespace ${name} = import() of`);
+                            }
+                        } else count.namespaceWhole++;
+                    }, parentOf.get(scope) ?? null);
                 }
             }
             // (await import("./x.mjs")).a
@@ -323,6 +360,7 @@ function names() {
         });
     }
     console.log(`names: ${files.length} files, ${count.static} names imported statically, ${count.dynamic} taken from dynamic imports, `
+        + `${count.namespaceReads} read through ${count.namespaces} namespace variable(s) (${count.namespaceWhole} other use(s) of one, not checked), `
         + `${count.computed} dynamic import(s) with a computed path (not checked); ${problems.length} unresolved`);
     if (!count.static) problems.push("read no import at all");
     return problems;
