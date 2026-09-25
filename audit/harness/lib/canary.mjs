@@ -227,9 +227,18 @@ export function validateKnownLeaks(doc, { stageStatus, readme = "", scenarioText
         if (e.foundryLimit !== undefined || e.deferred !== undefined) {
             if (e.readme !== `leak:${e.id}` || !readme.includes(`<!-- leak:${e.id} -->`)) errs.push(`${at}: what stays needs its paragraph in README.md, marked <!-- leak:${e.id} -->`);
         }
+        /* A rule describes one place a secret reaches: a seed (a family with one `*` at
+           most, never `**`), a surface, and a where or a path that is more than stars.
+           matchRule reads a missing field as "any", so `match: [{}]` described every hit
+           of every scenario, the canary's "outside known-leaks.json" check could not go
+           red, and this passed it (E30 review, 25.09.2026). */
+        const narrow = v => typeof v === "string" && /[^*.]/.test(v);
         for (const rule of e.match ?? []) {
-            if (!seedsOf(rule.seed ?? "**").length) errs.push(`${at}: match seed ${rule.seed} is no seed of SEEDS`);
-            if (rule.surface && rule.surface !== "*" && !SURFACES.includes(rule.surface)) errs.push(`${at}: match surface ${rule.surface} is not one of ${SURFACES.join(", ")}`);
+            if (!narrow(rule?.seed) || rule.seed.includes("**")) errs.push(`${at}: a match rule names no seed, or a seed with ** (${JSON.stringify(rule?.seed ?? null)}) - it would describe every seed`);
+            else if (!seedsOf(rule.seed).length) errs.push(`${at}: match seed ${rule.seed} is no seed of SEEDS`);
+            if (!rule?.surface || rule.surface === "*") errs.push(`${at}: a match rule names no surface (${JSON.stringify(rule?.surface ?? null)}) - it would describe every surface`);
+            else if (!SURFACES.includes(rule.surface)) errs.push(`${at}: match surface ${rule.surface} is not one of ${SURFACES.join(", ")}`);
+            if (!narrow(rule?.where) && !narrow(rule?.path)) errs.push(`${at}: a match rule names neither a where nor a path - it would describe every place`);
         }
         const by = Array.isArray(e.detectedBy) ? e.detectedBy : [];
         if (!by.length && !String(e.notMeasuredBecause ?? "").trim()) errs.push(`${at}: detected by nothing, and no notMeasuredBecause`);
