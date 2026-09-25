@@ -138,17 +138,28 @@ async function lint() {
     return { status: problems.length ? "red" : "green", ms: Date.now() - t0, counts, problems };
 }
 
-/** A Node script as a part: green on exit 0. Its last line is its own summary. */
-async function command(cmd, args, cwd) {
+/**
+ * A Node script as a part: green on exit 0 AND its own summary line, `done`. Its
+ * last line is its summary. An exit code alone is not a verdict (E30 review,
+ * 25.09.2026): verify-gate.mjs reached through a symlink - DRPG_REPO pointing at
+ * one - printed nothing and exited 0, and this part read that as a green gate.
+ */
+async function command(cmd, args, cwd, done) {
     const r = await run(cmd, args, { cwd, timeoutMs: 5 * 60_000 });
     const problems = [];
+    const silent = !r.timedOut && r.code === 0 && !done.re.test(r.text);
     if (r.timedOut) problems.push("timed out");
     else if (r.code !== 0) problems.push(`exited ${r.code ?? r.signal}`);
+    else if (silent) problems.push(`exited 0 without its summary line (${done.what}): it did not say what it ran`);
+    // Lines worth showing beside a red; they are not the verdict ("parity: ... missing 0" is a green line).
     problems.push(...r.text.split("\n").filter(l => /^\S+: .*(problem|refus|FAIL|missing|lacks|red)/i.test(l) && !/: 0 problem/.test(l)).slice(0, 30));
-    return { status: r.timedOut || r.code !== 0 ? "red" : "green", ms: r.ms, counts: r.text.trim().split("\n").at(-1)?.slice(0, 160) ?? "", problems };
+    const red = r.timedOut || r.code !== 0 || silent;
+    if (red) console.log(`  ${problems[0]}`);
+    return { status: red ? "red" : "green", ms: r.ms, counts: r.text.trim().split("\n").at(-1)?.slice(0, 160) ?? "", problems };
 }
 
-const check = () => command(process.execPath, [path.join(REPO, "tools", "check.mjs")], REPO);
+const check = () => command(process.execPath, [path.join(REPO, "tools", "check.mjs")], REPO,
+    { re: /^check: \d+ part\(s\), all green$/m, what: '"check: N part(s), all green"' });
 
 async function gate() {
     const verifier = path.join(REPO, "audit", "gate", "verify-gate.mjs");
@@ -156,7 +167,8 @@ async function gate() {
         console.log("gate: audit/gate/verify-gate.mjs is not in this tree");
         return { status: "red", ms: 0, counts: "no verifier", problems: ["audit/gate/verify-gate.mjs is missing"] };
     }
-    return command(process.execPath, [verifier, "--self-test"], REPO);
+    return command(process.execPath, [verifier, "--self-test"], REPO,
+        { re: /^verify-gate self-test: ([1-9]\d*)\/\1 cases hold$/m, what: '"verify-gate self-test: N/N cases hold"' });
 }
 
 /** Every scenario file with its number, name, layers and timeout, read off the source without importing it. */

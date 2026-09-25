@@ -295,7 +295,13 @@ function main(argv) {
     return 2;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(import.meta.url)) {
+/* Run as a command, not imported: the two paths compared as real paths. Through a symlink
+   process.argv[1] keeps the link's path and import.meta.url is the file's own, so the plain
+   comparison never held and the command printed nothing and exited 0 - measured 25.09.2026 on
+   all six CLIs that used it (this file, tools/registry.mjs, tools/config-prose.mjs,
+   audit/gate/verify-gate.mjs, audit/live/perf-baseline.mjs and world-manifest.mjs). */
+const runAsCommand = () => { try { return fs.realpathSync(process.argv[1]) === fs.realpathSync(url.fileURLToPath(import.meta.url)); } catch { return false; } };
+if (process.argv[1] && runAsCommand()) {
     process.exitCode = main(process.argv.slice(2));
 }
 

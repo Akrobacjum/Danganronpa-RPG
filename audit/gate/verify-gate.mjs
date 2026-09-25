@@ -443,6 +443,8 @@ async function main(argv) {
     return r.ok ? 0 : 1;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(import.meta.url)) {
+/* Real paths, as in tools/stages.mjs: through a symlink the plain comparison never held (25.09.2026). */
+const runAsCommand = () => { try { return fs.realpathSync(process.argv[1]) === fs.realpathSync(url.fileURLToPath(import.meta.url)); } catch { return false; } };
+if (process.argv[1] && runAsCommand()) {
     process.exitCode = await main(process.argv.slice(2));
 }

@@ -57,7 +57,9 @@ export function proseCoverage(file) {
     return { wanted: wanted.size, covered: wanted.size - missing.length, missing, extra };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(import.meta.url)) {
+/* Real paths, as in tools/stages.mjs: through a symlink the plain comparison never held (25.09.2026). */
+const runAsCommand = () => { try { return fs.realpathSync(process.argv[1]) === fs.realpathSync(url.fileURLToPath(import.meta.url)); } catch { return false; } };
+if (process.argv[1] && runAsCommand()) {
     const args = process.argv.slice(2);
     if (args[0] === "--check") {
         const { wanted, covered, missing, extra } = proseCoverage(args[1]);

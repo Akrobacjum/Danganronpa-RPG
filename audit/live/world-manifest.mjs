@@ -44,7 +44,9 @@ export function manifest(dir) {
     };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === url.fileURLToPath(import.meta.url)) {
+/* Real paths, as in tools/stages.mjs: through a symlink the plain comparison never held (25.09.2026). */
+const runAsCommand = () => { try { return fs.realpathSync(process.argv[1]) === fs.realpathSync(url.fileURLToPath(import.meta.url)); } catch { return false; } };
+if (process.argv[1] && runAsCommand()) {
     const dir = process.argv[2];
     if (!dir || !fs.existsSync(dir)) { console.log("usage: node audit/live/world-manifest.mjs <worldDir> [--write]"); process.exit(2); }
     const m = manifest(dir);
