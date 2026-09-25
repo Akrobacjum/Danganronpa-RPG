@@ -175,6 +175,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["missing", /^the paying character does not exist$/],
     ["missing", /^no such Observe$/],
     ["missing", /^no character left it$/],
+    ["missing", /^no plant was handed out under that request$/],
     ["badRequest", /^that offer buys .+ pick\(s\), the packet carried .+$/],
     ["badRequest", /^a pick names something that is not an option$/],
     ["badRequest", /^a new experience has no name$/],
@@ -185,6 +186,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^that pool is not the rerolling character's Monokuma$/],
     ["badRequest", /^target holds no Despair pool$/],
     ["badRequest", /^a GM asks for nothing here$/],
+    ["badRequest", /^that plant was handed to somebody else$/],
     // Two patterns, not one with an optional group: R22 reads `range(` in a regex literal as a call.
     ["outOfRange", /^(?:amount|difficulty|delta) .+ is out of range$/],
     ["outOfRange", /^difficulty .+ is out of range \(.*\)$/],
@@ -1144,7 +1146,7 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = { set: s
             if (id && closed.has(id)) {
                 const late = closed.get(id);
                 if (action === ACTION_DONE && typeof late === "function") {
-                    try { late(packet.value ?? null); } catch (err) { report(`A late answer to "${packet.what ?? "a request"}" could not be taken`, err); }
+                    try { late(packet.value ?? null, id); } catch (err) { report(`A late answer to "${packet.what ?? "a request"}" could not be taken`, err); }
                 }
                 return true;
             }
@@ -1206,6 +1208,7 @@ const waiter = createWaiter({
  * @param {object} payload  the fields its whitelist reads
  * @param {object} [opts]   settle ("none" | "ack" | "reply"), patient, resend, ackMs, timeoutMs,
  *                          local (the GM's own client does it), quiet, nothingSpent, late
+ *                          (`late(value, requestId)`, for an answer that arrives after the clock)
  * @returns {Promise<{ok: boolean, pending?: true, value?: *, refused?: true, reason?: string}>}
  */
 export function bridgeRequest(action, payload = {}, opts = {}) {

@@ -345,8 +345,7 @@
       "reset": "Search tokens reset.",
       "exhausted": "This room is searched out. Try again next time of day.",
       "pickedClean": "Somebody got here first. The action is spent.",
-      "noGm": "No GM is connected, so no search token can be spent.",
-      "timeout": "No GM answered. The search was not counted.",
+      "timeout": "The search was not counted.",
       "spendOne": "Spend one",
       "giveOne": "Give one back",
       "refillRoom": "Refill this room",
@@ -355,8 +354,7 @@
       "tokensColumn": "Tokens",
       "sealed": "This room cannot be searched. There is nothing in here to find, and no time of day changes that.",
       "sealedColumn": "No search",
-      "sealedNote": "“No search” closes a room to the Search action completely - not for this time of day, but until you clear it. Its tokens are left where they are and come back the moment you do.",
-      "notHere": "Your character is not in that room, so it cannot be searched from here."
+      "sealedNote": "“No search” closes a room to the Search action completely - not for this time of day, but until you clear it. Its tokens are left where they are and come back the moment you do."
     },
     "Sheet": {
       "ultimateLabel": "Ultimate",

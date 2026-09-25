@@ -345,8 +345,7 @@
       "reset": "Search Tokens odnowione.",
       "exhausted": "Ten pokój jest przeszukany do cna. Spróbuj o następnej porze dnia.",
       "pickedClean": "Ktoś był tu pierwszy. Akcja przepada.",
-      "noGm": "Żaden GM nie jest połączony, więc nie da się wydać Search Tokena.",
-      "timeout": "Żaden GM nie odpowiedział. Przeszukanie nie zostało policzone.",
+      "timeout": "Przeszukanie nie zostało policzone.",
       "spendOne": "Wydaj jeden",
       "giveOne": "Oddaj jeden",
       "refillRoom": "Odnów ten pokój",
@@ -355,8 +354,7 @@
       "tokensColumn": "Tokeny",
       "sealed": "Tego pokoju nie da się przeszukać. Nie ma tu nic do znalezienia i żadna pora dnia tego nie zmieni.",
       "sealedColumn": "Bez Search",
-      "sealedNote": "„Bez Search” zamyka pokój na akcję Search całkowicie - nie na tę porę dnia, ale dopóki tego nie odznaczysz. Jego tokeny zostają na miejscu i wracają w chwili, gdy to zrobisz.",
-      "notHere": "Twojej postaci nie ma w tym pokoju, więc nie da się go stąd przeszukać."
+      "sealedNote": "„Bez Search” zamyka pokój na akcję Search całkowicie - nie na tę porę dnia, ale dopóki tego nie odznaczysz. Jego tokeny zostają na miejscu i wracają w chwili, gdy to zrobisz."
     },
     "Sheet": {
       "ultimateLabel": "Ultimate",

@@ -44,14 +44,16 @@ const RULES = { "no-undef": ["error", { typeof: true }] };
  * bare statement, `void`, or a variable read only as `.ok`, `.value`, `.refused`,
  * `.reason` or `.pending`.
  * Anything else is reported, outside the files that define requests (gm-bridge.mjs,
- * bridge-guards.mjs) and the helpers that do (`askTraps` in traps.mjs). Its fixture,
+ * bridge-guards.mjs) and the helpers that do (`askTraps` in traps.mjs; `askSearch`,
+ * `requestSpend` and `requestPlantCheck` in search-tokens.mjs), whose own callers
+ * are held to the rule like any other. Its fixture,
  * audit/harness/lint-fixtures/bridge-result.mjs, holds seven reported uses and
  * three allowed ones, and run-all's lint part is red unless exactly the seven are.
  */
 const PRODUCER_FILES = new Set(["./gm-bridge.mjs", "./bridge-guards.mjs", "./search-tokens.mjs"]);
 const READS = new Set(["ok", "value", "refused", "reason", "pending"]);
 const DEFINING = /(?:^|[\\/])scripts[\\/](?:gm-bridge|bridge-guards)\.mjs$/;
-const HELPERS = { "traps.mjs": ["askTraps"] };
+const HELPERS = { "traps.mjs": ["askTraps"], "search-tokens.mjs": ["askSearch", "requestSpend", "requestPlantCheck"] };
 const isProducerName = name => ["bridgeRequest", "ask", "sendDespairToPrimary"].includes(name)
     || (/^request[A-Z]/.test(name) && !["requestCleanableTraces", "requestObserveTarget"].includes(name));
 const BRIDGE_RESULT = {

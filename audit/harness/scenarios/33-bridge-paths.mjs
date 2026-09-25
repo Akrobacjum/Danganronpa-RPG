@@ -10,11 +10,12 @@
  *      characters, an Assistant GM (beside the GM, and as the primary once the GM has gone), and
  *      the shapes Daggerheart's own relay sends for a player. Each lands once, the GM logs no
  *      refusal for it, and its asker is told none.
- *   B  what E31 adds, each red until the commit that makes it so (`expectedRed`, with what it
- *      measured as `measured`): a refusal carries its reason, in the player's own language; a
- *      refused request is not acknowledged; an exception on the GM's side ends as one refusal the
- *      player hears; a GM who is connected and silent is reported when the acknowledgement does not
- *      come; the trap relay reaches the GMs only; a refused search is told once.
+ *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
+ *      made it so, and a plain check since: a refusal carries its reason, in the player's own
+ *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
+ *      refusal the player hears; a GM who is connected and silent is reported when the
+ *      acknowledgement does not come; the trap relay reaches the GMs only; a refused search is told
+ *      once.
  *   C  with no GM connected, three requests settle at once, send nothing and say the same thing.
  *   D  no exception escaped into Foundry on any client (until E31's runner, the two B injects were excused).
  * The two exceptions are injected through world objects the handlers write - Aiko's token's
@@ -32,9 +33,6 @@ export const accounts = [{ who: "ag", id: "USERAG0000000000", name: "Assistant",
 const MOD = "danganronpa-rpg";
 const SOCKET = `module.${MOD}`;
 const DH = "system.daggerheart";
-
-/** A check that is red until E31 makes it true, with what it has to have reached to say so. */
-const untilE31 = (why, measured) => ({ expectedRed: { stage: "E31", why }, measured: Boolean(measured) });
 
 /** A request's answer that is not a failure, in the shapes before E31 (`{ pending }`, a value) and after (`{ ok }`). */
 const notFailed = answer => answer !== null && answer !== undefined && answer !== false && answer?.ok !== false;
@@ -457,11 +455,10 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     const b8 = { spent, left0, left: await gm.eval(`return game.drpg.tokensLeft("Gym");`), said: (await noticesSince(p1, n8)).map(x => x.msg),
         why: await p1.eval(`return game.i18n.localize("DRPG.Bridge.why.notThere");`),
         timeout: await p1.eval(`return game.i18n.localize("DRPG.SearchTokens.timeout");`) };
+    // Green since E31 C6: the spend is a declaration the runner judges, and its refusal is the one message.
     check("B8: a Search refused for the room is told once, with the reason, and never as a GM who did not answer",
-        b8.said.length === 1 && !b8.why.startsWith("DRPG.") && b8.said[0].includes(b8.why) && !b8.said.includes(b8.timeout),
-        JSON.stringify(b8),
-        untilE31("search-tokens.mjs answers every refused spend \"notHere\" and toasts its own sentence, beside the bridge's",
-            spent === false && b8.left === left0));
+        spent === false && b8.left === left0 && b8.said.length === 1 && !b8.why.startsWith("DRPG.") && b8.said[0].includes(b8.why)
+        && !b8.said.includes(b8.timeout), JSON.stringify(b8));
 
     /* ------------------------------------------- A. the Assistant as the primary */
 

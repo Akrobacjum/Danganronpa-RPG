@@ -3200,11 +3200,12 @@ const INVARIANTS = [
         // An answer after the clock goes to `late`, and says nothing more.
         w = make();
         const late = [];
-        asked = w.waiter.request("r165.late", {}, { ackMs: 1000, timeoutMs: 40, settle: "reply", quiet: true, late: value => late.push(value) });
+        asked = w.waiter.request("r165.late", {}, { ackMs: 1000, timeoutMs: 40, settle: "reply", quiet: true,
+            late: (value, id) => late.push([value, id === w.sent[0]?.packet.requestId]) });
         equal(JSON.stringify(await asked), JSON.stringify({ ok: false, reason: "noAnswer" }), "a request past its clock did not settle as not answered");
         w.reply("bridge.done", { value: "found" });
-        equal(JSON.stringify({ late, said: w.said }), JSON.stringify({ late: ["found"], said: [] }),
-            "a late answer did not go to `late`, or a quiet request said something");
+        equal(JSON.stringify({ late, said: w.said }), JSON.stringify({ late: [["found", true]], said: [] }),
+            "a late answer did not go to `late` with its request id, or a quiet request said something");
 
         // An emit that throws is `failed`, said once; nothing rejects.
         w = make({ emitThrows: true });
@@ -3224,6 +3225,42 @@ const INVARIANTS = [
         equal(JSON.stringify({ sent: w.sent.length, said: w.said }), JSON.stringify({ sent: 0, said: ["r165.localThrows failed"] }),
             "the primary's own requests sent something, or said something other than the one failure");
         equal(w.waiter.waiting(), 0, "a request is still waiting after this test");
+    }],
+
+    ["R166 - a search is recorded on the scene its guard judged, not the one the packet names", async () => {
+        /*
+         * E31, 25.09.2026; the design's W1. A player's search token is spent on the
+         * scene where the GM's client found the searcher standing (`guardSearchRoom`
+         * writes the place it judged; `searchSceneOf` reads it back), not on the scene
+         * the packet names, which is only a claim. The runner hands the guards the
+         * packet as it came and the run a new object with the whitelisted fields, so a
+         * record keyed by the packet - as it was before the table - is never found by
+         * the run, and the spend falls back to the packet's scene: the claim the guard
+         * exists to replace, with nothing refused and nothing to see. It is keyed by
+         * `ctx`, the one object the runner hands both. The harness has one scene, so no
+         * scenario can show a spend landing on the wrong one; this is where it is held.
+         * Pure over fakes and a table of its own: nothing leaves this client.
+         */
+        const { searchSceneOf } = await import("./search-tokens.mjs");
+        const { judge, knownSender, pick, as } = await import("./bridge-guards.mjs");
+        const A = "R166SCENEA000000", B = "R166SCENEB000000";
+        const judged = new WeakMap(), ctx = {};
+        judged.set(ctx, { scene: { id: A }, room: "Hall" });
+        equal(searchSceneOf({ isGM: false }, { sceneId: B }, ctx, judged), A,
+            "a player's search is recorded on the scene the packet names, not the one its guard judged");
+        equal(searchSceneOf({ isGM: false }, { sceneId: B }, {}, judged), B,
+            "with no place judged, the packet's scene is not the fallback it always was");
+        equal(searchSceneOf({ isGM: true }, { sceneId: B }, ctx, judged), B, "a GM's search is not taken as asked");
+
+        // Why `ctx`: through the runner, the guard and the run meet only there.
+        const handed = [], scenes = [];
+        const guard = (sender, payload, ctx) => { judged.set(ctx, { scene: { id: A } }); handed.push(payload); return null; };
+        const TABLE = { "r166.search": { label: "x", guards: [knownSender, guard], sanitize: pick({ sceneId: as.id }), answer: "none", quiet: true,
+            run: (payload, sender, ctx) => { handed.push(payload); scenes.push(searchSceneOf({ isGM: false }, payload, ctx, judged)); } } };
+        await judge(TABLE, { action: "r166.search", sceneId: B }, game.user.id, { send: () => {} });
+        ok(handed.length === 2 && handed[0] !== handed[1] && !judged.has(handed[1]),
+            "the runner handed the guard and the run the same object - this measures nothing about ctx");
+        equal(JSON.stringify(scenes), JSON.stringify([A]), "the run did not find, through ctx, the place its guard judged");
     }]
 ];
 

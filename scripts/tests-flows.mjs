@@ -16,7 +16,7 @@
  * holds its scenarios and stages to audit/harness/README.md and tools/stages.json.
  * It imports nothing, so Node can read it as it is.
  *
- *   entry.bridge   the bridge's table actions (BRIDGE_ACTIONS, TRAP_ACTIONS), by their wire name
+ *   entry.bridge   the bridge's table actions (BRIDGE_ACTIONS, TRAP_ACTIONS, SEARCH_ACTIONS), by their wire name
  *   entry.sockets  the files that listen on the module's socket for it
  *   entry.api      the game.drpg calls that start it (R160 asks that they exist)
  *   entry.calls    "file.mjs#function" for a start that is not on game.drpg
@@ -89,7 +89,8 @@ export const FLOWS = Object.freeze([
     { id: "safeword", what: "The safeword: one press stops the table on every screen",
         entry: { sockets: ["safeword.mjs"] }, scenarios: ["40-flow"], status: "covered", stage: "<=1.2.50" },
     { id: "search-observe", what: "A Search or an Observe: the GM judges it, spends the room's token, grants the find, and only the searcher reads the card",
-        entry: { bridge: ["observe.target", "observe.resolve"], sockets: ["search-tokens.mjs"] },
+        entry: { bridge: ["observe.target", "observe.resolve", "searchTokens.spend", "searchTokens.takePlant", "searchTokens.returnPlant"],
+            sockets: ["search-tokens.mjs"] },
         scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "season-reset", what: "The season reset, from the GM panel",
         entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: [], status: "planned", stage: "E40" },

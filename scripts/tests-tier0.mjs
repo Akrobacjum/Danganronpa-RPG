@@ -249,7 +249,8 @@ const REGRESSIONS = [
          *
          * Every request a player's client sends the primary GM is a declaration in
          * one of the bridge's tables (E31, 25.09.2026: BRIDGE_ACTIONS in
-         * gm-bridge.mjs, TRAP_ACTIONS in traps.mjs), judged by one runner: who really
+         * gm-bridge.mjs, TRAP_ACTIONS in traps.mjs, SEARCH_ACTIONS in
+         * search-tokens.mjs), judged by one runner: who really
          * sent it (`senderOf(senderId)`, Foundry's own argument, which cannot be
          * forged), then the guards the declaration names, in order, and only then
          * the run, with a copy of the packet that holds only the fields the
@@ -318,7 +319,7 @@ const REGRESSIONS = [
             + `or a claim must judge; ${read.byGuardClaim} such fields are claimed by a guard that reads them, `
             + `${read.inWords} by a written reason; ${read.local.length} local guard(s); ${G.REASONS.length} reasons `
             + `and ${told.length} request(s) named to tellRefused by hand, looked for in en and pl`);
-        ok(read.actions >= 34, `only ${read.actions} bridge actions were read - the tables are not where this test looks`);
+        ok(read.actions >= 37, `only ${read.actions} bridge actions were read - the tables are not where this test looks`);
         ok(read.withIds >= 20, `only ${read.withIds} bridge actions receive an id - has the reading gone wrong?`);
         ok(!read.problems.length, `the bridge's tables: ${read.problems.join("; ")}`);
 
@@ -872,9 +873,10 @@ const REGRESSIONS = [
          * bridge-guards.mjs, and R165 drives it with a clock of tens of
          * milliseconds: no answer, a late answer, a GM who never says "got it".
          * What this reads is that nothing waits anywhere else - no request makes a
-         * promise of its own, nor does the trap relay - and that each of the one
-         * wait's two clocks settles the request it runs for. Shown a request with
-         * a promise of its own, and a clock that settles nothing, first.
+         * promise of its own, nor do the trap relay and the search tokens - and
+         * that each of the one wait's two clocks settles the request it runs for.
+         * Shown a request with a promise of its own, and a clock that settles
+         * nothing, first.
          */
         const sources = new Map(await otherSources());
         const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
@@ -889,6 +891,8 @@ const REGRESSIONS = [
         ok(!alone.length, `these wait on a promise of their own, outside the one wait: ${alone.join(", ")}`);
         ok(!/new Promise/.test(fnSource(stripComments(sources.get("traps.mjs") ?? ""), "registerTraps")),
             "the trap relay waits on a promise of its own");
+        const searches = stripComments(sources.get("search-tokens.mjs") ?? "");
+        ok(searches.length > 1000 && !/new Promise/.test(searches), "the search tokens wait on a promise of their own");
 
         // Each clock of the one wait settles the request: it closes it and fails it as not answered.
         const settles = (text, clock) => new RegExp(`${clock} = clock\\.set\\(\\(\\) => \\{[^}]*close\\(entry\\);[^}]*fail\\(entry, "noAnswer"\\)`).test(text);
@@ -1842,9 +1846,9 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const tokens = stripComments(sources.get("search-tokens.mjs") ?? "");
         const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
-        const spendBranch = bodyOf(tokens, "payload.action === ACTION_SPEND", { until: "payload.action === ACTION_TAKE_PLANT" });
-        ok(!/takePlant/.test(spendBranch), "the token spend takes the plant out of the room again");
-        ok(/searchedBy\.get\(/.test(bodyOf(tokens, "payload.action === ACTION_TAKE_PLANT", { length: 800 })),
+        // The two are runs of SEARCH_ACTIONS since E31 (25.09.2026), each a function of its own.
+        ok(!/takePlant/.test(fnSource(tokens, "runSpend")), "the token spend takes the plant out of the room again");
+        ok(/searchedBy\.get\(/.test(fnSource(tokens, "runTakePlant")),
             "a player can ask for a plant in a room they never spent a token in");
         const draw = bodyOf(rolls, "async function searchDraw(", { until: "async function performSearch(" });
         ok(draw.includes("SearchTokens.takePlant("), "the Search no longer asks for a plant");
@@ -5196,14 +5200,15 @@ const REGRESSIONS = [
          * with a reason), and no flow names an action, a file, a game.drpg call or a
          * function that is gone. Read off the bridge's tables (E31: the declarations the
          * runner judges, by their wire names) and `game.socket.on(` in each file served
-         * here. On 25.09: 34 actions, 16 listener files. A read of fewer than 34 or 10
+         * here. On 25.09: 37 actions, 17 listener files. A read of fewer than 37 or 10
          * means the source moved and this measured nothing, and fails as such.
          */
         const sources = new Map(await otherSources());
-        // The bridge's tables, read live since E31 (25.09.2026): 33 actions in gm-bridge.mjs and the trap relay's one.
+        // The bridge's tables, read live since E31 (25.09.2026): 33 actions in gm-bridge.mjs, the trap relay's one
+        // and the search tokens' three.
         const actions = (await bridgeTables()).flatMap(t => Object.keys(t.table));
         const listeners = [...sources].filter(([, text]) => /game\.socket\.on\(/.test(stripComments(text))).map(([file]) => file);
-        ok(actions.length >= 34, `read ${actions.length} bridge actions, and there were 34 - the tables have moved, and this measured nothing`);
+        ok(actions.length >= 37, `read ${actions.length} bridge actions, and there were 37 - the tables have moved, and this measured nothing`);
         ok(listeners.length >= 10, `read ${listeners.length} files listening on the socket, and there were 16 - this measured nothing`);
 
         const owners = new Map();
@@ -5343,7 +5348,7 @@ const REGRESSIONS = [
             }
         }
         log(`R163: ${runs} runs read, and ${handed} functions they hand their payload to`);
-        ok(runs >= 34, `only ${runs} runs were read - the tables are not where this test looks`);
+        ok(runs >= 37, `only ${runs} runs were read - the tables are not where this test looks`);
         ok(!problems.length, `a run and its whitelist disagree: ${problems.join("; ")}`);
     }],
 

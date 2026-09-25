@@ -12,8 +12,8 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, activeGmIds, whisperToGms, debug, warn, error } from "./utils.mjs";
-import { senderOf, ownsActor, gmOnline } from "./bridge-guards.mjs";
+import { isPrimaryGm, whisperToGms, debug, error } from "./utils.mjs";
+import { ownsActor, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
 import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
 
 /**
@@ -100,7 +100,7 @@ export class SearchTokens {
      * store is only touched when the item is actually found.
      *
      * A player asks the GM, who hands it over only to somebody who spent a token
-     * in that room a moment ago - see `onSocketMessage`. No answer is no plant:
+     * in that room a moment ago - see `runTakePlant`. No answer is no plant:
      * the room keeps it for the next search, which is the safe way to be wrong.
      *
      * @returns {Promise<object|null>}
@@ -108,8 +108,8 @@ export class SearchTokens {
     static async takePlant(roomName, sceneId = this.currentSceneId, { actorId = null } = {}) {
         if (!roomName) return null;
         if (!game.user.isGM) {
-            const { plant } = await requestPlant(roomName, sceneId, actorId);
-            return plant ?? null;
+            const res = await requestPlantCheck(roomName, sceneId, actorId);
+            return res.ok ? res.value?.plant ?? null : null;
         }
         try {
             const { takePlant } = await import("./traps.mjs");
@@ -189,15 +189,17 @@ export class SearchTokens {
         if (!game.user.isGM) {
             // The searching character travels with the request: the GM spends a
             // room's token only for somebody standing in it (E03).
-            const { ok, left, reason } = await requestSpend(roomName, sceneId, actorId);
-            if (reason === "notHere") ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.notHere"));
+            // A refusal - not standing in the room, not their character - has been
+            // told once, with its reason, by the one wait (E31); nothing more here.
+            const res = await requestSpend(roomName, sceneId, actorId);
             // Bank the true count the GM just computed, so the chat card this
             // spend is about to produce reads it correctly instead of racing
             // the setting's own propagation back to this client.
+            const left = res.ok ? res.value?.left : null;
             if (typeof left === "number") {
                 this.#freshCounts.set(this.key(roomName, sceneId), { value: left, at: Date.now() });
             }
-            return ok;
+            return res.ok && Boolean(res.value?.ok);
         }
         return this.#spendAsGm(roomName, sceneId);
     }
@@ -315,24 +317,21 @@ export class SearchTokens {
 
 /* ==========================================================================
  * SOCKET BRIDGE - players ask, the primary GM writes
+ * --------------------------------------------------------------------------
+ * Since E31 (25.09.2026) the three requests are declarations in SEARCH_ACTIONS,
+ * below, judged by the bridge's own runner (`judge`, bridge-guards.mjs) - who
+ * sent it, then the guards, then the run with a whitelisted copy - and asked
+ * for through the bridge's one wait (`bridgeRequest`), as every other request
+ * to the GM is. The answer to a spend and to a plant check is the request's
+ * `bridge.done`; a refusal is told once, with its reason. The waiting of their
+ * own this file used to do (`pending`, `askGm`, `gaveUp`, a result packet) is
+ * gone with it.
  * ========================================================================== */
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_SPEND = "searchTokens.spend";
-const ACTION_RESULT = "searchTokens.result";
 const ACTION_TAKE_PLANT = "searchTokens.takePlant";
 const ACTION_RETURN_PLANT = "searchTokens.returnPlant";
-
-/** Pending player-side promises, keyed by request id. */
-const pending = new Map();
-
-/**
- * Plant requests THIS client stopped waiting for. Only these may send a plant
- * back: another tab of the same user sees the same reply with no request of its
- * own, and returning it from there duplicated a plant that had been delivered
- * (review, 17.09).
- */
-const gaveUp = new Set();
 
 /**
  * Who spent a token where, on the primary GM's client: `user::scene::room` ->
@@ -340,23 +339,27 @@ const gaveUp = new Set();
  * a way to empty a room nobody searched.
  */
 const searchedBy = new Map();
-const PLANT_WINDOW_MS = 120000;
+const PLANT_WINDOW_MS = TIMING.plantWindowMs;
 
 /**
  * Plants handed out and not yet known to have arrived, on the primary GM's
- * client: `requestId` -> `{ userId, roomName, sceneId, plant, at }`.
+ * client: the plant check's request id -> `{ userId, roomName, sceneId, plant, at }`.
  *
  * A REPLY THAT LANDS AFTER THE PLAYER GAVE UP (review of ACT-03, 17.09). The
  * plant leaves the store as it is handed over, and a player who stopped waiting
  * after five seconds had no request left to give it to - so on a slow server the
  * item was simply gone. That client now sends the request id back, and only a
- * plant recorded here, for that same user, goes back into the room.
+ * plant recorded here, for that same user, goes back into the room. Only the
+ * client that asked can: the one wait hands a late answer to `late` for a
+ * request it gave up on and drops it anywhere else, so another tab of the same
+ * user, which sees the same answer, sends nothing back (review, 17.09).
  */
 const handedOut = new Map();
 const searchKey = (userId, sceneId, room) => `${userId}::${sceneId ?? "-"}::${room}`;
 
+/** The primary GM judges what a player asks here, by the declarations below. */
 export function registerSearchTokenSocket() {
-    game.socket.on(SOCKET_EVENT, onSocketMessage);
+    game.socket.on(SOCKET_EVENT, (payload, senderId) => (isPrimaryGm() ? judge(SEARCH_ACTIONS, payload, senderId) : null));
 }
 
 /**
@@ -381,18 +384,31 @@ export function searchSpendRefusal({ sender, actor, where, roomName }) {
  * check that follows the spend - or null. The bridge's one guard signature
  * (see `firstRefusal` in bridge-guards.mjs, E03): a GM's search is taken as asked, a
  * player's character has to be standing in the room (`searchSpendRefusal`).
+ *
+ * A LOCAL GUARD (E31): it stays beside its table rather than in the leaf,
+ * because it writes the place it judged into `judgedPlace`, this file's own
+ * record, for the run to read back.
  */
-async function guardSearchRoom(sender, payload, ctx) {
+export async function guardSearchRoom(sender, payload, ctx) {
     if (!sender) return "unknown sender";
     if (sender.isGM) return null;
     const actor = game.actors.get(payload.actorId ?? "") ?? null;
     const { locateActor } = await import("./movement.mjs");
     const where = actor ? locateActor(actor, { sceneId: payload.sceneId ?? null }) : null;
-    judgedPlace.set(payload, where);
+    judgedPlace.set(ctx, where);
     return searchSpendRefusal({ sender, actor, where, roomName: payload.roomName });
 }
 
-/** The place `guardSearchRoom` judged, for the packet it judged it for. Nothing on ctx. */
+/**
+ * The place `guardSearchRoom` judged, for the request it judged it for.
+ *
+ * KEYED BY `ctx`, NOT BY THE PACKET (E31, the design's W1). The runner hands the
+ * guards the packet as it came and the run a new object with only the fields
+ * its declaration lists, so a record keyed by the packet would never be found
+ * by the run: `searchSceneOf` would fall back to the packet's `sceneId` - the
+ * claim this guard exists to replace. `ctx` is the one object the runner hands
+ * both (R166).
+ */
 const judgedPlace = new WeakMap();
 
 /**
@@ -402,174 +418,142 @@ const judgedPlace = new WeakMap();
  * `judgedPlace` rather than found a second time. A second `locateActor`, an
  * `await import()` later, could read a token moved or deleted in between and
  * record the spend on another scene than the one checked (the review of the
- * guard split, 24.09.2026).
+ * guard split, 24.09.2026). `judged` is there for R166, which hands it a record
+ * of its own.
  */
-function searchSceneOf(sender, payload) {
+export function searchSceneOf(sender, payload, ctx, judged = judgedPlace) {
     if (sender.isGM) return payload.sceneId ?? null;
-    return judgedPlace.get(payload)?.scene?.id ?? payload.sceneId ?? null;
+    return judged.get(ctx)?.scene?.id ?? payload.sceneId ?? null;
 }
 
-async function onSocketMessage(payload, senderId) {
-    if (!payload?.action) return;
+/**
+ * A plant check may be answered only for the user it was handed to, once (the
+ * `handedOut` note above). It was an inline test in the socket handler, which
+ * returned without a word; a refusal here is logged on the GM, and told to
+ * nobody, as the return is quiet.
+ */
+export function guardPlantReturn(sender, payload, ctx) {
+    const entry = handedOut.get(payload?.plantRequestId ?? "");
+    if (!entry) return "no plant was handed out under that request";
+    return entry.userId === sender?.id ? null : "that plant was handed to somebody else";
+}
 
-    if (payload.action === ACTION_SPEND) {
-        // Exactly one GM client answers, otherwise every GM would spend a token.
-        if (!isPrimaryGm()) return;
-        const sender = senderOf(senderId);
-        const why = await guardSearchRoom(sender, payload, { asker: senderId, requestId: payload.requestId ?? null });
-        if (why) {
-            warn(`Refused a search-token spend in "${payload.roomName}" from ${game.users.get(senderId ?? "")?.name ?? senderId}: ${why}.`);
-            game.socket.emit(SOCKET_EVENT, {
-                action: ACTION_RESULT, requestId: payload.requestId, ok: false, left: null, reason: "notHere"
-            }, { recipients: [senderId] });
-            return;
+/** Spend a token for the sender, on the scene its guard judged; the answer is `{ ok, left }`. */
+async function runSpend(payload, sender, ctx) {
+    const sceneId = searchSceneOf(sender, payload, ctx);
+    const ok = await SearchTokens.spend(payload.roomName, sceneId);
+    // Only a spend that SUCCEEDED earns a look for a plant: a refused search
+    // is not a search, and a plant handed out for one would be a free item
+    // from a sealed or exhausted room. The look itself comes later, from a
+    // Search that found something - see `SearchTokens.takePlant`.
+    if (ok) searchedBy.set(searchKey(sender.id, sceneId, payload.roomName), Date.now());
+    return { reply: { ok, left: SearchTokens.left(payload.roomName, sceneId) } };
+}
+
+/**
+ * Hand the room's plant to a sender who spent a token there a moment ago; the
+ * answer is `{ ok, plant, left }`. The same judgement as the spend it follows,
+ * so the scene is the one the spend was recorded against.
+ */
+async function runTakePlant(payload, sender, ctx) {
+    const sceneId = searchSceneOf(sender, payload, ctx);
+    // Once per token: the entry is used up whether or not a plant was there.
+    const key = searchKey(sender.id, sceneId, payload.roomName);
+    const at = searchedBy.get(key);
+    searchedBy.delete(key);
+    const plant = at && Date.now() - at < PLANT_WINDOW_MS
+        ? await SearchTokens.takePlant(payload.roomName, sceneId)
+        : null;
+    if (plant) {
+        for (const [id, entry] of handedOut) {
+            if (Date.now() - entry.at > PLANT_WINDOW_MS) handedOut.delete(id);
         }
-        // Answered to whoever actually asked, not to the id in the payload -
-        // otherwise one player could make the GM spend a token and report the
-        // result to somebody else.
-        const sceneId = await searchSceneOf(sender, payload);
-        const ok = await SearchTokens.spend(payload.roomName, sceneId);
-        // Only a spend that SUCCEEDED earns a look for a plant: a refused search
-        // is not a search, and a plant handed out for one would be a free item
-        // from a sealed or exhausted room. The look itself comes later, from a
-        // Search that found something - see `SearchTokens.takePlant`.
-        if (ok) searchedBy.set(searchKey(senderId, sceneId, payload.roomName), Date.now());
-
-        game.socket.emit(SOCKET_EVENT, {
-            action: ACTION_RESULT,
-            requestId: payload.requestId,
-            ok,
-            left: SearchTokens.left(payload.roomName, sceneId)
-        }, { recipients: [senderId] });
-        return;
+        handedOut.set(ctx.requestId, { userId: sender.id, roomName: payload.roomName, sceneId, plant, at: Date.now() });
     }
+    return { reply: { ok: Boolean(plant), plant, left: SearchTokens.left(payload.roomName, sceneId) } };
+}
 
-    if (payload.action === ACTION_TAKE_PLANT) {
-        if (!isPrimaryGm()) return;
-        // The same judgement as the spend it follows, so the scene is the one
-        // the spend was recorded against.
-        const sender = senderOf(senderId);
-        if (await guardSearchRoom(sender, payload, { asker: senderId, requestId: payload.requestId ?? null })) {
-            game.socket.emit(SOCKET_EVENT, {
-                action: ACTION_RESULT, requestId: payload.requestId, ok: false, plant: null, left: null
-            }, { recipients: [senderId] });
-            return;
-        }
-        const sceneId = await searchSceneOf(sender, payload);
-        // Once per token: the entry is used up whether or not a plant was there.
-        const key = searchKey(senderId, sceneId, payload.roomName);
-        const at = searchedBy.get(key);
-        searchedBy.delete(key);
-        const plant = at && Date.now() - at < PLANT_WINDOW_MS
-            ? await SearchTokens.takePlant(payload.roomName, sceneId)
-            : null;
-        if (plant) {
-            for (const [id, entry] of handedOut) {
-                if (Date.now() - entry.at > PLANT_WINDOW_MS) handedOut.delete(id);
-            }
-            handedOut.set(payload.requestId, {
-                userId: senderId, roomName: payload.roomName, sceneId, plant, at: Date.now()
-            });
-        }
-        game.socket.emit(SOCKET_EVENT, {
-            action: ACTION_RESULT,
-            requestId: payload.requestId,
-            ok: Boolean(plant),
-            plant,
-            left: SearchTokens.left(payload.roomName, sceneId)
-        }, { recipients: [senderId] });
-        return;
-    }
-
-    if (payload.action === ACTION_RETURN_PLANT) {
-        if (!isPrimaryGm()) return;
-        const entry = handedOut.get(payload.requestId);
-        // Only what this GM handed out, to the user who is giving it back.
-        if (!entry || entry.userId !== senderId) return;
-        handedOut.delete(payload.requestId);
-        // A late reply comes back within seconds; a return long after the fact is
-        // not one, and would put an item back that has been in a pocket all along.
-        if (Date.now() - entry.at > PLANT_WINDOW_MS) return;
-        try {
-            const { restorePlant } = await import("./traps.mjs");
-            await restorePlant(entry.roomName, entry.sceneId, entry.plant);
-        } catch (err) {
-            error("Could not put a planted item back in its room", err);
-        }
-        return;
-    }
-
-    if (payload.action === ACTION_RESULT) {
-        // Only a GM decides whether a room had a token left.
-        //
-        // The request used to be broadcast, so every client saw the `requestId`,
-        // and this end accepted any reply carrying it. A player could answer
-        // another player's request before the GM did - granting a search in a
-        // room that was already exhausted, or denying one that was not. The
-        // request is now addressed to the GMs (see `requestSpend`) and the reply
-        // has to come from one.
-        if (!game.users.get(senderId)?.isGM) return;
-        const resolve = pending.get(payload.requestId);
-        if (!resolve) {
-            // Too late: this client stopped waiting and searched on without it.
-            // Hand the plant back rather than drop it - see `handedOut`.
-            if (payload.plant && gaveUp.delete(payload.requestId)) {
-                game.socket.emit(SOCKET_EVENT, { action: ACTION_RETURN_PLANT, requestId: payload.requestId },
-                    { recipients: activeGmIds() });
-            }
-            return;
-        }
-        pending.delete(payload.requestId);
-        resolve({ ok: payload.ok, left: payload.left, plant: payload.plant ?? null, reason: payload.reason ?? null });
+/** Put a plant the asker never received back in its room. */
+async function returnPlant(payload, sender, ctx) {
+    const entry = handedOut.get(payload.plantRequestId);
+    handedOut.delete(payload.plantRequestId);
+    // A late reply comes back within seconds; a return long after the fact is
+    // not one, and would put an item back that has been in a pocket all along.
+    if (Date.now() - entry.at > PLANT_WINDOW_MS) return;
+    try {
+        const { restorePlant } = await import("./traps.mjs");
+        await restorePlant(entry.roomName, entry.sceneId, entry.plant);
+    } catch (err) {
+        error("Could not put a planted item back in its room", err);
     }
 }
 
 /**
- * Ask the GM to spend a token on our behalf. Resolves `{ ok: false, left: null }`
- * if no GM answers in time, so a disconnected GM can never silently grant a
- * free search.
+ * The three requests a player's client sends here, as the bridge's runner
+ * judges them (E31, 25.09.2026). A spend and a plant check wait five seconds
+ * for their answer (`TIMING.searchTokenAckMs`, `TIMING.plantRequestMs`), for
+ * the "got it" as well - a Search is not a ruling somebody takes time over. A
+ * plant given back is a report nobody waits on.
  */
-function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, actorId = null, timeoutMs = TIMING.searchTokenAckMs) {
-    if (!gmOnline()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.noGm"));
-        return Promise.resolve({ ok: false, left: null, plant: null });
+export const SEARCH_ACTIONS = table({
+    [ACTION_SPEND]: {
+        label: "DRPG.Bridge.what.searchTokens.spend",
+        guards: [knownSender, guardSearchRoom],
+        // The character is the guard's to find, off the packet as it came; the run never reads it.
+        sanitize: pick({ roomName: as.text, sceneId: as.id }),
+        run: runSpend,
+        answer: "reply", timeoutMs: TIMING.searchTokenAckMs,
+        claims: { sceneId: guardSearchRoom }
+    },
+    [ACTION_TAKE_PLANT]: {
+        label: "DRPG.Bridge.what.searchTokens.takePlant",
+        guards: [knownSender, guardSearchRoom],
+        sanitize: pick({ roomName: as.text, sceneId: as.id }),
+        run: runTakePlant,
+        answer: "reply", timeoutMs: TIMING.plantRequestMs,
+        claims: { sceneId: guardSearchRoom }
+    },
+    [ACTION_RETURN_PLANT]: {
+        label: "DRPG.Bridge.what.searchTokens.returnPlant",
+        guards: [knownSender, guardPlantReturn],
+        sanitize: pick({ plantRequestId: as.id }),
+        run: returnPlant,
+        answer: "none", quiet: true,
+        claims: { plantRequestId: guardPlantReturn }
     }
-    return askGm(ACTION_SPEND, roomName, sceneId, timeoutMs, () =>
-        ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.timeout")), actorId);
+});
+
+/** Ask the primary GM for a search action as SEARCH_ACTIONS says (`ask` in gm-bridge.mjs is the same); both clocks are its one. */
+function askSearch(action, payload, opts = {}) {
+    const decl = SEARCH_ACTIONS[action];
+    return bridgeRequest(action, payload, {
+        settle: decl.answer, quiet: Boolean(decl.quiet),
+        ...(decl.timeoutMs ? { timeoutMs: decl.timeoutMs, ackMs: decl.timeoutMs } : {}),
+        ...opts
+    });
 }
 
 /**
- * Ask the GM for the plant in a room this user has just searched. Silent when
- * nobody answers: the search goes on as an ordinary one and the plant stays
- * where it was left, so there is nothing to tell the player.
+ * Ask the GM to spend a token on our behalf. A GM who does not answer in time
+ * cannot grant a free search: the answer is not ok, and the one message has said
+ * why.
  */
-function requestPlant(roomName, sceneId = SearchTokens.currentSceneId, actorId = null, timeoutMs = 5000) {
-    if (!gmOnline()) {
-        return Promise.resolve({ ok: false, left: null, plant: null });
-    }
-    return askGm(ACTION_TAKE_PLANT, roomName, sceneId, timeoutMs, () =>
-        debug(`No GM answered the plant check for ${roomName}.`), actorId);
+function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, actorId = null) {
+    return askSearch(ACTION_SPEND, { roomName, sceneId, actorId });
 }
 
-function askGm(action, roomName, sceneId, timeoutMs, onTimeout, actorId = null) {
-    const requestId = foundry.utils.randomID();
-    return new Promise(resolve => {
-        pending.set(requestId, resolve);
-        // Addressed to the GMs. Broadcasting it put the `requestId` in every
-        // player's hands, which is all that was needed to forge the answer.
-        game.socket.emit(SOCKET_EVENT, {
-            action,
-            requestId,
-            roomName,
-            sceneId,
-            actorId
-        }, { recipients: activeGmIds() });
-        setTimeout(() => {
-            if (!pending.has(requestId)) return;
-            pending.delete(requestId);
-            if (action === ACTION_TAKE_PLANT) gaveUp.add(requestId);
-            onTimeout?.();
-            resolve({ ok: false, left: null, plant: null });
-        }, timeoutMs);
+/**
+ * Ask the GM for the plant in a room this user has just searched - renamed from
+ * `requestPlant` in E31, a name the Palm's request in gm-bridge.mjs has. Quiet:
+ * when nobody answers, the search goes on as an ordinary one and the plant stays
+ * where it was left, so there is nothing to tell the player. A plant that
+ * arrives after the clock goes back to its room (`late`).
+ */
+function requestPlantCheck(roomName, sceneId = SearchTokens.currentSceneId, actorId = null) {
+    return askSearch(ACTION_TAKE_PLANT, { roomName, sceneId, actorId }, {
+        quiet: true,
+        late: (value, plantRequestId) => {
+            if (value?.plant) void askSearch(ACTION_RETURN_PLANT, { plantRequestId });
+        }
     });
 }

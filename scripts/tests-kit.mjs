@@ -884,8 +884,10 @@ async function bridgeTables() {
     return out;
 }
 
-/** The tables and the files that hold them (E31: the bridge and the trap relay; the search tokens join in C6). */
-const BRIDGE_TABLE_FILES = Object.freeze([["gm-bridge.mjs", "BRIDGE_ACTIONS"], ["traps.mjs", "TRAP_ACTIONS"]]);
+/** The tables and the files that hold them (E31: the bridge, the trap relay, the search tokens). */
+const BRIDGE_TABLE_FILES = Object.freeze([
+    ["gm-bridge.mjs", "BRIDGE_ACTIONS"], ["traps.mjs", "TRAP_ACTIONS"], ["search-tokens.mjs", "SEARCH_ACTIONS"]
+]);
 
 /**
  * Everything wrong with the bridge's tables, one sentence each (R1b). Pure: it
