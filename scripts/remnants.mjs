@@ -22,7 +22,7 @@ import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, log, warn, error, plural, workingScene, esc, forcedDeletion } from "./utils.mjs";
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
 // so a static import here is no cycle (R161).
-import { remnantStore } from "./gm-stores.mjs";
+import { remnantStore, upgradeMark } from "./gm-stores.mjs";
 
 /**
  * Everything the guide says a Remnant carries, recorded on the token so an
@@ -1793,6 +1793,7 @@ export async function migrateRemnants() {
             if (done.carried) carried.push(`${where}: ${changes(done.carried)}`);
             if (done.notCarried) notCarried.push(`${where}: ${changes(done.notCarried)}`);
             if (done.ledger === "noRow") leftAlone.push(`${where}: ${done.left.join(", ")}`);
+            else if (done.notCarried && !done.unwritten.length) { /* listed under notCarried, its token as it was */ }
             else if (done.unwritten.length) failed.push(`${where}: its row did not read back (${done.unwritten.join(", ")}), so nothing was taken off`);
             else if (done.left.length) failed.push(`${where}: ${done.left.join(", ")}`);
             if (done.stripped) stripped++;
@@ -1813,8 +1814,9 @@ export async function migrateRemnants() {
             + `sets it again in the Investigation dashboard): ${carried.join("; ")}`);
     }
     if (notCarried.length) {
-        warn(`Faint Prep promotions NOT carried, because the trace's row was written since the upgrade - a later `
-            + `correction, which stands (set the promotion again in the Investigation dashboard if it was the one meant): `
+        warn(`Faint Prep promotions NOT carried, because the trace's row holds a value written since the upgrade `
+            + `(this world's upgrade mark) - a later correction, which stands. Each token keeps its flags, the `
+            + `promotion's only record (set it again in the Investigation dashboard if it was the one meant): `
             + `${notCarried.join("; ")}`);
     }
     if (leftAlone.length) {
@@ -1869,18 +1871,26 @@ const ANSWER_KEY_FLAGS = Object.entries(REMNANT_FLAGS)
  * E30 review's m3). Until E04 nothing recorded which came last - the promotion, or
  * a GM setting the trace back to Faint in the dashboard afterwards - and the
  * carry, written as the newest row, undid that reversal on every GM. Each field
- * has its own stamp now. One at or under the newest stamp this browser's claim
- * read from the old key - or weak, a default nobody decided - is from before the
- * upgrade, as the promotion is (`promoteFaintPrep` writes the ledger itself from
- * E04 on), and the promotion is carried over it at that field's stamp plus one: it
- * beats exactly the value it was written against, and loses to any later
- * correction on any GM. A field stamped above that was written since the upgrade -
- * a correction made after the promotion - and it stands; the promotion comes back
- * in `notCarried`, listed in the summary and a warning. The claim's newest old
- * stamp rather than the claim's own time: a GM whose browser first loaded 1.2.63
- * after another GM had already corrected the trace claimed after that correction,
- * and the claim's time would have counted the correction as old. Every promotion
- * carried is listed too, before and after, so a GM can still see what moved.
+ * has its own stamp now. One stamped under the world's upgrade mark (gm-stores.mjs
+ * `upgradeMark`: the first claim of a 1.2.63 store in this world) - or weak, a
+ * default nobody decided - is from before the upgrade, as the promotion is
+ * (`promoteFaintPrep` writes the ledger itself from E04 on), and the promotion is
+ * carried over it halfway from that field's stamp to the next whole one: it beats
+ * exactly the value it was written against, and loses to any later correction on
+ * any GM, every real stamp being whole (gm-store.mjs, WEAK). A field stamped
+ * above the mark was written since the upgrade - a correction made after the
+ * promotion - and it stands; the promotion comes back in `notCarried`, listed in
+ * the summary and a warning, and stays on the token.
+ *
+ * ONE MARK FOR THE WORLD (the review's DS-M2). C4 bounded "before the upgrade" by the
+ * newest stamp this browser's own claim read from its old key: right against the
+ * claim's time (a browser that claimed after another GM's correction counted the
+ * correction as old), wrong on every browser whose old key never held the row - an
+ * assistant's, a second computer's - where every row read as written since, the
+ * promotion was "not carried", stripped from the token all the same and the GM
+ * told a correction stood (measured: bound 1 on a browser with no old key). The mark
+ * is the same on every GM; with none written yet only a weak field counts as old,
+ * and a promotion not carried is never taken off the token.
  *
  * NOTHING LEAVES A TOKEN BEFORE ITS ROW READS BACK. The store keeps a write it
  * could not save in memory and says so (gm-store.mjs, `flush`), so a strip that
@@ -1889,7 +1899,8 @@ const ANSWER_KEY_FLAGS = Object.entries(REMNANT_FLAGS)
  * row is read again from storage (`remnantStore.persisted`), and a field it does
  * not hold as written leaves the token untouched and comes back in `unwritten`. A
  * token with flags, no type and no row on this browser has nothing to be carried
- * into and is left as it is (`ledger: "noRow"`).
+ * into and is left as it is (`ledger: "noRow"`); and the flags of a promotion that
+ * was not carried stay on the token, their only record.
  *
  * WHAT IS LEFT IS READ WHOLE. `left` is every key under this module's flags but
  * the two a token may keep (a key with no value holds nothing and is not counted),
@@ -1944,7 +1955,9 @@ export async function migrateRemnantToken(token) {
             return done;
         }
         done.publicSeeded = await seedPublicIfMissing(token);
-        await stripAnswerKey(token, present);
+        // A promotion that was not carried is on the token alone: its flags stay there (DS-M2).
+        const kept = new Set(Object.keys(done.notCarried ?? {}).map(field => REMNANT_FLAGS[field] ?? field));
+        await stripAnswerKey(token, present.filter(flag => !kept.has(flag)));
         done.stripped = !present.some(flag => flag in onToken());
     } else {
         done.publicSeeded = await seedPublicIfMissing(token);
@@ -2005,36 +2018,64 @@ async function moveIntoLedger(token, live, typed) {
         timeOfDay: f("timeOfDay"),
         label
     };
-    await setRemnantSecret(token, fields, { weak: true, fillOnly: true });
+    /* A PROMOTION ON A TOKEN WHOSE ROW ANOTHER GM HOLDS (the review's DS-M2, the moved
+       path). No row here, and the GM who holds one may be away, so the store hydrated
+       alone: written weak, the token's `faint: false` or `tiedToCrime: true` lost to that
+       GM's older row at the next exchange, silently. Those two are written at the world's
+       upgrade mark instead - over every value from before the upgrade, under every one
+       since - and weak with the rest while no mark is written. */
+    const mark = upgradeMark();
+    const promotion = {};
+    if (f("faint") === false) promotion.faint = false;
+    if (f("tiedToCrime") === true) promotion.tiedToCrime = true;
+    if (mark !== null && Object.keys(promotion).length) {
+        const rest = Object.fromEntries(Object.entries(fields).filter(([field]) => !(field in promotion)));
+        await setRemnantSecret(token, rest, { weak: true, fillOnly: true });
+        await promoteAtMark(token, promotion, mark);
+    } else {
+        await setRemnantSecret(token, fields, { weak: true, fillOnly: true });
+    }
     return { ledger: "moved", fields, carried: null, notCarried: null };
 }
 
 /**
  * Whether a field of a trace's row holds a value from before the upgrade: stamped
- * at or under the newest stamp this browser's claim read from the old key, or weak
- * (see `migrateRemnantToken`, "AND ONLY OVER A VALUE FROM BEFORE THE UPGRADE").
- * A browser whose claim failed knows no old stamp, and only a weak field counts.
+ * under the world's upgrade mark, or weak (see `migrateRemnantToken`, "AND ONLY OVER
+ * A VALUE FROM BEFORE THE UPGRADE" and "ONE MARK FOR THE WORLD"). With no mark
+ * written yet only a weak field counts.
  */
 function oldFieldIn(token) {
     const key = keyOf(token);
-    const claim = remnantStore.claimInfo();
-    const bound = Math.max(claim?.at ? (claim.legacyMax ?? 0) : 0, remnantStore.weak());
+    const mark = upgradeMark();
+    const weak = remnantStore.weak();
     return field => {
         const s = remnantStore.stampOf(key, field);
-        return s > 0 && s <= bound;
+        return s > 0 && (s <= weak || (mark !== null && s < mark));
     };
 }
 
 /**
- * A Faint Prep promotion into a live row, each field at its own stamp plus one:
- * over the value it was written against and under anything decided since (see
- * `migrateRemnantToken`). Amends only (`ifLive`).
+ * A Faint Prep promotion into a live row, each field halfway from its own stamp to
+ * the next whole one: over the value it was written against and under anything
+ * decided since, a real write in the next millisecond included (see
+ * `migrateRemnantToken`) - at plus one, as until E04's fix round, the carry tied
+ * that write. Amends only (`ifLive`).
  */
 async function carryPromotion(token, over) {
     const key = keyOf(token);
     for (const [field, value] of Object.entries(over)) {
-        await setRemnantSecret(token, { [field]: value }, { ifLive: true, stamp: remnantStore.stampOf(key, field) + 1 });
+        const was = remnantStore.stampOf(key, field);
+        await setRemnantSecret(token, { [field]: value }, { ifLive: true, stamp: (was + Math.floor(was) + 1) / 2 });
     }
+}
+
+/**
+ * The moved path's promotion (`moveIntoLedger`), at the world's upgrade mark: into the
+ * row the moved record has just started, never a row of its own (`ifLive`, R172) - a
+ * trace whose row a GM removed is not brought back as a row of one field.
+ */
+async function promoteAtMark(token, promotion, mark) {
+    await setRemnantSecret(token, promotion, { ifLive: true, stamp: mark });
 }
 
 /** What is still on a trace's token that the answer key could be in (see `migrateRemnantToken`). */

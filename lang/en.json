@@ -3354,6 +3354,10 @@
           "one": "{n} old row stays in this browser, not taken: another world's, or no longer part of this world's case.",
           "other": "{n} old rows stay in this browser, not taken: other worlds', or no longer part of this world's case."
         },
+        "clamped": {
+          "one": "{n} old row was stamped after the moment this browser took it over - a clock that ran ahead - and was taken at that moment.",
+          "other": "{n} old rows were stamped after the moment this browser took them over - a clock that ran ahead - and were taken at that moment."
+        },
         "skew": "Stamps from ahead of this browser's clock: {names}.",
         "bytes": "The GM stores take {stores} KB of this browser's storage; the module {total} KB in all.",
         "lastBackup": "Last backup: {when} ({who}).",

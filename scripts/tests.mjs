@@ -58,7 +58,8 @@ import {
 import { REGRESSIONS } from "./tests-tier0.mjs";
 import { INVARIANTS } from "./tests-tier1.mjs";
 import { SCENARIOS, snapshot, restore } from "./tests-tier2.mjs";
-import { gmStoreHold, gmStoresIdle } from "./gm-store.mjs";
+import { gmStoreHold, gmStoresIdle, gmStoreHandles, gmCopyNames, gmCopySpec } from "./gm-store.mjs";
+import { MODULE_ID } from "./config.mjs";
 
 // Every tier, for the tests that read the suite itself (R155): see registerSuite.
 registerSuite([[0, REGRESSIONS], [1, INVARIANTS], [2, SCENARIOS]]);
@@ -386,6 +387,24 @@ async function runSuite(tier, only = null) {
                 record({ tier: 2, name: "tier 2 put the world back as it found it", assertions: null,
                     ...(late.length
                         ? { outcome: "fail", message: `left after the last restore: ${late.slice(0, 12).map(describeDiff).join("; ")}${more(late, 12)}` }
+                        : { outcome: "pass" }) });
+                /*
+                 * NO OLD KEY OF THE GM STORE WAS WRITTEN (E04's fix round; the review's
+                 * DS-m5). The old keys hold what the upgrade left - another world's rows
+                 * nobody claimed, a downgrade's copy - and nothing else holds it. Tier 2's
+                 * restore would have put back a key a test wrote, but a tab closed in between
+                 * would not; the tests hand their fixtures to `withGmStoreLegacy` instead, and
+                 * this reads the whole run's writes for any that reached one. R171 reads the
+                 * source for the names; this is the write itself.
+                 */
+                const oldKeys = [...new Set([
+                    ...gmStoreHandles().map(h => h.spec.legacyKey),
+                    ...gmCopyNames().flatMap(name => [gmCopySpec(name)?.legacyKey, ...(gmCopySpec(name)?.legacyKeys ?? [])])
+                ].filter(Boolean))];
+                const wroteOld = [...new Set(writes.seen.filter(w => oldKeys.some(k => w.startsWith(`setting ${MODULE_ID}.${k} `))))];
+                record({ tier: 2, name: "the suite wrote no old key of the GM store", assertions: null,
+                    ...(wroteOld.length
+                        ? { outcome: "fail", message: `written: ${wroteOld.slice(0, 6).join("; ")}${more(wroteOld, 6)}` }
                         : { outcome: "pass" }) });
             }
         }

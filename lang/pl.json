@@ -4591,6 +4591,12 @@
           "many": "{n} starych wierszy zostaje w tej przeglądarce, nieprzejętych: z innych światów albo już nie ze sprawy tego świata.",
           "other": "{n} starego wiersza zostaje w tej przeglądarce, nieprzejętego: z innych światów albo już nie ze sprawy tego świata."
         },
+        "clamped": {
+          "one": "{n} stary wiersz miał stempel późniejszy niż chwila, w której ta przeglądarka go przejęła - zegar się spieszył - więc przyjęto go z tą chwilą.",
+          "few": "{n} stare wiersze miały stemple późniejsze niż chwila, w której ta przeglądarka je przejęła - zegar się spieszył - więc przyjęto je z tą chwilą.",
+          "many": "{n} starych wierszy miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła - zegar się spieszył - więc przyjęto je z tą chwilą.",
+          "other": "{n} starego wiersza miało stemple późniejsze niż chwila, w której ta przeglądarka je przejęła - zegar się spieszył - więc przyjęto je z tą chwilą."
+        },
         "skew": "Stemple wyprzedzające zegar tej przeglądarki: {names}.",
         "bytes": "Magazyny GM-a zajmują {stores} KB pamięci tej przeglądarki; moduł łącznie {total} KB.",
         "lastBackup": "Ostatnia kopia: {when} ({who}).",

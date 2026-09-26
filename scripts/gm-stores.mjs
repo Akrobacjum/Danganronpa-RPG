@@ -26,7 +26,7 @@ import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc,
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
-    raiseCleared, newestIn, sectionProblem, stableJson
+    raiseCleared, newestIn, sectionProblem, stableJson, weakOf, gmStoreStamp
 } from "./gm-store.mjs";
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
@@ -607,6 +607,7 @@ export function openGmStores() {
     opening ??= (async () => {
         configureGmStore({
             activeGmIds, primaryGmId, getClock, clockKey: SETTINGS.clock, warn, error, debug,
+            upgradeMark: () => upgradeMark(),
             // A counted sentence is a plural family (.one/.other, and .few/.many in Polish).
             text: (key, data = {}) => (game.i18n.has(`${key}.other`) ? plural(key, data) : game.i18n.format(key, data))
         });
@@ -643,6 +644,36 @@ async function markCase(patch) {
     if (!game.user?.isGM) return;
     try { await setSetting(SETTINGS.caseMark, { ...caseMark(), ...patch }); }
     catch (err) { warn("Could not record the case's backup mark", err); }
+}
+
+/**
+ * THE WORLD'S UPGRADE MARK (the review's DS-M2 and DS-m6): `caseMark.upgradedAt`, the
+ * first claim a GM store took in this world, as a store stamp - one number every GM
+ * reads alike. A value stamped under it was written before 1.2.63; one over it since.
+ * The carry of a Faint Prep promotion (remnants.mjs `oldFieldIn`) and the taking of a
+ * downgrade's rows (the handle's `reclaim`) read it: until E04's fix round each read
+ * its own browser's claim, and a browser whose old key never held a row - an
+ * assistant's, a second computer's - counted every row as written since, stripped a
+ * promotion it had not carried and told the GM a correction stood. Null until written.
+ */
+export function upgradeMark() {
+    const mark = caseMark().upgradedAt;
+    return Number.isFinite(mark) && mark > 0 ? mark : null;
+}
+
+/**
+ * Written by every GM once its stores have the others' copies: its own first claim in
+ * this world when that is earlier than the mark (or there is none) - so the mark ends
+ * at the earliest claim of any GM, whichever loaded first - and nothing otherwise. A
+ * browser that never claimed (its claims failed) offers the present stamp.
+ */
+async function markUpgrade() {
+    if (!game.user?.isGM) return;
+    const claims = gmStoreHandles().map(h => h.claimInfo()?.at).filter(at => Number.isFinite(at) && at > 0);
+    const mine = claims.length ? Math.min(...claims) : gmStoreStamp();
+    const mark = upgradeMark();
+    if (mark !== null && mark <= mine) return;
+    await markCase({ upgradedAt: mine });
 }
 
 /**
@@ -685,7 +716,7 @@ async function claimRowsIntoCopy(handle, section) {
     const { rows = [] } = (await handle.spec.claim(legacy, { backup: true })) ?? {};
     const mini = { e: {}, t: {}, d: {}, cleared: 0 };
     for (const row of rows) {
-        const s = Number.isFinite(row.stamp) && row.stamp > 0 ? row.stamp : (section.cleared ?? 0) + 1;
+        const s = Number.isFinite(row.stamp) && row.stamp > 0 ? row.stamp : weakOf(section);
         if (row.deleted) dropKey(mini, row.key, s, handle.spec);
         else writeFields(mini, row.key, row.fields ?? {}, s, handle.spec, { whole: true });
     }
@@ -941,6 +972,9 @@ export async function gmStoreHealth() {
     add("unseen", "info", "DRPG.Case.row.unseen");
     const left = gmStoreHandles().reduce((n, h) => n + (h.census()?.left ?? 0), 0);
     if (left) add("left", "info", "DRPG.Case.row.left", { n: left });
+    // Old rows stamped ahead of the moment they were taken over: a clock that ran ahead (DS-m3).
+    const clamped = gmStoreHandles().reduce((n, h) => n + (h.census()?.clamped ?? 0), 0);
+    if (clamped) add("clamped", "info", "DRPG.Case.row.clamped", { n: clamped });
     const skew = Object.entries(gmStoreSkew());
     if (skew.length) add("skew", "info", "DRPG.Case.row.skew", { names: skew.map(([id, m]) => `${game.users.get(id)?.name ?? id} (+${m} min)`).join(", ") });
     const status = gmStoreStatus();
@@ -1136,7 +1170,8 @@ export async function openRestoreDialog(text = null) {
 /** Registered at ready (module.mjs): the check runs once this client's stores hold the other GMs' copies. */
 export function registerCaseHealth() {
     onGmStoresHydrated(() => {
-        markCaseSince()
+        markUpgrade()
+            .then(() => markCaseSince())
             .then(() => runHealthCheck())
             .catch(err => error("The case health check could not run", err));
     });

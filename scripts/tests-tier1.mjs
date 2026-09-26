@@ -3427,7 +3427,8 @@ const INVARIANTS = [
          * newest write of it; a tombstone or a reset's cut kills every older field, keys the
          * clearer never held included; a key written again after its tombstone carries only
          * what was written after it; an equal stamp resolves the same in both orders; a
-         * weak write loses to anything real and is not dead after a cut; the sub-keys of a
+         * weak write - at the stamp the engine gives it - loses to anything real, a write
+         * in the millisecond after a cut included, and is not dead after a cut; the sub-keys of a
          * split field merge apart; and over 200 generated triples the merge is commutative,
          * associative and idempotent. The old rule, copied, is shown to lose the answer key
          * first - a fixture that could not fail would measure nothing.
@@ -3476,12 +3477,28 @@ const INVARIANTS = [
         const x = write(sec(), "k", { v: "x" }, 50), y = write(sec(), "k", { v: "y" }, 50);
         equal(J(merge(x, y)), J(merge(y, x)), "two writes with one stamp resolve differently in the two merge orders");
 
-        const weak = sec();
-        G.raiseCleared(weak, 1000, spec);
-        write(weak, "k", { v: "weak" }, weak.cleared + 1);
-        equal(weak.e.k?.v, "weak", "a weak write after a cut is dead on arrival");
-        const real = write(sec(), "k", { v: "real" }, 1500);
-        ok(merge(weak, real).e.k.v === "real" && merge(real, weak).e.k.v === "real", "a weak write beat a real one");
+        /* The weak stamp as the engine's writers take it (`weak()` on a store's handle), on an
+           engine built with fakes: after a cut, a weak write is alive, and loses to a real write
+           made in the very next millisecond - the first stamp a GM can make after the cut. At
+           the watermark plus one it tied that write, and a tie is decided by the value, so a
+           default could beat an answer (the review's DS-m2). */
+        const flushes = [];
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R169GM", isGM: () => true, isPrimary: () => true, worldId: () => "R169WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R169GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => 5_000_000,
+            timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const held = eng.define({ name: "r169weak", key: "r169Weak", kind: "ledger", sync: false, backup: false });
+        const cutAt = 1000;
+        await held.mergeIn({ e: {}, t: {}, d: {}, cleared: cutAt }, { source: "sync" });
+        const weak = write(sec(), "k", { v: "weak" }, held.weak(), { fillOnly: true });
+        const oldUnderCut = merge(write(sec(), "k", { v: "old" }, cutAt - 10), { e: {}, t: {}, d: {}, cleared: cutAt });
+        equal(merge(oldUnderCut, weak).e.k?.v, "weak", "a weak write after a cut is dead on arrival");
+        const real = write(sec(), "k", { v: "real" }, cutAt + 1);
+        ok(merge(weak, real).e.k.v === "real" && merge(real, weak).e.k.v === "real",
+            `a weak write (at ${held.weak()}) beat a real one made in the millisecond after the cut (at ${cutAt + 1})`);
 
         const p1 = write(write(sec(), "t", { public: { icon: "a", name: "n1" } }, 100), "t", { public: { icon: "b" } }, 200);
         const p2 = write(write(sec(), "t", { public: { icon: "a", name: "n1" } }, 100), "t", { public: { name: "n2" } }, 210);
@@ -3887,6 +3904,50 @@ const INVARIANTS = [
             if (!own) for (const m of calls) if (!/stamp/i.test(m[1])) found.push(`${file}: ${fn}(${m[1].slice(0, 60)}) passes no stamp`);
         }
         ok(!found.length, `a copy goes to a player without a stamp: ${found.join("; ")}`);
+    }],
+
+    ["R180 - a browser that takes over its old store after a season reset is cut by the reset", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the data-safety review's round-2 note on C10. A GM's
+         * browser that first opens 1.2.63 after a season reset has only its old key: it
+         * claims last season's rows then, alone, with nobody to hand it the reset's clear.
+         * The reset's cut is in the clock, and the store's open applies it after the claim,
+         * so what the claim took under the cut dies there - a row at its old stamp and one
+         * with none (weak) alike - and the census still counts both as taken. Driven on an
+         * engine built with fakes: storage in a Map, an old key, a clock with a cut.
+         */
+        const G = await import("./gm-store.mjs");
+        const CUT = 7_000_000;
+        const store = new Map();
+        const legacy = { r180a: { v: "last season", updated: CUT - 500 }, r180b: { v: "never stamped" } };
+        const flushes = [];
+        const engineWith = cuts => G.createGmStoreEngine({
+            selfId: () => "R180GM", isGM: () => true, isPrimary: () => true, worldId: () => "R180WORLD",
+            activeGmIds: () => ["R180GM"], primaryGmId: () => "R180GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: k => store.get(k) ?? null, write: async (k, v) => { store.set(k, JSON.stringify(v)); } },
+            readLegacy: k => (k === "r180Old" ? structuredClone(legacy) : undefined), now: () => CUT + 60_000,
+            timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+            clock: () => ({ resetCuts: cuts }), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const spec = { name: "r180", key: "r180Key", legacyKey: "r180Old", kind: "ledger", resetGroup: "remnants", sync: true, backup: true,
+            claim: old => ({ rows: Object.entries(old).map(([key, row]) => ({ key, fields: { v: row.v }, stamp: row.updated })), left: [] }) };
+
+        const cut = engineWith({ remnants: CUT });
+        const afterReset = cut.define(spec);
+        await cut.open();
+        await Promise.all(flushes);
+        equal(JSON.stringify([Object.keys(afterReset.entries()), afterReset.cleared()]), JSON.stringify([[], CUT]),
+            "the rows a browser claimed after a reset survived the reset's cut");
+        equal(JSON.stringify(afterReset.census()), JSON.stringify({ legacy: 2, claimed: 2, left: 0, tombstones: 0, reasons: {} }),
+            "the claim did not count what it took before the cut took it");
+
+        store.clear();
+        const none = engineWith({});
+        const noReset = none.define(spec);
+        await none.open();
+        await Promise.all(flushes);
+        equal(JSON.stringify(Object.keys(noReset.entries()).sort()), JSON.stringify(["r180a", "r180b"]),
+            "with no reset in the clock the claim's rows did not stand - the first half measured nothing");
     }],
 
     ["R179 - a world that was in play keeps its safeword", async () => {

@@ -6535,7 +6535,8 @@ const SCENARIOS = [
                 "the promotion carried into the row is not the one the token held");
             equal(remnants.remnantData(promoted)?.faint, false, "the promotion's faint: false did not reach the row");
             equal(remnants.remnantData(promoted)?.tiedToCrime, true, "the promotion's tiedToCrime: true did not reach the row");
-            equal(remnantStore.stampOf(remnants.keyOf(promoted), "faint"), weak + 1, "the promotion was not carried at the old value's stamp plus one");
+            equal(remnantStore.stampOf(remnants.keyOf(promoted), "faint"), (weak + Math.floor(weak) + 1) / 2,
+                "the promotion was not carried halfway from the old value's stamp to the next whole one");
             equal(carried?.ledger, "filled", "the promoted trace's row was not written");
             equal(flagKeys(promoted), JSON.stringify(["isRemnant"]), "the promoted token still carries the flags");
 
@@ -6581,10 +6582,12 @@ const SCENARIOS = [
          * from before the upgrade meets the trace's row. Until E04 the carry was written
          * as the newest row, whole, and won on every GM - a GM who had set the trace
          * back to Faint since, on any browser, lost that. The row's fields are stamped
-         * one by one now: a field from before the upgrade takes the promotion at its
-         * stamp plus one, and a field another GM wrote since stands. Here the row is a
-         * row from before the upgrade (every field weak); another GM's correction of
-         * `faint` arrives as a sync does; then the token's promotion is migrated.
+         * one by one now: a field from before the upgrade takes the promotion halfway to
+         * the next whole stamp, and a field another GM wrote since stands - and the
+         * promotion it stood against stays on the token, its only record (the review's
+         * DS-M2: it was stripped). Here the row is a row from before the upgrade (every
+         * field weak); another GM's correction of `faint` arrives as a sync does; then
+         * the token's promotion is migrated.
          */
         const remnants = await import("./remnants.mjs");
         const { remnantStore } = await import("./gm-stores.mjs");
@@ -6623,9 +6626,11 @@ const SCENARIOS = [
             equal(JSON.stringify(done?.carried ?? null), JSON.stringify({ tiedToCrime: [false, true] }),
                 "the half of the promotion over a value from before the upgrade was not carried");
             equal(remnants.remnantData(token)?.tiedToCrime, true, "the tie was not carried into the row");
-            equal(remnantStore.stampOf(key, "tiedToCrime"), weak + 1, "the tie was not carried at the old value's stamp plus one");
-            equal(JSON.stringify(Object.keys(token._source?.flags?.[MODULE_ID] ?? {}).sort()), JSON.stringify(["isRemnant"]),
-                "the token kept the promotion after its row was written");
+            equal(remnantStore.stampOf(key, "tiedToCrime"), (weak + Math.floor(weak) + 1) / 2,
+                "the tie was not carried halfway from the old value's stamp to the next whole one");
+            // The half not carried stays on the token, its only record; the half carried is taken off (DS-M2).
+            equal(JSON.stringify(Object.keys(token._source?.flags?.[MODULE_ID] ?? {}).sort()), JSON.stringify(["faint", "isRemnant"]),
+                "the promotion not carried was taken off the token, or the half carried was left on it");
         } finally {
             for (const t of placed) {
                 try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
@@ -6633,6 +6638,112 @@ const SCENARIOS = [
             }
             await settle();
         }
+    }],
+
+    ["a promotion over a row another GM's browser claimed is carried whichever GM runs the migration", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the review's DS-M2. "Before the upgrade" was this
+         * browser's own claim - the newest stamp its old key held - so on a browser whose
+         * old key never held the row (an assistant's, a second computer's) every row read
+         * as written since: the promotion was "not carried", stripped from the token all
+         * the same, and the GM told a later correction stood. And a token with no row here,
+         * whose row another GM holds, was moved in weak, and that GM's older row took the
+         * promotion back at the next exchange. One mark for the world now (gm-stores.mjs
+         * `upgradeMark`). Here a row claimed on another GM's browser - stamped before the
+         * mark, and this browser's claim knowing nothing of it - arrives as a sync does,
+         * and the token's promotion is carried into it; and a trace from before the ledger,
+         * moved in while no row is here, keeps its promotion when that row arrives after.
+         */
+        const remnants = await import("./remnants.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const { remnantStore } = S;
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const mark = S.upgradeMark();
+        ok(mark !== null, "this world has no upgrade mark: the stores never wrote one");
+        const placed = [];
+        const trace = async (flags, name = game.i18n.localize("DRPG.Remnant.tokenName")) => {
+            const [t] = await scene.createEmbeddedDocuments("Token", [{
+                name, actorId: game.actors.getName("Remnant")?.id ?? null, actorLink: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, hidden: true, flags: { [MODULE_ID]: { isRemnant: true, ...flags } }
+            }]);
+            ok(t, "could not make a fixture trace");
+            placed.push(t);
+            return t;
+        };
+        const theirs = (key, fields) => {
+            const section = E.emptySection();
+            E.writeFields(section, key, fields, mark - 1000, remnantStore.spec);
+            return remnantStore.mergeIn(section, { source: "sync" });
+        };
+        try {
+            if (!game.actors.getName("Remnant")) {
+                const first = await remnants.placeRemnant({ type: "prep", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                    note: "test fixture - makes the Remnant actor" });
+                if (first) placed.push(first);
+            }
+            const promoted = await trace({ faint: false, tiedToCrime: true });
+            await theirs(remnants.keyOf(promoted), { type: "prep", visibility: "subtle", faint: true, tiedToCrime: false,
+                note: "test fixture - a row claimed on another GM's browser" });
+            const done = await remnants.migrateRemnantToken(promoted);
+            equal(JSON.stringify([done?.carried ?? null, done?.notCarried ?? null]),
+                JSON.stringify([{ faint: [true, false], tiedToCrime: [false, true] }, null]),
+                "a promotion over a row from before the upgrade was not carried, on a browser whose old key never held it");
+            equal(JSON.stringify([remnants.remnantData(promoted)?.faint, remnants.remnantData(promoted)?.tiedToCrime]), JSON.stringify([false, true]),
+                "the promotion did not reach the row");
+            equal(JSON.stringify(Object.keys(promoted._source?.flags?.[MODULE_ID] ?? {}).sort()), JSON.stringify(["isRemnant"]),
+                "the carried promotion was left on the token");
+
+            const moved = await trace({ remnantType: "prep", visibility: "subtle", note: "SUITE moved note", faint: false, tiedToCrime: true },
+                "SUITE Subtle Prep Remnant");
+            equal((await remnants.migrateRemnantToken(moved))?.ledger, "moved", "the trace from before the ledger was not moved in");
+            await theirs(remnants.keyOf(moved), { type: "prep", visibility: "subtle", faint: true, tiedToCrime: false, note: "SUITE their note" });
+            equal(JSON.stringify([remnants.remnantData(moved)?.faint, remnants.remnantData(moved)?.tiedToCrime]), JSON.stringify([false, true]),
+                "another GM's row from before the upgrade took back the promotion a trace was moved in with");
+            equal(remnants.remnantData(moved)?.note, "SUITE their note", "the moved-in fields beat a value another GM decided (they are weak)");
+        } finally {
+            for (const t of placed) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["the claim merges the old rows in, and an old stamp ahead of it is taken at its time", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the review's DS-m1 and DS-m3. The claim wrote the old
+         * rows straight into the section: a newer value that had arrived from another GM
+         * before it was replaced by the old one (measured: "key" became "prep"). And an old
+         * row stamped by a clock that ran ahead kept that stamp, beating every edit made
+         * since until real time passed it. Both into a world this browser has never opened,
+         * the old key a fixture (`withGmStoreLegacy`): no real old key is written.
+         */
+        const E = await import("./gm-store.mjs");
+        const { bulletStore } = await import("./gm-stores.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const [student] = cast(1);
+        const at = id => `Actor.${student.id}.Item.${id}`;
+        const old = Date.now() - 60 * 60 * 1000, ahead = Date.now() + 2 * 60 * 60 * 1000;
+        const legacy = { [SETTINGS.legacyTruthBulletSecrets]: {
+            [at("SUITEE04DSM1")]: { realType: "prep", updated: old },
+            [at("SUITEE04DSM3")]: { realType: "final", updated: ahead }
+        } };
+        const raw = () => game.settings.storage.get("client").getItem(`${MODULE_ID}.${SETTINGS.legacyTruthBulletSecrets}`);
+        const before = raw();
+        await E.withGmStoreLegacy(legacy, () => E.withGmStoreWorld(`suite-claimmerge-${foundry.utils.randomID(8)}`, async () => {
+            const newer = E.emptySection();
+            E.writeFields(newer, at("SUITEE04DSM1"), { realType: "key" }, E.gmStoreStamp(), bulletStore.spec);
+            await bulletStore.mergeIn(newer, { source: "sync" });
+            const census = await bulletStore.claim();
+            equal(bullets.secretOf(at("SUITEE04DSM1")).realType, "key", "the claim wrote an old row over a newer value that had arrived first");
+            const stamp = bulletStore.stampOf(at("SUITEE04DSM3"), "realType");
+            ok(stamp > 0 && stamp <= E.gmStoreNow(), `an old row stamped ahead of the claim kept its stamp: ${stamp} against ${Math.floor(E.gmStoreNow())}`);
+            equal(census?.clamped, 1, "the old row stamped ahead of the claim was not counted");
+        }));
+        equal(raw(), before, "the claim wrote the real old key");
     }],
 
     ["a replaced flag keeps nothing of the old value, and an unset flag is gone", async () => {
@@ -6705,14 +6816,15 @@ const SCENARIOS = [
          * E04, 26.09.2026; the design's H5. Each GM store claims, once per world on a
          * browser, the rows of its old key that belong to that world, and never writes
          * the old key. Stood in a world this browser has never opened (the stores'
-         * suite override, gm-store.mjs `withWorld`), with each store's old key seeded
-         * with a fixture of this world's rows, another world's, a tombstone and a row
-         * with no stamp: the census must count every old row as claimed or left, what
-         * was claimed must read back through the store's own reader, and the old key
-         * must be byte for byte what it was. A store with an old key and no fixture
-         * here fails: a store added without one would be claimed by nothing that was
-         * ever checked. The old keys are put back by tier 2's restore; this is the one
-         * place the module's code writes them (R171 names it).
+         * suite override, gm-store.mjs `withWorld`), with each store's old key read from
+         * a fixture (`withLegacy`) of this world's rows, another world's, a tombstone and
+         * a row with no stamp: the census must count every old row as claimed or left,
+         * what was claimed must read back through the store's own reader, and the real
+         * old key must be byte for byte what it was. A store with an old key and no
+         * fixture here fails: a store added without one would be claimed by nothing that
+         * was ever checked. No real old key is written (E04's fix round, the review's
+         * DS-m5: they were seeded here and put back by tier 2's restore, and a tab closed
+         * in between lost another world's unclaimed rows).
          */
         const E = await import("./gm-store.mjs");
         const bullets = await import("./truth-bullets.mjs");
@@ -6894,33 +7006,34 @@ const SCENARIOS = [
         const unclaimed = Object.keys(FIXTURES).filter(name => !stores.some(h => h.name === name));
         ok(!unclaimed.length, `this test has a fixture for a store that claims no old key: ${unclaimed.join(", ")}`);
         const raw = key => game.settings.storage.get("client").getItem(`${MODULE_ID}.${key}`);
+        /* Each old key a fixture, read in place of this browser's (`withGmStoreLegacy`, the
+           review's DS-m5): the real old keys - another world's unclaimed rows live only there -
+           are never written, and read back unchanged after every claim. */
         for (const store of stores.filter(h => FIXTURES[h.name])) {
             const fx = FIXTURES[store.name];
             if (fx.before) await fx.before();
-            await game.settings.set(MODULE_ID, fx.legacy, fx.seed);
             const before = raw(fx.legacy);
-            await E.withGmStoreWorld(`suite-census-${foundry.utils.randomID(8)}`, async () => {
+            await E.withGmStoreLegacy({ [fx.legacy]: fx.seed }, () => E.withGmStoreWorld(`suite-census-${foundry.utils.randomID(8)}`, async () => {
                 const census = await store.claim();
                 equal(stableJson(census), stableJson(fx.census), `${store.name}: the census of its old key`);
                 equal(census.claimed + census.left, census.legacy, `${store.name}: an old row was neither claimed nor left`);
                 fx.readBack(store);
-            });
-            equal(raw(fx.legacy), before, `${store.name}: the claim changed its old key`);
+            }));
+            equal(raw(fx.legacy), before, `${store.name}: the claim changed its real old key`);
         }
 
         // The fog copy's claim (C9), the one player copy with an old key it takes: this browser's
         // characters' rows of this world's scenes, weak, merged into the copy; the old key untouched.
-        await game.settings.set(MODULE_ID, SETTINGS.legacyDiscoveryMine,
-            { [sceneId]: { [student.id]: ["SUITE mine"] }, SUITEE04NOSCENE: { [student.id]: ["SUITE elsewhere"] } });
         const mineBefore = raw(SETTINGS.legacyDiscoveryMine);
-        await E.withGmStoreWorld(`suite-census-${foundry.utils.randomID(8)}`, async () => {
+        const mine = { [SETTINGS.legacyDiscoveryMine]: { [sceneId]: { [student.id]: ["SUITE mine"] }, SUITEE04NOSCENE: { [student.id]: ["SUITE elsewhere"] } } };
+        await E.withGmStoreLegacy(mine, () => E.withGmStoreWorld(`suite-census-${foundry.utils.randomID(8)}`, async () => {
             equal(await S.fogCopy.claim(), true, "the fog copy took nothing from its old key");
             const held = S.fogCopy.read();
             equal(stableJson(E.liveFields(held)), stableJson({ [`${sceneId}/${student.id}`]: { "SUITE mine": true } }),
                 "the fog copy took another world's rows, or not this one's");
             equal(held?.t?.[`${sceneId}/${student.id}`], 1, "the fog copy's old rows were not taken weak");
-        });
-        equal(raw(SETTINGS.legacyDiscoveryMine), mineBefore, "the fog copy's claim changed its old key");
+        }));
+        equal(raw(SETTINGS.legacyDiscoveryMine), mineBefore, "the fog copy's claim changed its real old key");
     }],
 
     ["a changed old store is reported, and taking it never overwrites what changed since the upgrade", async () => {
@@ -6931,46 +7044,59 @@ const SCENARIOS = [
          * changed, and a GM asks for what changed. What is taken: a row the store never
          * had, a field the store has not touched since the upgrade, an old tombstone; what
          * is not: a field a GM wrote since the upgrade (listed as a conflict and kept),
-         * and a row the downgrade dropped (listed, kept). Stood in a world this browser
-         * has never opened; the old key is seeded, and put back by tier 2's restore.
+         * and a row the downgrade dropped (listed, kept). "Since the upgrade" is the
+         * world's mark, not this browser's claim (the review's DS-m6): another GM's
+         * correction written before this browser claimed stands too. Stood in a world
+         * this browser has never opened, the old key a fixture (`withGmStoreLegacy`,
+         * changed mid-test as a downgrade writes it): no real old key is written.
          */
         const E = await import("./gm-store.mjs");
-        const { bulletStore } = await import("./gm-stores.mjs");
+        const { bulletStore, upgradeMark } = await import("./gm-stores.mjs");
         const bullets = await import("./truth-bullets.mjs");
         const [student] = cast(1);
         const at = id => `Actor.${student.id}.Item.${id}`;
         const T = Date.now() - 60 * 60 * 1000;
         const raw = () => game.settings.storage.get("client").getItem(`${MODULE_ID}.${SETTINGS.legacyTruthBulletSecrets}`);
-        await game.settings.set(MODULE_ID, SETTINGS.legacyTruthBulletSecrets, {
+        const real = raw();
+        ok(upgradeMark() !== null, "this world has no upgrade mark: the stores never wrote one");
+        const legacy = { [SETTINGS.legacyTruthBulletSecrets]: {
             [at("SUITEE04H1A")]: { realType: "prep", gmNote: "as upgraded", updated: T },
             [at("SUITEE04H1B")]: { realType: "evident", updated: T },
-            [at("SUITEE04H1D")]: { realType: "key", updated: T }
-        });
-        await E.withGmStoreWorld(`suite-reclaim-${foundry.utils.randomID(8)}`, async () => {
+            [at("SUITEE04H1D")]: { realType: "key", updated: T },
+            [at("SUITEE04H1E")]: { realType: "prep", updated: T }
+        } };
+        await E.withGmStoreLegacy(legacy, () => E.withGmStoreWorld(`suite-reclaim-${foundry.utils.randomID(8)}`, async () => {
+            // Another GM's correction, written since the upgrade and before this browser claimed, as a sync brings it.
+            const theirs = E.emptySection();
+            E.writeFields(theirs, at("SUITEE04H1E"), { realType: "key" }, E.gmStoreStamp(), bulletStore.spec);
+            await bulletStore.mergeIn(theirs, { source: "sync" });
             await bulletStore.claim();
             ok(!bulletStore.legacyChanged(), "the old key reads as changed right after the claim");
             await bullets.setSecret(at("SUITEE04H1A"), { gmNote: "written since the upgrade" });
             const later = Date.now() + 1000;
-            await game.settings.set(MODULE_ID, SETTINGS.legacyTruthBulletSecrets, {
+            legacy[SETTINGS.legacyTruthBulletSecrets] = {
                 [at("SUITEE04H1A")]: { realType: "tamper", gmNote: "written by 1.2.62", updated: later },
                 [at("SUITEE04H1B")]: { deleted: true, updated: later },
-                [at("SUITEE04H1C")]: { realType: "final", updated: later }
-            });
-            const before = raw();
+                [at("SUITEE04H1C")]: { realType: "final", updated: later },
+                [at("SUITEE04H1E")]: { realType: "stale", updated: later }
+            };
             ok(bulletStore.legacyChanged(), "a downgrade's write of the old key was not seen");
             const report = await bulletStore.reclaim();
             equal(stableJson({ added: report.added, taken: report.taken, conflicts: report.conflicts, missing: report.missing, tombstones: report.tombstones }),
-                stableJson({ added: [at("SUITEE04H1C")], taken: [at("SUITEE04H1A")], conflicts: [{ key: at("SUITEE04H1A"), field: "gmNote" }],
+                stableJson({ added: [at("SUITEE04H1C")], taken: [at("SUITEE04H1A")],
+                    conflicts: [{ key: at("SUITEE04H1A"), field: "gmNote" }, { key: at("SUITEE04H1E"), field: "realType" }],
                     missing: [at("SUITEE04H1D")], tombstones: 1 }), "what was taken, kept and listed");
             const a = bullets.secretOf(at("SUITEE04H1A"));
             equal(stableJson([a.realType, a.gmNote]), stableJson(["tamper", "written since the upgrade"]),
                 "an untouched field was not taken, or a field written since the upgrade was overwritten");
+            equal(bullets.secretOf(at("SUITEE04H1E")).realType, "key",
+                "another GM's correction, made before this browser claimed, was overwritten by the downgrade's stale field");
             equal(stableJson([bullets.secretOf(at("SUITEE04H1B")).realType ?? null, bullets.secretOf(at("SUITEE04H1C")).realType,
                 bullets.secretOf(at("SUITEE04H1D")).realType]), stableJson([null, "final", "key"]),
                 "the old tombstone, the new row or the row the downgrade dropped came out wrong");
             ok(!bulletStore.legacyChanged(), "after taking what changed, the old key still reads as changed");
-            equal(raw(), before, "taking what changed wrote the old key");
-        });
+        }));
+        equal(raw(), real, "taking what changed wrote the real old key");
     }],
 
     ["a clear in another world leaves this world's traces", async () => {
@@ -7120,16 +7246,16 @@ const SCENARIOS = [
          * was not the primary's) and is read by nothing as a pick. Once the store holds a
          * pick made before it, the health report says so, as a decision for the primary
          * GM, and no player is told the part; a Keep (the pick stamped again) takes the
-         * row away. Stood in a world this browser has never opened; the old key is seeded,
-         * and put back by tier 2's restore.
+         * row away. Stood in a world this browser has never opened, the old key a fixture
+         * (`withGmStoreLegacy`): no real old key is written.
          */
         const E = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
         const mastermind = await import("./mastermind.mjs");
         const [student] = cast(1);
         const T = Date.now() - 60 * 60 * 1000;
-        await game.settings.set(MODULE_ID, SETTINGS.legacyMastermind, { actorId: null, room: null, updated: T });
-        await E.withGmStoreWorld(`suite-cleared-${foundry.utils.randomID(8)}`, async () => {
+        const legacy = { [SETTINGS.legacyMastermind]: { actorId: null, room: null, updated: T } };
+        await E.withGmStoreLegacy(legacy, () => E.withGmStoreWorld(`suite-cleared-${foundry.utils.randomID(8)}`, async () => {
             const census = await S.mastermindStore.claim();
             equal(stableJson(census), stableJson({ legacy: 1, claimed: 1, left: 0, tombstones: 0, reasons: {} }),
                 "the cleared entry was not carried as one claimed row");
@@ -7149,7 +7275,7 @@ const SCENARIOS = [
             await S.mastermindStore.patch("record", { actorId: student.id });
             ok(!(await S.gmStoreHealth()).rows.some(r => r.id === "mastermindCleared"), "after the pick was kept (stamped again) the row is still there");
             equal(S.mastermindUndecided(), null, "after the pick was kept it is still undecided");
-        });
+        }));
     }],
 
     ["a GM that never saw the incident closes it clean", async () => {
@@ -7557,7 +7683,8 @@ const SCENARIOS = [
          * name what is gone; the file is restored; and every row must read back through
          * the same writer's reader. A store with `backup: true` and no fixture here
          * fails. Put back by tier 2's restore; the emptied sections are this browser's
-         * copy only and are sent nowhere (`forget`).
+         * memory only - sent nowhere and written nowhere until the restore writes them
+         * back (`forget`; E04's fix round, the review's DS-m5).
          */
         const E = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -7674,7 +7801,10 @@ const SCENARIOS = [
             for (const store of stores) keys[store.name] = await FIXTURES[store.name].seed();
             const file = await S.backupCase();
             ok(saved && file?.format === S.CASE_FORMAT, "the backup wrote no case file");
+            const stored = () => stores.map(h => game.settings.storage.get("client").getItem(`${MODULE_ID}.${h.spec.key}`));
+            const onDisk = stored();
             for (const store of stores) await store.forget();
+            equal(stableJson(stored()), stableJson(onDisk), "forgetting wrote the emptied sections to this browser's storage, where a tab closed now would leave them");
             const report = await S.gmStoreHealth();
             for (const store of stores) ok(FIXTURES[store.name].gone(report, keys[store.name]), `${store.name}: after the store was emptied the report does not say so, or its row still reads`);
             const result = await S.restoreCase(saved, { recheck: false });

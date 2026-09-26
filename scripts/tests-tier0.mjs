@@ -5525,18 +5525,19 @@ const REGRESSIONS = [
         ok([...keys].every(k => named.has(k)), `a GM store's key is not a SETTINGS name, so nothing here could find it read: ${
             [...keys].filter(k => !named.has(k)).join(", ")}`);
         const ALLOW = {
-            // The census and old-store tests of tier 2 seed each old key they read, and tier 2's restore puts it back.
-            "tests-tier2.mjs#legacyTruthBulletSecrets": "the claim's census seeds the old key it counts",
-            "tests-tier2.mjs#legacyRemnantSecrets": "the claim's census seeds the old key it counts",
-            "tests-tier2.mjs#legacyMastermind": "the claim's census seeds the old key it counts",
-            "tests-tier2.mjs#legacyIncidentCast": "the claim's census seeds the old key it counts",
-            "tests-tier2.mjs#legacyBlackenedLedger": "the claim's census seeds the old key it counts",
-            "tests-tier2.mjs#legacyTrapLedger": "the claim's census seeds the old key it counts",
-            "tests-tier2.mjs#legacyTrapPlants": "the claim's census seeds the old key it counts",
-            "tests-tier2.mjs#legacyObservePending": "the claim's census seeds the old key it counts",
-            "tests-tier2.mjs#legacyAdvanceOffers": "the claim's census seeds the old key it counts",
-            "tests-tier2.mjs#legacyDiscoveryLedger": "the claim's census seeds the old key it counts",
-            "tests-tier2.mjs#legacyDiscoveryMine": "the fog copy's claim is seeded with the old key it takes"
+            // The census and old-store tests of tier 2 hand each old key's fixture to `withGmStoreLegacy` and read the
+            // real key back, unchanged: no test writes one (E04's fix round, the review's DS-m5; the runner checks it).
+            "tests-tier2.mjs#legacyTruthBulletSecrets": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyRemnantSecrets": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyMastermind": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyIncidentCast": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyBlackenedLedger": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyTrapLedger": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyTrapPlants": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyObservePending": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyAdvanceOffers": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyDiscoveryLedger": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyDiscoveryMine": "the fog copy's claim names the old key its fixture stands in for"
         };
         const seen = new Set(), raw = [];
         let read = 0;
@@ -5614,6 +5615,8 @@ const REGRESSIONS = [
             ["remnants.mjs", "retuneRemnant", ["ifLive"], false],
             ["remnants.mjs", "moveIntoLedger", ["weak", "fillOnly"], false],
             ["remnants.mjs", "carryPromotion", ["ifLive"], false],
+            // The moved path's promotion, at the world's upgrade mark (E04's fix round): it amends the moved row.
+            ["remnants.mjs", "promoteAtMark", ["ifLive"], false],
             ["remnants.mjs", "seedPublicIfMissing", ["weak", "fillOnly"], false],
             // The cast's lift out of world data (C6; its row came with C9).
             ["murder.mjs", "liftIncidentSecrets", ["weak", "fillOnly"], true],
