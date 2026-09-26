@@ -940,21 +940,21 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         return S.offerStore?.newest("${IDS.aiko}") ?? null;`);
     await settle(800);
     const litJ4 = await litOn(p1);
-    /* The sheet is counted on the one object every read returns. The harness's `actor.sheet`
-       is a getter that makes a new object at each read (lib/shim.mjs), where Foundry's is the
-       actor's one cached sheet: a counter put on one read's object saw nothing - measured
-       26.09.2026, renders 0 with the redraw running and with it a no-op alike. For this phase
-       p1's Aiko keeps one sheet, as in Foundry; each draw notes its caller, and the offers
-       packets p1 took meanwhile are counted, so a draw is the cut's only when none came. */
-    await p1.eval(`const a = game.actors.get("${IDS.aiko}"); globalThis.__renders = 0; globalThis.__renderedBy = [];
-        const sheet = a.sheet, render = sheet.render.bind(sheet);
-        sheet.render = (...args) => {
+    /* The sheet is counted on `actor.sheet` itself: the harness keeps one sheet per document,
+       as Foundry does (lib/shim.mjs, fix round 11). Until then its getter made a new object
+       at each read, a counter put on one read's object saw nothing - measured 26.09.2026,
+       renders 0 with the redraw running and with it a no-op alike - and this phase put a
+       sheet of its own in place. Each draw notes its caller, and the offers packets p1 took
+       meanwhile are counted, so a draw is the cut's only when none came. */
+    const sameSheetJ4 = await p1.eval(`const a = game.actors.get("${IDS.aiko}"); globalThis.__renders = 0; globalThis.__renderedBy = [];
+        const sheet = a.sheet, render = sheet.render;
+        globalThis.__j4Render = render;
+        sheet.render = function (...args) {
             globalThis.__renders++;
             globalThis.__renderedBy.push((new Error().stack ?? "").split("\\n").slice(2, 4).map(l => l.trim().replace(/\\(.*\\//, "(")).join(" < "));
-            return render(...args);
+            return render.apply(this, args);
         };
-        Object.defineProperty(a, "sheet", { configurable: true, get: () => sheet });
-        return true;`);
+        return a.sheet === sheet && game.actors.get("${IDS.aiko}").sheet.render === sheet.render;`);
     const packetsBeforeJ4 = await offersNow();
     const resetJ4 = await gm2.eval(`${RESET} const E = await import("${repoUrl}/scripts/gm-store.mjs");
         const S = await import("${repoUrl}/scripts/gm-stores.mjs");
@@ -968,7 +968,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     await settle(800);
     const afterJ4 = await p1.eval(`${LV} const a = game.actors.get("${IDS.aiko}");
         const out = { copy: S.offerCopy.read(), lit: L.pendingAdvance(a)?.kind ?? null, renders: globalThis.__renders, by: globalThis.__renderedBy };
-        delete a.sheet;
+        a.sheet.render = globalThis.__j4Render;
         return out;`);
     afterJ4.packets = (await offersNow()) - packetsBeforeJ4;
     const askedJ4 = await offersNow();
@@ -976,8 +976,8 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     await settle(800);
     const answerJ4 = await offersSince(askedJ4), litAfterAsk = await litOn(p1);
     check("J4: the reset takes the offer off p1's copy, its sheet is drawn again, and the primary's answer after it does not light the button",
-        litJ4.offer === "standard" && resetJ4.cut > offeredJ4 && resetJ4.offer === null && J(afterJ4.copy) === "{}" && afterJ4.lit === null
-        && afterJ4.renders >= 1 && afterJ4.packets === 0 && litAfterAsk.offer === null, J({ offeredJ4, litJ4, resetJ4, afterJ4, answerJ4, litAfterAsk }));
+        sameSheetJ4 && litJ4.offer === "standard" && resetJ4.cut > offeredJ4 && resetJ4.offer === null && J(afterJ4.copy) === "{}" && afterJ4.lit === null
+        && afterJ4.renders >= 1 && afterJ4.packets === 0 && litAfterAsk.offer === null, J({ sameSheetJ4, offeredJ4, litJ4, resetJ4, afterJ4, answerJ4, litAfterAsk }));
 
     /* ------------------- Z. the browser is lost, and the case comes back ------------------- */
 

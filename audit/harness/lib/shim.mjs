@@ -416,6 +416,21 @@ export function buildDocumentClasses(ctx) {
         }
     }
 
+    /*
+     * ONE SHEET PER DOCUMENT (E04's fix round 11, 26.09.2026). Foundry keeps one sheet per
+     * document, and every read of `actor.sheet` hands back that one object. These getters
+     * made a new object at each read, so a count put on one read's sheet saw nothing: 61 J4
+     * measured renders 0 with the redraw running and with it a no-op alike (fix round 8)
+     * and put a sheet of its own in place for the phase. Each is made at the first read
+     * and kept here, beside the document rather than on it, so nothing that copies a
+     * document's own properties carries it.
+     */
+    const sheets = new WeakMap();
+    const sheetOf = (doc, make) => {
+        if (!sheets.has(doc)) sheets.set(doc, make());
+        return sheets.get(doc);
+    };
+
     function sanitize(d) {
         // strip class instances → plain data
         return JSON.parse(JSON.stringify(d ?? {}));
@@ -466,7 +481,7 @@ export function buildDocumentClasses(ctx) {
         get appliedEffects() { return this.effects?.contents ?? []; }
         get sheet() {
             const self = this;
-            return { render() { return this; }, close() {}, rendered: false, element: null, document: self };
+            return sheetOf(this, () => ({ render() { return this; }, close() {}, rendered: false, element: null, document: self }));
         }
     }
 
@@ -474,7 +489,7 @@ export function buildDocumentClasses(ctx) {
         static get documentName() { return "Item"; }
         get actor() { return this.parent; }
         get effects() { return this._collections.effects; }
-        get sheet() { return { render() { return this; }, close() {}, rendered: false }; }
+        get sheet() { return sheetOf(this, () => ({ render() { return this; }, close() {}, rendered: false })); }
     }
 
     class TokenDocumentImpl extends BaseDocument {
