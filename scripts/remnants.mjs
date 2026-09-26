@@ -253,7 +253,8 @@ export async function dropRemnant(actor, {
  */
 export async function placeRemnant(data = {}) {
     if (!game.user.isGM) {
-        // Answered once placed (E31), so "placed" means placed at every caller.
+        // Answered once placed (E31), and refused as failed when the GM's client
+        // could not place it (E31 review), so "placed" means placed at every caller.
         const { requestRemnant } = await import("./gm-bridge.mjs");
         const res = await requestRemnant(data);
         return res.ok ? { pending: true } : null;

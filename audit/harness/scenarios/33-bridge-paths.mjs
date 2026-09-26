@@ -485,6 +485,34 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await gm.eval(`game.settings.set = globalThis.__e31RealSet9; return true;`);
     }
 
+    // B10: a trace the GM's client fails to place is answered as a failure, not as placed (E31 review), so the
+    // item it stands for stays on the sheet: the token's creation throws on the GM, which placeRemnant catches.
+    phase("a trace that could not be placed", { flow: "trace-remnant" });
+    await gm.eval(`const scene = canvas.scene;
+        globalThis.__e31RealCreate = scene.createEmbeddedDocuments;
+        scene.createEmbeddedDocuments = function (name, data, ...rest) {
+            if (name === "Token" && data?.[0]?.flags?.["${MOD}"]) {
+                globalThis.__e31Thrown.trace = (globalThis.__e31Thrown.trace ?? 0) + 1;
+                throw new Error("E31 injected: the trace's token could not be created");
+            }
+            return globalThis.__e31RealCreate.call(this, name, data, ...rest);
+        };
+        return true;`);
+    try {
+        const n10 = await noticeCount(p1);
+        const placed = await p1.eval(`return await ${bridge}.requestRemnant({ sourceActor: "${IDS.aiko}", sourceName: "Aiko Hoshino",
+            visibility: "evident", type: "prep", action: "search", subject: "E31 unplaced", x: 1600, y: 400, sceneId: canvas.scene.id });`,
+            { timeout: 30000 });
+        await settle(1200);
+        const b10 = { placed, thrown: await gm.eval(`return globalThis.__e31Thrown.trace ?? 0;`),
+            said: (await noticesSince(p1, n10)).map(x => x.msg) };
+        check("B10: a trace whose token the GM's client could not create is answered failed, not placed, and said once",
+            b10.thrown >= 1 && b10.placed?.ok === false && b10.placed?.refused === true && b10.placed?.reason === "failed"
+            && b10.said.length === 1, JSON.stringify(b10));
+    } finally {
+        await gm.eval(`delete canvas.scene.createEmbeddedDocuments; return typeof canvas.scene.createEmbeddedDocuments;`);
+    }
+
     /* ------------------------------------------- A. the Assistant as the primary */
 
     phase("the Assistant as the primary", { flow: "give-take-stash" });

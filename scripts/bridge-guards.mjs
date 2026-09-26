@@ -167,6 +167,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["failed", /^the handler failed: /],
     ["failed", /^the Call could not be armed$/],
     ["failed", /^the ruling card could not be posted$/],
+    ["failed", /^the trace could not be placed$/],
     ["unknownSender", /^unknown sender$/],
     ["notYours", /^sender does not own /],
     ["notYours", /^sender did not leave that Remnant$/],

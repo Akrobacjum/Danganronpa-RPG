@@ -723,7 +723,10 @@ async function handleRemnant(payload, sender, ctx) {
         if (narrowed.refused) return { refused: narrowed.refused };
         data = narrowed.data;
     }
-    await placeRemnant(data);
+    // A trace this client could not place (no scene, no Remnant actor, a token
+    // that could not be created) is a failure, not "placed" (E31 review): the
+    // player's item stays on the sheet.
+    if (!await placeRemnant(data)) return { refused: "the trace could not be placed" };
     debug("Placed a Remnant on behalf of a player.");
 }
 
@@ -1193,7 +1196,8 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, ownsActorAt(payload => payload?.data?.sourceActor, "sender does not own the character leaving it", ["data"])],
         sanitize: pick({ data: as.raw }),
         run: handleRemnant,
-        // Answered once placed (E31): the item a planted trace stands for leaves the sheet only then.
+        // Answered once placed (E31), and as failed when it could not be (E31 review):
+        // the item a planted trace stands for leaves the sheet only when it was.
         answer: "reply",
         claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs); a GM's is placed as written" }
     },
@@ -1535,8 +1539,10 @@ export function requestTieTrace(identity) {
 
 /**
  * Creating tokens is GM-only, so a player's Remnant is placed for them. Answered
- * when it is placed (E31), not when it arrived: the item a planted trace stands
- * for is taken off the sheet only then, and "trace left" is said only then.
+ * when it is placed (E31), not when it arrived, and refused as failed when the
+ * GM's client could not place it (E31 review): the item a planted trace stands
+ * for is taken off the sheet only when it was placed, and "trace left" is said
+ * only then.
  */
 export function requestRemnant(data) {
     return ask(ACTION_REMNANT, { data });
