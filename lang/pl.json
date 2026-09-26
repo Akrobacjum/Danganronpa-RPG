@@ -4557,7 +4557,9 @@
         "blackened": "Rejestr Blackened",
         "trapLedger": "Podłożone przedmioty pułapek",
         "trapPlants": "Przedmioty czekające w pokojach",
-        "observe": "Deklaracje Observe czekające na rzut"
+        "observe": "Deklaracje Observe czekające na rzut",
+        "offers": "Oferowane Level Upy",
+        "discovery": "Pokoje odkryte przez każdą postać"
       },
       "row": {
         "traces": {

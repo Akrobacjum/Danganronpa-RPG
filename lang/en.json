@@ -3328,7 +3328,9 @@
         "blackened": "The Blackened register",
         "trapLedger": "The traps' planted objects",
         "trapPlants": "The plants waiting in rooms",
-        "observe": "The Observe declarations waiting for their roll"
+        "observe": "The Observe declarations waiting for their roll",
+        "offers": "The Level Ups on offer",
+        "discovery": "The rooms each character has found"
       },
       "row": {
         "traces": {

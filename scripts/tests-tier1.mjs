@@ -3658,9 +3658,11 @@ const INVARIANTS = [
          * tombstone, a reset's cut - keeps every newer value, brings back no tombstoned
          * or cut row, takes the one row it adds, and twice is once; the preview says
          * the same before anything is written; the file takes exactly the stores that
-         * say they are backed up, of fakes and of the real table; a file of a newer
-         * format is refused and the Truth Bullet export of every version before E04 is
-         * read as the bullets' section.
+         * say they are backed up, of fakes and of the real table; every store in the
+         * table has a name the case's windows show (the offers and the fog had none
+         * until the C8/C9 fix: their rows in Restore read as the raw key); a file of a
+         * newer format is refused and the Truth Bullet export of every version before
+         * E04 is read as the bullets' section.
          */
         const G = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -3695,6 +3697,9 @@ const INVARIANTS = [
         const inFile = Object.keys(S.caseSections(real)).sort();
         ok(inFile.length >= 1, "no GM store is backed up - the table did not load");
         equal(J(inFile), J(real.filter(h => h.spec.backup).map(h => h.name).sort()), "the backup does not hold exactly the stores that say they are backed up");
+        // Every store is named where the case's windows speak of it: the preview, the restore's line, the health rows.
+        const unnamed = real.filter(h => !game.i18n.has(`DRPG.Case.store.${h.name}`)).map(h => h.name);
+        ok(!unnamed.length, `the case's windows have no name for the store(s) ${unnamed.join(", ")}`);
         const built = S.caseFileOf({ sections: S.caseSections(fake), world: { id: "R173WORLD", title: "R173" }, exportedAt: "x", exportedBy: "y" });
         equal(J([built.format, built.version, Object.keys(built.stores)]), J([S.CASE_FORMAT, S.CASE_VERSION, ["backedUp"]]), "the file is not the case format");
         equal(S.readCaseFile(J({ format: S.CASE_FORMAT, version: S.CASE_VERSION + 1, stores: {} })).refused, "newer", "a file of a newer format was not refused");
