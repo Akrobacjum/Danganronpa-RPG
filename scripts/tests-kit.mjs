@@ -502,6 +502,10 @@ const WORLD = {
         () => new Set([...(viewed()?.tokens ?? [])].flatMap(t => roomsOfToken(t).map(r => r.id))).size],
     studentsInRooms: ["students standing in a named room on the scene on screen",
         () => living().filter(a => [...(viewed()?.tokens ?? [])].some(t => t.actorId === a.id && roomsOfToken(t).length)).length],
+    /* A player's own character standing in a named room: whom R166 judges a search for (E31 review). */
+    playerCharactersInRooms: ["player-owned characters standing in a named room on the scene on screen",
+        () => game.actors.filter(a => a.type === "character" && game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER"))
+            && [...(viewed()?.tokens ?? [])].some(t => t.actorId === a.id && roomsOfToken(t).length)).length],
     studentTokensOnScreen: ["students with a token on the scene on screen",
         () => living().filter(a => [...(viewed()?.tokens ?? [])].some(t => t.actorId === a.id)).length],
     livingStudents: ["living students", () => living().length],
@@ -907,6 +911,8 @@ const BRIDGE_TABLE_FILES = Object.freeze([
  *   6. every id or raw field the run receives is covered: by a factory guard
  *      that names it, or by a claim - a guard of the declaration whose source
  *      reads `payload.<field>`, or a written reason of at least 20 characters;
+ *      and a field named as an id (`...Id`) is sanitized `as.id`, so it is one of
+ *      them (E31 review: as text it would pass this step unjudged);
  *   7. every `runGuards` entry is named in the run, or in a function of the
  *      table's file the run names;
  *   8. every code of `reasons` has its sentence, `DRPG.Bridge.why.<code>`, in en
@@ -970,6 +976,9 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
             }
 
             const kinds = decl.sanitize?.fields ?? {};
+            for (const field of Object.keys(kinds)) {
+                if (/Id$/.test(field) && kinds[field] !== "id") problems.push(`${at}: ${field} names an id and is sanitized as ${kinds[field]}, not as.id`);
+            }
             const judged = Object.keys(kinds).filter(field => kinds[field] === "id" || kinds[field] === "raw");
             if (judged.length) withIds++;
             for (const field of judged) {

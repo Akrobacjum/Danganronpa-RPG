@@ -202,10 +202,11 @@ steps; R1b, R162-R166 and the lint rule are there to catch a skipped one.
    lang/en.json and lang/pl.json.
 2. **Declare it.** One row `{ label, guards, sanitize, run, answer }` in the
    table. Guards come from `scripts/bridge-guards.mjs`, in the order they are
-   asked: `knownSender` (or `gmOnly`) first; for every id the run receives, a
-   guard that names it (`owns`, `ownsActorAt`, `canSeeProject`, `gmOnly`) or a
-   `claims` line saying who judges it; a guard that spends a Reroll receipt
-   last. `sanitize: pick({...})` lists exactly what the run reads (R163). A
+   asked: `knownSender` (or `gmOnly`) first; for every id the run receives
+   (sanitized `as.id`, as a field named `...Id` must be), a guard that names
+   it (`owns`, `ownsActorAt`, `canSeeProject`, `gmOnly`) or a `claims` line
+   saying who judges it; a guard that spends a Reroll receipt last.
+   `sanitize: pick({...})` lists exactly what the run reads (R163). A
    check that must not wait between itself and the write goes in `prepare`
    (imports) or in the run. `answer` is `"reply"` when the asker says or
    counts anything on it that claims the action was done, and for every

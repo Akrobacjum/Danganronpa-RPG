@@ -3288,10 +3288,26 @@ const INVARIANTS = [
          * exists to replace, with nothing refused and nothing to see. It is keyed by
          * `ctx`, the one object the runner hands both. The harness has one scene, so no
          * scenario can show a spend landing on the wrong one; this is where it is held.
-         * Pure over fakes and a table of its own: nothing leaves this client.
+         *
+         * THE REAL ONES (E31 review: this test ran `searchSceneOf` and a table of its
+         * own, and none of `guardSearchRoom`, `runSpend` or `runTakePlant`, so a
+         * guard that keyed the place by the packet, or a run that dropped `ctx`,
+         * passed it). SEARCH_ACTIONS is judged here for a player who plays a
+         * character standing in a room, with a packet naming a scene nobody stands
+         * on; the token store is spied for the two calls and put back, so nothing is
+         * spent, and the runner's packets go to a recorder: nothing leaves this
+         * client. Red on copies with each of those faults planted.
          */
-        const { searchSceneOf } = await import("./search-tokens.mjs");
+        const { searchSceneOf, SEARCH_ACTIONS, SearchTokens } = await import("./search-tokens.mjs");
         const { judge, knownSender, pick, as } = await import("./bridge-guards.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        needs(world.atLeast("playerCharactersInRooms"), "a search is judged for a player's own character standing in a named room");
+        // The searcher: such a character, found as the bridge's guard finds it.
+        const searcher = game.users.filter(u => !u.isGM).flatMap(user => game.actors
+            .filter(a => a.type === "character" && a.testUserPermission(user, "OWNER"))
+            .map(actor => ({ user, actor, place: locateActor(actor) })))
+            .find(s => s.place?.room && s.place.scene?.id);
+        ok(searcher, "the world has a player's character standing in a named room, and locateActor finds none");
         const A = "R166SCENEA000000", B = "R166SCENEB000000";
         const judged = new WeakMap(), ctx = {};
         judged.set(ctx, { scene: { id: A }, room: "Hall" });
@@ -3310,6 +3326,27 @@ const INVARIANTS = [
         ok(handed.length === 2 && handed[0] !== handed[1] && !judged.has(handed[1]),
             "the runner handed the guard and the run the same object - this measures nothing about ctx");
         equal(JSON.stringify(scenes), JSON.stringify([A]), "the run did not find, through ctx, the place its guard judged");
+
+        // Through the module's own table: the spend and the plant check that follows it land on the scene the
+        // character stands on, not on the one the packet names.
+        const { user, actor, place } = searcher;
+        const recorded = [], told = [];
+        const real = { spend: SearchTokens.spend, takePlant: SearchTokens.takePlant };
+        SearchTokens.spend = async (room, sceneId) => { recorded.push(`spend ${room} ${sceneId}`); return true; };
+        SearchTokens.takePlant = async (room, sceneId) => { recorded.push(`takePlant ${room} ${sceneId}`); return null; };
+        try {
+            for (const action of ["searchTokens.spend", "searchTokens.takePlant"]) {
+                await judge(SEARCH_ACTIONS, { action, requestId: `r166-${action}`, userId: user.id, actorId: actor.id,
+                    roomName: place.room, sceneId: B }, user.id, { send: (to, packet) => told.push(packet.action) });
+            }
+        } finally {
+            SearchTokens.spend = real.spend;
+            SearchTokens.takePlant = real.takePlant;
+        }
+        equal(JSON.stringify({ recorded, told }), JSON.stringify({
+            recorded: [`spend ${place.room} ${place.scene.id}`, `takePlant ${place.room} ${place.scene.id}`],
+            told: ["bridge.ack", "bridge.done", "bridge.ack", "bridge.done"] }),
+            "the real guard and runs recorded the search on the scene the packet names, or not at all");
     }],
 
     ["R167 - handOff closes a window without waiting for its transition", async () => {

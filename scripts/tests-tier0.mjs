@@ -268,8 +268,9 @@ const REGRESSIONS = [
          * every reason a refusal can carry is said in both languages, and so is
          * every request named to `tellRefused` by hand, and a declaration's `tell`
          * is one of the closed list's codes, and a queued declaration answers
-         * reply. The reader is run first on a fixture with six planted faults,
-         * which must come back exactly.
+         * reply, and a field named as an id is sanitized as one. The reader is run
+         * first on a fixture with seven planted faults, which must come back
+         * exactly.
          *
          * READ LIVE rather than exercised, because the thing being checked is the
          * SHAPE of the judgement, not its outcome: a request that never runs in a
@@ -289,7 +290,9 @@ const REGRESSIONS = [
             "fixture.tell": { label: "DRPG.Bridge.what.fixture.tell", guards: [G.knownSender],
                 sanitize: G.pick({ n: G.as.num }), run: fine, answer: "ack", tell: "fixtureNowhere" },
             "fixture.queued": { label: "DRPG.Bridge.what.fixture.queued", guards: [G.knownSender],
-                sanitize: G.pick({ n: G.as.num }), run: fine, answer: "ack", queue: "fixture" }
+                sanitize: G.pick({ n: G.as.num }), run: fine, answer: "ack", queue: "fixture" },
+            "fixture.textId": { label: "DRPG.Bridge.what.fixture.textId", guards: [G.knownSender],
+                sanitize: G.pick({ targetId: G.as.text }), run: fine, answer: "ack" }
         } }];
         const labels = Object.keys(FIXTURE[0].table).map(action => `DRPG.Bridge.what.${action}`);
         const said = ["DRPG.Bridge.notDone", "DRPG.Bridge.nothingSpent", "DRPG.Bridge.why.fixtureSaid"];
@@ -303,8 +306,9 @@ const REGRESSIONS = [
             "fixture.mjs fixture.receipt: guardObserveReceipt spends a Reroll receipt and is not the last guard",
             "fixture.mjs fixture.tell: it tells its refusals as \"fixtureNowhere\", which is not a code of the closed list",
             "fixture.mjs fixture.queued: it waits in the \"fixture\" queue, is acknowledged as it arrives, and answers \"ack\", not reply",
+            "fixture.mjs fixture.textId: targetId names an id and is sanitized as text, not as.id",
             "reason fixtureUnsaid: DRPG.Bridge.why.fixtureUnsaid is missing in pl.json"
-        ]), "the table reader does not find exactly the six faults planted for it - it would misread the module's tables too");
+        ]), "the table reader does not find exactly the seven faults planted for it - it would misread the module's tables too");
 
         // The requests named to `tellRefused` by hand, outside the runner: a literal second argument.
         const toldIn = text => [...stripComments(text).matchAll(/\btellRefused\(\s*[^,()]+,\s*"([^"]+)"/g)].map(m => m[1]);
