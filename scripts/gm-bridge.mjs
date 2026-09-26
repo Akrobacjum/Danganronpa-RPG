@@ -930,12 +930,16 @@ async function handleEclipseMove(payload, sender, ctx) {
  * they are asked - `knownSender` (or `gmOnly`) first; for every id the run
  * receives, a guard that names it or a `claims` line saying who judges it; a
  * guard that spends a Reroll receipt last - the fields the run may read
- * (`sanitize`), the run, and how the asker is answered: `ack` once the guards
- * have passed, `reply` with the run's answer, `none` for a request nobody
- * waits on (quiet: its refusals are logged, not told). `prepare` holds what a
- * handler did before its guards and must still do before them: an import that
- * must not come between the last check and the write, a reading the write
- * must share. `queue` keeps the project writes in the order they arrived.
+ * (`sanitize`), the run, and how the asker is answered: `reply` once the run
+ * has carried it out, with its answer - every request whose asker says or
+ * counts on it that it was done (E31 review), and every queued one; `ack` once
+ * the guards have passed, for a request whose asker says only that the GM's
+ * client has it, or nothing; `none` for a request nobody waits on (quiet: its
+ * refusals are logged, not told). `prepare` holds what a handler did before its
+ * guards and must still do before them: an import that must not come between
+ * the last check and the write, a reading the write must share. `queue` keeps
+ * the project writes in the order they arrived, and is acknowledged as each
+ * arrives.
  * `judge` (bridge-guards.mjs) carries every one of them out; R1b reads this
  * table, R163 the fields each run reads, and 33-bridge-paths drives the legal
  * roads through it.
@@ -971,6 +975,10 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, owns("actorId", "sender does not own that character"), guardObserveReceipt],
         sanitize: pick({ actorId: as.id, key: as.text, total: as.num, isCritical: as.bool, undo: as.bool }),
         run: handleObserveResolve,
+        // The "got it" only: the run can wait on the GM describing what was found
+        // (`describeFind`, observe.mjs), and what its asker says on the answer is
+        // that the GM has it - "The GM is judging what you found", and a Reroll's
+        // "goes back to the GM" (E31 review).
         answer: "ack"
     },
     [ACTION_ANALYZE_RESOLVE]: {
@@ -978,7 +986,7 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, owns("actorId", "sender does not own that character"), guardAnalyzeReceipt],
         sanitize: pick({ actorId: as.id, itemId: as.id, total: as.num, isCritical: as.bool, undo: as.bool }),
         run: handleAnalyzeResolve,
-        answer: "ack",
+        answer: "reply",
         claims: { itemId: "looked up on that one character by resolveAnalyze (analyze.mjs), never across the world" }
     },
     [ACTION_ADVANCEMENT]: {
@@ -997,7 +1005,7 @@ export const BRIDGE_ACTIONS = table({
         guards: [gmOnly("only a GM hands out a Level Up"), owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id, kind: as.maybeText }),
         run: handleAdvancementOffer,
-        answer: "ack"
+        answer: "reply"
     },
     [ACTION_ADVANCEMENT_ASK]: {
         label: "DRPG.Bridge.what.advancement.ask",
@@ -1068,7 +1076,9 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ actorId: as.id, key: as.text, total: as.num, isCritical: as.bool, withHope: as.bool, undo: as.bool,
             choice: as.oneOf("stress", "hp"), usedItemId: as.id, swungId: as.id, free: as.bool }),
         run: handleCrisis,
-        answer: "ack",
+        // Answered once applied, which can wait on the GM: two killers' victim
+        // running out is asked of them (`checkVictimSpent`, murder.mjs).
+        answer: "reply",
         claims: {
             usedItemId: "narrowed in the run to an item the acting character holds, else null",
             swungId: "narrowed in the run to an item the acting character holds, else null"
@@ -1079,7 +1089,7 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, owns("killerId", "sender does not own that character")],
         sanitize: pick({ killerId: as.id, room: as.maybeText, note: as.text }),
         run: handleParkMurder,
-        answer: "ack"
+        answer: "reply"
     },
     [ACTION_BETRAYAL]: {
         label: "DRPG.Bridge.what.murder.betrayal",
@@ -1096,7 +1106,7 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ actorId: as.id, tokenId: as.id, key: as.text, targetId: as.id, total: as.num, isCritical: as.bool,
             withHope: as.bool, viaAction: as.bool, undo: as.bool, grant: as.bool, price: as.raw, transform: as.raw, change: as.raw }),
         run: handleCleanup,
-        answer: "ack",
+        answer: "reply",
         claims: {
             tokenId: "resolveCleanup (cleanup.mjs) finds the trace in the cleaner's room and judges it, or refuses",
             targetId: "resolveStageSix (cleanup.mjs) judges who may be framed and where the body lies",
@@ -1153,7 +1163,7 @@ export const BRIDGE_ACTIONS = table({
         ],
         sanitize: pick({ countdownId: as.id, amount: as.num }),
         run: handleProgress,
-        answer: "ack", queue: "project"
+        answer: "reply", queue: "project"
     },
     [ACTION_SHARE]: {
         label: "DRPG.Bridge.what.project.share",
@@ -1175,7 +1185,7 @@ export const BRIDGE_ACTIONS = table({
         prepare: () => import("./projects.mjs"),
         sanitize: pick({ countdownId: as.id, targetUserId: as.id }),
         run: handleShare,
-        answer: "ack",
+        answer: "reply",
         claims: { targetUserId: guardShareGuest }
     },
     [ACTION_REMNANT]: {
@@ -1211,7 +1221,7 @@ export const BRIDGE_ACTIONS = table({
         ],
         sanitize: pick({ sceneId: as.id, tokenId: as.id, patch: as.raw }),
         run: handleRemnantEdit,
-        answer: "ack",
+        answer: "reply",
         // Every refusal by these guards is told to the asker as this one code; the
         // GM's log keeps each guard's own reason (E31 review).
         tell: "traceOutOfReach",
@@ -1251,7 +1261,7 @@ export const BRIDGE_ACTIONS = table({
         ],
         sanitize: pick({ targetId: as.id, repairId: as.id }),
         run: handleUnsabotage,
-        answer: "ack", queue: "project",
+        answer: "reply", queue: "project",
         claims: { repairId: guardUnsabotagePair }
     },
     [ACTION_SENDBACK]: {
@@ -1274,7 +1284,7 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, owns("takerId", "sender does not own the character doing the taking")],
         sanitize: pick({ takerId: as.id, bodyId: as.id, itemId: as.id }),
         run: handleLoot,
-        answer: "ack",
+        answer: "reply",
         // Where the taker stands is not asked (the E31 design's map of the GM side,
         // row 30) - written down here, not added: E31 adds no check.
         claims: {
@@ -1321,7 +1331,7 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, guardDespairOwner, guardDespairMonokuma, guardDespairDelta, guardDespairPool, guardDespairReceipt],
         sanitize: pick({ targetUserId: as.id, delta: as.num }),
         run: handleDespair,
-        answer: "ack",
+        answer: "reply",
         claims: { targetUserId: guardDespairPool }
     },
     [ACTION_ECLIPSE_MOVE]: {
@@ -1330,7 +1340,7 @@ export const BRIDGE_ACTIONS = table({
         guards: [knownSender, owns("actorId", "sender does not own that character")],
         sanitize: pick({ actorId: as.id }),
         run: handleEclipseMove,
-        answer: "ack"
+        answer: "reply"
     }
 });
 
@@ -1488,8 +1498,9 @@ export function requestSabotage(targetId, difficulty, timeoutMs = TIMING.rulingM
 /**
  * Taking a sabotage back writes the same two settings. It is only ever called by
  * Reroll, after the Call has already been paid for and the new roll is about to
- * replace the old effect, so the player has nothing to race against and the
- * "got it" is all it waits for.
+ * replace the old effect, so the player has nothing to race against; it waits
+ * for the thaw all the same, because the Reroll says the sabotage was undone
+ * only once it was (E31 review).
  */
 export function requestUndoSabotage(targetId, repairId, actorId = null) {
     return ask(ACTION_UNSABOTAGE, { targetId, repairId, actorId });
@@ -1727,8 +1738,9 @@ export async function requestCleanableTraces(actorId, { mine = false, quiet = fa
  * Hand a thrown Observe to the GM to be scored.
  *
  * The answer is the whisper the player gets when the GM's client has finished -
- * a Truth Bullet on their sheet or 2 Sanity - so the request waits only for the
- * "got it", and a refusal after it is still told.
+ * a Truth Bullet on their sheet or 2 Sanity - which can wait on the GM
+ * describing what was found, so the request waits only for the "got it", and a
+ * refusal after it is still told.
  */
 export function requestObserveResolve({ actorId, key, total, isCritical, undo = false }) {
     return ask(ACTION_OBSERVE_RESOLVE, { actorId, key, total, isCritical, undo }, {
@@ -1739,8 +1751,10 @@ export function requestObserveResolve({ actorId, key, total, isCritical, undo = 
 /**
  * Hand a thrown Analyze to the GM to be scored.
  *
- * Like its Observe counterpart: the answer is the whisper the player gets once
- * the GM's client has converted the bullet or locked it.
+ * The verdict is the whisper the player gets once the GM's client has
+ * converted the bullet or locked it; unlike Observe, nothing in that waits on a
+ * person, so the request waits for it (E31 review) and a Reroll says the bullet
+ * was analysed again only when it was.
  */
 export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo = false }) {
     return ask(ACTION_ANALYZE_RESOLVE, { actorId, itemId, total, isCritical, undo }, {
@@ -1942,7 +1956,8 @@ export function requestStashSearch({ actorId, total = 0, isCritical = false }) {
 
 /**
  * Ask the GM to add project progress on our behalf. What actually changed is
- * whispered back by the GM's client; the request knows only that it arrived.
+ * whispered back by the GM's client; the request knows that it was carried out
+ * (E31 review), not what it changed.
  */
 export function requestProjectProgress(countdownId, amount, actorId = null) {
     return ask(ACTION_PROGRESS, { countdownId, amount, actorId });

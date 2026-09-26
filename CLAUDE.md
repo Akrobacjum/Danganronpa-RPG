@@ -59,8 +59,8 @@ permission gate that models ownership and roles and little else; v14's
 operators, pre-update steps and user roles modelled from notes, not from v14's
 source; no real server. Each assumption not confirmed on v14 has a LIVE-E30 id,
 and every results file lists them under `environment.unconfirmed`. What E31
-could not measure headless - a real Reroll through the table, the
-acknowledgement's timing on a real server, a GM leaving mid-request, a late
+could not measure headless - a real Reroll through the table, a request's
+timing on a real server, a GM leaving mid-request, a late
 planted item, a window closing under reduced motion, a Polish player's refusal -
 is LIVE-E31-01..06 (audit/AUDIT-1.2.42.md 9.2).
 
@@ -207,8 +207,12 @@ steps; R1b, R162-R166 and the lint rule are there to catch a skipped one.
    `claims` line saying who judges it; a guard that spends a Reroll receipt
    last. `sanitize: pick({...})` lists exactly what the run reads (R163). A
    check that must not wait between itself and the write goes in `prepare`
-   (imports) or in the run. `answer` is `"ack"`, `"reply"`, or `"none"` for a
-   report nobody waits on (and then `quiet`); `patient`, `resend` and
+   (imports) or in the run. `answer` is `"reply"` when the asker says or
+   counts anything on it that claims the action was done, and for every
+   queued declaration (a queue acknowledges each request as it arrives; R1b);
+   `"ack"` when the asker says only that the GM's client has it, or nothing,
+   and when the run can wait on a person, as Observe's can; `"none"` for a
+   report nobody waits on (and then `quiet`). `patient`, `resend` and
    `timeoutMs` say how the asker waits. `tell` names one code of `REASONS`
    that every refusal by the guards is told with; the GM's log keeps each
    guard's own reason.

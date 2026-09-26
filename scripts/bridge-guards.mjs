@@ -922,6 +922,14 @@ export function pick(spec) {
  * refusal, or an acknowledgement followed by at most one more packet: its answer,
  * or a refusal from the run.
  *
+ * EXCEPT IN A QUEUE, WHERE IT IS ACKNOWLEDGED AS IT ARRIVES (E31 review). Its
+ * guards run inside the queue, behind every write that arrived before it, so
+ * its "got it" waited for all of them, and a wait longer than the asker's clock
+ * for it (`TIMING.ackMs`) was told "no answer" and carried out all the same. So
+ * a queued request is acknowledged on arrival, and a refusal by its guards
+ * comes after that; a queued declaration answers "reply" (R1b), so its asker
+ * settles on the answer or the refusal, never on the "got it".
+ *
  * AND A THROW IS A REFUSAL. A handler that threw after the acknowledgement
  * reached nobody: the player's request had been "got", the answer never came,
  * and an awaited one sat on its three-minute clock. Whatever throws here -
@@ -940,7 +948,7 @@ export function pick(spec) {
  * new object built from it; it writes to neither.
  * ========================================================================== */
 
-/** GM -> player: "your request passed its guards and is being carried out". */
+/** GM -> player: "your request passed its guards and is being carried out" - or, in a queue, "it has arrived". */
 const ACTION_ACK = "bridge.ack";
 
 /*
@@ -975,15 +983,19 @@ export function judge(table, payload, senderId, { send = emitTo } = {}) {
     const decl = typeof action === "string" && Object.hasOwn(table, action) ? table[action] : null;
     if (!decl) return false;
     const ctx = { asker: senderId ?? null, requestId: payload.requestId ?? null, action, quiet: Boolean(decl.quiet) };
+    const acknowledge = () => send(ctx.asker, { action: ACTION_ACK, requestId: ctx.requestId, userId: ctx.asker });
+    // A queued request is acknowledged as it arrives; everything else once its guards have passed (see above).
+    const early = Boolean(decl.queue) && decl.answer !== "none" && Boolean(ctx.requestId);
+    if (early) {
+        try { acknowledge(); } catch (err) { error(`Could not acknowledge "${action}"`, err); }
+    }
     const work = async () => {
         try {
             const prepared = decl.prepare ? await decl.prepare(payload) : null;
             const sender = senderOf(senderId);
             const why = await firstRefusal(sender, payload, ctx, ...decl.guards);
             if (why) return refuse(action, why, ctx, send, decl.tell ?? reasonOf(why));
-            if (decl.answer !== "none" && ctx.requestId) {
-                send(ctx.asker, { action: ACTION_ACK, requestId: ctx.requestId, userId: ctx.asker });
-            }
+            if (!early && decl.answer !== "none" && ctx.requestId) acknowledge();
             const out = await decl.run(decl.sanitize(payload, sender), sender, ctx, prepared);
             if (out?.refused) return refuse(action, out.refused, ctx, send);
             if (decl.answer === "reply" && !out?.later && ctx.requestId) answer(decl, ctx, out?.reply ?? null, send);

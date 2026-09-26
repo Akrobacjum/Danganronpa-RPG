@@ -3012,7 +3012,9 @@ const INVARIANTS = [
          * and then answered at most once more - its reply, or the run's own refusal;
          * an exception anywhere (preparing, a guard, the run) is logged and told as one
          * refusal, "the handler failed"; a queue keeps the order packets arrived in
-         * even when the first run is the slower one. Every refusal carries the code
+         * even when the first run is the slower one, and acknowledges each packet as
+         * it arrives, ahead of the writes before it (E31 review), a refusal from its
+         * guards coming after that acknowledgement. Every refusal carries the code
          * of the closed list its English reason stands for (E31 C4): "not their
          * character" goes as notYours, an exception as failed, and a reason no
          * pattern takes as refused. What reaches the GM's socket is handed to this
@@ -3023,6 +3025,8 @@ const INVARIANTS = [
         const me = game.user.id, sent = [], ran = [];
         const send = (to, packet) => sent.push({ to, ...packet });
         const decl = (run, more = {}) => ({ label: "x", guards: [knownSender], sanitize: pick({ n: as.num }), run, answer: "ack", ...more });
+        let release = null;
+        const gate = new Promise(resolve => { release = resolve; });
         const TABLE = {
             "r162.refused": decl(() => { ran.push("refused"); }, { guards: [knownSender, () => "not their character"] }),
             "r162.unlisted": decl(() => { ran.push("unlisted"); }, { guards: [knownSender, () => "a planted refusal no pattern takes"] }),
@@ -3035,7 +3039,11 @@ const INVARIANTS = [
             "r162.throwsRun": decl(() => { throw new Error("R162 planted: the run"); }),
             "r162.throwsGuard": decl(() => { ran.push("guard"); }, { guards: [knownSender, () => { throw new Error("R162 planted: a guard"); }] }),
             "r162.throwsPrepare": decl(() => { ran.push("prepare"); }, { prepare: () => { throw new Error("R162 planted: prepare"); } }),
-            "r162.queued": decl(async payload => { await wait(payload.n === 1 ? 80 : 0); ran.push(`queued ${payload.n}`); }, { queue: "r162" })
+            "r162.queued": decl(async payload => { await wait(payload.n === 1 ? 80 : 0); ran.push(`queued ${payload.n}`); },
+                { queue: "r162", answer: "reply" }),
+            "r162.held": decl(async () => { await gate; ran.push("held"); }, { queue: "r162", answer: "reply" }),
+            "r162.queuedRefused": decl(() => { ran.push("queuedRefused"); },
+                { guards: [knownSender, () => "not their character"], queue: "r162", answer: "reply" })
         };
         const ask = (action, extra = {}, from = me) =>
             judge(TABLE, { action, requestId: `rid-${action}`, userId: from, n: 1, stray: "not on the list", ...extra }, from, { send });
@@ -3107,6 +3115,21 @@ const INVARIANTS = [
         clear();
         await Promise.all([ask("r162.queued", { n: 1 }), ask("r162.queued", { n: 2 })]);
         equal(JSON.stringify(ran), JSON.stringify(["queued 1", "queued 2"]), "a queue did not keep the order its packets arrived in");
+
+        // A queued request is acknowledged as it arrives, while the write ahead of it is still running: its guards
+        // and its run wait in the queue, and the asker's clock for the "got it" does not (E31 review). A refusal by
+        // its guards follows that acknowledgement, and the run never starts.
+        clear();
+        const held = ask("r162.held");
+        const behind = ask("r162.queuedRefused");
+        await wait(30);
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.ack"]),
+            "a queued request was not acknowledged as it arrived, behind a write that had not finished");
+        release();
+        await Promise.all([held, behind]);
+        equal(JSON.stringify({ kinds: kinds(), ran }), JSON.stringify({
+            kinds: ["bridge.ack", "bridge.ack", "bridge.done", "bridge.refused r162.queuedRefused notYours"], ran: ["held"] }),
+            "a queued request was not answered, or refused by its guards, once after its acknowledgement");
     }],
 
     ["R165 - one wait: a request settles once, never rejects, and one message says what and why", async () => {

@@ -914,7 +914,9 @@ const BRIDGE_TABLE_FILES = Object.freeze([
  *      `nothingSpent`); every request named to `tellRefused` outside the runner
  *      (`told`: relay-guard.mjs's "daggerheart") has its label; and a
  *      declaration's `tell`, the one code its guards' refusals are told with, is
- *      a code of `reasons`.
+ *      a code of `reasons`;
+ *   9. a queued declaration answers "reply": the runner acknowledges it as it
+ *      arrives, before its guards, so only its answer says it was done.
  */
 function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }) {
     const problems = [], local = [];
@@ -942,6 +944,9 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
             if (decl.answer === "none" && !decl.quiet) problems.push(`${at}: nobody is waiting on it, and it is not quiet`);
             if (decl.tell !== undefined && !reasons.includes(decl.tell)) {
                 problems.push(`${at}: it tells its refusals as ${JSON.stringify(decl.tell)}, which is not a code of the closed list`);
+            }
+            if (decl.queue && decl.answer !== "reply") {
+                problems.push(`${at}: it waits in the ${JSON.stringify(decl.queue)} queue, is acknowledged as it arrives, and answers ${JSON.stringify(decl.answer)}, not reply`);
             }
 
             const all = [...(list ?? []), ...(decl.runGuards ?? [])];

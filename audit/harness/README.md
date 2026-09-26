@@ -268,8 +268,9 @@ number is not reused for a scenario.
   processes on one machine, so a request's two clocks - the GM's "got it"
   within `TIMING.ackMs`, its answer within its declaration's `timeoutMs` -
   never meet a real server's latency:
-  how long an acknowledgement takes behind queued project writes, a GM who
-  leaves mid-request and a planted item that arrives after its five seconds
+  how long a request waits for its answer behind queued project writes (a
+  queued request is acknowledged as it arrives), a GM who leaves mid-request
+  and a planted item that arrives after its five seconds
   (taken back while the GM's client accepts it, `TIMING.plantWindowMs`) are
   LIVE-E31-02, -03 and -04. A Reroll's receipt is made by rewriting the rolls of
   the player's own roll message, not by `Roll#reroll` (LIVE-E31-01); windows

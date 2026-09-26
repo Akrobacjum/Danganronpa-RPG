@@ -460,6 +460,31 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         spent === false && b8.left === left0 && b8.said.length === 1 && !b8.why.startsWith("DRPG.") && b8.said[0].includes(b8.why)
         && !b8.said.includes(b8.timeout), JSON.stringify(b8));
 
+    // B9: a request whose asker counts it as done (an Eclipse crossing) is answered once the GM's client has
+    // carried it out (E31 review): its write throws, and p1 is answered failed, not accepted, with one message.
+    phase("an exception in a request its asker counts", { flow: "eclipse-route-veto" });
+    await gm.eval(`globalThis.__e31RealSet9 = game.settings.set;
+        game.settings.set = function (namespace, key, ...rest) {
+            if (namespace === "${MOD}" && key === "eclipseMoves") {
+                globalThis.__e31Thrown.eclipse = (globalThis.__e31Thrown.eclipse ?? 0) + 1;
+                throw new Error("E31 injected: the crossing's write failed");
+            }
+            return globalThis.__e31RealSet9.call(this, namespace, key, ...rest);
+        };
+        return true;`);
+    try {
+        const n9 = await noticeCount(p1);
+        const counted = await p1.eval(`return await ${bridge}.requestEclipseMove("${IDS.aiko}");`, { timeout: 30000 });
+        await settle(1200);
+        const b9 = { counted, thrown: await gm.eval(`return globalThis.__e31Thrown.eclipse ?? 0;`),
+            said: (await noticesSince(p1, n9)).map(x => x.msg) };
+        check("B9: an Eclipse crossing whose write throws on the GM's client is answered failed, not accepted, and said once",
+            b9.thrown >= 1 && b9.counted?.ok === false && b9.counted?.refused === true && b9.counted?.reason === "failed"
+            && b9.said.length === 1, JSON.stringify(b9));
+    } finally {
+        await gm.eval(`game.settings.set = globalThis.__e31RealSet9; return true;`);
+    }
+
     /* ------------------------------------------- A. the Assistant as the primary */
 
     phase("the Assistant as the primary", { flow: "give-take-stash" });

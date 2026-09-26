@@ -720,9 +720,10 @@ export async function judgeEclipseCrossing(actor, from, to) {
  * Count a crossing. World setting, so players route through the GM.
  *
  * @returns {Promise<number>} crossings used AFTER this one. A player's client
- *   predicts it - the write is somebody else's and has not landed yet - which is
- *   the honest answer to "how many have I used": the request has been sent, and
- *   the setting will agree in a moment. A GM's client returns what it just wrote.
+ *   counts it once the GM's client has written it (the request answers then,
+ *   E31 review), before the setting reaches this client; a crossing the GM's
+ *   client did not write is not counted. A GM's client returns what it just
+ *   wrote.
  */
 async function recordMove(actor) {
     const before = movesUsed(actor);

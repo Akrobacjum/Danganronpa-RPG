@@ -365,8 +365,9 @@ export async function addProgress(countdownId, amount, { by = null, actorId = nu
         // for this character (reroll-receipts.mjs), not on the packet's word.
         const { requestProjectProgress } = await import("./gm-bridge.mjs");
         const res = await requestProjectProgress(countdownId, amount, actorId);
+        // Carried out when ok (the request answers once it is, E31 review), but
         // `changed` is unknown from here - the GM whispers back what actually
-        // happened. Claiming success would be a guess.
+        // happened. Claiming a change would be a guess.
         return res.ok ? { pending: true, changed: null } : null;
     }
 

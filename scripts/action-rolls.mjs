@@ -3698,7 +3698,7 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
         room: roomOfActor(actor)
     });
 
-    await requestObserveResolve({
+    const res = await requestObserveResolve({
         actorId: actor.id,
         key: observeKey,
         total: roll.total,
@@ -3714,7 +3714,9 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
     // wait for something that had already happened, on the one branch where it
     // was never true. Naming a target and asking the GM outright do go to a
     // person, and there the wait is real.
-    const waits = declaration === "specific" || declaration === "anything";
+    // And only when the GM's client has it (E31 review): a request refused or not
+    // answered has been said once already.
+    const waits = (declaration === "specific" || declaration === "anything") && res.ok;
 
     await whisperToOwner(actor, `${rollHead(def, roll)}${
         waits ? `<p><small>${game.i18n.localize("DRPG.Observe.sent")}</small></p>` : ""}`, rollCardFlags(def, roll));
@@ -3977,7 +3979,7 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
         room: roomOfActor(actor)
     });
 
-    await requestAnalyzeResolve({
+    const res = await requestAnalyzeResolve({
         actorId: actor.id,
         itemId: subject.id,
         total: roll.total,
@@ -3985,11 +3987,12 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
     });
 
     // Silent on the outcome on purpose: this client does not know the number it
-    // was measured against, and must not be told.
-    await whisperToOwner(actor, `${rollHead(def, roll)}<p><small>${
+    // was measured against, and must not be told. "The GM is working it out" only
+    // when the GM's client has done so (E31 review); a refusal has been said.
+    await whisperToOwner(actor, `${rollHead(def, roll)}${res.ok ? `<p><small>${
         game.i18n.format("DRPG.Analyze.sent", {
             name: foundry.utils.escapeHTML(subject.name)
-        })}</small></p>`, rollCardFlags(def, roll));
+        })}</small></p>` : ""}`, rollCardFlags(def, roll));
 
     return { roll, subject: subject.name };
 }
@@ -4088,7 +4091,7 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
         return null;
     }
 
-    await requestStashSearch({
+    const res = await requestStashSearch({
         actorId: actor.id,
         total: roll.total,
         isCritical: Boolean(roll.isCritical)
@@ -4104,9 +4107,10 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
 
     // Silent on the outcome, like `analyseBullet`: this client does not know
     // what is in the room and must not be told by the shape of its own card.
-    // The result arrives as its own whisper a moment later.
-    await whisperToOwner(actor, `${rollHead(def, roll)}<p>${
-        game.i18n.localize("DRPG.Analyze.stashSent")}</p>`, rollCardFlags(def, roll));
+    // The result arrives as its own whisper a moment later - when the GM's client
+    // has the request (E31 review); a refusal has been said once already.
+    await whisperToOwner(actor, `${rollHead(def, roll)}${res.ok ? `<p>${
+        game.i18n.localize("DRPG.Analyze.stashSent")}</p>` : ""}`, rollCardFlags(def, roll));
 
     return { roll, subject: null };
 }

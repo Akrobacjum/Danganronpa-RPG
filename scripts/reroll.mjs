@@ -485,10 +485,14 @@ async function settleProgress(actor, bookmark, after, done) {
     const was = bookmark.progress ?? 0;
     const delta = now - was;
 
-    if (delta) await addProgress(bookmark.projectId, delta, { actorId: actor.id });
-    done.push(game.i18n.format("DRPG.Reroll.progressAdjusted", {
-        name: project.name, was, now
-    }));
+    // Said only when the GM's client carried it out (E31 review): a refusal, or no
+    // answer, has been said once already.
+    const applied = delta ? await addProgress(bookmark.projectId, delta, { actorId: actor.id }) : true;
+    if (applied) {
+        done.push(game.i18n.format("DRPG.Reroll.progressAdjusted", {
+            name: project.name, was, now
+        }));
+    }
 
     // A critical on a project hands the action back. If the reroll gains or
     // loses the critical, that action has to move with it - otherwise a player
@@ -645,10 +649,13 @@ async function settleSabotage(actor, bookmark, after, done) {
         const result = await sabotageProject(bookmark.targetProjectId, difficulty);
         repairId = result?.repair?.id ?? null;
 
+        // Only what the GM's client wrote (E31 review): a refusal, or no answer, has been said.
         const target = allProjects().find(p => p.id === bookmark.targetProjectId);
-        done.push(game.i18n.format("DRPG.Reroll.sabotageRedone", {
-            name: target?.name ?? "?", n: difficulty
-        }));
+        if (result) {
+            done.push(game.i18n.format("DRPG.Reroll.sabotageRedone", {
+                name: target?.name ?? "?", n: difficulty
+            }));
+        }
     } else if (bookmark.targetProjectId) {
         done.push(game.i18n.localize("DRPG.Reroll.sabotageNowFails"));
     }
