@@ -157,7 +157,11 @@ export const REASONS = Object.freeze([
     "relay", "failed", "refused", "noGm", "noAnswer"
 ]);
 
-/** The English reasons each code takes, in the order they are tried. */
+/**
+ * The English reasons each code takes, in the order they are tried. Each begins
+ * with the module's own words, and so does every reason: a name or a value put
+ * into a reason comes after them, so it cannot choose the code (R164).
+ */
 export const REASON_PATTERNS = Object.freeze([
     // First: a thrown error's own message follows the colon and could read like any reason below.
     ["failed", /^the handler failed: /],
@@ -191,12 +195,12 @@ export const REASON_PATTERNS = Object.freeze([
     // Two patterns, not one with an optional group: R22 reads `range(` in a regex literal as a call.
     ["outOfRange", /^(?:amount|difficulty|delta) .+ is out of range$/],
     ["outOfRange", /^difficulty .+ is out of range \(.*\)$/],
-    ["busy", /^.+ is already being written$/],
+    ["busy", /^a Level Up for that character is already being written$/],
     ["notOffered", /^no Level Up is on offer /],
     ["notSecret", /^that project is not secret$/],
     ["notAPlayer", /^the project can only be shared with a player$/],
     ["notHolding", /^no participant of the running incident the sender plays holds that object$/],
-    ["alreadyHeld", /^.+ already holds that Call$/],
+    ["alreadyHeld", /^that Call is already held by .+$/],
     ["notASupport", /^".*" is not a Hope Call a player can buy for somebody else$/],
     ["notASupport", /^".*" is not aimed at another player$/],
     ["notASupport", /^a Call for somebody else, aimed at the buyer$/],
@@ -236,7 +240,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["notThere", /^the body is not in the killer's room$/],
     ["notThere", /^the character has no token on a scene$/],
     ["notThere", /^the character is not in that room$/],
-    ["notThere", /^.+ is not in ".*"$/]
+    ["notThere", /^the character is not in ".*": .+$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */
@@ -626,7 +630,7 @@ export async function guardArmNotHeld(sender, payload, ctx) {
     const actor = game.actors.get(payload.actorId);
     const call = HOPE_CALLS[payload.call?.key] ?? DESPAIR_CALLS[payload.call?.key];
     const { alreadyArmed } = await import("./call-effects.mjs");
-    return alreadyArmed(actor, call) ? `${actor.name} already holds that Call` : null;
+    return alreadyArmed(actor, call) ? `that Call is already held by ${actor.name}` : null;
 }
 
 /** A player's road: the paying character has to exist. */
@@ -745,7 +749,7 @@ export async function guardRelayRoom(sender, payload, ctx) {
     const there = await standsIn(actor, named, {
         passedThrough: field === "to", sceneId: sender?.viewedScene ?? null
     });
-    return there ? null : `${actor.name} is not in "${named}"`;
+    return there ? null : `the character is not in "${named}": ${actor.name}`;
 }
 
 /** A table of declarations, frozen with every declaration and guard list in it: nothing edits one at run time. */

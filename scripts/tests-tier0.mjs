@@ -5391,19 +5391,22 @@ const REGRESSIONS = [
                 { name: "guardName", reads: "returns", source: "function guardName(sender, payload) { const why = String(payload.x); return why; }" },
                 { name: "guardUnlisted", reads: "returns", source: "function guardUnlisted(sender, payload) { return payload.x ? null : fixtureRefusal(payload); }" },
                 { name: "guardTwice", reads: "returns", source: "function guardTwice(sender, payload) { return `fixture: ${payload.n} twice`; }" },
+                { name: "guardNamed", reads: "returns", source: "function guardNamed(sender, payload) { return `${sender.name} fixture: named`; }" },
                 { name: "run", reads: "refused", source: 'async function run(payload) { const r = await fixtureResolve(payload); if (r?.refused) return { refused: r.refused }; return { refused: "fixture: one" }; }' }
             ],
             delegates: new Set(["fixtureResolve"]),
-            patterns: [["one", /^fixture: one$/], ["two", /^fixture: .+ twice$/], ["twoAgain", /twice$/], ["idle", /^fixture: never$/]],
-            reasons: ["one", "two", "twoAgain", "idle"]
+            patterns: [["one", /^fixture: one$/], ["two", /^fixture: .+ twice$/], ["twoAgain", /twice$/], ["idle", /^fixture: never$/],
+                ["named", / fixture: named$/]],
+            reasons: ["one", "two", "twoAgain", "idle", "named"]
         });
         equal(JSON.stringify(planted.problems), JSON.stringify([
             'guardName: returns "why", which this reader cannot hold to a reason',
             "guardUnlisted: calls fixtureRefusal(), which is not on the list of functions a refusal is handed to",
+            'guardNamed: returns a reason that begins with a value put into it, "${} fixture: named"',
             'guardNone: "fixture: none" is taken by no reason of the closed list',
             'guardTwice: "fixture: 7 twice" is taken by 2 patterns (two, twoAgain)',
             "idle: no reason read takes its pattern - it is dead, or a reason moved out of its reach"
-        ]), "the reason reader does not find exactly the five faults planted for it - it would misread the module too");
+        ]), "the reason reader does not find exactly the six faults planted for it - it would misread the module too");
 
         /* The functions a guard or a run hands the question to, and how each is read:
            its return value is the reason, its `why:` or its `refused:`. Two pass on a
@@ -5459,6 +5462,14 @@ const REGRESSIONS = [
         log(`R164: ${distinct} reasons read, in ${read.texts.length} places: ${functions.length} functions and ${factories} factory guards; `
             + `${read.byCode.size} of the ${G.REASONS.length} codes take them`);
         ok(G.REASON_PATTERNS.every(([, pattern]) => pattern.source.startsWith("^")), "a reason's pattern is not anchored at the start");
+        // And begins with a word or a quote, not a wildcard or a class: a value in front of a reason's words could
+        // choose a pattern that did.
+        const wildStart = patterns => patterns.filter(([, pattern]) => !/^\^(?:[A-Za-z"]|\(\?:[A-Za-z])/.test(pattern.source))
+            .map(([code]) => code);
+        equal(JSON.stringify(wildStart([["a", /^.+ tail$/], ["b", /^head .+$/], ["c", /^".*" tail$/], ["d", /^\w+ tail$/],
+            ["e", /^(?:x|y) tail$/]])), JSON.stringify(["a", "d"]),
+            "the reader of the patterns' first words does not find the two planted for it");
+        equal(JSON.stringify(wildStart(G.REASON_PATTERNS)), "[]", "a reason's pattern begins with a wildcard, which a value could fill");
         ok(distinct >= 75, `only ${distinct} reasons were read - the reader has lost the guards, the runs or the functions they ask`);
         ok(!read.problems.length, `the bridge's reasons: ${read.problems.join("; ")}`);
     }]

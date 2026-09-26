@@ -1118,7 +1118,12 @@ function refusalProblems({ functions = [], texts = [], delegates = new Set(), pa
             let b = e;
             while (b > a && /\s/.test(code[b - 1])) b--;
             const whole = literals.find(l => l.start === a && l.end === b);
-            if (whole) { read.push({ text: whole.text.replaceAll("${}", "7"), from: name }); return; }
+            if (whole) {
+                // A value put in front of the module's own words could choose the reason's code.
+                if (whole.text.startsWith("${}")) problems.push(`${name}: ${what} a reason that begins with a value put into it, ${JSON.stringify(whole.text)}`);
+                read.push({ text: whole.text.replaceAll("${}", "7"), from: name });
+                return;
+            }
             const shape = flat.slice(a, b);
             if (!shape || /^(?:null|undefined|true|false)$/.test(shape)) return;
             const branch = ternary(a, b);
