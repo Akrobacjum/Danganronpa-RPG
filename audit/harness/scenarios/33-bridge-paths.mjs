@@ -540,6 +540,22 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await gm.eval(`delete canvas.scene.createEmbeddedDocuments; return typeof canvas.scene.createEmbeddedDocuments;`);
     }
 
+    // B12: a request whose resolver carried out nothing is not answered as done (E31 review). Botan is alive, so
+    // lootBody takes nothing off him; p1 must be told once, with the generic code, and the wrench stays where it is.
+    phase("a loot the GM's client carried out nothing of", { flow: "give-take-stash" });
+    const n12 = await noticeCount(p1);
+    const looted = await p1.eval(`return await ${bridge}.requestBodyLoot({ takerId: "${IDS.aiko}", bodyId: "${IDS.botan}", itemId: "${wrench}" });`,
+        { timeout: 30000 });
+    await settle(1200);
+    const b12 = { looted, said: (await noticesSince(p1, n12)).map(x => x.msg),
+        why: await p1.eval(`return game.i18n.localize("DRPG.Bridge.why.refused");`),
+        held: await gm.eval(`return { botan: game.actors.get("${IDS.botan}").items.has("${wrench}"),
+            aiko: game.actors.get("${IDS.aiko}").items.some(i => i.name === "E31 wrench") };`) };
+    check("B12: a loot off a living character is answered as not carried out, with the generic code, once, and moves nothing",
+        Boolean(wrench) && looted?.ok === false && looted?.refused === true && looted?.reason === "refused" && b12.said.length === 1
+        && !b12.why.startsWith("DRPG.") && b12.said[0].includes(b12.why) && b12.held.botan === true && b12.held.aiko === false,
+        JSON.stringify(b12));
+
     /* ------------------------------------------- A. the Assistant as the primary */
 
     phase("the Assistant as the primary", { flow: "give-take-stash" });

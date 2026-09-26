@@ -135,18 +135,21 @@ export async function firstRefusal(sender, payload, ctx, ...guards) {
  * (`DRPG.Bridge.why.<code>`, through `sayNotDone`). The code is all that
  * travels: no text, no number, no name, so nothing the GM's side worked out
  * reaches a player who was refused it, and a packet cannot name a translation
- * key outside the list. A declaration may name the one code every refusal by
- * its guards is told with (`tell`); the GM's log keeps each guard's reason.
+ * key outside the list. A declaration may name the one code every refusal of
+ * it is told with, its guards' and its run's (`tell`); the GM's log keeps each
+ * one's reason, and a throw is still told as failed.
  *
  * The English reason stays the source of truth: every guard and run returns it
  * as before, the GM's log prints it, and `reasonOf` reads the code off it with
  * the patterns below - anchored, the first that matches wins. R164 reads every
  * reason the guards, the runs and the functions they hand the question to can
  * give, out of the source, and holds each to exactly one pattern; a text none
- * takes would be told as `refused`, with a debug line naming it. Four codes
- * have no pattern: `relay` (relay-guard.mjs tells its own), `refused` (the
- * fallback), and `noGm` and `noAnswer`, which only the asking player's client
- * can know.
+ * takes would be told as `refused`, with a debug line naming it. Three codes
+ * have no pattern: `relay` (relay-guard.mjs tells its own), and `noGm` and
+ * `noAnswer`, which only the asking player's client can know. `refused`, the
+ * fallback, is also the code of a run that carried out nothing ("nothing was
+ * carried out: ..."): a run answers a done only for work done, and which of its
+ * resolver's silent reasons applied is not told (E31 review).
  */
 export const REASONS = Object.freeze([
     "unknownSender", "notYours", "gmOnly", "cannotSee", "missing", "badRequest", "outOfRange", "busy",
@@ -168,6 +171,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["failed", /^the Call could not be armed$/],
     ["failed", /^the ruling card could not be posted$/],
     ["failed", /^the trace could not be placed$/],
+    ["refused", /^nothing was carried out: /],
     ["unknownSender", /^unknown sender$/],
     ["notYours", /^sender does not own /],
     ["notYours", /^sender did not leave that Remnant$/],
@@ -998,7 +1002,7 @@ export function judge(table, payload, senderId, { send = emitTo } = {}) {
             if (why) return refuse(action, why, ctx, send, decl.tell ?? reasonOf(why));
             if (!early && decl.answer !== "none" && ctx.requestId) acknowledge();
             const out = await decl.run(decl.sanitize(payload, sender), sender, ctx, prepared);
-            if (out?.refused) return refuse(action, out.refused, ctx, send);
+            if (out?.refused) return refuse(action, out.refused, ctx, send, decl.tell ?? reasonOf(out.refused));
             if (decl.answer === "reply" && !out?.later && ctx.requestId) answer(decl, ctx, out?.reply ?? null, send);
             return true;
         } catch (err) {

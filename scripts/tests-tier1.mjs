@@ -3017,8 +3017,10 @@ const INVARIANTS = [
          * guards coming after that acknowledgement. Every refusal carries the code
          * of the closed list its English reason stands for (E31 C4): "not their
          * character" goes as notYours, an exception as failed, and a reason no
-         * pattern takes as refused. What reaches the GM's socket is handed to this
-         * function by the three listeners, which R1b reads.
+         * pattern takes as refused; a declaration's `tell` is the code of every
+         * refusal but a throw, its guards' and its run's (E31 review). What reaches
+         * the GM's socket is handed to this function by the three listeners, which
+         * R1b reads.
          */
         const { judge, knownSender, pick, as } = await import("./bridge-guards.mjs");
         const { sessionFailures } = await import("./utils.mjs");
@@ -3036,6 +3038,7 @@ const INVARIANTS = [
             "r162.runRefuses": decl(() => ({ refused: "no such character" })),
             "r162.tell": decl(() => { ran.push("tell"); }, { guards: [knownSender, () => "not their character"], tell: "traceOutOfReach" }),
             "r162.tellThrows": decl(() => { throw new Error("R162 planted: a run under a tell"); }, { tell: "traceOutOfReach" }),
+            "r162.tellRunRefuses": decl(() => ({ refused: "no such character" }), { tell: "traceOutOfReach" }),
             "r162.throwsRun": decl(() => { throw new Error("R162 planted: the run"); }),
             "r162.throwsGuard": decl(() => { ran.push("guard"); }, { guards: [knownSender, () => { throw new Error("R162 planted: a guard"); }] }),
             "r162.throwsPrepare": decl(() => { ran.push("prepare"); }, { prepare: () => { throw new Error("R162 planted: prepare"); } }),
@@ -3097,6 +3100,12 @@ const INVARIANTS = [
         await ask("r162.tellThrows");
         equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.refused r162.tellThrows failed"]),
             "a run that threw under a `tell` was not told as failed");
+        // And the run's own refusal is told with it too (E31 review): a run that carried out nothing refuses, and
+        // under a `tell` that refusal says no more than the guards' do.
+        clear();
+        await ask("r162.tellRunRefuses");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.refused r162.tellRunRefuses traceOutOfReach"]),
+            "a run's own refusal under a `tell` was not told with it");
 
         for (const where of ["Run", "Guard", "Prepare"]) {
             clear();

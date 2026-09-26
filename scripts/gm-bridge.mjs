@@ -290,6 +290,9 @@ async function handleAnalyzeResolve(payload, sender, ctx) {
     // Not a guard: one Analyze per bullet per chapter is the resolver's own
     // rule, asked of a GM's throw too (analyze.mjs).
     if (result?.refused) return { refused: result.refused };
+    // Null: no such Truth Bullet on that character - nothing was analysed, so the
+    // asker is not answered as though it were (E31 review).
+    if (!result) return { refused: "nothing was carried out: resolveAnalyze analysed nothing" };
 }
 
 /*
@@ -500,7 +503,7 @@ async function handleOpeningResult(payload, sender, ctx) {
 async function handleCrisis(payload, sender, ctx, prepared) {
     const { resolveCrisisAction, freeResolutionFor, sideOf } = prepared;
     const actor = game.actors.get(payload.actorId);
-    await resolveCrisisAction({
+    const result = await resolveCrisisAction({
         actorId: payload.actorId,
         key: payload.key,
         total: payload.total,
@@ -534,6 +537,9 @@ async function handleCrisis(payload, sender, ctx, prepared) {
          */
         free: payload.free && Boolean(freeResolutionFor(sideOf(actor)))
     });
+    // Null: a Reroll's rewind that could not happen (the GMs have been told), or
+    // no incident, character or action to score - nothing was applied (E31 review).
+    if (!result) return { refused: "nothing was carried out: resolveCrisisAction resolved nothing" };
 }
 
     // A direct murder declared in the dark. The declaration is a world write and
@@ -589,10 +595,15 @@ async function handleCleanup(payload, sender, ctx, prepared) {
         // Not a guard: who may be framed and where the body lies are the
         // resolver's own rules, asked of a GM's Stage 6 too (cleanup.mjs).
         if (result?.refused) return { refused: result.refused };
+        // Null: a refusal the resolver keeps to the GM's console - nothing was done (E31 review).
+        if (!result) return { refused: "nothing was carried out: resolveStageSix did nothing" };
         return;
     }
 
-    await cleanup.resolveCleanup({
+    // Null is a refusal the resolver keeps to the GM's console, or a Reroll's rewind
+    // that could not happen: nothing was done (E31 review). An answer that is not
+    // null - a trace gone, not found, reinforced - has been whispered to the cleaner.
+    const cleaned = await cleanup.resolveCleanup({
         actorId: payload.actorId,
         tokenId: payload.tokenId,
         total: payload.total,
@@ -616,6 +627,7 @@ async function handleCleanup(payload, sender, ctx, prepared) {
         // waived guards were protecting.
         viaAction: payload.viaAction
     });
+    if (!cleaned) return { refused: "nothing was carried out: resolveCleanup cleaned nothing" };
 }
 
     // A Meddle writes to the TARGET's sheet, not the Monocub's own - arming a
@@ -663,6 +675,10 @@ async function handleProgress(payload, sender, ctx) {
     // recorded who proposed it.
     const result = await addProgress(payload.countdownId, amount, { by: asker });
     debug(`Applied ${amount} progress to ${payload.countdownId} on behalf of a player.`, result);
+    // Null: the project is not there any more - nothing was added, and the asker
+    // is told so once, by the refusal (E31 review). A project that did not move
+    // (frozen, already full) is an answer, whispered below.
+    if (!result) return { refused: "nothing was carried out: addProgress found no such project" };
 
     // Report back to whoever asked.
     //
@@ -672,15 +688,13 @@ async function handleProgress(payload, sender, ctx) {
     const to = asker ? [asker] : [];
     if (!to.length) return;
 
-    const line = !result
-        ? game.i18n.localize("DRPG.Project.gone")
-        : result.changed === false
-            ? game.i18n.format(result.reason ?? "DRPG.Project.alreadyFull", {
-                  name: result.name, current: result.from, target: result.target
-              })
-            : game.i18n.format("DRPG.Project.now", {
-                  project: result.name, current: result.to, target: result.target
-              });
+    const line = result.changed === false
+        ? game.i18n.format(result.reason ?? "DRPG.Project.alreadyFull", {
+              name: result.name, current: result.from, target: result.target
+          })
+        : game.i18n.format("DRPG.Project.now", {
+              project: result.name, current: result.to, target: result.target
+          });
 
     await announce({
         content: `<p><strong>${game.i18n.localize("DRPG.Project.title")}</strong> - ${
@@ -697,7 +711,10 @@ async function handleShare(payload, sender, ctx, prepared) {
     const { canSee, shareWith } = prepared;
     if (!canSee(payload.countdownId, sender)) return { refused: "sender cannot see that project" };
 
-    await shareWith(payload.countdownId, payload.targetUserId);
+    // Null: the project is not secret any more, and nothing was shared (E31 review).
+    if (!await shareWith(payload.countdownId, payload.targetUserId)) {
+        return { refused: "nothing was carried out: shareWith shared nothing" };
+    }
     debug(`Shared project ${payload.countdownId} with ${payload.targetUserId} on behalf of a player.`);
 }
 
@@ -763,7 +780,11 @@ async function handleRemnantEdit(payload, sender, ctx) {
     if (sender.isGM && CLEANUP.transform?.types?.includes(asked.type)) narrowed.type = asked.type;
 
     const { retuneRemnant } = await import("./remnants.mjs");
-    await retuneRemnant(payload.sceneId, payload.tokenId, narrowed);
+    // Null: no such token, a reinforced trace asked to go, or nothing to change -
+    // nothing was done (E31 review), and it is told with the declaration's `tell`.
+    if (!await retuneRemnant(payload.sceneId, payload.tokenId, narrowed)) {
+        return { refused: "nothing was carried out: retuneRemnant changed nothing" };
+    }
     debug("Retuned a Remnant on behalf of a player.", narrowed);
 }
 
@@ -779,14 +800,19 @@ async function handleSabotage(payload, sender, ctx) {
     // repair it depends on were ever written. The runner addresses the answer
     // to them alone: a broadcast announced every sabotage - and the name of
     // the repair project it created - to the whole table, which is the one
-    // thing a saboteur is buying secrecy for.
+    // thing a saboteur is buying secrecy for. Null - no such project, one already
+    // frozen, a repair - froze nothing, and is a refusal, not an answer (E31 review).
+    if (!result) return { refused: "nothing was carried out: sabotageProject froze nothing" };
     return { reply: result };
 }
 
 async function handleUnsabotage(payload, sender, ctx) {
     // The pair, the character and the Reroll - see `guardUnsabotagePair`.
     const { undoSabotage } = await import("./projects.mjs");
-    await undoSabotage(payload.targetId, payload.repairId, { senderId: sender.isGM ? null : sender.id });
+    // Null: `unsabotageRefusal` kept it to the GM's console - nothing was undone (E31 review).
+    if (!await undoSabotage(payload.targetId, payload.repairId, { senderId: sender.isGM ? null : sender.id })) {
+        return { refused: "nothing was carried out: undoSabotage undid nothing" };
+    }
 }
 
 async function handleSendback(payload, sender, ctx, prepared) {
@@ -806,10 +832,13 @@ async function handleLoot(payload, sender, ctx) {
     const { lootBody } = await import("./handover.mjs");
     // Everything else it needs to refuse - the body being alive, the item
     // being a Truth Bullet - `lootBody` checks itself, because the GM's own
-    // button goes through the same door.
-    await lootBody({
+    // button goes through the same door. It answers null when it took nothing,
+    // with its reason on the GM's console; the asker is told only that nothing
+    // was carried out, whichever reason it was (E31 review).
+    const taken = await lootBody({
         takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId
     });
+    if (!taken) return { refused: "nothing was carried out: lootBody took nothing" };
 }
 
 async function handleArm(payload, sender, ctx, prepared) {
@@ -1226,8 +1255,8 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ sceneId: as.id, tokenId: as.id, patch: as.raw }),
         run: handleRemnantEdit,
         answer: "reply",
-        // Every refusal by these guards is told to the asker as this one code; the
-        // GM's log keeps each guard's own reason (E31 review).
+        // Every refusal - by these guards or by the run - is told to the asker as this
+        // one code; the GM's log keeps each one's own reason (E31 review).
         tell: "traceOutOfReach",
         claims: { patch: "narrowed in the run: remove as a flag, a visibility from REMNANT_VISIBILITY_LABELS, a type from a GM only" }
     },

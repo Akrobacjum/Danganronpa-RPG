@@ -919,8 +919,8 @@ const BRIDGE_TABLE_FILES = Object.freeze([
  *      and pl, and so has the message they are said in (`notDone`,
  *      `nothingSpent`); every request named to `tellRefused` outside the runner
  *      (`told`: relay-guard.mjs's "daggerheart") has its label; and a
- *      declaration's `tell`, the one code its guards' refusals are told with, is
- *      a code of `reasons`;
+ *      declaration's `tell`, the one code its refusals are told with, is a code
+ *      of `reasons`;
  *   9. a queued declaration answers "reply": the runner acknowledges it as it
  *      arrives, before its guards, so only its answer says it was done.
  */

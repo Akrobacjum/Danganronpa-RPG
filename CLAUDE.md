@@ -215,14 +215,17 @@ steps; R1b, R162-R166 and the lint rule are there to catch a skipped one.
    and when the run can wait on a person, as Observe's can; `"none"` for a
    report nobody waits on (and then `quiet`). `patient`, `resend` and
    `timeoutMs` say how the asker waits. `tell` names one code of `REASONS`
-   that every refusal by the guards is told with; the GM's log keeps each
-   guard's own reason.
+   that every refusal is told with, the guards' and the run's; the GM's log
+   keeps each one's own reason.
 3. **Write the run** `(payload, sender, ctx, prepared)`. It reads only the
    whitelisted payload, refuses by returning `{ refused: "<English reason>" }` -
    the text must map to exactly one code of `REASONS` (R164), and a new code
    needs `DRPG.Bridge.why.<code>` in both files - answers with `{ reply }` when
    `answer` is `"reply"`, and never emits a packet or calls `refuse()`: the
-   runner acknowledges, answers, and turns a throw into `failed`.
+   runner acknowledges, answers, and turns a throw into `failed`. A resolver
+   that answers null for work it did not do is a refusal as well,
+   `"nothing was carried out: ..."`, told as `refused`: a run never answers a
+   done for nothing, and says nothing of which silent reason it was.
 4. **Ask it.** `export function requestX(...) { return ask(ACTION_X, {...}, { local }); }`,
    with `local` when a GM runs it on their own client. It answers the bridge's
    result, `{ ok, pending?, value?, refused?, reason? }`, which is truthy
