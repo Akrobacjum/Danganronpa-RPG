@@ -1,6 +1,6 @@
 # Danganronpa RPG - Student Brochure
 
-*One page. Module 1.2.61 on Daggerheart. The names stay English: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
+*One page. Module 1.2.62 on Daggerheart. The names stay English: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
 
 **You are:** an Ultimate. Leg, Body, Hand, Eye, Shadow, Head. **Health 4, Sanity 6, Hope 2 (max 6)**. Sanity at zero = **Breakdown** (disadvantage on every roll). Health at zero = **Wounded** (one action fewer). Rolls with Hope give you 1 Hope; rolls with Despair feed Monokuma; a critical gives 2 Hope.
 
