@@ -1084,17 +1084,12 @@ export async function applyChapterEnd(choices = {}) {
             { n: await clearChapterKeyRemnants(endingChapter) }));
     }
 
-    /* AND THE PLAN IS FILED BEFORE THE CLOCK MOVES. `keyPlan()` returns a fresh set of rows
-       the moment the chapter changes, so whatever the GM wrote about this case is only
-       reachable until the line below runs. Silent, and unconditional: it costs nothing, it
-       cannot fail in a way worth reporting, and the alternative is a GM who ends a chapter
-       and finds their five clues gone. */
-    try {
-        const { archiveKeyPlan } = await import("./investigation.mjs");
-        await archiveKeyPlan(endingChapter);
-    } catch (err) {
-        error("Could not file the chapter's Key Remnant plan", err);
-    }
+    /* THE PLAN STAYS WITH ITS CHAPTER, AND NOTHING IS FILED HERE (E05 C5, 1.2.64). Until then
+       `keyPlan()` read one chapter's plan off a world setting and gave any other chapter blanks,
+       so the ending chapter's plan was filed under `archive` here, before the clock moved - the
+       only way what a GM wrote about a case outlived it. The plan is a GM store since, a row per
+       chapter and slot (gm-stores.mjs `keyPlanStore`): the ending chapter's rows stay where they
+       are, and the next chapter's are its own. */
 
     // The register of who killed belongs to the chapter that is ending, and is
     // no longer emptied here (E04): `blackenedIds` reads the rows of the clock's

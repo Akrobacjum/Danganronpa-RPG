@@ -3344,7 +3344,8 @@
         "discovery": "The rooms each character has found",
         "projectSecrets": "Who builds each trap, and what sets it off",
         "pendingMurders": "The Direct Murders declared in the dark",
-        "eclipseMoves": "Who has crossed how often in the Eclipse"
+        "eclipseMoves": "Who has crossed how often in the Eclipse",
+        "keyPlan": "The Key Remnant plan, chapter by chapter"
       },
       "row": {
         "traces": {

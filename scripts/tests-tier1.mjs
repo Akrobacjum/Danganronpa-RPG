@@ -4505,7 +4505,9 @@ const INVARIANTS = [
          * rule with no fixture fails too. Then the killer's id planted as a setting's key and
          * deep in an actor's flag, found at each and nowhere else; and a clean snapshot, with
          * that id only where world data may hold it (another module's flags, the document's
-         * own id), which reads clean.
+         * own id), which reads clean. An exemption (`everySetting.except`) is fixtured too
+         * (E05 C5): planted where the rule lets it stand it reads clean, and the same field in
+         * another setting beside it is still found - and an exemption with no fixture fails.
          */
         const W = await import("./world-secrets.mjs");
         const MOD = W.WORLD_SECRET_MODULE;
@@ -4525,7 +4527,8 @@ const INVARIANTS = [
             ...["killerId", "by", "condition", "trigger"].map(f => [`projectMeta.${f}`,
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "trigger" ? { kind: "enters" } : "R190"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
-            ...["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime"].map(f => [`every setting: ${f}`,
+            // E05 C5 added the last four: the Key Remnant plan held all of them.
+            ...["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime", "analysis", "analyzedText", "note", "tokenId"].map(f => [`every setting: ${f}`,
                 s => { s.settings.clock.deep = { [f]: 1 }; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === `deep.${f}`]),
             // E05 C3: the declarations' old world key holds nothing - an entry under any key is found.
@@ -4535,14 +4538,30 @@ const INVARIANTS = [
             // E05 C4: nor the crossings' - a bystander's count is found as well as the killer's.
             ["eclipseMoves: empty",
                 s => { s.settings.eclipseMoves = { R190BYSTANDER001: 2 }; },
-                h => h.kind === "empty" && h.doc === "setting" && h.id === "eclipseMoves"]
+                h => h.kind === "empty" && h.doc === "setting" && h.id === "eclipseMoves"],
+            // E05 C5: nor the Key Remnant plan's - a chapter with nothing but its number is found.
+            ["keyRemnantPlan: empty",
+                s => { s.settings.keyRemnantPlan = { chapter: 2 }; },
+                h => h.kind === "empty" && h.doc === "setting" && h.id === "keyRemnantPlan"]
+        ];
+        /* The exemptions: [what, plant, whether the hits are right]. projectMeta's own map token, as
+           projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock
+           beside it is found - an exemption is one setting's, not the field's. */
+        const EXEMPT = [
+            ["projectMeta may hold tokenId",
+                s => {
+                    Object.assign(s.settings.projectMeta.R190PROJECT00001, { tokenId: "R190TOKEN0000002", tokenScene: "R190SCENE0000001" });
+                    s.settings.clock.deep = { tokenId: "R190TOKEN0000003" };
+                },
+                hits => !hits.some(h => h.id === "projectMeta") && hits.some(h => h.kind === "field" && h.id === "clock" && h.path === "deep.tokenId")]
         ];
         const R = W.WORLD_SECRET_RULES;
-        const named = new Set(FIXTURES.map(([what]) => what));
+        const named = new Set([...FIXTURES, ...EXEMPT].map(([what]) => what));
         const unfixtured = [
             ...Object.entries(R.settings).flatMap(([key, rule]) => [...(rule.fields ?? []).map(f => `${key}.${f}`),
                 ...(rule.empty ? [`${key}: empty`] : []), ...(rule.only ? [`${key}: only ${rule.only.join(", ")}`] : [])]),
             ...(R.everySetting?.fields ?? []).map(f => `every setting: ${f}`),
+            ...Object.entries(R.everySetting?.except ?? {}).flatMap(([key, fields]) => fields.map(f => `${key} may hold ${f}`)),
             ...Object.entries(R.flags ?? {}).flatMap(([doc, paths]) => paths.map(p => `${doc} flag ${p}`))
         ].filter(what => !named.has(what));
         ok(!unfixtured.length, `a rule of world-secrets.mjs has no fixture here: ${unfixtured.join(", ")}`);
@@ -4554,6 +4573,14 @@ const INVARIANTS = [
             if (!hits.some(expected)) missed.push(`${what} (found ${JSON.stringify(hits)})`);
         }
         ok(!missed.length, `the rule did not find a secret planted for it: ${missed.join("; ")}`);
+        const wrong = [];
+        for (const [what, plant, right] of EXEMPT) {
+            const snapshot = clean();
+            plant(snapshot);
+            const hits = W.findWorldSecrets(snapshot, { ids: [KILLER] });
+            if (!right(hits)) wrong.push(`${what} (found ${JSON.stringify(hits)})`);
+        }
+        ok(!wrong.length, `an exemption flagged the setting it exempts, or let the field stand elsewhere: ${wrong.join("; ")}`);
 
         const planted = clean();
         planted.settings.pendingMurders = { [KILLER]: { room: "Gym" } };

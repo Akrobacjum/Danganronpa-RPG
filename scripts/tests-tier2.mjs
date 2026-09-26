@@ -612,6 +612,81 @@ const SCENARIOS = [
         }
     }],
 
+    ["the Key Remnant plan lives on the GMs, a chapter at a time", async () => {
+        /*
+         * E05 C5, 26.09.2026; audit S01-01, S05-02. The plan was the world setting
+         * keyRemnantPlan, which every browser holds: each clue's name and text before anybody
+         * found it, its analysis before anybody paid for one, the GM's note, and the token that
+         * is the Key Remnant. It is the GM store `keyPlan` now, a row per chapter and slot. In a
+         * world the stores have never opened (`withGmStoreWorld`), on chapters 1 and 2: each
+         * chapter's plan is written through `setKeyPlan` and read through `keyPlan()` on its own
+         * chapter only - chapter 2 is blank until written, and chapter 1 is as it was when the
+         * clock comes back; every row reads back from storage under `chapter:slot`; the world's
+         * old key holds nothing. A save that changes one slot stamps that slot's field and no
+         * other slot's, which is how a GM writing another slot keeps theirs; a save from a
+         * window drawn before another GM's edit arrived, with what it showed as its `base`,
+         * does not take that edit back; a Save that changed nothing still leaves each slot of
+         * its chapter a row, by its scale alone (a chapter with rows is a planned one, which
+         * the unfound-Key charge asks); a blank where the row holds nothing writes nothing.
+         * The clock is put back.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const I = await import("./investigation.mjs");
+        const clock = getClock();
+        const SLOTS = [0, 1, 2, 3, 4];
+        // The clock's chapter's plan, each slot's four words filled in.
+        const filled = words => {
+            const plan = I.keyPlan();
+            plan.entries.forEach((entry, slot) => Object.assign(entry, { name: `${words} name ${slot}`, text: `${words} text ${slot}`,
+                analysis: `${words} analysis ${slot}`, note: `${words} note ${slot}` }));
+            return plan;
+        };
+        const words = field => I.keyPlan().entries.map(e => e[field]);
+        try {
+            await E.withGmStoreWorld(`suite-keyplan-${foundry.utils.randomID(8)}`, async () => {
+                await setClock({ chapter: 1 });
+                await I.setKeyPlan(filled("SUITE one"));
+                await setClock({ chapter: 2 });
+                ok(I.keyPlan().chapter === 2 && I.keyPlan().entries.length === 5 && I.keyPlan().entries.every(e => !e.name && !e.text && !e.analysis && !e.note && !e.tokenId),
+                    `chapter 2's plan is not five blank slots before anybody wrote it: ${stableJson(I.keyPlan())}`);
+                await I.setKeyPlan(filled("SUITE two"));
+                equal(stableJson(words("analysis")), stableJson(SLOTS.map(n => `SUITE two analysis ${n}`)), "chapter 2 does not read its own plan");
+                await setClock({ chapter: 1 });
+                equal(stableJson(words("note")), stableJson(SLOTS.map(n => `SUITE one note ${n}`)), "chapter 1's plan was not kept apart from chapter 2's");
+                equal(stableJson([1, 2].flatMap(ch => SLOTS.map(n => S.keyPlanStore.persisted(`${ch}:${n}`)?.text ?? null))),
+                    stableJson([...SLOTS.map(n => `SUITE one text ${n}`), ...SLOTS.map(n => `SUITE two text ${n}`)]),
+                    "a slot did not read back from the store's storage under its chapter and slot");
+                equal(stableJson(getSetting(SETTINGS.legacyKeyRemnantPlan) ?? {}), "{}", "the plan reached the world's old key, which every browser holds");
+
+                const stamps = () => SLOTS.map(n => S.keyPlanStore.stampOf(`1:${n}`, "note"));
+                const was = stamps();
+                const edited = I.keyPlan();
+                edited.entries[3].note = "SUITE one note 3, rewritten";
+                await I.setKeyPlan(edited);
+                const now = stamps();
+                ok(now[3] > was[3] && [0, 1, 2, 4].every(n => now[n] === was[n]) && words("note")[3] === "SUITE one note 3, rewritten",
+                    `a save that changed slot 3's note did not stamp that note alone: ${stableJson({ was, now, notes: words("note") })}`);
+                const shown = I.keyPlan();
+                await S.keyPlanStore.patch("1:1", { note: "SUITE another GM's note" });
+                const stale = foundry.utils.deepClone(shown);
+                stale.entries[0].name = "SUITE one name 0, renamed";
+                await I.setKeyPlan(stale, { base: shown });
+                equal(stableJson([words("name")[0], words("note")[1]]), stableJson(["SUITE one name 0, renamed", "SUITE another GM's note"]),
+                    "a save from a window drawn before another GM's edit arrived took that edit back, or lost its own");
+                await setClock({ chapter: 3 });
+                const untouched = I.keyPlan();
+                await I.setKeyPlan(untouched, { base: untouched });
+                equal(stableJson(SLOTS.map(n => S.keyPlanStore.get(`3:${n}`))), stableJson(untouched.entries.map(e => ({ scale: e.scale }))),
+                    "a Save that changed nothing did not leave each slot of its chapter a row holding its scale and nothing else");
+                await I.setKeyPlan({ chapter: 4, entries: [{ scale: null, name: "", text: "", analysis: "", note: "", tokenId: null, sceneId: null }] });
+                ok(!S.keyPlanStore.has("4:0"), "a blank slot over nothing was written as a row");
+            });
+        } finally {
+            await setClock(clock);
+        }
+    }],
+
     ["both killers may clean up, nobody else may", async () => {
         const [killer, victim, third] = cast();
         const drpg = game.drpg;
@@ -6535,35 +6610,38 @@ const SCENARIOS = [
          * and it is exactly why the words a GM wrote had nowhere to go. The
          * first fold only fired when a plan for a different chapter was saved
          * OVER the old one, which is not what ending a chapter does, so the
-         * archive measured empty a chapter later. `archiveKeyPlan` is the
-         * explicit fold the chapter-end screen now calls.
+         * archive measured empty a chapter later. `archiveKeyPlan` was the
+         * explicit fold the chapter-end screen called.
+         *
+         * A ROW PER CHAPTER SINCE E05 C5 (26.09.2026): the plan is a GM store, so a
+         * chapter's rows are filed by being that chapter's, and `archiveKeyPlan`
+         * answers whether they hold anything. Seeded through `setKeyPlan` in a world
+         * the stores have never opened (`withGmStoreWorld`): the clock moves on, the
+         * next chapter's plan is blank, and the ending chapter's words are still its
+         * own when the clock comes back. The clock is put back.
          */
-        const { archiveKeyPlan } = await import("./investigation.mjs");
-        const before = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
+        const E = await import("./gm-store.mjs");
+        const { archiveKeyPlan, setKeyPlan, keyPlan } = await import("./investigation.mjs");
+        const clock = getClock();
         try {
-            const chapter = getClock().chapter;
-            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
-                chapter,
-                entries: [{ scale: "standard", name: "A muddy print",
-                    text: "It points at the east stair.", note: "Sakura size 9.",
-                    tokenId: null, sceneId: null }]
-            });
+            await E.withGmStoreWorld(`suite-keyfiled-${foundry.utils.randomID(8)}`, async () => {
+                const chapter = clock.chapter;
+                await setKeyPlan({ chapter, entries: [{ scale: "standard", name: "A muddy print",
+                    text: "It points at the east stair.", note: "Sakura size 9.", tokenId: null, sceneId: null }] });
+                await setClock({ ...clock, chapter: chapter + 1 });
+                ok(!keyPlan().entries.some(e => e.name || e.text || e.note), "the next chapter's plan is not blank");
+                ok(await archiveKeyPlan(chapter), "the ended chapter's plan does not answer that it holds anything");
+                await setClock(clock);
+                equal(keyPlan().entries[0]?.name, "A muddy print", "the chapter's row lost its name");
+                equal(keyPlan().entries[0]?.text, "It points at the east stair.",
+                    "the chapter's row lost the words the players read");
 
-            ok(await archiveKeyPlan(chapter), "the plan was not filed");
-            const after = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
-            const kept = after.archive?.[chapter];
-            ok(Array.isArray(kept), `chapter ${chapter} is not in the archive`);
-            equal(kept[0]?.name, "A muddy print", "the archived row lost its name");
-            equal(kept[0]?.text, "It points at the east stair.",
-                "the archived row lost the words the players read");
-
-            // A plan with nothing written in it is not worth a shelf.
-            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
-                chapter, entries: [{ scale: "standard", name: "", text: "", note: "", tokenId: null }]
+                // A plan with nothing written in it is not worth a shelf.
+                await setKeyPlan({ chapter, entries: [{ scale: "standard", name: "", text: "", note: "", tokenId: null }] });
+                ok(!await archiveKeyPlan(chapter), "an emptied plan answers that it holds something");
             });
-            ok(!await archiveKeyPlan(chapter), "an empty plan was filed anyway");
         } finally {
-            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, before);
+            await setClock(clock);
         }
     }],
 
@@ -6576,8 +6654,10 @@ const SCENARIOS = [
          * against a world that had just closed a case it read "0 of 5 found",
          * concluded the whole bar was missed, and moved 12 Despair.
          *
-         * The stored setting is the only thing that remembers which chapter was
-         * actually planned, so that is what the guard reads. The pools are
+         * The stored plan is the only thing that remembers which chapter was
+         * actually planned, so that is what the guard reads - the GM store's
+         * rows since E05 C5, seeded here through `setKeyPlan` in a world the
+         * stores have never opened (`withGmStoreWorld`). The pools are
          * measured either side here, because "returned null" and "charged
          * nothing" are two different claims and it was the second one that
          * failed.
@@ -6592,32 +6672,31 @@ const SCENARIOS = [
          * BEFORE `setTrialProgress`, so a charge that got past it leaves the
          * stamp behind even when the pools happen not to move.
          */
-        const { chargeForUnfoundKeys } = await import("./investigation.mjs");
+        const E = await import("./gm-store.mjs");
+        const { chargeForUnfoundKeys, setKeyPlan } = await import("./investigation.mjs");
         const { monokumas, getDespair } = await import("./despair.mjs");
         const { trialProgress, setTrialProgress } = await import("./vote.mjs");
-        const plan = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
         const charged = trialProgress().keysCharged ?? false;
         const clock = getClock();
         const pools = () => monokumas().map(u => getDespair(u.id));
         const before = pools();
         try {
             await setTrialProgress({ keysCharged: false });
-            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
-                chapter: clock.chapter,
-                entries: [{ scale: "standard", name: "A muddy print", text: "",
-                    note: "", tokenId: null, sceneId: null }]
-            });
-            await setClock({ ...clock, chapter: clock.chapter + 1 });
+            await E.withGmStoreWorld(`suite-keycharge-${foundry.utils.randomID(8)}`, async () => {
+                await setKeyPlan({ chapter: clock.chapter,
+                    entries: [{ scale: "standard", name: "A muddy print", text: "",
+                        note: "", tokenId: null, sceneId: null }] });
+                await setClock({ ...clock, chapter: clock.chapter + 1 });
 
-            equal(await chargeForUnfoundKeys(), null,
-                "the charge went through for a chapter nobody can investigate any more");
-            ok(!trialProgress().keysCharged,
-                "the refused charge stamped the trial anyway, so the honest one can never be asked");
-            equal(JSON.stringify(pools()), JSON.stringify(before),
-                "the refused charge moved Despair anyway");
+                equal(await chargeForUnfoundKeys(), null,
+                    "the charge went through for a chapter nobody can investigate any more");
+                ok(!trialProgress().keysCharged,
+                    "the refused charge stamped the trial anyway, so the honest one can never be asked");
+                equal(JSON.stringify(pools()), JSON.stringify(before),
+                    "the refused charge moved Despair anyway");
+            });
         } finally {
             await setClock(clock);
-            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, plan);
             await setTrialProgress({ keysCharged: charged });
             /* AND THE POOLS GO BACK, because the run where this test EARNS its
                keep is the run where the charge goes through - so the failing
@@ -7704,6 +7783,96 @@ const SCENARIOS = [
         }
     }],
 
+    ["the Key Remnant plan's lift moves the world's keyRemnantPlan into the GM store, a row per chapter and slot, and empties the key once they read back", async () => {
+        /*
+         * E05 C5, 26.09.2026; audit S01-01, S05-02. A world from before 1.2.64 carries the plan
+         * in the world setting keyRemnantPlan: the chapter's entries, and the chapters before
+         * under `archive`. The clause `liftKeyPlan` makes a row of each chapter's slot, weak and
+         * fill-only, and empties the key only once every field reads back from storage. On
+         * fixture world data, in a world the stores have never opened (`withGmStoreWorld`),
+         * with a note a GM wrote on chapter 3's first slot since the update: that note stands
+         * and the world's fills the rest of the slot; chapter 3's current entries replace its
+         * filed copy, so a slot emptied since it was filed stays empty (its scale is its row);
+         * chapter 2 comes out of the archive; the key reads back empty and the report counts
+         * every field; a second run has nothing to do. The key is put back.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const I = await import("./investigation.mjs");
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.legacyKeyRemnantPlan) ?? {});
+        const empty = { analysis: "", note: "", tokenId: null, sceneId: null };
+        try {
+            await E.withGmStoreWorld(`suite-keylift-${foundry.utils.randomID(8)}`, async () => {
+                await S.keyPlanStore.patch("3:0", { note: "SUITE note a GM wrote since" });
+                await game.settings.set(MODULE_ID, SETTINGS.legacyKeyRemnantPlan, {
+                    chapter: 3,
+                    entries: [
+                        { scale: "trivial", name: "SUITE lifted name", text: "SUITE lifted text", analysis: "SUITE lifted analysis",
+                            note: "SUITE the world's note", tokenId: "SUITETOKEN000001", sceneId: "SUITESCENE000001" },
+                        { scale: "standard", name: "", text: "", ...empty }
+                    ],
+                    archive: {
+                        2: [{ scale: "trivial", name: "SUITE filed in chapter 2", text: "", ...empty }],
+                        3: [{ scale: "trivial", name: "SUITE chapter 3 as filed", text: "", ...empty },
+                            { scale: "standard", name: "SUITE a slot emptied since", text: "", ...empty }]
+                    }
+                });
+                const report = await I.liftKeyPlan();
+                const disk = key => S.keyPlanStore.persisted(key) ?? null;
+                equal(stableJson([disk("3:0"), disk("3:1"), disk("2:0")]), stableJson([
+                    { note: "SUITE note a GM wrote since", scale: "trivial", name: "SUITE lifted name", text: "SUITE lifted text",
+                        analysis: "SUITE lifted analysis", tokenId: "SUITETOKEN000001", sceneId: "SUITESCENE000001" },
+                    { scale: "standard" },
+                    { scale: "trivial", name: "SUITE filed in chapter 2" }]),
+                "the rows did not read back from the store's storage as the world's plan, or the world's overwrote a note a GM wrote since");
+                equal(stableJson(getSetting(SETTINGS.legacyKeyRemnantPlan) ?? {}), "{}", "the world's key still holds the plan, whose rows read back");
+                equal(stableJson([report?.lifted, report?.kept, report?.emptied]), stableJson([10, 0, true]), `the lift's report: ${stableJson(report)}`);
+                equal(await I.liftKeyPlan(), null, "a second run of the lift found something to do");
+            });
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.legacyKeyRemnantPlan, before);
+        }
+    }],
+
+    ["the Key Remnant plan's lift leaves the world's keyRemnantPlan as it was when the store's rows do not read back", async () => {
+        /*
+         * E05 C5, 26.09.2026: the other half of the pair above, as the declarations' pair does
+         * it. The store's save is swallowed - the rows stand in memory and not on disk - and the
+         * world keeps the whole plan: nothing leaves world data that the store cannot read back,
+         * and the report says how much was kept. In a world the stores have never opened; the
+         * key is put back.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const I = await import("./investigation.mjs");
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.legacyKeyRemnantPlan) ?? {});
+        const old = { chapter: 1, entries: [{ scale: "trivial", name: "SUITE kept name", text: "SUITE kept text", analysis: "", note: "SUITE kept note", tokenId: null, sceneId: null }] };
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        try {
+            await E.withGmStoreWorld(`suite-keykept-${foundry.utils.randomID(8)}`, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.legacyKeyRemnantPlan, old);
+                settings.set = async function (namespace, key, value) {
+                    if (namespace === MODULE_ID && key === S.keyPlanStore.spec.key) return value;
+                    return realSet.call(this, namespace, key, value);
+                };
+                const report = await I.liftKeyPlan();
+                putBack();
+                ok(S.keyPlanStore.has("1:0"), "the swallowed save left no row in memory either - this measured nothing");
+                equal(stableJson([report?.lifted, report?.kept, report?.emptied, getSetting(SETTINGS.legacyKeyRemnantPlan)]), stableJson([0, 4, false, old]),
+                    "the world lost a plan whose rows are not on disk, or the report does not say what was kept");
+            });
+        } finally {
+            putBack();
+            await game.settings.set(MODULE_ID, SETTINGS.legacyKeyRemnantPlan, before);
+        }
+    }],
+
     ["a changed old store is reported, and taking it never overwrites what changed since the upgrade", async () => {
         /*
          * E04, 26.09.2026; the design's H1. After the upgrade the old keys are frozen,
@@ -8406,6 +8575,16 @@ const SCENARIOS = [
                 },
                 gone: (report, id) => !S.pendingMurderStore.has(id),
                 back: id => S.pendingMurderStore.get(id)?.note === "SUITE backed-up declaration"
+            },
+            // A chapter's Key Remnant plan, through its writer (E05 C5): chapter 99, which no clock here is on.
+            keyPlan: {
+                seed: async () => {
+                    const { setKeyPlan } = await import("./investigation.mjs");
+                    await setKeyPlan({ chapter: 99, entries: [{ scale: "trivial", name: "SUITE backed-up clue", note: "SUITE backed-up note" }] });
+                    return "99:0";
+                },
+                gone: (report, key) => !S.keyPlanStore.has(key),
+                back: key => stableJson([S.keyPlanStore.get(key)?.name, S.keyPlanStore.get(key)?.note]) === stableJson(["SUITE backed-up clue", "SUITE backed-up note"])
             },
             // An Eclipse's crossing, through its store (E05 C4): named for an Eclipse that is not running, so it counts nothing.
             eclipseMoves: {

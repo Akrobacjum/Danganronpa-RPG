@@ -45,7 +45,8 @@
  *      which joined G with an empty browser, holds them by the store's exchange,
  *      and projectMeta none of them; its Rearm reaches the primary's armed map. And
  *      a Direct Murder parked through the primary in an Eclipse (S10-01) is held by
- *      the second GM, whose lights judge it.
+ *      the second GM, whose lights judge it. And the Key Remnant plan (S01-01): each
+ *      GM writes one slot from a plan read before either wrote, and both keep both.
  *   I  the fog ledger (S07-01): rooms found and one unticked while the second GM
  *      is away reach it when it comes back, the untick with them.
  *   H1 a Level Up offered on the primary (S03-11): its owner's copy is lit at the
@@ -707,6 +708,30 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         && judgedP3.told >= 1 && judgedP3.eclipse === false && judgedP3.incident === null, J({ chieWas, heldP3, judgedP3 }));
     await gm.eval(`await canvas.scene.tokens.get("TOKCHIE000000000").update(${J(chieWas.was)}, { teleport: true, movementAction: "displace", animate: false });
         return true;`, { timeout: 30000 });
+    /* P4 (E05 C5, 26.09.2026; audit S01-01, S05-02): the Key Remnant plan is the GM store `keyPlan`
+       now, a row per chapter and slot, not a world setting. Each GM reads the plan first, as a
+       dashboard drawn before either wrote; the primary writes slot 0's name, and once that has
+       reached gm2, gm2 writes slot 1's note from the plan it read before - the plan it read as
+       its `base`, which is what the dashboard passes. Both GMs then hold both, and p1's plan is
+       blank. Written against the store alone, gm2's stale blank name would be a clear, and the
+       primary's name would go (setKeyPlan's comment). The two rows are taken away after. */
+    const planRead = client => client.eval(`return game.drpg.keyPlan();`);
+    const shownGm = await planRead(gm), shownGm2 = await planRead(gm2);
+    await gm.eval(`const base = ${J(shownGm)}; const plan = foundry.utils.deepClone(base);
+        plan.entries[0].name = "E05 61 P4 by the primary"; await game.drpg.setKeyPlan(plan, { base }); return true;`, { timeout: 30000 });
+    await settle(1200);
+    const arrived = await gm2.eval(`return game.drpg.keyPlan().entries[0].name;`);
+    await gm2.eval(`const base = ${J(shownGm2)}; const plan = foundry.utils.deepClone(base);
+        plan.entries[1].note = "E05 61 P4 by the second GM"; await game.drpg.setKeyPlan(plan, { base }); return true;`, { timeout: 30000 });
+    await settle(1200);
+    const slotsOn = client => client.eval(`const plan = game.drpg.keyPlan(); return [plan.chapter, plan.entries[0].name, plan.entries[1].note];`);
+    const planP4 = { arrived, gm: await slotsOn(gm), gm2: await slotsOn(gm2), p1: await slotsOn(p1) };
+    check("P4: two GMs each writing one slot of the Key Remnant plan from a plan read before either wrote both keep theirs, on both GMs - and p1's is blank",
+        arrived === "E05 61 P4 by the primary" && [planP4.gm, planP4.gm2].every(r => r[1] === "E05 61 P4 by the primary" && r[2] === "E05 61 P4 by the second GM")
+        && !planP4.p1[1] && !planP4.p1[2], J(planP4));
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await S.keyPlanStore.dropMany(["${shownGm.chapter}:0", "${shownGm.chapter}:1"]); return true;`);
+
     // Taken away again: no later phase is to meet an armed item trap with nothing planted for it.
     await gm.eval(`${TRAP} await P.deleteProject("${trap.id}"); return true;`);
     await settle(600);

@@ -306,15 +306,24 @@ export const SETTINGS = {
      */
     projectSecrets: "gmProjectSecrets",
     /**
-     * The GM's plan for this murder's five Key Remnants.
+     * THE KEY REMNANT PLAN (E05, 1.2.64; audit S01-01, S05-02): a GM store
+     * (gm-stores.mjs `keyPlanStore`), a row per chapter and slot,
+     * `${chapter}:${slot}` -> { scale, name, text, analysis, note, tokenId,
+     * sceneId } (investigation.mjs `keyPlan`, `setKeyPlan`).
      *
-     * World-scoped and therefore readable by a curious player (see D6), which
-     * is fine: the plan is a list of what the GM INTENDS to make findable, and
-     * the players are meant to find all of it. The Key Remnants themselves are
-     * placed on the map and priced the cheapest of any type precisely so the
-     * case stays solvable.
+     * Until 1.2.64 it was the world setting `keyRemnantPlan`, and this comment
+     * called that fine: the plan is what the GM intends to make findable, and
+     * the players are meant to find all of it. Finding is the point, and the
+     * plan was the finding done in advance - each clue's name and what it says
+     * before anybody has come across it, what its analysis says before anybody
+     * has paid for one, the GM's own note, and the token on the map that is
+     * the Key Remnant. 72-canary found its four markers - name, text,
+     * analysis, note - on all three players' browsers (E30 C20, 24.09.2026).
+     * That key stays registered as `legacyKeyRemnantPlan`, read only by the
+     * clause `liftKeyPlan` and held empty by world-secrets.mjs.
      */
-    keyRemnantPlan: "keyRemnantPlan",
+    gmKeyPlan: "gmKeyPlan",
+    legacyKeyRemnantPlan: "keyRemnantPlan",
     /** Which groups the last season reset was told to leave alone (R-1). */
     seasonExceptions: "seasonExceptions",
     /** Monokuma's standing rules - see rules.mjs. Public by design. */
@@ -1198,7 +1207,19 @@ export function registerSettings() {
         default: {}
     });
 
-    game.settings.register(MODULE_ID, SETTINGS.keyRemnantPlan, {
+    // The Key Remnant plan: a GM store since E05 (`keyPlanStore`), a row per chapter
+    // and slot. No `onChange`, as the world key had none: the dashboard that shows the
+    // plan reads it at each redraw, and a redraw comes from the world's own changes
+    // (live.mjs `keepLive`) - so another GM's edit reaches an open dashboard at its next
+    // one, and not the moment it merges (read, not measured at a table).
+    game.settings.register(MODULE_ID, SETTINGS.gmKeyPlan, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The world key before 1.2.64: read once by `liftKeyPlan`, and empty after.
+    game.settings.register(MODULE_ID, SETTINGS.legacyKeyRemnantPlan, {
         scope: "world",
         config: false,
         type: Object,

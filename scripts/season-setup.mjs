@@ -1227,7 +1227,6 @@ async function wipeSeason(plan) {
     for (const [group, label, key, value] of [
         ["trialFloor", "the trial floor", SETTINGS.trialQueue, {}],
         ["searchTokens", "search tokens", SETTINGS.searchTokens, {}],
-        ["keyPlan", "the Key Remnant plan", SETTINGS.keyRemnantPlan, {}],
         ["discovered", "discovered rooms", SETTINGS.discoveredRooms, {}],
         // Written directly rather than through `setMotive("")`, which announces
         // the withdrawal in chat. Nobody needs to be told a motive is over
@@ -1288,6 +1287,10 @@ async function wipeSeason(plan) {
     // first takes them on every GM and every owner's copy, and this clears what this
     // browser holds. Each is named for its Eclipse, so none would count in the new season.
     await step("eclipseMoves", "Eclipse placements", () => import("./eclipse.mjs").then(m => m.clearEclipseMoves()));
+    // The Key Remnant plan is a GM store since E05 (a row per chapter and slot), not a row
+    // above: the cut written first takes every chapter's rows on every GM, one away now
+    // included, and this clears what this browser holds.
+    await step("keyPlan", "the Key Remnant plan", () => import("./investigation.mjs").then(m => m.clearKeyPlan()));
 
     await step("clock", "the clock", async () => {
         const clock = getClock();

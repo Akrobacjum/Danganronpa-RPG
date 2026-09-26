@@ -646,6 +646,23 @@ const CLAUSES = [
             const report = await liftEclipseMoves();
             return report && (report.lifted || report.kept) ? report : null;
         }
+    },
+    {
+        key: "liftKeyPlan",
+        since: "1.2.64",
+        /*
+         * THE KEY REMNANT PLAN OUT OF WORLD DATA (E05 C5; audit S01-01, S05-02). Until
+         * 1.2.64 the world setting `keyRemnantPlan`, which every browser holds, carried the
+         * chapter's five clues - name, text, analysis, the GM's note and the token - and
+         * the chapters before under `archive`. Once, on the primary, after the GM store's
+         * copies arrived, with the rules written on `liftKeyPlan`: a row per chapter and
+         * slot, weak and fill-only, and the key emptied only once every field reads back.
+         */
+        run: async () => {
+            const { liftKeyPlan } = await import("./investigation.mjs");
+            const report = await liftKeyPlan();
+            return report && (report.lifted || report.kept) ? report : null;
+        }
     }
 ];
 

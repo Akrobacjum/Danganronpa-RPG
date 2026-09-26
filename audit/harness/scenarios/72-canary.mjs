@@ -10,7 +10,8 @@
  * a Direct Murder parked in an Eclipse, a hidden token - and one scan of every
  * player's browser once the table is at rest. A marker found where it may not be
  * is a hit: one known-leaks.json describes is that leak, reproduced, and red until
- * its stage; any other fails this run.
+ * its stage; any other fails this run. At rest p1's `game.drpg.keyPlan()` is asked
+ * too: the plan is the GMs' store since E05 C5.
  *
  * THROUGH A CHAPTER (E05 C2, 26.09.2026). After "rest" the chapter those secrets
  * belong to is played on, and after each phase the markers are scanned again and
@@ -102,6 +103,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     phase("rest");
     await settle(1500);
     await canary.scan({ phase: "rest" });
+
+    /* THE KEY REMNANT PLAN IS THE GMS' (E05 C5, 26.09.2026; audit S01-01, S05-02): a GM store since
+       1.2.64, so on the GM the first slot holds the markers planted above, and on p1
+       `game.drpg.keyPlan()` - which asks nobody who is calling - has nothing to build from: the
+       clock's chapter and five blank slots. The scan above looks for the markers everywhere on
+       every player; the world scan reads the old key empty from phase trap on. Red on 5ba3389
+       (C4) with this check, the rule and known leak S01-01 taken out: p1's plan was the GM's, one
+       slot holding all four markers; the scan found the four on p1, p2 and p3 in each of its
+       seven scans, and the world scan keyRemnantPlan on p1 and p2 in all six of its (26.09). */
+    const planOf = p => p.eval(`const plan = game.drpg.keyPlan();
+        return { chapter: plan.chapter, slots: plan.entries.length, first: [plan.entries[0]?.name ?? null, plan.entries[0]?.note ?? null],
+            written: plan.entries.filter(e => e.name || e.text || e.analysis || e.note || e.tokenId).length };`);
+    const planGm = await planOf(gm), planP1 = await planOf(p1);
+    check("p1: game.drpg.keyPlan() is five blank slots, and the plan is the GM's",
+        planGm.first[0] === kp.name && planGm.first[1] === kp.note && planP1.slots === 5 && planP1.written === 0, JSON.stringify({ planGm, planP1 }));
 
     /* THE INDIRECT MURDER'S KILLER IS NOT IN WORLD DATA (E05 C1, 26.09.2026; audit S09-05, D3). The
        scan reads the condition's marker; the killer and the builder are actor ids, which carry no

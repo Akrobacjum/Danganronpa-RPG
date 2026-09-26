@@ -792,9 +792,12 @@ const REGRESSIONS = [
          * hold - this test's own five answer-key names were its first line, and
          * projectMeta's killer, builder, condition and trigger its second (C1,
          * S09-05: this test called them "known and deliberate" until then) -
-         * and R190 shows it finding each on a fixture. Here it reads this world:
-         * every module world setting, and the module's flags on every actor,
-         * user and token. A rule comes in with the commit that takes its secret
+         * and R190 shows it finding each on a fixture. Since C5 the answer-key
+         * names are nine - the Key Remnant plan's analysis, analyzedText, note
+         * and tokenId joined them - and projectMeta's own map token is the one
+         * tokenId a setting may hold (its reason is in the rule). Here it reads
+         * this world: every module world setting, and the module's flags on
+         * every actor, user and token. A rule comes in with the commit that takes its secret
          * out of world data; E05's later commits add theirs.
          */
         const { findWorldSecrets, WORLD_SECRET_RULES } = await import("./world-secrets.mjs");
@@ -5634,7 +5637,9 @@ const REGRESSIONS = [
             // The declarations made in the dark out of the world's pendingMurders (E05 C3).
             ["eclipse.mjs", "liftPendingMurders", ["weak", "fillOnly"], true],
             // The Eclipse's crossings out of the world's eclipseMoves (E05 C4).
-            ["eclipse.mjs", "liftEclipseMoves", ["weak", "fillOnly"], true]
+            ["eclipse.mjs", "liftEclipseMoves", ["weak", "fillOnly"], true],
+            // The Key Remnant plan out of the world's keyRemnantPlan (E05 C5).
+            ["investigation.mjs", "liftKeyPlan", ["weak", "fillOnly"], true]
         ];
         // The migrations that read a store through a function they call: they wait themselves.
         const WAITERS = [["remnants.mjs", "migrateRemnants"], ["remnants.mjs", "migrateRemnantToken"]];
@@ -5712,7 +5717,7 @@ const REGRESSIONS = [
         const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"], ["faintIntoSecrets", "migrateFaintIntoSecrets", "1.2.63"],
             ["liftIncidentSecrets", "liftIncidentSecrets", "1.2.63"], ["liftDiscoveryLedger", "liftDiscoveryLedger", "1.2.63"],
             ["liftProjectSecrets", "liftProjectSecrets", "1.2.64"], ["liftPendingMurders", "liftPendingMurders", "1.2.64"],
-            ["liftEclipseMoves", "liftEclipseMoves", "1.2.64"]];
+            ["liftEclipseMoves", "liftEclipseMoves", "1.2.64"], ["liftKeyPlan", "liftKeyPlan", "1.2.64"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.

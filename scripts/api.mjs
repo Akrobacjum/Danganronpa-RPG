@@ -781,7 +781,12 @@ export const DrpgApi = {
     /* ---- the GM's Investigation workshop -----------------------------------
      * Five clues, scaled trivial to desperate, and a read-out of who has
      * reached what. GM-only in the strongest sense: it reads the answer key in
-     * bulk, and the answer key only exists on a GM's browser. */
+     * bulk, and the answer key only exists on a GM's browser. The plan too,
+     * since E05 (1.2.64; audit S01-01): it was a world setting until then, and
+     * `keyPlan` - which asks nobody who is calling - read the whole of it on
+     * any player's console. It reads the GMs' store now, and on a player's
+     * browser it is the clock's chapter and five blank slots (72-canary asks
+     * it on p1). */
 
     keyPlan,
     setKeyPlan,

@@ -560,6 +560,24 @@ export const eclipseMoveCopy = defineGmCopy({
     combine: offersCombine
 });
 
+/**
+ * THE KEY REMNANT PLAN (E05 C5; audit S01-01, S05-02). A row per chapter and slot,
+ * `${chapter}:${slot}`: scale, name, text, analysis, note, tokenId, sceneId - the world
+ * setting `keyRemnantPlan` until 1.2.64, which every browser held: one chapter's plan, the
+ * others filed under `archive` when the clock left them. A row is a chapter's already, so
+ * nothing is filed when the chapter ends (investigation.mjs `keyPlan`), and a stamp per
+ * field lets a GM writing one slot and another GM another both keep theirs (`setKeyPlan`
+ * writes only what it changes). No `exists`: a row outlives the trace it names, as the
+ * world key's entries did - a chapter's plan stays until a reset's cut takes it, and a
+ * reset that keeps the plan keeps every chapter's rows, so the next season's chapter of the
+ * same number opens with them. No old key: the first rows come out of the world by
+ * `liftKeyPlan`.
+ */
+export const keyPlanStore = defineGmStore({
+    name: "keyPlan", key: SETTINGS.gmKeyPlan,
+    kind: "ledger", resetGroup: "keyPlan", backup: true, sync: true
+});
+
 /** The rows of an old ledger `{ sceneId: { actorId: [room, ...] } }`, one per scene and character. */
 function fogRows(legacy) {
     const rows = [];

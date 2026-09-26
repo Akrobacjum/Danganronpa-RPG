@@ -4573,7 +4573,8 @@
         "discovery": "Pokoje odkryte przez każdą postać",
         "projectSecrets": "Kto buduje każdą pułapkę i co ją uruchamia",
         "pendingMurders": "Zgłoszenia Direct Murder w ciemności",
-        "eclipseMoves": "Kto ile razy przeszedł w czasie Eclipse"
+        "eclipseMoves": "Kto ile razy przeszedł w czasie Eclipse",
+        "keyPlan": "Plan Key Remnants, rozdział po rozdziale"
       },
       "row": {
         "traces": {

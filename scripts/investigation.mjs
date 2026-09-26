@@ -37,9 +37,10 @@ import { bulletsOf, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { isDeceased, sweepTruthBullets } from "./chapter.mjs";
 import {
-    dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log,
+    dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, warn, isPrimaryGm,
     workingScene, esc, wireDashboardTabs } from "./utils.mjs";
 import { alreadyOpen, keepLive, keepFresh } from "./live.mjs";
+import { keyPlanStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -52,78 +53,199 @@ const SCALE_LABELS = KEY_REMNANTS.scaleLabels;
  * THE PLAN
  * ========================================================================== */
 
-/** The plan as stored, or a fresh one for this chapter. */
-export function keyPlan() {
-    const stored = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
-    const chapter = getClock().chapter;
+/** A plan row's fields, in the order a row is written. */
+const PLAN_FIELDS = ["scale", "name", "text", "analysis", "note", "tokenId", "sceneId"];
+const planKey = (chapter, slot) => `${chapter}:${slot}`;
+const blank = value => value === undefined || value === null || value === "";
+/** Whether a row says anything a GM wrote: the scale alone is the slot's, not the GM's. */
+const worthKeeping = row => Boolean(row?.name || row?.text || row?.analysis || row?.note || row?.tokenId);
 
-    // A plan belongs to one murder. When the chapter has moved on, the previous
-    // chapter's clues are not this chapter's blanks - start clean rather than
-    // present stale text as though it were the current case.
-    if (stored.chapter !== chapter) {
-        return {
-            chapter,
-            /* `name` and `text` ARE THE PLAYER'S HALF, and until 1.2.42 a plan row had
-               neither. The one field it did have was labelled "Clue" and placeholdered "What
-               this clue tells them", and it wrote `note` - a GM-private field. Measured: a Key
-               Remnant placed from this planner reached its finder as a Truth Bullet called
-               "Trace" with an empty description, while the sentence the GM wrote sat in the
-               ledger where no player could ever reach it. The three fields say what they are.
-               `analysis` is the fourth since 21.09: what the finder reads once they analyse it. */
-            entries: KEY_REMNANTS.scale.map(scale => ({
-                scale, name: "", text: "", analysis: "", note: "", tokenId: null, sceneId: null
-            }))
-        };
+/** One chapter's rows on this GM's browser, by slot. */
+function chapterRows(chapter) {
+    const prefix = `${chapter}:`;
+    const rows = new Map();
+    for (const [key, row] of Object.entries(keyPlanStore.entries())) {
+        if (!key.startsWith(prefix)) continue;
+        const slot = Number(key.slice(prefix.length));
+        if (Number.isInteger(slot) && slot >= 0) rows.set(slot, row);
     }
-    return stored;
+    return rows;
+}
+
+/** Every chapter this GM's browser holds rows for, newest first. */
+function plannedChapters() {
+    const chapters = new Set();
+    for (const key of Object.keys(keyPlanStore.entries())) {
+        const chapter = Number(String(key).split(":")[0]);
+        if (Number.isFinite(chapter)) chapters.add(chapter);
+    }
+    return [...chapters].sort((a, b) => b - a);
 }
 
 /**
- * Save the plan, and never lose the one it replaces.
+ * The plan for the chapter the clock is on: five slots, scaled trivial to desperate, and
+ * any a row names beyond them.
  *
- * `keyPlan()` returns a fresh plan the moment the clock leaves the chapter it was written
- * for, which is right - last murder's clues are not this murder's blanks. What was wrong is
- * that the old one then went nowhere: measured on 10.09, crossing a chapter took five rows of
- * text the GM had written and the links to the traces they described, silently, while the
- * traces themselves stayed on the map. The GM lost the index to their own case.
+ * A PLAN BELONGS TO ONE MURDER, and until 1.2.64 that was enforced by throwing the old one
+ * away: the world setting held one chapter's plan, and a clock on another chapter was
+ * given blanks - last murder's clues are not this murder's blanks. The GM store keeps a row
+ * per chapter and slot (E05 C5, gm-stores.mjs `keyPlanStore`), so the clock's chapter reads
+ * its own rows and no other's, and the chapter before is still there, untouched, when the
+ * clock comes back to it.
  *
- * So a plan being replaced by one from another chapter is filed under `archive` first. Nothing
- * reads it yet - it is a record, not a feature - but the words survive, which is the whole
- * difference between tidying and deleting.
+ * ONLY ON A GM'S BROWSER (audit S01-01, S05-02). The rows are the GMs' store; anywhere else
+ * this is the clock's chapter and five blank slots - `game.drpg.keyPlan()` has no GM guard,
+ * and until 1.2.64 it read the whole plan off the world on any player's console.
  */
-export async function setKeyPlan(plan) {
+export function keyPlan() {
+    const chapter = getClock().chapter;
+    const rows = game.user?.isGM ? chapterRows(chapter) : new Map();
+    const slots = Math.max(KEY_REMNANTS.scale.length, ...[...rows.keys()].map(slot => slot + 1));
+    return {
+        chapter,
+        /* `name` and `text` ARE THE PLAYER'S HALF, and until 1.2.42 a plan row had
+           neither. The one field it did have was labelled "Clue" and placeholdered "What
+           this clue tells them", and it wrote `note` - a GM-private field. Measured: a Key
+           Remnant placed from this planner reached its finder as a Truth Bullet called
+           "Trace" with an empty description, while the sentence the GM wrote sat in the
+           ledger where no player could ever reach it. The three fields say what they are.
+           `analysis` is the fourth since 21.09: what the finder reads once they analyse it. */
+        entries: Array.from({ length: slots }, (_, slot) => {
+            const row = rows.get(slot) ?? {};
+            return {
+                scale: row.scale ?? KEY_REMNANTS.scale[slot] ?? "standard",
+                name: row.name ?? "", text: row.text ?? "", analysis: row.analysis ?? "", note: row.note ?? "",
+                tokenId: row.tokenId ?? null, sceneId: row.sceneId ?? null
+            };
+        })
+    };
+}
+
+/**
+ * Save a chapter's plan: each slot the plan names, and in it only what this save changes.
+ *
+ * WHAT IT DOES NOT WRITE IS THE POINT (E05 C5). The world setting was replaced whole, so
+ * of two GMs saving the plan the later one's copy of every slot won - a clue the other had
+ * just written went back to what the later one had on screen. A row per slot and a stamp
+ * per field let each keep theirs, as long as a save writes only what its GM changed, and
+ * "changed" is measured against what that GM was looking at: `base`, the plan a window was
+ * drawn from. A field equal to it is not written, whatever the store holds now - so a
+ * window opened before another GM's edit arrived does not take that edit back with the
+ * stale copy it still shows. Without a `base` (the console, a macro) the plan is taken to
+ * be read just now: a field equal to the row this browser holds is not stamped again
+ * (`changedOnly`, which a write with a base keeps as well), and a blank where the row holds
+ * nothing is not written at all - a slot nobody has written here is not one this GM
+ * emptied. A hole in `entries` is a slot left alone (`openKeyRemnantHere` writes one slot).
+ * The one field written either way is a slot's scale where the row has none: it is the
+ * slot's, never a GM's word, so every Save of the planner leaves each slot of its chapter a
+ * row - and a chapter with rows is a planned one (`chargeForUnfoundKeys`), as the world key's
+ * `chapter` was after any Save.
+ *
+ * Nothing is filed when the chapter changes, because nothing is replaced: until 1.2.64 a
+ * plan saved for another chapter moved the one it replaced under `archive` first (the GM
+ * lost the index to their own case, measured 10.09), and the rows are a chapter's now.
+ *
+ * @param {{chapter?: number, entries: Array}} plan
+ * @param {{base?: {chapter: number, entries: Array}|null}} [options]
+ */
+export async function setKeyPlan(plan, { base = null } = {}) {
     if (!game.user.isGM) return null;
-    const stored = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
-    const archive = { ...(stored.archive ?? {}) };
-    const worthKeeping = (stored.entries ?? [])
-        .some(e => e.name || e.text || e.analysis || e.note || e.tokenId);
-    if (stored.chapter != null && stored.chapter !== plan.chapter && worthKeeping) {
-        archive[stored.chapter] = stored.entries;
-    }
-    await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, { ...plan, archive });
+    const chapter = plan?.chapter ?? getClock().chapter;
+    const from = base && base.chapter === chapter && Array.isArray(base.entries) ? base : null;
+    const same = (a, b) => (blank(a) && blank(b)) || JSON.stringify(a) === JSON.stringify(b);
+    const rows = {};
+    (plan?.entries ?? []).forEach((entry, slot) => {
+        if (!entry || typeof entry !== "object") return;
+        const key = planKey(chapter, slot);
+        const held = keyPlanStore.get(key) ?? {};
+        const was = from ? (from.entries[slot] ?? {}) : held;
+        const fields = {};
+        for (const field of PLAN_FIELDS) {
+            const value = entry[field];
+            if (value === undefined) continue;
+            const fill = field === "scale" && !blank(value) && blank(held.scale);
+            if (!fill && (from ? same(value, was[field]) : blank(value) && blank(was[field]))) continue;
+            fields[field] = value;
+        }
+        if (Object.keys(fields).length) rows[key] = fields;
+    });
+    await keyPlanStore.patchMany(rows, { changedOnly: true });
     return plan;
 }
 
 /**
- * File this chapter's plan under its own number, so ending a chapter does not erase it.
+ * Whether a chapter's plan holds anything a GM wrote.
  *
- * `setKeyPlan` folds the old plan into `archive` when a plan for a DIFFERENT chapter is
- * saved over it - which is the right moment when a GM opens the planner in the new chapter,
- * and never happens if they simply end a chapter and carry on. Measured: the archive was
- * still empty a chapter later. The end of a chapter says so explicitly instead.
+ * Until 1.2.64 this filed the chapter's plan under `archive` at the chapter's end, because
+ * `setKeyPlan` filed an old plan only when one for another chapter was saved over it - and
+ * a GM who ended a chapter and carried on never did that (the archive measured empty a
+ * chapter later). The rows are a chapter's already (E05 C5), so there is nothing to file;
+ * what is left is the question the filing asked first.
  */
 export async function archiveKeyPlan(chapter) {
     if (!game.user.isGM) return false;
-    const stored = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
-    if (stored.chapter !== chapter) return false;
-    const worthKeeping = (stored.entries ?? [])
-        .some(e => e.name || e.text || e.analysis || e.note || e.tokenId);
-    if (!worthKeeping) return false;
-    await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
-        ...stored,
-        archive: { ...(stored.archive ?? {}), [chapter]: stored.entries }
-    });
-    return true;
+    return [...chapterRows(chapter).values()].some(worthKeeping);
+}
+
+/**
+ * A world from before 1.2.64 holds the plan in the world setting `keyRemnantPlan`, which
+ * every browser reads (audit S01-01, S05-02). The clause `liftKeyPlan` (migrate.mjs, since
+ * 1.2.64) runs this once, on the primary, after the store holds the other GMs' copies
+ * (E05 C5).
+ *
+ * Every chapter the key holds: each `archive[chapter]`, then `chapter`'s own entries over
+ * the archive's of the same number - a chapter filed at its end and planned again is the
+ * newer one. A slot's fields go in weak and fill-only, so a field a GM has written since
+ * the update keeps its value; a blank field carries nothing and is left out, and a slot
+ * with nothing but its scale is still a row, because a chapter with rows is a planned one
+ * (`chargeForUnfoundKeys`). The key is emptied only once every field reads back from
+ * storage; otherwise it is left whole, and the report says what was kept. Idempotent: a
+ * world already through this holds nothing.
+ *
+ * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}
+ */
+export async function liftKeyPlan() {
+    if (!isPrimaryGm()) return null;
+    if (await keyPlanStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the Key Remnant plan did not arrive; the next load tries again");
+    }
+    const old = game.settings.get(MODULE_ID, SETTINGS.legacyKeyRemnantPlan) ?? {};
+    if (!Object.keys(old).length) return null;
+    // A chapter's entries, whole: the current plan replaces its chapter's filed copy, blanks and all.
+    const chapters = new Map(Object.entries(old.archive && typeof old.archive === "object" ? old.archive : {}));
+    if (!blank(old.chapter)) chapters.set(String(old.chapter), old.entries);
+    const rows = {};
+    for (const [chapter, entries] of chapters) {
+        (Array.isArray(entries) ? entries : []).forEach((entry, slot) => {
+            if (!entry || typeof entry !== "object") return;
+            const fields = Object.fromEntries(PLAN_FIELDS.filter(f => !blank(entry[f])).map(f => [f, entry[f]]));
+            if (Object.keys(fields).length) rows[planKey(chapter, slot)] = fields;
+        });
+    }
+    if (Object.keys(rows).length) {
+        await keyPlanStore.patchMany(rows, { weak: true, fillOnly: true });
+        await keyPlanStore.idle();
+    }
+    let lifted = 0, kept = 0;
+    for (const [key, fields] of Object.entries(rows)) {
+        const held = keyPlanStore.persisted(key) ?? {};
+        for (const field of Object.keys(fields)) {
+            if (Object.hasOwn(held, field)) lifted++;
+            else kept++;
+        }
+    }
+    if (kept) warn(`The Key Remnant plan: ${kept} field(s) did not read back from the GM store, so the world's key is left as it was.`);
+    else await game.settings.set(MODULE_ID, SETTINGS.legacyKeyRemnantPlan, {});
+    const left = Object.keys(game.settings.get(MODULE_ID, SETTINGS.legacyKeyRemnantPlan) ?? {}).length;
+    if (lifted && !kept) log(`Lifted the Key Remnant plan out of world data: ${lifted} field(s) in ${Object.keys(rows).length} row(s).`);
+    return { lifted, kept, emptied: left === 0 };
+}
+
+/** Every chapter's plan this GM's browser holds, taken away (the season reset). */
+export async function clearKeyPlan() {
+    if (!game.user.isGM) return;
+    if (isPrimaryGm()) await keyPlanStore.clear();
+    else await keyPlanStore.dropMany(Object.keys(keyPlanStore.entries()));
 }
 
 /** Every Key Remnant currently on the map, across every scene. */
@@ -256,19 +378,24 @@ export async function chargeForUnfoundKeys() {
        nobody can look at any more. It stamps `keysCharged` too, so the honest charge could
        never be asked again afterwards.
 
-       THE STORED PLAN, NOT `keyPlan()`. A first go at this compared `keyPlan().chapter` with
+       THE STORED ROWS, NOT `keyPlan()`. A first go at this compared `keyPlan().chapter` with
        the clock and could never fire, because `keyPlan()` MANUFACTURES a plan for whatever
        chapter the clock says - the two agree by construction. Run against the real thing it
-       billed 12 Despair to two pools for a case that had just been closed. The setting is the
-       only place that remembers which chapter was actually planned.
+       billed 12 Despair to two pools for a case that had just been closed. What was actually
+       planned is only in what is stored: until 1.2.64 the setting's one `chapter`, and since
+       E05 C5 the chapters the GM store holds rows for - every Save of the planner writes each
+       slot's scale, so a chapter somebody planned has rows. The clock's chapter with rows is
+       planned, whatever came after it (a clock wound back, a plan kept through a reset); one
+       without them, while another chapter has some, is the case the guard is for, and the GMs
+       are told the newest planned chapter.
 
        A world with no stored plan at all is left alone: that is a GM who never opened the
        planner, and what they owe is a rules question this guard has no business answering. */
-    const stored = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
+    const planned = plannedChapters();
     const now = getClock().chapter;
-    if (stored.chapter != null && stored.chapter !== now) {
+    if (planned.length && !planned.includes(Number(now))) {
         await whisperToGms(`<p>${game.i18n.format("DRPG.Investigation.chargeTooLate",
-            { now, was: stored.chapter })}</p>`);
+            { now, was: planned[0] })}</p>`);
         return null;
     }
 
@@ -324,7 +451,7 @@ export async function chargeForUnfoundKeys() {
  * single Save instead of a dialog of its own. See the "Key Remnants" tab in
  * `openInvestigationDashboard`.
  */
-async function saveKeyPlan(plan, rows) {
+async function saveKeyPlan(plan, rows, { base = null } = {}) {
     // A row with a room chosen and no existing token means "make this one".
     //
     // The planner used to be able to do exactly one thing: point an entry at a
@@ -387,7 +514,7 @@ async function saveKeyPlan(plan, rows) {
         }
     }
 
-    await setKeyPlan({ chapter: plan.chapter, entries });
+    await setKeyPlan({ chapter: plan.chapter, entries }, { base });
     return { entries, created };
 }
 
@@ -854,15 +981,19 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
     if (!token) return null;
 
     if (result.slot !== null) {
-        const entries = plan.entries.map((entry, i) => i === result.slot
-            ? { ...entry,
-                name: result.name || entry.name,
-                text: result.text || entry.text,
-                analysis: result.analysis || entry.analysis || "",
-                note: result.note || entry.note,
-                tokenId: token.id, sceneId: token.parent?.id ?? scene?.id ?? null }
-            : entry);
-        await setKeyPlan({ chapter: plan.chapter, entries });
+        /* THE ONE SLOT, AND ONLY WHAT THIS WINDOW CHANGED IN IT (E05 C5). `plan` was read when
+           this window opened, so the rest of it is what this GM saw then: written back, it would
+           take back whatever another GM wrote since. A hole in `entries` is a slot `setKeyPlan`
+           leaves alone, and `base` keeps the slot's own untouched fields out. */
+        const entry = plan.entries[result.slot] ?? {};
+        const entries = [];
+        entries[result.slot] = { ...entry,
+            name: result.name || entry.name,
+            text: result.text || entry.text,
+            analysis: result.analysis || entry.analysis || "",
+            note: result.note || entry.note,
+            tokenId: token.id, sceneId: token.parent?.id ?? scene?.id ?? null };
+        await setKeyPlan({ chapter: plan.chapter, entries }, { base: plan });
     }
 
     ui.notifications.info(game.i18n.format("DRPG.Investigation.createdHere", { room: result.room }));
@@ -1406,12 +1537,22 @@ function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlac
     </div>`;
 }
 
+/**
+ * The plan the dashboard's Key Remnant inputs were last drawn from (E05 C5). A Save writes
+ * what differs from it and nothing else (`setKeyPlan`'s `base`): the window stays open while
+ * another GM's edits merge in underneath it, and what it still shows of a slot this GM did not
+ * touch is no longer the plan. One dashboard per browser (`alreadyOpen`), so one of these.
+ */
+let shownKeyPlan = null;
+
 /** The whole dashboard as markup - a function of the world, so `keepLive` can call it again. */
 function caseHtml(reading, { allRooms, murderState, finalRemnants, finalTruthPlacedThisChapter }) {
     const students = evidenceByStudent();
     const traces = allTraces();
     const finders = findersByAnyRemnant();
     const plan = keyPlan();
+    // What the plan's inputs are drawn from, and so what a Save measures its changes against.
+    shownKeyPlan = plan;
     const status = keyPlanStatus();
     const rooms = allRooms();
     // The opening roll's own limit on how many Key Remnants this chapter gets
@@ -1883,7 +2024,7 @@ async function applyDashboardSave(result, { traces, plan }) {
         }
     }
 
-    const { created } = await saveKeyPlan(plan, result.keyRows);
+    const { created } = await saveKeyPlan(plan, result.keyRows, { base: shownKeyPlan });
 
     const parts = [];
     if (tracesChanged) parts.push(plural("DRPG.Investigation.tracesSaved", { n: tracesChanged }));

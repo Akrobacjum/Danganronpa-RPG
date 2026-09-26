@@ -18,7 +18,8 @@
  * leak until its commit. At E05 C2 the rule holds what C1 closed - projectMeta's
  * killer, builder, condition and trigger - and R9's five answer-key names, which
  * were its whole list; E05's later commits add theirs, and E43 turns the whole
- * into SECRET_FIELDS.
+ * into SECRET_FIELDS. A field held everywhere may be let stand in one setting,
+ * with the reason written beside it (`except`); R190 fixtures both halves.
  *
  * IMPORTS NOTHING, so Node reads it (the harness, the tools) exactly as the
  * module does.
@@ -30,9 +31,9 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
  * The rule. `settings` is keyed by a module world setting's key, without the
  * namespace: `fields` it may never hold at any depth, `empty` (it holds nothing at
  * all), or `only` (the top-level keys it may hold). `everySetting` holds for every
- * module world setting. `flags` is keyed by document type (Actor, User, Token): a
- * path under the module's flag scope that may never be there. Each rule says what
- * it keeps out, and since when.
+ * module world setting, but for the fields `except` lets one setting hold. `flags` is
+ * keyed by document type (Actor, User, Token): a path under the module's flag scope
+ * that may never be there. Each rule says what it keeps out, and since when.
  */
 export const WORLD_SECRET_RULES = Object.freeze({
     settings: Object.freeze({
@@ -49,11 +50,31 @@ export const WORLD_SECRET_RULES = Object.freeze({
         eclipseMoves: Object.freeze({
             empty: true,
             since: "E05 C4", why: "who crossed how often in an Eclipse (S10-39)"
+        }),
+        // The key before 1.2.64 (settings.mjs `legacyKeyRemnantPlan`); the plan is a GM store.
+        keyRemnantPlan: Object.freeze({
+            empty: true,
+            since: "E05 C5", why: "the Key Remnant plan: each clue's name, what it says, its analysis, the GM's note and its token (S01-01, S05-02)"
         })
     }),
     everySetting: Object.freeze({
-        fields: Object.freeze(["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime"]),
-        since: "R9", why: "a trace's answer key: what it really is, who left it, what it points at, how hard it is to read"
+        fields: Object.freeze(["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime", "analysis", "analyzedText", "note", "tokenId"]),
+        since: "R9; analysis, analyzedText, note and tokenId since E05 C5",
+        why: "a trace's answer key: what it really is, who left it, what it points at, how hard it is to read, what its analysis says, the GM's note on it, and which token on the map it is",
+        /* ONE SETTING MAY HOLD tokenId, AND WHY (E05 C5, 26.09.2026). projectMeta names each
+           project's own map token, `tokenId` beside `tokenScene` (projects-map.mjs
+           `placeProjectToken`). That token is a world document every browser holds, and it
+           carries its countdown's id in its own flag (`PROJECT_TOKEN_FLAG`): the link is in
+           world data on the token whatever projectMeta says, and it names the project's
+           marker, not a trace. The four fields came in with the Key Remnant plan, which held
+           all four. Measured first (26.09): on 5ba3389 with this rule, 72-canary's world scan
+           through a chapter found them in keyRemnantPlan alone, on p1 and p2 in each of its six
+           phases; with the plan a GM store, R9 passed on the suite's world, and the GM's 44
+           module world settings read clean after 72, 40-flow and 50-lang, with this exception
+           and without it. No scenario puts a project on the map; after 72 with its project
+           placed by `placeProjectToken`, the one hit without the exception was
+           projectMeta.<id>.tokenId, and the token's own flag named the same id. */
+        except: Object.freeze({ projectMeta: Object.freeze(["tokenId"]) })
     }),
     flags: Object.freeze({ Actor: Object.freeze([]), User: Object.freeze([]), Token: Object.freeze([]) })
 });
@@ -113,7 +134,8 @@ export function findWorldSecrets(snapshot, { ids = [], rules = WORLD_SECRET_RULE
     const settings = isObject(snapshot?.settings) ? snapshot.settings : {};
     for (const [key, value] of Object.entries(settings)) {
         const own = rules.settings?.[key] ?? null;
-        const everywhere = rules.everySetting?.fields ?? [];
+        const exempt = rules.everySetting?.except?.[key] ?? [];
+        const everywhere = (rules.everySetting?.fields ?? []).filter(f => !exempt.includes(f));
         const fields = new Set([...everywhere, ...(own?.fields ?? [])]);
         walk(value, "", (k, v, p) => {
             if (!fields.has(k)) return;
