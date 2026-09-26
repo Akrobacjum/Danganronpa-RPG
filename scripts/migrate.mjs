@@ -595,6 +595,22 @@ const CLAUSES = [
             const report = await liftDiscoveryLedger();
             return report && (report.lifted || report.monokuma || !report.emptied) ? report : null;
         }
+    },
+    {
+        key: "liftProjectSecrets",
+        since: "1.2.64",
+        /*
+         * AN INDIRECT MURDER'S KILLER OUT OF WORLD DATA (E05 C1; audit S09-05, D3). Until
+         * 1.2.64 projectMeta, which every browser holds, carried each project's killer,
+         * builder, condition and trigger. Once, on the primary, after the GM store's copies
+         * arrived, with the rules written on `liftProjectSecrets`: into the store weak and
+         * fill-only, and out of projectMeta only the fields the store reads back from storage.
+         */
+        run: async () => {
+            const { liftProjectSecrets } = await import("./projects.mjs");
+            const report = await liftProjectSecrets();
+            return report && (report.lifted || report.kept) ? report : null;
+        }
     }
 ];
 

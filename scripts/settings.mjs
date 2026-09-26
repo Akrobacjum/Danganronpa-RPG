@@ -286,6 +286,14 @@ export const SETTINGS = {
     trapPlants: "gmTrapPlants",
     legacyTrapPlants: "trapPlants",
     /**
+     * AN INDIRECT MURDER'S KILLER, BUILDER, CONDITION AND TRIGGER (E05, 1.2.64;
+     * audit S09-05, D3): a GM store (gm-stores.mjs `projectSecretStore`), a row per
+     * countdown id. They were fields of `projectMeta`, a world setting, which any
+     * player's console read. No old key: the first rows come out of projectMeta, by
+     * the migration clause `liftProjectSecrets`, which reads them back first.
+     */
+    projectSecrets: "gmProjectSecrets",
+    /**
      * The GM's plan for this murder's five Key Remnants.
      *
      * World-scoped and therefore readable by a curious player (see D6), which
@@ -1150,6 +1158,13 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // GM-side and client-scoped like the two above, for the reason beside its key.
+    game.settings.register(MODULE_ID, SETTINGS.projectSecrets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
 
     game.settings.register(MODULE_ID, SETTINGS.keyRemnantPlan, {
         scope: "world",
@@ -1519,6 +1534,7 @@ export function registerSettings() {
 
     // Per-project data Daggerheart's countdowns do not carry: which room the
     // project belongs to, whether it is an indirect murder, whether it is secret.
+    // Never who built it or what sets it off: those are `projectSecrets` (E05).
     game.settings.register(MODULE_ID, SETTINGS.projectMeta, {
         scope: "world",
         config: false,

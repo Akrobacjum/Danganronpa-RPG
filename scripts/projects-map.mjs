@@ -16,10 +16,13 @@
  * ownership - Foundry uses ownership for control, not for sight, and the
  * `hidden` flag says "GM only", which cannot express "these three players". So
  * the token carries a neutral name, a neutral image and one countdown id, and
- * nothing else. The id is not a leak: the projects setting it points into is
- * itself ownership-gated, so a client that may not see the project cannot
- * resolve the id into anything. The same contract Remnants have run on since
- * the crime-scene names were taken off the map.
+ * nothing else. The id adds nothing a console does not already hold: the
+ * Countdowns setting it points into - the name, the progress and the ownership
+ * map - is a world setting every browser holds, so a secret project is hidden
+ * from the interface, not from the console (audit S09-05; the killer and the
+ * trap's condition are the GMs' since E05, the name moves in E43). The same
+ * contract Remnants have run on since the crime-scene names were taken off the
+ * map.
  *
  * WHO SEES IT is `knowsProject` in projects.mjs, applied per client by
  * visibility.mjs - one predicate, no state of its own. A secret project's
@@ -191,9 +194,9 @@ export async function placeProjectToken(countdownId, { scene = null } = {}) {
     try {
         const [created] = await target.createEmbeddedDocuments("Token", [{
             /* NEUTRAL, because this reaches every browser. The project's real
-               name is in the countdown, which is ownership-gated; anybody
-               allowed to know reads it from there (`remnant-ring.mjs` does the
-               same for traces). */
+               name is in the countdown, hidden from the interface and not from
+               the console (S09-05); anybody allowed to know reads it from there
+               (`remnant-ring.mjs` does the same for traces). */
             name: game.i18n.localize("DRPG.Project.tokenName"),
             actorId: actor.id,
             actorLink: false,

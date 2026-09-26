@@ -13,7 +13,9 @@
 
 import { MODULE_ID, PROJECT_SCALE, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { announce, log, error, whisperToOwner, gmIds, esc, ownerIdsOf } from "./utils.mjs";
+import { announce, log, warn, error, whisperToOwner, gmIds, esc, ownerIdsOf, isPrimaryGm } from "./utils.mjs";
+// Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
+import { projectSecretStore } from "./gm-stores.mjs";
 
 /* `discoveredFor` is the per-character record of which rooms somebody has
    actually stood in - the public half of `knowsProject` below. Imported at the
@@ -32,6 +34,39 @@ export function projectMeta() {
 /** Metadata for one project. */
 export function metaFor(countdownId) {
     return projectMeta()[countdownId] ?? {};
+}
+
+/**
+ * THE FOUR FIELDS THAT NAME A MURDER'S KILLER, ON THE GMS' SIDE (E05 C1, 26.09.2026; audit S09-05, D3).
+ * `killerId`, `by`, `condition` and `trigger` were projectMeta's until 1.2.64, and projectMeta is a world
+ * setting every browser holds: any console read an indirect murder's killer, its builder and its
+ * condition before the crime (72-canary measured the killer's actor id at `projectMeta.<id>.killerId` on
+ * both bystanders' browsers). They are the GM store `projectSecrets` now (gm-stores.mjs); projectMeta
+ * keeps the room, the two flags, the trait, the glyph, the token and the sabotage pair.
+ */
+export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition", "trigger"]);
+
+/**
+ * The four fields of one project: the store's row on a GM, `{}` on anybody else. A player's browser
+ * holds no GM store, and nothing that runs there needs the four: the tray, the pickers and the token
+ * read projectMeta and the countdown, and every reader of the four runs on a GM (the trap's arming
+ * and its alert, the finished project's card, the manager and the murder window).
+ */
+export function secretsOf(countdownId) {
+    if (!game.user?.isGM) return {};
+    return projectSecretStore.get(countdownId) ?? {};
+}
+
+/**
+ * Patch parts of a trap's trigger on the GMs' side, and nothing else of it: `armed`, `firedAt`,
+ * `condition`, each stamped on its own (the store splits `trigger`), so the primary stamping a trap
+ * fired and another GM re-arming it both keep theirs. traps.mjs's three writers come here; a GM
+ * setting the whole trigger goes through `setProjectMeta`. GM only; answers the trigger now held.
+ */
+export async function patchTrigger(countdownId, parts) {
+    if (!game.user?.isGM) return null;
+    await projectSecretStore.patch(countdownId, { trigger: parts });
+    return secretsOf(countdownId).trigger ?? null;
 }
 
 /** Which room a project belongs to, if any. */
@@ -58,9 +93,12 @@ export function tokenRefOf(countdownId) {
  * One predicate, two roads in, and NO new state - which is the whole reason it
  * is worth writing down. Everything it needs was already being tracked:
  *
- *   · `canSee` is the ownership gate. A secret project simply does not reach a
- *     client that is not in on it, and somebody who IS in on it knows about it
- *     by definition - they proposed it, or it is their own murder.
+ *   · `canSee` is the ownership gate. A secret project is hidden from the
+ *     interface of a client that is not in on it - not from its console:
+ *     Daggerheart's Countdowns, with the name, the progress and the ownership
+ *     map, is a world setting every browser holds (audit S09-05). Somebody who
+ *     IS in on it knows about it by definition - they proposed it, or it is
+ *     their own murder.
  *   · `discoveredFor` (fog.mjs) is the per-character record of which rooms
  *     somebody has actually stood in. A public project is known once you have
  *     been in its room, and it stays known afterwards, because knowledge does.
@@ -99,12 +137,24 @@ export function knowsProject(countdownId, user = game.user) {
     return false;
 }
 
-/** Write metadata for a project. GM only. */
+/**
+ * Write metadata for a project. GM only.
+ *
+ * TWO HALVES SINCE E05 (C1; audit S09-05). The four fields of `PROJECT_SECRET_FIELDS` that `data`
+ * names go to the GM store, stamped as a GM's decision - `trigger` whole, because a caller here
+ * states all of it (a trap's own three parts are `patchTrigger`'s); everything else is merged into
+ * projectMeta, as before. Answers the project's row, both halves.
+ */
 export async function setProjectMeta(countdownId, data) {
     if (!game.user.isGM) return null;
-    const all = { ...projectMeta(), [countdownId]: { ...metaFor(countdownId), ...data } };
-    await game.settings.set(MODULE_ID, SETTINGS.projectMeta, all);
-    return all[countdownId];
+    const secret = {}, open = {};
+    for (const [field, value] of Object.entries(data ?? {})) (PROJECT_SECRET_FIELDS.includes(field) ? secret : open)[field] = value;
+    if (Object.keys(secret).length) await projectSecretStore.patch(countdownId, secret, { whole: true });
+    if (Object.keys(open).length) {
+        const all = { ...projectMeta(), [countdownId]: { ...metaFor(countdownId), ...open } };
+        await game.settings.set(MODULE_ID, SETTINGS.projectMeta, all);
+    }
+    return { ...metaFor(countdownId), ...secretsOf(countdownId) };
 }
 
 /* ==========================================================================
@@ -171,8 +221,9 @@ export function allProjects() {
                 countsUp: up,
                 room: roomOf(id),
                 indirectMurder: isIndirectMurder(id),
-                condition: metaFor(id).condition ?? "",
-                killerId: metaFor(id).killerId ?? null,
+                // The GMs' store on a GM, nothing on a player's browser (`secretsOf`).
+                condition: secretsOf(id).condition ?? "",
+                killerId: secretsOf(id).killerId ?? null,
                 trait: metaFor(id).trait ?? null,
                 // WHICH PIXEL GLYPH THE TRAY DRAWS FOR THIS ROW.
                 //
@@ -454,8 +505,9 @@ export async function addProgress(countdownId, amount, { by = null, actorId = nu
      *
      * Snapshotted rather than re-read for the same reason `announceProjectDone`
      * is handed the object: `meta.by` would vanish on exactly the same call.
+     * Both halves: `by` is the GMs' store's since E05, and this runs on a GM.
      */
-    const metaBefore = metaFor(countdownId);
+    const metaBefore = { ...metaFor(countdownId), ...secretsOf(countdownId) };
 
     // Finishing a repair thaws whatever it was repairing.
     await checkRepairCompletion(countdownId);
@@ -839,7 +891,8 @@ async function announceProjectDone(name, target, moverUserId, meta) {
 async function announceTrapReady(countdownId, name) {
     if (!isIndirectMurder(countdownId)) return null;
 
-    const meta = metaFor(countdownId);
+    // The room from projectMeta, the killer, the trigger and the condition from the GMs' store (E05).
+    const meta = { ...metaFor(countdownId), ...secretsOf(countdownId) };
     /*
      * `meta.by` IS AN ACTOR ID, and this line used to compare it to a NAME -
      * `a.name === meta.by` - against a field that nothing in the module ever
@@ -1082,6 +1135,9 @@ export async function deleteProject(countdownId) {
         meta[target] = { ...meta[target], frozenBy: null };
     }
     await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+    // And its killer, builder, condition and trigger, on every GM (E05): a stamped drop, which a GM
+    // who was away takes at its next exchange.
+    await projectSecretStore.drop(countdownId);
 
     // Its plant and its ledger row go with it (ITEM-08).
     try {
@@ -1124,6 +1180,11 @@ export async function clearAllProjects() {
     // `deleteProject` does - `countdowns` is one key inside it, not all of it.
     await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns: {} });
     await game.settings.set(MODULE_ID, SETTINGS.projectMeta, {});
+    /* Every project's secrets with them (E05): the primary's clear is a cut every GM takes, as the
+       traps' two stores below; another GM's reset (a console - the window is the primary's) drops
+       the rows it holds. */
+    if (isPrimaryGm()) await projectSecretStore.clear();
+    else await projectSecretStore.dropMany(Object.keys(projectSecretStore.entries()));
 
     // Nothing planted for a project that no longer exists (ITEM-08).
     try {
@@ -1135,6 +1196,56 @@ export async function clearAllProjects() {
 
     log(`Season reset: cleared ${gone} project(s).`);
     return gone;
+}
+
+/**
+ * A world from before 1.2.64 holds the four fields in projectMeta, which every browser reads (audit
+ * S09-05). The clause `liftProjectSecrets` (migrate.mjs, since 1.2.64) runs this once, on the primary,
+ * after the store holds the other GMs' copies (E05 C1).
+ *
+ * NOTHING LEAVES WORLD DATA BEFORE THE STORE HOLDS IT. The fields go in weak and fill-only - whatever a
+ * GM wrote to the store since the update wins, a trigger part by part - and a field is taken out of
+ * projectMeta only once the store reads it back from storage; the setting is replaced whole, so every
+ * other field of every row is written back as it was, and then it is read back too. Idempotent: a world
+ * already through this has none of the four.
+ *
+ * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}  Fields moved, fields left
+ *   in the world because the store did not read them back, and whether projectMeta now holds none.
+ */
+export async function liftProjectSecrets() {
+    if (!isPrimaryGm()) return null;
+    if (await projectSecretStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the project secrets did not arrive; the next load tries again");
+    }
+    const meta = projectMeta();
+    const rows = {};
+    for (const [id, entry] of Object.entries(meta)) {
+        if (!entry || typeof entry !== "object") continue;
+        const fields = Object.fromEntries(PROJECT_SECRET_FIELDS.filter(f => Object.hasOwn(entry, f)).map(f => [f, entry[f]]));
+        if (Object.keys(fields).length) rows[id] = fields;
+    }
+    if (!Object.keys(rows).length) return null;
+    await projectSecretStore.patchMany(rows, { weak: true, fillOnly: true });
+    await projectSecretStore.idle();
+    const next = foundry.utils.deepClone(meta);
+    let lifted = 0, kept = 0;
+    for (const [id, fields] of Object.entries(rows)) {
+        const held = projectSecretStore.persisted(id) ?? {};
+        for (const field of Object.keys(fields)) {
+            if (Object.hasOwn(held, field)) {
+                delete next[id][field];
+                lifted++;
+            } else kept++;
+        }
+    }
+    if (kept) warn(`Project secrets: ${kept} field(s) stayed in projectMeta, because the GM store did not read them back.`);
+    if (lifted) await game.settings.set(MODULE_ID, SETTINGS.projectMeta, next);
+    const left = Object.values(projectMeta())
+        .reduce((n, row) => n + PROJECT_SECRET_FIELDS.filter(f => row && typeof row === "object" && Object.hasOwn(row, f)).length, 0);
+    if (lifted) log(`Lifted ${lifted} project secret field(s) out of world data (D3); ${left} left.`);
+    // The armed map was built from the world's copy; the next event rebuilds it from the store.
+    (await import("./traps.mjs")).forgetArmedTraps();
+    return { lifted, kept, emptied: left === 0 };
 }
 
 /** Human-readable scale label for a progress target. */
@@ -1283,6 +1394,15 @@ export async function unshareWith(countdownId, userId) {
     if (!game.user.isGM) return null;
     // The same map, written the same way, for the same reason as `shareWith`.
     if (!isSecret(countdownId)) return null;
+    /* NEVER THE BUILDER (E05 C1; audit S09-09). The manager and the project window add the builder
+       whatever is ticked (F3), and Revoke in the Share window took them off their own trap: the
+       student who built it could no longer see it or work on it. Refused, and the GM told why. */
+    if (builderIds(countdownId).includes(userId)) {
+        ui.notifications?.warn(game.i18n.format("DRPG.Project.builderStays", {
+            name: game.users.get(userId)?.name ?? userId, project: rawCountdown(countdownId)?.name ?? countdownId
+        }));
+        return null;
+    }
 
     const current = rawCountdown(countdownId)?.ownership ?? {};
     const viewers = Object.entries(current)
@@ -1328,7 +1448,7 @@ export async function revealProject(countdownId) {
  * (P-1): the GM ticks who else knows, and this is added whatever they tick.
  */
 export function builderIds(countdownId) {
-    const meta = metaFor(countdownId);
+    const meta = secretsOf(countdownId);
     return ownerIdsOfId(meta.killerId ?? meta.by ?? null);
 }
 
@@ -1364,7 +1484,7 @@ export function sealAudience(countdownId) {
  * project somebody really did share with every player loses that share - the
  * safe way to be wrong about a murder plan.
  */
-function withoutLeak(countdownId, ids) {
+export function withoutLeak(countdownId, ids) {
     const players = game.users.filter(u => !u.isGM).map(u => u.id);
     const everyone = players.length >= 2 && players.every(id => ids.includes(id));
     if (!everyone) return ids;

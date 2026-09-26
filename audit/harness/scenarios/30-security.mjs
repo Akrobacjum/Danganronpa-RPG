@@ -687,8 +687,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         }
         return { away: away.id, here: here.id };`, { timeout: 60000 });
     await settle(600);
+    // The trigger is the GMs' store's since E05 (C1; audit S09-05): `setProjectMeta` above routes it there.
     const readTraps = `const P = await import("${repoUrl}/scripts/projects.mjs");
-        return { away: P.metaFor("${traps.away}").trigger?.firedAt ?? null, here: P.metaFor("${traps.here}").trigger?.firedAt ?? null };`;
+        return { away: P.secretsOf("${traps.away}").trigger?.firedAt ?? null, here: P.secretsOf("${traps.here}").trigger?.firedAt ?? null };`;
     const relayTo = room => p1.eval(`game.socket.emit("${SOCKET}", { action: "trap.event", kind: "crossing",
         actorId: "${ids.aiko}", to: "${room}" }, ${toGms}); return true;`);
     await relayTo("Storage");

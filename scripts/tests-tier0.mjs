@@ -787,13 +787,18 @@ const REGRESSIONS = [
          * question asked of every store the module registers, which is where the
          * next one will be added.
          *
-         * KNOWN AND DELIBERATE: `projectMeta` is world-scoped and carries
-         * `killerId` and the trap's `condition`, so an indirect murder's owner
-         * is legible from a player's console today. That is Dawid's call, not a
-         * slip - `secret` was specified as hiding the UI - and it is written
-         * down here so the next reader does not think it got past this test.
+         * AND NO PROJECT NAMES ITS KILLER (E05 C1, 26.09.2026; audit S09-05, D3).
+         * This test said `projectMeta` carried an indirect murder's `killerId` and
+         * its `condition` by the owner's decision - `secret` hid the interface,
+         * not the data. D3 moved them, with `by` and `trigger`, into the GMs'
+         * store; a row of projectMeta that holds any of the four fails here.
          */
         const FORBIDDEN = ["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime"];
+        const { PROJECT_SECRET_FIELDS } = await import("./projects.mjs");
+        const inMeta = Object.entries(game.settings.get(MODULE_ID, SETTINGS.projectMeta) ?? {})
+            .flatMap(([id, row]) => PROJECT_SECRET_FIELDS.filter(f => row && typeof row === "object" && Object.hasOwn(row, f)).map(f => `${id}.${f}`));
+        ok(PROJECT_SECRET_FIELDS.length === 4, `the project secrets are not the four D3 moved: ${PROJECT_SECRET_FIELDS.join(", ")}`);
+        ok(!inMeta.length, `projectMeta, on every player's machine, still names who builds a trap and what sets it off: ${inMeta.join(", ")}`);
         const found = [];
         for (const [full, def] of game.settings.settings) {
             if (!full.startsWith(`${MODULE_ID}.`)) continue;
@@ -5624,7 +5629,9 @@ const REGRESSIONS = [
             // The fog (C9): a character standing in a room, a player's rows in the rebuild, the world's old ledger.
             ["fog.mjs", "seedDiscovery", ["weak", "fillOnly"], false],
             ["fog.mjs", "registerLedgerRoad", ["weak", "fillOnly"], false],
-            ["fog.mjs", "liftDiscoveryLedger", ["weak", "fillOnly"], true]
+            ["fog.mjs", "liftDiscoveryLedger", ["weak", "fillOnly"], true],
+            // An indirect murder's killer, builder, condition and trigger out of projectMeta (E05 C1).
+            ["projects.mjs", "liftProjectSecrets", ["weak", "fillOnly"], true]
         ];
         // The migrations that read a store through a function they call: they wait themselves.
         const WAITERS = [["remnants.mjs", "migrateRemnants"], ["remnants.mjs", "migrateRemnantToken"]];
@@ -5696,10 +5703,12 @@ const REGRESSIONS = [
          * each clause stands after that one, since 1.2.63, and runs its lift; and no
          * file calls a lift except its clause - the restore, which runs the Faint pass
          * again when a GM asks, and diagnostics' line telling the GM what to type. The
-         * reader is shown a planted ready hook first.
+         * reader is shown a planted ready hook first. E05's lifts join the list, each
+         * with its own `since` (1.2.64).
          */
-        const LIFTS = [["truthBulletShape", "migrateTruthBullets"], ["faintIntoSecrets", "migrateFaintIntoSecrets"],
-            ["liftIncidentSecrets", "liftIncidentSecrets"], ["liftDiscoveryLedger", "liftDiscoveryLedger"]];
+        const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"], ["faintIntoSecrets", "migrateFaintIntoSecrets", "1.2.63"],
+            ["liftIncidentSecrets", "liftIncidentSecrets", "1.2.63"], ["liftDiscoveryLedger", "liftDiscoveryLedger", "1.2.63"],
+            ["liftProjectSecrets", "liftProjectSecrets", "1.2.64"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.
@@ -5728,11 +5737,11 @@ const REGRESSIONS = [
         const keyAt = key => migrate.indexOf(`key: "${key}"`);
         const monokuma = keyAt("forgetMonokumaWalks");
         ok(monokuma >= 0, "migrate.mjs has no forgetMonokumaWalks clause - this test reads nothing until it is pointed at it again");
-        for (const [key, fn] of LIFTS) {
+        for (const [key, fn, since] of LIFTS) {
             ok(keyAt(key) > monokuma, `the lift ${key} is not a migration clause after forgetMonokumaWalks`);
             // One clause: from its key to the brace that closes it, four spaces in.
             const clause = bodyOf(migrate, `key: "${key}"`, { until: "\n    }" });
-            ok(/since: "1\.2\.63"/.test(clause) && new RegExp(`\\b${fn}\\(`).test(clause), `the clause ${key} does not run ${fn} since 1.2.63`);
+            ok(clause.includes(`since: "${since}"`) && new RegExp(`\\b${fn}\\(`).test(clause), `the clause ${key} does not run ${fn} since ${since}`);
         }
         const found = callers(sources);
         log(`R178: ${LIFTS.length} lifts, read in ${sources.size} files`);

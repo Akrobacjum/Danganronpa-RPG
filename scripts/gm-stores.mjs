@@ -408,6 +408,21 @@ export const trapPlantStore = defineGmStore({
 });
 
 /**
+ * AN INDIRECT MURDER'S KILLER, BUILDER, CONDITION AND TRIGGER (E05 C1; audit S09-05, D3). A row per
+ * countdown id: `killerId`, `by`, `condition`, `trigger` - projectMeta's four fields until 1.2.64,
+ * which every browser held. `trigger` is split, a stamp per part, so the primary stamping a trap fired
+ * and another GM re-arming it keep theirs (projects.mjs `patchTrigger`). No old key: the first rows
+ * come out of the world by the clause `liftProjectSecrets` (migrate.mjs). A row's subject is its
+ * project - its row in projectMeta, or its countdown.
+ */
+export const projectSecretStore = defineGmStore({
+    name: "projectSecrets", key: SETTINGS.projectSecrets,
+    kind: "ledger", split: ["trigger"], resetGroup: "projects", backup: true, sync: true,
+    exists: id => Object.hasOwn(getSetting(SETTINGS.projectMeta) ?? {}, id)
+        || Boolean(game.settings.get("daggerheart", "Countdowns")?.countdowns?.[id])
+});
+
+/**
  * THE OBSERVE DECLARATIONS WAITING FOR THEIR ROLL (E04 C7). Local: this browser's,
  * a section per world, neither synced nor backed up - the declaration and its
  * answer go through one GM, whoever `primaryGmId()` names, and last an hour at

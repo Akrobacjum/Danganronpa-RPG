@@ -2393,7 +2393,9 @@
       "cardOpenManager": "Otwórz okno Projekty",
       "cardShared": "Każdy żeton projektu jest kopią tego aktora. Otwórz projekt z jego żetonu na mapie.",
       "cardUnknown": "Nie wiesz, czym to jest.",
-      "frozenNoProgress": "{name} jest sabotowany i nie ruszy do przodu, dopóki nie skończy się naprawa."
+      "frozenNoProgress": "{name} jest sabotowany i nie ruszy do przodu, dopóki nie skończy się naprawa.",
+      "everyone": "Jawny: widzą go wszyscy. Zaznaczeni to ci, którzy wiedzieli przed ujawnieniem - oni i budujący będą wiedzieć, jeśli projekt znów zostanie utajniony.",
+      "builderStays": "{name} buduje „{project}”: budującego nie można odsunąć od jego własnego projektu."
     },
     "RollDialog": {
       "locked": "Nie ty o tym decydujesz. Przewaga i doświadczenia to Hope Calls - zapytaj GM-a.",
@@ -4567,7 +4569,8 @@
         "trapPlants": "Przedmioty czekające w pokojach",
         "observe": "Deklaracje Observe czekające na rzut",
         "offers": "Oferowane Level Upy",
-        "discovery": "Pokoje odkryte przez każdą postać"
+        "discovery": "Pokoje odkryte przez każdą postać",
+        "projectSecrets": "Kto buduje każdą pułapkę i co ją uruchamia"
       },
       "row": {
         "traces": {

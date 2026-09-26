@@ -40,11 +40,14 @@
  * ---------------------------------------------------------------------------
  * WHAT LIVES WHERE, AND WHY THE ITEM TRIGGER IS DIFFERENT.
  *
- * Seven triggers are answered from `projectMeta`, where the trap's condition
- * already lives. The eighth - the planted item - must not be, and the reason is
- * the whole design decision of this stage: an item on a character sheet is
- * fully readable from its owner's console, so a flag saying "this is the trap"
- * would be a poisoned first aid kit with POISONED written on it.
+ * Seven triggers are answered from the trap's row in the GM store
+ * `projectSecrets` - its killer, its condition and its trigger, which were
+ * projectMeta's, a world setting any console reads, until E05 (1.2.64; audit
+ * S09-05) - and from projectMeta's room and flags. The eighth - the planted
+ * item - must not be, and the reason is the whole design decision of this
+ * stage: an item on a character sheet is fully readable from its owner's
+ * console, so a flag saying "this is the trap" would be a poisoned first aid
+ * kit with POISONED written on it.
  *
  * So the truth sits in a GM-side ledger (`trapLedger`, client-scoped, the same
  * shape the Remnant secrets use), keyed by an identity every module item
@@ -64,7 +67,7 @@ import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, judge, tab
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
-import { allProjects } from "./projects.mjs";
+import { allProjects, secretsOf, patchTrigger } from "./projects.mjs";
 import { newItemIdentity } from "./inventory.mjs";
 
 /* ==========================================================================
@@ -74,10 +77,12 @@ import { newItemIdentity } from "./inventory.mjs";
 /**
  * Every armed trap, indexed by what its listener will be holding.
  *
- * Rebuilt from `projectMeta` rather than kept in step by hand: the meta is a
- * world setting and every write to it reaches every client, so invalidating on
- * that one event covers creation, arming, disarming, freezing and deletion
- * without any of them having to remember to say so.
+ * Rebuilt from `projectMeta` and the GM store `projectSecrets` rather than kept
+ * in step by hand: every write to the meta reaches every client, and every
+ * change to the store - written on this browser or merged in from another GM's
+ * - is a write of its client setting here, so invalidating on those two events
+ * covers creation, arming, disarming, freezing and deletion without any of them
+ * having to remember to say so (see `registerTraps`).
  *
  * `null` means "no map built yet", which is different from "a map with nothing
  * in it" - the second is a real answer and costs nothing to give again.
@@ -154,25 +159,26 @@ function trapProjects() {
      * THE NAME COMES OFF THE COUNTDOWN, because the meta does not carry one.
      *
      * Measured on the first run of this: the alert card came out titled
-     * "- something set it off". `projectMeta` holds the room, the secrecy and
-     * the killer; the NAME lives on the countdown document, which is the one
+     * "- something set it off". `projectMeta` holds the room and the secrecy,
+     * the GM store the killer; the NAME lives on the countdown document, which is the one
      * place it can be renamed. Copying it into the meta would have made a
      * second copy that goes stale the first time somebody edits the project.
      *
      * Built once per map rebuild rather than per event - this whole function
-     * runs only when `projectMeta` changes, not on every crossing.
+     * runs only when `projectMeta` or the store changes, not on every crossing.
      */
     const names = new Map(allProjects().map(p => [p.id, p.name]));
 
     for (const [id, entry] of Object.entries(meta)) {
         if (!entry?.indirectMurder) continue;
-        const trigger = entry.trigger;
+        const secret = secretsOf(id);
+        const trigger = secret.trigger;
         if (!trigger?.kind || !trigger.armed) continue;
         if (trigger.firedAt) continue;             // trap 153 - one alert, then quiet
         if (entry.frozenBy) continue;              // trap 154 - sabotaged, so blind
         if (!TRAP_TRIGGERS[trigger.kind]?.watch) continue;
 
-        const killer = game.actors.get(entry.killerId ?? entry.by ?? "");
+        const killer = game.actors.get(secret.killerId ?? secret.by ?? "");
         if (!killer) continue;
         if (killer.statuses?.has?.("dead") || isDead(killer)) continue;
 
@@ -316,13 +322,15 @@ async function alert(trap, actor, why) {
     return true;
 }
 
-/** Mark a trap as having spoken. Read back, because trap 153 depends on it. */
+/**
+ * Mark a trap as having spoken. Read back, because trap 153 depends on it. Its
+ * `firedAt` alone, in the GM store (E05): a GM's Rearm made meanwhile keeps its
+ * own parts.
+ */
 async function stampFired(projectId) {
     try {
-        const { setProjectMeta, metaFor } = await import("./projects.mjs");
-        const trigger = { ...(metaFor(projectId).trigger ?? {}), firedAt: Date.now() };
-        await setProjectMeta(projectId, { trigger });
-        if (!metaFor(projectId).trigger?.firedAt) {
+        const trigger = await patchTrigger(projectId, { firedAt: Date.now() });
+        if (!trigger?.firedAt) {
             error(`Could not disarm trap "${projectId}" - no alert sent`);
             return false;
         }
@@ -337,9 +345,7 @@ async function stampFired(projectId) {
 /** Put a trap that has spoken back on watch. The GM's "not this one". */
 export async function rearmTrap(projectId) {
     if (!game.user.isGM) return null;
-    const { setProjectMeta, metaFor } = await import("./projects.mjs");
-    const trigger = { ...(metaFor(projectId).trigger ?? {}), armed: true, firedAt: null };
-    await setProjectMeta(projectId, { trigger });
+    await patchTrigger(projectId, { armed: true, firedAt: null });
     forgetArmedTraps();
     log(`Trap "${projectId}" is watching again.`);
     return true;
@@ -348,12 +354,9 @@ export async function rearmTrap(projectId) {
 /** Start watching. Called when an indirect murder's bar fills. */
 export async function armTrap(projectId, { condition = "" } = {}) {
     if (!game.user.isGM) return null;
-    const { setProjectMeta, metaFor } = await import("./projects.mjs");
-    const trigger = { ...(metaFor(projectId).trigger ?? {}) };
+    const trigger = secretsOf(projectId).trigger ?? {};
     if (!trigger.kind) return null;
-    await setProjectMeta(projectId, {
-        trigger: { ...trigger, armed: true, firedAt: null, condition: condition || trigger.condition }
-    });
+    await patchTrigger(projectId, { armed: true, firedAt: null, condition: condition || trigger.condition });
     forgetArmedTraps();
     return true;
 }
@@ -614,6 +617,13 @@ export function registerTraps() {
     // trap can appear, change or go away.
     Hooks.on("updateSetting", setting => {
         if (setting?.key === `${MODULE_ID}.${SETTINGS.projectMeta}`) forgetArmedTraps();
+    });
+    /* AND FROM THE GMS' STORE (E05 C1). A trap's trigger and killer are the store
+       `projectSecrets`, a client setting on each GM's browser, which is written when
+       a GM here changes it and when another GM's change is merged in: the second
+       GM's Rearm reaches the primary's map by this listener alone (61 P2). */
+    Hooks.on("clientSettingChanged", key => {
+        if (key === `${MODULE_ID}.${SETTINGS.projectSecrets}`) forgetArmedTraps();
     });
     // A killer who dies stops hunting, and `trapProjects` reads that off the
     // actor - so the map has to be dropped when one changes.

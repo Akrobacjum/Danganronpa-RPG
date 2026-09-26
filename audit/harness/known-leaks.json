@@ -42,21 +42,6 @@
       "measuredAt": "E30 C20 on 4a83b6b, 24.09.2026: all four keyplan markers on p1, p2 and p3 at danganronpa-rpg.keyRemnantPlan entries.*.name/text/analysis/note, on the wire in phase plant and at rest"
     },
     {
-      "id": "S09-05",
-      "findings": ["S09-05"],
-      "class": "killer-identity",
-      "severity": "medium",
-      "what": "An indirect murder's killer and builder (killerId, by) and its condition are in the world setting projectMeta, which every browser holds.",
-      "closes": "E05",
-      "match": [
-        {"seed": "project.condition", "surface": "setting", "where": "danganronpa-rpg.projectMeta", "path": "*.condition"}
-      ],
-      "detectedBy": [
-        {"scenario": "72-canary", "seed": "project.condition", "phase": "rest"}
-      ],
-      "measuredAt": "E30 C20 on 4a83b6b, 24.09.2026: the project.condition marker on p1 and p2 (not the killer's player, p3) at danganronpa-rpg.projectMeta *.condition, wire and rest; killerId and by read in projects.mjs createProject on 25.09.2026, not measured by a run"
-    },
-    {
       "id": "S17-31",
       "findings": ["S17-31"],
       "class": "killer-identity",

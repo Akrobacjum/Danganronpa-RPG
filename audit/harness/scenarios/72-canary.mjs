@@ -77,6 +77,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     await settle(1500);
     await canary.scan({ phase: "rest" });
 
+    /* THE INDIRECT MURDER'S KILLER IS NOT IN WORLD DATA (E05 C1, 26.09.2026; audit S09-05, D3). The
+       scan reads the condition's marker; the killer and the builder are actor ids, which carry no
+       marker, so they are asked of the setting itself - on the two browsers that are not the
+       killer's player's. The project's own row has to be there, or its absence measures nothing.
+       Red on 93bbde8 (1.2.63) with this check alone, as known leak S09-05: p1 and p2 each held the
+       project's killerId, by, condition and trigger, and Chie's actor id. */
+    const metaHolds = p => p.eval(`const meta = game.settings.get("${MOD}", "projectMeta") ?? {};
+        const fields = Object.entries(meta).flatMap(([id, row]) => ["killerId", "by", "condition", "trigger"]
+            .filter(f => row && typeof row === "object" && Object.hasOwn(row, f)).map(f => id + "." + f));
+        return { row: Object.hasOwn(meta, "${made ?? "none"}"), fields, killer: JSON.stringify(meta).includes("${IDS.chie}") };`);
+    const metaP1 = await metaHolds(p1), metaP2 = await metaHolds(p2);
+    check("p1 and p2: projectMeta holds no killerId, by, condition or trigger, and no character id of the killer",
+        Boolean(made) && [metaP1, metaP2].every(m => m.row && !m.fields.length && !m.killer), JSON.stringify({ p1: metaP1, p2: metaP2 }));
+
     /* An unfound trace is a token, and a token reaches every browser (S17-64): not a
        marker in a field, so it is asked of the scene itself. */
     const holders = [];

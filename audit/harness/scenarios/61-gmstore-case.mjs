@@ -41,6 +41,9 @@
  *   G  a trap's planted object (S08-19): a second GM plants it, the primary - who
  *      hands a player's Search its find - finds it and gives it to the searcher,
  *      and its use sets the trap off on the primary's chat.
+ *   P  the same trap's killer, condition and trigger (E05, S09-05): the second GM,
+ *      which joined G with an empty browser, holds them by the store's exchange,
+ *      and projectMeta none of them; its Rearm reaches the primary's armed map.
  *   I  the fog ledger (S07-01): rooms found and one unticked while the second GM
  *      is away reach it when it comes back, the untick with them.
  *   H1 a Level Up offered on the primary (S03-11): its owner's copy is lit at the
@@ -640,6 +643,32 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         !used.err && alert >= 1, J({ used, alert, cardsBefore }));
     // p1's dice go back to the harness's own (the round-2 review's m2): a later roll must not use G's.
     await p1.eval(`delete globalThis.__forceRoll; return true;`);
+
+    /* ------------------- P. the trap's secrets on a GM who joined empty, and its Rearm ------------------- */
+
+    /* P (E05 C1, 26.09.2026; audit S09-05, D3): gm2 joined G with an empty browser after the trap
+       was made, and its killer, condition and trigger are the GM store `projectSecrets` now, not
+       projectMeta - so gm2 holds them by the store's exchange alone. The primary's alert in G3
+       stamped the trap fired and took it off the armed map, which P1 reads (and so builds) on the
+       primary; gm2's Rearm is a write on gm2's browser, and reaches that map only as a merge of the
+       store (traps.mjs's clientSettingChanged listener). */
+    phase("P: an indirect murder's secrets reach a GM who joined empty, and its Rearm reaches the primary's armed map", { flow: "trap-fire" });
+    const secretsOn = client => client.eval(`${TRAP} const s = P.secretsOf("${trap.id}");
+        return { killerId: s.killerId ?? null, condition: s.condition ?? null, kind: s.trigger?.kind ?? null, armed: s.trigger?.armed ?? null,
+            firedAt: s.trigger?.firedAt ?? null, inMeta: P.PROJECT_SECRET_FIELDS.filter(f => Object.hasOwn(P.metaFor("${trap.id}"), f)),
+            mapped: T.armedIn("${trap.room}").some(t => t.id === "${trap.id}") };`);
+    const onGm2P = await secretsOn(gm2), onGmP = await secretsOn(gm);
+    check("P1: a GM who joined with an empty browser holds the trap's killer, condition and trigger, fired - and projectMeta holds none of the four",
+        onGm2P.killerId === IDS.botan && onGm2P.condition === "E04 61G" && onGm2P.kind === "item" && onGm2P.firedAt !== null
+        && onGm2P.inMeta.length === 0 && onGmP.firedAt !== null && onGmP.mapped === false, J({ onGm2P, onGmP }));
+    await gm2.eval(`${TRAP} await T.rearmTrap("${trap.id}"); return true;`);
+    await settle(1200);
+    const rearmedP = await secretsOn(gm);
+    check("P2: the second GM's Rearm reaches the primary's store and its armed map",
+        rearmedP.firedAt === null && rearmedP.armed === true && rearmedP.mapped === true, J({ rearmedP }));
+    // Taken away again: no later phase is to meet an armed item trap with nothing planted for it.
+    await gm.eval(`${TRAP} await P.deleteProject("${trap.id}"); return true;`);
+    await settle(600);
     await disconnect("gm2");
     await settle(300);
 

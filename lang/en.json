@@ -2315,7 +2315,9 @@
       "completeTag": "Complete",
       "alreadyComplete": "{name} is finished. There is no work left in it.",
       "allComplete": "Every project in {room} is already finished.",
-      "frozenNoProgress": "{name} has been sabotaged and cannot move forward until its repair is finished."
+      "frozenNoProgress": "{name} has been sabotaged and cannot move forward until its repair is finished.",
+      "everyone": "Public: everyone can see it. Ticked: who knew before it was revealed - they and whoever builds it are who will know if it is sealed again.",
+      "builderStays": "{name} is building “{project}”: a builder cannot be taken off their own project."
     },
     "RollDialog": {
       "locked": "Not yours to choose. Advantage and experiences are Hope Calls - ask the GM.",
@@ -3338,7 +3340,8 @@
         "trapPlants": "The plants waiting in rooms",
         "observe": "The Observe declarations waiting for their roll",
         "offers": "The Level Ups on offer",
-        "discovery": "The rooms each character has found"
+        "discovery": "The rooms each character has found",
+        "projectSecrets": "Who builds each trap, and what sets it off"
       },
       "row": {
         "traces": {

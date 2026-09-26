@@ -2818,6 +2818,71 @@ const SCENARIOS = [
         }
     }],
 
+    ["a secret indirect murder keeps its killer, builder, condition and trigger on the GMs", async () => {
+        /*
+         * E05 C1, 26.09.2026; audit S09-05, D3. projectMeta is a world setting every browser
+         * holds, and it carried an indirect murder's killer, its builder, its condition and its
+         * trigger: any console named the killer before the crime. The four are the GM store
+         * `projectSecrets` now. Driven through the game's own events, as the test above: made,
+         * the world's row holds none of the four and `secretsOf` holds all of them; filled, the
+         * trap arms from the store; set off, `stampFired` writes `firedAt` there and the trap
+         * leaves the armed map; Rearm brings it back; deleted, its row goes. Nothing of it
+         * reaches projectMeta at any step.
+         */
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { allRooms, othersInNamedRoom } = await import("./movement.mjs");
+        const [killer, other] = cast(2);
+        needs(world.atLeast("namedRooms"), "the trap is built in a room");
+        const room = allRooms().find(r => othersInNamedRoom(r).length === 0) ?? allRooms()[0];
+        ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        const inWorld = id => P.PROJECT_SECRET_FIELDS.filter(f => Object.hasOwn(P.metaFor(id), f));
+        const armedHere = id => T.armedIn(room).some(t => t.id === id);
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        let made = null;
+        try {
+            made = await P.createProject({
+                name: "SUITE E05 secret trap", target: 1, room, indirectMurder: true, secret: true,
+                killerId: killer.id, by: killer.id, condition: "SUITE E05 condition",
+                trigger: { kind: "alone", afterDark: false, notBuilder: true }
+            });
+            ok(made?.id, "could not create the trap project");
+            await settle();
+            equal(stableJson(inWorld(made.id)), "[]", "projectMeta holds a field of the four on a new trap");
+            const held = P.secretsOf(made.id);
+            equal(stableJson([held.killerId, held.by, held.condition, held.trigger?.kind, held.trigger?.armed]),
+                stableJson([killer.id, killer.id, "SUITE E05 condition", "alone", false]), "the GMs' store does not hold the new trap's four fields");
+
+            await P.addProgress(made.id, 1, { by: killer.id });
+            await settle();
+            equal(stableJson([T.diagnoseTraps().armed, P.secretsOf(made.id).trigger?.armed ?? null, armedHere(made.id)]), stableJson([1, true, true]),
+                "the finished trap did not arm from the GMs' store");
+
+            const count = game.messages.size;
+            Hooks.callAll("drpgRoomCrossed", { actor: other, from: null, to: room });
+            // The card and the disarm ride on one chain after the synchronous hook (see the test above).
+            await until(() => game.messages.size > count);
+            await until(() => !armedHere(made.id));
+            const fired = P.secretsOf(made.id).trigger?.firedAt ?? null;
+            ok(game.messages.size > count && Number.isFinite(fired) && !armedHere(made.id),
+                `the trap went off and the GMs' store has no firedAt (${fired}), or it is still in the armed map`);
+
+            await T.rearmTrap(made.id);
+            ok(armedHere(made.id) && P.secretsOf(made.id).trigger?.firedAt === null, "Rearm did not put the trap back in the armed map from the GMs' store");
+            equal(stableJson(inWorld(made.id)), "[]", "a field of the four reached projectMeta while the trap armed, went off or was re-armed");
+
+            await P.deleteProject(made.id);
+            ok(!S.projectSecretStore.has(made.id), "deleting the project left its killer and trigger in the GMs' store");
+            made = null;
+        } finally {
+            if (made?.id) await P.deleteProject(made.id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await settle();
+        }
+    }],
+
     ["a planted item is handed over once, and keeps the name the GM gave it", async () => {
         /*
          * Traps 165 and the identity problem, which are the two halves of the
@@ -4304,7 +4369,8 @@ const SCENARIOS = [
         try {
             made = await P.createProject({ name: "SUITE F3 trap", indirectMurder: true, by: builder.id });
             ok(P.canSee(made.id, owner), "an approved trap is sealed away from the student who built it");
-            equal(P.metaFor(made.id).killerId, builder.id, "the builder is not recorded as the trap's killer");
+            // The GMs' store's since E05 (C1): projectMeta no longer carries it.
+            equal(P.secretsOf(made.id).killerId, builder.id, "the builder is not recorded as the trap's killer");
             ok(!others.some(u => P.canSee(made.id, u)), "a new trap is visible to a player who did not build it");
 
             await P.revealProject(made.id);
@@ -4313,6 +4379,38 @@ const SCENARIOS = [
             ok(P.isSecret(made.id), "the re-seal did not mark the project secret");
             ok(!others.some(u => P.canSee(made.id, u)), "re-sealing a revealed project kept the rest of the table in");
             ok(P.canSee(made.id, owner), "re-sealing shut the builder out of their own project");
+        } finally {
+            if (made?.id) await P.deleteProject(made.id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+    }],
+
+    ["Revoke never takes a builder off their own secret project", async () => {
+        /*
+         * E05 C1, 26.09.2026; audit S09-09. The manager and the project window add the builder
+         * whatever is ticked (F3, the test above), and Revoke in the Share window
+         * (`unshareWith`) took the student who built a trap off it: they could no longer see it
+         * or work on it. Refused now, and the GM told; a guest is still taken off.
+         */
+        const P = await import("./projects.mjs");
+        needs(world.atLeast("playersWithCharacter"), "the project is built by a character a player owns");
+        needs(world.atLeast("playerAccounts", 2), "a second player is let in and taken off again");
+        const owner = game.users.find(u => !u.isGM
+            && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const builder = owner && game.actors.find(a => a.type === "character" && a.testUserPermission(owner, "OWNER"));
+        const guest = game.users.find(u => !u.isGM && !builder.testUserPermission(u, "OWNER"));
+        ok(guest, "every player account owns the builder, so nobody is left to let in");
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        let made = null;
+        try {
+            made = await P.createProject({ name: "SUITE S09-09 trap", indirectMurder: true, by: builder.id });
+            await P.shareWith(made.id, guest.id);
+            ok(P.canSee(made.id, guest), "the guest was not let in - the Revoke below would measure nothing");
+            equal(await P.unshareWith(made.id, owner.id), null, "Revoke took the builder's player off their own trap");
+            ok(P.canSee(made.id, owner), "the builder's player can no longer see their own trap");
+            equal(await P.unshareWith(made.id, guest.id), true, "Revoke no longer takes a guest off");
+            ok(!P.canSee(made.id, guest), "the guest still sees the trap after Revoke");
         } finally {
             if (made?.id) await P.deleteProject(made.id).catch(() => {});
             await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
@@ -7157,6 +7255,87 @@ const SCENARIOS = [
         }
     }],
 
+    ["the project secrets' lift moves a trap's four fields into the GM store, and out of projectMeta once they read back", async () => {
+        /*
+         * E05 C1, 26.09.2026; audit S09-05. A world from before 1.2.64 carries each
+         * project's killer, builder, condition and trigger in projectMeta; the clause
+         * `liftProjectSecrets` moves them into the GMs' store, weak and fill-only, and takes a
+         * field out of the world only once the store reads it back from storage. On a fixture
+         * row of old world data, in a world the stores have never opened (`withGmStoreWorld`),
+         * with one part of its trigger - `firedAt` - already stamped by a GM since the update:
+         * the four read back from disk, that part the GM's; the row keeps its room and flags;
+         * the world reads back holding none of the four; a second run has nothing to do.
+         * projectMeta is put back.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./projects.mjs");
+        const [killer] = cast(1);
+        const ID = "SUITEE05LIFTPRJ1";
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const open = { room: "SUITE lifted room", indirectMurder: true, secret: true, countsUp: true };
+        const old = { ...open, killerId: killer.id, by: killer.id, condition: "SUITE lifted condition",
+            trigger: { kind: "enters", armed: true, firedAt: null } };
+        try {
+            await E.withGmStoreWorld(`suite-projectlift-${foundry.utils.randomID(8)}`, async () => {
+                await S.projectSecretStore.patch(ID, { trigger: { firedAt: 12345 } });
+                await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { ...before, [ID]: old });
+                const report = await P.liftProjectSecrets();
+                const row = S.projectSecretStore.persisted(ID) ?? {};
+                equal(stableJson([row.killerId, row.by, row.condition, row.trigger]),
+                    stableJson([killer.id, killer.id, "SUITE lifted condition", { kind: "enters", armed: true, firedAt: 12345 }]),
+                    "the four did not read back from the store's storage, or the world's trigger overwrote the part a GM stamped");
+                equal(stableJson(P.metaFor(ID)), stableJson(open), "projectMeta's row lost a field that is not a secret, or kept one of the four");
+                equal(stableJson([report?.lifted, report?.kept, report?.emptied]), stableJson([4, 0, true]), `the lift's report: ${stableJson(report)}`);
+                equal(await P.liftProjectSecrets(), null, "a second run of the lift found something to do");
+            });
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+        }
+    }],
+
+    ["the project secrets' lift leaves projectMeta as it was when the store's rows do not read back", async () => {
+        /*
+         * E05 C1, 26.09.2026: the other half of the pair above, as the E04 lifts' test below
+         * does it. The store's save is swallowed - the rows stand in memory and not on disk,
+         * as after a failed save - and the world keeps every field: nothing is taken out of
+         * projectMeta that the store cannot read back, and the report says what was kept.
+         * In a world the stores have never opened; projectMeta is put back.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./projects.mjs");
+        const [killer] = cast(1);
+        const ID = "SUITEE05LIFTPRJ2";
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const old = { room: "SUITE kept room", indirectMurder: true, secret: true, killerId: killer.id, by: null,
+            condition: "SUITE kept condition", trigger: { kind: "alone", armed: false, firedAt: null } };
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        try {
+            await E.withGmStoreWorld(`suite-projectkept-${foundry.utils.randomID(8)}`, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { ...before, [ID]: old });
+                settings.set = async function (namespace, key, value) {
+                    if (namespace === MODULE_ID && key === S.projectSecretStore.spec.key) return value;
+                    return realSet.call(this, namespace, key, value);
+                };
+                const report = await P.liftProjectSecrets();
+                putBack();
+                ok(S.projectSecretStore.has(ID), "the swallowed save left no row in memory either - this measured nothing");
+                equal(stableJson([report?.lifted, report?.kept, report?.emptied, P.metaFor(ID)]), stableJson([0, 4, false, old]),
+                    "projectMeta lost a field whose row is not on disk, or the report does not say it was kept");
+            });
+        } finally {
+            putBack();
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+        }
+    }],
+
     ["a changed old store is reported, and taking it never overwrites what changed since the upgrade", async () => {
         /*
          * E04, 26.09.2026; the design's H1. After the upgrade the old keys are frozen,
@@ -7839,8 +8018,18 @@ const SCENARIOS = [
         const traps = await import("./traps.mjs");
         const levelUp = await import("./level-up.mjs");
         const fog = await import("./fog.mjs");
+        const projects = await import("./projects.mjs");
         const [, victim] = cast(2);
         const FIXTURES = {
+            // An indirect murder's four fields, through their store (E05 C1): no project exists for it, so no trap arms.
+            projectSecrets: {
+                seed: async () => {
+                    await S.projectSecretStore.patch("SUITEE05BACKUPPJ", { killerId: holder.id, condition: "SUITE backed-up condition" });
+                    return "SUITEE05BACKUPPJ";
+                },
+                gone: (report, id) => !projects.secretsOf(id).condition,
+                back: id => stableJson([projects.secretsOf(id).killerId, projects.secretsOf(id).condition]) === stableJson([holder.id, "SUITE backed-up condition"])
+            },
             // Through the store, in this world: while tier 2 holds the stores no player is sent anything of it (R184).
             discovery: {
                 seed: async () => {
