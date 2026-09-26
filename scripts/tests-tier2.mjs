@@ -6593,6 +6593,150 @@ const SCENARIOS = [
             if (key in stored()) await actor.unsetFlag(MODULE_ID, key);
         }
     }],
+
+    ["a younger partial Truth Bullet entry never erases an older full one", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-01, measured the other way round first. A bullet
+         * is made the ordinary way, so its row holds the whole answer key; then a row
+         * that holds only `faint`, a second newer - what a GM who lacked the row used
+         * to send when it joined - arrives through the old export's import, which
+         * merges exactly as the GM-to-GM exchange does. Every field of the answer key
+         * must survive, and the one field the newer row names must take. On 1.2.62's
+         * whole-entry merge realType, remnantId and the reading were gone.
+         */
+        const bullets = await import("./truth-bullets.mjs");
+        const [holder] = cast(1);
+        const READING = `The cut matches the blade ${Date.now() % 100000}`;
+        let item = null;
+        try {
+            item = await bullets.createTruthBullet(holder, {
+                name: "Suite fixture: a full answer key", realType: "key", visibility: "evident",
+                playerText: "A thin cut.", analyzedText: READING, remnantId: "SUITEE04FULLROW", sceneId: canvas?.scene?.id ?? null
+            });
+            ok(item, "no bullet was made to hold the full row");
+            const uuid = item.uuid;
+            const full = bullets.secretOf(uuid);
+            equal(stableJson([full.realType, full.remnantId, full.analyzedText]), stableJson(["key", "SUITEE04FULLROW", READING]),
+                "the fixture bullet's row does not hold the answer key it was made with");
+            ok(await bullets.importLedger({ [uuid]: { faint: true, updated: Date.now() + 1000 } }), "the import refused a well-formed row");
+            const after = bullets.secretOf(uuid);
+            equal(stableJson({ realType: after.realType, remnantId: after.remnantId, analyzedText: after.analyzedText, faint: after.faint }),
+                stableJson({ realType: "key", remnantId: "SUITEE04FULLROW", analyzedText: READING, faint: true }),
+                "a younger row naming only faint erased the answer key, or its own field did not take");
+        } finally {
+            if (item) {
+                await bullets.dropSecret(item.uuid);
+                await item.actor?.items?.get(item.id)?.delete();
+            }
+        }
+    }],
+
+    ["the old stores are claimed per world, and nothing is lost", async () => {
+        /*
+         * E04, 26.09.2026; the design's H5. Each GM store claims, once per world on a
+         * browser, the rows of its old key that belong to that world, and never writes
+         * the old key. Stood in a world this browser has never opened (the stores'
+         * suite override, gm-store.mjs `withWorld`), with each store's old key seeded
+         * with a fixture of this world's rows, another world's, a tombstone and a row
+         * with no stamp: the census must count every old row as claimed or left, what
+         * was claimed must read back through the store's own reader, and the old key
+         * must be byte for byte what it was. A store with an old key and no fixture
+         * here fails: a store added without one would be claimed by nothing that was
+         * ever checked. The old keys are put back by tier 2's restore; this is the one
+         * place the module's code writes them (R171 names it).
+         */
+        const E = await import("./gm-store.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const [student] = cast(1);
+        const here = `Actor.${student.id}.Item`;
+        const T = Date.now() - 60 * 60 * 1000;
+        const FIXTURES = {
+            bullets: {
+                legacy: SETTINGS.legacyTruthBulletSecrets,
+                seed: {
+                    [`${here}.SUITEE04CENSUS1`]: { realType: "key", remnantId: "SUITEE04TRACE", gmNote: "claimed", updated: T },
+                    [`${here}.SUITEE04CENSUS2`]: { realType: "final", gmNote: "no stamp" },
+                    [`${here}.SUITEE04CENSUS3`]: { deleted: true, updated: T },
+                    ["Actor.SUITEE04NOACTOR.Item.SUITEE04CENSUS4"]: { realType: "prep", updated: T }
+                },
+                census: { legacy: 4, claimed: 3, left: 1, tombstones: 1, reasons: { otherWorld: 1 } },
+                readBack: store => {
+                    equal(stableJson([bullets.secretOf(`${here}.SUITEE04CENSUS1`).realType, bullets.secretOf(`${here}.SUITEE04CENSUS1`).remnantId]),
+                        stableJson(["key", "SUITEE04TRACE"]), "a claimed row does not read back through secretOf");
+                    equal(bullets.secretOf(`${here}.SUITEE04CENSUS2`).realType, "final", "a row with no stamp was not claimed (weak)");
+                    ok(store.tombstone(`${here}.SUITEE04CENSUS3`) === T, "an old tombstone was not claimed at its own stamp");
+                    equal(stableJson(bullets.secretOf("Actor.SUITEE04NOACTOR.Item.SUITEE04CENSUS4")), "{}", "another world's row was claimed");
+                }
+            }
+        };
+        const stores = E.gmStoreHandles().filter(h => h.spec.legacyKey);
+        ok(stores.length >= 1, "no GM store has an old key - the table did not load");
+        const unfixtured = stores.filter(h => !FIXTURES[h.name]).map(h => h.name);
+        ok(!unfixtured.length, `these stores claim an old key this test has no fixture for: ${unfixtured.join(", ")}`);
+        const raw = key => game.settings.storage.get("client").getItem(`${MODULE_ID}.${key}`);
+        for (const store of stores.filter(h => FIXTURES[h.name])) {
+            const fx = FIXTURES[store.name];
+            await game.settings.set(MODULE_ID, fx.legacy, fx.seed);
+            const before = raw(fx.legacy);
+            await E.withGmStoreWorld(`suite-census-${foundry.utils.randomID(8)}`, async () => {
+                const census = await store.claim();
+                equal(stableJson(census), stableJson(fx.census), `${store.name}: the census of its old key`);
+                equal(census.claimed + census.left, census.legacy, `${store.name}: an old row was neither claimed nor left`);
+                fx.readBack(store);
+            });
+            equal(raw(fx.legacy), before, `${store.name}: the claim changed its old key`);
+        }
+    }],
+
+    ["a changed old store is reported, and taking it never overwrites what changed since the upgrade", async () => {
+        /*
+         * E04, 26.09.2026; the design's H1. After the upgrade the old keys are frozen,
+         * but a GM who goes back to a 1.2.x build writes them again - whole rows, with a
+         * fresh `updated`. Nothing takes that back on its own: the store says the old key
+         * changed, and a GM asks for what changed. What is taken: a row the store never
+         * had, a field the store has not touched since the upgrade, an old tombstone; what
+         * is not: a field a GM wrote since the upgrade (listed as a conflict and kept),
+         * and a row the downgrade dropped (listed, kept). Stood in a world this browser
+         * has never opened; the old key is seeded, and put back by tier 2's restore.
+         */
+        const E = await import("./gm-store.mjs");
+        const { bulletStore } = await import("./gm-stores.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const [student] = cast(1);
+        const at = id => `Actor.${student.id}.Item.${id}`;
+        const T = Date.now() - 60 * 60 * 1000;
+        const raw = () => game.settings.storage.get("client").getItem(`${MODULE_ID}.${SETTINGS.legacyTruthBulletSecrets}`);
+        await game.settings.set(MODULE_ID, SETTINGS.legacyTruthBulletSecrets, {
+            [at("SUITEE04H1A")]: { realType: "prep", gmNote: "as upgraded", updated: T },
+            [at("SUITEE04H1B")]: { realType: "evident", updated: T },
+            [at("SUITEE04H1D")]: { realType: "key", updated: T }
+        });
+        await E.withGmStoreWorld(`suite-reclaim-${foundry.utils.randomID(8)}`, async () => {
+            await bulletStore.claim();
+            ok(!bulletStore.legacyChanged(), "the old key reads as changed right after the claim");
+            await bullets.setSecret(at("SUITEE04H1A"), { gmNote: "written since the upgrade" });
+            const later = Date.now() + 1000;
+            await game.settings.set(MODULE_ID, SETTINGS.legacyTruthBulletSecrets, {
+                [at("SUITEE04H1A")]: { realType: "tamper", gmNote: "written by 1.2.62", updated: later },
+                [at("SUITEE04H1B")]: { deleted: true, updated: later },
+                [at("SUITEE04H1C")]: { realType: "final", updated: later }
+            });
+            const before = raw();
+            ok(bulletStore.legacyChanged(), "a downgrade's write of the old key was not seen");
+            const report = await bulletStore.reclaim();
+            equal(stableJson({ added: report.added, taken: report.taken, conflicts: report.conflicts, missing: report.missing, tombstones: report.tombstones }),
+                stableJson({ added: [at("SUITEE04H1C")], taken: [at("SUITEE04H1A")], conflicts: [{ key: at("SUITEE04H1A"), field: "gmNote" }],
+                    missing: [at("SUITEE04H1D")], tombstones: 1 }), "what was taken, kept and listed");
+            const a = bullets.secretOf(at("SUITEE04H1A"));
+            equal(stableJson([a.realType, a.gmNote]), stableJson(["tamper", "written since the upgrade"]),
+                "an untouched field was not taken, or a field written since the upgrade was overwritten");
+            equal(stableJson([bullets.secretOf(at("SUITEE04H1B")).realType ?? null, bullets.secretOf(at("SUITEE04H1C")).realType,
+                bullets.secretOf(at("SUITEE04H1D")).realType]), stableJson([null, "final", "key"]),
+                "the old tombstone, the new row or the row the downgrade dropped came out wrong");
+            ok(!bulletStore.legacyChanged(), "after taking what changed, the old key still reads as changed");
+            equal(raw(), before, "taking what changed wrote the old key");
+        });
+    }]
 ];
 
 export { SCENARIOS, snapshot, restore };

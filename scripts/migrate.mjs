@@ -554,6 +554,41 @@ const CLAUSES = [
 
             return opened.length || wideOpen.length ? { opened, wideOpen } : null;
         }
+    },
+    {
+        key: "truthBulletShape",
+        since: "1.2.63",
+        /*
+         * BULLETS FROM THE OLD MACROS, ONCE, AND NEVER OVER AN ANSWER (E04; audit
+         * S01-31, S05-01). `migrateTruthBullets` ran at every load of the primary GM
+         * from truth-bullets.mjs, outside this list, and wrote `realType: "neutral"`
+         * over whatever the ledger held. It is here now, and its ledger half is weak
+         * and fills only a row with no realType, after the other GMs' copies of the
+         * answer key have arrived; if they have not, it fails, the stamp is not
+         * written, and the next load tries again.
+         */
+        run: async () => {
+            const { migrateTruthBullets } = await import("./truth-bullets.mjs");
+            const n = await migrateTruthBullets();
+            return n ? { bullets: n } : null;
+        }
+    },
+    {
+        key: "faintIntoSecrets",
+        since: "1.2.63",
+        /*
+         * FAINT OFF THE PLAYER'S ITEM, INTO THE ANSWER KEY (E04; audit S05-01). The
+         * live road of the one critical in the module's code: it ran on every GM at
+         * every load and built a row from nothing for a bullet that GM lacked. Once
+         * now, after `truthBulletShape` (it reads the rows that one fills), with the
+         * rules written on `migrateFaintIntoSecrets`: only rows this GM holds, weak,
+         * and the item's flag cleared only where the row reads back from storage.
+         */
+        run: async () => {
+            const { migrateFaintIntoSecrets } = await import("./truth-bullets.mjs");
+            const { moved, kept } = await migrateFaintIntoSecrets();
+            return moved || kept ? { moved, kept } : null;
+        }
     }
 ];
 

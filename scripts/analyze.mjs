@@ -117,13 +117,15 @@ export async function resolveAnalyze({
         }
     } else {
         // What it showed before this throw, for the Reroll above to put back.
+        // `ifLive` (E04): it amends the bullet's row and never starts one - a row
+        // made of these two fields alone would be an answer key with no answer in it.
         try {
             await setSecret(item.uuid, {
                 analysedFrom: item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral",
                 // Which chapter the throw belongs to: a Reroll may take back
                 // this chapter's, and nothing older (E03).
                 analysedChapter: chapter
-            });
+            }, { ifLive: true });
         } catch (err) {
             error("Could not record what the bullet showed before its Analyze", err);
         }

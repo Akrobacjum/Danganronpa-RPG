@@ -391,6 +391,24 @@ function fieldStamp(sec, k, f, split) {
     return max;
 }
 
+/**
+ * A flat store of the old shape - `{ key: { ...fields, updated, deleted } }`, what the
+ * Truth Bullet export wrote until E04 - as a section: a live row at its `updated`, a
+ * `{ deleted, updated }` row as a tombstone at it, and a row with no `updated` at
+ * `weak` (the target section's watermark plus one), so it loses to anything real.
+ */
+export function flatToSection(flat, spec, weak = 1) {
+    const sec = emptySection();
+    for (const [k, row] of Object.entries(isPlain(flat) ? flat : {})) {
+        if (!isPlain(row) || UNSAFE.has(k)) continue;
+        const { updated, deleted, ...fields } = row;
+        const s = Number.isFinite(updated) && updated > 0 ? updated : weak;
+        if (deleted) dropKey(sec, k, s, spec);
+        else writeFields(sec, k, fields, s, spec, { whole: true });
+    }
+    return sec;
+}
+
 /** How many rows an old store holds: a spec may say (a record is one row); else an array's length or an object's keys. */
 export function legacyRows(spec, legacy) {
     if (spec?.legacyCount) return spec.legacyCount(legacy);
@@ -502,6 +520,9 @@ export function createGmStoreEngine(env) {
     const refusedWarned = new Set();
     const hyd = { wid: null, state: "closed", waiting: new Set(), timer: null, waiters: [], asked: [] };
     let quotaWarned = false;
+    /* The suite's other world (`withWorld`): the stores answer for it while it is set. */
+    let worldOverride = null;
+    const worldId = () => worldOverride ?? env.worldId();
 
     /* ------------------------------ stamps -------------------------------- */
 
@@ -547,7 +568,9 @@ export function createGmStoreEngine(env) {
         st.lastRaw ??= raw;
         return w;
     }
-    const current = st => worldOf(st, env.worldId());
+    const current = st => worldOf(st, worldId());
+    /* The world this client opened: what the GMs exchange, whatever the suite stands in. */
+    const home = st => worldOf(st, env.worldId());
 
     /* ------------------------------ flushing ------------------------------ */
 
@@ -703,13 +726,69 @@ export function createGmStoreEngine(env) {
             /** Read one entry back from storage, not from memory: the read-back a removal depends on. */
             persisted(k) {
                 const value = parseValue(env.storage.read(spec.key));
-                const sec = normalizeSection(value.worlds[env.worldId()]);
+                const sec = normalizeSection(value.worlds[worldId()]);
                 return sec?.e?.[k] ?? null;
             },
             status: () => statusOf(st),
             census: () => clone(current(st).section.claim?.census ?? null),
             claimInfo: () => clone(current(st).section.claim ?? null),
             unassigned: () => clone(current(st).section.unassigned ?? {}),
+            /** Claim this world's rows from the old key, if this browser has not yet (as the open does); the census. */
+            claim: () => claimStore(st),
+            /** Whether the old key differs from what the claim read (a 1.2.x session wrote it since: H1). */
+            legacyChanged() {
+                const claim = current(st).section.claim;
+                if (!claim?.at || !spec.legacyKey) return false;
+                return fnv1a(stableJson(env.readLegacy(spec.legacyKey) ?? null)) !== claim.legacyHash;
+            },
+            /**
+             * TAKE WHAT CHANGED IN THE OLD STORE (the design's H1): a GM went back to a 1.2.x
+             * build after the upgrade, and it wrote the old key. Nothing is taken on its own;
+             * this runs when a GM asks. A key the store never held (live or tombstoned) is
+             * claimed at its old stamp; a field that differs is taken - at its old stamp, by
+             * the ordinary merge - only while the store's own field predates the upgrade's
+             * claim, and otherwise listed as a conflict and kept; an old tombstone is taken at
+             * its stamp; a key the claim took that the old store no longer has is listed and
+             * kept. What changed goes to the other GMs. Answers what it did.
+             */
+            async reclaim() {
+                const w = current(st);
+                const claim = w.section.claim;
+                if (!claim?.at || !spec.legacyKey || !spec.claim) return null;
+                const legacy = env.readLegacy(spec.legacyKey);
+                const { rows = [] } = (legacy === undefined || legacy === null ? null : await spec.claim(legacy, { engine: api, reclaim: true })) ?? {};
+                const report = { added: [], taken: [], conflicts: [], missing: [], tombstones: 0 };
+                const mini = emptySection();
+                const weakStamp = (w.section.cleared ?? 0) + 1;
+                const inLegacy = new Set();
+                for (const row of rows) {
+                    inLegacy.add(row.key);
+                    const s = Number.isFinite(row.stamp) && row.stamp > 0 ? row.stamp : weakStamp;
+                    if (row.deleted) { dropKey(mini, row.key, s, spec); report.tombstones++; continue; }
+                    if (!Object.hasOwn(w.section.e, row.key) && !Object.hasOwn(w.section.d, row.key)) {
+                        writeFields(mini, row.key, row.fields ?? {}, s, spec, { whole: true });
+                        report.added.push(row.key);
+                        continue;
+                    }
+                    const here = w.section.e[row.key] ?? {};
+                    const take = {};
+                    for (const [f, v] of Object.entries(row.fields ?? {})) {
+                        if (stableJson(here[f]) === stableJson(v)) continue;
+                        if (fieldStamp(w.section, row.key, f, split) < claim.at) take[f] = v;
+                        else report.conflicts.push({ key: row.key, field: f });
+                    }
+                    if (Object.keys(take).length) {
+                        writeFields(mini, row.key, take, s, spec, { whole: true });
+                        report.taken.push(row.key);
+                    }
+                }
+                for (const k of claim.keys ?? []) if (!inLegacy.has(k) && Object.hasOwn(w.section.e, k)) report.missing.push(k);
+                const changed = mergeInto(w.section, mini, spec);
+                w.section.claim = { ...claim, legacyHash: fnv1a(stableJson(legacy ?? null)), reclaimedAt: stamp() };
+                changed.add("");
+                await touched(st, w, changed, { local: true });
+                return report;
+            },
             setUnassigned(patch) {
                 const w = current(st);
                 w.section.unassigned = { ...(w.section.unassigned ?? {}), ...patch };
@@ -765,7 +844,7 @@ export function createGmStoreEngine(env) {
        nobody to wait for: it is hydrated as found. */
     function isHydrated() {
         return hyd.state === "alone" || hyd.state === "answered" || hyd.state === "timedOut"
-            || (hyd.wid !== null && env.worldId() !== hyd.wid);
+            || (hyd.wid !== null && worldId() !== hyd.wid);
     }
     function whenHydrated() {
         if (isHydrated()) return Promise.resolve(hyd.state);
@@ -793,7 +872,7 @@ export function createGmStoreEngine(env) {
 
     function digests() {
         const out = {};
-        for (const st of stores.values()) if (st.spec.sync) out[st.spec.name] = sectionDigest(current(st).section);
+        for (const st of stores.values()) if (st.spec.sync) out[st.spec.name] = sectionDigest(home(st).section);
         return out;
     }
     const syncing = () => [...stores.values()].some(st => st.spec.sync);
@@ -807,7 +886,7 @@ export function createGmStoreEngine(env) {
         for (const name of names) {
             const st = stores.get(name);
             if (!st?.spec.sync) continue;
-            const parts = partsOf(current(st).section);
+            const parts = partsOf(home(st).section);
             parts.forEach((section, i) => sendTo([to], {
                 action: GMS_ACTIONS.state, world: env.worldId(), store: name, section: clone(section), part: i + 1, parts: parts.length
             }));
@@ -845,7 +924,7 @@ export function createGmStoreEngine(env) {
                 const st = stores.get(packet.store);
                 const sec = normalizeSection(packet.action === GMS_ACTIONS.state ? packet.section : packet.delta);
                 observeSection(sec, senderId);
-                const w = current(st);
+                const w = home(st);
                 void touched(st, w, mergeInto(w.section, sec, st.spec), { local: false });
                 break;
             }
@@ -884,11 +963,12 @@ export function createGmStoreEngine(env) {
             if (spec.claim && legacy !== undefined && legacy !== null) ({ rows = [], left = [], unassigned = {} } = (await spec.claim(legacy, { engine: api })) ?? {});
             const weak = (w.section.cleared ?? 0) + 1;
             let legacyMax = 0, tombstones = 0, claimed = 0;
+            const keys = [];
             for (const row of rows) {
                 const s = Number.isFinite(row.stamp) && row.stamp > 0 ? row.stamp : weak;
                 if (row.stamp > legacyMax) legacyMax = row.stamp;
                 if (row.deleted) { dropKey(w.section, row.key, s, spec); tombstones++; }
-                else writeFields(w.section, row.key, row.fields ?? {}, s, spec, { whole: true });
+                else { writeFields(w.section, row.key, row.fields ?? {}, s, spec, { whole: true }); keys.push(row.key); }
                 claimed++;
             }
             observeSection(w.section);
@@ -898,7 +978,7 @@ export function createGmStoreEngine(env) {
                claim answered: `claimed + left === legacy` is then something the census test can
                find false - a claim that silently skipped a row (the design's H5). */
             const census = { legacy: legacyRows(spec, legacy), claimed, left: left.length, tombstones, reasons };
-            w.section.claim = { at: stamp(), legacyHash: fnv1a(stableJson(legacy ?? null)), legacyMax, census };
+            w.section.claim = { at: stamp(), legacyHash: fnv1a(stableJson(legacy ?? null)), legacyMax, census, keys };
             if (Object.keys(unassigned).length) w.section.unassigned = { ...(w.section.unassigned ?? {}), ...unassigned };
             w.needsWrite = true;
             await schedule(st);
@@ -946,7 +1026,7 @@ export function createGmStoreEngine(env) {
         return Number.isFinite(cut) ? cut : 0;
     }
     function copyRecord(cs) {
-        const wid = env.worldId(), uid = env.selfId();
+        const wid = worldId(), uid = env.selfId();
         const tag = `${wid}|${uid}`;
         if (!cs.cache.has(tag)) {
             const value = parseValue(env.storage.read(cs.spec.key));
@@ -977,7 +1057,7 @@ export function createGmStoreEngine(env) {
         if (!cs || !stampOk(s) || s <= 0) return false;
         const rec = copyRecord(cs);
         if (s <= Math.max(rec?.stamp ?? 0, copyCut(cs.spec))) return false;
-        const wid = env.worldId(), uid = env.selfId();
+        const wid = worldId(), uid = env.selfId();
         const next = { value: clone(value), stamp: Math.min(s, now() + TIMING.gmStoreSkewMs) };
         const stored = parseValue(env.storage.read(cs.spec.key));
         stored.worlds[wid] = { ...(isPlain(stored.worlds[wid]) ? stored.worlds[wid] : {}), [uid]: next };
@@ -993,7 +1073,7 @@ export function createGmStoreEngine(env) {
     async function open() {
         if (opened) return;
         opened = true;
-        const wid = env.worldId();
+        const wid = worldId();
         hyd.wid = wid;
         if (!env.isGM()) { hyd.state = "alone"; return; }
         hyd.state = "opening";
@@ -1071,8 +1151,22 @@ export function createGmStoreEngine(env) {
         return { name: spec.name, read: () => readMine(spec.name), stamp: () => mineStamp(spec.name), receive: (v, s) => receiveCopy(spec.name, v, s) };
     }
 
+    /**
+     * Run `fn` with the stores answering for another world id, and put the real one
+     * back whatever happens: the suite's way of standing in a world this browser has
+     * never opened (a claim not yet made) or in one beside it (a clear that must not
+     * cross), without writing to Foundry's own world object - whether v14 lets its id
+     * be assigned has not been tried, and the stores need nothing else changed.
+     */
+    async function withWorld(id, fn) {
+        const was = worldOverride;
+        worldOverride = String(id);
+        try { return await fn(); }
+        finally { worldOverride = was; }
+    }
+
     const api = {
-        define, defineCopy, open, hold, idle, stamp, observe, now,
+        define, defineCopy, open, hold, idle, stamp, observe, now, withWorld, worldId,
         handle: name => stores.get(name)?.handle ?? null,
         handles: () => [...stores.values()].map(st => st.handle),
         copySpec: name => copies.get(name)?.spec ?? null,
@@ -1159,6 +1253,8 @@ export const applyGmStoreCuts = clock => engine.applyCuts(clock);
 export function onGmStoresHydrated(fn) { hydratedHooks.push(fn); }
 /** Suite hooks (2.13): while held nothing is sent; idle resolves when no flush is pending. */
 export const gmStoreHold = on => engine.hold(on);
+/** Suite only: run `fn` with the stores answering for another world id (see `withWorld`). */
+export const withGmStoreWorld = (id, fn) => engine.withWorld(id, fn);
 export const gmStoresIdle = () => engine.idle();
 
 let listening = false;

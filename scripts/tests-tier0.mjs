@@ -373,7 +373,6 @@ const REGRESSIONS = [
             "vote.mjs": "keys the tally by senderId; the payload's actor is an address, not a claim",
             "murder.mjs": "GM-to-GM sync plus one request answered from the sender's own cast",
             "mastermind.mjs": "GM-to-GM sync; the one player request is answered about the sender",
-            "truth-bullets.mjs": "GM-to-GM ledger sync, refused outright from a non-GM",
             "remnants.mjs": "GM-to-GM ledger sync, refused outright from a non-GM",
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
             "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns",
@@ -5520,8 +5519,8 @@ const REGRESSIONS = [
         ok([...keys].every(k => named.has(k)), `a GM store's key is not a SETTINGS name, so nothing here could find it read: ${
             [...keys].filter(k => !named.has(k)).join(", ")}`);
         const ALLOW = {
-            "diagnostics.mjs#truthBulletSecrets": "the Truth Bullet ledger, until it moves to the GM store (E04 C2)",
-            "truth-bullets.mjs#truthBulletSecrets": "the Truth Bullet ledger, until it moves to the GM store (E04 C2)",
+            // The census and old-store tests of tier 2 seed each old key they read, and tier 2's restore puts it back.
+            "tests-tier2.mjs#legacyTruthBulletSecrets": "the claim's census seeds the old key it counts",
             "remnants.mjs#remnantSecrets": "the trace ledger, until it moves (E04 C4)",
             "tests-tier2.mjs#remnantSecrets": "a tier-2 test reads a trace's row raw, until the traces move (E04 C4)",
             "mastermind.mjs#mastermind": "the Mastermind, until it moves (E04 C5)",
@@ -5566,6 +5565,61 @@ const REGRESSIONS = [
         ok(read >= 400, `only ${read} settings reads were read - the reader is not reaching the module`);
         ok(!raw.length, `these read or write a GM store's key raw, outside the engine: ${raw.join("; ")}`);
         ok(!stale.length, `allowed, and no such raw read is left - take the row out: ${stale.join(", ")}`);
+    }],
+
+    ["R172 - no answer-key writer derives a value from absence", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-01. The answer key was erased by a writer that
+         * built a row out of nothing - a migration that met a bullet this GM held no
+         * row for and wrote `{ faint }` as if it were the whole truth - and a merge
+         * that let the newest row win whole. The merge is per field now (R169); this
+         * holds the writers. Each one below writes a value it DERIVED - a migration's
+         * default, a propagation that only amends what is there, a record of an
+         * Analyze - and its store write has to say so: `ifLive` (never start a row),
+         * `weak` (lose to anything a GM decided), `fillOnly` (never replace what is
+         * there), as the row lists; and a migration that reads a store first waits
+         * until the other GMs' copies have arrived (`whenHydrated`). The table grows
+         * with each store E04 moves. Read from the source, because a derived write
+         * that forgot its option still works - until a second GM joins. The reader
+         * is shown a planted writer first.
+         */
+        const WRITES = /\b(?:setSecret|\w+Store\.patch|\w+Store\.patchMany)\(/g;
+        const callAt = (text, open) => {
+            let depth = 0;
+            for (let i = open; i < text.length; i++) {
+                if (text[i] === "(") depth++;
+                else if (text[i] === ")" && --depth === 0) return text.slice(open, i + 1);
+            }
+            return text.slice(open);
+        };
+        const problems = (name, body, wants, waits) => {
+            const out = [];
+            const calls = [...body.matchAll(WRITES)].map(m => m[0].slice(0, -1) + callAt(body, m.index + m[0].length - 1));
+            if (!calls.length) out.push(`${name} writes no store any more - take its row out, or point it at the writer`);
+            for (const call of calls) for (const want of wants) if (!new RegExp(`\\b${want}\\s*:\\s*true\\b`).test(call)) out.push(`${name}: ${call.replace(/\s+/g, " ").slice(0, 80)} lacks ${want}`);
+            if (waits && !/\.whenHydrated\(/.test(body)) out.push(`${name} reads a store without waiting for the other GMs' copies`);
+            return out;
+        };
+        const planted = "async function planted(item) {\n    await setSecret(item.uuid, { faint: true }, { weak: true });\n    await setSecret(item.uuid, { faint: false }, { ifLive: true, weak: true });\n}\n";
+        equal(JSON.stringify(problems("planted", planted, ["ifLive", "weak"], true)),
+            JSON.stringify(["planted: setSecret(item.uuid, { faint: true }, { weak: true }) lacks ifLive", "planted reads a store without waiting for the other GMs' copies"]),
+            "the reader does not find exactly the two faults planted for it");
+
+        const WRITERS = [
+            ["truth-bullets.mjs", "migrateFaintIntoSecrets", ["ifLive", "weak"], true],
+            ["truth-bullets.mjs", "migrateTruthBullets", ["weak", "fillOnly"], true],
+            ["truth-bullets.mjs", "propagateRemnantPublic", ["ifLive"], false],
+            ["truth-bullets.mjs", "propagateCrimeTie", ["ifLive"], false],
+            ["truth-bullets.mjs", "propagateRealType", ["ifLive"], false],
+            ["analyze.mjs", "resolveAnalyze", ["ifLive"], false]
+        ];
+        const sources = new Map(await otherSources());
+        const found = [];
+        for (const [file, fn, wants, waits] of WRITERS) {
+            found.push(...problems(`${file} ${fn}`, fnSource(stripComments(sources.get(file) ?? ""), fn), wants, waits));
+        }
+        log(`R172: ${WRITERS.length} derived writers read in ${new Set(WRITERS.map(w => w[0])).size} files`);
+        ok(!found.length, `a writer derives an answer-key value from absence: ${found.join("; ")}`);
     }]
 ];
 

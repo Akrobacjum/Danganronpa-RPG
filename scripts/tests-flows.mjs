@@ -36,6 +36,8 @@
  *
  * E04 (26.09.2026) adds the gm-store flow: the GM-to-GM exchange of the GM-only
  * stores (gm-store.mjs), which 61-gmstore-case drives with a GM that joins late.
+ * A file whose own GM-to-GM socket the store replaced leaves its flow's `sockets`
+ * as it moves (truth-bullets.mjs first), and the flow names 61 for that half.
  *
  * E31 (25.09.2026) adds 33-bridge-paths to the nine flows its checks are tagged
  * with. eclipse-route-veto goes from planned to partial with it: 33 drives
@@ -107,7 +109,7 @@ export const FLOWS = Object.freeze([
     { id: "trap-fire", what: "A trap: a crossing reported to the GM, the trap sprung once",
         entry: { bridge: ["trap.event"], sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, and a player's edit is put back",
-        entry: { sockets: ["truth-bullets.mjs"] }, scenarios: ["30-security"], status: "partial", stage: "E38" },
+        entry: {}, scenarios: ["30-security", "61-gmstore-case"], status: "partial", stage: "E38" },
     { id: "voice", what: "Voice rooms: who hears whom",
         entry: { sockets: ["voice.mjs", "voice-client.mjs"] }, scenarios: [], status: "planned", stage: "E58" }
 ]);

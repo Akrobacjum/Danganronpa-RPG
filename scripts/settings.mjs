@@ -174,11 +174,18 @@ export const SETTINGS = {
      * GM-only compendium all arrive in the player's browser just the same.
      *
      * A client-scoped setting never enters world data at all, and the GM-to-GM
-     * sync in truth-bullets.mjs rides a socket the server addresses to named
-     * recipients. Cost of the choice: it lives in browser storage, so it is
-     * synced across every GM and can be exported - see `exportLedger()`.
+     * sync rides a socket the server addresses to named recipients. Cost of the
+     * choice: it lives in browser storage, so it is synced across every GM and
+     * backed up to a file.
+     *
+     * SINCE E04 (1.2.63) IT IS A GM STORE: `gmBullets`, sectioned by world and
+     * merged per field (gm-store.mjs, `bulletStore` in gm-stores.mjs), and nothing
+     * but the engine reads or writes it (R171). `legacyTruthBulletSecrets` is the
+     * key it had until then, registered so the engine can read it once per world
+     * and never written again: a downgrade finds it as the upgrade left it.
      */
-    truthBulletSecrets: "truthBulletSecrets",
+    truthBulletSecrets: "gmBullets",
+    legacyTruthBulletSecrets: "truthBulletSecrets",
     /**
      * What every Remnant on the maps really is: its type, how hard it is to
      * spot, who left it, and the GM's note about it.
@@ -947,8 +954,15 @@ export function registerSettings() {
 
     // The answer key to every Truth Bullet. Client-scoped on purpose - see the
     // note on SETTINGS.truthBulletSecrets for why no world-scoped store hides
-    // anything from a player's console.
+    // anything from a player's console. The GM store's key and, frozen, the one
+    // before it (E04).
     game.settings.register(MODULE_ID, SETTINGS.truthBulletSecrets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyTruthBulletSecrets, {
         scope: "client",
         config: false,
         type: Object,

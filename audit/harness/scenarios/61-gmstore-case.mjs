@@ -13,6 +13,11 @@
  *   A  the harness's own preconditions: a late GM boots with the storage it was
  *      given, the others see it connect, its storage is read back after it left,
  *      and its clock can be off while the server's is not.
+ *   B  the Truth Bullet answer key survives a second GM joining with an empty
+ *      browser (S05-01, the brief's verify, headless): on 1.2.62 the joining GM
+ *      rebuilt a row for every bullet from its item's Faint flag and the newer,
+ *      partial rows replaced the full ones on the first GM; a gms.delta forged by
+ *      a player changes nothing.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -20,8 +25,10 @@ export const accounts = [
 ];
 
 const PROBE_KEY = "drpg-harness.probe";
+const MOD = "danganronpa-rpg";
+const J = value => JSON.stringify(value);
 
-export async function run({ gm, gm2, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS }) {
+export async function run({ gm, gm2, p1, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
     const GM2 = "USERGM2000000000";
 
     /* ------------------------------ A. the harness ------------------------------ */
@@ -56,8 +63,9 @@ export async function run({ gm, gm2, check, phase, settle, connect, disconnect, 
         JSON.stringify({ ...clocks, cluster: here }));
 
     const traffic = socketTraffic.filter(t => String(t.action ?? "").startsWith("gms."));
-    check("A5: with no store in the table, the GM store's engine sends nothing between the two GMs",
-        traffic.length === 0, JSON.stringify(traffic.slice(0, 5)));
+    check("A5: two GMs whose stores are equal (empty) exchange digests and nothing more: hellos and dones, no state, no delta",
+        traffic.some(t => t.action === "gms.hello") && traffic.every(t => t.action === "gms.hello" || t.action === "gms.done"),
+        JSON.stringify(traffic.slice(0, 8)));
 
     await gm2.eval(`localStorage.setItem("${PROBE_KEY}", JSON.stringify({ visit: 2 })); return true;`);
     await disconnect("gm2");
@@ -77,5 +85,56 @@ export async function run({ gm, gm2, check, phase, settle, connect, disconnect, 
     await disconnect("gm2");
     await settle(300);
 
-    return { phases: ["A"], gm: IDS.gm };
+    /* ------------------- B. the answer key when a GM joins empty ------------------- */
+
+    phase("B: a second GM joins with an empty browser, and the answer key survives", { flow: "truth-bullets" });
+    const made = await gm.eval(`
+        const actor = game.actors.get("${IDS.aiko}");
+        const out = [];
+        for (const [n, realType] of [[1, "key"], [2, "incident"]]) {
+            const item = await game.drpg.createTruthBullet(actor, { name: "E04 bullet " + n, realType, visibility: "evident",
+                playerText: "Seen.", analyzedText: "Read " + n, remnantId: "E04TRACE" + n, sceneId: "${IDS.scene}",
+                sourceAction: "prep", tiedToCrime: true });
+            out.push(item.uuid);
+        }
+        // A bullet as a world made before 1.2.47 left it: Faint on the item, none in its row.
+        const [old] = await actor.createEmbeddedDocuments("Item", [{ name: "E04 bullet 3", type: "loot",
+            flags: { "${MOD}": { category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "evident", faint: true } } }]);
+        await game.drpg.setSecret(old.uuid, { realType: "final", remnantId: "E04TRACE3", analyzedText: "Read 3", sourceAction: "clean", tiedToCrime: false });
+        out.push(old.uuid);
+        return out;`);
+    const keyOf = uuids => `const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        return ${J(uuids)}.map(u => { const s = B.secretOf(u); return [s.realType, s.remnantId, s.analyzedText, s.sourceAction, s.tiedToCrime, "faint" in s]; });`;
+    const expected = [["key", "E04TRACE1", "Read 1", "prep", true, true], ["incident", "E04TRACE2", "Read 2", "prep", true, true],
+        ["final", "E04TRACE3", "Read 3", "clean", false, false]];
+    const onGmBefore = await gm.eval(keyOf(made));
+    check("B1: the GM holds three bullets' answer keys, the third with no Faint in its row", J(onGmBefore) === J(expected),
+        J({ made, onGmBefore }));
+
+    await connect("gm2");
+    await settle(1500);
+    const keysOnGm = await gm.eval(keyOf(made)), keysOnGm2 = await gm2.eval(keyOf(made));
+    check("B2: after an empty browser joined, both GMs hold every field of every answer key (S05-01)",
+        J(keysOnGm) === J(expected) && J(keysOnGm2) === J(expected), J({ keysOnGm, keysOnGm2 }));
+    const faintFlag = await gm.eval(`return fromUuidSync("${made[2]}")?.getFlag("${MOD}", "faint") ?? null;`);
+    check("B3: the old Faint flag on the third bullet's item was left where it was", faintFlag === true, J(faintFlag));
+    const held = await gm2.eval(`const { bulletStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        return { live: Object.keys(bulletStore.entries()).length, hydration: E.gmStoreHydration().state };`);
+    check("B4: the joining GM's store holds the three rows, and it was answered by the GM already there",
+        held.live === 3 && held.hydration === "answered", J(held));
+
+    await p1.eval(`game.socket.emit("module.${MOD}", { action: "gms.delta", world: game.world.id, store: "bullets",
+        delta: { e: { "${made[0]}": { realType: "neutral" } }, t: { "${made[0]}": ${Number.MAX_SAFE_INTEGER} }, d: {}, cleared: 0 } },
+        { recipients: ["${IDS.gm}"] }); return true;`);
+    await settle(500);
+    const afterForged = await gm.eval(keyOf([made[0]]));
+    const warned = await gm.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+        return U.sessionFailures().filter(e => /refused gms\.delta/.test(e.message)).map(e => e.message);`);
+    check("B5: a gms.delta forged by a player changes nothing on the GM, and the GM's log names the refusal",
+        J(afterForged) === J([expected[0]]) && warned.length >= 1, J({ afterForged, warned }), { flow: "gm-store" });
+    await disconnect("gm2");
+    await settle(300);
+
+    return { phases: ["A", "B"], gm: IDS.gm };
 }

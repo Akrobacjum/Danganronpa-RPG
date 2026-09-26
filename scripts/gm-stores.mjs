@@ -22,12 +22,67 @@
 
 import { SETTINGS, getClock } from "./settings.mjs";
 import { activeGmIds, primaryGmId, warn, error, debug, plural } from "./utils.mjs";
-import { configureGmStore, openGmStoreEngine } from "./gm-store.mjs";
+import { configureGmStore, openGmStoreEngine, defineGmStore, gmStoreByName } from "./gm-store.mjs";
+
+const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
 /* ---------------------------------------------------------------------------
- * The table. Empty in the commit that brings the engine: each store moves in a
- * commit of its own (the design's C2-C9), the Truth Bullets first.
+ * The table. Each store moved in a commit of its own (the design's C2-C9), the
+ * Truth Bullets first.
  * ------------------------------------------------------------------------- */
+
+/**
+ * Whether a document uuid names something in THIS world: the old key held every
+ * world's rows in one object, and a uuid is the only thing a row carries that says
+ * which world it came from. `Actor.<id>.Item.<id>` by its actor, `Item.<id>` by the
+ * world's items, `Scene.<id>...` by the scene. A row whose actor was deleted in this
+ * world reads as another world's and is left in the old key, where it was.
+ */
+export function uuidInThisWorld(uuid) {
+    const [kind, id] = String(uuid ?? "").split(".");
+    if (kind === "Actor") return Boolean(game.actors?.has(id));
+    if (kind === "Item") return Boolean(game.items?.has(id));
+    if (kind === "Scene") return Boolean(game.scenes?.has(id));
+    return false;
+}
+
+/**
+ * THE TRUTH BULLET ANSWER KEY (E04 C2; audit S05-01). Keyed by item uuid, one row
+ * per bullet: realType, remnantId, sceneId, sourceAction, tiedToCrime, faint,
+ * gmNote, analyzedText, analysedFrom, analysedChapter. The old rows are claimed
+ * per world by uuid, live and tombstoned, at their own `updated` (or weak, with
+ * none); a row of another world stays in the old key.
+ */
+export const bulletStore = defineGmStore({
+    name: "bullets", key: SETTINGS.truthBulletSecrets, legacyKey: SETTINGS.legacyTruthBulletSecrets,
+    kind: "ledger", resetGroup: "bullets", backup: true, sync: true,
+    claim: legacy => {
+        const rows = [], left = [];
+        for (const [uuid, entry] of Object.entries(isPlain(legacy) ? legacy : {})) {
+            if (!isPlain(entry)) { left.push({ key: uuid, reason: "notARow" }); continue; }
+            if (!uuidInThisWorld(uuid)) { left.push({ key: uuid, reason: "otherWorld" }); continue; }
+            const { updated, deleted, ...fields } = entry;
+            rows.push(deleted ? { key: uuid, deleted: true, stamp: updated } : { key: uuid, fields, stamp: updated });
+        }
+        return { rows, left };
+    },
+    exists: uuid => {
+        try { return Boolean(fromUuidSync(uuid)); } catch { return false; }
+    }
+});
+
+/** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
+export function gmStoreLegacyChanged(name) {
+    return gmStoreByName(name)?.legacyChanged() ?? false;
+}
+
+/** Take what changed in a store's old key since the upgrade, by the rules on the handle's `reclaim`. */
+export async function gmStoreReclaim(name) {
+    const store = gmStoreByName(name);
+    if (!game.user?.isGM || !store) return null;
+    await store.whenHydrated();
+    return store.reclaim();
+}
 
 let opening = null;
 

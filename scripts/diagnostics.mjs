@@ -10,6 +10,7 @@
 
 import { MODULE_ID, moduleVersion, STARTING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
+import { bulletStore } from "./gm-stores.mjs";
 import { monokumas, getDespair, despairMax } from "./despair.mjs";
 import { monokumaFor, students, unassigned } from "./assignments.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -1053,9 +1054,9 @@ export function diagnoseTruthBullets() {
     }`);
 
     if (game.user.isGM) {
-        const ledger = game.settings.get(MODULE_ID, SETTINGS.truthBulletSecrets) ?? {};
+        // The GM store's rows for this world (E04): tombstones are not rows, so every key is a live one.
         const live = new Set(bullets.map(b => b.item.uuid));
-        const known = Object.entries(ledger).filter(([, e]) => e && !e.deleted).map(([uuid]) => uuid);
+        const known = Object.keys(bulletStore.entries());
 
         const missing = bullets.filter(b => !known.includes(b.item.uuid));
         const orphans = known.filter(uuid => !live.has(uuid));
