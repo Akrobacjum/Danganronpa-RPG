@@ -409,6 +409,84 @@ export function vacuousChecks(text) {
 }
 
 /*
+ * RAW ACCESS TO A GM STORE'S KEY (E04, 26.09.2026; R171, and `node tools/check.mjs
+ * contract` for the harness scenarios).
+ *
+ * The GM store (gm-store.mjs) holds each GM-only store under a key sectioned by
+ * world, merged per field, and it never writes the old keys: a downgrade finds
+ * them as the upgrade left them, and the next world opened in the browser claims
+ * its own rows from them. Both hold only while nothing else reads or writes those
+ * keys - a raw write to an old key is the one thing the upgrade promised would not
+ * happen, and a raw read of one after its store moved reads a copy frozen at the
+ * upgrade and looks exactly like a working read.
+ *
+ * So this finds, in a file's code, every `SETTINGS.<name>` of a watched setting
+ * that is not a listener comparing a changed key with it (`key ===
+ * \`${MODULE_ID}.${SETTINGS.x}\``, which reads nothing), and every settings call or
+ * localStorage access that names a watched key in a string (a harness scenario's
+ * eval, where the key is spelt out). A mention inside a string or a comment is not
+ * code. GM_STORE_PENDING is the stores that have not moved yet: their current keys
+ * are watched too, from the commit that brought the engine (C1), so the allowlist
+ * of the files that still use them shrinks as each store moves and is empty at the
+ * end of E04.
+ */
+export const GM_STORE_PENDING = Object.freeze([]);
+
+/*
+ * The harness scenarios' own allowance, by `file#key` (read by `node tools/check.mjs
+ * contract`): a scenario may still read these keys raw until the commit named, which
+ * rewrites it to read through the stores. A row with no such read left fails as stale.
+ */
+export const GM_STORE_SCENARIO_ALLOW = Object.freeze({});
+
+/**
+ * The settings the GM stores use, read off the source text alone, for Node, which
+ * cannot load settings.mjs: SETTINGS's `name: "key"` pairs, and the names the
+ * store table (gm-stores.mjs) hands `defineGmStore` and `defineGmCopy` as a `key`,
+ * a `legacyKey` or one of `legacyKeys`. Answers `{ props, keys }`: the SETTINGS
+ * names and their keys.
+ */
+export function gmStoreSettingsFromSource(settingsText, storesText) {
+    const body = /export const SETTINGS = \{([\s\S]*?)\n\};/.exec(String(settingsText ?? ""))?.[1] ?? "";
+    const map = new Map([...stripComments(body).matchAll(/^\s*(\w+):\s*"([^"]+)"/gm)].map(m => [m[1], m[2]]));
+    const table = stripComments(String(storesText ?? ""));
+    const props = new Set([...table.matchAll(/\b(?:key|legacyKey):\s*SETTINGS\.(\w+)\b/g)].map(m => m[1]));
+    // A copy that replaced more than one old key names them all (`legacyKeys: [SETTINGS.a, SETTINGS.b]`).
+    for (const list of table.matchAll(/\blegacyKeys:\s*\[([^\]]*)\]/g)) for (const m of list[1].matchAll(/\bSETTINGS\.(\w+)\b/g)) props.add(m[1]);
+    for (const [prop, key] of map) if (GM_STORE_PENDING.includes(key)) props.add(prop);
+    return { props: [...props].sort(), keys: [...props].map(p => map.get(p)).filter(Boolean).sort(), settings: map.size };
+}
+
+export function storeKeyAccess(text, { props = [], keys = [] } = {}) {
+    const code = stripComments(text);
+    const blank = blankLiterals(code);
+    const watchedProps = new Set(props), watchedKeys = new Set(keys);
+    const found = [];
+    let read = 0;
+    for (const m of blank.matchAll(/\bSETTINGS\.(\w+)\b/g)) {
+        read++;
+        if (!watchedProps.has(m[1])) continue;
+        // This match's own template, `${MODULE_ID}.${SETTINGS.x}`, compared with === or !==; and a
+        // registration, which declares the key and reads nothing.
+        const before = code.slice(Math.max(0, m.index - 40), m.index);
+        const after = code.slice(m.index + m[0].length, m.index + m[0].length + 40);
+        if (/\bsettings\.register\(\s*MODULE_ID\s*,\s*$/.test(before)) continue;
+        if (/`\$\{MODULE_ID\}\.\$\{$/.test(before) && /^\}`/.test(after)
+            && (/(?:===|!==)\s*`\$\{MODULE_ID\}\.\$\{$/.test(before) || /^\}`\s*(?:===|!==)/.test(after))) continue;
+        found.push({ line: lineAt(code, m.index), what: `SETTINGS.${m[1]}`, name: m[1] });
+    }
+    for (const m of code.matchAll(/\bsettings\.(?:get|set)\(\s*["'`][^"'`,]*["'`]\s*,\s*["'`](\w+)["'`]/g)) {
+        read++;
+        if (watchedKeys.has(m[1])) found.push({ line: lineAt(code, m.index), what: `a settings call on "${m[1]}"`, name: m[1] });
+    }
+    for (const m of code.matchAll(/\blocalStorage\.(?:getItem|setItem|removeItem)\(\s*["'`][^"'`]*?\.(\w+)["'`]/g)) {
+        read++;
+        if (watchedKeys.has(m[1])) found.push({ line: lineAt(code, m.index), what: `localStorage on "${m[1]}"`, name: m[1] });
+    }
+    return { found, read };
+}
+
+/*
  * THE FIXTURES, each with the lines its detector must flag and nothing else.
  * A fixture line that should pass is as much a part of it as one that should
  * not: a detector that flags everything proves as little as one that flags
@@ -479,6 +557,22 @@ export const FIXTURES = Object.freeze({
             "    // [\"three\", async () => {}, expectedRed(\"E99\", \"a comment is not a marker\")],",
             "    [\"four\", async () => { ok(false, \"x\"); }, expectedRed('E31', \"why\", { failing: \"x\" })]",
             "];"
+        ].join("\n")
+    },
+    storeKeyAccess: {
+        flags: [1, 2, 7, 8, 9],
+        props: ["watched"],
+        keys: ["watchedKey"],
+        text: [
+            "const a = game.settings.get(MODULE_ID, SETTINGS.watched);",
+            "await setSetting(SETTINGS.watched, {});",
+            "if (key === `${MODULE_ID}.${SETTINGS.watched}`) drop();",
+            "const b = game.settings.get(MODULE_ID, SETTINGS.other);",
+            "const c = bodyOf(src, \"SETTINGS.watched\");",
+            "// game.settings.get(MODULE_ID, SETTINGS.watched)",
+            "const d = await p.eval(`return game.settings.get(\"${MOD}\", \"watchedKey\");`);",
+            "localStorage.getItem(\"danganronpa-rpg.watchedKey\");",
+            "const steps = [[\"incident\", \"the cast\", SETTINGS.watched, {}]];"
         ].join("\n")
     },
     vacuousChecks: {

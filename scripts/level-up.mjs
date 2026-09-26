@@ -14,7 +14,8 @@
 import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, TRAITS, STARTING } from "./config.mjs";
 import { listExperiences, resourceMax } from "./character.mjs";
 import { log, error, isPrimaryGm, ownerIdsOf } from "./utils.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { offerStore, offerCopy } from "./gm-stores.mjs";
+import { gmStoresQuiet } from "./gm-store.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -124,48 +125,77 @@ export async function openAdvancementFor(actor) {
  * measurement), so the owner ASKS: once when their bridge is up, and again when
  * a primary GM announces itself. The answer is their whole set, so asking twice
  * costs nothing and a withdrawn offer disappears the same way a new one arrives.
+ *
+ * A GM STORE SINCE E04 (1.2.63; audit S03-11): every GM holds the offers
+ * (gm-stores.mjs `offerStore`, synced), the primary still writes them, and an
+ * owner holds a stamped copy (`offerCopy`) - a primary whose browser held no
+ * offers used to answer an owner with an empty set, which the owner's browser
+ * took, and the lit button went out.
  */
 function readOffers() {
     try {
-        return { ...(game.settings.get(MODULE_ID, SETTINGS.advanceOffers) ?? {}) };
+        return game.user?.isGM ? offerStore.entries() : { ...offerCopy.read() };
     } catch {
         return {};
     }
 }
 
-async function writeOffers(offers) {
-    await game.settings.set(MODULE_ID, SETTINGS.advanceOffers, offers);
-}
-
 /** Primary GM: write or withdraw one offer, then send each owner their set. */
 export async function recordOffer(actorId, kind) {
     if (!isPrimaryGm()) return null;
-    const offers = readOffers();
-    if (kind && LEVEL_UP[kind]?.picks) offers[actorId] = { kind, at: Date.now() };
-    else delete offers[actorId];
-    await writeOffers(offers);
+    // An offer is a row, a withdrawal a stamped drop: a GM that still holds it cannot write it back.
+    if (kind && LEVEL_UP[kind]?.picks) await offerStore.patch(actorId, { kind, at: Date.now() }, { whole: true });
+    else await offerStore.drop(actorId);
     const actor = game.actors.get(actorId);
     const { sendOffersTo } = await import("./gm-bridge.mjs");
     for (const userId of actor ? ownerIdsOf(actor) : []) sendOffersTo(userId);
-    return offers[actorId] ?? null;
+    return readOffers()[actorId] ?? null;
 }
 
-/** Primary GM: the offers standing on this user's own characters - and only those. */
+/**
+ * Primary GM: the offers standing on this user's own characters - and only those -
+ * with a stamp per character they own: the newest decision about it (`newest`: the
+ * offer's, or a withdrawal's tombstone), or 0 for one this browser never held, which
+ * changes nothing on the owner's side. `stampOf` would be wrong here: it reads live
+ * fields only, so a withdrawal went out at 0 and the owner kept the spent offer lit
+ * (61 H2a, measured on the first C8 tree, 26.09).
+ */
 export function offersFor(userId) {
     const user = game.users.get(userId);
-    const out = {};
-    if (!user || user.isGM) return out;
-    for (const [actorId, offer] of Object.entries(readOffers())) {
-        const actor = game.actors.get(actorId);
-        if (actor?.testUserPermission?.(user, "OWNER") && LEVEL_UP[offer?.kind]?.picks) {
-            out[actorId] = { kind: offer.kind };
-        }
+    const offers = {}, stamps = {};
+    if (!user || user.isGM) return { offers, stamps };
+    const held = readOffers();
+    for (const actor of game.actors ?? []) {
+        if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
+        stamps[actor.id] = offerStore.newest(actor.id);
+        const offer = held[actor.id];
+        if (LEVEL_UP[offer?.kind]?.picks) offers[actor.id] = { kind: offer.kind };
     }
-    return out;
+    return { offers, stamps };
 }
 
-/** Owner: replace this browser's copy with the set the primary sent, and redraw. */
-export async function receiveOffers(offers) {
+/**
+ * AFTER A RESTORE (gm-stores.mjs `restoreCase`; the design's 6.2): every connected
+ * player is sent the offers on their own characters again, with their stamps - an
+ * owner refused while this browser held none (stamp 0) has the lit button back, and
+ * one who holds it changes nothing (`offerCopy`). Any GM may send it, as any GM's
+ * answer is weighed by its stamps. Nothing while the suite holds the stores or stands
+ * in another world (`gmStoresQuiet`). Answers how many players were sent their set.
+ */
+export async function retellOffers() {
+    if (!game.user?.isGM || gmStoresQuiet()) return 0;
+    const { sendOffersTo } = await import("./gm-bridge.mjs");
+    let sent = 0;
+    for (const user of game.users) {
+        if (!user.active || user.isGM) continue;
+        await sendOffersTo(user.id);
+        sent++;
+    }
+    return sent;
+}
+
+/** Owner: take the set the primary sent where it is newer (`offerCopy`), and redraw. */
+export async function receiveOffers(offers, stamps) {
     const before = readOffers();
     const mine = {};
     for (const [actorId, offer] of Object.entries(offers ?? {})) {
@@ -174,10 +204,29 @@ export async function receiveOffers(offers) {
             mine[actorId] = { kind: offer.kind };
         }
     }
-    await writeOffers(mine);
-    for (const id of new Set([...Object.keys(before), ...Object.keys(mine)])) {
+    if (!await offerCopy.receive(mine, stamps)) return false;
+    for (const id of new Set([...Object.keys(before), ...Object.keys(readOffers())])) {
         game.actors.get(id)?.sheet?.render(false);
     }
+    return true;
+}
+
+/**
+ * Owner: a season reset cut this browser's copy (E04 C10, the owner's Q4 - a reset
+ * with "advancement" ticked withdraws the Level Ups on offer). Nothing is sent for it:
+ * the cut is in the clock, and the copy reads empty under it from then on, so each of
+ * this user's own characters' sheets is drawn again here (gm-stores.mjs `offerCopy`'s
+ * `onCut`). Answers how many were asked to draw.
+ */
+export function redrawOwnSheets() {
+    if (game.user?.isGM) return 0;
+    let n = 0;
+    for (const actor of game.actors ?? []) {
+        if (actor.type !== "character" || !actor.isOwner) continue;
+        actor.sheet?.render(false);
+        n++;
+    }
+    return n;
 }
 
 /** Any GM: an offer is spent or taken back. The primary writes it; others ask it to. */

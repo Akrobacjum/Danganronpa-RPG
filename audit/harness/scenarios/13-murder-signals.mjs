@@ -60,8 +60,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
                 hud.renderHud();
                 await new Promise(r => setTimeout(r, 120));
                 await M.applyMurderMusic();
-                let cast = {};
-                try { cast = game.settings.get("${MOD}", "incidentCast") ?? {}; } catch {}
+                // The leaf (E04): the GMs' record on a GM, a participant's own copy elsewhere.
+                const cast = S.incidentCast();
                 return {
                     witness: S.incidentWitness().witness,
                     seat: Boolean(S.incidentWitness().seat),

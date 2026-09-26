@@ -34,7 +34,9 @@ import {
 } from "./utils.mjs";
 // The store the declarations are written through (ACT-08). settings.mjs imports
 // config.mjs and nothing else, so this closes no cycle.
-import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
+import { SETTINGS } from "./settings.mjs";
+import { observeStore } from "./gm-stores.mjs";
+import { stableJson } from "./gm-store.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -69,48 +71,82 @@ export const DECLARATIONS = {
  * console. The note beside `SETTINGS.remnantSecrets` records the same decision for
  * the same reason.
  *
- * The Map stays as the read cache, exactly as the Remnant ledger's does; the
- * setting is the copy that survives the browser.
+ * The Map stays as the read cache; the setting is the copy that survives the
+ * browser - a local GM store since E04 (1.2.63, gm-stores.mjs `observeStore`), a
+ * section per world, which this Map is filled from and written through to.
  *
  * WHAT THIS DOES NOT DO, said plainly: it does not reach a SECOND GM. Both halves
  * of the round trip are handled by whoever `primaryGmId()` names at that moment,
  * and that can change - a GM joining with a lower-sorted id, the primary
  * disconnecting, a reload - so a declaration minted on one GM's browser can be
- * asked of another's. The module already carries that mechanism twice (see the
- * three-message sync in truth-bullets.mjs), and bolting a third copy on here is
- * its own round of work. The road that cannot answer now says so on both screens,
- * which is the half that matters at the table.
+ * asked of another's. The GM store could carry it now - every other GM-only store is
+ * exchanged between the GMs since E04 - but this one was kept local (`sync: false`,
+ * E04 C7: both halves of the round trip usually go through one GM), and syncing it
+ * is a change nobody has made yet. The road that cannot answer says so on both
+ * screens, which is the half that matters at the table.
  */
 const pending = new Map();
 const PENDING_TTL_MS = TIMING.pendingObserveTtlMs;
 /** True once the setting has been folded into the cache on this client. */
 let pendingLoaded = false;
 
-/** Fill the cache from the setting, once per client. GM only; players hold none. */
+/** While this module's own write of the store is in flight: its change event is not news. */
+let pendingWriting = 0;
+
+/**
+ * Fill the cache from the store, when it is not filled or the store changed under
+ * it. GM only; players hold none. Copies, not the store's own rows: an entry is
+ * changed in place here (`entry.result = ...`) and written through by
+ * `writePending`, which finds the change by comparing the two.
+ */
 function readPending() {
     if (pendingLoaded || !game.user?.isGM) return;
     pendingLoaded = true;
+    pending.clear();
     try {
-        const stored = getSetting(SETTINGS.observePending) ?? {};
-        for (const [key, entry] of Object.entries(stored)) {
-            if (entry && typeof entry === "object") pending.set(key, entry);
+        for (const [key, entry] of Object.entries(observeStore.entries())) {
+            if (entry && typeof entry === "object") pending.set(key, structuredClone(entry));
         }
     } catch (err) {
         debug("Could not read the pending Observes back", err);
     }
 }
 
-/** Write the cache through. Every mutation of `pending` goes through here. */
+/**
+ * Write the cache through: what changed is written, what went is dropped. Every
+ * mutation of `pending` goes through here. A cache the store changed under since
+ * it was read drops nothing - it cannot know what it never read.
+ */
 async function writePending() {
     if (!game.user?.isGM) return;
     try {
-        await setSetting(SETTINGS.observePending, Object.fromEntries(pending));
+        const held = observeStore.entries();
+        const gone = pendingLoaded ? Object.keys(held).filter(key => !pending.has(key)) : [];
+        const changed = Object.fromEntries([...pending].filter(([key, entry]) => stableJson(held[key] ?? null) !== stableJson(entry)));
+        pendingWriting++;
+        try {
+            await Promise.all([gone.length ? observeStore.dropMany(gone) : null,
+                Object.keys(changed).length ? observeStore.patchMany(changed) : null]);
+        } finally {
+            pendingWriting--;
+        }
     } catch (err) {
         debug("Could not store the pending Observes", err);
     }
 }
 
+/*
+ * THE CACHE FOLLOWS THE STORE (E04). It was filled once and never told of a change:
+ * a second tab, or the suite putting the store back, left it answering from what it
+ * read first. A change of the store this module did not make now empties it for the
+ * next read. `clientSettingChanged`, because the store is client-scoped (R14).
+ */
+Hooks.on("clientSettingChanged", key => {
+    if (key === `${MODULE_ID}.${SETTINGS.observePending}` && !pendingWriting) pendingLoaded = false;
+});
+
 async function sweepPending() {
+    readPending();
     const cutoff = Date.now() - PENDING_TTL_MS;
     let dropped = 0;
     for (const [key, entry] of pending) {
@@ -963,6 +999,7 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
  * on every browser but a GM's and this answers null there whatever it is asked.
  */
 export function pendingShape(key) {
+    readPending();
     const entry = pending.get(key);
     if (!entry) return null;
     return {

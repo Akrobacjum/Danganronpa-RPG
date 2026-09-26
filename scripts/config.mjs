@@ -342,7 +342,29 @@ export const TIMING = {
     /** The HUD's minutes counter: amber at the first mark, red at the second. */
     elapsedMarksMinutes: [15, 30],
     /** How many chat messages one delete carries. */
-    chatDeleteBatch: 500
+    chatDeleteBatch: 500,
+    /** How long a GM's client waits for the other GMs' copies of the GM store before it
+     *  carries on alone (gm-store.mjs, hydration). The design's proposal; how long a real
+     *  table takes is LIVE-E04-02, and a copy that arrives later still merges. */
+    gmStoreSyncMs: 8000,
+    /** How long an Analyze or a handover of a Truth Bullet waits for this GM's stores to
+     *  open and hear the other GMs before it refuses (gm-stores.mjs `answerKeysOpen`; E04's
+     *  fix round 10, 26.09.2026). Not `gmStoreSyncMs` itself: that clock starts at the hello,
+     *  after the open's claims, so a request that came during the claims would be refused a
+     *  moment before a timed-out exchange let it through. Twice it: the exchange's own bound
+     *  and as long again for the claims (how long a real browser's take is not measured; the
+     *  exchange at a real table is LIVE-E04-02). Far under `rulingMs`, the asking player's
+     *  own clock, so the refusal reaches them before they stop listening (R189). */
+    gmStoreOpenMs: 16000,
+    /** How far ahead of this client's clock a GM store stamp is believed: past it, the
+     *  stamp is kept as sent, the clock is not moved further, and the sender is named once. */
+    gmStoreSkewMs: 10 * 60 * 1000,
+    /** A GM store tombstone whose subject is gone from the world is removed after this many
+     *  days, on every GM once its stores have the others' copies (gm-stores.mjs
+     *  `compactGmStores`). The design's figure: a GM away longer can bring back a row whose
+     *  subject is gone, which no lookup reaches (they go through the token, the item or the
+     *  character). */
+    gmStoreTombstoneDays: 30
 };
 
 /**

@@ -132,11 +132,9 @@ export const world = {
              * trace: the public name, the Remnant actor, unlinked, the question mark in
              * the neutral tint, half transparent, under the cast, hidden, neutral, the
              * marker flag and nothing else. The other half - the answer key - is the
-             * primary GM's ledger, a client setting in that GM's browser, which a world
-             * seed does not hold: to the GM this is a trace it has no record of, which
-             * remnantData answers with null (remnants.mjs, "A trace this GM has no record
-             * of"): the case dashboard and the Key and faint sweeps pass over it, and the
-             * GM's ring reads it as a trace of no type.
+             * primary GM's ledger, a client setting in that GM's browser: `storage.gm`
+             * below (E04), so the case's health check at every boot finds this trace
+             * with its row, as a real GM's browser would, and asks nothing.
              *
              * On a scene of its own that is not active: 10-murder reads the first trace
              * on the active scene as the one it placed, and the suite's scenarios place
@@ -160,5 +158,26 @@ export const world = {
            (lib/daggerheart.mjs, AUTOMATION_DEFAULT), and then no roll pays Hope or
            Fear at all; this world says which it is instead of leaning on a default. */
         "daggerheart.Automation": { ...structuredClone(AUTOMATION_DEFAULT), hopeFear: { gm: true, players: true } }
+    }
+};
+
+/*
+ * WHAT EACH SEEDED BROWSER HOLDS BEFORE THE MODULE LOADS (E04, 26.09.2026): its
+ * localStorage, `{ key: raw text }`, by client. The GM's holds the seeded trace's
+ * answer key, as placeRemnant files one for a preparation trace, under the ledger's
+ * key of 1.2.62 - the key the traces' GM store claims from on its first open
+ * (E04 C4), which makes every boot of the harness an upgrade day as well. The
+ * stamp is fixed, so every run claims the same row.
+ */
+export const storage = {
+    gm: {
+        "danganronpa-rpg.remnantSecrets": JSON.stringify({
+            [`${IDS.annex}.${IDS.trace}`]: {
+                type: "prep", visibility: "evident", faint: false, reinforced: false, note: "", action: "manual",
+                subject: "", pointsAt: null, tiedToCrime: false, itemIdentity: null, sourceActor: null, sourceName: "",
+                room: null, chapter: 1, day: 1, timeOfDay: "morning", label: "Evident Prep Remnant",
+                placedAt: 1758844800000, updated: 1758844800000
+            }
+        })
     }
 };

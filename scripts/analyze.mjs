@@ -26,7 +26,22 @@ import {
 // The trace's own `public` record, for a reading a bullet's secret was minted
 // without (T-2). Static: remnants.mjs does not import this file.
 import { remnantPublicById } from "./remnants.mjs";
-import { whisperToOwner, whisperToGms, log, warn, error, article } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, log, warn, error, article, esc } from "./utils.mjs";
+import { answerKeysRefusal } from "./gm-stores.mjs";
+
+/* The bullets the GMs have been told about this session: one whisper each, not one per roll. */
+const keyMissingTold = new Set();
+
+async function tellGmsKeyMissing(item) {
+    if (keyMissingTold.has(item.uuid)) return;
+    keyMissingTold.add(item.uuid);
+    try {
+        await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Case.answerKeyMissing", {
+            bullet: item.name, actor: item.actor?.name ?? "?" }))}</p>`);
+    } catch (err) {
+        error("Could not tell the GMs a bullet's answer key is missing", err);
+    }
+}
 
 /**
  * Score a thrown Analyze against the bullet's real category.
@@ -78,7 +93,33 @@ export async function resolveAnalyze({
     // bullet rolls (Dawid, 21.09) a Reroll can lose - so winding one back to
     // Neutral would leave it showing less than it did when it was picked up. Which
     // state it was in is recorded below, before the first throw is scored.
+    /*
+     * NO ANSWER KEY, NO ANSWER (E04, 1.2.63; audit S05-01, S05-09). The dice below
+     * are scored against `realType ?? "neutral"`, so a bullet whose answer key this
+     * GM's browser does not hold - a lost browser, a GM whose copy has not arrived,
+     * a row S05-01 left with its realType gone - was announced as Neutral, and a
+     * table argued its trial on a reading nobody made. An Analyze of such a bullet
+     * is refused instead, and the GMs are told, once per bullet per session, where
+     * the key can come back from. It waits for the other GMs' copies first, so a key
+     * still on its way is not taken for a missing one; until E04's fix round the
+     * refusal was skipped in that window and the bullet scored Neutral (the reviews'
+     * DS-m9 = C-m4). The wait is bounded (fix round 10): a GM whose stores did not
+     * open within `TIMING.gmStoreOpenMs`, or could not open at all, refuses with
+     * `keysNotOpen` rather than holding the request for ever (`answerKeysRefusal`).
+     * Either refusal hands the price back on the asking player's client
+     * (action-rolls.mjs `analyseBullet`); until fix round 10 neither did - the
+     * missing key's measured on 05ac984: p1's actions 3 -> 2, nothing given back -
+     * though this note said so.
+     */
+    if (!undo) {
+        const notOpen = await answerKeysRefusal();
+        if (notOpen) return { refused: notOpen };
+    }
     const secret = secretOf(item.uuid);
+    if (!undo && !secret.realType) {
+        await tellGmsKeyMissing(item);
+        return { refused: "the answer key for that bullet is not on this GM's browser" };
+    }
     if (undo) {
         const before = secret.analysedFrom ?? "neutral";
         const kindShown = before !== "neutral";
@@ -117,13 +158,15 @@ export async function resolveAnalyze({
         }
     } else {
         // What it showed before this throw, for the Reroll above to put back.
+        // `ifLive` (E04): it amends the bullet's row and never starts one - a row
+        // made of these two fields alone would be an answer key with no answer in it.
         try {
             await setSecret(item.uuid, {
                 analysedFrom: item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral",
                 // Which chapter the throw belongs to: a Reroll may take back
                 // this chapter's, and nothing older (E03).
                 analysedChapter: chapter
-            });
+            }, { ifLive: true });
         } catch (err) {
             error("Could not record what the bullet showed before its Analyze", err);
         }

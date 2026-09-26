@@ -34,6 +34,14 @@
  * first tagged run: 0 body-discovery checks), so body-discovery names 10-murder.
  * A scenario is named here when its run shows checks under the flow.
  *
+ * E04 (26.09.2026) adds the gm-store flow: the GM-to-GM exchange of the GM-only
+ * stores (gm-store.mjs), which 61-gmstore-case drives with a GM that joins late.
+ * A file whose own GM-to-GM socket the store replaced leaves its flow's `sockets`
+ * as it moves (truth-bullets.mjs first), and the flow names 61 for that half.
+ * Covered from 1.2.63: 61 drives every part of it end to end - the late empty
+ * browser, the exchange, tombstones, Back up and Restore, and the reset's cuts
+ * (its phases J, E04 C10).
+ *
  * E31 (25.09.2026) adds 33-bridge-paths to the nine flows its checks are tagged
  * with. eclipse-route-veto goes from planned to partial with it: 33 drives
  * `eclipse.move` only as far as a GM who is connected and does not answer (its
@@ -51,7 +59,7 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["call.arm"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask"], sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
         entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],
         status: "partial", stage: "E37" },
@@ -60,12 +68,14 @@ export const FLOWS = Object.freeze([
     { id: "despair", what: "Despair: a correction from a player's Reroll, a Despair Call from a GM, the pools every screen shows",
         entry: { bridge: ["despair.adjust"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
-        entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security"], status: "covered", stage: "<=1.2.50" },
+        entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security", "61-gmstore-case"], status: "covered", stage: "<=1.2.50" },
     { id: "eclipse-route-veto", what: "A move during an Eclipse: asked of the GM, allowed or refused",
         entry: { bridge: ["eclipse.move"] }, scenarios: ["33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",
         entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "vault.steal", "body.loot"] },
         scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+    { id: "gm-store", what: "The GM store between GM clients: a late, empty browser, the exchange, tombstones, backup and restore, the reset's cuts",
+        entry: { sockets: ["gm-store.mjs"], api: ["backupCase", "restoreCase"] }, scenarios: ["61-gmstore-case"], status: "covered", stage: "1.2.63" },
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
         entry: {}, scenarios: [], status: "planned", stage: "E33" },
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
@@ -73,14 +83,14 @@ export const FLOWS = Object.freeze([
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",
         entry: {}, scenarios: [], status: "planned", stage: "E39" },
     { id: "mastermind", what: "The Mastermind's doors: asked for and granted across clients",
-        entry: { sockets: ["mastermind.mjs"] }, scenarios: [], status: "planned", stage: "E40" },
+        entry: { sockets: ["mastermind.mjs"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E40" },
     { id: "messenger", what: "The messenger and every private card: the words travel only to the people on the card",
         entry: { sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
         entry: { bridge: ["monocub.meddle"] }, scenarios: [], status: "planned", stage: "E45" },
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["murder.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "30-security"], status: "partial", stage: "E32" },
+        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "30-security", "61-gmstore-case"], status: "partial", stage: "E32" },
     { id: "private-rolls", what: "A roll made in private: whispered, and hidden from the other players' chat",
         entry: { sockets: ["dice-sync.mjs"] }, scenarios: ["12-social", "20-crit-hope"], status: "covered", stage: "<=1.2.50" },
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
@@ -97,12 +107,12 @@ export const FLOWS = Object.freeze([
     { id: "sound", what: "A sound played for other browsers",
         entry: { sockets: ["sfx.mjs"] }, scenarios: [], status: "planned", stage: "E50" },
     { id: "trace-remnant", what: "Traces: placed, tied to the crime, re-rated by a Reroll, cleaned up",
-        entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces"], sockets: ["remnants.mjs"] },
-        scenarios: ["10-murder", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+        entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces"] },
+        scenarios: ["10-murder", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
     { id: "trap-fire", what: "A trap: a crossing reported to the GM, the trap sprung once",
-        entry: { bridge: ["trap.event"], sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+        entry: { bridge: ["trap.event"], sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
     { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, and a player's edit is put back",
-        entry: { sockets: ["truth-bullets.mjs"] }, scenarios: ["30-security"], status: "partial", stage: "E38" },
+        entry: {}, scenarios: ["30-security", "61-gmstore-case"], status: "partial", stage: "E38" },
     { id: "voice", what: "Voice rooms: who hears whom",
         entry: { sockets: ["voice.mjs", "voice-client.mjs"] }, scenarios: [], status: "planned", stage: "E58" }
 ]);

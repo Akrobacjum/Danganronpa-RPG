@@ -67,7 +67,7 @@ import {
     NO_MONOKUMA
 } from "./assignments.mjs";
 import {
-    diagnoseDice, diagnoseDespair, diagnoseStyles, diagnoseTruthBullets, diagnoseVoice,
+    diagnoseDice, diagnoseDespair, diagnoseStyles, diagnoseTruthBullets, diagnoseGmStores, diagnoseVoice,
     diagnoseWindows, traceClicks, fileSizes, perfReport, whySlow } from "./diagnostics.mjs";
 import { diagnoseLive } from "./live.mjs";
 import { diagnoseOwnRings } from "./own-ring.mjs";
@@ -180,9 +180,12 @@ import { openItemManager, issueAutopsyDialog } from "./gm-items.mjs";
 import {
     createTruthBullet, truthBulletData, bulletsOf, isTruthBullet,
     isAnalysable, analysableBullets,
-    issueAutopsy, migrateTruthBullets, secretOf, setSecret, dropSecret,
-    exportLedger, importLedger
+    issueAutopsy, migrateTruthBullets, secretOf, setSecret, dropSecret
 } from "./truth-bullets.mjs";
+import {
+    backupCase, restoreCase, previewRestore, gmStoreHealth, gmStoreStatus, gmStoreReclaim, openRestoreDialog,
+    fillBulletsFromTraces
+} from "./gm-stores.mjs";
 import {
     isMonokuma, setMonokuma, monokumaActors, studentActors,
     poolUserFor, poolFor, setPoolFor, monokumasWithoutPool
@@ -639,9 +642,24 @@ export const DrpgApi = {
     setSecret,
     dropSecret,
 
-    /** The ledger lives in browser storage, so it can be backed up and restored. */
-    exportLedger,
-    importLedger,
+    /* ---- The case: every GM-only store (E04) ------------------------------
+     * The answer keys, the traces, the cast, the Mastermind and the rest live
+     * in GM browsers, not the world file: back them up to one file, restore
+     * from one (a restore only adds what is newer), and ask what this browser
+     * is missing. `exportLedger` and `importLedger`, the Truth Bullet ledger's
+     * backup until E04, are the same two calls now; importLedger takes the old
+     * files too. */
+    backupCase,
+    restoreCase,
+    previewRestore,
+    openRestoreDialog,
+    gmStoreHealth,
+    gmStoreStatus,
+    gmStoreReclaim,
+    /** The health check's "Fill from their traces": a bullet's lost real type, from its trace's row (weak). */
+    fillBulletsFromTraces,
+    exportLedger: backupCase,
+    importLedger: restoreCase,
 
     /** Bring bullets made before Stage 1 up to the current shape. Idempotent. */
     migrateTruthBullets,
@@ -1051,6 +1069,7 @@ export const DrpgApi = {
 
     /** Are the bullets and their answer key still in step, and do the rows render? */
     diagnoseTruthBullets,
+    diagnoseGmStores,
 
     /** Which of the five links in per-region voice is the broken one. Run it on
      *  the client that is complaining, not only on the GM's. */

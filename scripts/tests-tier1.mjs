@@ -21,7 +21,7 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    otherSources, stripComments, bodyOf, fnSource, STANDING
+    moduleSources, otherSources, stripComments, bodyOf, fnSource, STANDING
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -3414,6 +3414,1081 @@ const INVARIANTS = [
         } finally {
             root.remove();
         }
+    }],
+
+    ["R169 - the GM store's merge keeps every field that anybody wrote last", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-01. The one critical in the module's own code: the
+         * Truth Bullet ledger merged by whole entries, newest `updated` wins, and a second
+         * GM joining sent entries a migration had built from nothing - `{ faint, updated:
+         * now }` - which replaced the full entries everywhere, the answer key with them.
+         * The GM store merges per field (gm-store.mjs, mergeSections). This holds its rules
+         * on sections the engine's own writer builds, nothing else touched: a field is the
+         * newest write of it; a tombstone or a reset's cut kills every older field, keys the
+         * clearer never held included; a key written again after its tombstone carries only
+         * what was written after it; an equal stamp resolves the same in both orders; a
+         * weak write - at the stamp the engine gives it - loses to anything real, a write
+         * in the millisecond after a cut included, and is not dead after a cut; the sub-keys of a
+         * split field merge apart; and over 200 generated triples the merge is commutative,
+         * associative and idempotent. The old rule, copied, is shown to lose the answer key
+         * first - a fixture that could not fail would measure nothing.
+         */
+        const G = await import("./gm-store.mjs");
+        const spec = { name: "r169", split: ["public"] };
+        const J = G.stableJson;
+        const sec = () => G.emptySection();
+        const write = (s, k, fields, at, opts) => { G.writeFields(s, k, fields, at, spec, opts); return s; };
+        const merge = (a, b) => G.mergeSections(a, b, spec);
+
+        // The rule of truth-bullets.mjs's mergeEntries until E04, copied: an entry replaces the one held when its `updated` is newer.
+        const wholeEntry = (mine, theirs) => {
+            const out = { ...mine };
+            for (const [k, e] of Object.entries(theirs)) if (!(out[k] && (out[k].updated ?? 0) >= (e.updated ?? 0))) out[k] = e;
+            return out;
+        };
+        const full = { realType: "key", remnantId: "R169TRACE", analyzedText: "the cut matches the blade", faint: false };
+        equal(wholeEntry({ b1: { ...full, updated: 100 } }, { b1: { faint: true, updated: 200 } }).b1.realType, undefined,
+            "the whole-entry fixture keeps the answer key - it is not the S05-01 rule, and what follows would measure nothing");
+        equal(J(merge(write(sec(), "b1", full, 100), write(sec(), "b1", { faint: true }, 200)).e.b1), J({ ...full, faint: true }),
+            "a younger partial entry erased fields of an older full one (S05-01)");
+
+        const stale = write(sec(), "b1", { realType: "neutral", gmNote: "only here" }, 50);
+        equal(J(merge(write(sec(), "b1", full, 100), stale).e.b1), J({ ...full, gmNote: "only here" }),
+            "a stale copy overwrote a newer field, or its field nobody else had was lost");
+
+        const clearer = sec();
+        G.dropKey(clearer, "b2", 300, spec);
+        equal(merge(write(sec(), "b2", { realType: "evident" }, 250), clearer).e.b2, undefined,
+            "a tombstone did not kill an older row it never held");
+        const cut = sec();
+        G.raiseCleared(cut, 500, spec);
+        const beforeCut = write(write(sec(), "b3", { realType: "key" }, 400), "b4", { realType: "key" }, 600);
+        G.dropKey(beforeCut, "b5", 450, spec);
+        const afterCut = merge(beforeCut, cut);
+        equal(J({ e: Object.keys(afterCut.e), d: Object.keys(afterCut.d), cleared: afterCut.cleared }), J({ e: ["b4"], d: [], cleared: 500 }),
+            "a reset's cut left a row or a tombstone written before it, or took one written after it");
+
+        const revived = write(sec(), "b6", { a: 1, b: 2 }, 100);
+        G.dropKey(revived, "b6", 150, spec);
+        write(revived, "b6", { c: 3 }, 160);
+        equal(J(merge(revived, write(sec(), "b6", { a: 1, b: 2 }, 100)).e.b6), J({ c: 3 }),
+            "a key written again after its tombstone brought back fields from before it");
+
+        const x = write(sec(), "k", { v: "x" }, 50), y = write(sec(), "k", { v: "y" }, 50);
+        equal(J(merge(x, y)), J(merge(y, x)), "two writes with one stamp resolve differently in the two merge orders");
+
+        /* The weak stamp as the engine's writers take it (`weak()` on a store's handle), on an
+           engine built with fakes: after a cut, a weak write is alive, and loses to a real write
+           made in the very next millisecond - the first stamp a GM can make after the cut. At
+           the watermark plus one it tied that write, and a tie is decided by the value, so a
+           default could beat an answer (the review's DS-m2). */
+        const flushes = [];
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R169GM", isGM: () => true, isPrimary: () => true, worldId: () => "R169WORLD",
+            activeGmIds: () => [], primaryGmId: () => "R169GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => 5_000_000,
+            timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const held = eng.define({ name: "r169weak", key: "r169Weak", kind: "ledger", sync: false, backup: false });
+        const cutAt = 1000;
+        await held.mergeIn({ e: {}, t: {}, d: {}, cleared: cutAt }, { source: "sync" });
+        const weak = write(sec(), "k", { v: "weak" }, held.weak(), { fillOnly: true });
+        const oldUnderCut = merge(write(sec(), "k", { v: "old" }, cutAt - 10), { e: {}, t: {}, d: {}, cleared: cutAt });
+        equal(merge(oldUnderCut, weak).e.k?.v, "weak", "a weak write after a cut is dead on arrival");
+        const real = write(sec(), "k", { v: "real" }, cutAt + 1);
+        ok(merge(weak, real).e.k.v === "real" && merge(real, weak).e.k.v === "real",
+            `a weak write (at ${held.weak()}) beat a real one made in the millisecond after the cut (at ${cutAt + 1})`);
+
+        const p1 = write(write(sec(), "t", { public: { icon: "a", name: "n1" } }, 100), "t", { public: { icon: "b" } }, 200);
+        const p2 = write(write(sec(), "t", { public: { icon: "a", name: "n1" } }, 100), "t", { public: { name: "n2" } }, 210);
+        equal(J(merge(p1, p2).e.t.public), J({ icon: "b", name: "n2" }), "two GMs' edits of different sub-keys of a split field did not both survive");
+        equal(merge(merge(p1, p2), write(sec(), "t", { public: null }, 300)).e.t.public, null,
+            "a later write of the whole split field did not replace its older sub-keys");
+
+        let seed = 169;
+        const rnd = n => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n; };
+        const gen = () => {
+            const s = sec();
+            for (let i = 0; i < 12; i++) {
+                const k = `k${rnd(4)}`, r = rnd(10), at = 10 + rnd(90);
+                if (r === 0) G.dropKey(s, k, at, spec);
+                else if (r === 1) G.raiseCleared(s, rnd(40), spec);
+                else if (r < 4) write(s, k, { public: { [`s${rnd(3)}`]: rnd(5) } }, at);
+                else if (r === 4) write(s, k, { public: rnd(2) ? null : { z: 1 } }, at, { whole: true });
+                else write(s, k, { [`f${rnd(3)}`]: rnd(5) }, at);
+            }
+            return s;
+        };
+        const broken = { commutes: 0, associates: 0, idempotent: 0 };
+        for (let i = 0; i < 200; i++) {
+            const a = gen(), b = gen(), c = gen();
+            if (J(merge(a, b)) !== J(merge(b, a))) broken.commutes++;
+            if (J(merge(merge(a, b), c)) !== J(merge(a, merge(b, c)))) broken.associates++;
+            if (J(merge(a, a)) !== J(G.syncable(a)) || J(merge(a, sec())) !== J(G.syncable(a))) broken.idempotent++;
+        }
+        equal(J(broken), J({ commutes: 0, associates: 0, idempotent: 0 }), "over 200 generated triples the merge is not an order-free union");
+    }],
+
+    ["R170 - GM replicas converge by the protocol, and nothing from a player or another world is taken", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-01, S06-19. Every GM's client holds its own copy of
+         * each GM store and keeps it in step with the others by four packets (gm-store.mjs):
+         * a hello with a digest per store, the sections that differ, a "done", and a delta
+         * after each write. Driven here on three engines built with fakes - a bus that
+         * delivers first-in-first-out, last-in-first-out or in a seeded shuffle, with and
+         * without every packet twice; a clock whose long timers move only when told; storage
+         * in a Map - so nothing leaves this client and nothing in the world is touched. Held:
+         * two GMs writing at once and a third joining late with an older copy end with equal
+         * sections, the newer fields kept; a GM alone is hydrated at once, one answered by
+         * every GM it said hello to is "answered", one that hears nothing is "timedOut" after
+         * TIMING.gmStoreSyncMs; and the receive gate refuses a sender that is not a GM, this
+         * client, another world, a store this build does not sync and a section stamped with
+         * something that is not a number - and a delta forged by a player changes nothing.
+         */
+        const G = await import("./gm-store.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const J = G.stableJson;
+        const tick = () => new Promise(r => setTimeout(r, 0));
+        const makeWorld = ({ order, dup }) => {
+            let t = 1000, seed = 170;
+            const rnd = n => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n; };
+            const timers = [], queue = [], nodes = new Map(), active = new Set();
+            const fake = {
+                set: (fn, ms) => {
+                    const tm = { fn, at: t + ms, done: false };
+                    if (!ms) setTimeout(() => { if (!tm.done) { tm.done = true; fn(); } }, 0);
+                    else timers.push(tm);
+                    return tm;
+                },
+                clear: tm => { if (tm) tm.done = true; },
+                advance: ms => {
+                    t += ms;
+                    for (const tm of timers.filter(x => !x.done && x.at <= t)) { tm.done = true; tm.fn(); }
+                }
+            };
+            const node = (id, { gm = true, stored = null } = {}) => {
+                const store = new Map(stored ?? []);
+                const eng = G.createGmStoreEngine({
+                    selfId: () => id, isGM: () => gm, isPrimary: () => [...active].sort()[0] === id, worldId: () => "R170WORLD",
+                    activeGmIds: () => [...active].filter(u => nodes.get(u)?.gm), primaryGmId: () => [...active].sort()[0] ?? null,
+                    senderIsGM: u => nodes.get(u)?.gm ?? false, userName: u => u,
+                    send: (packet, to) => {
+                        for (const r of to) for (let n = dup ? 2 : 1; n > 0; n--) queue.push({ from: id, to: r, packet: structuredClone(packet) });
+                    },
+                    storage: { read: k => store.get(k) ?? null, write: async (k, v) => { store.set(k, JSON.stringify(v)); } },
+                    readLegacy: () => undefined, now: () => t, timers: fake, clock: () => ({}),
+                    log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+                });
+                const handle = eng.define({ name: "r170", key: "r170Store", split: ["public"] });
+                const n = { id, gm, eng, handle, store };
+                nodes.set(id, n);
+                return n;
+            };
+            const pump = async () => {
+                for (let i = 0; i < 5000 && queue.length; i++) {
+                    const at = order === "fifo" ? 0 : order === "lifo" ? queue.length - 1 : rnd(queue.length);
+                    const { from, to, packet } = queue.splice(at, 1)[0];
+                    if (active.has(to)) nodes.get(to).eng.onPacket(packet, from);
+                    await tick();
+                }
+                for (let i = 0; i < 4; i++) await tick();
+            };
+            return { node, pump, fake, active, queue };
+        };
+
+        const runs = [];
+        for (const order of ["fifo", "lifo", "shuffled"]) for (const dup of [false, true]) {
+            const w = makeWorld({ order, dup });
+            /* A row only the joiner holds, saved in its browser in an earlier session (the review's
+               C-m1): it reaches the GMs already there by their "done"'s ask alone. Written after
+               the joiner is active, as it was until the fix round, it went out as a delta, and a
+               "done" whose ask was ignored passed. */
+            const earlier = makeWorld({ order: "fifo", dup: false });
+            const past = earlier.node("R170C");
+            earlier.active.add("R170C");
+            await past.eng.open();
+            await past.handle.patch("u3", { realType: "prep" }, { stamp: 7 });
+            const a = w.node("R170A"), b = w.node("R170B"), c = w.node("R170C", { stored: past.store });
+            w.active.add("R170A");
+            w.active.add("R170B");
+            await Promise.all([a.eng.open(), b.eng.open()]);
+            await Promise.all([a.handle.patch("u1", { realType: "key", remnantId: "R170TRACE" }), b.handle.patch("u1", { faint: true }),
+                b.handle.patch("u2", { realType: "evident" })]);
+            await w.pump();
+            w.active.add("R170C");
+            await c.handle.patch("u1", { realType: "neutral" }, { stamp: 5 });
+            const opening = c.eng.open();
+            await w.pump();
+            await opening;
+            await w.pump();
+            await a.handle.drop("u2");
+            await w.pump();
+            const [sa, sb, sc] = [a, b, c].map(n => J(n.handle.section()));
+            runs.push({ order, dup, same: sa === sb && sb === sc, u1: a.handle.get("u1"), u2: a.handle.get("u2"),
+                u3: [a.handle.get("u3")?.realType ?? null, b.handle.get("u3")?.realType ?? null],
+                a: a.eng.hydration().state, c: c.eng.hydration().state });
+        }
+        const wrong = runs.filter(r => !r.same || J(r.u1) !== J({ faint: true, realType: "key", remnantId: "R170TRACE" }) || r.u2 !== null
+            || J(r.u3) !== J(["prep", "prep"]) || r.a !== "answered" || r.c !== "answered");
+        equal(J(wrong), "[]", "three GMs did not converge on the newest fields, the joiner's own row did not reach the GMs already there, or they were not answered, for some delivery order");
+
+        const alone = makeWorld({ order: "fifo", dup: false });
+        const solo = alone.node("R170A");
+        alone.active.add("R170A");
+        await solo.eng.open();
+        equal(solo.eng.hydration().state, "alone", "a GM with no other GM online waited for somebody");
+        const deaf = makeWorld({ order: "fifo", dup: false });
+        const d1 = deaf.node("R170A");
+        deaf.node("R170B");
+        deaf.active.add("R170A");
+        deaf.active.add("R170B");
+        await d1.eng.open();
+        equal(d1.eng.hydration().state, "waiting", "a GM with another GM online did not wait for its copy");
+        deaf.queue.length = 0;
+        deaf.fake.advance(TIMING.gmStoreSyncMs - 1);
+        equal(d1.eng.hydration().state, "waiting", "the wait for a silent GM ended before TIMING.gmStoreSyncMs");
+        deaf.fake.advance(1);
+        equal(d1.eng.hydration().state, "timedOut", "the wait for a silent GM did not end at TIMING.gmStoreSyncMs");
+
+        const stores = new Map([["r170", { sync: true }], ["local", { sync: false }]]);
+        const ctx = { amGM: true, senderIsGM: true, senderId: "R170B", selfId: "R170A", worldId: "R170WORLD", stores };
+        const delta = (extra = {}) => ({ action: "gms.delta", world: "R170WORLD", store: "r170", delta: { e: { k: { v: 1 } }, t: { k: 5 }, d: {}, cleared: 0 }, ...extra });
+        const verdicts = {
+            fine: G.gmsRefusal(delta(), ctx),
+            player: G.gmsRefusal(delta(), { ...ctx, senderIsGM: false }),
+            self: G.gmsRefusal(delta(), { ...ctx, senderId: "R170A" }),
+            world: G.gmsRefusal(delta({ world: "R170OTHER" }), ctx),
+            store: G.gmsRefusal(delta({ store: "local" }), ctx),
+            stamp: G.gmsRefusal(delta({ delta: { e: { k: { v: 1 } }, t: { k: "late" } } }), ctx)
+        };
+        ok(verdicts.fine === null && Object.entries(verdicts).filter(([k]) => k !== "fine").every(([, why]) => typeof why === "string" && why.length > 0),
+            `the receive gate: ${J(verdicts)}`);
+        const forged = makeWorld({ order: "fifo", dup: false });
+        const target = forged.node("R170A");
+        forged.node("R170P", { gm: false });
+        forged.active.add("R170A");
+        await target.eng.open();
+        await target.handle.patch("u1", { realType: "key" });
+        const was = J(target.handle.section());
+        target.eng.onPacket(delta({ delta: { e: { u1: { realType: "neutral" } }, t: { u1: Number.MAX_SAFE_INTEGER }, d: {}, cleared: 0 } }), "R170P");
+        await tick();
+        equal(J(target.handle.section()), was, "a delta forged by a player changed a GM's store");
+    }],
+
+    ["R173 - a restore never lowers a value, and a backup holds every store that says it is backed up", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-09. Back up the case writes every GM store with
+         * `backup: true` to one file; Restore merges a file back by the sync's own merge,
+         * so a GM may restore an old file over a newer copy and lose nothing. Held here
+         * without writing: an older file merged over a newer section - a newer row, a
+         * tombstone, a reset's cut - keeps every newer value, brings back no tombstoned
+         * or cut row, takes the one row it adds, and twice is once; the preview says
+         * the same before anything is written; the file takes exactly the stores that
+         * say they are backed up, of fakes and of the real table; every store in the
+         * table has a name the case's windows show (the offers and the fog had none
+         * until the C8/C9 fix: their rows in Restore read as the raw key); a file of a
+         * newer format is refused and the Truth Bullet export of every version before
+         * E04 is read as the bullets' section.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const spec = { name: "r173", split: ["public"] };
+        const J = G.stableJson;
+        const here = G.emptySection();
+        G.writeFields(here, "a", { realType: "key", gmNote: "newer" }, 500, spec);
+        G.writeFields(here, "b", { realType: "final" }, 300, spec);
+        G.dropKey(here, "c", 450, spec);
+        G.raiseCleared(here, 200, spec);
+        const file = G.emptySection();
+        G.writeFields(file, "a", { realType: "neutral", gmNote: "older" }, 400, spec);
+        G.writeFields(file, "b", { realType: "neutral" }, 250, spec);
+        G.writeFields(file, "c", { realType: "prep" }, 420, spec);
+        G.writeFields(file, "d", { realType: "evident" }, 150, spec);
+        G.writeFields(file, "e", { realType: "incident" }, 600, spec);
+        const merged = G.mergeSections(here, file, spec);
+        equal(J([merged.e.a, merged.e.b, merged.e.c ?? null, merged.e.d ?? null, merged.e.e]),
+            J([{ gmNote: "newer", realType: "key" }, { realType: "final" }, null, null, { realType: "incident" }]),
+            "a restore lowered a value, brought back a tombstoned or cut row, or lost the row it adds");
+        equal(J(G.mergeSections(merged, file, spec)), J(merged), "restoring one file twice is not restoring it once");
+        const preview = G.previewSection(here, file, spec);
+        equal(J({ inFile: preview.inFile, add: preview.add, refresh: preview.refresh, kept: preview.keptNewerHere, cut: preview.beforeCut }),
+            J({ inFile: 5, add: 1, refresh: 0, kept: 3, cut: 1 }), "the preview does not say what the restore does");
+
+        const fake = [
+            { name: "backedUp", spec: { backup: true }, section: () => ({ e: { x: { v: 1 } }, t: { x: 1 }, d: {}, cleared: 0 }) },
+            { name: "localOnly", spec: { backup: false }, section: () => { throw new Error("R173: a store that is not backed up was read"); } }
+        ];
+        equal(J(Object.keys(S.caseSections(fake))), J(["backedUp"]), "the backup took a store that says it is not backed up, or left one that says it is");
+        const real = G.gmStoreHandles();
+        const inFile = Object.keys(S.caseSections(real)).sort();
+        ok(inFile.length >= 1, "no GM store is backed up - the table did not load");
+        equal(J(inFile), J(real.filter(h => h.spec.backup).map(h => h.name).sort()), "the backup does not hold exactly the stores that say they are backed up");
+        // Every store is named where the case's windows speak of it: the preview, the restore's line, the health rows.
+        const unnamed = real.filter(h => !game.i18n.has(`DRPG.Case.store.${h.name}`)).map(h => h.name);
+        ok(!unnamed.length, `the case's windows have no name for the store(s) ${unnamed.join(", ")}`);
+        const built = S.caseFileOf({ sections: S.caseSections(fake), world: { id: "R173WORLD", title: "R173" }, exportedAt: "x", exportedBy: "y" });
+        equal(J([built.format, built.version, Object.keys(built.stores)]), J([S.CASE_FORMAT, S.CASE_VERSION, ["backedUp"]]), "the file is not the case format");
+        equal(S.readCaseFile(J({ format: S.CASE_FORMAT, version: S.CASE_VERSION + 1, stores: {} })).refused, "newer", "a file of a newer format was not refused");
+        // An actor this world does not have: the row is another world's, and counted (R181 reads one it has).
+        const flat = S.readCaseFile(J({ "Actor.R173.Item.R173": { realType: "key", updated: 5 } }));
+        equal(J([flat.kind, Object.keys(flat.stores?.bullets?.e ?? {}), flat.notThisWorld?.bullets]), J(["flat", [], 1]),
+            "the Truth Bullet export of 1.2.62 is not read as the bullets' section, or took another world's row");
+    }],
+
+    ["R174 - the case health report counts this world as it stands", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-09, S04-24. The primary's check at load (and any
+         * GM's `game.drpg.gmStoreHealth()`) says what this browser is missing of the
+         * case. It reads; it writes nothing (this tier's runner holds it to that). Held:
+         * the traces it counts are the Remnant tokens on every scene, and every one of
+         * them is missing its answer key, holds it still on its token (a trace
+         * `migrateRemnants` has not reached, counted apart since E04's fix round, the
+         * review's C-m14), or has one - the three add up; the same for the Truth Bullets
+         * in the world; each row is a level the report knows and a
+         * sentence both languages carry; and its count of missing rows is its rows.
+         */
+        needs(world.atLeast("remnantTokens", 1), "the report counts the traces on the map");
+        const S = await import("./gm-stores.mjs");
+        const { remnantData } = await import("./remnants.mjs");
+        const report = await S.gmStoreHealth();
+        ok(report?.counts, "a GM's health report carried no counts");
+        const tokens = [...game.scenes].flatMap(scene => [...scene.tokens].filter(t => t.getFlag(MODULE_ID, "isRemnant")));
+        equal(report.counts.traces.of, tokens.length, "the report counts other traces than the Remnant tokens on every scene");
+        equal(report.counts.traces.missing + report.counts.traces.onToken + tokens.filter(t => remnantData(t)).length, tokens.length,
+            "traces missing an answer key, traces whose key is still on the token and traces holding one do not add up to the traces on the map");
+        const bullets = game.actors.filter(a => a.type === "character").flatMap(a => a.items.filter(i => i.getFlag(MODULE_ID, "category") === "truthBullet"));
+        equal(report.counts.bullets.of, bullets.length, "the report counts other bullets than the world's");
+        ok(report.rows.every(r => ["missing", "conflict", "info"].includes(r.level) && (game.i18n.has(r.key) || game.i18n.has(`${r.key}.other`))),
+            `a row has a level the report does not know or a sentence no language file carries: ${JSON.stringify(report.rows.map(r => [r.level, r.key]))}`);
+        equal(report.missing, report.rows.filter(r => r.level === "missing").length, "the count of missing rows is not the rows");
+    }],
+
+    ["R175 - a trace's question-mark icon is read, not written", async () => {
+        /*
+         * E04, 26.09.2026; audit S01-32. The trace icon went from the hazard triangle to
+         * the question mark in 1.2.44, and the questionMarkIcon clause rewrote each
+         * row's `public.img` in the ledger of the one GM browser that ran it - a world's
+         * migration, stamped by whichever browser happened to run it and by no other.
+         * The rows are read as the question mark instead (`publicOf`), and only the old
+         * default is: an image a GM chose stays. The clause's sweep, read from its
+         * source, reaches no ledger. Pure over fixture rows.
+         */
+        const R = await import("./remnants.mjs");
+        const OLD = "icons/svg/hazard.svg";
+        const icon = R.publicOf({}).img;
+        ok(icon && icon !== OLD, `a row with no public record reads as the icon ${icon}`);
+        equal(R.publicOf({ public: { img: OLD } }).img, icon, "a row still naming the hazard triangle is not read as the question mark");
+        equal(R.publicOf({ public: { img: "worlds/r175/chosen.webp" } }).img, "worlds/r175/chosen.webp", "an image a GM chose was mapped away");
+        equal(R.publicOf({ public: { name: "R175 knife", img: OLD } }).name, "R175 knife", "the mapping lost the record's other fields");
+        const sweep = fnSource(stripComments(new Map(await otherSources()).get("remnants.mjs") ?? ""), "adoptQuestionMark");
+        ok(/OLD_ICON/.test(sweep), "the sweep's body was not found - the reader is not reading it");
+        const reach = sweep.match(/\b(?:remnantStore|setRemnantSecret\w*|readRemnantLedger|SETTINGS\.\w+)/g) ?? [];
+        ok(!reach.length, `the questionMarkIcon clause's sweep reaches the ledger: ${reach.join(", ")}`);
+    }],
+
+    ["R176 - a player keeps the newer of two stamped copies, and every copy the GM sends is stamped", async () => {
+        /*
+         * E04, 26.09.2026; audit S06-19. What a player's browser holds of a GM store - the
+         * Mastermind's door (C5), and from C6, C8 and C9 the cast, the offers and the fog
+         * rows - is a copy a GM sends, and until E04 it was whatever the last GM to answer
+         * said: a second GM whose browser held no pick answered "not the Mastermind" and
+         * took the part away. A copy is stamped now, and replaced only by a newer stamp
+         * (gm-store.mjs, `receiveCopy`). Driven on an engine built with fakes - storage in
+         * a Map, a clock that moves when told - so nothing in this browser is written: an
+         * answer with no stamp, an older one and an equal one change nothing; a newer one
+         * does; one from far in the future is kept at the skew bound, so it cannot lock the
+         * copy; a reset's cut above the copy reads as the fallback; and a copy the cut takes
+         * something from is drawn again once (C10: a reset sends nothing for the offers).
+         *
+         * PART BY PART (the review's B1, 26.09): a copy carries a stamp per store field
+         * its value came from, and one that is newer in one part and older in another is
+         * not newer - a GM that had not merged a newer pick moved the lair and handed the
+         * former Mastermind's player "yes" at the room's fresh stamp. The door's own rule
+         * (`doorCombine`) is held on the review's case, and the cast's (`castCombine`,
+         * C6) on a stale turn, a participant leaving and a trap's end. Then the source:
+         * each GM-to-player sender in the table below puts stamps in what it sends, and
+         * every call of it passes them - or the sender reads them itself (the offers, C8;
+         * the fog's rows, C9).
+         */
+        const G = await import("./gm-store.mjs");
+        const { TIMING } = await import("./config.mjs");
+        let t = 5_000_000;
+        let cuts = {};
+        const store = new Map();
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R176PLAYER", isGM: () => false, isPrimary: () => false, worldId: () => "R176WORLD",
+            activeGmIds: () => [], primaryGmId: () => null, senderIsGM: () => false, userName: u => u, send: () => {},
+            storage: { read: k => store.get(k) ?? null, write: async (k, v) => { store.set(k, JSON.stringify(v)); } },
+            readLegacy: () => undefined, now: () => t, timers: { set: () => null, clear: () => {} }, clock: () => ({ resetCuts: cuts }),
+            log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const copy = eng.defineCopy({ name: "r176", key: "r176Copy", resetGroup: "mastermind", fallback: { mastermind: false, room: null } });
+        const read = () => JSON.stringify(copy.read());
+        const yes = { mastermind: true, room: "R176 lair" }, no = { mastermind: false, room: null };
+        equal(await copy.receive(no, 0), false, "an answer with stamp 0 was taken");
+        equal(await copy.receive(no, undefined), false, "an answer with no stamp was taken");
+        equal(read(), JSON.stringify(no), "the copy with nothing received is not the fallback");
+        equal(await copy.receive(yes, t - 100), true, "a first stamped answer was not taken");
+        equal(read(), JSON.stringify(yes), "the copy does not read what was taken");
+        equal(await copy.receive(no, t - 200), false, "an older answer was taken");
+        equal(await copy.receive(no, t - 100), false, "an equal stamp was taken");
+        equal(read(), JSON.stringify(yes), "an older or equal answer changed the copy");
+        equal(await copy.receive(no, t + 50), true, "a newer answer was not taken");
+        equal(read(), JSON.stringify(no), "the newer answer does not read back");
+        equal(await copy.receive(yes, t + 24 * 3600 * 1000), true, "an answer from far in the future was refused outright");
+        equal(copy.stamp(), t + TIMING.gmStoreSkewMs, "a far-future stamp was not kept at the skew bound");
+        t += TIMING.gmStoreSkewMs + 1000;
+        equal(await copy.receive(no, t), true, "once the bound has passed, a real answer was not taken - one fast clock locked the copy");
+        // A copy that is not the fallback, so that reading the fallback under the cut measures the cut (the review's m2).
+        equal(await copy.receive(yes, t + 1), true, "a newer yes was not taken");
+        cuts = { mastermind: t + 10 };
+        equal(read(), JSON.stringify(no), "a yes under its group's reset cut does not read as the fallback");
+        equal(await copy.receive(yes, t + 5), false, "an answer under the reset's cut was taken");
+        equal(await copy.receive(yes, t + 20), true, "an answer above the reset's cut was refused");
+
+        /* A reset cuts a copy where it is read and sends nothing for a group it only cuts
+           (C10; the owner's Q4, the Level Ups on offer), so a copy that held something under
+           the new cut is drawn again - once, and not for a cut under what it holds. */
+        let drawn = 0;
+        const lit = eng.defineCopy({ name: "r176cut", key: "r176Cut", resetGroup: "advancement", fallback: {}, onCut: () => { drawn++; } });
+        equal(await lit.receive({ R176ACTOR: { kind: "standard" } }, { R176ACTOR: t + 30 }), true, "an offer was not taken");
+        cuts = { ...cuts, advancement: t + 40 };
+        await eng.applyCuts();
+        equal(JSON.stringify([lit.read(), drawn]), JSON.stringify([{}, 1]), "a copy under a reset's cut does not read empty, or was not drawn again once");
+        await eng.applyCuts();
+        equal(drawn, 1, "the same cut drew the copy again");
+        equal(await lit.receive({ R176ACTOR: { kind: "standard" } }, { R176ACTOR: t + 60 }), true, "an offer after the reset was not taken");
+        cuts = { ...cuts, advancement: t + 50 };
+        await eng.applyCuts();
+        equal(JSON.stringify([lit.read(), drawn]), JSON.stringify([{ R176ACTOR: { kind: "standard" } }, 1]),
+            "a cut under what the copy holds took it, or drew it again");
+        /* A clock whose cut went down - an older clock put back - and came up again draws nothing
+           twice (the round-2 review: without `cut > was` the copy was drawn again, and nothing
+           above could tell). */
+        cuts = { ...cuts, advancement: t + 70 };
+        await eng.applyCuts();
+        equal(drawn, 2, "a cut over the offer the copy took after the reset did not draw it again");
+        cuts = { ...cuts, advancement: t + 35 };
+        await eng.applyCuts();
+        cuts = { ...cuts, advancement: t + 70 };
+        await eng.applyCuts();
+        equal(drawn, 2, "a cut that went down and came back up drew the copy again");
+
+        const parts = eng.defineCopy({ name: "r176parts", key: "r176Parts", resetGroup: "incident", fallback: {} });
+        equal(await parts.receive({ n: 1 }, { x: t + 100, y: t + 100 }), true, "a first copy stamped part by part was not taken");
+        equal(await parts.receive({ n: 2 }, { x: t + 200, y: t + 50 }), false, "a copy older in one part was taken for being newer in another");
+        equal(await parts.receive({ n: 3 }, { x: t + 200, y: t + 100 }), true, "a copy as new in every part and newer in one was refused");
+        equal(JSON.stringify(parts.read()), JSON.stringify({ n: 3 }), "the copy taken part by part does not read back");
+
+        const { doorCombine } = await import("./gm-stores.mjs");
+        const notHim = { value: { mastermind: false, room: null }, stamps: { actorId: 200, room: 0 } };
+        equal(doorCombine(notHim, { value: { mastermind: true, room: "Kitchen" }, stamps: { actorId: 100, room: 300 } }), null,
+            "a yes from a GM that has not merged the newer pick was taken for its fresh room (the review's B1)");
+        const him = { value: { mastermind: true, room: "Main Hall" }, stamps: { actorId: 200, room: 150 } };
+        equal(JSON.stringify(doorCombine(him, { value: { mastermind: true, room: "Kitchen" }, stamps: { actorId: 200, room: 300 } })?.value),
+            JSON.stringify({ mastermind: true, room: "Kitchen" }), "the moved lair, at the same pick, was not taken");
+        equal(JSON.stringify(doorCombine(him, { value: { mastermind: false, room: null }, stamps: { actorId: 250 } })),
+            JSON.stringify({ value: { mastermind: false, room: null }, stamps: { actorId: 250, room: 0 } }),
+            "a newer no did not take the part and the lair away");
+        equal(doorCombine(him, { value: { mastermind: false, room: null }, stamps: { actorId: 200 } }), null, "a no at the same pick was taken");
+
+        // The cast's rule (C6): the whole cast part by part, "not in it" by the seats alone.
+        const { castCombine } = await import("./gm-stores.mjs");
+        const castParts = (seats, rest) => ({ killerId: seats, victimId: seats, thirdId: seats, betrayal: seats,
+            killerTurnId: rest, thirdSide: rest, lastCrisis: rest });
+        const inIt = { value: { killerId: "K", victimId: "V", thirdId: "T", killerTurnId: "K" }, stamps: { ...castParts(100, 100), thirdId: 200 } };
+        equal(castCombine(inIt, { value: { killerId: "K", victimId: "V", thirdId: null, killerTurnId: "V" },
+            stamps: { ...castParts(100, 100), thirdId: 150, killerTurnId: 400 } }), null,
+            "a cast older in its third's seat was taken for a fresher turn");
+        const seatsOnly = { killerId: 100, victimId: 100, thirdId: 250, betrayal: 100 };
+        equal(JSON.stringify(castCombine(inIt, { value: {}, stamps: seatsOnly })), JSON.stringify({ value: {}, stamps: seatsOnly }),
+            "a newer seat's \"not in it\" did not empty the copy, or kept parts beside the seats");
+        equal(castCombine(inIt, { value: {}, stamps: { ...seatsOnly, thirdId: 200 } }), null, "a \"not in it\" at the seats' own stamps was taken");
+        equal(castCombine({ value: {}, stamps: seatsOnly }, { value: { thirdId: "T" }, stamps: { ...castParts(100, 100), thirdId: 200 } }), null,
+            "a cast from before the seat moved was taken by the one who left");
+        // A trap's killer, answered "not in it" while it ran, and sent the cast at its end at the same seats.
+        equal(castCombine({ value: {}, stamps: { ...seatsOnly, thirdId: 0 } }, { value: { killerId: "K" }, stamps: { ...castParts(100, 120), thirdId: 0 } })?.value?.killerId,
+            "K", "the cast sent at a trap's end was refused by its killer's \"not in it\"");
+
+        /* The offers' rule (the round-2 review's M2): an answer is the owner's whole set, weighed
+           by the characters it names - a character that left the owner's set is not a part the
+           answer holds at 0. */
+        const { offersCombine, offerCopy } = await import("./gm-stores.mjs");
+        ok(G.gmCopySpec(offerCopy.name)?.combine === offersCombine, "the offers copy is not weighed by its own rule");
+        const offersHeld = { value: { A: { kind: "standard" } }, stamps: { A: 150 } };
+        equal(JSON.stringify(offersCombine(offersHeld, { value: { C: { kind: "standard" } }, stamps: { B: 0, C: 200 } })),
+            JSON.stringify({ value: { C: { kind: "standard" } }, stamps: { B: 0, C: 200 } }),
+            "an answer naming the owner's characters now was refused for one that left the owner's set, or kept it");
+        equal(offersCombine(offersHeld, { value: {}, stamps: { A: 100, C: 200 } }), null, "an answer older for a character it names was taken");
+        equal(offersCombine(offersHeld, { value: { A: { kind: "standard" } }, stamps: { A: 150 } }), null, "an answer that changes nothing was taken");
+        equal(offersCombine(offersHeld, { value: { A: { kind: "standard" } }, stamps: { A: 140 } }, { cut: 160 }), null,
+            "an answer under a reset's cut was taken");
+
+        /* The senders: the function that emits a copy to a player, and the file that calls it.
+           "own": the sender reads the stamps itself - the offers', from the store's rows for the
+           user's characters (C8), and the fog's, a section of the store (C9) - so a call of it
+           passes none. */
+        const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"],
+            ["fog.mjs", "sendStoreTo", "own"]];
+        const sources = new Map(await otherSources());
+        const found = [];
+        for (const [file, fn, own] of SENDERS) {
+            const src = stripComments(sources.get(file) ?? "");
+            const body = fnSource(src, fn);
+            if (!/\bemit\([^;]*\bstamps?\b/.test(body)) found.push(`${file} ${fn} emits no stamp`);
+            const calls = [...src.matchAll(new RegExp(`\\b${fn}\\(([^;]*)\\);`, "g"))].filter(m => !/^\s*function\b/.test(src.slice(Math.max(0, m.index - 9), m.index + 1)));
+            if (!calls.length) found.push(`${file} ${fn} is called nowhere - take its row out`);
+            if (!own) for (const m of calls) if (!/stamp/i.test(m[1])) found.push(`${file}: ${fn}(${m[1].slice(0, 60)}) passes no stamp`);
+        }
+        ok(!found.length, `a copy goes to a player without a stamp: ${found.join("; ")}`);
+    }],
+
+    ["R180 - a browser that takes over its old store after a season reset is cut by the reset", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the data-safety review's round-2 note on C10. A GM's
+         * browser that first opens 1.2.63 after a season reset has only its old key: it
+         * claims last season's rows then, alone, with nobody to hand it the reset's clear.
+         * The reset's cut is in the clock, and the store's open applies it after the claim,
+         * so what the claim took under the cut dies there - a row at its old stamp and one
+         * with none (weak) alike - and the census still counts both as taken. Driven on an
+         * engine built with fakes: storage in a Map, an old key, a clock with a cut.
+         */
+        const G = await import("./gm-store.mjs");
+        const CUT = 7_000_000;
+        const store = new Map();
+        const legacy = { r180a: { v: "last season", updated: CUT - 500 }, r180b: { v: "never stamped" } };
+        const flushes = [];
+        const engineWith = cuts => G.createGmStoreEngine({
+            selfId: () => "R180GM", isGM: () => true, isPrimary: () => true, worldId: () => "R180WORLD",
+            activeGmIds: () => ["R180GM"], primaryGmId: () => "R180GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: k => store.get(k) ?? null, write: async (k, v) => { store.set(k, JSON.stringify(v)); } },
+            readLegacy: k => (k === "r180Old" ? structuredClone(legacy) : undefined), now: () => CUT + 60_000,
+            timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+            clock: () => ({ resetCuts: cuts }), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const spec = { name: "r180", key: "r180Key", legacyKey: "r180Old", kind: "ledger", resetGroup: "remnants", sync: true, backup: true,
+            claim: old => ({ rows: Object.entries(old).map(([key, row]) => ({ key, fields: { v: row.v }, stamp: row.updated })), left: [] }) };
+
+        const cut = engineWith({ remnants: CUT });
+        const afterReset = cut.define(spec);
+        await cut.open();
+        await Promise.all(flushes);
+        equal(JSON.stringify([Object.keys(afterReset.entries()), afterReset.cleared()]), JSON.stringify([[], CUT]),
+            "the rows a browser claimed after a reset survived the reset's cut");
+        equal(JSON.stringify(afterReset.census()), JSON.stringify({ legacy: 2, claimed: 2, left: 0, tombstones: 0, reasons: {} }),
+            "the claim did not count what it took before the cut took it");
+
+        store.clear();
+        const none = engineWith({});
+        const noReset = none.define(spec);
+        await none.open();
+        await Promise.all(flushes);
+        equal(JSON.stringify(Object.keys(noReset.entries()).sort()), JSON.stringify(["r180a", "r180b"]),
+            "with no reset in the clock the claim's rows did not stand - the first half measured nothing");
+    }],
+
+    ["R179 - a world that was in play keeps its safeword", async () => {
+        /*
+         * E04 C11, 26.09.2026; audit S01-14. The clause that keeps a world's old safeword
+         * ran only for a stamped world, and the public v1.1.0 - which `releases/latest`
+         * named for a long time - wrote no stamp: a table updating straight from it was
+         * given "Safe Word" in silence, where its word was the language file's. The world
+         * is asked now whether it was played (migrate.mjs `worldWasInPlay`), before the
+         * migration writes anything. Driven with fakes: a stored clock - in v14's
+         * collection, which answers `getSetting`, and in a Map - a character carrying the
+         * module's flags and a table carrying its category each say yes; a world whose
+         * only flagged actor is a Monokuma, and an empty one, say no. Then the source: the
+         * automatic pass reads the world before the migration starts and hands it to the
+         * clauses, and the clause asks it beside the stamp.
+         */
+        const M = await import("./migrate.mjs");
+        const clockKey = `${MODULE_ID}.${SETTINGS.clock}`;
+        const stored = new Map([[clockKey, { chapter: 3 }]]);
+        const cases = [
+            ["a stored clock (v14's collection)", { world: { getSetting: key => (key === clockKey ? { key, value: {} } : undefined) } }, true],
+            ["a stored clock (a Map)", { world: stored }, true],
+            ["a character with the module's flags", { actors: [{ flags: { [MODULE_ID]: { startingSheet: {} } } }] }, true],
+            ["a table with the module's category", { tables: [{ flags: { [MODULE_ID]: { category: "weapon" } } }] }, true],
+            ["a Monokuma alone", { world: new Map([["core.other", 1]]), actors: [{ flags: { [MODULE_ID]: { monokuma: true } } }, { flags: { daggerheart: { x: 1 } } }],
+                tables: [{ flags: { [MODULE_ID]: {} } }] }, false],
+            ["an empty world", {}, false]
+        ];
+        const wrong = cases.filter(([, world, want]) => M.worldWasInPlay(world) !== want).map(([what, , want]) => `${what} (expected ${want})`);
+        ok(!wrong.length, `worldWasInPlay misreads: ${wrong.join("; ")}`);
+
+        const src = stripComments(new Map(await otherSources()).get("migrate.mjs") ?? "");
+        const load = fnSource(src, "runMigrationOnLoad");
+        // The pass is kept as `onLoad` for the suite's wait (R188, E04's fix round).
+        ok(/const wasInPlay = worldWasInPlay\(worldAsFound\(\)\);\s*(?:onLoad = )?migrate1_2_0\(\{ quiet: true, wasInPlay \}\)/.test(load),
+            "the automatic pass does not read the world before the migration starts, or does not hand it on");
+        ok(/clause\.run\(\{ from, to, force, wasInPlay: inPlay \}\)/.test(fnSource(src, "migrate1_2_0")), "the clauses are not told whether the world was in play");
+        ok(/if \(!from && !wasInPlay\) return null;/.test(fnSource(src, "keepOldSafeword")), "the safeword is kept for a stamped world only");
+    }],
+
+    ["R181 - a restore takes no file's watermark, no other world's removal and no stamp beyond the clock", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the reviews' DS-M1 = C-m6, S-M1 = DS-m11 = C-m12,
+         * S-M2, C-m11 and the round-2 note on the restore's delta. What a restore takes of
+         * a file is `fileSection`, pure, and what it says it will do is `previewSection`
+         * over that. Held: a file's watermark is never taken - two older rows here survive
+         * a file cut after them, and the preview of the raw file says it would have removed
+         * both; another world's removal is not taken, this world's is, and is counted; a
+         * field far ahead and a tombstone a year ahead are taken at the restore's moment
+         * and counted, one within the clock's bound is kept, and a real write the next
+         * moment wins; a split field's part named `__proto__` is refused by the gate and
+         * never reaches the merged row's prototype. Then the file: a version that is not a
+         * whole number is not this module's; a section with a string stamp, or such a part,
+         * refuses the file naming the store; a refusal's sentence carries no angle bracket
+         * the file gave; an old export's rows of another world are left out and counted.
+         * Last, on an engine built with fakes: one flush of 300 KB goes to the other GMs in
+         * parts no larger than a state's, every row in one of them.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const J = G.stableJson;
+        const spec = { name: "r181", split: ["public"] };
+        const here = G.emptySection();
+        G.writeFields(here, "a", { realType: "key" }, 1000, spec);
+        G.writeFields(here, "b", { realType: "final" }, 1500, spec);
+        const file = G.emptySection();
+        G.writeFields(file, "x", { realType: "prep" }, 2500, spec);
+        G.raiseCleared(file, 2000, spec);
+        equal(G.previewSection(here, file, spec).remove, 2, "the preview of a file cut after two rows here does not say it would remove them");
+        const taken = G.fileSection(file, { now: 10_000 }).section;
+        equal(taken.cleared, 0, "a restore takes the file's watermark");
+        equal(J(Object.keys(G.mergeSections(here, taken, spec).e).sort()), J(["a", "b", "x"]), "a file's watermark removed this browser's older rows");
+        equal(J(G.previewSection(here, taken, spec)), J({ inFile: 1, add: 1, refresh: 0, keptNewerHere: 0, beforeCut: 0, beforeCutKeys: [], remove: 0 }),
+            "the preview of the file as a restore takes it does not say one new row and nothing removed");
+
+        const removal = { e: {}, t: {}, d: { a: 3000 }, cleared: 0 };
+        equal(J(Object.keys(G.mergeSections(here, G.fileSection(removal, { now: 10_000, otherWorld: true }).section, spec).e).sort()), J(["a", "b"]),
+            "another world's removal was taken");
+        const own = G.fileSection(removal, { now: 10_000 }).section;
+        equal(J([Object.keys(G.mergeSections(here, own, spec).e), G.previewSection(here, own, spec).remove]), J([["b"], 1]),
+            "this world's newer removal was not taken, or not counted");
+
+        const NOW = 5_000_000, SKEW = 600_000;
+        const ahead = G.emptySection();
+        G.writeFields(ahead, "far", { realType: "incident" }, 1e15, spec);
+        G.dropKey(ahead, "gone", NOW + 365 * 86_400_000, spec);
+        G.writeFields(ahead, "near", { realType: "prep" }, NOW + SKEW - 1, spec);
+        const bounded = G.fileSection(ahead, { now: NOW, skew: SKEW });
+        equal(J([bounded.clamped, bounded.section.t.far, bounded.section.d.gone, bounded.section.t.near]), J([2, NOW, NOW, NOW + SKEW - 1]),
+            "a stamp beyond the clock's bound was kept, one within it was moved, or they were not counted");
+        const later = G.mergeSections(here, bounded.section, spec);
+        G.writeFields(later, "far", { realType: "key" }, NOW + 1, spec);
+        equal(G.mergeSections(later, bounded.section, spec).e.far?.realType, "key", "a real write after the restore did not win over a stamp the file ran ahead");
+
+        const planted = JSON.parse('{"e":{"k":{"public":{"__proto__":{"playerText":"R181 planted"},"name":"n"}}},"t":{"k":{"":5,"public":5}},"d":{},"cleared":0}');
+        ok(G.sectionProblem(planted, spec), "a split field's part named __proto__ passed the gate");
+        const through = G.mergeSections(G.emptySection(), planted, spec);
+        equal(J([Object.getPrototypeOf(through.e.k?.public ?? {}) === Object.prototype, through.e.k?.public?.playerText ?? null]), J([true, null]),
+            "a part named __proto__ set the merged row's prototype");
+
+        const caseFile = stores => J({ format: S.CASE_FORMAT, version: S.CASE_VERSION, world: { id: game.world.id, title: "R181" }, stores });
+        equal(S.readCaseFile(J({ format: S.CASE_FORMAT, version: "<b>1</b>", stores: {} })).refused, "unreadable", "a version that is not a number was read");
+        equal(S.readCaseFile(J({ format: S.CASE_FORMAT, version: 1.5, stores: {} })).refused, "unreadable", "a version that is not a whole number was read");
+        const badStamp = S.readCaseFile(caseFile({ bullets: { e: { "Actor.R181.Item.R181": { realType: "key" } }, t: { "Actor.R181.Item.R181": "1800000000500" }, d: {}, cleared: 0 } }));
+        equal(J([badStamp.refused, badStamp.store]), J(["malformed", "bullets"]), "a section stamped with a string was read");
+        const badPart = S.readCaseFile(caseFile({ remnants: planted }));
+        equal(J([badPart.refused, badPart.store]), J(["malformed", "remnants"]), "a trace's public part named __proto__ was read");
+        const text = S.caseRefusalText({ refused: "otherWorld", world: { id: "x", title: "<img src=x onerror=alert(1)>" } })
+            + S.caseRefusalText({ refused: "newer", version: 99 });
+        ok(!/[<>]/.test(text) && /99/.test(text), `a refusal's sentence carries what the file gave as markup: ${text}`);
+
+        const sent = [];
+        const flushes = [];
+        const bus = G.createGmStoreEngine({
+            selfId: () => "R181GM", isGM: () => true, isPrimary: () => true, worldId: () => "R181WORLD",
+            activeGmIds: () => ["R181GM", "R181PEER"], primaryGmId: () => "R181GM", senderIsGM: () => true, userName: u => u,
+            send: packet => sent.push(packet), storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined,
+            now: () => NOW, timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const big = bus.define({ name: "r181", key: "r181Key", kind: "ledger", sync: true, backup: true });
+        const rows = Object.fromEntries(Array.from({ length: 300 }, (_, i) => [`row${i}`, { note: "x".repeat(1000) }]));
+        await big.patchMany(rows);
+        await Promise.all(flushes);
+        const deltas = sent.filter(p => p.action === G.GMS_ACTIONS.delta);
+        const inParts = new Set(deltas.flatMap(p => Object.keys(p.delta.e)));
+        equal(J([deltas.length > 1, deltas.every(p => J(p.delta).length <= 256 * 1024 + 2048), inParts.size]), J([true, true, 300]),
+            `one flush of 300 KB went out as ${deltas.length} packet(s) of ${deltas.map(p => J(p.delta).length).join(", ")} characters`);
+
+        needs(world.atLeast("livingStudents", 1), "the old export's world filter is read with a student of this world");
+        const [student] = studentActors();
+        const flat = S.readCaseFile(J({ [`Actor.${student.id}.Item.R181`]: { realType: "key", updated: 5 }, "Actor.R181NOTHERE0000.Item.R181": { realType: "final", updated: 5 } }));
+        equal(J([Object.keys(flat.stores.bullets.e), flat.stores.bullets.t[`Actor.${student.id}.Item.R181`], flat.notThisWorld?.bullets]),
+            J([[`Actor.${student.id}.Item.R181`], 5, 1]), "the old export's row of this world was not taken at its stamp, or another world's was taken, or not counted");
+    }],
+
+    ["R183 - a write of the cast stamps only the fields it names, and no turn is worked out from a browser with no cast", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the round-2 review's M1. `writeCast` stamped every field
+         * of the record - the caller's value, or null - so a GM whose browser held no cast
+         * passed the turn and stamped null over every other GM's killer (their scenario 97).
+         * What a write stamps is `castFieldsToWrite`, pure: the fields it names, and a field
+         * this browser held that it leaves out - a removal. And the two writes an incident's
+         * turn works out from what this browser holds - the pass, a third walking in - ask
+         * `castHeldHere` before they write (61 F6 drives the pass).
+         */
+        const M = await import("./murder.mjs");
+        const J = JSON.stringify;
+        equal(J(M.castFieldsToWrite({ killerTurnId: "B" }, {})), J({ killerTurnId: "B" }), "a write from a browser with no cast stamped fields it does not name");
+        equal(J(M.castFieldsToWrite({ killerId: "K", victimId: "V", killerTurnId: "K" }, { killerId: "K", victimId: "V", betrayal: { thirdId: "T" } })),
+            J({ killerId: "K", killerTurnId: "K", victimId: "V", betrayal: null }), "a field the write left out of what this browser held was not removed");
+        equal(J(M.castFieldsToWrite({ thirdId: null, notAField: 1 }, { thirdId: "T" })), J({ thirdId: null }),
+            "a named null was not written, or a field the record does not have was");
+        const src = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
+        ok(/const fields = castFieldsToWrite\(next, previous\);/.test(fnSource(src, "writeCast")), "writeCast does not stamp what castFieldsToWrite names");
+        for (const fn of ["passTurn", "thirdPartyEnters"]) {
+            const body = fnSource(src, fn);
+            const asked = body.indexOf("castHeldHere(state)"), wrote = body.indexOf("writeState(");
+            ok(asked > 0 && wrote > asked, `${fn} writes before it asks whether this browser holds the cast`);
+        }
+    }],
+
+    ["R184 - no player is told anything from a store while tier 2 holds the stores, and a request waits for it", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the round-2 reviews' R2-M1 and M3, the fix list's
+         * 13. Tier 2 writes fixtures into this world's records with the stores held, and
+         * into a world the stores never opened; the hold covered what the GMs send each
+         * other, and nothing a player is sent: the primary's watches, the fog's pushes and
+         * every answer to a player's request carried the fixtures to real players, at
+         * stamps that outlived tier 2's restore. Held here, from the source: each of the
+         * four senders of a player's copy asks `gmStoresQuiet` before it sends; each of
+         * the four requests for one waits for `whenGmStoresAudible` before it reads the
+         * store; both watches ignore a change while the stores are quiet, what the
+         * players were last told does not move meanwhile, and once the stores are let go
+         * the record is held against it by the watch's own comparison - a change another
+         * GM made meanwhile is told (61 E6, F5: taken as the baseline at the release, it
+         * was told to nobody), and tier 2's raw restore compares equal. The engine's half
+         * on a fake: `whenAudible` resolves when the hold ends, and not while a stand-in
+         * world is still set.
+         */
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const found = [];
+        for (const [file, fn] of [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo"], ["fog.mjs", "sendStoreTo"]]) {
+            const body = fnSource(src(file), fn);
+            const asked = body.indexOf("gmStoresQuiet()"), sent = body.search(/\bemit\(/);
+            if (asked < 0 || sent < asked) found.push(`${file} ${fn} sends without asking whether the suite holds the stores`);
+        }
+        for (const [file, fn, reads] of [["mastermind.mjs", "registerMastermind", "const mine = readStore();"], ["murder.mjs", "registerIncidentCastSync", "const cast = readCast();"],
+            ["fog.mjs", "registerLedgerRoad", "sendStoreTo(sender);"], ["gm-bridge.mjs", "handleAdvancementAsk", "sendOffersTo(sender.id)"]]) {
+            const body = fnSource(src(file), fn);
+            const waited = body.indexOf("whenGmStoresAudible()"), read = body.indexOf(reads);
+            if (waited < 0 || read < waited) found.push(`${file} ${fn} answers a player's request before the suite lets the stores go`);
+        }
+        for (const [file, key, compare, tell, baseline] of [["mastermind.mjs", "mastermind", "tellDoorChange", "notifyDoorAccess", "told"],
+            ["murder.mjs", "incidentCast", "tellCastChange", "pushCastToParticipants", "castTold"]]) {
+            const text = src(file);
+            // The watch: `if (key !== \`${MODULE_ID}.${SETTINGS.<key>}\` || ... || gmStoresQuiet()) return;` and then the comparison.
+            const watch = new RegExp(`key !== \`\\$\\{MODULE_ID\\}\\.\\$\\{SETTINGS\\.${key}\\}\`[^\\n]*\\|\\| gmStoresQuiet\\(\\)\\) return;\\s*${compare}\\(\\);`);
+            if (!watch.test(text)) found.push(`${file}: the watch of ${key} tells a change made while the stores are quiet, or does not compare it (${compare})`);
+            if (!new RegExp(`onGmStoresAudible\\([^\\n]*\\b${compare}\\(\\)`).test(text)) found.push(`${file}: nothing holds the record against what the players were told when the suite lets the stores go`);
+            if (!new RegExp(`if \\(!gmStoresQuiet\\(\\)\\) ${baseline} = `).test(fnSource(text, tell))) found.push(`${file}: ${tell} moves what the players were told while the stores are quiet`);
+        }
+        ok(!found.length, found.join("; "));
+
+        const G = await import("./gm-store.mjs");
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R184GM", isGM: () => true, isPrimary: () => true, worldId: () => "R184WORLD",
+            activeGmIds: () => ["R184GM"], primaryGmId: () => "R184GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => 1_000_000,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        let woke = 0, told = 0;
+        eng.onAudible(() => { told++; });
+        equal(eng.quiet(), false, "the stores read as held before anything held them");
+        eng.hold(true);
+        const waiting = eng.whenAudible().then(() => { woke++; });
+        let insideWorld = null;
+        await eng.withWorld("R184STANDIN", async () => {
+            eng.hold(false);
+            await Promise.resolve();
+            insideWorld = [eng.quiet(), woke, told];
+        });
+        await waiting;
+        equal(JSON.stringify([insideWorld, eng.quiet(), woke, told]), JSON.stringify([[true, 0, 0], false, 1, 1]),
+            "a request waiting on the suite was answered while a stand-in world was still set, or not once it ended");
+    }],
+
+    ["R185 - the case is marked from the bullets and the traces alone, and the health window acts on what it showed", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the reviews' S-m4 and DS-m7. `caseMark.since` is
+         * world data every client reads: written the first time any store held a row, its
+         * arrival in a world with no trace and no bullet yet told a player's console that a
+         * Mastermind had been picked. Only the stores whose rows stand for world documents
+         * count now (`caseHasRows`). And the upgrade day's decision is acted on only while
+         * it is the one the window showed (`sameDecision`; 61 E9 drives the window).
+         */
+        const S = await import("./gm-stores.mjs");
+        const h = (name, n) => ({ name, entries: () => Object.fromEntries(Array.from({ length: n }, (_, i) => [`R185${i}`, {}])) });
+        equal(S.caseHasRows([h("mastermind", 1), h("offers", 2), h("cast", 1), h("bullets", 0)]), false, "a pick, an offer or a cast alone marked the case");
+        equal(S.caseHasRows([h("mastermind", 1), h("remnants", 1)]), true, "a trace's row did not mark the case");
+        equal(S.caseHasRows([h("bullets", 1)]), true, "a bullet's row did not mark the case");
+        const shown = { pick: "R185A", clearedAt: 20, pickedAt: 10 };
+        equal(JSON.stringify([S.sameDecision(shown, { ...shown }), S.sameDecision(shown, { ...shown, pick: "R185B" }),
+            S.sameDecision(shown, { ...shown, pickedAt: 30 }), S.sameDecision(shown, null), S.sameDecision(null, shown)]),
+            JSON.stringify([true, false, false, false, false]), "the window's decision is read as the one it showed after the record changed, or not when it did not");
+    }],
+
+    ["R186 - a failed save says who holds a copy, a crossed tab's write is written back, and a player's browser writes no GM store", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the reviews' DS-m4 = C-m8, DS-m8 and the round-2
+         * R2-m1 = m1. On engines built with fakes. A save that fails - a full origin - told a
+         * GM alone that "the other GMs hold a copy": the notice now says so only with another
+         * GM connected, and asks for a backup either way. Two tabs of one browser whose flushes
+         * cross leave the stored value without one tab's write: that tab merged the other's
+         * storage event and kept its own row in memory only, lost with the tab; it writes it
+         * back now. And a store written through a handle on a client that is not a GM's is
+         * refused, its storage never written.
+         */
+        const G = await import("./gm-store.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const quiet = { warn: () => {}, error: () => {}, debug: () => {} };
+        const engineOf = ({ store = new Map(), gms = ["R186A"], gm = true, fail = false } = {}) => {
+            const flushes = [], notices = [];
+            const eng = G.createGmStoreEngine({
+                selfId: () => "R186A", isGM: () => gm, isPrimary: () => gm, worldId: () => "R186WORLD",
+                activeGmIds: () => gms, primaryGmId: () => gms[0], senderIsGM: () => true, userName: u => u, send: () => {},
+                storage: { read: k => store.get(k) ?? null, write: async (k, v) => { if (fail) throw new Error("R186 full"); store.set(k, JSON.stringify(v)); } },
+                readLegacy: () => undefined, now: () => 5_000_000,
+                timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+                clock: () => ({}), log: quiet, notify: (level, text) => notices.push([level, text]), text: key => key
+            });
+            const handle = eng.define({ name: "r186", key: "r186Key", kind: "ledger", sync: true, backup: true });
+            return { eng, handle, store, notices, settle: async () => { for (let i = 0; i < 4; i++) await Promise.all(flushes); } };
+        };
+
+        const alone = engineOf({ fail: true }), withPeer = engineOf({ fail: true, gms: ["R186A", "R186B"] });
+        for (const e of [alone, withPeer]) {
+            await e.handle.patch("x", { v: 1 });
+            await e.settle();
+        }
+        equal(JSON.stringify([alone.notices, withPeer.notices]),
+            JSON.stringify([[["error", "DRPG.GmStore.saveFailedAlone"]], [["error", "DRPG.GmStore.saveFailed"]]]),
+            "a failed save told a GM alone that another GM held a copy, or said nothing");
+
+        const tab = engineOf();
+        await tab.handle.patch("x", { v: 1 });
+        await tab.settle();
+        const theirs = JSON.stringify({ v: 1, worlds: { R186WORLD: { e: { y: { v: 2 } }, t: { y: 4_000_000 }, d: {}, cleared: 0 } } });
+        tab.store.set("r186Key", theirs);
+        tab.eng.onStorage(`${MODULE_ID}.r186Key`, theirs);
+        await tab.settle();
+        const stored = JSON.parse(tab.store.get("r186Key") ?? "{}")?.worlds?.R186WORLD?.e ?? {};
+        equal(JSON.stringify(Object.keys(stored).sort()), JSON.stringify(["x", "y"]),
+            "a tab whose write another tab's crossed flush left out did not write it back");
+
+        const player = engineOf({ gm: false });
+        await player.handle.patch("x", { v: 1 });
+        await player.handle.mergeIn({ e: { y: { v: 2 } }, t: { y: 5 }, d: {}, cleared: 0 }, { source: "sync" });
+        await player.settle();
+        equal(JSON.stringify([player.handle.get("x"), player.handle.get("y"), player.store.size]), JSON.stringify([null, null, 0]),
+            "a client that is not a GM's wrote a GM store");
+    }],
+
+    ["R188 - the suite's first reading of the world waits for the load's own writes", async () => {
+        /*
+         * E04's fix round, 26.09.2026. A load writes after `ready` - the migration's pass
+         * on the primary GM, each GM store's claim and first save, the case's marks - and
+         * since E04 the migration waits for the stores, which wait for the other GMs'
+         * copies. A run started in that window failed "tier 0/1 changed nothing in the
+         * world" on the load's writes: in 49 of the 139 runs of this stage's scratch
+         * runner, which starts the suite straight after the load. Held here from the
+         * source: the
+         * runner waits (`loadSettled`, bounded) before its first reading of the world, on
+         * the stores and on the migration; the stores' wait covers the hydration, the
+         * compaction, the case's marks and the saves, and the two hydration hooks and the
+         * migration hand it their work. On this client, whose load is long over, the
+         * stores' wait resolves.
+         */
+        const all = new Map(await moduleSources());
+        const src = file => stripComments(all.get(file) ?? "");
+        const found = [];
+        const suite = fnSource(src("tests.mjs"), "runSuite");
+        const waited = suite.indexOf("await loadSettled()"), first = suite.indexOf("worldDump()");
+        if (waited < 0 || first < waited) found.push("runSuite reads the world before it waits for the load");
+        const settled = fnSource(src("tests.mjs"), "loadSettled");
+        for (const call of ["whenGmStoresLoaded()", "migrationOnLoad()"]) if (!settled.includes(call)) found.push(`loadSettled does not wait for ${call}`);
+        const loaded = fnSource(src("gm-stores.mjs"), "whenGmStoresLoaded");
+        for (const step of ["await whenGmStoresHydrated()", "compacting", "marking", "await gmStoresIdle()"]) {
+            if (!loaded.includes(step)) found.push(`whenGmStoresLoaded does not wait for ${step}`);
+        }
+        const stores = src("gm-stores.mjs");
+        if (!/\bcompacting = compactGmStores\(\)/.test(stores)) found.push("the compaction is not handed to the wait");
+        if (!/\bmarking = marked\b/.test(stores)) found.push("the case's marks are not handed to the wait");
+        if (!/\bonLoad = migrate1_2_0\(/.test(src("migrate.mjs"))) found.push("the migration's pass is not handed to the wait");
+        ok(!found.length, found.join("; "));
+        const { whenGmStoresLoaded } = await import("./gm-stores.mjs");
+        const resolved = await Promise.race([whenGmStoresLoaded().then(() => true), wait(5000).then(() => false)]);
+        ok(resolved, "the stores' wait for the load did not resolve in 5 s on a client whose load is long over");
+    }],
+
+    ["R187 - an Analyze and a handover wait for the other GMs' copies before they call a key missing, and the case says whose old rows wait", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the reviews' DS-m9 = C-m4, C-m17, C-m9 and the round-2
+         * R2-m2. An Analyze in the moments after a GM loads skipped its refusal and scored a
+         * bullet whose key was still on its way as Neutral; a handover of a bullet whose key
+         * was missing minted its copy an explicit Neutral. Both wait for the copies now and
+         * then refuse - read from the source, before the key is read and before a copy is
+         * made. The two doc blocks another function had come between sit on their functions
+         * again. And the old rows a browser that was not the primary left for the primary's
+         * are counted apart from another world's (`leftCounts`, pure).
+         */
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const analyze = fnSource(src("analyze.mjs"), "resolveAnalyze");
+        const waited = analyze.indexOf("await answerKeysRefusal()"), read = analyze.indexOf("const secret = secretOf(item.uuid);");
+        ok(waited > 0 && read > waited && !/isHydrated\(\) && !secret\.realType/.test(analyze),
+            "an Analyze reads the answer key, or decides it is missing, before the other GMs' copies have arrived");
+        const share = fnSource(src("handover.mjs"), "shareBullet");
+        const shareWaited = share.indexOf("await answerKeysRefusal()"), refused = share.indexOf("if (!secret.realType)"), minted = share.indexOf("createTruthBullet(");
+        ok(shareWaited > 0 && refused > shareWaited && minted > refused && !/realType \?\? "neutral"/.test(share),
+            "a handover mints a copy of a bullet whose answer key is missing, or decides before the copies arrive");
+        // A doc block is its function's when nothing but its own text lies between its first line and the function.
+        const docOn = (file, first, fn) => new RegExp(`\\* ${first}(?:[^*]|\\*(?!\\/))*\\*\\/\\s*${fn}\\(`).test(sources.get(file) ?? "");
+        ok(docOn("analyze.mjs", "Score a thrown Analyze", "export async function resolveAnalyze"), "resolveAnalyze's doc does not sit on it");
+        ok(docOn("diagnostics.mjs", "Why per-region voice is not moving anybody", "export function diagnoseVoice"), "diagnoseVoice's doc does not sit on it");
+
+        const S = await import("./gm-stores.mjs");
+        const h = census => ({ census: () => census });
+        equal(JSON.stringify(S.leftCounts([h({ left: 3, reasons: { notPrimary: 2, otherWorld: 1 } }), h({ left: 1, reasons: { deadProject: 1 } }), h(null)])),
+            JSON.stringify({ left: 2, notPrimary: 2 }), "the rows left for the primary are counted as another world's, or not at all");
+    }],
+
+    ["R189 - an Analyze and a handover wait for the answer keys within a bound, and a GM store that cannot open says so", async () => {
+        /*
+         * E04's fix round 10, 26.09.2026. The Analyze and the handover wait for the other
+         * GMs' copies of the answer keys (R187), and waited with no bound. Measured on
+         * 05ac984 over this engine: a store whose open threw stayed "opening", its
+         * `whenHydrated` never settled - the exchange's clock is set only at the end of the
+         * open - and nobody was told; in the harness, p1's Analyze on a GM whose bullets
+         * store never hydrated had not settled after 20 s (61 M holds that road end to end,
+         * the player's price with it). A claim that throws is not that case: the claim keeps
+         * it, tells the primary, and the open goes on to its exchange - held here so the
+         * difference stays measured. Over the engine with a fake environment and clock,
+         * nothing leaves this client. Then `answerKeysOpen` over stores of its own, with
+         * real timers of a fraction of a second: "late" at the bound, "open" for a hydration
+         * inside it, "failed" at once or at the bound when the failure comes while it
+         * waits, and "open" at once. And the bound lies between the exchange's own timeout
+         * and the asking player's clock (`rulingMs`), so a refusal reaches them.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const tick = () => new Promise(r => setTimeout(r, 0));
+        const engineOf = ({ readThrows = false, claimThrows = false } = {}) => {
+            let t = 1000;
+            const timers = [], told = [], store = new Map();
+            const fake = {
+                set: (fn, ms) => {
+                    const tm = { fn, at: t + ms, done: false };
+                    if (!ms) setTimeout(() => { if (!tm.done) { tm.done = true; fn(); } }, 0);
+                    else timers.push(tm);
+                    return tm;
+                },
+                clear: tm => { if (tm) tm.done = true; },
+                advance: ms => {
+                    t += ms;
+                    for (const tm of timers.filter(x => !x.done && x.at <= t)) { tm.done = true; tm.fn(); }
+                }
+            };
+            const eng = G.createGmStoreEngine({
+                selfId: () => "R189A", isGM: () => true, isPrimary: () => true, worldId: () => "R189WORLD",
+                activeGmIds: () => ["R189A"], primaryGmId: () => "R189A", senderIsGM: () => true, userName: u => u, send: () => {},
+                storage: {
+                    read: k => { if (readThrows) throw new Error("R189 storage read"); return store.get(k) ?? null; },
+                    write: async (k, v) => { store.set(k, JSON.stringify(v)); }
+                },
+                readLegacy: () => ({ R189ROW: { realType: "key" } }), now: () => t, timers: fake, clock: () => ({}),
+                log: { warn: () => {}, error: () => {}, debug: () => {} },
+                notify: (level, text) => told.push(`${level}: ${text}`), text: key => key
+            });
+            const handle = eng.define({ name: "r189", key: "r189Store", legacyKey: "r189Old",
+                claim: () => { if (claimThrows) throw new Error("R189 claim"); return { rows: [] }; } });
+            return { eng, handle, fake, told };
+        };
+        const settled = promise => {
+            const box = { how: "pending" };
+            promise.then(v => { box.how = `resolved ${v}`; }, e => { box.how = `rejected ${e?.message ?? e}`; });
+            return box;
+        };
+
+        const broken = engineOf({ readThrows: true });
+        let rejected = null;
+        try { await broken.eng.open(); } catch (err) { rejected = err?.message ?? String(err); }
+        const waiting = settled(broken.eng.whenHydrated());
+        broken.fake.advance(TIMING.gmStoreSyncMs * 2);
+        for (let i = 0; i < 4; i++) await tick();
+        const openThrew = { rejected, state: broken.eng.hydration().state, whenHydrated: waiting.how, told: broken.told };
+        equal(JSON.stringify(openThrew), JSON.stringify({ rejected: "R189 storage read", state: "failed", whenHydrated: "pending", told: ["error: DRPG.GmStore.openFailed"] }),
+            "an open that throws is not \"failed\", or its GM is not told once, or its whenHydrated settled without a hydration");
+
+        const claimed = engineOf({ claimThrows: true });
+        await claimed.eng.open();
+        const claimBox = settled(claimed.eng.whenHydrated());
+        for (let i = 0; i < 4; i++) await tick();
+        const claimThrew = { state: claimed.eng.hydration().state, whenHydrated: claimBox.how, failed: claimed.handle.claimInfo()?.failed ?? null, told: claimed.told };
+        equal(JSON.stringify(claimThrew), JSON.stringify({ state: "alone", whenHydrated: "resolved alone", failed: "R189 claim", told: ["error: DRPG.GmStore.claimFailed"] }),
+            "a claim that throws stopped the open, or was not kept, or its primary was not told once");
+
+        const never = { isHydrated: () => false, whenHydrated: () => new Promise(() => {}) };
+        // Its own ceiling, so a wait with no bound fails here rather than holding the suite.
+        const timed = async promise => {
+            const t0 = Date.now();
+            const how = await Promise.race([promise, new Promise(r => setTimeout(() => r("still waiting after 3000 ms"), 3000))]);
+            return [how, Date.now() - t0];
+        };
+        const [late, lateMs] = await timed(S.answerKeysOpen({ store: never, ms: 150, failed: () => false }));
+        const soon = { isHydrated: () => false, whenHydrated: () => new Promise(r => setTimeout(() => r("answered"), 40)) };
+        const [inTime, inTimeMs] = await timed(S.answerKeysOpen({ store: soon, ms: 5000, failed: () => false }));
+        const [failedNow, failedNowMs] = await timed(S.answerKeysOpen({ store: never, ms: 5000, failed: () => true }));
+        let failing = false;
+        setTimeout(() => { failing = true; }, 30);
+        const [failedLater] = await timed(S.answerKeysOpen({ store: never, ms: 150, failed: () => failing }));
+        const [openNow, openNowMs] = await timed(S.answerKeysOpen({ store: { ...never, isHydrated: () => true }, ms: 5000, failed: () => true }));
+        const bound = { late, lateMs, inTime, inTimeMs, failedNow, failedNowMs, failedLater, openNow, openNowMs };
+        ok(late === "late" && lateMs >= 140 && lateMs < 5000 && inTime === "open" && inTimeMs < 5000 && failedNow === "failed" && failedNowMs < 1000
+            && failedLater === "failed" && openNow === "open" && openNowMs < 1000,
+            `the wait for the answer keys is not bounded, or ends before a hydration inside its bound, or waits on a store that failed: ${JSON.stringify(bound)}`);
+
+        ok(TIMING.gmStoreOpenMs > TIMING.gmStoreSyncMs && TIMING.gmStoreOpenMs < TIMING.rulingMs,
+            `the bound (${TIMING.gmStoreOpenMs} ms) is not longer than the exchange's own timeout (${TIMING.gmStoreSyncMs} ms) and shorter than the player's wait (${TIMING.rulingMs} ms)`);
+    }],
+
+    ["R182 - every store a player's copy is made from sends the copies again after a restore", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the reviews' S-m3 = C-m7 and the design's 6.2. The
+         * restore said "each store sends its players their copies again", and no store did:
+         * a player refused while the GM's browser held nothing waited for their next load.
+         * Each copy names the store it is made of (`from`); that store is backed up and has
+         * an `afterRestore`, which calls a function that tells no player anything while the
+         * suite holds the stores or stands in another world (`gmStoresQuiet`).
+         */
+        const E = await import("./gm-store.mjs");
+        await import("./gm-stores.mjs");
+        const names = E.gmCopyNames();
+        ok(names.length >= 4, `only ${names.length} player copies are defined - the table did not load`);
+        const wrong = [];
+        for (const name of names) {
+            const from = E.gmCopySpec(name)?.from;
+            const store = from ? E.gmStoreByName(from) : null;
+            if (!store) wrong.push(`${name}: names no store it is made of`);
+            else if (!store.spec.backup || typeof store.spec.afterRestore !== "function") wrong.push(`${name}: its store ${from} does not send it again after a restore`);
+        }
+        ok(!wrong.length, `a player's copy is not sent again after a restore: ${wrong.join("; ")}`);
+        const RETELLS = [["mastermind.mjs", "retellDoor"], ["murder.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"]];
+        const hooks = E.gmStoreHandles().map(h => String(h.spec.afterRestore ?? ""));
+        const uncalled = RETELLS.filter(([, fn]) => !hooks.some(src => src.includes(`.${fn}(`))).map(([, fn]) => fn);
+        ok(!uncalled.length, `no store's afterRestore calls ${uncalled.join(", ")}`);
+        const sources = new Map(await otherSources());
+        const loud = RETELLS.filter(([file, fn]) => !/\bgmStoresQuiet\(\)/.test(fnSource(stripComments(sources.get(file) ?? ""), fn)))
+            .map(([file, fn]) => `${file} ${fn}`);
+        ok(!loud.length, `these tell the players after a restore while the suite holds the stores: ${loud.join(", ")}`);
     }]
 ];
 

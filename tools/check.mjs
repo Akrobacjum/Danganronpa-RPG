@@ -44,10 +44,13 @@
  *             assertion true by construction, no needs() of anything but a
  *             probe (the suite's R156-R158 read the same detectors from
  *             scripts/tests-lint.mjs); in audit/harness/scenarios/*.mjs no
- *             check() that cannot fail. Each detector is run on its fixture
- *             first and the part is red if it does not flag exactly the
- *             fixture's violations. audit/harness/probes/ is not read: a probe
- *             records, it does not verdict.
+ *             check() that cannot fail, and no raw read or write of a GM
+ *             store's key (R171's half the suite cannot read at a table; the
+ *             allowance is GM_STORE_SCENARIO_ALLOW, and a stale row is red).
+ *             Each detector is run on its fixture first and the part is red
+ *             if it does not flag exactly the fixture's violations.
+ *             audit/harness/probes/ is not read: a probe records, it does not
+ *             verdict.
  *   registry  the harness's scenario numbers (audit/harness/README.md) against
  *             the files and their layers, and the suite's R numbers (the
  *             block at the end of CLAUDE.md) against the tier files, unique -
@@ -394,9 +397,37 @@ function contract() {
     }
     if (!tiers.length || !count.tests) problems.push("no tier file with tests was read");
     if (!scenarios.length || !count.checks) problems.push("no scenario with checks was read");
+    /* R171's half over the harness scenarios (E04, 26.09.2026): no scenario reads or
+       writes a GM store's key, an old key or a player's copy raw, but through the stores.
+       Here in Node because a table's Foundry does not serve audit/, so the suite cannot
+       read the scenarios there; the keys are read off settings.mjs and gm-stores.mjs's
+       text, and the detector is the one R171 runs, shown its fixture first. */
+    const fxs = lint.FIXTURES.storeKeyAccess;
+    const fxLines = lint.storeKeyAccess(fxs.text, fxs).found.map(f => f.line).sort((a, b) => a - b);
+    if (JSON.stringify(fxLines) !== JSON.stringify(fxs.flags)) {
+        problems.push(`storeKeyAccess flags lines ${fxLines.join(",") || "none"} of its fixture, not ${fxs.flags.join(",")} - the detector is broken`);
+    }
+    const watched = lint.gmStoreSettingsFromSource(read("scripts/settings.mjs"), read("scripts/gm-stores.mjs"));
+    if (!watched.keys.length) problems.push("no GM store key was read off settings.mjs and gm-stores.mjs - R171's scenario half read nothing");
+    const allowed = new Set();
+    let storeReads = 0, rawReads = 0;
+    for (const file of scenarios) {
+        const r = lint.storeKeyAccess(fs.readFileSync(path.join(REPO, "audit", "harness", "scenarios", file), "utf8"), watched);
+        storeReads += r.read;
+        for (const f of r.found) {
+            rawReads++;
+            const row = `${file}#${f.name}`;
+            if (lint.GM_STORE_SCENARIO_ALLOW[row]) allowed.add(row);
+            else problems.push(`audit/harness/scenarios/${file}:${f.line}: ${f.what} - a GM store's key read raw (R171); read it through the stores`);
+        }
+    }
+    for (const row of Object.keys(lint.GM_STORE_SCENARIO_ALLOW)) {
+        if (!allowed.has(row)) problems.push(`GM_STORE_SCENARIO_ALLOW (scripts/tests-lint.mjs) ${row}: no such raw read is left - take the row out`);
+    }
     console.log(`contract: ${tiers.length} tier files, ${count.tests} tests, ${count.cuts} slice/split calls, `
         + `${count.asserts} ok/equal/needs calls, ${count.needs} needs() calls; ${scenarios.length} scenarios, `
-        + `${count.checks} check() calls; ${problems.length} problem(s)`);
+        + `${count.checks} check() calls; R171: ${watched.keys.length} GM store keys, ${storeReads} settings reads in the scenarios, `
+        + `${rawReads} raw on a store key (${allowed.size} allowed rows); ${problems.length} problem(s)`);
     return problems;
 }
 

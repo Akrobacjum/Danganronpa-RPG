@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems
+    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -371,12 +371,10 @@ const REGRESSIONS = [
         const EXEMPT = {
             // Answers only to the sender's own id, never to an id in the packet.
             "vote.mjs": "keys the tally by senderId; the payload's actor is an address, not a claim",
-            "murder.mjs": "GM-to-GM sync plus one request answered from the sender's own cast",
-            "mastermind.mjs": "GM-to-GM sync; the one player request is answered about the sender",
-            "truth-bullets.mjs": "GM-to-GM ledger sync, refused outright from a non-GM",
-            "remnants.mjs": "GM-to-GM ledger sync, refused outright from a non-GM",
+            "murder.mjs": "a participant's request is answered by the primary GM alone, from the sender's own seat in the cast; the cast copy is taken only from a GM, and only where newer, part by part",
+            "mastermind.mjs": "the door request is answered by the primary GM alone, about Foundry's own sender and nobody in the packet; the door flag is taken only from a GM, and only where newer, part by part",
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
-            "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns",
+            "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns, weak and fill-only",
             "sync.mjs": "world-state fan-out from a GM; carries no actor id",
             "safeword.mjs": "deliberately trusts nothing from the packet - reads the sender's name",
             "dice-sync.mjs": "dice appearance only; no actor anywhere in it",
@@ -4065,7 +4063,8 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const settings = stripComments(sources.get("settings.mjs") ?? "");
-        ok(/observePending: "observePending"/.test(settings), "the store has no setting");
+        // The key is the local GM store's since E04 (1.2.63; gm-stores.mjs `observeStore`).
+        ok(/observePending: "gmObservePending"/.test(settings), "the store has no setting");
         const reg = bodyOf(settings, "SETTINGS.observePending", { length: 400 });
         ok(/scope: "client"/.test(reg),
             "the pending Observes are world-scoped, so every player can read the answer key");
@@ -4575,8 +4574,11 @@ const REGRESSIONS = [
             "the offer still has a flag key, so something can still write it to the character");
         ok(!/setFlag\([^)]*pendingAdvance|unsetFlag\([^)]*pendingAdvance/.test(level),
             "the offer is written to the character, where its owner can forge it and anyone can read it");
-        ok(game.settings.settings.get(`${MODULE_ID}.advanceOffers`)?.scope === "client",
+        // Two keys since E04 (1.2.63): the GMs' store and an owner's copy, both client-scoped.
+        ok(game.settings.settings.get(`${MODULE_ID}.gmOffers`)?.scope === "client",
             "the offer store is not client-scoped, so it reaches every browser");
+        ok(game.settings.settings.get(`${MODULE_ID}.mineOffers`)?.scope === "client",
+            "an owner's copy of the offers is not client-scoped, so it reaches every browser");
 
         const pending = bodyOf(level, "export function pendingAdvance(", { until: "\n}" });
         ok(/readOffers\(\)/.test(pending) && !/getFlag/.test(pending),
@@ -5432,6 +5434,7 @@ const REGRESSIONS = [
             rerollReceiptRefusal: "returns", crisisRefusal: "why", crisisUndoRefusal: "returns", unsabotageRefusal: "returns",
             sendBackRefusal: "returns", playerArmRefusal: "returns", observeResolveRefusal: "returns", removalRefusal: "returns",
             searchSpendRefusal: "returns", narrowPlayerRemnant: "refused", resolveAnalyze: "refused", resolveStageSix: "refused",
+            answerKeysRefusal: "returns", shareBullet: "refused",
             resolveObserve: "passes", spendRerollReceipt: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -5486,6 +5489,254 @@ const REGRESSIONS = [
         equal(JSON.stringify(wildStart(G.REASON_PATTERNS)), "[]", "a reason's pattern begins with a wildcard, which a value could fill");
         ok(distinct >= 75, `only ${distinct} reasons were read - the reader has lost the guards, the runs or the functions they ask`);
         ok(!read.problems.length, `the bridge's reasons: ${read.problems.join("; ")}`);
+    }],
+
+    ["R171 - nothing outside the engine reads or writes a GM store, a frozen legacy key or a player copy", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-01, S05-09. The GM store (gm-store.mjs) keeps each
+         * GM-only store under a key sectioned by world and merged per field, and it never
+         * writes a store's old key: the upgrade leaves that key as it found it, for the next
+         * world opened in the same browser and for a downgrade. Both promises hold only while
+         * nothing else in the module touches those keys. A raw write to an old key breaks the
+         * first; a raw read of one after its store moved reads a copy frozen at the upgrade,
+         * and looks exactly like a working read.
+         *
+         * So every file Foundry serves, but the engine and its table, is read for a
+         * settings call, a SETTINGS name handed anywhere but a listener's key comparison, or
+         * a localStorage access, on any store's key, old key or player copy - and on the keys
+         * of the stores that have not moved yet (GM_STORE_PENDING, tests-lint.mjs), whose
+         * files are allowed below by name until the commit that moves each one. The list
+         * only shrinks: a row with no such read left fails. The harness scenarios are read
+         * by `node tools/check.mjs contract` with the same reader: a table's Foundry does not
+         * serve audit/. The reader is shown its planted reads first.
+         */
+        const fx = LINT_FIXTURES.storeKeyAccess;
+        equal(JSON.stringify(storeKeyAccess(fx.text, fx).found.map(f => f.line).sort((a, b) => a - b)), JSON.stringify(fx.flags),
+            "the reader does not find exactly the raw reads planted for it - it would read the module wrong too");
+        await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const keys = new Set(GM_STORE_PENDING);
+        for (const h of E.gmStoreHandles()) for (const k of [h.spec.key, h.spec.legacyKey]) if (k) keys.add(k);
+        for (const name of E.gmCopyNames()) {
+            const spec = E.gmCopySpec(name);
+            for (const k of [spec.key, spec.legacyKey, ...(spec.legacyKeys ?? [])]) if (k) keys.add(k);
+        }
+        const props = Object.keys(SETTINGS).filter(p => keys.has(SETTINGS[p]));
+        const named = new Set(props.map(p => SETTINGS[p]));
+        ok([...keys].every(k => named.has(k)), `a GM store's key is not a SETTINGS name, so nothing here could find it read: ${
+            [...keys].filter(k => !named.has(k)).join(", ")}`);
+        const ALLOW = {
+            // The census and old-store tests of tier 2 hand each old key's fixture to `withGmStoreLegacy` and read the
+            // real key back, unchanged: no test writes one (E04's fix round, the review's DS-m5; the runner checks it).
+            "tests-tier2.mjs#legacyTruthBulletSecrets": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyRemnantSecrets": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyMastermind": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyIncidentCast": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyBlackenedLedger": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyTrapLedger": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyTrapPlants": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyObservePending": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyAdvanceOffers": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyDiscoveryLedger": "the claim's census names the old key its fixture stands in for",
+            "tests-tier2.mjs#legacyDiscoveryMine": "the fog copy's claim names the old key its fixture stands in for"
+        };
+        const seen = new Set(), raw = [];
+        let read = 0;
+        for (const [file, text] of await moduleSources()) {
+            if (file === "gm-store.mjs" || file === "gm-stores.mjs") continue;
+            const r = storeKeyAccess(text, { props, keys: [...keys] });
+            read += r.read;
+            for (const f of r.found) {
+                const row = `${file}#${f.name}`;
+                if (ALLOW[row]) seen.add(row);
+                else raw.push(`${file}:${f.line} ${f.what}`);
+            }
+        }
+        const stale = Object.keys(ALLOW).filter(row => !seen.has(row));
+        log(`R171: ${keys.size} GM store keys under ${props.length} SETTINGS names; ${read} settings reads and calls read; `
+            + `${seen.size} allowed file#name rows in use`);
+        // 528 read on 26.09.2026 (E04 C1); the floor leaves room for the reads the stores' moves take out.
+        ok(read >= 400, `only ${read} settings reads were read - the reader is not reaching the module`);
+        ok(!raw.length, `these read or write a GM store's key raw, outside the engine: ${raw.join("; ")}`);
+        ok(!stale.length, `allowed, and no such raw read is left - take the row out: ${stale.join(", ")}`);
+    }],
+
+    ["R172 - no answer-key writer derives a value from absence", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-01. The answer key was erased by a writer that
+         * built a row out of nothing - a migration that met a bullet this GM held no
+         * row for and wrote `{ faint }` as if it were the whole truth - and a merge
+         * that let the newest row win whole. The merge is per field now (R169); this
+         * holds the writers. Each one below writes a value it DERIVED - a migration's
+         * default, a propagation that only amends what is there, a record of an
+         * Analyze - and its store write has to say so: `ifLive` (never start a row),
+         * `weak` (lose to anything a GM decided), `fillOnly` (never replace what is
+         * there), as the row lists; and a migration that reads a store first waits
+         * until the other GMs' copies have arrived (`whenHydrated`). The table grows
+         * with each store E04 moves. Read from the source, because a derived write
+         * that forgot its option still works - until a second GM joins. The reader
+         * is shown a planted writer first.
+         */
+        const WRITES = /\b(?:setSecret|setRemnantSecret|writeCells|\w+Store\.patch|\w+Store\.patchMany)\(/g;
+        const callAt = (text, open) => {
+            let depth = 0;
+            for (let i = open; i < text.length; i++) {
+                if (text[i] === "(") depth++;
+                else if (text[i] === ")" && --depth === 0) return text.slice(open, i + 1);
+            }
+            return text.slice(open);
+        };
+        const problems = (name, body, wants, waits) => {
+            const out = [];
+            const calls = [...body.matchAll(WRITES)].map(m => m[0].slice(0, -1) + callAt(body, m.index + m[0].length - 1));
+            if (!calls.length) out.push(`${name} writes no store any more - take its row out, or point it at the writer`);
+            for (const call of calls) for (const want of wants) if (!new RegExp(`\\b${want}\\s*:\\s*true\\b`).test(call)) out.push(`${name}: ${call.replace(/\s+/g, " ").slice(0, 80)} lacks ${want}`);
+            if (waits && !/\.whenHydrated\(/.test(body)) out.push(`${name} reads a store without waiting for the other GMs' copies`);
+            return out;
+        };
+        const planted = "async function planted(item) {\n    await setSecret(item.uuid, { faint: true }, { weak: true });\n    await setSecret(item.uuid, { faint: false }, { ifLive: true, weak: true });\n}\n";
+        equal(JSON.stringify(problems("planted", planted, ["ifLive", "weak"], true)),
+            JSON.stringify(["planted: setSecret(item.uuid, { faint: true }, { weak: true }) lacks ifLive", "planted reads a store without waiting for the other GMs' copies"]),
+            "the reader does not find exactly the two faults planted for it");
+
+        const WRITERS = [
+            ["truth-bullets.mjs", "migrateFaintIntoSecrets", ["ifLive", "weak"], true],
+            ["truth-bullets.mjs", "migrateTruthBullets", ["weak", "fillOnly"], true],
+            ["truth-bullets.mjs", "propagateRemnantPublic", ["ifLive"], false],
+            ["truth-bullets.mjs", "propagateCrimeTie", ["ifLive"], false],
+            ["truth-bullets.mjs", "propagateCrimeTieMany", ["ifLive"], false],
+            ["truth-bullets.mjs", "propagateRealType", ["ifLive"], false],
+            ["analyze.mjs", "resolveAnalyze", ["ifLive"], false],
+            // The traces (C4): what amends a row a GM holds, and the migration's weak fill.
+            ["remnants.mjs", "markRemnantEdited", ["ifLive"], false],
+            ["remnants.mjs", "setRemnantSecretById", ["ifLive"], false],
+            ["remnants.mjs", "setRemnantPublic", ["ifLive"], false],
+            ["remnants.mjs", "setRemnantFlags", ["ifLive"], false],
+            ["remnants.mjs", "setRemnantFlagsMany", ["ifLive"], false],
+            ["remnants.mjs", "retuneRemnant", ["ifLive"], false],
+            ["remnants.mjs", "moveIntoLedger", ["weak", "fillOnly"], false],
+            ["remnants.mjs", "carryPromotion", ["ifLive"], false],
+            // The moved path's promotion, at the world's upgrade mark (E04's fix round): it amends the moved row.
+            ["remnants.mjs", "promoteAtMark", ["ifLive"], false],
+            ["remnants.mjs", "seedPublicIfMissing", ["weak", "fillOnly"], false],
+            // The cast's lift out of world data (C6; its row came with C9).
+            ["murder.mjs", "liftIncidentSecrets", ["weak", "fillOnly"], true],
+            // The fog (C9): a character standing in a room, a player's rows in the rebuild, the world's old ledger.
+            ["fog.mjs", "seedDiscovery", ["weak", "fillOnly"], false],
+            ["fog.mjs", "registerLedgerRoad", ["weak", "fillOnly"], false],
+            ["fog.mjs", "liftDiscoveryLedger", ["weak", "fillOnly"], true]
+        ];
+        // The migrations that read a store through a function they call: they wait themselves.
+        const WAITERS = [["remnants.mjs", "migrateRemnants"], ["remnants.mjs", "migrateRemnantToken"]];
+        const sources = new Map(await otherSources());
+        const found = [];
+        for (const [file, fn, wants, waits] of WRITERS) {
+            found.push(...problems(`${file} ${fn}`, fnSource(stripComments(sources.get(file) ?? ""), fn), wants, waits));
+        }
+        for (const [file, fn] of WAITERS) {
+            if (!/\.whenHydrated\(/.test(fnSource(stripComments(sources.get(file) ?? ""), fn))) found.push(`${file} ${fn} reads a store without waiting for the other GMs' copies`);
+        }
+        log(`R172: ${WRITERS.length} derived writers and ${WAITERS.length} migrations read in ${new Set([...WRITERS, ...WAITERS].map(w => w[0])).size} files`);
+        ok(!found.length, `a writer derives an answer-key value from absence: ${found.join("; ")}`);
+    }],
+
+    ["R177 - the season reset is the primary's, and the clock cuts every store it wipes", async () => {
+        /*
+         * E04 C10, 26.09.2026; audit S06-20, D12. The reset checked only that a GM ran
+         * it, and what it wiped in the GM stores it wiped in that GM's browser: an
+         * assistant's reset left last season's trap plants on the primary's, which hands
+         * a Search its find, and a GM away during the reset handed every wiped row back
+         * at its next exchange. Held here: the window refuses anybody but the primary GM
+         * before it opens, and opens only once this browser has the other GMs' copies;
+         * the wipe writes its cut in the clock before its first step and outside every
+         * step (a step can fail, the cut must stand); the traces' tokens go with
+         * `drpgReset`, so the cut and the clear take their rows rather than a tombstone
+         * each; every store and every player copy names a reset group the window offers,
+         * or no tick would ever cut it; the owners' copy of the offers is drawn again when
+         * a cut withdraws them (nothing is sent for it); and the patch keeps every earlier
+         * cut.
+         */
+        const sources = new Map(await otherSources());
+        const setup = stripComments(sources.get("season-setup.mjs") ?? "");
+        const beforeWindow = bodyOf(setup, "export async function resetSeason", { until: "DialogV2.wait(" });
+        ok(/isPrimaryGm\(\)/.test(beforeWindow), "resetSeason opens its window without asking whether this is the primary GM");
+        ok(/whenGmStoresHydrated\(\)/.test(beforeWindow), "the reset window opens before this browser has the other GMs' copies");
+        const wipe = fnSource(setup, "wipeSeason");
+        ok(/resetCutPatch\(/.test(bodyOf(wipe, "async function wipeSeason", { until: "const step =" })),
+            "wipeSeason does not write the reset's cut before its first step, outside every step");
+        ok(/deleteEmbeddedDocuments\("Token", ids, \{ drpgReset: true \}\)/.test(wipe),
+            "the reset's trace tokens are deleted without drpgReset, so each row is tombstoned on its own and the cut is not what takes them");
+
+        const { RESET_GROUPS, resetCutPatch, planFrom } = await import("./season-exceptions.mjs");
+        const E = await import("./gm-store.mjs");
+        await import("./gm-stores.mjs");
+        const groups = new Set(RESET_GROUPS.map(group => group.key));
+        const named = [...E.gmStoreHandles().map(h => [`the store ${h.name}`, h.spec.resetGroup]),
+            ...E.gmCopyNames().map(name => [`the copy ${name}`, E.gmCopySpec(name)?.resetGroup])];
+        ok(named.length >= 14, `only ${named.length} GM stores and copies are defined - the table was not read`);
+        const strays = named.filter(([, group]) => !groups.has(group)).map(([what, group]) => `${what} (${group})`);
+        ok(!strays.length, `a reset can never cut ${strays.join(", ")}: its reset group is none the window offers`);
+        // The owner's Q4: a reset withdraws the Level Ups on offer by its cut alone, and sends nothing to draw that.
+        ok(typeof E.gmCopySpec("offers")?.onCut === "function", "an owner's copy of the offers is cut by a reset and nothing draws the sheet again");
+
+        equal(JSON.stringify(resetCutPatch(planFrom(["remnants", "mastermind"]), { resetCuts: { bullets: 5, remnants: 3 } }, 9)),
+            JSON.stringify({ resetCuts: { bullets: 5, remnants: 9, mastermind: 9 } }),
+            "the reset's patch drops an earlier cut, misses a wiped group, or starts a season with the clock kept");
+        equal(resetCutPatch(planFrom(["clock", "incident"]), {}, 9).seasonStartedAt, 9, "a reset of the clock does not start a new season");
+    }],
+
+    ["R178 - no migration runs from a ready hook", async () => {
+        /*
+         * E04 C10, 26.09.2026; audit S01-31. Four lifts of old data into the GM stores
+         * ran from ready hooks - on every load, on every GM, before the other GMs'
+         * copies had arrived - and each wrote as if what it met were the whole truth
+         * (S05-01's erased answer keys were one of them). They are migration clauses
+         * since E04: once, on the primary, after `forgetMonokumaWalks` (whose Monokuma
+         * rows the fog's lift must not take), each waiting for its store. Held here:
+         * each clause stands after that one, since 1.2.63, and runs its lift; and no
+         * file calls a lift except its clause - the restore, which runs the Faint pass
+         * again when a GM asks, and diagnostics' line telling the GM what to type. The
+         * reader is shown a planted ready hook first.
+         */
+        const LIFTS = [["truthBulletShape", "migrateTruthBullets"], ["faintIntoSecrets", "migrateFaintIntoSecrets"],
+            ["liftIncidentSecrets", "liftIncidentSecrets"], ["liftDiscoveryLedger", "liftDiscoveryLedger"]];
+        const ALLOWED = {
+            "migrate.mjs": LIFTS.map(([, fn]) => fn),
+            // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.
+            "gm-stores.mjs": ["migrateFaintIntoSecrets"],
+            // Not a call: the line diagnostics prints, telling a GM the console command.
+            "diagnostics.mjs": ["migrateTruthBullets"]
+        };
+        const callers = files => {
+            const out = [];
+            for (const [file, text] of files) {
+                const src = stripComments(text);
+                for (const [, fn] of LIFTS) {
+                    for (const m of src.matchAll(new RegExp(`\\b${fn}\\s*\\(`, "g"))) {
+                        if (/function\s+$/.test(src.slice(Math.max(0, m.index - 20), m.index))) continue;
+                        if (!(ALLOWED[file] ?? []).includes(fn)) out.push(`${file}: ${fn}`);
+                    }
+                }
+            }
+            return out;
+        };
+        equal(JSON.stringify(callers([["planted.mjs", "Hooks.once(\"ready\", async () => {\n    await liftIncidentSecrets();\n});\nexport async function liftIncidentSecrets() {}\n"]])),
+            JSON.stringify(["planted.mjs: liftIncidentSecrets"]), "the reader does not find the lift a planted ready hook calls, or finds its declaration");
+
+        const sources = new Map(await otherSources());
+        const migrate = stripComments(sources.get("migrate.mjs") ?? "");
+        const keyAt = key => migrate.indexOf(`key: "${key}"`);
+        const monokuma = keyAt("forgetMonokumaWalks");
+        ok(monokuma >= 0, "migrate.mjs has no forgetMonokumaWalks clause - this test reads nothing until it is pointed at it again");
+        for (const [key, fn] of LIFTS) {
+            ok(keyAt(key) > monokuma, `the lift ${key} is not a migration clause after forgetMonokumaWalks`);
+            // One clause: from its key to the brace that closes it, four spaces in.
+            const clause = bodyOf(migrate, `key: "${key}"`, { until: "\n    }" });
+            ok(/since: "1\.2\.63"/.test(clause) && new RegExp(`\\b${fn}\\(`).test(clause), `the clause ${key} does not run ${fn} since 1.2.63`);
+        }
+        const found = callers(sources);
+        log(`R178: ${LIFTS.length} lifts, read in ${sources.size} files`);
+        ok(!found.length, `a lift runs outside its migration clause: ${found.join(", ")}`);
     }]
 ];
 

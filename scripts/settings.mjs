@@ -7,6 +7,7 @@
  */
 
 import { MODULE_ID, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
+import { readMine, gmStoreByName, liveFields } from "./gm-store.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
 export const SETTINGS = {
@@ -174,11 +175,27 @@ export const SETTINGS = {
      * GM-only compendium all arrive in the player's browser just the same.
      *
      * A client-scoped setting never enters world data at all, and the GM-to-GM
-     * sync in truth-bullets.mjs rides a socket the server addresses to named
-     * recipients. Cost of the choice: it lives in browser storage, so it is
-     * synced across every GM and can be exported - see `exportLedger()`.
+     * sync rides a socket the server addresses to named recipients. Cost of the
+     * choice: it lives in browser storage, so it is synced across every GM and
+     * backed up to a file.
+     *
+     * SINCE E04 (1.2.63) IT IS A GM STORE: `gmBullets`, sectioned by world and
+     * merged per field (gm-store.mjs, `bulletStore` in gm-stores.mjs), and nothing
+     * but the engine reads or writes it (R171). `legacyTruthBulletSecrets` is the
+     * key it had until then, registered so the engine can read it once per world
+     * and never written again: a downgrade finds it as the upgrade left it.
      */
-    truthBulletSecrets: "truthBulletSecrets",
+    truthBulletSecrets: "gmBullets",
+    legacyTruthBulletSecrets: "truthBulletSecrets",
+    /**
+     * `{ since, lastBackupAt, lastBackupBy }` (E04, 1.2.63): when this world's case
+     * was first held in a GM store, and its last backup. WORLD-scoped because every
+     * GM's browser needs the same answer - a browser that opens a world whose case
+     * began before it, holding nothing, is not looking at a new case - and it says
+     * nothing about the case itself: no pick, no offer, no count (gm-stores.mjs,
+     * `markCaseSince`).
+     */
+    caseMark: "caseMark",
     /**
      * What every Remnant on the maps really is: its type, how hard it is to
      * spot, who left it, and the GM's note about it.
@@ -191,10 +208,16 @@ export const SETTINGS = {
      * sentence: the whole investigation, for free, and with no way for the GM to
      * know it had happened.
      *
-     * Keyed `sceneId.tokenId`. Synced GM-to-GM over a recipient-addressed
-     * socket, the same as the Truth Bullet ledger.
+     * Keyed `sceneId.tokenId`.
+     *
+     * A GM STORE SINCE E04 (1.2.63): `gmRemnants` (gm-stores.mjs, `remnantStore`),
+     * sectioned by world and merged per field with the other GMs, `public` per
+     * sub-key; until then it was synced by a socket of its own and merged a whole
+     * row at a time, as the Truth Bullet ledger was. `legacyRemnantSecrets` is the
+     * key before it, read once per world and never written.
      */
-    remnantSecrets: "remnantSecrets",
+    remnantSecrets: "gmRemnants",
+    legacyRemnantSecrets: "remnantSecrets",
     /**
      * Observe targets declared but not yet scored (ACT-08, 20.09).
      *
@@ -207,15 +230,28 @@ export const SETTINGS = {
      * It exists because the two halves of an Observe are minutes apart and the
      * declaration used to live in one browser's memory: a GM who reloaded in
      * between left the player having paid an action and rolled for nothing.
+     *
+     * A LOCAL GM STORE SINCE E04 (1.2.63): `gmObservePending` (gm-stores.mjs,
+     * `observeStore`) - this browser's, a section per world, neither synced nor
+     * backed up; `legacyObservePending` is the key before it.
      */
-    observePending: "observePending",
+    observePending: "gmObservePending",
+    legacyObservePending: "observePending",
     /**
-     * Level Ups handed to a player and not yet spent (N-2). CLIENT-scoped: the
-     * primary GM's copy is the authority, an owner's holds only their own
-     * characters' - see "WHERE AN OFFER LIVES" in level-up.mjs for why a flag
-     * on the character was both forgeable and readable by everyone.
+     * Level Ups handed to a player and not yet spent (N-2). CLIENT-scoped - see
+     * "WHERE AN OFFER LIVES" in level-up.mjs for why a flag on the character was
+     * both forgeable and readable by everyone.
+     *
+     * A GM STORE SINCE E04 (1.2.63; audit S03-11): `gmOffers` (gm-stores.mjs,
+     * `offerStore`), synced between the GMs; the primary writes it. An owner's
+     * browser holds a copy of its own characters' (`mineOffers`, `offerCopy`),
+     * stamped per character, so an answer from a primary whose browser holds
+     * none cannot take an offer away. `legacyAdvanceOffers` is the one key both
+     * used to share: claimed on the primary's browser only, never written.
      */
-    advanceOffers: "advanceOffers",
+    advanceOffers: "gmOffers",
+    legacyAdvanceOffers: "advanceOffers",
+    mineOffers: "mineOffers",
     /**
      * The words of every private card this browser is a recipient of.
      *
@@ -238,9 +274,17 @@ export const SETTINGS = {
      * the project that poisoned it. The identity is on everything in everybody's
      * bag, which makes it a name rather than a mark; which names are poisoned is
      * only ever here.
+     *
+     * GM STORES SINCE E04 (1.2.63; audit S08-19): `gmTrapLedger` and `gmTrapPlants`
+     * (gm-stores.mjs), synced between GMs. Until then each GM's browser held its
+     * own: a plant left by one GM was never found by a Search the primary GM
+     * handled, and a trap planted by one GM never fired on the primary's chat.
+     * The `legacy*` keys are the ones before, read once per world, never written.
      */
-    trapLedger: "trapLedger",
-    trapPlants: "trapPlants",
+    trapLedger: "gmTrapLedger",
+    legacyTrapLedger: "trapLedger",
+    trapPlants: "gmTrapPlants",
+    legacyTrapPlants: "trapPlants",
     /**
      * The GM's plan for this murder's five Key Remnants.
      *
@@ -331,8 +375,19 @@ export const SETTINGS = {
      * exactly what they could see before this change - they already read each
      * other's rolls through `incidentAudience`. Narrowing it further is a rules
      * question about what the victim may know and when, not a leak.
+     *
+     * A GM STORE AND A PLAYER COPY SINCE E04 (1.2.63; audit S04-24, S06-19). The
+     * GMs hold `gmCast` (gm-stores.mjs, `castStore`): one record of this world,
+     * each field stamped on its own and merged with the other GMs, `swung` per
+     * actor. A participant holds `mineCast` (`castCopy`), taken only from a
+     * newer stamp. Until then GM and player shared one key, a GM's sync kept the
+     * newest whole entry, and a GM holding nothing answered a participant with
+     * nothing. `legacyIncidentCast` is the key before both, read once per world
+     * and never written.
      */
-    incidentCast: "incidentCast",
+    incidentCast: "gmCast",
+    legacyIncidentCast: "incidentCast",
+    mineCast: "mineCast",
     pendingMurders: "pendingMurders",
     /**
      * Who has killed in THIS chapter, in the order they did it.
@@ -353,10 +408,14 @@ export const SETTINGS = {
      * table for the rest of the chapter, which is the half of LIVE-001 that
      * survived the first fix. See `openVerdictDialog`.
      *
-     * `blackened` below it is the old world key, kept registered so a world
-     * upgrading mid-chapter can be read once and emptied. Nothing writes it.
+     * A GM STORE SINCE E04 (1.2.63; audit S04-25): `gmBlackened` (gm-stores.mjs,
+     * `blackenedStore`), a row per killer `{ chapter, epoch, at }`, read for the
+     * clock's chapter and season (`blackenedIds`) rather than emptied at the
+     * chapter's end - so a copy from a GM who missed that end cannot bring last
+     * chapter's killers back. `legacyBlackenedLedger` is the key before it.
      */
-    blackenedLedger: "blackenedLedger",
+    blackenedLedger: "gmBlackened",
+    legacyBlackenedLedger: "blackenedLedger",
     /**
      * The speaking queue during a Class Trial: who has the floor and since when.
      *
@@ -395,11 +454,18 @@ export const SETTINGS = {
      * on `truthBulletSecrets`); the Mastermind's own player reading their own
      * flag might be harmless, but every OTHER player reading it from the
      * console would end the game before it started. So this lives in browser
-     * storage on GM clients, synced GM-to-GM over a recipient-addressed socket,
-     * exactly like the Truth Bullet ledger - a player's client never receives
-     * it, full stop.
+     * storage on GM clients - a player's client never receives it, full stop.
+     *
+     * A GM STORE SINCE E04 (1.2.63): `gmMastermind` (gm-stores.mjs,
+     * `mastermindStore`), one record of this world, `actorId` and the lair's
+     * `room` each stamped on its own and merged with the other GMs; until then it
+     * was one entry synced over a socket of its own, newest whole entry winning,
+     * and a clear never reached a GM who was offline (audit S06-19).
+     * `legacyMastermind` is the key before it, read once per world and never
+     * written.
      */
-    mastermind: "mastermind",
+    mastermind: "gmMastermind",
+    legacyMastermind: "mastermind",
     /**
      * "Is THIS browser the Mastermind's player." Client-scoped, boolean, and
      * the only thing about the Mastermind that ever reaches a player's client
@@ -420,20 +486,25 @@ export const SETTINGS = {
      * visibility.mjs, but only through `myLairRoom()`: standing in their own
      * room shows them the cast, anywhere else they are exactly as blind as
      * every other player's client.
-     */
-    iAmMastermind: "iAmMastermind",
-    /**
-     * The Mastermind's own room, on the ONE client that holds the part -
-     * delivered over the same recipient-addressed whisper as `iAmMastermind`
-     * and cleared with it. Every other client's copy stays empty forever.
      *
-     * Read by visibility.mjs: a Mastermind whose own token stands in this
-     * room sees the whole cast, the way the GM does, and loses that the
-     * moment they leave. (This is the 26.08 revision of the old contract -
-     * the note on `iAmMastermind` used to promise visibility.mjs would never
-     * read either of these.)
+     * The Mastermind's own room travels with it - delivered over the same
+     * recipient-addressed whisper and cleared with it. Read by visibility.mjs:
+     * a Mastermind whose own token stands in this room sees the whole cast, the
+     * way the GM does, and loses that the moment they leave. (This is the 26.08
+     * revision of the old contract - the note here used to promise visibility.mjs
+     * would never read it.)
+     *
+     * A PLAYER COPY SINCE E04 (1.2.63): `mineDoor` (gm-stores.mjs, `doorCopy`),
+     * `{ mastermind, room }`, stamped by the GM who sent it with the stamps of the
+     * record's fields it came from, and taken only where newer (`doorCombine`;
+     * audit S06-19: a second GM whose browser held no pick answered "not the
+     * Mastermind" and took the part away).
+     * `legacyIAmMastermind` and `legacyMyMastermindLair` are the two keys before
+     * it; nothing reads them.
      */
-    myMastermindLair: "myMastermindLair",
+    mineDoor: "mineDoor",
+    legacyIAmMastermind: "iAmMastermind",
+    legacyMyMastermindLair: "myMastermindLair",
     /**
      * While `isometric-perspective` is active, keep its fingers out of token
      * configuration windows - see iso-shield.mjs for what exactly is parked
@@ -452,10 +523,24 @@ export const SETTINGS = {
      * discipline `truth-bullets.mjs` uses for its own ledger writes.
      */
     discoveredRooms: "discoveredRooms",
-    /** The GM's union of every character's discoveries - a CLIENT setting on GM browsers (D2). */
-    discoveryLedger: "discoveryLedger",
-    /** This player's own characters' rows, written by the primary GM over the socket (D2). */
-    discoveryMine: "discoveryMine",
+    /**
+     * The GMs' union of every character's discoveries - a CLIENT setting on GM
+     * browsers (D2). A GM STORE SINCE E04 (1.2.63; audit S07-01): `gmDiscovery`
+     * (gm-stores.mjs, `discoveryStore`), a row per `sceneId/actorId` and a cell per
+     * room, each stamped, synced between the GMs; `legacyDiscoveryLedger` is the key
+     * before it, claimed on the primary's browser only.
+     */
+    discoveryLedger: "gmDiscovery",
+    legacyDiscoveryLedger: "discoveryLedger",
+    /**
+     * This player's own characters' rows, sent by a GM over the socket (D2). A
+     * PLAYER COPY SINCE E04: `mineFog` (gm-stores.mjs, `fogCopy`), the cells of the
+     * GMs' store for this user's characters, merged cell by cell and never replaced.
+     * `legacyDiscoveryMine` is the key before it, taken into the copy weak on every
+     * load - the only copy of the ledger outside the GMs' browsers.
+     */
+    mineFog: "mineFog",
+    legacyDiscoveryMine: "discoveryMine",
     /**
      * Rooms, not sight lines, decide what a player can see.
      *
@@ -522,7 +607,25 @@ export const DEFAULT_CLOCK = {
      * "a Final Trial is happening" gives nothing away, unlike the Mastermind's
      * identity, which never goes anywhere near this object. See mastermind.mjs.
      */
-    finalTrial: false
+    finalTrial: false,
+    /**
+     * When this season began, as a GM store stamp (E04, 1.2.63), or null for the
+     * season a world began with: `seasonEpoch()`. Written by a season reset that
+     * wipes the clock - the one that sends the chapters back to 1 - so the Blackened
+     * register does not count last season's chapter-1 killers in this season's
+     * chapter 1 when the incident is kept.
+     */
+    seasonStartedAt: null,
+    /**
+     * The season reset's cut, per reset group: `{ group: stamp }` (E04; D12 option
+     * 1). Written before the reset's first step; every GM store and player copy of a
+     * group is cut at its stamp on every client, and a GM's browser that was offline
+     * across the reset at its next load - so no stale browser brings a wiped row
+     * back. Every cut is kept: a GM offline across two resets with different
+     * exceptions is cut group by group. Frozen: `getClock` hands this object out
+     * whenever the stored clock has none.
+     */
+    resetCuts: Object.freeze({})
 };
 
 export function registerSettings() {
@@ -947,15 +1050,34 @@ export function registerSettings() {
 
     // The answer key to every Truth Bullet. Client-scoped on purpose - see the
     // note on SETTINGS.truthBulletSecrets for why no world-scoped store hides
-    // anything from a player's console.
+    // anything from a player's console. The GM store's key and, frozen, the one
+    // before it (E04).
     game.settings.register(MODULE_ID, SETTINGS.truthBulletSecrets, {
         scope: "client",
         config: false,
         type: Object,
         default: {}
     });
+    game.settings.register(MODULE_ID, SETTINGS.legacyTruthBulletSecrets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.caseMark, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
+    });
 
     game.settings.register(MODULE_ID, SETTINGS.remnantSecrets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyRemnantSecrets, {
         scope: "client",
         config: false,
         type: Object,
@@ -968,8 +1090,26 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    game.settings.register(MODULE_ID, SETTINGS.legacyObservePending, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
 
     game.settings.register(MODULE_ID, SETTINGS.advanceOffers, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyAdvanceOffers, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineOffers, {
         scope: "client",
         config: false,
         type: Object,
@@ -993,6 +1133,18 @@ export function registerSettings() {
     });
 
     game.settings.register(MODULE_ID, SETTINGS.trapPlants, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyTrapLedger, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyTrapPlants, {
         scope: "client",
         config: false,
         type: Object,
@@ -1111,8 +1263,28 @@ export function registerSettings() {
         default: {},
         onChange: () => onWorldChange(SETTINGS.murderState)
     });
+    // The participant's copy repaints the same way: it arrives after the world half.
+    game.settings.register(MODULE_ID, SETTINGS.mineCast, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.murderState)
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyIncidentCast, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
 
     game.settings.register(MODULE_ID, SETTINGS.blackenedLedger, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyBlackenedLedger, {
         scope: "client",
         config: false,
         type: Array,
@@ -1164,15 +1336,26 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    game.settings.register(MODULE_ID, SETTINGS.legacyMastermind, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
 
-    game.settings.register(MODULE_ID, SETTINGS.iAmMastermind, {
+    game.settings.register(MODULE_ID, SETTINGS.mineDoor, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyIAmMastermind, {
         scope: "client",
         config: false,
         type: Boolean,
         default: false
     });
-
-    game.settings.register(MODULE_ID, SETTINGS.myMastermindLair, {
+    game.settings.register(MODULE_ID, SETTINGS.legacyMyMastermindLair, {
         scope: "client",
         config: false,
         type: String,
@@ -1198,13 +1381,14 @@ export function registerSettings() {
      *
      * This used to be one world setting, readable from any player's console:
      * "which rooms has X been in" for the whole season, which in a killing
-     * game is alibi evidence. It travels the `incidentCast` road now. The
-     * primary GM holds the union in a client setting on their own browser and
-     * mirrors it to the other GMs; each player's browser holds only the rows
-     * of the characters they own, sent to them alone over the addressed
-     * socket (fog.mjs, `shareLedger`). The world setting stays registered so
-     * a world that updates mid-season can be lifted out of it once
-     * (`migrateLedger`), and is empty from then on.
+     * game is alibi evidence. It travels the `incidentCast` road now. Since
+     * E04 the GMs hold it in a GM store (`gmDiscovery`, a cell per character
+     * and room, merged between them); each player's browser holds only the
+     * cells of the characters they own (`mineFog`), sent to them alone over the
+     * addressed socket (fog.mjs, `shareLedger`). The world setting stays
+     * registered so a world that updates mid-season can be lifted out of it
+     * once (the migration clause `liftDiscoveryLedger`), and is empty from then
+     * on.
      *
      * All three fire the same repaint: the fog reads through
      * `discoveryLedger()` below, whichever store this client is.
@@ -1223,12 +1407,24 @@ export function registerSettings() {
         default: {},
         onChange: () => onWorldChange(SETTINGS.discoveredRooms)
     });
-    game.settings.register(MODULE_ID, SETTINGS.discoveryMine, {
+    game.settings.register(MODULE_ID, SETTINGS.mineFog, {
         scope: "client",
         config: false,
         type: Object,
         default: {},
         onChange: () => onWorldChange(SETTINGS.discoveredRooms)
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyDiscoveryLedger, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyDiscoveryMine, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     game.settings.register(MODULE_ID, SETTINGS.regionFog, {
@@ -1439,11 +1635,25 @@ function onWorldChange(key) {
  * browser, this player's own rows on theirs. Shaped
  * `{ [sceneId]: { [actorId]: [roomName, ...] } }` either way. A leaf, so
  * movement.mjs and fog.mjs read the same thing.
+ *
+ * A projection since E04: the GMs' store and a player's copy hold a cell per room
+ * (true, or false where a GM unticked it), and a room is discovered where its cell
+ * reads true - on a player's copy, above the clock's cut for the group too, which
+ * may have risen since the copy was last merged.
  */
 export function discoveryLedger() {
     try {
-        const key = game.user?.isGM ? SETTINGS.discoveryLedger : SETTINGS.discoveryMine;
-        return game.settings.get(MODULE_ID, key) ?? {};
+        const rows = game.user?.isGM
+            ? (gmStoreByName("discovery")?.entries() ?? {})
+            : liveFields(readMine("fog"), getClock()?.resetCuts?.discovered ?? 0);
+        const out = {};
+        for (const [key, cells] of Object.entries(rows ?? {})) {
+            const [sceneId, actorId] = String(key).split("/");
+            const rooms = Object.entries(cells ?? {}).filter(([, on]) => on === true).map(([room]) => room);
+            if (!sceneId || !actorId || !rooms.length) continue;
+            (out[sceneId] ??= {})[actorId] = rooms;
+        }
+        return out;
     } catch {
         return {};
     }
@@ -1461,9 +1671,26 @@ export function discoveryLedger() {
  */
 export function incidentCast() {
     try {
-        return game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};
+        // By role since E04: the GMs' record (the store, read through the engine
+        // by name - this leaf cannot import the table), a participant's copy.
+        const cast = game.user?.isGM ? gmStoreByName("cast")?.record() : readMine("cast");
+        return { ...(cast ?? {}) };
     } catch {
         return {};
+    }
+}
+
+/**
+ * The season now running, as the clock's `seasonStartedAt` (E04): 0 for the season
+ * a world began with. The Blackened register counts only this season's rows, so a
+ * reset that sends the clock back to chapter 1 and keeps the incident group does not
+ * count last season's killers.
+ */
+export function seasonEpoch() {
+    try {
+        return getClock()?.seasonStartedAt ?? 0;
+    } catch {
+        return 0;
     }
 }
 
@@ -1661,9 +1888,9 @@ export function setSetting(key, value) {
 
 /**
  * Is THIS browser the Mastermind's player, for the narrow purpose of locked
- * doors, the fog layer and a concealed stash? See `SETTINGS.iAmMastermind`'s
- * own header - this is the only thing about the Mastermind a player's client
- * ever holds, and reading one client-scoped boolean is the whole of it.
+ * doors, the fog layer and a concealed stash? See `SETTINGS.mineDoor`'s own
+ * header - this is the only thing about the Mastermind a player's client ever
+ * holds, and reading its copy (`readMine("door")`, E04) is the whole of it.
  *
  * IT LIVES HERE RATHER THAN IN mastermind.mjs, AND THAT IS THE POINT.
  *
@@ -1681,20 +1908,32 @@ export function setSetting(key, value) {
  * `ReferenceError` at boot, thrown before anything renders, from a file that
  * looks innocent.
  *
- * Nothing about this predicate needed mastermind.mjs. It reads a setting, and
- * the setting exists precisely so `canCross()` can ask synchronously inside a
+ * Nothing about this predicate needed mastermind.mjs. It reads a copy, and the
+ * copy exists precisely so `canCross()` can ask synchronously inside a
  * `preUpdateToken` veto - which is the note already written above the key
  * itself. Moving the reader next to what it reads is what removes the edge, and
- * with it both cycles; the GM-side Mastermind machinery stays where it is.
+ * with it both cycles; the GM-side Mastermind machinery stays where it is. The
+ * engine (gm-store.mjs) imports config.mjs alone, so reading the copy through it
+ * adds no edge back (R161).
  */
 export function iAmTheMastermind() {
     if (game.user.isGM) return false;
     try {
-        return game.settings.get(MODULE_ID, SETTINGS.iAmMastermind) === true;
+        return readMine("door")?.mastermind === true;
     } catch {
-        // Asked before the settings are registered - during boot, or from a
-        // client that never received the whisper. Not the Mastermind.
+        // Asked before the copy is defined - during boot, or from a client that
+        // never received the whisper. Not the Mastermind.
         return false;
+    }
+}
+
+/** The Mastermind's own room, on the one client that holds the part; null everywhere else. */
+export function myMastermindLair() {
+    if (!iAmTheMastermind()) return null;
+    try {
+        return readMine("door")?.room || null;
+    } catch {
+        return null;
     }
 }
 

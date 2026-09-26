@@ -24,21 +24,21 @@
  * never receives it.
  *
  * The cost of that choice is durability: browser storage, not the world file.
- * It is paid down three ways - every GM holds a full copy, a GM joining asks
- * the others for anything it is missing, and `exportLedger()` writes a backup.
- * The ledger's useful life is one chapter, which keeps the exposure small.
+ * Since E04 (1.2.63) it is paid down by the GM store (gm-stores.mjs): every GM
+ * holds a full copy, merged per field, a GM joining exchanges copies with the
+ * others before anything reads the ledger for a decision, and the case can be
+ * backed up to a file. A row lives until its bullet is forgotten or the season
+ * is reset - a season, not a chapter, since the dashboard reads every chapter's.
  */
 
 import {
     MODULE_ID, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TRUTH_BULLET_TYPES
 } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { grantItem, itemsInCategory } from "./inventory.mjs";
-import { gmIds, whisperToOwner, whisperToGms, isPrimaryGm, log, warn, error, plural } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, isPrimaryGm, log, warn, error, plural } from "./utils.mjs";
 import { playSfxFor } from "./sfx.mjs";
-
-const SOCKET_EVENT = `module.${MODULE_ID}`;
+import { bulletStore, backupCase, restoreCase } from "./gm-stores.mjs";
 
 /** The one inventory category a Truth Bullet ever has. */
 export const BULLET_CATEGORY = "truthBullet";
@@ -140,68 +140,22 @@ export const TRUTH_BULLET_FLAGS = {
     tiedToCrime: "tiedToCrime"
 };
 
-/** Socket actions, all addressed to GMs only. */
-const TB = {
-    secret: "tb.secret",
-    request: "tb.ledgerRequest",
-    full: "tb.ledgerFull"
-};
-
 /* ==========================================================================
  * THE ANSWER KEY
  * --------------------------------------------------------------------------
  * Three functions are the whole interface: `secretOf`, `setSecret`, `dropSecret`.
  * Everything else in the module goes through them, so where the answer key
  * lives is one file's business and can be changed without touching callers.
+ *
+ * WHERE IT LIVES SINCE E04 (1.2.63): the GM store (`bulletStore`, gm-stores.mjs),
+ * a row per bullet uuid whose every field carries its own stamp and is merged
+ * per field between GMs. Until then it was a client setting merged by whole
+ * entries, newest `updated` wins - and a GM who joined sent rows a migration had
+ * built from nothing, `{ faint, updated: now }`, which replaced the full rows on
+ * every GM, realType and the reading with them (audit S05-01). The store holds
+ * the parsed rows in memory, so the per-bullet reads of the dashboard parse
+ * nothing (the reason this file kept a cache of its own until then, E17).
  * ========================================================================== */
-
-/**
- * The parsed ledger, held between writes.
- *
- * THE SAME MEASUREMENT THE REMNANT LEDGER ALREADY ACTED ON (E17, audit A10).
- * A client-scoped setting lives in `localStorage` as a string, so every read
- * re-parses the whole thing and pays Foundry's validation on top; the Remnant
- * ledger measured 0.858 ms per read at 685 entries and cached it for exactly
- * this reason. This one is read PER BULLET: the Investigation dashboard asks
- * `secretOf` for every bullet of every student on every rebuild, and it
- * rebuilds whenever any item on any actor changes.
- *
- * Safe to hold because every write goes through `writeLedger`, which replaces
- * it - including the merges arriving from another GM's socket. The call sites
- * that mutate the object in place write immediately afterwards, and a mutation
- * that reaches the cache before the write is the value we want to be reading.
- */
-let ledgerCache = null;
-
-/** The ledger is stale - parse it again on the next read. */
-export function forgetTruthBulletLedger() {
-    ledgerCache = null;
-}
-
-function readLedger() {
-    if (!game.user.isGM) return {};
-    if (ledgerCache) return ledgerCache;
-    try {
-        ledgerCache = game.settings.get(MODULE_ID, SETTINGS.truthBulletSecrets) ?? {};
-        return ledgerCache;
-    } catch (err) {
-        warn("Could not read the Truth Bullet ledger", err);
-        return {};
-    }
-}
-
-async function writeLedger(ledger) {
-    if (!game.user.isGM) return;
-    try {
-        await game.settings.set(MODULE_ID, SETTINGS.truthBulletSecrets, ledger);
-        // Held rather than dropped: this IS the newest ledger, and dropping it
-        // would make the next read pay for an answer we already have.
-        ledgerCache = ledger;
-    } catch (err) {
-        error("Could not write the Truth Bullet ledger", err);
-        ledgerCache = null;
-    }
-}
 
 /**
  * What a bullet really is. `{}` for anyone who is not a GM - not an error, the
@@ -212,122 +166,45 @@ async function writeLedger(ledger) {
  */
 export function secretOf(uuid) {
     if (!game.user.isGM || !uuid) return {};
-    const entry = readLedger()[uuid];
-    if (!entry || entry.deleted) return {};
-    return entry;
-}
-
-/** Record or amend what a bullet really is, and tell the other GMs. */
-export async function setSecret(uuid, patch = {}) {
-    if (!game.user.isGM || !uuid) return null;
-
-    const ledger = readLedger();
-    const entry = { ...(ledger[uuid] ?? {}), ...patch, updated: Date.now() };
-    delete entry.deleted;
-    ledger[uuid] = entry;
-
-    await writeLedger(ledger);
-    pushSecret(uuid, entry);
-    return entry;
+    return bulletStore.get(uuid) ?? {};
 }
 
 /**
- * Forget a bullet. A tombstone rather than a plain delete, so the removal still
- * reaches a GM who was offline when it happened - otherwise their copy would
- * resurrect the entry at the next full sync.
+ * Record or amend what a bullet really is. Only the fields named are stamped;
+ * every other field keeps whatever any GM wrote last, and the other GMs get the
+ * change from the store. `opts` are the store's (gm-store.mjs, `patch`): `ifLive`
+ * for a writer that only amends a bullet this GM already has a row for, `weak`
+ * and `fillOnly` for a value derived from absence, which must lose to anything a
+ * GM decided.
+ */
+export async function setSecret(uuid, patch = {}, opts = {}) {
+    if (!game.user.isGM || !uuid) return null;
+    await bulletStore.patch(uuid, patch, opts);
+    return secretOf(uuid);
+}
+
+/**
+ * Forget a bullet. A tombstone, written whether or not this GM holds the row, so
+ * the removal reaches a GM who was offline when it happened and kills a stale
+ * copy that arrives later.
  */
 export async function dropSecret(uuid) {
     if (!game.user.isGM || !uuid) return;
-
-    const ledger = readLedger();
-    if (!ledger[uuid]) return;
-
-    ledger[uuid] = { deleted: true, updated: Date.now() };
-    await writeLedger(ledger);
-    pushSecret(uuid, ledger[uuid]);
-}
-
-/** Push one entry to every other GM. Players are not among the recipients. */
-function pushSecret(uuid, entry) {
-    const recipients = gmIds().filter(id => id !== game.user.id);
-    if (!recipients.length) return;
-    try {
-        game.socket.emit(
-            SOCKET_EVENT,
-            { action: TB.secret, from: game.user.id, uuid, entry },
-            { recipients }
-        );
-    } catch (err) {
-        error("Could not sync the Truth Bullet ledger", err);
-    }
-}
-
-/** Newest write wins, per entry. */
-async function mergeEntries(incoming = {}) {
-    if (!game.user.isGM) return;
-
-    const ledger = readLedger();
-    let changed = false;
-
-    for (const [uuid, entry] of Object.entries(incoming)) {
-        if (!entry || typeof entry !== "object") continue;
-        const mine = ledger[uuid];
-        if (mine && (mine.updated ?? 0) >= (entry.updated ?? 0)) continue;
-        ledger[uuid] = entry;
-        changed = true;
-    }
-
-    if (changed) await writeLedger(ledger);
+    await bulletStore.drop(uuid);
 }
 
 /**
- * A GM who just joined asks the others for anything they are missing.
- *
- * Cheap and unconditional: the ledger is small, and a GM whose browser storage
- * was cleared looks exactly like a GM who was offline for one write.
+ * The answer key's own backup and import until E04: `backupCase` and
+ * `restoreCase` (gm-stores.mjs) now, which write every GM store to one file and
+ * read this ledger's old export as its bullets. Kept under these names for the
+ * macros and handbooks that call them.
  */
-function requestLedger() {
-    const recipients = gmIds().filter(id => id !== game.user.id);
-    if (!recipients.length) return;
-    try {
-        game.socket.emit(SOCKET_EVENT, { action: TB.request, from: game.user.id }, { recipients });
-    } catch (err) {
-        error("Could not ask the other GMs for the Truth Bullet ledger", err);
-    }
-}
-
-/** Back up the answer key. Browser storage is not a safe place for one copy. */
 export function exportLedger() {
-    if (!game.user.isGM) return null;
-    const ledger = readLedger();
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    foundry.utils.saveDataToFile(
-        JSON.stringify(ledger, null, 2),
-        "application/json",
-        `drpg-truth-bullets-${stamp}.json`
-    );
-    return ledger;
+    return backupCase();
 }
 
-/** Merge a previously exported file back in. Newest entry per bullet wins. */
-export async function importLedger(json) {
-    if (!game.user.isGM) return false;
-    let data;
-    try {
-        data = typeof json === "string" ? JSON.parse(json) : json;
-    } catch (err) {
-        ui.notifications.error(game.i18n.localize("DRPG.TruthBullet.importFailed"));
-        return false;
-    }
-    if (!data || typeof data !== "object") return false;
-
-    await mergeEntries(data);
-    // The importing GM is now the most complete copy; push it outward.
-    for (const [uuid, entry] of Object.entries(readLedger())) pushSecret(uuid, entry);
-    ui.notifications.info(plural("DRPG.TruthBullet.imported", {
-        n: Object.keys(data).length
-    }));
-    return true;
+export function importLedger(json, opts = {}) {
+    return restoreCase(json, opts);
 }
 
 /* ==========================================================================
@@ -768,7 +645,7 @@ export function truthBulletData(item) {
  * there and has nothing in its secret, and one made since carries it on the
  * item only once it has been identified. Reading the ledger first and the item
  * second is right in both worlds, and `migrateFaintIntoSecrets` below closes
- * the gap for good the first time a GM logs in.
+ * the gap for every bullet with a row, once, in the migration (E04).
  */
 export function faintOf(item) {
     if (!item) return false;
@@ -812,8 +689,9 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
             try {
                 // The road that reaches every copy, analysed or not. Filed first
                 // so that a failure on the item below cannot leave the ledger
-                // holding the older sentence.
-                await setSecret(item.uuid, { analyzedText });
+                // holding the older sentence. `ifLive`: it amends a row this GM
+                // holds (the line above found it), and never starts one.
+                await setSecret(item.uuid, { analyzedText }, { ifLive: true });
 
                 // And this holder's own half. `hasReading` is the whole gate: a
                 // bullet still showing Neutral - or a Key or a Final nobody has
@@ -859,7 +737,7 @@ export async function propagateCrimeTie(remnantTokenId, tied) {
         for (const item of bulletsOf(actor)) {
             if (secretOf(item.uuid).remnantId !== remnantTokenId) continue;
             try {
-                await setSecret(item.uuid, { tiedToCrime: Boolean(tied) });
+                await setSecret(item.uuid, { tiedToCrime: Boolean(tied) }, { ifLive: true });
                 if (isIdentified(item)) {
                     await item.update({
                         [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: Boolean(tied)
@@ -872,6 +750,40 @@ export async function propagateCrimeTie(remnantTokenId, tied) {
         }
     }
     return touched;
+}
+
+/**
+ * `propagateCrimeTie` for many traces in one pass (E04, 1.2.63): the copies'
+ * answer keys in one store write, and each identified copy's item as before.
+ * `setRemnantFlagsMany` (remnants.mjs) calls it for a chapter's traces at a
+ * victim's death and a weapon's at its use; one call per trace was one pass over
+ * every bullet in the world and one write of the store per trace.
+ *
+ * @returns {Promise<number>} how many copies moved
+ */
+export async function propagateCrimeTieMany(remnantTokenIds, tied) {
+    const ids = new Set((remnantTokenIds ?? []).filter(Boolean));
+    if (!game.user.isGM || !ids.size) return 0;
+
+    const secrets = {}, shown = [];
+    for (const actor of game.actors) {
+        if (actor.type !== "character") continue;
+        for (const item of bulletsOf(actor)) {
+            if (!ids.has(secretOf(item.uuid).remnantId)) continue;
+            secrets[item.uuid] = { tiedToCrime: Boolean(tied) };
+            if (isIdentified(item)) shown.push(item);
+        }
+    }
+    if (!Object.keys(secrets).length) return 0;
+    await bulletStore.patchMany(secrets, { ifLive: true });
+    for (const item of shown) {
+        try {
+            await item.update({ [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: Boolean(tied) });
+        } catch (err) {
+            error(`Could not move the crime tie onto "${item.name}"`, err);
+        }
+    }
+    return Object.keys(secrets).length;
 }
 
 /**
@@ -900,7 +812,7 @@ export async function propagateRealType(remnantTokenId, realType) {
         for (const item of bulletsOf(actor)) {
             if (secretOf(item.uuid).remnantId !== remnantTokenId) continue;
             try {
-                await setSecret(item.uuid, { realType });
+                await setSecret(item.uuid, { realType }, { ifLive: true });
                 if (isIdentified(item)) {
                     await item.update({
                         [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType
@@ -975,21 +887,30 @@ export async function issueAutopsy(actors, { name, playerText = "", gmNote = "" 
  * about the object sitting in a player's own data, and it is the one kind of
  * leak this module has spent three releases closing.
  *
- * IDEMPOTENT BY CONSTRUCTION, with no marker setting to go stale. For each
- * bullet the ledger does not yet have a `faint` for, the item's flag is the
- * truth and is copied in; and where the bullet is NOT identified, the flag is
- * then cleared, because an unidentified bullet has no business carrying it. A
- * second run finds `typeof secret.faint === "boolean"` everywhere and does
- * nothing. A bullet made since the change is already in that state.
+ * IT USED TO BE THE ROAD THAT ERASED THE ANSWER KEY (E04, audit S05-01). It ran
+ * on every GM at every load, and for a bullet whose row this GM did not hold it
+ * built one from nothing - `{ faint, updated: now }` - which the whole-entry
+ * merge then took over the full row on every other GM. Now it is a clause of the
+ * migration (`faintIntoSecrets`), run once by the primary after the other GMs'
+ * copies have arrived, and its write can derive nothing from absence: `ifLive`,
+ * so a bullet with no row here gets none (its item keeps the flag, and it is
+ * counted), and `weak`, so a Faint any GM decided wins over the item's. The
+ * item's flag comes off only where the row, read back from storage and not from
+ * memory, holds a Faint.
  *
- * GM-only, like every other reader of the ledger, and quiet: this corrects the
- * shape of stored data rather than the state of the game, so there is nothing a
- * GM would want a card about. The count goes to the log.
+ * IDEMPOTENT: a second run finds `typeof secret.faint === "boolean"` wherever it
+ * wrote, and nothing else to do.
+ *
+ * @returns {Promise<{moved: number, kept: number}>} rows given a Faint, and
+ *   bullets with no row whose item still carries it.
  */
 export async function migrateFaintIntoSecrets() {
-    if (!game.user.isGM) return 0;
+    if (!game.user.isGM) return { moved: 0, kept: 0 };
+    if (await bulletStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the answer key did not arrive; the next load tries again");
+    }
 
-    let moved = 0;
+    let moved = 0, kept = 0;
     for (const actor of game.actors ?? []) {
         for (const item of actor.items ?? []) {
             if (!isTruthBullet(item)) continue;
@@ -997,9 +918,13 @@ export async function migrateFaintIntoSecrets() {
             if (typeof secret.faint === "boolean") continue;
 
             const onItem = !!item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint);
+            if (!bulletStore.has(item.uuid)) {
+                if (onItem) kept++;
+                continue;
+            }
             try {
-                await setSecret(item.uuid, { faint: onItem });
-                if (onItem && !isIdentified(item)) {
+                await setSecret(item.uuid, { faint: onItem }, { ifLive: true, weak: true });
+                if (onItem && !isIdentified(item) && typeof bulletStore.persisted(item.uuid)?.faint === "boolean") {
                     await item.update({
                         [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: false
                     });
@@ -1011,12 +936,22 @@ export async function migrateFaintIntoSecrets() {
         }
     }
 
-    if (moved) log(`Moved Faint into the ledger for ${moved} Truth Bullet(s).`);
-    return moved;
+    if (moved || kept) log(`Moved Faint into the ledger for ${moved} Truth Bullet(s); ${kept} with no row here keep it on the item.`);
+    return { moved, kept };
 }
 
+/**
+ * Bring bullets made by the old macros to the Stage 1 shape: the item's flags as
+ * before, and a row that says "neutral" - weak and only where the row has no
+ * realType, so an answer any GM wrote is never replaced by the default (E04: it
+ * ran on every load of the primary; it is the clause `truthBulletShape` now, run
+ * once, after the other GMs' copies have arrived). Also `game.drpg.migrateTruthBullets()`.
+ */
 export async function migrateTruthBullets() {
     if (!game.user.isGM || !isPrimaryGm()) return 0;
+    if (await bulletStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the answer key did not arrive; the next load tries again");
+    }
 
     const { getClock } = await import("./clock.mjs");
     const chapter = getClock().chapter;
@@ -1048,7 +983,7 @@ export async function migrateTruthBullets() {
                     // The old visibility-as-tier smuggling ends here.
                     [`flags.${MODULE_ID}.tier`]: null
                 });
-                await setSecret(item.uuid, { realType: "neutral", gmNote: "" });
+                await setSecret(item.uuid, { realType: "neutral", gmNote: "" }, { weak: true, fillOnly: true });
                 migrated.push({ actor: actor.name, name: item.name, visibility });
             } catch (err) {
                 error(`Could not migrate the Truth Bullet "${item.name}" on ${actor.name}`, err);
@@ -1225,8 +1160,9 @@ async function revertPlayerBulletEdit(item, touched, author) {
  *
  * TAKEN AS THE TRUTH, NOT COMPARED. An edit a player made while no GM was
  * online is already in the item by now, and nothing older survives a reload to
- * compare it with. That comparison waits for a record every GM shares (E04,
- * GmStore); until then it is a known gap (AUDIT §9).
+ * compare it with. E04 (1.2.63) gave the GMs a record they share - the GM store -
+ * but not this comparison: the owner put it off to E43, the stage about a hostile
+ * client (25.09.2026). Until then it is a known gap (AUDIT §9).
  */
 function guardAllBullets() {
     if (!game.user?.isGM) return;
@@ -1347,81 +1283,13 @@ function watchBulletEdits() {
 
 export function registerTruthBullets() {
     watchBulletEdits();
-
     /*
-     * The cache above is dropped by `writeLedger` on every write this module
-     * makes. This covers the writes it does NOT make: the regression suite
-     * putting the world back, and a GM editing the store by hand from the
-     * console. Same belt and braces the Remnant ledger carries, and the same
-     * hook for the same reason - this setting is client-scoped, so it never
-     * becomes a Setting document and `updateSetting` never fires for it. The
-     * argument is the full "namespace.key" id.
+     * NO SOCKET OF ITS OWN SINCE E04 (1.2.63). The answer key travelled between GMs
+     * here - a push per write, a request at load, a whole ledger in answer - merged
+     * by whole entries, which is how a GM who joined erased it (S05-01). It is a GM
+     * store now (gm-stores.mjs), and the engine carries it. Nor does it migrate at
+     * load any more: the two passes that ran on every GM's every load are clauses
+     * of the migration (migrate.mjs, `truthBulletShape` and `faintIntoSecrets`),
+     * run once, by the primary, after the other GMs' copies have arrived.
      */
-    Hooks.on("clientSettingChanged", key => {
-        if (key === `${MODULE_ID}.${SETTINGS.truthBulletSecrets}`) forgetTruthBulletLedger();
-    });
-
-    /*
-     * Every one of these is GM-to-GM, checked at BOTH ends.
-     *
-     * The receiving end alone was not enough. "A player's client never receives
-     * them - the server filters by `recipients`" describes what this module
-     * sends, not what a player's console can send, and this ledger is the answer
-     * key to every Truth Bullet in the season:
-     *
-     *   · a forged `secret` or `full` rewrote what a bullet REALLY is on every
-     *     GM's client - the trial's own answer sheet, edited by a player;
-     *   · a forged `request` was answered to `payload.from`, an id the sender
-     *     chose, so any player could ask the GMs for the entire ledger and be
-     *     sent it.
-     *
-     * `senderId` is Foundry's own argument and cannot be forged. `from` survives
-     * only as a GM's way of ignoring its own broadcast.
-     */
-    game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
-        if (!game.user?.isGM) return;
-        if (!Object.values(TB).includes(payload?.action)) return;
-
-        if (!game.users.get(senderId)?.isGM) {
-            warn(`Refused a Truth Bullet "${payload.action}" from a non-GM (${
-                game.users.get(senderId)?.name ?? senderId}).`);
-            return;
-        }
-        if (senderId === game.user.id) return;
-
-        switch (payload.action) {
-            case TB.secret:
-                if (payload.uuid) await mergeEntries({ [payload.uuid]: payload.entry });
-                break;
-
-            case TB.full:
-                await mergeEntries(payload.ledger ?? {});
-                break;
-
-            case TB.request: {
-                const ledger = readLedger();
-                if (!Object.keys(ledger).length) return;
-                try {
-                    game.socket.emit(
-                        SOCKET_EVENT,
-                        { action: TB.full, from: game.user.id, ledger },
-                        { recipients: [senderId] }
-                    );
-                } catch (err) {
-                    error("Could not answer a Truth Bullet ledger request", err);
-                }
-                break;
-            }
-        }
-    });
-
-    if (game.user.isGM) {
-        requestLedger();
-        migrateTruthBullets()
-            /* After, never beside: the Stage 1 migration writes a fresh secret for
-               every bullet it touches, and this one reads secrets. Running them
-               concurrently would race the ledger. */
-            .then(() => migrateFaintIntoSecrets())
-            .catch(err => error("Truth Bullet migration failed", err));
-    }
 }

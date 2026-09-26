@@ -462,7 +462,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
        GM's store of pending Observes must not grow, and the same request from Botan's
        own player must. Measured with the check taken out of handleObserveTarget on a
        scratch copy: this check failed, the control passed. */
-    const readKeys = `return { pending: Object.keys(game.settings.get("${MOD}", "observePending") ?? {}).length };`;
+    // Through the store (E04, 1.2.63): the declarations are the local GM store `observeStore`.
+    const readKeys = `const { observeStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { pending: Object.keys(observeStore.entries()).length };`;
     const targeted = await forge("observe.target", { actorId: ids.botan, declaration: "general", request: "" }, readKeys);
     check("SECURITY: a forged observe.target for Botan mints no Observe key, and the GM refuses it for ownership and tells p1",
         targeted.unchanged && targeted.forOwnership && targeted.told.some(t => t.what === "observe.target"), JSON.stringify(targeted));

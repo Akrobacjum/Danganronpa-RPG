@@ -50,13 +50,15 @@
  * shape the Remnant secrets use), keyed by an identity every module item
  * carries. See `drpgItemId` in inventory.mjs: a random name on everything in
  * everybody's bag, which is a name and not a mark. Which of those names is
- * poisoned is known only to the GM's own browser.
+ * poisoned is known only to the GMs' browsers - a GM store since E04 (1.2.63,
+ * gm-stores.mjs), synced between them, as the plants are (audit S08-19).
  */
 
 import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
     TIME_OF_DAY_LABELS } from "./config.mjs";
-import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
+import { SETTINGS, getSetting } from "./settings.mjs";
 import { isPrimaryGm, debug, log, warn, error, esc, pause } from "./utils.mjs";
+import { trapLedgerStore, trapPlantStore } from "./gm-stores.mjs";
 // Statically: the leaf imports config.mjs and utils.mjs only, so this edge closes no cycle (E31).
 import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
 // Statically, because `trapProjects` has to answer synchronously. The
@@ -380,14 +382,14 @@ function roomOf(actor) {
  * THE LEDGER AND THE PLANT - the item trigger
  * ========================================================================== */
 
-/** `drpgItemId` -> project id. GM browsers only; see the header. */
+/** `drpgItemId` -> `{ projectId }`. GM browsers only; see the header. */
 function ledger() {
-    return getSetting(SETTINGS.trapLedger) ?? {};
+    return game.user?.isGM ? trapLedgerStore.entries() : {};
 }
 
 /** Rooms holding something waiting to be found. GM browsers only. */
 function plants() {
-    return getSetting(SETTINGS.trapPlants) ?? {};
+    return game.user?.isGM ? trapPlantStore.entries() : {};
 }
 
 const plantKey = (room, sceneId) => `${sceneId ?? game.scenes?.current?.id ?? "-"}::${room}`;
@@ -400,11 +402,10 @@ const plantKey = (room, sceneId) => `${sceneId ?? game.scenes?.current?.id ?? "-
  */
 export async function restorePlant(room, sceneId, plant) {
     if (!game.user.isGM || !room || !plant) return false;
-    const store = { ...plants() };
     const key = plantKey(room, sceneId);
-    if (store[key]) return false;
-    store[key] = plant;
-    await setSetting(SETTINGS.trapPlants, store);
+    if (plants()[key]) return false;
+    // Stamped after the take's tombstone, so it stands again on every GM.
+    await trapPlantStore.patch(key, plant);
     debug(`A planted item went back into ${room}: its search had stopped waiting.`);
     return true;
 }
@@ -422,11 +423,12 @@ export async function plantItem(projectId, room, { sceneId = null, ...item } = {
     if (!game.user.isGM || !projectId || !room) return null;
 
     const drpgItemId = newItemIdentity();
-    const store = { ...plants() };
-    store[plantKey(room, sceneId)] = { projectId, drpgItemId, ...item };
-    await setSetting(SETTINGS.trapPlants, store);
-
-    await setSetting(SETTINGS.trapLedger, { ...ledger(), [drpgItemId]: projectId });
+    const key = plantKey(room, sceneId);
+    // A new plant replaces the room's last one whole: its tombstone first, then the
+    // new object at a later stamp - nothing of the old one outlives it (E04).
+    const gone = trapPlantStore.drop(key);
+    await Promise.all([gone, trapPlantStore.patch(key, { projectId, drpgItemId, ...item }),
+        trapLedgerStore.patch(drpgItemId, { projectId })]);
     log(`Planted "${item.name ?? "?"}" in ${room} for trap ${projectId}.`);
     return drpgItemId;
 }
@@ -452,14 +454,13 @@ export async function plantItem(projectId, room, { sceneId = null, ...item } = {
 export async function takePlant(room, sceneId = null) {
     if (!game.user.isGM || !room) return null;
 
-    const store = plants();
     const key = plantKey(room, sceneId);
-    const found = store[key];
+    const found = plants()[key] ? structuredClone(plants()[key]) : null;
     if (!found) return null;
 
-    const rest = { ...store };
-    delete rest[key];
-    await setSetting(SETTINGS.trapPlants, rest);
+    // A stamped drop (E04): the plant is gone on every GM, and a copy from a GM
+    // that had not heard yet cannot bring it back for a second finder.
+    await trapPlantStore.drop(key);
 
     // A plant no longer outlives its project (ITEM-08): `deleteProject` and
     // the season reset prune the store through `pruneTrapsFor` below.
@@ -477,24 +478,19 @@ export async function takePlant(room, sceneId = null) {
 export async function pruneTrapsFor(keep = null) {
     if (!game.user.isGM) return 0;
     const alive = id => Boolean(keep?.has?.(id));
-    let dropped = 0;
-
-    const store = plants();
-    const nextPlants = {};
-    for (const [key, entry] of Object.entries(store)) {
-        if (alive(entry?.projectId)) nextPlants[key] = entry;
-        else dropped += 1;
+    /* THIS WORLD'S ONLY (E04; audit S08-19). The two stores held every world's rows
+       in one object, and `keep` is this world's projects: another world's plants
+       and trap rows in the same browser were pruned as dead. Each store is a
+       section per world now. And every project gone (the season reset, `keep`
+       null) is the primary's cut of both - a GM offline across it is cut too. */
+    const deadPlants = Object.entries(plants()).filter(([, entry]) => !alive(entry?.projectId)).map(([key]) => key);
+    const deadRows = Object.entries(ledger()).filter(([, row]) => !alive(row?.projectId)).map(([key]) => key);
+    const dropped = deadPlants.length, stale = deadRows.length;
+    if (keep === null && isPrimaryGm()) {
+        await Promise.all([trapPlantStore.clear(), trapLedgerStore.clear()]);
+    } else {
+        await Promise.all([dropped ? trapPlantStore.dropMany(deadPlants) : null, stale ? trapLedgerStore.dropMany(deadRows) : null]);
     }
-    if (dropped) await setSetting(SETTINGS.trapPlants, nextPlants);
-
-    const rows = ledger();
-    const nextLedger = {};
-    let stale = 0;
-    for (const [itemId, projectId] of Object.entries(rows)) {
-        if (alive(projectId)) nextLedger[itemId] = projectId;
-        else stale += 1;
-    }
-    if (stale) await setSetting(SETTINGS.trapLedger, nextLedger);
 
     if (dropped || stale) log(`Traps: pruned ${dropped} plant(s) and ${stale} ledger row(s) of deleted projects.`);
     return dropped + stale;
@@ -591,7 +587,19 @@ export async function openPlantDialog(projectId) {
 /** Which trap does this item belong to, if any? GM-side only. */
 export function trapForItemId(drpgItemId) {
     if (!drpgItemId) return null;
-    return ledger()[drpgItemId] ?? null;
+    return ledger()[drpgItemId]?.projectId ?? null;
+}
+
+/**
+ * Armed item traps with no plant waiting and no row in the ledger: their object
+ * is lost - a GM browser lost them, or nobody planted one - and they can never
+ * fire. Read by `diagnoseTraps` and the case health check (E04). GM-side.
+ */
+export function itemTrapsWithoutPlant() {
+    if (!game.user?.isGM) return [];
+    const planted = new Set(Object.values(plants()).map(entry => entry?.projectId));
+    const known = new Set(Object.values(ledger()).map(row => row?.projectId));
+    return trapProjects().filter(t => t.trigger?.kind === "item" && !planted.has(t.id) && !known.has(t.id));
 }
 
 /* ==========================================================================
@@ -947,6 +955,8 @@ export function diagnoseTraps() {
         projects: [...map.byProject.keys()],
         plants: game.user.isGM ? Object.keys(plants()).length : "GM only",
         ledger: game.user.isGM ? Object.keys(ledger()).length : "GM only",
+        // Armed, and their object is nowhere (E04): see `itemTrapsWithoutPlant`.
+        withoutPlant: game.user.isGM ? itemTrapsWithoutPlant().map(t => t.name) : "GM only",
         list: trapProjects().map(t => ({
             name: t.name, room: t.room, kind: t.trigger.kind,
             afterDark: Boolean(t.trigger.afterDark),

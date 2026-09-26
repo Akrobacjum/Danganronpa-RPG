@@ -19,7 +19,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, isEclipse, incidentParticipants } from "./settings.mjs";
+import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt } from "./movement.mjs";
 import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
@@ -328,7 +328,8 @@ function myIncidentTrace(tokenDoc) {
          * side, which this client's own copy of the cast still carries.
          */
         const ids = new Set(incidentParticipants());
-        const cast = game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};
+        // The same leaf (E04: the GMs' record or this participant's copy).
+        const cast = incidentCast();
         if (cast.thirdId && cast.thirdSide !== "killer") ids.delete(cast.thirdId);
         if (!ids.size) return false;
 

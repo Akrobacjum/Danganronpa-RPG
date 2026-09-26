@@ -58,10 +58,12 @@ export async function run({ gm, ag, p1, p2, p3, check, settle, opLog, socketTraf
     await gm.eval(`const F = await import("${repoUrl}/scripts/fog.mjs");
         await F.setDiscovery(game.scenes.get("${scene}"), { actorId: "${IDS.aiko}", rooms: ["Gym"], value: true }); return true;`);
     await settle(800);
+    // Through the leaf (E04): the GMs' store on the Assistant's browser, a player's own copy on theirs.
+    const ledgerOn = c => c.eval(`return (await import("${repoUrl}/scripts/settings.mjs")).discoveryLedger();`);
     const fog = {
-        ag: await ag.eval(`return game.settings.get("${MOD}", "discoveryLedger")?.["${scene}"]?.["${IDS.aiko}"] ?? null;`),
-        p1: await p1.eval(`return game.settings.get("${MOD}", "discoveryMine")?.["${scene}"]?.["${IDS.aiko}"] ?? null;`),
-        p2: await p2.eval(`return game.settings.get("${MOD}", "discoveryMine") ?? null;`)
+        ag: (await ledgerOn(ag))?.[scene]?.[IDS.aiko] ?? null,
+        p1: (await ledgerOn(p1))?.[scene]?.[IDS.aiko] ?? null,
+        p2: await ledgerOn(p2)
     };
     check("A6: the GM's fog discovery reaches the Assistant whole, Aiko's player as their own row, and another player not at all",
         Boolean(fog.ag?.includes("Gym")) && Boolean(fog.p1?.includes("Gym")) && !JSON.stringify(fog.p2 ?? {}).includes(IDS.aiko),

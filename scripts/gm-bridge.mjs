@@ -31,6 +31,7 @@ import {
 export { removalRefusal } from "./bridge-guards.mjs";
 
 import { contentOf } from "./secret.mjs";
+import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_PROGRESS = "project.progress";
 const ACTION_SHARE = "project.share";
@@ -103,10 +104,18 @@ function onGmReady(payload, senderId) {
     // while the primary still had the question open made this client ask it
     // again, and the primary was answering the same request twice. When the
     // primary role has moved to the newcomer, the newcomer IS the primary.
-    if (senderId !== primaryGmId()) return;
+    // Its own packet says it is up, whether or not this client has seen it connect (E04's fix round).
+    if (senderId !== primaryGmId({ arriving: senderId })) return;
     resendOnGmReady();
     // And the Level Ups: a primary that has just arrived is the one holding them.
     askForOffers();
+    /* And every copy a player holds of a GM store - the door, the cast, the fog - asks the
+       arriving primary the same way (E04's fix round: the fix list's 15 and the round-2
+       review's m4). They asked on `userConnected`, which on a live reload fires before the
+       GM's world has loaded and its listeners exist: the question was lost, and a player
+       who had loaded first held no copy until its own next load. The hook carries the
+       primary's id, so a client that has not seen it connect yet still knows whom to ask. */
+    Hooks.callAll("drpgPrimaryReady", senderId);
 }
 
 export function registerGmBridge() {
@@ -316,7 +325,21 @@ async function handleAdvancement(payload, sender, ctx) {
 
     const { pendingAdvance, applyAdvancement } = await import("./level-up.mjs");
     const offer = pendingAdvance(actor);
-    if (!offer) return { refused: "no Level Up is on offer for that character" };
+    if (!offer) {
+        /* THE GMs ARE TOLD WHEN THE REFUSAL MAY BE THIS BROWSER'S (E04 C8; E31 row 5):
+           the offers store has not heard from the other GMs yet, or holds nothing at
+           all - a primary that came with an empty browser, which is the case the
+           owner's lit button now survives. Nothing is awaited between this read and
+           the latch below. */
+        const { offerStore } = await import("./gm-stores.mjs");
+        if ((!offerStore.isHydrated() || !Object.keys(offerStore.entries()).length) && !offerMissingTold.has(actor.id)) {
+            // Once per character and load: a player pressing again is not news, and a whisper each time would be a way to flood the GMs.
+            offerMissingTold.add(actor.id);
+            void whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Advance.notOfferedHere", { name: actor.name, player: sender.name }))}</p>`)
+                .catch(err => debug("Could not tell the GMs about a Level Up this browser does not hold", err));
+        }
+        return { refused: "no Level Up is on offer for that character" };
+    }
 
     const wanted = LEVEL_UP[offer.kind]?.picks ?? 0;
     const picks = Array.isArray(payload.picks) ? payload.picks : [];
@@ -353,6 +376,8 @@ async function handleAdvancement(payload, sender, ctx) {
 
 /** Characters whose Level Up is being written right now (see handleAdvancement). */
 const advancing = new Set();
+/** Characters whose refused Level Up the GMs were told this browser may not hold (see handleAdvancement). */
+const offerMissingTold = new Set();
 
 /** A GM asks the primary to record or withdraw an offer (N-2). Only a GM - the declaration's first guard. */
 async function handleAdvancementOffer(payload, sender, ctx) {
@@ -364,21 +389,30 @@ async function handleAdvancementOffer(payload, sender, ctx) {
     await recordOffer(actor.id, kind);
 }
 
-/** An owner asks for the offers on their own characters; the answer is the set. */
+/**
+ * An owner asks for the offers on their own characters; the answer is the set - once
+ * tier 2 lets the stores go, when it holds them (R2-M1), from this world's offers. Not
+ * awaited: the ask is a report nobody waits on, and the runner is not held for it.
+ */
 async function handleAdvancementAsk(payload, sender, ctx) {
-    sendOffersTo(sender.id);
+    whenGmStoresAudible().then(() => sendOffersTo(sender.id)).catch(err => error("Could not answer an owner's offers", err));
 }
 
 /**
  * Primary GM: send one user the whole set of offers on their own characters.
  * Addressed - nobody else's browser receives it - and only when they are there.
+ * With a stamp per character they own (E04): the owner's copy takes only what is
+ * newer (level-up.mjs `offersFor`, gm-stores.mjs `offerCopy`).
  */
 export async function sendOffersTo(userId) {
     const user = game.users.get(userId);
     if (!user?.active || user.isGM) return;
+    // While tier 2 holds the stores the offers are a fixture's: no owner is sent them (R2-M1).
+    if (gmStoresQuiet()) return;
     const { offersFor } = await import("./level-up.mjs");
+    const { offers, stamps } = offersFor(userId);
     game.socket.emit(SOCKET_EVENT, {
-        action: ACTION_ADVANCEMENT_OFFERS, userId, offers: offersFor(userId)
+        action: ACTION_ADVANCEMENT_OFFERS, userId, offers, stamps
     }, { recipients: [userId] });
 }
 
@@ -392,7 +426,7 @@ function onAdvancementOffers(payload, senderId) {
     if (payload?.action !== ACTION_ADVANCEMENT_OFFERS) return;
     if (!replyForMe(payload, senderId)) return;
     import("./level-up.mjs")
-        .then(m => m.receiveOffers(payload.offers))
+        .then(m => m.receiveOffers(payload.offers, payload.stamps))
         .catch(err => error("Could not keep the Level Ups offered to you", err));
 }
 
@@ -413,8 +447,12 @@ function askForOffers() {
     // two actions: which one is `ctx.action`, the runner's, not a packet field.
 async function handleShareBulletOrGiveItem(payload, sender, ctx) {
     const { shareBullet, giveItem } = await import("./handover.mjs");
-    const run = ctx.action === ACTION_SHARE_BULLET ? shareBullet : giveItem;
-    await run({ fromId: payload.fromId, toId: payload.toId, itemId: payload.itemId });
+    const args = { fromId: payload.fromId, toId: payload.toId, itemId: payload.itemId };
+    // A bullet whose answer keys this GM's stores could not open in time is refused
+    // through the bridge, with its reason (E04's fix round 10); every other refusal of a
+    // handover is the giver's whisper, as it was.
+    const out = ctx.action === ACTION_SHARE_BULLET ? await shareBullet(args) : await giveItem(args);
+    if (out?.refused) return { refused: out.refused };
 }
 
     // And into them. Same guards as the theft, mirrored - the sender has to own

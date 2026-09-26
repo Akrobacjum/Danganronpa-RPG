@@ -16,6 +16,7 @@ import { MODULE_ID } from "./config.mjs";
 import { registerSettings } from "./settings.mjs";
 import { registerLanguage } from "./i18n.mjs";
 import { runMigrationOnLoad } from "./migrate.mjs";
+import { openGmStores, registerCaseHealth } from "./gm-stores.mjs";
 import { registerSfx } from "./sfx.mjs";
 import { registerHandbooks } from "./handbooks.mjs";
 import { registerPrivateRolls } from "./private-rolls.mjs";
@@ -278,6 +279,14 @@ Hooks.once("ready", () => {
     announceNewerSystem().catch(err =>
         error("Could not mention the newer Daggerheart", err));
 
+    // Before the migration, whose clauses read the GM-only stores and wait until
+    // this client holds the other GMs' copies of them (E04, gm-stores.mjs): the
+    // claim of this browser's old keys for this world, the reset's cuts, the
+    // GM-to-GM exchange. Not awaited, for the reason the migration is not. The
+    // case's health check is hung on the moment the other GMs' copies have
+    // arrived, before the stores open, so it cannot miss it (the primary only).
+    safely("the case health check", registerCaseHealth);
+    safely("the GM stores", openGmStores);
     // First, and before anything below reads a saved shape: bring this world's
     // data up to the shape this build expects. Primary GM only, silent when
     // there is nothing to do, and deliberately NOT awaited - a slow pass must
@@ -286,9 +295,10 @@ Hooks.once("ready", () => {
     // already read is responsible for asking that pass to run again.
     safely("the 1.2.0 migration", runMigrationOnLoad);
 
-    // Before anything that reads a Remnant: the ledger asks the other GMs for
-    // anything this browser is missing, and a GM who joins mid-session must not
-    // spend the first minute unable to read their own crime scene.
+    // Before anything that reads a Remnant: the traces are drawn again when the
+    // ledger changes - this GM's write or another GM's merged in by the store
+    // (E04: the store's exchange is what a GM who joins mid-session reads its
+    // crime scene from, opened above) - and a deleted trace's row is tombstoned.
     safely("the Remnant ledger", registerRemnantLedger);
     // Before anything that can whisper. The socket listener and the render hook
     // are what turn a stub back into a sentence, and a card that arrives before

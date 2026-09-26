@@ -1,8 +1,14 @@
 /**
- * D2: the discovery ledger is a secret per player. The GM's browser holds the
- * union, each player's browser holds only their own characters' rows, the
- * world setting stays empty, a player can pull their rows, and a primary GM
- * with an empty store can rebuild the union from what the clients hold.
+ * D2: the discovery ledger is a secret per player. The GMs' browsers hold every
+ * character's cells, each player's browser holds only their own characters' rows,
+ * the world setting stays empty, a player can pull their rows, and a primary GM
+ * with an empty store can rebuild the ledger from what the players hold.
+ *
+ * Read through the leaves since E04 (1.2.63; audit S07-01): the ledger is a GM
+ * store (`discoveryStore`, a cell per character and room) and a player's rows a
+ * copy of it (`fogCopy`), and a lost browser is made with the stores' own
+ * `forget()`. And a room a GM unticked stays unticked when a player whose copy
+ * still holds it answers the primary's rebuild: the union used to take it back.
  */
 export const layers = ["ci", "local-gate"];
 
@@ -27,6 +33,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     const ids = { aiko: owned(pA.who), botan: owned(pB.who), scene: world.scene, rooms: world.rooms };
     check("gm: the harness scene has rooms to discover", ids.rooms.length >= 2, JSON.stringify(ids.rooms));
     const [p1_, p2_, p3_] = [pA, pB, pZ];
+    // What a client may know of the ledger (settings.mjs `discoveryLedger`), and the world setting it left.
+    const ledger = c => c.eval(`return (await import("${REPO}/scripts/settings.mjs")).discoveryLedger();`);
+    const worldCopy = c => c.eval(`return game.settings.get("${MOD}", "discoveredRooms") ?? {};`);
+    const stores = `const S = await import("${REPO}/scripts/gm-stores.mjs");`;
 
     // 1. the GM records two characters' discoveries
     phase("record", { flow: "discovery-ledger" });
@@ -36,50 +46,82 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
         return true;`, { timeout: 30000 });
     await settle(800);
 
-    const gmStore = await gm.eval(`return { ledger: game.settings.get("${MOD}", "discoveryLedger"), world: game.settings.get("${MOD}", "discoveredRooms") };`);
-    check("gm: the union sits in the GM's client store", gmStore.ledger?.[ids.scene]?.[ids.aiko]?.length === 2, JSON.stringify(gmStore.ledger).slice(0, 200));
-    check("gm: the world setting is empty", Object.keys(gmStore.world ?? {}).length === 0, JSON.stringify(gmStore.world));
+    const gmLedger = await ledger(gm), gmWorld = await worldCopy(gm);
+    check("gm: the ledger sits in the GMs' store", gmLedger?.[ids.scene]?.[ids.aiko]?.length === 2, JSON.stringify(gmLedger).slice(0, 200));
+    check("gm: the world setting is empty", Object.keys(gmWorld ?? {}).length === 0, JSON.stringify(gmWorld));
 
-    const mine1 = await p1_.eval(`return { mine: game.settings.get("${MOD}", "discoveryMine"), ledger: game.settings.get("${MOD}", "discoveryLedger"), world: game.settings.get("${MOD}", "discoveredRooms") };`);
+    const mine1 = { mine: await ledger(p1_), world: await worldCopy(p1_) };
     check(`${p1_.who}: holds Aiko's own rows`, (mine1.mine?.[ids.scene]?.[ids.aiko] ?? []).length === 2, JSON.stringify(mine1.mine));
     check(`${p1_.who}: holds nothing of Botan's`, !mine1.mine?.[ids.scene]?.[ids.botan], JSON.stringify(mine1.mine));
-    check(`${p1_.who}: no union on a player's browser`, Object.keys(mine1.ledger ?? {}).length === 0, JSON.stringify(mine1.ledger));
     check(`${p1_.who}: the world setting is empty here too`, Object.keys(mine1.world ?? {}).length === 0, JSON.stringify(mine1.world));
 
-    const mine3 = await p3_.eval(`return game.settings.get("${MOD}", "discoveryMine");`);
+    const mine3 = await ledger(p3_);
     check(`${p3_.who}: a bystander holds no rows at all`, !mine3?.[ids.scene]?.[ids.aiko] && !mine3?.[ids.scene]?.[ids.botan], JSON.stringify(mine3));
+
+    /* NO GM STORE ON A PLAYER'S BROWSER (E04's fix round; the round-2 reviews' R2-m1 and m1). The
+       check C9 took out read the GMs' key on p1 ("no union on a player's browser"), and nothing read
+       it since. Through the engine: on each player every store's section is empty and its key is not
+       in the browser's storage, and a write through a handle there is refused. */
+    for (const c of [p1_, p3_]) {
+        const held = await c.eval(`const E = await import("${REPO}/scripts/gm-store.mjs");
+            const rows = E.gmStoreHandles().map(h => { const s = h.section();
+                return [h.name, Object.keys(s.e).length + Object.keys(s.d).length + (s.cleared ? 1 : 0), game.settings.storage.get("client").getItem("${MOD}." + h.spec.key) !== null]; });
+            await E.gmStoreByName("discovery").patch("R60PLANTED", { "Forged Room": true });
+            return { dirty: rows.filter(([, n, key]) => n || key), stores: rows.length, planted: E.gmStoreByName("discovery").get("R60PLANTED") };`);
+        check(`${c.who}: no GM store is held on a player's browser, and a write there is refused`,
+            held.stores >= 10 && held.dirty.length === 0 && held.planted === null, JSON.stringify(held));
+    }
 
     // 2. the pull: p2 loses its rows and asks the primary GM for them
     phase("pull", { flow: "discovery-ledger" });
-    await p2_.eval(`await game.settings.set("${MOD}", "discoveryMine", {}); return true;`);
+    await p2_.eval(`${stores} await S.fogCopy.forget(); return true;`);
+    const lost2 = await ledger(p2_);
     await p2_.eval(`game.socket.emit("module.${MOD}", { action: "fog.request" }, { recipients: [game.users.find(u => u.isGM).id] }); return true;`);
     await settle(800);
-    const mine2 = await p2_.eval(`return game.settings.get("${MOD}", "discoveryMine");`);
-    check(`${p2_.who}: the pull brings Botan's rows back`, (mine2?.[ids.scene]?.[ids.botan] ?? []).length === 2, JSON.stringify(mine2));
+    const mine2 = await ledger(p2_);
+    check(`${p2_.who}: the pull brings Botan's rows back`, !lost2?.[ids.scene]?.[ids.botan] && (mine2?.[ids.scene]?.[ids.botan] ?? []).length === 2,
+        JSON.stringify({ lost2, mine2 }));
     check(`${p2_.who}: and nothing of Aiko's`, !mine2?.[ids.scene]?.[ids.aiko], JSON.stringify(mine2));
 
-    // 3. the rebuild: a primary GM with an empty store asks the clients what they hold
+    // 3. the rebuild: a primary GM with an empty store asks the players what they hold
     phase("rebuild", { flow: "discovery-ledger" });
-    // Asked the way the primary asks at `ready` (E03: a reply nobody asked for is
-    // not taken any more, so the raw packet this used to emit would be answered
-    // and ignored - which is the point of the change, not a failure of it).
-    await gm.eval(`await game.settings.set("${MOD}", "discoveryLedger", {});
+    // Asked the way the primary asks at `ready` when its store holds nothing (E03: a reply
+    // nobody asked for is not taken, so a raw packet would be answered and ignored).
+    await gm.eval(`${stores} await S.discoveryStore.forget();
         (await import("${REPO}/scripts/fog.mjs")).askForShares(); return true;`);
     await settle(1000);
-    const rebuilt = await gm.eval(`return game.settings.get("${MOD}", "discoveryLedger");`);
-    check("gm: the union is rebuilt from the players' rows", (rebuilt?.[ids.scene]?.[ids.aiko] ?? []).length === 2 && (rebuilt?.[ids.scene]?.[ids.botan] ?? []).length === 2, JSON.stringify(rebuilt).slice(0, 300));
+    const rebuilt = await ledger(gm);
+    check("gm: the ledger is rebuilt from the players' rows", (rebuilt?.[ids.scene]?.[ids.aiko] ?? []).length === 2 && (rebuilt?.[ids.scene]?.[ids.botan] ?? []).length === 2, JSON.stringify(rebuilt).slice(0, 300));
 
-    // 4. a player cannot write another character's history into the union
+    // 4. a player cannot write another character's history into the ledger
     phase("forged history", { flow: "discovery-ledger" });
     await p3_.eval(`game.socket.emit("module.${MOD}", { action: "fog.shared", store: { "${ids.scene}": { "${ids.aiko}": ["Forged Room"] } } }, { recipients: [game.users.find(u => u.isGM).id] }); return true;`);
     await settle(600);
-    const forged = await gm.eval(`return game.settings.get("${MOD}", "discoveryLedger");`);
+    const forged = await ledger(gm);
     check("gm: a forged row from a bystander is refused", !(forged?.[ids.scene]?.[ids.aiko] ?? []).includes("Forged Room"), JSON.stringify(forged).slice(0, 300));
 
-    // 5. the reset empties everyone
+    // 5. an untick stays: Aiko's first room is hidden while her player's browser hears nothing
+    //    (its listeners taken off and put back), so its copy still holds the room when it
+    //    answers the primary's next rebuild - which the union took back on 1.2.62 (S07-01).
+    phase("unticked stays unticked", { flow: "discovery-ledger" });
+    const hidden = ids.rooms[0];
+    await p1_.eval(`globalThis.drpgFogMuted = [...game.socket.listeners("module.${MOD}")];
+        for (const fn of globalThis.drpgFogMuted) game.socket.off("module.${MOD}", fn); return true;`);
+    await gm.eval(`const F = await import("${REPO}/scripts/fog.mjs");
+        await F.applyDiscoveryChanges(canvas.scene, [{ actorId: "${ids.aiko}", room: ${JSON.stringify(hidden)}, value: false }]); return true;`);
+    await settle(600);
+    await p1_.eval(`for (const fn of globalThis.drpgFogMuted ?? []) game.socket.on("module.${MOD}", fn); return true;`);
+    const staleOnP1 = (await ledger(p1_))?.[ids.scene]?.[ids.aiko] ?? [];
+    await gm.eval(`(await import("${REPO}/scripts/fog.mjs")).askForShares(); return true;`);
+    await settle(1000);
+    const afterRebuild = (await ledger(gm))?.[ids.scene]?.[ids.aiko] ?? [];
+    check("gm: a room unticked stays unticked when a player whose copy still holds it answers the rebuild",
+        staleOnP1.includes(hidden) && !afterRebuild.includes(hidden) && afterRebuild.length === 1, JSON.stringify({ hidden, staleOnP1, afterRebuild }));
+
+    // 6. the reset empties everyone
     phase("reset", { flow: "discovery-ledger" });
     await gm.eval(`const F = await import("${REPO}/scripts/fog.mjs"); await F.resetLedger(); return true;`);
     await settle(600);
-    const after = await p1_.eval(`return game.settings.get("${MOD}", "discoveryMine");`);
+    const after = await ledger(p1_);
     check(`${p1_.who}: the reset reaches the player's rows`, Object.values(after?.[ids.scene] ?? {}).every(r => !r?.length), JSON.stringify(after));
 }

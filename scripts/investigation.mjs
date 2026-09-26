@@ -272,6 +272,18 @@ export async function chargeForUnfoundKeys() {
         return null;
     }
 
+    /* NOT WHILE AN ANSWER KEY IS MISSING HERE (E04, 1.2.63). The count below reads
+       each bullet's answer key; on a browser that lacks one, a Key somebody found
+       reads as nothing, the count comes out short, the bill comes out high - and the
+       stamp below makes it final. So it holds, says why, and stamps nothing: once
+       the case is restored the charge can be asked again. */
+    const { bulletsWithoutAnswer } = await import("./gm-stores.mjs");
+    const unknown = bulletsWithoutAnswer();
+    if (unknown) {
+        await whisperToGms(`<p class="drpg-warning">${plural("DRPG.Case.chargeHeld", { n: unknown })}</p>`);
+        return null;
+    }
+
     const status = keyPlanStatus();
     // `foundAny`: every Key Remnant of this chapter somebody found, on the plan
     // or off it (F18). The bar is about what reached the trial.

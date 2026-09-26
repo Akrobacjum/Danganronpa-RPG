@@ -15,14 +15,14 @@
  *
  * Discovery is per CHARACTER, not per player and not per client: two of one
  * player's characters standing in different rooms both uncover their own.
- * The ledger is shaped `{ [sceneId]: { [actorId]: [roomName, ...] } }` and
- * written only by the primary GM - see `onUpdateToken` below. Since D2
- * (Dawid, 13.09) it is a SECRET the way the incident's cast is: the union
- * lives on the GM's browser (`SETTINGS.discoveryLedger`), each player's
- * browser holds only their own characters' rows (`SETTINGS.discoveryMine`),
- * and the rows travel over the addressed socket (`shareLedger`). "Which
- * rooms has X been in" is alibi evidence, and it no longer sits in a world
- * setting any console can read.
+ * The ledger reads `{ [sceneId]: { [actorId]: [roomName, ...] } }`, and a walk
+ * into a room is written by the primary GM - see `onUpdateToken` below. Since D2
+ * (Dawid, 13.09) it is a SECRET the way the incident's cast is: the GMs'
+ * browsers hold every character's (a GM store since E04, `discoveryStore`: a
+ * cell per room, true or unticked, merged by stamp between the GMs), each
+ * player's browser only their own characters' (`fogCopy`), and the rows travel
+ * over the addressed socket (`shareLedger`). "Which rooms has X been in" is
+ * alibi evidence, and it no longer sits in a world setting any console can read.
  *
  * The Mastermind is the one exception, and it falls out of this model for
  * free: every room counts as "visited" for them (see `myDiscoveredRooms`),
@@ -42,6 +42,8 @@ import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural } from "./utils.mjs";
 import { ENTER, BEAT, reducedMotion, glassOn, SEAM_GLOW } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
+import { discoveryStore, fogCopy, fogSectionFor } from "./gm-stores.mjs";
+import { newestIn, gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
 
@@ -653,14 +655,22 @@ function allDiscovered() {
 
 /* ==========================================================================
  * THE LEDGER'S ROAD (D2) - the GM's store, and the rows each player is sent
+ * --------------------------------------------------------------------------
+ * A GM STORE SINCE E04 (1.2.63; audit S07-01): `discoveryStore` (gm-stores.mjs),
+ * a cell per character and room, true or false, each stamped and merged by the
+ * newest stamp between the GMs - the union written whole, which only ever grew,
+ * is gone, and with it the GM-to-GM message that set another GM's copy whole.
+ * A player holds a section of the same cells for their own characters
+ * (`fogCopy`), sent by the GM that wrote them and merged cell by cell.
  * ========================================================================== */
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
-const FOG_ROWS = "fog.rows";          // primary GM -> one player: your own rows
-const FOG_LEDGER = "fog.ledger";      // GM -> the other GMs: the whole union
-const FOG_REQUEST = "fog.request";    // anyone -> primary GM: send me mine
+const FOG_ROWS = "fog.rows";          // a GM -> one player: the cells of your own characters
+const FOG_REQUEST = "fog.request";    // a player -> primary GM: send me mine
 const FOG_SHARE_ASK = "fog.shareAsk"; // primary GM -> everyone: what do you hold?
-const FOG_SHARED = "fog.shared";      // anyone -> primary GM: this is what I hold
+const FOG_SHARED = "fog.shared";      // a player -> primary GM: this is what I hold
+
+const cellKey = (sceneId, actorId) => `${sceneId}/${actorId}`;
 
 /** The rows of `ledger` that belong to characters `user` owns. */
 function rowsFor(ledger, user) {
@@ -676,70 +686,137 @@ function rowsFor(ledger, user) {
     return out;
 }
 
-/** Union two ledgers, room by room. */
-function mergeLedgers(a, b) {
-    const out = foundry.utils.deepClone(a ?? {});
-    for (const [sceneId, forScene] of Object.entries(b ?? {})) {
-        out[sceneId] = out[sceneId] ?? {};
-        for (const [actorId, rooms] of Object.entries(forScene ?? {})) {
-            out[sceneId][actorId] = Array.from(new Set([...(out[sceneId][actorId] ?? []), ...(rooms ?? [])]));
-        }
-    }
-    return out;
-}
-
-/** Send `user` the store they are entitled to: the union to a GM, their rows to a player. */
-function sendStoreTo(user, ledger = allDiscovered()) {
-    if (!user || user.id === game.user.id) return;
+/**
+ * Send a player the cells of their own characters: a section of the GMs' store,
+ * with its stamps and its watermark, which their copy merges (`fogCopy`). Addressed
+ * twice: by the socket's recipients, and by `userId` inside the packet, so a relay
+ * that ignores the first still cannot put one player's rows on another's browser.
+ * A GM is sent nothing: the store reaches the GMs itself.
+ */
+function sendStoreTo(user) {
+    if (!user || user.isGM || user.id === game.user.id) return;
+    // While tier 2 holds the stores or stands in another world, the cells are a fixture's (R2-M1, M3).
+    if (gmStoresQuiet()) return;
     try {
-        // Addressed twice: by the socket's recipients, and by `userId` inside
-        // the packet, so a relay that ignores the first still cannot put one
-        // player's rows on another player's browser.
-        if (user.isGM) {
-            game.socket.emit(SOCKET_EVENT, { action: FOG_LEDGER, userId: user.id, ledger }, { recipients: [user.id] });
-        } else {
-            game.socket.emit(SOCKET_EVENT, { action: FOG_ROWS, userId: user.id, rows: rowsFor(ledger, user) }, { recipients: [user.id] });
-        }
+        const section = fogSectionFor(user);
+        game.socket.emit(SOCKET_EVENT, { action: FOG_ROWS, userId: user.id, section, stamps: { "": newestIn(section) } },
+            { recipients: [user.id] });
     } catch (err) {
         error(`Could not send the fog ledger to ${user.name}`, err);
     }
 }
 
-/** Every connected client gets its share of `ledger`. */
-function shareLedger(ledger) {
-    for (const user of game.users.filter(u => u.active && u.id !== game.user.id)) sendStoreTo(user, ledger);
+/** Every connected player gets their cells. */
+function shareLedger() {
+    for (const user of game.users.filter(u => u.active && !u.isGM && u.id !== game.user.id)) sendStoreTo(user);
 }
 
 /**
- * The one write. GM-only: this browser's copy of the union, then everyone's
- * share of it over the socket, then the repaint the setting's `onChange`
- * already triggers here.
+ * AFTER A RESTORE (gm-stores.mjs `restoreCase`; the design's 6.2): every connected
+ * player is sent the cells of their own characters again (`sendStoreTo`), which their
+ * copy merges cell by cell. Nothing while the suite holds the stores or stands in
+ * another world (`gmStoresQuiet`). Answers how many players were sent their cells.
  */
-async function writeLedger(next) {
-    if (!game.user.isGM) return false;
-    await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger, next ?? {});
-    shareLedger(next ?? {});
+export function retellFog() {
+    if (!game.user?.isGM || gmStoresQuiet()) return 0;
+    shareLedger();
+    return game.users.filter(u => u.active && !u.isGM && u.id !== game.user.id).length;
+}
+
+/**
+ * THE ONE WRITE, GM-only: cells into the store - `{ "sceneId/actorId": { room: bool } }`
+ * - then every connected player their share. The store's own options say how (a
+ * seed is weak and fill-only; a GM's tick or untick, and a student walking in, are
+ * decisions at a real stamp). Answers whether anything was written.
+ */
+async function writeCells(cells, opts = {}) {
+    if (!game.user.isGM || !Object.keys(cells ?? {}).length) return false;
+    await discoveryStore.patchMany(cells, opts);
+    shareLedger();
     return true;
 }
 
-/** The season reset: an empty union, everywhere. */
+/**
+ * The cells that make one scene's rows read `matrix` (`{ [actorId]: [room, ...] }`):
+ * every room in it true, and every room its actor held that is not in it false - an
+ * untick, stamped, so a copy that still holds the room cannot bring it back.
+ */
+function cellsFor(sceneId, matrix, actorIds = Object.keys(matrix ?? {})) {
+    const held = allDiscovered()[sceneId] ?? {};
+    const cells = {};
+    for (const actorId of actorIds) {
+        const want = new Set(matrix?.[actorId] ?? []);
+        const row = {};
+        for (const room of want) if (!(held[actorId] ?? []).includes(room)) row[room] = true;
+        for (const room of held[actorId] ?? []) if (!want.has(room)) row[room] = false;
+        if (Object.keys(row).length) cells[cellKey(sceneId, actorId)] = row;
+    }
+    return cells;
+}
+
+/**
+ * The season reset: every cell gone, everywhere. The primary's clear raises the
+ * store's watermark, which reaches every GM and, in the rows sent here, every
+ * connected player; the reset's cut in the clock reaches the rest when they load.
+ * Another GM (a console - the reset is the primary's since E04 C10) drops the rows
+ * it holds.
+ */
 export async function resetLedger() {
-    return writeLedger({});
+    if (!game.user.isGM) return false;
+    if (isPrimaryGm()) await discoveryStore.clear();
+    else await discoveryStore.dropMany(Object.keys(discoveryStore.entries()));
+    shareLedger();
+    return true;
 }
 
 /**
- * A world that updates mid-season still has its ledger in the world setting.
- * Lifted once into the primary GM's store, and the world setting emptied so
- * no console can read it again.
+ * A world that updated mid-season may still hold its ledger in the world setting,
+ * which any console reads (D2 lifted it on every load of the primary until E04). The
+ * clause `liftDiscoveryLedger` (migrate.mjs, since 1.2.63) runs this once, on the
+ * primary, after the store holds the other GMs' copies - and after
+ * `forgetMonokumaWalks`, whose rows are not taken here either (S01-31).
+ *
+ * NOTHING LEAVES WORLD DATA BEFORE THE STORE HOLDS IT. The rows go in weak and
+ * fill-only - a cell any GM decided wins, an untick above all - and the world
+ * setting is emptied only once every one of them reads back from storage; then it
+ * is read back too. Idempotent: a world already through this has nothing in it.
+ *
+ * @returns {Promise<null|{lifted: number, monokuma: number, emptied: boolean}>}
  */
-async function migrateLedger() {
-    if (!isPrimaryGm()) return false;
+export async function liftDiscoveryLedger() {
+    if (!isPrimaryGm()) return null;
+    if (await discoveryStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the fog ledger did not arrive; the next load tries again");
+    }
     const old = game.settings.get(MODULE_ID, SETTINGS.discoveredRooms) ?? {};
-    if (!Object.keys(old).length) return false;
-    await writeLedger(mergeLedgers(allDiscovered(), old));
+    const cells = {};
+    let monokuma = 0;
+    for (const [sceneId, forScene] of Object.entries(old)) {
+        for (const [actorId, rooms] of Object.entries(forScene ?? {})) {
+            const actor = game.actors.get(actorId);
+            if (actor && isMonokuma(actor)) { monokuma++; continue; }
+            const row = Object.fromEntries((rooms ?? []).filter(r => typeof r === "string" && r).map(room => [room, true]));
+            if (Object.keys(row).length) cells[cellKey(sceneId, actorId)] = row;
+        }
+    }
+    if (!Object.keys(cells).length && !Object.keys(old).length) return null;
+    if (Object.keys(cells).length) {
+        await discoveryStore.patchMany(cells, { weak: true, fillOnly: true });
+        await discoveryStore.idle();
+        const unheld = Object.entries(cells).filter(([key, row]) => {
+            const held = discoveryStore.persisted(key) ?? {};
+            return Object.keys(row).some(room => !Object.hasOwn(held, room));
+        });
+        if (unheld.length) {
+            warn(`The fog ledger kept its world copy: ${unheld.length} row(s) did not read back from the store.`);
+            return { lifted: 0, monokuma, emptied: false };
+        }
+    }
     await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, {});
-    log("Lifted the discovery ledger out of world data (D2).");
-    return true;
+    const emptied = !Object.keys(game.settings.get(MODULE_ID, SETTINGS.discoveredRooms) ?? {}).length;
+    if (emptied) log(`Lifted the discovery ledger out of world data (D2): ${Object.keys(cells).length} row(s).`);
+    shareLedger();
+    return { lifted: Object.keys(cells).length, monokuma, emptied };
 }
 
 /** What this client holds, for a primary GM rebuilding a lost union. */
@@ -778,8 +855,11 @@ function guardFogShare(sender, payload, ctx) {
     return fogShareRefusal({ sender, askedAt: shareAskedAt, answered: shareAnswered });
 }
 
-/** The primary's "what do you hold?". Exported for the ledger scenario, which cannot
- *  reload a browser to reach the `ready` that asks it. */
+/**
+ * The primary's "what do you hold?" - asked only when its store, with the other GMs'
+ * copies in, holds nothing: the rebuild of a lost ledger (E04). Exported for the ledger
+ * scenario, which cannot reload a browser to reach the `ready` that asks it.
+ */
 export function askForShares() {
     shareAskedAt = Date.now();
     shareAnswered.clear();
@@ -795,39 +875,40 @@ function registerLedgerRoad() {
         try {
             switch (payload.action) {
                 case FOG_ROWS:
-                    // My rows, from a GM, addressed to me - and kept only for
-                    // the characters I own. A player's browser holds nothing else.
+                    // My characters' cells, from a GM, addressed to me - merged into my
+                    // copy cell by cell (`fogCopy`), which keeps only my own characters'.
                     if (!sender.isGM || game.user.isGM || payload.userId !== game.user.id) return;
-                    await game.settings.set(MODULE_ID, SETTINGS.discoveryMine, rowsFor(payload.rows ?? {}, game.user));
-                    return;
-                case FOG_LEDGER:
-                    // The union, from a GM, to a GM. Set, not written: a write
-                    // would share it back and the two GMs would ping-pong.
-                    if (!sender.isGM || !game.user.isGM || payload.userId !== game.user.id) return;
-                    await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger, payload.ledger ?? {});
+                    await fogCopy.receive(ownSection(payload.section), payload.stamps);
                     return;
                 case FOG_REQUEST:
                     if (!isPrimaryGm()) return;
+                    // Asked while tier 2 holds the stores: answered once it lets them go, from this world's cells.
+                    await whenGmStoresAudible();
+                    await discoveryStore.whenHydrated();
                     sendStoreTo(sender);
                     return;
                 case FOG_SHARE_ASK:
-                    if (sender.id !== primaryGmId()) return;
+                    if (sender.id !== primaryGmId() || game.user.isGM) return;
                     game.socket.emit(SOCKET_EVENT, { action: FOG_SHARED, store: myStore() }, { recipients: [senderId] });
                     return;
                 case FOG_SHARED: {
-                    if (!isPrimaryGm()) return;
+                    if (!isPrimaryGm() || sender.isGM) return;
                     const why = guardFogShare(sender, payload, { asker: senderId, requestId: payload.requestId ?? null });
                     if (why) {
                         debug(`Ignored a fog ledger reply from ${sender.name}: ${why}.`);
                         return;
                     }
-                    if (!sender.isGM) shareAnswered.add(sender.id);
-                    // A GM's copy is the union; a player's is trusted only for
-                    // the characters they own, so nobody can write another
-                    // character's history into the GM's record.
-                    const offered = sender.isGM ? (payload.store ?? {}) : rowsFor(payload.store ?? {}, sender);
-                    const merged = mergeLedgers(allDiscovered(), offered);
-                    if (JSON.stringify(merged) !== JSON.stringify(allDiscovered())) await writeLedger(merged);
+                    shareAnswered.add(sender.id);
+                    // A player's rows are taken only for the characters they own, so nobody
+                    // can write another character's history into the GMs' record - and weak
+                    // and fill-only (E04): what a GM decided, an untick above all, stands.
+                    const cells = {};
+                    for (const [sceneId, forScene] of Object.entries(rowsFor(payload.store ?? {}, sender))) {
+                        for (const [actorId, rooms] of Object.entries(forScene)) {
+                            cells[cellKey(sceneId, actorId)] = Object.fromEntries(rooms.map(room => [room, true]));
+                        }
+                    }
+                    await writeCells(cells, { weak: true, fillOnly: true });
                     return;
                 }
                 default:
@@ -838,32 +919,44 @@ function registerLedgerRoad() {
         }
     });
 
-    // THE PULL, AND THE PUSH BEHIND IT. Whoever comes up last asks: a player
-    // for their rows, a GM for the union. The primary, when it comes up with
-    // nothing (a new browser), asks every client for what it holds and
-    // rebuilds the union from the answers. The push on `userConnected` is the
-    // backstop for a client whose request was lost.
+    /* THE PULL, AND THE PUSH BEHIND IT. A player asks the primary for its cells when
+       it loads, having first taken in the rows its browser held before E04 (weak: they
+       add what no GM said, never over what one did), and again when a primary GM's
+       world has loaded (the bridge's "a GM is listening" signal, `drpgPrimaryReady`).
+       The primary, once its store holds the other GMs' copies, rebuilds the ledger
+       from the players only when it holds nothing at all, and otherwise sends every
+       player their cells. Until E04's fix round a push on `userConnected` was called
+       the backstop for a request that was lost; it reached a player's browser before
+       its listener existed (the measurement gm-bridge.mjs records), so it is gone,
+       and the ask on the primary's arrival is that backstop (the round-2 review's
+       m4). The lift of the old world setting is a migration clause
+       (`liftDiscoveryLedger`, migrate.mjs), no longer this hook's. */
+    const askForCells = (primary = primaryGmId()) => {
+        if (!primary) return;
+        try { game.socket.emit(SOCKET_EVENT, { action: FOG_REQUEST }, { recipients: [primary] }); }
+        catch (err) { error("Could not ask for the fog ledger", err); }
+    };
     Hooks.once("ready", () => {
-        step("lift the ledger out of world data", () => migrateLedger());
-        try {
-            const primary = primaryGmId();
-            if (isPrimaryGm()) {
-                if (!Object.keys(allDiscovered()).length) {
-                    askForShares();
-                } else {
-                    shareLedger(allDiscovered());
-                }
-            } else if (primary) {
-                game.socket.emit(SOCKET_EVENT, { action: FOG_REQUEST }, { recipients: [primary] });
-            }
-        } catch (err) {
-            error("Could not ask for the fog ledger", err);
+        if (!game.user.isGM) {
+            step("take in this browser's old fog rows", () => fogCopy.claim());
+            askForCells();
+            Hooks.on("drpgPrimaryReady", askForCells);
+            return;
         }
+        step("share or rebuild the ledger", () => discoveryStore.whenHydrated().then(() => {
+            if (!isPrimaryGm()) return;
+            if (!Object.keys(discoveryStore.entries()).length) askForShares();
+            else shareLedger();
+        }));
     });
-    Hooks.on("userConnected", (user, connected) => {
-        if (!connected || !isPrimaryGm()) return;
-        sendStoreTo(user);
-    });
+}
+
+/** The rows of a section a GM sent that are this user's own characters' (and the watermark). */
+function ownSection(section) {
+    if (!section || typeof section !== "object") return section;
+    const mine = key => Boolean(game.actors.get(String(key).split("/")[1] ?? "")?.isOwner);
+    const pickOwn = part => Object.fromEntries(Object.entries(section[part] ?? {}).filter(([key]) => mine(key)));
+    return { e: pickOwn("e"), t: pickOwn("t"), d: pickOwn("d"), cleared: section.cleared ?? 0 };
 }
 
 /**
@@ -904,22 +997,17 @@ export function discoveredFor(sceneId, actorId) {
  */
 export async function applyDiscoveryChanges(scene, changes = []) {
     if (!game.user.isGM || !scene || !changes.length) return false;
-    const all = allDiscovered();
-    const forScene = { ...(all[scene.id] ?? {}) };
-    let moved = false;
+    const forScene = allDiscovered()[scene.id] ?? {};
+    const cells = {};
     for (const { actorId, room, value } of changes) {
-        const rooms = new Set(forScene[actorId] ?? []);
-        if (rooms.has(room) === Boolean(value)) continue;
-        if (value) rooms.add(room);
-        else rooms.delete(room);
-        forScene[actorId] = Array.from(rooms);
-        moved = true;
+        if ((forScene[actorId] ?? []).includes(room) === Boolean(value)) continue;
+        // A cell each, stamped: an untick is `false`, which a copy still holding the room cannot undo (E04).
+        (cells[cellKey(scene.id, actorId)] ??= {})[room] = Boolean(value);
     }
     // Nothing moved is nothing written: a write here sends every client its
     // share of the ledger again and repaints the fog, and Apply is pressed far
     // more often for a lock than for the fog.
-    if (!moved) return false;
-    return writeLedger({ ...all, [scene.id]: forScene });
+    return writeCells(cells);
 }
 
 /**
@@ -934,8 +1022,8 @@ export async function applyDiscoveryChanges(scene, changes = []) {
  */
 export async function saveDiscoveryMatrix(scene, matrix) {
     if (!game.user.isGM || !scene) return;
-    const all = allDiscovered();
-    await writeLedger({ ...all, [scene.id]: matrix });
+    const actorIds = new Set([...Object.keys(allDiscovered()[scene.id] ?? {}), ...Object.keys(matrix ?? {})]);
+    await writeCells(cellsFor(scene.id, matrix, [...actorIds]));
 }
 
 /**
@@ -978,16 +1066,10 @@ async function recordDiscovery(scene, actor, room) {
        it stops being changed BY them. */
     if (isMonokuma(actor)) return false;
 
-    const all = allDiscovered();
-    const forScene = all[scene.id] ?? {};
-    const forActor = forScene[actor.id] ?? [];
-    if (forActor.includes(room)) return false;
+    if (discoveredFor(scene.id, actor.id).includes(room)) return false;
 
-    const next = {
-        ...all,
-        [scene.id]: { ...forScene, [actor.id]: [...forActor, room] }
-    };
-    await writeLedger(next);
+    // A decision at a real stamp (E04): walking in again finds a room a GM unticked.
+    await writeCells({ [cellKey(scene.id, actor.id)]: { [room]: true } });
     debug(`${actor.name} discovered "${room}" on ${scene.name}.`);
     return true;
 }
@@ -1033,9 +1115,8 @@ export async function seedDiscovery(scene = canvas?.scene) {
     }
     if (!isPrimaryGm() || !scene) return false;
 
-    const all = allDiscovered();
-    const forScene = { ...(all[scene.id] ?? {}) };
-    let changed = false;
+    const forScene = allDiscovered()[scene.id] ?? {};
+    const cells = {};
 
     for (const tokenDoc of scene.tokens ?? []) {
         const actor = tokenDoc.actor;
@@ -1052,16 +1133,16 @@ export async function seedDiscovery(scene = canvas?.scene) {
         const room = roomOfToken(tokenDoc);
         if (!room) continue;
 
-        const known = forScene[actor.id] ?? [];
-        if (known.includes(room)) continue;
-
-        forScene[actor.id] = [...known, room];
-        changed = true;
+        if ((forScene[actor.id] ?? []).includes(room)) continue;
+        (cells[cellKey(scene.id, actor.id)] ??= {})[room] = true;
     }
 
-    if (!changed) return false;
+    if (!Object.keys(cells).length) return false;
 
-    await writeLedger({ ...all, [scene.id]: forScene });
+    /* Weak and fill-only (E04): standing in a room is not a decision. A cell a GM
+       unticked stays unticked, here and when this seed meets that GM's copy - at a
+       real stamp it would have won over the untick in the merge. */
+    await writeCells(cells, { weak: true, fillOnly: true });
     debug(`Seeded the fog ledger with the rooms characters were already standing in on ${scene.name}.`);
     return true;
 }
@@ -1154,17 +1235,13 @@ export function reconcileMirror() {
 export async function setDiscovery(scene, { actorId = null, rooms = [], value } = {}) {
     if (!game.user.isGM || !scene) return;
 
-    const all = allDiscovered();
-    const forScene = { ...(all[scene.id] ?? {}) };
+    const forScene = allDiscovered()[scene.id] ?? {};
     const actorIds = actorId ? [actorId] : Object.keys(forScene).length
         ? Array.from(new Set([...Object.keys(forScene), ...(await studentActorIds())]))
         : await studentActorIds();
 
-    for (const id of actorIds) {
-        forScene[id] = value ? Array.from(new Set(rooms)) : [];
-    }
-
-    await writeLedger({ ...all, [scene.id]: forScene });
+    const matrix = Object.fromEntries(actorIds.map(id => [id, value ? Array.from(new Set(rooms)) : []]));
+    await writeCells(cellsFor(scene.id, matrix, actorIds));
 }
 
 async function studentActorIds() {

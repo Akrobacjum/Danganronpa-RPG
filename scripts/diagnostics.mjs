@@ -10,6 +10,7 @@
 
 import { MODULE_ID, moduleVersion, STARTING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
+import { bulletStore, remnantStore } from "./gm-stores.mjs";
 import { monokumas, getDespair, despairMax } from "./despair.mjs";
 import { monokumaFor, students, unassigned } from "./assignments.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -1053,9 +1054,9 @@ export function diagnoseTruthBullets() {
     }`);
 
     if (game.user.isGM) {
-        const ledger = game.settings.get(MODULE_ID, SETTINGS.truthBulletSecrets) ?? {};
+        // The GM store's rows for this world (E04): tombstones are not rows, so every key is a live one.
         const live = new Set(bullets.map(b => b.item.uuid));
-        const known = Object.entries(ledger).filter(([, e]) => e && !e.deleted).map(([uuid]) => uuid);
+        const known = Object.keys(bulletStore.entries());
 
         const missing = bullets.filter(b => !known.includes(b.item.uuid));
         const orphans = known.filter(uuid => !live.has(uuid));
@@ -1068,18 +1069,24 @@ export function diagnoseTruthBullets() {
         lines.push(`   entries whose bullet is gone: ${orphans.length}${
             orphans.length ? "  ← harmless, but dropSecret() was missed somewhere" : ""
         }`);
-        lines.push("Back the ledger up with game.drpg.exportLedger() - it lives in browser storage, not the world.");
+        lines.push("It lives in GM browsers, not the world: back the case up from the GM panel (Back up the case),");
+        lines.push("   and see game.drpg.diagnoseGmStores() for every GM store on this browser.");
     }
 
     // "Neutral" describes a BULLET the player has not identified yet, not a kind
     // of trace anyone leaves. A Neutral Remnant on the map is almost always a GM
     // who meant to pick a real category - Observe prices it as Prep so it still
-    // works, but the GM should know it is guessing on their behalf.
+    // works, but the GM should know it is guessing on their behalf. The type is
+    // the trace's row (the GM store since E04); the token's own flag only on a
+    // trace from before the ledger that `migrateRemnants` has not reached. Read
+    // off the token alone it could not see a trace placed since the ledger, whose
+    // token carries no type (`placeRemnant`).
     const neutral = [];
     for (const scene of game.scenes) {
         for (const token of scene.tokens) {
             if (!token.getFlag(MODULE_ID, "isRemnant")) continue;
-            if (token.getFlag(MODULE_ID, "remnantType") !== "neutral") continue;
+            const type = remnantStore.get(`${scene.id}.${token.id}`)?.type ?? token.getFlag(MODULE_ID, "remnantType");
+            if (type !== "neutral") continue;
             neutral.push(scene.name);
         }
     }
@@ -1099,6 +1106,60 @@ export function diagnoseTruthBullets() {
     }
 
     return report("Truth Bullet diagnostics", lines);
+}
+
+/**
+ * THE GM STORES ON THIS BROWSER (E04, 1.2.63): what each holds of this world -
+ * its live rows, tombstones, the reset's cut, its bytes, the other worlds it
+ * carries, and what the upgrade's claim took from the old key - then the case's
+ * health report, the rows the primary's check reads. A store whose old key
+ * changed since the claim (a GM went back to 1.2.x) is named with the call that
+ * takes what changed. Console text, like the rest of this file.
+ *
+ *     game.drpg.diagnoseGmStores()
+ */
+export async function diagnoseGmStores() {
+    const lines = [];
+    if (!game.user.isGM) {
+        lines.push("Not a GM: the GM stores live on GM browsers only.");
+        log(lines.join("\n"));
+        return lines.join("\n");
+    }
+    const { gmStoreHandles, gmStoreHydration } = await import("./gm-store.mjs");
+    const { gmStoreHealth, healthLine, gmStoreStatus } = await import("./gm-stores.mjs");
+    const hyd = gmStoreHydration();
+    lines.push(`GM stores of world ${game.world.id} on this browser: ${hyd.state}${
+        hyd.waiting.length ? ` (still waiting for ${hyd.waiting.map(id => game.users.get(id)?.name ?? id).join(", ")})` : ""}`);
+    for (const handle of gmStoreHandles()) {
+        const s = handle.status();
+        const census = s.census
+            ? `claimed ${s.census.claimed} of the old key's ${s.census.legacy} row(s), ${s.census.left} left`
+            : (s.claimFailed ? `the claim FAILED: ${s.claimFailed}` : "no claim yet");
+        lines.push(`   ${s.name}: ${s.live} live, ${s.dead} tombstone(s), cut ${s.cleared ? new Date(s.cleared).toISOString() : "none"}, `
+            + `${s.bytes} bytes, ${s.otherWorlds} other world(s); ${census}${handle.legacyChanged()
+                ? `  ← the old key changed since: game.drpg.gmStoreReclaim("${s.name}")`
+                : (s.census?.reasons?.notPrimary && isPrimaryGm()
+                    ? `  ← ${s.census.reasons.notPrimary} old row(s) left for the primary's browser, which this is now: game.drpg.gmStoreReclaim("${s.name}")` : "")}`);
+    }
+    const status = gmStoreStatus();
+    lines.push(`   in all ${Math.round(status.stores / 1024)} KB; everything the module keeps in this browser ${Math.round(status.total / 1024)} KB`);
+    // The traps' two stores and what is armed (traps.mjs `diagnoseTraps`, E04).
+    try {
+        const { diagnoseTraps } = await import("./traps.mjs");
+        const t = diagnoseTraps();
+        lines.push(`Traps: ${t.armed} armed, ${t.plants} plant(s) waiting, ${t.ledger} planted object(s) known${
+            t.withoutPlant?.length ? `  ← armed with their object nowhere: ${t.withoutPlant.join(", ")}` : ""}`);
+    } catch (err) {
+        lines.push(`Traps: could not be read (${err?.message ?? err})`);
+    }
+    const report = await gmStoreHealth();
+    for (const row of report?.rows ?? []) lines.push(`   [${row.level}] ${healthLine(row)}`);
+    if (report?.counts?.bullets?.fillable) {
+        lines.push(`   ${report.counts.bullets.fillable} of the bullets with no real type can take it from their trace: game.drpg.fillBulletsFromTraces()`);
+    }
+    lines.push("Back the case up from the GM panel (Back up the case), or game.drpg.backupCase().");
+    log(lines.join("\n"));
+    return lines.join("\n");
 }
 
 /**

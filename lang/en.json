@@ -1423,7 +1423,9 @@
       "crowdedTitle": "Too many people",
       "crowded": "{name} walked in on top of {third}. Four people in one room is not a murder anybody can carry out - the incident is cancelled.",
       "crowdedNote": "Nobody dies. What the fight already did stands: the wounds, the Sanity, and anything it left on the floor.",
-      "freeResolution": "You stopped them cold. Take Survive or Role reversal this turn - no roll, it simply works."
+      "freeResolution": "You stopped them cold. Take Survive or Role reversal this turn - no roll, it simply works.",
+      "castMissingHere": "This browser holds no cast for the running incident, so its turn cannot be worked out here. Enter the cast by hand (the case's health check), or let the GM whose browser holds it act.",
+      "castNotArrived": "The other GMs' copies of the incident's cast have not arrived on this browser yet: try again in a moment."
     },
     "Investigation": {
       "room": "Room",
@@ -1745,7 +1747,8 @@
       "receivedBullet": "Evidence shared with you",
       "receivedBulletFrom": "{who} showed you {name}, and you have written down a copy.",
       "receivedItem": "You have been handed something",
-      "receivedItemFrom": "{who} handed you {name}."
+      "receivedItemFrom": "{who} handed you {name}.",
+      "answerKeyMissing": "{name} cannot be handed over now: what it really is is not on the GM's browser. The GM can bring it back from a backup (Restore the case)."
     },
     "Observe": {
       "declarePrompt": "How are you looking?",
@@ -1848,11 +1851,6 @@
         "one": "{n} Truth Bullet made before this version now carries a type, a visibility and a chapter. Its real type could not be recovered, so it is recorded as Neutral - correct it from Give / take items if it matters.",
         "other": "{n} Truth Bullets made before this version now carry a type, a visibility and a chapter. Their real type could not be recovered, so each is recorded as Neutral - correct the ones that matter from Give / take items."
       },
-      "imported": {
-        "one": "Merged {n} Truth Bullet record into the ledger.",
-        "other": "Merged {n} Truth Bullet records into the ledger."
-      },
-      "importFailed": "That file is not a Truth Bullet ledger.",
       "editReverted": "{player} changed their Truth Bullet “{bullet}” - what it says or what it is. The change was put back: only a GM writes on evidence.",
       "editUnrestored": "{player} changed the Truth Bullet “{bullet}”, and there was no record of it to put it back from. The change stayed on that one copy and went no further. Check it by hand."
     },
@@ -2428,7 +2426,9 @@
         "failed": "It failed on the GM's client; the GM's console has the details.",
         "refused": "The GM's client refused it.",
         "noGm": "No GM is connected.",
-        "noAnswer": "The GM's client did not answer in time."
+        "noAnswer": "The GM's client did not answer in time.",
+        "answerKeyMissing": "The GM's browser does not hold this bullet's answer key. The GM has been told.",
+        "keysNotOpen": "The GM's browser has not opened the answer keys yet. The GM has been told."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",
@@ -2655,6 +2655,7 @@
       "offered": "{kind}. Press the button beside your name on your sheet and choose - you have {n} pick(s).",
       "offerSent": "{name} has been told; the choice is theirs now.",
       "offerFailed": "The offer could not be written to that character.",
+      "notOfferedHere": "{player} asked to spend a Level Up on {name}, and this GM's browser holds no offer for them - it has not heard from the other GMs yet, or holds no offers at all. If one was made, offer it again, or restore the case from a backup (GM panel).",
       "offerTooltip": "{kind} - press to choose what you take.",
       "whichKind": "Which Level Up did <strong>{actor}</strong> earn?",
       "kind": {
@@ -3283,6 +3284,145 @@
       "unknownSender": "Daggerheart asked your browser to make a change for a sender Foundry did not name, and it was refused. If players' Hope, Stress or Fear stop changing when they roll, this is why - tell the module's author.",
       "busyFear": "Daggerheart moved Fear {steps} times in ten seconds for {name}. Every step was made; have a look at the chat if that seems like more rolls than there were.",
       "backstop": "The guard on Daggerheart's GM relay could not take Daggerheart {version}'s own listener off the channel, so a fallback checks each change in front of it instead. Players' requests are still checked. Tell the module's author."
+    },
+    "GmStore": {
+      "saveFailed": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and the GMs connected now hold a copy. Back up the case now (GM panel, Between sessions).",
+      "syncTimedOut": "The GM store did not hear from {names}. It carries on with what this browser holds, and their copy is merged when it arrives.",
+      "claimFailed": {
+        "one": "The GM store could not take over this browser's old \"{store}\" ({n} row): {error}. Nothing was changed; the old copy is still here.",
+        "other": "The GM store could not take over this browser's old \"{store}\" ({n} rows): {error}. Nothing was changed; the old copy is still here."
+      },
+      "resetPrimaryOnly": "Only the primary GM, {name}, can reset the season, so that one browser decides what every GM's copy of the case loses. Ask {name}, or reset when you are the only GM connected.",
+      "resetOfflineGms": {
+        "one": "One GM is not connected ({names}): their browser drops what this reset clears the next time it opens this world.",
+        "other": "{n} GMs are not connected ({names}): their browsers drop what this reset clears the next time they open this world."
+      },
+      "resetCutFailed": "The season reset could not mark the clock with the moment of the reset ({error}). Nothing was cleared.",
+      "saveFailedAlone": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and no other GM is connected to hold a copy: back up the case now (GM panel, Between sessions).",
+      "openFailed": "The GM store could not open on this browser: {error}. Until it does, an Analyze or a handover of a Truth Bullet is refused. Reload to try again; the console has the details.",
+      "notOpen": "The GM store has not opened on this browser after {seconds} s: an Analyze or a handover of a Truth Bullet is refused until it does. Reload to try again."
+    },
+    "Case": {
+      "gmOnly": "Only a GM can back up or restore the case.",
+      "backupTitle": "Back up the case",
+      "backupWhat": "The file holds every GM-only secret of this world: who the Mastermind is, every Truth Bullet's answer, every trace's real type, the cast of an open incident and the Blackened of each chapter, the traps' planted objects, the Level Ups on offer and the rooms each character has found. Keep it where no player can open it.",
+      "backupEarly": "The copy from {names} has not arrived yet: this backup holds only what this browser has. Back up anyway?",
+      "backedUp": {
+        "one": "The case was saved to a file: {n} row.",
+        "other": "The case was saved to a file: {n} rows."
+      },
+      "backupTile": "Back up the case",
+      "restoreTile": "Restore the case",
+      "backupNever": "last backup: never",
+      "backupToday": "last backup: today",
+      "backupAgo": {
+        "one": "last backup: {n} day ago",
+        "other": "last backup: {n} days ago"
+      },
+      "chapterReminder": "The answer keys this chapter's close reveals live in GM browsers, not in the world file. Back up the case: {when}.",
+      "refused": {
+        "unreadable": "That file is not a case backup.",
+        "newer": "That file was written by a newer version of the module (format {version}); this one cannot read it.",
+        "otherWorld": "That file is the case of another world ({title}). Tick the box to restore it here anyway.",
+        "malformed": "That file cannot be restored: its section for {store} is damaged (the console names the row). Nothing was changed."
+      },
+      "restored": "The case was restored.",
+      "restoredStore": "{store}: {n} changed, {cut} under the reset's cut left out",
+      "store": {
+        "bullets": "Truth Bullets",
+        "remnants": "Traces",
+        "mastermind": "The Mastermind",
+        "cast": "The incident's cast",
+        "blackened": "The Blackened register",
+        "trapLedger": "The traps' planted objects",
+        "trapPlants": "The plants waiting in rooms",
+        "observe": "The Observe declarations waiting for their roll",
+        "offers": "The Level Ups on offer",
+        "discovery": "The rooms each character has found"
+      },
+      "row": {
+        "traces": {
+          "one": "{n} trace on the map (of {of}) has no answer key on this browser.",
+          "other": "{n} traces on the map (of {of}) have no answer key on this browser."
+        },
+        "bullets": {
+          "one": "{n} Truth Bullet (of {of}) has no answer key on this browser: an Analyze of it is refused.",
+          "other": "{n} Truth Bullets (of {of}) have no answer key on this browser: an Analyze of them is refused."
+        },
+        "noAnswer": {
+          "one": "{n} answer key has lost its real type (the damage the old merge did).",
+          "other": "{n} answer keys have lost their real type (the damage the old merge did)."
+        },
+        "incident": "An incident is open, and this browser does not hold its cast.",
+        "neverHeld": "This browser has never held this world's case, which began on {date}.",
+        "legacyChanged": "The old store of {store} changed after the upgrade (a GM went back to an older version): take what changed from the diagnostics.",
+        "claimFailed": "This browser's old {store} could not be taken over: {error}. Nothing was changed; the next load tries again.",
+        "unseen": "This check cannot see who the Mastermind is, the Level Up offers or the Blackened register: a browser that lost them does not know it.",
+        "left": {
+          "one": "{n} old row stays in this browser, not taken: another world's, or no longer part of this world's case.",
+          "other": "{n} old rows stay in this browser, not taken: other worlds', or no longer part of this world's case."
+        },
+        "clamped": {
+          "one": "{n} old row was stamped after the moment this browser took it over - a clock that ran ahead - and was taken at that moment.",
+          "other": "{n} old rows were stamped after the moment this browser took them over - a clock that ran ahead - and were taken at that moment."
+        },
+        "skew": "Stamps from ahead of this browser's clock: {names}.",
+        "bytes": "The GM stores take {stores} KB of this browser's storage; the module {total} KB in all.",
+        "lastBackup": "Last backup: {when} ({who}).",
+        "neverBackedUp": "This case has never been backed up.",
+        "traceOrphans": {
+          "one": "{n} trace's answer key has no token on any scene: kept, and read by nothing.",
+          "other": "{n} traces' answer keys have no token on any scene: kept, and read by nothing."
+        },
+        "mastermindCleared": "A GM's old store (from before 1.2.63) says the Mastermind was cleared on {cleared}, after {name} was picked on {picked} - possibly in another world. Until a GM decides, that player is not told they hold the part. Keep the pick, or clear it.",
+        "traps": {
+          "one": "{n} armed item trap has no planted object on this browser: it cannot fire.",
+          "other": "{n} armed item traps have no planted object on this browser: they cannot fire."
+        },
+        "tracesOnToken": {"one": "{n} trace on the map (of {of}) still carries its answer key on its token: it is moved into the ledger, not restored.", "other": "{n} traces on the map (of {of}) still carry their answer keys on their tokens: they are moved into the ledger, not restored."},
+        "leftNotPrimary": {"one": "{n} of this world's old offers or fog rows stays in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes it (the diagnostics name the store).", "other": "{n} of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store)."}
+      },
+      "healthTitle": "The case on this browser",
+      "healthIntro": "This browser is missing part of this world's case:",
+      "healthNote": "Restore brings it back from a backup file; Continue carries on without it, and the GM panel keeps saying so until the case is whole.",
+      "restoreFromFile": "Restore from a file",
+      "continue": "Continue",
+      "continued": "The case is incomplete on this browser. Restore it from a backup file (GM panel, Restore the case).",
+      "panelWarning": "The case is incomplete on this browser:",
+      "restoreTitle": "Restore the case",
+      "previewStore": "{store}: {add} new, {refresh} refreshed, {kept} newer here, {cut} under the reset's cut, {remove} removed here",
+      "otherWorld": "This file is the case of another world ({title}). Restore it here anyway.",
+      "beforeCut": "Restore anyway the rows the last reset removed (they come back freshly stamped).",
+      "restoreNote": "A restore takes only what is newer than what this browser holds - a removal too, counted above. It never takes the file's reset cut, and a file of another world brings no removal.",
+      "restore": "Restore",
+      "answerKeyMissing": "{actor}'s Truth Bullet \"{bullet}\" has no answer key on this browser, so its Analyze was refused. Restore the case from a backup (GM panel).",
+      "chargeHeld": {
+        "one": "The charge for unfound Key Remnants is held: {n} Truth Bullet has no answer key on this browser, and the count would come out wrong. Restore the case and ask again.",
+        "other": "The charge for unfound Key Remnants is held: {n} Truth Bullets have no answer key on this browser, and the count would come out wrong. Restore the case and ask again."
+      },
+      "fillFromTraces": "Fill from their traces ({n})",
+      "filled": {
+        "one": "{n} Truth Bullet took its answer key from its trace.",
+        "other": "{n} Truth Bullets took their answer keys from their traces."
+      },
+      "decideIntro": "One thing in this world needs a GM to decide it:",
+      "keepMastermind": "Keep the Mastermind",
+      "clearMastermind": "Clear the Mastermind",
+      "enterCast": "Enter the cast by hand",
+      "castTitle": "The incident's cast",
+      "castIntro": "An incident is running and this browser does not know who is in it. Name them as they are at the table; a GM who held the cast and comes back later brings it with them.",
+      "castKiller": "Killer",
+      "castVictim": "Victim",
+      "castThird": "A third, if there was one",
+      "castEnter": "Enter",
+      "previewRecord": "{store}: another world's - taken only if you tick it below.",
+      "previewClamped": {"one": "{n} row is stamped later than the clock allows: it would be taken at this moment.", "other": "{n} rows are stamped later than the clock allows: they would be taken at this moment."},
+      "previewNotThisWorld": {"one": "{n} row is another world's and is left out.", "other": "{n} rows are another world's and are left out."},
+      "otherWorldRecord": "Take {store} from this file as well: another world's, it replaces this world's where the file's is newer.",
+      "restoredSkipped": "{store}: another world's, not taken",
+      "restoredClamped": {"one": "{n} row was stamped later than the clock allows and was taken at this moment.", "other": "{n} rows were stamped later than the clock allows and were taken at this moment."},
+      "moveTraces": "Move them into the ledger",
+      "moveNote": "Move them into the ledger takes each trace's answer key off its token (game.drpg.migrateRemnants); Continue carries on without it, and the GM panel keeps saying so until the case is whole."
     }
   }
 }

@@ -58,6 +58,8 @@ import {
 import { REGRESSIONS } from "./tests-tier0.mjs";
 import { INVARIANTS } from "./tests-tier1.mjs";
 import { SCENARIOS, snapshot, restore } from "./tests-tier2.mjs";
+import { gmStoreHold, gmStoresIdle, gmStoreHandles, gmCopyNames, gmCopySpec } from "./gm-store.mjs";
+import { MODULE_ID } from "./config.mjs";
 
 // Every tier, for the tests that read the suite itself (R155): see registerSuite.
 registerSuite([[0, REGRESSIONS], [1, INVARIANTS], [2, SCENARIOS]]);
@@ -198,6 +200,31 @@ function matcherFor(only) {
     return name => name.toLowerCase().includes(wanted);
 }
 
+/*
+ * THE LOAD'S OWN WRITES COME FIRST (E04's fix round, 26.09.2026). A world's load writes
+ * after `ready`: the migration's pass on the primary GM, each GM store's claim and first
+ * save, the case's marks - and since E04 the migration waits for the stores, which wait
+ * for the other GMs' copies, up to `TIMING.gmStoreSyncMs` when one does not answer. A run
+ * started in that window read those writes as its own: "tier 0/1 changed nothing in the
+ * world" failed in 49 of the 139 runs of this stage's scratch runner, which starts the
+ * suite straight after the load, naming the migration's stamp, actor updates landing
+ * between tests, the stores' claims and first saves and the case's marks (counted
+ * 26.09.2026; 01-runtests, whose full run comes after its other steps, failed it in none
+ * of its 30 runs). So the first reading waits for them - bounded, since a store that
+ * never opened never says it has; past the bound the run says so and goes on.
+ */
+const LOAD_WAIT_MS = 30000;
+async function loadSettled() {
+    const [{ whenGmStoresLoaded }, { migrationOnLoad }] = await Promise.all([import("./gm-stores.mjs"), import("./migrate.mjs")]);
+    let timer = null;
+    const bound = new Promise(resolve => { timer = setTimeout(() => resolve(false), LOAD_WAIT_MS); });
+    try {
+        return await Promise.race([Promise.all([whenGmStoresLoaded(), migrationOnLoad()]).then(() => true), bound]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 async function runSuite(tier, only = null) {
     const lines = [], results = [];
     let passed = 0, failed = 0, skipped = 0, red = 0;
@@ -254,6 +281,9 @@ async function runSuite(tier, only = null) {
     // in the suite to be wrong about and the most expensive to skip: a divergence
     // it would have caught costs four releases, not one run.
     const more = (list, n) => (list.length > n ? `; and ${list.length - n} more` : "");
+    if (!await loadSettled()) {
+        notes.push(`the load's own writes had not finished after ${LOAD_WAIT_MS / 1000} s: one landing during tiers 0 and 1 reads there as the suite's`);
+    }
     const untouched = await worldDump();
     let running = null;
     const writes = watchWrites(() => running);
@@ -322,6 +352,15 @@ async function runSuite(tier, only = null) {
                (E30, audit S14-24): a scenario the world is too small for skips and
                says what it lacked, and this is the line to read that against. */
             lines.push(worldCensus());
+            /*
+             * THE GM STORE SENDS NOTHING WHILE TIER 2 RUNS (E04, 1.2.63). The restore
+             * below writes each store's key back raw, on this client only; a delta sent
+             * during a scenario would stay on another GM's browser and come back at the
+             * next exchange, undoing the restore there. So nothing leaves this client
+             * until the last restore; what arrives still merges, and the release sends a
+             * hello, which re-exchanges with the other GMs.
+             */
+            gmStoreHold(true);
             let snap = null;
             try {
                 snap = await snapshot(studentActors());
@@ -353,6 +392,8 @@ async function runSuite(tier, only = null) {
                     let broke = null;
                     try {
                         await game.drpg.endMurder({ reason: "test", followUp: false });
+                        // A store write not yet flushed would land on top of the raw restore.
+                        await gmStoresIdle();
                         await restore(snap);
                     } catch (err) {
                         broke = err;
@@ -375,10 +416,30 @@ async function runSuite(tier, only = null) {
                     ...(late.length
                         ? { outcome: "fail", message: `left after the last restore: ${late.slice(0, 12).map(describeDiff).join("; ")}${more(late, 12)}` }
                         : { outcome: "pass" }) });
+                /*
+                 * NO OLD KEY OF THE GM STORE WAS WRITTEN (E04's fix round; the review's
+                 * DS-m5). The old keys hold what the upgrade left - another world's rows
+                 * nobody claimed, a downgrade's copy - and nothing else holds it. Tier 2's
+                 * restore would have put back a key a test wrote, but a tab closed in between
+                 * would not; the tests hand their fixtures to `withGmStoreLegacy` instead, and
+                 * this reads the whole run's writes for any that reached one. R171 reads the
+                 * source for the names; this is the write itself.
+                 */
+                const oldKeys = [...new Set([
+                    ...gmStoreHandles().map(h => h.spec.legacyKey),
+                    ...gmCopyNames().flatMap(name => [gmCopySpec(name)?.legacyKey, ...(gmCopySpec(name)?.legacyKeys ?? [])])
+                ].filter(Boolean))];
+                const wroteOld = [...new Set(writes.seen.filter(w => oldKeys.some(k => w.startsWith(`setting ${MODULE_ID}.${k} `))))];
+                record({ tier: 2, name: "the suite wrote no old key of the GM store", assertions: null,
+                    ...(wroteOld.length
+                        ? { outcome: "fail", message: `written: ${wroteOld.slice(0, 6).join("; ")}${more(wroteOld, 6)}` }
+                        : { outcome: "pass" }) });
             }
         }
     } finally {
         writes.stop();
+        // Released whatever happened above; a hold the suite never took is released as a no-op.
+        gmStoreHold(false);
     }
 
     // the skipped count is always printed, including as a zero: a run that says

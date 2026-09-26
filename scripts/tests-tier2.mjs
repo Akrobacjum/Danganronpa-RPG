@@ -8,11 +8,12 @@
  */
 
 import { MODULE_ID, EQUIPPABLE, SFX_EVENTS, FLAGS, PRICE_CHAINS } from "./config.mjs";
-import { SETTINGS, getSetting, BREAKPOINTS, narrowScreen, shortScreen } from "./settings.mjs";
+import { SETTINGS, getSetting, BREAKPOINTS, narrowScreen, shortScreen, seasonEpoch } from "./settings.mjs";
 import { applyNarrowLayout, narrowLayout } from "./narrow.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { voiceTargets } from "./voice.mjs";
 import { forcedDeletion } from "./utils.mjs";
+import { gmStoresIdle } from "./gm-store.mjs";
 import {
     ok, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, cast
@@ -61,12 +62,9 @@ async function snapshot(cast) {
         despair: monokumas().map(user => ({ id: user.id, value: getDespair(user.id) })),
         overflow: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {}),
         murder: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}),
-        // The other half of the incident (LIVE-001). Client-scoped, and taken
-        // with the world half or a scenario that opens a murder leaves this
-        // browser holding a cast for an incident that no longer exists - which
-        // is exactly the shape of dirt this snapshot exists to prevent.
-        cast: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {}),
-        blackened: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.blackenedLedger) ?? []),
+        // The other half of the incident (LIVE-001) and the Blackened register are
+        // GM stores since E04: client settings like the rest, in `settings` above,
+        // and put back raw with them - no named field of their own any more.
         // E14. Both are world settings a scenario below writes, and both are
         // visible to the whole table - a suite that leaves a motive standing
         // has announced one at somebody's game.
@@ -166,6 +164,23 @@ async function restore(snap) {
      */
     if (stableJson(getClock()) !== stableJson(snap.clock)) await setClock(snap.clock);
 
+    /*
+     * THE TRACES THAT APPEARED, REMOVED BEFORE THE SETTINGS GO BACK (E04, 1.2.63).
+     * A trace's token deleted tombstones its row in the GM store (remnants.mjs, the
+     * deleteToken hook), which is a write of the store's key. Removed after the
+     * settings, as they were until E04, each tombstone landed on the key just put
+     * back: measured on the harness 26.09, six scenarios left
+     * "gmRemnants.worlds.<world>.d.<key> (none) -> ..." behind them. Removed first,
+     * and the store let settle, the settings below are written over the tombstones.
+     */
+    for (const scene of game.scenes) {
+        const strays = scene.tokens
+            .filter(t => t.getFlag(MODULE_ID, "isRemnant") && !snap.remnants.has(`${scene.id}.${t.id}`))
+            .map(t => t.id);
+        if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
+    }
+    await gmStoresIdle();
+
     // Every other setting that moved, written back as it was recorded. Compared
     // first so a setting nothing touched is not written - several have `onChange`
     // handlers that redraw the table. One key that will not go back must not stop
@@ -188,12 +203,8 @@ async function restore(snap) {
     }
     await game.settings.set(MODULE_ID, SETTINGS.overflow, snap.overflow);
     await game.settings.set(MODULE_ID, SETTINGS.murderState, snap.murder);
-    await game.settings.set(MODULE_ID, SETTINGS.incidentCast, snap.cast);
     await game.settings.set(MODULE_ID, SETTINGS.motive, snap.motive);
     await game.settings.set(MODULE_ID, SETTINGS.pendingGather, snap.gather);
-    // Put the register back as it was rather than emptying it: a suite run
-    // during a chapter that already had a killing used to erase that fact.
-    await game.settings.set(MODULE_ID, SETTINGS.blackenedLedger, snap.blackened);
 
     for (const row of snap.resources) {
         const actor = game.actors.get(row.id);
@@ -219,14 +230,6 @@ async function restore(snap) {
         }
         await actor.update(update);
     }
-    // Anything that appeared while the scenario ran, removed.
-    for (const scene of game.scenes) {
-        const strays = scene.tokens
-            .filter(t => t.getFlag(MODULE_ID, "isRemnant") && !snap.remnants.has(`${scene.id}.${t.id}`))
-            .map(t => t.id);
-        if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
-    }
-
     // The documents that appeared - the helper actors the module makes on first need
     // among them - removed, after the tokens that may stand on them.
     for (const [name, before] of snap.documents ?? []) {
@@ -1026,6 +1029,14 @@ const SCENARIOS = [
                 await wait(400);
             };
 
+            /* THE FIRST READ IS THE CHAPTER NOW RUNNING (E9), and the fixture's traces are
+               a chapter above it. On a world that holds a trace of the running chapter the
+               window opens on that chapter and lists none of the three - which the harness
+               world does since E04 (1.2.63) seeded its trace with a ledger row, as most
+               worlds at a table do. Measured 26.09: "the dashboard lists 1 trace(s); the
+               fixture placed three". So the test reads the fixture's own chapter first, as a
+               GM looking for these three would. */
+            await choose("chapter", String(future));
             const all = rows();
             ok(all >= 3, `the dashboard lists ${all} trace(s); the fixture placed three`);
 
@@ -1087,11 +1098,11 @@ const SCENARIOS = [
          */
         const { incidentWitness } = await import("./settings.mjs");
         const { MODULE_ID: MOD } = await import("./config.mjs");
+        const { castStore } = await import("./gm-stores.mjs");
 
         const [killer, victim] = cast(3);   // and a bystander
 
         const worldBefore = game.settings.get(MOD, "murderState") ?? {};
-        const castBefore = game.settings.get(MOD, "incidentCast") ?? {};
         const assignedBefore = game.user.character ?? null;
         try {
             // A GM owns every actor, so "the seat I am playing" is the only
@@ -1099,8 +1110,8 @@ const SCENARIOS = [
             // colour keys off. Set deliberately, and put back in `finally`.
             await game.user.update({ character: killer.id });
 
-            await game.settings.set(MOD, "incidentCast",
-                { killerId: killer.id, victimId: victim.id, thirdId: null, updated: Date.now() });
+            // The GMs' record, through the store (E04); tier 2's restore puts the store back.
+            await castStore.patch("record", { killerId: killer.id, victimId: victim.id, thirdId: null });
 
             // ---- a DIRECT murder: the killer is in the room ------------------
             await game.settings.set(MOD, "murderState",
@@ -1133,7 +1144,6 @@ const SCENARIOS = [
                 `a world with no incident reads as one: ${JSON.stringify(quiet)}`);
         } finally {
             await game.user.update({ character: assignedBefore?.id ?? null });
-            await game.settings.set(MOD, "incidentCast", castBefore);
             await game.settings.set(MOD, "murderState", worldBefore);
         }
     }],
@@ -2389,6 +2399,18 @@ const SCENARIOS = [
                 "the receiver's own copy cannot pay out - the reading was not filed with it");
             ok(String(live.system?.description ?? "").includes("Grey dust on the sill."),
                 "the Observe half did not travel with the copy");
+
+            /* And a bullet whose answer key this browser lacks is not handed over (E04's fix
+               round, the review's C-m17): its copy was minted an explicit Neutral, a reading
+               nobody made. Made the way a lost browser leaves one: an item, and no row. */
+            const [keyless] = await giver.createEmbeddedDocuments("Item", [{ name: "Suite fixture: a bullet with no answer key", type: "loot",
+                flags: { [MODULE_ID]: { category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "evident", analyzed: false } } }]);
+            made.push(keyless);
+            const heldBefore = receiver.items.size;
+            const refused = await shareBullet({ fromId: giver.id, toId: receiver.id, itemId: keyless.id });
+            await settle();
+            equal(stableJson([refused ?? null, receiver.items.size - heldBefore]), stableJson([null, 0]),
+                "a bullet with no answer key was handed over, its copy minted with a reading nobody made");
         } finally {
             // The student goes back where the world put them, first: a fixture
             // that leaves somebody standing in the wrong room changes what
@@ -2821,8 +2843,7 @@ const SCENARIOS = [
         const [actor] = cast(1);
         ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
 
-        const beforePlants = foundry.utils.deepClone(getSetting(SETTINGS.trapPlants) ?? {});
-        const beforeLedger = foundry.utils.deepClone(getSetting(SETTINGS.trapLedger) ?? {});
+        // The plants and the trap ledger are GM stores since E04: tier 2's restore puts them back.
         let granted = null;
 
         try {
@@ -2859,8 +2880,6 @@ const SCENARIOS = [
             await plain.delete().catch(() => {});
         } finally {
             if (granted) await granted.delete().catch(() => {});
-            await game.settings.set(MODULE_ID, SETTINGS.trapPlants, beforePlants);
-            await game.settings.set(MODULE_ID, SETTINGS.trapLedger, beforeLedger);
             await settle();
         }
     }],
@@ -3131,8 +3150,13 @@ const SCENARIOS = [
          *
          * BOTH HALVES. A fix that stops the ledger recording anything at all
          * would pass the first assertion and take the fog with it.
+         *
+         * In a world the GM store has never opened (E04): the ledger is a store now,
+         * and its rows start empty there, so the seed has something to record - where
+         * the old test emptied the two rows by writing the whole ledger back.
          */
         const fog = await import("./fog.mjs");
+        const E = await import("./gm-store.mjs");
         const { roomOfActor } = await import("./movement.mjs");
         const { isMonokuma } = await import("./monokuma.mjs");
 
@@ -3146,30 +3170,14 @@ const SCENARIOS = [
         ok(monokuma && student,
             "need a Monokuma and a student standing in rooms on this scene");
 
-        // The GM's own store since D2 - the world setting is empty and stays so.
-        const before = foundry.utils.deepClone(getSetting(SETTINGS.discoveryLedger) ?? {});
-        try {
-            // Both rows emptied, so the seed has something to record and this
-            // measures what it CHOOSES rather than what was already there.
-            const wiped = { ...(before[scene.id] ?? {}) };
-            wiped[monokuma.id] = [];
-            wiped[student.id] = [];
-            await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger,
-                { ...before, [scene.id]: wiped });
-            await settle();
-
+        await E.withGmStoreWorld(`suite-seed-${foundry.utils.randomID(8)}`, async () => {
             await fog.seedDiscovery(scene);
             await settle();
-
-            const now = (getSetting(SETTINGS.discoveryLedger) ?? {})[scene.id] ?? {};
-            equal((now[monokuma.id] ?? []).length, 0,
-                `${monokuma.name} is a Monokuma and put ${JSON.stringify(now[monokuma.id])} in the ledger`);
-            ok((now[student.id] ?? []).includes(roomOfActor(student)),
+            equal(fog.discoveredFor(scene.id, monokuma.id).length, 0,
+                `${monokuma.name} is a Monokuma and put ${JSON.stringify(fog.discoveredFor(scene.id, monokuma.id))} in the ledger`);
+            ok(fog.discoveredFor(scene.id, student.id).includes(roomOfActor(student)),
                 `${student.name} is standing in ${roomOfActor(student)} and the ledger did not record it`);
-        } finally {
-            await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger, before);
-            await settle();
-        }
+        });
     }],
 
     ["a trace is tied to the murder by what happened, not by what it is", async () => {
@@ -4318,21 +4326,18 @@ const SCENARIOS = [
          * box onto the ledger as it stands, not the ledger as the window first read it.
          */
         const { applyDiscoveryChanges, discoveredFor } = await import("./fog.mjs");
+        const E = await import("./gm-store.mjs");
+        const { discoveryStore } = await import("./gm-stores.mjs");
         needs(world.atLeast("namedRooms", 3), "the ledger is written for three rooms");
         const scene = canvas.scene;
         const [student] = cast(1);
         const rooms = Array.from(new Set([...(scene?.regions ?? [])].map(r => r.name).filter(Boolean)));
         ok(rooms.length >= 3, `three named rooms, and ${rooms.length} distinct names among them`);
-        // The GM's own store since D2 - the world setting is empty and stays so.
-        const stored = foundry.utils.deepClone(getSetting(SETTINGS.discoveryLedger) ?? {});
-        const write = async list => {
-            const all = foundry.utils.deepClone(getSetting(SETTINGS.discoveryLedger) ?? {});
-            all[scene.id] = { ...(all[scene.id] ?? {}), [student.id]: list };
-            await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger, all);
-        };
-        try {
-            await write([rooms[0]]);                 // what the window drew
-            await write([rooms[0], rooms[1]]);       // found while it was open
+        // A GM store since E04, in a world it has never opened: the rows are written as cells.
+        const found = room => discoveryStore.patch(`${scene.id}/${student.id}`, { [room]: true });
+        await E.withGmStoreWorld(`suite-roomsetup-${foundry.utils.randomID(8)}`, async () => {
+            await found(rooms[0]);                   // what the window drew
+            await found(rooms[1]);                   // found while it was open
             const wrote = await applyDiscoveryChanges(scene, [{ actorId: student.id, room: rooms[2], value: true }]);
             ok(wrote, "the box the GM ticked was not written");
             const now = discoveredFor(scene.id, student.id);
@@ -4340,10 +4345,7 @@ const SCENARIOS = [
             ok(now.includes(rooms[2]), "the box the GM ticked was not saved");
             equal(await applyDiscoveryChanges(scene, [{ actorId: student.id, room: rooms[2], value: true }]),
                 false, "an Apply that changes nothing still writes the ledger, and resyncs everyone's fog");
-        } finally {
-            await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger, stored);
-            await settle();
-        }
+        });
     }],
 
     ["a Despair Call that would change nothing hands its price back", async () => {
@@ -6448,33 +6450,51 @@ const SCENARIOS = [
          * would migrate a real table's traces.
          *
          * AND WHAT THE GM TICKED STAYS TICKED (E30 fix, 25.09.2026; audit S06-02).
-         * `promoteFaintPrep` (chapter.mjs) writes the GM's choice at a body discovery
-         * onto the token - `faint: false`, `tiedToCrime: true` - where nothing reads it,
+         * `promoteFaintPrep` (chapter.mjs) wrote the GM's choice at a body discovery
+         * onto the token - `faint: false`, `tiedToCrime: true` - where nothing read it,
          * and those are the only answer-key flags a trace placed since the ledger can
          * carry. The first E30 build stripped them and wrote nothing. Now a promoted
          * trace with a live row gets the promotion in its row; one with no row on this
          * browser keeps its flags and is reported; a row that does not read back
          * strips nothing; and whatever else is on a token afterwards - a key but the
          * two it may keep, a name that is not the neutral one - comes back in `left`.
+         *
+         * THE FIXTURES ARE TRACES FROM BEFORE THE LEDGER (E04, 1.2.63): tokens made with
+         * their answer key in flags and no row. A placed trace whose row was then dropped
+         * stood in for one until E04; a dropped row is a tombstone now, under which the
+         * migration's weak write lands nowhere, so it stands in for nothing. The promoted
+         * trace's row is written at the store's weak stamp, as a row claimed with no
+         * stamp holds it - a promotion is carried only over a value from before the
+         * upgrade (the design's H6); over one written since, it is the next test's.
          */
         const remnants = await import("./remnants.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
         needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
         const scene = game.scenes.active ?? canvas?.scene;
         const anchor = scene?.tokens?.find(t => t.x || t.y);
         const oldName = "SUITE Subtle Prep Remnant";
         const legacy = { remnantType: "prep", visibility: "subtle", note: "SUITE old note", sourceName: "SUITE Someone" };
-        // What promoteFaintPrep writes onto a ticked trace (chapter.mjs).
+        // What promoteFaintPrep wrote onto a ticked trace until E04 (chapter.mjs).
         const promotion = { faint: false, tiedToCrime: true };
         const placed = [];
-        const place = async (extra = {}) => {
-            const t = await remnants.placeRemnant({ type: "prep", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
-                note: "test fixture - migrated trace", tiedToCrime: false, ...extra });
-            ok(t, "could not place a fixture trace");
+        // A trace from before the ledger: the answer key in its flags, the label as its name, no row.
+        if (!game.actors.getName("Remnant")) {
+            const first = await remnants.placeRemnant({ type: "prep", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "test fixture - makes the Remnant actor" });
+            if (first) placed.push(first);
+        }
+        const oldTrace = async (flags, name = oldName) => {
+            const [t] = await scene.createEmbeddedDocuments("Token", [{
+                name, actorId: game.actors.getName("Remnant")?.id ?? null, actorLink: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, hidden: true,
+                flags: { [MODULE_ID]: { isRemnant: true, ...flags } }
+            }]);
+            ok(t, "could not make a fixture trace from before the ledger");
             placed.push(t);
             return t;
         };
         const flagKeys = t => JSON.stringify(Object.keys(t?._source?.flags?.[MODULE_ID] ?? {}).sort());
-        const row = t => foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.remnantSecrets)?.[remnants.keyOf(t)] ?? null);
+        const row = t => foundry.utils.deepClone(remnantStore.get(remnants.keyOf(t)));
         const writeFlags = (t, flags) => t.update(Object.fromEntries(
             Object.entries(flags).map(([key, value]) => [`flags.${MODULE_ID}.${key}`, value])));
         const sorted = list => JSON.stringify([...(list ?? [])].sort());
@@ -6487,18 +6507,15 @@ const SCENARIOS = [
             else delete settings.set;
         };
         try {
-            // Before the ledger: the answer key on the token, the label as its name, no row.
-            const token = await place();
-            await token.update({ name: oldName });
-            await writeFlags(token, legacy);
-            await remnants.dropRemnantSecret(token);
-            equal(remnants.remnantData(token), null, "the fixture still has a live ledger row, so it is not a trace from before the ledger");
+            const token = await oldTrace(legacy);
+            equal(remnants.remnantData(token), null, "the fixture has a live ledger row, so it is not a trace from before the ledger");
 
             const first = await remnants.migrateRemnantToken(token);
             equal(flagKeys(token), JSON.stringify(["isRemnant"]), "the migrated token still carries its answer key");
             equal(first?.ledger, "moved", "the first run did not move the trace into the ledger");
             equal(remnants.remnantData(token)?.note, legacy.note, "the token's note did not reach the ledger");
             equal(row(token)?.label, oldName, "the token's old name did not reach the ledger as its label");
+            equal(remnantStore.stampOf(remnants.keyOf(token), "note"), remnantStore.weak(), "a moved row was not written weak");
 
             // A GM corrects the trace. Then a first run whose strip did not land (S05-43):
             // the flags are back on the token, one more among them, and the name stays neutral.
@@ -6520,33 +6537,35 @@ const SCENARIOS = [
             equal(sorted(third?.left), sorted(["name", "suiteStray"]), "what else is on the token did not come back in `left`");
             ok(flagKeys(token).includes("suiteStray"), "the migration deleted a key it does not know instead of reporting it");
 
-            // A Faint Prep promotion, with the trace's row on this browser: carried, then stripped.
-            const promoted = await place({ faint: true });
-            await writeFlags(promoted, promotion);
+            // A Faint Prep promotion, over a row from before the upgrade: carried, then stripped.
+            const promoted = await oldTrace(promotion, game.i18n.localize("DRPG.Remnant.tokenName"));
+            const weak = remnantStore.weak();
+            await remnantStore.patch(remnants.keyOf(promoted), { type: "prep", visibility: "subtle", faint: true, tiedToCrime: false,
+                note: "test fixture - a promoted trace" }, { weak: true });
             const carried = await remnants.migrateRemnantToken(promoted);
             equal(JSON.stringify(carried?.carried ?? null), JSON.stringify({ faint: [true, false], tiedToCrime: [false, true] }),
                 "the promotion carried into the row is not the one the token held");
             equal(remnants.remnantData(promoted)?.faint, false, "the promotion's faint: false did not reach the row");
             equal(remnants.remnantData(promoted)?.tiedToCrime, true, "the promotion's tiedToCrime: true did not reach the row");
+            equal(remnantStore.stampOf(remnants.keyOf(promoted), "faint"), (weak + Math.floor(weak) + 1) / 2,
+                "the promotion was not carried halfway from the old value's stamp to the next whole one");
             equal(carried?.ledger, "filled", "the promoted trace's row was not written");
             equal(flagKeys(promoted), JSON.stringify(["isRemnant"]), "the promoted token still carries the flags");
 
             // The same promotion with no row on this browser: nothing stripped, reported.
-            const orphan = await place({ faint: true });
-            await remnants.dropRemnantSecret(orphan);
-            await writeFlags(orphan, promotion);
+            const orphan = await oldTrace(promotion, game.i18n.localize("DRPG.Remnant.tokenName"));
             const alone = await remnants.migrateRemnantToken(orphan);
             equal(flagKeys(orphan), sorted(["faint", "isRemnant", "tiedToCrime"]), "a promotion with no row to carry it into was stripped");
             equal(alone?.ledger, "noRow", "a trace with flags, no type and no row was not reported as such");
             equal(sorted(alone?.left), sorted(["faint", "tiedToCrime"]), "the flags left on the trace were not reported");
             equal(remnants.remnantData(orphan), null, "a row was made up for a trace this browser has no record of");
 
-            // A row write that does not land strips nothing.
-            const unlucky = await place();
-            await writeFlags(unlucky, legacy);
-            await remnants.dropRemnantSecret(unlucky);
+            // A row write that does not reach storage strips nothing: the store's save is
+            // swallowed here, so the row stands in memory and not on disk, as after a
+            // failed save - the read-back is of storage.
+            const unlucky = await oldTrace(legacy);
             settings.set = async function (namespace, key, value) {
-                if (namespace === MODULE_ID && key === SETTINGS.remnantSecrets) throw new Error("SUITE: the ledger write is refused");
+                if (namespace === MODULE_ID && key === remnantStore.spec.key) return value;
                 return realSet.call(this, namespace, key, value);
             };
             let refused = null;
@@ -6555,8 +6574,9 @@ const SCENARIOS = [
             } finally {
                 putSetBack();
             }
-            ok(flagKeys(unlucky).includes("remnantType"), "the answer key left the token although its row was never written");
-            equal(refused?.stripped, false, "a token whose row was never written was counted as stripped");
+            ok(remnantStore.has(remnants.keyOf(unlucky)), "the swallowed save left no row in memory either - this measured nothing");
+            ok(flagKeys(unlucky).includes("remnantType"), "the answer key left the token although its row was never saved");
+            equal(refused?.stripped, false, "a token whose row was never saved was counted as stripped");
             ok((refused?.unwritten ?? []).includes("type"), "the row that did not read back was not reported");
         } finally {
             putSetBack();
@@ -6566,6 +6586,176 @@ const SCENARIOS = [
             }
             await settle();
         }
+    }],
+
+    ["migrateRemnants cannot beat a correction made on another GM", async () => {
+        /*
+         * E04, 26.09.2026; the design's H6, the E30 review's m3. A promotion on a token
+         * from before the upgrade meets the trace's row. Until E04 the carry was written
+         * as the newest row, whole, and won on every GM - a GM who had set the trace
+         * back to Faint since, on any browser, lost that. The row's fields are stamped
+         * one by one now: a field from before the upgrade takes the promotion halfway to
+         * the next whole stamp, and a field another GM wrote since stands - and the
+         * promotion it stood against stays on the token, its only record (the review's
+         * DS-M2: it was stripped). Here the row is a row from before the upgrade (every
+         * field weak); another GM's correction of `faint` arrives as a sync does; then
+         * the token's promotion is migrated.
+         */
+        const remnants = await import("./remnants.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const placed = [];
+        try {
+            if (!game.actors.getName("Remnant")) {
+                const first = await remnants.placeRemnant({ type: "prep", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                    note: "test fixture - makes the Remnant actor" });
+                if (first) placed.push(first);
+            }
+            const [token] = await scene.createEmbeddedDocuments("Token", [{
+                name: game.i18n.localize("DRPG.Remnant.tokenName"), actorId: game.actors.getName("Remnant")?.id ?? null, actorLink: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, hidden: true, flags: { [MODULE_ID]: { isRemnant: true } }
+            }]);
+            ok(token, "could not make the fixture trace");
+            placed.push(token);
+            const key = remnants.keyOf(token);
+            await remnantStore.patch(key, { type: "prep", visibility: "subtle", faint: true, tiedToCrime: false,
+                note: "test fixture - a promotion and a later correction" }, { weak: true });
+            const weak = remnantStore.weak();
+            const theirs = E.emptySection();
+            E.writeFields(theirs, key, { faint: true }, E.gmStoreStamp(), remnantStore.spec);
+            await remnantStore.mergeIn(theirs, { source: "sync" });
+            const corrected = remnantStore.stampOf(key, "faint");
+            ok(corrected > weak, "the other GM's correction did not arrive above the old value");
+            await token.update({ [`flags.${MODULE_ID}.faint`]: false, [`flags.${MODULE_ID}.tiedToCrime`]: true });
+
+            const done = await remnants.migrateRemnantToken(token);
+            equal(remnants.remnantData(token)?.faint, true, "the promotion beat the correction another GM made since the upgrade");
+            equal(remnantStore.stampOf(key, "faint"), corrected, "the corrected field was written again");
+            equal(JSON.stringify(done?.notCarried ?? null), JSON.stringify({ faint: [true, false] }), "the promotion not carried is not reported");
+            equal(JSON.stringify(done?.carried ?? null), JSON.stringify({ tiedToCrime: [false, true] }),
+                "the half of the promotion over a value from before the upgrade was not carried");
+            equal(remnants.remnantData(token)?.tiedToCrime, true, "the tie was not carried into the row");
+            equal(remnantStore.stampOf(key, "tiedToCrime"), (weak + Math.floor(weak) + 1) / 2,
+                "the tie was not carried halfway from the old value's stamp to the next whole one");
+            // The half not carried stays on the token, its only record; the half carried is taken off (DS-M2).
+            equal(JSON.stringify(Object.keys(token._source?.flags?.[MODULE_ID] ?? {}).sort()), JSON.stringify(["faint", "isRemnant"]),
+                "the promotion not carried was taken off the token, or the half carried was left on it");
+        } finally {
+            for (const t of placed) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["a promotion over a row another GM's browser claimed is carried whichever GM runs the migration", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the review's DS-M2. "Before the upgrade" was this
+         * browser's own claim - the newest stamp its old key held - so on a browser whose
+         * old key never held the row (an assistant's, a second computer's) every row read
+         * as written since: the promotion was "not carried", stripped from the token all
+         * the same, and the GM told a later correction stood. And a token with no row here,
+         * whose row another GM holds, was moved in weak, and that GM's older row took the
+         * promotion back at the next exchange. One mark for the world now (gm-stores.mjs
+         * `upgradeMark`). Here a row claimed on another GM's browser - stamped before the
+         * mark, and this browser's claim knowing nothing of it - arrives as a sync does,
+         * and the token's promotion is carried into it; and a trace from before the ledger,
+         * moved in while no row is here, keeps its promotion when that row arrives after.
+         */
+        const remnants = await import("./remnants.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const { remnantStore } = S;
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const mark = S.upgradeMark();
+        ok(mark !== null, "this world has no upgrade mark: the stores never wrote one");
+        const placed = [];
+        const trace = async (flags, name = game.i18n.localize("DRPG.Remnant.tokenName")) => {
+            const [t] = await scene.createEmbeddedDocuments("Token", [{
+                name, actorId: game.actors.getName("Remnant")?.id ?? null, actorLink: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, hidden: true, flags: { [MODULE_ID]: { isRemnant: true, ...flags } }
+            }]);
+            ok(t, "could not make a fixture trace");
+            placed.push(t);
+            return t;
+        };
+        const theirs = (key, fields) => {
+            const section = E.emptySection();
+            E.writeFields(section, key, fields, mark - 1000, remnantStore.spec);
+            return remnantStore.mergeIn(section, { source: "sync" });
+        };
+        try {
+            if (!game.actors.getName("Remnant")) {
+                const first = await remnants.placeRemnant({ type: "prep", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                    note: "test fixture - makes the Remnant actor" });
+                if (first) placed.push(first);
+            }
+            const promoted = await trace({ faint: false, tiedToCrime: true });
+            await theirs(remnants.keyOf(promoted), { type: "prep", visibility: "subtle", faint: true, tiedToCrime: false,
+                note: "test fixture - a row claimed on another GM's browser" });
+            const done = await remnants.migrateRemnantToken(promoted);
+            equal(JSON.stringify([done?.carried ?? null, done?.notCarried ?? null]),
+                JSON.stringify([{ faint: [true, false], tiedToCrime: [false, true] }, null]),
+                "a promotion over a row from before the upgrade was not carried, on a browser whose old key never held it");
+            equal(JSON.stringify([remnants.remnantData(promoted)?.faint, remnants.remnantData(promoted)?.tiedToCrime]), JSON.stringify([false, true]),
+                "the promotion did not reach the row");
+            equal(JSON.stringify(Object.keys(promoted._source?.flags?.[MODULE_ID] ?? {}).sort()), JSON.stringify(["isRemnant"]),
+                "the carried promotion was left on the token");
+
+            const moved = await trace({ remnantType: "prep", visibility: "subtle", note: "SUITE moved note", faint: false, tiedToCrime: true },
+                "SUITE Subtle Prep Remnant");
+            equal((await remnants.migrateRemnantToken(moved))?.ledger, "moved", "the trace from before the ledger was not moved in");
+            await theirs(remnants.keyOf(moved), { type: "prep", visibility: "subtle", faint: true, tiedToCrime: false, note: "SUITE their note" });
+            equal(JSON.stringify([remnants.remnantData(moved)?.faint, remnants.remnantData(moved)?.tiedToCrime]), JSON.stringify([false, true]),
+                "another GM's row from before the upgrade took back the promotion a trace was moved in with");
+            equal(remnants.remnantData(moved)?.note, "SUITE their note", "the moved-in fields beat a value another GM decided (they are weak)");
+        } finally {
+            for (const t of placed) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["the claim merges the old rows in, and an old stamp ahead of it is taken at its time", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the review's DS-m1 and DS-m3. The claim wrote the old
+         * rows straight into the section: a newer value that had arrived from another GM
+         * before it was replaced by the old one (measured: "key" became "prep"). And an old
+         * row stamped by a clock that ran ahead kept that stamp, beating every edit made
+         * since until real time passed it. Both into a world this browser has never opened,
+         * the old key a fixture (`withGmStoreLegacy`): no real old key is written.
+         */
+        const E = await import("./gm-store.mjs");
+        const { bulletStore } = await import("./gm-stores.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const [student] = cast(1);
+        const at = id => `Actor.${student.id}.Item.${id}`;
+        const old = Date.now() - 60 * 60 * 1000, ahead = Date.now() + 2 * 60 * 60 * 1000;
+        const legacy = { [SETTINGS.legacyTruthBulletSecrets]: {
+            [at("SUITEE04DSM1")]: { realType: "prep", updated: old },
+            [at("SUITEE04DSM3")]: { realType: "final", updated: ahead }
+        } };
+        const raw = () => game.settings.storage.get("client").getItem(`${MODULE_ID}.${SETTINGS.legacyTruthBulletSecrets}`);
+        const before = raw();
+        await E.withGmStoreLegacy(legacy, () => E.withGmStoreWorld(`suite-claimmerge-${foundry.utils.randomID(8)}`, async () => {
+            const newer = E.emptySection();
+            E.writeFields(newer, at("SUITEE04DSM1"), { realType: "key" }, E.gmStoreStamp(), bulletStore.spec);
+            await bulletStore.mergeIn(newer, { source: "sync" });
+            const census = await bulletStore.claim();
+            equal(bullets.secretOf(at("SUITEE04DSM1")).realType, "key", "the claim wrote an old row over a newer value that had arrived first");
+            const stamp = bulletStore.stampOf(at("SUITEE04DSM3"), "realType");
+            ok(stamp > 0 && stamp <= E.gmStoreNow(), `an old row stamped ahead of the claim kept its stamp: ${stamp} against ${Math.floor(E.gmStoreNow())}`);
+            equal(census?.clamped, 1, "the old row stamped ahead of the claim was not counted");
+        }));
+        equal(raw(), before, "the claim wrote the real old key");
     }],
 
     ["a replaced flag keeps nothing of the old value, and an unset flag is gone", async () => {
@@ -6593,6 +6783,1303 @@ const SCENARIOS = [
             if (key in stored()) await actor.unsetFlag(MODULE_ID, key);
         }
     }],
+
+    ["a younger partial Truth Bullet entry never erases an older full one", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-01, measured the other way round first. A bullet
+         * is made the ordinary way, so its row holds the whole answer key; then a row
+         * that holds only `faint`, a second newer - what a GM who lacked the row used
+         * to send when it joined - arrives through the old export's import, which
+         * merges exactly as the GM-to-GM exchange does. Every field of the answer key
+         * must survive, and the one field the newer row names must take. On 1.2.62's
+         * whole-entry merge realType, remnantId and the reading were gone.
+         */
+        const bullets = await import("./truth-bullets.mjs");
+        const [holder] = cast(1);
+        const READING = `The cut matches the blade ${Date.now() % 100000}`;
+        let item = null;
+        try {
+            item = await bullets.createTruthBullet(holder, {
+                name: "Suite fixture: a full answer key", realType: "key", visibility: "evident",
+                playerText: "A thin cut.", analyzedText: READING, remnantId: "SUITEE04FULLROW", sceneId: canvas?.scene?.id ?? null
+            });
+            ok(item, "no bullet was made to hold the full row");
+            const uuid = item.uuid;
+            const full = bullets.secretOf(uuid);
+            equal(stableJson([full.realType, full.remnantId, full.analyzedText]), stableJson(["key", "SUITEE04FULLROW", READING]),
+                "the fixture bullet's row does not hold the answer key it was made with");
+            // The old export's import is `restoreCase` since C3; asked not to re-run the health check, which is not what this measures.
+            const imported = await bullets.importLedger({ [uuid]: { faint: true, updated: Date.now() + 1000 } }, { recheck: false });
+            ok(imported && !imported.refused, `the import refused a well-formed row: ${stableJson(imported)}`);
+            const after = bullets.secretOf(uuid);
+            equal(stableJson({ realType: after.realType, remnantId: after.remnantId, analyzedText: after.analyzedText, faint: after.faint }),
+                stableJson({ realType: "key", remnantId: "SUITEE04FULLROW", analyzedText: READING, faint: true }),
+                "a younger row naming only faint erased the answer key, or its own field did not take");
+        } finally {
+            if (item) {
+                await bullets.dropSecret(item.uuid);
+                await item.actor?.items?.get(item.id)?.delete();
+            }
+        }
+    }],
+
+    ["the old stores are claimed per world, and nothing is lost", async () => {
+        /*
+         * E04, 26.09.2026; the design's H5. Each GM store claims, once per world on a
+         * browser, the rows of its old key that belong to that world, and never writes
+         * the old key. Stood in a world this browser has never opened (the stores'
+         * suite override, gm-store.mjs `withWorld`), with each store's old key read from
+         * a fixture (`withLegacy`) of this world's rows, another world's, a tombstone and
+         * a row with no stamp: the census must count every old row as claimed or left,
+         * what was claimed must read back through the store's own reader, and the real
+         * old key must be byte for byte what it was. A store with an old key and no
+         * fixture here fails: a store added without one would be claimed by nothing that
+         * was ever checked. No real old key is written (E04's fix round, the review's
+         * DS-m5: they were seeded here and put back by tier 2's restore, and a tab closed
+         * in between lost another world's unclaimed rows).
+         */
+        const E = await import("./gm-store.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const remnants = await import("./remnants.mjs");
+        const [student] = cast(1);
+        const here = `Actor.${student.id}.Item`;
+        const T = Date.now() - 60 * 60 * 1000;
+        needs(world.atLeast("sceneOnScreen"), "the traces' old rows are claimed by a scene of this world");
+        const sceneId = (game.scenes.active ?? canvas?.scene)?.id;
+        // A trace's token as remnantData reads one: its flag, its scene, its id.
+        const trace = id => ({ id, parent: { id: sceneId }, hidden: true, getFlag: (scope, flag) => (flag === "isRemnant" ? true : undefined) });
+        const mastermind = await import("./mastermind.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const [, other, third] = cast(3);
+        const clock = getClock() ?? {};
+        const offer = { thirdId: third.id, killerId: student.id, chapter: clock.chapter, day: clock.day };
+        const traps = await import("./traps.mjs");
+        const { TIMING } = await import("./config.mjs");
+        /* A project this world has, so the traps' rows can be claimed (C7): named to the claim
+           (`withLivingProjects`), never written into the world's project metadata (E04's fix
+           round, the round-2 reviews' R2-m6: world data, put back only by tier 2's restore). */
+        const liveProject = run => S.withLivingProjects(["SUITEE04PROJECT1"], run);
+        const recent = Date.now() - 60 * 1000;
+        const levelUp = await import("./level-up.mjs");
+        const fog = await import("./fog.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const S = await import("./gm-stores.mjs");
+        // A Monokuma's row is left behind (S01-31) - counted only where the world has one.
+        const mono = game.actors.find(a => isMonokuma(a)) ?? null;
+        const FIXTURES = {
+            discovery: {
+                legacy: SETTINGS.legacyDiscoveryLedger,
+                seed: {
+                    [sceneId]: { [student.id]: ["SUITE room A", "SUITE room B"], ...(mono ? { [mono.id]: ["SUITE room A"] } : {}) },
+                    SUITEE04NOSCENE: { [student.id]: ["SUITE room C"] }
+                },
+                census: { legacy: mono ? 3 : 2, claimed: 1, left: mono ? 2 : 1, tombstones: 0, reasons: { ...(mono ? { monokuma: 1 } : {}), otherWorld: 1 } },
+                readBack: store => {
+                    equal(stableJson(fog.discoveredFor(sceneId, student.id)), stableJson(["SUITE room A", "SUITE room B"]),
+                        "the claimed rows do not read back through discoveredFor");
+                    equal(store.stampOf(`${sceneId}/${student.id}`), store.weak(), "the rows were not claimed weak");
+                    ok(!mono || !fog.discoveredFor(sceneId, mono.id).length, "a Monokuma's walks were claimed");
+                }
+            },
+            // Claimed on the primary's browser only (the design's row 17): the suite runs on the primary.
+            offers: {
+                legacy: SETTINGS.legacyAdvanceOffers,
+                seed: {
+                    [student.id]: { kind: "standard", at: T },
+                    [other.id]: { kind: "standard" },
+                    [third.id]: { kind: "SUITEE04NOKIND", at: T },
+                    SUITEE04NOACTOR0: { kind: "standard", at: T }
+                },
+                census: { legacy: 4, claimed: 1, left: 3, tombstones: 0, reasons: { notAnOffer: 1, otherWorld: 1, ownerCache: 1 } },
+                readBack: store => {
+                    equal(levelUp.pendingAdvance(student)?.kind, "standard", "the claimed offer does not read back through pendingAdvance");
+                    equal(store.stampOf(student.id), T, "the offer was not claimed at its own time");
+                    ok(!store.has(other.id), "an owner's cached copy (no time) was claimed as an offer");
+                }
+            },
+            trapLedger: {
+                legacy: SETTINGS.legacyTrapLedger,
+                around: liveProject,
+                seed: { SUITEE04ITEM0001: "SUITEE04PROJECT1", SUITEE04ITEM0002: "SUITEE04DEADPRJ0", SUITEE04ITEM0003: 7 },
+                census: { legacy: 3, claimed: 1, left: 2, tombstones: 0, reasons: { deadProject: 1, notARow: 1 } },
+                readBack: store => {
+                    equal(traps.trapForItemId("SUITEE04ITEM0001"), "SUITEE04PROJECT1", "the claimed trap row does not read back through trapForItemId");
+                    equal(store.stampOf("SUITEE04ITEM0001"), store.weak(), "the trap row was not claimed weak");
+                    ok(!store.has("SUITEE04ITEM0002") && !store.has("SUITEE04ITEM0003"), "a dead project's row, or a row that is none, was claimed");
+                }
+            },
+            trapPlants: {
+                legacy: SETTINGS.legacyTrapPlants,
+                around: liveProject,
+                seed: {
+                    [`${sceneId}::SUITE room`]: { projectId: "SUITEE04PROJECT1", drpgItemId: "SUITEE04ITEM0001", name: "SUITE planted kit" },
+                    ["-::SUITE hall"]: { projectId: "SUITEE04PROJECT1", drpgItemId: "SUITEE04ITEM0004", name: "SUITE kit with no scene" },
+                    ["SUITEE04NOSCENE::SUITE room"]: { projectId: "SUITEE04PROJECT1", drpgItemId: "SUITEE04ITEM0005" },
+                    [`${sceneId}::SUITE cellar`]: { projectId: "SUITEE04DEADPRJ0", drpgItemId: "SUITEE04ITEM0006" }
+                },
+                census: { legacy: 4, claimed: 2, left: 2, tombstones: 0, reasons: { deadProject: 1, otherWorld: 1 } },
+                readBack: store => {
+                    equal(stableJson([store.get(`${sceneId}::SUITE room`)?.drpgItemId, store.get("-::SUITE hall")?.name]),
+                        stableJson(["SUITEE04ITEM0001", "SUITE kit with no scene"]), "a claimed plant does not read back");
+                    equal(store.stampOf(`${sceneId}::SUITE room`), store.weak(), "the plant was not claimed weak");
+                    ok(!store.has("SUITEE04NOSCENE::SUITE room") && !store.has(`${sceneId}::SUITE cellar`), "another world's plant, or a dead project's, was claimed");
+                }
+            },
+            observe: {
+                legacy: SETTINGS.legacyObservePending,
+                seed: {
+                    SUITEE04OBSERVE1: { at: recent, actorId: student.id, sceneId, room: "SUITE room", declaration: "general" },
+                    SUITEE04OBSERVE2: { at: recent - TIMING.pendingObserveTtlMs - 1000, actorId: student.id, sceneId, room: "SUITE room" },
+                    SUITEE04OBSERVE3: { at: recent, actorId: "SUITEE04NOACTOR0", sceneId: "SUITEE04NOSCENE", room: "SUITE room" },
+                    SUITEE04OBSERVE4: "not a declaration"
+                },
+                census: { legacy: 4, claimed: 1, left: 3, tombstones: 0, reasons: { expired: 1, notARow: 1, otherWorld: 1 } },
+                readBack: store => {
+                    // The store and not observe.mjs's cache: the cache is this world's, and this is a stand-in world.
+                    equal(stableJson([store.get("SUITEE04OBSERVE1")?.room, store.get("SUITEE04OBSERVE1")?.at]), stableJson(["SUITE room", recent]),
+                        "the claimed declaration does not read back");
+                    equal(store.stampOf("SUITEE04OBSERVE1"), store.weak(), "the declaration was not claimed weak");
+                }
+            },
+            cast: {
+                legacy: SETTINGS.legacyIncidentCast,
+                // Claimed only while this world's incident runs (the design's H4): tier 2 puts the state back.
+                before: () => game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident", turn: 1, turnSide: "victim" }),
+                seed: { killerId: student.id, victimId: other.id, thirdId: null, lastCrisis: null, betrayal: offer, updated: T },
+                census: { legacy: 1, claimed: 1, left: 0, tombstones: 0, reasons: {} },
+                readBack: store => {
+                    const held = incidentCast();
+                    equal(stableJson([held.killerId, held.victimId, held.betrayal]), stableJson([student.id, other.id, offer]),
+                        "the claimed cast does not read back through incidentCast");
+                    equal(store.stampOf("record", "killerId"), T, "the cast was not claimed at its own stamp");
+                }
+            },
+            blackened: {
+                legacy: SETTINGS.legacyBlackenedLedger,
+                // Claimed only with a verdict of this chapter still to come (H4): a death in the clock's chapter.
+                before: () => other.setFlag(MODULE_ID, FLAGS.deceased, { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay }),
+                seed: [student.id, "SUITEE04NOACTOR0"],
+                census: { legacy: 2, claimed: 1, left: 1, tombstones: 0, reasons: { otherWorld: 1 } },
+                readBack: store => {
+                    equal(stableJson(store.get(student.id)), stableJson({ at: 0, chapter: clock.chapter, epoch: 0 }),
+                        "the claimed Blackened is not this chapter's, of the season a world begins with, first in order");
+                    equal(store.stampOf(student.id), store.weak(), "the claimed Blackened was not claimed weak");
+                }
+            },
+            mastermind: {
+                legacy: SETTINGS.legacyMastermind,
+                seed: { actorId: student.id, room: "SUITE lair", updated: T },
+                census: { legacy: 1, claimed: 1, left: 0, tombstones: 0, reasons: {} },
+                readBack: store => {
+                    equal(stableJson([mastermind.mastermindActor()?.id, mastermind.mastermindLair()]), stableJson([student.id, "SUITE lair"]),
+                        "the claimed pick does not read back through mastermindActor and mastermindLair");
+                    equal(store.stampOf("record", "actorId"), T, "the pick was not claimed at its own stamp");
+                }
+            },
+            remnants: {
+                legacy: SETTINGS.legacyRemnantSecrets,
+                seed: {
+                    [`${sceneId}.SUITEE04TRACE1`]: { type: "prep", visibility: "evident", note: "claimed", updated: T },
+                    [`${sceneId}.SUITEE04TRACE2`]: { type: "key", note: "no stamp" },
+                    [`${sceneId}.SUITEE04TRACE3`]: { deleted: true, updated: T },
+                    ["SUITEE04NOSCENE.SUITEE04TRACE4"]: { type: "prep", updated: T }
+                },
+                census: { legacy: 4, claimed: 3, left: 1, tombstones: 1, reasons: { otherWorld: 1 } },
+                readBack: store => {
+                    const one = remnants.remnantData(trace("SUITEE04TRACE1"));
+                    equal(stableJson([one?.type, one?.note, one?.updated]), stableJson(["prep", "claimed", T]),
+                        "a claimed row does not read back through remnantData, at its own stamp");
+                    equal(remnants.remnantData(trace("SUITEE04TRACE2"))?.type, "key", "a row with no stamp was not claimed (weak)");
+                    ok(store.tombstone(`${sceneId}.SUITEE04TRACE3`) === T, "an old tombstone was not claimed at its own stamp");
+                    ok(!store.has("SUITEE04NOSCENE.SUITEE04TRACE4"), "another world's row was claimed");
+                }
+            },
+            bullets: {
+                legacy: SETTINGS.legacyTruthBulletSecrets,
+                seed: {
+                    [`${here}.SUITEE04CENSUS1`]: { realType: "key", remnantId: "SUITEE04TRACE", gmNote: "claimed", updated: T },
+                    [`${here}.SUITEE04CENSUS2`]: { realType: "final", gmNote: "no stamp" },
+                    [`${here}.SUITEE04CENSUS3`]: { deleted: true, updated: T },
+                    ["Actor.SUITEE04NOACTOR.Item.SUITEE04CENSUS4"]: { realType: "prep", updated: T }
+                },
+                census: { legacy: 4, claimed: 3, left: 1, tombstones: 1, reasons: { otherWorld: 1 } },
+                readBack: store => {
+                    equal(stableJson([bullets.secretOf(`${here}.SUITEE04CENSUS1`).realType, bullets.secretOf(`${here}.SUITEE04CENSUS1`).remnantId]),
+                        stableJson(["key", "SUITEE04TRACE"]), "a claimed row does not read back through secretOf");
+                    equal(bullets.secretOf(`${here}.SUITEE04CENSUS2`).realType, "final", "a row with no stamp was not claimed (weak)");
+                    ok(store.tombstone(`${here}.SUITEE04CENSUS3`) === T, "an old tombstone was not claimed at its own stamp");
+                    equal(stableJson(bullets.secretOf("Actor.SUITEE04NOACTOR.Item.SUITEE04CENSUS4")), "{}", "another world's row was claimed");
+                }
+            }
+        };
+        const stores = E.gmStoreHandles().filter(h => h.spec.legacyKey);
+        ok(stores.length >= 1, "no GM store has an old key - the table did not load");
+        const unfixtured = stores.filter(h => !FIXTURES[h.name]).map(h => h.name);
+        ok(!unfixtured.length, `these stores claim an old key this test has no fixture for: ${unfixtured.join(", ")}`);
+        const unclaimed = Object.keys(FIXTURES).filter(name => !stores.some(h => h.name === name));
+        ok(!unclaimed.length, `this test has a fixture for a store that claims no old key: ${unclaimed.join(", ")}`);
+        const raw = key => game.settings.storage.get("client").getItem(`${MODULE_ID}.${key}`);
+        /* Each old key a fixture, read in place of this browser's (`withGmStoreLegacy`, the
+           review's DS-m5): the real old keys - another world's unclaimed rows live only there -
+           are never written, and read back unchanged after every claim. */
+        for (const store of stores.filter(h => FIXTURES[h.name])) {
+            const fx = FIXTURES[store.name];
+            if (fx.before) await fx.before();
+            const before = raw(fx.legacy);
+            const claimed = () => E.withGmStoreLegacy({ [fx.legacy]: fx.seed }, () => E.withGmStoreWorld(`suite-census-${foundry.utils.randomID(8)}`, async () => {
+                const census = await store.claim();
+                equal(stableJson(census), stableJson(fx.census), `${store.name}: the census of its old key`);
+                equal(census.claimed + census.left, census.legacy, `${store.name}: an old row was neither claimed nor left`);
+                fx.readBack(store);
+            }));
+            await (fx.around ? fx.around(claimed) : claimed());
+            equal(raw(fx.legacy), before, `${store.name}: the claim changed its real old key`);
+        }
+
+        // The fog copy's claim (C9), the one player copy with an old key it takes: this browser's
+        // characters' rows of this world's scenes, weak, merged into the copy; the old key untouched.
+        const mineBefore = raw(SETTINGS.legacyDiscoveryMine);
+        const mine = { [SETTINGS.legacyDiscoveryMine]: { [sceneId]: { [student.id]: ["SUITE mine"] }, SUITEE04NOSCENE: { [student.id]: ["SUITE elsewhere"] } } };
+        await E.withGmStoreLegacy(mine, () => E.withGmStoreWorld(`suite-census-${foundry.utils.randomID(8)}`, async () => {
+            equal(await S.fogCopy.claim(), true, "the fog copy took nothing from its old key");
+            const held = S.fogCopy.read();
+            equal(stableJson(E.liveFields(held)), stableJson({ [`${sceneId}/${student.id}`]: { "SUITE mine": true } }),
+                "the fog copy took another world's rows, or not this one's");
+            equal(held?.t?.[`${sceneId}/${student.id}`], 1, "the fog copy's old rows were not taken weak");
+        }));
+        equal(raw(SETTINGS.legacyDiscoveryMine), mineBefore, "the fog copy's claim changed its real old key");
+    }],
+
+    ["two GMs' old casts claimed on the upgrade day keep the running incident's nulls, and a cast from before it opened is left", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the round-2 review's R2-B1. A 1.2.62 cast entry was
+         * written whole, and its nulls are decisions: "no third", "no receipt". The claim
+         * took only the fields with a value, so a GM whose old key held the running incident
+         * held no stamp for its third, and another GM's older entry - the previous incident,
+         * which that GM last saw - put its third into the running one on every GM. Two
+         * browsers' old keys, each claimed in a world of its own (`withGmStoreWorld`,
+         * `withGmStoreLegacy`: no real old key is written, nothing is sent), their sections
+         * merged as the GMs' exchange merges them: the third is the running entry's null.
+         * And an entry written before the running incident opened (`openedAt`, less the
+         * clocks' bound) is left, counted as the previous incident's.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const [killer, victim, third, oldKiller] = cast(4);
+        const T2 = Date.now() - 60 * 60 * 1000, T1 = T2 - 10 * 60 * 1000;
+        const running = { killerId: killer.id, victimId: victim.id, killerTurnId: killer.id, thirdId: null, thirdSide: null, lastCrisis: null, updated: T2 };
+        const stale = { killerId: oldKiller.id, victimId: victim.id, killerTurnId: oldKiller.id, thirdId: third.id, thirdSide: "killer", updated: T1 };
+        const claimed = seed => E.withGmStoreLegacy({ [SETTINGS.legacyIncidentCast]: seed },
+            () => E.withGmStoreWorld(`suite-castpair-${foundry.utils.randomID(8)}`, async () => ({ census: await S.castStore.claim(), section: S.castStore.section() })));
+        // Put back by tier 2's restore, as every murder test's state is.
+        await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident", turn: 2, turnSide: "killer" });
+        const mine = await claimed(running), theirs = await claimed(stale);
+        equal(stableJson([mine.census?.claimed, theirs.census?.claimed]), stableJson([1, 1]), "the two old casts were not both claimed");
+        const record = E.mergeSections(mine.section, theirs.section, S.castStore.spec).e.record ?? {};
+        equal(stableJson([record.killerId, record.thirdId, record.thirdSide, record.lastCrisis]), stableJson([killer.id, null, null, null]),
+            `the previous incident's third filled the running incident's "no third": ${stableJson(record)}`);
+
+        await game.settings.set(MODULE_ID, SETTINGS.murderState,
+            { active: true, stage: "incident", turn: 2, turnSide: "killer", openedAt: T2 + TIMING.gmStoreSkewMs + 60 * 1000 });
+        const earlier = await claimed(running);
+        equal(stableJson([earlier.census?.claimed, earlier.census?.reasons]), stableJson([0, { previousIncident: 1 }]),
+            `a cast written before the running incident opened was claimed: ${stableJson(earlier.census)}`);
+    }],
+
+    ["a lift of old world data leaves the world data when its store's rows do not read back", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the round-2 review's m7. Three migration clauses take
+         * data out of the world into a GM store - the fog's ledger (`liftDiscoveryLedger`),
+         * the incident's names (`liftIncidentSecrets`), a bullet's Faint
+         * (`migrateFaintIntoSecrets`) - and each removes the world's copy only once the
+         * store's rows read back from storage. Nothing ran one over old data: R178 holds that
+         * each is a clause and nothing else calls it, and a lift that emptied the world data
+         * unread would have passed the suite. Each is run here over a fixture of its old world
+         * data, in a world the stores have never opened, with that store's save swallowed -
+         * the rows stand in memory and not on disk, as after a failed save: the world data
+         * stays. The fourth clause, `truthBulletShape`, removes nothing it does not rewrite in
+         * the same update. The world settings are put back by tier 2's restore; the item is
+         * deleted here.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const fog = await import("./fog.mjs");
+        const murder = await import("./murder.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fog's old ledger is kept for a scene of this world");
+        const sceneId = (game.scenes.active ?? canvas?.scene)?.id;
+        const [student, other] = cast(2);
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const swallow = key => {
+            settings.set = async function (namespace, k, value) {
+                if (namespace === MODULE_ID && k === key) return value;
+                return realSet.call(this, namespace, k, value);
+            };
+        };
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        let item = null;
+        try {
+            await E.withGmStoreWorld(`suite-lifts-${foundry.utils.randomID(8)}`, async () => {
+                const oldFog = { [sceneId]: { [student.id]: ["SUITE lifted room"] } };
+                await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, oldFog);
+                swallow(S.discoveryStore.spec.key);
+                const fogDone = await fog.liftDiscoveryLedger();
+                putBack();
+                equal(stableJson([fogDone?.emptied ?? null, game.settings.get(MODULE_ID, SETTINGS.discoveredRooms)]), stableJson([false, oldFog]),
+                    "the fog's old ledger was emptied from the world with its rows not on disk");
+
+                await game.settings.set(MODULE_ID, SETTINGS.murderState,
+                    { active: true, stage: "incident", turn: 1, turnSide: "victim", killerId: student.id, victimId: other.id });
+                swallow(S.castStore.spec.key);
+                const castDone = await murder.liftIncidentSecrets();
+                putBack();
+                const state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+                equal(stableJson([castDone?.lifted ?? null, state.killerId ?? null, state.victimId ?? null]), stableJson([0, student.id, other.id]),
+                    "the incident's names were taken out of the world with their row not on disk");
+
+                [item] = await student.createEmbeddedDocuments("Item", [{ name: "Suite fixture: a Faint on its item", type: "loot",
+                    flags: { [MODULE_ID]: { category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "evident", analyzed: false, faint: true } } }]);
+                await S.bulletStore.patch(item.uuid, { realType: "prep" });
+                swallow(S.bulletStore.spec.key);
+                await bullets.migrateFaintIntoSecrets();
+                putBack();
+                equal(student.items.get(item.id)?.getFlag(MODULE_ID, "faint"), true, "a bullet's Faint was taken off its item with its row not on disk");
+            });
+        } finally {
+            putBack();
+            if (item && student.items.get(item.id)) await student.items.get(item.id).delete();
+        }
+    }],
+
+    ["a changed old store is reported, and taking it never overwrites what changed since the upgrade", async () => {
+        /*
+         * E04, 26.09.2026; the design's H1. After the upgrade the old keys are frozen,
+         * but a GM who goes back to a 1.2.x build writes them again - whole rows, with a
+         * fresh `updated`. Nothing takes that back on its own: the store says the old key
+         * changed, and a GM asks for what changed. What is taken: a row the store never
+         * had, a field the store has not touched since the upgrade, an old tombstone; what
+         * is not: a field a GM wrote since the upgrade (listed as a conflict and kept),
+         * and a row the downgrade dropped (listed, kept). "Since the upgrade" is the
+         * world's mark, not this browser's claim (the review's DS-m6): another GM's
+         * correction written before this browser claimed stands too. Stood in a world
+         * this browser has never opened, the old key a fixture (`withGmStoreLegacy`,
+         * changed mid-test as a downgrade writes it): no real old key is written.
+         */
+        const E = await import("./gm-store.mjs");
+        const { bulletStore, upgradeMark } = await import("./gm-stores.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const [student] = cast(1);
+        const at = id => `Actor.${student.id}.Item.${id}`;
+        const T = Date.now() - 60 * 60 * 1000;
+        const raw = () => game.settings.storage.get("client").getItem(`${MODULE_ID}.${SETTINGS.legacyTruthBulletSecrets}`);
+        const real = raw();
+        ok(upgradeMark() !== null, "this world has no upgrade mark: the stores never wrote one");
+        const legacy = { [SETTINGS.legacyTruthBulletSecrets]: {
+            [at("SUITEE04H1A")]: { realType: "prep", gmNote: "as upgraded", updated: T },
+            [at("SUITEE04H1B")]: { realType: "evident", updated: T },
+            [at("SUITEE04H1D")]: { realType: "key", updated: T },
+            [at("SUITEE04H1E")]: { realType: "prep", updated: T }
+        } };
+        await E.withGmStoreLegacy(legacy, () => E.withGmStoreWorld(`suite-reclaim-${foundry.utils.randomID(8)}`, async () => {
+            // Another GM's correction, written since the upgrade and before this browser claimed, as a sync brings it.
+            const theirs = E.emptySection();
+            E.writeFields(theirs, at("SUITEE04H1E"), { realType: "key" }, E.gmStoreStamp(), bulletStore.spec);
+            await bulletStore.mergeIn(theirs, { source: "sync" });
+            await bulletStore.claim();
+            ok(!bulletStore.legacyChanged(), "the old key reads as changed right after the claim");
+            await bullets.setSecret(at("SUITEE04H1A"), { gmNote: "written since the upgrade" });
+            const later = Date.now() + 1000;
+            legacy[SETTINGS.legacyTruthBulletSecrets] = {
+                [at("SUITEE04H1A")]: { realType: "tamper", gmNote: "written by 1.2.62", updated: later },
+                [at("SUITEE04H1B")]: { deleted: true, updated: later },
+                [at("SUITEE04H1C")]: { realType: "final", updated: later },
+                [at("SUITEE04H1E")]: { realType: "stale", updated: later }
+            };
+            ok(bulletStore.legacyChanged(), "a downgrade's write of the old key was not seen");
+            const report = await bulletStore.reclaim();
+            equal(stableJson({ added: report.added, taken: report.taken, conflicts: report.conflicts, missing: report.missing, tombstones: report.tombstones }),
+                stableJson({ added: [at("SUITEE04H1C")], taken: [at("SUITEE04H1A")],
+                    conflicts: [{ key: at("SUITEE04H1A"), field: "gmNote" }, { key: at("SUITEE04H1E"), field: "realType" }],
+                    missing: [at("SUITEE04H1D")], tombstones: 1 }), "what was taken, kept and listed");
+            const a = bullets.secretOf(at("SUITEE04H1A"));
+            equal(stableJson([a.realType, a.gmNote]), stableJson(["tamper", "written since the upgrade"]),
+                "an untouched field was not taken, or a field written since the upgrade was overwritten");
+            equal(bullets.secretOf(at("SUITEE04H1E")).realType, "key",
+                "another GM's correction, made before this browser claimed, was overwritten by the downgrade's stale field");
+            equal(stableJson([bullets.secretOf(at("SUITEE04H1B")).realType ?? null, bullets.secretOf(at("SUITEE04H1C")).realType,
+                bullets.secretOf(at("SUITEE04H1D")).realType]), stableJson([null, "final", "key"]),
+                "the old tombstone, the new row or the row the downgrade dropped came out wrong");
+            ok(!bulletStore.legacyChanged(), "after taking what changed, the old key still reads as changed");
+        }));
+        equal(raw(), real, "taking what changed wrote the real old key");
+    }],
+
+    ["a clear in another world leaves this world's traces", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-10. The trace ledger was one object for every world
+         * a GM browser had opened, and the season reset's clear tombstoned every key in
+         * it: another world on the same server lost its traces on that browser, and on
+         * every GM of that world at their next exchange. Each world is a section of the
+         * store now, and a clear cuts its own. Stood in a world this browser has never
+         * opened (the stores' suite override), a row is written there and the ledger
+         * cleared: this world's section, and every row of it as stored, must be what
+         * they were; the other world holds nothing but its cut.
+         */
+        const E = await import("./gm-store.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const remnants = await import("./remnants.mjs");
+        await E.gmStoresIdle();
+        const section = () => stableJson(remnantStore.section());
+        const stored = () => stableJson(Object.keys(remnantStore.entries()).sort().map(k => [k, remnantStore.persisted(k)]));
+        const before = { section: section(), stored: stored() };
+        const key = "SUITEOTHERSCENE.SUITEOTHERTOKEN";
+        let cleared = null, there = null, thereStored = "unread";
+        await E.withGmStoreWorld(`suite-other-${foundry.utils.randomID(8)}`, async () => {
+            await remnantStore.patch(key, { type: "key", note: "test fixture - another world's trace" });
+            ok(remnantStore.has(key), "the other world's row was not written");
+            cleared = await remnants.clearRemnantLedger();
+            await E.gmStoresIdle();
+            there = remnantStore.section();
+            thereStored = remnantStore.persisted(key);
+        });
+        equal(cleared, 1, "the clear did not count the other world's one row");
+        equal(section(), before.section, "a clear in another world changed this world's section");
+        equal(stored(), before.stored, "a clear in another world changed this world's rows as stored");
+        equal(stableJson({ e: there?.e, t: there?.t, d: there?.d }), stableJson({ e: {}, t: {}, d: {} }),
+            "the other world kept a row, a stamp or a tombstone after its clear");
+        ok(there?.cleared > 0, "the other world's section holds no cut");
+        equal(thereStored, null, "the other world's row is still stored");
+    }],
+
+    ["tieChapterTraces over 20 traces is one write", async () => {
+        /*
+         * E04, 26.09.2026. A victim's death ties every trace of the chapter, and each
+         * tie wrote the whole ledger - and from E04 would have flushed the store and sent
+         * every other GM a packet - once per trace: dozens by the third chapter. It is
+         * one batched write now (`setRemnantFlagsMany`). Twenty traces placed in a
+         * chapter well above the clock, so no trace the world holds is among them; the
+         * ledger's writes are counted by `clientSettingChanged` while the chapter is tied.
+         */
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const chapter = (getClock()?.chapter ?? 1) + 7;
+        const placed = [];
+        let writes = 0;
+        const count = key => { if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) writes++; };
+        try {
+            for (let i = 0; i < 20; i++) {
+                const token = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                    chapter, day: 1, timeOfDay: "morning", tiedToCrime: false, note: `test fixture - tied with the chapter ${i}` });
+                ok(token, "could not place a fixture trace");
+                placed.push(token);
+            }
+            await settle();
+            Hooks.on("clientSettingChanged", count);
+            const tied = await remnants.tieChapterTraces(chapter);
+            await settle();
+            Hooks.off("clientSettingChanged", count);
+            equal(tied, 20, "the chapter's twenty traces were not all tied");
+            ok(placed.every(token => remnants.remnantData(token)?.tiedToCrime === true), "a trace of the chapter is not tied in its row");
+            ok(writes >= 1 && writes <= 2, `tying twenty traces wrote the ledger ${writes} time(s)`);
+        } finally {
+            Hooks.off("clientSettingChanged", count);
+            for (const token of placed) await remnants.dropRemnantSecret(token);
+            const ids = placed.map(token => token.id).filter(id => scene.tokens.has(id));
+            if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
+        }
+    }],
+
+    ["Fill from their traces gives a bullet its trace's type, and nothing a GM wrote", async () => {
+        /*
+         * E04, 26.09.2026; the design's 6.3. A browser that lost a bullet's answer key
+         * (or holds one S05-01 reduced to its Faint) can take the real type back from
+         * the trace the bullet was copied from: the bullet's public `remnantRef` names
+         * the trace, and the trace's row says what it is. Weak and fill-only: a type a
+         * GM holds for a bullet stays, and nothing but `realType` and `remnantId` is
+         * made up. Three bullets on one trace: one with no row, one with a row and no
+         * type, one whose GM wrote a type of its own.
+         */
+        const S = await import("./gm-stores.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const [holder] = cast(1);
+        const made = [];
+        let token = null;
+        try {
+            token = await remnants.placeRemnant({ type: "incident", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                tiedToCrime: false, note: "test fixture - a trace to fill from" });
+            ok(token, "could not place the fixture trace");
+            const ref = remnants.keyOf(token);
+            const bullet = async name => {
+                const [item] = await holder.createEmbeddedDocuments("Item", [{ name, type: "loot", flags: { [MODULE_ID]: {
+                    category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "subtle", analyzed: false, remnantRef: ref } } }]);
+                ok(item, `could not make the fixture bullet "${name}"`);
+                made.push(item);
+                return item;
+            };
+            const lost = await bullet("Suite fixture: its answer key lost");
+            const faintOnly = await bullet("Suite fixture: its answer key reduced to a Faint");
+            const decided = await bullet("Suite fixture: its GM's own type");
+            await bullets.setSecret(faintOnly.uuid, { faint: true });
+            await bullets.setSecret(decided.uuid, { realType: "key", gmNote: "the GM's own" });
+            const report = await S.gmStoreHealth();
+            ok(report.counts.bullets.fillable >= 2, `the health report counts ${report.counts.bullets.fillable} bullet(s) to fill, of the two made`);
+            const filled = await S.fillBulletsFromTraces();
+            ok(filled >= 2, `${filled} bullet(s) filled, of the two made`);
+            equal(stableJson([bullets.secretOf(lost.uuid).realType, bullets.secretOf(lost.uuid).remnantId]), stableJson(["incident", token.id]),
+                "a bullet with no row did not take its trace's type and id");
+            equal(stableJson([bullets.secretOf(faintOnly.uuid).realType, bullets.secretOf(faintOnly.uuid).faint]), stableJson(["incident", true]),
+                "a bullet with a row and no type did not take its trace's type, or lost what its row held");
+            equal(stableJson([bullets.secretOf(decided.uuid).realType, bullets.secretOf(decided.uuid).gmNote]), stableJson(["key", "the GM's own"]),
+                "a type a GM wrote was filled over");
+            equal(S.bulletStore.stampOf(lost.uuid, "realType"), S.bulletStore.weak(), "the filled type was not written weak");
+        } finally {
+            for (const item of made) {
+                await bullets.dropSecret(item.uuid);
+                await item.actor?.items?.get(item.id)?.delete();
+            }
+            if (token) {
+                await remnants.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) await token.delete();
+            }
+        }
+    }],
+
+    ["a cleared Mastermind in the old store is put to the primary GM, never applied", async () => {
+        /*
+         * E04, 26.09.2026; the design's H4. The old Mastermind entry named no world, and a
+         * cleared one - `{ actorId: null, updated }` - says only that a GM cleared the pick
+         * somewhere, some time. Applied, it would end this world's season on the upgrade
+         * day if the clear was another world's. So it is carried as a note: the record's
+         * `legacyClearedAt`, at the old entry's own stamp, which travels to every GM (the
+         * review's M1: kept aside on one browser, it was put to nobody when that browser
+         * was not the primary's) and is read by nothing as a pick. Once the store holds a
+         * pick made before it, the health report says so, as a decision for the primary
+         * GM, and no player is told the part; a Keep (the pick stamped again) takes the
+         * row away. Stood in a world this browser has never opened, the old key a fixture
+         * (`withGmStoreLegacy`): no real old key is written.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const mastermind = await import("./mastermind.mjs");
+        const [student] = cast(1);
+        const T = Date.now() - 60 * 60 * 1000;
+        const legacy = { [SETTINGS.legacyMastermind]: { actorId: null, room: null, updated: T } };
+        await E.withGmStoreLegacy(legacy, () => E.withGmStoreWorld(`suite-cleared-${foundry.utils.randomID(8)}`, async () => {
+            const census = await S.mastermindStore.claim();
+            equal(stableJson(census), stableJson({ legacy: 1, claimed: 1, left: 0, tombstones: 0, reasons: {} }),
+                "the cleared entry was not carried as one claimed row");
+            equal(stableJson([S.mastermindStore.record().legacyClearedAt, S.mastermindStore.stampOf("record", "legacyClearedAt")]),
+                stableJson([T, T]), "the clear's time was not carried in the record at its own stamp");
+            ok(Object.hasOwn(S.mastermindStore.section().e.record ?? {}, "legacyClearedAt"), "the clear's note is not in what travels to the other GMs");
+            equal(mastermind.mastermindActor(), null, "a pick came out of a cleared entry");
+            equal(S.mastermindUndecided(), null, "a clear with no pick is put to a GM");
+            // A pick another GM made before that clear, as a sync brings it.
+            const theirs = E.emptySection();
+            E.writeFields(theirs, "record", { actorId: student.id, room: null }, T - 60 * 1000, S.mastermindStore.spec, { whole: true });
+            await S.mastermindStore.mergeIn(theirs, { source: "sync" });
+            equal(S.mastermindUndecided()?.pick, student.id, "a pick older than the clear is not undecided");
+            const row = (await S.gmStoreHealth()).rows.find(r => r.id === "mastermindCleared");
+            equal(row?.level, "conflict", "a pick older than the old store's clear is not reported for a GM to decide");
+            ok(row && game.i18n.format(row.key, row.data).includes(student.name), "the decision does not name the pick it is about");
+            await S.mastermindStore.patch("record", { actorId: student.id });
+            ok(!(await S.gmStoreHealth()).rows.some(r => r.id === "mastermindCleared"), "after the pick was kept (stamped again) the row is still there");
+            equal(S.mastermindUndecided(), null, "after the pick was kept it is still undecided");
+        }));
+    }],
+
+    ["a GM that never saw the incident closes it clean", async () => {
+        /*
+         * E04, 26.09.2026; audit S04-24. The cast was one entry and the newest whole
+         * entry won: a GM that never saw an incident could close it, and a GM that
+         * missed the close sent the old incident back at the next exchange - its
+         * receipt, its swing memo, its killer. The cast is a record now: the close
+         * stamps every field but the betrayal offer (D18), and the next incident
+         * stamps every name it decides whether or not this GM held the old one. Here
+         * another GM's copy of an incident this browser never saw arrives as a sync
+         * does, stamped before the close this browser then makes (a fresh stamp: one an
+         * hour old lost to the closes earlier tests made, measured on the first C6 run);
+         * the old copy arriving again changes nothing; and a copy written after the
+         * close by a GM that then went away, arriving only after the next incident
+         * opened, does not reach it. In a world the stores have never opened (E04's fix
+         * round, the round-2 reviews' R2-m6 and m6: it rewrote this world's record, a
+         * standing betrayal offer included, and only tier 2's restore put it back), and
+         * the new incident's opening resolved at once, as the older murder tests do (m2:
+         * left to the killer's player's dice, it passed on timing alone).
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const [killer, victim, third] = cast(3);
+        const clock = getClock() ?? {};
+        const offer = { thirdId: third.id, killerId: killer.id, chapter: clock.chapter, day: clock.day };
+        await E.withGmStoreWorld(`suite-close-${foundry.utils.randomID(8)}`, async () => {
+            const theirsAt = E.gmStoreStamp();
+            const stale = { killerId: killer.id, victimId: victim.id, lastCrisis: { key: "SUITE", actorId: killer.id },
+                swung: { [killer.id]: "SUITEE04ITEM0000" }, betrayal: offer };
+            const theirs = E.emptySection();
+            E.writeFields(theirs, "record", stale, theirsAt, S.castStore.spec, { whole: true });
+            await S.castStore.mergeIn(theirs, { source: "sync" });
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident", turn: 2, turnSide: "killer", indirect: false });
+            equal(M.murderState()?.killerId, killer.id, "the other GM's copy did not arrive");
+
+            await M.endMurder({ reason: "test", followUp: false });
+            const closed = S.castStore.record();
+            ok(!closed.killerId && !closed.victimId && !closed.lastCrisis && !Object.keys(closed.swung ?? {}).length,
+                `the close left a field of the incident: ${stableJson(closed)}`);
+            equal(stableJson(closed.betrayal), stableJson(offer), "the betrayal offer did not outlive the close");
+            await S.castStore.mergeIn(theirs, { source: "sync" });
+            equal(S.castStore.record().killerId ?? null, null, "the old copy, arriving again after the close, brought its killer back");
+
+            const closedAt = S.castStore.stampOf("record", "killerId");
+            await M.openMurder({ killerId: victim.id, victimId: killer.id });
+            await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            const late = E.emptySection();
+            E.writeFields(late, "record", { thirdId: third.id, thirdSide: "killer", lastCrisis: { key: "SUITELATE" }, swung: { [third.id]: "SUITEE04ITEM0001" } },
+                closedAt + 1, S.castStore.spec, { whole: true });
+            await S.castStore.mergeIn(late, { source: "sync" });
+            const opened = M.murderState();
+            ok(opened && !opened.thirdId && !opened.thirdSide && !opened.lastCrisis && !Object.keys(opened.swung ?? {}).length,
+                `the new incident holds a field of one it never had: ${stableJson(opened)}`);
+            equal(stableJson([opened?.killerId, opened?.victimId, opened?.betrayal]), stableJson([victim.id, killer.id, offer]),
+                "the new incident's cast, or the betrayal offer, is not what was opened");
+        });
+    }],
+
+    ["the cast comes back by hand when this browser lost it", async () => {
+        /*
+         * E04, 26.09.2026; the design's 6.3. An incident runs in the world, and this
+         * browser - lost, emptied - holds nobody in it: the health report says so, and
+         * its window takes the killer and the victim from the GM. Driven through the
+         * window a GM would use, then the incident is played on: the turn passes to
+         * the killer entered. In a world the stores have never opened (E04's fix round,
+         * R2-m6 and m6: `forget` emptied this world's record), the opening resolved at
+         * once (m2).
+         */
+        needs(env.dialogs(), "the cast is entered in a window, and this client draws none");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const [killer, victim] = cast(2);
+        await E.withGmStoreWorld(`suite-byhand-${foundry.utils.randomID(8)}`, async () => {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            equal(M.murderState()?.killerId, killer.id, "the fixture incident did not open");
+            const world = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, { ...world, stage: "incident", turnSide: "victim" });
+            await S.castStore.forget();
+            equal(M.murderState()?.killerId ?? null, null, "the store forgot, and the cast is still here");
+            ok((await S.gmStoreHealth()).rows.some(r => r.id === "incident"), "the health report does not say the running incident has no cast here");
+
+            const waiting = S.enterCastByHand();
+            ok(await until(() => document.querySelector(".drpg-window-enter-cast"), 4000), "the cast window did not open");
+            const win = document.querySelector(".drpg-window-enter-cast");
+            win.querySelector("[name=killerId]").value = killer.id;
+            win.querySelector("[name=victimId]").value = victim.id;
+            win.querySelector('button[data-action="enter"]').click();
+            await waiting;
+            equal(stableJson([M.murderState()?.killerId, M.murderState()?.victimId]), stableJson([killer.id, victim.id]),
+                "the cast entered by hand is not the incident's");
+            await M.passTurn();
+            equal(stableJson([M.murderState()?.turnSide, M.murderState()?.killerTurnId]), stableJson(["killer", killer.id]),
+                "the incident does not run on the cast entered by hand");
+            ok(!(await S.gmStoreHealth()).rows.some(r => r.id === "incident"), "the health report still says the incident has no cast here");
+        });
+    }],
+
+    ["a Blackened of another chapter or season does not count, and a stale copy cannot bring one back", async () => {
+        /*
+         * E04, 26.09.2026; audit S04-25. The register was a list emptied at a chapter's
+         * end, and synced with no freshness at all: a GM that missed the emptying sent
+         * last chapter's killers back into this chapter's verdict. A row keeps its
+         * chapter and season now, and `blackenedIds` reads the clock's. Held: this
+         * chapter's killer counts; last chapter's and another season's do not; last
+         * chapter's killer in a stale copy from another GM does not come back; and the
+         * season reset's clear takes this chapter's out, a stale copy of it included. In a
+         * world the stores have never opened (E04's fix round, R2-m6 and m6: the clear is
+         * the primary's `clear()`, which raised this world's watermark and wrote it to
+         * this browser's storage, where a run that died before tier 2's restore left it).
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const [now, before, elsewhere] = cast(3);
+        const chapter = getClock()?.chapter ?? 1;
+        const epoch = seasonEpoch();
+        await E.withGmStoreWorld(`suite-blackened-${foundry.utils.randomID(8)}`, async () => {
+            await S.blackenedStore.patchMany({
+                [now.id]: { chapter, epoch, at: 1 },
+                [before.id]: { chapter: chapter - 1, epoch, at: 2 },
+                [elsewhere.id]: { chapter, epoch: epoch + 12345, at: 3 }
+            });
+            equal(stableJson(M.blackenedIds()), stableJson([now.id]), "a Blackened of another chapter or season counts in this one");
+            const theirs = E.emptySection();
+            E.writeFields(theirs, before.id, { chapter: chapter - 1, epoch, at: 0 }, E.gmStoreStamp() - 60 * 60 * 1000, S.blackenedStore.spec);
+            await S.blackenedStore.mergeIn(theirs, { source: "sync" });
+            equal(stableJson(M.blackenedIds()), stableJson([now.id]), "a stale copy brought last chapter's Blackened into this one");
+            const kept = E.emptySection();
+            E.writeFields(kept, now.id, { chapter, epoch, at: 1 }, E.gmStoreStamp() - 1000, S.blackenedStore.spec);
+            await M.clearBlackened();
+            await S.blackenedStore.mergeIn(kept, { source: "sync" });
+            equal(stableJson(M.blackenedIds()), stableJson([]), "after the clear, a stale copy of this chapter's killer came back");
+        });
+    }],
+
+    ["an unticked room stays unticked after a stale copy merges", async () => {
+        /*
+         * E04, 26.09.2026; audit S07-01. The fog ledger was a union written whole, and a
+         * union only grows: a GM's copy that had not heard of an untick - or a player's
+         * rows answering the primary's rebuild - put the room back at the next write, and
+         * the GM's hide undid itself. A cell per room now, stamped, and an untick is a
+         * `false` at its own stamp. Here a room is found through Room Setup's write, the
+         * store's copy of that moment kept, the room unticked the same way, and the old
+         * copy merged in as a sync does: the room stays hidden. (A player's rows in a
+         * rebuild are 60-ledger's, through the handler itself.) Stood in a world the store
+         * has never opened, so nothing reaches another GM.
+         */
+        const E = await import("./gm-store.mjs");
+        const { discoveryStore } = await import("./gm-stores.mjs");
+        const fog = await import("./fog.mjs");
+        needs(world.atLeast("namedRooms", 1), "a room to find and hide");
+        const scene = canvas.scene;
+        const [student] = cast(1);
+        const room = [...(scene?.regions ?? [])].map(r => r.name).find(Boolean);
+        await E.withGmStoreWorld(`suite-untick-${foundry.utils.randomID(8)}`, async () => {
+            await fog.applyDiscoveryChanges(scene, [{ actorId: student.id, room, value: true }]);
+            ok(fog.discoveredFor(scene.id, student.id).includes(room), "the room was not found");
+            const before = discoveryStore.section();
+            await fog.applyDiscoveryChanges(scene, [{ actorId: student.id, room, value: false }]);
+            ok(!fog.discoveredFor(scene.id, student.id).includes(room), "the untick did not hide the room");
+            await discoveryStore.mergeIn(before, { source: "sync" });
+            ok(!fog.discoveredFor(scene.id, student.id).includes(room), "a copy from before the untick brought the room back");
+        });
+    }],
+
+    ["a player's rows merge, never replace, and rows under the cut are refused", async () => {
+        /*
+         * E04, 26.09.2026; audit S07-01. A player's rows were the set a GM sent last,
+         * written whole: a GM whose browser held fewer rows emptied the rest of the
+         * player's fog. The player's copy is a section of the GMs' cells now
+         * (gm-stores.mjs `fogCopy`), merged cell by cell. Driven through the copy on this
+         * browser the way a player's takes rows: one room, then another from a GM that
+         * holds only that one - both stand; then a section with a reset's watermark above
+         * both - they are gone, and of two rooms in that section the one stamped under
+         * the watermark is not taken; and a section that is not one changes nothing. Stood
+         * in a world the store has never opened.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const key = "SUITESCENE000000/SUITEACTOR000000";
+        const rows = () => stableJson(E.liveFields(S.fogCopy.read())[key] ?? {});
+        await E.withGmStoreWorld(`suite-fogcopy-${foundry.utils.randomID(8)}`, async () => {
+            const t1 = E.gmStoreStamp(), t2 = E.gmStoreStamp();
+            const one = (room, t) => ({ e: { [key]: { [room]: true } }, t: { [key]: t }, d: {}, cleared: 0 });
+            equal(await S.fogCopy.receive(one("SUITE room A", t1), { "": t1 }), true, "a first row was not taken");
+            equal(await S.fogCopy.receive(one("SUITE room B", t2), { "": t2 }), true, "a second GM's row was not taken");
+            equal(rows(), stableJson({ "SUITE room A": true, "SUITE room B": true }), "a GM holding one row replaced the other");
+            const cut = E.gmStoreStamp(), after = E.gmStoreStamp();
+            const reset = { e: { [key]: { "SUITE room C": true, "SUITE room D": true } }, t: { [key]: { "": after, "SUITE room D": cut - 1 } },
+                d: {}, cleared: cut };
+            equal(await S.fogCopy.receive(reset, { "": after }), true, "a section after a reset was not taken");
+            equal(rows(), stableJson({ "SUITE room C": true }), "a row under the reset's watermark stands, or one stamped under it was taken");
+            equal(await S.fogCopy.receive({ e: "not rows", t: {}, d: {}, cleared: 0 }, { "": E.gmStoreStamp() }), false,
+                "a section that is not one was taken");
+        });
+    }],
+
+    ["an empty answer never takes an owner's offer away", async () => {
+        /*
+         * E04, 26.09.2026; audit S03-11. An owner's browser held whatever set of offers
+         * the last answer carried, and a primary whose browser held none answered an empty
+         * set, which the owner took: the lit button went out, and the Level Up with it,
+         * until a GM offered it again. The owner's copy is stamped per character now
+         * (gm-stores.mjs `offerCopy`). Driven through the copy on this browser the way an
+         * owner's takes the primary's answers - an offer; an empty answer stamped 0, from a
+         * primary holding none; a withdrawal - and then the primary's side: `offersFor`
+         * stamps every character the owner owns, 0 where this browser holds nothing, the
+         * row's stamp where it holds an offer, and the withdrawal's where it was taken back.
+         * Stood in a world this browser has never opened, so nothing reaches another GM or
+         * an owner.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const L = await import("./level-up.mjs");
+        needs(world.atLeast("playersWithCharacter"), "the primary's answer is about the characters a player owns");
+        const owns = (a, u) => a.type === "character" && a.testUserPermission(u, "OWNER");
+        const owner = game.users.find(u => !u.isGM && game.actors.some(a => owns(a, u)));
+        const student = game.actors.find(a => owns(a, owner));
+        await E.withGmStoreWorld(`suite-offers-${foundry.utils.randomID(8)}`, async () => {
+            const at = E.gmStoreStamp();
+            const offer = { [student.id]: { kind: "standard" } };
+            equal(await S.offerCopy.receive(offer, { [student.id]: at }), true, "an offer at its stamp was not taken");
+            equal(await S.offerCopy.receive({}, { [student.id]: 0 }), false, "an empty answer from a primary holding no offer was taken");
+            equal(stableJson(S.offerCopy.read()), stableJson(offer), "the offer did not survive the empty answer");
+            equal(await S.offerCopy.receive({}, { [student.id]: at + 1 }), true, "a withdrawal, at a newer stamp, did not take the offer away");
+            equal(stableJson(S.offerCopy.read()), "{}", "the withdrawn offer still reads");
+
+            const none = L.offersFor(owner.id);
+            equal(stableJson([none.offers, none.stamps[student.id]]), stableJson([{}, 0]),
+                "the primary holding no offer does not answer nothing at stamp 0");
+            await S.offerStore.patch(student.id, { kind: "standard", at: Date.now() });
+            const one = L.offersFor(owner.id);
+            equal(stableJson([one.offers[student.id], one.stamps[student.id]]), stableJson([{ kind: "standard" }, S.offerStore.stampOf(student.id)]),
+                "the primary's answer does not carry the offer at its row's stamp");
+            await S.offerStore.drop(student.id);
+            const gone = L.offersFor(owner.id);
+            ok(gone.stamps[student.id] > one.stamps[student.id] && !gone.offers[student.id],
+                `the primary's answer after a withdrawal is not newer than the offer, so the owner would keep it lit: ${stableJson(gone)}`);
+        });
+    }],
+
+    ["a taken plant stays taken when a stale copy merges", async () => {
+        /*
+         * E04, 26.09.2026; audit S08-19. A trap's planted objects were one object per GM
+         * browser, written whole, and the primary - who hands a player's Search its find
+         * - never saw a plant another GM left. They are a synced store now, so a copy
+         * from a GM that has not heard of a take can arrive after it. Taking one is a
+         * stamped drop, and a new plant in the room drops the old one first. Here a
+         * plant is left and taken; this store's copy from before the take merges in as a
+         * sync does: the plant stays taken. Then a plant with a picture is left, and a
+         * second one without replaces it before anybody searches; the copy from before
+         * the second merges in: the room holds the second, and nothing of the first. Stood
+         * in a world this browser has never opened, so no other GM is sent the fixture's
+         * rows.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const T = await import("./traps.mjs");
+        const room = "SUITE E04 plant room", sceneId = "SUITEE04PLANTSCN";
+        await E.withGmStoreWorld(`suite-plants-${foundry.utils.randomID(8)}`, async () => {
+            const first = await T.plantItem("SUITEE04PLANTPRJ", room, { sceneId, name: "SUITE planted kit", img: "SUITE-first.webp" });
+            ok(first, "the fixture plant was not left");
+            const before = S.trapPlantStore.section();
+            const taken = await T.takePlant(room, sceneId);
+            equal(taken?.drpgItemId, first, "the plant was not taken");
+            await S.trapPlantStore.mergeIn(before, { source: "sync" });
+            equal(await T.takePlant(room, sceneId), null, "a copy from before the take brought the plant back for a second finder");
+            await T.plantItem("SUITEE04PLANTPRJ", room, { sceneId, name: "SUITE pictured kit", img: "SUITE-pictured.webp" });
+            const beforeSecond = S.trapPlantStore.section();
+            const second = await T.plantItem("SUITEE04PLANTPRJ", room, { sceneId, name: "SUITE second kit" });
+            await S.trapPlantStore.mergeIn(beforeSecond, { source: "sync" });
+            const held = S.trapPlantStore.get(`${sceneId}::${room}`) ?? {};
+            equal(stableJson([held.drpgItemId, held.name, held.img ?? null]), stableJson([second, "SUITE second kit", null]),
+                "the room does not hold the second plant alone");
+        });
+    }],
+
+    ["a reset cuts every store it wipes and none it keeps", async () => {
+        /*
+         * E04 C10, 26.09.2026; audit S06-20, D12. A season reset wiped what the GM who ran
+         * it held, and every other GM's browser kept last season's rows and handed them
+         * back at the next exchange. The reset writes a cut per wiped group in the clock
+         * now, before its steps (season-exceptions.mjs `resetCutPatch`), and every client
+         * cuts each store of a wiped group at it (gm-store.mjs `applyCuts`). Here a row goes
+         * into each store, the patch of a reset that wipes some groups and keeps the rest is
+         * applied as the clock's update applies it, and: each store of a wiped group reads
+         * empty with its watermark at the cut; each of a kept group holds its row with its
+         * watermark where it was; and the same cut again writes nothing (14-quiet).
+         *
+         * Not the real clock: a cut cannot be taken back, so it is handed to the engine the
+         * way the clock hands it, in a world the stores have never opened. And not the
+         * Mastermind's or the cast's record, which are left untouched: the primary tells
+         * the players what a write to either changes (their re-tell watches, the review's
+         * B1), and a stand-in world's would reach real players (the review's S-m2).
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const ex = await import("./season-exceptions.mjs");
+        const told = new Set([S.mastermindStore.name, S.castStore.name]);
+        const plan = ex.planFrom(["remnants", "projects", "advancement", "discovered"]);
+        await E.withGmStoreWorld(`suite-reset-${foundry.utils.randomID(8)}`, async () => {
+            const handles = E.gmStoreHandles().filter(h => !told.has(h.name));
+            const key = "SUITE-last-season";
+            for (const h of handles) await h.patch(key, { suite: "last season" });
+            await E.gmStoresIdle();
+            const before = Object.fromEntries(handles.map(h => [h.name, h.cleared()]));
+            const at = E.gmStoreStamp();
+            const patch = ex.resetCutPatch(plan, { resetCuts: {} }, at);
+            await E.applyGmStoreCuts(patch);
+            await E.gmStoresIdle();
+            const wiped = handles.filter(h => plan.groups.has(h.spec.resetGroup)), kept = handles.filter(h => !plan.groups.has(h.spec.resetGroup));
+            ok(wiped.length >= 2 && kept.length >= 2, `the fixture wipes ${wiped.length} stores and keeps ${kept.length}: it measures too little`);
+            const wrong = [
+                ...wiped.filter(h => h.cleared() !== at || h.has(key)).map(h => `${h.name} (wiped) at ${h.cleared()}, row ${h.has(key)}`),
+                ...kept.filter(h => h.cleared() !== before[h.name] || !h.has(key)).map(h => `${h.name} (kept) at ${h.cleared()}, row ${h.has(key)}`)
+            ];
+            ok(!wrong.length, `the cut ${at} missed a wiped store or reached a kept one: ${wrong.join("; ")}`);
+
+            const keys = new Set(handles.map(h => `${MODULE_ID}.${h.spec.key}`));
+            let writes = 0;
+            const hook = Hooks.on("clientSettingChanged", written => { if (keys.has(written)) writes++; });
+            try {
+                await E.applyGmStoreCuts(patch);
+                await E.gmStoresIdle();
+            } finally {
+                Hooks.off("clientSettingChanged", hook);
+            }
+            equal(writes, 0, "the same cut again wrote a store");
+        });
+    }],
+
+    ["compaction drops what the cut covers and keeps a tombstone whose subject exists", async () => {
+        /*
+         * E04 C10, 26.09.2026; the design's 2.11. A tombstone keeps an older copy of a
+         * dropped row from coming back, so none can go while a GM might still hold that
+         * copy - and one whose subject is gone guards a row nothing can reach. Two halves:
+         * a reset's cut takes every row and tombstone at or under it with the merge that
+         * raises the watermark; and after the stores have the other GMs' copies
+         * (gm-stores.mjs `compactGmStores`), a tombstone older than
+         * `TIMING.gmStoreTombstoneDays` whose subject is gone goes, and nothing else - a
+         * tombstone of a subject still here, a young one and a live row of a gone subject
+         * stay; and on the primary, a Blackened row of a season before this one is
+         * dropped, stamped, and one of an earlier chapter of this season stands (moving
+         * the clock back a chapter reads it again). The answer keys' store and the
+         * register, in a world the stores have never opened, every stamp built for the
+         * fixture.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const [student] = cast(1);
+        const day = 24 * 60 * 60 * 1000, now = E.gmStoreNow();
+        const old = now - (TIMING.gmStoreTombstoneDays + 1) * day, young = now - day;
+        const gone = n => `Actor.SUITEGONE${n}00000000.Item.SUITEGONE${n}00000000`;
+        const here = student.uuid, under = gone("U"), buried = gone("B");
+        await E.withGmStoreWorld(`suite-compact-${foundry.utils.randomID(8)}`, async () => {
+            await S.bulletStore.mergeIn({
+                e: { [gone("L")]: { realType: "neutral" }, [under]: { realType: "key" } },
+                t: { [gone("L")]: old, [under]: old - 2000 },
+                d: { [here]: old, [gone("O")]: old, [gone("Y")]: young, [buried]: old - 2000 },
+                cleared: 0
+            }, { source: "sync" });
+            await E.applyGmStoreCuts({ resetCuts: { bullets: old - 1000 } });
+            ok(!S.bulletStore.has(under) && !S.bulletStore.tombstone(buried),
+                "a row or a tombstone under the reset's cut stood after the cut rose");
+
+            const chapter = getClock()?.chapter ?? 1;
+            await S.blackenedStore.patchMany({ SUITEPASTSEASON: { chapter, epoch: 5, at: 1 }, SUITEPASTCHAPTER: { chapter: chapter - 1, epoch: 10, at: 2 },
+                [student.id]: { chapter, epoch: 10, at: 3 } });
+            // As the primary runs it, whichever GM runs the suite.
+            const report = await S.compactGmStores({ now, epoch: 10, primary: true });
+            await E.gmStoresIdle();
+            const held = {
+                subjectHere: S.bulletStore.tombstone(here), gone: S.bulletStore.tombstone(gone("O")), young: S.bulletStore.tombstone(gone("Y")),
+                liveOfGone: S.bulletStore.has(gone("L"))
+            };
+            equal(stableJson(held), stableJson({ subjectHere: old, gone: 0, young, liveOfGone: true }),
+                "compaction took a tombstone whose subject exists, a young one or a live row, or left an old one of a gone subject");
+            ok(!S.blackenedStore.has("SUITEPASTSEASON") && S.blackenedStore.tombstone("SUITEPASTSEASON") > 0
+                && S.blackenedStore.has("SUITEPASTCHAPTER") && S.blackenedStore.has(student.id),
+                "a Blackened row of a past season stands, was dropped unstamped, or a row of this season went with it");
+            equal(stableJson(report), stableJson({ bullets: 1, blackenedPastSeasons: 1 }), "compaction does not report what it took");
+        });
+    }],
+
+    ["an unstamped world in play keeps its safeword", async () => {
+        /*
+         * E04 C11, 26.09.2026; audit S01-14. A world with no migration stamp is new, or
+         * one from v1.1.0, the build before the stamp - and a v1.1.0 world was given
+         * "Safe Word" in place of the word its table used. Driven through the clause's
+         * own function with the context the automatic pass gives it: an unstamped world
+         * that was not in play keeps the default; one that was gets the language file's
+         * old word, read back. The setting is put back afterwards.
+         */
+        const M = await import("./migrate.mjs");
+        const { DEFAULT_SAFEWORD } = await import("./settings.mjs");
+        const legacy = game.i18n.localize("DRPG.Legacy.safeword");
+        ok(legacy && legacy !== DEFAULT_SAFEWORD, `the language file's old word is "${legacy}": this measures nothing`);
+        const before = getSetting(SETTINGS.safeword);
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.safeword, DEFAULT_SAFEWORD);
+            equal(await M.keepOldSafeword({ from: "", wasInPlay: false }), null, "a new world was given the old word");
+            equal(getSetting(SETTINGS.safeword), DEFAULT_SAFEWORD, "a new world's safeword moved");
+            equal(stableJson(await M.keepOldSafeword({ from: "", wasInPlay: true })), stableJson({ safeword: legacy }),
+                "an unstamped world in play did not keep its word");
+            equal(getSetting(SETTINGS.safeword), legacy, "the kept word does not read back");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.safeword, before);
+            await settle();
+        }
+    }],
+
+    ["Back up the case, then Restore, brings every store back", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-09, the brief's verify. Each store is given a row
+         * through its own writer; the case is backed up (the file is taken from
+         * saveDataToFile instead of downloaded); every store's section on this browser
+         * is emptied, as a browser that lost its storage has it; the health report must
+         * name what is gone; the file is restored; and every row must read back through
+         * the same writer's reader. A store with `backup: true` and no fixture here
+         * fails. Put back by tier 2's restore; the emptied sections are this browser's
+         * memory only - sent nowhere and written nowhere until the restore writes them
+         * back (`forget`; E04's fix round, the review's DS-m5).
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the backed-up trace is placed on the scene on screen");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const [holder] = cast(1);
+        const made = [], traces = [];
+        const mastermind = await import("./mastermind.mjs");
+        const murder = await import("./murder.mjs");
+        const traps = await import("./traps.mjs");
+        const levelUp = await import("./level-up.mjs");
+        const fog = await import("./fog.mjs");
+        const [, victim] = cast(2);
+        const FIXTURES = {
+            // Through the store, in this world: while tier 2 holds the stores no player is sent anything of it (R184).
+            discovery: {
+                seed: async () => {
+                    await S.discoveryStore.patch(`${scene.id}/${holder.id}`, { "SUITE backed-up room": true });
+                    return holder.id;
+                },
+                gone: (report, id) => !fog.discoveredFor(scene.id, id).includes("SUITE backed-up room"),
+                back: id => fog.discoveredFor(scene.id, id).includes("SUITE backed-up room")
+            },
+            // Through the store, in this world: no owner is sent the offer while the stores are held (R184).
+            offers: {
+                seed: async () => {
+                    await S.offerStore.patch(holder.id, { kind: "standard", at: Date.now() });
+                    return holder.id;
+                },
+                gone: (report, id) => levelUp.pendingAdvance(game.actors.get(id)) === null,
+                back: id => levelUp.pendingAdvance(game.actors.get(id))?.kind === "standard"
+            },
+            // The traps' two, through their stores: no project is armed by them (C7).
+            trapLedger: {
+                seed: async () => {
+                    await S.trapLedgerStore.patch("SUITEE04BACKUPIT", { projectId: "SUITEE04BACKUPPJ" });
+                    return "SUITEE04BACKUPIT";
+                },
+                gone: (report, id) => traps.trapForItemId(id) === null,
+                back: id => traps.trapForItemId(id) === "SUITEE04BACKUPPJ"
+            },
+            trapPlants: {
+                seed: async () => {
+                    const key = `${scene.id}::SUITE backed-up room`;
+                    await S.trapPlantStore.patch(key, { projectId: "SUITEE04BACKUPPJ", drpgItemId: "SUITEE04BACKUPIT", name: "SUITE backed-up kit" });
+                    return key;
+                },
+                gone: (report, key) => !S.trapPlantStore.has(key),
+                back: key => S.trapPlantStore.get(key)?.name === "SUITE backed-up kit"
+            },
+            // Both through their stores, in this world: no participant is sent the cast while the stores are held (R184).
+            cast: {
+                seed: async () => {
+                    await S.castStore.patch("record", { killerId: holder.id, victimId: victim.id });
+                    return holder.id;
+                },
+                gone: () => !S.castStore.record().killerId,
+                back: id => stableJson([S.castStore.record().killerId, S.castStore.record().victimId]) === stableJson([id, victim.id])
+            },
+            blackened: {
+                seed: async () => {
+                    await S.blackenedStore.patch(holder.id, { chapter: getClock()?.chapter ?? null, epoch: seasonEpoch(), at: 1 });
+                    return holder.id;
+                },
+                gone: (report, id) => !murder.blackenedIds().includes(id),
+                back: id => murder.blackenedIds().includes(id)
+            },
+            mastermind: {
+                // Through the store and not setMastermind; the primary's watch tells no player while the stores are held (R184).
+                seed: async () => {
+                    await S.mastermindStore.patch("record", { actorId: holder.id, room: "SUITE backed-up lair" });
+                    return holder.id;
+                },
+                gone: (report, id) => mastermind.mastermindActor() === null,
+                back: id => stableJson([mastermind.mastermindActor()?.id, mastermind.mastermindLair()]) === stableJson([id, "SUITE backed-up lair"])
+            },
+            remnants: {
+                seed: async () => {
+                    const token = await remnants.placeRemnant({ type: "key", visibility: "hidden", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                        tiedToCrime: false, note: "test fixture - a backed-up trace" });
+                    ok(token, "no trace was placed to back up");
+                    traces.push(token);
+                    return token;
+                },
+                gone: (report, token) => report.counts.traces.missing >= 1 && remnants.remnantData(token) === null,
+                back: token => stableJson([remnants.remnantData(token)?.type, remnants.remnantData(token)?.note])
+                    === stableJson(["key", "test fixture - a backed-up trace"])
+            },
+            bullets: {
+                seed: async () => {
+                    const item = await bullets.createTruthBullet(holder, { name: "Suite fixture: a backed-up answer", realType: "final",
+                        visibility: "hidden", playerText: "A folded note.", analyzedText: "It names the mastermind", remnantId: "SUITEE04BACKUP" });
+                    ok(item, "no bullet was made to back up");
+                    made.push(item);
+                    return item.uuid;
+                },
+                gone: (report, uuid) => report.counts.bullets.missing >= 1 && !bullets.secretOf(uuid).realType,
+                back: uuid => stableJson([bullets.secretOf(uuid).realType, bullets.secretOf(uuid).analyzedText]) === stableJson(["final", "It names the mastermind"])
+            }
+        };
+        const stores = E.gmStoreHandles().filter(h => h.spec.backup);
+        const unfixtured = stores.filter(h => !FIXTURES[h.name]).map(h => h.name);
+        ok(!unfixtured.length, `these stores are backed up and this test has no fixture for them: ${unfixtured.join(", ")}`);
+        const unsaved = Object.keys(FIXTURES).filter(name => !stores.some(h => h.name === name));
+        ok(!unsaved.length, `this test has a fixture for a store the backup leaves out: ${unsaved.join(", ")}`);
+        const saveDataToFile = foundry.utils.saveDataToFile;
+        let saved = null;
+        try {
+            foundry.utils.saveDataToFile = data => { saved = data; };
+            const keys = {};
+            for (const store of stores) keys[store.name] = await FIXTURES[store.name].seed();
+            const file = await S.backupCase();
+            ok(saved && file?.format === S.CASE_FORMAT, "the backup wrote no case file");
+            const stored = () => stores.map(h => game.settings.storage.get("client").getItem(`${MODULE_ID}.${h.spec.key}`));
+            const onDisk = stored();
+            for (const store of stores) await store.forget();
+            equal(stableJson(stored()), stableJson(onDisk), "forgetting wrote the emptied sections to this browser's storage, where a tab closed now would leave them");
+            const report = await S.gmStoreHealth();
+            for (const store of stores) ok(FIXTURES[store.name].gone(report, keys[store.name]), `${store.name}: after the store was emptied the report does not say so, or its row still reads`);
+            const result = await S.restoreCase(saved, { recheck: false });
+            ok(result && !result.refused, `the restore refused its own backup: ${stableJson(result)}`);
+            for (const store of stores) ok(FIXTURES[store.name].back(keys[store.name]), `${store.name}: its row did not come back from the file`);
+        } finally {
+            foundry.utils.saveDataToFile = saveDataToFile;
+            for (const item of made) {
+                await bullets.dropSecret(item.uuid);
+                await item.actor?.items?.get(item.id)?.delete();
+            }
+            for (const token of traces) {
+                await remnants.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) await token.delete();
+            }
+        }
+    }],
+
+    ["a restore of another world's file keeps this world's rows and its pick, unless the pick is ticked", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the reviews' DS-M1 = C-m6. A file of another world
+         * (a duplicated world, a moved server) was merged as it was: its watermark removed
+         * every row of this world stamped under it, on every GM, and its record replaced
+         * this world's pick. In a world the stores have never opened (`withGmStoreWorld`,
+         * so no other GM and no player is sent anything): two answer keys and a pick here;
+         * in the file, a third row, a removal of one of the two, a watermark after both and
+         * a newer pick. Not ticked, the file is refused. Ticked: both answer keys read back,
+         * the file's row is added, the pick is this world's, and the preview said so -
+         * nothing removed here, the pick "taken only if ticked". Ticked for the Mastermind
+         * as well, the file's pick is taken.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const [mine, theirs] = cast(2);
+        const KEPT = ["Actor.SUITEOTHERW000.Item.KEPT1", "Actor.SUITEOTHERW000.Item.KEPT2"], THEIRS = "Actor.SUITEOTHERW000.Item.THEIRS";
+        await E.withGmStoreWorld(`suite-otherworld-${foundry.utils.randomID(8)}`, async () => {
+            await S.bulletStore.patch(KEPT[0], { realType: "key" });
+            await S.bulletStore.patch(KEPT[1], { realType: "final" });
+            await S.mastermindStore.patch("record", { actorId: mine.id, room: "SUITE this world's lair" });
+            const now = E.gmStoreNow();
+            const file = stableJson({
+                format: S.CASE_FORMAT, version: S.CASE_VERSION, world: { id: "suite-another-world", title: "Another world" },
+                stores: {
+                    bullets: { e: { [THEIRS]: { realType: "prep" } }, t: { [THEIRS]: now - 1000 }, d: { [KEPT[1]]: now + 1000 }, cleared: now + 2000 },
+                    mastermind: { e: { record: { actorId: theirs.id, room: "SUITE another world's lair" } }, t: { record: now + 3000 }, d: {}, cleared: 0 }
+                }
+            });
+            const refused = await S.restoreCase(file, { recheck: false });
+            equal(refused?.refused, "otherWorld", "another world's file was restored with nothing ticked");
+            const preview = S.previewRestore(file);
+            equal(stableJson([preview.otherWorld, preview.stores.bullets?.add, preview.stores.bullets?.remove, preview.stores.mastermind?.record]),
+                stableJson([true, 1, 0, true]), `the preview does not say one row added, none removed and the pick taken only if ticked: ${stableJson(preview)}`);
+            const first = await S.restoreCase(file, { otherWorld: true, recheck: false });
+            ok(first?.counts?.mastermind?.skipped, `another world's pick was not left out: ${stableJson(first)}`);
+            equal(stableJson([...KEPT, THEIRS].map(k => S.bulletStore.get(k)?.realType ?? null)), stableJson(["key", "final", "prep"]),
+                "another world's watermark or removal took this world's answer keys, or its row was not added");
+            equal(S.mastermindStore.record().actorId, mine.id, "another world's pick replaced this world's with nothing ticked for it");
+            await S.restoreCase(file, { otherWorld: true, records: ["mastermind"], recheck: false });
+            equal(stableJson([S.mastermindStore.record().actorId, S.mastermindStore.record().room]), stableJson([theirs.id, "SUITE another world's lair"]),
+                "the file's pick was not taken with the Mastermind ticked");
+        });
+    }],
+
+    ["the health check counts a trace whose answer key is still on its token apart, to be moved and not restored", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the review's C-m14. A trace from before the ledger
+         * that `migrateRemnants` has not reached has no row, and the check counted it as a
+         * missing answer key and offered a Restore that could not help: no backup holds a
+         * key that is still on its token. Made the way such a trace is - its answer key in
+         * its flags, no row - it is counted as one to move and not as missing, and a trace
+         * with no row and nothing on its token still is. Both fixtures are deleted after.
+         */
+        const S = await import("./gm-stores.mjs");
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const placed = [];
+        const make = async flags => {
+            const [t] = await scene.createEmbeddedDocuments("Token", [{ name: game.i18n.localize("DRPG.Remnant.tokenName"), actorLink: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, hidden: true, flags: { [MODULE_ID]: { isRemnant: true, ...flags } } }]);
+            ok(t, "could not make a fixture trace");
+            placed.push(t);
+            return t;
+        };
+        try {
+            const before = (await S.gmStoreHealth()).counts.traces;
+            const onToken = await make({ remnantType: "prep", visibility: "subtle", note: "SUITE a key still on its token" });
+            await make({});
+            ok(remnants.answerKeyOnToken(onToken) && remnants.remnantData(onToken) === null, "the fixture is not a trace whose key is still on its token");
+            const report = await S.gmStoreHealth();
+            const after = report.counts.traces;
+            equal(stableJson([after.onToken - before.onToken, after.missing - before.missing]), stableJson([1, 1]),
+                `the two traces with no row were not counted one to move and one missing: ${stableJson({ before, after })}`);
+            ok(report.rows.some(r => r.id === "tracesOnToken" && r.level === "missing"), "no row of the report says a trace's key is still on its token");
+        } finally {
+            for (const t of placed) if (scene.tokens.has(t.id)) await t.delete();
+        }
+    }],
+
+    ["Analyze refuses rather than announcing Neutral when the answer key is missing", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-01, S05-09. A bullet whose answer key this GM's
+         * browser lacks used to be read as Neutral by the Analyze - a reading nobody
+         * made, announced to its holder. Made here the way a lost browser leaves one: a
+         * bullet on a student with no row in the store. Its Analyze is refused with the
+         * closed list's code (answerKeyMissing), the bullet shows and holds what it did,
+         * and the GMs are told once for the bullet, not once per throw.
+         */
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const { bulletStore } = await import("./gm-stores.mjs");
+        const [actor] = cast(1);
+        const messages = () => game.messages.size;
+        let item = null;
+        try {
+            [item] = await actor.createEmbeddedDocuments("Item", [{ name: "Suite fixture: a bullet with no answer key", type: "loot",
+                flags: { [MODULE_ID]: { category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "evident", analyzed: false } } }]);
+            ok(item && !bulletStore.has(item.uuid), "the fixture bullet was made with a row, or not at all");
+            await bulletStore.whenHydrated();
+            const before = messages();
+            const first = await resolveAnalyze({ actorId: actor.id, itemId: item.id, total: 40, isCritical: false });
+            equal(reasonOf(first?.refused ?? ""), "answerKeyMissing", `the Analyze was not refused for its missing key: ${stableJson(first)}`);
+            const live = actor.items.get(item.id);
+            equal(stableJson([live.getFlag(MODULE_ID, "shownType"), live.getFlag(MODULE_ID, "analyzed")]), stableJson(["neutral", false]),
+                "the refused Analyze announced something on the bullet");
+            await settle();
+            const told = messages() - before;
+            ok(told === 1, `the GMs were told ${told} time(s) about the missing key, not once`);
+            await resolveAnalyze({ actorId: actor.id, itemId: item.id, total: 40, isCritical: false });
+            await settle();
+            equal(messages() - before, 1, "a second throw at the same bullet told the GMs again");
+        } finally {
+            if (item) await actor.items.get(item.id)?.delete();
+        }
+    }]
 ];
 
 export { SCENARIOS, snapshot, restore };

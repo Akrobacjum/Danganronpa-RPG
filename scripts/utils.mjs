@@ -145,15 +145,22 @@ export function isPrimaryGm() {
  * same rule. Both sides computing it from the same user list is what keeps them
  * from disagreeing.
  *
+ * `arriving`: a GM whose own packet says its client is up - counted as connected
+ * whether or not this client has seen it connect yet (E04's fix round: the bridge's
+ * "a GM is listening" signal, gm-bridge.mjs `onGmReady`; which of the two a client
+ * sees first on v14 is LIVE-E04-12).
+ *
  * @returns {string|null} User id, or null when no GM is connected.
  */
-export function primaryGmId() {
+export function primaryGmId({ arriving = null } = {}) {
+    const here = u => u.active || (arriving !== null && u.id === arriving);
     const full = game.users
-        .filter(u => u.active && u.role === CONST.USER_ROLES.GAMEMASTER)
+        .filter(u => here(u) && u.role === CONST.USER_ROLES.GAMEMASTER)
         .map(u => u.id)
         .sort();
 
-    const pool = full.length ? full : activeGmIds().sort();
+    const assistants = arriving !== null && game.users.get(arriving)?.isGM ? [...new Set([...activeGmIds(), arriving])] : activeGmIds();
+    const pool = full.length ? full : assistants.sort();
     return pool[0] ?? null;
 }
 

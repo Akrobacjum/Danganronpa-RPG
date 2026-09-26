@@ -29,8 +29,10 @@ import { SETTINGS, DEFAULT_SAFEWORD, setSetting } from "./settings.mjs";
 // suite's own source sweep can follow it.
 import {
     RESET_GROUPS, RESET_SECTIONS, groupLabel, sectionLabel,
-    rememberedExceptions, rememberExceptions, planFrom
+    rememberedExceptions, rememberExceptions, planFrom, resetCutPatch
 } from "./season-exceptions.mjs";
+// The reset's cut is a GM store stamp, taken once this browser has the other GMs' copies.
+import { gmStoreStamp, whenGmStoresHydrated } from "./gm-store.mjs";
 import { safeword } from "./safeword.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { studentActors, isMonokuma } from "./monokuma.mjs";
@@ -42,7 +44,7 @@ import { carriableCategories } from "./inventory.mjs";
 import { sharedRooms, roomsWantedFor, forgetAllStashesFound } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
 import { mastermindActor } from "./mastermind.mjs";
-import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc} from "./utils.mjs";
+import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { NOTE_FLAG } from "./pre-session-note.mjs";
 import { alreadyOpen, handOff } from "./live.mjs";
@@ -823,6 +825,25 @@ export async function resetSeason() {
         return null;
     }
 
+    /*
+     * THE RESET IS THE PRIMARY GM'S (E04 C10; audit S06-20, D12). What it wipes lives
+     * in every GM's browser now (the GM stores), and it reaches them through one cut in
+     * the clock and the stores' clears, which are the primary's alone (the handle's
+     * `clear`): one browser decides, the one that already answers for the table. On
+     * 1.2.62 an assistant's reset cleared its own browser and left last season's trap
+     * plants on the primary's, which hands a Search its find. Another GM is told whose
+     * the reset is. And the window waits for this browser to have the other GMs' copies
+     * before it opens, so the cut's stamp is taken over every row they hold (the
+     * design's row 12).
+     */
+    if (!isPrimaryGm()) {
+        const name = game.users.get(primaryGmId())?.name ?? "?";
+        ui.notifications.warn(game.i18n.format("DRPG.GmStore.resetPrimaryOnly", { name }));
+        return null;
+    }
+
+    if (alreadyOpen("drpg-window-season-reset")) return null;
+    await whenGmStoresHydrated();
     if (alreadyOpen("drpg-window-season-reset")) return null;
 
     const tally = resetTally();
@@ -846,6 +867,14 @@ export async function resetSeason() {
         </fieldset>`;
     }).join("");
 
+    // A GM whose browser is closed keeps its copy of the case until it next opens this
+    // world, and is cut then (the clock carries the cut): said, so nobody reads a GM
+    // who was away still holding last season as a reset that failed.
+    const offline = game.users.filter(user => user.isGM && !user.active).map(user => user.name);
+    const offlineLine = offline.length
+        ? `<p class="notes">${esc(plural("DRPG.GmStore.resetOfflineGms", { n: offline.length, names: offline.join(", ") }))}</p>`
+        : "";
+
     const memoryLine = remembered.keys.size
         ? `<p class="notes">${esc(plural("DRPG.Season.resetRemembered",
             { n: remembered.keys.size }))}${remembered.dropped
@@ -857,6 +886,7 @@ export async function resetSeason() {
         window: { title: game.i18n.localize("DRPG.Season.resetTitle") },
         content: dialogContent(`<form>
             <p class="drpg-warning">${esc(game.i18n.localize("DRPG.Season.resetWarning"))}</p>
+            ${offlineLine}
             <p><strong>${esc(game.i18n.localize("DRPG.Season.resetGoes"))}</strong></p>
             <ul>
                 <li>${esc(plural("DRPG.Season.resetProjects", { n: tally.projects }))}</li>
@@ -955,6 +985,25 @@ async function wipeSeason(plan) {
     const kept = [];
 
     /*
+     * THE CUT FIRST, AND OUTSIDE EVERY STEP (E04 C10; the design's 2.10, D12 option 1).
+     * One clock patch: every wiped group cut at one stamp. The steps below delete what
+     * the world holds and clear this browser's stores, whose watermark reaches a GM
+     * when the two exchange copies; the cut reaches every client when the clock does
+     * (gm-store.mjs `applyCuts`), each player's copies with it, and a GM's browser that
+     * is closed now when it next opens this world - alone, too, with nobody to hand it
+     * the clears. Written before the steps, so one that fails leaves the cut standing;
+     * and when it cannot be written nothing is wiped, or a GM who was away would open
+     * the world alone holding last season, and act on it.
+     */
+    try {
+        await setClock(resetCutPatch(plan, getClock(), gmStoreStamp()));
+    } catch (err) {
+        error("Season reset: could not write the reset's cut on the clock, so nothing was cleared", err);
+        ui.notifications.error(game.i18n.format("DRPG.GmStore.resetCutFailed", { error: String(err?.message ?? err) }));
+        return null;
+    }
+
+    /*
      * EVERY STEP IS GATED BY ITS OWN GROUP (R-1, Dawid 18.09).
      *
      * A group the GM unticked is an exception: this returns before the work, and
@@ -984,11 +1033,17 @@ async function wipeSeason(plan) {
     await step("remnants", "Remnants", async () => {
         for (const scene of game.scenes) {
             const ids = scene.tokens.filter(t => t.getFlag(MODULE_ID, "isRemnant")).map(t => t.id);
-            if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
+            // `drpgReset`: the tombstone a deleted trace's row gets (remnants.mjs,
+            // CASE-12) is not written for each of these - the cut above and the
+            // clear below take every row at once. Nothing passed the option until
+            // E04 C10 (the review's C-m5): every trace was tombstoned one by one,
+            // and the clear ran only when a live row was left for it to see.
+            if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids, { drpgReset: true });
         }
         // The tokens are the half everyone can see. The register of what each
-        // one really was is the half that matters, and it does not go with them
-        // - deleting a token has never pruned it.
+        // one really was is the half that matters, and it does not go with them:
+        // these were deleted with `drpgReset`, so their rows are left to the cut
+        // and to this clear.
         const { clearRemnantLedger } = await import("./remnants.mjs");
         await clearRemnantLedger();
     });
@@ -1080,7 +1135,11 @@ async function wipeSeason(plan) {
     });
 
     // The most irreversible thing here, and the reason the dialog names the
-    // number of advances before the word is typed.
+    // number of advances before the word is typed. The Level Ups on offer go
+    // with it (E04, the owner's Q4), and not in this step: the cut written above
+    // withdraws them from every GM's store and every owner's copy - a GM or an
+    // owner away now included - and an owner's sheet is drawn again when its
+    // copy is cut (gm-stores.mjs `offerCopy`).
     await step("advancement", "advancement", async () => {
         const { restoreStartingSheet } = await import("./character.mjs");
         for (const actor of studentActors()) {
@@ -1205,21 +1264,23 @@ async function wipeSeason(plan) {
          * a self-inflicted victim and posts its cards, and none of that belongs
          * in a reset that is deleting the chat and the cast it would name.
          *
-         * The cast goes with it. It is client-scoped, so this clears the GM's
-         * own copy; a participant's browser drops theirs when the next incident
-         * opens without them in it.
+         * The cast is not a row here since E04 (1.2.63): it is a GM store, and the
+         * incident step above clears it through the store - `endMurder` stamps its
+         * fields null, `clearBetrayalOffer` the offer - where a raw write of this
+         * GM's copy would have come back from any other GM's at the next exchange.
+         * A participant's copy is told by the same stamps.
          *
-         * Both under the `incident` group, with the step above: one tick, one
-         * incident, and a GM who keeps it keeps all of it.
+         * Under the `incident` group, with the step above: one tick, one incident,
+         * and a GM who keeps it keeps all of it.
          */
-        ["incident", "the incident's record", SETTINGS.murderState, {}],
-        ["incident", "the incident's cast", SETTINGS.incidentCast, {}]
+        ["incident", "the incident's record", SETTINGS.murderState, {}]
     ]) {
         await step(group, label, () => game.settings.set(MODULE_ID, key, value));
     }
-    // The fog ledger lives on the GM's browser since D2; the world row above
-    // only clears what an un-migrated world may still carry. Both are the
-    // `discovered` group - the same fact, stored in two places.
+    // The fog ledger is a GM store since E04 (D2 took it off the world); the
+    // world row above only clears what a world the lift has not reached may
+    // still carry. Both are the `discovered` group - the same fact, stored in
+    // two places - and the store's players are sent the cleared rows here.
     await step("discovered", "the fog ledger", () => import("./fog.mjs").then(m => m.resetLedger()));
 
     await step("clock", "the clock", async () => {

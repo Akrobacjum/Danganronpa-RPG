@@ -19,7 +19,10 @@ import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_D
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken } from "./movement.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, isPrimaryGm, log, warn, error, plural, workingScene, esc, forcedDeletion } from "./utils.mjs";
+import { isPrimaryGm, log, warn, error, plural, workingScene, esc, forcedDeletion } from "./utils.mjs";
+// The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
+// so a static import here is no cycle (R161).
+import { remnantStore, upgradeMark } from "./gm-stores.mjs";
 
 /**
  * Everything the guide says a Remnant carries, recorded on the token so an
@@ -666,7 +669,7 @@ export function remnantGmEdited(tokenDoc) {
  */
 export async function markRemnantEdited(tokenDoc) {
     if (!game.user.isGM || !tokenDoc) return null;
-    return setRemnantSecret(tokenDoc, { gmEdited: true });
+    return setRemnantSecret(tokenDoc, { gmEdited: true }, { ifLive: true });
 }
 
 export async function markRemnantEditedById(sceneId, tokenId) {
@@ -769,17 +772,18 @@ export async function reconcileRemnantActor() {
 
 /**
  * Move every trace still wearing the old hazard triangle onto the question
- * mark - tokens, the base actor, and the `public` records that seeded `img`
- * before the icon changed. Only the exact old default moves: an image a GM
- * chose on purpose is a choice, not a leftover.
+ * mark - tokens and the base actor. The `public` records that seeded `img`
+ * before the icon changed are read as the question mark (`remnantPublic`, E04)
+ * rather than rewritten. Only the exact old default moves: an image a GM chose
+ * on purpose is a choice, not a leftover.
  *
  * Same load-time statement-about-the-world shape as the ownership fix above,
  * and for the same reason: every existing world placed its traces under the
  * old icon, and `placeRemnant` only reaches the ones placed from now on.
  */
 export async function adoptQuestionMark(actor = game.actors.getName(REMNANT_ACTOR)) {
-    // One GM does the sweep; the ledger writes reach the others over the
-    // socket and the token writes are world data anyway.
+    // One GM does the sweep; the token writes are world data, which every
+    // client receives.
     if (!isPrimaryGm()) return 0;
     try {
         if (actor && actor.img === OLD_ICON) await actor.update({ img: ICON });
@@ -794,13 +798,10 @@ export async function adoptQuestionMark(actor = game.actors.getName(REMNANT_ACTO
             moved += stale.length;
         }
 
-        const ledger = readRemnantLedger();
-        for (const [key, entry] of Object.entries(ledger)) {
-            if (entry?.deleted || entry?.public?.img !== OLD_ICON) continue;
-            const [sceneId, tokenId] = key.split(".");
-            const tokenDoc = game.scenes.get(sceneId)?.tokens?.get(tokenId);
-            if (tokenDoc) await setRemnantPublic(tokenDoc, { img: ICON });
-        }
+        /* The ledger half is gone from here (E04; audit S01-32): a row's `public.img`
+           still naming the old icon is mapped as it is read (`remnantPublic`), so the
+           world's stamp no longer depends on which GM browser happened to run this
+           clause, and no ledger is written for a picture. */
 
         if (moved) log(`Moved ${moved} Remnant token(s) onto the question-mark icon.`);
         return moved;
@@ -827,9 +828,10 @@ export async function adoptQuestionMark(actor = game.actors.getName(REMNANT_ACTO
  * every field readable. That is the entire investigation, for free, and the GM
  * would never know it had happened.
  *
- * So the answer key moves to browser storage on GM clients and travels between
- * GMs on a recipient-addressed socket - the same shape `truth-bullets.mjs` uses,
- * for the same reason, and its header carries the longer argument.
+ * So the answer key moves to browser storage on GM clients, and since E04
+ * (1.2.63) it is a GM store every GM merges field by field (gm-stores.mjs,
+ * `remnantStore`) - as the Truth Bullets' answer key is, for the same reason;
+ * `truth-bullets.mjs`'s header carries the longer argument.
  *
  * WHAT STAYS ON THE TOKEN is `isRemnant` and nothing else. A player can still
  * see that a hidden marker exists at a position, which is a real but much
@@ -837,9 +839,6 @@ export async function adoptQuestionMark(actor = game.actors.getName(REMNANT_ACTO
  * query find its own tokens without a ledger lookup first. The name and the tint
  * are neutral for the same reason - both used to spell the answer out.
  * ========================================================================== */
-
-const SOCKET_EVENT = `module.${MODULE_ID}`;
-const RM = { secret: "rm.secret", request: "rm.ledgerRequest", full: "rm.ledgerFull" };
 
 /**
  * Ledger key. Token ids are only unique inside their own scene.
@@ -852,134 +851,83 @@ export function keyOf(tokenDoc) {
 }
 
 /**
- * The parsed ledger, held between writes.
- *
- * MEASURED, E17: `game.settings.get` on this setting costs 0.858 ms in the QA
- * world - 685 entries, 174 KB. Client-scoped settings live in `localStorage` as
- * a string, so every read re-parses the whole thing and then pays Foundry's own
- * validation on top of that; a world setting, which Foundry keeps as a live
- * object, answers the same question in 0.0025 ms.
- *
- * It is read once PER TOKEN. `cleanableRemnants` in the Dinner Hall - 33 traces
- * - took 27.4 ms of nothing but re-parsing, on the main thread, while
- * `remnantsInRoom` found those same 33 tokens in 0.011 ms. Exactly E11's square,
- * and worse in one respect: the ledger only ever gets longer, so this is a
- * season that gets slower every time somebody leaves a trace.
- *
- * Safe to hold because every write goes through `writeRemnantLedger`, which
- * drops it - including the merges arriving from another GM's socket. The three
- * call sites that mutate the object in place all write immediately afterwards,
- * and a mutation that reaches the cache before the write is the value we want
- * to be reading anyway.
+ * THE LEDGER IS A GM STORE SINCE E04 (1.2.63): `remnantStore` (gm-stores.mjs),
+ * this world's rows only, each field stamped on its own and merged per field
+ * with the other GMs, `public` per sub-key. The engine parses the key once and
+ * holds the rows, so the per-token reads E17 measured (0.858 ms each at 685 rows,
+ * 174 KB, when every read re-parsed the setting) cost a property lookup; this
+ * file kept a cache of its own for that until E04.
  */
-let ledgerCache = null;
-
-/** The ledger is stale - parse it again on the next read. */
-export function forgetRemnantLedger() {
-    ledgerCache = null;
-}
-
 function readRemnantLedger() {
-    if (!game.user.isGM) return {};
-    if (ledgerCache) return ledgerCache;
-    try {
-        ledgerCache = game.settings.get(MODULE_ID, SETTINGS.remnantSecrets) ?? {};
-        return ledgerCache;
-    } catch (err) {
-        warn("Could not read the Remnant ledger", err);
-        return {};
-    }
-}
-
-async function writeRemnantLedger(ledger) {
-    if (!game.user.isGM) return;
-    try {
-        await game.settings.set(MODULE_ID, SETTINGS.remnantSecrets, ledger);
-        // Held rather than dropped: this IS the newest ledger, and dropping it
-        // would make the next read pay the 0.9 ms again for an answer we have.
-        ledgerCache = ledger;
-    } catch (err) {
-        error("Could not write the Remnant ledger", err);
-        ledgerCache = null;
-    }
+    return game.user.isGM ? remnantStore.entries() : {};
 }
 
 /**
  * Forget all of them, for the season reset.
  *
- * Tombstones rather than an empty object, one per key, through the same push
- * `dropRemnantSecret` uses. This setting is client-scoped: every GM holds their
- * own copy, and `mergeRemnantEntries` is newest-wins PER ENTRY, so an empty
- * ledger sent across merges into nothing and changes no other GM's mind. A
- * tombstone is the only shape the merge understands, which is the same reason
- * the single-item drop writes one.
+ * On the primary GM - whose the reset is since E04 C10 - the store's `clear()`:
+ * this world's section is cut, and every row and tombstone under the cut is gone
+ * here and on every GM its merge reaches. Run whether or not a live row is left
+ * here (the review's C-m5): the rows another GM holds are what it is for. A GM
+ * offline now is cut by the reset's cut in the clock when it next loads. Another
+ * GM - a console, since the reset window refuses it - writes a tombstone per live
+ * row, which is what this did for every GM until E04. Another world's traces, on
+ * the same server and in the same browser, are not touched either way (S05-10).
  *
- * Called after the reset has deleted the tokens themselves. An entry whose
- * token is gone is already unreachable - `remnantData` is looked up by token -
- * so this is about not carrying a dead season's answer key forward, not about
- * a wrong answer today.
+ * @returns {Promise<number|null>} how many live rows there were.
  */
 export async function clearRemnantLedger() {
     if (!game.user.isGM) return null;
-
-    const ledger = readRemnantLedger();
-    const keys = Object.keys(ledger).filter(k => !ledger[k]?.deleted);
-    if (!keys.length) return 0;
-
-    const stamp = Date.now();
-    for (const key of keys) ledger[key] = { deleted: true, updated: stamp };
-    await writeRemnantLedger(ledger);
-    for (const key of keys) pushRemnantSecret(key, ledger[key]);
-
+    const keys = Object.keys(remnantStore.entries());
+    if (isPrimaryGm()) await remnantStore.clear();
+    else if (keys.length) await remnantStore.dropMany(keys);
     return keys.length;
 }
 
-/** Record or amend what a trace is, and tell the other GMs. */
 /**
- * The same write, addressed by ids rather than by a document.
+ * The same write as `setRemnantSecret`, addressed by ids rather than a document.
  *
  * Observe resolves on the GM's client, which is very often looking at a
  * different scene from the one the trace is on - so `canvas.tokens.get` is not
  * available and the token has to be found through the scene it belongs to. The
- * two ids are what the pending-observe entry already carries.
+ * two ids are what the pending-observe entry already carries. It amends a row
+ * and never starts one (`ifLive`, E04): a note on a trace this GM holds no row
+ * for would be a row made of one field.
  */
 export async function setRemnantSecretById(sceneId, tokenId, patch = {}) {
     if (!game.user.isGM || !sceneId || !tokenId) return null;
     const tokenDoc = game.scenes.get(sceneId)?.tokens?.get(tokenId) ?? null;
     if (!tokenDoc) return null;
-    return setRemnantSecret(tokenDoc, patch);
+    return setRemnantSecret(tokenDoc, patch, { ifLive: true });
 }
 
-export async function setRemnantSecret(tokenDoc, patch = {}) {
+/**
+ * Record or amend what a trace is. Only the fields named are stamped; the others
+ * keep whatever any GM wrote last. `opts` are the store's (gm-store.mjs,
+ * `patch`): `ifLive`, `weak`, `fillOnly`.
+ */
+export async function setRemnantSecret(tokenDoc, patch = {}, opts = {}) {
     if (!game.user.isGM) return null;
     const key = keyOf(tokenDoc);
     if (!key) return null;
-
-    const ledger = readRemnantLedger();
-    const entry = { ...(ledger[key] ?? {}), ...patch, updated: Date.now() };
-    delete entry.deleted;
-    ledger[key] = entry;
-
-    await writeRemnantLedger(ledger);
-    pushRemnantSecret(key, entry);
+    await remnantStore.patch(key, patch, opts);
     // The trace on the map may have just learned which action it wears - see
     // `repaintRemnants`. Fire-and-forget: a repaint is cosmetic and must
     // never fail a ledger write.
     import("./remnant-icons.mjs").then(m => m.repaintRemnants()).catch(() => {});
-    return entry;
+    return remnantStore.get(key);
 }
 
-/** Forget one. A tombstone, so the removal reaches a GM who was offline. */
+/**
+ * Forget one. A tombstone, written whether or not this GM holds the row: the
+ * removal reaches a GM who was offline, and a primary that lacked the row no
+ * longer leaves the others' copies alive (E04).
+ */
 export async function dropRemnantSecret(tokenDoc) {
     if (!game.user.isGM) return;
     const key = keyOf(tokenDoc);
     if (!key) return;
-
-    const ledger = readRemnantLedger();
-    if (!ledger[key]) return;
-    ledger[key] = { deleted: true, updated: Date.now() };
-    await writeRemnantLedger(ledger);
-    pushRemnantSecret(key, ledger[key]);
+    await remnantStore.drop(key);
 }
 
 /* ==========================================================================
@@ -1043,9 +991,20 @@ export function remnantPublic(tokenDoc) {
     if (!game.user.isGM) return null;
     const key = keyOf(tokenDoc);
     const entry = key ? readRemnantLedger()[key] : null;
-    if (!entry || entry.deleted) return null;
+    return entry ? publicOf(entry) : null;
+}
 
-    return { ...defaultPublic(entry), ...(entry.public ?? {}) };
+/**
+ * A row's `public` over its defaults (see `remnantPublic`). The hazard triangle a
+ * trace wore until 1.2.44 reads as the question mark it is now (E04, 1.2.63;
+ * audit S01-32): mapped here rather than rewritten in the ledger, which the
+ * questionMarkIcon clause did in the one GM browser that happened to run it. Only
+ * the exact old default - an image a GM chose stays. Pure over the row (R175).
+ */
+export function publicOf(entry) {
+    const pub = { ...defaultPublic(entry), ...(entry?.public ?? {}) };
+    if (pub.img === OLD_ICON) pub.img = ICON;
+    return pub;
 }
 
 /**
@@ -1066,14 +1025,15 @@ export function remnantPublic(tokenDoc) {
 export async function setRemnantPublic(tokenDoc, patch = {}) {
     if (!game.user.isGM || !tokenDoc) return null;
     const key = keyOf(tokenDoc);
-    if (!key) return null;
+    if (!key || !remnantStore.has(key)) return null;
 
-    const ledger = readRemnantLedger();
-    const entry = ledger[key];
-    if (!entry || entry.deleted) return null;
-
-    const merged = { ...defaultPublic(entry), ...(entry.public ?? {}), ...patch };
-    await setRemnantSecret(tokenDoc, { public: merged });
+    /* THE PATCH, NOT THE MERGED RECORD (E04; the design's H2). `public` is split in
+       the store, a stamp per field of it, and this writes only the fields the caller
+       named: two GMs - one renaming the trace, one rewriting its reading - both keep
+       theirs. Writing the whole merged object stamped every field, so the second
+       GM's write took the first one's back with it. */
+    await setRemnantSecret(tokenDoc, { public: patch }, { ifLive: true });
+    const merged = remnantPublic(tokenDoc);
     await propagatePublic(tokenDoc, merged);
     return merged;
 }
@@ -1200,58 +1160,24 @@ export async function revealRemnantToFinderById(sceneId, tokenId) {
     return tokenDoc ? revealRemnantToFinder(tokenDoc) : null;
 }
 
-function pushRemnantSecret(key, entry) {
-    const recipients = gmIds().filter(id => id !== game.user.id);
-    if (!recipients.length) return;
-    try {
-        game.socket.emit(SOCKET_EVENT,
-            { action: RM.secret, from: game.user.id, key, entry }, { recipients });
-    } catch (err) {
-        error("Could not sync the Remnant ledger", err);
-    }
-}
-
-/** Newest write wins, per entry. */
-async function mergeRemnantEntries(incoming = {}) {
-    if (!game.user.isGM) return;
-    const ledger = readRemnantLedger();
-    let changed = false;
-    for (const [key, entry] of Object.entries(incoming)) {
-        if (!entry || typeof entry !== "object") continue;
-        const mine = ledger[key];
-        if (mine && (mine.updated ?? 0) >= (entry.updated ?? 0)) continue;
-        ledger[key] = entry;
-        changed = true;
-    }
-    if (changed) {
-        await writeRemnantLedger(ledger);
-        // Same nudge as `setRemnantSecret`: this GM's map may now know more.
-        import("./remnant-icons.mjs").then(m => m.repaintRemnants()).catch(() => {});
-    }
-}
-
 /**
- * Socket wiring and the join-time catch-up.
+ * The hooks the ledger needs on every client that holds it.
  *
- * A GM whose browser storage was cleared looks exactly like a GM who was offline
- * for one write, so the request is unconditional and cheap.
+ * NO SOCKET OF ITS OWN SINCE E04 (1.2.63): the rows travel between GMs as a GM
+ * store (gm-stores.mjs), merged per field, and the request a joining GM sent the
+ * others is the store's exchange.
  */
 export function registerRemnantLedger() {
     /*
-     * The cache is dropped by `writeRemnantLedger` on every write this module
-     * makes. This covers the writes it does NOT make: the regression suite
-     * putting the world back, and a GM editing the store by hand from the
-     * console. Belt and braces on purpose - a stale ledger would show a trace
-     * that is no longer there, which is the one kind of wrong answer this file
-     * must never give.
-     *
-     * `clientSettingChanged` and not `updateSetting`: this setting is
-     * client-scoped, so it never becomes a Setting document and the document
-     * hook never fires. Measured in E17, on the first version of this very
-     * line. The argument is the full "namespace.key" id.
+     * A CHANGE TO THE LEDGER, WHOEVER MADE IT, REDRAWS THE TRACES: this GM's own
+     * write, or another GM's merged in by the store. `clientSettingChanged`, not
+     * `updateSetting`: the store is client-scoped (R14); the engine's every flush
+     * goes through `game.settings.set`, so the hook fires for merges as well.
      */
     Hooks.on("clientSettingChanged", key => {
-        if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) forgetRemnantLedger();
+        if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) {
+            import("./remnant-icons.mjs").then(m => m.repaintRemnants()).catch(() => {});
+        }
     });
 
     /*
@@ -1260,9 +1186,13 @@ export function registerRemnantLedger() {
      * own Delete on the token did not, so the ledger kept a live row for every
      * trace that no longer existed - 685 rows and 174 KB in E17, re-parsed on
      * every read. One hook on the primary GM covers all of them; the tombstone
-     * is idempotent, so the roads that already do it cost nothing extra.
+     * is idempotent, so the roads that already do it cost nothing extra. Since
+     * E04 it is written whether or not the primary holds the row (a primary that
+     * lacked it left every other GM's copy alive), and not for the season
+     * reset's deletions (`drpgReset`), whose cut kills every row at once.
      */
-    Hooks.on("deleteToken", doc => {
+    Hooks.on("deleteToken", (doc, options) => {
+        if (options?.drpgReset) return;
         if (!isPrimaryGm() || !doc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return;
         dropRemnantSecret(doc).catch(err => warn("Could not tombstone a deleted Remnant's row", err));
     });
@@ -1280,54 +1210,6 @@ export function registerRemnantLedger() {
      */
     Hooks.on("drpgTimeOfDayChanged", () => { flushTraceDigest(); });
     Hooks.on("drpgEclipseChanged", running => { if (!running) flushTraceDigest(); });
-
-    /*
-     * GM-TO-GM, CHECKED AT BOTH ENDS - the same rule truth-bullets.mjs states
-     * for its ledger, and for the same reason. This ledger is the answer key to
-     * every trace on every map: type, who left it, whether it is tied to the
-     * crime, the GM's own note. Checking only that THIS client is a GM left the
-     * sender unchecked, so a player's console could ask for the whole ledger
-     * (`rm.ledgerRequest` with their own id in `from`) and be sent it, or push a
-     * forged `rm.secret` that retyped their own trace as Faint on every GM's
-     * browser. `senderId` is Foundry's own argument and cannot be forged; the
-     * reply is addressed to it, never to a field the packet chose.
-     */
-    game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
-        if (!game.user?.isGM || !payload) return;
-        if (!Object.values(RM).includes(payload.action)) return;
-        if (!game.users.get(senderId)?.isGM) {
-            warn(`Refused a Remnant ledger "${payload.action}" from a non-GM (${
-                game.users.get(senderId)?.name ?? senderId}).`);
-            return;
-        }
-        if (senderId === game.user.id) return;
-        try {
-            if (payload.action === RM.secret) {
-                if (payload.key) await mergeRemnantEntries({ [payload.key]: payload.entry });
-            } else if (payload.action === RM.request) {
-                game.socket.emit(SOCKET_EVENT,
-                    { action: RM.full, from: game.user.id, ledger: readRemnantLedger() },
-                    { recipients: [senderId] });
-            } else if (payload.action === RM.full) {
-                await mergeRemnantEntries(payload.ledger ?? {});
-            }
-        } catch (err) {
-            error("Could not handle a Remnant ledger message", err);
-        }
-    });
-
-    // Asked immediately, NOT from a `ready` hook. This function is itself called
-    // from `ready` in module.mjs, and a `Hooks.once("ready")` registered inside a
-    // ready handler never fires - the hook has already run. Same trap the
-    // page-tinting warning fell into.
-    if (!game.user.isGM) return;
-    const recipients = gmIds().filter(id => id !== game.user.id);
-    if (!recipients.length) return;
-    try {
-        game.socket.emit(SOCKET_EVENT, { action: RM.request, from: game.user.id }, { recipients });
-    } catch (err) {
-        error("Could not ask the other GMs for the Remnant ledger", err);
-    }
 }
 
 export function remnantData(tokenDoc) {
@@ -1340,7 +1222,7 @@ export function remnantData(tokenDoc) {
 
     const key = keyOf(tokenDoc);
     const entry = key ? readRemnantLedger()[key] : null;
-    if (!entry || entry.deleted) {
+    if (!entry) {
         // A trace this GM has no record of. Says so rather than inventing a
         // blank one, because a blank Remnant would rank as the easiest thing in
         // the room and quietly become the answer to every Observe.
@@ -1375,8 +1257,8 @@ export function remnantData(tokenDoc) {
         // WHEN THE LEDGER LAST WROTE IT. The chapter, day and time of day are
         // the fiction's clock and are what a GM reads; this is the tiebreak
         // between two traces left in the same time of day, which is most of
-        // them during an incident.
-        updated: entry.updated ?? null,
+        // them during an incident. The row's newest stamp in the GM store (E04).
+        updated: remnantStore.stampOf(key) || null,
         // When it was placed, in real time (`placeRemnant`); null for a trace
         // placed before 1.2.60.
         placedAt: entry.placedAt ?? null,
@@ -1520,21 +1402,21 @@ export async function reportRemnants(scene = null) {
 export async function tieTraceForItem(identity) {
     if (!game.user.isGM || !identity) return 0;
 
-    let tied = 0;
+    const tokens = [];
     for (const scene of game.scenes) {
         for (const token of remnantsOn(scene)) {
             const data = remnantData(token);
             if (!data || data.itemIdentity !== identity || data.tiedToCrime) continue;
-            await setRemnantSecret(token, { tiedToCrime: true });
-            tied++;
+            tokens.push(token);
         }
     }
-    if (tied) {
-        log(`The murder weapon was found at ${tied} trace(s); those are evidence now.`);
-        import("./truth-bullets.mjs")
-            .then(m => m.propagateCrimeTie?.(null, true))
-            .catch(() => { /* the bullets follow on their own schedule */ });
-    }
+    /* ONE WRITE, AND THE COPIES FOLLOW (E04, 1.2.63). One store write per trace
+       before, and the copies' pass was `propagateCrimeTie(null, true)` - which
+       returns at once on a null id, so a weapon's traces were tied and the bullets
+       copied from them never learned it. `setRemnantFlagsMany` is the dashboard's
+       own write for many traces: one flush, and one pass over the copies. */
+    const tied = await setRemnantFlagsMany(tokens, { tiedToCrime: true });
+    if (tied) log(`The murder weapon was found at ${tied} trace(s); those are evidence now.`);
     return tied;
 }
 
@@ -1560,8 +1442,10 @@ export async function setRemnantFlags(tokenDoc,
     // Into the ledger, not onto the token. `tiedToCrime` in particular is the
     // single most valuable bit in the game - it is the difference between a
     // trace from the murder and a trace from somebody's laundry - and it used to
-    // be a flag every client could read.
-    await setRemnantSecret(tokenDoc, patch);
+    // be a flag every client could read. It amends a row and never starts one
+    // (`ifLive`, E04): a verdict on a trace this GM holds no row for would be a
+    // row of one field, which `remnantData` would read as the whole trace.
+    await setRemnantSecret(tokenDoc, patch, { ifLive: true });
 
     // A changed verdict follows the copies already in players' packs - the
     // murder-first sort reads it off the bullets, and only identified ones
@@ -1590,6 +1474,43 @@ export async function setRemnantFlags(tokenDoc,
 }
 
 /**
+ * `setRemnantFlags` for many traces at once: one store write and one pass over
+ * the copies (E04, 1.2.63).
+ *
+ * A victim's death ties every trace of the chapter (`tieChapterTraces`), a
+ * weapon found ties every trace it passed through (`tieTraceForItem`), and a
+ * body discovery promotes the Faint Prep a GM ticks (chapter.mjs). Each wrote the
+ * ledger once per trace, and each write is a flush of the whole store and a
+ * packet to every other GM - one per trace of a chapter, which is dozens by the
+ * third. Like `setRemnantFlags`, it amends rows and never starts one (`ifLive`);
+ * a token this GM holds no row for is not counted.
+ *
+ * @param {TokenDocument[]} tokens
+ * @param {{faint?: boolean|null, tiedToCrime?: boolean|null}} flags
+ * @returns {Promise<number>} how many traces were written.
+ */
+export async function setRemnantFlagsMany(tokens, { faint = null, tiedToCrime = null } = {}) {
+    if (!game.user.isGM) return 0;
+    const patch = {};
+    if (faint !== null) patch.faint = Boolean(faint);
+    if (tiedToCrime !== null) patch.tiedToCrime = Boolean(tiedToCrime);
+    if (!Object.keys(patch).length) return 0;
+    const live = (tokens ?? []).filter(token => remnantStore.has(keyOf(token)));
+    if (!live.length) return 0;
+    // The repaint follows from the store's own write (`registerRemnantLedger`).
+    await remnantStore.patchMany(Object.fromEntries(live.map(token => [keyOf(token), patch])), { ifLive: true });
+    if (patch.tiedToCrime !== undefined) {
+        try {
+            const { propagateCrimeTieMany } = await import("./truth-bullets.mjs");
+            await propagateCrimeTieMany(live.map(token => token.id), patch.tiedToCrime);
+        } catch (err) {
+            error("Could not propagate the crime tie to the copied bullets", err);
+        }
+    }
+    return live.length;
+}
+
+/**
  * The victim is dead, so the chapter's traces are presumed part of the case.
  *
  * Dawid (26.08): the moment a murder's VICTIM actually dies - and only then -
@@ -1603,23 +1524,24 @@ export async function setRemnantFlags(tokenDoc,
  * Only traces that are NOT yet tied move, so nothing is re-announced for the
  * incident's own drops (already tied at placement), and running twice - two
  * bodies in a betrayal chapter - only picks up what appeared in between.
- * `setRemnantFlags` is the write, so the verdict propagates onto copied
- * bullets exactly as a hand-ticked box would.
+ * `setRemnantFlagsMany` is the write, so the verdict propagates onto copied
+ * bullets exactly as a hand-ticked box would - in one write for the chapter
+ * rather than one per trace (E04).
  *
  * @returns {Promise<number>} how many traces were tied.
  */
 export async function tieChapterTraces(chapter) {
     if (!game.user.isGM || !chapter) return 0;
 
-    let tied = 0;
+    const tokens = [];
     for (const scene of game.scenes) {
         for (const token of remnantsOn(scene)) {
             const data = remnantData(token);
             if (!data || data.tiedToCrime || data.chapter !== chapter) continue;
-            await setRemnantFlags(token, { tiedToCrime: true });
-            tied++;
+            tokens.push(token);
         }
     }
+    const tied = await setRemnantFlagsMany(tokens, { tiedToCrime: true });
 
     if (tied) {
         const { whisperToGms } = await import("./utils.mjs");
@@ -1767,7 +1689,9 @@ export async function retuneRemnant(sceneId, tokenId,
             if (field in describes) secret[field] = describes[field] ?? null;
         }
     }
-    await setRemnantSecret(token, secret);
+    // It amends a trace and never starts one (`ifLive`, E04): a retune reaching a
+    // GM who holds no row for the trace would otherwise write a row of one field.
+    await setRemnantSecret(token, secret, { ifLive: true });
     return true;
 }
 
@@ -1824,9 +1748,10 @@ export function rankForObserve(room, scene = workingScene(), { preferSource = nu
  *
  *     game.drpg.migrateRemnants()
  *
- * Run once per GM browser, because the ledger is per-browser: the first GM to
- * run it strips the tokens, and the others pick the entries up over the socket.
- * Safe to run twice - a token whose flags are already gone is skipped rather
+ * Run once, on any GM, after the GM store has synced (E04, 1.2.63): the ledger
+ * is one store every GM merges, so the rows one run writes reach every GM, and
+ * the run waits for the other GMs' copies before it reads a row here - a row
+ * another GM holds is filled in, never started again. Safe to run twice - a token whose flags are already gone is skipped rather
  * than overwritten with blanks, which is the mistake that would erase a case.
  * The work for one token is `migrateRemnantToken`; this is the loop over every
  * scene, and the summary.
@@ -1848,10 +1773,16 @@ export async function migrateRemnants() {
         return null;
     }
 
+    // The other GMs' copies first (E04; the design's H6): a row this browser has not
+    // received yet would read as missing, and the token's stale values be moved in.
+    await remnantStore.whenHydrated();
+
     // One count per `ledger` answer, so every token the loop meets is in exactly one.
     const counts = { moved: 0, filled: 0, kept: 0, already: 0, noRow: 0 };
     let stripped = 0, publicSeeded = 0, deltaCleaned = 0;
-    const failed = [], carried = [], leftAlone = [];
+    const failed = [], carried = [], notCarried = [], leftAlone = [];
+    const changes = promotion => Object.entries(promotion)
+        .map(([field, [before, after]]) => `${field} ${before} -> ${after}`).join(", ");
 
     for (const scene of game.scenes) {
         for (const token of scene.tokens) {
@@ -1859,11 +1790,10 @@ export async function migrateRemnants() {
             if (!done) continue;
             counts[done.ledger] = (counts[done.ledger] ?? 0) + 1;
             const where = `${scene.name}/${token.id}`;
-            if (done.carried) {
-                carried.push(`${where}: ${Object.entries(done.carried)
-                    .map(([field, [before, after]]) => `${field} ${before} -> ${after}`).join(", ")}`);
-            }
+            if (done.carried) carried.push(`${where}: ${changes(done.carried)}`);
+            if (done.notCarried) notCarried.push(`${where}: ${changes(done.notCarried)}`);
             if (done.ledger === "noRow") leftAlone.push(`${where}: ${done.left.join(", ")}`);
+            else if (done.notCarried && !done.unwritten.length) { /* listed under notCarried, its token as it was */ }
             else if (done.unwritten.length) failed.push(`${where}: its row did not read back (${done.unwritten.join(", ")}), so nothing was taken off`);
             else if (done.left.length) failed.push(`${where}: ${done.left.join(", ")}`);
             if (done.stripped) stripped++;
@@ -1875,6 +1805,7 @@ export async function migrateRemnants() {
     const line = `Remnants migrated: ${counts.moved} moved into the ledger, ${counts.filled} filled in, ${counts.kept} kept as they were, `
         + `${counts.already} already done, ${counts.noRow} left alone (no ledger row on this browser), `
         + `${carried.length} Faint Prep promotion(s) carried${carried.length ? ` (${carried.join("; ")})` : ""}, `
+        + `${notCarried.length} not carried over a later correction${notCarried.length ? ` (${notCarried.join("; ")})` : ""}, `
         + `${stripped} tokens stripped, ${publicSeeded} \`public\` record(s) backfilled, `
         + `${deltaCleaned} delta name(s) neutralised, ${failed.length} still carrying their answer key.`;
     log(line);
@@ -1882,13 +1813,19 @@ export async function migrateRemnants() {
         warn(`Faint Prep promotions carried from their tokens into the ledger (a GM who had set one back on purpose `
             + `sets it again in the Investigation dashboard): ${carried.join("; ")}`);
     }
+    if (notCarried.length) {
+        warn(`Faint Prep promotions NOT carried, because the trace's row holds a value written since the upgrade `
+            + `(this world's upgrade mark) - a later correction, which stands. Each token keeps its flags, the `
+            + `promotion's only record (set it again in the Investigation dashboard if it was the one meant): `
+            + `${notCarried.join("; ")}`);
+    }
     if (leftAlone.length) {
         warn(`Traces left as they were - answer-key flags, no type, and no ledger row on this browser to carry them into: ${leftAlone.join("; ")}`);
     }
     if (failed.length) warn(`Remnants still carrying their answer key after the migration: ${failed.join("; ")}`);
-    if (carried.length || leftAlone.length || failed.length) ui.notifications.warn(line);
+    if (carried.length || notCarried.length || leftAlone.length || failed.length) ui.notifications.warn(line);
     else ui.notifications.info(line);
-    return { ...counts, stripped, failed, carried, leftAlone, publicSeeded, deltaCleaned };
+    return { ...counts, stripped, failed, carried, notCarried, leftAlone, publicSeeded, deltaCleaned };
 }
 
 /**
@@ -1900,6 +1837,18 @@ const TOKEN_KEEPS = [REMNANT_FLAGS.isRemnant, REMNANT_FLAGS.fromIncident];
 const ANSWER_KEY_FLAGS = Object.entries(REMNANT_FLAGS)
     .filter(([, flag]) => !TOKEN_KEEPS.includes(flag))
     .map(([, flag]) => flag);
+
+/**
+ * Whether a trace's answer key is still on its token, whole enough for
+ * `migrateRemnants` to move into the ledger: its type is there (with no row here,
+ * `migrateRemnantToken` starts one only from a typed token). The health check counts
+ * these apart from the traces only a backup can bring back (the review's C-m14: it
+ * offered a Restore that could not help).
+ */
+export function answerKeyOnToken(token) {
+    const flags = token?._source?.flags?.[MODULE_ID] ?? token?.flags?.[MODULE_ID] ?? {};
+    return REMNANT_FLAGS.type in flags;
+}
 
 /**
  * One trace's part of `migrateRemnants` (E30, 24.09.2026; audit S17-01, S05-43).
@@ -1916,7 +1865,9 @@ const ANSWER_KEY_FLAGS = Object.entries(REMNANT_FLAGS)
  * not land found the old flags again and wrote them over the ledger row, taking
  * every correction the GM had made since with it. So a row that exists is given
  * only the fields it lacks, and the token's name is never taken for the label
- * once it is the neutral one an earlier run gave it.
+ * once it is the neutral one an earlier run gave it. Since E04 (1.2.63) what is
+ * moved or filled is written weak and fill-only, so a value any GM holds for the
+ * same field wins it at merge (the design's H6).
  *
  * EXCEPT A FAINT PREP PROMOTION, which is carried in one direction (E30 fix,
  * 25.09.2026; audit S06-02). `promoteFaintPrep` (chapter.mjs) writes the GM's ticks
@@ -1926,23 +1877,42 @@ const ANSWER_KEY_FLAGS = Object.entries(REMNANT_FLAGS)
  * stripped them with nothing written, which deleted the GM's choice outright. So a
  * token's `faint: false` goes over a row's `faint: true`, and its `tiedToCrime:
  * true` over anything but `true`, and never the other way: a stale original must
- * not undo a correction. The one thing this can get wrong: the Investigation
- * dashboard (investigation.mjs, `setRemnantFlags`) lets a GM set a trace back to
- * Faint, or untie it, after a promotion, and a migration afterwards re-applies the
- * promotion - nothing records which of the two came last. Carrying only a promotion
- * whose token is newer than its row was weighed and not taken: the row's `updated`
- * moves with every ledger write (a public name, a retune), which most promoted
- * traces get after the discovery, so it would drop most real promotions to save a
- * rare reversal. Every promotion carried is listed, before and after, in the
- * summary and a warning, so a GM can put that reversal back from the dashboard.
+ * not undo a correction.
  *
- * NOTHING LEAVES A TOKEN BEFORE ITS ROW READS BACK. `writeRemnantLedger` catches a
- * failed write and logs it, so a strip that trusted the write could take the
- * answer key off the token with no row holding it - and with no other GM online,
- * off the table. The row is read again from storage, the cache dropped first, and
- * a field it does not hold as written leaves the token untouched and comes back in
- * `unwritten`. A token with flags, no type and no row on this browser has nothing
- * to be carried into and is left as it is (`ledger: "noRow"`).
+ * AND ONLY OVER A VALUE FROM BEFORE THE UPGRADE (E04, 1.2.63; the design's H6, the
+ * E30 review's m3). Until E04 nothing recorded which came last - the promotion, or
+ * a GM setting the trace back to Faint in the dashboard afterwards - and the
+ * carry, written as the newest row, undid that reversal on every GM. Each field
+ * has its own stamp now. One stamped under the world's upgrade mark (gm-stores.mjs
+ * `upgradeMark`: the first claim of a 1.2.63 store in this world) - or weak, a
+ * default nobody decided - is from before the upgrade, as the promotion is
+ * (`promoteFaintPrep` writes the ledger itself from E04 on), and the promotion is
+ * carried over it halfway from that field's stamp to the next whole one: it beats
+ * exactly the value it was written against, and loses to any later correction on
+ * any GM, every real stamp being whole (gm-store.mjs, WEAK). A field stamped
+ * above the mark was written since the upgrade - a correction made after the
+ * promotion - and it stands; the promotion comes back in `notCarried`, listed in
+ * the summary and a warning, and stays on the token.
+ *
+ * ONE MARK FOR THE WORLD (the review's DS-M2). C4 bounded "before the upgrade" by the
+ * newest stamp this browser's own claim read from its old key: right against the
+ * claim's time (a browser that claimed after another GM's correction counted the
+ * correction as old), wrong on every browser whose old key never held the row - an
+ * assistant's, a second computer's - where every row read as written since, the
+ * promotion was "not carried", stripped from the token all the same and the GM
+ * told a correction stood (measured: bound 1 on a browser with no old key). The mark
+ * is the same on every GM; with none written yet only a weak field counts as old,
+ * and a promotion not carried is never taken off the token.
+ *
+ * NOTHING LEAVES A TOKEN BEFORE ITS ROW READS BACK. The store keeps a write it
+ * could not save in memory and says so (gm-store.mjs, `flush`), so a strip that
+ * trusted the write could take the answer key off the token with no saved row
+ * holding it - and with no other GM online, off the table at the next load. The
+ * row is read again from storage (`remnantStore.persisted`), and a field it does
+ * not hold as written leaves the token untouched and comes back in `unwritten`. A
+ * token with flags, no type and no row on this browser has nothing to be carried
+ * into and is left as it is (`ledger: "noRow"`); and the flags of a promotion that
+ * was not carried stay on the token, their only record.
  *
  * WHAT IS LEFT IS READ WHOLE. `left` is every key under this module's flags but
  * the two a token may keep (a key with no value holds nothing and is not counted),
@@ -1956,23 +1926,24 @@ const ANSWER_KEY_FLAGS = Object.entries(REMNANT_FLAGS)
  * not a trace. `ledger` says what happened to the row - "moved" (a new row from
  * the token), "filled" (fields written into a live row: what it lacked, a
  * promotion), "kept" (a live row lacked nothing), "already" (no answer-key flag on
- * the token), "noRow" (above). `carried` is the promotion as `{ field: [before,
- * after] }`, or null. The suite runs this on its own fixtures; the loop in
+ * the token), "noRow" (above). `carried` is the promotion written, as `{ field:
+ * [before, after] }`, or null; `notCarried` the same for a promotion a later
+ * correction stood against. The suite runs this on its own fixtures; the loop in
  * `migrateRemnants` is for a GM.
  *
- * @returns {Promise<null|{ledger: string, carried: object|null, stripped: boolean, left: string[],
- *   unwritten: string[], publicSeeded: number, deltaCleaned: number}>}
+ * @returns {Promise<null|{ledger: string, carried: object|null, notCarried: object|null, stripped: boolean,
+ *   left: string[], unwritten: string[], publicSeeded: number, deltaCleaned: number}>}
  */
 export async function migrateRemnantToken(token) {
     if (!game.user.isGM || !token?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return null;
+    // A row another GM holds is only filled in, so it has to have arrived (`migrateRemnants`).
+    await remnantStore.whenHydrated();
     const onToken = () => token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {};
     const key = keyOf(token);
-    const liveRow = () => {
-        const row = key ? readRemnantLedger()[key] : null;
-        return row && !row.deleted ? row : null;
-    };
+    const liveRow = () => (key ? remnantStore.get(key) : null);
     const present = ANSWER_KEY_FLAGS.filter(flag => flag in onToken());
-    const done = { ledger: "already", carried: null, stripped: false, left: [], unwritten: [], publicSeeded: 0, deltaCleaned: 0 };
+    const done = { ledger: "already", carried: null, notCarried: null, stripped: false, left: [], unwritten: [],
+        publicSeeded: 0, deltaCleaned: 0 };
 
     if (present.length) {
         const typed = REMNANT_FLAGS.type in onToken();
@@ -1985,8 +1956,8 @@ export async function migrateRemnantToken(token) {
         const written = await moveIntoLedger(token, live, typed);
         done.ledger = written.ledger;
         done.carried = written.carried;
-        forgetRemnantLedger();
-        const row = liveRow();
+        done.notCarried = written.notCarried;
+        const row = key ? remnantStore.persisted(key) : null;
         done.unwritten = Object.entries(written.fields)
             .filter(([field, value]) => value !== undefined && row?.[field] !== value)
             .map(([field]) => field);
@@ -1996,7 +1967,9 @@ export async function migrateRemnantToken(token) {
             return done;
         }
         done.publicSeeded = await seedPublicIfMissing(token);
-        await stripAnswerKey(token, present);
+        // A promotion that was not carried is on the token alone: its flags stay there (DS-M2).
+        const kept = new Set(Object.keys(done.notCarried ?? {}).map(field => REMNANT_FLAGS[field] ?? field));
+        await stripAnswerKey(token, present.filter(flag => !kept.has(flag)));
         done.stripped = !present.some(flag => flag in onToken());
     } else {
         done.publicSeeded = await seedPublicIfMissing(token);
@@ -2009,6 +1982,8 @@ export async function migrateRemnantToken(token) {
 /**
  * The token's flags into the ledger: a new row, or the fields a live row lacks and
  * a Faint Prep promotion (see `migrateRemnantToken`). `fields` is what was written.
+ * Both weak and fill-only (E04; the design's H6): a value a GM decided, on any
+ * GM, wins every field over what an old token says.
  */
 async function moveIntoLedger(token, live, typed) {
     const f = key => token.getFlag(MODULE_ID, REMNANT_FLAGS[key]);
@@ -2018,21 +1993,32 @@ async function moveIntoLedger(token, live, typed) {
     // placed since the ledger never wore its label as a name.
     const label = typed && token.name && token.name !== game.i18n.localize("DRPG.Remnant.tokenName") ? token.name : undefined;
     if (live) {
-        const carried = {
+        const onToken = {
             type: f("type"), visibility: f("visibility"), faint: f("faint"), reinforced: f("reinforced"),
             note: f("note"), action: f("action"), subject: f("subject"), pointsAt: f("pointsAt"),
             tiedToCrime: f("tiedToCrime"), sourceActor: f("sourceActor"), sourceName: f("sourceName"),
             room: f("room"), chapter: f("chapter"), day: f("day"), timeOfDay: f("timeOfDay"), label
         };
-        const fields = Object.fromEntries(Object.entries(carried)
+        const fields = Object.fromEntries(Object.entries(onToken)
             .filter(([field, value]) => value !== undefined && live[field] === undefined));
         const promotion = {};
         if (f("faint") === false && live.faint === true) promotion.faint = [true, false];
         if (f("tiedToCrime") === true && live.tiedToCrime !== true) promotion.tiedToCrime = [live.tiedToCrime ?? null, true];
-        for (const [field, [, after]] of Object.entries(promotion)) fields[field] = after;
-        if (!Object.keys(fields).length) return { ledger: "kept", fields, carried: null };
-        await setRemnantSecret(token, fields);
-        return { ledger: "filled", fields, carried: Object.keys(promotion).length ? promotion : null };
+        // A promotion over a field the row lacks is a fill like any other; over a
+        // value, it is carried only when that value is from before the upgrade.
+        const carried = {}, notCarried = {}, over = {};
+        const old = oldFieldIn(token);
+        for (const [field, change] of Object.entries(promotion)) {
+            if (live[field] === undefined) carried[field] = change;
+            else if (old(field)) { carried[field] = change; over[field] = change[1]; }
+            else notCarried[field] = change;
+        }
+        const orNull = o => (Object.keys(o).length ? o : null);
+        if (Object.keys(fields).length) await setRemnantSecret(token, fields, { weak: true, fillOnly: true });
+        await carryPromotion(token, over);
+        const wrote = { ...fields, ...over };
+        return { ledger: Object.keys(wrote).length ? "filled" : "kept", fields: wrote,
+            carried: orNull(carried), notCarried: orNull(notCarried) };
     }
     const fields = {
         type: f("type"), visibility: f("visibility"),
@@ -2044,8 +2030,64 @@ async function moveIntoLedger(token, live, typed) {
         timeOfDay: f("timeOfDay"),
         label
     };
-    await setRemnantSecret(token, fields);
-    return { ledger: "moved", fields, carried: null };
+    /* A PROMOTION ON A TOKEN WHOSE ROW ANOTHER GM HOLDS (the review's DS-M2, the moved
+       path). No row here, and the GM who holds one may be away, so the store hydrated
+       alone: written weak, the token's `faint: false` or `tiedToCrime: true` lost to that
+       GM's older row at the next exchange, silently. Those two are written at the world's
+       upgrade mark instead - over every value from before the upgrade, under every one
+       since - and weak with the rest while no mark is written. */
+    const mark = upgradeMark();
+    const promotion = {};
+    if (f("faint") === false) promotion.faint = false;
+    if (f("tiedToCrime") === true) promotion.tiedToCrime = true;
+    if (mark !== null && Object.keys(promotion).length) {
+        const rest = Object.fromEntries(Object.entries(fields).filter(([field]) => !(field in promotion)));
+        await setRemnantSecret(token, rest, { weak: true, fillOnly: true });
+        await promoteAtMark(token, promotion, mark);
+    } else {
+        await setRemnantSecret(token, fields, { weak: true, fillOnly: true });
+    }
+    return { ledger: "moved", fields, carried: null, notCarried: null };
+}
+
+/**
+ * Whether a field of a trace's row holds a value from before the upgrade: stamped
+ * under the world's upgrade mark, or weak (see `migrateRemnantToken`, "AND ONLY OVER
+ * A VALUE FROM BEFORE THE UPGRADE" and "ONE MARK FOR THE WORLD"). With no mark
+ * written yet only a weak field counts.
+ */
+function oldFieldIn(token) {
+    const key = keyOf(token);
+    const mark = upgradeMark();
+    const weak = remnantStore.weak();
+    return field => {
+        const s = remnantStore.stampOf(key, field);
+        return s > 0 && (s <= weak || (mark !== null && s < mark));
+    };
+}
+
+/**
+ * A Faint Prep promotion into a live row, each field halfway from its own stamp to
+ * the next whole one: over the value it was written against and under anything
+ * decided since, a real write in the next millisecond included (see
+ * `migrateRemnantToken`) - at plus one, as until E04's fix round, the carry tied
+ * that write. Amends only (`ifLive`).
+ */
+async function carryPromotion(token, over) {
+    const key = keyOf(token);
+    for (const [field, value] of Object.entries(over)) {
+        const was = remnantStore.stampOf(key, field);
+        await setRemnantSecret(token, { [field]: value }, { ifLive: true, stamp: (was + Math.floor(was) + 1) / 2 });
+    }
+}
+
+/**
+ * The moved path's promotion (`moveIntoLedger`), at the world's upgrade mark: into the
+ * row the moved record has just started, never a row of its own (`ifLive`, R172) - a
+ * trace whose row a GM removed is not brought back as a row of one field.
+ */
+async function promoteAtMark(token, promotion, mark) {
+    await setRemnantSecret(token, promotion, { ifLive: true, stamp: mark });
 }
 
 /** What is still on a trace's token that the answer key could be in (see `migrateRemnantToken`). */
@@ -2111,11 +2153,12 @@ async function neutraliseDeltaName(token) {
 async function seedPublicIfMissing(tokenDoc) {
     const key = keyOf(tokenDoc);
     if (!key) return 0;
-    const ledger = readRemnantLedger();
-    const entry = ledger[key];
-    if (!entry || entry.deleted || entry.public) return 0;
+    const entry = remnantStore.get(key);
+    if (!entry || entry.public) return 0;
 
-    await setRemnantSecret(tokenDoc, { public: defaultPublic(entry) });
+    // A default derived from the row, so weak and fill-only (E04): a `public` any
+    // GM wrote wins every part of it.
+    await setRemnantSecret(tokenDoc, { public: defaultPublic(entry) }, { weak: true, fillOnly: true });
     return 1;
 }
 

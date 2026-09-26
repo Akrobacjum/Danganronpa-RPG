@@ -102,7 +102,7 @@ release or stage the status belongs to.
 | 50 | scenarios/50-lang.mjs | ci | exists | <=1.2.50 | the Language setting on four clients |
 | 51 | scenarios/51-lang-mixed.mjs | ci | planned | E57 | English and Polish browsers at one table |
 | 60 | scenarios/60-ledger.mjs | ci, local-gate | exists | <=1.2.50 | the discovery ledger is a secret per player |
-| 61 | scenarios/61-gmstore-case.mjs | ci | planned | E38 | the GM store with a second GM: backup and restore, tombstones, kept ids |
+| 61 | scenarios/61-gmstore-case.mjs | ci | exists | E04 | the GM store with a second GM: a late empty browser, backup and restore, tombstones, the reset's cuts |
 | 62 | scenarios/62-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56) |
 | 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
 | 71 | scenarios/71-sheet.mjs | local-gate | planned | E45 | the sheet on two accounts on a real v14 |
@@ -224,9 +224,15 @@ number is not reused for a scenario.
 - **Users.** Four are seeded (a GM and three players), and a scenario adds more
   with `accounts` (E30). Each is connected until a scenario calls
   `disconnect(who)`, which ends that client and tells the others through
-  `userConnected` (LIVE-E30-05); nobody comes back, a role changes only by a
-  write, nobody is logged out for it, and there is no `game.users.activeGM`.
-  `opLog` and `settingLog` say who wrote what.
+  `userConnected` (LIVE-E30-05). An account declared `late: true` (E04) is
+  seeded inactive and has no client until `connect(who, { storage, world,
+  clockSkewMs })` starts one - with that localStorage before the module loads,
+  that `game.world.id`, and a machine clock off by that much while
+  `game.time.serverTime` (the server's, here the machine's) is not - and may
+  connect again after a disconnect; `storageOf(who)` is a client's
+  localStorage, read now or as it closed. The seeded four do not come back, a
+  role changes only by a write, nobody is logged out for it, and there is no
+  `game.users.activeGM`. `opLog` and `settingLog` say who wrote what.
 - **Daggerheart.** Its GM relay is 2.10.5's own code (`lib/dh-relay.mjs`). A
   trait roll follows 2.6.5 (`lib/daggerheart.mjs`, E30): the config as
   `rollTrait` and `diceRoll` build it, the card, then the resource step
@@ -256,6 +262,25 @@ number is not reused for a scenario.
   package's language file, so another module's keys stay unresolved.
 - **Dialogs** are answered from a queue, or drawn as real windows on the GM
   when a scenario asks (`__dialogWindows`).
+- **Files** (E04). `foundry.utils.saveDataToFile` keeps what it is handed in
+  `__savedFiles` on that client instead of downloading it, and
+  `readTextFromFile` takes the text itself (or `{ text }`) as the chosen file;
+  what a real browser does with either is LIVE-E04-05. v14's world storage
+  answers `getSetting(key)` with the stored value or nothing (LIVE-E04-10).
+- **The GM store at a real table** (E04). Late GM accounts (`connect`,
+  `disconnect`, `storageOf`) are clients on one machine: `game.time.serverTime`
+  is that machine's clock and a client's skew moves its `Date.now` alone
+  (LIVE-E04-01); how long a GM takes to have the others' copies, and the largest
+  `gms.state` part a real server carries, are LIVE-E04-02; the bytes a table's
+  world puts in localStorage and one flush's time, LIVE-E04-03; a socket that
+  drops and comes back without a reload is never modelled (LIVE-E04-04). The
+  upgrade on the owner's world copy (LIVE-E04-06), whether Duplicate World gives
+  the copy its own world id (LIVE-E04-07), the brief's live verify with a
+  murder open (LIVE-E04-08), the reset refused on an Assistant and the offline
+  GM cut at its next login (LIVE-E04-09) and two tabs of one browser writing at
+  once (LIVE-E04-11) are for a table. A client that joins is announced to the
+  others only once it is ready; whether v14 fires their `userConnected` before
+  its listeners exist is LIVE-E04-12.
 - **Versions** (E30, `lib/versions.mjs`). Foundry and Daggerheart are the
   versions `module.json` says the module is verified on; the companion modules
   it requires or recommends take theirs from an installed Foundry when
