@@ -238,12 +238,20 @@ export const SETTINGS = {
     observePending: "gmObservePending",
     legacyObservePending: "observePending",
     /**
-     * Level Ups handed to a player and not yet spent (N-2). CLIENT-scoped: the
-     * primary GM's copy is the authority, an owner's holds only their own
-     * characters' - see "WHERE AN OFFER LIVES" in level-up.mjs for why a flag
-     * on the character was both forgeable and readable by everyone.
+     * Level Ups handed to a player and not yet spent (N-2). CLIENT-scoped - see
+     * "WHERE AN OFFER LIVES" in level-up.mjs for why a flag on the character was
+     * both forgeable and readable by everyone.
+     *
+     * A GM STORE SINCE E04 (1.2.63; audit S03-11): `gmOffers` (gm-stores.mjs,
+     * `offerStore`), synced between the GMs; the primary writes it. An owner's
+     * browser holds a copy of its own characters' (`mineOffers`, `offerCopy`),
+     * stamped per character, so an answer from a primary whose browser holds
+     * none cannot take an offer away. `legacyAdvanceOffers` is the one key both
+     * used to share: claimed on the primary's browser only, never written.
      */
-    advanceOffers: "advanceOffers",
+    advanceOffers: "gmOffers",
+    legacyAdvanceOffers: "advanceOffers",
+    mineOffers: "mineOffers",
     /**
      * The words of every private card this browser is a recipient of.
      *
@@ -1061,6 +1069,18 @@ export function registerSettings() {
     });
 
     game.settings.register(MODULE_ID, SETTINGS.advanceOffers, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyAdvanceOffers, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineOffers, {
         scope: "client",
         config: false,
         type: Object,

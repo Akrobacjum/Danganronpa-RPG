@@ -431,7 +431,7 @@ export function vacuousChecks(text) {
  * end of E04.
  */
 export const GM_STORE_PENDING = Object.freeze([
-    "advanceOffers", "discoveryLedger", "discoveryMine"
+    "discoveryLedger", "discoveryMine"
 ]);
 
 /*

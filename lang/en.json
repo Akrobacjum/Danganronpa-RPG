@@ -2651,6 +2651,7 @@
       "offered": "{kind}. Press the button beside your name on your sheet and choose - you have {n} pick(s).",
       "offerSent": "{name} has been told; the choice is theirs now.",
       "offerFailed": "The offer could not be written to that character.",
+      "notOfferedHere": "{player} asked to spend a Level Up on {name}, and this GM's browser holds no offer for them - it has not heard from the other GMs yet, or holds no offers at all. If one was made, offer it again, or restore the case from a backup (GM panel).",
       "offerTooltip": "{kind} - press to choose what you take.",
       "whichKind": "Which Level Up did <strong>{actor}</strong> earn?",
       "kind": {

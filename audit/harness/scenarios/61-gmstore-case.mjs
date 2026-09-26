@@ -8,8 +8,8 @@
  * world id it is given - an empty browser, the same browser coming back, or the
  * same browser in another world on one server.
  *
- * Phases, in the order they run (the design's section 12; a phase that closes the
- * seed GM runs last, because only a late account can connect again):
+ * Phases, in the order they run (the design's section 12; the phases after the seed
+ * GM closes run last, because only a late account can connect again):
  *   A  the harness's own preconditions: a late GM boots with the storage it was
  *      given, the others see it connect, its storage is read back after it left,
  *      and its clock can be off while the server's is not.
@@ -41,11 +41,17 @@
  *   G  a trap's planted object (S08-19): a second GM plants it, the primary - who
  *      hands a player's Search its find - finds it and gives it to the searcher,
  *      and its use sets the trap off on the primary's chat.
- *   Z  the browser is lost (the brief's live verify, headless): a GM backs up the
- *      case, every GM leaves, a third GM comes with an empty browser and is alone,
- *      so the primary; its health check opens and names what is missing, Continue
- *      is taken, the file is restored, the answer keys read back and the check is
- *      clean. Last in the file: the seed GM cannot come back.
+ *   H1 a Level Up offered on the primary (S03-11): its owner's copy is lit at the
+ *      offer's stamp, and the second GM holds the offer.
+ *   H2 the seed GM leaves for good; the second GM comes back alone, so the
+ *      primary: it answers the owner with the offer and spends it; it offers again
+ *      and, its store emptied, answers stamp 0 - the owner's button stays lit, and
+ *      the spend is refused as not offered, with the GM told.
+ *   Z  the browser is lost (the brief's live verify, headless): the GM left from
+ *      H2 backs up the case and leaves, a third GM comes with an empty browser and
+ *      is alone, so the primary; its health check opens and names what is missing,
+ *      Continue is taken, the file is restored, the answer keys read back and the
+ *      check is clean.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -560,14 +566,89 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         return msgs.filter(m => /E04 poisoned kit/.test(m.content ?? "") || /E04 poisoned kit/.test(JSON.stringify(m.flags ?? {}))).length;`);
     check("G3: its use sets the trap off on the primary GM",
         !used.err && alert >= 1, J({ used, alert, cardsBefore }));
+
+    /* ------------------- H1. a Level Up offered, synced ------------------- */
+
+    phase("H1: a Level Up offered on the primary lights its owner's button, and the second GM holds it", { flow: "class-trial" });
+    const LV = `const L = await import("${repoUrl}/scripts/level-up.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const E = await import("${repoUrl}/scripts/gm-store.mjs");`;
+    // What each offers packet says, as p1 receives it (as for the door and the cast, the review's M2).
+    // And the refusals addressed to p1: a spend is answered "got it" first, and refused after (E31).
+    await p1.eval(`globalThis.__offers = []; globalThis.__refusals = [];
+        game.socket.on("module.${MOD}", (payload, senderId) => {
+            if (payload?.action === "advancement.offers") globalThis.__offers.push({ from: senderId, offers: payload.offers ?? null, stamps: payload.stamps ?? null });
+            if (payload?.action === "bridge.refused") globalThis.__refusals.push({ from: senderId, what: payload.what ?? null, reason: payload.reason ?? null });
+        });
+        return true;`);
+    const offersSince = n => p1.eval(`return globalThis.__offers.slice(${n});`);
+    const offersNow = () => p1.eval(`return globalThis.__offers.length;`);
+    const litOn = client => client.eval(`${LV} const a = game.actors.get("${IDS.aiko}");
+        return { offer: L.pendingAdvance(a)?.kind ?? null, stamp: game.user.isGM ? (S.offerStore?.newest("${IDS.aiko}") ?? null) : (E.mineStamps("offers")["${IDS.aiko}"] ?? 0),
+            advances: a.getFlag("${MOD}", "advances") ?? 0 };`);
+    const offeredAt = await gm.eval(`${LV} await L.offerAdvancement(game.actors.get("${IDS.aiko}"), "standard");
+        return S.offerStore?.newest("${IDS.aiko}") ?? null;`);
+    await settle(800);
+    const litH1 = await litOn(p1), onGm2H1 = await litOn(gm2);
+    check("H1: a Standard Level Up offered on the primary reaches Aiko's player at its stamp, and the second GM holds it",
+        offeredAt > 0 && J([litH1.offer, litH1.stamp]) === J(["standard", offeredAt]) && J([onGm2H1.offer, onGm2H1.stamp]) === J(["standard", offeredAt]),
+        J({ offeredAt, litH1, onGm2H1 }));
     await disconnect("gm2");
     await settle(300);
+
+    /* ------------------- H2. the primary alone, and its store empty ------------------- */
+
+    /* The seed GM leaves here for good (a late account can come back, it cannot), and gm2
+       comes back with its browser, alone and so the primary: it holds the offer from H1. */
+    phase("H2: a primary alone answers the owner, spends the offer, and with its store emptied takes nothing away", { flow: "class-trial" });
+    await disconnect("gm");
+    await connect("gm2", { storage: await storageOf("gm2") });
+    await settle(1500);
+    // The owner asks as its bridge does (E31's advancement.ask, a report nobody waits on).
+    const askOffers = () => p1.eval(`const B = await import("${repoUrl}/scripts/bridge-guards.mjs");
+        await B.bridgeRequest("advancement.ask", {}, { settle: "none", quiet: true }); return true;`);
+    const askedH2 = await offersNow();
+    await askOffers();
+    await settle(800);
+    const answeredOnJoin = await offersSince(askedH2), litH2 = await litOn(p1);
+    const apply = () => p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const res = await B.requestAdvancement({ actorId: "${IDS.aiko}", picks: [{ option: "hp" }], kind: "standard" });
+        return { ok: Boolean(res?.ok), reason: res?.reason ?? null };`, { timeout: 60000 });
+    const spent = await apply();
+    await settle(800);
+    const afterSpend = await litOn(p1), onGm2Spent = await litOn(gm2);
+    check("H2a: the primary alone answers the owner's ask with the offer at its stamp, and spends it: the Level Up is written and the button goes out",
+        answeredOnJoin.some(d => d.from === GM2 && d.offers?.[IDS.aiko]?.kind === "standard" && d.stamps?.[IDS.aiko] === offeredAt)
+        && litH2.offer === "standard" && spent.ok && afterSpend.offer === null && afterSpend.stamp > offeredAt
+        && onGm2Spent.advances === litH2.advances + 1, J({ answeredOnJoin, litH2, spent, afterSpend, onGm2Spent }));
+
+    const secondAt = await gm2.eval(`${LV} await L.offerAdvancement(game.actors.get("${IDS.aiko}"), "standard");
+        const at = S.offerStore?.newest("${IDS.aiko}") ?? null;
+        await S.offerStore?.forget();
+        return at;`);
+    await settle(800);
+    const askedEmpty = await offersNow();
+    await askOffers();
+    await settle(800);
+    const emptyAnswer = await offersSince(askedEmpty), litEmpty = await litOn(p1);
+    const whispersBefore = await gm2.eval(`return game.messages.size;`);
+    const refusalsBefore = await p1.eval(`return globalThis.__refusals.length;`);
+    await apply();
+    await settle(800);
+    const refused = await p1.eval(`return globalThis.__refusals.slice(${refusalsBefore});`);
+    // A GM's whisper keeps its words off the card (secret.mjs): read them the way the chat log does.
+    const told = await gm2.eval(`const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        return game.messages.contents.slice(${whispersBefore}).filter(m => /holds no offer/.test(contentOf(m))).length;`);
+    check("H2b: the primary's store emptied, its answer carries stamp 0 and the owner's button stays lit; the spend is refused as not offered, and the GM is told",
+        secondAt > afterSpend.stamp && emptyAnswer.length >= 1 && emptyAnswer.every(d => J(d.offers) === "{}" && (d.stamps?.[IDS.aiko] ?? 0) === 0)
+        && J([litEmpty.offer, litEmpty.stamp]) === J(["standard", secondAt])
+        && J(refused) === J([{ from: GM2, what: "advancement.apply", reason: "notOffered" }]) && told === 1,
+        J({ secondAt, emptyAnswer, litEmpty, refused, told }));
 
     /* ------------------- Z. the browser is lost, and the case comes back ------------------- */
 
     phase("Z: a GM backs up, every GM leaves, an empty browser comes back alone and restores", { flow: "gm-store" });
-    await connect("gm2", { storage: await storageOf("gm2") });
-    await settle(1500);
+    // gm2 is here since H2, alone; the seed GM left there.
     const backup = await gm2.eval(`const file = await game.drpg.backupCase();
         const saved = globalThis.__savedFiles.at(-1) ?? null;
         return { format: file?.format ?? null, rows: Object.keys(file?.stores?.bullets?.e ?? {}).length,
@@ -576,7 +657,6 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         backup.format === "drpg-case" && backup.rows === 3 && J(backup.traces) === J([`${IDS.scene}.${placedD[0]}`, seedKey].sort())
         && /^drpg-case-drpg-audit-world-/.test(backup.name ?? "") && Boolean(backup.text),
         J({ ...backup, text: backup.text ? `${backup.text.length} characters` : null }));
-    await disconnect("gm");
     await disconnect("gm2");
     await settle(300);
     await connect("gm3");
@@ -605,5 +685,5 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         && J(tracesOnGm3) === J(expectD.slice(0, 2)) && J(restored.missing) === J([])
         && restored.bullets.missing === 0 && restored.bullets.noAnswer === 0 && restored.traces.missing === 0, J({ restored, keysOnGm3, tracesOnGm3 }));
 
-    return { phases: ["A", "B", "D", "E", "F", "G", "Z"], gm: IDS.gm };
+    return { phases: ["A", "B", "D", "E", "F", "G", "H1", "H2", "Z"], gm: IDS.gm };
 }

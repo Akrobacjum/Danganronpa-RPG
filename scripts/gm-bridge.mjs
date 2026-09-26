@@ -316,7 +316,21 @@ async function handleAdvancement(payload, sender, ctx) {
 
     const { pendingAdvance, applyAdvancement } = await import("./level-up.mjs");
     const offer = pendingAdvance(actor);
-    if (!offer) return { refused: "no Level Up is on offer for that character" };
+    if (!offer) {
+        /* THE GMs ARE TOLD WHEN THE REFUSAL MAY BE THIS BROWSER'S (E04 C8; E31 row 5):
+           the offers store has not heard from the other GMs yet, or holds nothing at
+           all - a primary that came with an empty browser, which is the case the
+           owner's lit button now survives. Nothing is awaited between this read and
+           the latch below. */
+        const { offerStore } = await import("./gm-stores.mjs");
+        if ((!offerStore.isHydrated() || !Object.keys(offerStore.entries()).length) && !offerMissingTold.has(actor.id)) {
+            // Once per character and load: a player pressing again is not news, and a whisper each time would be a way to flood the GMs.
+            offerMissingTold.add(actor.id);
+            void whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Advance.notOfferedHere", { name: actor.name, player: sender.name }))}</p>`)
+                .catch(err => debug("Could not tell the GMs about a Level Up this browser does not hold", err));
+        }
+        return { refused: "no Level Up is on offer for that character" };
+    }
 
     const wanted = LEVEL_UP[offer.kind]?.picks ?? 0;
     const picks = Array.isArray(payload.picks) ? payload.picks : [];
@@ -353,6 +367,8 @@ async function handleAdvancement(payload, sender, ctx) {
 
 /** Characters whose Level Up is being written right now (see handleAdvancement). */
 const advancing = new Set();
+/** Characters whose refused Level Up the GMs were told this browser may not hold (see handleAdvancement). */
+const offerMissingTold = new Set();
 
 /** A GM asks the primary to record or withdraw an offer (N-2). Only a GM - the declaration's first guard. */
 async function handleAdvancementOffer(payload, sender, ctx) {
@@ -372,13 +388,16 @@ async function handleAdvancementAsk(payload, sender, ctx) {
 /**
  * Primary GM: send one user the whole set of offers on their own characters.
  * Addressed - nobody else's browser receives it - and only when they are there.
+ * With a stamp per character they own (E04): the owner's copy takes only what is
+ * newer (level-up.mjs `offersFor`, gm-stores.mjs `offerCopy`).
  */
 export async function sendOffersTo(userId) {
     const user = game.users.get(userId);
     if (!user?.active || user.isGM) return;
     const { offersFor } = await import("./level-up.mjs");
+    const { offers, stamps } = offersFor(userId);
     game.socket.emit(SOCKET_EVENT, {
-        action: ACTION_ADVANCEMENT_OFFERS, userId, offers: offersFor(userId)
+        action: ACTION_ADVANCEMENT_OFFERS, userId, offers, stamps
     }, { recipients: [userId] });
 }
 
@@ -392,7 +411,7 @@ function onAdvancementOffers(payload, senderId) {
     if (payload?.action !== ACTION_ADVANCEMENT_OFFERS) return;
     if (!replyForMe(payload, senderId)) return;
     import("./level-up.mjs")
-        .then(m => m.receiveOffers(payload.offers))
+        .then(m => m.receiveOffers(payload.offers, payload.stamps))
         .catch(err => error("Could not keep the Level Ups offered to you", err));
 }
 

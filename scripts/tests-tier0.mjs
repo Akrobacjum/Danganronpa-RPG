@@ -4574,8 +4574,11 @@ const REGRESSIONS = [
             "the offer still has a flag key, so something can still write it to the character");
         ok(!/setFlag\([^)]*pendingAdvance|unsetFlag\([^)]*pendingAdvance/.test(level),
             "the offer is written to the character, where its owner can forge it and anyone can read it");
-        ok(game.settings.settings.get(`${MODULE_ID}.advanceOffers`)?.scope === "client",
+        // Two keys since E04 (1.2.63): the GMs' store and an owner's copy, both client-scoped.
+        ok(game.settings.settings.get(`${MODULE_ID}.gmOffers`)?.scope === "client",
             "the offer store is not client-scoped, so it reaches every browser");
+        ok(game.settings.settings.get(`${MODULE_ID}.mineOffers`)?.scope === "client",
+            "an owner's copy of the offers is not client-scoped, so it reaches every browser");
 
         const pending = bodyOf(level, "export function pendingAdvance(", { until: "\n}" });
         ok(/readOffers\(\)/.test(pending) && !/getFlag/.test(pending),
@@ -5531,7 +5534,7 @@ const REGRESSIONS = [
             "tests-tier2.mjs#legacyTrapLedger": "the claim's census seeds the old key it counts",
             "tests-tier2.mjs#legacyTrapPlants": "the claim's census seeds the old key it counts",
             "tests-tier2.mjs#legacyObservePending": "the claim's census seeds the old key it counts",
-            "level-up.mjs#advanceOffers": "the Level Up offers, until they move (E04 C8)",
+            "tests-tier2.mjs#legacyAdvanceOffers": "the claim's census seeds the old key it counts",
             "fog.mjs#discoveryLedger": "the fog ledger, until it moves (E04 C9)",
             "fog.mjs#discoveryMine": "a player's fog rows, until they move (E04 C9)",
             "settings.mjs#discoveryLedger": "the leaf discoveryLedger, until the fog moves (E04 C9)",

@@ -20,7 +20,7 @@
  * it from the registry.
  */
 
-import { MODULE_ID, FLAGS, TIMING, moduleVersion } from "./config.mjs";
+import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, dialogContent, whisperToGms } from "./utils.mjs";
 import {
@@ -390,6 +390,44 @@ export const observeStore = defineGmStore({
         }
         return { rows, left };
     }
+});
+
+/**
+ * THE LEVEL UPS ON OFFER (E04 C8; audit S03-11). A row per character, `{ kind, at }`,
+ * synced between the GMs; the primary writes it (level-up.mjs `recordOffer`) - an offer
+ * or a withdrawal, which is a stamped drop now, where the old store deleted the key and
+ * a GM holding it wrote it back. The old offers are claimed on the primary's browser
+ * only (the design's row 17): the old key had no tombstones, so a union of every GM's
+ * browser would bring back offers taken away; at their `at`, for a character here and a
+ * kind that exists. An entry with no `at` is an owner's cached copy, never the store.
+ */
+export const offerStore = defineGmStore({
+    name: "offers", key: SETTINGS.advanceOffers, legacyKey: SETTINGS.legacyAdvanceOffers,
+    kind: "ledger", resetGroup: "advancement", backup: true, sync: true,
+    claim: legacy => {
+        const entries = Object.entries(isPlain(legacy) ? legacy : {});
+        if (!isPrimaryGm()) return { rows: [], left: entries.map(([key]) => ({ key, reason: "notPrimary" })) };
+        const rows = [], left = [];
+        for (const [actorId, offer] of entries) {
+            if (!isPlain(offer) || !LEVEL_UP[offer.kind]?.picks) left.push({ key: actorId, reason: "notAnOffer" });
+            else if (!Number.isFinite(offer.at) || offer.at <= 0) left.push({ key: actorId, reason: "ownerCache" });
+            else if (!game.actors?.has(actorId)) left.push({ key: actorId, reason: "otherWorld" });
+            else rows.push({ key: actorId, fields: { kind: offer.kind, at: offer.at }, stamp: offer.at });
+        }
+        return { rows, left };
+    }
+});
+
+/**
+ * AN OWNER'S OFFERS (E04 C8): the Level Ups standing on this user's own characters,
+ * `{ actorId: { kind } }`, as the primary GM sent them - a stamp per character (the row's,
+ * a withdrawal's tombstone included), and taken whole only when it is at least as new
+ * for every character and newer for one (gm-store.mjs `newerStamps`). An answer from a
+ * primary whose browser holds no offer carries stamp 0 and changes nothing: the lit
+ * button stays lit, where the old copy was replaced by whatever set arrived.
+ */
+export const offerCopy = defineGmCopy({
+    name: "offers", key: SETTINGS.mineOffers, legacyKey: SETTINGS.legacyAdvanceOffers, resetGroup: "advancement", fallback: {}
 });
 
 /** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */

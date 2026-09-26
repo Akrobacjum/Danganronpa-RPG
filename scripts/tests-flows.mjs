@@ -56,7 +56,7 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["call.arm"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask"], sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
         entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],
         status: "partial", stage: "E37" },

@@ -6752,7 +6752,24 @@ const SCENARIOS = [
         const liveProject = () => game.settings.set(MODULE_ID, SETTINGS.projectMeta,
             { ...(getSetting(SETTINGS.projectMeta) ?? {}), SUITEE04PROJECT1: { name: "SUITE census project" } });
         const recent = Date.now() - 60 * 1000;
+        const levelUp = await import("./level-up.mjs");
         const FIXTURES = {
+            // Claimed on the primary's browser only (the design's row 17): the suite runs on the primary.
+            offers: {
+                legacy: SETTINGS.legacyAdvanceOffers,
+                seed: {
+                    [student.id]: { kind: "standard", at: T },
+                    [other.id]: { kind: "standard" },
+                    [third.id]: { kind: "SUITEE04NOKIND", at: T },
+                    SUITEE04NOACTOR0: { kind: "standard", at: T }
+                },
+                census: { legacy: 4, claimed: 1, left: 3, tombstones: 0, reasons: { notAnOffer: 1, otherWorld: 1, ownerCache: 1 } },
+                readBack: store => {
+                    equal(levelUp.pendingAdvance(student)?.kind, "standard", "the claimed offer does not read back through pendingAdvance");
+                    equal(store.stampOf(student.id), T, "the offer was not claimed at its own time");
+                    ok(!store.has(other.id), "an owner's cached copy (no time) was claimed as an offer");
+                }
+            },
             trapLedger: {
                 legacy: SETTINGS.legacyTrapLedger,
                 before: liveProject,
@@ -7238,6 +7255,50 @@ const SCENARIOS = [
         equal(stableJson(M.blackenedIds()), stableJson([]), "after the clear, a stale copy of this chapter's killer came back");
     }],
 
+    ["an empty answer never takes an owner's offer away", async () => {
+        /*
+         * E04, 26.09.2026; audit S03-11. An owner's browser held whatever set of offers
+         * the last answer carried, and a primary whose browser held none answered an empty
+         * set, which the owner took: the lit button went out, and the Level Up with it,
+         * until a GM offered it again. The owner's copy is stamped per character now
+         * (gm-stores.mjs `offerCopy`). Driven through the copy on this browser the way an
+         * owner's takes the primary's answers - an offer; an empty answer stamped 0, from a
+         * primary holding none; a withdrawal - and then the primary's side: `offersFor`
+         * stamps every character the owner owns, 0 where this browser holds nothing, the
+         * row's stamp where it holds an offer, and the withdrawal's where it was taken back.
+         * Stood in a world this browser has never opened, so nothing reaches another GM or
+         * an owner.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const L = await import("./level-up.mjs");
+        needs(world.atLeast("playersWithCharacter"), "the primary's answer is about the characters a player owns");
+        const owns = (a, u) => a.type === "character" && a.testUserPermission(u, "OWNER");
+        const owner = game.users.find(u => !u.isGM && game.actors.some(a => owns(a, u)));
+        const student = game.actors.find(a => owns(a, owner));
+        await E.withGmStoreWorld(`suite-offers-${foundry.utils.randomID(8)}`, async () => {
+            const at = E.gmStoreStamp();
+            const offer = { [student.id]: { kind: "standard" } };
+            equal(await S.offerCopy.receive(offer, { [student.id]: at }), true, "an offer at its stamp was not taken");
+            equal(await S.offerCopy.receive({}, { [student.id]: 0 }), false, "an empty answer from a primary holding no offer was taken");
+            equal(stableJson(S.offerCopy.read()), stableJson(offer), "the offer did not survive the empty answer");
+            equal(await S.offerCopy.receive({}, { [student.id]: at + 1 }), true, "a withdrawal, at a newer stamp, did not take the offer away");
+            equal(stableJson(S.offerCopy.read()), "{}", "the withdrawn offer still reads");
+
+            const none = L.offersFor(owner.id);
+            equal(stableJson([none.offers, none.stamps[student.id]]), stableJson([{}, 0]),
+                "the primary holding no offer does not answer nothing at stamp 0");
+            await S.offerStore.patch(student.id, { kind: "standard", at: Date.now() });
+            const one = L.offersFor(owner.id);
+            equal(stableJson([one.offers[student.id], one.stamps[student.id]]), stableJson([{ kind: "standard" }, S.offerStore.stampOf(student.id)]),
+                "the primary's answer does not carry the offer at its row's stamp");
+            await S.offerStore.drop(student.id);
+            const gone = L.offersFor(owner.id);
+            ok(gone.stamps[student.id] > one.stamps[student.id] && !gone.offers[student.id],
+                `the primary's answer after a withdrawal is not newer than the offer, so the owner would keep it lit: ${stableJson(gone)}`);
+        });
+    }],
+
     ["a taken plant stays taken when a stale copy merges", async () => {
         /*
          * E04, 26.09.2026; audit S08-19. A trap's planted objects were one object per GM
@@ -7297,8 +7358,18 @@ const SCENARIOS = [
         const mastermind = await import("./mastermind.mjs");
         const murder = await import("./murder.mjs");
         const traps = await import("./traps.mjs");
+        const levelUp = await import("./level-up.mjs");
         const [, victim] = cast(2);
         const FIXTURES = {
+            // Through the store: no owner is sent the offer (C8).
+            offers: {
+                seed: async () => {
+                    await S.offerStore.patch(holder.id, { kind: "standard", at: Date.now() });
+                    return holder.id;
+                },
+                gone: (report, id) => levelUp.pendingAdvance(game.actors.get(id)) === null,
+                back: id => levelUp.pendingAdvance(game.actors.get(id))?.kind === "standard"
+            },
             // The traps' two, through their stores: no project is armed by them (C7).
             trapLedger: {
                 seed: async () => {

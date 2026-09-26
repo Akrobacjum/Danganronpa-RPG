@@ -3772,7 +3772,7 @@ const INVARIANTS = [
          * (`doorCombine`) is held on the review's case, and the cast's (`castCombine`,
          * C6) on a stale turn, a participant leaving and a trap's end. Then the source:
          * each GM-to-player sender in the table below puts stamps in what it sends, and
-         * every call of it passes them.
+         * every call of it passes them - or the sender reads them itself (the offers, C8).
          */
         const G = await import("./gm-store.mjs");
         const { TIMING } = await import("./config.mjs");
@@ -3846,17 +3846,19 @@ const INVARIANTS = [
         equal(castCombine({ value: {}, stamps: { ...seatsOnly, thirdId: 0 } }, { value: { killerId: "K" }, stamps: { ...castParts(100, 120), thirdId: 0 } })?.value?.killerId,
             "K", "the cast sent at a trap's end was refused by its killer's \"not in it\"");
 
-        // The senders: the function that emits a copy to a player, and the file that calls it.
-        const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"]];
+        /* The senders: the function that emits a copy to a player, and the file that calls it.
+           "own": the sender reads the stamps itself - the offers', from the store's rows for the
+           user's characters (C8) - so a call of it passes none. */
+        const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"]];
         const sources = new Map(await otherSources());
         const found = [];
-        for (const [file, fn] of SENDERS) {
+        for (const [file, fn, own] of SENDERS) {
             const src = stripComments(sources.get(file) ?? "");
             const body = fnSource(src, fn);
             if (!/\bemit\([^;]*\bstamps?\b/.test(body)) found.push(`${file} ${fn} emits no stamp`);
             const calls = [...src.matchAll(new RegExp(`\\b${fn}\\(([^;]*)\\);`, "g"))].filter(m => !/^\s*function\b/.test(src.slice(Math.max(0, m.index - 9), m.index + 1)));
             if (!calls.length) found.push(`${file} ${fn} is called nowhere - take its row out`);
-            for (const m of calls) if (!/stamp/i.test(m[1])) found.push(`${file}: ${fn}(${m[1].slice(0, 60)}) passes no stamp`);
+            if (!own) for (const m of calls) if (!/stamp/i.test(m[1])) found.push(`${file}: ${fn}(${m[1].slice(0, 60)}) passes no stamp`);
         }
         ok(!found.length, `a copy goes to a player without a stamp: ${found.join("; ")}`);
     }]
