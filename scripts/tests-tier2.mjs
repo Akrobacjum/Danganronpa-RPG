@@ -7521,6 +7521,33 @@ const SCENARIOS = [
         });
     }],
 
+    ["an unstamped world in play keeps its safeword", async () => {
+        /*
+         * E04 C11, 26.09.2026; audit S01-14. A world with no migration stamp is new, or
+         * one from v1.1.0, the build before the stamp - and a v1.1.0 world was given
+         * "Safe Word" in place of the word its table used. Driven through the clause's
+         * own function with the context the automatic pass gives it: an unstamped world
+         * that was not in play keeps the default; one that was gets the language file's
+         * old word, read back. The setting is put back afterwards.
+         */
+        const M = await import("./migrate.mjs");
+        const { DEFAULT_SAFEWORD } = await import("./settings.mjs");
+        const legacy = game.i18n.localize("DRPG.Legacy.safeword");
+        ok(legacy && legacy !== DEFAULT_SAFEWORD, `the language file's old word is "${legacy}": this measures nothing`);
+        const before = getSetting(SETTINGS.safeword);
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.safeword, DEFAULT_SAFEWORD);
+            equal(await M.keepOldSafeword({ from: "", wasInPlay: false }), null, "a new world was given the old word");
+            equal(getSetting(SETTINGS.safeword), DEFAULT_SAFEWORD, "a new world's safeword moved");
+            equal(stableJson(await M.keepOldSafeword({ from: "", wasInPlay: true })), stableJson({ safeword: legacy }),
+                "an unstamped world in play did not keep its word");
+            equal(getSetting(SETTINGS.safeword), legacy, "the kept word does not read back");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.safeword, before);
+            await settle();
+        }
+    }],
+
     ["Back up the case, then Restore, brings every store back", async () => {
         /*
          * E04, 26.09.2026; audit S05-09, the brief's verify. Each store is given a row

@@ -70,9 +70,12 @@ const SEEDED_CHIME = "sounds/notify.wav";
  *          after it. See the note below - this is what stops a clause that
  *          seeds a default from putting the default back every time the version
  *          moves, after a GM has deliberately removed it.
- *   run    async ({ from, to, force }) => object|null. Return what changed, or
- *          `null` for "nothing to do". NEVER throw for an absent world shape; a
- *          world that has no trials yet is not an error.
+ *   run    async ({ from, to, force, wasInPlay }) => object|null. Return what
+ *          changed, or `null` for "nothing to do". NEVER throw for an absent
+ *          world shape; a world that has no trials yet is not an error.
+ *          `wasInPlay` says whether the world was played before this load, read
+ *          before anything ran (`worldWasInPlay`): an unstamped world is new, or
+ *          one from a build before the stamp (v1.1.0).
  *
  * WHY `since` GATES INSTEAD OF ANNOTATING (changed in E2).
  *
@@ -401,42 +404,7 @@ const CLAUSES = [
          * The old key stays in the language file for exactly this clause to
          * read. It is not used to render anything any more.
          */
-        run: async ({ from }) => {
-            // A WORLD THAT WAS IN PLAY, not a new one (CORE-13). Unstamped
-            // worlds run every clause, and a world created today has never
-            // used the language file's word - so without this line every new
-            // world got it as its safeword, with a card saying it was found.
-            if (!from) return null;
-
-            const current = String(getSetting(SETTINGS.safeword) ?? "").trim();
-            const { DEFAULT_SAFEWORD } = await import("./settings.mjs");
-            if (current && current !== DEFAULT_SAFEWORD) return null;
-
-            const legacy = String(game.i18n.localize("DRPG.Legacy.safeword") ?? "").trim();
-            if (!legacy || legacy === DEFAULT_SAFEWORD) return null;
-
-            await setSetting(SETTINGS.safeword, legacy);
-
-            // Read back rather than believed: this decides what a safety
-            // control says, and a write that resolved is not a write that
-            // landed.
-            if (String(getSetting(SETTINGS.safeword) ?? "").trim() !== legacy) {
-                error("Could not keep this world's existing safeword");
-                return null;
-            }
-
-            // The sheets have already been drawn by the time a migration runs
-            // - it is started at `ready` and not awaited - so they are asked to
-            // redraw rather than left showing the default until somebody
-            // reopens their character.
-            await import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
-
-            await whisperToGms(`<p>${game.i18n.format("DRPG.Safeword.kept", {
-                word: foundry.utils.escapeHTML(legacy)
-            })}</p>`);
-
-            return { safeword: legacy };
-        }
+        run: ctx => keepOldSafeword(ctx)
     },
     {
         key: "motiveTimer",
@@ -631,6 +599,84 @@ const CLAUSES = [
 ];
 
 /**
+ * WHETHER THIS WORLD WAS PLAYED BEFORE THIS LOAD (E04 C11; audit S01-14). An
+ * unstamped world is either new or one from a build before the stamp existed - the
+ * public v1.1.0, which `releases/latest` named for a long time - and the stamp alone
+ * cannot tell them apart. The world can: a stored clock (Foundry keeps a world
+ * setting only once it was written; a default is never stored), a character or any
+ * actor carrying this module's flags other than a Monokuma's own, or a RollTable
+ * carrying its `category`. Pure over what it is handed - the world's settings
+ * storage (`getSetting(key)` on v14's collection, `get(key)` on a Map), the actors
+ * and the tables - so R179 drives it with fakes.
+ */
+export function worldWasInPlay({ world = null, actors = [], tables = [] } = {}) {
+    const clockKey = `${MODULE_ID}.${SETTINGS.clock}`;
+    let storedClock = false;
+    try {
+        storedClock = Boolean(typeof world?.getSetting === "function" ? world.getSetting(clockKey) : world?.get?.(clockKey));
+    } catch {
+        storedClock = false;
+    }
+    if (storedClock) return true;
+    const ours = doc => {
+        const flags = doc?.flags?.[MODULE_ID];
+        return flags && typeof flags === "object" ? flags : {};
+    };
+    if ([...(actors ?? [])].some(actor => Object.keys(ours(actor)).some(key => key !== "monokuma"))) return true;
+    return [...(tables ?? [])].some(table => Boolean(ours(table).category));
+}
+
+/** The world as this load found it, for `worldWasInPlay`: read before anything writes. */
+function worldAsFound() {
+    return {
+        world: game.settings?.storage?.get?.("world") ?? null,
+        actors: game.actors?.contents ?? [],
+        tables: game.tables?.contents ?? []
+    };
+}
+
+/**
+ * The word a world in play already uses, kept (TRAP 109; the clause `keepOldSafeword`
+ * above). Exported for the suite, which drives it with a context.
+ */
+export async function keepOldSafeword({ from = "", wasInPlay = false } = {}) {
+    // A WORLD THAT WAS IN PLAY, not a new one (CORE-13). Unstamped worlds run
+    // every clause, and a world created today has never used the language file's
+    // word - so without this line every new world got it as its safeword, with a
+    // card saying it was found. And an unstamped world is not always a new one
+    // (S01-14): one from v1.1.0, the build before the stamp, was sent "Safe Word"
+    // in silence until E04 asked the world itself (`worldWasInPlay`).
+    if (!from && !wasInPlay) return null;
+
+    const current = String(getSetting(SETTINGS.safeword) ?? "").trim();
+    const { DEFAULT_SAFEWORD } = await import("./settings.mjs");
+    if (current && current !== DEFAULT_SAFEWORD) return null;
+
+    const legacy = String(game.i18n.localize("DRPG.Legacy.safeword") ?? "").trim();
+    if (!legacy || legacy === DEFAULT_SAFEWORD) return null;
+
+    await setSetting(SETTINGS.safeword, legacy);
+
+    // Read back rather than believed: this decides what a safety control says,
+    // and a write that resolved is not a write that landed.
+    if (String(getSetting(SETTINGS.safeword) ?? "").trim() !== legacy) {
+        error("Could not keep this world's existing safeword");
+        return null;
+    }
+
+    // The sheets have already been drawn by the time a migration runs - it is
+    // started at `ready` and not awaited - so they are asked to redraw rather than
+    // left showing the default until somebody reopens their character.
+    await import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
+
+    await whisperToGms(`<p>${game.i18n.format("DRPG.Safeword.kept", {
+        word: foundry.utils.escapeHTML(legacy)
+    })}</p>`);
+
+    return { safeword: legacy };
+}
+
+/**
  * Bring this world's saved data up to the shape the installed build expects.
  *
  *     game.drpg.migrate1_2_0()                  // run if the version moved
@@ -646,9 +692,14 @@ const CLAUSES = [
  * @param {boolean} [options.quiet]  No notification, whatever happened. Used by
  *                                   the automatic pass so that a world with
  *                                   nothing to do says nothing.
+ * @param {boolean} [options.wasInPlay]  Whether the world was played before this
+ *                                   load (`worldWasInPlay`), read by the automatic
+ *                                   pass before anything wrote. A call by hand
+ *                                   comes after this session has written the
+ *                                   world, so it goes by the stamp alone.
  * @returns {Promise<object|null>}   The report, or `null` if it did not run.
  */
-export async function migrate1_2_0({ force = false, quiet = false } = {}) {
+export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = null } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Migrate.gmOnly"));
         return null;
@@ -662,8 +713,9 @@ export async function migrate1_2_0({ force = false, quiet = false } = {}) {
         return null;
     }
 
+    const inPlay = wasInPlay ?? Boolean(from);
     const report = {
-        from, to, forced: force, clauses: {}, changed: 0, skipped: [], failed: []
+        from, to, forced: force, wasInPlay: inPlay, clauses: {}, changed: 0, skipped: [], failed: []
     };
 
     for (const clause of CLAUSES) {
@@ -676,7 +728,7 @@ export async function migrate1_2_0({ force = false, quiet = false } = {}) {
         }
 
         try {
-            const result = await clause.run({ from, to, force });
+            const result = await clause.run({ from, to, force, wasInPlay: inPlay });
             if (result) {
                 report.clauses[clause.key] = result;
                 report.changed++;
@@ -724,7 +776,10 @@ export async function migrate1_2_0({ force = false, quiet = false } = {}) {
 export function runMigrationOnLoad() {
     if (!isPrimaryGm()) return;
 
-    migrate1_2_0({ quiet: true })
+    // Read now, before the first clause - or anything else at `ready` - writes the
+    // world: whether it was played before this load (S01-14).
+    const wasInPlay = worldWasInPlay(worldAsFound());
+    migrate1_2_0({ quiet: true, wasInPlay })
         .catch(err => error("The 1.2.0 migration could not run", err));
 }
 

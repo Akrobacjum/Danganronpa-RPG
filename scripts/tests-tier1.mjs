@@ -3887,6 +3887,43 @@ const INVARIANTS = [
             if (!own) for (const m of calls) if (!/stamp/i.test(m[1])) found.push(`${file}: ${fn}(${m[1].slice(0, 60)}) passes no stamp`);
         }
         ok(!found.length, `a copy goes to a player without a stamp: ${found.join("; ")}`);
+    }],
+
+    ["R179 - a world that was in play keeps its safeword", async () => {
+        /*
+         * E04 C11, 26.09.2026; audit S01-14. The clause that keeps a world's old safeword
+         * ran only for a stamped world, and the public v1.1.0 - which `releases/latest`
+         * named for a long time - wrote no stamp: a table updating straight from it was
+         * given "Safe Word" in silence, where its word was the language file's. The world
+         * is asked now whether it was played (migrate.mjs `worldWasInPlay`), before the
+         * migration writes anything. Driven with fakes: a stored clock - in v14's
+         * collection, which answers `getSetting`, and in a Map - a character carrying the
+         * module's flags and a table carrying its category each say yes; a world whose
+         * only flagged actor is a Monokuma, and an empty one, say no. Then the source: the
+         * automatic pass reads the world before the migration starts and hands it to the
+         * clauses, and the clause asks it beside the stamp.
+         */
+        const M = await import("./migrate.mjs");
+        const clockKey = `${MODULE_ID}.${SETTINGS.clock}`;
+        const stored = new Map([[clockKey, { chapter: 3 }]]);
+        const cases = [
+            ["a stored clock (v14's collection)", { world: { getSetting: key => (key === clockKey ? { key, value: {} } : undefined) } }, true],
+            ["a stored clock (a Map)", { world: stored }, true],
+            ["a character with the module's flags", { actors: [{ flags: { [MODULE_ID]: { startingSheet: {} } } }] }, true],
+            ["a table with the module's category", { tables: [{ flags: { [MODULE_ID]: { category: "weapon" } } }] }, true],
+            ["a Monokuma alone", { world: new Map([["core.other", 1]]), actors: [{ flags: { [MODULE_ID]: { monokuma: true } } }, { flags: { daggerheart: { x: 1 } } }],
+                tables: [{ flags: { [MODULE_ID]: {} } }] }, false],
+            ["an empty world", {}, false]
+        ];
+        const wrong = cases.filter(([, world, want]) => M.worldWasInPlay(world) !== want).map(([what, , want]) => `${what} (expected ${want})`);
+        ok(!wrong.length, `worldWasInPlay misreads: ${wrong.join("; ")}`);
+
+        const src = stripComments(new Map(await otherSources()).get("migrate.mjs") ?? "");
+        const load = fnSource(src, "runMigrationOnLoad");
+        ok(/const wasInPlay = worldWasInPlay\(worldAsFound\(\)\);\s*migrate1_2_0\(\{ quiet: true, wasInPlay \}\)/.test(load),
+            "the automatic pass does not read the world before the migration starts, or does not hand it on");
+        ok(/clause\.run\(\{ from, to, force, wasInPlay: inPlay \}\)/.test(fnSource(src, "migrate1_2_0")), "the clauses are not told whether the world was in play");
+        ok(/if \(!from && !wasInPlay\) return null;/.test(fnSource(src, "keepOldSafeword")), "the safeword is kept for a stamped world only");
     }]
 ];
 
