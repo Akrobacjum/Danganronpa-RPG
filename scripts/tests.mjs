@@ -58,6 +58,7 @@ import {
 import { REGRESSIONS } from "./tests-tier0.mjs";
 import { INVARIANTS } from "./tests-tier1.mjs";
 import { SCENARIOS, snapshot, restore } from "./tests-tier2.mjs";
+import { gmStoreHold, gmStoresIdle } from "./gm-store.mjs";
 
 // Every tier, for the tests that read the suite itself (R155): see registerSuite.
 registerSuite([[0, REGRESSIONS], [1, INVARIANTS], [2, SCENARIOS]]);
@@ -322,6 +323,15 @@ async function runSuite(tier, only = null) {
                (E30, audit S14-24): a scenario the world is too small for skips and
                says what it lacked, and this is the line to read that against. */
             lines.push(worldCensus());
+            /*
+             * THE GM STORE SENDS NOTHING WHILE TIER 2 RUNS (E04, 1.2.63). The restore
+             * below writes each store's key back raw, on this client only; a delta sent
+             * during a scenario would stay on another GM's browser and come back at the
+             * next exchange, undoing the restore there. So nothing leaves this client
+             * until the last restore; what arrives still merges, and the release sends a
+             * hello, which re-exchanges with the other GMs.
+             */
+            gmStoreHold(true);
             let snap = null;
             try {
                 snap = await snapshot(studentActors());
@@ -353,6 +363,8 @@ async function runSuite(tier, only = null) {
                     let broke = null;
                     try {
                         await game.drpg.endMurder({ reason: "test", followUp: false });
+                        // A store write not yet flushed would land on top of the raw restore.
+                        await gmStoresIdle();
                         await restore(snap);
                     } catch (err) {
                         broke = err;
@@ -379,6 +391,8 @@ async function runSuite(tier, only = null) {
         }
     } finally {
         writes.stop();
+        // Released whatever happened above; a hold the suite never took is released as a no-op.
+        gmStoreHold(false);
     }
 
     // the skipped count is always printed, including as a zero: a run that says

@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems
+    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -5486,6 +5486,86 @@ const REGRESSIONS = [
         equal(JSON.stringify(wildStart(G.REASON_PATTERNS)), "[]", "a reason's pattern begins with a wildcard, which a value could fill");
         ok(distinct >= 75, `only ${distinct} reasons were read - the reader has lost the guards, the runs or the functions they ask`);
         ok(!read.problems.length, `the bridge's reasons: ${read.problems.join("; ")}`);
+    }],
+
+    ["R171 - nothing outside the engine reads or writes a GM store, a frozen legacy key or a player copy", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-01, S05-09. The GM store (gm-store.mjs) keeps each
+         * GM-only store under a key sectioned by world and merged per field, and it never
+         * writes a store's old key: the upgrade leaves that key as it found it, for the next
+         * world opened in the same browser and for a downgrade. Both promises hold only while
+         * nothing else in the module touches those keys. A raw write to an old key breaks the
+         * first; a raw read of one after its store moved reads a copy frozen at the upgrade,
+         * and looks exactly like a working read.
+         *
+         * So every file Foundry serves, but the engine and its table, is read for a
+         * settings call, a SETTINGS name handed anywhere but a listener's key comparison, or
+         * a localStorage access, on any store's key, old key or player copy - and on the keys
+         * of the stores that have not moved yet (GM_STORE_PENDING, tests-lint.mjs), whose
+         * files are allowed below by name until the commit that moves each one. The list
+         * only shrinks: a row with no such read left fails. The harness scenarios are read
+         * by `node tools/check.mjs contract` with the same reader: a table's Foundry does not
+         * serve audit/. The reader is shown its planted reads first.
+         */
+        const fx = LINT_FIXTURES.storeKeyAccess;
+        equal(JSON.stringify(storeKeyAccess(fx.text, fx).found.map(f => f.line).sort((a, b) => a - b)), JSON.stringify(fx.flags),
+            "the reader does not find exactly the raw reads planted for it - it would read the module wrong too");
+        await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const keys = new Set(GM_STORE_PENDING);
+        for (const h of E.gmStoreHandles()) for (const k of [h.spec.key, h.spec.legacyKey]) if (k) keys.add(k);
+        for (const name of E.gmCopyNames()) for (const k of [E.gmCopySpec(name).key, E.gmCopySpec(name).legacyKey]) if (k) keys.add(k);
+        const props = Object.keys(SETTINGS).filter(p => keys.has(SETTINGS[p]));
+        const named = new Set(props.map(p => SETTINGS[p]));
+        ok([...keys].every(k => named.has(k)), `a GM store's key is not a SETTINGS name, so nothing here could find it read: ${
+            [...keys].filter(k => !named.has(k)).join(", ")}`);
+        const ALLOW = {
+            "diagnostics.mjs#truthBulletSecrets": "the Truth Bullet ledger, until it moves to the GM store (E04 C2)",
+            "truth-bullets.mjs#truthBulletSecrets": "the Truth Bullet ledger, until it moves to the GM store (E04 C2)",
+            "remnants.mjs#remnantSecrets": "the trace ledger, until it moves (E04 C4)",
+            "tests-tier2.mjs#remnantSecrets": "a tier-2 test reads a trace's row raw, until the traces move (E04 C4)",
+            "mastermind.mjs#mastermind": "the Mastermind, until it moves (E04 C5)",
+            "mastermind.mjs#myMastermindLair": "the Mastermind's player copy, until it moves (E04 C5)",
+            "mastermind.mjs#iAmMastermind": "the Mastermind's player copy, until it moves (E04 C5)",
+            "settings.mjs#iAmMastermind": "the leaf iAmTheMastermind, until the door copy moves (E04 C5)",
+            "murder.mjs#incidentCast": "the incident cast, until it moves (E04 C6)",
+            "murder.mjs#blackenedLedger": "the Blackened register, until it moves (E04 C6)",
+            "season-setup.mjs#incidentCast": "the reset's raw write of the cast, until the cast moves (E04 C6)",
+            "visibility.mjs#incidentCast": "reads the cast raw, until it moves (E04 C6)",
+            "settings.mjs#incidentCast": "the leaf incidentCast, until the cast moves (E04 C6)",
+            "tests-tier2.mjs#incidentCast": "tier 2's snapshot of the cast, until the cast moves (E04 C6)",
+            "tests-tier2.mjs#blackenedLedger": "tier 2's snapshot of the register, until it moves (E04 C6)",
+            "traps.mjs#trapLedger": "the trap ledger, until it moves (E04 C7)",
+            "traps.mjs#trapPlants": "the planted items, until they move (E04 C7)",
+            "observe.mjs#observePending": "the Observe declarations, until they move (E04 C7)",
+            "tests-tier2.mjs#trapPlants": "a tier-2 test puts the plants back raw, until they move (E04 C7)",
+            "tests-tier2.mjs#trapLedger": "a tier-2 test puts the trap ledger back raw, until it moves (E04 C7)",
+            "level-up.mjs#advanceOffers": "the Level Up offers, until they move (E04 C8)",
+            "fog.mjs#discoveryLedger": "the fog ledger, until it moves (E04 C9)",
+            "fog.mjs#discoveryMine": "a player's fog rows, until they move (E04 C9)",
+            "settings.mjs#discoveryLedger": "the leaf discoveryLedger, until the fog moves (E04 C9)",
+            "settings.mjs#discoveryMine": "the leaf discoveryLedger, until the fog moves (E04 C9)",
+            "tests-tier2.mjs#discoveryLedger": "tier-2 tests write the fog ledger raw, until it moves (E04 C9)"
+        };
+        const seen = new Set(), raw = [];
+        let read = 0;
+        for (const [file, text] of await moduleSources()) {
+            if (file === "gm-store.mjs" || file === "gm-stores.mjs") continue;
+            const r = storeKeyAccess(text, { props, keys: [...keys] });
+            read += r.read;
+            for (const f of r.found) {
+                const row = `${file}#${f.name}`;
+                if (ALLOW[row]) seen.add(row);
+                else raw.push(`${file}:${f.line} ${f.what}`);
+            }
+        }
+        const stale = Object.keys(ALLOW).filter(row => !seen.has(row));
+        log(`R171: ${keys.size} GM store keys under ${props.length} SETTINGS names; ${read} settings reads and calls read; `
+            + `${seen.size} allowed file#name rows in use`);
+        // 528 read on 26.09.2026 (E04 C1); the floor leaves room for the reads the stores' moves take out.
+        ok(read >= 400, `only ${read} settings reads were read - the reader is not reaching the module`);
+        ok(!raw.length, `these read or write a GM store's key raw, outside the engine: ${raw.join("; ")}`);
+        ok(!stale.length, `allowed, and no such raw read is left - take the row out: ${stale.join(", ")}`);
     }]
 ];
 

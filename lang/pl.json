@@ -4506,6 +4506,16 @@
       "unknownSender": "Daggerheart poprosił twoją przeglądarkę o zmianę od nadawcy, którego Foundry nie wskazało, i zmiana została odrzucona. Jeśli Hope, Stress albo Fear graczy przestaną się zmieniać przy rzutach, to dlatego - daj znać autorowi modułu.",
       "busyFear": "Daggerheart zmienił Fear {steps} razy w dziesięć sekund dla {name}. Każdy krok został wykonany; zajrzyj na czat, jeśli to więcej, niż było rzutów.",
       "backstop": "Strażnik przekaźnika GM-a nie mógł zdjąć słuchacza Daggerhearta {version} z kanału, więc zamiast tego każdą zmianę sprawdza przed nim tryb awaryjny. Prośby graczy nadal są sprawdzane. Daj znać autorowi modułu."
+    },
+    "GmStore": {
+      "saveFailed": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a pozostali GM-owie mają kopię.",
+      "syncTimedOut": "Magazyn GM-a nie dostał odpowiedzi od: {names}. Działa dalej na tym, co ma ta przeglądarka, a ich kopia zostanie scalona, gdy dotrze.",
+      "claimFailed": {
+        "one": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersz): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest.",
+        "few": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersze): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest.",
+        "many": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wierszy): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest.",
+        "other": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersza): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest."
+      }
     }
   }
 }

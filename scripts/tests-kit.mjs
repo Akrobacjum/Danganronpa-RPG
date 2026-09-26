@@ -17,7 +17,7 @@ import { narrowScreen } from "./settings.mjs";
 import { allVaults } from "./vault.mjs";
 import {
     stripComments, lineAt, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
-    FIXTURES as LINT_FIXTURES
+    storeKeyAccess, GM_STORE_PENDING, FIXTURES as LINT_FIXTURES
 } from "./tests-lint.mjs";
 import { FLOWS, FLOW_EXEMPT } from "./tests-flows.mjs";
 
@@ -1669,7 +1669,7 @@ export {
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, bodyOf, topLevelFunction, fnSource, lineAround,
     withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
-    LINT_FIXTURES, FLOWS, FLOW_EXEMPT,
+    LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     stringLiterals, STANDING, stableJson, moduleSettingValues, watchWrites, cast,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS
 };

@@ -282,15 +282,27 @@ function closeClients(ms) {
     });
 }
 
-function spawnClient(who, userId) {
+function spawnClient(who, userId, { world = null, storage = null, clockSkewMs = null } = {}) {
+    /* A GM WHO JOINS LATE (E04, 26.09.2026). `world` is the `game.world.id` this client
+       reports (the same browser opening another world on one server), `storage` what
+       its localStorage holds before the module loads (a browser that has been here
+       before), `clockSkewMs` how far its machine clock is off - Date.now moves, and
+       game.time.serverTime, the server's, does not. The storage rides in the snapshot
+       rather than the environment: a remnants store is larger than one variable holds. */
+    const env = { ...process.env, DRPG_USER: who, DRPG_REPO: REPO };
+    delete env.DRPG_WORLD;
+    delete env.DRPG_CLOCK_SKEW_MS;
+    if (world) env.DRPG_WORLD = String(world);
+    if (clockSkewMs) env.DRPG_CLOCK_SKEW_MS = String(Number(clockSkewMs));
     const proc = fork(path.join(HERE, "client-entry.mjs"), [], {
-        env: { ...process.env, DRPG_USER: who, DRPG_REPO: REPO },
+        env,
         stdio: ["ignore", "pipe", "pipe", "ipc"]
     });
     /* WHAT A PLAYER WITH THE CONSOLE OPEN READS (E30, 24.09.2026): the client's
        stdout, stderr and log lines, kept per client with the phase for the canary
        (lib/canary.mjs), capped so a chatty run cannot grow without end. */
-    const entry = { proc, userId, ready: new Promise(res => readiness.set(who, res)), console: [], consoleDropped: 0 };
+    bootInfo.delete(who);
+    const entry = { proc, userId, storage, ready: new Promise(res => readiness.set(who, res)), console: [], consoleDropped: 0 };
     const keep = (stream, text) => {
         for (const line of String(text).split("\n")) {
             if (!line) continue;
@@ -351,7 +363,7 @@ function broadcast(msg, { except = null } = {}) {
 function onClientMessage(who, entry, msg) {
     switch (msg.t) {
         case "hello":
-            entry.proc.send(snapshotFor(entry.userId));
+            entry.proc.send({ ...snapshotFor(entry.userId), storage: entry.storage ?? null });
             break;
         case "ready":
             bootInfo.set(who, msg);
@@ -431,6 +443,8 @@ function onClientMessage(who, entry, msg) {
         }
         case "bye":
             peakRSS.set(who, msg.maxRSS);
+            // What its browser held as it closed: `storageOf(who)` after a disconnect (E04).
+            if (msg.storage) keptStorage.set(who, msg.storage);
             onBye?.(who);
             break;
         case "legacyKey": {
@@ -451,6 +465,44 @@ const socketTraffic = [];
    does, so a scenario can watch the other GM take over. */
 const opLog = [];
 const settingLog = [];
+/* Each client's localStorage as it closed, by who (E04): a browser that closes keeps its store. */
+const keptStorage = new Map();
+/* The accounts a scenario declared `late: true`, by who: seeded inactive, not spawned until `connect`. */
+const lateAccounts = new Map();
+
+/**
+ * Bring a late account's client to the table (E04, 26.09.2026): the world marks the
+ * user active, its client boots with `storage` in its localStorage (null: an empty
+ * browser) and `world` as its world id, and once it is ready every other client gets
+ * `userActivity`, on which client-entry.mjs sets the user active and calls
+ * `userConnected` with `true` - the order of those steps on v14 is LIVE-E30-05. An
+ * account that has disconnected may connect again, with the storage it left with
+ * (`storageOf`) or another. The seeded four are spawned at start and cannot.
+ */
+async function connect(who, { storage = null, world = null, clockSkewMs = null } = {}) {
+    const account = lateAccounts.get(who);
+    if (!account) throw new Error(`${who} is not an account declared late: true`);
+    const existing = clients.get(who);
+    if (existing && !existing.gone) return false;
+    const rec = userRec(account.id);
+    if (rec) rec.active = true;
+    const entry = spawnClient(who, account.id, { world, storage, clockSkewMs });
+    const info = await entry.ready;
+    if (info?.t === "bootFailed") throw new Error(`${who} did not boot: ${info.error}`);
+    broadcast({ t: "userActivity", userId: account.id, active: true }, { except: who });
+    return true;
+}
+
+/** A client's localStorage, `{ key: raw text }`: read now while it is connected, else as it closed. */
+async function storageOf(who) {
+    const entry = clients.get(who);
+    if (entry && !entry.gone) {
+        return handleFor(who, entry.userId).eval(`const out = {};
+            for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); out[k] = localStorage.getItem(k); }
+            return out;`);
+    }
+    return keptStorage.has(who) ? structuredClone(keptStorage.get(who)) : null;
+}
 
 /**
  * End one client and tell the others it left. Its process is asked to shut down
@@ -503,12 +555,14 @@ function reportLegacyKey(record) {
 
 /* --------------------------- scenario API --------------------------------- */
 
-function handleFor(who) {
-    const entry = clients.get(who);
+function handleFor(who, userId = clients.get(who)?.userId) {
     return {
         who,
-        userId: entry.userId,
+        userId,
         eval(code, { timeout = 30000 } = {}) {
+            // Looked up at each call: a late account's client is spawned by `connect`, and again after a disconnect.
+            const entry = clients.get(who);
+            if (!entry) return Promise.reject(new Error(`${who} is not connected`));
             if (entry.gone) return Promise.reject(new Error(`${who} ${entry.goneWhy ?? "has gone"}`));
             /* A scenario never plants its own hit: code carrying a marker this
                client may not hold is refused before it is sent (lib/canary.mjs). */
@@ -742,8 +796,10 @@ function seedAccounts(declared, taken) {
         accountsProblem = problems.join("; ");
         return [];
     }
-    for (const { who, id, name, role, character = null, color = "#888888" } of declared) {
-        world.collections.User.push({ _id: id, name: name ?? who, role, active: true, character, color, flags: {} });
+    for (const account of declared) {
+        const { who, id, name, role, character = null, color = "#888888", late = false } = account;
+        world.collections.User.push({ _id: id, name: name ?? who, role, active: !late, character, color, flags: {} });
+        if (late) lateAccounts.set(who, account);
     }
     return declared;
 }
@@ -769,7 +825,7 @@ async function main() {
        kept by hand, lacked phase, dump, canary and environment, and an account named `phase`
        got a client whose handle the function then replaced. */
     const api = {
-        check, note, phase, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, opLog, settingLog, disconnect, bootInfo, IDS,
+        check, note, phase, settle, world, logSink, permissionDenials, socketTraffic, legacyKeys, opLog, settingLog, disconnect, connect, storageOf, bootInfo, IDS,
         environment: ENVIRONMENT,
         // `import("${repoUrl}/scripts/x.mjs")` inside an eval reaches the SAME module
         // instance the client booted, because it is the same URL.
@@ -784,7 +840,7 @@ async function main() {
     spawnClient("p1", IDS.p1);
     spawnClient("p2", IDS.p2);
     spawnClient("p3", IDS.p3);
-    for (const account of accounts) spawnClient(account.who, account.id);
+    for (const account of accounts) if (!account.late) spawnClient(account.who, account.id);
 
     const boots = await Promise.all([...clients.keys()].map(w => clients.get(w).ready));
     const failed = [...bootInfo.entries()].filter(([, b]) => b.t === "bootFailed");
@@ -802,7 +858,7 @@ async function main() {
     const layerProblem = layersProblem(scenario.layers, line);
     const probe = !layerProblem && scenario.layers[0] === "probe";
     Object.assign(api, { gm: handleFor("gm"), p1: handleFor("p1"), p2: handleFor("p2"), p3: handleFor("p3") },
-        Object.fromEntries(accounts.map(account => [account.who, handleFor(account.who)])));
+        Object.fromEntries(accounts.map(account => [account.who, handleFor(account.who, account.id)])));
     canary = api.canary = createCanary({
         scenario: path.basename(scenarioPath).replace(/\.mjs$/, ""), check, dump, settle, repoUrl: REPO_URL,
         phase: () => currentPhase, gm: api.gm, players: [api.p1, api.p2, api.p3],

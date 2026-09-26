@@ -34,6 +34,9 @@
  * first tagged run: 0 body-discovery checks), so body-discovery names 10-murder.
  * A scenario is named here when its run shows checks under the flow.
  *
+ * E04 (26.09.2026) adds the gm-store flow: the GM-to-GM exchange of the GM-only
+ * stores (gm-store.mjs), which 61-gmstore-case drives with a GM that joins late.
+ *
  * E31 (25.09.2026) adds 33-bridge-paths to the nine flows its checks are tagged
  * with. eclipse-route-veto goes from planned to partial with it: 33 drives
  * `eclipse.move` only as far as a GM who is connected and does not answer (its
@@ -66,6 +69,8 @@ export const FLOWS = Object.freeze([
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",
         entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "vault.steal", "body.loot"] },
         scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+    { id: "gm-store", what: "The GM store between GM clients: a late, empty browser, the exchange, tombstones, backup and restore, the reset's cuts",
+        entry: { sockets: ["gm-store.mjs"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E04" },
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
         entry: {}, scenarios: [], status: "planned", stage: "E33" },
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",

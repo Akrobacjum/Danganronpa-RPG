@@ -17,6 +17,16 @@ import { HooksImpl, Collection, buildDocumentClasses, buildPIXI, buildApplicatio
 
 const WHO = process.env.DRPG_USER ?? "gm";
 const send = m => process.send?.(m);
+/*
+ * THE SERVER'S CLOCK AND THIS MACHINE'S (E04, 26.09.2026). Every client runs on one
+ * machine, so the server's time is this process's own clock, read before anything can
+ * move it: `game.time.serverTime` answers it. DRPG_CLOCK_SKEW_MS moves `Date.now` alone,
+ * the way a GM's computer whose clock is off moves it while Foundry's server time does
+ * not (cluster.mjs `connect`, `clockSkewMs`). How v14 computes serverTime is LIVE-E04-01.
+ */
+const serverNow = Date.now.bind(Date);
+const CLOCK_SKEW_MS = Number(process.env.DRPG_CLOCK_SKEW_MS ?? 0) || 0;
+if (CLOCK_SKEW_MS) Date.now = () => serverNow() + CLOCK_SKEW_MS;
 const logLine = s => send({ t: "log", line: String(s) });
 
 /*
@@ -212,6 +222,8 @@ globalThis.Hooks = hooks;
 globalThis.__notifications = [];
 globalThis.__dialogLog = [];
 globalThis.__dialogAnswers = [];
+// Every file the module asked this browser to save (foundry.utils.saveDataToFile, below; E04).
+globalThis.__savedFiles = [];
 globalThis.__missingI18n = new Set();
 // `globalThis.__errors` is created at the top of this file, before anything can throw.
 
@@ -370,6 +382,10 @@ const settingsApi = {
     },
     storage: { get: scope => (scope === "world" ? worldValues : clientStore) }
 };
+/* v14's world storage is a collection of Setting documents that answers `getSetting(key)`
+   with the stored document, or nothing when the world never wrote that key (the E04
+   design's LIVE-E04-10). The harness keeps world values in a Map; this reads it the same way. */
+worldValues.getSetting = key => (worldValues.has(key) ? { key, value: worldValues.get(key) } : undefined);
 function coerce(def, raw) {
     if (def.type === Number) return Number(raw);
     if (def.type === Boolean) return typeof raw === "string" ? raw === "true" : !!raw;
@@ -459,7 +475,8 @@ const game = {
             get automation() { return settingsApi.get("daggerheart", "Automation"); }
         }
     },
-    world: { id: "drpg-audit-world", title: "DRPG Audit World" },
+    // DRPG_WORLD: the same browser opening another world on one server (cluster.mjs `connect`, E04).
+    world: { id: process.env.DRPG_WORLD || "drpg-audit-world", title: "DRPG Audit World" },
     version: versions.foundry.version,
     release: { generation: versions.foundry.generation, build: versions.foundry.build },
     ready: false,
@@ -506,7 +523,7 @@ const game = {
     },
     keybindings: { register() {}, get: () => [] },
     tooltip: { activate() {}, deactivate() {} },
-    time: { worldTime: 0, advance: async () => {} },
+    time: { worldTime: 0, get serverTime() { return serverNow(); }, advance: async () => {} },
     canvas: null,
     drpg: undefined,
     data: { version: versions.foundry.version }
@@ -760,7 +777,13 @@ globalThis.foundry = {
         Color: U.Color,
         fetchWithTimeout: globalThis.fetch,
         fromUuid: uuid => globalThis.fromUuid(uuid),
-        benchmark: async fn => fn()
+        benchmark: async fn => fn(),
+        /* A file the module hands the browser to save, kept instead (E04): a scenario reads
+           `__savedFiles` and gives the text back to a restore. What a real browser does with
+           the download is LIVE-E04-05. */
+        saveDataToFile: (data, type, filename) => { globalThis.__savedFiles.push({ data: String(data), type, filename }); },
+        /* A chosen file's text. A harness "file" is the text itself, or `{ text }`. */
+        readTextFromFile: async file => (typeof file === "string" ? file : String(file?.text ?? ""))
     },
     applications: {
         api: {
@@ -971,7 +994,13 @@ process.on("message", async msg => {
         switch (msg.t) {
             case "snapshot": {
                 applySnapshot(msg);
-                if (!booted) { booted = true; await boot(); }
+                if (!booted) {
+                    // A browser that has been here before (cluster.mjs `connect`, E04): its
+                    // localStorage as it was, before the module reads a setting.
+                    for (const [key, raw] of Object.entries(msg.storage ?? {})) globalThis.localStorage.setItem(key, String(raw));
+                    booted = true;
+                    await boot();
+                }
                 break;
             }
             case "ack": {
@@ -1036,7 +1065,14 @@ process.on("message", async msg => {
                 // The peak memory of this client's whole life, for the results file
                 // (cluster.mjs, PEAK MEMORY). The exit waits for send's callback:
                 // Node documents that process.exit() does not wait for pending writes.
-                const bye = { t: "bye", maxRSS: process.resourceUsage().maxRSS };
+                // And what this browser's localStorage holds as it closes (E04): a GM who
+                // disconnects keeps its store, for `storageOf` and a later `connect`.
+                const kept = {};
+                for (let i = 0; i < globalThis.localStorage.length; i++) {
+                    const key = globalThis.localStorage.key(i);
+                    kept[key] = globalThis.localStorage.getItem(key);
+                }
+                const bye = { t: "bye", maxRSS: process.resourceUsage().maxRSS, storage: kept };
                 if (!process.send) process.exit(0);
                 process.send(bye, () => process.exit(0));
                 break;

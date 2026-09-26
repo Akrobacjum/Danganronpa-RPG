@@ -3414,6 +3414,239 @@ const INVARIANTS = [
         } finally {
             root.remove();
         }
+    }],
+
+    ["R169 - the GM store's merge keeps every field that anybody wrote last", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-01. The one critical in the module's own code: the
+         * Truth Bullet ledger merged by whole entries, newest `updated` wins, and a second
+         * GM joining sent entries a migration had built from nothing - `{ faint, updated:
+         * now }` - which replaced the full entries everywhere, the answer key with them.
+         * The GM store merges per field (gm-store.mjs, mergeSections). This holds its rules
+         * on sections the engine's own writer builds, nothing else touched: a field is the
+         * newest write of it; a tombstone or a reset's cut kills every older field, keys the
+         * clearer never held included; a key written again after its tombstone carries only
+         * what was written after it; an equal stamp resolves the same in both orders; a
+         * weak write loses to anything real and is not dead after a cut; the sub-keys of a
+         * split field merge apart; and over 200 generated triples the merge is commutative,
+         * associative and idempotent. The old rule, copied, is shown to lose the answer key
+         * first - a fixture that could not fail would measure nothing.
+         */
+        const G = await import("./gm-store.mjs");
+        const spec = { name: "r169", split: ["public"] };
+        const J = G.stableJson;
+        const sec = () => G.emptySection();
+        const write = (s, k, fields, at, opts) => { G.writeFields(s, k, fields, at, spec, opts); return s; };
+        const merge = (a, b) => G.mergeSections(a, b, spec);
+
+        // The rule of truth-bullets.mjs's mergeEntries until E04, copied: an entry replaces the one held when its `updated` is newer.
+        const wholeEntry = (mine, theirs) => {
+            const out = { ...mine };
+            for (const [k, e] of Object.entries(theirs)) if (!(out[k] && (out[k].updated ?? 0) >= (e.updated ?? 0))) out[k] = e;
+            return out;
+        };
+        const full = { realType: "key", remnantId: "R169TRACE", analyzedText: "the cut matches the blade", faint: false };
+        equal(wholeEntry({ b1: { ...full, updated: 100 } }, { b1: { faint: true, updated: 200 } }).b1.realType, undefined,
+            "the whole-entry fixture keeps the answer key - it is not the S05-01 rule, and what follows would measure nothing");
+        equal(J(merge(write(sec(), "b1", full, 100), write(sec(), "b1", { faint: true }, 200)).e.b1), J({ ...full, faint: true }),
+            "a younger partial entry erased fields of an older full one (S05-01)");
+
+        const stale = write(sec(), "b1", { realType: "neutral", gmNote: "only here" }, 50);
+        equal(J(merge(write(sec(), "b1", full, 100), stale).e.b1), J({ ...full, gmNote: "only here" }),
+            "a stale copy overwrote a newer field, or its field nobody else had was lost");
+
+        const clearer = sec();
+        G.dropKey(clearer, "b2", 300, spec);
+        equal(merge(write(sec(), "b2", { realType: "evident" }, 250), clearer).e.b2, undefined,
+            "a tombstone did not kill an older row it never held");
+        const cut = sec();
+        G.raiseCleared(cut, 500, spec);
+        const beforeCut = write(write(sec(), "b3", { realType: "key" }, 400), "b4", { realType: "key" }, 600);
+        G.dropKey(beforeCut, "b5", 450, spec);
+        const afterCut = merge(beforeCut, cut);
+        equal(J({ e: Object.keys(afterCut.e), d: Object.keys(afterCut.d), cleared: afterCut.cleared }), J({ e: ["b4"], d: [], cleared: 500 }),
+            "a reset's cut left a row or a tombstone written before it, or took one written after it");
+
+        const revived = write(sec(), "b6", { a: 1, b: 2 }, 100);
+        G.dropKey(revived, "b6", 150, spec);
+        write(revived, "b6", { c: 3 }, 160);
+        equal(J(merge(revived, write(sec(), "b6", { a: 1, b: 2 }, 100)).e.b6), J({ c: 3 }),
+            "a key written again after its tombstone brought back fields from before it");
+
+        const x = write(sec(), "k", { v: "x" }, 50), y = write(sec(), "k", { v: "y" }, 50);
+        equal(J(merge(x, y)), J(merge(y, x)), "two writes with one stamp resolve differently in the two merge orders");
+
+        const weak = sec();
+        G.raiseCleared(weak, 1000, spec);
+        write(weak, "k", { v: "weak" }, weak.cleared + 1);
+        equal(weak.e.k?.v, "weak", "a weak write after a cut is dead on arrival");
+        const real = write(sec(), "k", { v: "real" }, 1500);
+        ok(merge(weak, real).e.k.v === "real" && merge(real, weak).e.k.v === "real", "a weak write beat a real one");
+
+        const p1 = write(write(sec(), "t", { public: { icon: "a", name: "n1" } }, 100), "t", { public: { icon: "b" } }, 200);
+        const p2 = write(write(sec(), "t", { public: { icon: "a", name: "n1" } }, 100), "t", { public: { name: "n2" } }, 210);
+        equal(J(merge(p1, p2).e.t.public), J({ icon: "b", name: "n2" }), "two GMs' edits of different sub-keys of a split field did not both survive");
+        equal(merge(merge(p1, p2), write(sec(), "t", { public: null }, 300)).e.t.public, null,
+            "a later write of the whole split field did not replace its older sub-keys");
+
+        let seed = 169;
+        const rnd = n => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n; };
+        const gen = () => {
+            const s = sec();
+            for (let i = 0; i < 12; i++) {
+                const k = `k${rnd(4)}`, r = rnd(10), at = 10 + rnd(90);
+                if (r === 0) G.dropKey(s, k, at, spec);
+                else if (r === 1) G.raiseCleared(s, rnd(40), spec);
+                else if (r < 4) write(s, k, { public: { [`s${rnd(3)}`]: rnd(5) } }, at);
+                else if (r === 4) write(s, k, { public: rnd(2) ? null : { z: 1 } }, at, { whole: true });
+                else write(s, k, { [`f${rnd(3)}`]: rnd(5) }, at);
+            }
+            return s;
+        };
+        const broken = { commutes: 0, associates: 0, idempotent: 0 };
+        for (let i = 0; i < 200; i++) {
+            const a = gen(), b = gen(), c = gen();
+            if (J(merge(a, b)) !== J(merge(b, a))) broken.commutes++;
+            if (J(merge(merge(a, b), c)) !== J(merge(a, merge(b, c)))) broken.associates++;
+            if (J(merge(a, a)) !== J(G.syncable(a)) || J(merge(a, sec())) !== J(G.syncable(a))) broken.idempotent++;
+        }
+        equal(J(broken), J({ commutes: 0, associates: 0, idempotent: 0 }), "over 200 generated triples the merge is not an order-free union");
+    }],
+
+    ["R170 - GM replicas converge by the protocol, and nothing from a player or another world is taken", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-01, S06-19. Every GM's client holds its own copy of
+         * each GM store and keeps it in step with the others by four packets (gm-store.mjs):
+         * a hello with a digest per store, the sections that differ, a "done", and a delta
+         * after each write. Driven here on three engines built with fakes - a bus that
+         * delivers first-in-first-out, last-in-first-out or in a seeded shuffle, with and
+         * without every packet twice; a clock whose long timers move only when told; storage
+         * in a Map - so nothing leaves this client and nothing in the world is touched. Held:
+         * two GMs writing at once and a third joining late with an older copy end with equal
+         * sections, the newer fields kept; a GM alone is hydrated at once, one answered by
+         * every GM it said hello to is "answered", one that hears nothing is "timedOut" after
+         * TIMING.gmStoreSyncMs; and the receive gate refuses a sender that is not a GM, this
+         * client, another world, a store this build does not sync and a section stamped with
+         * something that is not a number - and a delta forged by a player changes nothing.
+         */
+        const G = await import("./gm-store.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const J = G.stableJson;
+        const tick = () => new Promise(r => setTimeout(r, 0));
+        const makeWorld = ({ order, dup }) => {
+            let t = 1000, seed = 170;
+            const rnd = n => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n; };
+            const timers = [], queue = [], nodes = new Map(), active = new Set();
+            const fake = {
+                set: (fn, ms) => {
+                    const tm = { fn, at: t + ms, done: false };
+                    if (!ms) setTimeout(() => { if (!tm.done) { tm.done = true; fn(); } }, 0);
+                    else timers.push(tm);
+                    return tm;
+                },
+                clear: tm => { if (tm) tm.done = true; },
+                advance: ms => {
+                    t += ms;
+                    for (const tm of timers.filter(x => !x.done && x.at <= t)) { tm.done = true; tm.fn(); }
+                }
+            };
+            const node = (id, { gm = true } = {}) => {
+                const store = new Map();
+                const eng = G.createGmStoreEngine({
+                    selfId: () => id, isGM: () => gm, isPrimary: () => [...active].sort()[0] === id, worldId: () => "R170WORLD",
+                    activeGmIds: () => [...active].filter(u => nodes.get(u)?.gm), primaryGmId: () => [...active].sort()[0] ?? null,
+                    senderIsGM: u => nodes.get(u)?.gm ?? false, userName: u => u,
+                    send: (packet, to) => {
+                        for (const r of to) for (let n = dup ? 2 : 1; n > 0; n--) queue.push({ from: id, to: r, packet: structuredClone(packet) });
+                    },
+                    storage: { read: k => store.get(k) ?? null, write: async (k, v) => { store.set(k, JSON.stringify(v)); } },
+                    readLegacy: () => undefined, now: () => t, timers: fake, clock: () => ({}),
+                    log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+                });
+                const handle = eng.define({ name: "r170", key: "r170Store", split: ["public"] });
+                const n = { id, gm, eng, handle };
+                nodes.set(id, n);
+                return n;
+            };
+            const pump = async () => {
+                for (let i = 0; i < 5000 && queue.length; i++) {
+                    const at = order === "fifo" ? 0 : order === "lifo" ? queue.length - 1 : rnd(queue.length);
+                    const { from, to, packet } = queue.splice(at, 1)[0];
+                    if (active.has(to)) nodes.get(to).eng.onPacket(packet, from);
+                    await tick();
+                }
+                for (let i = 0; i < 4; i++) await tick();
+            };
+            return { node, pump, fake, active, queue };
+        };
+
+        const runs = [];
+        for (const order of ["fifo", "lifo", "shuffled"]) for (const dup of [false, true]) {
+            const w = makeWorld({ order, dup });
+            const a = w.node("R170A"), b = w.node("R170B"), c = w.node("R170C");
+            w.active.add("R170A");
+            w.active.add("R170B");
+            await Promise.all([a.eng.open(), b.eng.open()]);
+            await Promise.all([a.handle.patch("u1", { realType: "key", remnantId: "R170TRACE" }), b.handle.patch("u1", { faint: true }),
+                b.handle.patch("u2", { realType: "evident" })]);
+            await w.pump();
+            w.active.add("R170C");
+            await c.handle.patch("u1", { realType: "neutral" }, { stamp: 5 });
+            const opening = c.eng.open();
+            await w.pump();
+            await opening;
+            await w.pump();
+            await a.handle.drop("u2");
+            await w.pump();
+            const [sa, sb, sc] = [a, b, c].map(n => J(n.handle.section()));
+            runs.push({ order, dup, same: sa === sb && sb === sc, u1: a.handle.get("u1"), u2: a.handle.get("u2"),
+                a: a.eng.hydration().state, c: c.eng.hydration().state });
+        }
+        const wrong = runs.filter(r => !r.same || J(r.u1) !== J({ faint: true, realType: "key", remnantId: "R170TRACE" }) || r.u2 !== null
+            || r.a !== "answered" || r.c !== "answered");
+        equal(J(wrong), "[]", "three GMs did not converge on the newest fields, or were not answered, for some delivery order");
+
+        const alone = makeWorld({ order: "fifo", dup: false });
+        const solo = alone.node("R170A");
+        alone.active.add("R170A");
+        await solo.eng.open();
+        equal(solo.eng.hydration().state, "alone", "a GM with no other GM online waited for somebody");
+        const deaf = makeWorld({ order: "fifo", dup: false });
+        const d1 = deaf.node("R170A");
+        deaf.node("R170B");
+        deaf.active.add("R170A");
+        deaf.active.add("R170B");
+        await d1.eng.open();
+        equal(d1.eng.hydration().state, "waiting", "a GM with another GM online did not wait for its copy");
+        deaf.queue.length = 0;
+        deaf.fake.advance(TIMING.gmStoreSyncMs - 1);
+        equal(d1.eng.hydration().state, "waiting", "the wait for a silent GM ended before TIMING.gmStoreSyncMs");
+        deaf.fake.advance(1);
+        equal(d1.eng.hydration().state, "timedOut", "the wait for a silent GM did not end at TIMING.gmStoreSyncMs");
+
+        const stores = new Map([["r170", { sync: true }], ["local", { sync: false }]]);
+        const ctx = { amGM: true, senderIsGM: true, senderId: "R170B", selfId: "R170A", worldId: "R170WORLD", stores };
+        const delta = (extra = {}) => ({ action: "gms.delta", world: "R170WORLD", store: "r170", delta: { e: { k: { v: 1 } }, t: { k: 5 }, d: {}, cleared: 0 }, ...extra });
+        const verdicts = {
+            fine: G.gmsRefusal(delta(), ctx),
+            player: G.gmsRefusal(delta(), { ...ctx, senderIsGM: false }),
+            self: G.gmsRefusal(delta(), { ...ctx, senderId: "R170A" }),
+            world: G.gmsRefusal(delta({ world: "R170OTHER" }), ctx),
+            store: G.gmsRefusal(delta({ store: "local" }), ctx),
+            stamp: G.gmsRefusal(delta({ delta: { e: { k: { v: 1 } }, t: { k: "late" } } }), ctx)
+        };
+        ok(verdicts.fine === null && Object.entries(verdicts).filter(([k]) => k !== "fine").every(([, why]) => typeof why === "string" && why.length > 0),
+            `the receive gate: ${J(verdicts)}`);
+        const forged = makeWorld({ order: "fifo", dup: false });
+        const target = forged.node("R170A");
+        forged.node("R170P", { gm: false });
+        forged.active.add("R170A");
+        await target.eng.open();
+        await target.handle.patch("u1", { realType: "key" });
+        const was = J(target.handle.section());
+        target.eng.onPacket(delta({ delta: { e: { u1: { realType: "neutral" } }, t: { u1: Number.MAX_SAFE_INTEGER }, d: {}, cleared: 0 } }), "R170P");
+        await tick();
+        equal(J(target.handle.section()), was, "a delta forged by a player changed a GM's store");
     }]
 ];
 

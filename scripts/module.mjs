@@ -16,6 +16,7 @@ import { MODULE_ID } from "./config.mjs";
 import { registerSettings } from "./settings.mjs";
 import { registerLanguage } from "./i18n.mjs";
 import { runMigrationOnLoad } from "./migrate.mjs";
+import { openGmStores } from "./gm-stores.mjs";
 import { registerSfx } from "./sfx.mjs";
 import { registerHandbooks } from "./handbooks.mjs";
 import { registerPrivateRolls } from "./private-rolls.mjs";
@@ -278,6 +279,11 @@ Hooks.once("ready", () => {
     announceNewerSystem().catch(err =>
         error("Could not mention the newer Daggerheart", err));
 
+    // Before the migration, whose clauses read the GM-only stores and wait until
+    // this client holds the other GMs' copies of them (E04, gm-stores.mjs): the
+    // claim of this browser's old keys for this world, the reset's cuts, the
+    // GM-to-GM exchange. Not awaited, for the reason the migration is not.
+    safely("the GM stores", openGmStores);
     // First, and before anything below reads a saved shape: bring this world's
     // data up to the shape this build expects. Primary GM only, silent when
     // there is nothing to do, and deliberately NOT awaited - a slow pass must

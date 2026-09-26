@@ -342,7 +342,16 @@ export const TIMING = {
     /** The HUD's minutes counter: amber at the first mark, red at the second. */
     elapsedMarksMinutes: [15, 30],
     /** How many chat messages one delete carries. */
-    chatDeleteBatch: 500
+    chatDeleteBatch: 500,
+    /** How long a GM's client waits for the other GMs' copies of the GM store before it
+     *  carries on alone (gm-store.mjs, hydration). The design's proposal; how long a real
+     *  table takes is LIVE-E04-02, and a copy that arrives later still merges. */
+    gmStoreSyncMs: 8000,
+    /** How far ahead of this client's clock a GM store stamp is believed: past it, the
+     *  stamp is kept as sent, the clock is not moved further, and the sender is named once. */
+    gmStoreSkewMs: 10 * 60 * 1000,
+    /** A GM store tombstone whose subject is gone from the world is removed after this many days. */
+    gmStoreTombstoneDays: 30
 };
 
 /**
