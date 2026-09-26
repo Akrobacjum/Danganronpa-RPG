@@ -1160,8 +1160,9 @@ async function revertPlayerBulletEdit(item, touched, author) {
  *
  * TAKEN AS THE TRUTH, NOT COMPARED. An edit a player made while no GM was
  * online is already in the item by now, and nothing older survives a reload to
- * compare it with. That comparison waits for a record every GM shares (E04,
- * GmStore); until then it is a known gap (AUDIT §9).
+ * compare it with. E04 (1.2.63) gave the GMs a record they share - the GM store -
+ * but not this comparison: the owner put it off to E43, the stage about a hostile
+ * client (25.09.2026). Until then it is a known gap (AUDIT §9).
  */
 function guardAllBullets() {
     if (!game.user?.isGM) return;

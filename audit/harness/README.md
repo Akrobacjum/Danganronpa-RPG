@@ -267,6 +267,18 @@ number is not reused for a scenario.
   `readTextFromFile` takes the text itself (or `{ text }`) as the chosen file;
   what a real browser does with either is LIVE-E04-05. v14's world storage
   answers `getSetting(key)` with the stored value or nothing (LIVE-E04-10).
+- **The GM store at a real table** (E04). Late GM accounts (`connect`,
+  `disconnect`, `storageOf`) are clients on one machine: `game.time.serverTime`
+  is that machine's clock and a client's skew moves its `Date.now` alone
+  (LIVE-E04-01); how long a GM takes to have the others' copies, and the largest
+  `gms.state` part a real server carries, are LIVE-E04-02; the bytes a table's
+  world puts in localStorage and one flush's time, LIVE-E04-03; a socket that
+  drops and comes back without a reload is never modelled (LIVE-E04-04). The
+  upgrade on the owner's world copy (LIVE-E04-06), whether Duplicate World gives
+  the copy its own world id (LIVE-E04-07), the brief's live verify with a
+  murder open (LIVE-E04-08), the reset refused on an Assistant and the offline
+  GM cut at its next login (LIVE-E04-09) and two tabs of one browser writing at
+  once (LIVE-E04-11) are for a table.
 - **Versions** (E30, `lib/versions.mjs`). Foundry and Daggerheart are the
   versions `module.json` says the module is verified on; the companion modules
   it requires or recommends take theirs from an installed Foundry when

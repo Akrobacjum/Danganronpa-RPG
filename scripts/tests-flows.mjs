@@ -38,6 +38,9 @@
  * stores (gm-store.mjs), which 61-gmstore-case drives with a GM that joins late.
  * A file whose own GM-to-GM socket the store replaced leaves its flow's `sockets`
  * as it moves (truth-bullets.mjs first), and the flow names 61 for that half.
+ * Covered from 1.2.63: 61 drives every part of it end to end - the late empty
+ * browser, the exchange, tombstones, Back up and Restore, and the reset's cuts
+ * (its phases J, E04 C10).
  *
  * E31 (25.09.2026) adds 33-bridge-paths to the nine flows its checks are tagged
  * with. eclipse-route-veto goes from planned to partial with it: 33 drives
@@ -72,7 +75,7 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "vault.steal", "body.loot"] },
         scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "gm-store", what: "The GM store between GM clients: a late, empty browser, the exchange, tombstones, backup and restore, the reset's cuts",
-        entry: { sockets: ["gm-store.mjs"], api: ["backupCase", "restoreCase"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E04" },
+        entry: { sockets: ["gm-store.mjs"], api: ["backupCase", "restoreCase"] }, scenarios: ["61-gmstore-case"], status: "covered", stage: "1.2.63" },
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
         entry: {}, scenarios: [], status: "planned", stage: "E33" },
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",

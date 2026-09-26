@@ -408,9 +408,6 @@ export const SETTINGS = {
      * table for the rest of the chapter, which is the half of LIVE-001 that
      * survived the first fix. See `openVerdictDialog`.
      *
-     * `blackened` below it is the old world key, kept registered so a world
-     * upgrading mid-chapter can be read once and emptied. Nothing writes it.
-     *
      * A GM STORE SINCE E04 (1.2.63; audit S04-25): `gmBlackened` (gm-stores.mjs,
      * `blackenedStore`), a row per killer `{ chapter, epoch, at }`, read for the
      * clock's chapter and season (`blackenedIds`) rather than emptied at the

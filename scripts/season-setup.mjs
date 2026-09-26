@@ -1041,8 +1041,9 @@ async function wipeSeason(plan) {
             if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids, { drpgReset: true });
         }
         // The tokens are the half everyone can see. The register of what each
-        // one really was is the half that matters, and it does not go with them
-        // - deleting a token has never pruned it.
+        // one really was is the half that matters, and it does not go with them:
+        // these were deleted with `drpgReset`, so their rows are left to the cut
+        // and to this clear.
         const { clearRemnantLedger } = await import("./remnants.mjs");
         await clearRemnantLedger();
     });

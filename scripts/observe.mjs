@@ -79,10 +79,11 @@ export const DECLARATIONS = {
  * of the round trip are handled by whoever `primaryGmId()` names at that moment,
  * and that can change - a GM joining with a lower-sorted id, the primary
  * disconnecting, a reload - so a declaration minted on one GM's browser can be
- * asked of another's. The module already carries that mechanism twice (see the
- * three-message sync in truth-bullets.mjs), and bolting a third copy on here is
- * its own round of work. The road that cannot answer now says so on both screens,
- * which is the half that matters at the table.
+ * asked of another's. The GM store could carry it now - every other GM-only store is
+ * exchanged between the GMs since E04 - but this one was kept local (`sync: false`,
+ * E04 C7: both halves of the round trip usually go through one GM), and syncing it
+ * is a change nobody has made yet. The road that cannot answer says so on both
+ * screens, which is the half that matters at the table.
  */
 const pending = new Map();
 const PENDING_TTL_MS = TIMING.pendingObserveTtlMs;

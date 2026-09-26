@@ -4523,7 +4523,7 @@
     "Case": {
       "gmOnly": "Kopię sprawy robi i przywraca tylko GM.",
       "backupTitle": "Kopia sprawy",
-      "backupWhat": "Plik zawiera każdy sekret GM-a w tym świecie: kto jest Mastermindem, odpowiedź każdego Truth Bulletu, prawdziwy typ każdego śladu i obsadę otwartego incydentu. Trzymaj go tam, gdzie żaden gracz go nie otworzy.",
+      "backupWhat": "Plik zawiera każdy sekret GM-a w tym świecie: kto jest Mastermindem, odpowiedź każdego Truth Bulletu, prawdziwy typ każdego śladu, obsadę otwartego incydentu i Blackened każdego rozdziału, podłożone przedmioty pułapek, oferowane Level Upy i pokoje odkryte przez każdą postać. Trzymaj go tam, gdzie żaden gracz go nie otworzy.",
       "backupEarly": "Kopia od {names} jeszcze nie dotarła: ta kopia zapasowa zawiera tylko to, co ma ta przeglądarka. Zrobić ją mimo to?",
       "backedUp": {
         "one": "Sprawa zapisana do pliku: {n} wiersz.",

@@ -3298,7 +3298,7 @@
     "Case": {
       "gmOnly": "Only a GM can back up or restore the case.",
       "backupTitle": "Back up the case",
-      "backupWhat": "The file holds every GM-only secret of this world: who the Mastermind is, every Truth Bullet's answer, every trace's real type, the cast of an open incident. Keep it where no player can open it.",
+      "backupWhat": "The file holds every GM-only secret of this world: who the Mastermind is, every Truth Bullet's answer, every trace's real type, the cast of an open incident and the Blackened of each chapter, the traps' planted objects, the Level Ups on offer and the rooms each character has found. Keep it where no player can open it.",
       "backupEarly": "The copy from {names} has not arrived yet: this backup holds only what this browser has. Back up anyway?",
       "backedUp": {
         "one": "The case was saved to a file: {n} row.",

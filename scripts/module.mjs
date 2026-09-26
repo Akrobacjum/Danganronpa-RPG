@@ -295,9 +295,10 @@ Hooks.once("ready", () => {
     // already read is responsible for asking that pass to run again.
     safely("the 1.2.0 migration", runMigrationOnLoad);
 
-    // Before anything that reads a Remnant: the ledger asks the other GMs for
-    // anything this browser is missing, and a GM who joins mid-session must not
-    // spend the first minute unable to read their own crime scene.
+    // Before anything that reads a Remnant: the traces are drawn again when the
+    // ledger changes - this GM's write or another GM's merged in by the store
+    // (E04: the store's exchange is what a GM who joins mid-session reads its
+    // crime scene from, opened above) - and a deleted trace's row is tombstoned.
     safely("the Remnant ledger", registerRemnantLedger);
     // Before anything that can whisper. The socket listener and the render hook
     // are what turn a stub back into a sentence, and a card that arrives before

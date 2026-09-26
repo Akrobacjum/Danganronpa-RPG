@@ -141,6 +141,25 @@ the harness reports one as `legacyKeys`. `forcedDeletion()` in `utils.mjs` is
 v14's `ForcedDeletion` where it exists (else Daggerheart's `_del`), and null in a
 Foundry with neither, where the caller unsets one flag at a time.
 
+**What only the GMs may know lives in the GM store, and nowhere else** (E04,
+1.2.63). `gm-store.mjs` is the one engine - a section per world in each GM's
+browser, a stamp per field, tombstones and a reset's watermark, the GM-to-GM
+exchange, and a player's copy stamped part by part - and `gm-stores.mjs` is its
+table, one `defineGmStore` row per store. Nothing outside the engine reads or
+writes a store's key, a copy's, or a key from before 1.2.63 (R171 reads the source
+for their names): the old keys are frozen, read by the engine's claim and never
+written. A store a later stage adds is a row in the table, a registration in
+`settings.mjs` and, when it lifts world data, a clause in `migrate.mjs` that reads
+back before it removes anything (R178); the claim, the reset's cuts, the exchange,
+Back up and Restore follow from the row, and so do the health check's rows about a
+claim. A write whose value is derived - a migration's default,
+an amendment - says so, `weak`, `fillOnly` or `ifLive` (R172), or a second GM
+joining makes it the truth. Tier 2 holds the stores' sending while it runs
+(`gmStoreHold`: its restore writes each key back on this client only) and stands
+in a world the stores have never opened (`withGmStoreWorld`) for fixtures no
+other GM may be sent. The hold does not reach what the primary tells the players
+when the Mastermind's or the cast's record changes (the E04 review's S-m2).
+
 **Two functions are deliberately long.** `registerSettings` (a flat registration
 table) and `steps()` (a data table). Everything else the audit measured over 300
 lines has been split. Splitting either of those two would produce a dozen
