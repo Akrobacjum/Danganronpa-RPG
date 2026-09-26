@@ -27,7 +27,18 @@
  * Pure but for createCanary, which is handed the cluster's functions; Node tools
  * and a live driver can import the rest (tools/registry.mjs reads SEEDS and
  * validateKnownLeaks).
+ *
+ * WORLD DATA, READ AGAINST A RULE (E05 C2, 26.09.2026). A marker finds a secret
+ * the scenario planted; it cannot find a killer's actor id, which carries none, or
+ * a field the module wrote on its own. `worldScan` reads a player's world data -
+ * the module's world settings, the actors', users' and tokens' module flags -
+ * against scripts/world-secrets.mjs, the rule R9 applies in the suite, and for the
+ * actor ids it is given. Its hits carry a pseudo-seed (`world.id`, `world.field`),
+ * so known-leaks.json describes the open ones with the same match rules as a
+ * marker's.
  */
+
+import { findWorldSecrets, WORLD_SECRET_MODULE } from "../../../scripts/world-secrets.mjs";
 
 export const MARKER_RE = /CANARY-[A-Z0-9]+(?:-[A-Z0-9]+)*/gi;
 
@@ -50,7 +61,12 @@ export const SEEDS = Object.freeze({
     "project.condition": { cls: "plan", field: "an indirect murder's condition", plantedBy: "72-canary" },
     "note.player": { cls: "plan", field: "a player's pre-session note", plantedBy: "72-canary, 11-killer-secrecy" },
     "park.note": { cls: "plan", field: "a Direct Murder parked during an Eclipse: its note", plantedBy: "72-canary" },
-    "token.hidden": { cls: "metadata", field: "a hidden token's name", plantedBy: "72-canary" }
+    "token.hidden": { cls: "metadata", field: "a hidden token's name", plantedBy: "72-canary" },
+    // A found trace's public name as the GM names it: the GM's and its finder's (E05 C13 plants it).
+    "remnant.publicName": { cls: "answer-key", field: "a found trace's public name, as the GM names it", plantedBy: "72-canary (from E05 C13)" },
+    // No marker: what `worldScan` finds (E05 C2).
+    "world.id": { cls: "killer-identity", field: "an actor id world data may not name (72: the killer's), in a module world setting or a document's module flags", plantedBy: "72-canary (worldScan)" },
+    "world.field": { cls: "answer-key", field: "a field scripts/world-secrets.mjs keeps out of world data", plantedBy: "72-canary (worldScan)" }
 });
 
 export const NOT_SCANNED = Object.freeze([
@@ -170,6 +186,33 @@ export function scanDump(dump, markers) {
     return [...hits.values()];
 }
 
+/**
+ * Every place a player's world data - in `dump`, that player's browser whole -
+ * breaks scripts/world-secrets.mjs's rule or names one of `ids`, as canary hits:
+ * `{ seed: "world.id" | "world.field", surface, where, path, phase, via, n, sample }`,
+ * a setting at `danganronpa-rpg.<key>`, a document at its collection with the path
+ * the canary gives it ("<id>.flags...", a token "<sceneId>.tokens.<id>.flags...").
+ */
+export function worldScan(dump, { ids = [] } = {}) {
+    const prefix = `${WORLD_SECRET_MODULE}.`;
+    const settings = Object.fromEntries(Object.entries(dump?.settings?.world ?? {})
+        .filter(([key]) => key.startsWith(prefix)).map(([key, value]) => [key.slice(prefix.length), value]));
+    const docs = name => (Array.isArray(dump?.world?.[name]) ? dump.world[name] : []);
+    const snapshot = {
+        settings,
+        actors: docs("Actor").map(d => ({ id: d?._id, flags: d?.flags })),
+        users: docs("User").map(d => ({ id: d?._id, flags: d?.flags })),
+        tokens: docs("Scene").flatMap(scene => (scene?.tokens ?? []).map(t => ({ id: `${scene?._id}.tokens.${t?._id}`, flags: t?.flags })))
+    };
+    return findWorldSecrets(snapshot, { ids }).map(h => {
+        const setting = h.doc === "setting";
+        const full = setting ? h.path : `${h.id}${h.path ? `.${h.path}` : ""}`;
+        return { seed: h.kind === "id" ? "world.id" : "world.field", surface: setting ? "setting" : "document",
+            where: setting ? `${prefix}${h.id}` : (h.doc === "Token" ? "Scene" : h.doc),
+            path: `${norm(full)}${h.key ? "#key" : ""}`, phase: dump?.phase ?? null, via: ["rest"], n: null, sample: h.rule };
+    });
+}
+
 /* A glob: "**" any run, "*" one dotted segment. */
 const glob = pattern => new RegExp(`^${String(pattern).replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*\*/g, "\u0000").replace(/\*/g, "[^.]*").replace(/\u0000/g, ".*")}$`);
 
@@ -267,7 +310,7 @@ const table = hits => hits.slice(0, 20).map(h => `${h.who} ${h.seed} ${h.surface
 export function createCanary(ctx) {
     const planted = new Map();            // MARKER -> { seed, allowed: Set }
     let counter = 0, sinceScan = 0;
-    const scans = [], hitsSeen = [], evaluated = new Set();
+    const scans = [], hitsSeen = [], evaluated = new Set(), worldScans = [];
     let selftest = null;
 
     function marker(seed, { allowed = ["gm"] } = {}) {
@@ -353,7 +396,9 @@ export function createCanary(ctx) {
         const unmatched = hits.filter(h => !ctx.knownLeaks.some(e => matchLeak(h, e)));
         ctx.check(`canary [${phase}]: no secret reached a player outside known-leaks.json`, unmatched.length === 0, table(unmatched));
         for (const e of ctx.knownLeaks) {
-            const by = (e.detectedBy ?? []).filter(d => d.scenario === ctx.scenario && d.seed && (!d.phase || d.phase === phase));
+            // A `world.*` seed is no marker: `worldCheck` below evaluates it.
+            const by = (e.detectedBy ?? []).filter(d => d.scenario === ctx.scenario && d.seed && !String(d.seed).startsWith("world.")
+                && (!d.phase || d.phase === phase));
             if (!by.length) continue;
             evaluated.add(e.id);
             const mine = live.filter(([, p]) => by.some(d => matchRule({ seed: p.seed }, { seed: d.seed })));
@@ -365,6 +410,39 @@ export function createCanary(ctx) {
         }
         sinceScan = 0;
         scans.push({ phase, markers: live.length, hits: hits.length, unmatched: unmatched.length });
+        hitsSeen.push(...hits.map(h => ({ ...h, scanPhase: phase })));
+        return { hits, unmatched };
+    }
+
+    /**
+     * WORLD DATA AFTER A PHASE (E05 C2): `worldScan` on each player named in `who`
+     * (72: p1 and p2, neither of them the killer's player - world data is the same on
+     * every browser), for `ids`. The read itself is a check, so an empty dump cannot
+     * pass for a clean one; a hit no known-leaks.json entry describes fails; an entry
+     * that names a `world.*` seed in this phase is the leak, reproduced, and red.
+     */
+    async function worldCheck({ phase = ctx.phase(), ids = [], who = ["p1", "p2"] } = {}) {
+        const players = ctx.players.filter(p => who.includes(p.who));
+        const hits = [], read = [];
+        for (const p of players) {
+            const d = await ctx.dump(p.who);
+            read.push({ who: p.who, settings: Object.keys(d?.settings?.world ?? {}).filter(k => k.startsWith(`${WORLD_SECRET_MODULE}.`)).length,
+                actors: (d?.world?.Actor ?? []).length });
+            for (const h of worldScan(d, { ids })) hits.push({ ...h, who: p.who, phase });
+        }
+        const measured = ids.length > 0 && read.length === who.length && read.every(r => r.settings > 0 && r.actors > 0);
+        ctx.check(`world [${phase}]: ${who.join(" and ")}'s world data was read, for ${ids.length} actor id(s)`, measured, JSON.stringify(read));
+        const unmatched = hits.filter(h => !ctx.knownLeaks.some(e => matchLeak(h, e)));
+        ctx.check(`world [${phase}]: no world data on ${who.join(" or ")} breaks the world-secrets rule or names the killer outside known-leaks.json`,
+            unmatched.length === 0, table(unmatched));
+        for (const e of ctx.knownLeaks) {
+            const by = (e.detectedBy ?? []).filter(d => d.scenario === ctx.scenario && String(d.seed ?? "").startsWith("world.") && (!d.phase || d.phase === phase));
+            if (!by.length) continue;
+            evaluated.add(e.id);
+            const reproduced = hits.filter(h => matchLeak(h, e));
+            ctx.check(`known leak ${e.id} in world data [${phase}]: ${e.what}`, reproduced.length === 0, table(reproduced), { knownLeak: e.id, measured });
+        }
+        worldScans.push({ phase, hits: hits.length, unmatched: unmatched.length });
         hitsSeen.push(...hits.map(h => ({ ...h, scanPhase: phase })));
         return { hits, unmatched };
     }
@@ -383,10 +461,10 @@ export function createCanary(ctx) {
             }
         }
         const live = [...planted.values()].filter(p => !p.seed.startsWith("selftest."));
-        return { planted: live.length, scans, hits: hitsSeen.map(h => ({ who: h.who, seed: h.seed, surface: h.surface, where: h.where,
+        return { planted: live.length, scans, worldScans, hits: hitsSeen.map(h => ({ who: h.who, seed: h.seed, surface: h.surface, where: h.where,
             path: h.path, phase: h.phase, scanPhase: h.scanPhase, via: h.via, leak: ctx.knownLeaks.find(e => matchLeak(h, e))?.id ?? null })),
             selftest, notScanned: NOT_SCANNED };
     }
 
-    return { marker, selfTest, scan, playerLeakScan: scan, finish, forbiddenIn };
+    return { marker, selfTest, scan, playerLeakScan: scan, worldScan: worldCheck, finish, forbiddenIn };
 }

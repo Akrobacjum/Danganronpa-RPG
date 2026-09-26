@@ -106,7 +106,7 @@ release or stage the status belongs to.
 | 62 | scenarios/62-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56) |
 | 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
 | 71 | scenarios/71-sheet.mjs | local-gate | planned | E45 | the sheet on two accounts on a real v14 |
-| 72 | scenarios/72-canary.mjs | ci | exists | E30 | what a player's browser holds: the canary's self-test, and planted secrets at rest (E43 extends it to the season) |
+| 72 | scenarios/72-canary.mjs | ci | exists | E30 | what a player's browser holds: the canary's self-test, planted secrets at rest, and (E05) a chapter, scanned after every phase with the world-secrets rule; E43 takes it to the season |
 | 81 | scenarios/81-render-budget.mjs | local-gate | planned | E37 | render counts per event on real sheets (E53 compares) |
 | 82 | scenarios/82-two-gms.mjs | ci | planned | E38 | two GMs: sync both ways, a change of primary |
 | 83 | scenarios/83-roll-integrity.mjs | local-gate | planned | E33 | every forged roll write flagged, every legal path clean |

@@ -784,39 +784,38 @@ const REGRESSIONS = [
          * to read never leaves the GM's own browser.
          *
          * There is an invariant for Remnant TOKENS already. This is the same
-         * question asked of every store the module registers, which is where the
-         * next one will be added.
+         * question asked of every store the module registers, and of every
+         * actor's, user's and token's flags.
          *
-         * AND NO PROJECT NAMES ITS KILLER (E05 C1, 26.09.2026; audit S09-05, D3).
-         * This test said `projectMeta` carried an indirect murder's `killerId` and
-         * its `condition` by the owner's decision - `secret` hid the interface,
-         * not the data. D3 moved them, with `by` and `trigger`, into the GMs'
-         * store; a row of projectMeta that holds any of the four fails here.
+         * THE RULE IS ITS OWN FILE SINCE E05 (C2, 26.09.2026; the stage's
+         * verify). scripts/world-secrets.mjs says what world data may never
+         * hold - this test's own five answer-key names were its first line, and
+         * projectMeta's killer, builder, condition and trigger its second (C1,
+         * S09-05: this test called them "known and deliberate" until then) -
+         * and R190 shows it finding each on a fixture. Here it reads this world:
+         * every module world setting, and the module's flags on every actor,
+         * user and token. A rule comes in with the commit that takes its secret
+         * out of world data; E05's later commits add theirs.
          */
-        const FORBIDDEN = ["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime"];
+        const { findWorldSecrets, WORLD_SECRET_RULES } = await import("./world-secrets.mjs");
         const { PROJECT_SECRET_FIELDS } = await import("./projects.mjs");
-        const inMeta = Object.entries(game.settings.get(MODULE_ID, SETTINGS.projectMeta) ?? {})
-            .flatMap(([id, row]) => PROJECT_SECRET_FIELDS.filter(f => row && typeof row === "object" && Object.hasOwn(row, f)).map(f => `${id}.${f}`));
-        ok(PROJECT_SECRET_FIELDS.length === 4, `the project secrets are not the four D3 moved: ${PROJECT_SECRET_FIELDS.join(", ")}`);
-        ok(!inMeta.length, `projectMeta, on every player's machine, still names who builds a trap and what sets it off: ${inMeta.join(", ")}`);
-        const found = [];
+        equal(JSON.stringify([...(WORLD_SECRET_RULES.settings.projectMeta?.fields ?? [])].sort()), JSON.stringify([...PROJECT_SECRET_FIELDS].sort()),
+            "the world-secrets rule for projectMeta is not the four fields projects.mjs keeps on the GMs' side");
+        const settings = {};
         for (const [full, def] of game.settings.settings) {
-            if (!full.startsWith(`${MODULE_ID}.`)) continue;
-            if (def.scope !== "world") continue;
-            let value = null;
-            try { value = game.settings.get(MODULE_ID, full.slice(MODULE_ID.length + 1)); } catch { continue; }
-            const seen = new Set();
-            const walk = (node, path) => {
-                if (!node || typeof node !== "object" || seen.has(node)) return;
-                seen.add(node);
-                for (const [k, v] of Object.entries(node)) {
-                    if (FORBIDDEN.includes(k)) found.push(`${full} :: ${path}${k}`);
-                    walk(v, `${path}${k}.`);
-                }
-            };
-            walk(value, "");
+            if (!full.startsWith(`${MODULE_ID}.`) || def.scope !== "world") continue;
+            const key = full.slice(MODULE_ID.length + 1);
+            try { settings[key] = game.settings.get(MODULE_ID, key); } catch { continue; }
         }
-        ok(!found.length, `these are on every player's machine right now: ${found.join(", ")}`);
+        ok(Object.keys(settings).length > 0, "no module world setting was read - this measured nothing");
+        const flagsOf = doc => ({ id: doc.id, flags: doc.flags ?? {} });
+        const found = findWorldSecrets({
+            settings,
+            actors: game.actors.contents.map(flagsOf),
+            users: game.users.contents.map(flagsOf),
+            tokens: game.scenes.contents.flatMap(scene => scene.tokens.contents.map(t => ({ id: `${scene.id}.${t.id}`, flags: t.flags ?? {} })))
+        });
+        ok(!found.length, `these are on every player's machine right now: ${found.map(h => `${h.doc} ${h.id} :: ${h.path} - ${h.rule}`).join("; ")}`);
     }],
 
     ["R10 - the hot lookups stay under their ceiling", async () => {

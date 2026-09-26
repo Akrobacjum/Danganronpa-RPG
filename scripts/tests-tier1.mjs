@@ -4489,6 +4489,69 @@ const INVARIANTS = [
         const loud = RETELLS.filter(([file, fn]) => !/\bgmStoresQuiet\(\)/.test(fnSource(stripComments(sources.get(file) ?? ""), fn)))
             .map(([file, fn]) => `${file} ${fn}`);
         ok(!loud.length, `these tell the players after a restore while the suite holds the stores: ${loud.join(", ")}`);
+    }],
+
+    ["R190 - the world-secrets rule finds every secret planted in a world snapshot and nothing in a clean one", async () => {
+        /*
+         * E05 C2, 26.09.2026; the stage's verify (R9 extended). scripts/world-secrets.mjs says
+         * what world data may never hold, and `findWorldSecrets` reads a snapshot against it:
+         * R9 on the suite's world, 72-canary on a player's browser after every phase of a
+         * chapter. Each fixture below plants one secret in a clean snapshot. They are written
+         * out here, not derived from the rule, so a rule taken out fails its fixture - and a
+         * rule with no fixture fails too. Then the killer's id planted as a setting's key and
+         * deep in an actor's flag, found at each and nowhere else; and a clean snapshot, with
+         * that id only where world data may hold it (another module's flags, the document's
+         * own id), which reads clean.
+         */
+        const W = await import("./world-secrets.mjs");
+        const MOD = W.WORLD_SECRET_MODULE;
+        const KILLER = "R190KILLERACTOR1";
+        const clean = () => ({
+            settings: {
+                projectMeta: { R190PROJECT00001: { room: "Gym", indirectMurder: true, secret: true, trait: null, countsUp: true } },
+                clock: { chapter: 2, day: 3 }
+            },
+            actors: [{ id: KILLER, flags: { [MOD]: { advances: 1 }, "r190-other-module": { memo: KILLER } } },
+                { id: "R190BYSTANDER001", flags: { [MOD]: { deceased: false } } }],
+            users: [{ id: "R190USER00000001", flags: { [MOD]: { preSessionNote: { updatedAt: 1 } } } }],
+            tokens: [{ id: "R190SCENE0000001.R190TOKEN0000001", flags: { [MOD]: { isRemnant: true } } }]
+        });
+        // One secret each: what it is, how it is planted in a clean snapshot, and the hit it must give.
+        const FIXTURES = [
+            ...["killerId", "by", "condition", "trigger"].map(f => [`projectMeta.${f}`,
+                s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "trigger" ? { kind: "enters" } : "R190"; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
+            ...["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime"].map(f => [`every setting: ${f}`,
+                s => { s.settings.clock.deep = { [f]: 1 }; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === `deep.${f}`])
+        ];
+        const R = W.WORLD_SECRET_RULES;
+        const named = new Set(FIXTURES.map(([what]) => what));
+        const unfixtured = [
+            ...Object.entries(R.settings).flatMap(([key, rule]) => [...(rule.fields ?? []).map(f => `${key}.${f}`),
+                ...(rule.empty ? [`${key}: empty`] : []), ...(rule.only ? [`${key}: only ${rule.only.join(", ")}`] : [])]),
+            ...(R.everySetting?.fields ?? []).map(f => `every setting: ${f}`),
+            ...Object.entries(R.flags ?? {}).flatMap(([doc, paths]) => paths.map(p => `${doc} flag ${p}`))
+        ].filter(what => !named.has(what));
+        ok(!unfixtured.length, `a rule of world-secrets.mjs has no fixture here: ${unfixtured.join(", ")}`);
+        const missed = [];
+        for (const [what, plant, expected] of FIXTURES) {
+            const snapshot = clean();
+            plant(snapshot);
+            const hits = W.findWorldSecrets(snapshot, { ids: [KILLER] });
+            if (!hits.some(expected)) missed.push(`${what} (found ${JSON.stringify(hits)})`);
+        }
+        ok(!missed.length, `the rule did not find a secret planted for it: ${missed.join("; ")}`);
+
+        const planted = clean();
+        planted.settings.pendingMurders = { [KILLER]: { room: "Gym" } };
+        planted.actors[1].flags[MOD].memo = { met: ["nobody", `Actor.${KILLER}.Item.R190ITEM00000001`] };
+        const ids = W.findWorldSecrets(planted, { ids: [KILLER] }).filter(h => h.kind === "id");
+        equal(JSON.stringify(ids.map(h => [h.doc, h.id, h.path, Boolean(h.key)])),
+            JSON.stringify([["setting", "pendingMurders", KILLER, true], ["Actor", "R190BYSTANDER001", `flags.${MOD}.memo.met.1`, false]]),
+            "the killer's id planted as a setting's key and deep in an actor's flag was not found at each, or was found somewhere else");
+        equal(JSON.stringify(W.findWorldSecrets(clean(), { ids: [KILLER] })), "[]",
+            "a clean snapshot reads as holding a secret - the killer's id in another module's flags, or as the document's own id");
     }]
 ];
 

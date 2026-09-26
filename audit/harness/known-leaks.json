@@ -79,12 +79,15 @@
       "what": "A Direct Murder declared during an Eclipse - the note, the room, and the killer's actor id it is filed under - is the world setting pendingMurders, which every browser holds.",
       "closes": "E05",
       "match": [
-        {"seed": "park.note", "surface": "setting", "where": "danganronpa-rpg.pendingMurders", "path": "*.note"}
+        {"seed": "park.note", "surface": "setting", "where": "danganronpa-rpg.pendingMurders", "path": "*.note"},
+        {"seed": "world.id", "surface": "setting", "where": "danganronpa-rpg.pendingMurders", "path": "*#key"}
       ],
       "detectedBy": [
-        {"scenario": "72-canary", "seed": "park.note", "phase": "rest"}
+        {"scenario": "72-canary", "seed": "park.note", "phase": "rest"},
+        {"scenario": "72-canary", "seed": "world.id", "phase": "trap"},
+        {"scenario": "72-canary", "seed": "world.id", "phase": "eclipse"}
       ],
-      "measuredAt": "E30 C20 on 4a83b6b, 24.09.2026: p3 parked a Direct Murder for Chie during an Eclipse; the park.note marker on p1 and p2 at danganronpa-rpg.pendingMurders *.note (the key is the killer's actor id, eclipse.mjs writeParkedMurder), wire and rest"
+      "measuredAt": "E30 C20 on 4a83b6b, 24.09.2026: p3 parked a Direct Murder for Chie during an Eclipse; the park.note marker on p1 and p2 at danganronpa-rpg.pendingMurders *.note (the key is the killer's actor id, eclipse.mjs writeParkedMurder), wire and rest. E05 C2, 26.09.2026: 72's worldScan read Chie's actor id as the key of danganronpa-rpg.pendingMurders on p1 and p2 in phases trap and eclipse, and in no later phase (the lights clear it)"
     },
     {
       "id": "S17-64",
