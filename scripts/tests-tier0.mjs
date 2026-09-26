@@ -1854,6 +1854,10 @@ const REGRESSIONS = [
         ok(!/takePlant/.test(fnSource(tokens, "runSpend")), "the token spend takes the plant out of the room again");
         ok(/searchedBy\.get\(/.test(fnSource(tokens, "runTakePlant")),
             "a player can ask for a plant in a room they never spent a token in");
+        // A plant that answers after the plant check's clock goes back to its room while the GM's client still takes
+        // one back (E31 review): the wait keeps that late answer for the GM's window, not for one more clock (R165).
+        ok(/\blateMs:\s*(?:PLANT_WINDOW_MS|TIMING\.plantWindowMs)\b/.test(fnSource(tokens, "requestPlantCheck")),
+            "the plant check drops a late answer before the GM's window for giving the plant back has closed");
         const draw = bodyOf(rolls, "async function searchDraw(", { until: "async function performSearch(" });
         ok(draw.includes("SearchTokens.takePlant("), "the Search no longer asks for a plant");
         equal((rolls.match(/SearchTokens\.takePlant\(/g) ?? []).length, 1,

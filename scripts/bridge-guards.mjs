@@ -1062,9 +1062,9 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = { set: s
     newId = () => foundry.utils.randomID(), report = (text, err) => error(text, err) } = {}) {
     // Waiting for an answer, by request id.
     const pending = new Map();
-    // Given up on, answered or refused, by request id, for as long as the request's own clock ran: a late
-    // "got it", answer or refusal for one of these is dropped - a done goes to its `late` - so no request
-    // is ever said twice.
+    // Given up on, answered or refused, by request id, for as long as the request's own clock ran, or its
+    // `lateMs` when that is longer: a late "got it", answer or refusal for one of these is dropped - a done
+    // goes to its `late` - so no request is ever said twice.
     const closed = new Map();
 
     const settle = (entry, result) => {
@@ -1082,7 +1082,7 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = { set: s
             entry[key] = null;
         }
         closed.set(entry.id, entry.late);
-        clock.set(() => closed.delete(entry.id), entry.timeoutMs);
+        clock.set(() => closed.delete(entry.id), Math.max(entry.timeoutMs, entry.lateMs));
     };
     const fail = (entry, reason) => {
         tell(entry, reason);
@@ -1090,9 +1090,9 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = { set: s
     };
 
     function request(action, payload = {}, { settle: kind = "ack", patient = false, resend = false, ackMs = TIMING.ackMs,
-        timeoutMs = TIMING.rulingMs, local = null, quiet = false, nothingSpent = false, late = null } = {}) {
+        timeoutMs = TIMING.rulingMs, local = null, quiet = false, nothingSpent = false, late = null, lateMs = 0 } = {}) {
         return new Promise(resolve => {
-            const entry = { id: null, action, kind, patient, resend, resent: false, quiet, nothingSpent, late, timeoutMs,
+            const entry = { id: null, action, kind, patient, resend, resent: false, quiet, nothingSpent, late, lateMs, timeoutMs,
                 resolve, settled: false, ackTimer: null, answerTimer: null, packet: null };
             try {
                 const self = me();
@@ -1219,7 +1219,9 @@ const waiter = createWaiter({
  * @param {object} payload  the fields its whitelist reads
  * @param {object} [opts]   settle ("none" | "ack" | "reply"), patient, resend, ackMs, timeoutMs,
  *                          local (the GM's own client does it), quiet, nothingSpent, late
- *                          (`late(value, requestId)`, for an answer that arrives after the clock)
+ *                          (`late(value, requestId)`, for an answer that arrives after the clock),
+ *                          lateMs (how long after the wait ends `late` is still handed one;
+ *                          the clock's own length when shorter)
  * @returns {Promise<{ok: boolean, pending?: true, value?: *, refused?: true, reason?: string}>}
  */
 export function bridgeRequest(action, payload = {}, opts = {}) {

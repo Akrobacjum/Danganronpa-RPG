@@ -352,7 +352,10 @@ const PLANT_WINDOW_MS = TIMING.plantWindowMs;
  * plant recorded here, for that same user, goes back into the room. Only the
  * client that asked can: the one wait hands a late answer to `late` for a
  * request it gave up on and drops it anywhere else, so another tab of the same
- * user, which sees the same answer, sends nothing back (review, 17.09).
+ * user, which sees the same answer, sends nothing back (review, 17.09). The
+ * wait hands it on for as long as a return is taken here, `PLANT_WINDOW_MS`
+ * (its `lateMs`; E31 review: it had kept the request for one more clock, five
+ * seconds, and dropped an answer later than that).
  */
 const handedOut = new Map();
 const searchKey = (userId, sceneId, room) => `${userId}::${sceneId ?? "-"}::${room}`;
@@ -547,11 +550,13 @@ function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, actorId =
  * `requestPlant` in E31, a name the Palm's request in gm-bridge.mjs has. Quiet:
  * when nobody answers, the search goes on as an ordinary one and the plant stays
  * where it was left, so there is nothing to tell the player. A plant that
- * arrives after the clock goes back to its room (`late`).
+ * arrives after the clock goes back to its room (`late`), while the GM's client
+ * still takes one back.
  */
 function requestPlantCheck(roomName, sceneId = SearchTokens.currentSceneId, actorId = null) {
     return askSearch(ACTION_TAKE_PLANT, { roomName, sceneId, actorId }, {
         quiet: true,
+        lateMs: PLANT_WINDOW_MS,
         late: (value, plantRequestId) => {
             if (value?.plant) void askSearch(ACTION_RETURN_PLANT, { plantRequestId });
         }

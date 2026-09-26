@@ -3121,7 +3121,8 @@ const INVARIANTS = [
          * settles on its answer; a refusal settles it, with the code; no "got it"
          * in time is `noAnswer`; a patient request has no clock for the "got it"
          * and is asked again once, with the same id, when a GM's world has loaded;
-         * an answer after the clock goes to `late`, and says nothing; an emit that
+         * an answer after the clock goes to `late` for as long as the request's
+         * `lateMs` says, and says nothing, and is dropped after it; an emit that
          * throws is `failed`; a GM's own client does the work itself; and the
          * primary GM, who answers requests, cannot send one. Every failure is one
          * message, none for a quiet request, and no promise rejects.
@@ -3210,15 +3211,27 @@ const INVARIANTS = [
         w.reply("bridge.done", { value: true });
         equal(JSON.stringify(await asked), JSON.stringify({ ok: true, value: true }), "a patient request did not settle with its answer");
 
-        // An answer after the clock goes to `late`, and says nothing more.
+        // An answer after the clock goes to `late`, and says nothing more, for as long as `lateMs` says: here more
+        // than twice the clock after the send (E31 review: the record was kept one more clock, so the plant check
+        // dropped an answer later than ten seconds). After `lateMs` the answer is dropped.
         w = make();
         const late = [];
-        asked = w.waiter.request("r165.late", {}, { ackMs: 1000, timeoutMs: 40, settle: "reply", quiet: true,
+        asked = w.waiter.request("r165.late", {}, { ackMs: 1000, timeoutMs: 40, lateMs: 400, settle: "reply", quiet: true,
             late: (value, id) => late.push([value, id === w.sent[0]?.packet.requestId]) });
         equal(JSON.stringify(await asked), JSON.stringify({ ok: false, reason: "noAnswer" }), "a request past its clock did not settle as not answered");
+        await wait(100);
         w.reply("bridge.done", { value: "found" });
         equal(JSON.stringify({ late, said: w.said }), JSON.stringify({ late: [["found", true]], said: [] }),
-            "a late answer did not go to `late` with its request id, or a quiet request said something");
+            "an answer more than twice the clock late did not go to `late` with its request id, or a quiet request said something");
+        w = make();
+        const dropped = [];
+        asked = w.waiter.request("r165.later", {}, { ackMs: 1000, timeoutMs: 40, lateMs: 80, settle: "reply", quiet: true,
+            late: value => dropped.push(value) });
+        await asked;
+        await wait(200);
+        w.reply("bridge.done", { value: "found" });
+        equal(JSON.stringify({ dropped, said: w.said }), JSON.stringify({ dropped: [], said: [] }),
+            "an answer after `lateMs` still went to `late`, or said something");
 
         // An emit that throws is `failed`, said once; nothing rejects.
         w = make({ emitThrows: true });
