@@ -378,7 +378,9 @@ const REGRESSIONS = [
             "dice-sync.mjs": "dice appearance only; no actor anywhere in it",
             "sfx.mjs": "plays a sound; no actor anywhere in it",
             "voice.mjs": "room membership, keyed by the sender",
-            "voice-client.mjs": "room membership, keyed by the sender"
+            "voice-client.mjs": "room membership, keyed by the sender",
+            // E31 review: it passed on text elsewhere in the file (the runner, the guards); this is its own reason.
+            "bridge-guards.mjs": "the answers to this client's own requests: taken only from a GM, for its own pending id; acts on no actor"
         };
 
         const tableFiles = new Set(tables.map(t => t.file));

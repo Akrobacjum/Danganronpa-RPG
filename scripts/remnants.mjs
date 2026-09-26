@@ -88,7 +88,7 @@ export const REMNANT_FLAGS = {
  * matter - a GM resolving something on another scene, a canvas mid-load. The
  * scene's own token list is checked as well, which needs neither.
  */
-function tokenFor(actor) {
+export function tokenFor(actor) {
     if (!actor) return null;
 
     const active = actor.getActiveTokens?.()?.[0];

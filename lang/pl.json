@@ -778,6 +778,7 @@
       "discardOnlyBroken": "Wyrzucić można tylko zepsuty przedmiot.",
       "discardStashed": "Najpierw wyjmij to ze skrytki.",
       "discardNoTrace": "{item} wciąż jest przy tobie - nie było gdzie tego zostawić. Wyrzucona rzecz musi być wyrzucona gdzieś.",
+      "discardKept": "{item} wciąż jest przy tobie.",
       "tabGive": "Daj",
       "tabTake": "Zabierz",
       "giveNote": "Przedmiot z tabel albo własny, Truth Bullet, albo klucz do pokoju.",

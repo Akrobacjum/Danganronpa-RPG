@@ -509,6 +509,33 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         check("B10: a trace whose token the GM's client could not create is answered failed, not placed, and said once",
             b10.thrown >= 1 && b10.placed?.ok === false && b10.placed?.refused === true && b10.placed?.reason === "failed"
             && b10.said.length === 1, JSON.stringify(b10));
+
+        // B11: a broken item discarded while that is so stays on the sheet, and the whisper adds only that it is
+        // kept: the bridge has said why no trace was left, so "there was nowhere to leave it" would contradict it
+        // (E31 review).
+        const broken = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+            const item = await INV.grantItem(game.actors.get("${IDS.aiko}"), { name: "E31 broken", category: "tool", tier: 1 });
+            await item?.setFlag("${MOD}", "broken", true);
+            return item?.id ?? null;`, { timeout: 60000 });
+        await settle(800);
+        const n11 = await noticeCount(p1);
+        // A whisper's words live beside the card, not in it (secret.mjs), so they are read with `contentOf`.
+        const discarded = await p1.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs");
+            const S = await import("${repoUrl}/scripts/secret.mjs");
+            const actor = game.actors.get("${IDS.aiko}");
+            const kept = game.i18n.format("DRPG.Items.discardKept", { item: "E31 broken" });
+            const nowhere = game.i18n.format("DRPG.Items.discardNoTrace", { item: "E31 broken" });
+            const before = game.messages.contents.length;
+            const r = await U.discardBroken(actor, actor.items.get("${broken}"));
+            const warned = game.messages.contents.slice(before).map(m => S.contentOf(m))
+                .filter(words => words.includes(kept) || words.includes(nowhere));
+            return { r: r ?? null, warned, kept, nowhere };`, { timeout: 60000 });
+        await settle(1200);
+        const b11 = { ...discarded, held: await gm.eval(`return Boolean(game.actors.get("${IDS.aiko}").items.get("${broken}"));`),
+            said: (await noticesSince(p1, n11)).map(x => x.msg) };
+        check("B11: a discard whose trace the GM's client could not place keeps the item, is said once, and adds only that it is kept",
+            Boolean(broken) && b11.held && b11.said.length === 1 && b11.warned.length === 1 && !b11.kept.startsWith("DRPG.")
+            && b11.warned[0].includes(b11.kept) && !b11.warned[0].includes(b11.nowhere), JSON.stringify(b11));
     } finally {
         await gm.eval(`delete canvas.scene.createEmbeddedDocuments; return typeof canvas.scene.createEmbeddedDocuments;`);
     }

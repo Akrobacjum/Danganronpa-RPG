@@ -531,9 +531,10 @@ export async function reopen(className, opener) {
  *
  * It never rejects. A caller that forgets to hold the promise cannot produce an
  * unhandled rejection, and a window that failed to come back is a logged error
- * rather than a broken console. A window that would not close runs nothing - the
- * work would raise the window that is still there and open nothing (above) - and
- * answers null, with the error logged.
+ * rather than a broken console. A window that would not close is logged, and the
+ * work runs all the same, as `reopen` goes on to its opener (E31 review): the
+ * work is what the GM pressed for - a row's procedure, the next step - and a
+ * window left standing, raised again rather than reopened, is the smaller loss.
  *
  * WITHOUT ITS CLOSING TRANSITION (E31, 25.09.2026; audit S01-64), as `reopen`
  * closes: the work waits for the close, so a close that plays its animation made
@@ -552,10 +553,9 @@ export function handOff(dialog, work) {
     } catch (err) {
         closing = Promise.reject(err);
     }
-    return closing.then(() => work(), err => {
-        error("A window handing over could not close, so what it handed over to did not run", err);
-        return null;
-    }).catch(err => {
+    return closing.catch(err => {
+        error("A window handing over could not close; what it handed over to runs all the same", err);
+    }).then(() => work()).catch(err => {
         error("A window that closed to hand over never came back", err);
         return null;
     });

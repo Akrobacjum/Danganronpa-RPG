@@ -3321,8 +3321,10 @@ const INVARIANTS = [
          * `{ animate: false }`. Driven with spy windows, nothing on the screen: the
          * close is asked for without its transition, the work runs only once the
          * close has resolved, and a window that will not close - throwing, or
-         * refusing - runs nothing and answers null. The second the transition took
-         * is not measurable here (the harness's windows close at once): LIVE-E31-05.
+         * refusing - is logged and still runs what it handed over to, as `reopen`
+         * goes on to its opener (E31 review: the work is the GM's click, and C7 had
+         * dropped it). The second the transition took is not measurable here (the
+         * harness's windows close at once): LIVE-E31-05.
          */
         const { handOff } = await import("./live.mjs");
         const order = [];
@@ -3334,9 +3336,9 @@ const INVARIANTS = [
         let ran = 0;
         const throwing = { close: () => { throw new Error("R167 planted: the window will not close"); } };
         const refusing = { close: () => Promise.reject(new Error("R167 planted: the close refused")) };
-        equal(await handOff(throwing, () => { ran++; }), null, "a window whose close threw did not answer null");
-        equal(await handOff(refusing, () => { ran++; }), null, "a window whose close refused did not answer null");
-        equal(ran, 0, "a window that would not close still ran what it handed over to");
+        equal(await handOff(throwing, () => { ran++; return "ran"; }), "ran", "a window whose close threw did not run what it handed over to");
+        equal(await handOff(refusing, () => { ran++; return "ran"; }), "ran", "a window whose close refused did not run what it handed over to");
+        equal(ran, 2, "a window that would not close did not run what it handed over to, once each");
     }],
 
     ["R168 - a window's width counts its content's border once", async () => {

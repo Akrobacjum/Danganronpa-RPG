@@ -791,6 +791,7 @@
       "discardOnlyBroken": "Only a broken item can be thrown away.",
       "discardStashed": "Take it out of your stash first.",
       "discardNoTrace": "{item} is still on you - there was nowhere to leave it. A thing thrown away has to be thrown away somewhere.",
+      "discardKept": "{item} is still on you.",
       "tabGive": "Give",
       "tabTake": "Take away",
       "giveNote": "An item from the tables or one you write, a Truth Bullet, or a key to a room.",
