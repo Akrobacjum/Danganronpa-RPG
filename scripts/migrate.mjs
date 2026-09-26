@@ -765,6 +765,9 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
     return report;
 }
 
+/** The pass this load started (`runMigrationOnLoad`), while it runs: the suite waits for it (`migrationOnLoad`). */
+let onLoad = null;
+
 /**
  * The automatic pass, from `ready`.
  *
@@ -779,8 +782,13 @@ export function runMigrationOnLoad() {
     // Read now, before the first clause - or anything else at `ready` - writes the
     // world: whether it was played before this load (S01-14).
     const wasInPlay = worldWasInPlay(worldAsFound());
-    migrate1_2_0({ quiet: true, wasInPlay })
+    onLoad = migrate1_2_0({ quiet: true, wasInPlay })
         .catch(err => error("The 1.2.0 migration could not run", err));
+}
+
+/** The pass this load started - the primary GM's - or nothing to wait for. */
+export function migrationOnLoad() {
+    return onLoad ?? Promise.resolve();
 }
 
 /**

@@ -24,7 +24,7 @@ import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs"
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, dialogContent, whisperToGms } from "./utils.mjs";
 import {
-    configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated,
+    configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
     raiseCleared, newestIn, sectionProblem, stableJson, weakOf, gmStoreStamp, fileSection
 } from "./gm-store.mjs";
@@ -652,6 +652,9 @@ export async function compactGmStores({ now = gmStoreNow(), epoch = seasonEpoch(
 }
 
 let opening = null;
+/* What the load writes once the stores have heard the other GMs - the compaction and the
+   case's marks - held so the suite can wait for it (`whenGmStoresLoaded`). */
+let compacting = null, marking = null;
 
 /**
  * Wire the engine to this module and open this world's stores on this client:
@@ -669,7 +672,7 @@ export function openGmStores() {
             text: (key, data = {}) => (game.i18n.has(`${key}.other`) ? plural(key, data) : game.i18n.format(key, data))
         });
         onGmStoresHydrated(() => {
-            compactGmStores().catch(err => error("The GM stores could not be compacted", err));
+            compacting = compactGmStores().catch(err => error("The GM stores could not be compacted", err));
         });
         try {
             await openGmStoreEngine();
@@ -678,6 +681,21 @@ export function openGmStores() {
         }
     })();
     return opening;
+}
+
+/**
+ * Resolves once this client's load has written what it writes of its own accord: the
+ * stores have opened and heard the other GMs (or stopped waiting for them), and the
+ * compaction and the case's marks that follow are done and saved. The suite waits for
+ * it before it first reads the world (tests.mjs `loadSettled`). Not for the health
+ * check's window, which waits for a GM; and never resolves while the stores have not
+ * opened, so its caller bounds the wait.
+ */
+export async function whenGmStoresLoaded() {
+    await opening;
+    await whenGmStoresHydrated();
+    await Promise.all([compacting, marking]);
+    await gmStoresIdle();
 }
 
 /* ---------------------------------------------------------------------------
@@ -1369,10 +1387,10 @@ export async function openRestoreDialog(text = null) {
 /** Registered at ready (module.mjs): the check runs once this client's stores hold the other GMs' copies. */
 export function registerCaseHealth() {
     onGmStoresHydrated(() => {
-        markUpgrade()
-            .then(() => markCaseSince())
-            .then(() => runHealthCheck())
-            .catch(err => error("The case health check could not run", err));
+        const marked = markUpgrade().then(() => markCaseSince());
+        // The marks are the load's writes; the check's window waits for a GM, and the suite does not wait for it.
+        marking = marked.catch(() => {});
+        marked.then(() => runHealthCheck()).catch(err => error("The case health check could not run", err));
     });
     /* The upgrade day's clear is put to the primary whenever the record changes after
        that (the review's M1): the note, or a pick older than it, can arrive by merge from

@@ -21,7 +21,7 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    otherSources, stripComments, bodyOf, fnSource, STANDING
+    moduleSources, otherSources, stripComments, bodyOf, fnSource, STANDING
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -4019,7 +4019,8 @@ const INVARIANTS = [
 
         const src = stripComments(new Map(await otherSources()).get("migrate.mjs") ?? "");
         const load = fnSource(src, "runMigrationOnLoad");
-        ok(/const wasInPlay = worldWasInPlay\(worldAsFound\(\)\);\s*migrate1_2_0\(\{ quiet: true, wasInPlay \}\)/.test(load),
+        // The pass is kept as `onLoad` for the suite's wait (R188, E04's fix round).
+        ok(/const wasInPlay = worldWasInPlay\(worldAsFound\(\)\);\s*(?:onLoad = )?migrate1_2_0\(\{ quiet: true, wasInPlay \}\)/.test(load),
             "the automatic pass does not read the world before the migration starts, or does not hand it on");
         ok(/clause\.run\(\{ from, to, force, wasInPlay: inPlay \}\)/.test(fnSource(src, "migrate1_2_0")), "the clauses are not told whether the world was in play");
         ok(/if \(!from && !wasInPlay\) return null;/.test(fnSource(src, "keepOldSafeword")), "the safeword is kept for a stamped world only");
@@ -4288,6 +4289,43 @@ const INVARIANTS = [
         await player.settle();
         equal(JSON.stringify([player.handle.get("x"), player.handle.get("y"), player.store.size]), JSON.stringify([null, null, 0]),
             "a client that is not a GM's wrote a GM store");
+    }],
+
+    ["R188 - the suite's first reading of the world waits for the load's own writes", async () => {
+        /*
+         * E04's fix round, 26.09.2026. A load writes after `ready` - the migration's pass
+         * on the primary GM, each GM store's claim and first save, the case's marks - and
+         * since E04 the migration waits for the stores, which wait for the other GMs'
+         * copies. A run started in that window failed "tier 0/1 changed nothing in the
+         * world" on the load's writes: in 49 of the 139 runs of this stage's scratch
+         * runner, which starts the suite straight after the load. Held here from the
+         * source: the
+         * runner waits (`loadSettled`, bounded) before its first reading of the world, on
+         * the stores and on the migration; the stores' wait covers the hydration, the
+         * compaction, the case's marks and the saves, and the two hydration hooks and the
+         * migration hand it their work. On this client, whose load is long over, the
+         * stores' wait resolves.
+         */
+        const all = new Map(await moduleSources());
+        const src = file => stripComments(all.get(file) ?? "");
+        const found = [];
+        const suite = fnSource(src("tests.mjs"), "runSuite");
+        const waited = suite.indexOf("await loadSettled()"), first = suite.indexOf("worldDump()");
+        if (waited < 0 || first < waited) found.push("runSuite reads the world before it waits for the load");
+        const settled = fnSource(src("tests.mjs"), "loadSettled");
+        for (const call of ["whenGmStoresLoaded()", "migrationOnLoad()"]) if (!settled.includes(call)) found.push(`loadSettled does not wait for ${call}`);
+        const loaded = fnSource(src("gm-stores.mjs"), "whenGmStoresLoaded");
+        for (const step of ["await whenGmStoresHydrated()", "compacting", "marking", "await gmStoresIdle()"]) {
+            if (!loaded.includes(step)) found.push(`whenGmStoresLoaded does not wait for ${step}`);
+        }
+        const stores = src("gm-stores.mjs");
+        if (!/\bcompacting = compactGmStores\(\)/.test(stores)) found.push("the compaction is not handed to the wait");
+        if (!/\bmarking = marked\b/.test(stores)) found.push("the case's marks are not handed to the wait");
+        if (!/\bonLoad = migrate1_2_0\(/.test(src("migrate.mjs"))) found.push("the migration's pass is not handed to the wait");
+        ok(!found.length, found.join("; "));
+        const { whenGmStoresLoaded } = await import("./gm-stores.mjs");
+        const resolved = await Promise.race([whenGmStoresLoaded().then(() => true), wait(5000).then(() => false)]);
+        ok(resolved, "the stores' wait for the load did not resolve in 5 s on a client whose load is long over");
     }],
 
     ["R187 - an Analyze and a handover wait for the other GMs' copies before they call a key missing, and the case says whose old rows wait", async () => {

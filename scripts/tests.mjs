@@ -200,6 +200,31 @@ function matcherFor(only) {
     return name => name.toLowerCase().includes(wanted);
 }
 
+/*
+ * THE LOAD'S OWN WRITES COME FIRST (E04's fix round, 26.09.2026). A world's load writes
+ * after `ready`: the migration's pass on the primary GM, each GM store's claim and first
+ * save, the case's marks - and since E04 the migration waits for the stores, which wait
+ * for the other GMs' copies, up to `TIMING.gmStoreSyncMs` when one does not answer. A run
+ * started in that window read those writes as its own: "tier 0/1 changed nothing in the
+ * world" failed in 49 of the 139 runs of this stage's scratch runner, which starts the
+ * suite straight after the load, naming the migration's stamp, actor updates landing
+ * between tests, the stores' claims and first saves and the case's marks (counted
+ * 26.09.2026; 01-runtests, whose full run comes after its other steps, failed it in none
+ * of its 30 runs). So the first reading waits for them - bounded, since a store that
+ * never opened never says it has; past the bound the run says so and goes on.
+ */
+const LOAD_WAIT_MS = 30000;
+async function loadSettled() {
+    const [{ whenGmStoresLoaded }, { migrationOnLoad }] = await Promise.all([import("./gm-stores.mjs"), import("./migrate.mjs")]);
+    let timer = null;
+    const bound = new Promise(resolve => { timer = setTimeout(() => resolve(false), LOAD_WAIT_MS); });
+    try {
+        return await Promise.race([Promise.all([whenGmStoresLoaded(), migrationOnLoad()]).then(() => true), bound]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 async function runSuite(tier, only = null) {
     const lines = [], results = [];
     let passed = 0, failed = 0, skipped = 0, red = 0;
@@ -256,6 +281,9 @@ async function runSuite(tier, only = null) {
     // in the suite to be wrong about and the most expensive to skip: a divergence
     // it would have caught costs four releases, not one run.
     const more = (list, n) => (list.length > n ? `; and ${list.length - n} more` : "");
+    if (!await loadSettled()) {
+        notes.push(`the load's own writes had not finished after ${LOAD_WAIT_MS / 1000} s: one landing during tiers 0 and 1 reads there as the suite's`);
+    }
     const untouched = await worldDump();
     let running = null;
     const writes = watchWrites(() => running);
