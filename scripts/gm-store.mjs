@@ -774,10 +774,14 @@ export function createGmStoreEngine(env) {
                 }
                 st.lastRaw = env.storage.read(st.spec.key);
             } catch (err) {
-                // A full origin (quota): memory stays authoritative for the session and the delta
-                // still goes out, so the other GMs hold the copy. Said once, and it stays up.
+                /* A full origin (quota): memory stays authoritative for the session and the delta
+                   still goes out, so the other GMs connected hold the copy - and with none connected
+                   nobody does: the notice says which, and asks for a backup now (the reviews' DS-m4
+                   and C-m8: it told a GM alone that the other GMs held a copy). Said once, and it
+                   stays up. */
                 env.log.error(`The GM store could not save "${st.spec.name}"`, err);
-                if (!quotaWarned) env.notify("error", env.text?.("DRPG.GmStore.saveFailed", { store: st.spec.name, error: String(err?.message ?? err) })
+                const key = peers().length ? "DRPG.GmStore.saveFailed" : "DRPG.GmStore.saveFailedAlone";
+                if (!quotaWarned) env.notify("error", env.text?.(key, { store: st.spec.name, error: String(err?.message ?? err) })
                     ?? `The GM store could not save "${st.spec.name}": ${err?.message ?? err}`, { permanent: true });
                 quotaWarned = true;
             } finally {
@@ -823,6 +827,15 @@ export function createGmStoreEngine(env) {
     function makeHandle(st) {
         const spec = st.spec;
         const split = splitSet(spec);
+        /* A player's browser holds no GM store (the round-2 reviews' R2-m1 and m1): every write
+           through a handle is a GM's, and on any other client it is refused, and said once. Until
+           E04's fix round that rested on each caller asking `game.user.isGM`. */
+        const gmWrite = what => {
+            if (env.isGM()) return true;
+            if (!st.refusedWrite) env.log.warn(`The GM store "${spec.name}" refused a ${what} on a client that is not a GM's.`);
+            st.refusedWrite = true;
+            return false;
+        };
         const handle = {
             name: spec.name,
             spec,
@@ -841,12 +854,14 @@ export function createGmStoreEngine(env) {
             cleared: () => current(st).section.cleared ?? 0,
             weak: () => weakOf(current(st).section),
             patch(k, fields, opts = {}) {
+                if (!gmWrite("write")) return Promise.resolve();
                 const w = current(st);
                 const s = opts.stamp ?? (opts.weak ? weakOf(w.section) : stamp());
                 const wrote = writeFields(w.section, k, fields, s, spec, opts);
                 return touched(st, w, wrote ? new Set([k]) : new Set(), { local: true });
             },
             patchMany(map, opts = {}) {
+                if (!gmWrite("write")) return Promise.resolve();
                 const w = current(st);
                 const s = opts.stamp ?? (opts.weak ? weakOf(w.section) : stamp());
                 const keys = new Set();
@@ -854,10 +869,12 @@ export function createGmStoreEngine(env) {
                 return touched(st, w, keys, { local: true });
             },
             drop(k) {
+                if (!gmWrite("removal")) return Promise.resolve();
                 const w = current(st);
                 return touched(st, w, dropKey(w.section, k, stamp(), spec) ? new Set([k]) : new Set(), { local: true });
             },
             dropMany(keys) {
+                if (!gmWrite("removal")) return Promise.resolve();
                 const w = current(st);
                 const s = stamp();
                 const out = new Set();
@@ -885,6 +902,7 @@ export function createGmStoreEngine(env) {
              * "restore" sends what changed to the other GMs; "sync" only stores it.
              */
             mergeIn(section, { source = "restore" } = {}) {
+                if (!gmWrite("merge")) return Promise.resolve(0);
                 const sec = normalizeSection(clone(section));
                 if (!sec) return Promise.resolve(0);
                 observeSection(sec);
@@ -969,6 +987,7 @@ export function createGmStoreEngine(env) {
                 return report;
             },
             setUnassigned(patch) {
+                if (!gmWrite("write")) return Promise.resolve();
                 const w = current(st);
                 w.section.unassigned = { ...(w.section.unassigned ?? {}), ...patch };
                 return touched(st, w, new Set([""]), { local: false });
@@ -1431,21 +1450,28 @@ export function createGmStoreEngine(env) {
 
     /**
      * Another tab of this browser wrote a store: its value is merged into this tab's
-     * memory, and not written back - that tab wrote it, read-merge-write, so what is
-     * stored already holds it; this tab's own changes go out with its own next flush.
-     * Two tabs writing at once is not atomic (LIVE-E04-11).
+     * memory. What is stored then already holds that tab's write (read-merge-write);
+     * what it does not hold of this tab's - two flushes that crossed, the other reading
+     * before this one's write landed - is written back now (the review's DS-m8: it was
+     * merged and left in this tab's memory, and lost with the tab). Two tabs writing at
+     * once is not atomic (LIVE-E04-11); this is what makes it converge.
      */
     function onStorage(fullKey, rawValue) {
         for (const st of stores.values()) {
             if (fullKey !== `${MODULE_ID}.${st.spec.key}`) continue;
             const value = parseValue(rawValue);
+            let behind = false;
             for (const w of st.worlds.values()) {
-                const theirs = normalizeSection(value.worlds[w.wid]);
-                if (!theirs) continue;
+                const theirs = normalizeSection(value.worlds[w.wid]) ?? emptySection();
                 observeSection(theirs);
                 mergeInto(w.section, theirs, st.spec);
+                if (sectionDigest(w.section).h !== sectionDigest(theirs).h) {
+                    w.needsWrite = true;
+                    behind = true;
+                }
             }
-            if (!st.worlds.size || ![...st.worlds.values()].some(w => w.needsWrite)) st.lastRaw = rawValue ?? null;
+            if (behind) void schedule(st);
+            else if (!st.worlds.size || ![...st.worlds.values()].some(w => w.needsWrite)) st.lastRaw = rawValue ?? null;
         }
         for (const cs of copies.values()) if (fullKey === `${MODULE_ID}.${cs.spec.key}`) cs.cache.clear();
     }

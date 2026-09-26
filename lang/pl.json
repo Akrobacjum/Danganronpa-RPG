@@ -4505,7 +4505,7 @@
       "backstop": "Strażnik przekaźnika GM-a nie mógł zdjąć słuchacza Daggerhearta {version} z kanału, więc zamiast tego każdą zmianę sprawdza przed nim tryb awaryjny. Prośby graczy nadal są sprawdzane. Daj znać autorowi modułu."
     },
     "GmStore": {
-      "saveFailed": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a pozostali GM-owie mają kopię.",
+      "saveFailed": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a podłączeni teraz GM-owie mają kopię. Zrób teraz kopię sprawy (panel GM-a, Między sesjami).",
       "syncTimedOut": "Magazyn GM-a nie dostał odpowiedzi od: {names}. Działa dalej na tym, co ma ta przeglądarka, a ich kopia zostanie scalona, gdy dotrze.",
       "claimFailed": {
         "one": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersz): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest.",
@@ -4520,7 +4520,8 @@
         "many": "{n} GM-ów nie jest połączonych ({names}): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat.",
         "other": "{n} GM-a nie jest połączonego ({names}): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat."
       },
-      "resetCutFailed": "Reset sezonu nie mógł zaznaczyć w zegarze chwili resetu ({error}). Nic nie zostało wyczyszczone."
+      "resetCutFailed": "Reset sezonu nie mógł zaznaczyć w zegarze chwili resetu ({error}). Nic nie zostało wyczyszczone.",
+      "saveFailedAlone": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a żaden inny GM nie jest podłączony, by mieć kopię: zrób teraz kopię sprawy (panel GM-a, Między sesjami)."
     },
     "Case": {
       "gmOnly": "Kopię sprawy robi i przywraca tylko GM.",

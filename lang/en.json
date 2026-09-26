@@ -3284,7 +3284,7 @@
       "backstop": "The guard on Daggerheart's GM relay could not take Daggerheart {version}'s own listener off the channel, so a fallback checks each change in front of it instead. Players' requests are still checked. Tell the module's author."
     },
     "GmStore": {
-      "saveFailed": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and the other GMs hold a copy.",
+      "saveFailed": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and the GMs connected now hold a copy. Back up the case now (GM panel, Between sessions).",
       "syncTimedOut": "The GM store did not hear from {names}. It carries on with what this browser holds, and their copy is merged when it arrives.",
       "claimFailed": {
         "one": "The GM store could not take over this browser's old \"{store}\" ({n} row): {error}. Nothing was changed; the old copy is still here.",
@@ -3295,7 +3295,8 @@
         "one": "One GM is not connected ({names}): their browser drops what this reset clears the next time it opens this world.",
         "other": "{n} GMs are not connected ({names}): their browsers drop what this reset clears the next time they open this world."
       },
-      "resetCutFailed": "The season reset could not mark the clock with the moment of the reset ({error}). Nothing was cleared."
+      "resetCutFailed": "The season reset could not mark the clock with the moment of the reset ({error}). Nothing was cleared.",
+      "saveFailedAlone": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and no other GM is connected to hold a copy: back up the case now (GM panel, Between sessions)."
     },
     "Case": {
       "gmOnly": "Only a GM can back up or restore the case.",

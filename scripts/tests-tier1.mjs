@@ -3567,8 +3567,8 @@ const INVARIANTS = [
                     for (const tm of timers.filter(x => !x.done && x.at <= t)) { tm.done = true; tm.fn(); }
                 }
             };
-            const node = (id, { gm = true } = {}) => {
-                const store = new Map();
+            const node = (id, { gm = true, stored = null } = {}) => {
+                const store = new Map(stored ?? []);
                 const eng = G.createGmStoreEngine({
                     selfId: () => id, isGM: () => gm, isPrimary: () => [...active].sort()[0] === id, worldId: () => "R170WORLD",
                     activeGmIds: () => [...active].filter(u => nodes.get(u)?.gm), primaryGmId: () => [...active].sort()[0] ?? null,
@@ -3581,7 +3581,7 @@ const INVARIANTS = [
                     log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
                 });
                 const handle = eng.define({ name: "r170", key: "r170Store", split: ["public"] });
-                const n = { id, gm, eng, handle };
+                const n = { id, gm, eng, handle, store };
                 nodes.set(id, n);
                 return n;
             };
@@ -3600,7 +3600,16 @@ const INVARIANTS = [
         const runs = [];
         for (const order of ["fifo", "lifo", "shuffled"]) for (const dup of [false, true]) {
             const w = makeWorld({ order, dup });
-            const a = w.node("R170A"), b = w.node("R170B"), c = w.node("R170C");
+            /* A row only the joiner holds, saved in its browser in an earlier session (the review's
+               C-m1): it reaches the GMs already there by their "done"'s ask alone. Written after
+               the joiner is active, as it was until the fix round, it went out as a delta, and a
+               "done" whose ask was ignored passed. */
+            const earlier = makeWorld({ order: "fifo", dup: false });
+            const past = earlier.node("R170C");
+            earlier.active.add("R170C");
+            await past.eng.open();
+            await past.handle.patch("u3", { realType: "prep" }, { stamp: 7 });
+            const a = w.node("R170A"), b = w.node("R170B"), c = w.node("R170C", { stored: past.store });
             w.active.add("R170A");
             w.active.add("R170B");
             await Promise.all([a.eng.open(), b.eng.open()]);
@@ -3617,11 +3626,12 @@ const INVARIANTS = [
             await w.pump();
             const [sa, sb, sc] = [a, b, c].map(n => J(n.handle.section()));
             runs.push({ order, dup, same: sa === sb && sb === sc, u1: a.handle.get("u1"), u2: a.handle.get("u2"),
+                u3: [a.handle.get("u3")?.realType ?? null, b.handle.get("u3")?.realType ?? null],
                 a: a.eng.hydration().state, c: c.eng.hydration().state });
         }
         const wrong = runs.filter(r => !r.same || J(r.u1) !== J({ faint: true, realType: "key", remnantId: "R170TRACE" }) || r.u2 !== null
-            || r.a !== "answered" || r.c !== "answered");
-        equal(J(wrong), "[]", "three GMs did not converge on the newest fields, or were not answered, for some delivery order");
+            || J(r.u3) !== J(["prep", "prep"]) || r.a !== "answered" || r.c !== "answered");
+        equal(J(wrong), "[]", "three GMs did not converge on the newest fields, the joiner's own row did not reach the GMs already there, or they were not answered, for some delivery order");
 
         const alone = makeWorld({ order: "fifo", dup: false });
         const solo = alone.node("R170A");
@@ -4222,6 +4232,62 @@ const INVARIANTS = [
         equal(JSON.stringify([S.sameDecision(shown, { ...shown }), S.sameDecision(shown, { ...shown, pick: "R185B" }),
             S.sameDecision(shown, { ...shown, pickedAt: 30 }), S.sameDecision(shown, null), S.sameDecision(null, shown)]),
             JSON.stringify([true, false, false, false, false]), "the window's decision is read as the one it showed after the record changed, or not when it did not");
+    }],
+
+    ["R186 - a failed save says who holds a copy, a crossed tab's write is written back, and a player's browser writes no GM store", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the reviews' DS-m4 = C-m8, DS-m8 and the round-2
+         * R2-m1 = m1. On engines built with fakes. A save that fails - a full origin - told a
+         * GM alone that "the other GMs hold a copy": the notice now says so only with another
+         * GM connected, and asks for a backup either way. Two tabs of one browser whose flushes
+         * cross leave the stored value without one tab's write: that tab merged the other's
+         * storage event and kept its own row in memory only, lost with the tab; it writes it
+         * back now. And a store written through a handle on a client that is not a GM's is
+         * refused, its storage never written.
+         */
+        const G = await import("./gm-store.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const quiet = { warn: () => {}, error: () => {}, debug: () => {} };
+        const engineOf = ({ store = new Map(), gms = ["R186A"], gm = true, fail = false } = {}) => {
+            const flushes = [], notices = [];
+            const eng = G.createGmStoreEngine({
+                selfId: () => "R186A", isGM: () => gm, isPrimary: () => gm, worldId: () => "R186WORLD",
+                activeGmIds: () => gms, primaryGmId: () => gms[0], senderIsGM: () => true, userName: u => u, send: () => {},
+                storage: { read: k => store.get(k) ?? null, write: async (k, v) => { if (fail) throw new Error("R186 full"); store.set(k, JSON.stringify(v)); } },
+                readLegacy: () => undefined, now: () => 5_000_000,
+                timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+                clock: () => ({}), log: quiet, notify: (level, text) => notices.push([level, text]), text: key => key
+            });
+            const handle = eng.define({ name: "r186", key: "r186Key", kind: "ledger", sync: true, backup: true });
+            return { eng, handle, store, notices, settle: async () => { for (let i = 0; i < 4; i++) await Promise.all(flushes); } };
+        };
+
+        const alone = engineOf({ fail: true }), withPeer = engineOf({ fail: true, gms: ["R186A", "R186B"] });
+        for (const e of [alone, withPeer]) {
+            await e.handle.patch("x", { v: 1 });
+            await e.settle();
+        }
+        equal(JSON.stringify([alone.notices, withPeer.notices]),
+            JSON.stringify([[["error", "DRPG.GmStore.saveFailedAlone"]], [["error", "DRPG.GmStore.saveFailed"]]]),
+            "a failed save told a GM alone that another GM held a copy, or said nothing");
+
+        const tab = engineOf();
+        await tab.handle.patch("x", { v: 1 });
+        await tab.settle();
+        const theirs = JSON.stringify({ v: 1, worlds: { R186WORLD: { e: { y: { v: 2 } }, t: { y: 4_000_000 }, d: {}, cleared: 0 } } });
+        tab.store.set("r186Key", theirs);
+        tab.eng.onStorage(`${MODULE_ID}.r186Key`, theirs);
+        await tab.settle();
+        const stored = JSON.parse(tab.store.get("r186Key") ?? "{}")?.worlds?.R186WORLD?.e ?? {};
+        equal(JSON.stringify(Object.keys(stored).sort()), JSON.stringify(["x", "y"]),
+            "a tab whose write another tab's crossed flush left out did not write it back");
+
+        const player = engineOf({ gm: false });
+        await player.handle.patch("x", { v: 1 });
+        await player.handle.mergeIn({ e: { y: { v: 2 } }, t: { y: 5 }, d: {}, cleared: 0 }, { source: "sync" });
+        await player.settle();
+        equal(JSON.stringify([player.handle.get("x"), player.handle.get("y"), player.store.size]), JSON.stringify([null, null, 0]),
+            "a client that is not a GM's wrote a GM store");
     }],
 
     ["R182 - every store a player's copy is made from sends the copies again after a restore", async () => {

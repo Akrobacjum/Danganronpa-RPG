@@ -58,6 +58,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     const mine3 = await ledger(p3_);
     check(`${p3_.who}: a bystander holds no rows at all`, !mine3?.[ids.scene]?.[ids.aiko] && !mine3?.[ids.scene]?.[ids.botan], JSON.stringify(mine3));
 
+    /* NO GM STORE ON A PLAYER'S BROWSER (E04's fix round; the round-2 reviews' R2-m1 and m1). The
+       check C9 took out read the GMs' key on p1 ("no union on a player's browser"), and nothing read
+       it since. Through the engine: on each player every store's section is empty and its key is not
+       in the browser's storage, and a write through a handle there is refused. */
+    for (const c of [p1_, p3_]) {
+        const held = await c.eval(`const E = await import("${REPO}/scripts/gm-store.mjs");
+            const rows = E.gmStoreHandles().map(h => { const s = h.section();
+                return [h.name, Object.keys(s.e).length + Object.keys(s.d).length + (s.cleared ? 1 : 0), game.settings.storage.get("client").getItem("${MOD}." + h.spec.key) !== null]; });
+            await E.gmStoreByName("discovery").patch("R60PLANTED", { "Forged Room": true });
+            return { dirty: rows.filter(([, n, key]) => n || key), stores: rows.length, planted: E.gmStoreByName("discovery").get("R60PLANTED") };`);
+        check(`${c.who}: no GM store is held on a player's browser, and a write there is refused`,
+            held.stores >= 10 && held.dirty.length === 0 && held.planted === null, JSON.stringify(held));
+    }
+
     // 2. the pull: p2 loses its rows and asks the primary GM for them
     phase("pull", { flow: "discovery-ledger" });
     await p2_.eval(`${stores} await S.fogCopy.forget(); return true;`);
