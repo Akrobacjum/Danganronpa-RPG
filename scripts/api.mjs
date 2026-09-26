@@ -183,7 +183,8 @@ import {
     issueAutopsy, migrateTruthBullets, secretOf, setSecret, dropSecret
 } from "./truth-bullets.mjs";
 import {
-    backupCase, restoreCase, previewRestore, gmStoreHealth, gmStoreStatus, gmStoreReclaim, openRestoreDialog
+    backupCase, restoreCase, previewRestore, gmStoreHealth, gmStoreStatus, gmStoreReclaim, openRestoreDialog,
+    fillBulletsFromTraces
 } from "./gm-stores.mjs";
 import {
     isMonokuma, setMonokuma, monokumaActors, studentActors,
@@ -655,6 +656,8 @@ export const DrpgApi = {
     gmStoreHealth,
     gmStoreStatus,
     gmStoreReclaim,
+    /** The health check's "Fill from their traces": a bullet's lost real type, from its trace's row (weak). */
+    fillBulletsFromTraces,
     exportLedger: backupCase,
     importLedger: restoreCase,
 

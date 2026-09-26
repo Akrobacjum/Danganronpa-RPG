@@ -753,6 +753,40 @@ export async function propagateCrimeTie(remnantTokenId, tied) {
 }
 
 /**
+ * `propagateCrimeTie` for many traces in one pass (E04, 1.2.63): the copies'
+ * answer keys in one store write, and each identified copy's item as before.
+ * `setRemnantFlagsMany` (remnants.mjs) calls it for a chapter's traces at a
+ * victim's death and a weapon's at its use; one call per trace was one pass over
+ * every bullet in the world and one write of the store per trace.
+ *
+ * @returns {Promise<number>} how many copies moved
+ */
+export async function propagateCrimeTieMany(remnantTokenIds, tied) {
+    const ids = new Set((remnantTokenIds ?? []).filter(Boolean));
+    if (!game.user.isGM || !ids.size) return 0;
+
+    const secrets = {}, shown = [];
+    for (const actor of game.actors) {
+        if (actor.type !== "character") continue;
+        for (const item of bulletsOf(actor)) {
+            if (!ids.has(secretOf(item.uuid).remnantId)) continue;
+            secrets[item.uuid] = { tiedToCrime: Boolean(tied) };
+            if (isIdentified(item)) shown.push(item);
+        }
+    }
+    if (!Object.keys(secrets).length) return 0;
+    await bulletStore.patchMany(secrets, { ifLive: true });
+    for (const item of shown) {
+        try {
+            await item.update({ [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: Boolean(tied) });
+        } catch (err) {
+            error(`Could not move the crime tie onto "${item.name}"`, err);
+        }
+    }
+    return Object.keys(secrets).length;
+}
+
+/**
  * A GM corrected what a trace really is: move it onto every copy of it.
  *
  * The twin of `propagateCrimeTie` above, and the same two halves for the same

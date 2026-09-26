@@ -75,6 +75,33 @@ export const bulletStore = defineGmStore({
     }
 });
 
+/**
+ * THE TRACES' ANSWER KEYS (E04 C4; audit S05-10, S05-64, the E30 review's m3).
+ * Keyed `sceneId.tokenId`; `public` - what a player may be shown - is split, a
+ * stamp per sub-key, so a GM renaming a trace and another rewriting its reading
+ * both keep theirs. The old rows are claimed per world by their scene, live and
+ * tombstoned; a row whose scene this world does not have stays in the old key
+ * (another world's, or a scene deleted since).
+ */
+export const remnantStore = defineGmStore({
+    name: "remnants", key: SETTINGS.remnantSecrets, legacyKey: SETTINGS.legacyRemnantSecrets,
+    kind: "ledger", split: ["public"], resetGroup: "remnants", backup: true, sync: true,
+    claim: legacy => {
+        const rows = [], left = [];
+        for (const [key, entry] of Object.entries(isPlain(legacy) ? legacy : {})) {
+            if (!isPlain(entry)) { left.push({ key, reason: "notARow" }); continue; }
+            if (!game.scenes?.has(String(key).split(".")[0])) { left.push({ key, reason: "otherWorld" }); continue; }
+            const { updated, deleted, ...fields } = entry;
+            rows.push(deleted ? { key, deleted: true, stamp: updated } : { key, fields, stamp: updated });
+        }
+        return { rows, left };
+    },
+    exists: key => {
+        const [sceneId, tokenId] = String(key).split(".");
+        return Boolean(game.scenes?.get(sceneId)?.tokens?.get(tokenId));
+    }
+});
+
 /** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
 export function gmStoreLegacyChanged(name) {
     return gmStoreByName(name)?.legacyChanged() ?? false;
@@ -333,6 +360,41 @@ export function bulletsWithoutAnswer() {
 }
 
 /**
+ * What a bullet with no real type here can take from its trace: a bullet copied
+ * from a trace carries the trace's key in its `remnantRef` flag (public, the one
+ * a player's own trace icon reads), and the trace's row says what it really is
+ * - the type the copy was made with (observe.mjs, gm-items.mjs). `{ uuid:
+ * { realType, remnantId } }`, for the bullets whose trace's row is here.
+ */
+function fillsFromTraces() {
+    const fills = {};
+    for (const item of allBullets()) {
+        if (bulletStore.get(item.uuid)?.realType) continue;
+        const ref = item.getFlag(MODULE_ID, "remnantRef");
+        const type = ref ? remnantStore.get(ref)?.type : null;
+        if (type) fills[item.uuid] = { realType: type, remnantId: String(ref).split(".")[1] || null };
+    }
+    return fills;
+}
+
+/**
+ * FILL FROM THEIR TRACES (the design's 6.3; E04 C4). The bullets whose answer key
+ * this browser lost, or whose key lost its real type (S05-01's damage), and whose
+ * trace's row is here, take `realType` and `remnantId` from it - weak and fill-only,
+ * so a value any GM holds for either wins, and nothing else of the key is made up:
+ * a GM's note, the analysed reading and the rest come back only from a backup.
+ * Answers how many bullets were filled.
+ */
+export async function fillBulletsFromTraces() {
+    if (!game.user?.isGM) return 0;
+    await Promise.all([bulletStore.whenHydrated(), remnantStore.whenHydrated()]);
+    const fills = fillsFromTraces();
+    const n = Object.keys(fills).length;
+    if (n) await bulletStore.patchMany(fills, { weak: true, fillOnly: true });
+    return n;
+}
+
+/**
  * What this browser is missing of the case, as it stands: one row per finding,
  * `{ id, level, key, data }` - `missing` (something the table needs is not here),
  * `conflict` (a GM has to decide), `info`. Reads only; any GM may ask
@@ -344,11 +406,15 @@ export async function gmStoreHealth() {
     const rows = [];
     const add = (id, level, key, data = {}) => rows.push({ id, level, key, data });
 
-    const { remnantData } = await import("./remnants.mjs");
     const traces = [];
     for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) if (token.getFlag(MODULE_ID, "isRemnant")) traces.push(token);
-    const traceGaps = traces.filter(token => !remnantData(token));
+    const traceKey = token => `${token.parent?.id}.${token.id}`;
+    const traceGaps = traces.filter(token => !remnantStore.has(traceKey(token)));
     if (traceGaps.length) add("traces", "missing", "DRPG.Case.row.traces", { n: traceGaps.length, of: traces.length });
+    // A row whose token is gone: unreachable (every read goes through a token), counted, never removed on its own.
+    const onMap = new Set(traces.map(traceKey));
+    const orphans = Object.keys(remnantStore.entries()).filter(key => !onMap.has(key)).length;
+    if (orphans) add("traceOrphans", "info", "DRPG.Case.row.traceOrphans", { n: orphans });
 
     const bullets = allBullets();
     const noRow = bullets.filter(item => !bulletStore.has(item.uuid));
@@ -383,8 +449,8 @@ export async function gmStoreHealth() {
         { when: mark.lastBackupAt ? new Date(mark.lastBackupAt).toLocaleString() : "", who: mark.lastBackupBy ?? "" });
 
     const counts = {
-        traces: { of: traces.length, missing: traceGaps.length },
-        bullets: { of: bullets.length, missing: noRow.length, noAnswer: noAnswer.length }
+        traces: { of: traces.length, missing: traceGaps.length, orphans },
+        bullets: { of: bullets.length, missing: noRow.length, noAnswer: noAnswer.length, fillable: Object.keys(fillsFromTraces()).length }
     };
     return { world: game.world.id, hydrated: gmStoresHydrated(), rows, counts, missing: rows.filter(r => r.level === "missing").length };
 }
@@ -432,6 +498,7 @@ export async function runHealthCheck() {
     try {
         const lines = report.rows.filter(r => r.level !== "info").map(r =>
             `<li class="${r.level === "missing" ? "drpg-warning" : ""}">${esc(healthLine(r))}</li>`).join("");
+        const fillable = report.counts?.bullets?.fillable ?? 0;
         const choice = await DialogV2.wait({
             window: { title: game.i18n.localize("DRPG.Case.healthTitle") },
             classes: ["drpg-panel"],
@@ -439,6 +506,7 @@ export async function runHealthCheck() {
                 <p class="notes">${esc(game.i18n.localize("DRPG.Case.healthNote"))}</p>`),
             buttons: [
                 { action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile") },
+                ...(fillable ? [{ action: "fill", label: game.i18n.format("DRPG.Case.fillFromTraces", { n: fillable }) }] : []),
                 { action: "continue", label: game.i18n.localize("DRPG.Case.continue"), default: true }
             ],
             rejectClose: false
@@ -446,6 +514,12 @@ export async function runHealthCheck() {
         if (choice === "restore") {
             healthOpen = false;
             return openRestoreDialog();
+        }
+        if (choice === "fill") {
+            const filled = await fillBulletsFromTraces();
+            ui.notifications.info(plural("DRPG.Case.filled", { n: filled }));
+            healthOpen = false;
+            return runHealthCheck();
         }
         ui.notifications.warn(game.i18n.localize("DRPG.Case.continued"), { permanent: true });
     } finally {

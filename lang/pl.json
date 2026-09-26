@@ -4541,7 +4541,8 @@
       "restored": "Sprawa przywrócona.",
       "restoredStore": "{store}: zmienione {n}, pominięte pod cięciem resetu {cut}",
       "store": {
-        "bullets": "Truth Bullety"
+        "bullets": "Truth Bullety",
+        "remnants": "Ślady"
       },
       "row": {
         "traces": {
@@ -4576,7 +4577,13 @@
         "skew": "Stemple wyprzedzające zegar tej przeglądarki: {names}.",
         "bytes": "Magazyny GM-a zajmują {stores} KB pamięci tej przeglądarki; moduł łącznie {total} KB.",
         "lastBackup": "Ostatnia kopia: {when} ({who}).",
-        "neverBackedUp": "Ta sprawa nie ma jeszcze żadnej kopii."
+        "neverBackedUp": "Ta sprawa nie ma jeszcze żadnej kopii.",
+        "traceOrphans": {
+          "one": "{n} klucz odpowiedzi śladu nie ma żetonu na żadnej scenie: zostaje, nic go nie czyta.",
+          "few": "{n} klucze odpowiedzi śladów nie mają żetonu na żadnej scenie: zostają, nic ich nie czyta.",
+          "many": "{n} kluczy odpowiedzi śladów nie ma żetonu na żadnej scenie: zostają, nic ich nie czyta.",
+          "other": "{n} klucza odpowiedzi śladów nie ma żetonu na żadnej scenie: zostają, nic ich nie czyta."
+        }
       },
       "healthTitle": "Sprawa w tej przeglądarce",
       "healthIntro": "Tej przeglądarce brakuje części sprawy tego świata:",
@@ -4597,6 +4604,13 @@
         "few": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullety nie mają klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć sprawę i zapytaj ponownie.",
         "many": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletów nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć sprawę i zapytaj ponownie.",
         "other": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletu nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć sprawę i zapytaj ponownie."
+      },
+      "fillFromTraces": "Uzupełnij z ich śladów ({n})",
+      "filled": {
+        "one": "{n} Truth Bullet wziął klucz odpowiedzi ze swojego śladu.",
+        "few": "{n} Truth Bullety wzięły klucze odpowiedzi ze swoich śladów.",
+        "many": "{n} Truth Bulletów wzięło klucze odpowiedzi ze swoich śladów.",
+        "other": "{n} Truth Bulletu wzięło klucze odpowiedzi ze swoich śladów."
       }
     }
   }

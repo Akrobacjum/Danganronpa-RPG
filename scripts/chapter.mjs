@@ -33,7 +33,7 @@ import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.m
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, setBodyDiscovery, clearBodyDiscovery } from "./settings.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret, faintOf } from "./truth-bullets.mjs";
-import { remnantsOn, remnantData, REMNANT_FLAGS } from "./remnants.mjs";
+import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, error, plural, esc }
     from "./utils.mjs";
@@ -421,19 +421,18 @@ async function promoteFaintPrep() {
 
     if (!Array.isArray(picked) || !picked.length) return 0;
 
+    /* INTO THE LEDGER (E04, 1.2.63; the owner's Q2, S06-02's writer half). The ticks
+       were written onto the token as `faint: false` and `tiedToCrime: true`, flags
+       every player's client receives and nothing read: the ledger row - what the
+       dashboard, Observe and the chapter-end sweep read - kept `faint: true`. They
+       are the dashboard's own write now, one store write for every trace ticked, and
+       they reach the copied bullets as a hand-ticked box does. */
+    const tokens = picked.map(index => candidates[index]?.token).filter(Boolean);
     let promoted = 0;
-    for (const index of picked) {
-        const entry = candidates[index];
-        if (!entry) continue;
-        try {
-            await entry.token.update({
-                [`flags.${MODULE_ID}.${REMNANT_FLAGS.faint}`]: false,
-                [`flags.${MODULE_ID}.${REMNANT_FLAGS.tiedToCrime}`]: true
-            });
-            promoted++;
-        } catch (err) {
-            error("Could not promote a Faint Prep Remnant", err);
-        }
+    try {
+        promoted = await setRemnantFlagsMany(tokens, { faint: false, tiedToCrime: true });
+    } catch (err) {
+        error("Could not promote the Faint Prep Remnants", err);
     }
 
     log(`Promoted ${promoted} Faint Prep Remnant(s) to permanent evidence.`);

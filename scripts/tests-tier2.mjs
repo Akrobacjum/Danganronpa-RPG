@@ -13,6 +13,7 @@ import { applyNarrowLayout, narrowLayout } from "./narrow.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { voiceTargets } from "./voice.mjs";
 import { forcedDeletion } from "./utils.mjs";
+import { gmStoresIdle } from "./gm-store.mjs";
 import {
     ok, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, cast
@@ -166,6 +167,23 @@ async function restore(snap) {
      */
     if (stableJson(getClock()) !== stableJson(snap.clock)) await setClock(snap.clock);
 
+    /*
+     * THE TRACES THAT APPEARED, REMOVED BEFORE THE SETTINGS GO BACK (E04, 1.2.63).
+     * A trace's token deleted tombstones its row in the GM store (remnants.mjs, the
+     * deleteToken hook), which is a write of the store's key. Removed after the
+     * settings, as they were until E04, each tombstone landed on the key just put
+     * back: measured on the harness 26.09, six scenarios left
+     * "gmRemnants.worlds.<world>.d.<key> (none) -> ..." behind them. Removed first,
+     * and the store let settle, the settings below are written over the tombstones.
+     */
+    for (const scene of game.scenes) {
+        const strays = scene.tokens
+            .filter(t => t.getFlag(MODULE_ID, "isRemnant") && !snap.remnants.has(`${scene.id}.${t.id}`))
+            .map(t => t.id);
+        if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
+    }
+    await gmStoresIdle();
+
     // Every other setting that moved, written back as it was recorded. Compared
     // first so a setting nothing touched is not written - several have `onChange`
     // handlers that redraw the table. One key that will not go back must not stop
@@ -219,14 +237,6 @@ async function restore(snap) {
         }
         await actor.update(update);
     }
-    // Anything that appeared while the scenario ran, removed.
-    for (const scene of game.scenes) {
-        const strays = scene.tokens
-            .filter(t => t.getFlag(MODULE_ID, "isRemnant") && !snap.remnants.has(`${scene.id}.${t.id}`))
-            .map(t => t.id);
-        if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
-    }
-
     // The documents that appeared - the helper actors the module makes on first need
     // among them - removed, after the tokens that may stand on them.
     for (const [name, before] of snap.documents ?? []) {
@@ -6456,33 +6466,51 @@ const SCENARIOS = [
          * would migrate a real table's traces.
          *
          * AND WHAT THE GM TICKED STAYS TICKED (E30 fix, 25.09.2026; audit S06-02).
-         * `promoteFaintPrep` (chapter.mjs) writes the GM's choice at a body discovery
-         * onto the token - `faint: false`, `tiedToCrime: true` - where nothing reads it,
+         * `promoteFaintPrep` (chapter.mjs) wrote the GM's choice at a body discovery
+         * onto the token - `faint: false`, `tiedToCrime: true` - where nothing read it,
          * and those are the only answer-key flags a trace placed since the ledger can
          * carry. The first E30 build stripped them and wrote nothing. Now a promoted
          * trace with a live row gets the promotion in its row; one with no row on this
          * browser keeps its flags and is reported; a row that does not read back
          * strips nothing; and whatever else is on a token afterwards - a key but the
          * two it may keep, a name that is not the neutral one - comes back in `left`.
+         *
+         * THE FIXTURES ARE TRACES FROM BEFORE THE LEDGER (E04, 1.2.63): tokens made with
+         * their answer key in flags and no row. A placed trace whose row was then dropped
+         * stood in for one until E04; a dropped row is a tombstone now, under which the
+         * migration's weak write lands nowhere, so it stands in for nothing. The promoted
+         * trace's row is written at the store's weak stamp, as a row claimed with no
+         * stamp holds it - a promotion is carried only over a value from before the
+         * upgrade (the design's H6); over one written since, it is the next test's.
          */
         const remnants = await import("./remnants.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
         needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
         const scene = game.scenes.active ?? canvas?.scene;
         const anchor = scene?.tokens?.find(t => t.x || t.y);
         const oldName = "SUITE Subtle Prep Remnant";
         const legacy = { remnantType: "prep", visibility: "subtle", note: "SUITE old note", sourceName: "SUITE Someone" };
-        // What promoteFaintPrep writes onto a ticked trace (chapter.mjs).
+        // What promoteFaintPrep wrote onto a ticked trace until E04 (chapter.mjs).
         const promotion = { faint: false, tiedToCrime: true };
         const placed = [];
-        const place = async (extra = {}) => {
-            const t = await remnants.placeRemnant({ type: "prep", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
-                note: "test fixture - migrated trace", tiedToCrime: false, ...extra });
-            ok(t, "could not place a fixture trace");
+        // A trace from before the ledger: the answer key in its flags, the label as its name, no row.
+        if (!game.actors.getName("Remnant")) {
+            const first = await remnants.placeRemnant({ type: "prep", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "test fixture - makes the Remnant actor" });
+            if (first) placed.push(first);
+        }
+        const oldTrace = async (flags, name = oldName) => {
+            const [t] = await scene.createEmbeddedDocuments("Token", [{
+                name, actorId: game.actors.getName("Remnant")?.id ?? null, actorLink: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, hidden: true,
+                flags: { [MODULE_ID]: { isRemnant: true, ...flags } }
+            }]);
+            ok(t, "could not make a fixture trace from before the ledger");
             placed.push(t);
             return t;
         };
         const flagKeys = t => JSON.stringify(Object.keys(t?._source?.flags?.[MODULE_ID] ?? {}).sort());
-        const row = t => foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.remnantSecrets)?.[remnants.keyOf(t)] ?? null);
+        const row = t => foundry.utils.deepClone(remnantStore.get(remnants.keyOf(t)));
         const writeFlags = (t, flags) => t.update(Object.fromEntries(
             Object.entries(flags).map(([key, value]) => [`flags.${MODULE_ID}.${key}`, value])));
         const sorted = list => JSON.stringify([...(list ?? [])].sort());
@@ -6495,18 +6523,15 @@ const SCENARIOS = [
             else delete settings.set;
         };
         try {
-            // Before the ledger: the answer key on the token, the label as its name, no row.
-            const token = await place();
-            await token.update({ name: oldName });
-            await writeFlags(token, legacy);
-            await remnants.dropRemnantSecret(token);
-            equal(remnants.remnantData(token), null, "the fixture still has a live ledger row, so it is not a trace from before the ledger");
+            const token = await oldTrace(legacy);
+            equal(remnants.remnantData(token), null, "the fixture has a live ledger row, so it is not a trace from before the ledger");
 
             const first = await remnants.migrateRemnantToken(token);
             equal(flagKeys(token), JSON.stringify(["isRemnant"]), "the migrated token still carries its answer key");
             equal(first?.ledger, "moved", "the first run did not move the trace into the ledger");
             equal(remnants.remnantData(token)?.note, legacy.note, "the token's note did not reach the ledger");
             equal(row(token)?.label, oldName, "the token's old name did not reach the ledger as its label");
+            equal(remnantStore.stampOf(remnants.keyOf(token), "note"), remnantStore.weak(), "a moved row was not written weak");
 
             // A GM corrects the trace. Then a first run whose strip did not land (S05-43):
             // the flags are back on the token, one more among them, and the name stays neutral.
@@ -6528,33 +6553,34 @@ const SCENARIOS = [
             equal(sorted(third?.left), sorted(["name", "suiteStray"]), "what else is on the token did not come back in `left`");
             ok(flagKeys(token).includes("suiteStray"), "the migration deleted a key it does not know instead of reporting it");
 
-            // A Faint Prep promotion, with the trace's row on this browser: carried, then stripped.
-            const promoted = await place({ faint: true });
-            await writeFlags(promoted, promotion);
+            // A Faint Prep promotion, over a row from before the upgrade: carried, then stripped.
+            const promoted = await oldTrace(promotion, game.i18n.localize("DRPG.Remnant.tokenName"));
+            const weak = remnantStore.weak();
+            await remnantStore.patch(remnants.keyOf(promoted), { type: "prep", visibility: "subtle", faint: true, tiedToCrime: false,
+                note: "test fixture - a promoted trace" }, { weak: true });
             const carried = await remnants.migrateRemnantToken(promoted);
             equal(JSON.stringify(carried?.carried ?? null), JSON.stringify({ faint: [true, false], tiedToCrime: [false, true] }),
                 "the promotion carried into the row is not the one the token held");
             equal(remnants.remnantData(promoted)?.faint, false, "the promotion's faint: false did not reach the row");
             equal(remnants.remnantData(promoted)?.tiedToCrime, true, "the promotion's tiedToCrime: true did not reach the row");
+            equal(remnantStore.stampOf(remnants.keyOf(promoted), "faint"), weak + 1, "the promotion was not carried at the old value's stamp plus one");
             equal(carried?.ledger, "filled", "the promoted trace's row was not written");
             equal(flagKeys(promoted), JSON.stringify(["isRemnant"]), "the promoted token still carries the flags");
 
             // The same promotion with no row on this browser: nothing stripped, reported.
-            const orphan = await place({ faint: true });
-            await remnants.dropRemnantSecret(orphan);
-            await writeFlags(orphan, promotion);
+            const orphan = await oldTrace(promotion, game.i18n.localize("DRPG.Remnant.tokenName"));
             const alone = await remnants.migrateRemnantToken(orphan);
             equal(flagKeys(orphan), sorted(["faint", "isRemnant", "tiedToCrime"]), "a promotion with no row to carry it into was stripped");
             equal(alone?.ledger, "noRow", "a trace with flags, no type and no row was not reported as such");
             equal(sorted(alone?.left), sorted(["faint", "tiedToCrime"]), "the flags left on the trace were not reported");
             equal(remnants.remnantData(orphan), null, "a row was made up for a trace this browser has no record of");
 
-            // A row write that does not land strips nothing.
-            const unlucky = await place();
-            await writeFlags(unlucky, legacy);
-            await remnants.dropRemnantSecret(unlucky);
+            // A row write that does not reach storage strips nothing: the store's save is
+            // swallowed here, so the row stands in memory and not on disk, as after a
+            // failed save - the read-back is of storage.
+            const unlucky = await oldTrace(legacy);
             settings.set = async function (namespace, key, value) {
-                if (namespace === MODULE_ID && key === SETTINGS.remnantSecrets) throw new Error("SUITE: the ledger write is refused");
+                if (namespace === MODULE_ID && key === remnantStore.spec.key) return value;
                 return realSet.call(this, namespace, key, value);
             };
             let refused = null;
@@ -6563,11 +6589,72 @@ const SCENARIOS = [
             } finally {
                 putSetBack();
             }
-            ok(flagKeys(unlucky).includes("remnantType"), "the answer key left the token although its row was never written");
-            equal(refused?.stripped, false, "a token whose row was never written was counted as stripped");
+            ok(remnantStore.has(remnants.keyOf(unlucky)), "the swallowed save left no row in memory either - this measured nothing");
+            ok(flagKeys(unlucky).includes("remnantType"), "the answer key left the token although its row was never saved");
+            equal(refused?.stripped, false, "a token whose row was never saved was counted as stripped");
             ok((refused?.unwritten ?? []).includes("type"), "the row that did not read back was not reported");
         } finally {
             putSetBack();
+            for (const t of placed) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["migrateRemnants cannot beat a correction made on another GM", async () => {
+        /*
+         * E04, 26.09.2026; the design's H6, the E30 review's m3. A promotion on a token
+         * from before the upgrade meets the trace's row. Until E04 the carry was written
+         * as the newest row, whole, and won on every GM - a GM who had set the trace
+         * back to Faint since, on any browser, lost that. The row's fields are stamped
+         * one by one now: a field from before the upgrade takes the promotion at its
+         * stamp plus one, and a field another GM wrote since stands. Here the row is a
+         * row from before the upgrade (every field weak); another GM's correction of
+         * `faint` arrives as a sync does; then the token's promotion is migrated.
+         */
+        const remnants = await import("./remnants.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const placed = [];
+        try {
+            if (!game.actors.getName("Remnant")) {
+                const first = await remnants.placeRemnant({ type: "prep", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                    note: "test fixture - makes the Remnant actor" });
+                if (first) placed.push(first);
+            }
+            const [token] = await scene.createEmbeddedDocuments("Token", [{
+                name: game.i18n.localize("DRPG.Remnant.tokenName"), actorId: game.actors.getName("Remnant")?.id ?? null, actorLink: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, hidden: true, flags: { [MODULE_ID]: { isRemnant: true } }
+            }]);
+            ok(token, "could not make the fixture trace");
+            placed.push(token);
+            const key = remnants.keyOf(token);
+            await remnantStore.patch(key, { type: "prep", visibility: "subtle", faint: true, tiedToCrime: false,
+                note: "test fixture - a promotion and a later correction" }, { weak: true });
+            const weak = remnantStore.weak();
+            const theirs = E.emptySection();
+            E.writeFields(theirs, key, { faint: true }, E.gmStoreStamp(), remnantStore.spec);
+            await remnantStore.mergeIn(theirs, { source: "sync" });
+            const corrected = remnantStore.stampOf(key, "faint");
+            ok(corrected > weak, "the other GM's correction did not arrive above the old value");
+            await token.update({ [`flags.${MODULE_ID}.faint`]: false, [`flags.${MODULE_ID}.tiedToCrime`]: true });
+
+            const done = await remnants.migrateRemnantToken(token);
+            equal(remnants.remnantData(token)?.faint, true, "the promotion beat the correction another GM made since the upgrade");
+            equal(remnantStore.stampOf(key, "faint"), corrected, "the corrected field was written again");
+            equal(JSON.stringify(done?.notCarried ?? null), JSON.stringify({ faint: [true, false] }), "the promotion not carried is not reported");
+            equal(JSON.stringify(done?.carried ?? null), JSON.stringify({ tiedToCrime: [false, true] }),
+                "the half of the promotion over a value from before the upgrade was not carried");
+            equal(remnants.remnantData(token)?.tiedToCrime, true, "the tie was not carried into the row");
+            equal(remnantStore.stampOf(key, "tiedToCrime"), weak + 1, "the tie was not carried at the old value's stamp plus one");
+            equal(JSON.stringify(Object.keys(token._source?.flags?.[MODULE_ID] ?? {}).sort()), JSON.stringify(["isRemnant"]),
+                "the token kept the promotion after its row was written");
+        } finally {
             for (const t of placed) {
                 try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
                 try { await t.delete(); } catch { /* already gone */ }
@@ -6657,10 +6744,33 @@ const SCENARIOS = [
          */
         const E = await import("./gm-store.mjs");
         const bullets = await import("./truth-bullets.mjs");
+        const remnants = await import("./remnants.mjs");
         const [student] = cast(1);
         const here = `Actor.${student.id}.Item`;
         const T = Date.now() - 60 * 60 * 1000;
+        needs(world.atLeast("sceneOnScreen"), "the traces' old rows are claimed by a scene of this world");
+        const sceneId = (game.scenes.active ?? canvas?.scene)?.id;
+        // A trace's token as remnantData reads one: its flag, its scene, its id.
+        const trace = id => ({ id, parent: { id: sceneId }, hidden: true, getFlag: (scope, flag) => (flag === "isRemnant" ? true : undefined) });
         const FIXTURES = {
+            remnants: {
+                legacy: SETTINGS.legacyRemnantSecrets,
+                seed: {
+                    [`${sceneId}.SUITEE04TRACE1`]: { type: "prep", visibility: "evident", note: "claimed", updated: T },
+                    [`${sceneId}.SUITEE04TRACE2`]: { type: "key", note: "no stamp" },
+                    [`${sceneId}.SUITEE04TRACE3`]: { deleted: true, updated: T },
+                    ["SUITEE04NOSCENE.SUITEE04TRACE4"]: { type: "prep", updated: T }
+                },
+                census: { legacy: 4, claimed: 3, left: 1, tombstones: 1, reasons: { otherWorld: 1 } },
+                readBack: store => {
+                    const one = remnants.remnantData(trace("SUITEE04TRACE1"));
+                    equal(stableJson([one?.type, one?.note, one?.updated]), stableJson(["prep", "claimed", T]),
+                        "a claimed row does not read back through remnantData, at its own stamp");
+                    equal(remnants.remnantData(trace("SUITEE04TRACE2"))?.type, "key", "a row with no stamp was not claimed (weak)");
+                    ok(store.tombstone(`${sceneId}.SUITEE04TRACE3`) === T, "an old tombstone was not claimed at its own stamp");
+                    ok(!store.has("SUITEE04NOSCENE.SUITEE04TRACE4"), "another world's row was claimed");
+                }
+            },
             bullets: {
                 legacy: SETTINGS.legacyTruthBulletSecrets,
                 seed: {
@@ -6683,6 +6793,8 @@ const SCENARIOS = [
         ok(stores.length >= 1, "no GM store has an old key - the table did not load");
         const unfixtured = stores.filter(h => !FIXTURES[h.name]).map(h => h.name);
         ok(!unfixtured.length, `these stores claim an old key this test has no fixture for: ${unfixtured.join(", ")}`);
+        const unclaimed = Object.keys(FIXTURES).filter(name => !stores.some(h => h.name === name));
+        ok(!unclaimed.length, `this test has a fixture for a store that claims no old key: ${unclaimed.join(", ")}`);
         const raw = key => game.settings.storage.get("client").getItem(`${MODULE_ID}.${key}`);
         for (const store of stores.filter(h => FIXTURES[h.name])) {
             const fx = FIXTURES[store.name];
@@ -6748,6 +6860,142 @@ const SCENARIOS = [
         });
     }],
 
+    ["a clear in another world leaves this world's traces", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-10. The trace ledger was one object for every world
+         * a GM browser had opened, and the season reset's clear tombstoned every key in
+         * it: another world on the same server lost its traces on that browser, and on
+         * every GM of that world at their next exchange. Each world is a section of the
+         * store now, and a clear cuts its own. Stood in a world this browser has never
+         * opened (the stores' suite override), a row is written there and the ledger
+         * cleared: this world's section, and every row of it as stored, must be what
+         * they were; the other world holds nothing but its cut.
+         */
+        const E = await import("./gm-store.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const remnants = await import("./remnants.mjs");
+        await E.gmStoresIdle();
+        const section = () => stableJson(remnantStore.section());
+        const stored = () => stableJson(Object.keys(remnantStore.entries()).sort().map(k => [k, remnantStore.persisted(k)]));
+        const before = { section: section(), stored: stored() };
+        const key = "SUITEOTHERSCENE.SUITEOTHERTOKEN";
+        let cleared = null, there = null, thereStored = "unread";
+        await E.withGmStoreWorld(`suite-other-${foundry.utils.randomID(8)}`, async () => {
+            await remnantStore.patch(key, { type: "key", note: "test fixture - another world's trace" });
+            ok(remnantStore.has(key), "the other world's row was not written");
+            cleared = await remnants.clearRemnantLedger();
+            await E.gmStoresIdle();
+            there = remnantStore.section();
+            thereStored = remnantStore.persisted(key);
+        });
+        equal(cleared, 1, "the clear did not count the other world's one row");
+        equal(section(), before.section, "a clear in another world changed this world's section");
+        equal(stored(), before.stored, "a clear in another world changed this world's rows as stored");
+        equal(stableJson({ e: there?.e, t: there?.t, d: there?.d }), stableJson({ e: {}, t: {}, d: {} }),
+            "the other world kept a row, a stamp or a tombstone after its clear");
+        ok(there?.cleared > 0, "the other world's section holds no cut");
+        equal(thereStored, null, "the other world's row is still stored");
+    }],
+
+    ["tieChapterTraces over 20 traces is one write", async () => {
+        /*
+         * E04, 26.09.2026. A victim's death ties every trace of the chapter, and each
+         * tie wrote the whole ledger - and from E04 would have flushed the store and sent
+         * every other GM a packet - once per trace: dozens by the third chapter. It is
+         * one batched write now (`setRemnantFlagsMany`). Twenty traces placed in a
+         * chapter well above the clock, so no trace the world holds is among them; the
+         * ledger's writes are counted by `clientSettingChanged` while the chapter is tied.
+         */
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const chapter = (getClock()?.chapter ?? 1) + 7;
+        const placed = [];
+        let writes = 0;
+        const count = key => { if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) writes++; };
+        try {
+            for (let i = 0; i < 20; i++) {
+                const token = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                    chapter, day: 1, timeOfDay: "morning", tiedToCrime: false, note: `test fixture - tied with the chapter ${i}` });
+                ok(token, "could not place a fixture trace");
+                placed.push(token);
+            }
+            await settle();
+            Hooks.on("clientSettingChanged", count);
+            const tied = await remnants.tieChapterTraces(chapter);
+            await settle();
+            Hooks.off("clientSettingChanged", count);
+            equal(tied, 20, "the chapter's twenty traces were not all tied");
+            ok(placed.every(token => remnants.remnantData(token)?.tiedToCrime === true), "a trace of the chapter is not tied in its row");
+            ok(writes >= 1 && writes <= 2, `tying twenty traces wrote the ledger ${writes} time(s)`);
+        } finally {
+            Hooks.off("clientSettingChanged", count);
+            for (const token of placed) await remnants.dropRemnantSecret(token);
+            const ids = placed.map(token => token.id).filter(id => scene.tokens.has(id));
+            if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
+        }
+    }],
+
+    ["Fill from their traces gives a bullet its trace's type, and nothing a GM wrote", async () => {
+        /*
+         * E04, 26.09.2026; the design's 6.3. A browser that lost a bullet's answer key
+         * (or holds one S05-01 reduced to its Faint) can take the real type back from
+         * the trace the bullet was copied from: the bullet's public `remnantRef` names
+         * the trace, and the trace's row says what it is. Weak and fill-only: a type a
+         * GM holds for a bullet stays, and nothing but `realType` and `remnantId` is
+         * made up. Three bullets on one trace: one with no row, one with a row and no
+         * type, one whose GM wrote a type of its own.
+         */
+        const S = await import("./gm-stores.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const [holder] = cast(1);
+        const made = [];
+        let token = null;
+        try {
+            token = await remnants.placeRemnant({ type: "incident", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                tiedToCrime: false, note: "test fixture - a trace to fill from" });
+            ok(token, "could not place the fixture trace");
+            const ref = remnants.keyOf(token);
+            const bullet = async name => {
+                const [item] = await holder.createEmbeddedDocuments("Item", [{ name, type: "loot", flags: { [MODULE_ID]: {
+                    category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "subtle", analyzed: false, remnantRef: ref } } }]);
+                ok(item, `could not make the fixture bullet "${name}"`);
+                made.push(item);
+                return item;
+            };
+            const lost = await bullet("Suite fixture: its answer key lost");
+            const faintOnly = await bullet("Suite fixture: its answer key reduced to a Faint");
+            const decided = await bullet("Suite fixture: its GM's own type");
+            await bullets.setSecret(faintOnly.uuid, { faint: true });
+            await bullets.setSecret(decided.uuid, { realType: "key", gmNote: "the GM's own" });
+            const report = await S.gmStoreHealth();
+            ok(report.counts.bullets.fillable >= 2, `the health report counts ${report.counts.bullets.fillable} bullet(s) to fill, of the two made`);
+            const filled = await S.fillBulletsFromTraces();
+            ok(filled >= 2, `${filled} bullet(s) filled, of the two made`);
+            equal(stableJson([bullets.secretOf(lost.uuid).realType, bullets.secretOf(lost.uuid).remnantId]), stableJson(["incident", token.id]),
+                "a bullet with no row did not take its trace's type and id");
+            equal(stableJson([bullets.secretOf(faintOnly.uuid).realType, bullets.secretOf(faintOnly.uuid).faint]), stableJson(["incident", true]),
+                "a bullet with a row and no type did not take its trace's type, or lost what its row held");
+            equal(stableJson([bullets.secretOf(decided.uuid).realType, bullets.secretOf(decided.uuid).gmNote]), stableJson(["key", "the GM's own"]),
+                "a type a GM wrote was filled over");
+            equal(S.bulletStore.stampOf(lost.uuid, "realType"), S.bulletStore.weak(), "the filled type was not written weak");
+        } finally {
+            for (const item of made) {
+                await bullets.dropSecret(item.uuid);
+                await item.actor?.items?.get(item.id)?.delete();
+            }
+            if (token) {
+                await remnants.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) await token.delete();
+            }
+        }
+    }],
+
     ["Back up the case, then Restore, brings every store back", async () => {
         /*
          * E04, 26.09.2026; audit S05-09, the brief's verify. Each store is given a row
@@ -6762,9 +7010,25 @@ const SCENARIOS = [
         const E = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
         const bullets = await import("./truth-bullets.mjs");
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the backed-up trace is placed on the scene on screen");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
         const [holder] = cast(1);
-        const made = [];
+        const made = [], traces = [];
         const FIXTURES = {
+            remnants: {
+                seed: async () => {
+                    const token = await remnants.placeRemnant({ type: "key", visibility: "hidden", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                        tiedToCrime: false, note: "test fixture - a backed-up trace" });
+                    ok(token, "no trace was placed to back up");
+                    traces.push(token);
+                    return token;
+                },
+                gone: (report, token) => report.counts.traces.missing >= 1 && remnants.remnantData(token) === null,
+                back: token => stableJson([remnants.remnantData(token)?.type, remnants.remnantData(token)?.note])
+                    === stableJson(["key", "test fixture - a backed-up trace"])
+            },
             bullets: {
                 seed: async () => {
                     const item = await bullets.createTruthBullet(holder, { name: "Suite fixture: a backed-up answer", realType: "final",
@@ -6780,6 +7044,8 @@ const SCENARIOS = [
         const stores = E.gmStoreHandles().filter(h => h.spec.backup);
         const unfixtured = stores.filter(h => !FIXTURES[h.name]).map(h => h.name);
         ok(!unfixtured.length, `these stores are backed up and this test has no fixture for them: ${unfixtured.join(", ")}`);
+        const unsaved = Object.keys(FIXTURES).filter(name => !stores.some(h => h.name === name));
+        ok(!unsaved.length, `this test has a fixture for a store the backup leaves out: ${unsaved.join(", ")}`);
         const saveDataToFile = foundry.utils.saveDataToFile;
         let saved = null;
         try {
@@ -6799,6 +7065,10 @@ const SCENARIOS = [
             for (const item of made) {
                 await bullets.dropSecret(item.uuid);
                 await item.actor?.items?.get(item.id)?.delete();
+            }
+            for (const token of traces) {
+                await remnants.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) await token.delete();
             }
         }
     }],

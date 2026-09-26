@@ -3314,7 +3314,8 @@
       "restored": "The case was restored.",
       "restoredStore": "{store}: {n} changed, {cut} under the reset's cut left out",
       "store": {
-        "bullets": "Truth Bullets"
+        "bullets": "Truth Bullets",
+        "remnants": "Traces"
       },
       "row": {
         "traces": {
@@ -3341,7 +3342,11 @@
         "skew": "Stamps from ahead of this browser's clock: {names}.",
         "bytes": "The GM stores take {stores} KB of this browser's storage; the module {total} KB in all.",
         "lastBackup": "Last backup: {when} ({who}).",
-        "neverBackedUp": "This case has never been backed up."
+        "neverBackedUp": "This case has never been backed up.",
+        "traceOrphans": {
+          "one": "{n} trace's answer key has no token on any scene: kept, and read by nothing.",
+          "other": "{n} traces' answer keys have no token on any scene: kept, and read by nothing."
+        }
       },
       "healthTitle": "The case on this browser",
       "healthIntro": "This browser is missing part of this world's case:",
@@ -3360,6 +3365,11 @@
       "chargeHeld": {
         "one": "The charge for unfound Key Remnants is held: {n} Truth Bullet has no answer key on this browser, and the count would come out wrong. Restore the case and ask again.",
         "other": "The charge for unfound Key Remnants is held: {n} Truth Bullets have no answer key on this browser, and the count would come out wrong. Restore the case and ask again."
+      },
+      "fillFromTraces": "Fill from their traces ({n})",
+      "filled": {
+        "one": "{n} Truth Bullet took its answer key from its trace.",
+        "other": "{n} Truth Bullets took their answer keys from their traces."
       }
     }
   }

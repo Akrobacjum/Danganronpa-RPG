@@ -501,6 +501,9 @@ const CLAUSES = [
          * mark, and the sweep that moved existing tokens over ran on every
          * load of every world since (`adoptQuestionMark`), walking each
          * scene's tokens for a change it had made months ago. Once, here.
+         * The tokens only since E04 (1.2.63; audit S01-32): its ledger half,
+         * which rewrote the `public.img` of the rows in the one GM browser
+         * that ran it, is a mapping at read (`remnantPublic`).
          */
         run: async () => {
             const { adoptQuestionMark } = await import("./remnants.mjs");

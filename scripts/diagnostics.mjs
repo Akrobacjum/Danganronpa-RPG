@@ -10,7 +10,7 @@
 
 import { MODULE_ID, moduleVersion, STARTING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { bulletStore } from "./gm-stores.mjs";
+import { bulletStore, remnantStore } from "./gm-stores.mjs";
 import { monokumas, getDespair, despairMax } from "./despair.mjs";
 import { monokumaFor, students, unassigned } from "./assignments.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -1076,12 +1076,17 @@ export function diagnoseTruthBullets() {
     // "Neutral" describes a BULLET the player has not identified yet, not a kind
     // of trace anyone leaves. A Neutral Remnant on the map is almost always a GM
     // who meant to pick a real category - Observe prices it as Prep so it still
-    // works, but the GM should know it is guessing on their behalf.
+    // works, but the GM should know it is guessing on their behalf. The type is
+    // the trace's row (the GM store since E04); the token's own flag only on a
+    // trace from before the ledger that `migrateRemnants` has not reached. Read
+    // off the token alone it could not see a trace placed since the ledger, whose
+    // token carries no type (`placeRemnant`).
     const neutral = [];
     for (const scene of game.scenes) {
         for (const token of scene.tokens) {
             if (!token.getFlag(MODULE_ID, "isRemnant")) continue;
-            if (token.getFlag(MODULE_ID, "remnantType") !== "neutral") continue;
+            const type = remnantStore.get(`${scene.id}.${token.id}`)?.type ?? token.getFlag(MODULE_ID, "remnantType");
+            if (type !== "neutral") continue;
             neutral.push(scene.name);
         }
     }
@@ -1149,6 +1154,9 @@ export async function diagnoseGmStores() {
     lines.push(`   in all ${Math.round(status.stores / 1024)} KB; everything the module keeps in this browser ${Math.round(status.total / 1024)} KB`);
     const report = await gmStoreHealth();
     for (const row of report?.rows ?? []) lines.push(`   [${row.level}] ${healthLine(row)}`);
+    if (report?.counts?.bullets?.fillable) {
+        lines.push(`   ${report.counts.bullets.fillable} of the bullets with no real type can take it from their trace: game.drpg.fillBulletsFromTraces()`);
+    }
     lines.push("Back the case up from the GM panel (Back up the case), or game.drpg.backupCase().");
     log(lines.join("\n"));
     return lines.join("\n");

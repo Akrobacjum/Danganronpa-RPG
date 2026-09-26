@@ -207,10 +207,16 @@ export const SETTINGS = {
      * sentence: the whole investigation, for free, and with no way for the GM to
      * know it had happened.
      *
-     * Keyed `sceneId.tokenId`. Synced GM-to-GM over a recipient-addressed
-     * socket, the same as the Truth Bullet ledger.
+     * Keyed `sceneId.tokenId`.
+     *
+     * A GM STORE SINCE E04 (1.2.63): `gmRemnants` (gm-stores.mjs, `remnantStore`),
+     * sectioned by world and merged per field with the other GMs, `public` per
+     * sub-key; until then it was synced by a socket of its own and merged a whole
+     * row at a time, as the Truth Bullet ledger was. `legacyRemnantSecrets` is the
+     * key before it, read once per world and never written.
      */
-    remnantSecrets: "remnantSecrets",
+    remnantSecrets: "gmRemnants",
+    legacyRemnantSecrets: "remnantSecrets",
     /**
      * Observe targets declared but not yet scored (ACT-08, 20.09).
      *
@@ -985,6 +991,12 @@ export function registerSettings() {
     });
 
     game.settings.register(MODULE_ID, SETTINGS.remnantSecrets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyRemnantSecrets, {
         scope: "client",
         config: false,
         type: Object,

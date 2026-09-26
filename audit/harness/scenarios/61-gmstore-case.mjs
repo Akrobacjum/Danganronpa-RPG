@@ -18,6 +18,12 @@
  *      rebuilt a row for every bullet from its item's Faint flag and the newer,
  *      partial rows replaced the full ones on the first GM; a gms.delta forged by
  *      a player changes nothing.
+ *   D  the traces (S05-10): they survive a second GM's empty join; a token a GM
+ *      deletes takes its row off both GMs; and the seed GM's browser, copied, opens
+ *      a second world on the same server - its hello is refused there as another
+ *      world's, it claims the same old rows (a duplicated world), its clear drops
+ *      world B's rows only, and back in world A the same browser reads its traces
+ *      intact without a GM having to send them.
  *   Z  the browser is lost (the brief's live verify, headless): a GM backs up the
  *      case, every GM leaves, a third GM comes with an empty browser and is alone,
  *      so the primary; its health check opens and names what is missing, Continue
@@ -27,15 +33,18 @@
 export const layers = ["ci"];
 export const accounts = [
     { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true },
-    { who: "gm3", id: "USERGM3000000000", name: "Third GM", role: 4, character: null, color: "#66ffaa", late: true }
+    { who: "gm3", id: "USERGM3000000000", name: "Third GM", role: 4, character: null, color: "#66ffaa", late: true },
+    // The seed GM's browser, copied: in world B (gmb), then back in world A (gma).
+    { who: "gma", id: "USERGMA000000000", name: "GM A", role: 4, character: null, color: "#aa66ff", late: true },
+    { who: "gmb", id: "USERGMB000000000", name: "GM B", role: 4, character: null, color: "#ffaa66", late: true }
 ];
 
 const PROBE_KEY = "drpg-harness.probe";
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, gm2, gm3, p1, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
-    const GM2 = "USERGM2000000000";
+export async function run({ gm, gm2, gm3, gma, gmb, p1, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
+    const GM2 = "USERGM2000000000", GMA = "USERGMA000000000";
 
     /* ------------------------------ A. the harness ------------------------------ */
 
@@ -51,7 +60,8 @@ export async function run({ gm, gm2, gm3, p1, check, phase, settle, connect, dis
         JSON.stringify({ before, unreachable }));
 
     const probe = JSON.stringify({ visit: 1 });
-    await connect("gm2", { storage: { [PROBE_KEY]: probe } });
+    // A copy of the seed GM's browser, so that the two GMs' stores are equal (A5).
+    await connect("gm2", { storage: { ...(await storageOf("gm")), [PROBE_KEY]: probe } });
     await settle(400);
     const onGm2 = await gm2.eval(`return { held: localStorage.getItem("${PROBE_KEY}"), me: game.user.id, isGM: game.user.isGM,
         world: game.world.id, drpg: Boolean(game.drpg) };`);
@@ -69,7 +79,7 @@ export async function run({ gm, gm2, gm3, p1, check, phase, settle, connect, dis
         JSON.stringify({ ...clocks, cluster: here }));
 
     const traffic = socketTraffic.filter(t => String(t.action ?? "").startsWith("gms."));
-    check("A5: two GMs whose stores are equal (empty) exchange digests and nothing more: hellos and dones, no state, no delta",
+    check("A5: two GMs whose stores are equal (the second browser a copy of the first) exchange digests and nothing more: hellos and dones, no state, no delta",
         traffic.some(t => t.action === "gms.hello") && traffic.every(t => t.action === "gms.hello" || t.action === "gms.done"),
         JSON.stringify(traffic.slice(0, 8)));
 
@@ -142,6 +152,88 @@ export async function run({ gm, gm2, gm3, p1, check, phase, settle, connect, dis
     await disconnect("gm2");
     await settle(300);
 
+    /* ------- D. the traces: a join, a deletion, and one browser in two worlds ------- */
+
+    phase("D: the traces through a second GM, a deletion, and one browser in two worlds", { flow: "trace-remnant" });
+    const REM = `const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const { remnantStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const E = await import("${repoUrl}/scripts/gm-store.mjs");`;
+    const placedD = await gm.eval(`${REM}
+        const scene = game.scenes.get("${IDS.scene}");
+        const out = [];
+        for (const [n, type] of [[1, "incident"], [2, "prep"]]) {
+            const token = await R.placeRemnant({ type, visibility: "subtle", x: 100 * n, y: 100, scene, tiedToCrime: n === 1,
+                note: "E04 trace " + n, sourceName: "E04" });
+            out.push(token.id);
+        }
+        return out;`);
+    // Each trace by its ledger key, `sceneId.tokenId`: the seed's stands in the annex.
+    const traceRows = keys => `${REM}
+        return ${J(keys)}.map(key => { const [sceneId, tokenId] = key.split(".");
+            const t = game.scenes.get(sceneId)?.tokens?.get(tokenId); const d = t ? R.remnantData(t) : null;
+            return d ? [d.type, d.note ?? "", d.tiedToCrime] : null; });`;
+    const seedKey = `${IDS.annex}.${IDS.trace}`;
+    const seedRow = ["prep", "", false];
+    const expectD = [seedRow, ["incident", "E04 trace 1", true], ["prep", "E04 trace 2", false]];
+    const idsD = [seedKey, ...placedD.map(id => `${IDS.scene}.${id}`)];
+    await connect("gm2");
+    await settle(1500);
+    const tracesOnGm = await gm.eval(traceRows(idsD)), tracesOnGm2 = await gm2.eval(traceRows(idsD));
+    check("D1: the seed's trace and two placed on the GM survive a second GM joining with an empty browser, on both GMs",
+        J(tracesOnGm) === J(expectD) && J(tracesOnGm2) === J(expectD), J({ tracesOnGm, tracesOnGm2 }));
+
+    await gm2.eval(`await game.scenes.get("${IDS.scene}").tokens.get("${placedD[1]}").delete(); return true;`);
+    await settle(800);
+    const goneKey = `${IDS.scene}.${placedD[1]}`;
+    const dropped = client => client.eval(`${REM} return { has: remnantStore.has("${goneKey}"), tombstone: remnantStore.tombstone("${goneKey}") > 0 };`);
+    const dropGm = await dropped(gm), dropGm2 = await dropped(gm2);
+    check("D2: the second GM deletes a trace's token, and the primary's tombstone takes its row off both GMs",
+        !dropGm.has && dropGm.tombstone && !dropGm2.has && dropGm2.tombstone, J({ dropGm, dropGm2 }));
+
+    const KEY = `${MOD}.gmRemnants`;
+    const worldA = "drpg-audit-world", worldB = "drpg-world-b";
+    const sectionIn = (storage, wid) => {
+        try { return J(JSON.parse(storage?.[KEY] ?? "null")?.worlds?.[wid] ?? null); } catch { return "unreadable"; }
+    };
+    const copied = await storageOf("gm");
+    const aBefore = sectionIn(copied, worldA);
+    await connect("gmb", { storage: copied, world: worldB });
+    await settle(9500);
+    const inB = await gmb.eval(`${REM}
+        const live = Object.keys(remnantStore.entries());
+        const census = remnantStore.census();
+        const hydration = E.gmStoreHydration().state;
+        const cleared = await R.clearRemnantLedger();
+        await E.gmStoresIdle();
+        return { world: game.world.id, hydration, census, live, cleared, after: Object.keys(remnantStore.entries()).length,
+            tombstone: remnantStore.tombstone("${seedKey}") > 0 };`);
+    const refusedAs = client => client.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+        return U.sessionFailures().filter(e => /refused gms\.hello from GM B: the packet is another world's/.test(e.message)).length;`);
+    const saidGm = await refusedAs(gm), saidGm2 = await refusedAs(gm2);
+    check("D3: the same browser in world B: the GMs of world A refuse its hello as another world's and say so, it times out, claims the same old rows (a duplicated world), and its clear drops world B's rows",
+        inB.world === worldB && inB.hydration === "timedOut" && inB.census?.claimed === 1 && J(inB.live) === J([seedKey])
+        && inB.cleared === 1 && inB.after === 0 && inB.tombstone && saidGm >= 1 && saidGm2 >= 1, J({ inB, saidGm, saidGm2 }));
+
+    await disconnect("gmb");
+    await settle(300);
+    const leftB = await storageOf("gmb");
+    const bSection = JSON.parse(sectionIn(leftB, worldB));
+    check("D4: in that browser's storage world A's section is byte for byte what it was, and world B's holds its tombstone and no row",
+        aBefore !== "null" && sectionIn(leftB, worldA) === aBefore && Object.keys(bSection?.e ?? { x: 1 }).length === 0 && bSection?.d?.[seedKey] > 0,
+        J({ aBefore: aBefore.length, aAfter: sectionIn(leftB, worldA).length, bSection }));
+
+    const trafficFrom = socketTraffic.length;
+    await connect("gma", { storage: leftB });
+    await settle(1500);
+    const tracesOnA = await gma.eval(traceRows(idsD.slice(0, 2)));
+    const statesForA = socketTraffic.slice(trafficFrom).filter(t => t.action === "gms.state"
+        && (t.from === "gma" || (Array.isArray(t.to) && t.to.includes(GMA))));
+    check("D5: the same browser back in world A reads its traces intact, and no GM had to send it a section",
+        J(tracesOnA) === J(expectD.slice(0, 2)) && !statesForA.length, J({ tracesOnA, statesForA: statesForA.slice(0, 4) }));
+    await disconnect("gma");
+    await disconnect("gm2");
+    await settle(300);
+
     /* ------------------- Z. the browser is lost, and the case comes back ------------------- */
 
     phase("Z: a GM backs up, every GM leaves, an empty browser comes back alone and restores", { flow: "gm-store" });
@@ -149,9 +241,11 @@ export async function run({ gm, gm2, gm3, p1, check, phase, settle, connect, dis
     await settle(1500);
     const backup = await gm2.eval(`const file = await game.drpg.backupCase();
         const saved = globalThis.__savedFiles.at(-1) ?? null;
-        return { format: file?.format ?? null, rows: Object.keys(file?.stores?.bullets?.e ?? {}).length, name: saved?.filename ?? null, text: saved?.data ?? null };`);
-    check("Z1: the second GM backs the case up to one file, the three answer keys in it",
-        backup.format === "drpg-case" && backup.rows === 3 && /^drpg-case-drpg-audit-world-/.test(backup.name ?? "") && Boolean(backup.text),
+        return { format: file?.format ?? null, rows: Object.keys(file?.stores?.bullets?.e ?? {}).length,
+            traces: Object.keys(file?.stores?.remnants?.e ?? {}).sort(), name: saved?.filename ?? null, text: saved?.data ?? null };`);
+    check("Z1: the second GM backs the case up to one file, the three answer keys and the two traces' in it",
+        backup.format === "drpg-case" && backup.rows === 3 && J(backup.traces) === J([`${IDS.scene}.${placedD[0]}`, seedKey].sort())
+        && /^drpg-case-drpg-audit-world-/.test(backup.name ?? "") && Boolean(backup.text),
         J({ ...backup, text: backup.text ? `${backup.text.length} characters` : null }));
     await disconnect("gm");
     await disconnect("gm2");
@@ -165,21 +259,22 @@ export async function run({ gm, gm2, gm3, p1, check, phase, settle, connect, dis
             warning: Boolean(S.caseWarning()) };`);
     check("Z2: the empty browser, alone and so the primary, opens the health check naming the missing answer keys, and Continue leaves the warning up",
         seenOnGm3.primary && seenOnGm3.hydration === "alone" && seenOnGm3.dialogs.length === 1
-        && /3 Truth Bullets \(of 3\) have no answer key/.test(seenOnGm3.dialogs[0]?.content ?? "") && seenOnGm3.warning, J(seenOnGm3));
+        && /3 Truth Bullets \(of 3\) have no answer key/.test(seenOnGm3.dialogs[0]?.content ?? "")
+        && /2 traces on the map \(of 2\) have no answer key/.test(seenOnGm3.dialogs[0]?.content ?? "") && seenOnGm3.warning, J(seenOnGm3));
     const restored = await gm3.eval(`const result = await game.drpg.restoreCase(${J(backup.text)});
         await new Promise(r => setTimeout(r, 300));
         const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const report = await game.drpg.gmStoreHealth();
         return { refused: result?.refused ?? null, missing: report.rows.filter(r => r.level === "missing").map(r => r.id),
-            bullets: report.counts.bullets };`);
+            bullets: report.counts.bullets, traces: report.counts.traces };`);
     const keysOnGm3 = await gm3.eval(keyOf(made));
+    const tracesOnGm3 = await gm3.eval(traceRows(idsD.slice(0, 2)));
     // The restore runs the Faint pass again: the third bullet's Faint moves off its item into its row.
     const answerKeys = rows => rows.map(r => r.slice(0, 5));
-    /* The seeded trace's answer key is not a GM store until the traces move (C4), so an empty
-       browser cannot get it back from a file here: the one row left missing is the traces'. */
-    check("Z3: the file restored on the empty browser brings every answer key back, the Faint pass moves the old flag in, and only the traces' row is left (C4 moves them)",
+    check("Z3: the file restored on the empty browser brings every answer key and trace back, the Faint pass moves the old flag in, and the check is clean",
         !restored.refused && J(answerKeys(keysOnGm3)) === J(answerKeys(expected)) && keysOnGm3[2][5] === true
-        && J(restored.missing) === J(["traces"]) && restored.bullets.missing === 0 && restored.bullets.noAnswer === 0, J({ restored, keysOnGm3 }));
+        && J(tracesOnGm3) === J(expectD.slice(0, 2)) && J(restored.missing) === J([])
+        && restored.bullets.missing === 0 && restored.bullets.noAnswer === 0 && restored.traces.missing === 0, J({ restored, keysOnGm3, tracesOnGm3 }));
 
-    return { phases: ["A", "B", "Z"], gm: IDS.gm };
+    return { phases: ["A", "B", "D", "Z"], gm: IDS.gm };
 }

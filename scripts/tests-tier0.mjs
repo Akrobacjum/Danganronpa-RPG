@@ -373,7 +373,6 @@ const REGRESSIONS = [
             "vote.mjs": "keys the tally by senderId; the payload's actor is an address, not a claim",
             "murder.mjs": "GM-to-GM sync plus one request answered from the sender's own cast",
             "mastermind.mjs": "GM-to-GM sync; the one player request is answered about the sender",
-            "remnants.mjs": "GM-to-GM ledger sync, refused outright from a non-GM",
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
             "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns",
             "sync.mjs": "world-state fan-out from a GM; carries no actor id",
@@ -5521,8 +5520,7 @@ const REGRESSIONS = [
         const ALLOW = {
             // The census and old-store tests of tier 2 seed each old key they read, and tier 2's restore puts it back.
             "tests-tier2.mjs#legacyTruthBulletSecrets": "the claim's census seeds the old key it counts",
-            "remnants.mjs#remnantSecrets": "the trace ledger, until it moves (E04 C4)",
-            "tests-tier2.mjs#remnantSecrets": "a tier-2 test reads a trace's row raw, until the traces move (E04 C4)",
+            "tests-tier2.mjs#legacyRemnantSecrets": "the claim's census seeds the old key it counts",
             "mastermind.mjs#mastermind": "the Mastermind, until it moves (E04 C5)",
             "mastermind.mjs#myMastermindLair": "the Mastermind's player copy, until it moves (E04 C5)",
             "mastermind.mjs#iAmMastermind": "the Mastermind's player copy, until it moves (E04 C5)",
@@ -5583,7 +5581,7 @@ const REGRESSIONS = [
          * that forgot its option still works - until a second GM joins. The reader
          * is shown a planted writer first.
          */
-        const WRITES = /\b(?:setSecret|\w+Store\.patch|\w+Store\.patchMany)\(/g;
+        const WRITES = /\b(?:setSecret|setRemnantSecret|\w+Store\.patch|\w+Store\.patchMany)\(/g;
         const callAt = (text, open) => {
             let depth = 0;
             for (let i = open; i < text.length; i++) {
@@ -5610,15 +5608,31 @@ const REGRESSIONS = [
             ["truth-bullets.mjs", "migrateTruthBullets", ["weak", "fillOnly"], true],
             ["truth-bullets.mjs", "propagateRemnantPublic", ["ifLive"], false],
             ["truth-bullets.mjs", "propagateCrimeTie", ["ifLive"], false],
+            ["truth-bullets.mjs", "propagateCrimeTieMany", ["ifLive"], false],
             ["truth-bullets.mjs", "propagateRealType", ["ifLive"], false],
-            ["analyze.mjs", "resolveAnalyze", ["ifLive"], false]
+            ["analyze.mjs", "resolveAnalyze", ["ifLive"], false],
+            // The traces (C4): what amends a row a GM holds, and the migration's weak fill.
+            ["remnants.mjs", "markRemnantEdited", ["ifLive"], false],
+            ["remnants.mjs", "setRemnantSecretById", ["ifLive"], false],
+            ["remnants.mjs", "setRemnantPublic", ["ifLive"], false],
+            ["remnants.mjs", "setRemnantFlags", ["ifLive"], false],
+            ["remnants.mjs", "setRemnantFlagsMany", ["ifLive"], false],
+            ["remnants.mjs", "retuneRemnant", ["ifLive"], false],
+            ["remnants.mjs", "moveIntoLedger", ["weak", "fillOnly"], false],
+            ["remnants.mjs", "carryPromotion", ["ifLive"], false],
+            ["remnants.mjs", "seedPublicIfMissing", ["weak", "fillOnly"], false]
         ];
+        // The migrations that read a store through a function they call: they wait themselves.
+        const WAITERS = [["remnants.mjs", "migrateRemnants"], ["remnants.mjs", "migrateRemnantToken"]];
         const sources = new Map(await otherSources());
         const found = [];
         for (const [file, fn, wants, waits] of WRITERS) {
             found.push(...problems(`${file} ${fn}`, fnSource(stripComments(sources.get(file) ?? ""), fn), wants, waits));
         }
-        log(`R172: ${WRITERS.length} derived writers read in ${new Set(WRITERS.map(w => w[0])).size} files`);
+        for (const [file, fn] of WAITERS) {
+            if (!/\.whenHydrated\(/.test(fnSource(stripComments(sources.get(file) ?? ""), fn))) found.push(`${file} ${fn} reads a store without waiting for the other GMs' copies`);
+        }
+        log(`R172: ${WRITERS.length} derived writers and ${WAITERS.length} migrations read in ${new Set([...WRITERS, ...WAITERS].map(w => w[0])).size} files`);
         ok(!found.length, `a writer derives an answer-key value from absence: ${found.join("; ")}`);
     }]
 ];

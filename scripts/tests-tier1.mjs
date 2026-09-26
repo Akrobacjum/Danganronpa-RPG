@@ -3727,6 +3727,29 @@ const INVARIANTS = [
         ok(report.rows.every(r => ["missing", "conflict", "info"].includes(r.level) && (game.i18n.has(r.key) || game.i18n.has(`${r.key}.other`))),
             `a row has a level the report does not know or a sentence no language file carries: ${JSON.stringify(report.rows.map(r => [r.level, r.key]))}`);
         equal(report.missing, report.rows.filter(r => r.level === "missing").length, "the count of missing rows is not the rows");
+    }],
+
+    ["R175 - a trace's question-mark icon is read, not written", async () => {
+        /*
+         * E04, 26.09.2026; audit S01-32. The trace icon went from the hazard triangle to
+         * the question mark in 1.2.44, and the questionMarkIcon clause rewrote each
+         * row's `public.img` in the ledger of the one GM browser that ran it - a world's
+         * migration, stamped by whichever browser happened to run it and by no other.
+         * The rows are read as the question mark instead (`publicOf`), and only the old
+         * default is: an image a GM chose stays. The clause's sweep, read from its
+         * source, reaches no ledger. Pure over fixture rows.
+         */
+        const R = await import("./remnants.mjs");
+        const OLD = "icons/svg/hazard.svg";
+        const icon = R.publicOf({}).img;
+        ok(icon && icon !== OLD, `a row with no public record reads as the icon ${icon}`);
+        equal(R.publicOf({ public: { img: OLD } }).img, icon, "a row still naming the hazard triangle is not read as the question mark");
+        equal(R.publicOf({ public: { img: "worlds/r175/chosen.webp" } }).img, "worlds/r175/chosen.webp", "an image a GM chose was mapped away");
+        equal(R.publicOf({ public: { name: "R175 knife", img: OLD } }).name, "R175 knife", "the mapping lost the record's other fields");
+        const sweep = fnSource(stripComments(new Map(await otherSources()).get("remnants.mjs") ?? ""), "adoptQuestionMark");
+        ok(/OLD_ICON/.test(sweep), "the sweep's body was not found - the reader is not reading it");
+        const reach = sweep.match(/\b(?:remnantStore|setRemnantSecret\w*|readRemnantLedger|SETTINGS\.\w+)/g) ?? [];
+        ok(!reach.length, `the questionMarkIcon clause's sweep reaches the ledger: ${reach.join(", ")}`);
     }]
 ];
 
