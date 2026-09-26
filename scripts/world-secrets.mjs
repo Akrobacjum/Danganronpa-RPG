@@ -76,7 +76,13 @@ export const WORLD_SECRET_RULES = Object.freeze({
            projectMeta.<id>.tokenId, and the token's own flag named the same id. */
         except: Object.freeze({ projectMeta: Object.freeze(["tokenId"]) })
     }),
-    flags: Object.freeze({ Actor: Object.freeze([]), User: Object.freeze([]), Token: Object.freeze([]) })
+    flags: Object.freeze({
+        Actor: Object.freeze([]),
+        // E05 C6: a player's pre-session note for the GMs - "Am I planning to kill? How?" - is a GM
+        // store; the flag keeps only `{ updatedAt, written }` (pre-session-note.mjs; S11-03, S01-08).
+        User: Object.freeze(["preSessionNote.text"]),
+        Token: Object.freeze([])
+    })
 });
 
 const isObject = v => v !== null && typeof v === "object";

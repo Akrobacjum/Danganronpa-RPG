@@ -46,6 +46,11 @@
  * with. eclipse-route-veto goes from planned to partial with it: 33 drives
  * `eclipse.move` only as far as a GM who is connected and does not answer (its
  * check B6), not a move allowed or refused, so the flow stays E39's to complete.
+ * E05 (26.09.2026) adds pre-session-note: the note a player writes for the GMs was a
+ * flag on their own User document until 1.2.64, written with no GM at all; it goes
+ * through the bridge's `note.save` now, and each player holds a copy of their own
+ * (pre-session-note.mjs). 72 and 11 save one, 33 drives the legal road, 30 a forged
+ * one, and 61 the road to a second GM and a note kept while no GM was connected.
  */
 
 export const FLOWS = Object.freeze([
@@ -91,6 +96,9 @@ export const FLOWS = Object.freeze([
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["murder.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "30-security", "61-gmstore-case"], status: "partial", stage: "E32" },
+    { id: "pre-session-note", what: "A player's pre-session note: sent to the primary GM, or kept until one connects, and each player's copy of their own",
+        entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },
+        scenarios: ["72-canary", "11-killer-secrecy", "33-bridge-paths", "30-security", "61-gmstore-case"], status: "covered", stage: "1.2.64" },
     { id: "private-rolls", what: "A roll made in private: whispered, and hidden from the other players' chat",
         entry: { sockets: ["dice-sync.mjs"] }, scenarios: ["12-social", "20-crit-hope"], status: "covered", stage: "<=1.2.50" },
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",

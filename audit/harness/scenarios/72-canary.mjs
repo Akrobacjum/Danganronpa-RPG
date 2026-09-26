@@ -69,9 +69,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
 
     /* p3's own pre-session note (pre-session-note.mjs), which is for the GMs. */
     const note = canary.marker("note.player", { allowed: ["gm", "p3"] });
-    await p3.eval(`const { saveNote } = await import("${repoUrl}/scripts/pre-session-note.mjs");
-        await saveNote(game.user.id, "${note}");
-        return true;`);
+    const noteSaved = await p3.eval(`const { saveNote } = await import("${repoUrl}/scripts/pre-session-note.mjs");
+        return await saveNote(game.user.id, "${note}");`, { timeout: 30000 });
 
     /* A Direct Murder parked during an Eclipse, by the killer's player (eclipse.mjs). */
     const park = canary.marker("park.note", { allowed: ["gm", "p3"] });
@@ -132,6 +131,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const metaP1 = await metaHolds(p1), metaP2 = await metaHolds(p2);
     check("p1 and p2: projectMeta holds no killerId, by, condition or trigger, and no character id of the killer",
         Boolean(made) && [metaP1, metaP2].every(m => m.row && !m.fields.length && !m.killer), JSON.stringify({ p1: metaP1, p2: metaP2 }));
+
+    /* THE PRE-SESSION NOTE IS THE GMS' (E05 C6, 26.09.2026; audit S11-03, S01-08): p3 saved it
+       through the primary GM, whose store keeps it, and it is no flag of p3's User document, which
+       every browser holds. The scan above looks for its marker on every player; here it is read
+       where each reads it - the GM from its store, p1 nothing of p3's - and p3's flag is read on p1:
+       that a note is written, and no text. Red on 50a79af (C5) with this check, the rule and known
+       leak S11-03 taken out (26.09): saveNote answered true, p1 read p3's note from the flag, which
+       held its text, the scan found the marker on p1 and p2 at the flag's text in each of its seven
+       scans, and the world scan the flag's text on both in all six of its phases. */
+    const noteOn = c => c.eval(`const N = await import("${repoUrl}/scripts/pre-session-note.mjs");
+        return { text: N.noteFor("${p3.userId}"), flag: game.users.get("${p3.userId}").getFlag("${MOD}", "preSessionNote") ?? null };`);
+    const noteGm = await noteOn(gm), noteP1 = await noteOn(p1);
+    check("p3's pre-session note is sent to the GMs and kept in their store; p1 reads none of it, and p3's flag holds no text",
+        noteSaved === "sent" && noteGm.text === note && noteP1.text === "" && noteP1.flag?.written === true && !Object.hasOwn(noteP1.flag ?? {}, "text"),
+        JSON.stringify({ noteSaved, noteGm, noteP1 }), { flow: "pre-session-note" });
 
     /* An unfound trace is a token, and a token reaches every browser (S17-64): not a
        marker in a field, so it is asked of the scene itself. */

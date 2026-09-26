@@ -82,6 +82,7 @@ const ACTION_DONE = "bridge.done";
 /** A GM's world has finished loading - see `registerGmBridge`. */
 const ACTION_GM_READY = "bridge.gmReady";
 const ACTION_LOOT = "body.loot";
+const ACTION_NOTE_SAVE = "note.save";
 
 /**
  * A primary GM has finished loading and can answer questions again.
@@ -1001,6 +1002,21 @@ async function handleEclipseMove(payload, sender, ctx) {
 }
 
 /**
+ * A player's own pre-session note (E05 C6; audit S11-03, S01-08), into the GMs' store
+ * under the sender's id: the user Foundry names, since the packet names nobody - one
+ * that carries another user's id writes only its sender's own note. Past the player
+ * text cap it is refused, as a private card is (secret.mjs). The answer is when the
+ * store wrote it and the row's stamp, which the player's copy takes as the GMs' own.
+ */
+async function handleNoteSave(payload, sender) {
+    const { writeNote, noteTooLong } = await import("./pre-session-note.mjs");
+    if (noteTooLong(payload.text)) return { refused: "the note is longer than a player's words may be" };
+    const out = await writeNote(sender.id, payload.text, { byGm: false });
+    if (!out) return { refused: "nothing was carried out: the note's writer is not a user of this world" };
+    return { reply: { updatedAt: out.updatedAt, stamp: out.stamp } };
+}
+
+/**
  * WHAT THE PRIMARY GM ANSWERS, ONE DECLARATION PER REQUEST (E31, 25.09.2026;
  * audit S17-08).
  *
@@ -1420,6 +1436,14 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ actorId: as.id }),
         run: handleEclipseMove,
         answer: "reply"
+    },
+    [ACTION_NOTE_SAVE]: {
+        label: "DRPG.Bridge.what.note.save",
+        // No id travels: the run writes the sender's own note (E05 C6).
+        guards: [knownSender],
+        sanitize: pick({ text: as.text }),
+        run: handleNoteSave,
+        answer: "reply"
     }
 });
 
@@ -1593,6 +1617,20 @@ export function requestSendBack(sceneId, tokenId, position) {
 /** Count an Eclipse crossing on the GM's copy of the world setting. */
 export function requestEclipseMove(actorId) {
     return ask(ACTION_ECLIPSE_MOVE, { actorId });
+}
+
+/**
+ * This player's own pre-session note, for the GMs (E05 C6): written by the primary into
+ * the GMs' store under the sender's id (`handleNoteSave`), and by a GM into its own store
+ * here. Its value is `{ updatedAt, stamp }`, which pre-session-note.mjs `sendDraft` takes
+ * as the GMs' copy; `quiet` for the note sent again when a GM arrives, which nobody is
+ * waiting on.
+ */
+export function requestNoteSave(text, { quiet = false } = {}) {
+    return ask(ACTION_NOTE_SAVE, { text }, {
+        quiet,
+        local: () => import("./pre-session-note.mjs").then(m => m.writeNote(game.user.id, text, { byGm: false }))
+    });
 }
 
 /**

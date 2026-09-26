@@ -3925,12 +3925,34 @@ const INVARIANTS = [
         equal(offersCombine(offersHeld, { value: { A: { kind: "standard" } }, stamps: { A: 140 } }, { cut: 160 }), null,
             "an answer under a reset's cut was taken");
 
+        /* THE NOTE'S COPY (E05 C6): one stamp, and a draft - a player's own note written in their
+           browser and marked unsent, which no GM's copy carries (pre-session-note.mjs). On the same
+           engine: the draft is taken under an older stamp than the copy held; a GM's copy with other
+           words is not taken while it stands, however new - the answer to an ask at load can reach
+           the player before the draft reaches the GM; the GMs' copy holding the draft's words is
+           taken under any stamp, and the draft is sent; then the newer stamp decides, and a reset's
+           cut above the copy reads as nothing. */
+        const { noteCombine, noteCopy } = await import("./gm-stores.mjs");
+        ok(G.gmCopySpec(noteCopy.name)?.combine === noteCombine, "the note's copy is not weighed by its own rule");
+        const note = eng.defineCopy({ name: "r176note", key: "r176Note", resetGroup: "preNotes", fallback: {}, combine: noteCombine });
+        const n0 = t + 1000;
+        equal(await note.receive({ text: "R176 the GMs' words" }, n0 + 100), true, "a first copy of the note was not taken");
+        equal(await note.receive({ text: "R176 typed here", unsent: true }, n0 + 10), true, "the player's own draft was refused under an older stamp");
+        equal(await note.receive({ text: "R176 older words" }, n0 + 500), false, "a GM's copy with other words replaced a draft not yet sent");
+        equal(await note.receive({ text: "R176 typed here" }, n0 + 5), true, "the GMs' copy holding the draft's words was refused");
+        equal(JSON.stringify([note.read(), note.stamp()]), JSON.stringify([{ text: "R176 typed here" }, n0 + 5]),
+            "the draft was not marked sent at the GMs' stamp");
+        equal(await note.receive({ text: "R176 a GM's older write" }, n0 + 4), false, "an older copy of a sent note was taken");
+        equal(await note.receive({ text: "R176 a GM's transcription" }, n0 + 600), true, "a newer copy of a sent note was refused");
+        cuts = { ...cuts, preNotes: n0 + 700 };
+        equal(JSON.stringify(note.read()), "{}", "a note under its group's reset cut does not read as nothing");
+
         /* The senders: the function that emits a copy to a player, and the file that calls it.
            "own": the sender reads the stamps itself - the offers', from the store's rows for the
-           user's characters (C8), and the fog's, a section of the store (C9) - so a call of it
-           passes none. */
+           user's characters (C8), the fog's, a section of the store (C9), and since E05 the
+           crossings' and the note's (C4, C6) - so a call of it passes none. */
         const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"],
-            ["fog.mjs", "sendStoreTo", "own"], ["eclipse.mjs", "sendMovesTo", "own"]];
+            ["fog.mjs", "sendStoreTo", "own"], ["eclipse.mjs", "sendMovesTo", "own"], ["pre-session-note.mjs", "sendNoteTo", "own"]];
         // The crossings' copy (E05 C4) is an owner's whole set, a stamp per character, as the offers are.
         const { eclipseMoveCopy } = await import("./gm-stores.mjs");
         ok(G.gmCopySpec(eclipseMoveCopy.name)?.combine === offersCombine, "the crossings' copy is not weighed by the offers' rule");
@@ -4485,7 +4507,7 @@ const INVARIANTS = [
         }
         ok(!wrong.length, `a player's copy is not sent again after a restore: ${wrong.join("; ")}`);
         const RETELLS = [["mastermind.mjs", "retellDoor"], ["murder.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"],
-            ["eclipse.mjs", "retellMoves"]];
+            ["eclipse.mjs", "retellMoves"], ["pre-session-note.mjs", "retellNotes"]];
         const hooks = E.gmStoreHandles().map(h => String(h.spec.afterRestore ?? ""));
         const uncalled = RETELLS.filter(([, fn]) => !hooks.some(src => src.includes(`.${fn}(`))).map(([, fn]) => fn);
         ok(!uncalled.length, `no store's afterRestore calls ${uncalled.join(", ")}`);
@@ -4519,7 +4541,7 @@ const INVARIANTS = [
             },
             actors: [{ id: KILLER, flags: { [MOD]: { advances: 1 }, "r190-other-module": { memo: KILLER } } },
                 { id: "R190BYSTANDER001", flags: { [MOD]: { deceased: false } } }],
-            users: [{ id: "R190USER00000001", flags: { [MOD]: { preSessionNote: { updatedAt: 1 } } } }],
+            users: [{ id: "R190USER00000001", flags: { [MOD]: { preSessionNote: { updatedAt: 1, written: true } } } }],
             tokens: [{ id: "R190SCENE0000001.R190TOKEN0000001", flags: { [MOD]: { isRemnant: true } } }]
         });
         // One secret each: what it is, how it is planted in a clean snapshot, and the hit it must give.
@@ -4542,7 +4564,11 @@ const INVARIANTS = [
             // E05 C5: nor the Key Remnant plan's - a chapter with nothing but its number is found.
             ["keyRemnantPlan: empty",
                 s => { s.settings.keyRemnantPlan = { chapter: 2 }; },
-                h => h.kind === "empty" && h.doc === "setting" && h.id === "keyRemnantPlan"]
+                h => h.kind === "empty" && h.doc === "setting" && h.id === "keyRemnantPlan"],
+            // E05 C6: a user's pre-session note holds no text - the flag says when, and whether.
+            ["User flag preSessionNote.text",
+                s => { s.users[0].flags[MOD].preSessionNote.text = "R190 a plan to kill"; },
+                h => h.kind === "flag" && h.doc === "User" && h.id === "R190USER00000001" && h.path === `flags.${MOD}.preSessionNote.text`]
         ];
         /* The exemptions: [what, plant, whether the hits are right]. projectMeta's own map token, as
            projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock

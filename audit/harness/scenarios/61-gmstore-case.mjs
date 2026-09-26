@@ -731,6 +731,30 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         && !planP4.p1[1] && !planP4.p1[2], J(planP4));
     await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         await S.keyPlanStore.dropMany(["${shownGm.chapter}:0", "${shownGm.chapter}:1"]); return true;`);
+    /* P5 (E05 C6, 26.09.2026; audit S11-03, S01-08): a player's pre-session note is the GM store
+       `notes` now, not a flag on the player's User document, which every browser holds. p1 saves one
+       through the primary; gm2, which joined empty, holds it once it has merged, p1 holds its own
+       copy, p2 nothing of it, and p1's flag, read on p2, says a note is written and holds no text.
+       Taken away after: the row dropped, p1 sent its copy of the drop, and its flag put back. */
+    const NOTE61 = `const N = await import("${repoUrl}/scripts/pre-session-note.mjs");`;
+    const flagP5Was = await gm.eval(`return game.users.get("${IDS.p1}").getFlag("${MOD}", "preSessionNote") ?? null;`);
+    const savedP5 = await p1.eval(`${NOTE61} return await N.saveNote(game.user.id, "E05 61 P5 p1's note");`, { timeout: 30000 });
+    await settle(1200);
+    const noteP5 = { saved: savedP5, flag: await p2.eval(`return game.users.get("${IDS.p1}").getFlag("${MOD}", "preSessionNote") ?? null;`) };
+    for (const [who, client] of [["gm", gm], ["gm2", gm2], ["p1", p1], ["p2", p2]]) noteP5[who] = await client.eval(`${NOTE61} return N.noteFor("${IDS.p1}");`);
+    check("P5: a note p1 saves through the primary reaches the second GM, p1 holds its own copy, p2 nothing, and p1's flag holds no text",
+        noteP5.saved === "sent" && [noteP5.gm, noteP5.gm2, noteP5.p1].every(t => t === "E05 61 P5 p1's note") && noteP5.p2 === ""
+        && noteP5.flag?.written === true && !Object.hasOwn(noteP5.flag ?? {}, "text"), J(noteP5), { flow: "pre-session-note" });
+    await gm.eval(`${NOTE61} const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");
+        // A tree before C6 has no store to take it from (its red run, 26.09): the flag alone is put back there.
+        if (S.noteStore) {
+            await S.noteStore.drop("${IDS.p1}");
+            N.sendNoteTo("${IDS.p1}");
+        }
+        const was = ${J(flagP5Was)}, user = game.users.get("${IDS.p1}");
+        if (was === null) await user.unsetFlag("${MOD}", "preSessionNote");
+        else await U.replaceFlag(user, "preSessionNote", was);
+        return true;`);
 
     // Taken away again: no later phase is to meet an armed item trap with nothing planted for it.
     await gm.eval(`${TRAP} await P.deleteProject("${trap.id}"); return true;`);
@@ -1101,6 +1125,9 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         J({ ...backup, text: backup.text ? `${backup.text.length} characters` : null }));
     await disconnect("gm2");
     await settle(300);
+    /* Z6's note (E05 C6): saved by p1 in the one moment of this run with no GM connected. */
+    const keptZ6 = await p1.eval(`${NOTE61} const U = await import("${repoUrl}/scripts/utils.mjs");
+        return { gms: U.activeGmIds().length, saved: await N.saveNote(game.user.id, "E05 61 Z6 kept note") };`, { timeout: 30000 });
     await connect("gm3");
     await settle(1500);
     const seenOnGm3 = await gm3.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
@@ -1112,6 +1139,14 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         seenOnGm3.primary && seenOnGm3.hydration === "alone" && seenOnGm3.dialogs.length === 1
         && /3 Truth Bullets \(of 3\) have no answer key/.test(seenOnGm3.dialogs[0]?.content ?? "")
         && /2 traces on the map \(of 2\) have no answer key/.test(seenOnGm3.dialogs[0]?.content ?? "") && seenOnGm3.warning, J(seenOnGm3));
+    /* Z6 (E05 C6, 26.09.2026; audit S11-03): a note p1 saved while no GM was connected was kept on
+       p1's browser, unsent, and answered "kept"; gm3, the next primary GM, with an empty browser, is
+       sent it once its world has loaded (`drpgPrimaryReady`) and holds it, and p1's copy is sent. */
+    const noteZ6 = { kept: keptZ6, gm3: await gm3.eval(`${NOTE61} return N.noteFor("${IDS.p1}");`),
+        p1: await p1.eval(`${NOTE61} return { unsent: N.noteUnsent?.() ?? null, text: N.noteFor(game.user.id) };`) };
+    check("Z6: a note p1 saved while no GM was connected was kept on p1's browser, and reached the primary GM who came next",
+        keptZ6.gms === 0 && keptZ6.saved === "kept" && noteZ6.gm3 === "E05 61 Z6 kept note" && noteZ6.p1.unsent === false
+        && noteZ6.p1.text === "E05 61 Z6 kept note", J(noteZ6), { flow: "pre-session-note" });
     /* Z3-Z4 (E04's fix round): the file is restored by ANOTHER GM with an empty browser, gma, whose
        id sorts after gm3's, so gm3 stays the primary with its warning up. Its rows arrive by merge:
        its check runs again on the change and the panel's line goes (the review's C-m15, until then

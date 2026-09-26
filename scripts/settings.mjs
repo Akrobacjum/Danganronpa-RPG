@@ -324,6 +324,16 @@ export const SETTINGS = {
      */
     gmKeyPlan: "gmKeyPlan",
     legacyKeyRemnantPlan: "keyRemnantPlan",
+    /**
+     * THE PRE-SESSION NOTES (E05, 1.2.64; audit S11-03, S01-08): a GM store
+     * (gm-stores.mjs `noteStore`), a row per user -> { text, updatedAt, byGm },
+     * and each player's copy of their own (`noteCopy`). Until 1.2.64 the note was
+     * the flag `preSessionNote` on the player's User document, which every browser
+     * holds; the flag keeps `{ updatedAt, written }`, and the clause `liftNotes`
+     * takes an older world's text out of it (pre-session-note.mjs).
+     */
+    gmNotes: "gmNotes",
+    mineNote: "mineNote",
     /** Which groups the last season reset was told to leave alone (R-1). */
     seasonExceptions: "seasonExceptions",
     /** Monokuma's standing rules - see rules.mjs. Public by design. */
@@ -1221,6 +1231,22 @@ export function registerSettings() {
     // The world key before 1.2.64: read once by `liftKeyPlan`, and empty after.
     game.settings.register(MODULE_ID, SETTINGS.legacyKeyRemnantPlan, {
         scope: "world",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    // The pre-session notes: a GM store since E05 (`noteStore`), and each player's copy of
+    // their own (`noteCopy`). No `onChange`, as the flag had none: the messenger's Note tab
+    // reads them when it is drawn, and a redraw there would throw away what is being typed.
+    game.settings.register(MODULE_ID, SETTINGS.gmNotes, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineNote, {
+        scope: "client",
         config: false,
         type: Object,
         default: {}

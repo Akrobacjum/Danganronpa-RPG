@@ -127,8 +127,8 @@ const KEEP = TIMING.secretCardsKept;
  * which is what `<img src=x onerror=...>` is made of.
  */
 
-/** Past this, a player's packet is not a messenger bubble. 32 KB is a long letter. */
-const MAX_PLAYER_BYTES = 32 * 1024;
+/** Past this, a player's packet is not a messenger bubble - nor, since E05, a pre-session note (pre-session-note.mjs). 32 KB is a long letter. */
+export const MAX_PLAYER_BYTES = 32 * 1024;
 
 /**
  * Pinned cards are a messenger's threads and are never aged out with the

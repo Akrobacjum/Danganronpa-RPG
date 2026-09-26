@@ -197,6 +197,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^target holds no Despair pool$/],
     ["badRequest", /^a GM asks for nothing here$/],
     ["badRequest", /^that plant was handed to somebody else$/],
+    // E05: a pre-session note past the player text cap (gm-bridge.mjs handleNoteSave).
+    ["badRequest", /^the note is longer than a player's words may be$/],
     // Two patterns, not one with an optional group: R22 reads `range(` in a regex literal as a call.
     ["outOfRange", /^(?:amount|difficulty|delta) .+ is out of range$/],
     ["outOfRange", /^difficulty .+ is out of range \(.*\)$/],

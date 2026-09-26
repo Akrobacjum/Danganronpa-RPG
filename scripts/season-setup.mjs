@@ -44,9 +44,9 @@ import { carriableCategories } from "./inventory.mjs";
 import { sharedRooms, roomsWantedFor, forgetAllStashesFound } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
 import { mastermindActor } from "./mastermind.mjs";
-import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId } from "./utils.mjs";
+import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
-import { NOTE_FLAG } from "./pre-session-note.mjs";
+import { NOTE_FLAG, hasNote } from "./pre-session-note.mjs";
 import { alreadyOpen, handOff } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -794,7 +794,7 @@ function resetTally() {
     const advances = students.reduce((n, a) =>
         n + Number(a.getFlag(MODULE_ID, FLAGS.advances) ?? 0), 0);
     const notes = students.filter(a => Object.keys(writtenNotes(a)).length).length
-        + game.users.filter(u => u.getFlag(MODULE_ID, NOTE_FLAG)).length;
+        + game.users.filter(u => hasNote(u.id)).length;
 
     const cards = moduleMessages().length;
     const chat = game.messages.size;
@@ -1115,10 +1115,14 @@ async function wipeSeason(plan) {
     // TWO KINDS OF NOTE, TWO GROUPS (R-1). A GM keeping their own pre-session
     // notes is not the same decision as keeping what the cast wrote on their
     // sheets, and one tick for both would have forced them together.
+    // The notes are a GM store since E05: the cut written first takes them on every
+    // GM and every player's copy. What is left is the flag that tells the roster a
+    // note is written - replaced whole, so an older world's text still in one goes too.
     await step("preNotes", "the GMs' pre-session notes", async () => {
         for (const user of game.users) {
-            if (user.getFlag(MODULE_ID, NOTE_FLAG)) {
-                await user.setFlag(MODULE_ID, NOTE_FLAG, "");
+            const flag = user.getFlag(MODULE_ID, NOTE_FLAG);
+            if (flag && typeof flag === "object" && (flag.written || Object.hasOwn(flag, "text"))) {
+                await replaceFlag(user, NOTE_FLAG, { written: false });
             }
         }
     });

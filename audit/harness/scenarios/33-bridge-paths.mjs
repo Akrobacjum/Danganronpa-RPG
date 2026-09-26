@@ -16,7 +16,8 @@
  *      refusal the player hears; a GM who is connected and silent is reported when the
  *      acknowledgement does not come; the trap relay reaches the GMs only; a refused search is told
  *      once.
- *   C  with no GM connected, three requests settle at once, send nothing and say the same thing.
+ *   C  with no GM connected, three requests settle at once, send nothing and say the same thing; and
+ *      a pre-session note, which is kept on the player's browser until a GM connects (E05).
  *   D  no exception escaped into Foundry on any client (until E31's runner, the two B injects were excused).
  * The two exceptions are injected through world objects the handlers write - Aiko's token's
  * `update` for the send-back, `game.settings.set` for the sabotage - so the same injection works
@@ -580,6 +581,24 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         && !b12.why.startsWith("DRPG.") && b12.said[0].includes(b12.why) && b12.held.botan === true && b12.held.aiko === false,
         JSON.stringify(b12));
 
+    /* B14 (E05 C6, 26.09.2026; audit S11-03, S01-08): a player's pre-session note goes to the primary
+       GM (`note.save`) and into the GMs' store under the sender's own id - until E05 p1 wrote it as a
+       flag on its own User document, which every browser holds. p1 saves one: it is answered as sent,
+       nothing is said, the GM reads it from its store and p1 from its own copy, p2 reads nothing of it,
+       and p1's flag, read on p2, says that a note is written and holds no text. */
+    phase("a player's pre-session note", { flow: "pre-session-note" });
+    const NOTE = `const N = await import("${repoUrl}/scripts/pre-session-note.mjs");`;
+    const n14 = await noticeCount(p1);
+    const saved14 = await p1.eval(`${NOTE} return await N.saveNote(game.user.id, "E05 33 B14 p1's note");`, { timeout: 30000 });
+    await settle(1200);
+    const noteOf = c => c.eval(`${NOTE} return N.noteFor("${p1.userId}");`);
+    const b14 = { saved: saved14, gm: await noteOf(gm), p1: await noteOf(p1), p2: await noteOf(p2),
+        flag: await p2.eval(`return game.users.get("${p1.userId}").getFlag("${MOD}", "preSessionNote") ?? null;`),
+        said: (await noticesSince(p1, n14)).map(x => x.msg) };
+    check("B14: p1's pre-session note is answered as sent and kept in the GM's store; p1 reads its own copy, p2 nothing, and p1's flag holds no text",
+        b14.saved === "sent" && b14.gm === "E05 33 B14 p1's note" && b14.p1 === b14.gm && b14.p2 === "" && b14.said.length === 0
+        && b14.flag?.written === true && !Object.hasOwn(b14.flag ?? {}, "text"), JSON.stringify(b14));
+
     /* ------------------------------------------- A. the Assistant as the primary */
 
     phase("the Assistant as the primary", { flow: "give-take-stash" });
@@ -653,6 +672,15 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     const c3 = await offline("action.plant", `${bridge}.requestPlant({ plannerId: "${IDS.aiko}", victimId: "${IDS.botan}", itemId: "${gift}", total: 12 })`);
     check("C: with no GM connected, p1's Palm settles at once, sends nothing, and says so once", settledAtOnce(c3), JSON.stringify(c3),
         { flow: "give-take-stash" });
+    /* E05 C6: a pre-session note saved with no GM connected is kept in p1's browser, unsent, and the
+       Note tab says so; it goes to the next primary GM whose world loads (61-gmstore-case, Z6). */
+    const c4 = await offline("note.save", `(await import("${repoUrl}/scripts/pre-session-note.mjs")).saveNote(game.user.id, "E05 33 C kept note")`);
+    const keptC = await p1.eval(`const N = await import("${repoUrl}/scripts/pre-session-note.mjs");
+        return { unsent: N.noteUnsent?.() ?? null, text: N.noteFor(game.user.id), status: N.noteStatus(game.user.id),
+            kept: game.i18n.localize("DRPG.Note.keptUntilGm") };`);
+    check("C: with no GM connected, p1's pre-session note settles at once as kept in p1's browser, sends nothing, and says so once",
+        settledAtOnce(c4) && c4.answer === "kept" && keptC.unsent === true && keptC.text === "E05 33 C kept note"
+        && keptC.status === keptC.kept && !keptC.kept.startsWith("DRPG."), JSON.stringify({ c4, keptC }), { flow: "pre-session-note" });
     const sentence = [c1, c2, c3].map(c => (c.said[0] ?? "").split(c.label).join("{what}"));
     check("C: the three say the same sentence apart from what they name", sentence.every(s => s && s === sentence[0]), JSON.stringify(sentence));
 

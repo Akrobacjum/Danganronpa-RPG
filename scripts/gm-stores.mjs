@@ -578,6 +578,48 @@ export const keyPlanStore = defineGmStore({
     kind: "ledger", resetGroup: "keyPlan", backup: true, sync: true
 });
 
+/**
+ * THE PRE-SESSION NOTES (E05 C6; audit S11-03, S01-08). A row per user: text, updatedAt,
+ * byGm - a flag on the player's own User document until 1.2.64, which every browser held,
+ * and whose first question is "Am I planning to kill? How?". Written by a GM, a player's
+ * own through the primary (the bridge's `note.save`); backed up, and each player told
+ * again after a restore (R182). Wiped by the reset group the flag's step always had,
+ * preNotes: its cut takes the rows on every GM and every player's copy. No old key: the
+ * first rows come out of the flags by `liftNotes`.
+ */
+export const noteStore = defineGmStore({
+    name: "notes", key: SETTINGS.gmNotes,
+    kind: "ledger", resetGroup: "preNotes", backup: true, sync: true,
+    afterRestore: () => import("./pre-session-note.mjs").then(m => m.retellNotes()),
+    exists: userId => Boolean(game.users?.has(userId))
+});
+
+/**
+ * THE NOTE COPY'S RULE (E05 C6). One stamp, the row's newest (`sendNoteTo`), and a
+ * draft: a player's own note written in this browser and not yet held by the GMs,
+ * marked `unsent` - which a GM's copy never carries (pre-session-note.mjs
+ * `receiveNote`). A draft is always taken, whatever its stamp; while one is held, a
+ * GM's copy is taken only when it holds the draft's words, which is the GMs saying they
+ * have it - an older copy, sent to the player's ask at load before the draft reached the
+ * GM, would otherwise put the older words back over the ones typed. Otherwise a copy is
+ * taken when its stamp is newer, a stamp under a reset's cut counting as none. Pure (R176).
+ */
+export function noteCombine(held, offered, { cut = 0 } = {}) {
+    if (offered?.value?.unsent === true) return offered;
+    if (held?.value?.unsent === true) return offered?.value?.text === held.value.text ? offered : null;
+    return newerStamps(offered?.stamps, held?.stamps, cut) ? offered : null;
+}
+
+/**
+ * A PLAYER'S OWN NOTE (E05 C6): `{ text, updatedAt, byGm }` as a GM sent it, or with
+ * `unsent` as the player wrote it here - taken by `noteCombine`. Read by the Note tab
+ * (pre-session-note.mjs `noteFor`, `noteStatus`); nothing of another player's is here.
+ */
+export const noteCopy = defineGmCopy({
+    name: "note", key: SETTINGS.mineNote, from: "notes", resetGroup: "preNotes", fallback: {},
+    combine: noteCombine
+});
+
 /** The rows of an old ledger `{ sceneId: { actorId: [room, ...] } }`, one per scene and character. */
 function fogRows(legacy) {
     const rows = [];

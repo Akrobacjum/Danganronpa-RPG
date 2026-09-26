@@ -663,6 +663,22 @@ const CLAUSES = [
             const report = await liftKeyPlan();
             return report && (report.lifted || report.kept) ? report : null;
         }
+    },
+    {
+        key: "liftNotes",
+        since: "1.2.64",
+        /*
+         * THE PRE-SESSION NOTES OUT OF WORLD DATA (E05 C6; audit S11-03, S01-08). Until
+         * 1.2.64 each note's text was a flag on its player's User document, which every
+         * browser holds. Once, on the primary, after the GM store's copies arrived, with the
+         * rules written on `liftNotes`: a row per user, weak and fill-only, the flag replaced
+         * by `{ updatedAt, written }` only once its row reads back, then each player's copy.
+         */
+        run: async () => {
+            const { liftNotes } = await import("./pre-session-note.mjs");
+            const report = await liftNotes();
+            return report && (report.lifted || report.kept) ? report : null;
+        }
     }
 ];
 

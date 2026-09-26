@@ -777,6 +777,38 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         await game.drpg.setClock({ eclipse: false, ...${JSON.stringify(clockWas)} }); return true;`);
 
     /*
+     * 7h4. A pre-session note for another user (E05 C6, 26.09.2026; audit S11-03, S01-08). A player's
+     * note is written through the primary GM since E05, under the user Foundry names as the sender:
+     * p2 saves one of their own, then p1 sends `note.save` carrying p2's id - as the address, and as
+     * a field of its own. p2's note is unchanged, in the GMs' store and in p2's flag; p1's own note
+     * is what p1 sent, since the packet names nobody and the only note it can write is its sender's.
+     * Nothing is refused. Put back: both rows dropped and both flags as they were.
+     */
+    phase("a pre-session note", { flow: "pre-session-note" });
+    const NOTE = `const N = await import("${repoUrl}/scripts/pre-session-note.mjs");`;
+    const noteUsers = [p1.userId, p2.userId];
+    const noteFlagsWas = await gm.eval(`return ${JSON.stringify(noteUsers)}.map(id => game.users.get(id).getFlag("${MOD}", "preSessionNote") ?? null);`);
+    const p2Saved = await p2.eval(`${NOTE} return await N.saveNote(game.user.id, "SEC p2's own note");`, { timeout: 30000 });
+    await settle(600);
+    const readNotes = `${NOTE} return { p1: N.noteFor("${p1.userId}"), p2: N.noteFor("${p2.userId}"),
+        p2Flag: game.users.get("${p2.userId}").getFlag("${MOD}", "preSessionNote") ?? null };`;
+    const forgedNote = await forge("note.save", { text: "SEC p1's words for p2", noteUserId: p2.userId }, readNotes);
+    check("SECURITY: a note.save carrying p2's id changes only its sender's own note - p2's stays, p1's is what p1 sent",
+        p2Saved === "sent" && forgedNote.before.p2 === "SEC p2's own note" && forgedNote.after.p2 === "SEC p2's own note"
+        && JSON.stringify(forgedNote.after.p2Flag) === JSON.stringify(forgedNote.before.p2Flag) && forgedNote.after.p1 === "SEC p1's words for p2"
+        && !forgedNote.reasons.length, JSON.stringify({ p2Saved, forgedNote }));
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const { replaceFlag } = await import("${repoUrl}/scripts/utils.mjs");
+        // A tree before C6 has no store to take them from (its red run, 26.09): the flags alone are put back there.
+        if (S.noteStore) await S.noteStore.dropMany(${JSON.stringify(noteUsers)});
+        const was = ${JSON.stringify(noteFlagsWas)};
+        for (const [i, id] of ${JSON.stringify(noteUsers)}.entries()) {
+            const user = game.users.get(id);
+            if (was[i] === null) await user.unsetFlag("${MOD}", "preSessionNote");
+            else await replaceFlag(user, "preSessionNote", was[i]);
+        }
+        return true;`);
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`

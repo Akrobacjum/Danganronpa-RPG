@@ -2358,6 +2358,7 @@
         "project.unsabotage": "Repair",
         "token.sendBack": "Send back",
         "eclipse.move": "Eclipse move",
+        "note.save": "Pre-session note",
         "despair.adjust": "Despair",
         "observe.resolve": "Observe",
         "analyze.resolve": "Analyze",
@@ -2934,6 +2935,9 @@
       "save": "Save",
       "saved": "Saved.",
       "saveFailed": "The note could not be saved. Tell the GM.",
+      "sentToGms": "Sent to the GMs.",
+      "keptUntilGm": "Kept here until a GM connects.",
+      "tooLong": "The note is too long to send to the GMs - over {kb} KB.",
       "statusEmpty": "Nothing written yet",
       "statusWritten": "Written",
       "statusToday": "Written today",
@@ -3345,7 +3349,8 @@
         "projectSecrets": "Who builds each trap, and what sets it off",
         "pendingMurders": "The Direct Murders declared in the dark",
         "eclipseMoves": "Who has crossed how often in the Eclipse",
-        "keyPlan": "The Key Remnant plan, chapter by chapter"
+        "keyPlan": "The Key Remnant plan, chapter by chapter",
+        "notes": "The players' pre-session notes"
       },
       "row": {
         "traces": {

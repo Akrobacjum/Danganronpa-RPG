@@ -11,10 +11,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
        p2's browsers for it after the incident and the trial (lib/canary.mjs). */
     phase("before the session");
     const plan = canary.marker("note.player", { allowed: ["gm", "p3"] });
-    await p3.eval(`const { saveNote } = await import("${repoUrl}/scripts/pre-session-note.mjs");
-        await saveNote(game.user.id, "${plan}");
-        return true;`);
+    const planSaved = await p3.eval(`const { saveNote } = await import("${repoUrl}/scripts/pre-session-note.mjs");
+        return await saveNote(game.user.id, "${plan}");`, { timeout: 30000 });
     await settle(200);
+    /* The note goes to the GMs since E05 C6 (26.09.2026; audit S11-03): through the primary GM into
+       its store, and not onto p3's User document, which every browser holds - where the canary found
+       it until then. Red on 50a79af (C5) with this check and S11-03 taken out (26.09): saveNote
+       answered true, the flag held the plan's text, and the closing scan found it on p1 and p2. */
+    const planOn = await gm.eval(`const N = await import("${repoUrl}/scripts/pre-session-note.mjs");
+        return { text: N.noteFor("${p3.userId}"), flag: game.users.get("${p3.userId}").getFlag("${MOD}", "preSessionNote") ?? null };`);
+    check("p3's plan is sent to the GMs and kept in their store, and p3's User flag carries no text",
+        planSaved === "sent" && planOn.text === plan && planOn.flag?.written === true && !Object.hasOwn(planOn.flag ?? {}, "text"),
+        JSON.stringify({ planSaved, planOn }), { flow: "pre-session-note" });
 
     // set an accomplice (thirdId) too, if the API supports it
     const cards0 = await p1.eval(`return game.messages.contents.length;`);

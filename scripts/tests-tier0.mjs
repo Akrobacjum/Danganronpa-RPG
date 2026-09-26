@@ -5639,7 +5639,9 @@ const REGRESSIONS = [
             // The Eclipse's crossings out of the world's eclipseMoves (E05 C4).
             ["eclipse.mjs", "liftEclipseMoves", ["weak", "fillOnly"], true],
             // The Key Remnant plan out of the world's keyRemnantPlan (E05 C5).
-            ["investigation.mjs", "liftKeyPlan", ["weak", "fillOnly"], true]
+            ["investigation.mjs", "liftKeyPlan", ["weak", "fillOnly"], true],
+            // The pre-session notes out of their users' flags (E05 C6).
+            ["pre-session-note.mjs", "liftNotes", ["weak", "fillOnly"], true]
         ];
         // The migrations that read a store through a function they call: they wait themselves.
         const WAITERS = [["remnants.mjs", "migrateRemnants"], ["remnants.mjs", "migrateRemnantToken"]];
@@ -5717,7 +5719,7 @@ const REGRESSIONS = [
         const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"], ["faintIntoSecrets", "migrateFaintIntoSecrets", "1.2.63"],
             ["liftIncidentSecrets", "liftIncidentSecrets", "1.2.63"], ["liftDiscoveryLedger", "liftDiscoveryLedger", "1.2.63"],
             ["liftProjectSecrets", "liftProjectSecrets", "1.2.64"], ["liftPendingMurders", "liftPendingMurders", "1.2.64"],
-            ["liftEclipseMoves", "liftEclipseMoves", "1.2.64"], ["liftKeyPlan", "liftKeyPlan", "1.2.64"]];
+            ["liftEclipseMoves", "liftEclipseMoves", "1.2.64"], ["liftKeyPlan", "liftKeyPlan", "1.2.64"], ["liftNotes", "liftNotes", "1.2.64"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.

@@ -149,6 +149,24 @@ function replaced(value) {
     return Operator.create ? Operator.create(value) : new Operator(value);
 }
 
+/* Every user's pre-session note flag as it stands, one written whole, and all put back as
+   they were - unset where there was none (E05 C6: the notes' lift pair writes the flags of
+   the world's own users, and the lift replaces every flag that holds a text). */
+function noteFlagsNow() {
+    return new Map(game.users.map(u => [u.id, foundry.utils.deepClone(u.flags?.[MODULE_ID]?.preSessionNote ?? null)]));
+}
+function setNoteFlag(user, value) {
+    return user.update({ [`flags.${MODULE_ID}.preSessionNote`]: replaced(value) });
+}
+async function putNoteFlagsBack(before) {
+    for (const [id, flag] of before) {
+        const user = game.users.get(id);
+        if (!user || stableJson(user.flags?.[MODULE_ID]?.preSessionNote ?? null) === stableJson(flag)) continue;
+        if (flag === null) await user.unsetFlag(MODULE_ID, "preSessionNote");
+        else await setNoteFlag(user, flag);
+    }
+}
+
 async function restore(snap) {
     const { reviveCharacter } = await import("./chapter.mjs");
     const { setDespair, getDespair } = await import("./despair.mjs");
@@ -7873,6 +7891,87 @@ const SCENARIOS = [
         }
     }],
 
+    ["the notes' lift moves each pre-session note's text out of its user's flag into the GM store, and replaces the flag once it reads back", async () => {
+        /*
+         * E05 C6, 26.09.2026; audit S11-03, S01-08. A world from before 1.2.64 keeps each
+         * pre-session note's text in a flag on its user, which every browser holds; the clause
+         * `liftNotes` moves each text into the GMs' store, weak and fill-only, and replaces the
+         * flag by `{ updatedAt, written }` only once the row reads back from storage. On fixture
+         * flags of two players, in a world the stores have never opened (`withGmStoreWorld`),
+         * with a note a GM wrote for the second since the update: the first's text reads back
+         * from disk and the GM's stands for the second; both flags read back without their
+         * text, saying when and that a note is written; a second run has nothing to do. Every
+         * user's flag is put back.
+         */
+        needs(world.atLeast("playerAccounts", 2), "the lift is shown two players' notes");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const N = await import("./pre-session-note.mjs");
+        const [one, two] = game.users.filter(u => !u.isGM);
+        const before = noteFlagsNow();
+        try {
+            await E.withGmStoreWorld(`suite-notelift-${foundry.utils.randomID(8)}`, async () => {
+                await S.noteStore.patch(two.id, { text: "SUITE a note a GM wrote since", updatedAt: 20, byGm: true });
+                await setNoteFlag(one, { text: "SUITE lifted note", updatedAt: 10, byGm: false });
+                await setNoteFlag(two, { text: "SUITE the world's older note", updatedAt: 5, byGm: false });
+                const report = await N.liftNotes();
+                const disk = id => S.noteStore.persisted(id) ?? null;
+                equal(stableJson([disk(one.id), disk(two.id)]), stableJson([
+                    { text: "SUITE lifted note", updatedAt: 10, byGm: false },
+                    { text: "SUITE a note a GM wrote since", updatedAt: 20, byGm: true }]),
+                "a note did not read back from the store's storage, or the world's overwrote the one a GM wrote since");
+                equal(stableJson([one, two].map(u => u.getFlag(MODULE_ID, N.NOTE_FLAG))),
+                    stableJson([{ updatedAt: 10, written: true }, { updatedAt: 20, written: true }]),
+                    "a flag still holds its text, or does not say when and that the note is written");
+                equal(stableJson([report?.lifted, report?.kept, report?.emptied]), stableJson([2, 0, true]), `the lift's report: ${stableJson(report)}`);
+                equal(await N.liftNotes(), null, "a second run of the lift found something to do");
+            });
+        } finally {
+            await putNoteFlagsBack(before);
+        }
+    }],
+
+    ["the notes' lift leaves a pre-session note's text in its flag when the store's row does not read back", async () => {
+        /*
+         * E05 C6, 26.09.2026: the other half of the pair above, as the crossings' and the plan's
+         * pairs do it. The store's save is swallowed - the row stands in memory and not on disk -
+         * and the flag keeps its text: nothing leaves world data that the store cannot read back,
+         * and the report says what was kept. In a world the stores have never opened; every
+         * user's flag is put back.
+         */
+        needs(world.atLeast("playerAccounts", 1), "the lift is shown a player's note");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const N = await import("./pre-session-note.mjs");
+        const [one] = game.users.filter(u => !u.isGM);
+        const before = noteFlagsNow();
+        const old = { text: "SUITE kept note", updatedAt: 7, byGm: false };
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        try {
+            await E.withGmStoreWorld(`suite-notekept-${foundry.utils.randomID(8)}`, async () => {
+                await setNoteFlag(one, old);
+                settings.set = async function (namespace, key, value) {
+                    if (namespace === MODULE_ID && key === S.noteStore.spec.key) return value;
+                    return realSet.call(this, namespace, key, value);
+                };
+                const report = await N.liftNotes();
+                putBack();
+                ok(S.noteStore.has(one.id), "the swallowed save left no row in memory either - this measured nothing");
+                equal(stableJson([report?.lifted, report?.kept, report?.emptied, one.getFlag(MODULE_ID, N.NOTE_FLAG)]), stableJson([0, 1, false, old]),
+                    "the world lost a note whose row is not on disk, or the report does not say it was kept");
+            });
+        } finally {
+            putBack();
+            await putNoteFlagsBack(before);
+        }
+    }],
+
     ["a changed old store is reported, and taking it never overwrites what changed since the upgrade", async () => {
         /*
          * E04, 26.09.2026; the design's H1. After the upgrade the old keys are frozen,
@@ -8594,6 +8693,15 @@ const SCENARIOS = [
                 },
                 gone: (report, id) => !S.eclipseMoveStore.has(id),
                 back: id => S.eclipseMoveStore.get(id)?.used === 1 && S.eclipseMoveStore.get(id)?.eclipse === "SUITE backed-up Eclipse"
+            },
+            // A pre-session note, through its store (E05 C6): the GM's own row, which no player is sent.
+            notes: {
+                seed: async () => {
+                    await S.noteStore.patch(game.user.id, { text: "SUITE backed-up note", updatedAt: 1, byGm: true });
+                    return game.user.id;
+                },
+                gone: (report, id) => !S.noteStore.has(id),
+                back: id => S.noteStore.get(id)?.text === "SUITE backed-up note"
             },
             // Through the store, in this world: while tier 2 holds the stores no player is sent anything of it (R184).
             discovery: {

@@ -2436,6 +2436,7 @@
         "project.unsabotage": "Naprawa",
         "token.sendBack": "Cofnięcie tokena",
         "eclipse.move": "Ruch w Eclipse",
+        "note.save": "Notatka przed sesją",
         "despair.adjust": "Despair",
         "observe.resolve": "Observe",
         "analyze.resolve": "Analyze",
@@ -3046,6 +3047,9 @@
       "save": "Zapisz",
       "saved": "Zapisano.",
       "saveFailed": "Nie udało się zapisać notatki. Powiedz GM-owi.",
+      "sentToGms": "Wysłana do GM-ów.",
+      "keptUntilGm": "Czeka tutaj, aż połączy się GM.",
+      "tooLong": "Notatka jest za długa, żeby wysłać ją GM-om - ponad {kb} KB.",
       "statusEmpty": "Jeszcze nic nie napisano",
       "statusWritten": "Napisana",
       "statusToday": "Napisana dzisiaj",
@@ -4574,7 +4578,8 @@
         "projectSecrets": "Kto buduje każdą pułapkę i co ją uruchamia",
         "pendingMurders": "Zgłoszenia Direct Murder w ciemności",
         "eclipseMoves": "Kto ile razy przeszedł w czasie Eclipse",
-        "keyPlan": "Plan Key Remnants, rozdział po rozdziale"
+        "keyPlan": "Plan Key Remnants, rozdział po rozdziale",
+        "notes": "Notatki graczy przed sesją"
       },
       "row": {
         "traces": {

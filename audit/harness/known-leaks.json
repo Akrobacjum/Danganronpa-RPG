@@ -42,21 +42,6 @@
       "measuredAt": "E30 C20 on 4a83b6b, 24.09.2026: the project.name marker on p1 and p2 at daggerheart.Countdowns countdowns.*.name, wire and rest; on no other surface. The ownership map read in projects.mjs createProject and ownershipMap on 25.09.2026, not measured by a run"
     },
     {
-      "id": "S11-03",
-      "findings": ["S11-03", "S01-08"],
-      "class": "plan",
-      "severity": "high",
-      "what": "A player's pre-session note, written for the GMs, is a flag on that player's User document, which every browser holds.",
-      "closes": "E05",
-      "match": [
-        {"seed": "note.player", "surface": "document", "where": "User", "path": "*.flags.danganronpa-rpg.preSessionNote.text"}
-      ],
-      "detectedBy": [
-        {"scenario": "72-canary", "seed": "note.player", "phase": "rest"}
-      ],
-      "measuredAt": "E30 C20 on 4a83b6b, 24.09.2026: p3's note.player marker on p1 and p2 at User *.flags.danganronpa-rpg.preSessionNote.text, wire and rest (also in 11-killer-secrecy, phase end)"
-    },
-    {
       "id": "S17-64",
       "findings": ["S17-64"],
       "class": "answer-key",

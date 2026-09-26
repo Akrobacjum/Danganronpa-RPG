@@ -144,6 +144,13 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
      */
     tab = "chat";
 
+    /**
+     * What the last Save of the note came to, said once, by the redraw it asks for
+     * (E05): since then a player's note goes to the GMs through the primary, and is
+     * either with them or kept in this browser until a GM connects.
+     */
+    noteSaid = null;
+
     constructor(playerUserId) {
         const options = { id: `drpg-messenger-${playerUserId}` };
         // Only set `position` when there is a saved one - passing `undefined`
@@ -268,7 +275,8 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
 
         const status = document.createElement("span");
         status.className = "drpg-messenger-note-status";
-        status.textContent = context.noteStatus;
+        status.textContent = this.noteSaid ?? context.noteStatus;
+        this.noteSaid = null;
         row.append(status);
 
         if (!context.note.trim()) {
@@ -287,9 +295,11 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         save.addEventListener("click", async () => {
             save.disabled = true;
             try {
-                const ok = await saveNote(this.playerUserId, area.value);
-                if (ok) {
-                    status.textContent = game.i18n.localize("DRPG.Note.saved");
+                const outcome = await saveNote(this.playerUserId, area.value);
+                if (outcome) {
+                    this.noteSaid = game.i18n.localize(outcome === "sent" ? "DRPG.Note.sentToGms"
+                        : outcome === "kept" ? "DRPG.Note.keptUntilGm" : "DRPG.Note.saved");
+                    status.textContent = this.noteSaid;
                     this.render();
                 }
             } finally {
