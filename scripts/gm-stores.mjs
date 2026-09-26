@@ -661,7 +661,9 @@ let compacting = null, marking = null;
  * the claim of the old keys, the clock's reset cuts, the GM-to-GM listener and
  * the hello. Once, at ready, before the migration's clauses (module.mjs), which
  * wait for the stores they read. Never throws: a store that cannot open says so
- * in the log, and the rest of the module carries on.
+ * in the log and, on a GM, on screen once (the engine's `open`), and the rest of
+ * the module carries on - an Analyze or a handover of a Truth Bullet is refused
+ * (`answerKeysRefusal`, below).
  */
 export function openGmStores() {
     opening ??= (async () => {
@@ -696,6 +698,45 @@ export async function whenGmStoresLoaded() {
     await whenGmStoresHydrated();
     await Promise.all([compacting, marking]);
     await gmStoresIdle();
+}
+
+/*
+ * THE ANSWER KEYS, WAITED FOR WITHIN A BOUND (E04's fix round 10, 26.09.2026). An
+ * Analyze and a handover of a Truth Bullet read its answer key, and wait for the other
+ * GMs' copies first (fix round 8) - with no bound of their own, so a GM whose stores
+ * never opened held the request for ever and the player's own clock ended it with no
+ * reason: measured on 05ac984 with the bullets store held unhydrated, p1's Analyze had
+ * not settled after 20 s, its action spent, nothing said. The wait ends at the first
+ * of: the store hydrated ("open"), this client's open failed ("failed", the engine's
+ * `open`), or `TIMING.gmStoreOpenMs` passed ("late"). A failure that comes while a
+ * request waits is read when the bound passes. `store`, `ms` and `failed` are the
+ * real ones unless R189 hands in its own.
+ */
+export function answerKeysOpen({ store = bulletStore, ms = TIMING.gmStoreOpenMs, failed = () => gmStoreHydration().state === "failed" } = {}) {
+    if (store.isHydrated()) return Promise.resolve("open");
+    if (failed()) return Promise.resolve("failed");
+    return new Promise(resolve => {
+        const timer = setTimeout(() => resolve(failed() ? "failed" : "late"), ms);
+        store.whenHydrated().then(() => { clearTimeout(timer); resolve("open"); });
+    });
+}
+
+/* This GM has been told the stores did not open, this session. A failed open is told by the engine. */
+let notOpenTold = false;
+
+/**
+ * Null when the answer keys are open; otherwise the reason an Analyze or a handover
+ * is refused with (E31's `keysNotOpen`, whose sentence tells the player the GM has been
+ * told) - and this GM is told once per session, unless the failed open already was.
+ */
+export async function answerKeysRefusal() {
+    const how = await answerKeysOpen();
+    if (how === "open") return null;
+    if (how === "late" && !notOpenTold) {
+        notOpenTold = true;
+        ui.notifications?.error?.(game.i18n.format("DRPG.GmStore.notOpen", { seconds: Math.round(TIMING.gmStoreOpenMs / 1000) }), { permanent: true });
+    }
+    return "the answer keys are not open on this GM's browser";
 }
 
 /* ---------------------------------------------------------------------------

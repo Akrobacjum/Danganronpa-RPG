@@ -2427,7 +2427,8 @@
         "refused": "The GM's client refused it.",
         "noGm": "No GM is connected.",
         "noAnswer": "The GM's client did not answer in time.",
-        "answerKeyMissing": "The GM's browser does not hold this bullet's answer key. The GM has been told."
+        "answerKeyMissing": "The GM's browser does not hold this bullet's answer key. The GM has been told.",
+        "keysNotOpen": "The GM's browser has not opened the answer keys yet. The GM has been told."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",
@@ -3297,7 +3298,9 @@
         "other": "{n} GMs are not connected ({names}): their browsers drop what this reset clears the next time they open this world."
       },
       "resetCutFailed": "The season reset could not mark the clock with the moment of the reset ({error}). Nothing was cleared.",
-      "saveFailedAlone": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and no other GM is connected to hold a copy: back up the case now (GM panel, Between sessions)."
+      "saveFailedAlone": "The GM store could not save \"{store}\" in this browser: {error}. What it holds stays in this window until it is closed, and no other GM is connected to hold a copy: back up the case now (GM panel, Between sessions).",
+      "openFailed": "The GM store could not open on this browser: {error}. Until it does, an Analyze or a handover of a Truth Bullet is refused. Reload to try again; the console has the details.",
+      "notOpen": "The GM store has not opened on this browser after {seconds} s: an Analyze or a handover of a Truth Bullet is refused until it does. Reload to try again."
     },
     "Case": {
       "gmOnly": "Only a GM can back up or restore the case.",

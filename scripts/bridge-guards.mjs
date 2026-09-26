@@ -157,7 +157,7 @@ export const REASONS = Object.freeze([
     "notEnoughHope", "noReroll", "rerollSpent", "traceOutOfReach", "notInIncident", "notYourTurn",
     "actionLocked", "actionSpent", "actionBlocked", "nothingLeft", "movedOn", "notThatRepair",
     "notWhereItStood", "alreadyDone", "nothingToUndo", "cannotNow", "cannotFrame", "notThere",
-    "answerKeyMissing", "relay", "failed", "refused", "noGm", "noAnswer"
+    "answerKeyMissing", "keysNotOpen", "relay", "failed", "refused", "noGm", "noAnswer"
 ]);
 
 /**
@@ -247,7 +247,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["notThere", /^the character is not in that room$/],
     ["notThere", /^the character is not in ".*": .+$/],
     // E04: the GM's browser does not hold that bullet's answer key (analyze.mjs).
-    ["answerKeyMissing", /^the answer key for that bullet is not on this GM's browser$/]
+    ["answerKeyMissing", /^the answer key for that bullet is not on this GM's browser$/],
+    // E04's fix round 10: its stores did not open in time, or at all (gm-stores.mjs answerKeysRefusal).
+    ["keysNotOpen", /^the answer keys are not open on this GM's browser$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */

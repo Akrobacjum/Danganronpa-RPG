@@ -5434,6 +5434,7 @@ const REGRESSIONS = [
             rerollReceiptRefusal: "returns", crisisRefusal: "why", crisisUndoRefusal: "returns", unsabotageRefusal: "returns",
             sendBackRefusal: "returns", playerArmRefusal: "returns", observeResolveRefusal: "returns", removalRefusal: "returns",
             searchSpendRefusal: "returns", narrowPlayerRemnant: "refused", resolveAnalyze: "refused", resolveStageSix: "refused",
+            answerKeysRefusal: "returns", shareBullet: "refused",
             resolveObserve: "passes", spendRerollReceipt: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);

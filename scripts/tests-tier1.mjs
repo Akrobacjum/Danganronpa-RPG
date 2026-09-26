@@ -4342,11 +4342,11 @@ const INVARIANTS = [
         const sources = new Map(await otherSources());
         const src = file => stripComments(sources.get(file) ?? "");
         const analyze = fnSource(src("analyze.mjs"), "resolveAnalyze");
-        const waited = analyze.indexOf("await bulletStore.whenHydrated()"), read = analyze.indexOf("const secret = secretOf(item.uuid);");
+        const waited = analyze.indexOf("await answerKeysRefusal()"), read = analyze.indexOf("const secret = secretOf(item.uuid);");
         ok(waited > 0 && read > waited && !/isHydrated\(\) && !secret\.realType/.test(analyze),
             "an Analyze reads the answer key, or decides it is missing, before the other GMs' copies have arrived");
         const share = fnSource(src("handover.mjs"), "shareBullet");
-        const shareWaited = share.indexOf("await bulletStore.whenHydrated()"), refused = share.indexOf("if (!secret.realType)"), minted = share.indexOf("createTruthBullet(");
+        const shareWaited = share.indexOf("await answerKeysRefusal()"), refused = share.indexOf("if (!secret.realType)"), minted = share.indexOf("createTruthBullet(");
         ok(shareWaited > 0 && refused > shareWaited && minted > refused && !/realType \?\? "neutral"/.test(share),
             "a handover mints a copy of a bullet whose answer key is missing, or decides before the copies arrive");
         // A doc block is its function's when nothing but its own text lies between its first line and the function.
@@ -4358,6 +4358,106 @@ const INVARIANTS = [
         const h = census => ({ census: () => census });
         equal(JSON.stringify(S.leftCounts([h({ left: 3, reasons: { notPrimary: 2, otherWorld: 1 } }), h({ left: 1, reasons: { deadProject: 1 } }), h(null)])),
             JSON.stringify({ left: 2, notPrimary: 2 }), "the rows left for the primary are counted as another world's, or not at all");
+    }],
+
+    ["R189 - an Analyze and a handover wait for the answer keys within a bound, and a GM store that cannot open says so", async () => {
+        /*
+         * E04's fix round 10, 26.09.2026. The Analyze and the handover wait for the other
+         * GMs' copies of the answer keys (R187), and waited with no bound. Measured on
+         * 05ac984 over this engine: a store whose open threw stayed "opening", its
+         * `whenHydrated` never settled - the exchange's clock is set only at the end of the
+         * open - and nobody was told; in the harness, p1's Analyze on a GM whose bullets
+         * store never hydrated had not settled after 20 s (61 M holds that road end to end,
+         * the player's price with it). A claim that throws is not that case: the claim keeps
+         * it, tells the primary, and the open goes on to its exchange - held here so the
+         * difference stays measured. Over the engine with a fake environment and clock,
+         * nothing leaves this client. Then `answerKeysOpen` over stores of its own, with
+         * real timers of a fraction of a second: "late" at the bound, "open" for a hydration
+         * inside it, "failed" at once or at the bound when the failure comes while it
+         * waits, and "open" at once. And the bound lies between the exchange's own timeout
+         * and the asking player's clock (`rulingMs`), so a refusal reaches them.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const tick = () => new Promise(r => setTimeout(r, 0));
+        const engineOf = ({ readThrows = false, claimThrows = false } = {}) => {
+            let t = 1000;
+            const timers = [], told = [], store = new Map();
+            const fake = {
+                set: (fn, ms) => {
+                    const tm = { fn, at: t + ms, done: false };
+                    if (!ms) setTimeout(() => { if (!tm.done) { tm.done = true; fn(); } }, 0);
+                    else timers.push(tm);
+                    return tm;
+                },
+                clear: tm => { if (tm) tm.done = true; },
+                advance: ms => {
+                    t += ms;
+                    for (const tm of timers.filter(x => !x.done && x.at <= t)) { tm.done = true; tm.fn(); }
+                }
+            };
+            const eng = G.createGmStoreEngine({
+                selfId: () => "R189A", isGM: () => true, isPrimary: () => true, worldId: () => "R189WORLD",
+                activeGmIds: () => ["R189A"], primaryGmId: () => "R189A", senderIsGM: () => true, userName: u => u, send: () => {},
+                storage: {
+                    read: k => { if (readThrows) throw new Error("R189 storage read"); return store.get(k) ?? null; },
+                    write: async (k, v) => { store.set(k, JSON.stringify(v)); }
+                },
+                readLegacy: () => ({ R189ROW: { realType: "key" } }), now: () => t, timers: fake, clock: () => ({}),
+                log: { warn: () => {}, error: () => {}, debug: () => {} },
+                notify: (level, text) => told.push(`${level}: ${text}`), text: key => key
+            });
+            const handle = eng.define({ name: "r189", key: "r189Store", legacyKey: "r189Old",
+                claim: () => { if (claimThrows) throw new Error("R189 claim"); return { rows: [] }; } });
+            return { eng, handle, fake, told };
+        };
+        const settled = promise => {
+            const box = { how: "pending" };
+            promise.then(v => { box.how = `resolved ${v}`; }, e => { box.how = `rejected ${e?.message ?? e}`; });
+            return box;
+        };
+
+        const broken = engineOf({ readThrows: true });
+        let rejected = null;
+        try { await broken.eng.open(); } catch (err) { rejected = err?.message ?? String(err); }
+        const waiting = settled(broken.eng.whenHydrated());
+        broken.fake.advance(TIMING.gmStoreSyncMs * 2);
+        for (let i = 0; i < 4; i++) await tick();
+        const openThrew = { rejected, state: broken.eng.hydration().state, whenHydrated: waiting.how, told: broken.told };
+        equal(JSON.stringify(openThrew), JSON.stringify({ rejected: "R189 storage read", state: "failed", whenHydrated: "pending", told: ["error: DRPG.GmStore.openFailed"] }),
+            "an open that throws is not \"failed\", or its GM is not told once, or its whenHydrated settled without a hydration");
+
+        const claimed = engineOf({ claimThrows: true });
+        await claimed.eng.open();
+        const claimBox = settled(claimed.eng.whenHydrated());
+        for (let i = 0; i < 4; i++) await tick();
+        const claimThrew = { state: claimed.eng.hydration().state, whenHydrated: claimBox.how, failed: claimed.handle.claimInfo()?.failed ?? null, told: claimed.told };
+        equal(JSON.stringify(claimThrew), JSON.stringify({ state: "alone", whenHydrated: "resolved alone", failed: "R189 claim", told: ["error: DRPG.GmStore.claimFailed"] }),
+            "a claim that throws stopped the open, or was not kept, or its primary was not told once");
+
+        const never = { isHydrated: () => false, whenHydrated: () => new Promise(() => {}) };
+        // Its own ceiling, so a wait with no bound fails here rather than holding the suite.
+        const timed = async promise => {
+            const t0 = Date.now();
+            const how = await Promise.race([promise, new Promise(r => setTimeout(() => r("still waiting after 3000 ms"), 3000))]);
+            return [how, Date.now() - t0];
+        };
+        const [late, lateMs] = await timed(S.answerKeysOpen({ store: never, ms: 150, failed: () => false }));
+        const soon = { isHydrated: () => false, whenHydrated: () => new Promise(r => setTimeout(() => r("answered"), 40)) };
+        const [inTime, inTimeMs] = await timed(S.answerKeysOpen({ store: soon, ms: 5000, failed: () => false }));
+        const [failedNow, failedNowMs] = await timed(S.answerKeysOpen({ store: never, ms: 5000, failed: () => true }));
+        let failing = false;
+        setTimeout(() => { failing = true; }, 30);
+        const [failedLater] = await timed(S.answerKeysOpen({ store: never, ms: 150, failed: () => failing }));
+        const [openNow, openNowMs] = await timed(S.answerKeysOpen({ store: { ...never, isHydrated: () => true }, ms: 5000, failed: () => true }));
+        const bound = { late, lateMs, inTime, inTimeMs, failedNow, failedNowMs, failedLater, openNow, openNowMs };
+        ok(late === "late" && lateMs >= 140 && lateMs < 5000 && inTime === "open" && inTimeMs < 5000 && failedNow === "failed" && failedNowMs < 1000
+            && failedLater === "failed" && openNow === "open" && openNowMs < 1000,
+            `the wait for the answer keys is not bounded, or ends before a hydration inside its bound, or waits on a store that failed: ${JSON.stringify(bound)}`);
+
+        ok(TIMING.gmStoreOpenMs > TIMING.gmStoreSyncMs && TIMING.gmStoreOpenMs < TIMING.rulingMs,
+            `the bound (${TIMING.gmStoreOpenMs} ms) is not longer than the exchange's own timeout (${TIMING.gmStoreSyncMs} ms) and shorter than the player's wait (${TIMING.rulingMs} ms)`);
     }],
 
     ["R182 - every store a player's copy is made from sends the copies again after a restore", async () => {

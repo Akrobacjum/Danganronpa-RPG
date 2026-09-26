@@ -447,8 +447,12 @@ function askForOffers() {
     // two actions: which one is `ctx.action`, the runner's, not a packet field.
 async function handleShareBulletOrGiveItem(payload, sender, ctx) {
     const { shareBullet, giveItem } = await import("./handover.mjs");
-    const run = ctx.action === ACTION_SHARE_BULLET ? shareBullet : giveItem;
-    await run({ fromId: payload.fromId, toId: payload.toId, itemId: payload.itemId });
+    const args = { fromId: payload.fromId, toId: payload.toId, itemId: payload.itemId };
+    // A bullet whose answer keys this GM's stores could not open in time is refused
+    // through the bridge, with its reason (E04's fix round 10); every other refusal of a
+    // handover is the giver's whisper, as it was.
+    const out = ctx.action === ACTION_SHARE_BULLET ? await shareBullet(args) : await giveItem(args);
+    if (out?.refused) return { refused: out.refused };
 }
 
     // And into them. Same guards as the theft, mirrored - the sender has to own

@@ -74,6 +74,12 @@
  *      primary's answer keys read back by merge, its check - and the panel's line -
  *      clear without a reload, and the GM who restored sends every player their
  *      copies again (E04's fix round).
+ *   M  the answer keys held past the bound (E04's fix round 10): with the primary's
+ *      bullets store held unhydrated, p1's Analyze and handover are refused within
+ *      TIMING.gmStoreOpenMs with keysNotOpen, the Analyze's price comes back, nothing
+ *      is scored or copied, and the GM is told once; a hydration three seconds late
+ *      is waited for and the throw scored and paid for; and the missing key's refusal
+ *      hands the price back too.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -1058,5 +1064,102 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     check("Z5: a GM that became the primary after it loaded tells the Mastermind's player a lair another GM moved",
         gmaTold >= 1 && doorZ5?.mastermind === true && doorZ5?.room === "Z5 lair", J({ gmaTold, doorZ5 }));
 
-    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z"], gm: IDS.gm };
+    /* -------------- M. the answer keys held past the bound (fix round 10) -------------- */
+
+    /* gma is the primary since Z5. Its bullets store is held unhydrated by replacing the
+       handle's two answers on its client - the stores' own exchange always ends at its
+       clock, so only an open that failed or hangs leaves them so, and neither can be made
+       from the storage a client is given (the engine's case is R189). Last, so the fixtures
+       and the tokens moved here reach no other phase. */
+    phase("M: an Analyze and a handover on a GM whose answer keys are not open are refused within the bound, and the price comes back", { flow: "truth-bullets" });
+    const BS = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");`;
+    const fixturesM = await gma.eval(`const actor = game.actors.get("${IDS.aiko}");
+        await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 1500, y: 300 });
+        const made = {};
+        for (const [k, realType] of [["held", "prep"], ["late", "prep"]]) {
+            const item = await game.drpg.createTruthBullet(actor, { name: "M bullet " + k, realType, visibility: "evident",
+                playerText: "Seen.", analyzedText: "Read " + k, remnantId: "MTRACE" + k, sceneId: "${IDS.scene}", sourceAction: "prep", tiedToCrime: false });
+            made[k] = { id: item.id, uuid: item.uuid };
+        }
+        const [none] = await actor.createEmbeddedDocuments("Item", [{ name: "M bullet with no key", type: "loot",
+            flags: { "${MOD}": { category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "evident", analyzed: false } } }]);
+        made.none = { id: none.id, uuid: none.uuid };
+        const { TIMING } = await import("${repoUrl}/scripts/config.mjs");
+        return { made, bound: TIMING.gmStoreOpenMs ?? null, chapter: game.drpg.getClock().chapter };`, { timeout: 60000 });
+    const boundM = fixturesM.bound ?? 16000;
+    const actionsTo3 = () => gma.eval(`await game.actors.get("${IDS.aiko}").update({ "system.resources.actions.value": 3 }); return true;`);
+    const holdM = release => gma.eval(`${BS} globalThis.__mReal ??= { w: S.bulletStore.whenHydrated, i: S.bulletStore.isHydrated };
+        S.bulletStore.isHydrated = () => false;
+        S.bulletStore.whenHydrated = () => new Promise(r => { globalThis.__mRelease = r; ${release ? `setTimeout(() => r("answered"), ${release});` : ""} });
+        globalThis.__notifications.length = 0; return true;`);
+    const unholdM = () => gma.eval(`${BS} if (globalThis.__mReal) { S.bulletStore.whenHydrated = globalThis.__mReal.w; S.bulletStore.isHydrated = globalThis.__mReal.i; }
+        globalThis.__mRelease?.("answered"); return true;`);
+    const scoredM = key => gma.eval(`const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const item = fromUuidSync(${J(fixturesM.made[key].uuid)});
+        return { flags: [item?.getFlag("${MOD}", "shownType") ?? null, item?.getFlag("${MOD}", "analyzed") ?? null, item?.getFlag("${MOD}", "lockedChapter") ?? null],
+            chapter: B.secretOf(${J(fixturesM.made[key].uuid)}).analysedChapter ?? null,
+            copies: game.actors.get("${IDS.botan}").items.filter(i => i.name === "M bullet ${key}").length };`);
+    // p1 throws an Analyze at a bullet (and, with `share`, hands the same bullet to Botan), and waits for what is said.
+    const throwM = (key, { share = false, until = 0 } = {}) => p1.eval(`const actor = game.actors.get("${IDS.aiko}");
+        const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        globalThis.__notifications.length = 0;
+        globalThis.__forceRoll = { hope: 9, fear: 5 };
+        const whyOf = code => game.i18n.localize("DRPG.Bridge.why." + code);
+        const left0 = game.drpg.actionsLeft(actor), t0 = Date.now(), out = { analyzed: null, shared: null };
+        game.drpg.performAction(actor, "analyze", { bulletId: ${J(fixturesM.made[key].id)} }).then(() => { out.analyzed = Date.now() - t0; }, e => { out.analyzed = "threw " + e; });
+        if (${share}) B.requestShareBullet({ fromId: "${IDS.aiko}", toId: "${IDS.botan}", itemId: ${J(fixturesM.made[key].id)} });
+        const refusal = what => globalThis.__notifications.find(n => n.msg.includes(whyOf("keysNotOpen")) && n.msg.includes(game.i18n.localize("DRPG.Bridge.what." + what)));
+        const deadline = t0 + ${until};
+        while (Date.now() < deadline && (out.analyzed === null || (${share} && !refusal("handover.bullet")))) await new Promise(r => setTimeout(r, 250));
+        if (${share} && refusal("handover.bullet")) out.shared = refusal("handover.bullet").at - t0;
+        await new Promise(r => setTimeout(r, 1500));
+        return { ...out, left0, left: game.drpg.actionsLeft(actor),
+            keysNotOpen: globalThis.__notifications.filter(n => n.msg.includes(whyOf("keysNotOpen"))).length,
+            keyMissing: globalThis.__notifications.filter(n => n.msg.includes(whyOf("answerKeyMissing"))).length,
+            said: globalThis.__notifications.map(n => n.msg.slice(0, 160)) };`, { timeout: until + 60000 });
+
+    await actionsTo3();
+    await holdM(0);
+    await settle(400);
+    const heldM = await throwM("held", { share: true, until: boundM + 8000 });
+    const heldScored = await scoredM("held");
+    const toldGma = await gma.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+        const notice = game.i18n.format("DRPG.GmStore.notOpen", { seconds: Math.round(${boundM} / 1000) });
+        return { notices: globalThis.__notifications.filter(n => n.msg === notice).length,
+            refusals: U.sessionFailures().filter(e => /^Refused a "(analyze\\.resolve|handover\\.bullet)" request .*: the answer keys are not open on this GM's browser\\.$/.test(e.message)).length };`);
+    await unholdM();
+    await settle(1500);
+    check("M1: an Analyze on a GM whose answer keys are held past the bound is refused within it, with its reason, the price handed back, and nothing scored",
+        Number.isFinite(heldM.analyzed) && heldM.analyzed >= boundM - 1000 && heldM.analyzed <= boundM + 6000 && heldM.keysNotOpen >= 1
+        && heldM.left0 === 3 && heldM.left === 3 && J(heldScored.flags) === J(["neutral", false, null]) && heldScored.chapter === null,
+        J({ boundM, heldM, heldScored }));
+    check("M2: a handover of the same bullet is refused through the bridge in the same bound, with the same reason, and no copy is made",
+        Number.isFinite(heldM.shared) && heldM.shared <= boundM + 6000 && heldM.keysNotOpen === 2 && heldScored.copies === 0,
+        J({ shared: heldM.shared, keysNotOpen: heldM.keysNotOpen, copies: heldScored.copies }));
+    check("M3: the GM is told once that its stores have not opened, for two refusals it logged", toldGma.notices === 1 && toldGma.refusals === 2, J(toldGma));
+
+    /* The ordinary road: a hydration that comes three seconds after the throw, inside the bound, is waited for, and the throw scored. */
+    await actionsTo3();
+    await holdM(3000);
+    await settle(400);
+    const lateM = await throwM("late", { until: boundM + 8000 });
+    const lateScored = await scoredM("late");
+    await unholdM();
+    check("M4: an Analyze waits for a hydration that comes late but within the bound, and is scored and paid for",
+        Number.isFinite(lateM.analyzed) && lateM.analyzed >= 2500 && lateM.analyzed < boundM && lateM.keysNotOpen === 0
+        && lateM.left0 === 3 && lateM.left === 2 && lateScored.chapter === fixturesM.chapter,
+        J({ lateM, lateScored, chapter: fixturesM.chapter }));
+
+    /* And the missing key's refusal hands the price back the same way (it did not on 05ac984). */
+    await actionsTo3();
+    await settle(400);
+    const noneM = await throwM("none", { until: 20000 });
+    check("M5: an Analyze of a bullet with no answer key hands its price back as well",
+        Number.isFinite(noneM.analyzed) && noneM.keyMissing === 1 && noneM.left0 === 3 && noneM.left === 3, J(noneM));
+    await gma.eval(`const actor = game.actors.get("${IDS.aiko}");
+        for (const k of ["held", "late", "none"]) await actor.items.get(${J(fixturesM.made)}[k].id)?.delete();
+        await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 300, y: 300 });
+        return true;`, { timeout: 60000 });
+
+    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M"], gm: IDS.gm };
 }

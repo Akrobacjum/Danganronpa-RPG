@@ -1381,25 +1381,47 @@ export function createGmStoreEngine(env) {
 
     /* ------------------------------ open ---------------------------------- */
 
+    /*
+     * AN OPEN THAT THROWS SAYS SO (E04's fix round 10, 26.09.2026). Measured on 05ac984
+     * with this engine over a storage whose read throws: `open` rejected, the hydration
+     * stayed "opening", and `whenHydrated` had not settled a second later - nor ever
+     * would, since the exchange's clock is set only at the end of the open - while the
+     * one line said was the console's (gm-stores.mjs `openGmStores`). A claim that throws
+     * is not this: `claimStore` keeps it, tells the primary, and the open goes on to its
+     * exchange (measured the same day: "alone", resolved at once). An open that fails
+     * before its exchange starts is "failed" now, and its GM is told once, here; the
+     * waits that must not hang on it are bounded by their callers (`answerKeysOpen`),
+     * because `whenHydrated` still settles only on a real hydration. Once the hello's
+     * clock is set, that clock ends the wait, and a throw after it changes nothing.
+     */
     async function open() {
         if (opened) return;
         opened = true;
-        const wid = worldId();
-        hyd.wid = wid;
-        for (const cs of copies.values()) cs.seenCuts.set(wid, copyCut(cs.spec));
-        if (!env.isGM()) { hyd.state = "alone"; return; }
-        hyd.state = "opening";
-        for (const st of stores.values()) {
-            current(st);
-            await claimStore(st);
+        try {
+            const wid = worldId();
+            hyd.wid = wid;
+            for (const cs of copies.values()) cs.seenCuts.set(wid, copyCut(cs.spec));
+            if (!env.isGM()) { hyd.state = "alone"; return; }
+            hyd.state = "opening";
+            for (const st of stores.values()) {
+                current(st);
+                await claimStore(st);
+            }
+            await applyCuts();
+            const others = peers();
+            hyd.waiting = new Set(syncing() ? others : []);
+            hyd.state = "waiting";
+            if (!hyd.waiting.size) { markHydrated("alone"); return; }
+            hyd.timer = env.timers.set(() => markHydrated("timedOut"), TIMING.gmStoreSyncMs);
+            sendHello(others);
+        } catch (err) {
+            if (hyd.state === "waiting" || isHydrated()) throw err;
+            hyd.state = "failed";
+            const why = String(err?.message ?? err);
+            if (env.isGM()) env.notify("error", env.text?.("DRPG.GmStore.openFailed", { error: why })
+                ?? `The GM store could not open on this browser: ${why}`, { permanent: true });
+            throw err;
         }
-        await applyCuts();
-        const others = peers();
-        hyd.waiting = new Set(syncing() ? others : []);
-        hyd.state = "waiting";
-        if (!hyd.waiting.size) { markHydrated("alone"); return; }
-        hyd.timer = env.timers.set(() => markHydrated("timedOut"), TIMING.gmStoreSyncMs);
-        sendHello(others);
     }
 
     /** While on, nothing is sent (deltas, hellos, answers); incoming packets still merge. Off sends hello. */

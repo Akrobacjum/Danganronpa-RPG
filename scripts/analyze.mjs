@@ -27,7 +27,7 @@ import {
 // without (T-2). Static: remnants.mjs does not import this file.
 import { remnantPublicById } from "./remnants.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, article, esc } from "./utils.mjs";
-import { bulletStore } from "./gm-stores.mjs";
+import { answerKeysRefusal } from "./gm-stores.mjs";
 
 /* The bullets the GMs have been told about this session: one whisper each, not one per roll. */
 const keyMissingTold = new Set();
@@ -99,14 +99,22 @@ export async function resolveAnalyze({
      * GM's browser does not hold - a lost browser, a GM whose copy has not arrived,
      * a row S05-01 left with its realType gone - was announced as Neutral, and a
      * table argued its trial on a reading nobody made. An Analyze of such a bullet
-     * is refused instead (a refusal hands back what was paid, R88), and the GMs are
-     * told, once per bullet per session, where the key can come back from. It waits
-     * for the other GMs' copies first - no longer than the exchange's own timeout -
-     * so a key still on its way is not taken for a missing one; until E04's fix
-     * round the refusal was skipped in that window and the bullet scored Neutral
-     * (the reviews' DS-m9 = C-m4).
+     * is refused instead, and the GMs are told, once per bullet per session, where
+     * the key can come back from. It waits for the other GMs' copies first, so a key
+     * still on its way is not taken for a missing one; until E04's fix round the
+     * refusal was skipped in that window and the bullet scored Neutral (the reviews'
+     * DS-m9 = C-m4). The wait is bounded (fix round 10): a GM whose stores did not
+     * open within `TIMING.gmStoreOpenMs`, or could not open at all, refuses with
+     * `keysNotOpen` rather than holding the request for ever (`answerKeysRefusal`).
+     * Either refusal hands the price back on the asking player's client
+     * (action-rolls.mjs `analyseBullet`); until fix round 10 neither did - the
+     * missing key's measured on 05ac984: p1's actions 3 -> 2, nothing given back -
+     * though this note said so.
      */
-    if (!undo) await bulletStore.whenHydrated();
+    if (!undo) {
+        const notOpen = await answerKeysRefusal();
+        if (notOpen) return { refused: notOpen };
+    }
     const secret = secretOf(item.uuid);
     if (!undo && !secret.realType) {
         await tellGmsKeyMissing(item);

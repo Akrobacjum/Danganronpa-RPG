@@ -3948,6 +3948,9 @@ async function performAnalyze(actor, def, options) {
         : askForHint(actor, def, roll, asked?.request ?? "", charge);
 }
 
+/* The refusals of an Analyze that hand its price back (`analyseBullet`): the GM's side scored nothing. */
+const KEY_REFUSALS = new Set(["answerKeyMissing", "keysNotOpen"]);
+
 /**
  * Analysing evidence. The roll goes to the GM's client to be scored, because
  * the difficulty depends on what the bullet really is - which is precisely what
@@ -3955,14 +3958,15 @@ async function performAnalyze(actor, def, options) {
  */
 async function analyseBullet(actor, def, roll, subject, charge = null) {
     const { requestAnalyzeResolve } = await import("./gm-bridge.mjs");
-    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
+    const { gmOnline, sayNotDone, reasonOf } = await import("./bridge-guards.mjs");
 
     /*
      * THE LAST GM CAN LEAVE WHILE THE DICE ARE IN THE AIR, and then there is
-     * nobody to score this against the answer key. Refunded on THAT and nothing
-     * else: on a GM's client `requestAnalyzeResolve` answers the resolver's own
-     * value, which may legitimately be null, so a refund keyed on what it
-     * answered would hand the price back for a resolution that happened (T-1).
+     * nobody to score this against the answer key. Refunded on THAT, and on the
+     * two refusals below that say by their code that nothing was scored: on a
+     * GM's client `requestAnalyzeResolve` answers the resolver's own value, which
+     * may legitimately be null, so a refund keyed on anything else it answered
+     * would hand the price back for a resolution that happened (T-1).
      */
     if (!gmOnline()) {
         if (charge) await refundPrice(actor, charge);
@@ -3985,6 +3989,20 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
         total: roll.total,
         isCritical: Boolean(roll.isCritical)
     });
+
+    /*
+     * A KEY THE GM'S BROWSER CANNOT READ IS NOT THE PLAYER'S TO PAY FOR (E04's fix
+     * round 10, 26.09.2026). Two refusals come before anything is scored, for a
+     * reason that is no part of the rules: the bullet has no answer key on the GM's
+     * browser (`answerKeyMissing`), or the GM's stores did not open in time
+     * (`keysNotOpen`). Each hands back the step that paid, as a closed window does.
+     * Measured on 05ac984: the missing key left p1's actions 3 -> 2, nothing given
+     * back, though analyze.mjs said a refusal did. Those two codes and no other: "no
+     * answer" can follow a resolution that happened, and so can a run that failed
+     * part-way. On a GM's own client the refusal is the resolver's value, read alike.
+     */
+    const refusedFor = res.ok ? (res.value?.refused ? reasonOf(res.value.refused) : null) : (res.refused ? res.reason : null);
+    if (charge && KEY_REFUSALS.has(refusedFor)) await refundPrice(actor, charge);
 
     // Silent on the outcome on purpose: this client does not know the number it
     // was measured against, and must not be told. "The GM is working it out" only

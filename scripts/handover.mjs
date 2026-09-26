@@ -24,7 +24,7 @@ import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { grantItem, canCarry, preservedFlags, capacityLabel, isStashed } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet } from "./truth-bullets.mjs";
 import { dialogContent, whisperToOwner, log, warn, error } from "./utils.mjs";
-import { bulletStore } from "./gm-stores.mjs";
+import { answerKeysRefusal } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -237,8 +237,13 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
        lacks - lost, or a copy not arrived - was handed over as an explicit Neutral, a
        reading nobody made, while an Analyze of the original was refused for the same
        reason (analyze.mjs). It waits for the other GMs' copies as the Analyze does, and
-       is then refused, and the giver told. */
-    await bulletStore.whenHydrated();
+       is then refused, and the giver told. The wait is the Analyze's too (fix round 10):
+       bounded, and on a GM whose stores did not open it is refused through the bridge
+       (`keysNotOpen`, which its run passes on) - measured on 05ac984 with the store held
+       (61 M): in 24 s its giver was told nothing, and nothing was copied. A handover
+       costs nothing, so nothing is handed back. */
+    const notOpen = await answerKeysRefusal();
+    if (notOpen) return { refused: notOpen };
     const data = truthBulletData(item);
     const secret = secretOf(item.uuid);
     if (!secret.realType) {

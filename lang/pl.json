@@ -2507,7 +2507,8 @@
         "refused": "Klient GM-a odmówił.",
         "noGm": "Żaden GM nie jest połączony.",
         "noAnswer": "Klient GM-a nie odpowiedział na czas.",
-        "answerKeyMissing": "Przeglądarka GM-a nie ma klucza odpowiedzi do tego bulletu. GM został powiadomiony."
+        "answerKeyMissing": "Przeglądarka GM-a nie ma klucza odpowiedzi do tego bulletu. GM został powiadomiony.",
+        "keysNotOpen": "Przeglądarka GM-a jeszcze nie otworzyła kluczy odpowiedzi. GM został powiadomiony."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",
@@ -4522,7 +4523,9 @@
         "other": "{n} GM-a nie jest połączonego ({names}): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat."
       },
       "resetCutFailed": "Reset sezonu nie mógł zaznaczyć w zegarze chwili resetu ({error}). Nic nie zostało wyczyszczone.",
-      "saveFailedAlone": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a żaden inny GM nie jest podłączony, by mieć kopię: zrób teraz kopię sprawy (panel GM-a, Między sesjami)."
+      "saveFailedAlone": "Magazyn GM-a nie mógł zapisać „{store}” w tej przeglądarce: {error}. To, co przechowuje, zostaje w tym oknie do jego zamknięcia, a żaden inny GM nie jest podłączony, by mieć kopię: zrób teraz kopię sprawy (panel GM-a, Między sesjami).",
+      "openFailed": "Magazyn GM-a nie mógł się otworzyć w tej przeglądarce: {error}. Dopóki się nie otworzy, Analyze i przekazanie Truth Bulletu są odrzucane. Przeładuj, aby spróbować ponownie; szczegóły są w konsoli.",
+      "notOpen": "Magazyn GM-a nie otworzył się w tej przeglądarce po {seconds} s: Analyze i przekazanie Truth Bulletu są odrzucane, dopóki się nie otworzy. Przeładuj, aby spróbować ponownie."
     },
     "Case": {
       "gmOnly": "Kopię sprawy robi i przywraca tylko GM.",
