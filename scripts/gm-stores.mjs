@@ -222,12 +222,22 @@ export const CAST_FIELDS = Object.freeze([
  * record of this world, each field stamped on its own, `swung` a stamp per actor:
  * a swing and a turn change written on two GMs both stay. The old cast is claimed
  * only when it can be this world's running incident (the design's H4): while this
- * world's `murderState` is active and it names an actor here, and a betrayal offer
- * alone only for the clock's own chapter and day. A closed cast (`{ updated }` and
- * no names) is not claimed and stays in the old key, counted as left (the Mastermind
- * carries its old clear because a decision reads it; nothing would read this one),
- * and a stale cast cannot reach the next incident either way: opening one stamps
- * every per-incident field.
+ * world's `murderState` is active, it names an actor here, and it was written after
+ * the running incident opened (`openedAt`, less the clocks' bound) - and a betrayal
+ * offer alone only for the clock's own chapter and day. A closed cast (`{ updated }`
+ * and no names) is not claimed and stays in the old key, counted as left (the
+ * Mastermind carries its old clear because a decision reads it; nothing would read
+ * this one), and a stale cast cannot reach the next incident either way: opening
+ * one stamps every per-incident field.
+ *
+ * EVERY FIELD, ITS NULLS INCLUDED (the round-2 review's R2-B1, 26.09.2026). A 1.2.62
+ * entry was written whole, and its null is a decision - "no third", "no receipt" -
+ * at its `updated`. Claimed without its nulls, a GM whose old key held the running
+ * incident held no stamp for them, and another GM's older entry - the previous
+ * incident, which that GM last saw - filled them unopposed: on three GMs every record
+ * read the previous incident's third on the killer's side, and the primary sent that
+ * player the cast, killer included (measured, 61 K on the tree before this). An entry
+ * from before the running incident opened is left outright (`previousIncident`).
  */
 export const castStore = defineGmStore({
     name: "cast", key: SETTINGS.incidentCast, legacyKey: SETTINGS.legacyIncidentCast,
@@ -237,17 +247,20 @@ export const castStore = defineGmStore({
     claim: legacy => {
         if (!isPlain(legacy) || !Object.keys(legacy).length) return { rows: [], left: [] };
         const { updated, betrayal = null, ...rest } = legacy;
-        const named = Object.fromEntries(Object.entries(rest)
-            .filter(([f, v]) => CAST_FIELDS.includes(f) && v !== null && v !== undefined));
+        const held = Object.fromEntries(Object.entries(rest).filter(([f, v]) => CAST_FIELDS.includes(f) && v !== undefined));
         const state = getSetting(SETTINGS.murderState) ?? {};
-        const here = [named.killerId, named.victimId].some(id => id && game.actors?.has(id));
+        const here = [held.killerId, held.victimId].some(id => id && game.actors?.has(id));
+        const before = Number.isFinite(state.openedAt) && Number.isFinite(updated) && updated < state.openedAt - TIMING.gmStoreSkewMs;
+        const running = Boolean(state.active) && here && !before;
         const clock = getClock() ?? {};
         const offer = betrayal?.killerId && betrayal.chapter === clock.chapter && betrayal.day === clock.day
             && game.actors?.has(betrayal.thirdId) ? betrayal : null;
-        const fields = { ...(state.active && here ? named : {}), ...(offer ? { betrayal: offer } : {}) };
+        // The running incident's entry says its betrayal too - an offer, or none (null) at its time.
+        const fields = { ...(running ? held : {}), ...(offer || (running && "betrayal" in legacy) ? { betrayal: offer } : {}) };
         if (Object.keys(fields).length) return { rows: [{ key: RECORD, fields, stamp: updated }], left: [] };
-        const closed = !Object.keys(named).length && !betrayal;
-        return { rows: [], left: [{ key: RECORD, reason: closed ? "closed" : (here ? "notRunning" : "otherWorld") }] };
+        const closed = !Object.values(held).some(v => v !== null) && !betrayal;
+        const reason = closed ? "closed" : !here ? "otherWorld" : before ? "previousIncident" : "notRunning";
+        return { rows: [], left: [{ key: RECORD, reason }] };
     }
 });
 

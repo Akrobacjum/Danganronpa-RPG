@@ -7036,6 +7036,43 @@ const SCENARIOS = [
         equal(raw(SETTINGS.legacyDiscoveryMine), mineBefore, "the fog copy's claim changed its real old key");
     }],
 
+    ["two GMs' old casts claimed on the upgrade day keep the running incident's nulls, and a cast from before it opened is left", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the round-2 review's R2-B1. A 1.2.62 cast entry was
+         * written whole, and its nulls are decisions: "no third", "no receipt". The claim
+         * took only the fields with a value, so a GM whose old key held the running incident
+         * held no stamp for its third, and another GM's older entry - the previous incident,
+         * which that GM last saw - put its third into the running one on every GM. Two
+         * browsers' old keys, each claimed in a world of its own (`withGmStoreWorld`,
+         * `withGmStoreLegacy`: no real old key is written, nothing is sent), their sections
+         * merged as the GMs' exchange merges them: the third is the running entry's null.
+         * And an entry written before the running incident opened (`openedAt`, less the
+         * clocks' bound) is left, counted as the previous incident's.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const [killer, victim, third, oldKiller] = cast(4);
+        const T2 = Date.now() - 60 * 60 * 1000, T1 = T2 - 10 * 60 * 1000;
+        const running = { killerId: killer.id, victimId: victim.id, killerTurnId: killer.id, thirdId: null, thirdSide: null, lastCrisis: null, updated: T2 };
+        const stale = { killerId: oldKiller.id, victimId: victim.id, killerTurnId: oldKiller.id, thirdId: third.id, thirdSide: "killer", updated: T1 };
+        const claimed = seed => E.withGmStoreLegacy({ [SETTINGS.legacyIncidentCast]: seed },
+            () => E.withGmStoreWorld(`suite-castpair-${foundry.utils.randomID(8)}`, async () => ({ census: await S.castStore.claim(), section: S.castStore.section() })));
+        // Put back by tier 2's restore, as every murder test's state is.
+        await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident", turn: 2, turnSide: "killer" });
+        const mine = await claimed(running), theirs = await claimed(stale);
+        equal(stableJson([mine.census?.claimed, theirs.census?.claimed]), stableJson([1, 1]), "the two old casts were not both claimed");
+        const record = E.mergeSections(mine.section, theirs.section, S.castStore.spec).e.record ?? {};
+        equal(stableJson([record.killerId, record.thirdId, record.thirdSide, record.lastCrisis]), stableJson([killer.id, null, null, null]),
+            `the previous incident's third filled the running incident's "no third": ${stableJson(record)}`);
+
+        await game.settings.set(MODULE_ID, SETTINGS.murderState,
+            { active: true, stage: "incident", turn: 2, turnSide: "killer", openedAt: T2 + TIMING.gmStoreSkewMs + 60 * 1000 });
+        const earlier = await claimed(running);
+        equal(stableJson([earlier.census?.claimed, earlier.census?.reasons]), stableJson([0, { previousIncident: 1 }]),
+            `a cast written before the running incident opened was claimed: ${stableJson(earlier.census)}`);
+    }],
+
     ["a changed old store is reported, and taking it never overwrites what changed since the upgrade", async () => {
         /*
          * E04, 26.09.2026; the design's H1. After the upgrade the old keys are frozen,

@@ -45,6 +45,10 @@
  *      is away reach it when it comes back, the untick with them.
  *   H1 a Level Up offered on the primary (S03-11): its owner's copy is lit at the
  *      offer's stamp, and the second GM holds the offer.
+ *   K  the upgrade day's claim of the old cast (the round-2 review's R2-B1): two GM
+ *      browsers claim theirs while an incident runs, one of them the previous
+ *      incident's; the running one's "no third" stands on every GM, and the third
+ *      of the previous one is sent nothing.
  *   J1 the season reset is the primary's (S06-20, D12): a Mastermind is picked while
  *      the second GM is here, and its reset is refused, names the primary GM and
  *      opens no window; it leaves with its browser.
@@ -632,6 +636,46 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         offeredAt > 0 && J([litH1.offer, litH1.stamp]) === J(["standard", offeredAt]) && J([onGm2H1.offer, onGm2H1.stamp]) === J(["standard", offeredAt]),
         J({ offeredAt, litH1, onGm2H1 }));
 
+    /* ------------------- K. the upgrade day's claim of an old cast, one of them stale ------------------- */
+
+    /* K (the round-2 review's R2-B1, 26.09.2026): a 1.2.62 cast entry is written whole, and its
+       nulls are decisions - "no third" at its `updated`. Two GMs' browsers first open 1.2.63 while
+       an incident runs: gmb's old key holds the running one (Chie kills Daichi, no third), gmc's
+       the previous one, which gmc last saw (Botan and Daichi, Aiko its third on the killer's side,
+       older). The claim took only the non-null fields, so gmc's older third filled the running
+       incident on every GM, and the primary sent Aiko's player the cast, its killer included
+       (measured on d32f8f2 in the review's scenario 94). The primary clears the cast store first,
+       so no newer stamp left from F decides it in the fix's place, and both again after. */
+    phase("K: two GMs' old casts are claimed on the upgrade day, one of them stale", { flow: "murder-incident" });
+    const castK = client => client.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const r = S.castStore.record(); return { killerId: r.killerId ?? null, thirdId: r.thirdId ?? null, thirdSide: r.thirdSide ?? null,
+            claimed: S.castStore.census()?.claimed ?? null };`);
+    const stateBeforeK = await gm.eval(`return foundry.utils.deepClone(game.settings.get("${MOD}", "murderState") ?? {});`);
+    const clearedK = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await S.castStore.clear();
+        await game.settings.set("${MOD}", "murderState", { active: true, stage: "incident", turn: 2, turnSide: "killer", indirect: false });
+        return S.castStore.cleared();`);
+    await settle(1200);
+    const runningK = { killerId: IDS.chie, victimId: IDS.daichi, killerTurnId: IDS.chie, thirdId: null, thirdSide: null, lastCrisis: null, updated: clearedK + 600 };
+    const staleK = { killerId: IDS.botan, victimId: IDS.daichi, killerTurnId: IDS.botan, thirdId: IDS.aiko, thirdSide: "killer", updated: clearedK + 300 };
+    const castsK = await p1.eval(`return globalThis.__casts.length;`);
+    await connect("gmb", { storage: { [`${MOD}.incidentCast`]: J(runningK) } });
+    await settle(1500);
+    await connect("gmc", { storage: { [`${MOD}.incidentCast`]: J(staleK) } });
+    await settle(2000);
+    const onGmK = await castK(gm), onGmbK = await castK(gmb), onGmcK = await castK(gmc);
+    // What p1 was sent, as it receives it (F records it): a "not in it" answer to its own ask carries nobody.
+    const castToP1 = (await p1.eval(`return globalThis.__casts.slice(${castsK});`)).filter(d => Object.keys(d.cast ?? {}).length);
+    check("K1: both GM browsers claimed their old cast, and every record keeps the running incident's \"no third\" - the previous incident's third is not in it",
+        onGmbK.claimed === 1 && onGmcK.claimed === 1 && [onGmK, onGmbK, onGmcK].every(r => r.killerId === IDS.chie && r.thirdId === null && r.thirdSide === null),
+        J({ onGmK, onGmbK, onGmcK }));
+    check("K2: Aiko's player, in no part of the running incident, is sent no cast", castToP1.length === 0, J({ castToP1 }));
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await S.castStore.clear();
+        await game.settings.set("${MOD}", "murderState", ${J(stateBeforeK)}); return true;`);
+    await settle(800);
+    await disconnect("gmb");
+    await disconnect("gmc");
+    await settle(300);
+
     /* ------------------- J. the season reset is the primary's, and the clock cuts ------------------- */
 
     /* J1: a Mastermind is picked on the primary while gm2 is here, so gm2's browser holds a
@@ -846,5 +890,5 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         toEach("mastermind.door") && toEach("advancement.offers") && toEach("fog.rows") && doorP1?.mastermind === true,
         J({ told: toldZ.map(t => [t.action, t.to]), doorP1 }));
 
-    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "J1", "J2", "J3", "H2", "Z"], gm: IDS.gm };
+    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "Z"], gm: IDS.gm };
 }
