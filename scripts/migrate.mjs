@@ -610,6 +610,23 @@ const CLAUSES = [
             const report = await liftIncidentSecrets();
             return report && (report.lifted || report.offers || report.flags || report.kept) ? report : null;
         }
+    },
+    {
+        key: "liftDiscoveryLedger",
+        since: "1.2.63",
+        /*
+         * THE FOG LEDGER OUT OF WORLD DATA (D2, S07-01; E04). A world that updated
+         * mid-season may still hold its ledger in the world setting, which any console
+         * reads. fog.mjs lifted it on every load of the primary; once now, after the GM
+         * store's copies arrived and after `forgetMonokumaWalks` above, with the rules
+         * written on `liftDiscoveryLedger`: into the store weak and fill-only, and out of
+         * world data only once the store reads back from storage holding it.
+         */
+        run: async () => {
+            const { liftDiscoveryLedger } = await import("./fog.mjs");
+            const report = await liftDiscoveryLedger();
+            return report && (report.lifted || report.monokuma || !report.emptied) ? report : null;
+        }
     }
 ];
 

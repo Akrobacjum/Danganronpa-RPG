@@ -430,21 +430,14 @@ export function vacuousChecks(text) {
  * of the files that still use them shrinks as each store moves and is empty at the
  * end of E04.
  */
-export const GM_STORE_PENDING = Object.freeze([
-    "discoveryLedger", "discoveryMine"
-]);
+export const GM_STORE_PENDING = Object.freeze([]);
 
 /*
  * The harness scenarios' own allowance, by `file#key` (read by `node tools/check.mjs
  * contract`): a scenario may still read these keys raw until the commit named, which
  * rewrites it to read through the stores. A row with no such read left fails as stale.
  */
-export const GM_STORE_SCENARIO_ALLOW = Object.freeze({
-    "17-assistant.mjs#discoveryLedger": "reads the fog ledger raw until the fog moves (E04 C9)",
-    "17-assistant.mjs#discoveryMine": "reads a player's fog rows raw until the fog moves (E04 C9)",
-    "60-ledger.mjs#discoveryLedger": "the fog ledger's own scenario, raw until the fog moves (E04 C9)",
-    "60-ledger.mjs#discoveryMine": "the fog ledger's own scenario, raw until the fog moves (E04 C9)"
-});
+export const GM_STORE_SCENARIO_ALLOW = Object.freeze({});
 
 /**
  * The settings the GM stores use, read off the source text alone, for Node, which

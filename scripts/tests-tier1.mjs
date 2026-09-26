@@ -3772,7 +3772,8 @@ const INVARIANTS = [
          * (`doorCombine`) is held on the review's case, and the cast's (`castCombine`,
          * C6) on a stale turn, a participant leaving and a trap's end. Then the source:
          * each GM-to-player sender in the table below puts stamps in what it sends, and
-         * every call of it passes them - or the sender reads them itself (the offers, C8).
+         * every call of it passes them - or the sender reads them itself (the offers, C8;
+         * the fog's rows, C9).
          */
         const G = await import("./gm-store.mjs");
         const { TIMING } = await import("./config.mjs");
@@ -3848,8 +3849,10 @@ const INVARIANTS = [
 
         /* The senders: the function that emits a copy to a player, and the file that calls it.
            "own": the sender reads the stamps itself - the offers', from the store's rows for the
-           user's characters (C8) - so a call of it passes none. */
-        const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"]];
+           user's characters (C8), and the fog's, a section of the store (C9) - so a call of it
+           passes none. */
+        const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"],
+            ["fog.mjs", "sendStoreTo", "own"]];
         const sources = new Map(await otherSources());
         const found = [];
         for (const [file, fn, own] of SENDERS) {

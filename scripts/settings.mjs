@@ -7,7 +7,7 @@
  */
 
 import { MODULE_ID, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
-import { readMine, gmStoreByName } from "./gm-store.mjs";
+import { readMine, gmStoreByName, liveFields } from "./gm-store.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
 export const SETTINGS = {
@@ -526,10 +526,24 @@ export const SETTINGS = {
      * discipline `truth-bullets.mjs` uses for its own ledger writes.
      */
     discoveredRooms: "discoveredRooms",
-    /** The GM's union of every character's discoveries - a CLIENT setting on GM browsers (D2). */
-    discoveryLedger: "discoveryLedger",
-    /** This player's own characters' rows, written by the primary GM over the socket (D2). */
-    discoveryMine: "discoveryMine",
+    /**
+     * The GMs' union of every character's discoveries - a CLIENT setting on GM
+     * browsers (D2). A GM STORE SINCE E04 (1.2.63; audit S07-01): `gmDiscovery`
+     * (gm-stores.mjs, `discoveryStore`), a row per `sceneId/actorId` and a cell per
+     * room, each stamped, synced between the GMs; `legacyDiscoveryLedger` is the key
+     * before it, claimed on the primary's browser only.
+     */
+    discoveryLedger: "gmDiscovery",
+    legacyDiscoveryLedger: "discoveryLedger",
+    /**
+     * This player's own characters' rows, sent by a GM over the socket (D2). A
+     * PLAYER COPY SINCE E04: `mineFog` (gm-stores.mjs, `fogCopy`), the cells of the
+     * GMs' store for this user's characters, merged cell by cell and never replaced.
+     * `legacyDiscoveryMine` is the key before it, taken into the copy weak on every
+     * load - the only copy of the ledger outside the GMs' browsers.
+     */
+    mineFog: "mineFog",
+    legacyDiscoveryMine: "discoveryMine",
     /**
      * Rooms, not sight lines, decide what a player can see.
      *
@@ -1352,13 +1366,14 @@ export function registerSettings() {
      *
      * This used to be one world setting, readable from any player's console:
      * "which rooms has X been in" for the whole season, which in a killing
-     * game is alibi evidence. It travels the `incidentCast` road now. The
-     * primary GM holds the union in a client setting on their own browser and
-     * mirrors it to the other GMs; each player's browser holds only the rows
-     * of the characters they own, sent to them alone over the addressed
-     * socket (fog.mjs, `shareLedger`). The world setting stays registered so
-     * a world that updates mid-season can be lifted out of it once
-     * (`migrateLedger`), and is empty from then on.
+     * game is alibi evidence. It travels the `incidentCast` road now. Since
+     * E04 the GMs hold it in a GM store (`gmDiscovery`, a cell per character
+     * and room, merged between them); each player's browser holds only the
+     * cells of the characters they own (`mineFog`), sent to them alone over the
+     * addressed socket (fog.mjs, `shareLedger`). The world setting stays
+     * registered so a world that updates mid-season can be lifted out of it
+     * once (the migration clause `liftDiscoveryLedger`), and is empty from then
+     * on.
      *
      * All three fire the same repaint: the fog reads through
      * `discoveryLedger()` below, whichever store this client is.
@@ -1377,12 +1392,24 @@ export function registerSettings() {
         default: {},
         onChange: () => onWorldChange(SETTINGS.discoveredRooms)
     });
-    game.settings.register(MODULE_ID, SETTINGS.discoveryMine, {
+    game.settings.register(MODULE_ID, SETTINGS.mineFog, {
         scope: "client",
         config: false,
         type: Object,
         default: {},
         onChange: () => onWorldChange(SETTINGS.discoveredRooms)
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyDiscoveryLedger, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyDiscoveryMine, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     game.settings.register(MODULE_ID, SETTINGS.regionFog, {
@@ -1593,11 +1620,25 @@ function onWorldChange(key) {
  * browser, this player's own rows on theirs. Shaped
  * `{ [sceneId]: { [actorId]: [roomName, ...] } }` either way. A leaf, so
  * movement.mjs and fog.mjs read the same thing.
+ *
+ * A projection since E04: the GMs' store and a player's copy hold a cell per room
+ * (true, or false where a GM unticked it), and a room is discovered where its cell
+ * reads true - on a player's copy, above the clock's cut for the group too, which
+ * may have risen since the copy was last merged.
  */
 export function discoveryLedger() {
     try {
-        const key = game.user?.isGM ? SETTINGS.discoveryLedger : SETTINGS.discoveryMine;
-        return game.settings.get(MODULE_ID, key) ?? {};
+        const rows = game.user?.isGM
+            ? (gmStoreByName("discovery")?.entries() ?? {})
+            : liveFields(readMine("fog"), getClock()?.resetCuts?.discovered ?? 0);
+        const out = {};
+        for (const [key, cells] of Object.entries(rows ?? {})) {
+            const [sceneId, actorId] = String(key).split("/");
+            const rooms = Object.entries(cells ?? {}).filter(([, on]) => on === true).map(([room]) => room);
+            if (!sceneId || !actorId || !rooms.length) continue;
+            (out[sceneId] ??= {})[actorId] = rooms;
+        }
+        return out;
     } catch {
         return {};
     }

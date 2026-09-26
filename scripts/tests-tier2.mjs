@@ -3138,8 +3138,13 @@ const SCENARIOS = [
          *
          * BOTH HALVES. A fix that stops the ledger recording anything at all
          * would pass the first assertion and take the fog with it.
+         *
+         * In a world the GM store has never opened (E04): the ledger is a store now,
+         * and its rows start empty there, so the seed has something to record - where
+         * the old test emptied the two rows by writing the whole ledger back.
          */
         const fog = await import("./fog.mjs");
+        const E = await import("./gm-store.mjs");
         const { roomOfActor } = await import("./movement.mjs");
         const { isMonokuma } = await import("./monokuma.mjs");
 
@@ -3153,30 +3158,14 @@ const SCENARIOS = [
         ok(monokuma && student,
             "need a Monokuma and a student standing in rooms on this scene");
 
-        // The GM's own store since D2 - the world setting is empty and stays so.
-        const before = foundry.utils.deepClone(getSetting(SETTINGS.discoveryLedger) ?? {});
-        try {
-            // Both rows emptied, so the seed has something to record and this
-            // measures what it CHOOSES rather than what was already there.
-            const wiped = { ...(before[scene.id] ?? {}) };
-            wiped[monokuma.id] = [];
-            wiped[student.id] = [];
-            await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger,
-                { ...before, [scene.id]: wiped });
-            await settle();
-
+        await E.withGmStoreWorld(`suite-seed-${foundry.utils.randomID(8)}`, async () => {
             await fog.seedDiscovery(scene);
             await settle();
-
-            const now = (getSetting(SETTINGS.discoveryLedger) ?? {})[scene.id] ?? {};
-            equal((now[monokuma.id] ?? []).length, 0,
-                `${monokuma.name} is a Monokuma and put ${JSON.stringify(now[monokuma.id])} in the ledger`);
-            ok((now[student.id] ?? []).includes(roomOfActor(student)),
+            equal(fog.discoveredFor(scene.id, monokuma.id).length, 0,
+                `${monokuma.name} is a Monokuma and put ${JSON.stringify(fog.discoveredFor(scene.id, monokuma.id))} in the ledger`);
+            ok(fog.discoveredFor(scene.id, student.id).includes(roomOfActor(student)),
                 `${student.name} is standing in ${roomOfActor(student)} and the ledger did not record it`);
-        } finally {
-            await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger, before);
-            await settle();
-        }
+        });
     }],
 
     ["a trace is tied to the murder by what happened, not by what it is", async () => {
@@ -4325,21 +4314,18 @@ const SCENARIOS = [
          * box onto the ledger as it stands, not the ledger as the window first read it.
          */
         const { applyDiscoveryChanges, discoveredFor } = await import("./fog.mjs");
+        const E = await import("./gm-store.mjs");
+        const { discoveryStore } = await import("./gm-stores.mjs");
         needs(world.atLeast("namedRooms", 3), "the ledger is written for three rooms");
         const scene = canvas.scene;
         const [student] = cast(1);
         const rooms = Array.from(new Set([...(scene?.regions ?? [])].map(r => r.name).filter(Boolean)));
         ok(rooms.length >= 3, `three named rooms, and ${rooms.length} distinct names among them`);
-        // The GM's own store since D2 - the world setting is empty and stays so.
-        const stored = foundry.utils.deepClone(getSetting(SETTINGS.discoveryLedger) ?? {});
-        const write = async list => {
-            const all = foundry.utils.deepClone(getSetting(SETTINGS.discoveryLedger) ?? {});
-            all[scene.id] = { ...(all[scene.id] ?? {}), [student.id]: list };
-            await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger, all);
-        };
-        try {
-            await write([rooms[0]]);                 // what the window drew
-            await write([rooms[0], rooms[1]]);       // found while it was open
+        // A GM store since E04, in a world it has never opened: the rows are written as cells.
+        const found = room => discoveryStore.patch(`${scene.id}/${student.id}`, { [room]: true });
+        await E.withGmStoreWorld(`suite-roomsetup-${foundry.utils.randomID(8)}`, async () => {
+            await found(rooms[0]);                   // what the window drew
+            await found(rooms[1]);                   // found while it was open
             const wrote = await applyDiscoveryChanges(scene, [{ actorId: student.id, room: rooms[2], value: true }]);
             ok(wrote, "the box the GM ticked was not written");
             const now = discoveredFor(scene.id, student.id);
@@ -4347,10 +4333,7 @@ const SCENARIOS = [
             ok(now.includes(rooms[2]), "the box the GM ticked was not saved");
             equal(await applyDiscoveryChanges(scene, [{ actorId: student.id, room: rooms[2], value: true }]),
                 false, "an Apply that changes nothing still writes the ledger, and resyncs everyone's fog");
-        } finally {
-            await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger, stored);
-            await settle();
-        }
+        });
     }],
 
     ["a Despair Call that would change nothing hands its price back", async () => {
@@ -6753,7 +6736,26 @@ const SCENARIOS = [
             { ...(getSetting(SETTINGS.projectMeta) ?? {}), SUITEE04PROJECT1: { name: "SUITE census project" } });
         const recent = Date.now() - 60 * 1000;
         const levelUp = await import("./level-up.mjs");
+        const fog = await import("./fog.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const S = await import("./gm-stores.mjs");
+        // A Monokuma's row is left behind (S01-31) - counted only where the world has one.
+        const mono = game.actors.find(a => isMonokuma(a)) ?? null;
         const FIXTURES = {
+            discovery: {
+                legacy: SETTINGS.legacyDiscoveryLedger,
+                seed: {
+                    [sceneId]: { [student.id]: ["SUITE room A", "SUITE room B"], ...(mono ? { [mono.id]: ["SUITE room A"] } : {}) },
+                    SUITEE04NOSCENE: { [student.id]: ["SUITE room C"] }
+                },
+                census: { legacy: mono ? 3 : 2, claimed: 1, left: mono ? 2 : 1, tombstones: 0, reasons: { ...(mono ? { monokuma: 1 } : {}), otherWorld: 1 } },
+                readBack: store => {
+                    equal(stableJson(fog.discoveredFor(sceneId, student.id)), stableJson(["SUITE room A", "SUITE room B"]),
+                        "the claimed rows do not read back through discoveredFor");
+                    equal(store.stampOf(`${sceneId}/${student.id}`), store.weak(), "the rows were not claimed weak");
+                    ok(!mono || !fog.discoveredFor(sceneId, mono.id).length, "a Monokuma's walks were claimed");
+                }
+            },
             // Claimed on the primary's browser only (the design's row 17): the suite runs on the primary.
             offers: {
                 legacy: SETTINGS.legacyAdvanceOffers,
@@ -6905,6 +6907,20 @@ const SCENARIOS = [
             });
             equal(raw(fx.legacy), before, `${store.name}: the claim changed its old key`);
         }
+
+        // The fog copy's claim (C9), the one player copy with an old key it takes: this browser's
+        // characters' rows of this world's scenes, weak, merged into the copy; the old key untouched.
+        await game.settings.set(MODULE_ID, SETTINGS.legacyDiscoveryMine,
+            { [sceneId]: { [student.id]: ["SUITE mine"] }, SUITEE04NOSCENE: { [student.id]: ["SUITE elsewhere"] } });
+        const mineBefore = raw(SETTINGS.legacyDiscoveryMine);
+        await E.withGmStoreWorld(`suite-census-${foundry.utils.randomID(8)}`, async () => {
+            equal(await S.fogCopy.claim(), true, "the fog copy took nothing from its old key");
+            const held = S.fogCopy.read();
+            equal(stableJson(E.liveFields(held)), stableJson({ [`${sceneId}/${student.id}`]: { "SUITE mine": true } }),
+                "the fog copy took another world's rows, or not this one's");
+            equal(held?.t?.[`${sceneId}/${student.id}`], 1, "the fog copy's old rows were not taken weak");
+        });
+        equal(raw(SETTINGS.legacyDiscoveryMine), mineBefore, "the fog copy's claim changed its old key");
     }],
 
     ["a changed old store is reported, and taking it never overwrites what changed since the upgrade", async () => {
@@ -7255,6 +7271,68 @@ const SCENARIOS = [
         equal(stableJson(M.blackenedIds()), stableJson([]), "after the clear, a stale copy of this chapter's killer came back");
     }],
 
+    ["an unticked room stays unticked after a stale copy merges", async () => {
+        /*
+         * E04, 26.09.2026; audit S07-01. The fog ledger was a union written whole, and a
+         * union only grows: a GM's copy that had not heard of an untick - or a player's
+         * rows answering the primary's rebuild - put the room back at the next write, and
+         * the GM's hide undid itself. A cell per room now, stamped, and an untick is a
+         * `false` at its own stamp. Here a room is found through Room Setup's write, the
+         * store's copy of that moment kept, the room unticked the same way, and the old
+         * copy merged in as a sync does: the room stays hidden. (A player's rows in a
+         * rebuild are 60-ledger's, through the handler itself.) Stood in a world the store
+         * has never opened, so nothing reaches another GM.
+         */
+        const E = await import("./gm-store.mjs");
+        const { discoveryStore } = await import("./gm-stores.mjs");
+        const fog = await import("./fog.mjs");
+        needs(world.atLeast("namedRooms", 1), "a room to find and hide");
+        const scene = canvas.scene;
+        const [student] = cast(1);
+        const room = [...(scene?.regions ?? [])].map(r => r.name).find(Boolean);
+        await E.withGmStoreWorld(`suite-untick-${foundry.utils.randomID(8)}`, async () => {
+            await fog.applyDiscoveryChanges(scene, [{ actorId: student.id, room, value: true }]);
+            ok(fog.discoveredFor(scene.id, student.id).includes(room), "the room was not found");
+            const before = discoveryStore.section();
+            await fog.applyDiscoveryChanges(scene, [{ actorId: student.id, room, value: false }]);
+            ok(!fog.discoveredFor(scene.id, student.id).includes(room), "the untick did not hide the room");
+            await discoveryStore.mergeIn(before, { source: "sync" });
+            ok(!fog.discoveredFor(scene.id, student.id).includes(room), "a copy from before the untick brought the room back");
+        });
+    }],
+
+    ["a player's rows merge, never replace, and rows under the cut are refused", async () => {
+        /*
+         * E04, 26.09.2026; audit S07-01. A player's rows were the set a GM sent last,
+         * written whole: a GM whose browser held fewer rows emptied the rest of the
+         * player's fog. The player's copy is a section of the GMs' cells now
+         * (gm-stores.mjs `fogCopy`), merged cell by cell. Driven through the copy on this
+         * browser the way a player's takes rows: one room, then another from a GM that
+         * holds only that one - both stand; then a section with a reset's watermark above
+         * both - they are gone, and of two rooms in that section the one stamped under
+         * the watermark is not taken; and a section that is not one changes nothing. Stood
+         * in a world the store has never opened.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const key = "SUITESCENE000000/SUITEACTOR000000";
+        const rows = () => stableJson(E.liveFields(S.fogCopy.read())[key] ?? {});
+        await E.withGmStoreWorld(`suite-fogcopy-${foundry.utils.randomID(8)}`, async () => {
+            const t1 = E.gmStoreStamp(), t2 = E.gmStoreStamp();
+            const one = (room, t) => ({ e: { [key]: { [room]: true } }, t: { [key]: t }, d: {}, cleared: 0 });
+            equal(await S.fogCopy.receive(one("SUITE room A", t1), { "": t1 }), true, "a first row was not taken");
+            equal(await S.fogCopy.receive(one("SUITE room B", t2), { "": t2 }), true, "a second GM's row was not taken");
+            equal(rows(), stableJson({ "SUITE room A": true, "SUITE room B": true }), "a GM holding one row replaced the other");
+            const cut = E.gmStoreStamp(), after = E.gmStoreStamp();
+            const reset = { e: { [key]: { "SUITE room C": true, "SUITE room D": true } }, t: { [key]: { "": after, "SUITE room D": cut - 1 } },
+                d: {}, cleared: cut };
+            equal(await S.fogCopy.receive(reset, { "": after }), true, "a section after a reset was not taken");
+            equal(rows(), stableJson({ "SUITE room C": true }), "a row under the reset's watermark stands, or one stamped under it was taken");
+            equal(await S.fogCopy.receive({ e: "not rows", t: {}, d: {}, cleared: 0 }, { "": E.gmStoreStamp() }), false,
+                "a section that is not one was taken");
+        });
+    }],
+
     ["an empty answer never takes an owner's offer away", async () => {
         /*
          * E04, 26.09.2026; audit S03-11. An owner's browser held whatever set of offers
@@ -7359,8 +7437,18 @@ const SCENARIOS = [
         const murder = await import("./murder.mjs");
         const traps = await import("./traps.mjs");
         const levelUp = await import("./level-up.mjs");
+        const fog = await import("./fog.mjs");
         const [, victim] = cast(2);
         const FIXTURES = {
+            // Through the store: no player is sent the row (C9).
+            discovery: {
+                seed: async () => {
+                    await S.discoveryStore.patch(`${scene.id}/${holder.id}`, { "SUITE backed-up room": true });
+                    return holder.id;
+                },
+                gone: (report, id) => !fog.discoveredFor(scene.id, id).includes("SUITE backed-up room"),
+                back: id => fog.discoveredFor(scene.id, id).includes("SUITE backed-up room")
+            },
             // Through the store: no owner is sent the offer (C8).
             offers: {
                 seed: async () => {

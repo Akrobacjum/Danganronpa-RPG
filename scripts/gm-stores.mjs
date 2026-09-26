@@ -25,7 +25,8 @@ import { SETTINGS, getClock, getSetting, setSetting, incidentCast } from "./sett
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, dialogContent, whisperToGms } from "./utils.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated,
-    gmStoreHydration, gmStoreSkew, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD
+    gmStoreHydration, gmStoreSkew, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
+    raiseCleared, newestIn, sectionProblem, stableJson
 } from "./gm-store.mjs";
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
@@ -429,6 +430,90 @@ export const offerStore = defineGmStore({
 export const offerCopy = defineGmCopy({
     name: "offers", key: SETTINGS.mineOffers, legacyKey: SETTINGS.legacyAdvanceOffers, resetGroup: "advancement", fallback: {}
 });
+
+/** The rows of an old ledger `{ sceneId: { actorId: [room, ...] } }`, one per scene and character. */
+function fogRows(legacy) {
+    const rows = [];
+    for (const [sceneId, forScene] of Object.entries(isPlain(legacy) ? legacy : {})) {
+        for (const [actorId, rooms] of Object.entries(isPlain(forScene) ? forScene : {})) rows.push({ sceneId, actorId, rooms });
+    }
+    return rows;
+}
+const fogKey = (sceneId, actorId) => `${sceneId}/${actorId}`;
+const roomCells = rooms => Object.fromEntries((Array.isArray(rooms) ? rooms : []).filter(r => typeof r === "string" && r).map(r => [r, true]));
+
+/**
+ * WHERE THE CLASS HAS BEEN (E04 C9; audit S07-01). A row per `sceneId/actorId` and a
+ * cell per room - true, or false where a GM unticked it - each stamped, synced between
+ * the GMs. The union used to be one object written whole: a GM's copy that had not
+ * heard of an untick, or a player's rows in the primary's rebuild, put the room back,
+ * because a union only grows. A cell's newest stamp decides now. The old rows are
+ * claimed on the primary's browser only (the design's row 17: the old key had no way to
+ * say "unticked", so a union of every GM's browser would re-reveal), weak, for this
+ * world's scenes and characters and never a Monokuma's (S01-31: its walks lifted the
+ * GM's own veil).
+ */
+export const discoveryStore = defineGmStore({
+    name: "discovery", key: SETTINGS.discoveryLedger, legacyKey: SETTINGS.legacyDiscoveryLedger,
+    kind: "ledger", resetGroup: "discovered", backup: true, sync: true,
+    legacyCount: legacy => fogRows(legacy).length,
+    claim: async legacy => {
+        const rows = fogRows(legacy);
+        if (!isPrimaryGm()) return { rows: [], left: rows.map(r => ({ key: fogKey(r.sceneId, r.actorId), reason: "notPrimary" })) };
+        const { isMonokuma } = await import("./monokuma.mjs");
+        const out = [], left = [];
+        for (const { sceneId, actorId, rooms } of rows) {
+            const key = fogKey(sceneId, actorId), actor = game.actors?.get(actorId);
+            if (!game.scenes?.has(sceneId) || !actor) left.push({ key, reason: "otherWorld" });
+            else if (isMonokuma(actor)) left.push({ key, reason: "monokuma" });
+            else out.push({ key, fields: roomCells(rooms) });
+        }
+        return { rows: out, left };
+    }
+});
+
+/**
+ * A PLAYER'S FOG (E04 C9): the GMs' cells for this user's characters, as a section of
+ * its own, merged cell by cell with every section a GM sends (`mergeSections`, the
+ * store's own merge) and never replaced - so a GM whose browser holds fewer rows adds
+ * nothing and takes nothing away, and a reset's watermark in what arrives cuts every
+ * cell under it. A section that is not one (`sectionProblem`) changes nothing. The old
+ * rows on this browser (`discoveryMine`) are taken in weak on every load (`claim`):
+ * the only copy of the ledger outside the GMs', which the primary's rebuild asks for.
+ */
+export function fogCombine(held, offered, { cut = 0 } = {}) {
+    if (sectionProblem(offered?.value)) return null;
+    const before = mergeSections(held?.value ?? null, null, discoveryStore.spec);
+    const merged = mergeSections(before, offered.value, discoveryStore.spec);
+    raiseCleared(merged, cut, discoveryStore.spec);
+    if (stableJson(merged) === stableJson(before)) return null;
+    return { value: merged, stamps: { "": newestIn(merged) } };
+}
+
+export const fogCopy = defineGmCopy({
+    name: "fog", key: SETTINGS.mineFog, legacyKey: SETTINGS.legacyDiscoveryMine, resetGroup: "discovered", fallback: null,
+    combine: fogCombine,
+    claim: legacy => {
+        const mine = {};
+        for (const { sceneId, actorId, rooms } of fogRows(legacy)) {
+            if (!game.scenes?.has(sceneId) || !game.actors?.get(actorId)?.isOwner) continue;
+            const cells = roomCells(rooms);
+            if (Object.keys(cells).length) mine[fogKey(sceneId, actorId)] = cells;
+        }
+        if (!Object.keys(mine).length) return null;
+        // Weak: stamp 1, under anything a GM ever wrote, and dead under any reset's cut.
+        const section = { e: mine, t: Object.fromEntries(Object.keys(mine).map(k => [k, 1])), d: {}, cleared: 0 };
+        return { value: section, stamps: { "": 1 } };
+    }
+});
+
+/** The part of the GMs' fog store that is `user`'s: the rows and tombstones of the characters they own, and the watermark. */
+export function fogSectionFor(user) {
+    const all = discoveryStore.section();
+    const mine = key => Boolean(game.actors?.get(String(key).split("/")[1] ?? "")?.testUserPermission?.(user, "OWNER"));
+    const pickOwn = part => Object.fromEntries(Object.entries(all[part] ?? {}).filter(([key]) => mine(key)));
+    return { e: pickOwn("e"), t: pickOwn("t"), d: pickOwn("d"), cleared: all.cleared ?? 0 };
+}
 
 /** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
 export function gmStoreLegacyChanged(name) {

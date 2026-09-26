@@ -374,7 +374,7 @@ const REGRESSIONS = [
             "murder.mjs": "a participant's request is answered by the primary GM alone, from the sender's own seat in the cast; the cast copy is taken only from a GM, and only where newer, part by part",
             "mastermind.mjs": "the door request is answered by the primary GM alone, about Foundry's own sender and nobody in the packet; the door flag is taken only from a GM, and only where newer, part by part",
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
-            "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns",
+            "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns, weak and fill-only",
             "sync.mjs": "world-state fan-out from a GM; carries no actor id",
             "safeword.mjs": "deliberately trusts nothing from the packet - reads the sender's name",
             "dice-sync.mjs": "dice appearance only; no actor anywhere in it",
@@ -5535,11 +5535,8 @@ const REGRESSIONS = [
             "tests-tier2.mjs#legacyTrapPlants": "the claim's census seeds the old key it counts",
             "tests-tier2.mjs#legacyObservePending": "the claim's census seeds the old key it counts",
             "tests-tier2.mjs#legacyAdvanceOffers": "the claim's census seeds the old key it counts",
-            "fog.mjs#discoveryLedger": "the fog ledger, until it moves (E04 C9)",
-            "fog.mjs#discoveryMine": "a player's fog rows, until they move (E04 C9)",
-            "settings.mjs#discoveryLedger": "the leaf discoveryLedger, until the fog moves (E04 C9)",
-            "settings.mjs#discoveryMine": "the leaf discoveryLedger, until the fog moves (E04 C9)",
-            "tests-tier2.mjs#discoveryLedger": "tier-2 tests write the fog ledger raw, until it moves (E04 C9)"
+            "tests-tier2.mjs#legacyDiscoveryLedger": "the claim's census seeds the old key it counts",
+            "tests-tier2.mjs#legacyDiscoveryMine": "the fog copy's claim is seeded with the old key it takes"
         };
         const seen = new Set(), raw = [];
         let read = 0;
@@ -5578,7 +5575,7 @@ const REGRESSIONS = [
          * that forgot its option still works - until a second GM joins. The reader
          * is shown a planted writer first.
          */
-        const WRITES = /\b(?:setSecret|setRemnantSecret|\w+Store\.patch|\w+Store\.patchMany)\(/g;
+        const WRITES = /\b(?:setSecret|setRemnantSecret|writeCells|\w+Store\.patch|\w+Store\.patchMany)\(/g;
         const callAt = (text, open) => {
             let depth = 0;
             for (let i = open; i < text.length; i++) {
@@ -5617,7 +5614,13 @@ const REGRESSIONS = [
             ["remnants.mjs", "retuneRemnant", ["ifLive"], false],
             ["remnants.mjs", "moveIntoLedger", ["weak", "fillOnly"], false],
             ["remnants.mjs", "carryPromotion", ["ifLive"], false],
-            ["remnants.mjs", "seedPublicIfMissing", ["weak", "fillOnly"], false]
+            ["remnants.mjs", "seedPublicIfMissing", ["weak", "fillOnly"], false],
+            // The cast's lift out of world data (C6; its row came with C9).
+            ["murder.mjs", "liftIncidentSecrets", ["weak", "fillOnly"], true],
+            // The fog (C9): a character standing in a room, a player's rows in the rebuild, the world's old ledger.
+            ["fog.mjs", "seedDiscovery", ["weak", "fillOnly"], false],
+            ["fog.mjs", "registerLedgerRoad", ["weak", "fillOnly"], false],
+            ["fog.mjs", "liftDiscoveryLedger", ["weak", "fillOnly"], true]
         ];
         // The migrations that read a store through a function they call: they wait themselves.
         const WAITERS = [["remnants.mjs", "migrateRemnants"], ["remnants.mjs", "migrateRemnantToken"]];

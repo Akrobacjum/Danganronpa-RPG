@@ -392,6 +392,24 @@ function fieldStamp(sec, k, f, split) {
 }
 
 /**
+ * The live fields of a section above a floor - `{ key: { field: value } }`, the fields
+ * stamped over `floor` and the section's own watermark. For a copy that is a section
+ * (the fog's, C9), read under a reset's cut that rose after it was last merged. Pure.
+ */
+export function liveFields(sec, floor = 0) {
+    const out = {};
+    const s = normalizeSection(sec);
+    if (!s) return out;
+    const under = Math.max(floor, s.cleared);
+    for (const k of Object.keys(s.e)) {
+        const view = cutView(viewOf(s, k, new Set()), Math.max(under, s.d[k] ?? 0));
+        if (!view?.fields.size) continue;
+        out[k] = Object.fromEntries([...view.fields].map(([f, w]) => [f, w.v]));
+    }
+    return out;
+}
+
+/**
  * A flat store of the old shape - `{ key: { ...fields, updated, deleted } }`, what the
  * Truth Bullet export wrote until E04 - as a section: a live row at its `updated`, a
  * `{ deleted, updated }` row as a tombstone at it, and a row with no `updated` at
@@ -1153,6 +1171,37 @@ export function createGmStoreEngine(env) {
         return true;
     }
 
+    /**
+     * A PLAYER COPY'S OLD KEY (E04 C9): the copies are not claimed, but for one whose
+     * spec has a `claim` - the fog's, whose old rows on the players' browsers are the
+     * only copy of the ledger outside the GMs' - the old key is read here (the engine is
+     * the one reader of old keys, R171) and what the claim makes of it is received like
+     * an answer, so it merges and never replaces. The old key is never written. Run on
+     * every load: the claim's rows are weak, so taking them twice changes nothing.
+     */
+    async function claimCopy(name) {
+        const cs = copies.get(name);
+        if (!cs?.spec.claim || !cs.spec.legacyKey) return false;
+        const legacy = env.readLegacy(cs.spec.legacyKey);
+        if (legacy === undefined || legacy === null) return false;
+        const offer = await cs.spec.claim(legacy);
+        return offer ? receiveCopy(name, offer.value, offer.stamps) : false;
+    }
+
+    /** Suite and harness only: this user's copy in this world emptied here, as a lost browser has it; nothing is sent. */
+    async function forgetCopy(name) {
+        const cs = copies.get(name);
+        if (!cs) return false;
+        const wid = worldId(), uid = env.selfId();
+        const stored = parseValue(env.storage.read(cs.spec.key));
+        if (isPlain(stored.worlds[wid])) delete stored.worlds[wid][uid];
+        cs.cache.delete(`${wid}|${uid}`);
+        cs.writing = true;
+        try { await env.storage.write(cs.spec.key, { v: FORMAT, worlds: stored.worlds }); }
+        finally { cs.writing = false; }
+        return true;
+    }
+
     /* ------------------------------ open ---------------------------------- */
 
     async function open() {
@@ -1234,7 +1283,7 @@ export function createGmStoreEngine(env) {
     function defineCopy(spec) {
         if (!copies.has(spec.name)) copies.set(spec.name, { spec: Object.freeze({ fallback: null, ...spec }), cache: new Map(), writing: false });
         return { name: spec.name, read: () => readMine(spec.name), stamp: () => mineStamp(spec.name), stamps: () => mineStamps(spec.name),
-            receive: (v, s) => receiveCopy(spec.name, v, s) };
+            receive: (v, s) => receiveCopy(spec.name, v, s), claim: () => claimCopy(spec.name), forget: () => forgetCopy(spec.name) };
     }
 
     /**

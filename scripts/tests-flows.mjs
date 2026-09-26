@@ -65,7 +65,7 @@ export const FLOWS = Object.freeze([
     { id: "despair", what: "Despair: a correction from a player's Reroll, a Despair Call from a GM, the pools every screen shows",
         entry: { bridge: ["despair.adjust"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
-        entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security"], status: "covered", stage: "<=1.2.50" },
+        entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security", "61-gmstore-case"], status: "covered", stage: "<=1.2.50" },
     { id: "eclipse-route-veto", what: "A move during an Eclipse: asked of the GM, allowed or refused",
         entry: { bridge: ["eclipse.move"] }, scenarios: ["33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",

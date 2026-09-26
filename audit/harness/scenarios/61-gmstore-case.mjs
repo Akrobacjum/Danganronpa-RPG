@@ -41,6 +41,8 @@
  *   G  a trap's planted object (S08-19): a second GM plants it, the primary - who
  *      hands a player's Search its find - finds it and gives it to the searcher,
  *      and its use sets the trap off on the primary's chat.
+ *   I  the fog ledger (S07-01): rooms found and one unticked while the second GM
+ *      is away reach it when it comes back, the untick with them.
  *   H1 a Level Up offered on the primary (S03-11): its owner's copy is lit at the
  *      offer's stamp, and the second GM holds the offer.
  *   H2 the seed GM leaves for good; the second GM comes back alone, so the
@@ -566,6 +568,30 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         return msgs.filter(m => /E04 poisoned kit/.test(m.content ?? "") || /E04 poisoned kit/.test(JSON.stringify(m.flags ?? {}))).length;`);
     check("G3: its use sets the trap off on the primary GM",
         !used.err && alert >= 1, J({ used, alert, cardsBefore }));
+    await disconnect("gm2");
+    await settle(300);
+
+    /* ------------------- I. the fog ledger reaches a GM who joins ------------------- */
+
+    /* gm finds two rooms for Aiko and unticks one while gm2 is away; gm2 comes back with
+       its browser: the store's exchange brings it the same cells, the untick with them -
+       the old GM-to-GM copy was the union, which had no way to say "unticked" (S07-01). */
+    phase("I: the fog ledger's cells reach a GM who joins, an untick with them", { flow: "discovery-ledger" });
+    const FOG = `const F = await import("${repoUrl}/scripts/fog.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const E = await import("${repoUrl}/scripts/gm-store.mjs");`;
+    const fogRooms = await gm.eval(`${FOG} const rooms = (await import("${repoUrl}/scripts/movement.mjs")).allRooms().slice(0, 2);
+        await F.setDiscovery(canvas.scene, { actorId: "${IDS.aiko}", rooms, value: true });
+        await F.applyDiscoveryChanges(canvas.scene, [{ actorId: "${IDS.aiko}", room: rooms[0], value: false }]);
+        return rooms;`);
+    await connect("gm2", { storage: await storageOf("gm2") });
+    await settle(1500);
+    const fogOn = client => client.eval(`${FOG} return { digest: E.sectionDigest(S.discoveryStore.section()),
+        aiko: F.discoveredFor(canvas.scene.id, "${IDS.aiko}"), cell: S.discoveryStore.get(canvas.scene.id + "/${IDS.aiko}")?.[${J(fogRooms[0])}] ?? null };`);
+    const fogGm = await fogOn(gm), fogGm2 = await fogOn(gm2);
+    check("I1: a GM who joins holds the same fog cells as the primary, the unticked room unticked",
+        fogRooms.length === 2 && J(fogGm2.digest) === J(fogGm.digest) && J(fogGm2.aiko) === J([fogRooms[1]]) && fogGm2.cell === false,
+        J({ fogRooms, fogGm, fogGm2 }));
 
     /* ------------------- H1. a Level Up offered, synced ------------------- */
 
@@ -685,5 +711,5 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         && J(tracesOnGm3) === J(expectD.slice(0, 2)) && J(restored.missing) === J([])
         && restored.bullets.missing === 0 && restored.bullets.noAnswer === 0 && restored.traces.missing === 0, J({ restored, keysOnGm3, tracesOnGm3 }));
 
-    return { phases: ["A", "B", "D", "E", "F", "G", "H1", "H2", "Z"], gm: IDS.gm };
+    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "H2", "Z"], gm: IDS.gm };
 }
