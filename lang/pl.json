@@ -4545,7 +4545,10 @@
         "remnants": "Ślady",
         "mastermind": "Mastermind",
         "cast": "Obsada incydentu",
-        "blackened": "Rejestr Blackened"
+        "blackened": "Rejestr Blackened",
+        "trapLedger": "Podłożone przedmioty pułapek",
+        "trapPlants": "Przedmioty czekające w pokojach",
+        "observe": "Deklaracje Observe czekające na rzut"
       },
       "row": {
         "traces": {
@@ -4587,7 +4590,13 @@
           "many": "{n} kluczy odpowiedzi śladów nie ma żetonu na żadnej scenie: zostają, nic ich nie czyta.",
           "other": "{n} klucza odpowiedzi śladów nie ma żetonu na żadnej scenie: zostają, nic ich nie czyta."
         },
-        "mastermindCleared": "Stary magazyn jednego z GM-ów (sprzed 1.2.63) mówi, że Masterminda wyczyszczono {cleared}, już po tym, jak {picked} wybrano na niego postać {name} - być może w innym świecie. Dopóki GM nie zdecyduje, ten gracz nie dowie się, że ma tę rolę. Zachowaj ten wybór albo go wyczyść."
+        "mastermindCleared": "Stary magazyn jednego z GM-ów (sprzed 1.2.63) mówi, że Masterminda wyczyszczono {cleared}, już po tym, jak {picked} wybrano na niego postać {name} - być może w innym świecie. Dopóki GM nie zdecyduje, ten gracz nie dowie się, że ma tę rolę. Zachowaj ten wybór albo go wyczyść.",
+        "traps": {
+          "one": "{n} uzbrojona pułapka na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie może zadziałać.",
+          "few": "{n} uzbrojone pułapki na przedmiot nie mają w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.",
+          "many": "{n} uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.",
+          "other": "{n} uzbrojonej pułapki na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać."
+        }
       },
       "healthTitle": "Sprawa w tej przeglądarce",
       "healthIntro": "Tej przeglądarce brakuje części sprawy tego świata:",

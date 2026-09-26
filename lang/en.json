@@ -3318,7 +3318,10 @@
         "remnants": "Traces",
         "mastermind": "The Mastermind",
         "cast": "The incident's cast",
-        "blackened": "The Blackened register"
+        "blackened": "The Blackened register",
+        "trapLedger": "The traps' planted objects",
+        "trapPlants": "The plants waiting in rooms",
+        "observe": "The Observe declarations waiting for their roll"
       },
       "row": {
         "traces": {
@@ -3350,7 +3353,11 @@
           "one": "{n} trace's answer key has no token on any scene: kept, and read by nothing.",
           "other": "{n} traces' answer keys have no token on any scene: kept, and read by nothing."
         },
-        "mastermindCleared": "A GM's old store (from before 1.2.63) says the Mastermind was cleared on {cleared}, after {name} was picked on {picked} - possibly in another world. Until a GM decides, that player is not told they hold the part. Keep the pick, or clear it."
+        "mastermindCleared": "A GM's old store (from before 1.2.63) says the Mastermind was cleared on {cleared}, after {name} was picked on {picked} - possibly in another world. Until a GM decides, that player is not told they hold the part. Keep the pick, or clear it.",
+        "traps": {
+          "one": "{n} armed item trap has no planted object on this browser: it cannot fire.",
+          "other": "{n} armed item traps have no planted object on this browser: they cannot fire."
+        }
       },
       "healthTitle": "The case on this browser",
       "healthIntro": "This browser is missing part of this world's case:",

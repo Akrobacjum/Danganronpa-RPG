@@ -4063,7 +4063,8 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const settings = stripComments(sources.get("settings.mjs") ?? "");
-        ok(/observePending: "observePending"/.test(settings), "the store has no setting");
+        // The key is the local GM store's since E04 (1.2.63; gm-stores.mjs `observeStore`).
+        ok(/observePending: "gmObservePending"/.test(settings), "the store has no setting");
         const reg = bodyOf(settings, "SETTINGS.observePending", { length: 400 });
         ok(/scope: "client"/.test(reg),
             "the pending Observes are world-scoped, so every player can read the answer key");
@@ -5527,11 +5528,9 @@ const REGRESSIONS = [
             "tests-tier2.mjs#legacyMastermind": "the claim's census seeds the old key it counts",
             "tests-tier2.mjs#legacyIncidentCast": "the claim's census seeds the old key it counts",
             "tests-tier2.mjs#legacyBlackenedLedger": "the claim's census seeds the old key it counts",
-            "traps.mjs#trapLedger": "the trap ledger, until it moves (E04 C7)",
-            "traps.mjs#trapPlants": "the planted items, until they move (E04 C7)",
-            "observe.mjs#observePending": "the Observe declarations, until they move (E04 C7)",
-            "tests-tier2.mjs#trapPlants": "a tier-2 test puts the plants back raw, until they move (E04 C7)",
-            "tests-tier2.mjs#trapLedger": "a tier-2 test puts the trap ledger back raw, until it moves (E04 C7)",
+            "tests-tier2.mjs#legacyTrapLedger": "the claim's census seeds the old key it counts",
+            "tests-tier2.mjs#legacyTrapPlants": "the claim's census seeds the old key it counts",
+            "tests-tier2.mjs#legacyObservePending": "the claim's census seeds the old key it counts",
             "level-up.mjs#advanceOffers": "the Level Up offers, until they move (E04 C8)",
             "fog.mjs#discoveryLedger": "the fog ledger, until it moves (E04 C9)",
             "fog.mjs#discoveryMine": "a player's fog rows, until they move (E04 C9)",

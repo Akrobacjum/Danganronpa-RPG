@@ -431,8 +431,7 @@ export function vacuousChecks(text) {
  * end of E04.
  */
 export const GM_STORE_PENDING = Object.freeze([
-    "observePending", "advanceOffers", "trapLedger", "trapPlants",
-    "discoveryLedger", "discoveryMine"
+    "advanceOffers", "discoveryLedger", "discoveryMine"
 ]);
 
 /*
@@ -443,7 +442,6 @@ export const GM_STORE_PENDING = Object.freeze([
 export const GM_STORE_SCENARIO_ALLOW = Object.freeze({
     "17-assistant.mjs#discoveryLedger": "reads the fog ledger raw until the fog moves (E04 C9)",
     "17-assistant.mjs#discoveryMine": "reads a player's fog rows raw until the fog moves (E04 C9)",
-    "30-security.mjs#observePending": "counts the Observe declarations raw until they move (E04 C7)",
     "60-ledger.mjs#discoveryLedger": "the fog ledger's own scenario, raw until the fog moves (E04 C9)",
     "60-ledger.mjs#discoveryMine": "the fog ledger's own scenario, raw until the fog moves (E04 C9)"
 });

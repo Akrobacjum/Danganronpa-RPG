@@ -107,7 +107,7 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces"] },
         scenarios: ["10-murder", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
     { id: "trap-fire", what: "A trap: a crossing reported to the GM, the trap sprung once",
-        entry: { bridge: ["trap.event"], sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+        entry: { bridge: ["trap.event"], sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
     { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, and a player's edit is put back",
         entry: {}, scenarios: ["30-security", "61-gmstore-case"], status: "partial", stage: "E38" },
     { id: "voice", what: "Voice rooms: who hears whom",

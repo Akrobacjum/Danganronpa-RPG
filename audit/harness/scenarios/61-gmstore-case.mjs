@@ -38,6 +38,9 @@
  *      has not merged a newer write lets a third in, and the primary tells the
  *      participants what the GMs agree on (B1); and the second GM closes the
  *      incident: both GMs' records and the copy are cleared by one stamp.
+ *   G  a trap's planted object (S08-19): a second GM plants it, the primary - who
+ *      hands a player's Search its find - finds it and gives it to the searcher,
+ *      and its use sets the trap off on the primary's chat.
  *   Z  the browser is lost (the brief's live verify, headless): a GM backs up the
  *      case, every GM leaves, a third GM comes with an empty browser and is alone,
  *      so the primary; its health check opens and names what is missing, Continue
@@ -510,6 +513,56 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     await disconnect("gm2");
     await settle(300);
 
+    /* ------------------- G. a trap planted on another GM ------------------- */
+
+    phase("G: a plant left by a second GM, found through the primary, and its trap", { flow: "trap-fire" });
+    const TRAP = `const T = await import("${repoUrl}/scripts/traps.mjs");
+        const P = await import("${repoUrl}/scripts/projects.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");`;
+    const trap = await gm.eval(`${TRAP}
+        const room = M.roomOfActor(game.actors.get("${IDS.aiko}"));
+        const made = await P.createProject({ name: "E04 poisoned kit", target: 1, room, indirectMurder: true, killerId: "${IDS.botan}",
+            condition: "E04 61G", trigger: { kind: "item", afterDark: false, notBuilder: true } });
+        await P.addProgress(made.id, 1, { by: "${IDS.botan}" });
+        await new Promise(r => setTimeout(r, 300));
+        return { id: made?.id ?? null, room, armed: T.diagnoseTraps().armed, scene: canvas?.scene?.id ?? game.scenes.current?.id ?? null };`);
+    await connect("gm2");
+    await settle(1500);
+    const identity = await gm2.eval(`${TRAP}
+        return T.plantItem("${trap.id}", "${trap.room}", { sceneId: "${trap.scene}", name: "E04 planted kit" });`);
+    await settle(800);
+    const onPrimary = await gm.eval(`${TRAP} const { trapPlantStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { trap: T.trapForItemId("${identity}"), planted: Object.values(trapPlantStore?.entries?.() ?? {}).some(p => p?.drpgItemId === "${identity}") };`);
+    check("G1: a trap armed on the GM, and an object planted for it by the second GM, reach the primary GM",
+        Boolean(trap.id) && trap.armed >= 1 && Boolean(identity) && onPrimary.trap === trap.id && onPrimary.planted, J({ trap, identity, onPrimary }));
+
+    const search = await p1.eval(`const actor = game.actors.get("${IDS.aiko}");
+        globalThis.__forceRoll = { hope: 9, fear: 5 };
+        let err = null;
+        try { await game.drpg.performAction(actor, "search", {}); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        await new Promise(r => setTimeout(r, 800));
+        const item = actor.items.find(i => i.getFlag("${MOD}", "drpgItemId") === "${identity}");
+        return { err, item: item ? { id: item.id, name: item.name } : null };`, { timeout: 90000 });
+    await settle(600);
+    const stillPlanted = await gm.eval(`const { trapPlantStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return Object.values(trapPlantStore?.entries?.() ?? {}).some(p => p?.drpgItemId === "${identity}");`);
+    check("G2: p1's Search in that room is handed the planted object by the primary, and the plant is gone",
+        !search.err && search.item?.name === "E04 planted kit" && !stillPlanted, J({ search, stillPlanted }));
+
+    const cardsBefore = await gm.eval(`return game.messages.size;`);
+    const used = await p1.eval(`const actor = game.actors.get("${IDS.aiko}");
+        const item = actor.items.get("${search.item?.id ?? ""}");
+        let r = null, err = null;
+        try { r = await game.drpg.useItem(actor, item); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        return { r: r === null ? null : typeof r, err };`, { timeout: 60000 });
+    await settle(1200);
+    const alert = await gm.eval(`const msgs = game.messages.contents.slice(${cardsBefore});
+        return msgs.filter(m => /E04 poisoned kit/.test(m.content ?? "") || /E04 poisoned kit/.test(JSON.stringify(m.flags ?? {}))).length;`);
+    check("G3: its use sets the trap off on the primary GM",
+        !used.err && alert >= 1, J({ used, alert, cardsBefore }));
+    await disconnect("gm2");
+    await settle(300);
+
     /* ------------------- Z. the browser is lost, and the case comes back ------------------- */
 
     phase("Z: a GM backs up, every GM leaves, an empty browser comes back alone and restores", { flow: "gm-store" });
@@ -552,5 +605,5 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         && J(tracesOnGm3) === J(expectD.slice(0, 2)) && J(restored.missing) === J([])
         && restored.bullets.missing === 0 && restored.bullets.noAnswer === 0 && restored.traces.missing === 0, J({ restored, keysOnGm3, tracesOnGm3 }));
 
-    return { phases: ["A", "B", "D", "E", "F", "Z"], gm: IDS.gm };
+    return { phases: ["A", "B", "D", "E", "F", "G", "Z"], gm: IDS.gm };
 }

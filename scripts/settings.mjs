@@ -230,8 +230,13 @@ export const SETTINGS = {
      * It exists because the two halves of an Observe are minutes apart and the
      * declaration used to live in one browser's memory: a GM who reloaded in
      * between left the player having paid an action and rolled for nothing.
+     *
+     * A LOCAL GM STORE SINCE E04 (1.2.63): `gmObservePending` (gm-stores.mjs,
+     * `observeStore`) - this browser's, a section per world, neither synced nor
+     * backed up; `legacyObservePending` is the key before it.
      */
-    observePending: "observePending",
+    observePending: "gmObservePending",
+    legacyObservePending: "observePending",
     /**
      * Level Ups handed to a player and not yet spent (N-2). CLIENT-scoped: the
      * primary GM's copy is the authority, an owner's holds only their own
@@ -261,9 +266,17 @@ export const SETTINGS = {
      * the project that poisoned it. The identity is on everything in everybody's
      * bag, which makes it a name rather than a mark; which names are poisoned is
      * only ever here.
+     *
+     * GM STORES SINCE E04 (1.2.63; audit S08-19): `gmTrapLedger` and `gmTrapPlants`
+     * (gm-stores.mjs), synced between GMs. Until then each GM's browser held its
+     * own: a plant left by one GM was never found by a Search the primary GM
+     * handled, and a trap planted by one GM never fired on the primary's chat.
+     * The `legacy*` keys are the ones before, read once per world, never written.
      */
-    trapLedger: "trapLedger",
-    trapPlants: "trapPlants",
+    trapLedger: "gmTrapLedger",
+    legacyTrapLedger: "trapLedger",
+    trapPlants: "gmTrapPlants",
+    legacyTrapPlants: "trapPlants",
     /**
      * The GM's plan for this murder's five Key Remnants.
      *
@@ -1040,6 +1053,12 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    game.settings.register(MODULE_ID, SETTINGS.legacyObservePending, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
 
     game.settings.register(MODULE_ID, SETTINGS.advanceOffers, {
         scope: "client",
@@ -1065,6 +1084,18 @@ export function registerSettings() {
     });
 
     game.settings.register(MODULE_ID, SETTINGS.trapPlants, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyTrapLedger, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyTrapPlants, {
         scope: "client",
         config: false,
         type: Object,

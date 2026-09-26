@@ -20,7 +20,7 @@
  * it from the registry.
  */
 
-import { MODULE_ID, FLAGS, moduleVersion } from "./config.mjs";
+import { MODULE_ID, FLAGS, TIMING, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, dialogContent, whisperToGms } from "./utils.mjs";
 import {
@@ -308,6 +308,88 @@ export function castCombine(held, offered, { cut = 0 } = {}) {
 export const castCopy = defineGmCopy({
     name: "cast", key: SETTINGS.mineCast, legacyKey: SETTINGS.legacyIncidentCast, resetGroup: "incident", fallback: {},
     combine: castCombine
+});
+
+/**
+ * The projects this world has: its project metadata's ids and every project
+ * projects.mjs lists (`allProjects`, the countdowns). A trap row or a plant of a
+ * project in neither is a dead project's, and is not claimed.
+ */
+async function livingProjects() {
+    const ids = new Set(Object.keys(getSetting(SETTINGS.projectMeta) ?? {}));
+    const { allProjects } = await import("./projects.mjs");
+    for (const project of allProjects()) ids.add(project.id);
+    return ids;
+}
+
+/**
+ * WHICH ITEM IS WHICH TRAP'S (E04 C7; audit S08-19). A row per planted object's
+ * `drpgItemId`: `{ projectId }`. Synced, so a trap planted on one GM's browser is
+ * known on the primary's, which reads the "used an item" cards (traps.mjs). The
+ * old rows are claimed while their project exists, weak.
+ */
+export const trapLedgerStore = defineGmStore({
+    name: "trapLedger", key: SETTINGS.trapLedger, legacyKey: SETTINGS.legacyTrapLedger,
+    kind: "ledger", resetGroup: "projects", backup: true, sync: true,
+    claim: async legacy => {
+        const alive = await livingProjects();
+        const rows = [], left = [];
+        for (const [itemId, projectId] of Object.entries(isPlain(legacy) ? legacy : {})) {
+            if (typeof projectId !== "string" || !projectId) left.push({ key: itemId, reason: "notARow" });
+            else if (!alive.has(projectId)) left.push({ key: itemId, reason: "deadProject" });
+            else rows.push({ key: itemId, fields: { projectId } });
+        }
+        return { rows, left };
+    }
+});
+
+/**
+ * WHAT IS WAITING IN WHICH ROOM (E04 C7; audit S08-19). A row per `sceneId::room`:
+ * the planted object. Synced, so the primary GM - who hands a player's Search its
+ * find - finds a plant another GM left; taking one is a tombstone every GM gets.
+ * The old rows are claimed when their scene is this world's (`-::room`, a plant
+ * made with no scene on screen, by its project alone) and their project exists.
+ */
+export const trapPlantStore = defineGmStore({
+    name: "trapPlants", key: SETTINGS.trapPlants, legacyKey: SETTINGS.legacyTrapPlants,
+    kind: "ledger", resetGroup: "projects", backup: true, sync: true,
+    claim: async legacy => {
+        const alive = await livingProjects();
+        const rows = [], left = [];
+        for (const [key, entry] of Object.entries(isPlain(legacy) ? legacy : {})) {
+            const sceneId = String(key).split("::")[0];
+            if (!isPlain(entry)) left.push({ key, reason: "notARow" });
+            else if (sceneId !== "-" && !game.scenes?.has(sceneId)) left.push({ key, reason: "otherWorld" });
+            else if (!alive.has(entry.projectId)) left.push({ key, reason: "deadProject" });
+            else rows.push({ key, fields: entry });
+        }
+        return { rows, left };
+    }
+});
+
+/**
+ * THE OBSERVE DECLARATIONS WAITING FOR THEIR ROLL (E04 C7). Local: this browser's,
+ * a section per world, neither synced nor backed up - the declaration and its
+ * answer go through one GM, whoever `primaryGmId()` names, and last an hour at
+ * most (observe.mjs). The old ones are claimed when their scene or actor is this
+ * world's and they are inside that hour - weak, like every old row with no stamp
+ * of the store's own: the hour is read off the entry's `at`, and a later write here
+ * wins.
+ */
+export const observeStore = defineGmStore({
+    name: "observe", key: SETTINGS.observePending, legacyKey: SETTINGS.legacyObservePending,
+    kind: "ledger", resetGroup: "remnants", backup: false, sync: false,
+    claim: legacy => {
+        const cutoff = Date.now() - TIMING.pendingObserveTtlMs;
+        const rows = [], left = [];
+        for (const [key, entry] of Object.entries(isPlain(legacy) ? legacy : {})) {
+            if (!isPlain(entry)) left.push({ key, reason: "notARow" });
+            else if (!(entry.at >= cutoff)) left.push({ key, reason: "expired" });
+            else if (!game.scenes?.has(entry.sceneId) && !game.actors?.has(entry.actorId)) left.push({ key, reason: "otherWorld" });
+            else rows.push({ key, fields: entry });
+        }
+        return { rows, left };
+    }
 });
 
 /** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
@@ -633,6 +715,15 @@ export async function gmStoreHealth() {
     const state = getSetting(SETTINGS.murderState) ?? {};
     const cast = incidentCast();
     if (state.active && !cast.killerId && !cast.victimId) add("incident", "missing", "DRPG.Case.row.incident");
+
+    // Armed item traps whose planted object this browser does not know: they cannot fire (C7).
+    try {
+        const { itemTrapsWithoutPlant } = await import("./traps.mjs");
+        const lost = itemTrapsWithoutPlant();
+        if (lost.length) add("traps", "missing", "DRPG.Case.row.traps", { n: lost.length });
+    } catch (err) {
+        warn("The case health check could not read the traps", err);
+    }
 
     /* THE UPGRADE DAY'S CLEAR (the design's H4): a GM's old store says the Mastermind
        was cleared after the pick the store holds was made. Nothing in the old entry said

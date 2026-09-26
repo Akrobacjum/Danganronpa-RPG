@@ -2831,8 +2831,7 @@ const SCENARIOS = [
         const [actor] = cast(1);
         ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
 
-        const beforePlants = foundry.utils.deepClone(getSetting(SETTINGS.trapPlants) ?? {});
-        const beforeLedger = foundry.utils.deepClone(getSetting(SETTINGS.trapLedger) ?? {});
+        // The plants and the trap ledger are GM stores since E04: tier 2's restore puts them back.
         let granted = null;
 
         try {
@@ -2869,8 +2868,6 @@ const SCENARIOS = [
             await plain.delete().catch(() => {});
         } finally {
             if (granted) await granted.delete().catch(() => {});
-            await game.settings.set(MODULE_ID, SETTINGS.trapPlants, beforePlants);
-            await game.settings.set(MODULE_ID, SETTINGS.trapLedger, beforeLedger);
             await settle();
         }
     }],
@@ -6749,7 +6746,57 @@ const SCENARIOS = [
         const [, other, third] = cast(3);
         const clock = getClock() ?? {};
         const offer = { thirdId: third.id, killerId: student.id, chapter: clock.chapter, day: clock.day };
+        const traps = await import("./traps.mjs");
+        const { TIMING } = await import("./config.mjs");
+        // A project this world has, so the traps' rows can be claimed (C7): its metadata alone. Put back by tier 2's restore.
+        const liveProject = () => game.settings.set(MODULE_ID, SETTINGS.projectMeta,
+            { ...(getSetting(SETTINGS.projectMeta) ?? {}), SUITEE04PROJECT1: { name: "SUITE census project" } });
+        const recent = Date.now() - 60 * 1000;
         const FIXTURES = {
+            trapLedger: {
+                legacy: SETTINGS.legacyTrapLedger,
+                before: liveProject,
+                seed: { SUITEE04ITEM0001: "SUITEE04PROJECT1", SUITEE04ITEM0002: "SUITEE04DEADPRJ0", SUITEE04ITEM0003: 7 },
+                census: { legacy: 3, claimed: 1, left: 2, tombstones: 0, reasons: { deadProject: 1, notARow: 1 } },
+                readBack: store => {
+                    equal(traps.trapForItemId("SUITEE04ITEM0001"), "SUITEE04PROJECT1", "the claimed trap row does not read back through trapForItemId");
+                    equal(store.stampOf("SUITEE04ITEM0001"), store.weak(), "the trap row was not claimed weak");
+                    ok(!store.has("SUITEE04ITEM0002") && !store.has("SUITEE04ITEM0003"), "a dead project's row, or a row that is none, was claimed");
+                }
+            },
+            trapPlants: {
+                legacy: SETTINGS.legacyTrapPlants,
+                before: liveProject,
+                seed: {
+                    [`${sceneId}::SUITE room`]: { projectId: "SUITEE04PROJECT1", drpgItemId: "SUITEE04ITEM0001", name: "SUITE planted kit" },
+                    ["-::SUITE hall"]: { projectId: "SUITEE04PROJECT1", drpgItemId: "SUITEE04ITEM0004", name: "SUITE kit with no scene" },
+                    ["SUITEE04NOSCENE::SUITE room"]: { projectId: "SUITEE04PROJECT1", drpgItemId: "SUITEE04ITEM0005" },
+                    [`${sceneId}::SUITE cellar`]: { projectId: "SUITEE04DEADPRJ0", drpgItemId: "SUITEE04ITEM0006" }
+                },
+                census: { legacy: 4, claimed: 2, left: 2, tombstones: 0, reasons: { deadProject: 1, otherWorld: 1 } },
+                readBack: store => {
+                    equal(stableJson([store.get(`${sceneId}::SUITE room`)?.drpgItemId, store.get("-::SUITE hall")?.name]),
+                        stableJson(["SUITEE04ITEM0001", "SUITE kit with no scene"]), "a claimed plant does not read back");
+                    equal(store.stampOf(`${sceneId}::SUITE room`), store.weak(), "the plant was not claimed weak");
+                    ok(!store.has("SUITEE04NOSCENE::SUITE room") && !store.has(`${sceneId}::SUITE cellar`), "another world's plant, or a dead project's, was claimed");
+                }
+            },
+            observe: {
+                legacy: SETTINGS.legacyObservePending,
+                seed: {
+                    SUITEE04OBSERVE1: { at: recent, actorId: student.id, sceneId, room: "SUITE room", declaration: "general" },
+                    SUITEE04OBSERVE2: { at: recent - TIMING.pendingObserveTtlMs - 1000, actorId: student.id, sceneId, room: "SUITE room" },
+                    SUITEE04OBSERVE3: { at: recent, actorId: "SUITEE04NOACTOR0", sceneId: "SUITEE04NOSCENE", room: "SUITE room" },
+                    SUITEE04OBSERVE4: "not a declaration"
+                },
+                census: { legacy: 4, claimed: 1, left: 3, tombstones: 0, reasons: { expired: 1, notARow: 1, otherWorld: 1 } },
+                readBack: store => {
+                    // The store and not observe.mjs's cache: the cache is this world's, and this is a stand-in world.
+                    equal(stableJson([store.get("SUITEE04OBSERVE1")?.room, store.get("SUITEE04OBSERVE1")?.at]), stableJson(["SUITE room", recent]),
+                        "the claimed declaration does not read back");
+                    equal(store.stampOf("SUITEE04OBSERVE1"), store.weak(), "the declaration was not claimed weak");
+                }
+            },
             cast: {
                 legacy: SETTINGS.legacyIncidentCast,
                 // Claimed only while this world's incident runs (the design's H4): tier 2 puts the state back.
@@ -7191,6 +7238,42 @@ const SCENARIOS = [
         equal(stableJson(M.blackenedIds()), stableJson([]), "after the clear, a stale copy of this chapter's killer came back");
     }],
 
+    ["a taken plant stays taken when a stale copy merges", async () => {
+        /*
+         * E04, 26.09.2026; audit S08-19. A trap's planted objects were one object per GM
+         * browser, written whole, and the primary - who hands a player's Search its find
+         * - never saw a plant another GM left. They are a synced store now, so a copy
+         * from a GM that has not heard of a take can arrive after it. Taking one is a
+         * stamped drop, and a new plant in the room drops the old one first. Here a
+         * plant is left and taken; this store's copy from before the take merges in as a
+         * sync does: the plant stays taken. Then a plant with a picture is left, and a
+         * second one without replaces it before anybody searches; the copy from before
+         * the second merges in: the room holds the second, and nothing of the first. Stood
+         * in a world this browser has never opened, so no other GM is sent the fixture's
+         * rows.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const T = await import("./traps.mjs");
+        const room = "SUITE E04 plant room", sceneId = "SUITEE04PLANTSCN";
+        await E.withGmStoreWorld(`suite-plants-${foundry.utils.randomID(8)}`, async () => {
+            const first = await T.plantItem("SUITEE04PLANTPRJ", room, { sceneId, name: "SUITE planted kit", img: "SUITE-first.webp" });
+            ok(first, "the fixture plant was not left");
+            const before = S.trapPlantStore.section();
+            const taken = await T.takePlant(room, sceneId);
+            equal(taken?.drpgItemId, first, "the plant was not taken");
+            await S.trapPlantStore.mergeIn(before, { source: "sync" });
+            equal(await T.takePlant(room, sceneId), null, "a copy from before the take brought the plant back for a second finder");
+            await T.plantItem("SUITEE04PLANTPRJ", room, { sceneId, name: "SUITE pictured kit", img: "SUITE-pictured.webp" });
+            const beforeSecond = S.trapPlantStore.section();
+            const second = await T.plantItem("SUITEE04PLANTPRJ", room, { sceneId, name: "SUITE second kit" });
+            await S.trapPlantStore.mergeIn(beforeSecond, { source: "sync" });
+            const held = S.trapPlantStore.get(`${sceneId}::${room}`) ?? {};
+            equal(stableJson([held.drpgItemId, held.name, held.img ?? null]), stableJson([second, "SUITE second kit", null]),
+                "the room does not hold the second plant alone");
+        });
+    }],
+
     ["Back up the case, then Restore, brings every store back", async () => {
         /*
          * E04, 26.09.2026; audit S05-09, the brief's verify. Each store is given a row
@@ -7213,8 +7296,27 @@ const SCENARIOS = [
         const made = [], traces = [];
         const mastermind = await import("./mastermind.mjs");
         const murder = await import("./murder.mjs");
+        const traps = await import("./traps.mjs");
         const [, victim] = cast(2);
         const FIXTURES = {
+            // The traps' two, through their stores: no project is armed by them (C7).
+            trapLedger: {
+                seed: async () => {
+                    await S.trapLedgerStore.patch("SUITEE04BACKUPIT", { projectId: "SUITEE04BACKUPPJ" });
+                    return "SUITEE04BACKUPIT";
+                },
+                gone: (report, id) => traps.trapForItemId(id) === null,
+                back: id => traps.trapForItemId(id) === "SUITEE04BACKUPPJ"
+            },
+            trapPlants: {
+                seed: async () => {
+                    const key = `${scene.id}::SUITE backed-up room`;
+                    await S.trapPlantStore.patch(key, { projectId: "SUITEE04BACKUPPJ", drpgItemId: "SUITEE04BACKUPIT", name: "SUITE backed-up kit" });
+                    return key;
+                },
+                gone: (report, key) => !S.trapPlantStore.has(key),
+                back: key => S.trapPlantStore.get(key)?.name === "SUITE backed-up kit"
+            },
             // Both through their stores: no participant's browser is told anything.
             cast: {
                 seed: async () => {

@@ -1152,6 +1152,15 @@ export async function diagnoseGmStores() {
     }
     const status = gmStoreStatus();
     lines.push(`   in all ${Math.round(status.stores / 1024)} KB; everything the module keeps in this browser ${Math.round(status.total / 1024)} KB`);
+    // The traps' two stores and what is armed (traps.mjs `diagnoseTraps`, E04).
+    try {
+        const { diagnoseTraps } = await import("./traps.mjs");
+        const t = diagnoseTraps();
+        lines.push(`Traps: ${t.armed} armed, ${t.plants} plant(s) waiting, ${t.ledger} planted object(s) known${
+            t.withoutPlant?.length ? `  ← armed with their object nowhere: ${t.withoutPlant.join(", ")}` : ""}`);
+    } catch (err) {
+        lines.push(`Traps: could not be read (${err?.message ?? err})`);
+    }
     const report = await gmStoreHealth();
     for (const row of report?.rows ?? []) lines.push(`   [${row.level}] ${healthLine(row)}`);
     if (report?.counts?.bullets?.fillable) {
