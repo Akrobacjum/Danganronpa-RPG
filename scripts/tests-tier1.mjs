@@ -4568,7 +4568,11 @@ const INVARIANTS = [
             // E05 C6: a user's pre-session note holds no text - the flag says when, and whether.
             ["User flag preSessionNote.text",
                 s => { s.users[0].flags[MOD].preSessionNote.text = "R190 a plan to kill"; },
-                h => h.kind === "flag" && h.doc === "User" && h.id === "R190USER00000001" && h.path === `flags.${MOD}.preSessionNote.text`]
+                h => h.kind === "flag" && h.doc === "User" && h.id === "R190USER00000001" && h.path === `flags.${MOD}.preSessionNote.text`],
+            // E05 C7: an actor carries no Reroll bookmark - even one with nothing in it is found.
+            ["Actor flag lastAction",
+                s => { s.actors[1].flags[MOD].lastAction = {}; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.lastAction`]
         ];
         /* The exemptions: [what, plant, whether the hits are right]. projectMeta's own map token, as
            projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock

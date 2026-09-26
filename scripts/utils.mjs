@@ -385,10 +385,14 @@ async function privately(payload) {
             warn("A veiled card came with no readers, so it was not posted.");
             return null;
         }
-        // `veiled` is secret.mjs's word, not a ChatMessage field.
+        // `veiled` and `summary` are secret.mjs's words, not ChatMessage fields: a
+        // card's facts go with its words or nowhere (E05 C7), and a public card has
+        // no words store to keep them in.
         delete payload.veiled;
+        delete payload.summary;
         return ChatMessage.create(payload);
     }
+    // `summary`, the card's facts, rides along to `postSecret` with the words.
     const { postSecret } = await import("./secret.mjs");
     return postSecret(payload);
 }

@@ -77,7 +77,9 @@ export const WORLD_SECRET_RULES = Object.freeze({
         except: Object.freeze({ projectMeta: Object.freeze(["tokenId"]) })
     }),
     flags: Object.freeze({
-        Actor: Object.freeze([]),
+        // E05 C7: the Reroll bookmark - a crisis roll's keys, Stage 6's token ids, a palm's victim -
+        // is the roller's own client setting `rollBookmarks` (action-rolls.mjs; S02-01).
+        Actor: Object.freeze(["lastAction"]),
         // E05 C6: a player's pre-session note for the GMs - "Am I planning to kill? How?" - is a GM
         // store; the flag keeps only `{ updatedAt, written }` (pre-session-note.mjs; S11-03, S01-08).
         User: Object.freeze(["preSessionNote.text"]),

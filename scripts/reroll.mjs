@@ -28,8 +28,9 @@
  * already made is re-asked rather than rewritten.
  */
 
-import { MODULE_ID, FLAGS, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING } from "./config.mjs";
-import { resolveThreshold, easedBy, replaceFlag, log, error, plural } from "./utils.mjs";
+import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING } from "./config.mjs";
+import { resolveThreshold, easedBy, log, error, plural } from "./utils.mjs";
+import { rollBookmark, keepRollBookmark } from "./action-rolls.mjs";
 import { leavesTraceFor } from "./inventory.mjs";
 
 /**
@@ -203,8 +204,7 @@ function advantageDice(roll) {
 export async function rerollLastAction(actor) {
     const done = [];
 
-    const bookmark = actor?.getFlag?.(MODULE_ID, FLAGS.lastAction) ?? null;
-    const message = findMessage(actor, bookmark);
+    const { bookmark, message } = lastRollOf(actor);
     if (!message) {
         ui.notifications.warn(game.i18n.localize("DRPG.Reroll.nothingToReroll"));
         return null;
@@ -255,7 +255,7 @@ export async function rerollLastAction(actor) {
         // Replacement, matching `rememberRoll`: the spread below is the whole
         // of the new bookmark, so a `patch` that nulls a field it consumed -
         // an item it removed, a Remnant it retuned - actually clears it.
-        await replaceFlag(actor, FLAGS.lastAction, {
+        await keepRollBookmark(actor, {
             ...(bookmark ?? {}),
             ...patch,
             messageId: message.id,
@@ -283,6 +283,17 @@ export async function rerollLastAction(actor) {
  */
 /** How far back the fallback scan will look, in real minutes. */
 const REROLL_WINDOW_MINUTES = TIMING.rerollWindowMinutes;
+
+/**
+ * What a Reroll of this character would take back: this browser's bookmark
+ * (`rollBookmark`, action-rolls.mjs - the roller's own browser since E05 C7) and the
+ * message it names, or the scan's. Exported for the suite, which holds a Reroll to
+ * the bookmark rather than to the newest roll.
+ */
+export function lastRollOf(actor) {
+    const bookmark = rollBookmark(actor);
+    return { bookmark, message: findMessage(actor, bookmark) };
+}
 
 function findMessage(actor, bookmark) {
     if (bookmark?.messageId) {

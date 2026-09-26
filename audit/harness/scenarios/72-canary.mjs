@@ -264,6 +264,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     await gm.eval(`await game.drpg.endEclipse(); return true;`, { timeout: 90000 });
     const opened = await settled("incident", () => gm.eval(`const s = game.drpg.murderState(); return s?.stage === "incident" ? s.stage : null;`));
     await p3.eval(`delete globalThis.__forceRoll; globalThis.__dialogAuto = false; return true;`);
+    /* THE CRISIS ROLL'S BOOKMARK (E05 C7, 26.09.2026; audit S02-01). A crisis action's roll is
+       bookmarked for a Reroll with its key (murder.mjs `takeCrisisAction`); here p3 throws Chie's
+       the way that roll is thrown, and the GM rules the blow as before. Until 1.2.64 the bookmark
+       was Chie's actor flag, which this phase's world scan found on p1 and p2 (measured on the C6
+       tree with this roll); it is p3's own client setting now. */
+    const crisisMark = await p3.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__forceRoll = { hope: 8, fear: 3 };
+        try { await A.rollTrait(game.actors.get("${IDS.chie}"), "body", { actionKey: "crisis", context: { crisis: "finishingBlow" } }); }
+        finally { delete globalThis.__forceRoll; }
+        return A.rollBookmark?.(game.actors.get("${IDS.chie}"))?.crisis ?? null;`, { timeout: 60000 });
+    check("p3: Chie's crisis roll is bookmarked, with its key, in p3's own browser", crisisMark === "finishingBlow", JSON.stringify({ crisisMark }));
     const killed = await gm.eval(`await game.drpg.resolveCrisisAction({ actorId: "${IDS.chie}", key: "finishingBlow", total: 99, isCritical: false, withHope: true });
         await new Promise(r => setTimeout(r, 1500));
         return { stage: game.drpg.murderState()?.stage ?? null, dead: game.drpg.isDeceased(game.actors.get("${IDS.botan}")) };`, { timeout: 60000 });

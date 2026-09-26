@@ -282,6 +282,31 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         seen.button === "r1", JSON.stringify(seen));
     check("XSS: a player's packet cannot pin its card in the GM's store", seen.pinned === false, JSON.stringify(seen));
 
+    /* A CARD'S FACTS FROM A PLAYER (E05 C7, 26.09.2026). They travel with the words now and
+       the GM's day summary reads them, so what a player sends is kept as plain fields only,
+       and not at all when they name a character the player does not own: p1 plays Aiko,
+       not Botan. Two cards of p1's own, each with a packet as a console would write it. */
+    const facts = await p1.eval(`
+        const post = async summary => {
+            const msg = await ChatMessage.create({ content: '<p class="notes" data-drpg-secret>-</p>',
+                whisper: ["${gm.userId}"], flags: { "${MOD}": { secret: true } } });
+            game.socket.emit("${SOCKET}", { action: "secret.card", id: msg.id, html: "<p>SEC facts</p>", at: Date.now(), summary });
+            return msg.id;
+        };
+        return { other: await post({ actorId: "${ids.botan}", action: "Search", item: "SEC not yours" }),
+            own: await post({ actorId: "${ids.aiko}", action: "Search", item: "SEC yours", extra: "SEC extra", total: { v: 1 } }) };
+    `, { timeout: 30000 });
+    await settle(1200);
+    const factsKept = await gm.eval(`
+        const store = game.settings.get("${MOD}", "secretCards") ?? {};
+        return { other: store[${JSON.stringify(facts.other)}]?.summary ?? null, own: store[${JSON.stringify(facts.own)}]?.summary ?? null,
+            words: Boolean(store[${JSON.stringify(facts.other)}]?.html) };
+    `);
+    check("SECURITY: a player's card cannot put facts about another player's character in the GM's day summary",
+        factsKept.words && factsKept.other === null, JSON.stringify(factsKept));
+    check("SECURITY: a player's facts about their own character are kept as plain fields only",
+        factsKept.own?.item === "SEC yours" && !("extra" in (factsKept.own ?? {})) && factsKept.own?.total === null, JSON.stringify(factsKept));
+
     /* The same words, stored before this was fixed: an entry with no trust mark is
        cleaned when it is read, whoever wrote it. */
     const legacy = await gm.eval(`

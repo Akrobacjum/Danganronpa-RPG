@@ -49,7 +49,8 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { debug, warn, error } from "./utils.mjs";
+import { debug, warn, error, isPrimaryGm, log, forcedDeletion } from "./utils.mjs";
+import { ownsActor } from "./bridge-guards.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_SECRET = "secret.card";
@@ -129,6 +130,41 @@ const KEEP = TIMING.secretCardsKept;
 
 /** Past this, a player's packet is not a messenger bubble - nor, since E05, a pre-session note (pre-session-note.mjs). 32 KB is a long letter. */
 export const MAX_PLAYER_BYTES = 32 * 1024;
+
+/*
+ * A CARD'S FACTS TRAVEL WITH ITS WORDS (E05 C7, 26.09.2026; audit S10-05, S02-11).
+ *
+ * An action's result card carried what its header says as data - actor, action,
+ * room, total, critical, what was found and at which tier, whether a trace was left
+ * - in `flags.summary`, for the time of day's summary to read back (day-summary.mjs).
+ * A flag is on the document, and the document is in every browser: 40-flow measured
+ * p2 holding "Cereal bar" at `flags.danganronpa-rpg.summary.item` of p1's Search
+ * card. The facts are the words' now: `postSecret` takes them as `summary`, sends
+ * them in the same packet, and each recipient keeps them beside the words in this
+ * store; `secretSummaries` answers them. Whoever sent them, they are kept as the
+ * plain fields below and nothing else, and a player's facts that name a character
+ * the player does not own are not kept at all.
+ */
+const SUMMARY_TEXT = 200;
+
+/** The card's facts as plain fields - strings bounded, numbers finite - or null. Pure. */
+export function plainSummary(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const text = v => (typeof v === "string" && v ? v.slice(0, SUMMARY_TEXT) : null);
+    const number = v => (typeof v === "number" && Number.isFinite(v) ? v : null);
+    const tier = number(raw.tier) ?? (typeof raw.tier === "string" && raw.tier ? raw.tier.slice(0, 20) : null);
+    return {
+        actorId: typeof raw.actorId === "string" && /^[A-Za-z0-9]{1,64}$/.test(raw.actorId) ? raw.actorId : null,
+        action: text(raw.action),
+        room: text(raw.room),
+        total: number(raw.total),
+        critical: raw.critical === true,
+        item: text(raw.item),
+        tier,
+        leftTrace: raw.leftTrace === true,
+        at: number(raw.at)
+    };
+}
 
 /**
  * Pinned cards are a messenger's threads and are never aged out with the
@@ -284,15 +320,18 @@ export function contentOf(message) {
  * @param {boolean} [trusted]  Written by a GM, as the GM wrote it. Anything else
  *   is cleaned before it is shown - see the note above `MAX_PLAYER_BYTES`.
  */
-async function remember(id, html, at, pin = false, trusted = false) {
+async function remember(id, html, at, pin = false, trusted = false, summary = undefined) {
     const words = trusted ? html : sanitize(html);
     // Anything holding a notice open for these words gets them now.
     const pending = waiting.get(id);
     if (pending) pending(words);
 
     cleaned.delete(id);
+    // New words for a card keep the facts it was posted with (`updateSecret` sends none).
+    const facts = summary === undefined ? (read()[id]?.summary ?? null) : plainSummary(summary);
     const store = { ...read(), [id]: {
         html: words, at: at ?? Date.now(), user: game.user?.id ?? null,
+        ...(facts ? { summary: facts } : {}),
         // Which world the card is in: the store is a CLIENT setting, one per
         // browser for every world it opens, and `pruneOrphans` must only ever
         // judge this world's cards against this world's chat log.
@@ -352,10 +391,13 @@ async function forget(ids = []) {
  *                                     and speaks as nobody in particular. For
  *                                     cards whose recipient list would itself
  *                                     be a secret - an incident's.
+ * @param {object}   [data.summary]    The card's facts, for the day summary: kept
+ *                                     with the words, never on the document.
  * @returns {Promise<ChatMessage|null>}
  */
 export async function postSecret(data = {}) {
-    const { veiled = false, ...rest } = data ?? {};
+    const { veiled = false, summary: rawSummary = null, ...rest } = data ?? {};
+    const summary = plainSummary(rawSummary);
     const recipients = [...new Set((rest.whisper ?? []).filter(Boolean))];
     if (!recipients.length) {
         error("Refused to post a private card with nobody to read it.");
@@ -393,7 +435,7 @@ export async function postSecret(data = {}) {
     // recipient of should never be waiting on their own network round trip to
     // read what they just wrote.
     if (recipients.includes(game.user.id)) {
-        await remember(message.id, html, at, pin, game.user.isGM);
+        await remember(message.id, html, at, pin, game.user.isGM, summary);
         refresh(message);
     }
 
@@ -401,7 +443,7 @@ export async function postSecret(data = {}) {
     if (others.length) {
         try {
             game.socket.emit(SOCKET_EVENT,
-                { action: ACTION_SECRET, id: message.id, html, at, pin },
+                { action: ACTION_SECRET, id: message.id, html, at, pin, ...(summary ? { summary } : {}) },
                 { recipients: others });
         } catch (err) {
             // The card exists and says nothing. Better than the reverse.
@@ -507,11 +549,17 @@ export function registerSecrets() {
                     warn(`Refused private words for ${payload.id} from ${sender?.name ?? senderId}: over ${MAX_PLAYER_BYTES} bytes.`);
                     return;
                 }
-                await remember(payload.id, payload.html, payload.at, pinned(message.flags), false);
+                // A player's facts about somebody else's character are not theirs to give.
+                // A packet with none (`updateSecret`'s) keeps what the card already has.
+                const facts = plainSummary(payload.summary);
+                const given = payload.summary === undefined ? undefined
+                    : (facts && (!facts.actorId || ownsActor(sender, facts.actorId)) ? facts : null);
+                await remember(payload.id, payload.html, payload.at, pinned(message.flags), false, given);
                 refresh(game.messages.get(payload.id));
                 return;
             }
-            await remember(payload.id, payload.html, payload.at, Boolean(payload.pin), true);
+            await remember(payload.id, payload.html, payload.at, Boolean(payload.pin), true,
+                payload.summary === undefined ? undefined : plainSummary(payload.summary));
             refresh(game.messages.get(payload.id));
         } catch (err) {
             error("Could not keep a private card that arrived", err);
@@ -597,6 +645,53 @@ export async function pruneOrphans() {
         await write(next);
     }
     if (gone.length) await forget(gone);
+}
+
+/**
+ * The facts of this world's cards this browser holds for this user, posted at or
+ * after `since` (ms), oldest first - what the time of day's summary reads
+ * (day-summary.mjs). A card deleted takes its facts with it, as it takes its words.
+ */
+export function secretSummaries(since = 0) {
+    const here = game.world?.id ?? null;
+    const me = game.user?.id ?? null;
+    const out = [];
+    for (const entry of Object.values(read())) {
+        if (!entry?.summary || entry.world !== here) continue;
+        if (entry.user && entry.user !== me) continue;
+        const at = entry.summary.at ?? entry.at ?? 0;
+        if (since && at < since) continue;
+        out.push({ ...entry.summary, at });
+    }
+    return out.sort((a, b) => a.at - b.at);
+}
+
+/**
+ * THE OLD FACTS OUT OF WORLD DATA (E05 C7; audit S10-05, S02-11) - the
+ * `dropCardSummaries` clause. Once, on the primary. Nothing is lifted: the facts
+ * belong in the recipients' stores, which a GM's browser cannot fill for them, so a
+ * time of day that spans the update loses its earlier lines from the summary. Every
+ * message's `summary` flag is deleted (`forcedDeletion()`, `unsetFlag` in a Foundry
+ * without it), twenty-five writes at a time, and read back; one still there throws,
+ * so the world is not stamped and the next load tries again.
+ *
+ * @returns {Promise<null|{dropped: number}>}
+ */
+export async function dropCardSummaries() {
+    if (!isPrimaryGm() || !game.messages) return null;
+    const holding = () => game.messages.filter(m => Object.hasOwn(m.flags?.[MODULE_ID] ?? {}, "summary"));
+    const found = holding();
+    if (!found.length) return null;
+    const deletion = forcedDeletion();
+    for (let i = 0; i < found.length; i += 25) {
+        await Promise.all(found.slice(i, i + 25).map(m => deletion
+            ? m.update({ [`flags.${MODULE_ID}.summary`]: deletion })
+            : m.unsetFlag(MODULE_ID, "summary")));
+    }
+    const left = holding().length;
+    if (left) throw new Error(`${left} card(s) kept their facts in world data; the next load tries again`);
+    log(`Took the facts off ${found.length} card(s) in world data.`);
+    return { dropped: found.length };
 }
 
 /** For the diagnostics window, and for the suite. */

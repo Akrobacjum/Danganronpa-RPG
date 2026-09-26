@@ -7972,6 +7972,130 @@ const SCENARIOS = [
         }
     }],
 
+    ["a Reroll finds its bookmark in the roller's browser, and the actor carries none", async () => {
+        /*
+         * E05 C7, 26.09.2026; audit S02-01. The bookmark was the actor flag `lastAction`,
+         * in every browser; it is this browser's client setting `rollBookmarks` now, per
+         * world and character. Two rolls of one character: the action's own, with its
+         * context, and a supporting roll after it (`remember: false`), newer and not the
+         * one to take back. The bookmark names the first, from this browser's store under
+         * this world, the actor carries none, and a Reroll takes the first back - not the
+         * newest, which is what the recent-chat scan alone would pick. Then the only
+         * bookmark is another world's: it is not read here, and the scan picks the newest.
+         * The store, the dice and the two messages are put back.
+         */
+        const [who] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const R = await import("./reroll.mjs");
+        const kept = getSetting(SETTINGS.rollBookmarks);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const made = [];
+        try {
+            globalThis.__forceRoll = { hope: 9, fear: 5 };
+            const first = await rolls.rollTrait(who, "eye", { actionKey: "suite-probe", context: { room: "SUITE room" } });
+            made.push(first?.raw?.message?.id ?? null);
+            const second = await rolls.rollTrait(who, "eye", { remember: false });
+            made.push(second?.raw?.message?.id ?? null);
+            const [firstId, secondId] = made;
+            ok(firstId && secondId && firstId !== secondId, "the two rolls did not each leave a message - this measured nothing");
+            const mark = rolls.rollBookmark(who);
+            equal(stableJson([mark?.messageId, mark?.actionKey, mark?.room]), stableJson([firstId, "suite-probe", "SUITE room"]),
+                "the bookmark is not the action's roll with its context");
+            equal(getSetting(SETTINGS.rollBookmarks)?.worlds?.[game.world.id]?.[who.id]?.messageId, firstId,
+                "the bookmark is not in this browser's store under this world and character");
+            ok(!Object.hasOwn(who.flags?.[MODULE_ID] ?? {}, FLAGS.lastAction), "the actor carries a Reroll bookmark in world data");
+            equal(R.lastRollOf(who).message?.id, firstId, "a Reroll would take back the newest roll, not the bookmarked one");
+
+            await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, { v: 1, worlds: { "suite-other-world": { [who.id]: { messageId: firstId } } } });
+            equal(rolls.rollBookmark(who), null, "another world's bookmark was read as this world's");
+            equal(R.lastRollOf(who).message?.id, secondId, "with no bookmark here, a Reroll does not fall back to the newest roll");
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, kept ?? {});
+            for (const id of made) await game.messages.get(id ?? "")?.delete();
+        }
+    }],
+
+    ["the day summary reads the words' store, and the card's document carries no facts", async () => {
+        /*
+         * E05 C7, 26.09.2026; audit S10-05, S02-11. An action's result card carried its
+         * facts - what was found, where, whether a trace was left - as `flags.summary`, on
+         * a document every browser holds. They go with the words now (utils.mjs `privately`
+         * to secret.mjs `postSecret`), and the day summary reads them from this browser's
+         * store. A card posted as `report()` posts one: its document holds no facts
+         * anywhere, the summary's line is the facts as sent, and a time of day that began
+         * after it does not list it. Then what the store keeps of facts whoever sent them:
+         * the plain fields, bounded, and nothing else. The card is deleted.
+         */
+        const [who] = cast(1);
+        const U = await import("./utils.mjs");
+        const S = await import("./secret.mjs");
+        const D = await import("./day-summary.mjs");
+        const since = Date.now();
+        const facts = { actorId: who.id, action: "Search", room: "SUITE room", total: 17, critical: false,
+            item: "SUITE find", tier: 2, leftTrace: true, at: since + 1 };
+        let card = null;
+        try {
+            card = await U.whisperToOwner(who, "<p>SUITE facts card</p>", { summary: facts });
+            ok(card?.id, "the card was not posted - this measured nothing");
+            ok(!Object.hasOwn(card.flags?.[MODULE_ID] ?? {}, "summary"), "the card's document carries a summary flag");
+            ok(!JSON.stringify(card.toObject?.() ?? card).includes("SUITE find"), "the card's document names what was found");
+            equal(stableJson(D.entriesSince(since).find(e => e.item === "SUITE find") ?? null), stableJson(facts),
+                "the day summary does not read the card's facts from the words' store");
+            ok(!D.entriesSince(since + 2).some(e => e.item === "SUITE find"), "a card from before the time of day began is in its summary");
+            equal(stableJson(S.plainSummary({ actorId: "<b>x</b>", action: "A".repeat(500), total: "7", item: { html: "<img>" },
+                critical: "yes", tier: Infinity, extra: "SUITE extra", at: NaN })),
+            stableJson({ actorId: null, action: "A".repeat(200), room: null, total: null, critical: false, item: null, tier: null, leftTrace: false, at: null }),
+            "the store keeps more of a card's facts than their plain fields");
+        } finally {
+            await card?.delete();
+        }
+    }],
+
+    ["the bookmarks' drop takes an actor's Reroll bookmark out of world data", async () => {
+        /*
+         * E05 C7, 26.09.2026: the `dropRollBookmarks` clause (action-rolls.mjs). An old
+         * bookmark planted on a character, with a crisis key in it, as 1.2.63 wrote them:
+         * the drop deletes it, reads it back and says how many, and a second run has
+         * nothing to do. Nothing is lifted, so nothing is put back but the flag, if the
+         * drop left it.
+         */
+        const [who] = cast(1);
+        const A = await import("./action-rolls.mjs");
+        try {
+            await who.setFlag(MODULE_ID, FLAGS.lastAction, { messageId: "SUITEMESSAGE0001", actionKey: "crisis", crisis: "SUITE key" });
+            ok(Object.hasOwn(who.flags?.[MODULE_ID] ?? {}, FLAGS.lastAction), "the old bookmark was not planted - this measured nothing");
+            const report = await A.dropRollBookmarks();
+            ok(!Object.hasOwn(game.actors.get(who.id)?.flags?.[MODULE_ID] ?? {}, FLAGS.lastAction), "the actor still carries its bookmark after the drop");
+            ok(report?.dropped >= 1, `the drop's report does not count the bookmark: ${stableJson(report)}`);
+            equal(await A.dropRollBookmarks(), null, "a second run of the drop found something to do");
+        } finally {
+            if (Object.hasOwn(who.flags?.[MODULE_ID] ?? {}, FLAGS.lastAction)) await who.unsetFlag(MODULE_ID, FLAGS.lastAction);
+        }
+    }],
+
+    ["the facts' drop takes a card's summary flag out of world data", async () => {
+        /*
+         * E05 C7, 26.09.2026: the `dropCardSummaries` clause (secret.mjs). A card as 1.2.63
+         * posted a Search's, its facts in `flags.summary`: the drop deletes them, reads them
+         * back and says how many, and a second run has nothing to do. The card is deleted.
+         */
+        const S = await import("./secret.mjs");
+        let card = null;
+        try {
+            card = await ChatMessage.create({ content: "<p>SUITE old card</p>", whisper: [game.user.id], rolls: [],
+                flags: { [MODULE_ID]: { summary: { action: "Search", item: "SUITE old find", at: Date.now() } } } });
+            ok(Object.hasOwn(card?.flags?.[MODULE_ID] ?? {}, "summary"), "the old facts were not planted - this measured nothing");
+            const report = await S.dropCardSummaries();
+            ok(!Object.hasOwn(game.messages.get(card.id)?.flags?.[MODULE_ID] ?? {}, "summary"), "the card still carries its facts after the drop");
+            ok(report?.dropped >= 1, `the drop's report does not count the card: ${stableJson(report)}`);
+            equal(await S.dropCardSummaries(), null, "a second run of the drop found something to do");
+        } finally {
+            await card?.delete();
+        }
+    }],
+
     ["a changed old store is reported, and taking it never overwrites what changed since the upgrade", async () => {
         /*
          * E04, 26.09.2026; the design's H1. After the upgrade the old keys are frozen,

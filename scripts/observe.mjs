@@ -504,8 +504,8 @@ async function askWhichRemnant(actor, room, request, candidates) {
  * A KEY IS ONE PERSON'S, FOR ONE CHARACTER, ONCE (E03, 24.09.2026; audit S05-03).
  * The key was the whole of the check: the bridge made sure the sender owned the
  * character NAMED IN THE PACKET, and this file then acted on the character named
- * IN THE ENTRY, and never compared the two. The key sits on its owner's character
- * as part of the Reroll bookmark (`lastAction`), which every client can read. So a
+ * IN THE ENTRY, and never compared the two. The key sat on its owner's character
+ * as part of the Reroll bookmark (`lastAction`), which every client could read. So a
  * player could take somebody else's key, name their own character, send a total
  * of 0 with `undo`, and this client deleted the other player's Truth Bullet and
  * then charged them the Sanity for a miss. The key could be used again for an
@@ -513,6 +513,9 @@ async function askWhichRemnant(actor, room, request, candidates) {
  *
  * Now the character has to be the entry's, the account has to be the one the
  * key was minted for, a key is resolved once, and an undo needs a result to undo.
+ * Since E05 C7 the bookmark is in the roller's own browser (`rollBookmarks`), so the
+ * key is no longer in world data either; these checks stay, because they are what
+ * holds whatever a packet claims.
  * Pure, so the suite can hold it to that with an entry it made up.
  *
  * @param {object} entry  The pending entry.

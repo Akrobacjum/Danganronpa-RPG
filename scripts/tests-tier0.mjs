@@ -5714,12 +5714,13 @@ const REGRESSIONS = [
          * file calls a lift except its clause - the restore, which runs the Faint pass
          * again when a GM asks, and diagnostics' line telling the GM what to type. The
          * reader is shown a planted ready hook first. E05's lifts join the list, each
-         * with its own `since` (1.2.64).
+         * with its own `since` (1.2.64), and so do its two drops (C7), which lift nothing.
          */
         const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"], ["faintIntoSecrets", "migrateFaintIntoSecrets", "1.2.63"],
             ["liftIncidentSecrets", "liftIncidentSecrets", "1.2.63"], ["liftDiscoveryLedger", "liftDiscoveryLedger", "1.2.63"],
             ["liftProjectSecrets", "liftProjectSecrets", "1.2.64"], ["liftPendingMurders", "liftPendingMurders", "1.2.64"],
-            ["liftEclipseMoves", "liftEclipseMoves", "1.2.64"], ["liftKeyPlan", "liftKeyPlan", "1.2.64"], ["liftNotes", "liftNotes", "1.2.64"]];
+            ["liftEclipseMoves", "liftEclipseMoves", "1.2.64"], ["liftKeyPlan", "liftKeyPlan", "1.2.64"], ["liftNotes", "liftNotes", "1.2.64"],
+            ["dropRollBookmarks", "dropRollBookmarks", "1.2.64"], ["dropCardSummaries", "dropCardSummaries", "1.2.64"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.

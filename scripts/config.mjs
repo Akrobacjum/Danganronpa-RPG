@@ -188,10 +188,12 @@ export const FLAGS = {
      */
     pendingCall: "pendingCall",
     /**
-     * Character: what the last action rolled, so Reroll has something to undo.
-     * Shape: { messageId, actionKey, trait, total, withFear, isCritical,
-     * projectId, progress }. Overwritten by every action; only the newest one
-     * can ever be taken back.
+     * Character, until 1.2.64: the Reroll bookmark. Every browser holds an actor's
+     * flags, and the bookmark carried a crisis roll's keys, Stage 6's token ids and a
+     * palm's victim (audit S02-01), so since E05 C7 it is the roller's own client
+     * setting `rollBookmarks` (settings.mjs, action-rolls.mjs `rollBookmark`). The
+     * name stays for the `dropRollBookmarks` clause, which takes the old flag out, and
+     * for world-secrets.mjs, which holds every actor to carrying none.
      */
     lastAction: "lastAction",
     /**

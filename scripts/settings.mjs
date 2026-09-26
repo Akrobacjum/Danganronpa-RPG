@@ -273,6 +273,21 @@ export const SETTINGS = {
      * written.
      */
     secretCards: "secretCards",
+    /**
+     * WHAT THIS BROWSER ROLLED LAST, PER CHARACTER - the Reroll bookmark (E05 C7,
+     * 26.09.2026; audit S02-01). `{ v: 1, worlds: { [worldId]: { [actorId]: bookmark } } }`.
+     *
+     * CLIENT-SCOPED, on the roller's own browser. Until 1.2.64 the bookmark was the
+     * actor flag `lastAction`, which every browser holds: a crisis roll's keys, Stage
+     * 6's token ids and the words of a reshaped trace, a palm's victim and item, an
+     * Observe's key - each readable from any console. A Reroll is made by the player
+     * who rolled, from the browser that rolled (call-effects.mjs), so that browser is
+     * the only one that needs it; the owner chose it over a GM store for now (plan Q6,
+     * 26.09), and E08 moves it to the GMs. Not synced, not backed up: a bookmark is the
+     * newest roll, and a roll made in another browser is Rerolled from there. Per world,
+     * because a client setting is one entry for every world this browser opens.
+     */
+    rollBookmarks: "rollBookmarks",
     /*
      * WHICH ITEM IS THE TRAP, AND WHAT IS WAITING IN WHICH ROOM.
      *
@@ -1176,6 +1191,13 @@ export function registerSettings() {
     });
 
     game.settings.register(MODULE_ID, SETTINGS.secretCards, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.rollBookmarks, {
         scope: "client",
         config: false,
         type: Object,

@@ -679,6 +679,36 @@ const CLAUSES = [
             const report = await liftNotes();
             return report && (report.lifted || report.kept) ? report : null;
         }
+    },
+    {
+        key: "dropRollBookmarks",
+        since: "1.2.64",
+        /*
+         * THE REROLL BOOKMARKS OUT OF WORLD DATA (E05 C7; audit S02-01). Until 1.2.64 each
+         * character's newest roll and its context - a crisis roll's keys, Stage 6's token
+         * ids, a palm's victim - was the actor flag `lastAction`, which every browser holds.
+         * The bookmark is the roller's own client setting now; the old flags are deleted,
+         * with nothing lifted (a Reroll does not reach across an update), on `dropRollBookmarks`.
+         */
+        run: async () => {
+            const { dropRollBookmarks } = await import("./action-rolls.mjs");
+            return dropRollBookmarks();
+        }
+    },
+    {
+        key: "dropCardSummaries",
+        since: "1.2.64",
+        /*
+         * THE CARDS' FACTS OUT OF WORLD DATA (E05 C7; audit S10-05, S02-11). Until 1.2.64 an
+         * action's result card carried what was found, where and whether a trace was left
+         * in its `summary` flag, on a document every browser holds. The facts travel with
+         * the words now; the old flags are deleted, with nothing lifted, on
+         * `dropCardSummaries` (secret.mjs).
+         */
+        run: async () => {
+            const { dropCardSummaries } = await import("./secret.mjs");
+            return dropCardSummaries();
+        }
     }
 ];
 
