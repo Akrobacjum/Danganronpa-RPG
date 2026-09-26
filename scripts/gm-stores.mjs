@@ -328,12 +328,27 @@ export const castCopy = defineGmCopy({
     combine: castCombine
 });
 
+/* The suite's projects (`withLivingProjects`): while set, the claims read these ids as the
+   projects this world has - the census claims its trap fixtures against one, where it
+   wrote it into the world's project metadata until E04's fix round (the round-2 reviews'
+   R2-m6: world data, put back only by tier 2's restore). */
+let livingOverride = null;
+
+/** Run `fn` with the traps' claims reading `ids` as this world's projects, and put the real reading back whatever happens. */
+export async function withLivingProjects(ids, fn) {
+    const was = livingOverride;
+    livingOverride = new Set(ids);
+    try { return await fn(); }
+    finally { livingOverride = was; }
+}
+
 /**
  * The projects this world has: its project metadata's ids and every project
  * projects.mjs lists (`allProjects`, the countdowns). A trap row or a plant of a
  * project in neither is a dead project's, and is not claimed.
  */
 async function livingProjects() {
+    if (livingOverride) return new Set(livingOverride);
     const ids = new Set(Object.keys(getSetting(SETTINGS.projectMeta) ?? {}));
     const { allProjects } = await import("./projects.mjs");
     for (const project of allProjects()) ids.add(project.id);

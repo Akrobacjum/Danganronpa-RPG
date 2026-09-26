@@ -43,7 +43,7 @@ import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural } from "./uti
 import { ENTER, BEAT, reducedMotion, glassOn, SEAM_GLOW } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
 import { discoveryStore, fogCopy, fogSectionFor } from "./gm-stores.mjs";
-import { newestIn, gmStoresQuiet } from "./gm-store.mjs";
+import { newestIn, gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
 
@@ -695,6 +695,8 @@ function rowsFor(ledger, user) {
  */
 function sendStoreTo(user) {
     if (!user || user.isGM || user.id === game.user.id) return;
+    // While tier 2 holds the stores or stands in another world, the cells are a fixture's (R2-M1, M3).
+    if (gmStoresQuiet()) return;
     try {
         const section = fogSectionFor(user);
         game.socket.emit(SOCKET_EVENT, { action: FOG_ROWS, userId: user.id, section, stamps: { "": newestIn(section) } },
@@ -880,6 +882,8 @@ function registerLedgerRoad() {
                     return;
                 case FOG_REQUEST:
                     if (!isPrimaryGm()) return;
+                    // Asked while tier 2 holds the stores: answered once it lets them go, from this world's cells.
+                    await whenGmStoresAudible();
                     await discoveryStore.whenHydrated();
                     sendStoreTo(sender);
                     return;

@@ -4137,6 +4137,73 @@ const INVARIANTS = [
         }
     }],
 
+    ["R184 - no player is told anything from a store while tier 2 holds the stores, and a request waits for it", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the round-2 reviews' R2-M1 and M3, the fix list's
+         * 13. Tier 2 writes fixtures into this world's records with the stores held, and
+         * into a world the stores never opened; the hold covered what the GMs send each
+         * other, and nothing a player is sent: the primary's watches, the fog's pushes and
+         * every answer to a player's request carried the fixtures to real players, at
+         * stamps that outlived tier 2's restore. Held here, from the source: each of the
+         * four senders of a player's copy asks `gmStoresQuiet` before it sends; each of
+         * the four requests for one waits for `whenGmStoresAudible` before it reads the
+         * store; both watches ignore a change while the stores are quiet, what the
+         * players were last told does not move meanwhile, and once the stores are let go
+         * the record is held against it by the watch's own comparison - a change another
+         * GM made meanwhile is told (61 E6, F5: taken as the baseline at the release, it
+         * was told to nobody), and tier 2's raw restore compares equal. The engine's half
+         * on a fake: `whenAudible` resolves when the hold ends, and not while a stand-in
+         * world is still set.
+         */
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const found = [];
+        for (const [file, fn] of [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo"], ["fog.mjs", "sendStoreTo"]]) {
+            const body = fnSource(src(file), fn);
+            const asked = body.indexOf("gmStoresQuiet()"), sent = body.search(/\bemit\(/);
+            if (asked < 0 || sent < asked) found.push(`${file} ${fn} sends without asking whether the suite holds the stores`);
+        }
+        for (const [file, fn, reads] of [["mastermind.mjs", "registerMastermind", "const mine = readStore();"], ["murder.mjs", "registerIncidentCastSync", "const cast = readCast();"],
+            ["fog.mjs", "registerLedgerRoad", "sendStoreTo(sender);"], ["gm-bridge.mjs", "handleAdvancementAsk", "sendOffersTo(sender.id)"]]) {
+            const body = fnSource(src(file), fn);
+            const waited = body.indexOf("whenGmStoresAudible()"), read = body.indexOf(reads);
+            if (waited < 0 || read < waited) found.push(`${file} ${fn} answers a player's request before the suite lets the stores go`);
+        }
+        for (const [file, key, compare, tell, baseline] of [["mastermind.mjs", "mastermind", "tellDoorChange", "notifyDoorAccess", "told"],
+            ["murder.mjs", "incidentCast", "tellCastChange", "pushCastToParticipants", "castTold"]]) {
+            const text = src(file);
+            // The watch: `if (key !== \`${MODULE_ID}.${SETTINGS.<key>}\` || ... || gmStoresQuiet()) return;` and then the comparison.
+            const watch = new RegExp(`key !== \`\\$\\{MODULE_ID\\}\\.\\$\\{SETTINGS\\.${key}\\}\`[^\\n]*\\|\\| gmStoresQuiet\\(\\)\\) return;\\s*${compare}\\(\\);`);
+            if (!watch.test(text)) found.push(`${file}: the watch of ${key} tells a change made while the stores are quiet, or does not compare it (${compare})`);
+            if (!new RegExp(`onGmStoresAudible\\([^\\n]*\\b${compare}\\(\\)`).test(text)) found.push(`${file}: nothing holds the record against what the players were told when the suite lets the stores go`);
+            if (!new RegExp(`if \\(!gmStoresQuiet\\(\\)\\) ${baseline} = `).test(fnSource(text, tell))) found.push(`${file}: ${tell} moves what the players were told while the stores are quiet`);
+        }
+        ok(!found.length, found.join("; "));
+
+        const G = await import("./gm-store.mjs");
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R184GM", isGM: () => true, isPrimary: () => true, worldId: () => "R184WORLD",
+            activeGmIds: () => ["R184GM"], primaryGmId: () => "R184GM", senderIsGM: () => true, userName: u => u, send: () => {},
+            storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined, now: () => 1_000_000,
+            timers: { set: fn => { Promise.resolve().then(fn); return 1; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        let woke = 0, told = 0;
+        eng.onAudible(() => { told++; });
+        equal(eng.quiet(), false, "the stores read as held before anything held them");
+        eng.hold(true);
+        const waiting = eng.whenAudible().then(() => { woke++; });
+        let insideWorld = null;
+        await eng.withWorld("R184STANDIN", async () => {
+            eng.hold(false);
+            await Promise.resolve();
+            insideWorld = [eng.quiet(), woke, told];
+        });
+        await waiting;
+        equal(JSON.stringify([insideWorld, eng.quiet(), woke, told]), JSON.stringify([[true, 0, 0], false, 1, 1]),
+            "a request waiting on the suite was answered while a stand-in world was still set, or not once it ended");
+    }],
+
     ["R182 - every store a player's copy is made from sends the copies again after a restore", async () => {
         /*
          * E04's fix round, 26.09.2026; the reviews' S-m3 = C-m7 and the design's 6.2. The

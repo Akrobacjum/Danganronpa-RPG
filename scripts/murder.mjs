@@ -51,7 +51,7 @@ import {
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS, incidentCast, seasonEpoch } from "./settings.mjs";
 import { castStore, blackenedStore, castCopy, CAST_FIELDS, CAST_SEATS } from "./gm-stores.mjs";
-import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
+import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax, marksOf } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
@@ -294,7 +294,8 @@ function pushCastToParticipants(cast, previous, stateNow = null, statePrev = nul
 
     // The stamps of the record's fields (E04; the review's B1): a copy takes only what is newer.
     const stamps = castStamps();
-    castTold = { stamps, cast };
+    // While the stores are quiet nothing goes out, and what the participants were told stays (`tellCastChange`).
+    if (!gmStoresQuiet()) castTold = { stamps, cast };
     for (const userId of before) {
         if (!now.has(userId)) sendCast(userId, {}, stamps);
     }
@@ -311,6 +312,8 @@ function castStamps() {
 }
 
 function sendCast(userId, cast, stamps) {
+    // While tier 2 holds the stores the cast is a fixture's: no participant is sent it (R2-M1).
+    if (gmStoresQuiet()) return;
     // The swing memo is Stage 6's business on the GM's side, not a participant's.
     const { swung, ...theirs } = cast ?? {};
     const out = Object.keys(theirs).length ? stamps : Object.fromEntries(CAST_SEATS.map(f => [f, stamps?.[f] ?? 0]));
@@ -326,8 +329,26 @@ function sendCast(userId, cast, stamps) {
  * The cast as this GM last saw it told, and its stamps, so a merge that changes them is
  * told too - kept on every GM, not the primary alone (the round-2 review's R2-m3): a GM
  * that became the primary later took its first change as its baseline and told nobody.
+ * It does not move while the suite holds the stores (`tellCastChange`).
  */
 let castTold = null;
+
+/**
+ * The cast against what the participants were last told, by its stamps: unchanged,
+ * nothing; changed, the primary tells it (`pushCastToParticipants`, which keeps the new
+ * baseline) - the participants before worked out from the cast it told them - and any
+ * other GM keeps it as the baseline. Run on a merge, and once the suite lets the stores
+ * go: a change merged while they were held was ignored then (61 F5; `tellDoorChange`
+ * in mastermind.mjs says the rest).
+ */
+function tellCastChange() {
+    const now = { stamps: castStamps(), cast: readCast() };
+    const was = castTold;
+    if (!was) { castTold = now; return; }
+    if (JSON.stringify(now.stamps) === JSON.stringify(was.stamps)) return;
+    if (isPrimaryGm()) pushCastToParticipants(now.cast, was.cast);
+    else castTold = now;
+}
 
 /**
  * AFTER A RESTORE (gm-stores.mjs `restoreCase`; the design's 6.2): each participant of
@@ -2756,6 +2777,8 @@ function registerIncidentCastSync() {
         const sender = game.users.get(senderId);
         if (!sender?.active || sender.isGM) return;
         try {
+            // Asked while tier 2 holds the stores: answered once it lets them go, from this world's cast (R2-M1).
+            await whenGmStoresAudible();
             await castStore.whenHydrated();
             const cast = readCast();
             sendCast(sender.id, castOwners(cast).has(sender.id) ? cast : {}, castStamps());
@@ -2793,17 +2816,13 @@ function registerIncidentCastSync() {
      * cast it told them, the stage being the world's own.
      */
     Hooks.on("clientSettingChanged", key => {
-        if (key !== `${MODULE_ID}.${SETTINGS.incidentCast}` || writingCast || !game.user.isGM || !gmStoresHydrated()) return;
-        const now = { stamps: castStamps(), cast: readCast() };
-        const was = castTold;
-        if (!was) { castTold = now; return; }
-        if (JSON.stringify(now.stamps) === JSON.stringify(was.stamps)) return;
-        // Every GM keeps what it saw; the primary alone tells (and keeps it in the push).
-        if (isPrimaryGm()) pushCastToParticipants(now.cast, was.cast);
-        else castTold = now;
+        if (key !== `${MODULE_ID}.${SETTINGS.incidentCast}` || writingCast || !game.user.isGM || !gmStoresHydrated() || gmStoresQuiet()) return;
+        tellCastChange();
     });
     // What the participants were told is what the store holds once the other GMs' copies are in - on every GM.
-    onGmStoresHydrated(() => { if (!castTold) castTold = { stamps: castStamps(), cast: readCast() }; });
+    onGmStoresHydrated(() => { if (!castTold && !gmStoresQuiet()) castTold = { stamps: castStamps(), cast: readCast() }; });
+    // Once the suite lets the stores go, the cast is held against what the participants were told before it began.
+    onGmStoresAudible(() => { if (game.user.isGM && gmStoresHydrated()) tellCastChange(); });
 
     /*
      * AT READY, NOT AT REGISTRATION (found in the sandbox, 03.09): `registerMurder`

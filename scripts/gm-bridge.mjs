@@ -31,6 +31,7 @@ import {
 export { removalRefusal } from "./bridge-guards.mjs";
 
 import { contentOf } from "./secret.mjs";
+import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_PROGRESS = "project.progress";
 const ACTION_SHARE = "project.share";
@@ -380,9 +381,13 @@ async function handleAdvancementOffer(payload, sender, ctx) {
     await recordOffer(actor.id, kind);
 }
 
-/** An owner asks for the offers on their own characters; the answer is the set. */
+/**
+ * An owner asks for the offers on their own characters; the answer is the set - once
+ * tier 2 lets the stores go, when it holds them (R2-M1), from this world's offers. Not
+ * awaited: the ask is a report nobody waits on, and the runner is not held for it.
+ */
 async function handleAdvancementAsk(payload, sender, ctx) {
-    sendOffersTo(sender.id);
+    whenGmStoresAudible().then(() => sendOffersTo(sender.id)).catch(err => error("Could not answer an owner's offers", err));
 }
 
 /**
@@ -394,6 +399,8 @@ async function handleAdvancementAsk(payload, sender, ctx) {
 export async function sendOffersTo(userId) {
     const user = game.users.get(userId);
     if (!user?.active || user.isGM) return;
+    // While tier 2 holds the stores the offers are a fixture's: no owner is sent them (R2-M1).
+    if (gmStoresQuiet()) return;
     const { offersFor } = await import("./level-up.mjs");
     const { offers, stamps } = offersFor(userId);
     game.socket.emit(SOCKET_EVENT, {

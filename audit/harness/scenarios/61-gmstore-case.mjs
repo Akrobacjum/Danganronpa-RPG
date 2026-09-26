@@ -345,7 +345,9 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     /* E5-E6, the review's B1 (26.09): a GM that has not merged a newer pick moves the
        lair. gm2 leaves holding Botan; gm picks Aiko again; gm's store is held - it
        answers nobody, as a primary busy with tier 2 does - so gm2 comes back, times out
-       and still holds Botan; gm2 moves the lair to the Kitchen. */
+       and still holds Botan; gm2 moves the lair to the Kitchen. Let go, gm holds the
+       record against what it last told the players and tells Aiko's player the lair
+       (`tellDoorChange`). */
     await disconnect("gm2");
     await settle(300);
     await gm.eval(`${MM} await M.setMastermind(game.actors.get("${IDS.aiko}")); return true;`);
@@ -507,10 +509,13 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         && J(answeredF.p1) === J([{ from: IDS.gm, cast: {}, stamps: seatsF }]), J({ answeredF, stampsF, p3AfterGm, onGmF, onGm2F }));
 
     /* F5, the review's B1 for the cast (26.09): a GM that has not merged a newer write lets
-       a third in. gm's store is held (it sends the other GMs nothing; what they send it still
-       merges), gm writes every seat and the turn afresh (the health check's "enter the cast
-       by hand") and tells p3 itself; gm2, which never saw that, lets Aiko walk in and tells
-       the participants a copy older in those parts. */
+       a third in. gm's store is held (it sends the other GMs nothing and, since the fix round,
+       no player anything; what they send it still merges), gm writes every seat and the turn
+       afresh (the health check's "enter the cast by hand"); gm2, which never saw that, lets
+       Aiko walk in and tells the participants a copy older in those parts. Let go, gm holds
+       the cast against what it last told them and tells the change (`tellCastChange`): on
+       the fix round's first draft, which took the cast at the release as told, the killer's
+       player and the third kept gm2's older turn (measured 26.09: this check failed on it). */
     await gm.eval(`const w = game.settings.get("${MOD}", "murderState"); await game.settings.set("${MOD}", "murderState", { ...w, stage: "incident" }); return true;`);
     await settle(400);
     await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); E.gmStoreHold(true); return true;`);
@@ -604,6 +609,8 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         return msgs.filter(m => /E04 poisoned kit/.test(m.content ?? "") || /E04 poisoned kit/.test(JSON.stringify(m.flags ?? {}))).length;`);
     check("G3: its use sets the trap off on the primary GM",
         !used.err && alert >= 1, J({ used, alert, cardsBefore }));
+    // p1's dice go back to the harness's own (the round-2 review's m2): a later roll must not use G's.
+    await p1.eval(`delete globalThis.__forceRoll; return true;`);
     await disconnect("gm2");
     await settle(300);
 
@@ -720,6 +727,33 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     check("J1: the second GM's season reset is refused and names the primary GM; no window opens and the clock is not cut",
         pickedJ1 === IDS.aiko && refusedJ1.result === null && refusedJ1.warned.some(m => m.includes(gmName)) && refusedJ1.windows === 0
         && J(cutsAfterJ1) === J(cutsBefore), J({ pickedJ1, gmName, refusedJ1, cutsBefore, cutsAfterJ1 }));
+
+    /* J1b (the round-2 reviews' R2-M1 and M3, the fix list's 13, 26.09): tier 2 writes its fixtures
+       into this world's records with the stores held, and puts them back before it lets go. While
+       held, the primary told the players the fixture's pick, and answered a player's request from it
+       at a stamp that stayed (their scenario 93: p1 believed they were the Mastermind with no GM
+       holding a pick). Now: nothing is sent while held, the request waits, and once the record is
+       back and the hold let go it is answered from the real record - no player's copy says
+       anything else (the record put back here is written afresh, so Aiko's player is told it again
+       at its new stamps). */
+    const doorPackets = n => socketTraffic.slice(n).filter(t => t.action === "mastermind.door");
+    const fromJ1b = socketTraffic.length;
+    await gm.eval(`${MM} const E = await import("${repoUrl}/scripts/gm-store.mjs"); E.gmStoreHold(true);
+        await S.mastermindStore.patch("record", { actorId: "${IDS.botan}", room: "J1b fixture lair" }); return true;`);
+    await settle(500);
+    await p2.eval(`game.socket.emit("module.${MOD}", { action: "mastermind.doorRequest" }, { recipients: ["${IDS.gm}"] }); return true;`);
+    await settle(800);
+    const whileHeld = doorPackets(fromJ1b).map(t => t.to);
+    const fromRelease = socketTraffic.length;
+    await gm.eval(`${MM} const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        await S.mastermindStore.patch("record", { actorId: "${IDS.aiko}", room: "Library" }); E.gmStoreHold(false); return true;`);
+    await settle(1200);
+    const afterRelease = doorPackets(fromRelease).map(t => t.to);
+    const p1J1b = await doorOf(p1), p2J1b = await doorOf(p2);
+    check("J1b: while the stores are held a fixture pick is told to no player and a request waits; let go, the request is answered from the real record and no copy moved",
+        whileHeld.length === 0 && afterRelease.some(to => Array.isArray(to) && to.includes(IDS.p2))
+        && p1J1b.copy?.mastermind === true && p1J1b.copy?.room === "Library" && p2J1b.copy?.mastermind === false,
+        J({ whileHeld, afterRelease, p1J1b, p2J1b }));
     await disconnect("gm2");
     await settle(300);
 

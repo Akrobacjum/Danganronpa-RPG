@@ -34,7 +34,7 @@ import { remnantsOn, remnantData } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, ownerOf, primaryGmId, isPrimaryGm, log, error } from "./utils.mjs";
 import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
-import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
+import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -85,13 +85,33 @@ async function ownWrite(write) {
  * The record as this GM last saw the players told about it - who, where, and the two
  * stamps - so a merge that changes it can be told too (`registerMastermind`). Kept on
  * every GM, not the primary alone (the round-2 review's R2-m3): a GM that became the
- * primary later took the first change it merged as its baseline and told nobody.
+ * primary later took the first change it merged as its baseline and told nobody. It
+ * does not move while the suite holds the stores (`tellDoorChange`).
  */
 let told = null;
 function doorView() {
     const r = readStore();
     return { actorId: r.actorId ?? null, room: r.room ?? null,
         actorAt: mastermindStore.stampOf(RECORD, "actorId"), roomAt: mastermindStore.stampOf(RECORD, "room") };
+}
+
+/**
+ * The record against what the players were last told: unchanged, nothing; changed, the
+ * primary tells it as it tells a change of its own (`notifyDoorAccess`, which keeps the
+ * new baseline), and any other GM keeps it as the baseline. Run on a merge, and once
+ * the suite lets the stores go (the fix round's 61 E6 and F5, 26.09.2026): a change
+ * merged while they were held, from a GM that was not, was ignored then - no player may
+ * be sent anything while they are - and a baseline taken afresh at the release told
+ * nobody of it. Tier 2 puts each store's key back raw, stamps and all, so what it wrote
+ * compares equal and is told to nobody (01 counts the packets).
+ */
+function tellDoorChange() {
+    const now = doorView();
+    const was = told;
+    if (!was) { told = now; return; }
+    if (now.actorAt === was.actorAt && now.roomAt === was.roomAt) return;
+    if (isPrimaryGm()) notifyDoorAccess(was.actorId, now.actorId, now.room);
+    else told = now;
 }
 
 /**
@@ -121,7 +141,8 @@ function doorView() {
  */
 function notifyDoorAccess(previousActorId, nextActorId, room = null) {
     const view = doorView();
-    told = view;
+    // While the stores are quiet nothing goes out, and what the players were told stays (`tellDoorChange`).
+    if (!gmStoresQuiet()) told = view;
     const incoming = nextActorId ? ownerOf(game.actors.get(nextActorId)) : null;
     // While the upgrade day's clear is undecided, the pick's player is one of "the rest".
     const player = incoming && !incoming.isGM && !mastermindUndecided() ? incoming : null;
@@ -169,6 +190,8 @@ export function retellDoor() {
 }
 
 function sendDoorFlag(userId, value, room, stamps) {
+    // While tier 2 holds the stores the record is a fixture's: no player is told it (R2-M1).
+    if (gmStoresQuiet()) return;
     try {
         game.socket.emit(SOCKET_EVENT,
             // `room` travels only alongside `value: true` - a "you are not the
@@ -278,6 +301,8 @@ export function registerMastermind() {
         if (payload?.action !== ACTION_DOOR_REQUEST || !isPrimaryGm()) return;
         const sender = game.users.get(senderId);
         if (!sender?.active || sender.isGM) return;
+        // Asked while tier 2 holds the stores: answered once it lets them go, from this world's record (R2-M1).
+        await whenGmStoresAudible();
         await mastermindStore.whenHydrated();
         const mine = readStore();
         const owns = Boolean(mine.actorId && ownerOf(game.actors.get(mine.actorId))?.id === sender.id) && !mastermindUndecided();
@@ -295,17 +320,13 @@ export function registerMastermind() {
      * the GMs agreed on the Kitchen a stale GM had moved it to.
      */
     Hooks.on("clientSettingChanged", key => {
-        if (key !== `${MODULE_ID}.${SETTINGS.mastermind}` || writingDoor || !game.user.isGM) return;
-        const now = doorView();
-        const was = told;
-        if (!was) { told = now; return; }
-        if (now.actorAt === was.actorAt && now.roomAt === was.roomAt) return;
-        // Every GM keeps what it saw; the primary alone tells (`notifyDoorAccess` keeps it too).
-        if (isPrimaryGm()) notifyDoorAccess(was.actorId, now.actorId, now.room);
-        else told = now;
+        if (key !== `${MODULE_ID}.${SETTINGS.mastermind}` || writingDoor || !game.user.isGM || gmStoresQuiet()) return;
+        tellDoorChange();
     });
     // What the players were told is what the store holds once the other GMs' copies are in - on every GM.
-    const settled = () => { if (!told) told = doorView(); };
+    const settled = () => { if (!told && !gmStoresQuiet()) told = doorView(); };
+    // Once the suite lets the stores go, the record is held against what the players were told before it began.
+    onGmStoresAudible(() => { if (game.user.isGM) tellDoorChange(); });
     onGmStoresHydrated(settled);
     if (gmStoresHydrated()) settled();
 

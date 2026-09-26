@@ -48,7 +48,7 @@ async function readOnlyRun(gm, check, label) {
     check(`gm: ${label} - nothing failed`, out?.failed === 0, (out?.fails ?? []).join(" | ").slice(0, 1200));
 }
 
-export async function run({ gm, p1, p2, p3, check, note, settle }) {
+export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, IDS }) {
     // The suite drives the whole table from the GM's client and measures state
     // between its own steps; a player client auto-answering a dialog it was sent
     // (an opening roll, a ballot) would race those measurements.
@@ -144,6 +144,7 @@ export async function run({ gm, p1, p2, p3, check, note, settle }) {
        the run near the old bound (E30 C15b), and a CI runner's speed is its own. The
        time is recorded as a note. */
     const started = Date.now();
+    const trafficBefore = socketTraffic.length;
     const res = await gm.eval(`
         const r = await game.drpg.runTests({ tier: 2, confirmed: game.world.id });
         return { passed: r?.passed, failed: r?.failed, skipped: r?.skipped, red: r?.red, results: r?.results ?? null,
@@ -161,6 +162,18 @@ export async function run({ gm, p1, p2, p3, check, note, settle }) {
         console.log("----------------------------------------------");
     }
     check("gm: suite failures", (res?.failed ?? 99) === 0, `${res?.failed} failed`);
+    /* TIER 2 TELLS NO PLAYER ANYTHING FROM A STORE (E04's fix round, 26.09.2026; the round-2
+       reviews' R2-M1 and M3). Its fixtures reached the players' copies - the fog's rooms,
+       "you are the Mastermind", a betrayal offer - and outlived its restore. Counted off the
+       packets the GM's client sent the three players while tier 2 ran: the door, a cast, the
+       fog's cells, the offers. The players' own copies cannot say it here: their module
+       listeners are silenced above, so nothing they are sent is taken. */
+    const COPIES = ["mastermind.door", "incident.myCast", "fog.rows", "advancement.offers"];
+    const players = [IDS.p1, IDS.p2, IDS.p3];
+    const toPlayers = socketTraffic.slice(trafficBefore).filter(t => t.from === "gm" && COPIES.includes(t.action)
+        && (t.to === "all" || (Array.isArray(t.to) && t.to.some(id => players.includes(id)))));
+    check("gm: tier 2 sent no player a copy of a GM store", toPlayers.length === 0,
+        JSON.stringify(toPlayers.slice(0, 8).map(t => [t.action, t.to])) + (toPlayers.length > 8 ? ` and ${toPlayers.length - 8} more` : ""));
     /* THE SKIPS, EXACTLY (E30, 24.09.2026; audit S14-24). The skipped count is
        checked, not just printed: a test that cannot be answered here says so and is
        counted apart from the failures (needs() in tests-kit.mjs), and if that set

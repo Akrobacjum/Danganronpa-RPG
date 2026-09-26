@@ -1388,7 +1388,28 @@ export function createGmStoreEngine(env) {
         const was = held;
         held = Boolean(on);
         if (was && !held && opened && env.isGM()) sendHello(peers());
+        if (was && !held) wakeAudible();
     }
+
+    /*
+     * WHAT THE PLAYERS ARE TOLD WAITS FOR THE SUITE (the round-2 reviews' R2-M1 and M3,
+     * the fix list's 13). While tier 2 holds the stores or stands in another world
+     * (`quiet`), what a store holds is a fixture's: nothing of it is sent to a player
+     * (gm-stores.mjs's copies' senders ask `gmStoresQuiet`), a player's request is
+     * answered once it ends (`whenAudible`), and whatever keeps a record of what the
+     * players were last told keeps it until then and holds the store against it
+     * (`onAudible`): a change merged meanwhile from a GM that was not held is told, and
+     * what tier 2 put back raw, stamps and all, compares equal and is told to nobody.
+     */
+    const audibleWaiters = [], audibleHooks = [];
+    function wakeAudible() {
+        if (held || worldOverride !== null) return;
+        for (const fn of [...audibleWaiters.splice(0), ...audibleHooks]) {
+            try { fn(); } catch (err) { env.log.error("After the suite let the stores go, a waiting step failed", err); }
+        }
+    }
+    const whenAudible = () => (held || worldOverride !== null ? new Promise(resolve => audibleWaiters.push(resolve)) : Promise.resolve());
+    const onAudible = fn => { audibleHooks.push(fn); };
 
     async function idle() {
         for (let i = 0; i < 20; i++) {
@@ -1456,7 +1477,10 @@ export function createGmStoreEngine(env) {
         const was = worldOverride;
         worldOverride = String(id);
         try { return await fn(); }
-        finally { worldOverride = was; }
+        finally {
+            worldOverride = was;
+            wakeAudible();
+        }
     }
 
     /**
@@ -1485,6 +1509,7 @@ export function createGmStoreEngine(env) {
         /* Whether the suite holds the stores or stands in another world: what a store holds
            now is a fixture's, and nothing of it may reach a player (the review's S-m2). */
         quiet: () => held || worldOverride !== null,
+        whenAudible, onAudible,
         applyCuts, onPacket, onUserConnected, onClientSettingChanged, onStorage, sendHello: () => sendHello(peers())
     };
     return api;
@@ -1563,6 +1588,10 @@ export const gmStoreHydration = () => engine.hydration();
 export const gmStoreSkew = () => engine.skew();
 /** True while tier 2 holds the stores or stands in another world: tell no player anything from them. */
 export const gmStoresQuiet = () => engine.quiet();
+/** Resolves once the suite no longer holds the stores nor stands in another world: when a player's request may be answered. */
+export const whenGmStoresAudible = () => engine.whenAudible();
+/** Called each time the suite lets the stores go: what the players were last told is held against what the stores hold now. */
+export const onGmStoresAudible = fn => engine.onAudible(fn);
 export const applyGmStoreCuts = clock => engine.applyCuts(clock);
 /** Run `fn(worldId, how)` once this client's stores have their peers' copies (or were alone, or timed out). */
 export function onGmStoresHydrated(fn) { hydratedHooks.push(fn); }
