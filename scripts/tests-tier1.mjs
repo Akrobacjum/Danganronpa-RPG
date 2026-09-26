@@ -3763,7 +3763,8 @@ const INVARIANTS = [
          * a Map, a clock that moves when told - so nothing in this browser is written: an
          * answer with no stamp, an older one and an equal one change nothing; a newer one
          * does; one from far in the future is kept at the skew bound, so it cannot lock the
-         * copy; and a reset's cut above the copy reads as the fallback.
+         * copy; a reset's cut above the copy reads as the fallback; and a copy the cut takes
+         * something from is drawn again once (C10: a reset sends nothing for the offers).
          *
          * PART BY PART (the review's B1, 26.09): a copy carries a stamp per store field
          * its value came from, and one that is newer in one part and older in another is
@@ -3810,6 +3811,23 @@ const INVARIANTS = [
         equal(read(), JSON.stringify(no), "a yes under its group's reset cut does not read as the fallback");
         equal(await copy.receive(yes, t + 5), false, "an answer under the reset's cut was taken");
         equal(await copy.receive(yes, t + 20), true, "an answer above the reset's cut was refused");
+
+        /* A reset cuts a copy where it is read and sends nothing for a group it only cuts
+           (C10; the owner's Q4, the Level Ups on offer), so a copy that held something under
+           the new cut is drawn again - once, and not for a cut under what it holds. */
+        let drawn = 0;
+        const lit = eng.defineCopy({ name: "r176cut", key: "r176Cut", resetGroup: "advancement", fallback: {}, onCut: () => { drawn++; } });
+        equal(await lit.receive({ R176ACTOR: { kind: "standard" } }, { R176ACTOR: t + 30 }), true, "an offer was not taken");
+        cuts = { ...cuts, advancement: t + 40 };
+        await eng.applyCuts();
+        equal(JSON.stringify([lit.read(), drawn]), JSON.stringify([{}, 1]), "a copy under a reset's cut does not read empty, or was not drawn again once");
+        await eng.applyCuts();
+        equal(drawn, 1, "the same cut drew the copy again");
+        equal(await lit.receive({ R176ACTOR: { kind: "standard" } }, { R176ACTOR: t + 60 }), true, "an offer after the reset was not taken");
+        cuts = { ...cuts, advancement: t + 50 };
+        await eng.applyCuts();
+        equal(JSON.stringify([lit.read(), drawn]), JSON.stringify([{ R176ACTOR: { kind: "standard" } }, 1]),
+            "a cut under what the copy holds took it, or drew it again");
 
         const parts = eng.defineCopy({ name: "r176parts", key: "r176Parts", resetGroup: "incident", fallback: {} });
         equal(await parts.receive({ n: 1 }, { x: t + 100, y: t + 100 }), true, "a first copy stamped part by part was not taken");

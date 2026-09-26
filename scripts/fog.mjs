@@ -742,9 +742,10 @@ function cellsFor(sceneId, matrix, actorIds = Object.keys(matrix ?? {})) {
 
 /**
  * The season reset: every cell gone, everywhere. The primary's clear raises the
- * store's watermark, which reaches every GM and, in the next rows sent, every
- * player; another GM drops the rows it holds until C10 gives the reset to the
- * primary.
+ * store's watermark, which reaches every GM and, in the rows sent here, every
+ * connected player; the reset's cut in the clock reaches the rest when they load.
+ * Another GM (a console - the reset is the primary's since E04 C10) drops the rows
+ * it holds.
  */
 export async function resetLedger() {
     if (!game.user.isGM) return false;

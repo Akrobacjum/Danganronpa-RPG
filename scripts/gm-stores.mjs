@@ -21,11 +21,11 @@
  */
 
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
-import { SETTINGS, getClock, getSetting, setSetting, incidentCast } from "./settings.mjs";
+import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, dialogContent, whisperToGms } from "./utils.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated,
-    gmStoreHydration, gmStoreSkew, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
+    gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
     raiseCleared, newestIn, sectionProblem, stableJson
 } from "./gm-store.mjs";
 
@@ -273,7 +273,8 @@ export const blackenedStore = defineGmStore({
             else rows.push({ key: id, fields: { chapter, epoch: 0, at } });
         });
         return { rows, left };
-    }
+    },
+    exists: actorId => Boolean(game.actors?.has(actorId))
 });
 
 /**
@@ -365,6 +366,13 @@ export const trapPlantStore = defineGmStore({
             else rows.push({ key, fields: entry });
         }
         return { rows, left };
+    },
+    /* A plant's subject for compaction is its scene: a taken plant's tombstone keeps
+       no project to look up (its fields went with it), and a room of a scene this
+       world no longer has is one nobody can search. `-::room` (no scene) is kept. */
+    exists: key => {
+        const sceneId = String(key).split("::")[0];
+        return sceneId === "-" || Boolean(game.scenes?.has(sceneId));
     }
 });
 
@@ -416,7 +424,8 @@ export const offerStore = defineGmStore({
             else rows.push({ key: actorId, fields: { kind: offer.kind, at: offer.at }, stamp: offer.at });
         }
         return { rows, left };
-    }
+    },
+    exists: actorId => Boolean(game.actors?.has(actorId))
 });
 
 /**
@@ -428,7 +437,12 @@ export const offerStore = defineGmStore({
  * button stays lit, where the old copy was replaced by whatever set arrived.
  */
 export const offerCopy = defineGmCopy({
-    name: "offers", key: SETTINGS.mineOffers, legacyKey: SETTINGS.legacyAdvanceOffers, resetGroup: "advancement", fallback: {}
+    name: "offers", key: SETTINGS.mineOffers, legacyKey: SETTINGS.legacyAdvanceOffers, resetGroup: "advancement", fallback: {},
+    // A reset that withdraws the offers (the owner's Q4) sends no answer: the cut is the withdrawal.
+    onCut: () => {
+        import("./level-up.mjs").then(m => m.redrawOwnSheets())
+            .catch(err => error("The Level Up button could not be drawn again after a reset", err));
+    }
 });
 
 /** The rows of an old ledger `{ sceneId: { actorId: [room, ...] } }`, one per scene and character. */
@@ -469,6 +483,10 @@ export const discoveryStore = defineGmStore({
             else out.push({ key, fields: roomCells(rooms) });
         }
         return { rows: out, left };
+    },
+    exists: key => {
+        const [sceneId, actorId] = String(key).split("/");
+        return Boolean(game.scenes?.has(sceneId) && game.actors?.has(actorId));
     }
 });
 
@@ -528,6 +546,54 @@ export async function gmStoreReclaim(name) {
     return store.reclaim();
 }
 
+/**
+ * COMPACTION (E04 C10; the design's 2.11). The exact half needs nothing here: every
+ * merge drops what is at or under a section's watermark, a reset's cut included. This
+ * is the other half, run on every GM once its stores have the other GMs' copies:
+ *
+ * - a tombstone older than `TIMING.gmStoreTombstoneDays` whose subject is gone from
+ *   this world goes (the handle's `compact`) - for the stores whose rows name their
+ *   subject in the key, `exists`: a trace's token, a bullet's item, a character, a
+ *   plant's scene, a fog row's scene and character. The trap ledger's key is the
+ *   planted object's id, and a tombstone keeps nothing that says which project it
+ *   was, so its tombstones stay until a reset cuts them;
+ * - on the primary, a Blackened row of a season before this one (`seasonEpoch`) is
+ *   dropped, stamped: the register counts the running season's rows only and a season
+ *   never comes back. The design also dropped the rows of a past chapter; they are
+ *   kept, because moving the clock back a chapter - a GM's correction - reads them
+ *   again, and a chapter's end has not emptied the register since E04.
+ *
+ * Every GM, not the primary alone as the design had it: a tombstone removed on one
+ * browser comes back from any GM that holds it at the next exchange, so the removal
+ * holds only once each GM has run the same rule. Live rows are never removed here.
+ * `now`, `epoch` and `primary` are the suite's. Answers `{ store: n }` of what went.
+ */
+export async function compactGmStores({ now = gmStoreNow(), epoch = seasonEpoch(), primary = isPrimaryGm() } = {}) {
+    if (!game.user?.isGM) return null;
+    const before = now - TIMING.gmStoreTombstoneDays * 24 * 60 * 60 * 1000;
+    const report = {};
+    for (const handle of gmStoreHandles()) {
+        const exists = handle.spec.exists;
+        if (typeof exists !== "function") continue;
+        // A subject that cannot be looked up is kept: a tombstone costs a few bytes, a
+        // row brought back by removing one costs a secret.
+        const n = await handle.compact(before, key => {
+            try { return !exists(key); } catch { return false; }
+        });
+        if (n) report[handle.name] = n;
+    }
+    if (primary) {
+        const past = Object.entries(blackenedStore.entries())
+            .filter(([, row]) => Number.isFinite(row?.epoch) && row.epoch < epoch).map(([key]) => key);
+        if (past.length) {
+            await blackenedStore.dropMany(past);
+            report.blackenedPastSeasons = past.length;
+        }
+    }
+    if (Object.keys(report).length) debug(`The GM stores compacted: ${JSON.stringify(report)}`);
+    return report;
+}
+
 let opening = null;
 
 /**
@@ -543,6 +609,9 @@ export function openGmStores() {
             activeGmIds, primaryGmId, getClock, clockKey: SETTINGS.clock, warn, error, debug,
             // A counted sentence is a plural family (.one/.other, and .few/.many in Polish).
             text: (key, data = {}) => (game.i18n.has(`${key}.other`) ? plural(key, data) : game.i18n.format(key, data))
+        });
+        onGmStoresHydrated(() => {
+            compactGmStores().catch(err => error("The GM stores could not be compacted", err));
         });
         try {
             await openGmStoreEngine();

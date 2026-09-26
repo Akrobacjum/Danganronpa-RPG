@@ -865,21 +865,22 @@ function readRemnantLedger() {
 /**
  * Forget all of them, for the season reset.
  *
- * On the primary GM, the store's `clear()`: this world's section is cut, and
- * every row and tombstone under the cut is gone here and on every GM its merge
- * reaches - a GM offline now included, when it next exchanges copies. Another
- * GM (the reset is the primary's from E04 C10) writes a tombstone per live row,
- * which is what this did for every GM until E04. Another world's traces, on the
- * same server and in the same browser, are not touched either way (S05-10).
+ * On the primary GM - whose the reset is since E04 C10 - the store's `clear()`:
+ * this world's section is cut, and every row and tombstone under the cut is gone
+ * here and on every GM its merge reaches. Run whether or not a live row is left
+ * here (the review's C-m5): the rows another GM holds are what it is for. A GM
+ * offline now is cut by the reset's cut in the clock when it next loads. Another
+ * GM - a console, since the reset window refuses it - writes a tombstone per live
+ * row, which is what this did for every GM until E04. Another world's traces, on
+ * the same server and in the same browser, are not touched either way (S05-10).
  *
  * @returns {Promise<number|null>} how many live rows there were.
  */
 export async function clearRemnantLedger() {
     if (!game.user.isGM) return null;
     const keys = Object.keys(remnantStore.entries());
-    if (!keys.length) return 0;
     if (isPrimaryGm()) await remnantStore.clear();
-    else await remnantStore.dropMany(keys);
+    else if (keys.length) await remnantStore.dropMany(keys);
     return keys.length;
 }
 

@@ -190,6 +190,24 @@ export async function receiveOffers(offers, stamps) {
     return true;
 }
 
+/**
+ * Owner: a season reset cut this browser's copy (E04 C10, the owner's Q4 - a reset
+ * with "advancement" ticked withdraws the Level Ups on offer). Nothing is sent for it:
+ * the cut is in the clock, and the copy reads empty under it from then on, so each of
+ * this user's own characters' sheets is drawn again here (gm-stores.mjs `offerCopy`'s
+ * `onCut`). Answers how many were asked to draw.
+ */
+export function redrawOwnSheets() {
+    if (game.user?.isGM) return 0;
+    let n = 0;
+    for (const actor of game.actors ?? []) {
+        if (actor.type !== "character" || !actor.isOwner) continue;
+        actor.sheet?.render(false);
+        n++;
+    }
+    return n;
+}
+
 /** Any GM: an offer is spent or taken back. The primary writes it; others ask it to. */
 async function withdrawOffer(actorId) {
     if (isPrimaryGm()) return recordOffer(actorId, null);

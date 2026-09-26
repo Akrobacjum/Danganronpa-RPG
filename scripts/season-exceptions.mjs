@@ -144,3 +144,29 @@ export function planFrom(ticked) {
     };
 }
 
+
+/**
+ * The clock patch a reset writes before its first step (E04 C10; the design's 2.10,
+ * D12 option 1): `resetCuts` with every wiped group cut at `at`, every earlier cut
+ * kept, and - when the clock itself is wiped, so the chapters start again at 1 - the
+ * new season's `seasonStartedAt`.
+ *
+ * The design wrote `seasonStartedAt` on every reset. It moves with the clock group
+ * here: the Blackened register counts the rows of the running season only
+ * (murder.mjs `blackenedIds`), so a reset that kept the clock and the incident - a
+ * table clearing the traces mid-chapter - would have stopped counting this chapter's
+ * killer before the verdict, and compaction then drops a past season's rows. The
+ * epoch exists for the other case: the clock back at chapter 1 with the incident
+ * kept, where last season's chapter-1 killers must not count.
+ *
+ * Pure over what it is handed; `at` is a GM store stamp taken after this browser has
+ * the other GMs' copies (the window awaits them), so it is above every row they hold.
+ */
+export function resetCutPatch(plan, clock, at) {
+    const held = clock?.resetCuts;
+    const resetCuts = held && typeof held === "object" && !Array.isArray(held) ? { ...held } : {};
+    for (const key of plan?.groups ?? []) {
+        if (KNOWN.has(key)) resetCuts[key] = at;
+    }
+    return plan?.groups?.has?.("clock") ? { seasonStartedAt: at, resetCuts } : { resetCuts };
+}

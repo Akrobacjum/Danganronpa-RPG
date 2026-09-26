@@ -350,7 +350,11 @@ export const TIMING = {
     /** How far ahead of this client's clock a GM store stamp is believed: past it, the
      *  stamp is kept as sent, the clock is not moved further, and the sender is named once. */
     gmStoreSkewMs: 10 * 60 * 1000,
-    /** A GM store tombstone whose subject is gone from the world is removed after this many days. */
+    /** A GM store tombstone whose subject is gone from the world is removed after this many
+     *  days, on every GM once its stores have the others' copies (gm-stores.mjs
+     *  `compactGmStores`). The design's figure: a GM away longer can bring back a row whose
+     *  subject is gone, which no lookup reaches (they go through the token, the item or the
+     *  character). */
     gmStoreTombstoneDays: 30
 };
 

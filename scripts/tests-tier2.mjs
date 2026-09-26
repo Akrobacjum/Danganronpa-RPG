@@ -7413,6 +7413,114 @@ const SCENARIOS = [
         });
     }],
 
+    ["a reset cuts every store it wipes and none it keeps", async () => {
+        /*
+         * E04 C10, 26.09.2026; audit S06-20, D12. A season reset wiped what the GM who ran
+         * it held, and every other GM's browser kept last season's rows and handed them
+         * back at the next exchange. The reset writes a cut per wiped group in the clock
+         * now, before its steps (season-exceptions.mjs `resetCutPatch`), and every client
+         * cuts each store of a wiped group at it (gm-store.mjs `applyCuts`). Here a row goes
+         * into each store, the patch of a reset that wipes some groups and keeps the rest is
+         * applied as the clock's update applies it, and: each store of a wiped group reads
+         * empty with its watermark at the cut; each of a kept group holds its row with its
+         * watermark where it was; and the same cut again writes nothing (14-quiet).
+         *
+         * Not the real clock: a cut cannot be taken back, so it is handed to the engine the
+         * way the clock hands it, in a world the stores have never opened. And not the
+         * Mastermind's or the cast's record, which are left untouched: the primary tells
+         * the players what a write to either changes (their re-tell watches, the review's
+         * B1), and a stand-in world's would reach real players (the review's S-m2).
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const ex = await import("./season-exceptions.mjs");
+        const told = new Set([S.mastermindStore.name, S.castStore.name]);
+        const plan = ex.planFrom(["remnants", "projects", "advancement", "discovered"]);
+        await E.withGmStoreWorld(`suite-reset-${foundry.utils.randomID(8)}`, async () => {
+            const handles = E.gmStoreHandles().filter(h => !told.has(h.name));
+            const key = "SUITE-last-season";
+            for (const h of handles) await h.patch(key, { suite: "last season" });
+            await E.gmStoresIdle();
+            const before = Object.fromEntries(handles.map(h => [h.name, h.cleared()]));
+            const at = E.gmStoreStamp();
+            const patch = ex.resetCutPatch(plan, { resetCuts: {} }, at);
+            await E.applyGmStoreCuts(patch);
+            await E.gmStoresIdle();
+            const wiped = handles.filter(h => plan.groups.has(h.spec.resetGroup)), kept = handles.filter(h => !plan.groups.has(h.spec.resetGroup));
+            ok(wiped.length >= 2 && kept.length >= 2, `the fixture wipes ${wiped.length} stores and keeps ${kept.length}: it measures too little`);
+            const wrong = [
+                ...wiped.filter(h => h.cleared() !== at || h.has(key)).map(h => `${h.name} (wiped) at ${h.cleared()}, row ${h.has(key)}`),
+                ...kept.filter(h => h.cleared() !== before[h.name] || !h.has(key)).map(h => `${h.name} (kept) at ${h.cleared()}, row ${h.has(key)}`)
+            ];
+            ok(!wrong.length, `the cut ${at} missed a wiped store or reached a kept one: ${wrong.join("; ")}`);
+
+            const keys = new Set(handles.map(h => `${MODULE_ID}.${h.spec.key}`));
+            let writes = 0;
+            const hook = Hooks.on("clientSettingChanged", written => { if (keys.has(written)) writes++; });
+            try {
+                await E.applyGmStoreCuts(patch);
+                await E.gmStoresIdle();
+            } finally {
+                Hooks.off("clientSettingChanged", hook);
+            }
+            equal(writes, 0, "the same cut again wrote a store");
+        });
+    }],
+
+    ["compaction drops what the cut covers and keeps a tombstone whose subject exists", async () => {
+        /*
+         * E04 C10, 26.09.2026; the design's 2.11. A tombstone keeps an older copy of a
+         * dropped row from coming back, so none can go while a GM might still hold that
+         * copy - and one whose subject is gone guards a row nothing can reach. Two halves:
+         * a reset's cut takes every row and tombstone at or under it with the merge that
+         * raises the watermark; and after the stores have the other GMs' copies
+         * (gm-stores.mjs `compactGmStores`), a tombstone older than
+         * `TIMING.gmStoreTombstoneDays` whose subject is gone goes, and nothing else - a
+         * tombstone of a subject still here, a young one and a live row of a gone subject
+         * stay; and on the primary, a Blackened row of a season before this one is
+         * dropped, stamped, and one of an earlier chapter of this season stands (moving
+         * the clock back a chapter reads it again). The answer keys' store and the
+         * register, in a world the stores have never opened, every stamp built for the
+         * fixture.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const [student] = cast(1);
+        const day = 24 * 60 * 60 * 1000, now = E.gmStoreNow();
+        const old = now - (TIMING.gmStoreTombstoneDays + 1) * day, young = now - day;
+        const gone = n => `Actor.SUITEGONE${n}00000000.Item.SUITEGONE${n}00000000`;
+        const here = student.uuid, under = gone("U"), buried = gone("B");
+        await E.withGmStoreWorld(`suite-compact-${foundry.utils.randomID(8)}`, async () => {
+            await S.bulletStore.mergeIn({
+                e: { [gone("L")]: { realType: "neutral" }, [under]: { realType: "key" } },
+                t: { [gone("L")]: old, [under]: old - 2000 },
+                d: { [here]: old, [gone("O")]: old, [gone("Y")]: young, [buried]: old - 2000 },
+                cleared: 0
+            }, { source: "sync" });
+            await E.applyGmStoreCuts({ resetCuts: { bullets: old - 1000 } });
+            ok(!S.bulletStore.has(under) && !S.bulletStore.tombstone(buried),
+                "a row or a tombstone under the reset's cut stood after the cut rose");
+
+            const chapter = getClock()?.chapter ?? 1;
+            await S.blackenedStore.patchMany({ SUITEPASTSEASON: { chapter, epoch: 5, at: 1 }, SUITEPASTCHAPTER: { chapter: chapter - 1, epoch: 10, at: 2 },
+                [student.id]: { chapter, epoch: 10, at: 3 } });
+            // As the primary runs it, whichever GM runs the suite.
+            const report = await S.compactGmStores({ now, epoch: 10, primary: true });
+            await E.gmStoresIdle();
+            const held = {
+                subjectHere: S.bulletStore.tombstone(here), gone: S.bulletStore.tombstone(gone("O")), young: S.bulletStore.tombstone(gone("Y")),
+                liveOfGone: S.bulletStore.has(gone("L"))
+            };
+            equal(stableJson(held), stableJson({ subjectHere: old, gone: 0, young, liveOfGone: true }),
+                "compaction took a tombstone whose subject exists, a young one or a live row, or left an old one of a gone subject");
+            ok(!S.blackenedStore.has("SUITEPASTSEASON") && S.blackenedStore.tombstone("SUITEPASTSEASON") > 0
+                && S.blackenedStore.has("SUITEPASTCHAPTER") && S.blackenedStore.has(student.id),
+                "a Blackened row of a past season stands, was dropped unstamped, or a row of this season went with it");
+            equal(stableJson(report), stableJson({ bullets: 1, blackenedPastSeasons: 1 }), "compaction does not report what it took");
+        });
+    }],
+
     ["Back up the case, then Restore, brings every store back", async () => {
         /*
          * E04, 26.09.2026; audit S05-09, the brief's verify. Each store is given a row

@@ -610,7 +610,25 @@ export const DEFAULT_CLOCK = {
      * "a Final Trial is happening" gives nothing away, unlike the Mastermind's
      * identity, which never goes anywhere near this object. See mastermind.mjs.
      */
-    finalTrial: false
+    finalTrial: false,
+    /**
+     * When this season began, as a GM store stamp (E04, 1.2.63), or null for the
+     * season a world began with: `seasonEpoch()`. Written by a season reset that
+     * wipes the clock - the one that sends the chapters back to 1 - so the Blackened
+     * register does not count last season's chapter-1 killers in this season's
+     * chapter 1 when the incident is kept.
+     */
+    seasonStartedAt: null,
+    /**
+     * The season reset's cut, per reset group: `{ group: stamp }` (E04; D12 option
+     * 1). Written before the reset's first step; every GM store and player copy of a
+     * group is cut at its stamp on every client, and a GM's browser that was offline
+     * across the reset at its next load - so no stale browser brings a wiped row
+     * back. Every cut is kept: a GM offline across two resets with different
+     * exceptions is cut group by group. Frozen: `getClock` hands this object out
+     * whenever the stored clock has none.
+     */
+    resetCuts: Object.freeze({})
 };
 
 export function registerSettings() {
@@ -1668,7 +1686,8 @@ export function incidentCast() {
 /**
  * The season now running, as the clock's `seasonStartedAt` (E04): 0 for the season
  * a world began with. The Blackened register counts only this season's rows, so a
- * reset that keeps the incident group does not count last season's killers.
+ * reset that sends the clock back to chapter 1 and keeps the incident group does not
+ * count last season's killers.
  */
 export function seasonEpoch() {
     try {

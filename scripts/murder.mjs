@@ -3119,8 +3119,9 @@ async function recordBlackened(state) {
 
 /**
  * Forget every row - the season reset. A new chapter needs nothing: `blackenedIds`
- * reads the clock's chapter. On the primary, the store's `clear()`, a cut every GM's
- * copy takes; elsewhere a tombstone per row, until the reset is the primary's (C10).
+ * reads the clock's chapter. On the primary, whose the reset is (E04 C10), the store's
+ * `clear()`, a cut every GM's copy takes; another GM (a console) writes a tombstone
+ * per row.
  */
 export async function clearBlackened() {
     if (!game.user.isGM) return;

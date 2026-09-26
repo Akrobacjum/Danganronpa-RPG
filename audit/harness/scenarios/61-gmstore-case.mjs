@@ -45,15 +45,24 @@
  *      is away reach it when it comes back, the untick with them.
  *   H1 a Level Up offered on the primary (S03-11): its owner's copy is lit at the
  *      offer's stamp, and the second GM holds the offer.
- *   H2 the seed GM leaves for good; the second GM comes back alone, so the
- *      primary: it answers the owner with the offer and spends it; it offers again
- *      and, its store emptied, answers stamp 0 - the owner's button stays lit, and
- *      the spend is refused as not offered, with the GM told.
+ *   J1 the season reset is the primary's (S06-20, D12): a Mastermind is picked while
+ *      the second GM is here, and its reset is refused, names the primary GM and
+ *      opens no window; it leaves with its browser.
+ *   J2 the primary resets twice through the window, the answers queued: the traces
+ *      and the Mastermind, then the traces alone - the window names the GMs who are
+ *      away, each reset writes its cut in the clock before its steps, and the Level
+ *      Up is kept both times.
+ *   J3 the seed GM leaves for good; the second GM comes back alone, so the primary:
+ *      its traces from before the second reset and its pick from before the first
+ *      are gone by the clock's cuts alone, group by group, and its offer is kept.
+ *   H2 the primary alone answers the owner with the offer and spends it; it offers
+ *      again and, its store emptied, answers stamp 0 - the owner's button stays lit,
+ *      and the spend is refused as not offered, with the GM told.
  *   Z  the browser is lost (the brief's live verify, headless): the GM left from
- *      H2 backs up the case and leaves, a third GM comes with an empty browser and
- *      is alone, so the primary; its health check opens and names what is missing,
- *      Continue is taken, the file is restored, the answer keys read back and the
- *      check is clean.
+ *      H2 places two traces (J's resets took the others), backs up the case and
+ *      leaves, a third GM comes with an empty browser and is alone, so the primary;
+ *      its health check opens and names what is missing, Continue is taken, the file
+ *      is restored, the answer keys read back and the check is clean.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -619,17 +628,111 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     check("H1: a Standard Level Up offered on the primary reaches Aiko's player at its stamp, and the second GM holds it",
         offeredAt > 0 && J([litH1.offer, litH1.stamp]) === J(["standard", offeredAt]) && J([onGm2H1.offer, onGm2H1.stamp]) === J(["standard", offeredAt]),
         J({ offeredAt, litH1, onGm2H1 }));
+
+    /* ------------------- J. the season reset is the primary's, and the clock cuts ------------------- */
+
+    /* J1: a Mastermind is picked on the primary while gm2 is here, so gm2's browser holds a
+       pick (E ended with none) - and gm2, not the primary while the seed GM is, is refused the
+       reset. A queued "cancel" stands in for the GM at the window, should one open (on 1.2.62
+       it did, for any GM), so the run never waits on it. */
+    phase("J1: a GM who is not the primary is refused the season reset and told whose it is", { flow: "gm-store" });
+    const RESET = `const R = await import("${repoUrl}/scripts/season-setup.mjs");`;
+    const cutsOn = client => client.eval(`return (await import("${repoUrl}/scripts/clock.mjs")).getClock().resetCuts ?? {};`);
+    await gm.eval(`${MM} await M.setMastermind(game.actors.get("${IDS.aiko}"), { room: "Library" }); return true;`);
+    await settle(800);
+    const pickedJ1 = await gm2.eval(`${MM} return S.mastermindStore.record().actorId ?? null;`);
+    const gmName = await gm.eval(`return game.user.name;`);
+    const cutsBefore = await cutsOn(gm);
+    const refusedJ1 = await gm2.eval(`${RESET} const title = game.i18n.localize("DRPG.Season.resetTitle");
+        const n = globalThis.__notifications.length, d = globalThis.__dialogLog.length;
+        globalThis.__dialogAnswers.push("cancel");
+        const result = await R.resetSeason();
+        return { result, warned: globalThis.__notifications.slice(n).filter(x => x.level === "warn").map(x => x.msg),
+            windows: globalThis.__dialogLog.slice(d).filter(x => x.title === title).length };`, { timeout: 30000 });
+    const cutsAfterJ1 = await cutsOn(gm);
+    check("J1: the second GM's season reset is refused and names the primary GM; no window opens and the clock is not cut",
+        pickedJ1 === IDS.aiko && refusedJ1.result === null && refusedJ1.warned.some(m => m.includes(gmName)) && refusedJ1.windows === 0
+        && J(cutsAfterJ1) === J(cutsBefore), J({ pickedJ1, gmName, refusedJ1, cutsBefore, cutsAfterJ1 }));
     await disconnect("gm2");
     await settle(300);
 
+    /* J2: the primary resets through the window, the answer queued as a GM gives it (the
+       word and the ticks): the traces and the Mastermind, then the traces alone. */
+    phase("J2: the primary resets twice: the traces and the Mastermind, then the traces alone", { flow: "gm-store" });
+    const resetOnce = ticked => gm.eval(`${RESET} const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const word = game.i18n.localize("DRPG.Season.resetWord");
+        let shown = null;
+        globalThis.__dialogAnswers.push(config => {
+            shown = typeof config.content === "string" ? config.content : (config.content?.outerHTML ?? "");
+            return { word, ticked: ${J(ticked)} };
+        });
+        const result = await R.resetSeason();
+        await E.gmStoresIdle();
+        const clock = (await import("${repoUrl}/scripts/clock.mjs")).getClock();
+        return { cleared: result?.cleared ?? null, offline: /Second GM/.test(shown ?? ""), cuts: clock.resetCuts ?? {},
+            season: clock.seasonStartedAt ?? null,
+            watermarks: { remnants: S.remnantStore.cleared(), mastermind: S.mastermindStore.cleared(), offers: S.offerStore.cleared() },
+            traces: Object.keys(S.remnantStore.entries()).length,
+            tokens: game.scenes.contents.reduce((n, scene) => n + scene.tokens.filter(t => t.getFlag("${MOD}", "isRemnant")).length, 0),
+            pick: S.mastermindStore.record().actorId ?? null, offer: S.offerStore.get("${IDS.aiko}")?.kind ?? null };`, { timeout: 60000 });
+    const firstReset = await resetOnce(["remnants", "mastermind"]);
+    await settle(600);
+    const secondReset = await resetOnce(["remnants"]);
+    await settle(600);
+    const cutJ2 = firstReset.cuts;
+    check("J2a: the first reset names the GMs away, cuts the traces and the Mastermind at one stamp its steps come after, and keeps the Level Up",
+        J(firstReset.cleared) === J(["Remnants", "the Mastermind"]) && firstReset.offline
+        && cutJ2.remnants > 0 && cutJ2.mastermind === cutJ2.remnants && !("advancement" in cutJ2) && firstReset.season === null
+        && firstReset.watermarks.remnants > cutJ2.remnants && firstReset.watermarks.mastermind >= cutJ2.mastermind
+        && firstReset.traces === 0 && firstReset.tokens === 0 && firstReset.pick === null && firstReset.offer === "standard", J(firstReset));
+    // With no trace left the primary still clears the store, after the cut (the review's C-m5: it cleared only with a live row to see).
+    check("J2b: the second cuts the traces again and clears them with none left, leaves the Mastermind's cut where the first put it, and keeps the Level Up",
+        J(secondReset.cleared) === J(["Remnants"]) && secondReset.cuts.remnants > cutJ2.remnants && secondReset.watermarks.remnants > secondReset.cuts.remnants
+        && secondReset.cuts.mastermind === cutJ2.mastermind && !("advancement" in secondReset.cuts) && secondReset.offer === "standard", J(secondReset));
+
+    /* J3: the seed GM leaves here for good (a late account can come back, it cannot), and
+       gm2 comes back with the browser it left in J1, alone and so the primary: nobody sends
+       it the clears, so what it lost it lost by the clock. */
+    phase("J3: the second GM comes back alone, and the clock's cuts take what the resets wiped", { flow: "gm-store" });
+    const storedSection = (storage, key) => {
+        try { return JSON.parse(storage?.[`${MOD}.${key}`] ?? "null")?.worlds?.[worldA] ?? null; } catch { return null; }
+    };
+    const leftGm2 = await storageOf("gm2");
+    const heldGm2 = { traces: Object.keys(storedSection(leftGm2, "gmRemnants")?.e ?? {}).length,
+        pick: storedSection(leftGm2, "gmMastermind")?.e?.record?.actorId ?? null };
+    /* And two tombstones a month old in its answer keys, written into the browser it brings:
+       one of a bullet that is gone, one of an actor that is here - compaction (C10) runs on
+       every GM once its stores have the others' copies, alone included. */
+    const monthAgo = Date.now() - 31 * 24 * 60 * 60 * 1000;
+    const goneBullet = "Actor.J3GONE0000000000.Item.J3GONE0000000000", hereSubject = `Actor.${IDS.aiko}`;
+    const bulletsKey = `${MOD}.gmBullets`;
+    const bullets = JSON.parse(leftGm2[bulletsKey] ?? "null");
+    if (bullets?.worlds?.[worldA]) Object.assign(bullets.worlds[worldA].d ??= {}, { [goneBullet]: monthAgo, [hereSubject]: monthAgo });
+    const withTombstones = { ...leftGm2, [bulletsKey]: JSON.stringify(bullets) };
+    await disconnect("gm");
+    await connect("gm2", { storage: withTombstones });
+    await settle(1500);
+    const onGm2J3 = await gm2.eval(`${MM} const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        const U = await import("${repoUrl}/scripts/utils.mjs");
+        return { primary: U.isPrimaryGm(), hydration: E.gmStoreHydration().state,
+            watermarks: { remnants: S.remnantStore.cleared(), mastermind: S.mastermindStore.cleared() },
+            traces: Object.keys(S.remnantStore.entries()).length, pick: S.mastermindStore.record().actorId ?? null,
+            offer: S.offerStore.get("${IDS.aiko}")?.kind ?? null, offerAt: S.offerStore.newest("${IDS.aiko}") };`);
+    check("J3: alone after both resets, its traces are cut at the second reset's stamp and its pick at the first's, by the clock alone, and its Level Up is kept",
+        heldGm2.traces >= 2 && heldGm2.pick === IDS.aiko && onGm2J3.primary && onGm2J3.hydration === "alone"
+        && onGm2J3.watermarks.remnants === secondReset.cuts.remnants && onGm2J3.watermarks.mastermind === cutJ2.mastermind
+        && onGm2J3.traces === 0 && onGm2J3.pick === null && onGm2J3.offer === "standard" && onGm2J3.offerAt === offeredAt,
+        J({ heldGm2, onGm2J3, cuts: secondReset.cuts }));
+    const compacted = await gm2.eval(`${MM} return { gone: S.bulletStore.tombstone(${J(goneBullet)}), here: S.bulletStore.tombstone(${J(hereSubject)}),
+        rows: Object.keys(S.bulletStore.entries()).length };`);
+    check("J3b: and its stores are compacted once it is alone: a month-old tombstone of a gone bullet goes, one whose subject is here stays, and no row goes",
+        Boolean(bullets?.worlds?.[worldA]) && compacted.gone === 0 && compacted.here === monthAgo && compacted.rows === 3, J({ monthAgo, compacted }));
+
     /* ------------------- H2. the primary alone, and its store empty ------------------- */
 
-    /* The seed GM leaves here for good (a late account can come back, it cannot), and gm2
-       comes back with its browser, alone and so the primary: it holds the offer from H1. */
+    /* gm2 is here since J3, alone and so the primary: it holds the offer from H1. */
     phase("H2: a primary alone answers the owner, spends the offer, and with its store emptied takes nothing away", { flow: "class-trial" });
-    await disconnect("gm");
-    await connect("gm2", { storage: await storageOf("gm2") });
-    await settle(1500);
     // The owner asks as its bridge does (E31's advancement.ask, a report nobody waits on).
     const askOffers = () => p1.eval(`const B = await import("${repoUrl}/scripts/bridge-guards.mjs");
         await B.bridgeRequest("advancement.ask", {}, { settle: "none", quiet: true }); return true;`);
@@ -674,13 +777,24 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     /* ------------------- Z. the browser is lost, and the case comes back ------------------- */
 
     phase("Z: a GM backs up, every GM leaves, an empty browser comes back alone and restores", { flow: "gm-store" });
-    // gm2 is here since H2, alone; the seed GM left there.
+    // gm2 is here since J3, alone; the seed GM left there. J's resets took every trace, so two are placed again.
+    const placedZ = await gm2.eval(`${REM}
+        const scene = game.scenes.get("${IDS.scene}");
+        const out = [];
+        for (const [n, type] of [[1, "incident"], [2, "prep"]]) {
+            const token = await R.placeRemnant({ type, visibility: "subtle", x: 100 * n, y: 100, scene, tiedToCrime: n === 1,
+                note: "E04 trace " + n, sourceName: "E04" });
+            out.push(token.id);
+        }
+        return out;`);
+    const idsZ = placedZ.map(id => `${IDS.scene}.${id}`);
+    const expectZ = [["incident", "E04 trace 1", true], ["prep", "E04 trace 2", false]];
     const backup = await gm2.eval(`const file = await game.drpg.backupCase();
         const saved = globalThis.__savedFiles.at(-1) ?? null;
         return { format: file?.format ?? null, rows: Object.keys(file?.stores?.bullets?.e ?? {}).length,
             traces: Object.keys(file?.stores?.remnants?.e ?? {}).sort(), name: saved?.filename ?? null, text: saved?.data ?? null };`);
     check("Z1: the second GM backs the case up to one file, the three answer keys and the two traces' in it",
-        backup.format === "drpg-case" && backup.rows === 3 && J(backup.traces) === J([`${IDS.scene}.${placedD[0]}`, seedKey].sort())
+        backup.format === "drpg-case" && backup.rows === 3 && J(backup.traces) === J([...idsZ].sort())
         && /^drpg-case-drpg-audit-world-/.test(backup.name ?? "") && Boolean(backup.text),
         J({ ...backup, text: backup.text ? `${backup.text.length} characters` : null }));
     await disconnect("gm2");
@@ -703,13 +817,13 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         return { refused: result?.refused ?? null, missing: report.rows.filter(r => r.level === "missing").map(r => r.id),
             bullets: report.counts.bullets, traces: report.counts.traces };`);
     const keysOnGm3 = await gm3.eval(keyOf(made));
-    const tracesOnGm3 = await gm3.eval(traceRows(idsD.slice(0, 2)));
+    const tracesOnGm3 = await gm3.eval(traceRows(idsZ));
     // The restore runs the Faint pass again: the third bullet's Faint moves off its item into its row.
     const answerKeys = rows => rows.map(r => r.slice(0, 5));
     check("Z3: the file restored on the empty browser brings every answer key and trace back, the Faint pass moves the old flag in, and the check is clean",
         !restored.refused && J(answerKeys(keysOnGm3)) === J(answerKeys(expected)) && keysOnGm3[2][5] === true
-        && J(tracesOnGm3) === J(expectD.slice(0, 2)) && J(restored.missing) === J([])
+        && J(tracesOnGm3) === J(expectZ) && J(restored.missing) === J([])
         && restored.bullets.missing === 0 && restored.bullets.noAnswer === 0 && restored.traces.missing === 0, J({ restored, keysOnGm3, tracesOnGm3 }));
 
-    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "H2", "Z"], gm: IDS.gm };
+    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "J1", "J2", "J3", "H2", "Z"], gm: IDS.gm };
 }

@@ -4510,7 +4510,15 @@
         "few": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersze): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest.",
         "many": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wierszy): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest.",
         "other": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersza): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest."
-      }
+      },
+      "resetPrimaryOnly": "Sezon resetuje tylko główny GM, {name}, żeby o tym, co traci kopia sprawy każdego GM-a, decydowała jedna przeglądarka. Poproś o to GM-a {name} albo zresetuj, gdy będziesz jedynym połączonym GM-em.",
+      "resetOfflineGms": {
+        "one": "Jeden GM nie jest połączony ({names}): jego przeglądarka usunie to, co czyści ten reset, gdy następnym razem otworzy ten świat.",
+        "few": "{n} GM-ów nie jest połączonych ({names}): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat.",
+        "many": "{n} GM-ów nie jest połączonych ({names}): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat.",
+        "other": "{n} GM-a nie jest połączonego ({names}): ich przeglądarki usuną to, co czyści ten reset, gdy następnym razem otworzą ten świat."
+      },
+      "resetCutFailed": "Reset sezonu nie mógł zaznaczyć w zegarze chwili resetu ({error}). Nic nie zostało wyczyszczone."
     },
     "Case": {
       "gmOnly": "Kopię sprawy robi i przywraca tylko GM.",

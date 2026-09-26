@@ -871,6 +871,24 @@ export function createGmStoreEngine(env) {
                 w.section.unassigned = { ...(w.section.unassigned ?? {}), ...patch };
                 return touched(st, w, new Set([""]), { local: false });
             },
+            /**
+             * COMPACTION BY SUBJECT (E04 C10; the design's 2.11). Every tombstone stamped
+             * before `before` whose key `gone(key)` says names nothing in this world any
+             * more, and that has no live field beside it, is removed - from this browser's
+             * section, and not sent: a tombstone is only ever held against an older copy
+             * of its row, and a row whose subject is gone is one nothing can reach (a
+             * trace's token, a bullet's item, a character). Every GM runs the same rule
+             * after its stores have the others' copies, so a GM that still holds one hands
+             * it back only until it has run the rule itself. Live rows are never touched
+             * here. Answers how many went.
+             */
+            compact: (before, gone) => {
+                const w = current(st);
+                const keys = Object.keys(w.section.d).filter(k => w.section.d[k] < before && !Object.hasOwn(w.section.e, k) && gone(k));
+                if (!keys.length) return Promise.resolve(0);
+                for (const k of keys) delete w.section.d[k];
+                return touched(st, w, new Set(keys), { local: false }).then(() => keys.length);
+            },
             /** Suite and harness only: this world's section emptied here, nothing sent, the claim kept. */
             async forget() {
                 const w = current(st);
@@ -1078,6 +1096,13 @@ export function createGmStoreEngine(env) {
      * Raise every section and copy of a wiped reset group to the clock's cut for it
      * (D12 option 1). Nothing is written when no watermark rises, so a redraw of the
      * clock that changes nothing writes nothing (14-quiet).
+     *
+     * A copy is cut where it is read (`readMine`, `receiveCopy`), so nothing of it is
+     * written here either. What the cut changes is what the copy reads, and nothing
+     * would draw that again: a reset sends no answer for a group it only cuts - the
+     * Level Ups on offer (the owner's Q4) - so a copy that held something under the
+     * new cut calls its spec's `onCut` once. `seenCuts` is the cut each copy was last
+     * read under, per world, from the store's open.
      */
     function applyCuts(clock = env.clock()) {
         const cuts = isPlain(clock?.resetCuts) ? clock.resetCuts : {};
@@ -1092,6 +1117,19 @@ export function createGmStoreEngine(env) {
                 w.needsWrite = true;
                 done.push(schedule(st));
             }
+        }
+        const wid = worldId();
+        for (const cs of copies.values()) {
+            const cut = cuts[cs.spec.resetGroup];
+            if (!Number.isFinite(cut)) continue;
+            observe(cut);
+            const was = cs.seenCuts.get(wid) ?? 0;
+            if (!(cut > was)) continue;
+            cs.seenCuts.set(wid, cut);
+            const held = newestStamp(copyRecord(cs)?.stamps);
+            if (!(held > was && held <= cut) || typeof cs.spec.onCut !== "function") continue;
+            try { cs.spec.onCut(); }
+            catch (err) { env.log.error(`The copy "${cs.spec.name}" could not be drawn again after a reset`, err); }
         }
         return Promise.all(done);
     }
@@ -1209,6 +1247,7 @@ export function createGmStoreEngine(env) {
         opened = true;
         const wid = worldId();
         hyd.wid = wid;
+        for (const cs of copies.values()) cs.seenCuts.set(wid, copyCut(cs.spec));
         if (!env.isGM()) { hyd.state = "alone"; return; }
         hyd.state = "opening";
         for (const st of stores.values()) {
@@ -1281,7 +1320,7 @@ export function createGmStoreEngine(env) {
         return st.handle;
     }
     function defineCopy(spec) {
-        if (!copies.has(spec.name)) copies.set(spec.name, { spec: Object.freeze({ fallback: null, ...spec }), cache: new Map(), writing: false });
+        if (!copies.has(spec.name)) copies.set(spec.name, { spec: Object.freeze({ fallback: null, ...spec }), cache: new Map(), writing: false, seenCuts: new Map() });
         return { name: spec.name, read: () => readMine(spec.name), stamp: () => mineStamp(spec.name), stamps: () => mineStamps(spec.name),
             receive: (v, s) => receiveCopy(spec.name, v, s), claim: () => claimCopy(spec.name), forget: () => forgetCopy(spec.name) };
     }
@@ -1411,9 +1450,14 @@ export async function openGmStoreEngine() {
             window.addEventListener?.("storage", ev => { if (ev?.key) engine.onStorage(ev.key, ev.newValue); });
         }
         Hooks.on("clientSettingChanged", key => engine.onClientSettingChanged(key));
-        Hooks.on("updateSetting", setting => {
-            if (setting?.key === `${MODULE_ID}.${deps.clockKey}`) void engine.applyCuts();
-        });
+        /* The clock's cuts, on every client. A world whose clock was never written makes
+           the Setting document on its first write, and that is `createSetting` in Foundry;
+           the harness fires `updateSetting` for both, so only the update is measured. */
+        for (const hook of ["updateSetting", "createSetting"]) {
+            Hooks.on(hook, setting => {
+                if (setting?.key === `${MODULE_ID}.${deps.clockKey}`) void engine.applyCuts();
+            });
+        }
     }
     await engine.open();
 }

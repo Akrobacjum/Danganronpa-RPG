@@ -5634,6 +5634,105 @@ const REGRESSIONS = [
         }
         log(`R172: ${WRITERS.length} derived writers and ${WAITERS.length} migrations read in ${new Set([...WRITERS, ...WAITERS].map(w => w[0])).size} files`);
         ok(!found.length, `a writer derives an answer-key value from absence: ${found.join("; ")}`);
+    }],
+
+    ["R177 - the season reset is the primary's, and the clock cuts every store it wipes", async () => {
+        /*
+         * E04 C10, 26.09.2026; audit S06-20, D12. The reset checked only that a GM ran
+         * it, and what it wiped in the GM stores it wiped in that GM's browser: an
+         * assistant's reset left last season's trap plants on the primary's, which hands
+         * a Search its find, and a GM away during the reset handed every wiped row back
+         * at its next exchange. Held here: the window refuses anybody but the primary GM
+         * before it opens, and opens only once this browser has the other GMs' copies;
+         * the wipe writes its cut in the clock before its first step and outside every
+         * step (a step can fail, the cut must stand); the traces' tokens go with
+         * `drpgReset`, so the cut and the clear take their rows rather than a tombstone
+         * each; every store and every player copy names a reset group the window offers,
+         * or no tick would ever cut it; the owners' copy of the offers is drawn again when
+         * a cut withdraws them (nothing is sent for it); and the patch keeps every earlier
+         * cut.
+         */
+        const sources = new Map(await otherSources());
+        const setup = stripComments(sources.get("season-setup.mjs") ?? "");
+        const beforeWindow = bodyOf(setup, "export async function resetSeason", { until: "DialogV2.wait(" });
+        ok(/isPrimaryGm\(\)/.test(beforeWindow), "resetSeason opens its window without asking whether this is the primary GM");
+        ok(/whenGmStoresHydrated\(\)/.test(beforeWindow), "the reset window opens before this browser has the other GMs' copies");
+        const wipe = fnSource(setup, "wipeSeason");
+        ok(/resetCutPatch\(/.test(bodyOf(wipe, "async function wipeSeason", { until: "const step =" })),
+            "wipeSeason does not write the reset's cut before its first step, outside every step");
+        ok(/deleteEmbeddedDocuments\("Token", ids, \{ drpgReset: true \}\)/.test(wipe),
+            "the reset's trace tokens are deleted without drpgReset, so each row is tombstoned on its own and the cut is not what takes them");
+
+        const { RESET_GROUPS, resetCutPatch, planFrom } = await import("./season-exceptions.mjs");
+        const E = await import("./gm-store.mjs");
+        await import("./gm-stores.mjs");
+        const groups = new Set(RESET_GROUPS.map(group => group.key));
+        const named = [...E.gmStoreHandles().map(h => [`the store ${h.name}`, h.spec.resetGroup]),
+            ...E.gmCopyNames().map(name => [`the copy ${name}`, E.gmCopySpec(name)?.resetGroup])];
+        ok(named.length >= 14, `only ${named.length} GM stores and copies are defined - the table was not read`);
+        const strays = named.filter(([, group]) => !groups.has(group)).map(([what, group]) => `${what} (${group})`);
+        ok(!strays.length, `a reset can never cut ${strays.join(", ")}: its reset group is none the window offers`);
+        // The owner's Q4: a reset withdraws the Level Ups on offer by its cut alone, and sends nothing to draw that.
+        ok(typeof E.gmCopySpec("offers")?.onCut === "function", "an owner's copy of the offers is cut by a reset and nothing draws the sheet again");
+
+        equal(JSON.stringify(resetCutPatch(planFrom(["remnants", "mastermind"]), { resetCuts: { bullets: 5, remnants: 3 } }, 9)),
+            JSON.stringify({ resetCuts: { bullets: 5, remnants: 9, mastermind: 9 } }),
+            "the reset's patch drops an earlier cut, misses a wiped group, or starts a season with the clock kept");
+        equal(resetCutPatch(planFrom(["clock", "incident"]), {}, 9).seasonStartedAt, 9, "a reset of the clock does not start a new season");
+    }],
+
+    ["R178 - no migration runs from a ready hook", async () => {
+        /*
+         * E04 C10, 26.09.2026; audit S01-31. Four lifts of old data into the GM stores
+         * ran from ready hooks - on every load, on every GM, before the other GMs'
+         * copies had arrived - and each wrote as if what it met were the whole truth
+         * (S05-01's erased answer keys were one of them). They are migration clauses
+         * since E04: once, on the primary, after `forgetMonokumaWalks` (whose Monokuma
+         * rows the fog's lift must not take), each waiting for its store. Held here:
+         * each clause stands after that one, since 1.2.63, and runs its lift; and no
+         * file calls a lift except its clause - the restore, which runs the Faint pass
+         * again when a GM asks, and diagnostics' line telling the GM what to type. The
+         * reader is shown a planted ready hook first.
+         */
+        const LIFTS = [["truthBulletShape", "migrateTruthBullets"], ["faintIntoSecrets", "migrateFaintIntoSecrets"],
+            ["liftIncidentSecrets", "liftIncidentSecrets"], ["liftDiscoveryLedger", "liftDiscoveryLedger"]];
+        const ALLOWED = {
+            "migrate.mjs": LIFTS.map(([, fn]) => fn),
+            // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.
+            "gm-stores.mjs": ["migrateFaintIntoSecrets"],
+            // Not a call: the line diagnostics prints, telling a GM the console command.
+            "diagnostics.mjs": ["migrateTruthBullets"]
+        };
+        const callers = files => {
+            const out = [];
+            for (const [file, text] of files) {
+                const src = stripComments(text);
+                for (const [, fn] of LIFTS) {
+                    for (const m of src.matchAll(new RegExp(`\\b${fn}\\s*\\(`, "g"))) {
+                        if (/function\s+$/.test(src.slice(Math.max(0, m.index - 20), m.index))) continue;
+                        if (!(ALLOWED[file] ?? []).includes(fn)) out.push(`${file}: ${fn}`);
+                    }
+                }
+            }
+            return out;
+        };
+        equal(JSON.stringify(callers([["planted.mjs", "Hooks.once(\"ready\", async () => {\n    await liftIncidentSecrets();\n});\nexport async function liftIncidentSecrets() {}\n"]])),
+            JSON.stringify(["planted.mjs: liftIncidentSecrets"]), "the reader does not find the lift a planted ready hook calls, or finds its declaration");
+
+        const sources = new Map(await otherSources());
+        const migrate = stripComments(sources.get("migrate.mjs") ?? "");
+        const keyAt = key => migrate.indexOf(`key: "${key}"`);
+        const monokuma = keyAt("forgetMonokumaWalks");
+        ok(monokuma >= 0, "migrate.mjs has no forgetMonokumaWalks clause - this test reads nothing until it is pointed at it again");
+        for (const [key, fn] of LIFTS) {
+            ok(keyAt(key) > monokuma, `the lift ${key} is not a migration clause after forgetMonokumaWalks`);
+            // One clause: from its key to the brace that closes it, four spaces in.
+            const clause = bodyOf(migrate, `key: "${key}"`, { until: "\n    }" });
+            ok(/since: "1\.2\.63"/.test(clause) && new RegExp(`\\b${fn}\\(`).test(clause), `the clause ${key} does not run ${fn} since 1.2.63`);
+        }
+        const found = callers(sources);
+        log(`R178: ${LIFTS.length} lifts, read in ${sources.size} files`);
+        ok(!found.length, `a lift runs outside its migration clause: ${found.join(", ")}`);
     }]
 ];
 
