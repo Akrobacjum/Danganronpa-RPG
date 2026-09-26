@@ -208,13 +208,26 @@ export const doorCopy = defineGmCopy({
 });
 
 /**
+ * HOW THE INCIDENT HAPPENED (E05 C8; audit S04-08): whether it is a trap, whether the
+ * killer and the victim are one person, whether a reversal left the Key Remnant plan
+ * to be written again, when it opened and how it ended. Until 1.2.64 these sat in the
+ * world half of `murderState`, which every browser holds: through the whole of Stage 6
+ * a console read `selfInflicted: true` - the answer to the Class Trial - and a trap's
+ * builder read `indirect` at the moment it went off, which `castOwners` withholds the
+ * cast to keep from them. They are the cast's now, and reach only its participants.
+ */
+export const INCIDENT_METHOD = Object.freeze(["indirect", "selfInflicted", "keyRemnantsStale", "openedAt", "endedBy"]);
+
+/**
  * The fields of an incident's cast (murder.mjs): who is in it, whose turn it is
  * on the killers' side, the accomplice and which side they took, the Reroll
  * receipt (`lastCrisis`, which names every participant), the betrayal offer and
- * the swing memo. The record's closed set: `resetRecord` stamps each of them.
+ * the swing memo - and since E05 C8 the method (`INCIDENT_METHOD`). The record's
+ * closed set: `resetRecord` stamps each of them, `castStamps` sends a stamp for each
+ * but the swing memo, and `castCombine` weighs them all.
  */
 export const CAST_FIELDS = Object.freeze([
-    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "betrayal", "swung"
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD
 ]);
 
 /**
@@ -250,7 +263,10 @@ export const castStore = defineGmStore({
         const held = Object.fromEntries(Object.entries(rest).filter(([f, v]) => CAST_FIELDS.includes(f) && v !== undefined));
         const state = getSetting(SETTINGS.murderState) ?? {};
         const here = [held.killerId, held.victimId].some(id => id && game.actors?.has(id));
-        const before = Number.isFinite(state.openedAt) && Number.isFinite(updated) && updated < state.openedAt - TIMING.gmStoreSkewMs;
+        /* `openedAt` is the cast's since E05 C8: a browser that claims after the primary lifted
+           it out of the world reads the one the GMs' copies brought (read, not measured). */
+        const openedAt = state.openedAt ?? castStore.record()?.openedAt;
+        const before = Number.isFinite(openedAt) && Number.isFinite(updated) && updated < openedAt - TIMING.gmStoreSkewMs;
         const running = Boolean(state.active) && here && !before;
         const clock = getClock() ?? {};
         const offer = betrayal?.killerId && betrayal.chapter === clock.chapter && betrayal.day === clock.day

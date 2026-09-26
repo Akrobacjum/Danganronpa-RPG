@@ -50,7 +50,7 @@ import {
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS, incidentCast, seasonEpoch } from "./settings.mjs";
-import { castStore, blackenedStore, castCopy, CAST_FIELDS, CAST_SEATS } from "./gm-stores.mjs";
+import { castStore, blackenedStore, castCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax, marksOf } from "./character.mjs";
@@ -93,8 +93,7 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * `thirdSide` is here with the ids because it is only meaningful next to
  * `thirdId`: "the third party threw in with the killers" is a sentence about
  * somebody, and on a client that cannot see who the third party is it would be
- * a fact about nobody. Everything else an incident holds is a number, a stage
- * or a list of blocked action keys, and none of that names anyone.
+ * a fact about nobody.
  *
  * `lastCrisis` - the Reroll receipt - is here too. It carries `actorId`,
  * `victimId` and a snapshot of the MERGED state, so a receipt written to the
@@ -111,7 +110,55 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * swing memo (`{ [actorId]: itemId }`) among them. Both of those used to be actor
  * flags, which are world data every client receives - so for the whole of Stage
  * 6 anybody could read who the accomplice was and who swung what (CASE-04).
+ *
+ * "EVERYTHING ELSE NAMES NOBODY" WAS NOT ENOUGH (E05 C8; audit S04-08). This comment
+ * said the rest was a number, a stage or a list of action keys. The rest also held
+ * how the incident happened - a trap, a death by the victim's own hand, a reversal,
+ * the moment it opened, how it ended - and each of those is an answer the Class Trial
+ * exists to find. They are the cast's now (`INCIDENT_METHOD`), and the world half is
+ * turned round: it holds only the fields listed below, each with the reason a
+ * bystander may know it, and `splitIncident` sends anything else to the cast. The
+ * owner's answer of 26.09 (Q8, option a): the five leave now; shrinking this list
+ * further - to the stage alone - is E32's, once the cast has settled.
  */
+
+/**
+ * WHAT THE WORLD HALF OF AN INCIDENT MAY HOLD, AND WHY A BYSTANDER MAY KNOW IT
+ * (E05 C8). Every browser holds it; none of it names anyone. The world-secrets rule
+ * (`murderState`'s `only`) is this list written out, and R191 holds the two equal.
+ */
+export const PUBLIC_INCIDENT = Object.freeze({
+    active: "an incident is running: the table knows that much, and every browser's locks read it (movement, the rolls' audience, the traces' hiding)",
+    stage: "the opening, the fight or Stage 6: which of those locks holds, and the Event card and the music on a witness's browser",
+    turn: "the round, for both trackers without a round trip per turn; a count",
+    turnSide: "whose side acts - `victim` or `killer`, a chair and not a person",
+    keyRemnants: "how many Key Remnants the scene keeps, as the opening roll decided it; a number",
+    deniedToVictim: "the actions the opening took from the victim's chair; action keys",
+    hindered: "the actions hindered, by side, with the turns left; action keys and counts",
+    blocked: "the actions blocked, by side, with the turns left; action keys and counts",
+    unlocked: "the actions Self-defence opened; action keys",
+    spent: "the once-per-incident actions used; action keys",
+    drainStopped: "whether a critical Self-defence stopped the drain; a flag",
+    advantageNext: "which side's next roll has advantage, by side; two flags",
+    freeResolution: "a critical's free resolution: a side and the turn it was given on",
+    thirdActed: "whether the third party has used their action - that there is one, not who (E32 weighs it)"
+});
+
+/**
+ * One patch of an incident, split: `world` the fields `PUBLIC_INCIDENT` lists, `cast`
+ * the ones the cast's record holds, `neither` the names of any other - which go
+ * nowhere, and are said (R191 reads every literal write for them). A field nobody
+ * listed never reaches the world. Pure.
+ */
+export function splitIncident(patch) {
+    const world = {}, cast = {}, neither = [];
+    for (const [key, value] of Object.entries(patch ?? {})) {
+        if (Object.hasOwn(PUBLIC_INCIDENT, key)) world[key] = value;
+        else if (CAST_FIELDS.includes(key)) cast[key] = value;
+        else neither.push(key);
+    }
+    return { world, cast, neither };
+}
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 /** GM -> one participant, and nobody else. */
@@ -213,15 +260,11 @@ async function restoreState(state = {}, { keep = [] } = {}) {
 
     const previous = readCast();
     const publicBefore = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const cast = {};
-    const rest = {};
-    for (const [key, value] of Object.entries(state ?? {})) {
-        if (CAST_FIELDS.includes(key)) cast[key] = value;
-        else rest[key] = value;
-    }
+    const { world: rest, cast, neither } = splitIncident(state);
     // `updated` belonged to the cast entry until E04, not to the incident - a
-    // receipt taken before the upgrade still carries one.
-    delete rest.updated;
+    // receipt taken before the upgrade still carries one, and it goes nowhere.
+    const unknown = neither.filter(key => key !== "updated");
+    if (unknown.length) error(`An incident's state named field(s) neither its world half nor its cast holds, kept out of both: ${unknown.join(", ")}`);
 
     await ownCastWrite(() => castStore.resetRecord(cast, { keep }));
     // Who holds it before and after, by the state before and the one written next.
@@ -266,7 +309,9 @@ function castOwners(cast, state = null) {
     const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
 
     const seats = [
-        trapRunning(live) ? null : cast?.killerId,
+        // The stage from the world half, whether it is a trap from the cast in hand (E05 C8) - or
+        // from a world half the lift has not reached yet (`liftIncidentMethod`).
+        trapRunning({ ...live, indirect: cast?.indirect ?? live.indirect }) ? null : cast?.killerId,
         cast?.victimId,
         cast?.thirdId,
         // The accomplice keeps their copy for as long as the betrayal is on
@@ -382,12 +427,8 @@ async function writeState(patch, { explicit = [] } = {}) {
     const castBefore = readCast();
     const before = { ...publicBefore, ...castBefore };
 
-    const publicPatch = {};
-    const castPatch = {};
-    for (const [key, value] of Object.entries(patch)) {
-        if (CAST_FIELDS.includes(key)) castPatch[key] = value;
-        else publicPatch[key] = value;
-    }
+    const { world: publicPatch, cast: castPatch, neither } = splitIncident(patch);
+    if (neither.length) error(`An incident's write named field(s) neither its world half nor its cast holds, kept out of both: ${neither.join(", ")}`);
 
     const publicNext = { ...publicBefore, ...publicPatch };
 
@@ -409,10 +450,14 @@ async function writeState(patch, { explicit = [] } = {}) {
      * the seats' stamps alone; the cast sent now holds the other parts as well,
      * so it is newer (gm-stores.mjs, `castCombine`; R176).
      */
-    const trapMoved = trapRunning(publicNext) !== trapRunning(publicBefore);
     const castNext = Object.keys(castPatch).length
         ? await writeCast({ ...castBefore, ...castPatch }, castBefore, { explicit, push: false })
         : castBefore;
+    /* Whether it is a trap is the cast's since E05 C8: the gate reads both halves. Every road
+       into Stage 6 writes `endedBy`, a cast field, so that write pushes the cast anyway (a mutant
+       reading the world halves alone passed 13-murder-signals, 26.09); this keeps a stage move
+       that names no cast field from leaving the killer out. */
+    const trapMoved = trapRunning({ ...publicNext, ...castNext }) !== trapRunning(before);
 
     /*
      * ONE PUSH, WITH THE STATE BEING WRITTEN (E04). The participants are worked out
@@ -814,7 +859,9 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
        side, the Reroll receipt and the swing memo of the last incident are written
        null here, and stamped whether or not this GM still holds them: a GM that
        missed the last close may, and its older copy must not reach this incident.
-       The betrayal offer is the one thing an incident's close keeps (D18). */
+       The betrayal offer is the one thing an incident's close keeps (D18). The method
+       (E05 C8, `INCIDENT_METHOD`) is decided here afresh the same way - a reversal and
+       an end are this incident's own, so both start null - and goes to the cast. */
     await writeState({
         active: true,
         stage: "openingRoll",
@@ -835,8 +882,11 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
         // A critical Self-defence stops the drain for the rest of the incident.
         drainStopped: false,
         advantageNext: { victim: false, killer: false },
-        openedAt: Date.now()
-    }, { explicit: ["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "swung"] });
+        // Read by the cast's claim alone (gm-stores.mjs `castStore`); kept in the cast with the rest.
+        openedAt: Date.now(),
+        keyRemnantsStale: null,
+        endedBy: null
+    }, { explicit: ["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "swung", ...INCIDENT_METHOD] });
 
     await whisperToGms(`
         <h3>${game.i18n.localize("DRPG.Murder.openedTitle")}</h3>
@@ -2894,7 +2944,8 @@ export async function liftIncidentSecrets() {
     const report = { lifted: 0, offers: 0, flags: 0, kept: 0 };
 
     const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const strays = CAST_FIELDS.filter(key => stored[key] != null);
+    // The names, as in 1.2.63: the method is `liftIncidentMethod`'s, which runs after this and tells the participants.
+    const strays = CAST_FIELDS.filter(key => !INCIDENT_METHOD.includes(key) && stored[key] != null);
     if (strays.length) {
         await castStore.patch(RECORD, Object.fromEntries(strays.map(key => [key, stored[key]])),
             { weak: true, fillOnly: true, whole: true });
@@ -2938,6 +2989,56 @@ export async function liftIncidentSecrets() {
         }
     }
     if (report.lifted || report.offers) pushCastToParticipants(readCast(), {});
+    return report;
+}
+
+/**
+ * THE INCIDENT'S METHOD OUT OF WORLD DATA (E05 C8; audit S04-08). Until 1.2.64 the world
+ * half of `murderState` held `indirect`, `selfInflicted`, `keyRemnantsStale`, `openedAt`
+ * and `endedBy` (`INCIDENT_METHOD`). The clause `liftIncidentMethod` (migrate.mjs) runs
+ * this once, on the primary, after the cast's copies arrived.
+ *
+ * WHILE AN INCIDENT RUNS the fields with a value go into the cast weak and fill-only - a
+ * value a GM wrote since the update stands - and a field leaves the world half only once
+ * the cast reads back from storage holding a value for it; a null there says "none" and
+ * leaves with them. Then the participants are sent the cast, so a trap's victim reads the
+ * trap from their copy. WITH NO INCIDENT RUNNING they leave outright: `murderState()` is
+ * null then, and nothing reads them. The world half is read back. Idempotent.
+ *
+ * @returns {Promise<null|{lifted: number, dropped: number, kept: number}>}
+ */
+export async function liftIncidentMethod() {
+    if (!isPrimaryGm()) return null;
+    if (await castStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the cast did not arrive; the next load tries again");
+    }
+    const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    const found = INCIDENT_METHOD.filter(key => Object.hasOwn(stored, key));
+    if (!found.length) return null;
+    const values = stored.active ? found.filter(key => stored[key] != null) : [];
+    if (values.length) {
+        await castStore.patch(RECORD, Object.fromEntries(values.map(key => [key, stored[key]])), { weak: true, fillOnly: true });
+        await castStore.idle();
+    }
+    const held = castStore.persisted(RECORD) ?? {};
+    const leave = found.filter(key => !values.includes(key) || (held[key] !== null && held[key] !== undefined));
+    if (leave.length) {
+        const rest = { ...stored };
+        for (const key of leave) delete rest[key];
+        await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
+    }
+    const back = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    const gone = leave.filter(key => !Object.hasOwn(back, key));
+    const report = {
+        lifted: gone.filter(key => values.includes(key)).length,
+        dropped: gone.filter(key => !values.includes(key)).length,
+        kept: found.length - gone.length
+    };
+    if (report.kept) warn(`The incident's method: ${report.kept} field(s) did not read back from the cast, so the world half keeps them.`);
+    if (report.lifted) {
+        log(`Lifted ${report.lifted} field(s) of the incident's method out of world data (S04-08).`);
+        pushCastToParticipants(readCast(), {});
+    }
     return report;
 }
 

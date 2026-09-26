@@ -709,6 +709,24 @@ const CLAUSES = [
             const { dropCardSummaries } = await import("./secret.mjs");
             return dropCardSummaries();
         }
+    },
+    {
+        key: "liftIncidentMethod",
+        since: "1.2.64",
+        /*
+         * THE INCIDENT'S METHOD OUT OF WORLD DATA (E05 C8; audit S04-08). Until 1.2.64 the
+         * world half of `murderState` held whether an incident was a trap or a death by the
+         * victim's own hand, whether a reversal left the plan stale, when it opened and how it
+         * ended. Once, on the primary, after the cast's copies arrived, with the rules written
+         * on `liftIncidentMethod`: while an incident runs, into the cast weak and fill-only and
+         * out of the world half only once the cast reads back holding them, then each
+         * participant's copy; with none running, out of the world half.
+         */
+        run: async () => {
+            const { liftIncidentMethod } = await import("./murder.mjs");
+            const report = await liftIncidentMethod();
+            return report && (report.lifted || report.dropped || report.kept) ? report : null;
+        }
     }
 ];
 

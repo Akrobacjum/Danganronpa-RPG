@@ -155,8 +155,9 @@ function openingCard() {
      * is complete, and because a rule that lives in one place is a rule that
      * travels when somebody moves the other place.
      */
+    // Whether it is a trap is the cast's since E05 C8 (audit S04-08), as the names are.
     const seats = incidentParticipants().filter(id =>
-        state.indirect ? id !== cast.killerId : id !== cast.victimId);
+        cast.indirect ? id !== cast.killerId : id !== cast.victimId);
     if (!game.user.isGM && !seats.some(id => ids.has(id))) return null;
     const victim = game.actors.get(cast.victimId), killer = game.actors.get(cast.killerId);
     let room = null;

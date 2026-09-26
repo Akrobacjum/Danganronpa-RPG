@@ -55,6 +55,14 @@ export const WORLD_SECRET_RULES = Object.freeze({
         keyRemnantPlan: Object.freeze({
             empty: true,
             since: "E05 C5", why: "the Key Remnant plan: each clue's name, what it says, its analysis, the GM's note and its token (S01-01, S05-02)"
+        }),
+        /* The world half of an incident: murder.mjs's `PUBLIC_INCIDENT`, written out (this file
+           imports nothing; R191 holds the two equal). Anything else - the names since LIVE-001,
+           the method since E05 C8 - is the cast's. */
+        murderState: Object.freeze({
+            only: Object.freeze(["active", "stage", "turn", "turnSide", "keyRemnants", "deniedToVictim", "hindered", "blocked",
+                "unlocked", "spent", "drainStopped", "advantageNext", "freeResolution", "thirdActed"]),
+            since: "E05 C8", why: "how an incident happened - a trap, a death by the victim's own hand, a reversal, when it opened, how it ended - and who is in it (S04-08)"
         })
     }),
     everySetting: Object.freeze({

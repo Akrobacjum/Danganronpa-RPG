@@ -395,18 +395,21 @@ export const SETTINGS = {
      */
     bodyFound: "bodyFound",
     /**
-     * The murder currently in progress, or `{}`.
+     * The murder currently in progress - its WORLD HALF - or `{}`.
      *
-     * World-scoped, and that is a real exposure: a player reading the console
-     * could learn who the killer is (see D6 - nothing world-scoped is hidden).
-     * Accepted deliberately, because the alternative is worse. An incident is a
-     * turn-based exchange between two players who both have to see whose turn
-     * it is, how much the victim has left, and which of their actions are
-     * blocked this turn. Hiding that on the GM's browser would mean a socket
-     * round trip per turn per participant, and a table sitting in silence
-     * waiting for it. The state is only live during an incident, everyone at
-     * the table knows an incident is happening, and the identity is about to
-     * come out anyway.
+     * World-scoped, so every browser holds it (D6: nothing world-scoped is
+     * hidden), and it holds only what a bystander may know: the fields
+     * murder.mjs lists in `PUBLIC_INCIDENT`, each with its reason - that an
+     * incident runs and at which stage, whose side acts, and the mechanics both
+     * participants' trackers need live every turn, which a socket round trip per
+     * turn would leave the table waiting for. Nothing in it names anyone.
+     *
+     * It used to hold more. This comment said until 1.2.64 that the killer could
+     * be read from it, which LIVE-001 had already ended; and it held how the
+     * incident happened - a trap, a death by the victim's own hand, a reversal,
+     * when it opened, how it ended - until E05 C8 (audit S04-08) moved those into
+     * the cast below. `murderState()` merges the two halves; the world-secrets
+     * rule (`murderState`'s `only`) holds this key to the list.
      */
     murderState: "murderState",
     /**
@@ -1867,7 +1870,8 @@ export function incidentParticipants() {
  * rules it states are the whole of the rule:
  *
  *   · the names come from `incidentCast`, never from the world setting - a
- *     bystander's browser holds none of them and must go on holding none
+ *     bystander's browser holds none of them and must go on holding none; so
+ *     does whether it is a trap (E05 C8)
  *   · a seat is decided by OWNERSHIP, because `game.user.character` is a field
  *     nothing at this table ever sets (see hud.mjs's own note on that)
  *   · a GM witnesses every incident, but owns no seat in it - owning every
@@ -1896,7 +1900,10 @@ export function incidentWitness() {
     if (!state.active || (state.stage !== "incident" && state.stage !== "openingRoll")) return away;
 
     const cast = incidentCast();
-    const indirect = Boolean(state.indirect);
+    /* From the cast, as the names are (E05 C8; audit S04-08). A trap's killer holds no cast
+       while it runs, so this reads false on their browser - and their seat is empty anyway;
+       it read `true` off the world half, the one fact about the trap they were not to learn. */
+    const indirect = Boolean(cast.indirect);
     const gm = Boolean(game.user?.isGM);
 
     const mine = new Set();

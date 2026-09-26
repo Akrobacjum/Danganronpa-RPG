@@ -4537,7 +4537,8 @@ const INVARIANTS = [
         const clean = () => ({
             settings: {
                 projectMeta: { R190PROJECT00001: { room: "Gym", indirectMurder: true, secret: true, trait: null, countsUp: true } },
-                clock: { chapter: 2, day: 3 }
+                clock: { chapter: 2, day: 3 },
+                murderState: { active: true, stage: "incident", turn: 2, turnSide: "killer", blocked: { victim: { survive: 1 }, killer: {} } }
             },
             actors: [{ id: KILLER, flags: { [MOD]: { advances: 1 }, "r190-other-module": { memo: KILLER } } },
                 { id: "R190BYSTANDER001", flags: { [MOD]: { deceased: false } } }],
@@ -4572,7 +4573,11 @@ const INVARIANTS = [
             // E05 C7: an actor carries no Reroll bookmark - even one with nothing in it is found.
             ["Actor flag lastAction",
                 s => { s.actors[1].flags[MOD].lastAction = {}; },
-                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.lastAction`]
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.lastAction`],
+            // E05 C8: the world half of an incident holds the public list alone - a trap's `false` is found as well.
+            ["murderState: only active, stage, turn, turnSide, keyRemnants, deniedToVictim, hindered, blocked, unlocked, spent, drainStopped, advantageNext, freeResolution, thirdActed",
+                s => { s.settings.murderState = { active: true, stage: "incident", turn: 1, turnSide: "victim", indirect: false }; },
+                h => h.kind === "only" && h.doc === "setting" && h.id === "murderState" && h.path === "indirect"]
         ];
         /* The exemptions: [what, plant, whether the hits are right]. projectMeta's own map token, as
            projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock

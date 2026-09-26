@@ -170,6 +170,40 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         JSON.stringify(trap.killer) === JSON.stringify(trap.bystander),
         `killer ${JSON.stringify(trap.killer)} vs bystander ${JSON.stringify(trap.bystander)}`);
 
+    /* HOW IT HAPPENED IS NOT IN THE WORLD (E05 C8; audit S04-08). The world half of
+       `murderState` said `indirect: true` on every browser - the killer's too, who is told
+       nothing else. Each player's world half holds only the public list (world-secrets.mjs,
+       `murderState`'s `only`), and the victim reads the trap from their own copy of the cast.
+       Red on the C7 tree: p1, p2 and p3 each read indirect, selfInflicted and openedAt there. */
+    const METHOD = `const W = await import("${repoUrl}/scripts/world-secrets.mjs");
+        const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        const world = game.settings.get("${MOD}", "murderState") ?? {};
+        return { unlisted: Object.keys(world).filter(k => !W.WORLD_SECRET_RULES.settings.murderState?.only?.includes(k)),
+            active: Boolean(world.active), copy: incidentCast().indirect ?? null };`;
+    const method = { victim: await p1.eval(METHOD), bystander: await p2.eval(METHOD), killer: await p3.eval(METHOD) };
+    check("trap: no player's world half says how it happened",
+        Object.values(method).every(m => m.active && !m.unlisted.length), JSON.stringify(method));
+    check("trap: the victim reads the trap from their copy of the cast, and nobody else holds it",
+        method.victim.copy === true && method.bystander.copy === null && method.killer.copy === null, JSON.stringify(method));
+
+    /* AND THE KILLER IS LET BACK IN AT STAGE 6 (`castOwners`, murder.mjs), the trap in their
+       copy. The GM rules the victim's roll a failure - the trap closes - and moves the incident
+       on. Red on the C7 tree: the killer was sent the cast, without `indirect`, which was the
+       world half's. The gate compares both halves since E05 C8; a mutant comparing the world
+       halves alone still passes here (26.09), because every road into Stage 6 writes `endedBy`,
+       a cast field now, and a write of the cast is pushed anyway - this guards the outcome,
+       not that line. */
+    await gm.eval(`
+        await game.drpg.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await game.drpg.beginResolution("victimKilled");
+        return true;
+    `, { timeout: 60000 });
+    await settle(900);
+    const stage6 = await p3.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs"); const c = incidentCast();
+        return { stage: game.settings.get("${MOD}", "murderState")?.stage ?? null, killer: c.killerId ?? null, indirect: c.indirect ?? null };`);
+    check("trap: at Stage 6 the killer is sent the cast, the trap with it",
+        stage6.stage === "resolution" && stage6.killer === ids.chie && stage6.indirect === true, JSON.stringify(stage6));
+
     /* ---- 3. and it all goes back ------------------------------------------- */
     phase("after", { flow: "murder-incident" });
     /* Through `endMurder` again, for the reason given at the top of part 2. */

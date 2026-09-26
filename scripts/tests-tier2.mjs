@@ -1410,19 +1410,19 @@ const SCENARIOS = [
             await game.user.update({ character: killer.id });
 
             // The GMs' record, through the store (E04); tier 2's restore puts the store back.
-            await castStore.patch("record", { killerId: killer.id, victimId: victim.id, thirdId: null });
+            // Whether it is a trap is the cast's too since E05 C8 (audit S04-08); the world half holds no `indirect`.
+            await castStore.patch("record", { killerId: killer.id, victimId: victim.id, thirdId: null, indirect: false });
 
             // ---- a DIRECT murder: the killer is in the room ------------------
             await game.settings.set(MOD, "murderState",
-                { active: true, stage: "incident", indirect: false, turn: 1, turnSide: "victim" });
+                { active: true, stage: "incident", turn: 1, turnSide: "victim" });
             const direct = incidentWitness();
             ok(direct.running, "a running incident does not read as running");
             ok(direct.witness, "the killer of a direct murder is not a witness to it");
             equal(direct.seat, killer.id, "the killer's own seat was not recognised");
 
             // ---- the SAME murder, sprung by a trap ---------------------------
-            await game.settings.set(MOD, "murderState",
-                { active: true, stage: "incident", indirect: true, turn: 1, turnSide: "victim" });
+            await castStore.patch("record", { indirect: true });
             const trap = incidentWitness();
             ok(trap.running, "an indirect incident does not read as running");
             ok(trap.indirect, "the incident does not know it is a trap");
@@ -8096,6 +8096,115 @@ const SCENARIOS = [
         }
     }],
 
+    ["a trap's victim reads indirect from the cast; the world half does not hold it", async () => {
+        /*
+         * E05 C8, 26.09.2026; audit S04-08. The world half of `murderState` held whether an
+         * incident was a trap, and every browser holds it - the trap's builder among them, the
+         * one person `castOwners` withholds the cast from while it runs. Opened through the
+         * game's own call, an indirect murder, with this GM sitting in the victim's chair: the
+         * world half holds only the public list; the cast holds the method, decided afresh
+         * (a trap, not by the victim's own hand, no reversal, no end, when it opened);
+         * `murderState()` merges it; and the victim's seat reads a trap. Read at once after
+         * the open: the victim's opening roll runs on their player's browser and may close
+         * it. The killer's side is "a trap does not tell the person who set it".
+         */
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { incidentWitness } = await import("./settings.mjs");
+        const [killer, victim] = cast(2);
+        const assignedBefore = game.user.character ?? null;
+        try {
+            await game.user.update({ character: victim.id });
+            const opened = await M.openMurder({ killerId: killer.id, victimId: victim.id, indirect: true });
+            const world = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {});
+            const record = S.castStore.record();
+            const merged = M.murderState();
+            const seat = incidentWitness();
+            ok(opened && world.active, "the indirect murder did not open - this measured nothing");
+            const extra = Object.keys(world).filter(key => !Object.hasOwn(M.PUBLIC_INCIDENT, key));
+            ok(!extra.length, `the world half of an incident holds what the public list does not: ${extra.join(", ")}`);
+            equal(stableJson([record.indirect, record.selfInflicted, record.keyRemnantsStale ?? null, record.endedBy ?? null, Number.isFinite(record.openedAt)]),
+                stableJson([true, false, null, null, true]), `the cast does not hold the incident's method as it opened: ${stableJson(record)}`);
+            equal(merged?.indirect, true, "murderState() does not read the trap from the cast");
+            ok(seat.running && seat.indirect && seat.seat === victim.id, `the victim's seat does not read a trap from the cast: ${stableJson(seat)}`);
+        } finally {
+            await game.user.update({ character: assignedBefore?.id ?? null });
+        }
+    }],
+
+    ["the method's lift moves a running incident's five fields into the cast, and out of the world half once they read back", async () => {
+        /*
+         * E05 C8, 26.09.2026; audit S04-08. A world from before 1.2.64 keeps an incident's
+         * method in the world half of `murderState`; the clause `liftIncidentMethod` moves the
+         * fields with a value into the cast, weak and fill-only, and takes each out of the
+         * world half once the cast reads it back from storage; a null leaves with them. In a
+         * world the stores have never opened (`withGmStoreWorld`), with a reversal a GM wrote
+         * since the update: it stands. The report counts four lifted and the null dropped, and
+         * a second run has nothing to do. Then with no incident running the fields leave
+         * outright and the cast is not touched. The world setting is put back by tier 2's
+         * restore.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const mechanics = { active: true, stage: "incident", turn: 2, turnSide: "killer", keyRemnants: 4 };
+        await E.withGmStoreWorld(`suite-methodlift-${foundry.utils.randomID(8)}`, async () => {
+            await S.castStore.patch("record", { keyRemnantsStale: false });
+            await game.settings.set(MODULE_ID, SETTINGS.murderState,
+                { ...mechanics, indirect: true, selfInflicted: false, keyRemnantsStale: true, openedAt: 1700000000000, endedBy: null });
+            const report = await M.liftIncidentMethod();
+            const held = S.castStore.persisted("record") ?? {};
+            equal(stableJson([held.indirect, held.selfInflicted, held.keyRemnantsStale, held.openedAt, held.endedBy ?? null]),
+                stableJson([true, false, false, 1700000000000, null]),
+                "the method did not read back from the cast's storage as the world's, or the world's overwrote a reversal a GM wrote since");
+            equal(stableJson(game.settings.get(MODULE_ID, SETTINGS.murderState)), stableJson(mechanics), "the world half still holds the method, whose fields read back");
+            equal(stableJson(report), stableJson({ lifted: 4, dropped: 1, kept: 0 }), `the lift's report: ${stableJson(report)}`);
+            equal(await M.liftIncidentMethod(), null, "a second run of the lift found something to do");
+
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, { indirect: true, openedAt: 1700000000001 });
+            const closed = await M.liftIncidentMethod();
+            equal(stableJson([closed, game.settings.get(MODULE_ID, SETTINGS.murderState), S.castStore.persisted("record")?.openedAt]),
+                stableJson([{ lifted: 0, dropped: 2, kept: 0 }, {}, 1700000000000]), "with no incident running the method did not simply leave the world, or reached the cast");
+        });
+    }],
+
+    ["the method's lift leaves the world half as it was when the cast's rows do not read back", async () => {
+        /*
+         * E05 C8, 26.09.2026: the other half of the pair above. The cast's save is swallowed -
+         * the fields stand in memory and not on disk - and the world half keeps the whole
+         * method: nothing leaves world data the cast cannot read back, and the report says how
+         * much was kept. In a world the stores have never opened; the world setting is put
+         * back by tier 2's restore.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const old = { active: true, stage: "resolution", turn: 3, turnSide: "victim", indirect: false, selfInflicted: true, openedAt: 1700000000000, endedBy: "selfInflicted" };
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        try {
+            await E.withGmStoreWorld(`suite-methodkept-${foundry.utils.randomID(8)}`, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.murderState, old);
+                settings.set = async function (namespace, key, value) {
+                    if (namespace === MODULE_ID && key === S.castStore.spec.key) return value;
+                    return realSet.call(this, namespace, key, value);
+                };
+                const report = await M.liftIncidentMethod();
+                putBack();
+                equal(S.castStore.record()?.selfInflicted, true, "the swallowed save left no field in memory either - this measured nothing");
+                equal(stableJson([report, game.settings.get(MODULE_ID, SETTINGS.murderState)]), stableJson([{ lifted: 0, dropped: 0, kept: 4 }, old]),
+                    "the world half lost a method whose fields are not on disk, or the report does not say what was kept");
+            });
+        } finally {
+            putBack();
+        }
+    }],
+
     ["a changed old store is reported, and taking it never overwrites what changed since the upgrade", async () => {
         /*
          * E04, 26.09.2026; the design's H1. After the upgrade the old keys are frozen,
@@ -8370,7 +8479,7 @@ const SCENARIOS = [
             const theirs = E.emptySection();
             E.writeFields(theirs, "record", stale, theirsAt, S.castStore.spec, { whole: true });
             await S.castStore.mergeIn(theirs, { source: "sync" });
-            await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident", turn: 2, turnSide: "killer", indirect: false });
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident", turn: 2, turnSide: "killer" });
             equal(M.murderState()?.killerId, killer.id, "the other GM's copy did not arrive");
 
             await M.endMurder({ reason: "test", followUp: false });

@@ -507,7 +507,8 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     await p1.eval(RECORD_CASTS);
     const castsNow = client => client.eval(`return globalThis.__casts.length;`);
     const castsSince = (client, n) => client.eval(`return globalThis.__casts.slice(${n});`);
-    const castStampsOn = client => client.eval(`${CAST} return Object.fromEntries(["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "betrayal"]
+    // Every field but the swing memo, as a copy is sent them - the method among them since E05 C8.
+    const castStampsOn = client => client.eval(`${CAST} return Object.fromEntries(S.CAST_FIELDS.filter(f => f !== "swung")
         .map(f => [f, S.castStore.stampOf("record", f)]));`);
     /* The killer's opening roll is thrown on p3's client with the harness's dice: forced to a
        critical, which always opens the incident. Left random, it failed once in six runs
@@ -542,6 +543,21 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         && answeredF.p3.length === 1 && answeredF.p3[0].cast?.killerId === IDS.chie && answeredF.p3[0].cast?.victimId === IDS.daichi
         && !("swung" in (answeredF.p3[0].cast ?? {})) && J(answeredF.p3[0].stamps) === J(stampsF)
         && J(answeredF.p1) === J([{ from: IDS.gm, cast: {}, stamps: seatsF }]), J({ answeredF, stampsF, p3AfterGm, onGmF, onGm2F }));
+
+    /* F7 (E05 C8; audit S04-08): the incident's method is the cast's now, and syncs with it -
+       gm2, which connected after the open, holds what the primary wrote; the killer's player's
+       copy holds it; and a bystander's world half holds none of it. */
+    const methodOn = client => client.eval(`${CAST} const r = S.castStore.record();
+        return { indirect: r.indirect ?? null, selfInflicted: r.selfInflicted ?? null, openedAt: r.openedAt ?? null, endedBy: r.endedBy ?? null };`);
+    const methodGm = await methodOn(gm), methodGm2 = await methodOn(gm2);
+    const methodP3 = await p3.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs"); const c = incidentCast();
+        return { indirect: c.indirect ?? null, openedAt: c.openedAt ?? null };`);
+    const worldP1 = await p1.eval(`return Object.keys(game.settings.get("${MOD}", "murderState") ?? {});`);
+    check("F7: the incident's method syncs with the cast - both GMs and the killer's player's copy hold it, a bystander's world half none of it",
+        Number.isFinite(methodGm.openedAt) && J(methodGm2) === J(methodGm) && methodGm.indirect === false && methodGm.selfInflicted === false
+        && methodP3.indirect === false && methodP3.openedAt === methodGm.openedAt
+        && !worldP1.some(k => ["indirect", "selfInflicted", "keyRemnantsStale", "openedAt", "endedBy"].includes(k)) && worldP1.includes("active"),
+        J({ methodGm, methodGm2, methodP3, worldP1 }));
 
     /* F5, the review's B1 for the cast (26.09): a GM that has not merged a newer write lets
        a third in. gm's store is held (it sends the other GMs nothing and, since the fix round,
@@ -827,7 +843,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
             claimed: S.castStore.census()?.claimed ?? null };`);
     const stateBeforeK = await gm.eval(`return foundry.utils.deepClone(game.settings.get("${MOD}", "murderState") ?? {});`);
     const clearedK = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await S.castStore.clear();
-        await game.settings.set("${MOD}", "murderState", { active: true, stage: "incident", turn: 2, turnSide: "killer", indirect: false });
+        await game.settings.set("${MOD}", "murderState", { active: true, stage: "incident", turn: 2, turnSide: "killer" });
         return S.castStore.cleared();`);
     await settle(1200);
     const runningK = { killerId: IDS.chie, victimId: IDS.daichi, killerTurnId: IDS.chie, thirdId: null, thirdSide: null, lastCrisis: null, updated: clearedK + 600 };

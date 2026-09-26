@@ -5641,7 +5641,9 @@ const REGRESSIONS = [
             // The Key Remnant plan out of the world's keyRemnantPlan (E05 C5).
             ["investigation.mjs", "liftKeyPlan", ["weak", "fillOnly"], true],
             // The pre-session notes out of their users' flags (E05 C6).
-            ["pre-session-note.mjs", "liftNotes", ["weak", "fillOnly"], true]
+            ["pre-session-note.mjs", "liftNotes", ["weak", "fillOnly"], true],
+            // The incident's method out of the world half of murderState (E05 C8).
+            ["murder.mjs", "liftIncidentMethod", ["weak", "fillOnly"], true]
         ];
         // The migrations that read a store through a function they call: they wait themselves.
         const WAITERS = [["remnants.mjs", "migrateRemnants"], ["remnants.mjs", "migrateRemnantToken"]];
@@ -5720,7 +5722,8 @@ const REGRESSIONS = [
             ["liftIncidentSecrets", "liftIncidentSecrets", "1.2.63"], ["liftDiscoveryLedger", "liftDiscoveryLedger", "1.2.63"],
             ["liftProjectSecrets", "liftProjectSecrets", "1.2.64"], ["liftPendingMurders", "liftPendingMurders", "1.2.64"],
             ["liftEclipseMoves", "liftEclipseMoves", "1.2.64"], ["liftKeyPlan", "liftKeyPlan", "1.2.64"], ["liftNotes", "liftNotes", "1.2.64"],
-            ["dropRollBookmarks", "dropRollBookmarks", "1.2.64"], ["dropCardSummaries", "dropCardSummaries", "1.2.64"]];
+            ["dropRollBookmarks", "dropRollBookmarks", "1.2.64"], ["dropCardSummaries", "dropCardSummaries", "1.2.64"],
+            ["liftIncidentMethod", "liftIncidentMethod", "1.2.64"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.
@@ -5758,6 +5761,103 @@ const REGRESSIONS = [
         const found = callers(sources);
         log(`R178: ${LIFTS.length} lifts, read in ${sources.size} files`);
         ok(!found.length, `a lift runs outside its migration clause: ${found.join(", ")}`);
+    }],
+
+    ["R191 - the world half of an incident holds only the listed public fields", async () => {
+        /*
+         * E05 C8, 26.09.2026; audit S04-08. The world half of `murderState` is on every
+         * browser, and until 1.2.64 it held whatever an incident's write named that was not
+         * a cast field: a trap, a death by the victim's own hand, a reversal, when it opened,
+         * how it ended. It is turned round now: murder.mjs lists what it may hold
+         * (`PUBLIC_INCIDENT`, a reason each), `splitIncident` sends everything else to the
+         * cast or nowhere, and the world-secrets rule is the same list written out. Read here:
+         * the list has its reasons, shares no field with the cast and equals the rule; the
+         * split puts a field nobody listed anywhere but the world; only `writeState`,
+         * `restoreState` (both through the split) and the two lifts (which only take fields
+         * out; their tier-2 pairs measure that) write the key; and every field a write in
+         * murder.mjs names - a `writeState({ ... })` literal, a `patch` built for one - is
+         * listed on one side. A computed key (`[store]`, "hindered" or "blocked") is not read.
+         * The season reset writes `{}` through its table (season-setup.mjs). The reader is
+         * shown a planted write of each kind first. E32 builds on it to shrink the list.
+         */
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const W = await import("./world-secrets.mjs");
+        const listed = Object.keys(M.PUBLIC_INCIDENT);
+        const sorted = list => JSON.stringify([...list].sort());
+        const noReason = Object.entries(M.PUBLIC_INCIDENT).filter(([, why]) => typeof why !== "string" || why.length < 12).map(([key]) => key);
+        ok(!noReason.length, `a public field of an incident has no reason written beside it: ${noReason.join(", ")}`);
+        const both = listed.filter(key => S.CAST_FIELDS.includes(key));
+        ok(!both.length, `a field is both public and the cast's: ${both.join(", ")}`);
+        equal(sorted(W.WORLD_SECRET_RULES.settings.murderState?.only ?? []), sorted(listed),
+            "the world-secrets rule for murderState and murder.mjs's PUBLIC_INCIDENT are not the same list");
+        const method = S.INCIDENT_METHOD.filter(key => !S.CAST_FIELDS.includes(key) || listed.includes(key));
+        ok(S.INCIDENT_METHOD.length === 5 && !method.length, `the incident's method is not the cast's alone: ${method.join(", ")}`);
+
+        const split = M.splitIncident({ ...Object.fromEntries(listed.map(key => [key, 1])), ...Object.fromEntries(S.CAST_FIELDS.map(key => [key, 2])), R191planted: 3 });
+        equal(JSON.stringify([sorted(Object.keys(split.world)), sorted(Object.keys(split.cast)), split.neither]),
+            JSON.stringify([sorted(listed), sorted(S.CAST_FIELDS), ["R191planted"]]),
+            "the split does not put each listed field in the world half, each cast field in the cast, and a field nobody listed in neither");
+
+        const SET = /(?:\.set\(\s*[\w.]+\s*,\s*(?:SETTINGS\.murderState\b|"murderState")|\bsetSetting\(\s*SETTINGS\.murderState\b)/g;
+        const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
+        const ALLOWED = ["murder.mjs writeState", "murder.mjs restoreState", "murder.mjs liftIncidentSecrets", "murder.mjs liftIncidentMethod"];
+        const writers = files => {
+            const out = [];
+            for (const [file, text] of files) {
+                const src = stripComments(text);
+                const decls = [...src.matchAll(DECL)];
+                for (const m of src.matchAll(SET)) {
+                    const fn = decls.filter(d => d.index < m.index).pop()?.[1] ?? "(top level)";
+                    out.push(`${file} ${fn}`);
+                }
+            }
+            return out;
+        };
+        const topKeys = (text, open) => {
+            const keys = [];
+            let depth = 0, entry = false;
+            for (let i = open; i < text.length; i++) {
+                const c = text[i];
+                if ("([{".includes(c)) { if (++depth === 1) entry = true; continue; }
+                if (")]}".includes(c)) { if (--depth === 0) break; continue; }
+                if (depth !== 1) continue;
+                if (c === ",") { entry = true; continue; }
+                if (!entry || /\s/.test(c)) continue;
+                entry = false;
+                const m = /^([A-Za-z_$][\w$]*)\s*[:,}]/.exec(text.slice(i));
+                if (m) keys.push(m[1]);
+            }
+            return keys;
+        };
+        const named = text => {
+            const src = stripStrings(stripComments(text));
+            const keys = [];
+            for (const m of src.matchAll(/\bwriteState\(\s*\{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
+            for (const m of src.matchAll(/\bconst patch = \{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
+            for (const m of src.matchAll(/\bpatch\.(\w+)\s*=(?!=)/g)) keys.push(m[1]);
+            return keys;
+        };
+        const unlisted = keys => [...new Set(keys)].filter(key => !listed.includes(key) && !S.CAST_FIELDS.includes(key));
+        const planted = "function planted(state) {\n    return game.settings.set(MODULE_ID, SETTINGS.murderState, { ...state, indirect: true });\n}\n"
+            + "async function writeState(patch) {\n    await game.settings.set(MODULE_ID, SETTINGS.murderState, publicNext);\n}\n"
+            + "async function other(store) {\n    await writeState({ stage: \"incident\", R191planted: { deep: 1 }, [store]: 1, ...more });\n"
+            + "    const patch = { turn: 1, R191alsoPlanted: \"a, b: c\" };\n    patch.R191thirdPlanted = 2;\n}\n";
+        equal(JSON.stringify([writers([["planted.mjs", planted]]), unlisted(named(planted))]),
+            JSON.stringify([["planted.mjs planted", "planted.mjs writeState"], ["R191planted", "R191alsoPlanted", "R191thirdPlanted"]]),
+            "the reader does not find exactly the writer and the three unlisted fields planted for it");
+
+        const sources = await otherSources();
+        const stray = writers(sources).filter(w => !ALLOWED.includes(w));
+        ok(!stray.length, `the world half of an incident is written outside writeState, restoreState and the lifts: ${stray.join(", ")}`);
+        const murderSrc = stripComments(new Map(sources).get("murder.mjs") ?? "");
+        for (const fn of ["writeState", "restoreState"]) ok(/\bsplitIncident\(/.test(fnSource(murderSrc, fn)), `${fn} writes the world half without splitting it by the public list`);
+        const keys = named(new Map(sources).get("murder.mjs") ?? "");
+        // Not a reading of nothing: murder.mjs's writes name the stage, the turn and the method (measured 26.09: 74 names, 26 of them distinct).
+        ok(keys.length > 50 && ["stage", "turn", "indirect", "endedBy", "keyRemnantsStale"].every(key => keys.includes(key)), `the census read ${keys.length} field names in murder.mjs's writes - too few to trust`);
+        log(`R191: ${listed.length} public fields, ${S.INCIDENT_METHOD.length} of the method in the cast, ${keys.length} field names read in murder.mjs's writes`);
+        const bad = unlisted(keys);
+        ok(!bad.length, `a write of an incident names a field neither the public list nor the cast holds: ${bad.join(", ")}`);
     }]
 ];
 
