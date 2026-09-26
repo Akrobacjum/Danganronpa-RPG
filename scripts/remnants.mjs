@@ -1839,6 +1839,18 @@ const ANSWER_KEY_FLAGS = Object.entries(REMNANT_FLAGS)
     .map(([, flag]) => flag);
 
 /**
+ * Whether a trace's answer key is still on its token, whole enough for
+ * `migrateRemnants` to move into the ledger: its type is there (with no row here,
+ * `migrateRemnantToken` starts one only from a typed token). The health check counts
+ * these apart from the traces only a backup can bring back (the review's C-m14: it
+ * offered a Restore that could not help).
+ */
+export function answerKeyOnToken(token) {
+    const flags = token?._source?.flags?.[MODULE_ID] ?? token?.flags?.[MODULE_ID] ?? {};
+    return REMNANT_FLAGS.type in flags;
+}
+
+/**
  * One trace's part of `migrateRemnants` (E30, 24.09.2026; audit S17-01, S05-43).
  *
  * THE STRIP IS READ BACK. It was written with `-=` keys, which remove nothing in

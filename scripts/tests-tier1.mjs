@@ -3720,9 +3720,10 @@ const INVARIANTS = [
         const built = S.caseFileOf({ sections: S.caseSections(fake), world: { id: "R173WORLD", title: "R173" }, exportedAt: "x", exportedBy: "y" });
         equal(J([built.format, built.version, Object.keys(built.stores)]), J([S.CASE_FORMAT, S.CASE_VERSION, ["backedUp"]]), "the file is not the case format");
         equal(S.readCaseFile(J({ format: S.CASE_FORMAT, version: S.CASE_VERSION + 1, stores: {} })).refused, "newer", "a file of a newer format was not refused");
+        // An actor this world does not have: the row is another world's, and counted (R181 reads one it has).
         const flat = S.readCaseFile(J({ "Actor.R173.Item.R173": { realType: "key", updated: 5 } }));
-        equal(J([flat.kind, flat.stores?.bullets?.e?.["Actor.R173.Item.R173"]?.realType]), J(["flat", "key"]),
-            "the Truth Bullet export of 1.2.62 is not read as the bullets' section");
+        equal(J([flat.kind, Object.keys(flat.stores?.bullets?.e ?? {}), flat.notThisWorld?.bullets]), J(["flat", [], 1]),
+            "the Truth Bullet export of 1.2.62 is not read as the bullets' section, or took another world's row");
     }],
 
     ["R174 - the case health report counts this world as it stands", async () => {
@@ -3731,8 +3732,10 @@ const INVARIANTS = [
          * GM's `game.drpg.gmStoreHealth()`) says what this browser is missing of the
          * case. It reads; it writes nothing (this tier's runner holds it to that). Held:
          * the traces it counts are the Remnant tokens on every scene, and every one of
-         * them is either missing its answer key or has one - the two add up; the same
-         * for the Truth Bullets in the world; each row is a level the report knows and a
+         * them is missing its answer key, holds it still on its token (a trace
+         * `migrateRemnants` has not reached, counted apart since E04's fix round, the
+         * review's C-m14), or has one - the three add up; the same for the Truth Bullets
+         * in the world; each row is a level the report knows and a
          * sentence both languages carry; and its count of missing rows is its rows.
          */
         needs(world.atLeast("remnantTokens", 1), "the report counts the traces on the map");
@@ -3742,8 +3745,8 @@ const INVARIANTS = [
         ok(report?.counts, "a GM's health report carried no counts");
         const tokens = [...game.scenes].flatMap(scene => [...scene.tokens].filter(t => t.getFlag(MODULE_ID, "isRemnant")));
         equal(report.counts.traces.of, tokens.length, "the report counts other traces than the Remnant tokens on every scene");
-        equal(report.counts.traces.missing + tokens.filter(t => remnantData(t)).length, tokens.length,
-            "traces missing an answer key and traces holding one do not add up to the traces on the map");
+        equal(report.counts.traces.missing + report.counts.traces.onToken + tokens.filter(t => remnantData(t)).length, tokens.length,
+            "traces missing an answer key, traces whose key is still on the token and traces holding one do not add up to the traces on the map");
         const bullets = game.actors.filter(a => a.type === "character").flatMap(a => a.items.filter(i => i.getFlag(MODULE_ID, "category") === "truthBullet"));
         equal(report.counts.bullets.of, bullets.length, "the report counts other bullets than the world's");
         ok(report.rows.every(r => ["missing", "conflict", "info"].includes(r.level) && (game.i18n.has(r.key) || game.i18n.has(`${r.key}.other`))),
@@ -3985,6 +3988,133 @@ const INVARIANTS = [
             "the automatic pass does not read the world before the migration starts, or does not hand it on");
         ok(/clause\.run\(\{ from, to, force, wasInPlay: inPlay \}\)/.test(fnSource(src, "migrate1_2_0")), "the clauses are not told whether the world was in play");
         ok(/if \(!from && !wasInPlay\) return null;/.test(fnSource(src, "keepOldSafeword")), "the safeword is kept for a stamped world only");
+    }],
+
+    ["R181 - a restore takes no file's watermark, no other world's removal and no stamp beyond the clock", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the reviews' DS-M1 = C-m6, S-M1 = DS-m11 = C-m12,
+         * S-M2, C-m11 and the round-2 note on the restore's delta. What a restore takes of
+         * a file is `fileSection`, pure, and what it says it will do is `previewSection`
+         * over that. Held: a file's watermark is never taken - two older rows here survive
+         * a file cut after them, and the preview of the raw file says it would have removed
+         * both; another world's removal is not taken, this world's is, and is counted; a
+         * field far ahead and a tombstone a year ahead are taken at the restore's moment
+         * and counted, one within the clock's bound is kept, and a real write the next
+         * moment wins; a split field's part named `__proto__` is refused by the gate and
+         * never reaches the merged row's prototype. Then the file: a version that is not a
+         * whole number is not this module's; a section with a string stamp, or such a part,
+         * refuses the file naming the store; a refusal's sentence carries no angle bracket
+         * the file gave; an old export's rows of another world are left out and counted.
+         * Last, on an engine built with fakes: one flush of 300 KB goes to the other GMs in
+         * parts no larger than a state's, every row in one of them.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const J = G.stableJson;
+        const spec = { name: "r181", split: ["public"] };
+        const here = G.emptySection();
+        G.writeFields(here, "a", { realType: "key" }, 1000, spec);
+        G.writeFields(here, "b", { realType: "final" }, 1500, spec);
+        const file = G.emptySection();
+        G.writeFields(file, "x", { realType: "prep" }, 2500, spec);
+        G.raiseCleared(file, 2000, spec);
+        equal(G.previewSection(here, file, spec).remove, 2, "the preview of a file cut after two rows here does not say it would remove them");
+        const taken = G.fileSection(file, { now: 10_000 }).section;
+        equal(taken.cleared, 0, "a restore takes the file's watermark");
+        equal(J(Object.keys(G.mergeSections(here, taken, spec).e).sort()), J(["a", "b", "x"]), "a file's watermark removed this browser's older rows");
+        equal(J(G.previewSection(here, taken, spec)), J({ inFile: 1, add: 1, refresh: 0, keptNewerHere: 0, beforeCut: 0, beforeCutKeys: [], remove: 0 }),
+            "the preview of the file as a restore takes it does not say one new row and nothing removed");
+
+        const removal = { e: {}, t: {}, d: { a: 3000 }, cleared: 0 };
+        equal(J(Object.keys(G.mergeSections(here, G.fileSection(removal, { now: 10_000, otherWorld: true }).section, spec).e).sort()), J(["a", "b"]),
+            "another world's removal was taken");
+        const own = G.fileSection(removal, { now: 10_000 }).section;
+        equal(J([Object.keys(G.mergeSections(here, own, spec).e), G.previewSection(here, own, spec).remove]), J([["b"], 1]),
+            "this world's newer removal was not taken, or not counted");
+
+        const NOW = 5_000_000, SKEW = 600_000;
+        const ahead = G.emptySection();
+        G.writeFields(ahead, "far", { realType: "incident" }, 1e15, spec);
+        G.dropKey(ahead, "gone", NOW + 365 * 86_400_000, spec);
+        G.writeFields(ahead, "near", { realType: "prep" }, NOW + SKEW - 1, spec);
+        const bounded = G.fileSection(ahead, { now: NOW, skew: SKEW });
+        equal(J([bounded.clamped, bounded.section.t.far, bounded.section.d.gone, bounded.section.t.near]), J([2, NOW, NOW, NOW + SKEW - 1]),
+            "a stamp beyond the clock's bound was kept, one within it was moved, or they were not counted");
+        const later = G.mergeSections(here, bounded.section, spec);
+        G.writeFields(later, "far", { realType: "key" }, NOW + 1, spec);
+        equal(G.mergeSections(later, bounded.section, spec).e.far?.realType, "key", "a real write after the restore did not win over a stamp the file ran ahead");
+
+        const planted = JSON.parse('{"e":{"k":{"public":{"__proto__":{"playerText":"R181 planted"},"name":"n"}}},"t":{"k":{"":5,"public":5}},"d":{},"cleared":0}');
+        ok(G.sectionProblem(planted, spec), "a split field's part named __proto__ passed the gate");
+        const through = G.mergeSections(G.emptySection(), planted, spec);
+        equal(J([Object.getPrototypeOf(through.e.k?.public ?? {}) === Object.prototype, through.e.k?.public?.playerText ?? null]), J([true, null]),
+            "a part named __proto__ set the merged row's prototype");
+
+        const caseFile = stores => J({ format: S.CASE_FORMAT, version: S.CASE_VERSION, world: { id: game.world.id, title: "R181" }, stores });
+        equal(S.readCaseFile(J({ format: S.CASE_FORMAT, version: "<b>1</b>", stores: {} })).refused, "unreadable", "a version that is not a number was read");
+        equal(S.readCaseFile(J({ format: S.CASE_FORMAT, version: 1.5, stores: {} })).refused, "unreadable", "a version that is not a whole number was read");
+        const badStamp = S.readCaseFile(caseFile({ bullets: { e: { "Actor.R181.Item.R181": { realType: "key" } }, t: { "Actor.R181.Item.R181": "1800000000500" }, d: {}, cleared: 0 } }));
+        equal(J([badStamp.refused, badStamp.store]), J(["malformed", "bullets"]), "a section stamped with a string was read");
+        const badPart = S.readCaseFile(caseFile({ remnants: planted }));
+        equal(J([badPart.refused, badPart.store]), J(["malformed", "remnants"]), "a trace's public part named __proto__ was read");
+        const text = S.caseRefusalText({ refused: "otherWorld", world: { id: "x", title: "<img src=x onerror=alert(1)>" } })
+            + S.caseRefusalText({ refused: "newer", version: 99 });
+        ok(!/[<>]/.test(text) && /99/.test(text), `a refusal's sentence carries what the file gave as markup: ${text}`);
+
+        const sent = [];
+        const flushes = [];
+        const bus = G.createGmStoreEngine({
+            selfId: () => "R181GM", isGM: () => true, isPrimary: () => true, worldId: () => "R181WORLD",
+            activeGmIds: () => ["R181GM", "R181PEER"], primaryGmId: () => "R181GM", senderIsGM: () => true, userName: u => u,
+            send: packet => sent.push(packet), storage: { read: () => null, write: async () => {} }, readLegacy: () => undefined,
+            now: () => NOW, timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+            clock: () => ({}), log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const big = bus.define({ name: "r181", key: "r181Key", kind: "ledger", sync: true, backup: true });
+        const rows = Object.fromEntries(Array.from({ length: 300 }, (_, i) => [`row${i}`, { note: "x".repeat(1000) }]));
+        await big.patchMany(rows);
+        await Promise.all(flushes);
+        const deltas = sent.filter(p => p.action === G.GMS_ACTIONS.delta);
+        const inParts = new Set(deltas.flatMap(p => Object.keys(p.delta.e)));
+        equal(J([deltas.length > 1, deltas.every(p => J(p.delta).length <= 256 * 1024 + 2048), inParts.size]), J([true, true, 300]),
+            `one flush of 300 KB went out as ${deltas.length} packet(s) of ${deltas.map(p => J(p.delta).length).join(", ")} characters`);
+
+        needs(world.atLeast("livingStudents", 1), "the old export's world filter is read with a student of this world");
+        const [student] = studentActors();
+        const flat = S.readCaseFile(J({ [`Actor.${student.id}.Item.R181`]: { realType: "key", updated: 5 }, "Actor.R181NOTHERE0000.Item.R181": { realType: "final", updated: 5 } }));
+        equal(J([Object.keys(flat.stores.bullets.e), flat.stores.bullets.t[`Actor.${student.id}.Item.R181`], flat.notThisWorld?.bullets]),
+            J([[`Actor.${student.id}.Item.R181`], 5, 1]), "the old export's row of this world was not taken at its stamp, or another world's was taken, or not counted");
+    }],
+
+    ["R182 - every store a player's copy is made from sends the copies again after a restore", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the reviews' S-m3 = C-m7 and the design's 6.2. The
+         * restore said "each store sends its players their copies again", and no store did:
+         * a player refused while the GM's browser held nothing waited for their next load.
+         * Each copy names the store it is made of (`from`); that store is backed up and has
+         * an `afterRestore`, which calls a function that tells no player anything while the
+         * suite holds the stores or stands in another world (`gmStoresQuiet`).
+         */
+        const E = await import("./gm-store.mjs");
+        await import("./gm-stores.mjs");
+        const names = E.gmCopyNames();
+        ok(names.length >= 4, `only ${names.length} player copies are defined - the table did not load`);
+        const wrong = [];
+        for (const name of names) {
+            const from = E.gmCopySpec(name)?.from;
+            const store = from ? E.gmStoreByName(from) : null;
+            if (!store) wrong.push(`${name}: names no store it is made of`);
+            else if (!store.spec.backup || typeof store.spec.afterRestore !== "function") wrong.push(`${name}: its store ${from} does not send it again after a restore`);
+        }
+        ok(!wrong.length, `a player's copy is not sent again after a restore: ${wrong.join("; ")}`);
+        const RETELLS = [["mastermind.mjs", "retellDoor"], ["murder.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"]];
+        const hooks = E.gmStoreHandles().map(h => String(h.spec.afterRestore ?? ""));
+        const uncalled = RETELLS.filter(([, fn]) => !hooks.some(src => src.includes(`.${fn}(`))).map(([, fn]) => fn);
+        ok(!uncalled.length, `no store's afterRestore calls ${uncalled.join(", ")}`);
+        const sources = new Map(await otherSources());
+        const loud = RETELLS.filter(([file, fn]) => !/\bgmStoresQuiet\(\)/.test(fnSource(stripComments(sources.get(file) ?? ""), fn)))
+            .map(([file, fn]) => `${file} ${fn}`);
+        ok(!loud.length, `these tell the players after a restore while the suite holds the stores: ${loud.join(", ")}`);
     }]
 ];
 

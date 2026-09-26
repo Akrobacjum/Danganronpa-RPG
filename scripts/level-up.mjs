@@ -15,6 +15,7 @@ import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, TRAITS, STARTING } from "
 import { listExperiences, resourceMax } from "./character.mjs";
 import { log, error, isPrimaryGm, ownerIdsOf } from "./utils.mjs";
 import { offerStore, offerCopy } from "./gm-stores.mjs";
+import { gmStoresQuiet } from "./gm-store.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -171,6 +172,26 @@ export function offersFor(userId) {
         if (LEVEL_UP[offer?.kind]?.picks) offers[actor.id] = { kind: offer.kind };
     }
     return { offers, stamps };
+}
+
+/**
+ * AFTER A RESTORE (gm-stores.mjs `restoreCase`; the design's 6.2): every connected
+ * player is sent the offers on their own characters again, with their stamps - an
+ * owner refused while this browser held none (stamp 0) has the lit button back, and
+ * one who holds it changes nothing (`offerCopy`). Any GM may send it, as any GM's
+ * answer is weighed by its stamps. Nothing while the suite holds the stores or stands
+ * in another world (`gmStoresQuiet`). Answers how many players were sent their set.
+ */
+export async function retellOffers() {
+    if (!game.user?.isGM || gmStoresQuiet()) return 0;
+    const { sendOffersTo } = await import("./gm-bridge.mjs");
+    let sent = 0;
+    for (const user of game.users) {
+        if (!user.active || user.isGM) continue;
+        await sendOffersTo(user.id);
+        sent++;
+    }
+    return sent;
 }
 
 /** Owner: take the set the primary sent where it is newer (`offerCopy`), and redraw. */

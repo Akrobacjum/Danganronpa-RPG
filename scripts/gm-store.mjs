@@ -165,6 +165,9 @@ function viewOf(sec, k, split) {
             const subs = new Map();
             if (isPlain(v)) {
                 for (const [sub, sv] of Object.entries(v)) {
+                    // Never a part named `__proto__` and the like: written back as `obj[sub]`, it
+                    // set the object's prototype (E04's fix round, measured through a file).
+                    if (UNSAFE.has(sub)) continue;
                     const at = `${f}.${sub}`;
                     subs.set(sub, { v: sv, s: obj && Object.hasOwn(obj, at) ? obj[at] : reset });
                 }
@@ -437,29 +440,79 @@ export function flatToSection(flat, spec, weak = 0.5) {
     return sec;
 }
 
+/** Whether an entry lost a field, or a part of a split field, between `before` and `after`. */
+function shrank(before, after, split) {
+    for (const [f, v] of Object.entries(before ?? {})) {
+        if (!Object.hasOwn(after ?? {}, f)) return true;
+        if (split.has(f) && isPlain(v) && Object.keys(v).some(sub => !isPlain(after[f]) || !Object.hasOwn(after[f], sub))) return true;
+    }
+    return false;
+}
+
 /**
  * What merging `incoming` into `here` would do, key by key, without doing it: rows
  * the file adds, rows it refreshes (some field newer in the file), rows kept because
  * this copy is newer (or has a newer tombstone), and rows at or under this copy's
  * watermark - a reset's cut - which the merge refuses (a restore can fill those only
  * when asked, freshly stamped). Every key is counted once; `inFile` is their number.
+ * `remove` counts the rows HERE that the merge would take a field from or remove -
+ * a file's newer removal, or a watermark it carries - so a window can say it before
+ * it happens (the review's DS-M1: a preview that counted the file's keys alone read
+ * "1 new" for a merge that emptied the store).
  */
 export function previewSection(here, incoming, spec) {
     const base = normalizeSection(clone(syncable(here))) ?? emptySection();
     const inc = normalizeSection(clone(syncable(incoming))) ?? emptySection();
     const keys = [...new Set([...Object.keys(inc.e), ...Object.keys(inc.d)])].filter(k => !UNSAFE.has(k));
-    const out = { inFile: keys.length, add: 0, refresh: 0, keptNewerHere: 0, beforeCut: 0, beforeCutKeys: [] };
+    const split = splitSet(spec);
+    const whole = mergeSections(base, inc, spec);
+    const remove = Object.keys(base.e).filter(k => shrank(base.e[k], whole.e[k], split)).length;
+    const out = { inFile: keys.length, add: 0, refresh: 0, keptNewerHere: 0, beforeCut: 0, beforeCutKeys: [], remove };
     for (const k of keys) {
         const one = subsection(inc, [k]);
         const merged = mergeSections(base, one, spec);
         const had = Object.hasOwn(base.e, k) || Object.hasOwn(base.d, k);
         const same = stableJson([merged.e[k], merged.t[k], merged.d[k]]) === stableJson([base.e[k], base.t[k], base.d[k]]);
-        const newestInFile = Math.max(inc.d[k] ?? 0, fieldStamp(inc, k, undefined, splitSet(spec)));
+        const newestInFile = Math.max(inc.d[k] ?? 0, fieldStamp(inc, k, undefined, split));
         if (!same) (had ? out.refresh++ : out.add++);
         else if (newestInFile <= (base.cleared ?? 0)) { out.beforeCut++; out.beforeCutKeys.push(k); }
         else out.keptNewerHere++;
     }
     return out;
+}
+
+/**
+ * A file's section as a restore takes it (E04's fix round; the reviews' DS-M1 = C-m6
+ * and S-M1 = DS-m11 = C-m12). Never its watermark: a file's `cleared` is its own
+ * world's last cut, and taken here it removed every older row of this world on every
+ * GM (measured: three answer keys gone on two GMs for a file holding one row). Cuts
+ * come from the clock and the primary's `clear`, and a file's rows under its own cut
+ * are not in it, so nothing is lost by leaving it out. Of another world's file
+ * (`otherWorld`), no removal either: its tombstones name that world's decisions. And
+ * no stamp beyond `now + skew`, the bound every stamp a GM sends is held to: a field
+ * a year ahead could not be changed or removed by anybody for a year, and a watermark
+ * or a tombstone ahead cut every write made meanwhile - such a stamp is taken at
+ * `now`, as the claim takes an old row's (DS-m3), and `clamped` counts the rows
+ * that had one. Pure; `section` is not changed.
+ */
+export function fileSection(section, { now = Infinity, skew = 0, otherWorld = false } = {}) {
+    const sec = normalizeSection(clone(syncable(section))) ?? emptySection();
+    sec.cleared = 0;
+    if (otherWorld) sec.d = {};
+    const bound = now + skew, at = Math.floor(now);
+    const clamped = new Set();
+    const bounded = (k, s) => {
+        if (!(s > bound)) return s;
+        clamped.add(k);
+        return at;
+    };
+    for (const k of Object.keys(sec.d)) sec.d[k] = bounded(k, sec.d[k]);
+    for (const k of Object.keys(sec.t)) {
+        const t = sec.t[k];
+        if (typeof t === "number") sec.t[k] = bounded(k, t);
+        else if (isPlain(t)) for (const f of Object.keys(t)) t[f] = bounded(k, t[f]);
+    }
+    return { section: sec, clamped: clamped.size };
 }
 
 /** How many rows an old store holds: a spec may say (a record is one row); else an array's length or an object's keys. */
@@ -539,14 +592,22 @@ export function newerStamps(next, held, cut = 0) {
     return newer;
 }
 
-/** Whether a packet's section is plain objects stamped with numbers, with no key that could reach a prototype. */
-export function sectionProblem(sec) {
+/**
+ * Whether a packet's or a file's section is plain objects stamped with numbers, with no
+ * key that could reach a prototype - with `spec`, the parts of its split fields as well
+ * (a `public` part named `__proto__` passed this gate until E04's fix round).
+ */
+export function sectionProblem(sec, spec = null) {
     if (!isPlain(sec)) return "the section is not an object";
     for (const part of ["e", "t", "d"]) if (sec[part] !== undefined && !isPlain(sec[part])) return `its ${part} is not an object`;
     if (sec.cleared !== undefined && !stampOk(sec.cleared)) return "its watermark is not a stamp";
+    const split = splitSet(spec);
     for (const [k, entry] of Object.entries(sec.e ?? {})) {
         if (UNSAFE.has(k) || !isPlain(entry)) return `entry ${k} is not an object`;
-        for (const f of Object.keys(entry)) if (UNSAFE.has(f)) return `entry ${k} names a field that is not allowed`;
+        for (const [f, v] of Object.entries(entry)) {
+            if (UNSAFE.has(f)) return `entry ${k} names a field that is not allowed`;
+            if (split.has(f) && isPlain(v) && Object.keys(v).some(sub => UNSAFE.has(sub))) return `entry ${k} names a part of ${f} that is not allowed`;
+        }
         const t = sec.t?.[k];
         if (!stampOk(t) && !(isPlain(t) && Object.values(t).every(stampOk))) return `entry ${k} is not stamped with numbers`;
     }
@@ -575,7 +636,7 @@ export function gmsRefusal(packet, ctx) {
         case GMS_ACTIONS.delta: {
             const spec = ctx.stores.get(packet.store);
             if (!spec || !spec.sync) return "a store this build does not sync";
-            const why = sectionProblem(packet.action === GMS_ACTIONS.state ? packet.section : packet.delta);
+            const why = sectionProblem(packet.action === GMS_ACTIONS.state ? packet.section : packet.delta, spec);
             return why ? `a malformed section: ${why}` : null;
         }
         default:
@@ -725,7 +786,14 @@ export function createGmStoreEngine(env) {
         }
         for (const [w, keys] of sent) {
             if (keys.size && st.spec.sync && !held && w.wid === env.worldId()) {
-                sendTo(peers(), { action: GMS_ACTIONS.delta, world: w.wid, store: st.spec.name, delta: clone(subsection(w.section, keys)) });
+                /* In parts no larger than a state's (the review's round-2 note): a restore's
+                   changes, or a reset's, are one flush, and went out as one packet whatever
+                   their size - the size a relay takes is LIVE-E04-02. Each part carries the
+                   watermark, and a merge takes it once. */
+                const to = peers();
+                for (const part of partsOf(subsection(w.section, keys))) {
+                    sendTo(to, { action: GMS_ACTIONS.delta, world: w.wid, store: st.spec.name, delta: clone(part) });
+                }
             }
         }
         waiters.forEach(r => r());
@@ -1414,6 +1482,9 @@ export function createGmStoreEngine(env) {
         whenHydrated, isHydrated,
         hydration: () => ({ world: hyd.wid, state: hyd.state, waiting: [...hyd.waiting] }),
         skew: () => Object.fromEntries(skewWarned),
+        /* Whether the suite holds the stores or stands in another world: what a store holds
+           now is a fixture's, and nothing of it may reach a player (the review's S-m2). */
+        quiet: () => held || worldOverride !== null,
         applyCuts, onPacket, onUserConnected, onClientSettingChanged, onStorage, sendHello: () => sendHello(peers())
     };
     return api;
@@ -1490,6 +1561,8 @@ export const whenGmStoresHydrated = () => engine.whenHydrated();
 export const gmStoresHydrated = () => engine.isHydrated();
 export const gmStoreHydration = () => engine.hydration();
 export const gmStoreSkew = () => engine.skew();
+/** True while tier 2 holds the stores or stands in another world: tell no player anything from them. */
+export const gmStoresQuiet = () => engine.quiet();
 export const applyGmStoreCuts = clock => engine.applyCuts(clock);
 /** Run `fn(worldId, how)` once this client's stores have their peers' copies (or were alone, or timed out). */
 export function onGmStoresHydrated(fn) { hydratedHooks.push(fn); }

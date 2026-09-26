@@ -26,8 +26,9 @@ import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc,
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated,
     gmStoreHydration, gmStoreSkew, gmStoreNow, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD,
-    raiseCleared, newestIn, sectionProblem, stableJson, weakOf, gmStoreStamp
+    raiseCleared, newestIn, sectionProblem, stableJson, weakOf, gmStoreStamp, fileSection
 } from "./gm-store.mjs";
+import { plainWhat } from "./relay-guard.mjs";
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
 
@@ -127,6 +128,7 @@ export const remnantStore = defineGmStore({
 export const mastermindStore = defineGmStore({
     name: "mastermind", key: SETTINGS.mastermind, legacyKey: SETTINGS.legacyMastermind,
     kind: "record", fields: ["actorId", "room", "legacyClearedAt"], resetGroup: "mastermind", backup: true, sync: true,
+    afterRestore: () => import("./mastermind.mjs").then(m => m.retellDoor()),
     legacyCount: legacy => (isPlain(legacy) && Object.keys(legacy).length ? 1 : 0),
     claim: legacy => {
         if (!isPlain(legacy) || !Object.keys(legacy).length) return { rows: [], left: [] };
@@ -202,7 +204,7 @@ export function doorCombine(held, offered) {
  */
 export const doorCopy = defineGmCopy({
     name: "door", key: SETTINGS.mineDoor, legacyKeys: [SETTINGS.legacyIAmMastermind, SETTINGS.legacyMyMastermindLair],
-    resetGroup: "mastermind", fallback: { mastermind: false, room: null }, combine: doorCombine
+    from: "mastermind", resetGroup: "mastermind", fallback: { mastermind: false, room: null }, combine: doorCombine
 });
 
 /**
@@ -230,6 +232,7 @@ export const CAST_FIELDS = Object.freeze([
 export const castStore = defineGmStore({
     name: "cast", key: SETTINGS.incidentCast, legacyKey: SETTINGS.legacyIncidentCast,
     kind: "record", fields: CAST_FIELDS, split: ["swung"], resetGroup: "incident", backup: true, sync: true,
+    afterRestore: () => import("./murder.mjs").then(m => m.retellCast()),
     legacyCount: legacy => (isPlain(legacy) && Object.keys(legacy).length ? 1 : 0),
     claim: legacy => {
         if (!isPlain(legacy) || !Object.keys(legacy).length) return { rows: [], left: [] };
@@ -308,7 +311,7 @@ export function castCombine(held, offered, { cut = 0 } = {}) {
  * where newer (`castCombine`), so a GM whose browser holds no cast cannot empty it.
  */
 export const castCopy = defineGmCopy({
-    name: "cast", key: SETTINGS.mineCast, legacyKey: SETTINGS.legacyIncidentCast, resetGroup: "incident", fallback: {},
+    name: "cast", key: SETTINGS.mineCast, legacyKey: SETTINGS.legacyIncidentCast, from: "cast", resetGroup: "incident", fallback: {},
     combine: castCombine
 });
 
@@ -413,6 +416,7 @@ export const observeStore = defineGmStore({
 export const offerStore = defineGmStore({
     name: "offers", key: SETTINGS.advanceOffers, legacyKey: SETTINGS.legacyAdvanceOffers,
     kind: "ledger", resetGroup: "advancement", backup: true, sync: true,
+    afterRestore: () => import("./level-up.mjs").then(m => m.retellOffers()),
     claim: legacy => {
         const entries = Object.entries(isPlain(legacy) ? legacy : {});
         if (!isPrimaryGm()) return { rows: [], left: entries.map(([key]) => ({ key, reason: "notPrimary" })) };
@@ -437,7 +441,7 @@ export const offerStore = defineGmStore({
  * button stays lit, where the old copy was replaced by whatever set arrived.
  */
 export const offerCopy = defineGmCopy({
-    name: "offers", key: SETTINGS.mineOffers, legacyKey: SETTINGS.legacyAdvanceOffers, resetGroup: "advancement", fallback: {},
+    name: "offers", key: SETTINGS.mineOffers, legacyKey: SETTINGS.legacyAdvanceOffers, from: "offers", resetGroup: "advancement", fallback: {},
     // A reset that withdraws the offers (the owner's Q4) sends no answer: the cut is the withdrawal.
     onCut: () => {
         import("./level-up.mjs").then(m => m.redrawOwnSheets())
@@ -470,6 +474,7 @@ const roomCells = rooms => Object.fromEntries((Array.isArray(rooms) ? rooms : []
 export const discoveryStore = defineGmStore({
     name: "discovery", key: SETTINGS.discoveryLedger, legacyKey: SETTINGS.legacyDiscoveryLedger,
     kind: "ledger", resetGroup: "discovered", backup: true, sync: true,
+    afterRestore: () => import("./fog.mjs").then(m => m.retellFog()),
     legacyCount: legacy => fogRows(legacy).length,
     claim: async legacy => {
         const rows = fogRows(legacy);
@@ -509,7 +514,7 @@ export function fogCombine(held, offered, { cut = 0 } = {}) {
 }
 
 export const fogCopy = defineGmCopy({
-    name: "fog", key: SETTINGS.mineFog, legacyKey: SETTINGS.legacyDiscoveryMine, resetGroup: "discovered", fallback: null,
+    name: "fog", key: SETTINGS.mineFog, legacyKey: SETTINGS.legacyDiscoveryMine, from: "discovery", resetGroup: "discovered", fallback: null,
     combine: fogCombine,
     claim: legacy => {
         const mine = {};
@@ -765,73 +770,146 @@ export async function backupCase({ ask = false } = {}) {
  * A file handed to Restore, read: the case file this build writes, or the Truth
  * Bullet export of every version before it (`{ uuid: { ...fields, updated } }`),
  * taken as the bullets' section with its stamps from `updated`.
+ *
+ * Checked before anything reads it further (E04's fix round): the format's version is
+ * a whole number, or the file is not one this module wrote (the review's S-M2: it was
+ * shown in a toast as it came); every store's section passes the gate every packet
+ * between the GMs passes (`sectionProblem`, with the store's own split fields), or the
+ * file is refused whole, naming the store (S-M1 = DS-m11 = C-m12, measured: a row
+ * stamped with a string was restored, and every other GM refused that store from this
+ * one from then on). The old export held every world this browser had held, in one
+ * object: only this world's rows are taken, and the rest counted (C-m11).
  */
 export function readCaseFile(file) {
     let data = file;
     if (typeof file === "string") {
         try { data = JSON.parse(file); } catch { return { refused: "unreadable" }; }
     }
-    if (!data || typeof data !== "object" || Array.isArray(data)) return { refused: "unreadable" };
+    if (!isPlain(data)) return { refused: "unreadable" };
     if (data.format === CASE_FORMAT) {
-        if (!(data.version <= CASE_VERSION)) return { refused: "newer", version: data.version };
-        return { kind: "case", world: data.world ?? null, stores: data.stores ?? {}, exportedAt: data.exportedAt ?? null };
+        if (!Number.isInteger(data.version) || data.version < 1) return { refused: "unreadable" };
+        if (data.version > CASE_VERSION) return { refused: "newer", version: data.version };
+        const stores = isPlain(data.stores) ? data.stores : {};
+        for (const [name, section] of Object.entries(stores)) {
+            const handle = gmStoreByName(name);
+            if (!handle?.spec.backup) continue;
+            const why = sectionProblem(section, handle.spec);
+            if (why) return { refused: "malformed", store: name, why };
+        }
+        const world = isPlain(data.world) ? { id: data.world.id ?? null, title: data.world.title ?? null } : null;
+        return { kind: "case", world, stores, exportedAt: data.exportedAt ?? null };
     }
     if ("format" in data) return { refused: "unreadable" };
-    return { kind: "flat", world: null, stores: { bullets: flatToSection(data, bulletStore.spec, bulletStore.weak()) } };
+    const mine = {};
+    let notThisWorld = 0;
+    for (const [uuid, row] of Object.entries(data)) {
+        if (uuidInThisWorld(uuid)) mine[uuid] = row;
+        else notThisWorld++;
+    }
+    return { kind: "flat", world: null, stores: { bullets: flatToSection(mine, bulletStore.spec, bulletStore.weak()) },
+        notThisWorld: { bullets: notThisWorld } };
 }
 
-/** What a restore of `file` would do, store by store, without writing anything. */
+/** A store's name as the case's windows say it. */
+const storeLabel = name => game.i18n.localize(`DRPG.Case.store.${name}`);
+
+/**
+ * Why a file was refused, as a sentence. Every value the file gave is made plain first
+ * (relay-guard.mjs `plainWhat`): a toast's escaping is unmeasured on v14, and a file is
+ * text anybody can hand a GM (the review's S-M2). A damaged section's detail goes to
+ * the console, where it names the row.
+ */
+export function caseRefusalText(read) {
+    if (read?.refused === "malformed") warn(`The case file's "${read.store}" section was refused: ${read.why}`);
+    return game.i18n.format(`DRPG.Case.refused.${read?.refused ?? "unreadable"}`, {
+        version: plainWhat(read?.version ?? "?"),
+        title: plainWhat(read?.world?.title ?? read?.world?.id ?? "?"),
+        store: read?.store ? storeLabel(plainWhat(read.store)) : "?"
+    });
+}
+
+/** A file's sections as a restore takes them: `fileSection` at this moment, for this world or another. */
+function takenSection(section, otherWorld) {
+    return fileSection(section, { now: gmStoreNow(), skew: TIMING.gmStoreSkewMs, otherWorld });
+}
+
+/** Whether a read file names a world other than this one. */
+const fromOtherWorld = read => Boolean(read.world?.id && read.world.id !== game.world.id);
+
+/**
+ * What a restore of `file` would do, store by store, without writing anything - the
+ * file's sections as the restore would take them (`fileSection`): the rows it adds and
+ * refreshes, the rows here it would take a field from or remove (`remove`), the rows
+ * whose stamp ran ahead (`clamped`), and an old export's rows of other worlds
+ * (`notThisWorld`). A record store of another world's file (`record`) is taken only
+ * when the GM ticks it.
+ */
 export function previewRestore(file) {
     const read = readCaseFile(file);
     if (read.refused) return read;
-    const otherWorld = Boolean(read.world?.id && read.world.id !== game.world.id);
+    const otherWorld = fromOtherWorld(read);
     const stores = {};
-    for (const [name, section] of Object.entries(read.stores)) {
+    for (const [name, raw] of Object.entries(read.stores)) {
         const handle = gmStoreByName(name);
         if (!handle?.spec.backup) { stores[name] = { unknown: true }; continue; }
+        const { section, clamped } = takenSection(raw, otherWorld);
         const { beforeCutKeys, ...counts } = previewSection(handle.section(), section, handle.spec);
-        stores[name] = counts;
+        stores[name] = { ...counts, clamped, notThisWorld: read.notThisWorld?.[name] ?? 0,
+            ...(otherWorld && handle.spec.kind === "record" ? { record: true } : {}) };
     }
     return { kind: read.kind, world: read.world, otherWorld, exportedAt: read.exportedAt ?? null, stores };
 }
 
 /**
- * Restore the case from a file, by the same merge as the sync: it only ever adds
- * what is newer, so any GM may run it and a restore twice is a restore once.
+ * Restore the case from a file, by the same merge as the sync: it takes only what is
+ * newer, so any GM may run it and a restore twice is a restore once.
  *
- * Refused: a file of a newer format, and a file of another world unless
- * `otherWorld` (a moved server, a duplicated world). Rows at or under the reset's
- * cut are refused unless `beforeCut` ("restore anyway"), and then fill only the
- * fields this browser lacks, freshly stamped - the explicit undo of a reset. After
- * it: the other GMs get what changed, each restored store counts as having its
- * copy, the Faint pass runs again, each store sends its players their copies
- * again, and the health check runs again (`recheck`).
+ * Refused: a file this module did not write, one of a newer format, one with a damaged
+ * section (`readCaseFile`), and a file of another world unless `otherWorld` (a moved
+ * server, a duplicated world). Never taken from a file (`fileSection`): its watermark,
+ * a stamp beyond the clock's bound (taken at this moment, and counted), and from
+ * another world's file its removals and - unless the GM ticked the store (`records`)
+ * - a record's fields: another world's pick or cast is not this world's (the review's
+ * DS-M1, measured: another world's file emptied this world's answer keys on every
+ * GM). Rows at or under the reset's cut are refused unless `beforeCut` ("restore
+ * anyway"), and then fill only the fields this browser lacks, freshly stamped - the
+ * explicit undo of a reset. After it: the other GMs get what changed, in parts; each
+ * restored store counts as having its copy; a store whose rows a player holds a copy
+ * of sends each connected player theirs again (`afterRestore`: the door, the cast, the
+ * offers, the fog - R182); the Faint pass runs again; and the health check runs again
+ * (`recheck`).
  */
-export async function restoreCase(file, { otherWorld = false, beforeCut = false, recheck = true } = {}) {
+export async function restoreCase(file, { otherWorld = false, beforeCut = false, recheck = true, records = [] } = {}) {
     if (!game.user?.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Case.gmOnly"));
         return null;
     }
     const read = readCaseFile(file);
     if (read.refused) {
-        ui.notifications.error(game.i18n.format(`DRPG.Case.refused.${read.refused}`, { version: read.version ?? "?" }));
+        ui.notifications.error(caseRefusalText(read));
         return { refused: read.refused };
     }
-    if (read.world?.id && read.world.id !== game.world.id && !otherWorld) {
-        ui.notifications.error(game.i18n.format("DRPG.Case.refused.otherWorld", { title: read.world.title ?? read.world.id }));
+    const foreign = fromOtherWorld(read);
+    if (foreign && !otherWorld) {
+        ui.notifications.error(caseRefusalText({ refused: "otherWorld", world: read.world }));
         return { refused: "otherWorld" };
     }
     const counts = {};
-    for (const [name, section] of Object.entries(read.stores)) {
+    for (const [name, raw] of Object.entries(read.stores)) {
         const handle = gmStoreByName(name);
         if (!handle?.spec.backup) continue;
+        if (foreign && handle.spec.kind === "record" && !records.includes(name)) {
+            counts[name] = { skipped: true };
+            continue;
+        }
+        const { section, clamped } = takenSection(raw, foreign);
         const preview = previewSection(handle.section(), section, handle.spec);
         const changed = await handle.mergeIn(section, { source: "restore" });
         let filled = 0;
         if (beforeCut) {
             for (const k of preview.beforeCutKeys) {
                 const fields = section.e?.[k];
-                if (!fields || typeof fields !== "object") continue;
+                if (!isPlain(fields)) continue;
                 const absent = Object.fromEntries(Object.entries(fields).filter(([f]) => !Object.hasOwn(handle.get(k) ?? {}, f)));
                 if (!Object.keys(absent).length) continue;
                 await handle.patch(k, absent, { fillOnly: true, whole: true });
@@ -839,18 +917,21 @@ export async function restoreCase(file, { otherWorld = false, beforeCut = false,
             }
         }
         handle.markRestored();
-        counts[name] = { changed, filled, beforeCut: beforeCut ? 0 : preview.beforeCut };
+        counts[name] = { changed, filled, beforeCut: beforeCut ? 0 : preview.beforeCut, clamped };
         try { await handle.spec.afterRestore?.(); }
-        catch (err) { error(`After restoring "${name}", the copies could not be sent again`, err); }
+        catch (err) { error(`After restoring "${name}", the players' copies could not be sent again`, err); }
     }
     try {
         const { migrateFaintIntoSecrets } = await import("./truth-bullets.mjs");
         await migrateFaintIntoSecrets();
     } catch (err) { error("After a restore, the Faint pass could not run", err); }
-    const lines = Object.entries(counts).map(([name, c]) => game.i18n.format("DRPG.Case.restoredStore", {
-        store: game.i18n.localize(`DRPG.Case.store.${name}`), n: c.changed + c.filled, cut: c.beforeCut }));
-    ui.notifications.info(`${game.i18n.localize("DRPG.Case.restored")} ${lines.join("; ")}`);
-    if (recheck) void runHealthCheck();
+    const lines = Object.entries(counts).map(([name, c]) => (c.skipped
+        ? game.i18n.format("DRPG.Case.restoredSkipped", { store: storeLabel(name) })
+        : game.i18n.format("DRPG.Case.restoredStore", { store: storeLabel(name), n: c.changed + c.filled, cut: c.beforeCut })));
+    const clamped = Object.values(counts).reduce((n, c) => n + (c.clamped ?? 0), 0);
+    ui.notifications.info([game.i18n.localize("DRPG.Case.restored"), lines.join("; "),
+        clamped ? plural("DRPG.Case.restoredClamped", { n: clamped }) : ""].filter(Boolean).join(" "));
+    if (recheck) runHealthCheck().catch(err => error("The case health check could not run", err));
     return { counts };
 }
 
@@ -922,17 +1003,22 @@ export async function gmStoreHealth() {
     const traces = [];
     for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) if (token.getFlag(MODULE_ID, "isRemnant")) traces.push(token);
     const traceKey = token => `${token.parent?.id}.${token.id}`;
-    const traceGaps = traces.filter(token => !remnantStore.has(traceKey(token)));
+    // A trace whose answer key is still on its token is moved, not restored: counted apart (C-m14).
+    const { answerKeyOnToken } = await import("./remnants.mjs");
+    const noRow = traces.filter(token => !remnantStore.has(traceKey(token)));
+    const onToken = noRow.filter(answerKeyOnToken);
+    const traceGaps = noRow.filter(token => !answerKeyOnToken(token));
     if (traceGaps.length) add("traces", "missing", "DRPG.Case.row.traces", { n: traceGaps.length, of: traces.length });
+    if (onToken.length) add("tracesOnToken", "missing", "DRPG.Case.row.tracesOnToken", { n: onToken.length, of: traces.length });
     // A row whose token is gone: unreachable (every read goes through a token), counted, never removed on its own.
     const onMap = new Set(traces.map(traceKey));
     const orphans = Object.keys(remnantStore.entries()).filter(key => !onMap.has(key)).length;
     if (orphans) add("traceOrphans", "info", "DRPG.Case.row.traceOrphans", { n: orphans });
 
     const bullets = allBullets();
-    const noRow = bullets.filter(item => !bulletStore.has(item.uuid));
+    const unkeyed = bullets.filter(item => !bulletStore.has(item.uuid));
     const noAnswer = bullets.filter(item => bulletStore.has(item.uuid) && !bulletStore.get(item.uuid).realType);
-    if (noRow.length) add("bullets", "missing", "DRPG.Case.row.bullets", { n: noRow.length, of: bullets.length });
+    if (unkeyed.length) add("bullets", "missing", "DRPG.Case.row.bullets", { n: unkeyed.length, of: bullets.length });
     if (noAnswer.length) add("bulletsNoAnswer", "missing", "DRPG.Case.row.noAnswer", { n: noAnswer.length });
 
     const state = getSetting(SETTINGS.murderState) ?? {};
@@ -985,8 +1071,8 @@ export async function gmStoreHealth() {
         { when: mark.lastBackupAt ? new Date(mark.lastBackupAt).toLocaleString() : "", who: mark.lastBackupBy ?? "" });
 
     const counts = {
-        traces: { of: traces.length, missing: traceGaps.length, orphans },
-        bullets: { of: bullets.length, missing: noRow.length, noAnswer: noAnswer.length, fillable: Object.keys(fillsFromTraces()).length }
+        traces: { of: traces.length, missing: traceGaps.length, onToken: onToken.length, orphans },
+        bullets: { of: bullets.length, missing: unkeyed.length, noAnswer: noAnswer.length, fillable: Object.keys(fillsFromTraces()).length }
     };
     return { world: game.world.id, hydrated: gmStoresHydrated(), rows, counts, missing: rows.filter(r => r.level === "missing").length };
 }
@@ -1036,13 +1122,17 @@ export async function runHealthCheck() {
         const lines = report.rows.filter(r => r.level !== "info").map(r =>
             `<li class="${r.level === "missing" ? "drpg-warning" : ""}">${esc(healthLine(r))}</li>`).join("");
         const fillable = report.counts?.bullets?.fillable ?? 0;
+        // What a backup can bring back; a trace whose key is on its token is moved instead (C-m14).
+        const restorable = report.rows.some(r => r.level === "missing" && r.id !== "tracesOnToken");
+        const movable = report.rows.some(r => r.id === "tracesOnToken");
         const choice = await DialogV2.wait({
             window: { title: game.i18n.localize("DRPG.Case.healthTitle") },
             classes: ["drpg-panel"],
             content: dialogContent(`<p>${esc(game.i18n.localize(report.missing ? "DRPG.Case.healthIntro" : "DRPG.Case.decideIntro"))}</p>
-                <ul>${lines}</ul>${report.missing ? `<p class="notes">${esc(game.i18n.localize("DRPG.Case.healthNote"))}</p>` : ""}`),
+                <ul>${lines}</ul>${report.missing ? `<p class="notes">${esc(game.i18n.localize(restorable ? "DRPG.Case.healthNote" : "DRPG.Case.moveNote"))}</p>` : ""}`),
             buttons: [
-                ...(report.missing ? [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile") }] : []),
+                ...(restorable ? [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile") }] : []),
+                ...(movable ? [{ action: "move", label: game.i18n.localize("DRPG.Case.moveTraces") }] : []),
                 ...(fillable ? [{ action: "fill", label: game.i18n.format("DRPG.Case.fillFromTraces", { n: fillable }) }] : []),
                 ...(report.rows.some(r => r.id === "incident") ? [{ action: "cast", label: game.i18n.localize("DRPG.Case.enterCast") }] : []),
                 // The H4 decision: Keep (the default) stamps the pick again; Clear clears it.
@@ -1055,6 +1145,12 @@ export async function runHealthCheck() {
         if (choice === "restore") {
             healthOpen = false;
             return openRestoreDialog();
+        }
+        if (choice === "move") {
+            const { migrateRemnants } = await import("./remnants.mjs");
+            await migrateRemnants();
+            healthOpen = false;
+            return runHealthCheck();
         }
         if (choice === "fill") {
             const filled = await fillBulletsFromTraces();
@@ -1131,8 +1227,8 @@ function chooseCaseFile() {
 
 /**
  * The Restore tile: pick a file, see what it would do per store, and confirm -
- * with "a file of another world" and "restore anyway, under the reset's cut" as
- * boxes the GM ticks, never defaults.
+ * with "a file of another world", each record store of another world's file, and
+ * "restore anyway, under the reset's cut" as boxes the GM ticks, never defaults.
  */
 export async function openRestoreDialog(text = null) {
     if (!game.user?.isGM) return null;
@@ -1140,25 +1236,33 @@ export async function openRestoreDialog(text = null) {
     if (!file) return null;
     const preview = previewRestore(file);
     if (preview.refused) {
-        ui.notifications.error(game.i18n.format(`DRPG.Case.refused.${preview.refused}`, { version: preview.version ?? "?" }));
+        ui.notifications.error(caseRefusalText(preview));
         return null;
     }
-    const rows = Object.entries(preview.stores).filter(([, c]) => !c.unknown).map(([name, c]) =>
-        `<li>${esc(game.i18n.format("DRPG.Case.previewStore", { store: game.i18n.localize(`DRPG.Case.store.${name}`),
-            add: c.add, refresh: c.refresh, kept: c.keptNewerHere, cut: c.beforeCut }))}</li>`).join("");
+    const known = Object.entries(preview.stores).filter(([, c]) => !c.unknown);
+    const rows = known.map(([name, c]) => {
+        const store = storeLabel(name);
+        const line = c.record ? game.i18n.format("DRPG.Case.previewRecord", { store })
+            : game.i18n.format("DRPG.Case.previewStore", { store, add: c.add, refresh: c.refresh, kept: c.keptNewerHere, cut: c.beforeCut, remove: c.remove });
+        const more = [c.clamped ? plural("DRPG.Case.previewClamped", { n: c.clamped }) : "",
+            c.notThisWorld ? plural("DRPG.Case.previewNotThisWorld", { n: c.notThisWorld }) : ""].filter(Boolean);
+        return `<li>${esc([line, ...more].join(" "))}</li>`;
+    }).join("");
+    const box = (name, label) => `<label class="drpg-checkbox"><input type="checkbox" name="${name}" /> ${esc(label)}</label>`;
+    const records = known.filter(([, c]) => c.record).map(([name]) => name);
     const answer = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Case.restoreTitle") },
         classes: ["drpg-panel"],
         content: dialogContent(`<form><ul>${rows}</ul>
-            ${preview.otherWorld ? `<label class="drpg-checkbox"><input type="checkbox" name="otherWorld" />
-                ${esc(game.i18n.format("DRPG.Case.otherWorld", { title: preview.world?.title ?? preview.world?.id ?? "?" }))}</label>` : ""}
-            <label class="drpg-checkbox"><input type="checkbox" name="beforeCut" />
-                ${esc(game.i18n.localize("DRPG.Case.beforeCut"))}</label>
+            ${preview.otherWorld ? box("otherWorld", game.i18n.format("DRPG.Case.otherWorld", { title: preview.world?.title ?? preview.world?.id ?? "?" })) : ""}
+            ${records.map(name => box(`record-${name}`, game.i18n.format("DRPG.Case.otherWorldRecord", { store: storeLabel(name) }))).join("")}
+            ${box("beforeCut", game.i18n.localize("DRPG.Case.beforeCut"))}
             <p class="notes">${esc(game.i18n.localize("DRPG.Case.restoreNote"))}</p></form>`),
         buttons: [
             { action: "restore", label: game.i18n.localize("DRPG.Case.restore"), default: true,
               callback: (e, b, d) => ({ otherWorld: Boolean(d.element.querySelector("[name=otherWorld]")?.checked),
-                  beforeCut: Boolean(d.element.querySelector("[name=beforeCut]")?.checked) }) },
+                  beforeCut: Boolean(d.element.querySelector("[name=beforeCut]")?.checked),
+                  records: records.filter(name => d.element.querySelector(`[name="record-${name}"]`)?.checked) }) },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
         rejectClose: false
@@ -1182,5 +1286,32 @@ export function registerCaseHealth() {
         if (key !== `${MODULE_ID}.${SETTINGS.mastermind}` || healthOpen || !gmStoresHydrated() || !isPrimaryGm()) return;
         if (!mastermindUndecided()) return;
         runHealthCheck().catch(err => error("The case health check could not run", err));
+    });
+    /* THE RED LINE FOLLOWS THE ROWS (the review's C-m15). Another GM's restore reaches
+       the primary by merge, and nothing checked again: the panel said the case was
+       incomplete until the primary reloaded. While the last check found something
+       missing, a change to a backed-up store's key checks again - quietly, no window -
+       and the line goes once a check passes. A change that lands while one runs asks
+       for one more: a restore's stores arrive one flush at a time. */
+    let rechecking = false, again = false;
+    const recheck = async () => {
+        rechecking = true;
+        try {
+            do {
+                again = false;
+                const report = await gmStoreHealth();
+                if (report && !healthOpen) lastHealth = report;
+            } while (again && lastHealth?.missing);
+        } catch (err) {
+            error("The case health check could not run", err);
+        } finally {
+            rechecking = false;
+        }
+    };
+    Hooks.on("clientSettingChanged", key => {
+        if (!lastHealth?.missing || healthOpen || !isPrimaryGm()) return;
+        if (!gmStoreHandles().some(h => h.spec.backup && key === `${MODULE_ID}.${h.spec.key}`)) return;
+        if (rechecking) again = true;
+        else void recheck();
     });
 }

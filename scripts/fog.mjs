@@ -43,7 +43,7 @@ import { isPrimaryGm, primaryGmId, debug, log, warn, error, plural } from "./uti
 import { ENTER, BEAT, reducedMotion, glassOn, SEAM_GLOW } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
 import { discoveryStore, fogCopy, fogSectionFor } from "./gm-stores.mjs";
-import { newestIn } from "./gm-store.mjs";
+import { newestIn, gmStoresQuiet } from "./gm-store.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
 
@@ -707,6 +707,18 @@ function sendStoreTo(user) {
 /** Every connected player gets their cells. */
 function shareLedger() {
     for (const user of game.users.filter(u => u.active && !u.isGM && u.id !== game.user.id)) sendStoreTo(user);
+}
+
+/**
+ * AFTER A RESTORE (gm-stores.mjs `restoreCase`; the design's 6.2): every connected
+ * player is sent the cells of their own characters again (`sendStoreTo`), which their
+ * copy merges cell by cell. Nothing while the suite holds the stores or stands in
+ * another world (`gmStoresQuiet`). Answers how many players were sent their cells.
+ */
+export function retellFog() {
+    if (!game.user?.isGM || gmStoresQuiet()) return 0;
+    shareLedger();
+    return game.users.filter(u => u.active && !u.isGM && u.id !== game.user.id).length;
 }
 
 /**

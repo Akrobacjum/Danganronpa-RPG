@@ -51,7 +51,7 @@ import {
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS, incidentCast, seasonEpoch } from "./settings.mjs";
 import { castStore, blackenedStore, castCopy, CAST_FIELDS, CAST_SEATS } from "./gm-stores.mjs";
-import { RECORD, onGmStoresHydrated, gmStoresHydrated } from "./gm-store.mjs";
+import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax, marksOf } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
@@ -306,6 +306,22 @@ function sendCast(userId, cast, stamps) {
 
 /** The cast as the primary GM last told the participants, and its stamps, so a merge that changes them is told too. */
 let castTold = null;
+
+/**
+ * AFTER A RESTORE (gm-stores.mjs `restoreCase`; the design's 6.2): each participant of
+ * the cast this browser holds now is sent it again, at its stamps, and on the primary
+ * whoever it last told who is no longer in it an empty one - a copy takes only what is
+ * newer (`castCombine`). Nothing for a cast nobody ever wrote, and nothing while the
+ * suite holds the stores or stands in another world (`gmStoresQuiet`). Answers how
+ * many participants the cast went to.
+ */
+export function retellCast() {
+    if (!game.user?.isGM || gmStoresQuiet()) return 0;
+    if (!Object.values(castStamps()).some(s => s > 0)) return 0;
+    const cast = readCast();
+    pushCastToParticipants(cast, castTold?.cast ?? cast);
+    return castOwners(cast).size;
+}
 
 /**
  * One write, two stores.

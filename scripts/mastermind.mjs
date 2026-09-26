@@ -34,7 +34,7 @@ import { remnantsOn, remnantData } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, ownerOf, primaryGmId, isPrimaryGm, log, error } from "./utils.mjs";
 import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
-import { RECORD, onGmStoresHydrated, gmStoresHydrated } from "./gm-store.mjs";
+import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -138,6 +138,32 @@ function notifyDoorAccess(previousActorId, nextActorId, room = null) {
  */
 function doorStamps(value, view = doorView()) {
     return value ? { actorId: view.actorAt, room: view.roomAt } : { actorId: view.actorAt };
+}
+
+/**
+ * AFTER A RESTORE (gm-stores.mjs `restoreCase`; the reviews' S-m3 = C-m7): every
+ * connected player told where they stand at the record's stamps - the pick's player
+ * "yes" with the lair, everybody else "no" - so a player whose copy was refused while
+ * this browser held nothing (stamp 0) has it back without asking, and one whose copy
+ * already holds it changes nothing (`doorCombine`). Nothing for a pick nobody ever
+ * made (stamp 0), and nothing while the suite holds the stores or stands in another
+ * world (`gmStoresQuiet`). Answers how many players were sent a flag.
+ */
+export function retellDoor() {
+    if (!game.user?.isGM || gmStoresQuiet()) return 0;
+    const view = doorView();
+    if (!view.actorAt) return 0;
+    if (isPrimaryGm()) told = view;
+    const owner = view.actorId ? ownerOf(game.actors.get(view.actorId)) : null;
+    const player = owner && !owner.isGM && !mastermindUndecided() ? owner : null;
+    let sent = 0;
+    for (const user of game.users) {
+        if (!user.active || user.isGM) continue;
+        if (user.id === player?.id) sendDoorFlag(user.id, true, view.room, doorStamps(true, view));
+        else sendDoorFlag(user.id, false, null, doorStamps(false, view));
+        sent++;
+    }
+    return sent;
 }
 
 function sendDoorFlag(userId, value, room, stamps) {

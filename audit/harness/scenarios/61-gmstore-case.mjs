@@ -59,10 +59,13 @@
  *      again and, its store emptied, answers stamp 0 - the owner's button stays lit,
  *      and the spend is refused as not offered, with the GM told.
  *   Z  the browser is lost (the brief's live verify, headless): the GM left from
- *      H2 places two traces (J's resets took the others), backs up the case and
- *      leaves, a third GM comes with an empty browser and is alone, so the primary;
- *      its health check opens and names what is missing, Continue is taken, the file
- *      is restored, the answer keys read back and the check is clean.
+ *      H2 picks the Mastermind and places two traces (J's resets took the others),
+ *      backs up the case and leaves, a third GM comes with an empty browser and is
+ *      alone, so the primary; its health check opens and names what is missing, and
+ *      Continue is taken. Another GM with an empty browser restores the file: the
+ *      primary's answer keys read back by merge, its check - and the panel's line -
+ *      clear without a reload, and the GM who restored sends every player their
+ *      copies again (E04's fix round).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -776,8 +779,10 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
 
     /* ------------------- Z. the browser is lost, and the case comes back ------------------- */
 
-    phase("Z: a GM backs up, every GM leaves, an empty browser comes back alone and restores", { flow: "gm-store" });
-    // gm2 is here since J3, alone; the seed GM left there. J's resets took every trace, so two are placed again.
+    phase("Z: a GM backs up, every GM leaves, an empty browser comes back alone, and another restores", { flow: "gm-store" });
+    // gm2 is here since J3, alone; the seed GM left there. J's resets took every trace and the pick, so two traces
+    // are placed again and Aiko is picked: the restore below has a door to tell p1 about.
+    await gm2.eval(`${MM} await M.setMastermind(game.actors.get("${IDS.aiko}"), { room: "Z lair" }); return true;`);
     const placedZ = await gm2.eval(`${REM}
         const scene = game.scenes.get("${IDS.scene}");
         const out = [];
@@ -810,20 +815,36 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         seenOnGm3.primary && seenOnGm3.hydration === "alone" && seenOnGm3.dialogs.length === 1
         && /3 Truth Bullets \(of 3\) have no answer key/.test(seenOnGm3.dialogs[0]?.content ?? "")
         && /2 traces on the map \(of 2\) have no answer key/.test(seenOnGm3.dialogs[0]?.content ?? "") && seenOnGm3.warning, J(seenOnGm3));
-    const restored = await gm3.eval(`const result = await game.drpg.restoreCase(${J(backup.text)});
-        await new Promise(r => setTimeout(r, 300));
-        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+    /* Z3-Z4 (E04's fix round): the file is restored by ANOTHER GM with an empty browser, gma, whose
+       id sorts after gm3's, so gm3 stays the primary with its warning up. Its rows arrive by merge:
+       its check runs again on the change and the panel's line goes (the review's C-m15, until then
+       up until a reload). And the GM who restored sends every player their copies again (S-m3 =
+       C-m7): the door, the offers and the fog, read off the packets. */
+    await connect("gma");
+    await settle(1500);
+    const fromZ = socketTraffic.length;
+    const restored = await gma.eval(`const result = await game.drpg.restoreCase(${J(backup.text)});
+        return { refused: result?.refused ?? null, primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm() };`);
+    await settle(1500);
+    const afterZ = await gm3.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const report = await game.drpg.gmStoreHealth();
-        return { refused: result?.refused ?? null, missing: report.rows.filter(r => r.level === "missing").map(r => r.id),
+        return { warning: Boolean(S.caseWarning()), missing: report.rows.filter(r => r.level === "missing").map(r => r.id),
             bullets: report.counts.bullets, traces: report.counts.traces };`);
     const keysOnGm3 = await gm3.eval(keyOf(made));
     const tracesOnGm3 = await gm3.eval(traceRows(idsZ));
     // The restore runs the Faint pass again: the third bullet's Faint moves off its item into its row.
     const answerKeys = rows => rows.map(r => r.slice(0, 5));
-    check("Z3: the file restored on the empty browser brings every answer key and trace back, the Faint pass moves the old flag in, and the check is clean",
-        !restored.refused && J(answerKeys(keysOnGm3)) === J(answerKeys(expected)) && keysOnGm3[2][5] === true
-        && J(tracesOnGm3) === J(expectZ) && J(restored.missing) === J([])
-        && restored.bullets.missing === 0 && restored.bullets.noAnswer === 0 && restored.traces.missing === 0, J({ restored, keysOnGm3, tracesOnGm3 }));
+    check("Z3: a second empty browser restores the file; the primary's answer keys and traces come back by merge, the Faint pass moves the old flag in, and its check - and the panel's warning - clear without a reload",
+        !restored.refused && !restored.primary && J(answerKeys(keysOnGm3)) === J(answerKeys(expected)) && keysOnGm3[2][5] === true
+        && J(tracesOnGm3) === J(expectZ) && J(afterZ.missing) === J([]) && !afterZ.warning
+        && afterZ.bullets.missing === 0 && afterZ.bullets.noAnswer === 0 && afterZ.traces.missing === 0,
+        J({ restored, afterZ, keysOnGm3, tracesOnGm3 }));
+    const toldZ = socketTraffic.slice(fromZ).filter(t => t.from === "gma" && !String(t.action ?? "").startsWith("gms."));
+    const toEach = action => [IDS.p1, IDS.p2, IDS.p3].every(id => toldZ.some(t => t.action === action && Array.isArray(t.to) && t.to.includes(id)));
+    const doorP1 = await p1.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); return E.readMine("door");`);
+    check("Z4: the GM who restored sends every player their copies again - the door, the offers and the fog - and p1 holds the part",
+        toEach("mastermind.door") && toEach("advancement.offers") && toEach("fog.rows") && doorP1?.mastermind === true,
+        J({ told: toldZ.map(t => [t.action, t.to]), doorP1 }));
 
     return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "J1", "J2", "J3", "H2", "Z"], gm: IDS.gm };
 }

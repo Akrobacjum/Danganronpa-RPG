@@ -3316,7 +3316,8 @@
       "refused": {
         "unreadable": "That file is not a case backup.",
         "newer": "That file was written by a newer version of the module (format {version}); this one cannot read it.",
-        "otherWorld": "That file is the case of another world ({title}). Tick the box to restore it here anyway."
+        "otherWorld": "That file is the case of another world ({title}). Tick the box to restore it here anyway.",
+        "malformed": "That file cannot be restored: its section for {store} is damaged (the console names the row). Nothing was changed."
       },
       "restored": "The case was restored.",
       "restoredStore": "{store}: {n} changed, {cut} under the reset's cut left out",
@@ -3370,7 +3371,8 @@
         "traps": {
           "one": "{n} armed item trap has no planted object on this browser: it cannot fire.",
           "other": "{n} armed item traps have no planted object on this browser: they cannot fire."
-        }
+        },
+        "tracesOnToken": {"one": "{n} trace on the map (of {of}) still carries its answer key on its token: it is moved into the ledger, not restored.", "other": "{n} traces on the map (of {of}) still carry their answer keys on their tokens: they are moved into the ledger, not restored."}
       },
       "healthTitle": "The case on this browser",
       "healthIntro": "This browser is missing part of this world's case:",
@@ -3380,10 +3382,10 @@
       "continued": "The case is incomplete on this browser. Restore it from a backup file (GM panel, Restore the case).",
       "panelWarning": "The case is incomplete on this browser:",
       "restoreTitle": "Restore the case",
-      "previewStore": "{store}: {add} new, {refresh} refreshed, {kept} newer here, {cut} under the reset's cut",
+      "previewStore": "{store}: {add} new, {refresh} refreshed, {kept} newer here, {cut} under the reset's cut, {remove} removed here",
       "otherWorld": "This file is the case of another world ({title}). Restore it here anyway.",
       "beforeCut": "Restore anyway the rows the last reset removed (they come back freshly stamped).",
-      "restoreNote": "A restore only adds what is newer; nothing this browser holds is lowered.",
+      "restoreNote": "A restore takes only what is newer than what this browser holds - a removal too, counted above. It never takes the file's reset cut, and a file of another world brings no removal.",
       "restore": "Restore",
       "answerKeyMissing": "{actor}'s Truth Bullet \"{bullet}\" has no answer key on this browser, so its Analyze was refused. Restore the case from a backup (GM panel).",
       "chargeHeld": {
@@ -3404,7 +3406,15 @@
       "castKiller": "Killer",
       "castVictim": "Victim",
       "castThird": "A third, if there was one",
-      "castEnter": "Enter"
+      "castEnter": "Enter",
+      "previewRecord": "{store}: another world's - taken only if you tick it below.",
+      "previewClamped": {"one": "{n} row is stamped later than the clock allows: it would be taken at this moment.", "other": "{n} rows are stamped later than the clock allows: they would be taken at this moment."},
+      "previewNotThisWorld": {"one": "{n} row is another world's and is left out.", "other": "{n} rows are another world's and are left out."},
+      "otherWorldRecord": "Take {store} from this file as well: another world's, it replaces this world's where the file's is newer.",
+      "restoredSkipped": "{store}: another world's, not taken",
+      "restoredClamped": {"one": "{n} row was stamped later than the clock allows and was taken at this moment.", "other": "{n} rows were stamped later than the clock allows and were taken at this moment."},
+      "moveTraces": "Move them into the ledger",
+      "moveNote": "Move them into the ledger takes each trace's answer key off its token (game.drpg.migrateRemnants); Continue carries on without it, and the GM panel keeps saying so until the case is whole."
     }
   }
 }

@@ -4545,7 +4545,8 @@
       "refused": {
         "unreadable": "Ten plik nie jest kopią sprawy.",
         "newer": "Ten plik zapisała nowsza wersja modułu (format {version}); ta nie umie go odczytać.",
-        "otherWorld": "Ten plik to sprawa innego świata ({title}). Zaznacz pole, by mimo to przywrócić go tutaj."
+        "otherWorld": "Ten plik to sprawa innego świata ({title}). Zaznacz pole, by mimo to przywrócić go tutaj.",
+        "malformed": "Tego pliku nie da się przywrócić: jego sekcja {store} jest uszkodzona (konsola wskazuje wiersz). Niczego nie zmieniono."
       },
       "restored": "Sprawa przywrócona.",
       "restoredStore": "{store}: zmienione {n}, pominięte pod cięciem resetu {cut}",
@@ -4613,7 +4614,8 @@
           "few": "{n} uzbrojone pułapki na przedmiot nie mają w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.",
           "many": "{n} uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.",
           "other": "{n} uzbrojonej pułapki na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać."
-        }
+        },
+        "tracesOnToken": {"one": "{n} ślad na mapie (z {of}) wciąż ma klucz odpowiedzi na swoim żetonie: przenosi się go do rejestru, a nie przywraca.", "few": "{n} ślady na mapie (z {of}) wciąż mają klucze odpowiedzi na swoich żetonach: przenosi się je do rejestru, a nie przywraca.", "many": "{n} śladów na mapie (z {of}) wciąż ma klucze odpowiedzi na swoich żetonach: przenosi się je do rejestru, a nie przywraca.", "other": "{n} śladu na mapie (z {of}) wciąż ma klucze odpowiedzi na swoich żetonach: przenosi się je do rejestru, a nie przywraca."}
       },
       "healthTitle": "Sprawa w tej przeglądarce",
       "healthIntro": "Tej przeglądarce brakuje części sprawy tego świata:",
@@ -4623,10 +4625,10 @@
       "continued": "Sprawa w tej przeglądarce jest niekompletna. Przywróć ją z pliku kopii (panel GM-a, Przywróć sprawę).",
       "panelWarning": "Sprawa w tej przeglądarce jest niekompletna:",
       "restoreTitle": "Przywróć sprawę",
-      "previewStore": "{store}: nowe {add}, odświeżone {refresh}, nowsze tutaj {kept}, pod cięciem resetu {cut}",
+      "previewStore": "{store}: nowe {add}, odświeżone {refresh}, nowsze tutaj {kept}, pod cięciem resetu {cut}, usunięte tutaj {remove}",
       "otherWorld": "Ten plik to sprawa innego świata ({title}). Mimo to przywróć go tutaj.",
       "beforeCut": "Przywróć mimo to wiersze usunięte przez ostatni reset (wrócą ze świeżym stemplem).",
-      "restoreNote": "Przywracanie tylko dodaje to, co nowsze; niczego w tej przeglądarce nie obniża.",
+      "restoreNote": "Przywracanie bierze tylko to, co nowsze niż to, co ma ta przeglądarka - także usunięcia, policzone wyżej. Nigdy nie bierze cięcia resetu z pliku, a plik innego świata nie przynosi żadnych usunięć.",
       "restore": "Przywróć",
       "answerKeyMissing": "Truth Bullet „{bullet}” postaci {actor} nie ma klucza odpowiedzi w tej przeglądarce, więc jego Analyze zostało odrzucone. Przywróć sprawę z kopii (panel GM-a).",
       "chargeHeld": {
@@ -4651,7 +4653,15 @@
       "castKiller": "Zabójca",
       "castVictim": "Ofiara",
       "castThird": "Trzecia osoba, jeśli była",
-      "castEnter": "Wpisz"
+      "castEnter": "Wpisz",
+      "previewRecord": "{store}: z innego świata - brane tylko wtedy, gdy zaznaczysz to niżej.",
+      "previewClamped": {"one": "{n} wiersz ma stempel późniejszy, niż pozwala zegar: zostałby przyjęty z tą chwilą.", "few": "{n} wiersze mają stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą.", "many": "{n} wierszy ma stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą.", "other": "{n} wiersza ma stemple późniejsze, niż pozwala zegar: zostałyby przyjęte z tą chwilą."},
+      "previewNotThisWorld": {"one": "{n} wiersz jest z innego świata i zostaje pominięty.", "few": "{n} wiersze są z innego świata i zostają pominięte.", "many": "{n} wierszy jest z innego świata i zostaje pominiętych.", "other": "{n} wiersza jest z innego świata i zostaje pominiętych."},
+      "otherWorldRecord": "Weź z tego pliku także: {store}. Jest z innego świata i zastępuje dane tego świata tam, gdzie plik ma nowsze.",
+      "restoredSkipped": "{store}: z innego świata, nie wzięto",
+      "restoredClamped": {"one": "{n} wiersz miał stempel późniejszy, niż pozwala zegar, i przyjęto go z tą chwilą.", "few": "{n} wiersze miały stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.", "many": "{n} wierszy miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą.", "other": "{n} wiersza miało stemple późniejsze, niż pozwala zegar, i przyjęto je z tą chwilą."},
+      "moveTraces": "Przenieś je do rejestru",
+      "moveNote": "Przenieś je do rejestru zdejmuje klucz odpowiedzi każdego śladu z jego żetonu (game.drpg.migrateRemnants); Dalej działa bez niego, a panel GM-a przypomina o tym, dopóki sprawa nie będzie kompletna."
     }
   }
 }

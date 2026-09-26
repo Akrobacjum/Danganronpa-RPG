@@ -7823,6 +7823,88 @@ const SCENARIOS = [
         }
     }],
 
+    ["a restore of another world's file keeps this world's rows and its pick, unless the pick is ticked", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the reviews' DS-M1 = C-m6. A file of another world
+         * (a duplicated world, a moved server) was merged as it was: its watermark removed
+         * every row of this world stamped under it, on every GM, and its record replaced
+         * this world's pick. In a world the stores have never opened (`withGmStoreWorld`,
+         * so no other GM and no player is sent anything): two answer keys and a pick here;
+         * in the file, a third row, a removal of one of the two, a watermark after both and
+         * a newer pick. Not ticked, the file is refused. Ticked: both answer keys read back,
+         * the file's row is added, the pick is this world's, and the preview said so -
+         * nothing removed here, the pick "taken only if ticked". Ticked for the Mastermind
+         * as well, the file's pick is taken.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const [mine, theirs] = cast(2);
+        const KEPT = ["Actor.SUITEOTHERW000.Item.KEPT1", "Actor.SUITEOTHERW000.Item.KEPT2"], THEIRS = "Actor.SUITEOTHERW000.Item.THEIRS";
+        await E.withGmStoreWorld(`suite-otherworld-${foundry.utils.randomID(8)}`, async () => {
+            await S.bulletStore.patch(KEPT[0], { realType: "key" });
+            await S.bulletStore.patch(KEPT[1], { realType: "final" });
+            await S.mastermindStore.patch("record", { actorId: mine.id, room: "SUITE this world's lair" });
+            const now = E.gmStoreNow();
+            const file = stableJson({
+                format: S.CASE_FORMAT, version: S.CASE_VERSION, world: { id: "suite-another-world", title: "Another world" },
+                stores: {
+                    bullets: { e: { [THEIRS]: { realType: "prep" } }, t: { [THEIRS]: now - 1000 }, d: { [KEPT[1]]: now + 1000 }, cleared: now + 2000 },
+                    mastermind: { e: { record: { actorId: theirs.id, room: "SUITE another world's lair" } }, t: { record: now + 3000 }, d: {}, cleared: 0 }
+                }
+            });
+            const refused = await S.restoreCase(file, { recheck: false });
+            equal(refused?.refused, "otherWorld", "another world's file was restored with nothing ticked");
+            const preview = S.previewRestore(file);
+            equal(stableJson([preview.otherWorld, preview.stores.bullets?.add, preview.stores.bullets?.remove, preview.stores.mastermind?.record]),
+                stableJson([true, 1, 0, true]), `the preview does not say one row added, none removed and the pick taken only if ticked: ${stableJson(preview)}`);
+            const first = await S.restoreCase(file, { otherWorld: true, recheck: false });
+            ok(first?.counts?.mastermind?.skipped, `another world's pick was not left out: ${stableJson(first)}`);
+            equal(stableJson([...KEPT, THEIRS].map(k => S.bulletStore.get(k)?.realType ?? null)), stableJson(["key", "final", "prep"]),
+                "another world's watermark or removal took this world's answer keys, or its row was not added");
+            equal(S.mastermindStore.record().actorId, mine.id, "another world's pick replaced this world's with nothing ticked for it");
+            await S.restoreCase(file, { otherWorld: true, records: ["mastermind"], recheck: false });
+            equal(stableJson([S.mastermindStore.record().actorId, S.mastermindStore.record().room]), stableJson([theirs.id, "SUITE another world's lair"]),
+                "the file's pick was not taken with the Mastermind ticked");
+        });
+    }],
+
+    ["the health check counts a trace whose answer key is still on its token apart, to be moved and not restored", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the review's C-m14. A trace from before the ledger
+         * that `migrateRemnants` has not reached has no row, and the check counted it as a
+         * missing answer key and offered a Restore that could not help: no backup holds a
+         * key that is still on its token. Made the way such a trace is - its answer key in
+         * its flags, no row - it is counted as one to move and not as missing, and a trace
+         * with no row and nothing on its token still is. Both fixtures are deleted after.
+         */
+        const S = await import("./gm-stores.mjs");
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const placed = [];
+        const make = async flags => {
+            const [t] = await scene.createEmbeddedDocuments("Token", [{ name: game.i18n.localize("DRPG.Remnant.tokenName"), actorLink: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, hidden: true, flags: { [MODULE_ID]: { isRemnant: true, ...flags } } }]);
+            ok(t, "could not make a fixture trace");
+            placed.push(t);
+            return t;
+        };
+        try {
+            const before = (await S.gmStoreHealth()).counts.traces;
+            const onToken = await make({ remnantType: "prep", visibility: "subtle", note: "SUITE a key still on its token" });
+            await make({});
+            ok(remnants.answerKeyOnToken(onToken) && remnants.remnantData(onToken) === null, "the fixture is not a trace whose key is still on its token");
+            const report = await S.gmStoreHealth();
+            const after = report.counts.traces;
+            equal(stableJson([after.onToken - before.onToken, after.missing - before.missing]), stableJson([1, 1]),
+                `the two traces with no row were not counted one to move and one missing: ${stableJson({ before, after })}`);
+            ok(report.rows.some(r => r.id === "tracesOnToken" && r.level === "missing"), "no row of the report says a trace's key is still on its token");
+        } finally {
+            for (const t of placed) if (scene.tokens.has(t.id)) await t.delete();
+        }
+    }],
+
     ["Analyze refuses rather than announcing Neutral when the answer key is missing", async () => {
         /*
          * E04, 26.09.2026; audit S05-01, S05-09. A bullet whose answer key this GM's
