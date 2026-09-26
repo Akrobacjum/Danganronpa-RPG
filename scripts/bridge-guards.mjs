@@ -157,7 +157,7 @@ export const REASONS = Object.freeze([
     "notEnoughHope", "noReroll", "rerollSpent", "traceOutOfReach", "notInIncident", "notYourTurn",
     "actionLocked", "actionSpent", "actionBlocked", "nothingLeft", "movedOn", "notThatRepair",
     "notWhereItStood", "alreadyDone", "nothingToUndo", "cannotNow", "cannotFrame", "notThere",
-    "relay", "failed", "refused", "noGm", "noAnswer"
+    "answerKeyMissing", "relay", "failed", "refused", "noGm", "noAnswer"
 ]);
 
 /**
@@ -245,7 +245,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["notThere", /^the body is not in the killer's room$/],
     ["notThere", /^the character has no token on a scene$/],
     ["notThere", /^the character is not in that room$/],
-    ["notThere", /^the character is not in ".*": .+$/]
+    ["notThere", /^the character is not in ".*": .+$/],
+    // E04: the GM's browser does not hold that bullet's answer key (analyze.mjs).
+    ["answerKeyMissing", /^the answer key for that bullet is not on this GM's browser$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */

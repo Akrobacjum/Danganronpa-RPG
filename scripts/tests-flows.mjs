@@ -72,7 +72,7 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "vault.steal", "body.loot"] },
         scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "gm-store", what: "The GM store between GM clients: a late, empty browser, the exchange, tombstones, backup and restore, the reset's cuts",
-        entry: { sockets: ["gm-store.mjs"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E04" },
+        entry: { sockets: ["gm-store.mjs"], api: ["backupCase", "restoreCase"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E04" },
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
         entry: {}, scenarios: [], status: "planned", stage: "E33" },
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",

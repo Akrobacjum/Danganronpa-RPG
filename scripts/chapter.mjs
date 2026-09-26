@@ -35,8 +35,9 @@ import { bodyDiscovery, setBodyDiscovery, clearBodyDiscovery } from "./settings.
 import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret, faintOf } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, REMNANT_FLAGS } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, error, plural }
+import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, error, plural, esc }
     from "./utils.mjs";
+import { caseMark } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -872,6 +873,16 @@ export async function clearChapterKeyRemnants(chapter) {
     return cleared;
 }
 
+/** The chapter window's line about the case's last backup (E04), from the world's case mark. */
+function backupReminder() {
+    const at = caseMark().lastBackupAt;
+    const days = at ? Math.floor((Date.now() - at) / 86400000) : null;
+    return game.i18n.format("DRPG.Case.chapterReminder", {
+        when: days === null ? game.i18n.localize("DRPG.Case.backupNever")
+            : days < 1 ? game.i18n.localize("DRPG.Case.backupToday") : plural("DRPG.Case.backupAgo", { n: days })
+    });
+}
+
 export async function openChapterEndDialog() {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -970,7 +981,18 @@ export async function openChapterEndDialog() {
                 finalTruthPlaced
                     ? "DRPG.Mastermind.finalTruthPlaced"
                     : "DRPG.Mastermind.finalTruthReminder")}</p>
+            <p class="notes">${esc(backupReminder())}
+                <button type="button" data-drpg-backup>${esc(game.i18n.localize("DRPG.Case.backupTile"))}</button></p>
         </form>`),
+        // The case's backup, from the window a chapter closes in (E04): the answer
+        // keys it is about to reveal and sweep live in GM browsers, not the world.
+        render: (event, dialog) => {
+            dialog.element?.querySelector("[data-drpg-backup]")?.addEventListener("click", ev => {
+                ev.preventDefault();
+                import("./gm-stores.mjs").then(m => m.backupCase({ ask: true }))
+                    .catch(err => error("Could not back up the case", err));
+            });
+        },
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Chapter.endConfirm"), default: true,

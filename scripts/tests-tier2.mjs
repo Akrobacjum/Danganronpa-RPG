@@ -1026,6 +1026,14 @@ const SCENARIOS = [
                 await wait(400);
             };
 
+            /* THE FIRST READ IS THE CHAPTER NOW RUNNING (E9), and the fixture's traces are
+               a chapter above it. On a world that holds a trace of the running chapter the
+               window opens on that chapter and lists none of the three - which the harness
+               world does since E04 (1.2.63) seeded its trace with a ledger row, as most
+               worlds at a table do. Measured 26.09: "the dashboard lists 1 trace(s); the
+               fixture placed three". So the test reads the fixture's own chapter first, as a
+               GM looking for these three would. */
+            await choose("chapter", String(future));
             const all = rows();
             ok(all >= 3, `the dashboard lists ${all} trace(s); the fixture placed three`);
 
@@ -6618,7 +6626,9 @@ const SCENARIOS = [
             const full = bullets.secretOf(uuid);
             equal(stableJson([full.realType, full.remnantId, full.analyzedText]), stableJson(["key", "SUITEE04FULLROW", READING]),
                 "the fixture bullet's row does not hold the answer key it was made with");
-            ok(await bullets.importLedger({ [uuid]: { faint: true, updated: Date.now() + 1000 } }), "the import refused a well-formed row");
+            // The old export's import is `restoreCase` since C3; asked not to re-run the health check, which is not what this measures.
+            const imported = await bullets.importLedger({ [uuid]: { faint: true, updated: Date.now() + 1000 } }, { recheck: false });
+            ok(imported && !imported.refused, `the import refused a well-formed row: ${stableJson(imported)}`);
             const after = bullets.secretOf(uuid);
             equal(stableJson({ realType: after.realType, remnantId: after.remnantId, analyzedText: after.analyzedText, faint: after.faint }),
                 stableJson({ realType: "key", remnantId: "SUITEE04FULLROW", analyzedText: READING, faint: true }),
@@ -6736,6 +6746,98 @@ const SCENARIOS = [
             ok(!bulletStore.legacyChanged(), "after taking what changed, the old key still reads as changed");
             equal(raw(), before, "taking what changed wrote the old key");
         });
+    }],
+
+    ["Back up the case, then Restore, brings every store back", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-09, the brief's verify. Each store is given a row
+         * through its own writer; the case is backed up (the file is taken from
+         * saveDataToFile instead of downloaded); every store's section on this browser
+         * is emptied, as a browser that lost its storage has it; the health report must
+         * name what is gone; the file is restored; and every row must read back through
+         * the same writer's reader. A store with `backup: true` and no fixture here
+         * fails. Put back by tier 2's restore; the emptied sections are this browser's
+         * copy only and are sent nowhere (`forget`).
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const [holder] = cast(1);
+        const made = [];
+        const FIXTURES = {
+            bullets: {
+                seed: async () => {
+                    const item = await bullets.createTruthBullet(holder, { name: "Suite fixture: a backed-up answer", realType: "final",
+                        visibility: "hidden", playerText: "A folded note.", analyzedText: "It names the mastermind", remnantId: "SUITEE04BACKUP" });
+                    ok(item, "no bullet was made to back up");
+                    made.push(item);
+                    return item.uuid;
+                },
+                gone: (report, uuid) => report.counts.bullets.missing >= 1 && !bullets.secretOf(uuid).realType,
+                back: uuid => stableJson([bullets.secretOf(uuid).realType, bullets.secretOf(uuid).analyzedText]) === stableJson(["final", "It names the mastermind"])
+            }
+        };
+        const stores = E.gmStoreHandles().filter(h => h.spec.backup);
+        const unfixtured = stores.filter(h => !FIXTURES[h.name]).map(h => h.name);
+        ok(!unfixtured.length, `these stores are backed up and this test has no fixture for them: ${unfixtured.join(", ")}`);
+        const saveDataToFile = foundry.utils.saveDataToFile;
+        let saved = null;
+        try {
+            foundry.utils.saveDataToFile = data => { saved = data; };
+            const keys = {};
+            for (const store of stores) keys[store.name] = await FIXTURES[store.name].seed();
+            const file = await S.backupCase();
+            ok(saved && file?.format === S.CASE_FORMAT, "the backup wrote no case file");
+            for (const store of stores) await store.forget();
+            const report = await S.gmStoreHealth();
+            for (const store of stores) ok(FIXTURES[store.name].gone(report, keys[store.name]), `${store.name}: after the store was emptied the report does not say so, or its row still reads`);
+            const result = await S.restoreCase(saved, { recheck: false });
+            ok(result && !result.refused, `the restore refused its own backup: ${stableJson(result)}`);
+            for (const store of stores) ok(FIXTURES[store.name].back(keys[store.name]), `${store.name}: its row did not come back from the file`);
+        } finally {
+            foundry.utils.saveDataToFile = saveDataToFile;
+            for (const item of made) {
+                await bullets.dropSecret(item.uuid);
+                await item.actor?.items?.get(item.id)?.delete();
+            }
+        }
+    }],
+
+    ["Analyze refuses rather than announcing Neutral when the answer key is missing", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-01, S05-09. A bullet whose answer key this GM's
+         * browser lacks used to be read as Neutral by the Analyze - a reading nobody
+         * made, announced to its holder. Made here the way a lost browser leaves one: a
+         * bullet on a student with no row in the store. Its Analyze is refused with the
+         * closed list's code (answerKeyMissing), the bullet shows and holds what it did,
+         * and the GMs are told once for the bullet, not once per throw.
+         */
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const { bulletStore } = await import("./gm-stores.mjs");
+        const [actor] = cast(1);
+        const messages = () => game.messages.size;
+        let item = null;
+        try {
+            [item] = await actor.createEmbeddedDocuments("Item", [{ name: "Suite fixture: a bullet with no answer key", type: "loot",
+                flags: { [MODULE_ID]: { category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "evident", analyzed: false } } }]);
+            ok(item && !bulletStore.has(item.uuid), "the fixture bullet was made with a row, or not at all");
+            await bulletStore.whenHydrated();
+            const before = messages();
+            const first = await resolveAnalyze({ actorId: actor.id, itemId: item.id, total: 40, isCritical: false });
+            equal(reasonOf(first?.refused ?? ""), "answerKeyMissing", `the Analyze was not refused for its missing key: ${stableJson(first)}`);
+            const live = actor.items.get(item.id);
+            equal(stableJson([live.getFlag(MODULE_ID, "shownType"), live.getFlag(MODULE_ID, "analyzed")]), stableJson(["neutral", false]),
+                "the refused Analyze announced something on the bullet");
+            await settle();
+            const told = messages() - before;
+            ok(told === 1, `the GMs were told ${told} time(s) about the missing key, not once`);
+            await resolveAnalyze({ actorId: actor.id, itemId: item.id, total: 40, isCritical: false });
+            await settle();
+            equal(messages() - before, 1, "a second throw at the same bullet told the GMs again");
+        } finally {
+            if (item) await actor.items.get(item.id)?.delete();
+        }
     }]
 ];
 

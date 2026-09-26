@@ -187,6 +187,15 @@ export const SETTINGS = {
     truthBulletSecrets: "gmBullets",
     legacyTruthBulletSecrets: "truthBulletSecrets",
     /**
+     * `{ since, lastBackupAt, lastBackupBy }` (E04, 1.2.63): when this world's case
+     * was first held in a GM store, and its last backup. WORLD-scoped because every
+     * GM's browser needs the same answer - a browser that opens a world whose case
+     * began before it, holding nothing, is not looking at a new case - and it says
+     * nothing about the case itself: no pick, no offer, no count (gm-stores.mjs,
+     * `markCaseSince`).
+     */
+    caseMark: "caseMark",
+    /**
      * What every Remnant on the maps really is: its type, how hard it is to
      * spot, who left it, and the GM's note about it.
      *
@@ -964,6 +973,12 @@ export function registerSettings() {
     });
     game.settings.register(MODULE_ID, SETTINGS.legacyTruthBulletSecrets, {
         scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.caseMark, {
+        scope: "world",
         config: false,
         type: Object,
         default: {}

@@ -16,7 +16,7 @@ import { MODULE_ID } from "./config.mjs";
 import { registerSettings } from "./settings.mjs";
 import { registerLanguage } from "./i18n.mjs";
 import { runMigrationOnLoad } from "./migrate.mjs";
-import { openGmStores } from "./gm-stores.mjs";
+import { openGmStores, registerCaseHealth } from "./gm-stores.mjs";
 import { registerSfx } from "./sfx.mjs";
 import { registerHandbooks } from "./handbooks.mjs";
 import { registerPrivateRolls } from "./private-rolls.mjs";
@@ -282,7 +282,10 @@ Hooks.once("ready", () => {
     // Before the migration, whose clauses read the GM-only stores and wait until
     // this client holds the other GMs' copies of them (E04, gm-stores.mjs): the
     // claim of this browser's old keys for this world, the reset's cuts, the
-    // GM-to-GM exchange. Not awaited, for the reason the migration is not.
+    // GM-to-GM exchange. Not awaited, for the reason the migration is not. The
+    // case's health check is hung on the moment the other GMs' copies have
+    // arrived, before the stores open, so it cannot miss it (the primary only).
+    safely("the case health check", registerCaseHealth);
     safely("the GM stores", openGmStores);
     // First, and before anything below reads a saved shape: bring this world's
     // data up to the shape this build expects. Primary GM only, silent when

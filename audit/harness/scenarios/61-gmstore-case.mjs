@@ -18,17 +18,23 @@
  *      rebuilt a row for every bullet from its item's Faint flag and the newer,
  *      partial rows replaced the full ones on the first GM; a gms.delta forged by
  *      a player changes nothing.
+ *   Z  the browser is lost (the brief's live verify, headless): a GM backs up the
+ *      case, every GM leaves, a third GM comes with an empty browser and is alone,
+ *      so the primary; its health check opens and names what is missing, Continue
+ *      is taken, the file is restored, the answer keys read back and the check is
+ *      clean. Last in the file: the seed GM cannot come back.
  */
 export const layers = ["ci"];
 export const accounts = [
-    { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true }
+    { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true },
+    { who: "gm3", id: "USERGM3000000000", name: "Third GM", role: 4, character: null, color: "#66ffaa", late: true }
 ];
 
 const PROBE_KEY = "drpg-harness.probe";
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, gm2, p1, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
+export async function run({ gm, gm2, gm3, p1, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
     const GM2 = "USERGM2000000000";
 
     /* ------------------------------ A. the harness ------------------------------ */
@@ -136,5 +142,44 @@ export async function run({ gm, gm2, p1, check, phase, settle, connect, disconne
     await disconnect("gm2");
     await settle(300);
 
-    return { phases: ["A", "B"], gm: IDS.gm };
+    /* ------------------- Z. the browser is lost, and the case comes back ------------------- */
+
+    phase("Z: a GM backs up, every GM leaves, an empty browser comes back alone and restores", { flow: "gm-store" });
+    await connect("gm2", { storage: await storageOf("gm2") });
+    await settle(1500);
+    const backup = await gm2.eval(`const file = await game.drpg.backupCase();
+        const saved = globalThis.__savedFiles.at(-1) ?? null;
+        return { format: file?.format ?? null, rows: Object.keys(file?.stores?.bullets?.e ?? {}).length, name: saved?.filename ?? null, text: saved?.data ?? null };`);
+    check("Z1: the second GM backs the case up to one file, the three answer keys in it",
+        backup.format === "drpg-case" && backup.rows === 3 && /^drpg-case-drpg-audit-world-/.test(backup.name ?? "") && Boolean(backup.text),
+        J({ ...backup, text: backup.text ? `${backup.text.length} characters` : null }));
+    await disconnect("gm");
+    await disconnect("gm2");
+    await settle(300);
+    await connect("gm3");
+    await settle(1500);
+    const seenOnGm3 = await gm3.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), hydration: E.gmStoreHydration().state,
+            dialogs: globalThis.__dialogLog.filter(d => d.title === game.i18n.localize("DRPG.Case.healthTitle")),
+            warning: Boolean(S.caseWarning()) };`);
+    check("Z2: the empty browser, alone and so the primary, opens the health check naming the missing answer keys, and Continue leaves the warning up",
+        seenOnGm3.primary && seenOnGm3.hydration === "alone" && seenOnGm3.dialogs.length === 1
+        && /3 Truth Bullets \(of 3\) have no answer key/.test(seenOnGm3.dialogs[0]?.content ?? "") && seenOnGm3.warning, J(seenOnGm3));
+    const restored = await gm3.eval(`const result = await game.drpg.restoreCase(${J(backup.text)});
+        await new Promise(r => setTimeout(r, 300));
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const report = await game.drpg.gmStoreHealth();
+        return { refused: result?.refused ?? null, missing: report.rows.filter(r => r.level === "missing").map(r => r.id),
+            bullets: report.counts.bullets };`);
+    const keysOnGm3 = await gm3.eval(keyOf(made));
+    // The restore runs the Faint pass again: the third bullet's Faint moves off its item into its row.
+    const answerKeys = rows => rows.map(r => r.slice(0, 5));
+    /* The seeded trace's answer key is not a GM store until the traces move (C4), so an empty
+       browser cannot get it back from a file here: the one row left missing is the traces'. */
+    check("Z3: the file restored on the empty browser brings every answer key back, the Faint pass moves the old flag in, and only the traces' row is left (C4 moves them)",
+        !restored.refused && J(answerKeys(keysOnGm3)) === J(answerKeys(expected)) && keysOnGm3[2][5] === true
+        && J(restored.missing) === J(["traces"]) && restored.bullets.missing === 0 && restored.bullets.noAnswer === 0, J({ restored, keysOnGm3 }));
+
+    return { phases: ["A", "B", "Z"], gm: IDS.gm };
 }

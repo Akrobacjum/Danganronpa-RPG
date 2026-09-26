@@ -409,6 +409,31 @@ export function flatToSection(flat, spec, weak = 1) {
     return sec;
 }
 
+/**
+ * What merging `incoming` into `here` would do, key by key, without doing it: rows
+ * the file adds, rows it refreshes (some field newer in the file), rows kept because
+ * this copy is newer (or has a newer tombstone), and rows at or under this copy's
+ * watermark - a reset's cut - which the merge refuses (a restore can fill those only
+ * when asked, freshly stamped). Every key is counted once; `inFile` is their number.
+ */
+export function previewSection(here, incoming, spec) {
+    const base = normalizeSection(clone(syncable(here))) ?? emptySection();
+    const inc = normalizeSection(clone(syncable(incoming))) ?? emptySection();
+    const keys = [...new Set([...Object.keys(inc.e), ...Object.keys(inc.d)])].filter(k => !UNSAFE.has(k));
+    const out = { inFile: keys.length, add: 0, refresh: 0, keptNewerHere: 0, beforeCut: 0, beforeCutKeys: [] };
+    for (const k of keys) {
+        const one = subsection(inc, [k]);
+        const merged = mergeSections(base, one, spec);
+        const had = Object.hasOwn(base.e, k) || Object.hasOwn(base.d, k);
+        const same = stableJson([merged.e[k], merged.t[k], merged.d[k]]) === stableJson([base.e[k], base.t[k], base.d[k]]);
+        const newestInFile = Math.max(inc.d[k] ?? 0, fieldStamp(inc, k, undefined, splitSet(spec)));
+        if (!same) (had ? out.refresh++ : out.add++);
+        else if (newestInFile <= (base.cleared ?? 0)) { out.beforeCut++; out.beforeCutKeys.push(k); }
+        else out.keptNewerHere++;
+    }
+    return out;
+}
+
 /** How many rows an old store holds: a spec may say (a record is one row); else an array's length or an object's keys. */
 export function legacyRows(spec, legacy) {
     if (spec?.legacyCount) return spec.legacyCount(legacy);
@@ -707,8 +732,10 @@ export function createGmStoreEngine(env) {
                 raiseCleared(w.section, stamp(), spec);
                 return touched(st, w, new Set([""]), { local: true }).then(() => true);
             },
-            whenHydrated: () => whenHydrated(),
-            isHydrated: () => isHydrated(),
+            whenHydrated: () => (st.restored ? Promise.resolve("restored") : whenHydrated()),
+            isHydrated: () => st.restored || isHydrated(),
+            /** A restore counts as this store's copy having arrived (the design's 2.8). */
+            markRestored: () => { st.restored = true; },
             /** A copy of this world's section (what a backup holds). */
             section: () => clone(syncable(current(st).section)),
             /**

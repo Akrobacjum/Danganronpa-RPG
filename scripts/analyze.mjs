@@ -26,7 +26,8 @@ import {
 // The trace's own `public` record, for a reading a bullet's secret was minted
 // without (T-2). Static: remnants.mjs does not import this file.
 import { remnantPublicById } from "./remnants.mjs";
-import { whisperToOwner, whisperToGms, log, warn, error, article } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, log, warn, error, article, esc } from "./utils.mjs";
+import { bulletStore } from "./gm-stores.mjs";
 
 /**
  * Score a thrown Analyze against the bullet's real category.
@@ -39,6 +40,20 @@ import { whisperToOwner, whisperToGms, log, warn, error, article } from "./utils
  * @param {boolean} [options.undo]  A Reroll replacing an earlier attempt.
  * @returns {Promise<{success: boolean, locked: boolean}|null>}
  */
+/* The bullets the GMs have been told about this session: one whisper each, not one per roll. */
+const keyMissingTold = new Set();
+
+async function tellGmsKeyMissing(item) {
+    if (keyMissingTold.has(item.uuid)) return;
+    keyMissingTold.add(item.uuid);
+    try {
+        await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Case.answerKeyMissing", {
+            bullet: item.name, actor: item.actor?.name ?? "?" }))}</p>`);
+    } catch (err) {
+        error("Could not tell the GMs a bullet's answer key is missing", err);
+    }
+}
+
 export async function resolveAnalyze({
     actorId, itemId, total, isCritical = false, undo = false
 } = {}) {
@@ -79,6 +94,20 @@ export async function resolveAnalyze({
     // Neutral would leave it showing less than it did when it was picked up. Which
     // state it was in is recorded below, before the first throw is scored.
     const secret = secretOf(item.uuid);
+    /*
+     * NO ANSWER KEY, NO ANSWER (E04, 1.2.63; audit S05-01, S05-09). The dice below
+     * are scored against `realType ?? "neutral"`, so a bullet whose answer key this
+     * GM's browser does not hold - a lost browser, a GM whose copy has not arrived,
+     * a row S05-01 left with its realType gone - was announced as Neutral, and a
+     * table argued its trial on a reading nobody made. Once the store holds the
+     * other GMs' copies, an Analyze of such a bullet is refused instead (a refusal
+     * hands back what was paid, R88), and the GMs are told, once per bullet per
+     * session, where the key can come back from.
+     */
+    if (!undo && bulletStore.isHydrated() && !secret.realType) {
+        await tellGmsKeyMissing(item);
+        return { refused: "the answer key for that bullet is not on this GM's browser" };
+    }
     if (undo) {
         const before = secret.analysedFrom ?? "neutral";
         const kindShown = before !== "neutral";

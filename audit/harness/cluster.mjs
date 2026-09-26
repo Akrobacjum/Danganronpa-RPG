@@ -18,7 +18,7 @@ import path from "node:path";
 import fs from "node:fs";
 import url from "node:url";
 import * as U from "./lib/futil.mjs";
-import { IDS, world } from "./lib/seed.mjs";
+import { IDS, world, storage as seedStorage } from "./lib/seed.mjs";
 import { readVersions } from "./lib/versions.mjs";
 import { createCanary } from "./lib/canary.mjs";
 import { kindOf, replacementOf } from "./lib/operators.mjs";
@@ -836,7 +836,7 @@ async function main() {
     const accounts = seedAccounts(scenario.accounts, [...Object.keys(api), "gm", "p1", "p2", "p3", "canary"]);
     await loadFlows();
 
-    spawnClient("gm", IDS.gm);
+    spawnClient("gm", IDS.gm, { storage: seedStorage.gm ?? null });
     spawnClient("p1", IDS.p1);
     spawnClient("p2", IDS.p2);
     spawnClient("p3", IDS.p3);

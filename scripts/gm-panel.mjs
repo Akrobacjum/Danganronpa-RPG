@@ -16,6 +16,7 @@ import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
 import { keepLive, alreadyOpen, handOff } from "./live.mjs";
 import { bodyDiscovery } from "./settings.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
+import { caseMark, caseWarning, healthLine } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -225,6 +226,13 @@ const PANEL_SECTIONS = [
             // on screen at all: the trial console's button waited on a verdict.
             { key: "chapterEndTile", icon: "fa-flag-checkered", labelKey: "DRPG.Chapter.endTitle",
               run: () => import("./chapter.mjs").then(m => m.openChapterEndDialog()) },
+            // THE CASE (E04): what lives only in GM browsers - the answer keys, the
+            // traces, the cast, the Mastermind - to one file and back. Before the
+            // reset, which is the thing a backup is most often taken against.
+            { key: "backupCase", icon: "fa-box-archive", labelKey: "DRPG.Case.backupTile", subtitle: () => backupAge(),
+              run: () => import("./gm-stores.mjs").then(m => m.backupCase({ ask: true })) },
+            { key: "restoreCase", icon: "fa-box-open", labelKey: "DRPG.Case.restoreTile",
+              run: () => import("./gm-stores.mjs").then(m => m.openRestoreDialog()) },
             // Last in the section and red: it is the only control here that
             // destroys anything, and it destroys a chapter's worth at once.
             { key: "seasonReset", icon: "fa-trash-arrow-up", labelKey: "DRPG.Season.resetTitle",
@@ -344,7 +352,8 @@ function buildSections() {
                     blocked ? " drpg-disabled" : ""}" data-drpg-run="${item.key}"${
                     blocked ? ` disabled title="${foundry.utils.escapeHTML(game.i18n.localize(item.disabledReason))}"` : ""}>
                     <i class="fa-solid ${item.icon}" inert></i>
-                    <span>${game.i18n.localize(item.labelKey)}</span>
+                    <span>${game.i18n.localize(item.labelKey)}</span>${
+                    item.subtitle ? `<small class="notes">${esc(item.subtitle())}</small>` : ""}
                 </button>`;
             }).join("")}</div>
         </details>`;
@@ -1209,7 +1218,17 @@ function buildPanelContent() {
                <i class="fa-solid fa-forward-step" inert></i> ${esc(game.i18n.localize("DRPG.Panel.advance"))}</button>`
         : "";
 
+    // THE CASE IS INCOMPLETE ON THIS BROWSER (E04): the primary's health check
+    // found a row missing and the GM chose Continue. It stays, at the top, until
+    // a check passes - a restore, or the next load with the copy in place.
+    const warning = caseWarning();
+    const caseLine = warning
+        ? `<p class="drpg-warning">${esc(game.i18n.localize("DRPG.Case.panelWarning"))} ${esc(warning.rows
+            .filter(r => r.level === "missing").map(healthLine).join(" "))}</p>`
+        : "";
+
     return `<div class="drpg-gmp-standing">
+                ${caseLine}
                 <h3>${foundry.utils.escapeHTML(campaignName(clock))}</h3>
                 <p><strong>${clockSummary(clock)}</strong>
                    <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span>
@@ -1217,6 +1236,14 @@ function buildPanelContent() {
                 ${suggestion}
                 ${table}
             </div>`;
+}
+
+/** The Back up tile's second line: when the case was last backed up, from the world's case mark (E04). */
+function backupAge() {
+    const at = caseMark().lastBackupAt;
+    if (!at) return game.i18n.localize("DRPG.Case.backupNever");
+    const days = Math.floor((Date.now() - at) / 86400000);
+    return days < 1 ? game.i18n.localize("DRPG.Case.backupToday") : plural("DRPG.Case.backupAgo", { n: days });
 }
 
 /* ==========================================================================

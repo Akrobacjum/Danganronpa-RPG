@@ -3647,6 +3647,86 @@ const INVARIANTS = [
         target.eng.onPacket(delta({ delta: { e: { u1: { realType: "neutral" } }, t: { u1: Number.MAX_SAFE_INTEGER }, d: {}, cleared: 0 } }), "R170P");
         await tick();
         equal(J(target.handle.section()), was, "a delta forged by a player changed a GM's store");
+    }],
+
+    ["R173 - a restore never lowers a value, and a backup holds every store that says it is backed up", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-09. Back up the case writes every GM store with
+         * `backup: true` to one file; Restore merges a file back by the sync's own merge,
+         * so a GM may restore an old file over a newer copy and lose nothing. Held here
+         * without writing: an older file merged over a newer section - a newer row, a
+         * tombstone, a reset's cut - keeps every newer value, brings back no tombstoned
+         * or cut row, takes the one row it adds, and twice is once; the preview says
+         * the same before anything is written; the file takes exactly the stores that
+         * say they are backed up, of fakes and of the real table; a file of a newer
+         * format is refused and the Truth Bullet export of every version before E04 is
+         * read as the bullets' section.
+         */
+        const G = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const spec = { name: "r173", split: ["public"] };
+        const J = G.stableJson;
+        const here = G.emptySection();
+        G.writeFields(here, "a", { realType: "key", gmNote: "newer" }, 500, spec);
+        G.writeFields(here, "b", { realType: "final" }, 300, spec);
+        G.dropKey(here, "c", 450, spec);
+        G.raiseCleared(here, 200, spec);
+        const file = G.emptySection();
+        G.writeFields(file, "a", { realType: "neutral", gmNote: "older" }, 400, spec);
+        G.writeFields(file, "b", { realType: "neutral" }, 250, spec);
+        G.writeFields(file, "c", { realType: "prep" }, 420, spec);
+        G.writeFields(file, "d", { realType: "evident" }, 150, spec);
+        G.writeFields(file, "e", { realType: "incident" }, 600, spec);
+        const merged = G.mergeSections(here, file, spec);
+        equal(J([merged.e.a, merged.e.b, merged.e.c ?? null, merged.e.d ?? null, merged.e.e]),
+            J([{ gmNote: "newer", realType: "key" }, { realType: "final" }, null, null, { realType: "incident" }]),
+            "a restore lowered a value, brought back a tombstoned or cut row, or lost the row it adds");
+        equal(J(G.mergeSections(merged, file, spec)), J(merged), "restoring one file twice is not restoring it once");
+        const preview = G.previewSection(here, file, spec);
+        equal(J({ inFile: preview.inFile, add: preview.add, refresh: preview.refresh, kept: preview.keptNewerHere, cut: preview.beforeCut }),
+            J({ inFile: 5, add: 1, refresh: 0, kept: 3, cut: 1 }), "the preview does not say what the restore does");
+
+        const fake = [
+            { name: "backedUp", spec: { backup: true }, section: () => ({ e: { x: { v: 1 } }, t: { x: 1 }, d: {}, cleared: 0 }) },
+            { name: "localOnly", spec: { backup: false }, section: () => { throw new Error("R173: a store that is not backed up was read"); } }
+        ];
+        equal(J(Object.keys(S.caseSections(fake))), J(["backedUp"]), "the backup took a store that says it is not backed up, or left one that says it is");
+        const real = G.gmStoreHandles();
+        const inFile = Object.keys(S.caseSections(real)).sort();
+        ok(inFile.length >= 1, "no GM store is backed up - the table did not load");
+        equal(J(inFile), J(real.filter(h => h.spec.backup).map(h => h.name).sort()), "the backup does not hold exactly the stores that say they are backed up");
+        const built = S.caseFileOf({ sections: S.caseSections(fake), world: { id: "R173WORLD", title: "R173" }, exportedAt: "x", exportedBy: "y" });
+        equal(J([built.format, built.version, Object.keys(built.stores)]), J([S.CASE_FORMAT, S.CASE_VERSION, ["backedUp"]]), "the file is not the case format");
+        equal(S.readCaseFile(J({ format: S.CASE_FORMAT, version: S.CASE_VERSION + 1, stores: {} })).refused, "newer", "a file of a newer format was not refused");
+        const flat = S.readCaseFile(J({ "Actor.R173.Item.R173": { realType: "key", updated: 5 } }));
+        equal(J([flat.kind, flat.stores?.bullets?.e?.["Actor.R173.Item.R173"]?.realType]), J(["flat", "key"]),
+            "the Truth Bullet export of 1.2.62 is not read as the bullets' section");
+    }],
+
+    ["R174 - the case health report counts this world as it stands", async () => {
+        /*
+         * E04, 26.09.2026; audit S05-09, S04-24. The primary's check at load (and any
+         * GM's `game.drpg.gmStoreHealth()`) says what this browser is missing of the
+         * case. It reads; it writes nothing (this tier's runner holds it to that). Held:
+         * the traces it counts are the Remnant tokens on every scene, and every one of
+         * them is either missing its answer key or has one - the two add up; the same
+         * for the Truth Bullets in the world; each row is a level the report knows and a
+         * sentence both languages carry; and its count of missing rows is its rows.
+         */
+        needs(world.atLeast("remnantTokens", 1), "the report counts the traces on the map");
+        const S = await import("./gm-stores.mjs");
+        const { remnantData } = await import("./remnants.mjs");
+        const report = await S.gmStoreHealth();
+        ok(report?.counts, "a GM's health report carried no counts");
+        const tokens = [...game.scenes].flatMap(scene => [...scene.tokens].filter(t => t.getFlag(MODULE_ID, "isRemnant")));
+        equal(report.counts.traces.of, tokens.length, "the report counts other traces than the Remnant tokens on every scene");
+        equal(report.counts.traces.missing + tokens.filter(t => remnantData(t)).length, tokens.length,
+            "traces missing an answer key and traces holding one do not add up to the traces on the map");
+        const bullets = game.actors.filter(a => a.type === "character").flatMap(a => a.items.filter(i => i.getFlag(MODULE_ID, "category") === "truthBullet"));
+        equal(report.counts.bullets.of, bullets.length, "the report counts other bullets than the world's");
+        ok(report.rows.every(r => ["missing", "conflict", "info"].includes(r.level) && (game.i18n.has(r.key) || game.i18n.has(`${r.key}.other`))),
+            `a row has a level the report does not know or a sentence no language file carries: ${JSON.stringify(report.rows.map(r => [r.level, r.key]))}`);
+        equal(report.missing, report.rows.filter(r => r.level === "missing").length, "the count of missing rows is not the rows");
     }]
 ];
 

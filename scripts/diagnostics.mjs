@@ -1069,7 +1069,8 @@ export function diagnoseTruthBullets() {
         lines.push(`   entries whose bullet is gone: ${orphans.length}${
             orphans.length ? "  ← harmless, but dropSecret() was missed somewhere" : ""
         }`);
-        lines.push("Back the ledger up with game.drpg.exportLedger() - it lives in browser storage, not the world.");
+        lines.push("It lives in GM browsers, not the world: back the case up from the GM panel (Back up the case),");
+        lines.push("   and see game.drpg.diagnoseGmStores() for every GM store on this browser.");
     }
 
     // "Neutral" describes a BULLET the player has not identified yet, not a kind
@@ -1113,6 +1114,46 @@ export function diagnoseTruthBullets() {
  *
  * Run it on the client that is complaining, not only on the GM's.
  */
+/**
+ * THE GM STORES ON THIS BROWSER (E04, 1.2.63): what each holds of this world -
+ * its live rows, tombstones, the reset's cut, its bytes, the other worlds it
+ * carries, and what the upgrade's claim took from the old key - then the case's
+ * health report, the rows the primary's check reads. A store whose old key
+ * changed since the claim (a GM went back to 1.2.x) is named with the call that
+ * takes what changed. Console text, like the rest of this file.
+ *
+ *     game.drpg.diagnoseGmStores()
+ */
+export async function diagnoseGmStores() {
+    const lines = [];
+    if (!game.user.isGM) {
+        lines.push("Not a GM: the GM stores live on GM browsers only.");
+        log(lines.join("\n"));
+        return lines.join("\n");
+    }
+    const { gmStoreHandles, gmStoreHydration } = await import("./gm-store.mjs");
+    const { gmStoreHealth, healthLine, gmStoreStatus } = await import("./gm-stores.mjs");
+    const hyd = gmStoreHydration();
+    lines.push(`GM stores of world ${game.world.id} on this browser: ${hyd.state}${
+        hyd.waiting.length ? ` (still waiting for ${hyd.waiting.map(id => game.users.get(id)?.name ?? id).join(", ")})` : ""}`);
+    for (const handle of gmStoreHandles()) {
+        const s = handle.status();
+        const census = s.census
+            ? `claimed ${s.census.claimed} of the old key's ${s.census.legacy} row(s), ${s.census.left} left`
+            : (s.claimFailed ? `the claim FAILED: ${s.claimFailed}` : "no claim yet");
+        lines.push(`   ${s.name}: ${s.live} live, ${s.dead} tombstone(s), cut ${s.cleared ? new Date(s.cleared).toISOString() : "none"}, `
+            + `${s.bytes} bytes, ${s.otherWorlds} other world(s); ${census}${handle.legacyChanged()
+                ? `  ← the old key changed since: game.drpg.gmStoreReclaim("${s.name}")` : ""}`);
+    }
+    const status = gmStoreStatus();
+    lines.push(`   in all ${Math.round(status.stores / 1024)} KB; everything the module keeps in this browser ${Math.round(status.total / 1024)} KB`);
+    const report = await gmStoreHealth();
+    for (const row of report?.rows ?? []) lines.push(`   [${row.level}] ${healthLine(row)}`);
+    lines.push("Back the case up from the GM panel (Back up the case), or game.drpg.backupCase().");
+    log(lines.join("\n"));
+    return lines.join("\n");
+}
+
 export function diagnoseVoice() {
     const lines = [];
     const av = game.modules.get("avclient-livekit");

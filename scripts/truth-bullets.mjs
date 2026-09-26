@@ -38,8 +38,7 @@ import { getClock } from "./clock.mjs";
 import { grantItem, itemsInCategory } from "./inventory.mjs";
 import { whisperToOwner, whisperToGms, isPrimaryGm, log, warn, error, plural } from "./utils.mjs";
 import { playSfxFor } from "./sfx.mjs";
-import { bulletStore } from "./gm-stores.mjs";
-import { flatToSection } from "./gm-store.mjs";
+import { bulletStore, backupCase, restoreCase } from "./gm-stores.mjs";
 
 /** The one inventory category a Truth Bullet ever has. */
 export const BULLET_CATEGORY = "truthBullet";
@@ -195,47 +194,17 @@ export async function dropSecret(uuid) {
 }
 
 /**
- * Back up the answer key in the file shape it has had since 1.1: `{ uuid: {
- * ...fields, updated } }`, a forgotten bullet as `{ deleted, updated }`, with
- * each row's newest stamp as its `updated`.
+ * The answer key's own backup and import until E04: `backupCase` and
+ * `restoreCase` (gm-stores.mjs) now, which write every GM store to one file and
+ * read this ledger's old export as its bullets. Kept under these names for the
+ * macros and handbooks that call them.
  */
 export function exportLedger() {
-    if (!game.user.isGM) return null;
-    const section = bulletStore.section();
-    const ledger = {};
-    for (const [uuid, entry] of Object.entries(section.e)) ledger[uuid] = { ...entry, updated: bulletStore.stampOf(uuid) };
-    for (const [uuid, updated] of Object.entries(section.d)) if (!ledger[uuid]) ledger[uuid] = { deleted: true, updated };
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    foundry.utils.saveDataToFile(
-        JSON.stringify(ledger, null, 2),
-        "application/json",
-        `drpg-truth-bullets-${stamp}.json`
-    );
-    return ledger;
+    return backupCase();
 }
 
-/**
- * Merge a previously exported file back in, by the store's own merge: each field
- * of each row at the file's `updated` for that row, so a file never lowers a
- * value written since, and a row whose `updated` is missing counts as weak.
- * The other GMs get what changed.
- */
-export async function importLedger(json) {
-    if (!game.user.isGM) return false;
-    let data;
-    try {
-        data = typeof json === "string" ? JSON.parse(json) : json;
-    } catch (err) {
-        ui.notifications.error(game.i18n.localize("DRPG.TruthBullet.importFailed"));
-        return false;
-    }
-    if (!data || typeof data !== "object" || Array.isArray(data)) return false;
-
-    await bulletStore.mergeIn(flatToSection(data, bulletStore.spec, bulletStore.weak()), { source: "restore" });
-    ui.notifications.info(plural("DRPG.TruthBullet.imported", {
-        n: Object.keys(data).length
-    }));
-    return true;
+export function importLedger(json, opts = {}) {
+    return restoreCase(json, opts);
 }
 
 /* ==========================================================================

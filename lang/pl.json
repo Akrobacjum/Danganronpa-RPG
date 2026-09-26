@@ -1902,13 +1902,6 @@
         "many": "{n} Truth Bullets sprzed tej wersji ma teraz typ, widoczność i rozdział. Ich prawdziwych typów nie dało się odzyskać, więc każdy zapisano jako Neutral - popraw te, które mają znaczenie, w Daj / zabierz przedmioty.",
         "other": "{n} Truth Bullets sprzed tej wersji ma teraz typ, widoczność i rozdział. Ich prawdziwych typów nie dało się odzyskać, więc każdy zapisano jako Neutral - popraw te, które mają znaczenie, w Daj / zabierz przedmioty."
       },
-      "imported": {
-        "one": "Scalono {n} wpis Truth Bullet z rejestrem.",
-        "few": "Scalono {n} wpisy Truth Bullet z rejestrem.",
-        "many": "Scalono {n} wpisów Truth Bullet z rejestrem.",
-        "other": "Scalono {n} wpisów Truth Bullet z rejestrem."
-      },
-      "importFailed": "Ten plik nie jest rejestrem Truth Bullets.",
       "editReverted": "{player} zmienił swój Truth Bullet „{bullet}” - to, co mówi, albo to, czym jest. Zmiana została cofnięta: dowody zapisuje tylko GM.",
       "editUnrestored": "Truth Bullet „{bullet}” został zmieniony przez: {player}, a nie było zapisu, z którego dałoby się go przywrócić. Zmiana została na tej jednej kopii i nie poszła dalej. Sprawdź go ręcznie."
     },
@@ -2510,7 +2503,8 @@
         "failed": "Po stronie klienta GM-a coś się nie udało; szczegóły są w konsoli GM-a.",
         "refused": "Klient GM-a odmówił.",
         "noGm": "Żaden GM nie jest połączony.",
-        "noAnswer": "Klient GM-a nie odpowiedział na czas."
+        "noAnswer": "Klient GM-a nie odpowiedział na czas.",
+        "answerKeyMissing": "Przeglądarka GM-a nie ma klucza odpowiedzi do tego bulletu. GM został powiadomiony."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",
@@ -4515,6 +4509,94 @@
         "few": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersze): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest.",
         "many": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wierszy): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest.",
         "other": "Magazyn GM-a nie mógł przejąć starego „{store}” z tej przeglądarki ({n} wiersza): {error}. Nic nie zostało zmienione; stara kopia wciąż tu jest."
+      }
+    },
+    "Case": {
+      "gmOnly": "Kopię sprawy robi i przywraca tylko GM.",
+      "backupTitle": "Kopia sprawy",
+      "backupWhat": "Plik zawiera każdy sekret GM-a w tym świecie: kto jest Mastermindem, odpowiedź każdego Truth Bulletu, prawdziwy typ każdego śladu i obsadę otwartego incydentu. Trzymaj go tam, gdzie żaden gracz go nie otworzy.",
+      "backupEarly": "Kopia od {names} jeszcze nie dotarła: ta kopia zapasowa zawiera tylko to, co ma ta przeglądarka. Zrobić ją mimo to?",
+      "backedUp": {
+        "one": "Sprawa zapisana do pliku: {n} wiersz.",
+        "few": "Sprawa zapisana do pliku: {n} wiersze.",
+        "many": "Sprawa zapisana do pliku: {n} wierszy.",
+        "other": "Sprawa zapisana do pliku: {n} wiersza."
+      },
+      "backupTile": "Kopia sprawy",
+      "restoreTile": "Przywróć sprawę",
+      "backupNever": "ostatnia kopia: nigdy",
+      "backupToday": "ostatnia kopia: dziś",
+      "backupAgo": {
+        "one": "ostatnia kopia: {n} dzień temu",
+        "few": "ostatnia kopia: {n} dni temu",
+        "many": "ostatnia kopia: {n} dni temu",
+        "other": "ostatnia kopia: {n} dnia temu"
+      },
+      "chapterReminder": "Klucze odpowiedzi, które odsłania koniec rozdziału, żyją w przeglądarkach GM-ów, nie w pliku świata. Zrób kopię sprawy: {when}.",
+      "refused": {
+        "unreadable": "Ten plik nie jest kopią sprawy.",
+        "newer": "Ten plik zapisała nowsza wersja modułu (format {version}); ta nie umie go odczytać.",
+        "otherWorld": "Ten plik to sprawa innego świata ({title}). Zaznacz pole, by mimo to przywrócić go tutaj."
+      },
+      "restored": "Sprawa przywrócona.",
+      "restoredStore": "{store}: zmienione {n}, pominięte pod cięciem resetu {cut}",
+      "store": {
+        "bullets": "Truth Bullety"
+      },
+      "row": {
+        "traces": {
+          "one": "{n} ślad na mapie (z {of}) nie ma klucza odpowiedzi w tej przeglądarce.",
+          "few": "{n} ślady na mapie (z {of}) nie mają klucza odpowiedzi w tej przeglądarce.",
+          "many": "{n} śladów na mapie (z {of}) nie ma klucza odpowiedzi w tej przeglądarce.",
+          "other": "{n} śladu na mapie (z {of}) nie ma klucza odpowiedzi w tej przeglądarce."
+        },
+        "bullets": {
+          "one": "{n} Truth Bullet (z {of}) nie ma klucza odpowiedzi w tej przeglądarce: jego Analyze zostanie odrzucone.",
+          "few": "{n} Truth Bullety (z {of}) nie mają klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.",
+          "many": "{n} Truth Bulletów (z {of}) nie ma klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone.",
+          "other": "{n} Truth Bulletu (z {of}) nie ma klucza odpowiedzi w tej przeglądarce: ich Analyze zostanie odrzucone."
+        },
+        "noAnswer": {
+          "one": "{n} klucz odpowiedzi stracił prawdziwy typ (szkoda po starym scalaniu).",
+          "few": "{n} klucze odpowiedzi straciły prawdziwy typ (szkoda po starym scalaniu).",
+          "many": "{n} kluczy odpowiedzi straciło prawdziwy typ (szkoda po starym scalaniu).",
+          "other": "{n} klucza odpowiedzi straciło prawdziwy typ (szkoda po starym scalaniu)."
+        },
+        "incident": "Incydent jest otwarty, a ta przeglądarka nie ma jego obsady.",
+        "neverHeld": "Ta przeglądarka nigdy nie miała sprawy tego świata, która zaczęła się {date}.",
+        "legacyChanged": "Stary magazyn „{store}” zmienił się po aktualizacji (GM wrócił do starszej wersji): przejmij zmiany z diagnostyki.",
+        "claimFailed": "Nie udało się przejąć starego magazynu „{store}” tej przeglądarki: {error}. Nic nie zostało zmienione; następne wczytanie spróbuje ponownie.",
+        "unseen": "Ta kontrola nie widzi, kto jest Mastermindem, ofert Level Up ani rejestru Blackened: przeglądarka, która je straciła, o tym nie wie.",
+        "left": {
+          "one": "{n} stary wiersz zostaje w tej przeglądarce dla innego świata.",
+          "few": "{n} stare wiersze zostają w tej przeglądarce dla innych światów.",
+          "many": "{n} starych wierszy zostaje w tej przeglądarce dla innych światów.",
+          "other": "{n} starego wiersza zostaje w tej przeglądarce dla innych światów."
+        },
+        "skew": "Stemple wyprzedzające zegar tej przeglądarki: {names}.",
+        "bytes": "Magazyny GM-a zajmują {stores} KB pamięci tej przeglądarki; moduł łącznie {total} KB.",
+        "lastBackup": "Ostatnia kopia: {when} ({who}).",
+        "neverBackedUp": "Ta sprawa nie ma jeszcze żadnej kopii."
+      },
+      "healthTitle": "Sprawa w tej przeglądarce",
+      "healthIntro": "Tej przeglądarce brakuje części sprawy tego świata:",
+      "healthNote": "Przywróć odtworzy ją z pliku kopii; Dalej działa bez niej, a panel GM-a przypomina o tym, dopóki sprawa nie będzie kompletna.",
+      "restoreFromFile": "Przywróć z pliku",
+      "continue": "Dalej",
+      "continued": "Sprawa w tej przeglądarce jest niekompletna. Przywróć ją z pliku kopii (panel GM-a, Przywróć sprawę).",
+      "panelWarning": "Sprawa w tej przeglądarce jest niekompletna:",
+      "restoreTitle": "Przywróć sprawę",
+      "previewStore": "{store}: nowe {add}, odświeżone {refresh}, nowsze tutaj {kept}, pod cięciem resetu {cut}",
+      "otherWorld": "Ten plik to sprawa innego świata ({title}). Mimo to przywróć go tutaj.",
+      "beforeCut": "Przywróć mimo to wiersze usunięte przez ostatni reset (wrócą ze świeżym stemplem).",
+      "restoreNote": "Przywracanie tylko dodaje to, co nowsze; niczego w tej przeglądarce nie obniża.",
+      "restore": "Przywróć",
+      "answerKeyMissing": "Truth Bullet „{bullet}” postaci {actor} nie ma klucza odpowiedzi w tej przeglądarce, więc jego Analyze zostało odrzucone. Przywróć sprawę z kopii (panel GM-a).",
+      "chargeHeld": {
+        "one": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullet nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć sprawę i zapytaj ponownie.",
+        "few": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bullety nie mają klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć sprawę i zapytaj ponownie.",
+        "many": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletów nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć sprawę i zapytaj ponownie.",
+        "other": "Opłata za nieznalezione Key Remnanty jest wstrzymana: {n} Truth Bulletu nie ma klucza odpowiedzi w tej przeglądarce i wynik byłby błędny. Przywróć sprawę i zapytaj ponownie."
       }
     }
   }
