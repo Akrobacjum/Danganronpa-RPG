@@ -234,8 +234,8 @@ export async function performAction(actor, actionKey, options = {}) {
         // panel offers exactly Move and Meddle, and Move is dispatched from
         // here like any other action.
         const { isMonocub } = await import("./monocub.mjs");
-        const { isDeceased } = await import("./chapter.mjs");
-        if (isDeceased(actor) && !isMonocub(actor)) {
+        const { isDeadForGm } = await import("./chapter.mjs");
+        if (isDeadForGm(actor) && !isMonocub(actor)) {
             ui.notifications.warn(game.i18n.format("DRPG.Chapter.deadCannotAct", {
                 name: actor.name
             }));

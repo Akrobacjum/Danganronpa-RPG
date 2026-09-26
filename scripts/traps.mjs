@@ -59,7 +59,7 @@
 
 import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
     TIME_OF_DAY_LABELS } from "./config.mjs";
-import { SETTINGS, getSetting } from "./settings.mjs";
+import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, debug, log, warn, error, esc, pause } from "./utils.mjs";
 import { trapLedgerStore, trapPlantStore } from "./gm-stores.mjs";
 // Statically: the leaf imports config.mjs and utils.mjs only, so this edge closes no cycle (E31).
@@ -180,7 +180,7 @@ function trapProjects() {
 
         const killer = game.actors.get(secret.killerId ?? secret.by ?? "");
         if (!killer) continue;
-        if (killer.statuses?.has?.("dead") || isDead(killer)) continue;
+        if (isDeadForGm(killer)) continue;
 
         out.push({
             id,
@@ -190,15 +190,6 @@ function trapProjects() {
         });
     }
     return out;
-}
-
-/** Deceased without importing chapter.mjs on a hot path. */
-function isDead(actor) {
-    try {
-        return Boolean(actor?.getFlag(MODULE_ID, "deceased"));
-    } catch {
-        return false;
-    }
 }
 
 /* ==========================================================================

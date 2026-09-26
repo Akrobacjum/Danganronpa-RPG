@@ -810,7 +810,7 @@ async function openWhoIsAliveDialog() {
 
     // `killCharacter`, `reviveCharacter` and `setSilenced` went with the apply loop
     // (F15): `applyAliveStates` below imports what it writes.
-    const { isDeceased, openDeathDialog } = await import("./chapter.mjs");
+    const { isDeadForGm, openDeathDialog } = await import("./chapter.mjs");
     const { isMonocub, setMonocub, isSilenced } = await import("./monocub.mjs");
     const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
     const { resourceValue, resourceMax } = await import("./character.mjs");
@@ -832,7 +832,7 @@ async function openWhoIsAliveDialog() {
         return;
     }
 
-    const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : "alive";
+    const stateOf = a => isMonocub(a) ? "monocub" : isDeadForGm(a) ? "dead" : "alive";
     /*
      * CALLED, NOT READ ONCE (F15, 20.09). This was a string, built when the
      * window opened, and the table rebuilds itself on every actor change - so
@@ -945,10 +945,10 @@ async function openWhoIsAliveDialog() {
 export async function applyAliveStates(chosen = {}) {
     if (!game.user.isGM) return 0;
 
-    const { isDeceased, reviveCharacter, markDeceased } = await import("./chapter.mjs");
+    const { isDeceased, isDeadForGm, reviveCharacter, markDeceased } = await import("./chapter.mjs");
     const { isMonocub, setMonocub, isSilenced, setSilenced } = await import("./monocub.mjs");
     const { isMonokuma } = await import("./monokuma.mjs");
-    const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : "alive";
+    const stateOf = a => isMonocub(a) ? "monocub" : isDeadForGm(a) ? "dead" : "alive";
 
     let changed = 0;
     for (const [id, want] of Object.entries(chosen)) {

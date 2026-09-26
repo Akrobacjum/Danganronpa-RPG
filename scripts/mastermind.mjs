@@ -29,7 +29,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, myMastermindLair } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
-import { isDeceased, killCharacter } from "./chapter.mjs";
+import { isDeadForGm, killCharacter } from "./chapter.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, ownerOf, primaryGmId, isPrimaryGm, log, error } from "./utils.mjs";
@@ -789,7 +789,7 @@ export async function openFinalVerdictDialog() {
         return null;
     }
 
-    const alreadyDead = isDeceased(mastermind);
+    const alreadyDead = isDeadForGm(mastermind);
     const students = studentActors();
     const options = students
         .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
@@ -845,7 +845,7 @@ export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null
 
     const mastermind = mastermindActor();
     if (!mastermind) return null;
-    const dead = alreadyDead ?? isDeceased(mastermind);
+    const dead = alreadyDead ?? isDeadForGm(mastermind);
     const accused = accusedId ? game.actors.get(accusedId) : null;
 
     const executed = correct && !dead;

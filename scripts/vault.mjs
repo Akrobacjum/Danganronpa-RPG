@@ -1039,8 +1039,8 @@ export async function stealFromVault({
 
     // The dead rob nobody. A socket payload is a claim, and this side is the
     // one that decides - the same reasoning `handover.mjs` applies to a gift.
-    const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(thief)) {
+    const { isDeadForGm } = await import("./chapter.mjs");
+    if (isDeadForGm(thief)) {
         error(`Refused a stash theft: ${thief.name} is dead.`);
         return null;
     }
@@ -1240,9 +1240,9 @@ export async function stealFromPerson({
     // The dead neither rob nor are robbed. Looting a body is a different action
     // with different rules - see `requestBodyLoot` - and routing it through here
     // would let a corpse be picked over from the far side of a Shadow roll.
-    const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(thief)) return refuse("they are dead");
-    if (isDeceased(victim)) return refuse(`${victim.name} is dead; that is looting, not theft`);
+    const { isDeadForGm } = await import("./chapter.mjs");
+    if (isDeadForGm(thief)) return refuse("they are dead");
+    if (isDeadForGm(victim)) return refuse(`${victim.name} is dead; that is looting, not theft`);
 
     /*
      * AND YOU HAVE TO BE STANDING NEXT TO THEM.
@@ -1420,13 +1420,13 @@ export async function plantOnPerson({
         return null;
     };
 
-    const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(planter)) return refuse("they are dead");
+    const { isDeadForGm } = await import("./chapter.mjs");
+    if (isDeadForGm(planter)) return refuse("they are dead");
     // Planting evidence on a corpse is a real thing somebody will want to do,
     // and it is not this action: a body is not carrying anything any more, and
     // the crime scene has its own rules. Refused here rather than silently
     // allowed, so the reason exists in one place.
-    if (isDeceased(victim)) return refuse(`${victim.name} is dead`);
+    if (isDeadForGm(victim)) return refuse(`${victim.name} is dead`);
 
     const { locateActor } = await import("./movement.mjs");
     const here = locateActor(planter);

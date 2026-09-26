@@ -21,7 +21,7 @@
  */
 
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
-import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch } from "./settings.mjs";
+import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, dialogContent, whisperToGms } from "./utils.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
@@ -296,7 +296,7 @@ export const blackenedStore = defineGmStore({
         const ids = Array.isArray(legacy) ? legacy.filter(id => typeof id === "string" && id) : [];
         const chapter = getClock()?.chapter ?? null;
         const trial = getSetting(SETTINGS.trialProgress) ?? {};
-        const died = (game.actors ?? []).some(a => a.getFlag?.(MODULE_ID, FLAGS.deceased)?.chapter === chapter);
+        const died = (game.actors ?? []).some(a => deathRecordFor(a)?.chapter === chapter);
         const pending = died && !(trial.chapter === chapter && trial.verdictApplied);
         const rows = [], left = [];
         ids.forEach((id, at) => {

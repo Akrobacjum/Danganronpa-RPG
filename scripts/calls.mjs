@@ -68,8 +68,8 @@ export async function callBarred(actor, { despair = false } = {}) {
     const { overflowBlocksCalls } = await import("./overflow.mjs");
     if (overflowBlocksCalls()) return game.i18n.localize("DRPG.Overflow.silenced");
 
-    const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(actor)) {
+    const { isDeadForGm } = await import("./chapter.mjs");
+    if (isDeadForGm(actor)) {
         return game.i18n.format("DRPG.Chapter.deadCannotAct", { name: actor?.name ?? "?" });
     }
     return null;
@@ -106,8 +106,8 @@ export async function hopeCallRefusal(actor) {
     // left open across the moment of death, and the `game.drpg` API.
     // A Monocub is deceased but pays Hope for Meddle through its own path
     // in monocub.mjs, not through here, so it is unaffected.
-    const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(actor)) return game.i18n.format("DRPG.Chapter.deadCannotAct", { name: actor.name });
+    const { isDeadForGm } = await import("./chapter.mjs");
+    if (isDeadForGm(actor)) return game.i18n.format("DRPG.Chapter.deadCannotAct", { name: actor.name });
 
     // Silence, bought with 4 Despair, closes this menu until this time of day ends.
     const { isSilenced } = await import("./call-effects.mjs");

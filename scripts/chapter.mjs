@@ -31,7 +31,9 @@
 
 import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { bodyDiscovery, setBodyDiscovery, clearBodyDiscovery } from "./settings.mjs";
+import {
+    bodyDiscovery, setBodyDiscovery, clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFor
+} from "./settings.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret, faintOf } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -45,19 +47,19 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * DEATH
  * ========================================================================== */
 
-/** Is this student dead? */
-export function isDeceased(actor) {
-    return Boolean(actor?.getFlag(MODULE_ID, FLAGS.deceased));
-}
+// The predicates live in settings.mjs (E05 C9), with the rules A-C that say which
+// one a caller asks, and are re-exported here for api.mjs and every caller that
+// already imports them from this file.
+export { isDeceased, isDeadForGm, deathRecord, deathRecordFor };
 
-/** When they died, or `null`. */
-export function deathRecord(actor) {
-    return actor?.getFlag(MODULE_ID, FLAGS.deceased) ?? null;
-}
-
-/** Every student still alive. */
+/** Every student still alive, as the table knows it (rule A). */
 export function livingStudents() {
     return studentActors().filter(a => !isDeceased(a));
+}
+
+/** Every student still alive as this browser may know it - the GMs' lists (rule B). */
+export function livingStudentsForGm() {
+    return studentActors().filter(a => !isDeadForGm(a));
 }
 
 /**
@@ -128,7 +130,7 @@ export async function markDeceased(actor) {
 
 export async function killCharacter(actor, { keepBullets = false } = {}) {
     if (!game.user.isGM || !actor) return null;
-    if (isDeceased(actor)) {
+    if (isDeadForGm(actor)) {
         ui.notifications.warn(game.i18n.format("DRPG.Chapter.alreadyDead", { name: actor.name }));
         return null;
     }
@@ -314,7 +316,7 @@ export async function openDeathDialog({ actor = null } = {}) {
         return false;
     }
 
-    const alive = livingStudents();
+    const alive = livingStudentsForGm();
     if (!actor && !alive.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Chapter.nobodyLeft"));
         return false;
@@ -598,8 +600,8 @@ async function checkBodyFound(tokenDoc) {
     // chapter it happened in; a record without one is treated as this chapter's.
     const chapter = getClock().chapter;
     const bodies = new Set(studentActors()
-        .filter(a => isDeceased(a) && !a.getFlag(MODULE_ID, FLAGS.monocub)
-            && (deathRecord(a)?.chapter ?? chapter) === chapter)
+        .filter(a => isDeadForGm(a) && !a.getFlag(MODULE_ID, FLAGS.monocub)
+            && (deathRecordFor(a)?.chapter ?? chapter) === chapter)
         .map(a => a.id));
     if (!bodies.size) return null;
 
@@ -677,7 +679,7 @@ export async function openBodyDiscoveryDialog() {
 
     // The dead are the candidates here - the victim is normally already marked
     // by the time anybody trips over them.
-    const dead = studentActors().filter(isDeceased);
+    const dead = studentActors().filter(isDeadForGm);
     const victims = dead
         .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
 

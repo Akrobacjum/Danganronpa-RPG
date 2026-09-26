@@ -24,7 +24,7 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFr
 import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
 import { isMonokuma, ownStudent } from "./monokuma.mjs";
-import { isDeceased, livingStudents } from "./chapter.mjs";
+import { isDeadForGm, livingStudents } from "./chapter.mjs";
 import { isMonocub } from "./monocub.mjs";
 import { matchStripToDespair } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
@@ -432,7 +432,7 @@ function buildPlayerView() {
         // A plainly dead student spends nothing, so for them the row really is
         // furniture and stays hidden.
         safeRow(() => {
-            if (isDeceased(actor) && !isMonocub(actor)) return null;
+            if (isDeadForGm(actor) && !isMonocub(actor)) return null;
             const held = hopeHeld(actor);
             const hopeMax = Number(actor.system?.resources?.hope?.max ?? held);
             return marks("is-hope", game.i18n.localize("DAGGERHEART.GENERAL.hope") || "Hope",

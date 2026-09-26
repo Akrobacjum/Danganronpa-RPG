@@ -24,7 +24,7 @@
 import {
     MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON, TIMING
 } from "./config.mjs";
-import { SETTINGS, DEFAULT_SAFEWORD, setSetting } from "./settings.mjs";
+import { SETTINGS, DEFAULT_SAFEWORD, setSetting, isDeceased, isDeadForGm } from "./settings.mjs";
 // What a reset is allowed to keep (R-1). Static and by a literal path, so the
 // suite's own source sweep can follow it.
 import {
@@ -377,7 +377,7 @@ function despairSplitCounts() {
     const counts = new Map();
     for (const user of monokumas()) counts.set(user.id, { name: user.name, n: 0 });
     for (const actor of studentActors()) {
-        if (isDeceasedForSplit(actor)) continue;
+        if (isDeadForGm(actor)) continue;          // the dead do not roll, so they are no weight on a pool
         const pool = monokumaFor(actor);
         if (!pool) continue;
         const row = counts.get(pool.id);
@@ -391,15 +391,6 @@ function despairSplitEven() {
     const counts = despairSplitCounts();
     if (counts.length < 2) return true;
     return counts[0].n - counts[counts.length - 1].n <= 1;
-}
-
-/**
- * The dead do not roll, so they are not weight on a pool. Read through a local
- * helper because chapter.mjs is imported lazily everywhere else in this file and
- * `steps()` is synchronous.
- */
-function isDeceasedForSplit(actor) {
-    return Boolean(actor?.getFlag?.(MODULE_ID, "deceased"));
 }
 
 /** Open the sheet of the first character a row is waiting on. */
@@ -778,7 +769,7 @@ function resetTally() {
     const bullets = game.actors.reduce((n, a) =>
         n + a.items.filter(i => i.getFlag(MODULE_ID, "isTruthBullet")).length, 0);
 
-    const dead = studentActors().filter(a => a.getFlag(MODULE_ID, "deceased")).length;
+    const dead = studentActors().filter(isDeadForGm).length;
 
     let projects = 0;
     try {
@@ -1064,7 +1055,7 @@ async function wipeSeason(plan) {
         const { setMonocub } = await import("./monocub.mjs");
         for (const actor of studentActors()) {
             if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false);
-            if (actor.getFlag(MODULE_ID, "deceased")) await reviveCharacter(actor, { quiet: true });
+            if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true });
         }
     });
 

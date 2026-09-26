@@ -49,7 +49,7 @@ import {
     RESOLUTION_STRESS_COST, RESOLUTION_HEALTH_COST, TRAITS, callEffect, TIMING
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { SETTINGS, incidentCast, seasonEpoch } from "./settings.mjs";
+import { SETTINGS, incidentCast, seasonEpoch, isDeadForGm } from "./settings.mjs";
 import { castStore, blackenedStore, castCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
@@ -2204,8 +2204,8 @@ async function checkVictimSpent(done = null) {
     // happened. Failing it must not leave the incident half-ended, so the stage
     // has already moved by the time this runs.
     try {
-        const { killCharacter, isDeceased } = await import("./chapter.mjs");
-        if (!isDeceased(victim)) await killCharacter(victim);
+        const { killCharacter, isDeadForGm } = await import("./chapter.mjs");
+        if (!isDeadForGm(victim)) await killCharacter(victim);
     } catch (err) {
         error(`Could not record ${victim.name}'s death when they ran out`, err);
     }
@@ -2557,9 +2557,9 @@ async function finishIncident(state, key, band, done) {
         // After the stage write, deliberately: a death that fails must not
         // leave the incident half-ended, and Stage 6 needs the state either way.
         try {
-            const { killCharacter, isDeceased } = await import("./chapter.mjs");
+            const { killCharacter, isDeadForGm } = await import("./chapter.mjs");
             const victim = game.actors.get(state.victimId);
-            if (victim && !isDeceased(victim)) await killCharacter(victim);
+            if (victim && !isDeadForGm(victim)) await killCharacter(victim);
         } catch (err) {
             error("Could not record the victim's death after the Finishing Blow", err);
         }
@@ -3117,7 +3117,7 @@ async function maybeThirdParty(tokenDoc) {
     // everybody who came after them.
     if (participantIds(state).has(actor.id)) return;
     if (isMonokuma(actor)) return;       // the GM on the map is not a witness
-    if (actor.getFlag(MODULE_ID, FLAGS.deceased)) return;
+    if (isDeadForGm(actor)) return;
     // A token the GM has hidden is not in the scene as far as the fiction is
     // concerned - the same rule `othersInRoom` applies.
     if (tokenDoc.hidden) return;
@@ -3330,9 +3330,9 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
      */
     if (state?.selfInflicted && state.stage === "resolution") {
         try {
-            const { killCharacter, isDeceased } = await import("./chapter.mjs");
+            const { killCharacter, isDeadForGm } = await import("./chapter.mjs");
             const actor = game.actors.get(state.victimId);
-            if (actor && !isDeceased(actor)) await killCharacter(actor);
+            if (actor && !isDeadForGm(actor)) await killCharacter(actor);
         } catch (err) {
             error("Could not record a self-inflicted death when the incident closed", err);
         }
@@ -3571,8 +3571,8 @@ export function betrayalTarget(actor) {
 
     const killer = game.actors.get(open.killerId);
     if (!killer || killer.id === actor.id) return null;
-    if (killer.getFlag(MODULE_ID, FLAGS.deceased)) return null;
-    if (actor.getFlag(MODULE_ID, FLAGS.deceased)) return null;
+    if (isDeadForGm(killer)) return null;
+    if (isDeadForGm(actor)) return null;
 
     /*
      * NOT IN THE MIDDLE OF SOMEBODY ELSE'S FIGHT.
@@ -3882,8 +3882,8 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
         return null;
     }
 
-    const { livingStudents } = await import("./chapter.mjs");
-    const alive = livingStudents();
+    const { livingStudentsForGm } = await import("./chapter.mjs");
+    const alive = livingStudentsForGm();
     // One is enough, now that a student can be both sides of it. The old floor
     // of two was the last place the engine still assumed a murder needs two
     // people - and the case it locked out, a single survivor with nothing left

@@ -37,7 +37,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS, getSetting } from "./settings.mjs";
+import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
 // `allRooms` only - the per-actor lookup is `locateActor`, imported lazily in
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
@@ -802,12 +802,13 @@ function activeOwnerOf(actor) {
 /**
  * Dead, and not yet back as a Monocub.
  *
- * Read straight off the two flags rather than through `chapter.mjs`/`monocub.mjs`
- * - this runs inside the reconcile loop on every token move, and a dynamic
- * import per actor per pass is a lot of churn for two boolean reads.
+ * Death is asked of settings.mjs, the leaf (E05 C9), and the Monocub flag read
+ * directly rather than through `monocub.mjs` - this runs inside the reconcile loop
+ * on every token move, and a dynamic import per actor per pass is a lot of churn
+ * for two boolean reads.
  */
 function silencedByDeath(actor) {
-    const dead = Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.deceased));
+    const dead = isDeadForGm(actor);
     if (!dead) return false;
     return !actor.getFlag(MODULE_ID, FLAGS.monocub);
 }

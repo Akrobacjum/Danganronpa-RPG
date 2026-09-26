@@ -1767,13 +1767,13 @@ const REGRESSIONS = [
         const check = bodyOf(chapter, "async function checkBodyFound", { until: "export async function openBodyDiscoveryDialog" });
         ok(check.length > 200, "checkBodyFound is gone or has moved past openBodyDiscoveryDialog");
         ok(/FLAGS\.monocub/.test(check), "a Monocub counts as a body again");
-        ok(/deathRecord\(/.test(check), "a body from an earlier chapter counts as a body again");
+        ok(/deathRecord(?:For)?\(/.test(check), "a body from an earlier chapter counts as a body again");
         ok(/export function discoverBody[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
             "the GM's own announcement no longer waits in the discovery queue");
         ok(/export function maybeBodyFound[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
             "the automatic discovery check no longer waits in the discovery queue");
         const gather = bodyOf(effects, "export async function gatherEveryone", { until: "async function fallbackGather" });
-        ok(/isDeceased\(/.test(gather), "gatherEveryone moves the dead again");
+        ok(/(?:isDeceased|isDeadForGm)\(/.test(gather), "gatherEveryone moves the dead again");
     }],
 
     ["R30 - a verdict is locked before it does anything", async () => {
@@ -3806,7 +3806,7 @@ const REGRESSIONS = [
         ok(/if \(despair\)[\s\S]{0,200}classTrial/.test(barred),
             "the Class Trial rule is not the despair side's alone - that asymmetry is T-1's "
             + "decision");
-        ok(/isDeceased\(actor\)/.test(barred), "the dead can still spend");
+        ok(/(?:isDeceased|isDeadForGm)\(actor\)/.test(barred), "the dead can still spend");
 
         const sheet = stripComments(sources.get("sheet.mjs") ?? "");
         // To the next top-level function, not a fixed number of characters: the
@@ -3961,7 +3961,7 @@ const REGRESSIONS = [
         ok(gate > perform.indexOf("inFight && actionKey"),
             "the gate moved above the in-fight branch, where it answers a question nobody "
             + "asked it");
-        ok(perform.indexOf("MONOCUB.dispatchable") < perform.indexOf("isDeceased(actor) && !isMonocub"),
+        ok(perform.indexOf("MONOCUB.dispatchable") < perform.search(/(?:isDeceased|isDeadForGm)\(actor\) && !isMonocub/),
             "the gate is below the dead test, which is where it could not do its job");
         ok(!/dispatchable\.includes\("meddle"\)/.test(rolls),
             "Confusion was added to a list of ACTIONS keys, and it is not one");
@@ -5858,6 +5858,69 @@ const REGRESSIONS = [
         log(`R191: ${listed.length} public fields, ${S.INCIDENT_METHOD.length} of the method in the cast, ${keys.length} field names read in murder.mjs's writes`);
         const bad = unlisted(keys);
         ok(!bad.length, `a write of an incident names a field neither the public list nor the cast holds: ${bad.join(", ")}`);
+    }],
+
+    ["R192 - the deceased flag is read only by the death predicates and written only by chapter.mjs", async () => {
+        /*
+         * E05 C9, 26.09.2026; audit S17-11. "Is this student dead?" was asked in eighteen
+         * places - chapter.mjs's two readers, fifteen copies in ten other files reading
+         * the flag straight off the actor, and traps.mjs's read of the token's "dead"
+         * status - measured by this test on the tree before C9, which it failed with
+         * exactly those eighteen. E05 C10 makes a death secret until its body is found, and then
+         * every one of those reads has to pick an answer: the table's fact (`isDeceased`)
+         * or what this browser may know (`isDeadForGm`), both in settings.mjs. A copy left
+         * reading the flag would keep answering with the public fact wherever it sat, so
+         * this census of the module's sources (the suite's files are not read: their
+         * fixtures write the flag as a table's world might) holds that the flag is read
+         * only by settings.mjs's `deathRecord` and `isDeceased`, named only where config.mjs
+         * defines it, written only by chapter.mjs's `markDeceased` and `reviveCharacter`
+         * (the "dead" status likewise), and read as a change's key only by voice.mjs's
+         * updateActor hook, which reconciles on the change and asks the predicates after.
+         * Attribution is by the top-level function or constant the mention sits in. A
+         * planted read of each kind is found first.
+         */
+        const TOKEN = /\bFLAGS\.deceased\b|["'`]deceased["'`]|\?*\.deceased\b|\bdeceased\s*:/g;
+        const STATUS = /\bstatuses\??\.has\??\.?\(\s*["'`]dead["'`]|\b(?:has|toggle)StatusEffect\??\.?\(\s*["'`]dead["'`]/g;
+        const DECL = /^(?:export )?(?:(?:async )?function|const|let)\s+(\w+)/gm;
+        const ALLOWED = {
+            "config.mjs FLAGS flag": "the flag's name, defined",
+            "settings.mjs deathRecord flag": "the record, read",
+            "settings.mjs isDeceased flag": "the table's fact, read",
+            "chapter.mjs markDeceased flag": "the one write",
+            "chapter.mjs markDeceased status": "the token's marker, written with the flag",
+            "chapter.mjs reviveCharacter flag": "the one unwrite",
+            "chapter.mjs reviveCharacter status": "the marker, taken off with it",
+            "voice.mjs registerVoice flag": "the updateActor hook reads the change's key, not the actor"
+        };
+        const census = files => {
+            const out = [];
+            for (const [file, text] of files) {
+                const src = stripComments(text);
+                const decls = [...src.matchAll(DECL)];
+                const at = (m, kind) => {
+                    const fn = decls.filter(d => d.index < m.index).pop()?.[1] ?? "(top level)";
+                    out.push(`${file} ${fn} ${kind}`);
+                };
+                for (const m of src.matchAll(TOKEN)) at(m, "flag");
+                for (const m of src.matchAll(STATUS)) at(m, "status");
+            }
+            return out;
+        };
+        const planted = "function plantedA(actor) {\n    return actor.getFlag(MODULE_ID, FLAGS.deceased);\n}\n"
+            + "function plantedB(actor) {\n    return actor.flags?.[MODULE_ID]?.deceased || actor.statuses?.has?.(\"dead\");\n}\n"
+            + "async function plantedC(actor) {\n    await actor.update({ flags: { [MODULE_ID]: { deceased: null } } });\n}\n";
+        equal(JSON.stringify(census([["planted.mjs", planted]])),
+            JSON.stringify(["planted.mjs plantedA flag", "planted.mjs plantedB flag", "planted.mjs plantedC flag", "planted.mjs plantedB status"]),
+            "the census does not find exactly the four planted mentions");
+
+        const found = census(await otherSources());
+        const allowed = Object.keys(ALLOWED);
+        log(`R192: ${found.length} mentions of the flag or the status in the module's sources, ${found.filter(key => allowed.includes(key)).length} of them allowed`);
+        const stray = found.filter(key => !allowed.includes(key));
+        ok(!stray.length, `the deceased flag or the dead status is read or written outside the predicates and chapter.mjs (${stray.length}): ${stray.join(", ")}`);
+        // Not a reading of nothing: the readers and the writers themselves are seen.
+        const missing = allowed.filter(key => !found.includes(key));
+        ok(!missing.length, `the census did not see the predicates and the writers it allows: missing ${missing.join(", ")}`);
     }]
 ];
 

@@ -190,8 +190,8 @@ async function verify(fromId, toId, itemId) {
     // directly, and the ordinary race where the recipient dies between the
     // giver choosing them and this running. Either way the item would land on
     // an actor whose inventory has already been destroyed, and stay there.
-    const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(to)) {
+    const { isDeadForGm } = await import("./chapter.mjs");
+    if (isDeadForGm(to)) {
         warn(`Handover refused: ${to.name} is dead.`);
         await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.recipientDead", {
             name: foundry.utils.escapeHTML(to.name)
@@ -206,7 +206,7 @@ async function verify(fromId, toId, itemId) {
     // killing-game murder, and not for the window between a sheet being left
     // open and the body being found. A corpse quietly passing its Truth Bullets
     // around the room is the same leak as one that can still be heard on voice.
-    if (isDeceased(from)) {
+    if (isDeadForGm(from)) {
         warn(`Handover refused: ${from.name} is dead.`);
         return null;
     }

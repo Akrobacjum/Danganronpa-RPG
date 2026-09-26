@@ -32,7 +32,7 @@
  */
 
 import { MODULE_ID, FLAGS, PRICE_CHAINS, STARTING } from "./config.mjs";
-import { getClock } from "./settings.mjs";
+import { getClock, isDeadForGm } from "./settings.mjs";
 import { canPayFor, freeActionsLeft, actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate, HOPE_REFUND } from "./resource-guard.mjs";
@@ -93,8 +93,10 @@ function canPayStep(actor, step) {
 /**
  * Nobody who is not playing pays these prices.
  *
- * The flags are read off the actor directly, like `resetActionsFor`, so this file
- * stays importable from everywhere. A Monocub IS deceased and DOES act - but not
+ * The Monokuma and Monocub flags are read off the actor directly and death is asked
+ * of settings.mjs (E05 C9), so this file stays importable from everywhere. It runs
+ * on the payer's browser and the GM's, so it asks what that browser may know (rules
+ * B and C). A Monocub IS deceased and DOES act - but not
  * in a trial and not on the evidence, so unlike the action economy this asks both
  * flags for the same answer.
  */
@@ -102,7 +104,7 @@ function cannotPayAtAll(actor) {
     if (!actor || actor.type !== "character") return true;
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return true;
     if (actor.getFlag(MODULE_ID, FLAGS.monocub)) return true;
-    return Boolean(actor.getFlag(MODULE_ID, FLAGS.deceased));
+    return isDeadForGm(actor);
 }
 
 /**

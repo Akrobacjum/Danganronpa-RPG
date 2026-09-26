@@ -108,7 +108,7 @@ import {
     presentBullet, presentDialog, presentedThisChapter, openObjectionLog, inClassTrial
 } from "./trial.mjs";
 import {
-    isDeceased, deathRecord, livingStudents, killCharacter, reviveCharacter,
+    isDeceased, isDeadForGm, deathRecord, livingStudents, killCharacter, reviveCharacter,
     discoverBody, revealAllBulletTypes, sweepTruthBullets,
     openDeathDialog, openBodyDiscoveryDialog, openChapterEndDialog
 } from "./chapter.mjs";
@@ -742,6 +742,8 @@ export const DrpgApi = {
 
     /** The dead stay on the map but stop counting as being in the room. */
     isDeceased,
+    /** Dead as this browser may know it: every death on a GM (the same as isDeceased until E05 C10). */
+    isDeadForGm,
     deathRecord,
     livingStudents,
 

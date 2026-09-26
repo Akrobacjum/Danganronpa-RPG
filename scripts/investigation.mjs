@@ -35,7 +35,7 @@ import {
 } from "./remnants.mjs";
 import { bulletsOf, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { isDeceased, sweepTruthBullets } from "./chapter.mjs";
+import { isDeadForGm, sweepTruthBullets } from "./chapter.mjs";
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, warn, isPrimaryGm,
     workingScene, esc, wireDashboardTabs } from "./utils.mjs";
@@ -1044,7 +1044,7 @@ function findersByAnyRemnant() {
 /** What each living student is holding, summarised. */
 function evidenceByStudent() {
     return studentActors()
-        .filter(a => !isDeceased(a))
+        .filter(a => !isDeadForGm(a))
         .map(actor => {
             const bullets = bulletsOf(actor).map(item => ({
                 item,

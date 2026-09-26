@@ -6,7 +6,7 @@
  * never clutters the settings window.
  */
 
-import { MODULE_ID, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
+import { MODULE_ID, FLAGS, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
 import { readMine, gmStoreByName, liveFields } from "./gm-store.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
@@ -1935,6 +1935,58 @@ export function incidentWitness() {
     const seat = gm ? (assigned && seats.includes(assigned) ? assigned : null) : owned;
 
     return { running: true, witness: gm || Boolean(owned), seat, gm, indirect };
+}
+
+/*
+ * ONE QUESTION PER DEATH (E05 C9, 26.09.2026; audit S17-11).
+ *
+ * Until 1.2.64 "is this student dead?" was asked in eighteen places: chapter.mjs's
+ * `isDeceased` and `deathRecord`, fifteen copies in ten other files reading the
+ * flag straight off the actor, and traps.mjs's read of the token's "dead" status -
+ * most with a note saying why they could not import chapter.mjs: a synchronous
+ * veto, a hot path, an import cycle (R192, run on the tree before E05 C9, listed
+ * exactly those). This file is the leaf every one of those can import, so the
+ * question lives here, asked two ways, and chapter.mjs re-exports it:
+ *
+ *   isDeceased    the table's fact - the flag, which every browser can read.
+ *                 Rule A: whatever writes world data or posts a document per
+ *                 student asks this one (an action budget refilled, an Eclipse
+ *                 card, the ballots); a write that skipped a body nobody has
+ *                 found would name it.
+ *   isDeadForGm   the truth this browser may hold: on a GM, every death; on a
+ *                 player, the table's fact and the bodies that player may know.
+ *                 Rule B: the GMs' judgements (the bridge's guards, the murder
+ *                 engine, traps, voice, the GMs' windows). Rule C: a player's
+ *                 browser about what it may know (the victim's own sheet, Calls,
+ *                 actions, the movement veto).
+ *
+ * Until E05 C10 the two answer the same, because a death is published at the
+ * kill; C9 only moved every reader onto the one it will need, and the suite and
+ * every ci scenario came out identical before and after, check by check (twice
+ * for the suite, 26.09.2026). R192 holds that nothing else reads the flag. The
+ * status read in traps.mjs went: markDeceased writes the
+ * flag and the status together, and a status a GM toggles on the token by hand
+ * without the flag is not a death anywhere else in the module.
+ */
+
+/** When they died as the world records it, or `null` - the flag, read here and in `isDeceased` only. */
+export function deathRecord(actor) {
+    return actor?.getFlag?.(MODULE_ID, FLAGS.deceased) ?? null;
+}
+
+/** Dead as the table knows it: the flag. */
+export function isDeceased(actor) {
+    return Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.deceased));
+}
+
+/** Dead as this browser may know it (see above; the same as `isDeceased` until E05 C10). */
+export function isDeadForGm(actor) {
+    return isDeceased(actor);
+}
+
+/** The record of a death this browser may know: the flag's, and from E05 C10 else the pending row's. */
+export function deathRecordFor(actor) {
+    return deathRecord(actor);
 }
 
 /*

@@ -17,7 +17,7 @@
  */
 
 import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
-import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed } from "./settings.mjs";
+import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, isDeceased, isDeadForGm } from "./settings.mjs";
 // Defined in settings.mjs, the leaf every side of this file's import cycles can
 // reach (audit C3); re-exported so nothing that imports them from here has to
 // know that.
@@ -241,7 +241,7 @@ export async function startEclipse() {
                   ${refillNote}`
     });
 
-    for (const actor of placingActors()) {
+    for (const actor of placingActors(isDeceased)) {
         const room = foundry.utils.escapeHTML(roomOfActor(actor) ?? "-");
         // PLURALISED BECAUSE ONE IS NOW REACHABLE. A darkened Eclipse hands out
         // a single crossing (Z10), and until then no allowance was ever 1, so
@@ -691,7 +691,7 @@ async function askAtTheLights(killer, victim, room, parked) {
 export function placementStatus() {
     const used = eclipseMoves();
     const allowance = eclipseAllowance();
-    return placingActors().map(a => ({
+    return placingActors(isDeadForGm).map(a => ({
         actor: a,
         room: roomOfActor(a),
         moved: used[a.id] ?? 0,
@@ -716,16 +716,17 @@ export function placementStatus() {
  *              never going to move.
  *
  * A Monocub stays: they are dead, but they are back on the board and they do
- * cross rooms. Flags are read directly rather than through chapter.mjs and
- * monocub.mjs, matching how actions.mjs and voice.mjs ask the same question -
- * this file is imported by movement.mjs's hot path and does not need the
- * dependency.
+ * cross rooms. The Monocub and Monokuma flags are read directly rather than
+ * through monocub.mjs - this file is imported by movement.mjs's hot path and
+ * does not need the dependency; death is asked of settings.mjs (E05 C9), and the
+ * caller says which answer: the card sent to each owner is a document, so it
+ * goes by the table's fact (rule A); the GM's placement table by the truth (B).
  */
-function placingActors() {
+function placingActors(dead) {
     return game.actors.filter(a => {
         if (a.type !== "character") return false;
         if (a.getFlag(MODULE_ID, FLAGS.monokuma)) return false;
-        if (a.getFlag(MODULE_ID, FLAGS.deceased) && !a.getFlag(MODULE_ID, FLAGS.monocub)) return false;
+        if (dead(a) && !a.getFlag(MODULE_ID, FLAGS.monocub)) return false;
         return true;
     });
 }

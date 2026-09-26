@@ -39,7 +39,8 @@ import { murderState, sideOf, betrayalTarget } from "./murder.mjs";
 // a player silenced by a Despair Call may not spend Hope.
 import { isMonocub, isSilenced, isSilenced as cubSilenced } from "./monocub.mjs";
 import { isSilenced as callSilenced, isChained, pendingGather } from "./call-effects.mjs";
-import { isDeceased } from "./chapter.mjs";
+import { isDeceased, isDeadForGm } from "./chapter.mjs";
+
 import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
     durabilityLeft } from "./inventory.mjs";
 // `equippedFor` went with the clean-up panel's "what you have readied" note -
@@ -61,6 +62,16 @@ import { rules } from "./rules.mjs";
 import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural } from "./utils.mjs";
+
+/*
+ * Dead, as the person looking at this sheet may know it (E05 C9, rule C): on a
+ * sheet the viewer owns - their own, or any sheet on a GM - what their browser
+ * holds; on anybody else's, the table's fact. The same answer as `isDeceased`
+ * until E05 C10 makes a death secret until its discovery.
+ */
+function deadToViewer(actor) {
+    return actor?.isOwner ? isDeadForGm(actor) : isDeceased(actor);
+}
 
 export function registerSheetTweaks() {
     // ApplicationV2 fires a render hook per class in the inheritance chain,
@@ -2384,7 +2395,7 @@ function groupInventory(app, element) {
  */
 function buildOpenStashSection(box, actor, app) {
     if (!app.isEditable || isMonokuma(actor)) return;
-    if (isDeceased(actor) && !isMonocub(actor)) return;
+    if (deadToViewer(actor) && !isMonocub(actor)) return;
 
     /*
      * ONE HEADING PER STASH, ONE BUTTON FOR THE ROOM.
@@ -2512,7 +2523,7 @@ function buildOneStashSection(box, actor, app, room) {
 function addUseButton(li, item, app) {
     if (!app.isEditable || isMonokuma(app.document)) return;
     if (!isUsable(item)) return;
-    if (isDeceased(app.document) && !isMonocub(app.document)) return;
+    if (deadToViewer(app.document) && !isMonocub(app.document)) return;
 
     // SHOWN, AND DEAD. An opened kit keeps its button so the row does not
     // quietly change shape when it is spent - the player looks at the same
@@ -2632,7 +2643,7 @@ function addDiscardButton(li, item, app) {
     if (!isBroken(item)) return;
     // A corpse throws nothing away. Same gate as the Use button, and a Monocub
     // is on the other side of it for the same reason.
-    if (isDeceased(app.document) && !isMonocub(app.document)) return;
+    if (deadToViewer(app.document) && !isMonocub(app.document)) return;
     // The stash is the OTHER answer, not a place to act from: something already
     // put away has to be taken back out before it can be thrown away.
     if (isStashed(item)) return;
@@ -3325,7 +3336,7 @@ function injectActionPanel(app, element) {
     // budget every time of day because it only ever skipped Monokumas. Becoming
     // a Monocub is a separate GM step that may come a whole trial later, or
     // never, and that gap is exactly where a corpse could keep taking turns.
-    if (isDeceased(actor)) {
+    if (deadToViewer(actor)) {
         const note = document.createElement("div");
         note.className = "drpg-action-panel drpg-dead-panel";
         const heading = document.createElement("h3");

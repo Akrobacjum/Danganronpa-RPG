@@ -1172,9 +1172,9 @@ export async function issueAutopsyDialog() {
         return false;
     }
 
-    const { isDeceased } = await import("./chapter.mjs");
+    const { isDeadForGm } = await import("./chapter.mjs");
     const rows = actors.map(a => {
-        const dead = isDeceased(a);
+        const dead = isDeadForGm(a);
         return `<label class="drpg-checkbox">
             <input type="checkbox" name="target" value="${a.id}"${dead ? "" : " checked"} />
             ${foundry.utils.escapeHTML(a.name)}${

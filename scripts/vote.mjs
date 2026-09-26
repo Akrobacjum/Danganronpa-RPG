@@ -30,7 +30,7 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
-import { isDeceased, livingStudents, killCharacter } from "./chapter.mjs";
+import { isDeceased, isDeadForGm, livingStudentsForGm, killCharacter } from "./chapter.mjs";
 import { blackenedIds, blackenedActors } from "./murder.mjs";
 import { announce, dialogContent, whisperToGms, log, warn, error, plural } from "./utils.mjs";
 
@@ -855,7 +855,7 @@ export async function applyVerdict({
     const done = [];
 
     for (const actor of executed) {
-        if (isDeceased(actor)) continue;
+        if (isDeadForGm(actor)) continue;
         await killCharacter(actor);
         done.push(game.i18n.format("DRPG.Vote.wasExecuted", {
             name: foundry.utils.escapeHTML(actor.name)
@@ -867,7 +867,7 @@ export async function applyVerdict({
         // answer levels the table up. The Blackened have just been executed, so
         // they are not in this list, which is what keeps that honest even when
         // there were two of them.
-        const survivors = livingStudents();
+        const survivors = livingStudentsForGm();
         done.push(plural("DRPG.Vote.levelUp", {
             n: survivors.length,
             kind: TRIAL.correct.levelUp
@@ -875,7 +875,7 @@ export async function applyVerdict({
         await promptAdvancements(survivors, TRIAL.correct.levelUp);
     } else {
         // EVERY killer who is still breathing, not just the first one named.
-        const survivingKillers = blackened.filter(a => !isDeceased(a));
+        const survivingKillers = blackened.filter(a => !isDeadForGm(a));
         if (survivingKillers.length) {
             done.push(plural("DRPG.Vote.blackenedRewarded", {
                 n: survivingKillers.length,
