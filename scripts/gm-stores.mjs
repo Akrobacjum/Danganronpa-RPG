@@ -739,10 +739,19 @@ async function markUpgrade() {
  * then knows it is not a new case but one it never saw (the health check's
  * "never held" row). A timestamp and nothing about the case itself: "a pick
  * exists" or "an offer is pending" in world data would be a tell (the design's 1).
+ * So only the stores whose rows stand for world documents every client holds -
+ * the Truth Bullets' and the traces' - count (`caseHasRows`): until E04's fix round
+ * any store did, and in a world with no trace and no bullet yet the mark's arrival
+ * told a player's console that a Mastermind had been picked (the review's S-m4).
  */
 async function markCaseSince() {
     if (!isPrimaryGm() || caseMark().since) return;
-    if (gmStoreHandles().some(h => h.spec.backup && Object.keys(h.entries()).length)) await markCase({ since: Date.now() });
+    if (caseHasRows(gmStoreHandles())) await markCase({ since: Date.now() });
+}
+
+/** Whether the stores whose rows mirror world documents - the bullets', the traces' - hold any. Pure over the handles. */
+export function caseHasRows(handles) {
+    return handles.some(h => ["bullets", "remnants"].includes(h.name) && Object.keys(h.entries()).length > 0);
 }
 
 /** Every store with `backup: true`, and nothing else, as `{ name: section }` (R173). */
@@ -1093,8 +1102,9 @@ export async function gmStoreHealth() {
     const undecided = mastermindUndecided();
     if (undecided) {
         const { pick, clearedAt, pickedAt } = undecided;
+        // `shown`: what the window puts to the GM, which Keep and Clear act on and nothing else (DS-m7).
         add("mastermindCleared", "conflict", "DRPG.Case.row.mastermindCleared", { cleared: new Date(clearedAt).toLocaleString(),
-            name: game.actors.get(pick)?.name ?? pick, picked: new Date(pickedAt).toLocaleString() });
+            name: game.actors.get(pick)?.name ?? pick, picked: new Date(pickedAt).toLocaleString(), shown: { pick, clearedAt, pickedAt } });
     }
 
     const since = caseMark().since;
@@ -1216,9 +1226,18 @@ export async function runHealthCheck() {
             return runHealthCheck();
         }
         if (decide) {
-            // Closing the window keeps the pick as well: the default, and nothing is cleared unasked.
+            /* Closing the window keeps the pick as well: the default, and nothing is cleared
+               unasked. What Keep and Clear act on is the pick the window showed (the review's
+               DS-m7): read at the click, Keep stamped whatever the record held by then - a pick
+               that arrived by merge while the window was open, which no GM had seen - and Clear
+               cleared it. A record that changed is put to the GM again instead. */
+            const shown = report.rows.find(r => r.id === "mastermindCleared")?.data?.shown;
+            if (!sameDecision(shown, mastermindUndecided())) {
+                healthOpen = false;
+                return runHealthCheck();
+            }
             const m = await import("./mastermind.mjs");
-            const pick = game.actors.get(mastermindStore.record().actorId ?? "");
+            const pick = game.actors.get(shown.pick);
             if (choice === "clearMastermind") await m.clearMastermind();
             else if (pick) await m.setMastermind(pick);
             lastHealth = await gmStoreHealth();
@@ -1229,6 +1248,11 @@ export async function runHealthCheck() {
         healthOpen = false;
     }
     return report;
+}
+
+/** Whether the upgrade day's clear still stands as the health window showed it: the same pick, clear and stamps. */
+export function sameDecision(shown, now) {
+    return Boolean(shown && now) && shown.pick === now.pick && shown.clearedAt === now.clearedAt && shown.pickedAt === now.pickedAt;
 }
 
 /**

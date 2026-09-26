@@ -4204,6 +4204,26 @@ const INVARIANTS = [
             "a request waiting on the suite was answered while a stand-in world was still set, or not once it ended");
     }],
 
+    ["R185 - the case is marked from the bullets and the traces alone, and the health window acts on what it showed", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the reviews' S-m4 and DS-m7. `caseMark.since` is
+         * world data every client reads: written the first time any store held a row, its
+         * arrival in a world with no trace and no bullet yet told a player's console that a
+         * Mastermind had been picked. Only the stores whose rows stand for world documents
+         * count now (`caseHasRows`). And the upgrade day's decision is acted on only while
+         * it is the one the window showed (`sameDecision`; 61 E9 drives the window).
+         */
+        const S = await import("./gm-stores.mjs");
+        const h = (name, n) => ({ name, entries: () => Object.fromEntries(Array.from({ length: n }, (_, i) => [`R185${i}`, {}])) });
+        equal(S.caseHasRows([h("mastermind", 1), h("offers", 2), h("cast", 1), h("bullets", 0)]), false, "a pick, an offer or a cast alone marked the case");
+        equal(S.caseHasRows([h("mastermind", 1), h("remnants", 1)]), true, "a trace's row did not mark the case");
+        equal(S.caseHasRows([h("bullets", 1)]), true, "a bullet's row did not mark the case");
+        const shown = { pick: "R185A", clearedAt: 20, pickedAt: 10 };
+        equal(JSON.stringify([S.sameDecision(shown, { ...shown }), S.sameDecision(shown, { ...shown, pick: "R185B" }),
+            S.sameDecision(shown, { ...shown, pickedAt: 30 }), S.sameDecision(shown, null), S.sameDecision(null, shown)]),
+            JSON.stringify([true, false, false, false, false]), "the window's decision is read as the one it showed after the record changed, or not when it did not");
+    }],
+
     ["R182 - every store a player's copy is made from sends the copies again after a restore", async () => {
         /*
          * E04's fix round, 26.09.2026; the reviews' S-m3 = C-m7 and the design's 6.2. The

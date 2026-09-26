@@ -919,22 +919,28 @@ function registerLedgerRoad() {
         }
     });
 
-    /* THE PULL, AND THE PUSH BEHIND IT. A player asks the primary for its cells,
-       having first taken in the rows its browser held before E04 (weak: they add
-       what no GM said, never over what one did). The primary, once its store holds
-       the other GMs' copies, rebuilds the ledger from the players only when it
-       holds nothing at all, and otherwise sends every player their cells. The push
-       on `userConnected` is the backstop for a player whose request was lost. The
-       lift of the old world setting is a migration clause (`liftDiscoveryLedger`,
-       migrate.mjs), no longer this hook's. */
+    /* THE PULL, AND THE PUSH BEHIND IT. A player asks the primary for its cells when
+       it loads, having first taken in the rows its browser held before E04 (weak: they
+       add what no GM said, never over what one did), and again when a primary GM's
+       world has loaded (the bridge's "a GM is listening" signal, `drpgPrimaryReady`).
+       The primary, once its store holds the other GMs' copies, rebuilds the ledger
+       from the players only when it holds nothing at all, and otherwise sends every
+       player their cells. Until E04's fix round a push on `userConnected` was called
+       the backstop for a request that was lost; it reached a player's browser before
+       its listener existed (the measurement gm-bridge.mjs records), so it is gone,
+       and the ask on the primary's arrival is that backstop (the round-2 review's
+       m4). The lift of the old world setting is a migration clause
+       (`liftDiscoveryLedger`, migrate.mjs), no longer this hook's. */
+    const askForCells = (primary = primaryGmId()) => {
+        if (!primary) return;
+        try { game.socket.emit(SOCKET_EVENT, { action: FOG_REQUEST }, { recipients: [primary] }); }
+        catch (err) { error("Could not ask for the fog ledger", err); }
+    };
     Hooks.once("ready", () => {
         if (!game.user.isGM) {
             step("take in this browser's old fog rows", () => fogCopy.claim());
-            const primary = primaryGmId();
-            if (primary) {
-                try { game.socket.emit(SOCKET_EVENT, { action: FOG_REQUEST }, { recipients: [primary] }); }
-                catch (err) { error("Could not ask for the fog ledger", err); }
-            }
+            askForCells();
+            Hooks.on("drpgPrimaryReady", askForCells);
             return;
         }
         step("share or rebuild the ledger", () => discoveryStore.whenHydrated().then(() => {
@@ -942,10 +948,6 @@ function registerLedgerRoad() {
             if (!Object.keys(discoveryStore.entries()).length) askForShares();
             else shareLedger();
         }));
-    });
-    Hooks.on("userConnected", (user, connected) => {
-        if (!connected || !isPrimaryGm()) return;
-        sendStoreTo(user);
     });
 }
 

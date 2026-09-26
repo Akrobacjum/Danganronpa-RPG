@@ -446,6 +446,27 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     const clearedE8 = { gm: await pickStampOn(gm), gmc: await pickStampOn(gmc), p1: await doorOf(p1) };
     check("E8b: Clear takes the pick away on every GM, and its player stays not the Mastermind",
         clearedE8.gm.pick === null && clearedE8.gmc.pick === null && clearedE8.gm.at > clearedAgain + 20 && clearedE8.p1.mine === false, J(clearedE8));
+
+    /* E9, the fix list's 14 (DS-m7, 26.09): the window's Keep and Clear act on the record it
+       showed. It opens for Aiko's pick under a newer clear; while it is open a newer pick,
+       Botan's, arrives by merge - no longer a decision at all. Read at the click, Keep stamped
+       Botan's pick afresh, a pick no GM had seen in the window. */
+    const shownAt = clearedE8.gm.at;
+    await gm.eval(WAIT_FOR_WINDOW);
+    await mergeOnGm({ legacyClearedAt: shownAt + 20 }, shownAt + 20);
+    await mergeOnGm({ actorId: IDS.aiko, room: "Library" }, shownAt + 10);
+    await settle(800);
+    const windows9 = await windowsOnGm();
+    await mergeOnGm({ actorId: IDS.botan, room: "Kitchen" }, shownAt + 30);
+    await settle(600);
+    await press("keepMastermind");
+    await settle(800);
+    const after9 = await pickStampOn(gm), windowsAfter9 = await windowsOnGm();
+    check("E9: a pick that arrived while the window was open is not what Keep stamps - the window acts on the record it showed",
+        decides(windows9.at(-1)) && after9.pick === IDS.botan && after9.at === shownAt + 30 && windowsAfter9.length === windows9.length,
+        J({ windows9: windows9.length, after9, windowsAfter9: windowsAfter9.length }));
+    await gm.eval(`${MM} await M.clearMastermind(); return true;`);
+    await settle(600);
     await gm.eval(`globalThis.__dialogAnswers.length = 0; return true;`);
     await disconnect("gmc");
     await settle(300);
@@ -812,8 +833,17 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     if (bullets?.worlds?.[worldA]) Object.assign(bullets.worlds[worldA].d ??= {}, { [goneBullet]: monthAgo, [hereSubject]: monthAgo });
     const withTombstones = { ...leftGm2, [bulletsKey]: JSON.stringify(bullets) };
     await disconnect("gm");
+    const fromJ3 = socketTraffic.length;
     await connect("gm2", { storage: withTombstones });
     await settle(1500);
+    /* J3c (the fix list's 15, the round-2 review's m4): a primary arriving is asked by every
+       player for the door, the cast and the fog, on its world's load - the bridge's "a GM is
+       listening" signal. They asked on `userConnected`, which on a live reload fires before
+       the GM's listeners exist (LIVE-E30-05 is which comes first on v14), and the fog not at all. */
+    const ASKS = ["mastermind.doorRequest", "incident.myCastRequest", "fog.request"];
+    const asksJ3 = socketTraffic.slice(fromJ3).filter(t => ASKS.includes(t.action) && Array.isArray(t.to) && t.to.includes(GM2));
+    check("J3c: a primary GM arriving is asked by every player for the door, the cast and the fog",
+        ["p1", "p2", "p3"].every(who => ASKS.every(a => asksJ3.some(t => t.from === who && t.action === a))), J(asksJ3.map(t => [t.from, t.action])));
     const onGm2J3 = await gm2.eval(`${MM} const E = await import("${repoUrl}/scripts/gm-store.mjs");
         const U = await import("${repoUrl}/scripts/utils.mjs");
         return { primary: U.isPrimaryGm(), hydration: E.gmStoreHydration().state,

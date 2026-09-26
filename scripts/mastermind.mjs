@@ -276,8 +276,7 @@ export async function clearMastermind() {
  * GMs' copies - and its answer is stamped, so asking twice, or an answer that
  * crosses a newer one, changes nothing.
  */
-function askForDoor() {
-    const primary = primaryGmId();
+function askForDoor(primary = primaryGmId()) {
     if (!primary || game.user.isGM) return;
     try {
         game.socket.emit(SOCKET_EVENT, { action: ACTION_DOOR_REQUEST }, { recipients: [primary] });
@@ -363,14 +362,14 @@ export function registerMastermind() {
     if (game.user.isGM) return;
 
     // A player's copy is kept in this browser, and a GM's answer is what starts
-    // and corrects it: every player asks when it loads, and again when a GM
-    // connects (a player who loaded first asked nobody). The answer is a single
+    // and corrects it: every player asks when it loads, and again when a primary
+    // GM's world has loaded (gm-bridge.mjs's "a GM is listening" signal: a player
+    // who loaded first asked nobody, and asked on `userConnected` the question
+    // reached a GM with no listener yet - E04's fix round). The answer is a single
     // boolean about this one user, so asking is free for the players who get
     // "no" back.
     askForDoor();
-    Hooks.on("userConnected", (user, connected) => {
-        if (connected && user?.isGM) askForDoor();
-    });
+    Hooks.on("drpgPrimaryReady", primary => askForDoor(primary));
 }
 
 /**

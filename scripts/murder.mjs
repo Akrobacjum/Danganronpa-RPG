@@ -2827,21 +2827,21 @@ function registerIncidentCastSync() {
     /*
      * AT READY, NOT AT REGISTRATION (found in the sandbox, 03.09): `registerMurder`
      * runs from `init`, when `game.user` is still null. A participant asks the
-     * primary when it loads, and again when a GM connects - one that loaded first
-     * asked nobody. The lift of the old world data is a migration clause since E04
-     * (`liftIncidentSecrets`, migrate.mjs), no longer run from this hook.
+     * primary when it loads, and again when a primary GM's world has loaded (the
+     * bridge's "a GM is listening" signal, `drpgPrimaryReady`) - one that loaded
+     * first asked nobody, and asked on `userConnected` the question reached a GM
+     * with no listener yet (E04's fix round, the round-2 review's m4). The lift of
+     * the old world data is a migration clause since E04 (`liftIncidentSecrets`,
+     * migrate.mjs), no longer run from this hook.
      */
     Hooks.once("ready", () => {
         if (game.user.isGM) return;
         askForCast();
-        Hooks.on("userConnected", (user, connected) => {
-            if (connected && user?.isGM) askForCast();
-        });
+        Hooks.on("drpgPrimaryReady", primary => askForCast(primary));
     });
 }
 
-function askForCast() {
-    const primary = primaryGmId();
+function askForCast(primary = primaryGmId()) {
     if (!primary) return;
     try {
         game.socket.emit(SOCKET_EVENT, { action: CAST_MINE_REQUEST }, { recipients: [primary] });

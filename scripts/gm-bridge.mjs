@@ -104,10 +104,18 @@ function onGmReady(payload, senderId) {
     // while the primary still had the question open made this client ask it
     // again, and the primary was answering the same request twice. When the
     // primary role has moved to the newcomer, the newcomer IS the primary.
-    if (senderId !== primaryGmId()) return;
+    // Its own packet says it is up, whether or not this client has seen it connect (E04's fix round).
+    if (senderId !== primaryGmId({ arriving: senderId })) return;
     resendOnGmReady();
     // And the Level Ups: a primary that has just arrived is the one holding them.
     askForOffers();
+    /* And every copy a player holds of a GM store - the door, the cast, the fog - asks the
+       arriving primary the same way (E04's fix round: the fix list's 15 and the round-2
+       review's m4). They asked on `userConnected`, which on a live reload fires before the
+       GM's world has loaded and its listeners exist: the question was lost, and a player
+       who had loaded first held no copy until its own next load. The hook carries the
+       primary's id, so a client that has not seen it connect yet still knows whom to ask. */
+    Hooks.callAll("drpgPrimaryReady", senderId);
 }
 
 export function registerGmBridge() {
