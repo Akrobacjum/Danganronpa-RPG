@@ -1096,15 +1096,10 @@ export async function applyChapterEnd(choices = {}) {
         error("Could not file the chapter's Key Remnant plan", err);
     }
 
-    // The register of who killed belongs to the chapter that is ending. Cleared
-    // whatever else was ticked, and silently: it is bookkeeping the GM never
-    // asked for and would only wonder about.
-    try {
-        const { clearBlackened, blackenedIds } = await import("./murder.mjs");
-        if (blackenedIds().length) await clearBlackened();
-    } catch (err) {
-        error("Could not clear the chapter's Blackened register", err);
-    }
+    // The register of who killed belongs to the chapter that is ending, and is
+    // no longer emptied here (E04): `blackenedIds` reads the rows of the clock's
+    // chapter, so the next chapter starts with nobody's blood on anybody - and a
+    // GM's copy that missed an emptying cannot bring last chapter's killers back.
 
     // And the chapter actually ends.
     //

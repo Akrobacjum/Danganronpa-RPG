@@ -302,6 +302,14 @@ export function registerMusic() {
      * Matched on the whole key rather than its ending, because "ends with
      * trialQueue" is also true of another module's setting of the same name.
      */
+    /* THE CAST, WHERE IT CHANGES: the GMs' record (`gmCast`) and a participant's
+       copy (`mineCast`), both client-scoped - `clientSettingChanged`, which fires
+       for every write of either (E04). See the note on the murder's keys below. */
+    Hooks.on("clientSettingChanged", key => {
+        if (key === `${MODULE_ID}.${SETTINGS.incidentCast}` || key === `${MODULE_ID}.${SETTINGS.mineCast}`) {
+            applyMurderMusic().catch(err => error("Could not follow the incident with the music", err));
+        }
+    });
     Hooks.on("updateSetting", setting => {
         const key = setting?.key;
         /*
@@ -314,14 +322,16 @@ export function registerMusic() {
          * client rather than through the primary GM's `apply`.
          *
          * Both keys, and both are needed. `murderState` carries the stage, so
-         * it is what says the incident has started or ended; `incidentCast`
-         * carries the names, so on a participant's browser it is what says the
+         * it is what says the incident has started or ended; the cast carries
+         * the names, so on a participant's browser it is what says the
          * incident is theirs - and it arrives by socket a moment after the
          * world half, which means listening to only the first would start the
-         * music before the client knew whether it was in it.
+         * music before the client knew whether it was in it. The cast is heard
+         * below: it is client-scoped, and this document hook never fires for a
+         * client-scoped key (R14's note), so the cast half of it heard nothing
+         * until E04 moved it.
          */
-        if (key === `${MODULE_ID}.${SETTINGS.murderState}`
-            || key === `${MODULE_ID}.${SETTINGS.incidentCast}`) {
+        if (key === `${MODULE_ID}.${SETTINGS.murderState}`) {
             applyMurderMusic().catch(err => error("Could not follow the incident with the music", err));
             return;
         }

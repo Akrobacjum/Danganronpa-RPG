@@ -20,12 +20,12 @@
  * it from the registry.
  */
 
-import { MODULE_ID, moduleVersion } from "./config.mjs";
+import { MODULE_ID, FLAGS, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, dialogContent, whisperToGms } from "./utils.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated,
-    gmStoreHydration, gmStoreSkew, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, RECORD
+    gmStoreHydration, gmStoreSkew, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, newerStamps, RECORD
 } from "./gm-store.mjs";
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
@@ -202,6 +202,112 @@ export function doorCombine(held, offered) {
 export const doorCopy = defineGmCopy({
     name: "door", key: SETTINGS.mineDoor, legacyKeys: [SETTINGS.legacyIAmMastermind, SETTINGS.legacyMyMastermindLair],
     resetGroup: "mastermind", fallback: { mastermind: false, room: null }, combine: doorCombine
+});
+
+/**
+ * The fields of an incident's cast (murder.mjs): who is in it, whose turn it is
+ * on the killers' side, the accomplice and which side they took, the Reroll
+ * receipt (`lastCrisis`, which names every participant), the betrayal offer and
+ * the swing memo. The record's closed set: `resetRecord` stamps each of them.
+ */
+export const CAST_FIELDS = Object.freeze([
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "betrayal", "swung"
+]);
+
+/**
+ * WHO IS IN THE INCIDENT (E04 C6; audit S04-24, the cast half of S06-19). One
+ * record of this world, each field stamped on its own, `swung` a stamp per actor:
+ * a swing and a turn change written on two GMs both stay. The old cast is claimed
+ * only when it can be this world's running incident (the design's H4): while this
+ * world's `murderState` is active and it names an actor here, and a betrayal offer
+ * alone only for the clock's own chapter and day. A closed cast (`{ updated }` and
+ * no names) is not claimed and stays in the old key, counted as left (the Mastermind
+ * carries its old clear because a decision reads it; nothing would read this one),
+ * and a stale cast cannot reach the next incident either way: opening one stamps
+ * every per-incident field.
+ */
+export const castStore = defineGmStore({
+    name: "cast", key: SETTINGS.incidentCast, legacyKey: SETTINGS.legacyIncidentCast,
+    kind: "record", fields: CAST_FIELDS, split: ["swung"], resetGroup: "incident", backup: true, sync: true,
+    legacyCount: legacy => (isPlain(legacy) && Object.keys(legacy).length ? 1 : 0),
+    claim: legacy => {
+        if (!isPlain(legacy) || !Object.keys(legacy).length) return { rows: [], left: [] };
+        const { updated, betrayal = null, ...rest } = legacy;
+        const named = Object.fromEntries(Object.entries(rest)
+            .filter(([f, v]) => CAST_FIELDS.includes(f) && v !== null && v !== undefined));
+        const state = getSetting(SETTINGS.murderState) ?? {};
+        const here = [named.killerId, named.victimId].some(id => id && game.actors?.has(id));
+        const clock = getClock() ?? {};
+        const offer = betrayal?.killerId && betrayal.chapter === clock.chapter && betrayal.day === clock.day
+            && game.actors?.has(betrayal.thirdId) ? betrayal : null;
+        const fields = { ...(state.active && here ? named : {}), ...(offer ? { betrayal: offer } : {}) };
+        if (Object.keys(fields).length) return { rows: [{ key: RECORD, fields, stamp: updated }], left: [] };
+        const closed = !Object.keys(named).length && !betrayal;
+        return { rows: [], left: [{ key: RECORD, reason: closed ? "closed" : (here ? "notRunning" : "otherWorld") }] };
+    }
+});
+
+/**
+ * WHO KILLED, BY CHAPTER AND SEASON (E04 C6; audit S04-25). A row per killer,
+ * `{ chapter, epoch, at }` (`at` orders them); murder.mjs's `blackenedIds` reads the
+ * rows of the clock's chapter and season, so the register is never emptied at a
+ * chapter's end and a GM's stale copy cannot bring last chapter's killers back.
+ * The old ids are claimed only with world evidence of a verdict still to come in
+ * this chapter - a death recorded in the clock's chapter, and no verdict applied
+ * (the design's H4) - weak, in their order; otherwise they stay behind.
+ */
+export const blackenedStore = defineGmStore({
+    name: "blackened", key: SETTINGS.blackenedLedger, legacyKey: SETTINGS.legacyBlackenedLedger,
+    kind: "ledger", resetGroup: "incident", backup: true, sync: true,
+    claim: legacy => {
+        const ids = Array.isArray(legacy) ? legacy.filter(id => typeof id === "string" && id) : [];
+        const chapter = getClock()?.chapter ?? null;
+        const trial = getSetting(SETTINGS.trialProgress) ?? {};
+        const died = (game.actors ?? []).some(a => a.getFlag?.(MODULE_ID, FLAGS.deceased)?.chapter === chapter);
+        const pending = died && !(trial.chapter === chapter && trial.verdictApplied);
+        const rows = [], left = [];
+        ids.forEach((id, at) => {
+            if (!game.actors?.has(id)) left.push({ key: id, reason: "otherWorld" });
+            else if (!pending) left.push({ key: id, reason: "noPendingVerdict" });
+            else rows.push({ key: id, fields: { chapter, epoch: 0, at } });
+        });
+        return { rows, left };
+    }
+});
+
+/**
+ * The fields that say who is in an incident (murder.mjs, `castOwners`): the seats,
+ * and the betrayal offer, which keeps the accomplice's copy after the close (D18).
+ */
+export const CAST_SEATS = Object.freeze(["killerId", "victimId", "thirdId", "betrayal"]);
+
+/**
+ * THE CAST COPY'S RULE, PART BY PART (the review's B1, 26.09.2026). A participant is
+ * sent the cast with a stamp per field it holds (every field but the swing memo), and
+ * takes it only when it is at least as new in every part and newer in one - so a GM
+ * that has not merged a newer write cannot hand back an older field, however fresh
+ * another it wrote since. "Not in it" (`{}`) is a statement about the seats alone, so
+ * it carries their stamps and is weighed on them: a bystander asking learns when the
+ * seats last changed and nothing of the rest, and a former participant's copy is
+ * emptied by a newer seat whatever the other parts say. Pure (R176).
+ */
+export function castCombine(held, offered, { cut = 0 } = {}) {
+    const seats = stamps => Object.fromEntries(CAST_SEATS.map(part => [part, stamps?.[part] ?? 0]));
+    if (!Object.keys(offered?.value ?? {}).length) {
+        const stamps = seats(offered?.stamps);
+        return newerStamps(stamps, seats(held?.stamps), cut) ? { value: {}, stamps } : null;
+    }
+    return newerStamps(offered?.stamps, held?.stamps, cut) ? offered : null;
+}
+
+/**
+ * A PARTICIPANT'S CAST (E04 C6): what one player's browser holds of the running
+ * incident - the cast when they are in it, nothing when they are not - taken only
+ * where newer (`castCombine`), so a GM whose browser holds no cast cannot empty it.
+ */
+export const castCopy = defineGmCopy({
+    name: "cast", key: SETTINGS.mineCast, legacyKey: SETTINGS.legacyIncidentCast, resetGroup: "incident", fallback: {},
+    combine: castCombine
 });
 
 /** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
@@ -621,6 +727,7 @@ export async function runHealthCheck() {
             buttons: [
                 ...(report.missing ? [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile") }] : []),
                 ...(fillable ? [{ action: "fill", label: game.i18n.format("DRPG.Case.fillFromTraces", { n: fillable }) }] : []),
+                ...(report.rows.some(r => r.id === "incident") ? [{ action: "cast", label: game.i18n.localize("DRPG.Case.enterCast") }] : []),
                 // The H4 decision: Keep (the default) stamps the pick again; Clear clears it.
                 ...(decide ? [{ action: "clearMastermind", label: game.i18n.localize("DRPG.Case.clearMastermind") },
                     { action: "keepMastermind", label: game.i18n.localize("DRPG.Case.keepMastermind"), default: true }]
@@ -638,6 +745,11 @@ export async function runHealthCheck() {
             healthOpen = false;
             return runHealthCheck();
         }
+        if (choice === "cast") {
+            await enterCastByHand();
+            healthOpen = false;
+            return runHealthCheck();
+        }
         if (decide) {
             // Closing the window keeps the pick as well: the default, and nothing is cleared unasked.
             const m = await import("./mastermind.mjs");
@@ -652,6 +764,36 @@ export async function runHealthCheck() {
         healthOpen = false;
     }
     return report;
+}
+
+/**
+ * ENTER THE CAST BY HAND (the design's 6.3; E04 C6): the health check's answer to
+ * an incident running with no cast on this browser. The GM picks the killer, the
+ * victim and a third if there was one; murder.mjs's `enterCast` writes them as a
+ * decision. Nothing is written without both of the first two.
+ */
+export async function enterCastByHand() {
+    if (!game.user?.isGM) return null;
+    const students = (game.actors?.contents ?? []).filter(a => a.type === "character");
+    const options = [`<option value="">-</option>`,
+        ...students.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`)].join("");
+    const seat = (name, key) => `<label>${esc(game.i18n.localize(key))} <select name="${name}">${options}</select></label>`;
+    const answer = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Case.castTitle") },
+        classes: ["drpg-panel", "drpg-window-enter-cast"],
+        content: dialogContent(`<form><p>${esc(game.i18n.localize("DRPG.Case.castIntro"))}</p>
+            ${seat("killerId", "DRPG.Case.castKiller")}${seat("victimId", "DRPG.Case.castVictim")}${seat("thirdId", "DRPG.Case.castThird")}</form>`),
+        buttons: [
+            { action: "enter", label: game.i18n.localize("DRPG.Case.castEnter"), default: true,
+              callback: (e, b, d) => Object.fromEntries(["killerId", "victimId", "thirdId"]
+                  .map(name => [name, d.element.querySelector(`[name=${name}]`)?.value || null])) },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+    if (!answer?.killerId || !answer?.victimId) return null;
+    const { enterCast } = await import("./murder.mjs");
+    return enterCast(answer);
 }
 
 /** A file the GM picks, as its text; null when none was picked. */

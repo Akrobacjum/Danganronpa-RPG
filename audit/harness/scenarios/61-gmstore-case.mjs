@@ -32,6 +32,12 @@
  *      newer pick moves the lair and the former Mastermind learns nothing (B1); and
  *      the upgrade day's clear is put to the primary whichever browser held it and
  *      whenever the pick arrives, with no player told the part meanwhile (M1).
+ *   F  the incident's cast (S04-24, the cast half of S06-19): a participant's copy
+ *      is stamped part by part, and what the primary answers is read off the
+ *      packets; a second GM with an empty browser does not answer for it; a GM that
+ *      has not merged a newer write lets a third in, and the primary tells the
+ *      participants what the GMs agree on (B1); and the second GM closes the
+ *      incident: both GMs' records and the copy are cleared by one stamp.
  *   Z  the browser is lost (the brief's live verify, headless): a GM backs up the
  *      case, every GM leaves, a third GM comes with an empty browser and is alone,
  *      so the primary; its health check opens and names what is missing, Continue
@@ -53,7 +59,7 @@ const PROBE_KEY = "drpg-harness.probe";
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
+export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
     const GM2 = "USERGM2000000000", GMA = "USERGMA000000000";
 
     /* ------------------------------ A. the harness ------------------------------ */
@@ -413,6 +419,97 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, check, phase, s
     await disconnect("gmc");
     await settle(300);
 
+    /* ------------------- F. the incident's cast, stamped ------------------- */
+
+    phase("F: the incident's cast through the primary GM, and closed by another", { flow: "murder-incident" });
+    const CAST = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const M = await import("${repoUrl}/scripts/murder.mjs");`;
+    const castOn = client => client.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        const cast = incidentCast();
+        return { killer: cast.killerId ?? null, victim: cast.victimId ?? null, third: cast.thirdId ?? null, stamp: E.mineStamp("cast"),
+            stamps: E.mineStamps("cast") };`);
+    const recordOn = client => client.eval(`${CAST} const r = S.castStore.record();
+        return { killer: r.killerId ?? null, state: M.murderState()?.killerId ?? null, stamp: S.castStore.stampOf("record", "killerId") };`);
+    // What each cast packet says, as p3 (the killer's player) and p1 (a bystander) receive it - as for the door (M2).
+    const RECORD_CASTS = `globalThis.__casts = [];
+        game.socket.on("module.${MOD}", (payload, senderId) => {
+            if (payload?.action === "incident.myCast") globalThis.__casts.push({ from: senderId, cast: payload.cast ?? null, stamps: payload.stamps ?? null });
+        });
+        return true;`;
+    await p3.eval(RECORD_CASTS);
+    await p1.eval(RECORD_CASTS);
+    const castsNow = client => client.eval(`return globalThis.__casts.length;`);
+    const castsSince = (client, n) => client.eval(`return globalThis.__casts.slice(${n});`);
+    const castStampsOn = client => client.eval(`${CAST} return Object.fromEntries(["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "betrayal"]
+        .map(f => [f, S.castStore.stampOf("record", f)]));`);
+    /* The killer's opening roll is thrown on p3's client with the harness's dice: forced to a
+       critical, which always opens the incident. Left random, it failed once in six runs
+       ("Murder closed (openingFailed)", the C7 run, 26.09) and F read a closed incident. */
+    await p3.eval(`globalThis.__forceRoll = { hope: 10, fear: 10 }; return true;`);
+    const openedAt = await gm.eval(`${CAST} await M.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.daichi}" });
+        return S.castStore.stampOf("record");`);
+    await settle(800);
+    const p3First = await castOn(p3);
+    check("F1: the incident opened on the GM reaches the killer's player's copy, at the record's stamp",
+        p3First.killer === IDS.chie && p3First.victim === IDS.daichi && p3First.stamp === openedAt && openedAt > 0, J({ openedAt, p3First }));
+
+    await connect("gm2");
+    await settle(1500);
+    const castsFrom = from => socketTraffic.filter(t => t.from === from && t.action === "incident.myCast").length;
+    const castBefore = { gm: castsFrom("gm"), gm2: castsFrom("gm2") };
+    await p3.eval(`game.socket.emit("module.${MOD}", { action: "incident.myCastRequest" }, { recipients: ["${GM2}"] }); return true;`);
+    await settle(500);
+    const p3AfterGm2 = await castOn(p3);
+    check("F2: a second GM with an empty browser, asked for the cast, does not answer, and the participant keeps it",
+        castsFrom("gm2") === castBefore.gm2 && p3AfterGm2.killer === IDS.chie && p3AfterGm2.stamp === openedAt, J({ castBefore, gm2Sent: castsFrom("gm2"), p3AfterGm2 }));
+
+    const askedF = { p3: await castsNow(p3), p1: await castsNow(p1) };
+    await p3.eval(`game.socket.emit("module.${MOD}", { action: "incident.myCastRequest" }, { recipients: ["${IDS.gm}"] }); return true;`);
+    await p1.eval(`game.socket.emit("module.${MOD}", { action: "incident.myCastRequest" }, { recipients: ["${IDS.gm}"] }); return true;`);
+    await settle(500);
+    const p3AfterGm = await castOn(p3), onGmF = await recordOn(gm), onGm2F = await recordOn(gm2);
+    const answeredF = { p3: await castsSince(p3, askedF.p3), p1: await castsSince(p1, askedF.p1) }, stampsF = await castStampsOn(gm);
+    const seatsF = { killerId: stampsF.killerId, victimId: stampsF.victimId, thirdId: stampsF.thirdId, betrayal: stampsF.betrayal };
+    check("F3: the primary answers the killer's player with the cast and every part's stamp, a bystander with nothing and the seats' stamps alone, and both GMs hold the killer",
+        castsFrom("gm") > castBefore.gm && p3AfterGm.stamp === openedAt && onGmF.state === IDS.chie && onGm2F.state === IDS.chie
+        && answeredF.p3.length === 1 && answeredF.p3[0].cast?.killerId === IDS.chie && answeredF.p3[0].cast?.victimId === IDS.daichi
+        && !("swung" in (answeredF.p3[0].cast ?? {})) && J(answeredF.p3[0].stamps) === J(stampsF)
+        && J(answeredF.p1) === J([{ from: IDS.gm, cast: {}, stamps: seatsF }]), J({ answeredF, stampsF, p3AfterGm, onGmF, onGm2F }));
+
+    /* F5, the review's B1 for the cast (26.09): a GM that has not merged a newer write lets
+       a third in. gm's store is held (it sends the other GMs nothing; what they send it still
+       merges), gm writes every seat and the turn afresh (the health check's "enter the cast
+       by hand") and tells p3 itself; gm2, which never saw that, lets Aiko walk in and tells
+       the participants a copy older in those parts. */
+    await gm.eval(`const w = game.settings.get("${MOD}", "murderState"); await game.settings.set("${MOD}", "murderState", { ...w, stage: "incident" }); return true;`);
+    await settle(400);
+    await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); E.gmStoreHold(true); return true;`);
+    await gm.eval(`${CAST} await M.enterCast({ killerId: "${IDS.chie}", victimId: "${IDS.daichi}" }); return true;`);
+    await settle(400);
+    const enteredAt = (await castStampsOn(gm)).killerTurnId;
+    const askedF5 = await castsNow(p3);
+    await gm2.eval(`${CAST} await M.thirdPartyEnters(game.actors.get("${IDS.aiko}")); return true;`);
+    await settle(800);
+    const fromGm2 = (await castsSince(p3, askedF5)).filter(d => d.from === GM2);
+    await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); E.gmStoreHold(false); return true;`);
+    await settle(1500);
+    const p3Merged = await castOn(p3), p1Merged = await castOn(p1), onGm2F5 = await castStampsOn(gm2);
+    check("F5: a GM that has not merged a newer write lets a third in: its copy is older in the turn, and once the GMs agree the primary tells the killer's player and the third the cast with both",
+        enteredAt > openedAt && fromGm2.length === 1 && fromGm2[0].cast?.thirdId === IDS.aiko && fromGm2[0].stamps?.killerTurnId < enteredAt
+        && p3Merged.third === IDS.aiko && p3Merged.stamps?.killerTurnId === enteredAt && p1Merged.third === IDS.aiko
+        && p1Merged.stamps?.killerTurnId === enteredAt && onGm2F5.killerTurnId === enteredAt, J({ enteredAt, fromGm2, p3Merged, p1Merged, onGm2F5 }));
+
+    await gm2.eval(`${CAST} await M.endMurder({ reason: "E04 61F", followUp: false }); return true;`);
+    await settle(800);
+    const closedGm = await recordOn(gm), closedGm2 = await recordOn(gm2), closedP3 = await castOn(p3);
+    check("F4: the second GM closes the incident: both GMs' records and the participant's copy are cleared, by one stamp",
+        closedGm.killer === null && closedGm2.killer === null && closedP3.killer === null && closedGm.stamp > openedAt
+        && closedGm.stamp === closedGm2.stamp && closedP3.stamp === closedGm.stamp, J({ closedGm, closedGm2, closedP3 }));
+    await p3.eval(`delete globalThis.__forceRoll; return true;`);
+    await disconnect("gm2");
+    await settle(300);
+
     /* ------------------- Z. the browser is lost, and the case comes back ------------------- */
 
     phase("Z: a GM backs up, every GM leaves, an empty browser comes back alone and restores", { flow: "gm-store" });
@@ -455,5 +552,5 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, check, phase, s
         && J(tracesOnGm3) === J(expectD.slice(0, 2)) && J(restored.missing) === J([])
         && restored.bullets.missing === 0 && restored.bullets.noAnswer === 0 && restored.traces.missing === 0, J({ restored, keysOnGm3, tracesOnGm3 }));
 
-    return { phases: ["A", "B", "D", "E", "Z"], gm: IDS.gm };
+    return { phases: ["A", "B", "D", "E", "F", "Z"], gm: IDS.gm };
 }

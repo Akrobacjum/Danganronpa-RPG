@@ -592,6 +592,24 @@ const CLAUSES = [
             const { moved, kept } = await migrateFaintIntoSecrets();
             return moved || kept ? { moved, kept } : null;
         }
+    },
+    {
+        key: "liftIncidentSecrets",
+        since: "1.2.63",
+        /*
+         * THE INCIDENT'S NAMES OUT OF WORLD DATA (LIVE-001, CASE-04; E04). A world that
+         * updated mid-incident may still hold names in `murderState`, and a betrayal
+         * offer or a swing memo in actor flags. This ran from a ready hook on every
+         * load of every GM (murder.mjs); once now, on the primary, after the GM
+         * store's copies arrived, with the rules written on `liftIncidentSecrets`:
+         * into the cast weak and fill-only, and out of world data only once the cast
+         * reads back from storage holding it.
+         */
+        run: async () => {
+            const { liftIncidentSecrets } = await import("./murder.mjs");
+            const report = await liftIncidentSecrets();
+            return report && (report.lifted || report.offers || report.flags || report.kept) ? report : null;
+        }
     }
 ];
 

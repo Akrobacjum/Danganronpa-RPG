@@ -8,7 +8,7 @@
  */
 
 import { MODULE_ID, EQUIPPABLE, SFX_EVENTS, FLAGS, PRICE_CHAINS } from "./config.mjs";
-import { SETTINGS, getSetting, BREAKPOINTS, narrowScreen, shortScreen } from "./settings.mjs";
+import { SETTINGS, getSetting, BREAKPOINTS, narrowScreen, shortScreen, seasonEpoch } from "./settings.mjs";
 import { applyNarrowLayout, narrowLayout } from "./narrow.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { voiceTargets } from "./voice.mjs";
@@ -62,12 +62,9 @@ async function snapshot(cast) {
         despair: monokumas().map(user => ({ id: user.id, value: getDespair(user.id) })),
         overflow: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {}),
         murder: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}),
-        // The other half of the incident (LIVE-001). Client-scoped, and taken
-        // with the world half or a scenario that opens a murder leaves this
-        // browser holding a cast for an incident that no longer exists - which
-        // is exactly the shape of dirt this snapshot exists to prevent.
-        cast: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {}),
-        blackened: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.blackenedLedger) ?? []),
+        // The other half of the incident (LIVE-001) and the Blackened register are
+        // GM stores since E04: client settings like the rest, in `settings` above,
+        // and put back raw with them - no named field of their own any more.
         // E14. Both are world settings a scenario below writes, and both are
         // visible to the whole table - a suite that leaves a motive standing
         // has announced one at somebody's game.
@@ -206,12 +203,8 @@ async function restore(snap) {
     }
     await game.settings.set(MODULE_ID, SETTINGS.overflow, snap.overflow);
     await game.settings.set(MODULE_ID, SETTINGS.murderState, snap.murder);
-    await game.settings.set(MODULE_ID, SETTINGS.incidentCast, snap.cast);
     await game.settings.set(MODULE_ID, SETTINGS.motive, snap.motive);
     await game.settings.set(MODULE_ID, SETTINGS.pendingGather, snap.gather);
-    // Put the register back as it was rather than emptying it: a suite run
-    // during a chapter that already had a killing used to erase that fact.
-    await game.settings.set(MODULE_ID, SETTINGS.blackenedLedger, snap.blackened);
 
     for (const row of snap.resources) {
         const actor = game.actors.get(row.id);
@@ -1105,11 +1098,11 @@ const SCENARIOS = [
          */
         const { incidentWitness } = await import("./settings.mjs");
         const { MODULE_ID: MOD } = await import("./config.mjs");
+        const { castStore } = await import("./gm-stores.mjs");
 
         const [killer, victim] = cast(3);   // and a bystander
 
         const worldBefore = game.settings.get(MOD, "murderState") ?? {};
-        const castBefore = game.settings.get(MOD, "incidentCast") ?? {};
         const assignedBefore = game.user.character ?? null;
         try {
             // A GM owns every actor, so "the seat I am playing" is the only
@@ -1117,8 +1110,8 @@ const SCENARIOS = [
             // colour keys off. Set deliberately, and put back in `finally`.
             await game.user.update({ character: killer.id });
 
-            await game.settings.set(MOD, "incidentCast",
-                { killerId: killer.id, victimId: victim.id, thirdId: null, updated: Date.now() });
+            // The GMs' record, through the store (E04); tier 2's restore puts the store back.
+            await castStore.patch("record", { killerId: killer.id, victimId: victim.id, thirdId: null });
 
             // ---- a DIRECT murder: the killer is in the room ------------------
             await game.settings.set(MOD, "murderState",
@@ -1151,7 +1144,6 @@ const SCENARIOS = [
                 `a world with no incident reads as one: ${JSON.stringify(quiet)}`);
         } finally {
             await game.user.update({ character: assignedBefore?.id ?? null });
-            await game.settings.set(MOD, "incidentCast", castBefore);
             await game.settings.set(MOD, "murderState", worldBefore);
         }
     }],
@@ -6753,7 +6745,36 @@ const SCENARIOS = [
         // A trace's token as remnantData reads one: its flag, its scene, its id.
         const trace = id => ({ id, parent: { id: sceneId }, hidden: true, getFlag: (scope, flag) => (flag === "isRemnant" ? true : undefined) });
         const mastermind = await import("./mastermind.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const [, other, third] = cast(3);
+        const clock = getClock() ?? {};
+        const offer = { thirdId: third.id, killerId: student.id, chapter: clock.chapter, day: clock.day };
         const FIXTURES = {
+            cast: {
+                legacy: SETTINGS.legacyIncidentCast,
+                // Claimed only while this world's incident runs (the design's H4): tier 2 puts the state back.
+                before: () => game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident", turn: 1, turnSide: "victim" }),
+                seed: { killerId: student.id, victimId: other.id, thirdId: null, lastCrisis: null, betrayal: offer, updated: T },
+                census: { legacy: 1, claimed: 1, left: 0, tombstones: 0, reasons: {} },
+                readBack: store => {
+                    const held = incidentCast();
+                    equal(stableJson([held.killerId, held.victimId, held.betrayal]), stableJson([student.id, other.id, offer]),
+                        "the claimed cast does not read back through incidentCast");
+                    equal(store.stampOf("record", "killerId"), T, "the cast was not claimed at its own stamp");
+                }
+            },
+            blackened: {
+                legacy: SETTINGS.legacyBlackenedLedger,
+                // Claimed only with a verdict of this chapter still to come (H4): a death in the clock's chapter.
+                before: () => other.setFlag(MODULE_ID, FLAGS.deceased, { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay }),
+                seed: [student.id, "SUITEE04NOACTOR0"],
+                census: { legacy: 2, claimed: 1, left: 1, tombstones: 0, reasons: { otherWorld: 1 } },
+                readBack: store => {
+                    equal(stableJson(store.get(student.id)), stableJson({ at: 0, chapter: clock.chapter, epoch: 0 }),
+                        "the claimed Blackened is not this chapter's, of the season a world begins with, first in order");
+                    equal(store.stampOf(student.id), store.weak(), "the claimed Blackened was not claimed weak");
+                }
+            },
             mastermind: {
                 legacy: SETTINGS.legacyMastermind,
                 seed: { actorId: student.id, room: "SUITE lair", updated: T },
@@ -6809,6 +6830,7 @@ const SCENARIOS = [
         const raw = key => game.settings.storage.get("client").getItem(`${MODULE_ID}.${key}`);
         for (const store of stores.filter(h => FIXTURES[h.name])) {
             const fx = FIXTURES[store.name];
+            if (fx.before) await fx.before();
             await game.settings.set(MODULE_ID, fx.legacy, fx.seed);
             const before = raw(fx.legacy);
             await E.withGmStoreWorld(`suite-census-${foundry.utils.randomID(8)}`, async () => {
@@ -7050,6 +7072,125 @@ const SCENARIOS = [
         });
     }],
 
+    ["a GM that never saw the incident closes it clean", async () => {
+        /*
+         * E04, 26.09.2026; audit S04-24. The cast was one entry and the newest whole
+         * entry won: a GM that never saw an incident could close it, and a GM that
+         * missed the close sent the old incident back at the next exchange - its
+         * receipt, its swing memo, its killer. The cast is a record now: the close
+         * stamps every field but the betrayal offer (D18), and the next incident
+         * stamps every name it decides whether or not this GM held the old one. Here
+         * another GM's copy of an incident this browser never saw arrives as a sync
+         * does, stamped before the close this browser then makes (a fresh stamp: one an
+         * hour old lost to the closes earlier tests made, measured on the first C6 run);
+         * the old copy arriving again changes nothing; and a copy written after the
+         * close by a GM that then went away, arriving only after the next incident
+         * opened, does not reach it.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const [killer, victim, third] = cast(3);
+        const clock = getClock() ?? {};
+        const offer = { thirdId: third.id, killerId: killer.id, chapter: clock.chapter, day: clock.day };
+        const theirsAt = E.gmStoreStamp();
+        const stale = { killerId: killer.id, victimId: victim.id, lastCrisis: { key: "SUITE", actorId: killer.id },
+            swung: { [killer.id]: "SUITEE04ITEM0000" }, betrayal: offer };
+        const theirs = E.emptySection();
+        E.writeFields(theirs, "record", stale, theirsAt, S.castStore.spec, { whole: true });
+        await S.castStore.mergeIn(theirs, { source: "sync" });
+        await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident", turn: 2, turnSide: "killer", indirect: false });
+        equal(M.murderState()?.killerId, killer.id, "the other GM's copy did not arrive");
+
+        await M.endMurder({ reason: "test", followUp: false });
+        const closed = S.castStore.record();
+        ok(!closed.killerId && !closed.victimId && !closed.lastCrisis && !Object.keys(closed.swung ?? {}).length,
+            `the close left a field of the incident: ${stableJson(closed)}`);
+        equal(stableJson(closed.betrayal), stableJson(offer), "the betrayal offer did not outlive the close");
+        await S.castStore.mergeIn(theirs, { source: "sync" });
+        equal(S.castStore.record().killerId ?? null, null, "the old copy, arriving again after the close, brought its killer back");
+
+        const closedAt = S.castStore.stampOf("record", "killerId");
+        await M.openMurder({ killerId: victim.id, victimId: killer.id });
+        const late = E.emptySection();
+        E.writeFields(late, "record", { thirdId: third.id, thirdSide: "killer", lastCrisis: { key: "SUITELATE" }, swung: { [third.id]: "SUITEE04ITEM0001" } },
+            closedAt + 1, S.castStore.spec, { whole: true });
+        await S.castStore.mergeIn(late, { source: "sync" });
+        const opened = M.murderState();
+        ok(opened && !opened.thirdId && !opened.thirdSide && !opened.lastCrisis && !Object.keys(opened.swung ?? {}).length,
+            `the new incident holds a field of one it never had: ${stableJson(opened)}`);
+        equal(stableJson([opened?.killerId, opened?.victimId, opened?.betrayal]), stableJson([victim.id, killer.id, offer]),
+            "the new incident's cast, or the betrayal offer, is not what was opened");
+    }],
+
+    ["the cast comes back by hand when this browser lost it", async () => {
+        /*
+         * E04, 26.09.2026; the design's 6.3. An incident runs in the world, and this
+         * browser - lost, emptied - holds nobody in it: the health report says so, and
+         * its window takes the killer and the victim from the GM. Driven through the
+         * window a GM would use, then the incident is played on: the turn passes to
+         * the killer entered.
+         */
+        needs(env.dialogs(), "the cast is entered in a window, and this client draws none");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const [killer, victim] = cast(2);
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        equal(M.murderState()?.killerId, killer.id, "the fixture incident did not open");
+        const world = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+        await game.settings.set(MODULE_ID, SETTINGS.murderState, { ...world, stage: "incident", turnSide: "victim" });
+        await S.castStore.forget();
+        equal(M.murderState()?.killerId ?? null, null, "the store forgot, and the cast is still here");
+        ok((await S.gmStoreHealth()).rows.some(r => r.id === "incident"), "the health report does not say the running incident has no cast here");
+
+        const waiting = S.enterCastByHand();
+        ok(await until(() => document.querySelector(".drpg-window-enter-cast"), 4000), "the cast window did not open");
+        const win = document.querySelector(".drpg-window-enter-cast");
+        win.querySelector("[name=killerId]").value = killer.id;
+        win.querySelector("[name=victimId]").value = victim.id;
+        win.querySelector('button[data-action="enter"]').click();
+        await waiting;
+        equal(stableJson([M.murderState()?.killerId, M.murderState()?.victimId]), stableJson([killer.id, victim.id]),
+            "the cast entered by hand is not the incident's");
+        await M.passTurn();
+        equal(stableJson([M.murderState()?.turnSide, M.murderState()?.killerTurnId]), stableJson(["killer", killer.id]),
+            "the incident does not run on the cast entered by hand");
+        ok(!(await S.gmStoreHealth()).rows.some(r => r.id === "incident"), "the health report still says the incident has no cast here");
+    }],
+
+    ["a Blackened of another chapter or season does not count, and a stale copy cannot bring one back", async () => {
+        /*
+         * E04, 26.09.2026; audit S04-25. The register was a list emptied at a chapter's
+         * end, and synced with no freshness at all: a GM that missed the emptying sent
+         * last chapter's killers back into this chapter's verdict. A row keeps its
+         * chapter and season now, and `blackenedIds` reads the clock's. Held: this
+         * chapter's killer counts; last chapter's and another season's do not; last
+         * chapter's killer in a stale copy from another GM does not come back; and the
+         * season reset's clear takes this chapter's out, a stale copy of it included.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const [now, before, elsewhere] = cast(3);
+        const chapter = getClock()?.chapter ?? 1;
+        const epoch = seasonEpoch();
+        await S.blackenedStore.patchMany({
+            [now.id]: { chapter, epoch, at: 1 },
+            [before.id]: { chapter: chapter - 1, epoch, at: 2 },
+            [elsewhere.id]: { chapter, epoch: epoch + 12345, at: 3 }
+        });
+        equal(stableJson(M.blackenedIds()), stableJson([now.id]), "a Blackened of another chapter or season counts in this one");
+        const theirs = E.emptySection();
+        E.writeFields(theirs, before.id, { chapter: chapter - 1, epoch, at: 0 }, E.gmStoreStamp() - 60 * 60 * 1000, S.blackenedStore.spec);
+        await S.blackenedStore.mergeIn(theirs, { source: "sync" });
+        equal(stableJson(M.blackenedIds()), stableJson([now.id]), "a stale copy brought last chapter's Blackened into this one");
+        const kept = E.emptySection();
+        E.writeFields(kept, now.id, { chapter, epoch, at: 1 }, E.gmStoreStamp() - 1000, S.blackenedStore.spec);
+        await M.clearBlackened();
+        await S.blackenedStore.mergeIn(kept, { source: "sync" });
+        equal(stableJson(M.blackenedIds()), stableJson([]), "after the clear, a stale copy of this chapter's killer came back");
+    }],
+
     ["Back up the case, then Restore, brings every store back", async () => {
         /*
          * E04, 26.09.2026; audit S05-09, the brief's verify. Each store is given a row
@@ -7071,7 +7212,26 @@ const SCENARIOS = [
         const [holder] = cast(1);
         const made = [], traces = [];
         const mastermind = await import("./mastermind.mjs");
+        const murder = await import("./murder.mjs");
+        const [, victim] = cast(2);
         const FIXTURES = {
+            // Both through their stores: no participant's browser is told anything.
+            cast: {
+                seed: async () => {
+                    await S.castStore.patch("record", { killerId: holder.id, victimId: victim.id });
+                    return holder.id;
+                },
+                gone: () => !S.castStore.record().killerId,
+                back: id => stableJson([S.castStore.record().killerId, S.castStore.record().victimId]) === stableJson([id, victim.id])
+            },
+            blackened: {
+                seed: async () => {
+                    await S.blackenedStore.patch(holder.id, { chapter: getClock()?.chapter ?? null, epoch: seasonEpoch(), at: 1 });
+                    return holder.id;
+                },
+                gone: (report, id) => !murder.blackenedIds().includes(id),
+                back: id => murder.blackenedIds().includes(id)
+            },
             mastermind: {
                 // Through the store and not setMastermind: the fixture tells no player's browser anything.
                 seed: async () => {

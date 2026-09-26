@@ -1205,15 +1205,16 @@ async function wipeSeason(plan) {
          * a self-inflicted victim and posts its cards, and none of that belongs
          * in a reset that is deleting the chat and the cast it would name.
          *
-         * The cast goes with it. It is client-scoped, so this clears the GM's
-         * own copy; a participant's browser drops theirs when the next incident
-         * opens without them in it.
+         * The cast is not a row here since E04 (1.2.63): it is a GM store, and the
+         * incident step above clears it through the store - `endMurder` stamps its
+         * fields null, `clearBetrayalOffer` the offer - where a raw write of this
+         * GM's copy would have come back from any other GM's at the next exchange.
+         * A participant's copy is told by the same stamps.
          *
-         * Both under the `incident` group, with the step above: one tick, one
-         * incident, and a GM who keeps it keeps all of it.
+         * Under the `incident` group, with the step above: one tick, one incident,
+         * and a GM who keeps it keeps all of it.
          */
-        ["incident", "the incident's record", SETTINGS.murderState, {}],
-        ["incident", "the incident's cast", SETTINGS.incidentCast, {}]
+        ["incident", "the incident's record", SETTINGS.murderState, {}]
     ]) {
         await step(group, label, () => game.settings.set(MODULE_ID, key, value));
     }

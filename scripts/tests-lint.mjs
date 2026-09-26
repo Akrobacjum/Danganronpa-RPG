@@ -432,7 +432,7 @@ export function vacuousChecks(text) {
  */
 export const GM_STORE_PENDING = Object.freeze([
     "observePending", "advanceOffers", "trapLedger", "trapPlants",
-    "incidentCast", "blackenedLedger", "discoveryLedger", "discoveryMine"
+    "discoveryLedger", "discoveryMine"
 ]);
 
 /*
@@ -441,7 +441,6 @@ export const GM_STORE_PENDING = Object.freeze([
  * rewrites it to read through the stores. A row with no such read left fails as stale.
  */
 export const GM_STORE_SCENARIO_ALLOW = Object.freeze({
-    "13-murder-signals.mjs#incidentCast": "reads the cast raw until the cast moves (E04 C6)",
     "17-assistant.mjs#discoveryLedger": "reads the fog ledger raw until the fog moves (E04 C9)",
     "17-assistant.mjs#discoveryMine": "reads a player's fog rows raw until the fog moves (E04 C9)",
     "30-security.mjs#observePending": "counts the Observe declarations raw until they move (E04 C7)",

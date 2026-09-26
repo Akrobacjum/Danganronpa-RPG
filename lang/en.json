@@ -3316,7 +3316,9 @@
       "store": {
         "bullets": "Truth Bullets",
         "remnants": "Traces",
-        "mastermind": "The Mastermind"
+        "mastermind": "The Mastermind",
+        "cast": "The incident's cast",
+        "blackened": "The Blackened register"
       },
       "row": {
         "traces": {
@@ -3337,8 +3339,8 @@
         "claimFailed": "This browser's old {store} could not be taken over: {error}. Nothing was changed; the next load tries again.",
         "unseen": "This check cannot see who the Mastermind is, the Level Up offers or the Blackened register: a browser that lost them does not know it.",
         "left": {
-          "one": "{n} old row stays in this browser for another world.",
-          "other": "{n} old rows stay in this browser for other worlds."
+          "one": "{n} old row stays in this browser, not taken: another world's, or no longer part of this world's case.",
+          "other": "{n} old rows stay in this browser, not taken: other worlds', or no longer part of this world's case."
         },
         "skew": "Stamps from ahead of this browser's clock: {names}.",
         "bytes": "The GM stores take {stores} KB of this browser's storage; the module {total} KB in all.",
@@ -3375,7 +3377,14 @@
       },
       "decideIntro": "One thing in this world needs a GM to decide it:",
       "keepMastermind": "Keep the Mastermind",
-      "clearMastermind": "Clear the Mastermind"
+      "clearMastermind": "Clear the Mastermind",
+      "enterCast": "Enter the cast by hand",
+      "castTitle": "The incident's cast",
+      "castIntro": "An incident is running and this browser does not know who is in it. Name them as they are at the table; a GM who held the cast and comes back later brings it with them.",
+      "castKiller": "Killer",
+      "castVictim": "Victim",
+      "castThird": "A third, if there was one",
+      "castEnter": "Enter"
     }
   }
 }

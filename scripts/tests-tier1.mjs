@@ -3769,9 +3769,10 @@ const INVARIANTS = [
          * its value came from, and one that is newer in one part and older in another is
          * not newer - a GM that had not merged a newer pick moved the lair and handed the
          * former Mastermind's player "yes" at the room's fresh stamp. The door's own rule
-         * (`doorCombine`) is held on the review's case. Then the source: each GM-to-player
-         * sender in the table below puts stamps in what it sends, and every call of it
-         * passes them.
+         * (`doorCombine`) is held on the review's case, and the cast's (`castCombine`,
+         * C6) on a stale turn, a participant leaving and a trap's end. Then the source:
+         * each GM-to-player sender in the table below puts stamps in what it sends, and
+         * every call of it passes them.
          */
         const G = await import("./gm-store.mjs");
         const { TIMING } = await import("./config.mjs");
@@ -3827,8 +3828,26 @@ const INVARIANTS = [
             "a newer no did not take the part and the lair away");
         equal(doorCombine(him, { value: { mastermind: false, room: null }, stamps: { actorId: 200 } }), null, "a no at the same pick was taken");
 
+        // The cast's rule (C6): the whole cast part by part, "not in it" by the seats alone.
+        const { castCombine } = await import("./gm-stores.mjs");
+        const castParts = (seats, rest) => ({ killerId: seats, victimId: seats, thirdId: seats, betrayal: seats,
+            killerTurnId: rest, thirdSide: rest, lastCrisis: rest });
+        const inIt = { value: { killerId: "K", victimId: "V", thirdId: "T", killerTurnId: "K" }, stamps: { ...castParts(100, 100), thirdId: 200 } };
+        equal(castCombine(inIt, { value: { killerId: "K", victimId: "V", thirdId: null, killerTurnId: "V" },
+            stamps: { ...castParts(100, 100), thirdId: 150, killerTurnId: 400 } }), null,
+            "a cast older in its third's seat was taken for a fresher turn");
+        const seatsOnly = { killerId: 100, victimId: 100, thirdId: 250, betrayal: 100 };
+        equal(JSON.stringify(castCombine(inIt, { value: {}, stamps: seatsOnly })), JSON.stringify({ value: {}, stamps: seatsOnly }),
+            "a newer seat's \"not in it\" did not empty the copy, or kept parts beside the seats");
+        equal(castCombine(inIt, { value: {}, stamps: { ...seatsOnly, thirdId: 200 } }), null, "a \"not in it\" at the seats' own stamps was taken");
+        equal(castCombine({ value: {}, stamps: seatsOnly }, { value: { thirdId: "T" }, stamps: { ...castParts(100, 100), thirdId: 200 } }), null,
+            "a cast from before the seat moved was taken by the one who left");
+        // A trap's killer, answered "not in it" while it ran, and sent the cast at its end at the same seats.
+        equal(castCombine({ value: {}, stamps: { ...seatsOnly, thirdId: 0 } }, { value: { killerId: "K" }, stamps: { ...castParts(100, 120), thirdId: 0 } })?.value?.killerId,
+            "K", "the cast sent at a trap's end was refused by its killer's \"not in it\"");
+
         // The senders: the function that emits a copy to a player, and the file that calls it.
-        const SENDERS = [["mastermind.mjs", "sendDoorFlag"]];
+        const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"]];
         const sources = new Map(await otherSources());
         const found = [];
         for (const [file, fn] of SENDERS) {

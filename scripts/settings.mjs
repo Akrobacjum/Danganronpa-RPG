@@ -7,7 +7,7 @@
  */
 
 import { MODULE_ID, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
-import { readMine } from "./gm-store.mjs";
+import { readMine, gmStoreByName } from "./gm-store.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
 export const SETTINGS = {
@@ -354,8 +354,19 @@ export const SETTINGS = {
      * exactly what they could see before this change - they already read each
      * other's rolls through `incidentAudience`. Narrowing it further is a rules
      * question about what the victim may know and when, not a leak.
+     *
+     * A GM STORE AND A PLAYER COPY SINCE E04 (1.2.63; audit S04-24, S06-19). The
+     * GMs hold `gmCast` (gm-stores.mjs, `castStore`): one record of this world,
+     * each field stamped on its own and merged with the other GMs, `swung` per
+     * actor. A participant holds `mineCast` (`castCopy`), taken only from a
+     * newer stamp. Until then GM and player shared one key, a GM's sync kept the
+     * newest whole entry, and a GM holding nothing answered a participant with
+     * nothing. `legacyIncidentCast` is the key before both, read once per world
+     * and never written.
      */
-    incidentCast: "incidentCast",
+    incidentCast: "gmCast",
+    legacyIncidentCast: "incidentCast",
+    mineCast: "mineCast",
     pendingMurders: "pendingMurders",
     /**
      * Who has killed in THIS chapter, in the order they did it.
@@ -378,8 +389,15 @@ export const SETTINGS = {
      *
      * `blackened` below it is the old world key, kept registered so a world
      * upgrading mid-chapter can be read once and emptied. Nothing writes it.
+     *
+     * A GM STORE SINCE E04 (1.2.63; audit S04-25): `gmBlackened` (gm-stores.mjs,
+     * `blackenedStore`), a row per killer `{ chapter, epoch, at }`, read for the
+     * clock's chapter and season (`blackenedIds`) rather than emptied at the
+     * chapter's end - so a copy from a GM who missed that end cannot bring last
+     * chapter's killers back. `legacyBlackenedLedger` is the key before it.
      */
-    blackenedLedger: "blackenedLedger",
+    blackenedLedger: "gmBlackened",
+    legacyBlackenedLedger: "blackenedLedger",
     /**
      * The speaking queue during a Class Trial: who has the floor and since when.
      *
@@ -1165,8 +1183,28 @@ export function registerSettings() {
         default: {},
         onChange: () => onWorldChange(SETTINGS.murderState)
     });
+    // The participant's copy repaints the same way: it arrives after the world half.
+    game.settings.register(MODULE_ID, SETTINGS.mineCast, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.murderState)
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyIncidentCast, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
 
     game.settings.register(MODULE_ID, SETTINGS.blackenedLedger, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyBlackenedLedger, {
         scope: "client",
         config: false,
         type: Array,
@@ -1526,9 +1564,25 @@ export function discoveryLedger() {
  */
 export function incidentCast() {
     try {
-        return game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};
+        // By role since E04: the GMs' record (the store, read through the engine
+        // by name - this leaf cannot import the table), a participant's copy.
+        const cast = game.user?.isGM ? gmStoreByName("cast")?.record() : readMine("cast");
+        return { ...(cast ?? {}) };
     } catch {
         return {};
+    }
+}
+
+/**
+ * The season now running, as the clock's `seasonStartedAt` (E04): 0 for the season
+ * a world began with. The Blackened register counts only this season's rows, so a
+ * reset that keeps the incident group does not count last season's killers.
+ */
+export function seasonEpoch() {
+    try {
+        return getClock()?.seasonStartedAt ?? 0;
+    } catch {
+        return 0;
     }
 }
 

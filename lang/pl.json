@@ -4543,7 +4543,9 @@
       "store": {
         "bullets": "Truth Bullety",
         "remnants": "Ślady",
-        "mastermind": "Mastermind"
+        "mastermind": "Mastermind",
+        "cast": "Obsada incydentu",
+        "blackened": "Rejestr Blackened"
       },
       "row": {
         "traces": {
@@ -4570,10 +4572,10 @@
         "claimFailed": "Nie udało się przejąć starego magazynu „{store}” tej przeglądarki: {error}. Nic nie zostało zmienione; następne wczytanie spróbuje ponownie.",
         "unseen": "Ta kontrola nie widzi, kto jest Mastermindem, ofert Level Up ani rejestru Blackened: przeglądarka, która je straciła, o tym nie wie.",
         "left": {
-          "one": "{n} stary wiersz zostaje w tej przeglądarce dla innego świata.",
-          "few": "{n} stare wiersze zostają w tej przeglądarce dla innych światów.",
-          "many": "{n} starych wierszy zostaje w tej przeglądarce dla innych światów.",
-          "other": "{n} starego wiersza zostaje w tej przeglądarce dla innych światów."
+          "one": "{n} stary wiersz zostaje w tej przeglądarce, nieprzejęty: z innego świata albo już nie ze sprawy tego świata.",
+          "few": "{n} stare wiersze zostają w tej przeglądarce, nieprzejęte: z innych światów albo już nie ze sprawy tego świata.",
+          "many": "{n} starych wierszy zostaje w tej przeglądarce, nieprzejętych: z innych światów albo już nie ze sprawy tego świata.",
+          "other": "{n} starego wiersza zostaje w tej przeglądarce, nieprzejętego: z innych światów albo już nie ze sprawy tego świata."
         },
         "skew": "Stemple wyprzedzające zegar tej przeglądarki: {names}.",
         "bytes": "Magazyny GM-a zajmują {stores} KB pamięci tej przeglądarki; moduł łącznie {total} KB.",
@@ -4616,7 +4618,14 @@
       },
       "decideIntro": "Jedna rzecz w tym świecie wymaga decyzji GM-a:",
       "keepMastermind": "Zachowaj Masterminda",
-      "clearMastermind": "Wyczyść Masterminda"
+      "clearMastermind": "Wyczyść Masterminda",
+      "enterCast": "Wpisz obsadę ręcznie",
+      "castTitle": "Obsada incydentu",
+      "castIntro": "Trwa incydent, a ta przeglądarka nie wie, kto w nim jest. Wpisz ich tak, jak jest przy stole; GM, który miał obsadę i wróci później, przyniesie ją ze sobą.",
+      "castKiller": "Zabójca",
+      "castVictim": "Ofiara",
+      "castThird": "Trzecia osoba, jeśli była",
+      "castEnter": "Wpisz"
     }
   }
 }

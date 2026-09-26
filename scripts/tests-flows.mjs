@@ -87,7 +87,7 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["monocub.meddle"] }, scenarios: [], status: "planned", stage: "E45" },
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["murder.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "30-security"], status: "partial", stage: "E32" },
+        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "30-security", "61-gmstore-case"], status: "partial", stage: "E32" },
     { id: "private-rolls", what: "A roll made in private: whispered, and hidden from the other players' chat",
         entry: { sockets: ["dice-sync.mjs"] }, scenarios: ["12-social", "20-crit-hope"], status: "covered", stage: "<=1.2.50" },
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
