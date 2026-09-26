@@ -2399,6 +2399,18 @@ const SCENARIOS = [
                 "the receiver's own copy cannot pay out - the reading was not filed with it");
             ok(String(live.system?.description ?? "").includes("Grey dust on the sill."),
                 "the Observe half did not travel with the copy");
+
+            /* And a bullet whose answer key this browser lacks is not handed over (E04's fix
+               round, the review's C-m17): its copy was minted an explicit Neutral, a reading
+               nobody made. Made the way a lost browser leaves one: an item, and no row. */
+            const [keyless] = await giver.createEmbeddedDocuments("Item", [{ name: "Suite fixture: a bullet with no answer key", type: "loot",
+                flags: { [MODULE_ID]: { category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "evident", analyzed: false } } }]);
+            made.push(keyless);
+            const heldBefore = receiver.items.size;
+            const refused = await shareBullet({ fromId: giver.id, toId: receiver.id, itemId: keyless.id });
+            await settle();
+            equal(stableJson([refused ?? null, receiver.items.size - heldBefore]), stableJson([null, 0]),
+                "a bullet with no answer key was handed over, its copy minted with a reading nobody made");
         } finally {
             // The student goes back where the world put them, first: a fixture
             // that leaves somebody standing in the wrong room changes what
@@ -7073,6 +7085,76 @@ const SCENARIOS = [
         const earlier = await claimed(running);
         equal(stableJson([earlier.census?.claimed, earlier.census?.reasons]), stableJson([0, { previousIncident: 1 }]),
             `a cast written before the running incident opened was claimed: ${stableJson(earlier.census)}`);
+    }],
+
+    ["a lift of old world data leaves the world data when its store's rows do not read back", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the round-2 review's m7. Three migration clauses take
+         * data out of the world into a GM store - the fog's ledger (`liftDiscoveryLedger`),
+         * the incident's names (`liftIncidentSecrets`), a bullet's Faint
+         * (`migrateFaintIntoSecrets`) - and each removes the world's copy only once the
+         * store's rows read back from storage. Nothing ran one over old data: R178 holds that
+         * each is a clause and nothing else calls it, and a lift that emptied the world data
+         * unread would have passed the suite. Each is run here over a fixture of its old world
+         * data, in a world the stores have never opened, with that store's save swallowed -
+         * the rows stand in memory and not on disk, as after a failed save: the world data
+         * stays. The fourth clause, `truthBulletShape`, removes nothing it does not rewrite in
+         * the same update. The world settings are put back by tier 2's restore; the item is
+         * deleted here.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const fog = await import("./fog.mjs");
+        const murder = await import("./murder.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fog's old ledger is kept for a scene of this world");
+        const sceneId = (game.scenes.active ?? canvas?.scene)?.id;
+        const [student, other] = cast(2);
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const swallow = key => {
+            settings.set = async function (namespace, k, value) {
+                if (namespace === MODULE_ID && k === key) return value;
+                return realSet.call(this, namespace, k, value);
+            };
+        };
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        let item = null;
+        try {
+            await E.withGmStoreWorld(`suite-lifts-${foundry.utils.randomID(8)}`, async () => {
+                const oldFog = { [sceneId]: { [student.id]: ["SUITE lifted room"] } };
+                await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, oldFog);
+                swallow(S.discoveryStore.spec.key);
+                const fogDone = await fog.liftDiscoveryLedger();
+                putBack();
+                equal(stableJson([fogDone?.emptied ?? null, game.settings.get(MODULE_ID, SETTINGS.discoveredRooms)]), stableJson([false, oldFog]),
+                    "the fog's old ledger was emptied from the world with its rows not on disk");
+
+                await game.settings.set(MODULE_ID, SETTINGS.murderState,
+                    { active: true, stage: "incident", turn: 1, turnSide: "victim", killerId: student.id, victimId: other.id });
+                swallow(S.castStore.spec.key);
+                const castDone = await murder.liftIncidentSecrets();
+                putBack();
+                const state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+                equal(stableJson([castDone?.lifted ?? null, state.killerId ?? null, state.victimId ?? null]), stableJson([0, student.id, other.id]),
+                    "the incident's names were taken out of the world with their row not on disk");
+
+                [item] = await student.createEmbeddedDocuments("Item", [{ name: "Suite fixture: a Faint on its item", type: "loot",
+                    flags: { [MODULE_ID]: { category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "evident", analyzed: false, faint: true } } }]);
+                await S.bulletStore.patch(item.uuid, { realType: "prep" });
+                swallow(S.bulletStore.spec.key);
+                await bullets.migrateFaintIntoSecrets();
+                putBack();
+                equal(student.items.get(item.id)?.getFlag(MODULE_ID, "faint"), true, "a bullet's Faint was taken off its item with its row not on disk");
+            });
+        } finally {
+            putBack();
+            if (item && student.items.get(item.id)) await student.items.get(item.id).delete();
+        }
     }],
 
     ["a changed old store is reported, and taking it never overwrites what changed since the upgrade", async () => {

@@ -1109,17 +1109,6 @@ export function diagnoseTruthBullets() {
 }
 
 /**
- * Why per-region voice is not moving anybody.
- *
- * Every failure this subsystem can have is silent by design - an assignment
- * nobody can apply settles quietly, a client that is not using LiveKit reports
- * "unavailable", a world with A/V off never reaches the server. That is right
- * for the log and useless for a GM staring at a table that is all in one room.
- * This is the one place that says which of the five links is broken.
- *
- * Run it on the client that is complaining, not only on the GM's.
- */
-/**
  * THE GM STORES ON THIS BROWSER (E04, 1.2.63): what each holds of this world -
  * its live rows, tombstones, the reset's cut, its bytes, the other worlds it
  * carries, and what the upgrade's claim took from the old key - then the case's
@@ -1148,7 +1137,9 @@ export async function diagnoseGmStores() {
             : (s.claimFailed ? `the claim FAILED: ${s.claimFailed}` : "no claim yet");
         lines.push(`   ${s.name}: ${s.live} live, ${s.dead} tombstone(s), cut ${s.cleared ? new Date(s.cleared).toISOString() : "none"}, `
             + `${s.bytes} bytes, ${s.otherWorlds} other world(s); ${census}${handle.legacyChanged()
-                ? `  ← the old key changed since: game.drpg.gmStoreReclaim("${s.name}")` : ""}`);
+                ? `  ← the old key changed since: game.drpg.gmStoreReclaim("${s.name}")`
+                : (s.census?.reasons?.notPrimary && isPrimaryGm()
+                    ? `  ← ${s.census.reasons.notPrimary} old row(s) left for the primary's browser, which this is now: game.drpg.gmStoreReclaim("${s.name}")` : "")}`);
     }
     const status = gmStoreStatus();
     lines.push(`   in all ${Math.round(status.stores / 1024)} KB; everything the module keeps in this browser ${Math.round(status.total / 1024)} KB`);
@@ -1171,6 +1162,17 @@ export async function diagnoseGmStores() {
     return lines.join("\n");
 }
 
+/**
+ * Why per-region voice is not moving anybody.
+ *
+ * Every failure this subsystem can have is silent by design - an assignment
+ * nobody can apply settles quietly, a client that is not using LiveKit reports
+ * "unavailable", a world with A/V off never reaches the server. That is right
+ * for the log and useless for a GM staring at a table that is all in one room.
+ * This is the one place that says which of the five links is broken.
+ *
+ * Run it on the client that is complaining, not only on the GM's.
+ */
 export function diagnoseVoice() {
     const lines = [];
     const av = game.modules.get("avclient-livekit");

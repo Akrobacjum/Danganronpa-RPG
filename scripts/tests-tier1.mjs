@@ -4290,6 +4290,38 @@ const INVARIANTS = [
             "a client that is not a GM's wrote a GM store");
     }],
 
+    ["R187 - an Analyze and a handover wait for the other GMs' copies before they call a key missing, and the case says whose old rows wait", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the reviews' DS-m9 = C-m4, C-m17, C-m9 and the round-2
+         * R2-m2. An Analyze in the moments after a GM loads skipped its refusal and scored a
+         * bullet whose key was still on its way as Neutral; a handover of a bullet whose key
+         * was missing minted its copy an explicit Neutral. Both wait for the copies now and
+         * then refuse - read from the source, before the key is read and before a copy is
+         * made. The two doc blocks another function had come between sit on their functions
+         * again. And the old rows a browser that was not the primary left for the primary's
+         * are counted apart from another world's (`leftCounts`, pure).
+         */
+        const sources = new Map(await otherSources());
+        const src = file => stripComments(sources.get(file) ?? "");
+        const analyze = fnSource(src("analyze.mjs"), "resolveAnalyze");
+        const waited = analyze.indexOf("await bulletStore.whenHydrated()"), read = analyze.indexOf("const secret = secretOf(item.uuid);");
+        ok(waited > 0 && read > waited && !/isHydrated\(\) && !secret\.realType/.test(analyze),
+            "an Analyze reads the answer key, or decides it is missing, before the other GMs' copies have arrived");
+        const share = fnSource(src("handover.mjs"), "shareBullet");
+        const shareWaited = share.indexOf("await bulletStore.whenHydrated()"), refused = share.indexOf("if (!secret.realType)"), minted = share.indexOf("createTruthBullet(");
+        ok(shareWaited > 0 && refused > shareWaited && minted > refused && !/realType \?\? "neutral"/.test(share),
+            "a handover mints a copy of a bullet whose answer key is missing, or decides before the copies arrive");
+        // A doc block is its function's when nothing but its own text lies between its first line and the function.
+        const docOn = (file, first, fn) => new RegExp(`\\* ${first}(?:[^*]|\\*(?!\\/))*\\*\\/\\s*${fn}\\(`).test(sources.get(file) ?? "");
+        ok(docOn("analyze.mjs", "Score a thrown Analyze", "export async function resolveAnalyze"), "resolveAnalyze's doc does not sit on it");
+        ok(docOn("diagnostics.mjs", "Why per-region voice is not moving anybody", "export function diagnoseVoice"), "diagnoseVoice's doc does not sit on it");
+
+        const S = await import("./gm-stores.mjs");
+        const h = census => ({ census: () => census });
+        equal(JSON.stringify(S.leftCounts([h({ left: 3, reasons: { notPrimary: 2, otherWorld: 1 } }), h({ left: 1, reasons: { deadProject: 1 } }), h(null)])),
+            JSON.stringify({ left: 2, notPrimary: 2 }), "the rows left for the primary are counted as another world's, or not at all");
+    }],
+
     ["R182 - every store a player's copy is made from sends the copies again after a restore", async () => {
         /*
          * E04's fix round, 26.09.2026; the reviews' S-m3 = C-m7 and the design's 6.2. The

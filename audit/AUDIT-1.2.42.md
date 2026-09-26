@@ -749,6 +749,7 @@ Po E04 (1.2.63) magazyn GM-a (sprawa w przeglądarkach GM-ów) opiera się na rz
 49. **LIVE-E04-09 - reset należy do głównego GM-a:** odmowa na koncie Assistant i na drugim Gamemasterze, z nazwą głównego GM-a; okno wymienia GM-a offline; jego przeglądarka jest przycięta przy następnym logowaniu, gdy jest sam.
 50. **LIVE-E04-10 - odczyt zapisanego ustawienia na v14:** `game.settings.storage.get("world")`, którego używa `worldWasInPlay`, na świecie zaktualizowanym z v1.1.0: safeword zostaje, kartka się pokazuje. Harness modeluje `getSetting(key)` na swojej mapie.
 51. **LIVE-E04-11 - dwie karty jednej przeglądarki na jednym świecie:** ślady zapisywane w obu kartach; żaden zapis nie ginie. Harness nie ma dwóch kart jednej przeglądarki.
+52. **LIVE-E04-12 - ktoś dołącza:** co widzą pozostałe przeglądarki, gdy GM wczytuje świat na v14: czy hook `userConnected` z `true` przychodzi, zanim jego klient doszedł do `ready` i ma słuchaczy modułu, i co gracz dostaje najpierw - ten hook czy pakiet mostu "GM słucha" (gm-bridge.mjs `onGmReady`), na który gracze pytają o drzwi, obsadę i mgłę. `primaryGmId` liczy GM-a, którego pakiet przyszedł przed hookiem, więc pytanie nie powinno przepaść w żadnej kolejności; nie sprawdzone przy stole. Harness woła hook dopiero, gdy klient jest gotowy. (LIVE-E30-05 to ktoś, kto wychodzi.)
 
 Znane luki po E03, świadomie zostawione (nie live checki, tylko zapis):
 

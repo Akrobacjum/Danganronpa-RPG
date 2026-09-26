@@ -475,7 +475,7 @@ const lateAccounts = new Map();
  * user active, its client boots with `storage` in its localStorage (null: an empty
  * browser) and `world` as its world id, and once it is ready every other client gets
  * `userActivity`, on which client-entry.mjs sets the user active and calls
- * `userConnected` with `true` - the order of those steps on v14 is LIVE-E30-05. An
+ * `userConnected` with `true` - the order of those steps on v14 is LIVE-E04-12. An
  * account that has disconnected may connect again, with the storage it left with
  * (`storageOf`) or another. The seeded four are spawned at start and cannot.
  */

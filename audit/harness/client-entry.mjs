@@ -1037,8 +1037,9 @@ process.on("message", async msg => {
                 break;
             }
             case "userActivity": {
-                // Another client left (cluster.mjs `disconnect`): this browser learns it the
-                // way the module listens for it, `userConnected`. v14's flow is LIVE-E30-05.
+                // Another client left or came (cluster.mjs `disconnect`, `connect`): this browser
+                // learns it the way the module listens for it, `userConnected`. v14's flow is
+                // LIVE-E30-05 for one leaving and LIVE-E04-12 for one joining.
                 const user = game.users.get(msg.userId);
                 if (user) {
                     user._source.active = Boolean(msg.active);

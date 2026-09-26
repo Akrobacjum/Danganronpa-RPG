@@ -64,6 +64,8 @@
  *      and the spend is refused as not offered, with the GM told.
  *   H3 an owner whose character went to another player still takes the next offer
  *      (the round-2 review's M2).
+ *   J4 a reset with "advancement" ticked takes a standing offer off its owner's copy
+ *      and sheet (the owner's Q4, measured on a real client).
  *   Z  the browser is lost (the brief's live verify, headless): the GM left from
  *      H2 picks the Mastermind and places two traces (J's resets took the others),
  *      backs up the case and leaves, a third GM comes with an empty browser and is
@@ -839,7 +841,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     /* J3c (the fix list's 15, the round-2 review's m4): a primary arriving is asked by every
        player for the door, the cast and the fog, on its world's load - the bridge's "a GM is
        listening" signal. They asked on `userConnected`, which on a live reload fires before
-       the GM's listeners exist (LIVE-E30-05 is which comes first on v14), and the fog not at all. */
+       the GM's listeners exist (LIVE-E04-12 is which comes first on v14), and the fog not at all. */
     const ASKS = ["mastermind.doorRequest", "incident.myCastRequest", "fog.request"];
     const asksJ3 = socketTraffic.slice(fromJ3).filter(t => ASKS.includes(t.action) && Array.isArray(t.to) && t.to.includes(GM2));
     check("J3c: a primary GM arriving is asked by every player for the door, the cast and the fog",
@@ -923,6 +925,53 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         await game.actors.get("${IDS.daichi}").update({ ownership: { "${IDS.p1}": 0 } });
         await game.actors.get("${IDS.aiko}").update({ ownership: { "${IDS.p1}": 3, "${IDS.p2}": 0 } }); return true;`);
     await settle(800);
+
+    /* J4 (the owner's Q4; the round-2 reviews' R2-m5 and m3): a reset with "advancement" ticked
+       withdraws the Level Ups on offer - by the clock's cut alone, as nothing is sent for it. Measured
+       until now on fakes (R176) and on the store's side (tier 2); here on p1's own copy and sheet. */
+    phase("J4: a reset with advancement ticked takes a standing offer off its owner's copy and sheet", { flow: "class-trial" });
+    const offeredJ4 = await gm2.eval(`${LV} await L.offerAdvancement(game.actors.get("${IDS.aiko}"), "standard");
+        return S.offerStore?.newest("${IDS.aiko}") ?? null;`);
+    await settle(800);
+    const litJ4 = await litOn(p1);
+    /* The sheet is counted on the one object every read returns. The harness's `actor.sheet`
+       is a getter that makes a new object at each read (lib/shim.mjs), where Foundry's is the
+       actor's one cached sheet: a counter put on one read's object saw nothing - measured
+       26.09.2026, renders 0 with the redraw running and with it a no-op alike. For this phase
+       p1's Aiko keeps one sheet, as in Foundry; each draw notes its caller, and the offers
+       packets p1 took meanwhile are counted, so a draw is the cut's only when none came. */
+    await p1.eval(`const a = game.actors.get("${IDS.aiko}"); globalThis.__renders = 0; globalThis.__renderedBy = [];
+        const sheet = a.sheet, render = sheet.render.bind(sheet);
+        sheet.render = (...args) => {
+            globalThis.__renders++;
+            globalThis.__renderedBy.push((new Error().stack ?? "").split("\\n").slice(2, 4).map(l => l.trim().replace(/\\(.*\\//, "(")).join(" < "));
+            return render(...args);
+        };
+        Object.defineProperty(a, "sheet", { configurable: true, get: () => sheet });
+        return true;`);
+    const packetsBeforeJ4 = await offersNow();
+    const resetJ4 = await gm2.eval(`${RESET} const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const word = game.i18n.localize("DRPG.Season.resetWord");
+        globalThis.__dialogAnswers.push(() => ({ word, ticked: ["advancement"] }));
+        const result = await R.resetSeason();
+        await E.gmStoresIdle();
+        const clock = (await import("${repoUrl}/scripts/clock.mjs")).getClock();
+        return { cleared: result?.cleared ?? null, cut: clock.resetCuts?.advancement ?? null, offer: S.offerStore.get("${IDS.aiko}")?.kind ?? null };`,
+        { timeout: 60000 });
+    await settle(800);
+    const afterJ4 = await p1.eval(`${LV} const a = game.actors.get("${IDS.aiko}");
+        const out = { copy: S.offerCopy.read(), lit: L.pendingAdvance(a)?.kind ?? null, renders: globalThis.__renders, by: globalThis.__renderedBy };
+        delete a.sheet;
+        return out;`);
+    afterJ4.packets = (await offersNow()) - packetsBeforeJ4;
+    const askedJ4 = await offersNow();
+    await askOffers();
+    await settle(800);
+    const answerJ4 = await offersSince(askedJ4), litAfterAsk = await litOn(p1);
+    check("J4: the reset takes the offer off p1's copy, its sheet is drawn again, and the primary's answer after it does not light the button",
+        litJ4.offer === "standard" && resetJ4.cut > offeredJ4 && resetJ4.offer === null && J(afterJ4.copy) === "{}" && afterJ4.lit === null
+        && afterJ4.renders >= 1 && afterJ4.packets === 0 && litAfterAsk.offer === null, J({ offeredJ4, litJ4, resetJ4, afterJ4, answerJ4, litAfterAsk }));
 
     /* ------------------- Z. the browser is lost, and the case comes back ------------------- */
 
@@ -1009,5 +1058,5 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     check("Z5: a GM that became the primary after it loaded tells the Mastermind's player a lair another GM moved",
         gmaTold >= 1 && doorZ5?.mastermind === true && doorZ5?.room === "Z5 lair", J({ gmaTold, doorZ5 }));
 
-    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "Z"], gm: IDS.gm };
+    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z"], gm: IDS.gm };
 }

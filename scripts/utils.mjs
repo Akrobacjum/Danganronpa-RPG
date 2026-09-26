@@ -148,7 +148,7 @@ export function isPrimaryGm() {
  * `arriving`: a GM whose own packet says its client is up - counted as connected
  * whether or not this client has seen it connect yet (E04's fix round: the bridge's
  * "a GM is listening" signal, gm-bridge.mjs `onGmReady`; which of the two a client
- * sees first on v14 is LIVE-E30-05).
+ * sees first on v14 is LIVE-E04-12).
  *
  * @returns {string|null} User id, or null when no GM is connected.
  */

@@ -278,7 +278,9 @@ number is not reused for a scenario.
   the copy its own world id (LIVE-E04-07), the brief's live verify with a
   murder open (LIVE-E04-08), the reset refused on an Assistant and the offline
   GM cut at its next login (LIVE-E04-09) and two tabs of one browser writing at
-  once (LIVE-E04-11) are for a table.
+  once (LIVE-E04-11) are for a table. A client that joins is announced to the
+  others only once it is ready; whether v14 fires their `userConnected` before
+  its listeners exist is LIVE-E04-12.
 - **Versions** (E30, `lib/versions.mjs`). Foundry and Daggerheart are the
   versions `module.json` says the module is verified on; the companion modules
   it requires or recommends take theirs from an installed Foundry when

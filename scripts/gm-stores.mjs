@@ -1118,8 +1118,9 @@ export async function gmStoreHealth() {
     }
 
     add("unseen", "info", "DRPG.Case.row.unseen");
-    const left = gmStoreHandles().reduce((n, h) => n + (h.census()?.left ?? 0), 0);
+    const { left, notPrimary } = leftCounts(gmStoreHandles());
     if (left) add("left", "info", "DRPG.Case.row.left", { n: left });
+    if (notPrimary) add("leftNotPrimary", "info", "DRPG.Case.row.leftNotPrimary", { n: notPrimary });
     // Old rows stamped ahead of the moment they were taken over: a clock that ran ahead (DS-m3).
     const clamped = gmStoreHandles().reduce((n, h) => n + (h.census()?.clamped ?? 0), 0);
     if (clamped) add("clamped", "info", "DRPG.Case.row.clamped", { n: clamped });
@@ -1137,6 +1138,24 @@ export async function gmStoreHealth() {
         bullets: { of: bullets.length, missing: unkeyed.length, noAnswer: noAnswer.length, fillable: Object.keys(fillsFromTraces()).length }
     };
     return { world: game.world.id, hydrated: gmStoresHydrated(), rows, counts, missing: rows.filter(r => r.level === "missing").length };
+}
+
+/**
+ * The old rows the claims left in this browser, `{ left, notPrimary }`: this world's
+ * offers and fog rows a browser that was not the primary at its first open left for the
+ * primary's (`notPrimary`), counted apart from what is another world's or no longer
+ * part of this one's case (the round-2 review's R2-m2: one sentence called them all the
+ * latter, and nothing pointed at the call that takes them). Pure over the handles.
+ */
+export function leftCounts(handles) {
+    let left = 0, notPrimary = 0;
+    for (const h of handles) {
+        const census = h.census();
+        const waiting = census?.reasons?.notPrimary ?? 0;
+        notPrimary += waiting;
+        left += (census?.left ?? 0) - waiting;
+    }
+    return { left, notPrimary };
 }
 
 /** A health row as a sentence: a counted row through `plural`, the rest through `format`. */

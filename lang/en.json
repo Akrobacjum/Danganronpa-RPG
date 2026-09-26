@@ -1747,7 +1747,8 @@
       "receivedBullet": "Evidence shared with you",
       "receivedBulletFrom": "{who} showed you {name}, and you have written down a copy.",
       "receivedItem": "You have been handed something",
-      "receivedItemFrom": "{who} handed you {name}."
+      "receivedItemFrom": "{who} handed you {name}.",
+      "answerKeyMissing": "{name} cannot be handed over now: what it really is is not on the GM's browser. The GM can bring it back from a backup (Restore the case)."
     },
     "Observe": {
       "declarePrompt": "How are you looking?",
@@ -3375,7 +3376,8 @@
           "one": "{n} armed item trap has no planted object on this browser: it cannot fire.",
           "other": "{n} armed item traps have no planted object on this browser: they cannot fire."
         },
-        "tracesOnToken": {"one": "{n} trace on the map (of {of}) still carries its answer key on its token: it is moved into the ledger, not restored.", "other": "{n} traces on the map (of {of}) still carry their answer keys on their tokens: they are moved into the ledger, not restored."}
+        "tracesOnToken": {"one": "{n} trace on the map (of {of}) still carries its answer key on its token: it is moved into the ledger, not restored.", "other": "{n} traces on the map (of {of}) still carry their answer keys on their tokens: they are moved into the ledger, not restored."},
+        "leftNotPrimary": {"one": "{n} of this world's old offers or fog rows stays in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes it (the diagnostics name the store).", "other": "{n} of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store)."}
       },
       "healthTitle": "The case on this browser",
       "healthIntro": "This browser is missing part of this world's case:",
