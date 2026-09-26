@@ -460,16 +460,39 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         spent === false && b8.left === left0 && b8.said.length === 1 && !b8.why.startsWith("DRPG.") && b8.said[0].includes(b8.why)
         && !b8.said.includes(b8.timeout), JSON.stringify(b8));
 
+    /* B13 (E05 C4, 26.09.2026; audit S10-39): the GM counts an Eclipse's crossings and judges the
+       allowance - until E05 only the mover's client judged it. In an Eclipse opened by its clock flag
+       and name alone (the opening's refill and cards are not what is measured), leading into noon:
+       each legal crossing p1 asks for is answered with its count, and one beyond the allowance is
+       refused as nothingLeft, counts nothing, and is said once. B9 runs in the same Eclipse; it is
+       closed after it. */
+    phase("an exception in a request its asker counts", { flow: "eclipse-route-veto" });
+    const ECL = `const X = await import("${repoUrl}/scripts/eclipse.mjs");`;
+    const clock13 = await gm.eval(`${ECL} const was = game.drpg.getClock();
+        await game.drpg.setClock({ timeOfDay: "morning", eclipse: true, eclipseStartedAt: Date.now() });
+        return { was: { timeOfDay: was.timeOfDay, timeOfDayStartedAt: was.timeOfDayStartedAt }, allowance: X.eclipseAllowance() };`);
+    const allowance13 = Number.isInteger(clock13.allowance) ? clock13.allowance : 0;
+    const legal13 = [];
+    for (let i = 0; i < allowance13; i++) legal13.push(await p1.eval(`return await ${bridge}.requestEclipseMove("${IDS.aiko}");`, { timeout: 30000 }));
+    const n13 = await noticeCount(p1);
+    const beyond13 = await p1.eval(`return await ${bridge}.requestEclipseMove("${IDS.aiko}");`, { timeout: 30000 });
+    await settle(1200);
+    const b13 = { allowance: clock13.allowance, legal: legal13.map(r => [r?.ok ?? null, r?.value?.used ?? null]), beyond: beyond13,
+        used: await gm.eval(`${ECL} return X.movesUsed(game.actors.get("${IDS.aiko}"));`), said: (await noticesSince(p1, n13)).map(x => x.msg) };
+    check("B13: in an Eclipse the GM answers each legal crossing with its count, and refuses one beyond the allowance as nothingLeft, counting nothing, said once",
+        allowance13 >= 1 && JSON.stringify(b13.legal) === JSON.stringify(legal13.map((r, i) => [true, i + 1])) && beyond13?.ok === false && beyond13?.refused === true
+        && beyond13?.reason === "nothingLeft" && b13.used === allowance13 && b13.said.length === 1, JSON.stringify(b13));
+
     // B9: a request whose asker counts it as done (an Eclipse crossing) is answered once the GM's client has
     // carried it out (E31 review): its write throws, and p1 is answered failed, not accepted, with one message.
-    phase("an exception in a request its asker counts", { flow: "eclipse-route-veto" });
-    await gm.eval(`globalThis.__e31RealSet9 = game.settings.set;
-        game.settings.set = function (namespace, key, ...rest) {
-            if (namespace === "${MOD}" && key === "eclipseMoves") {
-                globalThis.__e31Thrown.eclipse = (globalThis.__e31Thrown.eclipse ?? 0) + 1;
-                throw new Error("E31 injected: the crossing's write failed");
-            }
-            return globalThis.__e31RealSet9.call(this, namespace, key, ...rest);
+    // The write is the GMs' store's since E05 (C4), whose save does not throw into its caller - so the store's
+    // own write is what fails here, in the Eclipse B13 opened, with Aiko's count taken back first (B13 spent it).
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await S.eclipseMoveStore.drop("${IDS.aiko}");
+        globalThis.__e31RealPatch9 = S.eclipseMoveStore.patch;
+        S.eclipseMoveStore.patch = function () {
+            globalThis.__e31Thrown.eclipse = (globalThis.__e31Thrown.eclipse ?? 0) + 1;
+            throw new Error("E31 injected: the crossing's write failed");
         };
         return true;`);
     try {
@@ -482,7 +505,8 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             b9.thrown >= 1 && b9.counted?.ok === false && b9.counted?.refused === true && b9.counted?.reason === "failed"
             && b9.said.length === 1, JSON.stringify(b9));
     } finally {
-        await gm.eval(`game.settings.set = globalThis.__e31RealSet9; return true;`);
+        await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); S.eclipseMoveStore.patch = globalThis.__e31RealPatch9;
+            await game.drpg.setClock({ eclipse: false, ...${JSON.stringify(clock13.was)} }); return true;`);
     }
 
     // B10: a trace the GM's client fails to place is answered as a failure, not as placed (E31 review), so the

@@ -753,6 +753,30 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     await gm.eval(`await (await import("${repoUrl}/scripts/eclipse.mjs")).clearParkedMurders(); return true;`);
 
     /*
+     * 7h3. An Eclipse crossing for another's character (E05 C4, 26.09.2026; audit S10-39). The
+     * crossings are counted in the GMs' store since E05, the allowance judged there: p1 forges a
+     * crossing for Botan (p2's), and nothing is counted; Botan's own player crosses, and the store
+     * counts it, answered with the count. In an Eclipse opened by its clock flag and name alone,
+     * leading into noon, and closed again.
+     */
+    phase("an Eclipse crossing", { flow: "eclipse-route-veto" });
+    const clockWas = await gm.eval(`const c = game.drpg.getClock(); await game.drpg.setClock({ timeOfDay: "morning", eclipse: true, eclipseStartedAt: Date.now() });
+        return { timeOfDay: c.timeOfDay, timeOfDayStartedAt: c.timeOfDayStartedAt };`);
+    const readMoves = `const X = await import("${repoUrl}/scripts/eclipse.mjs"); return { used: X.movesUsed(game.actors.get("${ids.botan}")) };`;
+    const cross = await forge("eclipse.move", { actorId: ids.botan }, readMoves);
+    check("SECURITY: a forged eclipse.move for Botan counted no crossing",
+        cross.unchanged && cross.after.used === 0, JSON.stringify(cross));
+    check("SECURITY: the GM refused the forged eclipse.move for ownership, and told p1",
+        cross.forOwnership && cross.told.some(t => t.what === "eclipse.move"), JSON.stringify({ reasons: cross.reasons, told: cross.told }));
+    const crossOk = await p2.eval(`return await (await import("${repoUrl}/scripts/gm-bridge.mjs")).requestEclipseMove("${ids.botan}");`, { timeout: 30000 });
+    await settle(600);
+    const crossAfter = await gm.eval(readMoves);
+    check("control: Botan's own player crosses, and the GMs' store counts it, answered with the count",
+        crossOk?.ok === true && crossOk?.value?.used === 1 && crossAfter.used === 1, JSON.stringify({ crossOk, crossAfter }));
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await S.eclipseMoveStore.drop("${ids.botan}");
+        await game.drpg.setClock({ eclipse: false, ...${JSON.stringify(clockWas)} }); return true;`);
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`

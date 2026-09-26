@@ -2416,7 +2416,7 @@
         "actionLocked": "That action is locked for now.",
         "actionSpent": "You have already taken that one this incident.",
         "actionBlocked": "They have shut this one down for now.",
-        "nothingLeft": "There is nothing left to spend. Sanity and Health are both gone.",
+        "nothingLeft": "There is nothing left to spend.",
         "movedOn": "The incident has moved on since that action.",
         "notThatRepair": "That is not the repair your sabotage made.",
         "notWhereItStood": "The token did not stand there a moment ago.",
@@ -3343,7 +3343,8 @@
         "offers": "The Level Ups on offer",
         "discovery": "The rooms each character has found",
         "projectSecrets": "Who builds each trap, and what sets it off",
-        "pendingMurders": "The Direct Murders declared in the dark"
+        "pendingMurders": "The Direct Murders declared in the dark",
+        "eclipseMoves": "Who has crossed how often in the Eclipse"
       },
       "row": {
         "traces": {

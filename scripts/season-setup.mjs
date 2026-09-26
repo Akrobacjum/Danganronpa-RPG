@@ -1227,7 +1227,6 @@ async function wipeSeason(plan) {
     for (const [group, label, key, value] of [
         ["trialFloor", "the trial floor", SETTINGS.trialQueue, {}],
         ["searchTokens", "search tokens", SETTINGS.searchTokens, {}],
-        ["eclipseMoves", "Eclipse placements", SETTINGS.eclipseMoves, {}],
         ["keyPlan", "the Key Remnant plan", SETTINGS.keyRemnantPlan, {}],
         ["discovered", "discovered rooms", SETTINGS.discoveredRooms, {}],
         // Written directly rather than through `setMotive("")`, which announces
@@ -1285,6 +1284,10 @@ async function wipeSeason(plan) {
     // still carry. Both are the `discovered` group - the same fact, stored in
     // two places - and the store's players are sent the cleared rows here.
     await step("discovered", "the fog ledger", () => import("./fog.mjs").then(m => m.resetLedger()));
+    // The Eclipse's crossings are a GM store since E05, not a row above: the cut written
+    // first takes them on every GM and every owner's copy, and this clears what this
+    // browser holds. Each is named for its Eclipse, so none would count in the new season.
+    await step("eclipseMoves", "Eclipse placements", () => import("./eclipse.mjs").then(m => m.clearEclipseMoves()));
 
     await step("clock", "the clock", async () => {
         const clock = getClock();

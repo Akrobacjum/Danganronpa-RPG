@@ -73,7 +73,6 @@ const SETTING_KINDS = {
     clock: SYNC.clock,
     sealedRooms: SYNC.restrictions,
     restrictions: SYNC.restrictions,
-    eclipseMoves: SYNC.visibility,
     despairPools: SYNC.despair,
     // Re-pointing a Monokuma at another pool changes what every open sheet
     // should be showing, so it travels the same road as the pools themselves.
@@ -138,6 +137,14 @@ export function registerSync() {
  * Refresh in response to a world setting changing. Called from the settings'
  * own `onChange`, which Foundry runs on every client that receives the update.
  */
+/**
+ * Run one kind's refresh on this client, for what changes without being a world
+ * setting: a GM store's key, or a player's copy of one (E05) - a name of `SYNC`.
+ */
+export function applyKind(kind, data = {}) {
+    if (Object.values(SYNC).includes(kind)) apply(kind, data);
+}
+
 export function applyFor(settingKey, data = {}) {
     const kind = SETTING_KINDS[settingKey];
     if (!kind) return;
@@ -316,9 +323,11 @@ function refresh(kind, data = {}) {
 
         case SYNC.visibility:
             run("visibility", () => import("./visibility.mjs").then(m => m.applyAll()));
-            // The only setting mapped to this kind is `eclipseMoves`, and that
-            // number is printed on the sheet twice - the budget line and the
-            // Move tile's own cost label - so a crossing has to redraw them.
+            // The only thing drawn through this kind is the Eclipse's crossings -
+            // the GMs' store and an owner's copy since E05, which are no world
+            // settings and name the kind themselves (settings.mjs `onStoreChange`)
+            // - and that number is printed on the sheet twice - the budget line
+            // and the Move tile's own cost label - so a crossing has to redraw them.
             // At most two writes per character per Eclipse, so this is not the
             // per-frame cost that its name suggests.
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));

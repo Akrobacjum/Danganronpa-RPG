@@ -5438,7 +5438,7 @@ const REGRESSIONS = [
             rerollReceiptRefusal: "returns", crisisRefusal: "why", crisisUndoRefusal: "returns", unsabotageRefusal: "returns",
             sendBackRefusal: "returns", playerArmRefusal: "returns", observeResolveRefusal: "returns", removalRefusal: "returns",
             searchSpendRefusal: "returns", narrowPlayerRemnant: "refused", resolveAnalyze: "refused", resolveStageSix: "refused",
-            answerKeysRefusal: "returns", shareBullet: "refused",
+            answerKeysRefusal: "returns", shareBullet: "refused", applyRecordedMove: "refused",
             resolveObserve: "passes", spendRerollReceipt: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -5632,7 +5632,9 @@ const REGRESSIONS = [
             // An indirect murder's killer, builder, condition and trigger out of projectMeta (E05 C1).
             ["projects.mjs", "liftProjectSecrets", ["weak", "fillOnly"], true],
             // The declarations made in the dark out of the world's pendingMurders (E05 C3).
-            ["eclipse.mjs", "liftPendingMurders", ["weak", "fillOnly"], true]
+            ["eclipse.mjs", "liftPendingMurders", ["weak", "fillOnly"], true],
+            // The Eclipse's crossings out of the world's eclipseMoves (E05 C4).
+            ["eclipse.mjs", "liftEclipseMoves", ["weak", "fillOnly"], true]
         ];
         // The migrations that read a store through a function they call: they wait themselves.
         const WAITERS = [["remnants.mjs", "migrateRemnants"], ["remnants.mjs", "migrateRemnantToken"]];
@@ -5709,7 +5711,8 @@ const REGRESSIONS = [
          */
         const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"], ["faintIntoSecrets", "migrateFaintIntoSecrets", "1.2.63"],
             ["liftIncidentSecrets", "liftIncidentSecrets", "1.2.63"], ["liftDiscoveryLedger", "liftDiscoveryLedger", "1.2.63"],
-            ["liftProjectSecrets", "liftProjectSecrets", "1.2.64"], ["liftPendingMurders", "liftPendingMurders", "1.2.64"]];
+            ["liftProjectSecrets", "liftProjectSecrets", "1.2.64"], ["liftPendingMurders", "liftPendingMurders", "1.2.64"],
+            ["liftEclipseMoves", "liftEclipseMoves", "1.2.64"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.

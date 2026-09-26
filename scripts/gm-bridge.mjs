@@ -989,9 +989,15 @@ async function handleDespair(payload, sender, ctx) {
     debug(`Adjusted Despair for ${target.name} by ${delta} on behalf of ${sender.name}.`);
 }
 
+    // An Eclipse crossing. Counted on this side, where the allowance is judged since E05
+    // (a crossing beyond it is refused, and counts nothing); the answer is the new count,
+    // which the mover's sheet reads before its copy arrives.
 async function handleEclipseMove(payload, sender, ctx) {
     const { applyRecordedMove } = await import("./eclipse.mjs");
-    await applyRecordedMove(payload.actorId);
+    const out = await applyRecordedMove(payload.actorId);
+    if (!out) return { refused: "nothing was carried out: no Eclipse is running, or no such character" };
+    if (out.refused) return { refused: out.refused };
+    return { reply: { used: out.used, left: out.left } };
 }
 
 /**

@@ -38,7 +38,19 @@ export const SETTINGS = {
     lockPlayerResources: "lockPlayerResources",
     roomVisibility: "roomVisibility",
     lockRollDialog: "lockRollDialog",
-    eclipseMoves: "eclipseMoves",
+    /**
+     * THE ECLIPSE'S CROSSINGS (E05, 1.2.64; audit S10-39): a GM store
+     * (gm-stores.mjs `eclipseMoveStore`), a row per character `{ used, eclipse }`,
+     * and each owner's copy of their own characters' rows (`eclipseMoveCopy`),
+     * read for the running Eclipse only (`eclipseMovesUsed`). Until 1.2.64 they
+     * were the world setting `eclipseMoves`, which every browser holds: who had
+     * crossed how often, in the Eclipse before a murder was declared. That key
+     * stays registered as `legacyEclipseMoves`, read only by the clause
+     * `liftEclipseMoves` and held empty by world-secrets.mjs.
+     */
+    gmEclipseMoves: "gmEclipseMoves",
+    mineEclipseMoves: "mineEclipseMoves",
+    legacyEclipseMoves: "eclipseMoves",
     /**
      * The live Despair Overflow: `{ count, active }` (Z10).
      *
@@ -1553,13 +1565,29 @@ export function registerSettings() {
         onChange: () => onWorldChange(SETTINGS.restrictions)
     });
 
-    // Eclipse crossings used, per actor. Cleared when the Eclipse ends.
-    game.settings.register(MODULE_ID, SETTINGS.eclipseMoves, {
-        scope: "world",
+    // Eclipse crossings used, per actor: the GMs' store and each owner's copy since
+    // E05, each row named for its Eclipse. A crossing redraws the sheet's budget line
+    // and the Move tile, on the GM that counted it and on the owner that was sent it.
+    game.settings.register(MODULE_ID, SETTINGS.gmEclipseMoves, {
+        scope: "client",
         config: false,
         type: Object,
         default: {},
-        onChange: () => onWorldChange(SETTINGS.eclipseMoves)
+        onChange: () => onStoreChange("visibility")
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineEclipseMoves, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onStoreChange("visibility")
+    });
+    // The world key before 1.2.64: read once by `liftEclipseMoves`, and empty after.
+    game.settings.register(MODULE_ID, SETTINGS.legacyEclipseMoves, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     // Per-project data Daggerheart's countdowns do not carry: which room the
@@ -1655,6 +1683,16 @@ export function registerSettings() {
  */
 function onWorldChange(key) {
     import("./sync.mjs").then(m => m.applyFor(key)).catch(() => {});
+}
+
+/**
+ * The same for what is no world setting - a GM store's key, or a player's copy of
+ * one (E05): it names the refresh's kind itself (`SYNC`, sync.mjs). Handing the
+ * store's key to `onWorldChange` would be a raw use of it outside the engine (R171),
+ * and the table there is keyed by world settings.
+ */
+function onStoreChange(kind) {
+    import("./sync.mjs").then(m => m.applyKind(m.SYNC[kind])).catch(() => {});
 }
 
 /**
@@ -1870,6 +1908,23 @@ export function eclipseId(clock = null) {
         return c.eclipseStartedAt ? `at${c.eclipseStartedAt}` : `${c.seasonStartedAt ?? 0}:${c.chapter}:${c.day}:${c.timeOfDay}`;
     } catch {
         return null;
+    }
+}
+
+/**
+ * The crossings a character has used in the running Eclipse: the GMs' store on a
+ * GM's browser, the owner's copy on a player's (E05, 1.2.64), and 0 for a row of
+ * another Eclipse. A leaf for movement.mjs's veto, which is synchronous and cannot
+ * import eclipse.mjs (the cycle is noted at `canCross`).
+ */
+export function eclipseMovesUsed(actorId, clock = null) {
+    try {
+        const id = eclipseId(clock);
+        if (!id || !actorId) return 0;
+        const row = game.user?.isGM ? gmStoreByName("eclipseMoves")?.get(actorId) : readMine("eclipseMoves")?.[actorId];
+        return row?.eclipse === id ? Math.max(0, Number(row.used) || 0) : 0;
+    } catch {
+        return 0;
     }
 }
 

@@ -17,16 +17,19 @@
  */
 
 import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
-import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId } from "./settings.mjs";
+import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed } from "./settings.mjs";
 // Defined in settings.mjs, the leaf every side of this file's import cycles can
 // reach (audit C3); re-exported so nothing that imports them from here has to
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
-import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, warn, error, plural, cardHead, esc, isPrimaryGm } from "./utils.mjs";
+import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, warn, error, plural, cardHead, esc, isPrimaryGm,
+    primaryGmId, ownerIdsOf } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
-import { pendingMurderStore } from "./gm-stores.mjs";
+import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy } from "./gm-stores.mjs";
+import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
+import { replyForMe } from "./bridge-guards.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -71,13 +74,25 @@ export function eclipseAllowance(clock = getClock()) {
     return overflowCrossings(base);
 }
 
-/** Per-character crossings used, keyed by actor id. Cleared when it ends. */
+/**
+ * Crossings used in the running Eclipse, keyed by actor id: the GMs' store on a GM's
+ * browser, the owner's copy of their own characters on a player's (E05, audit S10-39 -
+ * until 1.2.64 a world setting every browser held). A row of another Eclipse counts
+ * nothing, so nothing has to clear them when one starts or ends.
+ */
 export function eclipseMoves() {
-    return game.settings.get(MODULE_ID, SETTINGS.eclipseMoves) ?? {};
+    const id = eclipseId();
+    const out = {};
+    if (!id) return out;
+    const rows = game.user?.isGM ? eclipseMoveStore.entries() : (eclipseMoveCopy.read() ?? {});
+    for (const [actorId, row] of Object.entries(rows ?? {})) {
+        if (row?.eclipse === id) out[actorId] = Math.max(0, Number(row.used) || 0);
+    }
+    return out;
 }
 
 export function movesUsed(actor) {
-    return eclipseMoves()[actor?.id] ?? 0;
+    return eclipseMovesUsed(actor?.id);
 }
 
 /**
@@ -136,8 +151,8 @@ export async function startEclipse() {
         return null;
     }
 
-    await game.settings.set(MODULE_ID, SETTINGS.eclipseMoves, {});
-    // Named by when it began (`eclipseId`): what is declared in it is judged by it alone.
+    // Named by when it began (`eclipseId`): what is declared and crossed in it counts
+    // in it alone, so the last Eclipse's crossings need no clearing (E05).
     await setClock({ eclipse: true, eclipseStartedAt: Date.now() });
 
     /*
@@ -256,7 +271,6 @@ export async function endEclipse({ advance = true } = {}) {
     // Its name, read while it still has one: the lights below judge what was declared in it.
     const ending = eclipseId();
 
-    await game.settings.set(MODULE_ID, SETTINGS.eclipseMoves, {});
     log("Eclipse ended.");
 
     // The broadcast comes AFTER the clock, for the same reason the flag does.
@@ -767,74 +781,250 @@ export async function judgeEclipseCrossing(actor, from, to) {
         }
     }
 
-    // The count this crossing leaves behind, taken from `recordMove` rather than
-    // read back out of the setting.
-    //
-    // A player's crossing is written by the GM over the socket, so the world
-    // setting on this client is still the pre-crossing value when the next line
-    // runs - every whisper said "2 left" after the first move, and the card's own
-    // read-out (`budgetLine`, `costLabelFor`) was one behind for as long as the
-    // round trip took. The GM's own path writes locally and is exact either way.
-    // Still recorded on a free-placement Eclipse: the GM's placement table reads
-    // this to see who has actually put a token down, which is the whole point of
-    // the table and is just as useful when nobody has a budget.
-    const used = await recordMove(actor);
-    const room = foundry.utils.escapeHTML(to ?? "-");
+    /*
+     * THE COUNT AND THE CARD ARE THE GM'S (E05, 26.09.2026; audit S10-39, S07-46).
+     *
+     * The crossing is counted on the primary GM's client, which judges the allowance
+     * again - until 1.2.64 only this client judged it, and the count was a world
+     * setting any browser could read. A crossing the GM finds beyond the allowance is
+     * refused (`nothingLeft`) and sent back; one no GM answered stands and is not
+     * counted, as it did (E31). The card that tells the owner the room they walked
+     * into is posted by the GM too: posted here, its document named this character as
+     * the speaker and this player as the author and the reader, in every browser.
+     */
+    return (await recordMove(actor, to)) !== false;
+}
 
-    // Owner ONLY - no GM copy, on purpose. This card names the room the
-    // character just walked into, and an Eclipse is everybody crossing the
-    // map in the dark: a copy of every crossing landing on the GM's screen
-    // was a running commentary on exactly the thing the phase hides. The GM
-    // who wants the answer opens the placement table, which `recordMove`
-    // above keeps current either way.
-    await whisperToOwnerOnly(actor, `${cardHead({ action: eclipseLabel(), room: to })}<p>${
-        free
+/**
+ * Count a crossing: on a player's client through the GM, on a GM's here.
+ *
+ * @returns {Promise<boolean|null>} true counted; false refused by the GM's count (the
+ *   crossing goes back); null not answered, so neither counted nor refused.
+ */
+async function recordMove(actor, to = null) {
+    if (!game.user.isGM) {
+        const { requestEclipseMove } = await import("./gm-bridge.mjs");
+        const res = await requestEclipseMove(actor.id);
+        if (res.ok) return true;
+        return res.refused && res.reason === "nothingLeft" ? false : null;
+    }
+    const out = await applyRecordedMove(actor.id, { to });
+    if (out?.refused) return false;
+    return out ? true : null;
+}
+
+/**
+ * Count a crossing, GM side: the bridge's `eclipse.move` for a player's client, and a
+ * GM's own crossing. The allowance is judged here (layer one, E05): a crossing beyond
+ * it is refused with the sentence `nothingLeft` stands for, and counts nothing. A
+ * counted crossing is told to its owner by a veiled card this client posts - to the
+ * owner only, no GM copy, on purpose: an Eclipse is everybody crossing the map in the
+ * dark, and a copy of every crossing on the GM's screen was a running commentary on
+ * exactly the thing the phase hides; the GM who wants the answer opens the placement
+ * table. Then the owner is sent their copy of the count.
+ *
+ * `to` is the room walked into, as the mover's client saw it; a request through the
+ * bridge carries no room, and the card names where the GM's client stands the token.
+ *
+ * @returns {Promise<null|{refused: string}|{used: number, left: number|null}>}
+ */
+export async function applyRecordedMove(actorId, { to = null } = {}) {
+    if (!game.user.isGM) return null;
+    const actor = game.actors.get(actorId);
+    const id = eclipseId();
+    if (!actor || !id) return null;
+    const allowance = eclipseAllowance();
+    const before = eclipseMovesUsed(actorId);
+    if (allowance !== null && before >= allowance) return { refused: "no crossings left this Eclipse" };
+    const used = before + 1;
+    await eclipseMoveStore.patch(actorId, { used, eclipse: id });
+
+    // A free-placement Eclipse is still counted: the placement table reads it to see
+    // who has put a token down. The ALLOWANCE, not the constant: under a darkening
+    // the two crossings are worth one, and this card was the one place still counting
+    // down from two - so a player was told "1 left" by the same window that had just
+    // refused them.
+    const room = foundry.utils.escapeHTML(to ?? roomOfActor(actor) ?? "-");
+    await whisperToOwnerOnly(actor, `${cardHead({ action: eclipseLabel(), room: to ?? roomOfActor(actor) })}<p>${
+        allowance === null
             ? game.i18n.format("DRPG.Eclipse.movedFree", { room })
-            // The ALLOWANCE, not the constant: under a darkening the two
-            // crossings are worth one, and this card was the one place still
-            // counting down from two - so a player was told "1 left" by the
-            // same window that had just refused them.
-            : plural("DRPG.Eclipse.moved", {
-                room,
-                left: Math.max(0, allowance - used)
-            }, "left")
-    }</p>`);
+            : plural("DRPG.Eclipse.moved", { room, left: Math.max(0, allowance - used) }, "left")
+    }</p>`, { veiled: true });
 
+    for (const userId of ownerIdsOf(actor)) sendMovesTo(userId);
+    return { used, left: allowance === null ? null : Math.max(0, allowance - used) };
+}
+
+/* ==========================================================================
+ * AN OWNER'S COPY OF THE CROSSINGS (E05)
+ * --------------------------------------------------------------------------
+ * A player's sheet, status panel and veto read how many crossings their own
+ * characters have used, and the count is the GMs' store: so each owner holds a
+ * copy of their own characters' rows (gm-stores.mjs `eclipseMoveCopy`), sent by
+ * the primary GM when a crossing is counted, and when the owner asks - at load,
+ * and when a primary GM's world has loaded (gm-bridge.mjs's "a GM is listening",
+ * `drpgPrimaryReady`). Asking is the owner's; answering is the primary's alone,
+ * about the asker's own characters, found from Foundry's `senderId`; the copy is
+ * taken only from a GM, and only for a character this user owns.
+ * ========================================================================== */
+
+const SOCKET_EVENT = `module.${MODULE_ID}`;
+const ACTION_MOVES = "eclipse.moves";
+const ACTION_MOVES_ASK = "eclipse.movesAsk";
+
+/**
+ * GM: one user's own characters' crossings, and only those, with a stamp per character
+ * they own - the newest decision about its row (`newest`: a count, or a reset's cut), 0 for
+ * one this browser never held, which takes nothing away on the owner's side (`offersCombine`).
+ */
+export function movesFor(userId) {
+    const user = game.users.get(userId);
+    const moves = {}, stamps = {};
+    if (!game.user?.isGM || !user || user.isGM) return { moves, stamps };
+    for (const actor of game.actors ?? []) {
+        if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
+        stamps[actor.id] = eclipseMoveStore.newest(actor.id);
+        const row = eclipseMoveStore.get(actor.id);
+        if (row) moves[actor.id] = { used: Math.max(0, Number(row.used) || 0), eclipse: row.eclipse ?? null };
+    }
+    return { moves, stamps };
+}
+
+/**
+ * Primary GM: send one user their crossings (`movesFor`). Addressed, and only while they
+ * are here; nothing while the suite holds the stores or stands in another world
+ * (`gmStoresQuiet`). Answers whether it sent.
+ */
+export function sendMovesTo(userId) {
+    const user = game.users.get(userId);
+    if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
+    const { moves, stamps } = movesFor(userId);
+    game.socket.emit(SOCKET_EVENT, { action: ACTION_MOVES, userId, moves, stamps }, { recipients: [userId] });
     return true;
 }
 
 /**
- * Count a crossing. World setting, so players route through the GM.
- *
- * @returns {Promise<number>} crossings used AFTER this one. A player's client
- *   counts it once the GM's client has written it (the request answers then,
- *   E31 review), before the setting reaches this client; a crossing the GM's
- *   client did not write is not counted. A GM's client returns what it just
- *   wrote.
+ * After a restore (gm-stores.mjs `restoreCase`): every connected player is sent their
+ * crossings again, with their stamps - a copy that holds the same changes nothing. Nothing
+ * while the suite holds the stores or stands in another world. Answers how many were sent.
  */
-async function recordMove(actor) {
-    const before = movesUsed(actor);
-
-    if (!game.user.isGM) {
-        const { requestEclipseMove } = await import("./gm-bridge.mjs");
-        const res = await requestEclipseMove(actor.id);
-        // A crossing the GM did not count is not used up (E31).
-        return res.ok ? before + 1 : before;
+export async function retellMoves() {
+    if (!game.user?.isGM || gmStoresQuiet()) return 0;
+    let sent = 0;
+    for (const user of game.users ?? []) {
+        if (user.active && !user.isGM && sendMovesTo(user.id)) sent++;
     }
-
-    const used = { ...eclipseMoves() };
-    used[actor.id] = before + 1;
-    await game.settings.set(MODULE_ID, SETTINGS.eclipseMoves, used);
-    return used[actor.id];
+    return sent;
 }
 
-/** Apply a crossing recorded on a player's behalf. GM side of the socket. */
-export async function applyRecordedMove(actorId) {
-    if (!game.user.isGM) return null;
-    const used = { ...eclipseMoves() };
-    used[actorId] = (used[actorId] ?? 0) + 1;
-    await game.settings.set(MODULE_ID, SETTINGS.eclipseMoves, used);
-    return used[actorId];
+/** Owner: take the primary's answer where it is newer (`eclipseMoveCopy`), for this user's own characters only. */
+export async function receiveMoves(moves, stamps) {
+    const mine = {}, own = {};
+    for (const [actorId, s] of Object.entries(stamps ?? {})) {
+        if (!game.actors.get(actorId)?.isOwner) continue;
+        own[actorId] = Number(s) || 0;
+        const row = moves?.[actorId];
+        if (row && typeof row === "object") {
+            mine[actorId] = { used: Math.max(0, Math.trunc(Number(row.used) || 0)), eclipse: typeof row.eclipse === "string" ? row.eclipse : null };
+        }
+    }
+    return eclipseMoveCopy.receive(mine, own);
+}
+
+/** Owner: ask the primary for this user's crossings, while an Eclipse runs. */
+function askForMoves(primary = primaryGmId()) {
+    if (!primary || game.user.isGM || !isEclipse()) return;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: ACTION_MOVES_ASK }, { recipients: [primary] });
+    } catch (err) {
+        error("Could not ask the GM for this Eclipse's crossings", err);
+    }
+}
+
+function onMovesSocket(payload, senderId) {
+    if (payload?.action === ACTION_MOVES_ASK) {
+        if (!isPrimaryGm()) return;
+        const sender = game.users.get(senderId);
+        if (!sender?.active || sender.isGM) return;
+        // Asked while the suite holds the stores: answered once it lets them go (as the offers are).
+        whenGmStoresAudible().then(() => sendMovesTo(sender.id)).catch(err => error("Could not answer an owner's crossings", err));
+        return;
+    }
+    if (payload?.action !== ACTION_MOVES || game.user.isGM) return;
+    // A GM's, and addressed to this user: a player cannot hand another their count.
+    if (!replyForMe(payload, senderId)) return;
+    receiveMoves(payload.moves, payload.stamps).catch(err => error("Could not keep this Eclipse's crossings", err));
+}
+
+/** At ready: the copy's listener on every client, and an owner's first ask. */
+function registerMovesCopy() {
+    game.socket.on(SOCKET_EVENT, onMovesSocket);
+    if (game.user.isGM) return;
+    askForMoves();
+    Hooks.on("drpgPrimaryReady", primary => askForMoves(primary));
+}
+
+/**
+ * A world from before 1.2.64 holds the crossings in the world setting `eclipseMoves`,
+ * which every browser reads (audit S10-39). The clause `liftEclipseMoves` (migrate.mjs,
+ * since 1.2.64) runs this once, on the primary, after the store holds the other GMs'
+ * copies (E05 C4).
+ *
+ * Only while an Eclipse runs: a count outside one is the last Eclipse's, which 1.2.63
+ * cleared at its end and nothing reads, so it is taken out with no row. During one, each
+ * count goes in weak and fill-only, named for the running Eclipse - a crossing a GM has
+ * counted since the update keeps its count - and leaves the world only once its row
+ * reads back from storage; then each owner is sent their copy. Idempotent: a world
+ * already through this holds nothing.
+ *
+ * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}
+ */
+export async function liftEclipseMoves() {
+    if (!isPrimaryGm()) return null;
+    if (await eclipseMoveStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the crossings did not arrive; the next load tries again");
+    }
+    const old = game.settings.get(MODULE_ID, SETTINGS.legacyEclipseMoves) ?? {};
+    if (!Object.keys(old).length) return null;
+    const id = eclipseId();
+    const rows = {};
+    if (id) {
+        for (const [actorId, n] of Object.entries(old)) {
+            const used = Math.trunc(Number(n));
+            if (actorId && Number.isFinite(used) && used > 0) rows[actorId] = { used, eclipse: id };
+        }
+    }
+    if (Object.keys(rows).length) {
+        await eclipseMoveStore.patchMany(rows, { weak: true, fillOnly: true });
+        await eclipseMoveStore.idle();
+    }
+    const next = { ...old };
+    let lifted = 0, kept = 0;
+    for (const actorId of Object.keys(old)) {
+        if (!rows[actorId]) {
+            delete next[actorId];
+            continue;
+        }
+        if (eclipseMoveStore.persisted(actorId)) {
+            delete next[actorId];
+            lifted++;
+        } else kept++;
+    }
+    if (kept) warn(`Eclipse crossings: ${kept} stayed in world data, because the GM store did not read them back.`);
+    if (Object.keys(next).length !== Object.keys(old).length) await game.settings.set(MODULE_ID, SETTINGS.legacyEclipseMoves, next);
+    const left = Object.keys(game.settings.get(MODULE_ID, SETTINGS.legacyEclipseMoves) ?? {}).length;
+    if (lifted) log(`Lifted ${lifted} Eclipse crossing count(s) out of world data; ${left} left.`);
+    for (const user of game.users ?? []) {
+        if (user.active && !user.isGM && Object.keys(rows).some(actorId => game.actors.get(actorId)?.testUserPermission?.(user, "OWNER"))) sendMovesTo(user.id);
+    }
+    return { lifted, kept, emptied: left === 0 };
+}
+
+/** Every crossing this GM's browser holds, of any Eclipse, taken away (the season reset). */
+export async function clearEclipseMoves() {
+    if (!game.user.isGM) return;
+    if (isPrimaryGm()) await eclipseMoveStore.clear();
+    else await eclipseMoveStore.dropMany(Object.keys(eclipseMoveStore.entries()));
 }
 
 /**
@@ -860,8 +1050,9 @@ export function refreshEclipse() {
     }
 }
 
-/** Keep the body class in step on load and on every clock change. */
+/** Keep the body class in step on load and on every clock change; and, at ready, the crossings' copy. */
 export function registerEclipse() {
     Hooks.once("ready", refreshEclipse);
     Hooks.on("drpgTimeOfDayChanged", refreshEclipse);
+    Hooks.once("ready", registerMovesCopy);
 }

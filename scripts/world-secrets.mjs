@@ -44,6 +44,11 @@ export const WORLD_SECRET_RULES = Object.freeze({
         pendingMurders: Object.freeze({
             empty: true,
             since: "E05 C3", why: "a Direct Murder declared in the dark, filed under the killer's id (S10-01, S01-02)"
+        }),
+        // The key before 1.2.64 (settings.mjs `legacyEclipseMoves`); the crossings are a GM store.
+        eclipseMoves: Object.freeze({
+            empty: true,
+            since: "E05 C4", why: "who crossed how often in an Eclipse (S10-39)"
         })
     }),
     everySetting: Object.freeze({

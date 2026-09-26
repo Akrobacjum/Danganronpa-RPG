@@ -3930,7 +3930,10 @@ const INVARIANTS = [
            user's characters (C8), and the fog's, a section of the store (C9) - so a call of it
            passes none. */
         const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"],
-            ["fog.mjs", "sendStoreTo", "own"]];
+            ["fog.mjs", "sendStoreTo", "own"], ["eclipse.mjs", "sendMovesTo", "own"]];
+        // The crossings' copy (E05 C4) is an owner's whole set, a stamp per character, as the offers are.
+        const { eclipseMoveCopy } = await import("./gm-stores.mjs");
+        ok(G.gmCopySpec(eclipseMoveCopy.name)?.combine === offersCombine, "the crossings' copy is not weighed by the offers' rule");
         const sources = new Map(await otherSources());
         const found = [];
         for (const [file, fn, own] of SENDERS) {
@@ -4481,7 +4484,8 @@ const INVARIANTS = [
             else if (!store.spec.backup || typeof store.spec.afterRestore !== "function") wrong.push(`${name}: its store ${from} does not send it again after a restore`);
         }
         ok(!wrong.length, `a player's copy is not sent again after a restore: ${wrong.join("; ")}`);
-        const RETELLS = [["mastermind.mjs", "retellDoor"], ["murder.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"]];
+        const RETELLS = [["mastermind.mjs", "retellDoor"], ["murder.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"],
+            ["eclipse.mjs", "retellMoves"]];
         const hooks = E.gmStoreHandles().map(h => String(h.spec.afterRestore ?? ""));
         const uncalled = RETELLS.filter(([, fn]) => !hooks.some(src => src.includes(`.${fn}(`))).map(([, fn]) => fn);
         ok(!uncalled.length, `no store's afterRestore calls ${uncalled.join(", ")}`);
@@ -4527,7 +4531,11 @@ const INVARIANTS = [
             // E05 C3: the declarations' old world key holds nothing - an entry under any key is found.
             ["pendingMurders: empty",
                 s => { s.settings.pendingMurders = { R190OTHERACTOR01: { room: "Gym" } }; },
-                h => h.kind === "empty" && h.doc === "setting" && h.id === "pendingMurders"]
+                h => h.kind === "empty" && h.doc === "setting" && h.id === "pendingMurders"],
+            // E05 C4: nor the crossings' - a bystander's count is found as well as the killer's.
+            ["eclipseMoves: empty",
+                s => { s.settings.eclipseMoves = { R190BYSTANDER001: 2 }; },
+                h => h.kind === "empty" && h.doc === "setting" && h.id === "eclipseMoves"]
         ];
         const R = W.WORLD_SECRET_RULES;
         const named = new Set(FIXTURES.map(([what]) => what));

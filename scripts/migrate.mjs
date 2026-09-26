@@ -628,6 +628,24 @@ const CLAUSES = [
             const report = await liftPendingMurders();
             return report && (report.lifted || report.kept) ? report : null;
         }
+    },
+    {
+        key: "liftEclipseMoves",
+        since: "1.2.64",
+        /*
+         * THE ECLIPSE'S CROSSINGS OUT OF WORLD DATA (E05 C4; audit S10-39). Until 1.2.64
+         * the world setting `eclipseMoves`, which every browser holds, counted each
+         * character's crossings in the running Eclipse. Once, on the primary, after the
+         * GM store's copies arrived, with the rules written on `liftEclipseMoves`: while
+         * an Eclipse runs, into the store weak and fill-only and out of the world once
+         * each reads back, and each owner sent their copy; outside one, the last
+         * Eclipse's counts go with no row.
+         */
+        run: async () => {
+            const { liftEclipseMoves } = await import("./eclipse.mjs");
+            const report = await liftEclipseMoves();
+            return report && (report.lifted || report.kept) ? report : null;
+        }
     }
 ];
 

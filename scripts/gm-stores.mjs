@@ -531,6 +531,35 @@ export const offerCopy = defineGmCopy({
     }
 });
 
+/**
+ * THE ECLIPSE'S CROSSINGS (E05 C4; audit S10-39). A row per character: `used`, and
+ * `eclipse`, the Eclipse they were used in (settings.mjs `eclipseId`) - the world setting
+ * `eclipseMoves` until 1.2.64, which every browser held. A row of another Eclipse counts
+ * nothing, so nothing clears the store when an Eclipse starts or ends. Counted by the
+ * primary GM, which judges the allowance (eclipse.mjs `applyRecordedMove`). Backed up, and
+ * its owners told again after a restore, as every store a player's copy is made of is
+ * (R182) - the design's table had it not backed up, which that rule does not allow. No old
+ * key: the first rows come out of the world by `liftEclipseMoves`.
+ */
+export const eclipseMoveStore = defineGmStore({
+    name: "eclipseMoves", key: SETTINGS.gmEclipseMoves,
+    kind: "ledger", resetGroup: "eclipseMoves", backup: true, sync: true,
+    afterRestore: () => import("./eclipse.mjs").then(m => m.retellMoves()),
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * AN OWNER'S CROSSINGS (E05 C4): `{ actorId: { used, eclipse } }` for the characters this
+ * user owns, as the primary GM sent them, a stamp per character - taken by the offers' rule
+ * (`offersCombine`): an answer is the owner's whole set, at least as new for every character
+ * it names and newer for one, and an answer from a GM whose browser holds no row (stamp 0)
+ * takes nothing away. Read by the sheet, the status panel and the veto (`eclipseMovesUsed`).
+ */
+export const eclipseMoveCopy = defineGmCopy({
+    name: "eclipseMoves", key: SETTINGS.mineEclipseMoves, from: "eclipseMoves", resetGroup: "eclipseMoves", fallback: {},
+    combine: offersCombine
+});
+
 /** The rows of an old ledger `{ sceneId: { actorId: [room, ...] } }`, one per scene and character. */
 function fogRows(legacy) {
     const rows = [];

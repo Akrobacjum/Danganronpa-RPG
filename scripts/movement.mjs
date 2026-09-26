@@ -16,7 +16,7 @@
 
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
     ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } from "./config.mjs";
-import { SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger } from "./settings.mjs";
+import { SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed } from "./settings.mjs";
 import { hasFreeMove, takeMove, actionsLeft, canPayFor, freeMovesLeft } from "./actions.mjs";
 // Statically imported, not lazily: the crossing veto runs inside a synchronous
 // `preUpdateToken` hook, where there is no opportunity to await an import.
@@ -356,7 +356,10 @@ function canCross(actor, from, to) {
         // below and charge it a free Move or an action - and an Eclipse crossing
         // has never cost either.
         if (allowance !== null) {
-            const used = game.settings.get(MODULE_ID, SETTINGS.eclipseMoves)?.[actor.id] ?? 0;
+            // The GMs' count on a GM's browser, the owner's copy of it on theirs (E05; the
+            // settings.mjs leaf, for the cycle above). A stale copy can only let a crossing
+            // through that the GM's count then refuses and sends back (eclipse.mjs).
+            const used = eclipseMovesUsed(actor.id, clock);
             if (used >= allowance) return game.i18n.localize("DRPG.Eclipse.noMovesLeft");
 
             if (from && to) {

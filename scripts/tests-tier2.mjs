@@ -524,6 +524,94 @@ const SCENARIOS = [
         }
     }],
 
+    ["a crossing beyond the allowance is refused on the GM", async () => {
+        /*
+         * E05 C4, 26.09.2026; audit S10-39, S07-46. The Eclipse's crossings were a world
+         * setting every browser held, only the mover's client judged the allowance, and the
+         * crossing's card was posted by the mover, speaking as the character. Driven on the GM
+         * through the count the bridge runs (`applyRecordedMove`), in an Eclipse leading into
+         * noon, which is placed by crossings, not freely: a character crosses as often as the
+         * allowance gives, each counted in the GMs' store and named for this Eclipse, the
+         * world's old key holding nothing, and each told to its owner by a veiled card this GM
+         * posted; one more is refused with the sentence `nothingLeft` stands for, counts
+         * nothing and posts nothing.
+         */
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const [student] = cast(1);
+        const clock = getClock();
+        try {
+            await setClock({ timeOfDay: "morning" });
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId(), allowance = E.eclipseAllowance();
+            ok(id && Number.isInteger(allowance) && allowance >= 1, `the Eclipse has no name, or no allowance to count against (${id}, ${allowance})`);
+            const from = game.messages.size;
+            for (let n = 1; n <= allowance; n++) {
+                const out = await E.applyRecordedMove(student.id);
+                const row = S.eclipseMoveStore.get(student.id);
+                equal(stableJson([out?.used, row?.used, row?.eclipse]), stableJson([n, n, id]), `crossing ${n} was not counted in the GMs' store, named for this Eclipse`);
+            }
+            equal(stableJson(getSetting(SETTINGS.legacyEclipseMoves) ?? {}), "{}", "a crossing reached the world's old key, which every browser holds");
+            const cards = game.messages.contents.slice(from);
+            ok(cards.length === allowance && cards.every(m => m.getFlag(MODULE_ID, "veiled") === true && m.author?.id === game.user.id && m.speaker?.actor !== student.id),
+                `the crossings' cards are not ${allowance} veiled cards this GM posted: ${stableJson(cards.map(m => [m.author?.id ?? null, m.speaker?.actor ?? null, Boolean(m.getFlag(MODULE_ID, "veiled"))]))}`);
+            const beyond = await E.applyRecordedMove(student.id);
+            equal(G.reasonOf(beyond?.refused), "nothingLeft", `the crossing beyond the allowance was not refused as nothingLeft: ${stableJson(beyond)}`);
+            equal(stableJson([S.eclipseMoveStore.get(student.id)?.used, game.messages.size - from]), stableJson([allowance, allowance]),
+                "the refused crossing was counted, or posted a card");
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await S.eclipseMoveStore.drop(student.id);
+            await setClock(clock);
+            await settle();
+        }
+    }],
+
+    ["the owner's copy counts the crossing, and an empty answer takes nothing away", async () => {
+        /*
+         * E05 C4, 26.09.2026. A player's sheet, status panel and veto read the crossings from a
+         * copy of their own characters' rows the primary sends (`sendMovesTo`, with
+         * `movesFor`), weighed by the offers' rule (`offersCombine`). On the GM, which runs the
+         * owner's receiving half on its own browser's copy: a crossing is counted, and the
+         * owner's answer names the character's row with a stamp; taken into the copy it reads
+         * the count for this Eclipse; an answer from a GM whose browser holds no row - the same
+         * character at stamp 0 - is refused and takes nothing away. And the next Eclipse counts
+         * the last one's crossings as nothing, which is why nothing clears them.
+         */
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        needs(world.atLeast("playersWithCharacter"), "the copy is the owner's");
+        const owner = game.users.find(u => !u.isGM && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        const student = game.actors.find(a => a.type === "character" && a.testUserPermission(owner, "OWNER"));
+        const clock = getClock();
+        try {
+            await setClock({ timeOfDay: "morning" });
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId();
+            equal((await E.applyRecordedMove(student.id))?.used, 1, "the crossing was not counted");
+            const answer = E.movesFor(owner.id);
+            ok(answer.stamps[student.id] > 0 && stableJson(answer.moves[student.id]) === stableJson({ used: 1, eclipse: id }),
+                `the owner's answer does not name the counted crossing with a stamp: ${stableJson(answer)}`);
+            equal(await E.receiveMoves(answer.moves, answer.stamps), true, "the owner's copy did not take the answer");
+            equal(stableJson(S.eclipseMoveCopy.read()?.[student.id]), stableJson({ used: 1, eclipse: id }), "the owner's copy does not read the count");
+            equal(await E.receiveMoves({}, { [student.id]: 0 }), false, "an answer from a GM that holds no row was taken");
+            equal(S.eclipseMoveCopy.read()?.[student.id]?.used, 1, "an empty answer took the count away");
+
+            await E.endEclipse({ advance: false });
+            await E.startEclipse();
+            await settle();
+            ok(E.eclipseId() !== id && E.movesUsed(student) === 0, `the next Eclipse counts the last one's crossing (${E.movesUsed(student)})`);
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            await S.eclipseMoveStore.drop(student.id);
+            await setClock(clock);
+            await settle();
+        }
+    }],
+
     ["both killers may clean up, nobody else may", async () => {
         const [killer, victim, third] = cast();
         const drpg = game.drpg;
@@ -7529,6 +7617,93 @@ const SCENARIOS = [
         }
     }],
 
+    ["the crossings' lift moves the world's eclipseMoves into the GM store while an Eclipse runs, and empties the key once they read back", async () => {
+        /*
+         * E05 C4, 26.09.2026; audit S10-39. A world from before 1.2.64 counts the crossings of
+         * the running Eclipse in the world setting eclipseMoves; the clause `liftEclipseMoves`
+         * moves each count into the GMs' store, weak and fill-only, named for the running
+         * Eclipse, and takes it out of the world only once it reads back from storage. On
+         * fixture world data, in a world the stores have never opened (`withGmStoreWorld`),
+         * with the clock's Eclipse flag and name written by hand and one character's count
+         * already stamped by a GM since the update: the other's reads back from disk, the GM's
+         * stands; the key reads back empty; a second run has nothing to do. Outside an Eclipse
+         * a count is the last Eclipse's, and goes with no row. The key and the clock are put
+         * back.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const X = await import("./eclipse.mjs");
+        const [one, two] = cast(2);
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.legacyEclipseMoves) ?? {});
+        const clock = getClock();
+        try {
+            await setClock({ eclipse: true, eclipseStartedAt: 424242 });
+            const id = X.eclipseId();
+            await E.withGmStoreWorld(`suite-moveslift-${foundry.utils.randomID(8)}`, async () => {
+                await S.eclipseMoveStore.patch(two.id, { used: 1, eclipse: id });
+                await game.settings.set(MODULE_ID, SETTINGS.legacyEclipseMoves, { [one.id]: 2, [two.id]: 2 });
+                const report = await X.liftEclipseMoves();
+                const rows = [one.id, two.id].map(k => S.eclipseMoveStore.persisted(k) ?? {});
+                equal(stableJson(rows.map(r => [r.used, r.eclipse])), stableJson([[2, id], [1, id]]),
+                    "a count did not read back from the store's storage, named for this Eclipse, or the world's overwrote the one a GM counted");
+                equal(stableJson(getSetting(SETTINGS.legacyEclipseMoves) ?? {}), "{}", "the world's key still holds a count that read back");
+                equal(stableJson([report?.lifted, report?.kept, report?.emptied]), stableJson([2, 0, true]), `the lift's report: ${stableJson(report)}`);
+                equal(await X.liftEclipseMoves(), null, "a second run of the lift found something to do");
+
+                await setClock({ eclipse: false });
+                await game.settings.set(MODULE_ID, SETTINGS.legacyEclipseMoves, { [one.id]: 1 });
+                const outside = await X.liftEclipseMoves();
+                equal(stableJson([outside?.lifted, outside?.kept, getSetting(SETTINGS.legacyEclipseMoves) ?? null]), stableJson([0, 0, {}]),
+                    "outside an Eclipse the last Eclipse's count was lifted, or left in the world");
+            });
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.legacyEclipseMoves, before);
+            await setClock(clock);
+        }
+    }],
+
+    ["the crossings' lift leaves the world's eclipseMoves as it was when the store's rows do not read back", async () => {
+        /*
+         * E05 C4, 26.09.2026: the other half of the pair above. The store's save is swallowed -
+         * the row stands in memory and not on disk - and the world keeps the count: nothing
+         * leaves world data that the store cannot read back, and the report says what was
+         * kept. In a world the stores have never opened, in an Eclipse named by hand; the key
+         * and the clock are put back.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const X = await import("./eclipse.mjs");
+        const [one] = cast(1);
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.legacyEclipseMoves) ?? {});
+        const clock = getClock();
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        try {
+            await setClock({ eclipse: true, eclipseStartedAt: 434343 });
+            await E.withGmStoreWorld(`suite-moveskept-${foundry.utils.randomID(8)}`, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.legacyEclipseMoves, { [one.id]: 1 });
+                settings.set = async function (namespace, key, value) {
+                    if (namespace === MODULE_ID && key === S.eclipseMoveStore.spec.key) return value;
+                    return realSet.call(this, namespace, key, value);
+                };
+                const report = await X.liftEclipseMoves();
+                putBack();
+                ok(S.eclipseMoveStore.has(one.id), "the swallowed save left no row in memory either - this measured nothing");
+                equal(stableJson([report?.lifted, report?.kept, report?.emptied, getSetting(SETTINGS.legacyEclipseMoves)]), stableJson([0, 1, false, { [one.id]: 1 }]),
+                    "the world lost a count whose row is not on disk, or the report does not say it was kept");
+            });
+        } finally {
+            putBack();
+            await game.settings.set(MODULE_ID, SETTINGS.legacyEclipseMoves, before);
+            await setClock(clock);
+        }
+    }],
+
     ["a changed old store is reported, and taking it never overwrites what changed since the upgrade", async () => {
         /*
          * E04, 26.09.2026; the design's H1. After the upgrade the old keys are frozen,
@@ -8231,6 +8406,15 @@ const SCENARIOS = [
                 },
                 gone: (report, id) => !S.pendingMurderStore.has(id),
                 back: id => S.pendingMurderStore.get(id)?.note === "SUITE backed-up declaration"
+            },
+            // An Eclipse's crossing, through its store (E05 C4): named for an Eclipse that is not running, so it counts nothing.
+            eclipseMoves: {
+                seed: async () => {
+                    await S.eclipseMoveStore.patch(holder.id, { used: 1, eclipse: "SUITE backed-up Eclipse" });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.eclipseMoveStore.has(id),
+                back: id => S.eclipseMoveStore.get(id)?.used === 1 && S.eclipseMoveStore.get(id)?.eclipse === "SUITE backed-up Eclipse"
             },
             // Through the store, in this world: while tier 2 holds the stores no player is sent anything of it (R184).
             discovery: {

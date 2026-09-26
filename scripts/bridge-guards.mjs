@@ -226,6 +226,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["actionSpent", /^that action is spent$/],
     ["actionBlocked", /^that action is blocked$/],
     ["nothingLeft", /^nothing left to spend on a resolution$/],
+    // E05: the GM's count of the Eclipse's crossings (eclipse.mjs applyRecordedMove).
+    ["nothingLeft", /^no crossings left this Eclipse$/],
     ["movedOn", /^the incident has moved on since that action$/],
     ["movedOn", /^the last crisis action is not that character's$/],
     ["notThatRepair", /^there is no repair to take back$/],

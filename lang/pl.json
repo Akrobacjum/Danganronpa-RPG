@@ -2496,7 +2496,7 @@
         "actionLocked": "Ta akcja jest na razie zablokowana.",
         "actionSpent": "Ta jest w tym incydencie już zużyta.",
         "actionBlocked": "Na razie masz to zablokowane.",
-        "nothingLeft": "Nie ma już czego wydawać. Sanity i Health wyczerpane.",
+        "nothingLeft": "Nie ma już czego wydawać.",
         "movedOn": "Od tej akcji incydent poszedł dalej.",
         "notThatRepair": "To nie jest naprawa, którą utworzył twój sabotaż.",
         "notWhereItStood": "Token nie stał tam przed chwilą.",
@@ -4572,7 +4572,8 @@
         "offers": "Oferowane Level Upy",
         "discovery": "Pokoje odkryte przez każdą postać",
         "projectSecrets": "Kto buduje każdą pułapkę i co ją uruchamia",
-        "pendingMurders": "Zgłoszenia Direct Murder w ciemności"
+        "pendingMurders": "Zgłoszenia Direct Murder w ciemności",
+        "eclipseMoves": "Kto ile razy przeszedł w czasie Eclipse"
       },
       "row": {
         "traces": {
