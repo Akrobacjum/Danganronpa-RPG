@@ -32,7 +32,7 @@ If a claim cannot be measured, say that instead of rounding it up.
 | --- | --- |
 | The suite, in Foundry | `game.drpg.runTests()` in the console, as GM: tiers 0-1, read-only; `runTests({ tier: 2 })` also writes, and asks first in a window |
 | The harness, first time | `cd audit/harness && npm ci` - installs jsdom, ESLint, espree and Playwright (no browser); boots the checkout it sits in, or `DRPG_REPO` |
-| Everything CI runs | `npm test` in `audit/harness`: lint, `tools/check.mjs`, the gate's self-test, the suite and every scenario whose layers include `ci`. 9m20s here (26.09, 4 cores, 15 scenarios); exit 1 on anything red |
+| Everything CI runs | `npm test` in `audit/harness`: lint, `tools/check.mjs`, the gate's self-test, the suite and every scenario whose layers include `ci`. 14m03s here (26.09, 4 cores, 16 scenarios); exit 1 on anything red |
 | The quick part | `npm run quick` - lint, the checks and the gate's self-test, 9-13 s here; `npm run lint` and `npm run check` alone |
 | The suite, headless | `npm run suite`, or `node cluster.mjs scenarios/01-runtests.mjs` |
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines); `node run-all.mjs scenarios --only 40-flow` also holds it to a fresh results file |
@@ -66,7 +66,7 @@ is LIVE-E31-01..06 (audit/AUDIT-1.2.42.md 9.2).
 
 ## What the suite's four numbers mean
 
-`312 passed, 0 failed, 16 skipped` (headless, 26.09.2026, 1.2.62), and a fourth,
+`360 passed, 0 failed, 16 skipped` (headless, 26.09.2026, 1.2.63), and a fourth,
 `red`, printed only when it is not zero.
 
 - **passed** counts a test that ran at least one `ok()` or `equal()`; one that

@@ -54,7 +54,7 @@
     }
   },
   "worldCopy": {
-    "status": "not-taken",
+    "status": "lost",
     "takenAt": null,
     "worldId": null,
     "foundry": null,
@@ -63,7 +63,7 @@
     "files": null,
     "sha256": null,
     "location": "DRPG_FIXTURES (outside the repository)",
-    "why": null
+    "why": "Not recorded before 1.2.63 shipped (26.09.2026). The owner updates by hand and copies the world before installing 1.2.63, so an unmigrated copy should exist on the owner's machine, but it is not in DRPG_FIXTURES and its manifest was never taken, so this repository cannot name it. `node audit/live/world-manifest.mjs <that copy> --write` records it as taken."
   },
   "status": "not-measured",
   "attempts": [
