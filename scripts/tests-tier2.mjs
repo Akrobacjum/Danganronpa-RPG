@@ -7007,16 +7007,19 @@ const SCENARIOS = [
         }
     }],
 
-    ["a cleared Mastermind in the old store is reported, not claimed", async () => {
+    ["a cleared Mastermind in the old store is put to the primary GM, never applied", async () => {
         /*
          * E04, 26.09.2026; the design's H4. The old Mastermind entry named no world, and a
          * cleared one - `{ actorId: null, updated }` - says only that a GM cleared the pick
-         * somewhere, some time. Claimed, it would end this world's season on the upgrade
-         * day if the clear was another world's. So it is not claimed: the census counts it
-         * as left, its time is kept aside, and once the store holds a pick made before it
-         * the health report says so, as a decision for the primary GM - and a Keep (the pick
-         * stamped again) takes the row away. Stood in a world this browser has never opened;
-         * the old key is seeded, and put back by tier 2's restore.
+         * somewhere, some time. Applied, it would end this world's season on the upgrade
+         * day if the clear was another world's. So it is carried as a note: the record's
+         * `legacyClearedAt`, at the old entry's own stamp, which travels to every GM (the
+         * review's M1: kept aside on one browser, it was put to nobody when that browser
+         * was not the primary's) and is read by nothing as a pick. Once the store holds a
+         * pick made before it, the health report says so, as a decision for the primary
+         * GM, and no player is told the part; a Keep (the pick stamped again) takes the
+         * row away. Stood in a world this browser has never opened; the old key is seeded,
+         * and put back by tier 2's restore.
          */
         const E = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -7026,19 +7029,24 @@ const SCENARIOS = [
         await game.settings.set(MODULE_ID, SETTINGS.legacyMastermind, { actorId: null, room: null, updated: T });
         await E.withGmStoreWorld(`suite-cleared-${foundry.utils.randomID(8)}`, async () => {
             const census = await S.mastermindStore.claim();
-            equal(stableJson(census), stableJson({ legacy: 1, claimed: 0, left: 1, tombstones: 0, reasons: { cleared: 1 } }),
-                "the cleared entry was claimed, or not counted");
-            equal(S.mastermindStore.unassigned().mastermindClearedAt, T, "the clear's time was not kept aside");
+            equal(stableJson(census), stableJson({ legacy: 1, claimed: 1, left: 0, tombstones: 0, reasons: {} }),
+                "the cleared entry was not carried as one claimed row");
+            equal(stableJson([S.mastermindStore.record().legacyClearedAt, S.mastermindStore.stampOf("record", "legacyClearedAt")]),
+                stableJson([T, T]), "the clear's time was not carried in the record at its own stamp");
+            ok(Object.hasOwn(S.mastermindStore.section().e.record ?? {}, "legacyClearedAt"), "the clear's note is not in what travels to the other GMs");
             equal(mastermind.mastermindActor(), null, "a pick came out of a cleared entry");
+            equal(S.mastermindUndecided(), null, "a clear with no pick is put to a GM");
             // A pick another GM made before that clear, as a sync brings it.
             const theirs = E.emptySection();
             E.writeFields(theirs, "record", { actorId: student.id, room: null }, T - 60 * 1000, S.mastermindStore.spec, { whole: true });
             await S.mastermindStore.mergeIn(theirs, { source: "sync" });
+            equal(S.mastermindUndecided()?.pick, student.id, "a pick older than the clear is not undecided");
             const row = (await S.gmStoreHealth()).rows.find(r => r.id === "mastermindCleared");
             equal(row?.level, "conflict", "a pick older than the old store's clear is not reported for a GM to decide");
             ok(row && game.i18n.format(row.key, row.data).includes(student.name), "the decision does not name the pick it is about");
             await S.mastermindStore.patch("record", { actorId: student.id });
             ok(!(await S.gmStoreHealth()).rows.some(r => r.id === "mastermindCleared"), "after the pick was kept (stamped again) the row is still there");
+            equal(S.mastermindUndecided(), null, "after the pick was kept it is still undecided");
         });
     }],
 

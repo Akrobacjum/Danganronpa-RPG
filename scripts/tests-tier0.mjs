@@ -372,7 +372,7 @@ const REGRESSIONS = [
             // Answers only to the sender's own id, never to an id in the packet.
             "vote.mjs": "keys the tally by senderId; the payload's actor is an address, not a claim",
             "murder.mjs": "GM-to-GM sync plus one request answered from the sender's own cast",
-            "mastermind.mjs": "the door request is answered by the primary GM alone, about Foundry's own sender and nobody in the packet; the door flag is taken only from a GM, and only with a newer stamp",
+            "mastermind.mjs": "the door request is answered by the primary GM alone, about Foundry's own sender and nobody in the packet; the door flag is taken only from a GM, and only where newer, part by part",
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
             "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns",
             "sync.mjs": "world-state fan-out from a GM; carries no actor id",

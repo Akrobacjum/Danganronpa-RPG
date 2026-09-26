@@ -3763,9 +3763,15 @@ const INVARIANTS = [
          * a Map, a clock that moves when told - so nothing in this browser is written: an
          * answer with no stamp, an older one and an equal one change nothing; a newer one
          * does; one from far in the future is kept at the skew bound, so it cannot lock the
-         * copy; and a reset's cut above the copy reads as the fallback. Then the source:
-         * each GM-to-player sender in the table below puts a stamp in what it sends, and
-         * every call of it passes one.
+         * copy; and a reset's cut above the copy reads as the fallback.
+         *
+         * PART BY PART (the review's B1, 26.09): a copy carries a stamp per store field
+         * its value came from, and one that is newer in one part and older in another is
+         * not newer - a GM that had not merged a newer pick moved the lair and handed the
+         * former Mastermind's player "yes" at the room's fresh stamp. The door's own rule
+         * (`doorCombine`) is held on the review's case. Then the source: each GM-to-player
+         * sender in the table below puts stamps in what it sends, and every call of it
+         * passes them.
          */
         const G = await import("./gm-store.mjs");
         const { TIMING } = await import("./config.mjs");
@@ -3796,10 +3802,30 @@ const INVARIANTS = [
         equal(copy.stamp(), t + TIMING.gmStoreSkewMs, "a far-future stamp was not kept at the skew bound");
         t += TIMING.gmStoreSkewMs + 1000;
         equal(await copy.receive(no, t), true, "once the bound has passed, a real answer was not taken - one fast clock locked the copy");
+        // A copy that is not the fallback, so that reading the fallback under the cut measures the cut (the review's m2).
+        equal(await copy.receive(yes, t + 1), true, "a newer yes was not taken");
         cuts = { mastermind: t + 10 };
-        equal(read(), JSON.stringify(no), "a copy under its group's reset cut does not read as the fallback");
+        equal(read(), JSON.stringify(no), "a yes under its group's reset cut does not read as the fallback");
         equal(await copy.receive(yes, t + 5), false, "an answer under the reset's cut was taken");
         equal(await copy.receive(yes, t + 20), true, "an answer above the reset's cut was refused");
+
+        const parts = eng.defineCopy({ name: "r176parts", key: "r176Parts", resetGroup: "incident", fallback: {} });
+        equal(await parts.receive({ n: 1 }, { x: t + 100, y: t + 100 }), true, "a first copy stamped part by part was not taken");
+        equal(await parts.receive({ n: 2 }, { x: t + 200, y: t + 50 }), false, "a copy older in one part was taken for being newer in another");
+        equal(await parts.receive({ n: 3 }, { x: t + 200, y: t + 100 }), true, "a copy as new in every part and newer in one was refused");
+        equal(JSON.stringify(parts.read()), JSON.stringify({ n: 3 }), "the copy taken part by part does not read back");
+
+        const { doorCombine } = await import("./gm-stores.mjs");
+        const notHim = { value: { mastermind: false, room: null }, stamps: { actorId: 200, room: 0 } };
+        equal(doorCombine(notHim, { value: { mastermind: true, room: "Kitchen" }, stamps: { actorId: 100, room: 300 } }), null,
+            "a yes from a GM that has not merged the newer pick was taken for its fresh room (the review's B1)");
+        const him = { value: { mastermind: true, room: "Main Hall" }, stamps: { actorId: 200, room: 150 } };
+        equal(JSON.stringify(doorCombine(him, { value: { mastermind: true, room: "Kitchen" }, stamps: { actorId: 200, room: 300 } })?.value),
+            JSON.stringify({ mastermind: true, room: "Kitchen" }), "the moved lair, at the same pick, was not taken");
+        equal(JSON.stringify(doorCombine(him, { value: { mastermind: false, room: null }, stamps: { actorId: 250 } })),
+            JSON.stringify({ value: { mastermind: false, room: null }, stamps: { actorId: 250, room: 0 } }),
+            "a newer no did not take the part and the lair away");
+        equal(doorCombine(him, { value: { mastermind: false, room: null }, stamps: { actorId: 200 } }), null, "a no at the same pick was taken");
 
         // The senders: the function that emits a copy to a player, and the file that calls it.
         const SENDERS = [["mastermind.mjs", "sendDoorFlag"]];
@@ -3808,10 +3834,10 @@ const INVARIANTS = [
         for (const [file, fn] of SENDERS) {
             const src = stripComments(sources.get(file) ?? "");
             const body = fnSource(src, fn);
-            if (!/\bemit\([^;]*\bstamp\b/.test(body)) found.push(`${file} ${fn} emits no stamp`);
+            if (!/\bemit\([^;]*\bstamps?\b/.test(body)) found.push(`${file} ${fn} emits no stamp`);
             const calls = [...src.matchAll(new RegExp(`\\b${fn}\\(([^;]*)\\);`, "g"))].filter(m => !/^\s*function\b/.test(src.slice(Math.max(0, m.index - 9), m.index + 1)));
             if (!calls.length) found.push(`${file} ${fn} is called nowhere - take its row out`);
-            for (const m of calls) if (!/\bstamp/i.test(m[1])) found.push(`${file}: ${fn}(${m[1].slice(0, 60)}) passes no stamp`);
+            for (const m of calls) if (!/stamp/i.test(m[1])) found.push(`${file}: ${fn}(${m[1].slice(0, 60)}) passes no stamp`);
         }
         ok(!found.length, `a copy goes to a player without a stamp: ${found.join("; ")}`);
     }]

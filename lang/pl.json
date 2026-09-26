@@ -4585,7 +4585,7 @@
           "many": "{n} kluczy odpowiedzi śladów nie ma żetonu na żadnej scenie: zostają, nic ich nie czyta.",
           "other": "{n} klucza odpowiedzi śladów nie ma żetonu na żadnej scenie: zostają, nic ich nie czyta."
         },
-        "mastermindCleared": "Stary magazyn tej przeglądarki mówi, że Masterminda wyczyszczono {cleared}, już po tym, jak {picked} wybrano na niego postać {name} - być może w innym świecie. Zachowaj ten wybór albo go wyczyść."
+        "mastermindCleared": "Stary magazyn jednego z GM-ów (sprzed 1.2.63) mówi, że Masterminda wyczyszczono {cleared}, już po tym, jak {picked} wybrano na niego postać {name} - być może w innym świecie. Dopóki GM nie zdecyduje, ten gracz nie dowie się, że ma tę rolę. Zachowaj ten wybór albo go wyczyść."
       },
       "healthTitle": "Sprawa w tej przeglądarce",
       "healthIntro": "Tej przeglądarce brakuje części sprawy tego świata:",
@@ -4614,7 +4614,7 @@
         "many": "{n} Truth Bulletów wzięło klucze odpowiedzi ze swoich śladów.",
         "other": "{n} Truth Bulletu wzięło klucze odpowiedzi ze swoich śladów."
       },
-      "decideIntro": "Jedna rzecz w tej przeglądarce wymaga decyzji GM-a:",
+      "decideIntro": "Jedna rzecz w tym świecie wymaga decyzji GM-a:",
       "keepMastermind": "Zachowaj Masterminda",
       "clearMastermind": "Wyczyść Masterminda"
     }

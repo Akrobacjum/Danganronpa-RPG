@@ -25,9 +25,13 @@
  *      world B's rows only, and back in world A the same browser reads its traces
  *      intact without a GM having to send them.
  *   E  the Mastermind's door (S06-19): the pick reaches its player's copy with the
- *      record's stamp; a second GM whose browser holds no pick is asked and does
- *      not answer (the primary alone does); and a GM that lost the pick and picks
- *      somebody else still takes the part away from the first player (Q3).
+ *      record's stamps, and what each player is sent is read off the packets; a
+ *      second GM whose browser holds no pick is asked and does not answer (the
+ *      primary alone does); a GM that lost the pick and picks somebody else still
+ *      takes the part away from the first player (Q3); a GM that has not merged a
+ *      newer pick moves the lair and the former Mastermind learns nothing (B1); and
+ *      the upgrade day's clear is put to the primary whichever browser held it and
+ *      whenever the pick arrives, with no player told the part meanwhile (M1).
  *   Z  the browser is lost (the brief's live verify, headless): a GM backs up the
  *      case, every GM leaves, a third GM comes with an empty browser and is alone,
  *      so the primary; its health check opens and names what is missing, Continue
@@ -40,14 +44,16 @@ export const accounts = [
     { who: "gm3", id: "USERGM3000000000", name: "Third GM", role: 4, character: null, color: "#66ffaa", late: true },
     // The seed GM's browser, copied: in world B (gmb), then back in world A (gma).
     { who: "gma", id: "USERGMA000000000", name: "GM A", role: 4, character: null, color: "#aa66ff", late: true },
-    { who: "gmb", id: "USERGMB000000000", name: "GM B", role: 4, character: null, color: "#ffaa66", late: true }
+    { who: "gmb", id: "USERGMB000000000", name: "GM B", role: 4, character: null, color: "#ffaa66", late: true },
+    // A browser that ran 1.2.62 and holds nothing but its old store's clear of the Mastermind (E7).
+    { who: "gmc", id: "USERGMC000000000", name: "GM C", role: 4, character: null, color: "#aaff66", late: true }
 ];
 
 const PROBE_KEY = "drpg-harness.probe";
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, gm2, gm3, gma, gmb, p1, p2, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
+export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
     const GM2 = "USERGM2000000000", GMA = "USERGMA000000000";
 
     /* ------------------------------ A. the harness ------------------------------ */
@@ -246,12 +252,28 @@ export async function run({ gm, gm2, gm3, gma, gmb, p1, p2, check, phase, settle
     const doorOf = client => client.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs");
         const { iAmTheMastermind } = await import("${repoUrl}/scripts/settings.mjs");
         return { mine: iAmTheMastermind(), stamp: E.mineStamp("door"), copy: E.readMine("door") };`);
+    /* What each door packet says, as p1 and p2 receive it (the review's M2, 26.09): a copy
+       refuses an answer at a stamp it already holds, so the copy alone cannot show what the
+       primary answered - on the C5 tree a primary that told every asker "yes" passed E3. */
+    const RECORD_DOORS = `globalThis.__doors = [];
+        game.socket.on("module.${MOD}", (payload, senderId) => {
+            if (payload?.action === "mastermind.door") globalThis.__doors.push({ from: senderId, value: payload.value, room: payload.room ?? null, stamps: payload.stamps ?? null });
+        });
+        return true;`;
+    await p1.eval(RECORD_DOORS);
+    await p2.eval(RECORD_DOORS);
+    const doorsNow = client => client.eval(`return globalThis.__doors.length;`);
+    const doorsSince = (client, n) => client.eval(`return globalThis.__doors.slice(${n});`);
+    const yesAt = (at, room) => ({ from: IDS.gm, value: true, room, stamps: { actorId: at, room: at } });
+    const noAt = at => ({ from: IDS.gm, value: false, room: null, stamps: { actorId: at } });
     const pickedAt = await gm.eval(`${MM} await M.setMastermind(game.actors.get("${IDS.aiko}"), { room: "Main Hall" });
         return S.mastermindStore.stampOf("record");`);
     await settle(600);
     const p1First = await doorOf(p1);
-    check("E1: the Mastermind picked on the GM reaches its player's copy, the lair with it, at the record's stamp",
-        p1First.mine === true && p1First.copy?.room === "Main Hall" && p1First.stamp === pickedAt && pickedAt > 0, J({ pickedAt, p1First }));
+    const sentFirst = { p1: await doorsSince(p1, 0), p2: await doorsSince(p2, 0) };
+    check("E1: the Mastermind picked on the GM reaches its player's copy, the lair with it, at the record's stamps; the other player is sent no, with the pick's stamp alone",
+        p1First.mine === true && p1First.copy?.room === "Main Hall" && p1First.stamp === pickedAt && pickedAt > 0
+        && J(sentFirst.p1) === J([yesAt(pickedAt, "Main Hall")]) && J(sentFirst.p2) === J([noAt(pickedAt)]), J({ pickedAt, p1First, sentFirst }));
 
     await connect("gm2");
     await settle(1500);
@@ -263,11 +285,16 @@ export async function run({ gm, gm2, gm3, gma, gmb, p1, p2, check, phase, settle
     check("E2: a second GM with an empty browser, asked for the door, does not answer (the primary alone does), and the player keeps the part",
         doorsFrom("gm2") === beforeAsk.gm2 && afterGm2.mine === true && afterGm2.stamp === pickedAt, J({ beforeAsk, gm2Sent: doorsFrom("gm2"), afterGm2 }));
 
-    await p1.eval(`game.socket.emit("module.${MOD}", { action: "mastermind.doorRequest" }, { recipients: ["${IDS.gm}"] }); return true;`);
+    const askGm = client => client.eval(`game.socket.emit("module.${MOD}", { action: "mastermind.doorRequest" }, { recipients: ["${IDS.gm}"] }); return true;`);
+    const asked3 = { p1: await doorsNow(p1), p2: await doorsNow(p2) };
+    await askGm(p1);
+    await askGm(p2);
     await settle(500);
     const afterGm = await doorOf(p1);
-    check("E3: the primary answers the same player true, with the record's stamp",
-        doorsFrom("gm") > beforeAsk.gm && afterGm.mine === true && afterGm.stamp === pickedAt, J({ gmSent: doorsFrom("gm") - beforeAsk.gm, afterGm }));
+    const answered3 = { p1: await doorsSince(p1, asked3.p1), p2: await doorsSince(p2, asked3.p2) };
+    check("E3: the primary answers each player about themselves: the Mastermind's yes with the lair and both parts' stamps, the other's no with the pick's stamp alone",
+        doorsFrom("gm") > beforeAsk.gm && afterGm.mine === true && afterGm.stamp === pickedAt
+        && J(answered3.p1) === J([yesAt(pickedAt, "Main Hall")]) && J(answered3.p2) === J([noAt(pickedAt)]), J({ answered3, afterGm }));
 
     const botanAt = await gm.eval(`${MM} await S.mastermindStore.forget();
         const lost = M.mastermindActor();
@@ -279,8 +306,111 @@ export async function run({ gm, gm2, gm3, gma, gmb, p1, p2, check, phase, settle
     check("E4: a GM whose browser lost the pick picks another: the first player's copy says no at the new stamp, the new one's yes, and the other GM holds the new pick (Q3)",
         botanAt.lost === null && p1After.mine === false && p1After.copy?.room === null && p1After.stamp === botanAt.stamp
         && p2After.mine === true && pickOnGm2 === IDS.botan, J({ botanAt, p1After, p2After, pickOnGm2 }));
+
+    /* E5-E6, the review's B1 (26.09): a GM that has not merged a newer pick moves the
+       lair. gm2 leaves holding Botan; gm picks Aiko again; gm's store is held - it
+       answers nobody, as a primary busy with tier 2 does - so gm2 comes back, times out
+       and still holds Botan; gm2 moves the lair to the Kitchen. */
+    await disconnect("gm2");
+    await settle(300);
+    await gm.eval(`${MM} await M.setMastermind(game.actors.get("${IDS.aiko}")); return true;`);
+    await settle(600);
+    await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); E.gmStoreHold(true); return true;`);
+    await connect("gm2", { storage: await storageOf("gm2") });
+    await settle(9500);
+    const stale = await gm2.eval(`${MM} const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        const held = M.mastermindActor()?.id ?? null;
+        await M.setMastermindLair("Kitchen");
+        return { held, hydration: E.gmStoreHydration().state };`);
+    await settle(800);
+    const formerAfterStale = await doorOf(p2);
+    check("E5: a GM that has not merged a newer pick moves the lair: the former Mastermind's player stays not the Mastermind, and learns no lair",
+        stale.held === IDS.botan && stale.hydration === "timedOut" && formerAfterStale.mine === false && formerAfterStale.copy?.room === null,
+        J({ stale, formerAfterStale }));
+
+    await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); E.gmStoreHold(false); return true;`);
+    await settle(1500);
+    await p2.eval(`game.socket.emit("module.${MOD}", { action: "mastermind.doorRequest" }, { recipients: ["${IDS.gm}"] }); return true;`);
+    await settle(600);
+    const realAfter = await doorOf(p1), formerAfter = await doorOf(p2);
+    const converged = await gm2.eval(`${MM} return { pick: M.mastermindActor()?.id ?? null, lair: M.mastermindLair() };`);
+    check("E6: once the GMs converge, the Mastermind's player holds the new lair, and the former's answer from the primary is still no",
+        converged.pick === IDS.aiko && converged.lair === "Kitchen" && realAfter.mine === true && realAfter.copy?.room === "Kitchen"
+        && formerAfter.mine === false && formerAfter.copy?.room === null, J({ converged, realAfter, formerAfter }));
     await gm.eval(`${MM} await M.clearMastermind(); return true;`);
     await disconnect("gm2");
+    await settle(300);
+
+    /* E7-E8, the review's M1 (26.09): the upgrade day's clear (the design's H4) is put to
+       the primary whichever GM's browser held it, and whenever a pick older than it
+       arrives; until a GM decides, no player is told the part. The primary's window is
+       answered by a queued answer that waits, so what happens while it is open can be
+       read, and then pressed. */
+    const WAIT_FOR_WINDOW = `globalThis.__h4 = globalThis.__h4 ?? [];
+        globalThis.__dialogAnswers.push(config => new Promise(resolve => globalThis.__h4.push({
+            health: config.window?.title === game.i18n.localize("DRPG.Case.healthTitle"),
+            buttons: (config.buttons ?? []).map(b => b.action), answer: resolve })));
+        return true;`;
+    const windowsOnGm = () => gm.eval(`return (globalThis.__h4 ?? []).map(w => ({ health: w.health, buttons: w.buttons }));`);
+    const press = choice => gm.eval(`const open = globalThis.__h4?.at(-1); open?.answer?.(${J(choice)}); return Boolean(open);`);
+    const decides = w => Boolean(w?.health && w.buttons.includes("keepMastermind") && w.buttons.includes("clearMastermind"));
+    const pickStampOn = client => client.eval(`${MM} return { pick: M.mastermindActor()?.id ?? null, at: S.mastermindStore.stampOf("record", "actorId"),
+        note: S.mastermindStore.record().legacyClearedAt ?? null };`);
+
+    // E7: the pick on the primary, as its own old store's claim brought it (at an old stamp, through the store,
+    // as the claim writes); the clear in the old store of a GM who joins later - a browser that ran 1.2.62.
+    const clearedAt = (await pickStampOn(gm)).at;
+    await gm.eval(`${MM} await S.mastermindStore.patch("record", { actorId: "${IDS.aiko}", room: "Library" }, { stamp: ${clearedAt + 10} }); return true;`);
+    await settle(600);
+    await gm.eval(WAIT_FOR_WINDOW);
+    // The old store's key, as that browser holds it: the fixture this check is about.
+    await connect("gmc", { storage: { [`${MOD}.mastermind`]: J({ actorId: null, room: null, updated: clearedAt + 20 }) } });
+    await settle(1500);
+    const asked7 = await doorsNow(p1);
+    await askGm(p1);
+    await settle(500);
+    const held7 = await doorsSince(p1, asked7), windows7 = await windowsOnGm(), onGm7 = await pickStampOn(gm);
+    check("E7: a clear in a later GM's old store reaches the primary, which asks Keep or Clear, and meanwhile answers the pick's player no",
+        onGm7.note === clearedAt + 20 && onGm7.pick === IDS.aiko && windows7.length === 1 && decides(windows7[0])
+        && held7.length >= 1 && held7.every(d => J(d) === J(noAt(clearedAt + 10))), J({ onGm7, windows7, held7 }));
+
+    const beforeKeep = await doorsNow(p1);
+    await press("keepMastermind");
+    await settle(800);
+    const keptOnGm = await pickStampOn(gm), keptOnGmc = await pickStampOn(gmc), toldKept = await doorsSince(p1, beforeKeep), p1Kept = await doorOf(p1);
+    check("E7b: Keep stamps the pick again: its player is told yes at the new stamp, and the later GM holds the same pick",
+        keptOnGm.pick === IDS.aiko && keptOnGm.at > clearedAt + 20 && keptOnGmc.pick === IDS.aiko && keptOnGmc.at === keptOnGm.at
+        && toldKept.at(-1)?.value === true && toldKept.at(-1)?.stamps?.actorId === keptOnGm.at && p1Kept.mine === true,
+        J({ keptOnGm, keptOnGmc, toldKept, p1Kept }));
+
+    // E8: the clear already held by the primary, and a pick older than it arriving by merge after the check ran.
+    await gm.eval(`${MM} await M.clearMastermind(); return true;`);
+    await settle(600);
+    const clearedAgain = (await pickStampOn(gm)).at;
+    const mergeOnGm = (fields, at) => gm.eval(`${MM} const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        const theirs = E.emptySection();
+        E.writeFields(theirs, "record", ${J(fields)}, ${at}, S.mastermindStore.spec);
+        await S.mastermindStore.mergeIn(theirs, { source: "sync" });
+        return true;`);
+    await gm.eval(WAIT_FOR_WINDOW);
+    await mergeOnGm({ legacyClearedAt: clearedAgain + 20 }, clearedAgain + 20);
+    await settle(600);
+    const windowsNoPick = (await windowsOnGm()).length;
+    const asked8 = await doorsNow(p1);
+    await mergeOnGm({ actorId: IDS.aiko, room: "Library" }, clearedAgain + 10);
+    await settle(800);
+    const windows8 = await windowsOnGm(), told8 = await doorsSince(p1, asked8), p1Held = await doorOf(p1);
+    check("E8: a pick older than a clear the primary holds, arriving by merge after its check ran, is put to it too, and its player is told no",
+        windowsNoPick === 1 && windows8.length === 2 && decides(windows8[1]) && p1Held.mine === false
+        && told8.length >= 1 && told8.every(d => J(d) === J(noAt(clearedAgain + 10))), J({ windowsNoPick, windows8, told8, p1Held }));
+
+    await press("clearMastermind");
+    await settle(800);
+    const clearedE8 = { gm: await pickStampOn(gm), gmc: await pickStampOn(gmc), p1: await doorOf(p1) };
+    check("E8b: Clear takes the pick away on every GM, and its player stays not the Mastermind",
+        clearedE8.gm.pick === null && clearedE8.gmc.pick === null && clearedE8.gm.at > clearedAgain + 20 && clearedE8.p1.mine === false, J(clearedE8));
+    await gm.eval(`globalThis.__dialogAnswers.length = 0; return true;`);
+    await disconnect("gmc");
     await settle(300);
 
     /* ------------------- Z. the browser is lost, and the case comes back ------------------- */

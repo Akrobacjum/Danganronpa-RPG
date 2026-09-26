@@ -459,9 +459,10 @@ export const SETTINGS = {
      * would never read it.)
      *
      * A PLAYER COPY SINCE E04 (1.2.63): `mineDoor` (gm-stores.mjs, `doorCopy`),
-     * `{ mastermind, room }`, stamped by the GM who sent it with the record's
-     * stamp and replaced only by a newer one (audit S06-19: a second GM whose
-     * browser held no pick answered "not the Mastermind" and took the part away).
+     * `{ mastermind, room }`, stamped by the GM who sent it with the stamps of the
+     * record's fields it came from, and taken only where newer (`doorCombine`;
+     * audit S06-19: a second GM whose browser held no pick answered "not the
+     * Mastermind" and took the part away).
      * `legacyIAmMastermind` and `legacyMyMastermindLair` are the two keys before
      * it; nothing reads them.
      */

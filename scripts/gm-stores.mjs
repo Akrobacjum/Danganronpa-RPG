@@ -108,22 +108,32 @@ export const remnantStore = defineGmStore({
  * and another picking the Mastermind both keep theirs, and a clear is a stamped
  * null that reaches a GM who was offline (the old store answered a request only
  * while it held a pick, so a clear never did). The old entry is claimed when its
- * actor is this world's. A cleared one is not claimed: nothing says which world
- * it cleared, so its time is kept aside (`unassigned.mastermindClearedAt`) and the
- * health check asks the primary GM when it is newer than the pick the store holds
- * (the design's H4) - a clear made in another world must not end this one's
- * season without a GM deciding it.
+ * actor is this world's. A cleared one is never applied: nothing says which world
+ * it cleared, so it is carried as a note, `legacyClearedAt` - the old entry's time,
+ * at that stamp, read by nothing as a pick - and when it is newer than the pick the
+ * store holds, the primary GM is asked (the design's H4; `mastermindUndecided`). A
+ * clear made in another world must not end this one's season without a GM deciding
+ * it.
+ *
+ * The note travels with the record (the review's M1, 26.09.2026). Until then it was
+ * kept aside on the browser that held the old key and never sent, and the primary
+ * looked once, at its own load: a clear on another GM's browser, or a pick that
+ * arrived by merge later, was put to nobody, and the primary answered the cleared
+ * Mastermind's player "yes". Measured on 61 E7-E8 (the C5 tree plus B1, 26.09): in
+ * either order no window opened on the primary and the pick's player was told "yes";
+ * in E8 its copy took back the part a clear had taken away.
  */
 export const mastermindStore = defineGmStore({
     name: "mastermind", key: SETTINGS.mastermind, legacyKey: SETTINGS.legacyMastermind,
-    kind: "record", fields: ["actorId", "room"], resetGroup: "mastermind", backup: true, sync: true,
+    kind: "record", fields: ["actorId", "room", "legacyClearedAt"], resetGroup: "mastermind", backup: true, sync: true,
     legacyCount: legacy => (isPlain(legacy) && Object.keys(legacy).length ? 1 : 0),
     claim: legacy => {
         if (!isPlain(legacy) || !Object.keys(legacy).length) return { rows: [], left: [] };
         const { actorId = null, room = null, updated } = legacy;
         if (!actorId) {
-            return { rows: [], left: [{ key: RECORD, reason: "cleared" }],
-                unassigned: Number.isFinite(updated) && updated > 0 ? { mastermindClearedAt: updated } : {} };
+            // A clear with no time says nothing a pick could be weighed against: left where it is.
+            if (!Number.isFinite(updated) || updated <= 0) return { rows: [], left: [{ key: RECORD, reason: "cleared" }] };
+            return { rows: [{ key: RECORD, fields: { legacyClearedAt: updated }, stamp: updated }], left: [] };
         }
         if (!game.actors?.has(actorId)) return { rows: [], left: [{ key: RECORD, reason: "otherWorld" }] };
         return { rows: [{ key: RECORD, fields: { actorId, room: room || null }, stamp: updated }], left: [] };
@@ -131,17 +141,67 @@ export const mastermindStore = defineGmStore({
 });
 
 /**
+ * The upgrade day's clear, still undecided (H4): the store's pick is older than a
+ * clear some GM's old store held. `{ pick, clearedAt, pickedAt }`, or null. The same
+ * on every GM once the record has merged. While it stands, no player is told they
+ * hold the part (mastermind.mjs); a Keep stamps the pick again, a Clear clears it,
+ * and either ends it.
+ */
+export function mastermindUndecided() {
+    if (!game.user?.isGM) return null;
+    const record = mastermindStore.record();
+    const pick = record.actorId ?? null;
+    const clearedAt = Number.isFinite(record.legacyClearedAt) ? record.legacyClearedAt : 0;
+    const pickedAt = mastermindStore.stampOf(RECORD, "actorId");
+    return pick && clearedAt > pickedAt ? { pick, clearedAt, pickedAt } : null;
+}
+
+/**
+ * THE DOOR'S RULE, PART BY PART (the review's B1, 26.09.2026). Whether this player
+ * holds the part is the pick's to say (the stamp of the record's `actorId`); the lair
+ * is the room's (the stamp of `room`), taken only with a "yes" whose pick is at least
+ * as new as the one held. A "no" carries no room stamp - a player who is not the
+ * Mastermind learns nothing of when the lair moved - and clears the room. So an answer
+ * from a GM that has not merged a newer pick is older in the part that decides it,
+ * however fresh the room it wrote since; and once the GMs agree, the primary's answer
+ * is newer in the room and is taken. Pure (R176).
+ */
+export function doorCombine(held, offered) {
+    const hs = held?.stamps ?? {}, os = offered?.stamps ?? {};
+    const out = { value: { mastermind: Boolean(held?.value?.mastermind), room: held?.value?.room ?? null },
+        stamps: { actorId: hs.actorId ?? 0, room: hs.room ?? 0 } };
+    let changed = false;
+    if ((os.actorId ?? 0) > out.stamps.actorId) {
+        out.value.mastermind = Boolean(offered.value?.mastermind);
+        out.stamps.actorId = os.actorId;
+        if (!out.value.mastermind) {
+            out.value.room = null;
+            out.stamps.room = 0;
+        }
+        changed = true;
+    }
+    if (out.value.mastermind && offered.value?.mastermind && (os.actorId ?? 0) >= out.stamps.actorId
+        && (os.room ?? 0) > out.stamps.room) {
+        out.value.room = offered.value.room ?? null;
+        out.stamps.room = os.room;
+        changed = true;
+    }
+    return changed ? out : null;
+}
+
+/**
  * THE MASTERMIND'S PLAYER'S DOOR (E04 C5; audit S06-19): `{ mastermind, room }` on
  * a player's browser - true, with the lair, on the one client that holds the part,
- * false on every other. A GM sends it with the record's stamp, and a copy is
- * replaced only by a newer stamp: an answer from a GM whose browser holds no pick
- * (stamp 0) replaces nothing, which is how the part used to be taken away. The two
- * old keys are named so that nothing reads them (R171); the copy starts from a GM's
- * answer, which a player asks for when it loads and when a GM connects.
+ * false on every other. A GM sends it with the stamps of the record's fields it came
+ * from, and `doorCombine` takes of it only what is newer: an answer from a GM whose
+ * browser holds no pick (stamp 0) replaces nothing, which is how the part used to be
+ * taken away. The two old keys are named so that nothing reads them (R171); the copy
+ * starts from a GM's answer, which a player asks for when it loads and when a GM
+ * connects.
  */
 export const doorCopy = defineGmCopy({
     name: "door", key: SETTINGS.mineDoor, legacyKeys: [SETTINGS.legacyIAmMastermind, SETTINGS.legacyMyMastermindLair],
-    resetGroup: "mastermind", fallback: { mastermind: false, room: null }
+    resetGroup: "mastermind", fallback: { mastermind: false, room: null }, combine: doorCombine
 });
 
 /** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
@@ -468,14 +528,13 @@ export async function gmStoreHealth() {
     const cast = incidentCast();
     if (state.active && !cast.killerId && !cast.victimId) add("incident", "missing", "DRPG.Case.row.incident");
 
-    /* THE UPGRADE DAY'S CLEAR (the design's H4): this browser's old store says the
-       Mastermind was cleared after the pick the store holds was made. Nothing in the
-       old entry said which world it cleared, so the primary GM decides (Keep or Clear);
-       a Keep stamps the pick again, and the row is gone. */
-    const clearedAt = mastermindStore.unassigned().mastermindClearedAt ?? 0;
-    const pick = mastermindStore.record().actorId ?? null;
-    const pickedAt = mastermindStore.stampOf(RECORD, "actorId");
-    if (pick && clearedAt > pickedAt) {
+    /* THE UPGRADE DAY'S CLEAR (the design's H4): a GM's old store says the Mastermind
+       was cleared after the pick the store holds was made. Nothing in the old entry said
+       which world it cleared, so the primary GM decides (Keep or Clear); a Keep stamps
+       the pick again, and the row is gone. */
+    const undecided = mastermindUndecided();
+    if (undecided) {
+        const { pick, clearedAt, pickedAt } = undecided;
         add("mastermindCleared", "conflict", "DRPG.Case.row.mastermindCleared", { cleared: new Date(clearedAt).toLocaleString(),
             name: game.actors.get(pick)?.name ?? pick, picked: new Date(pickedAt).toLocaleString() });
     }
@@ -655,5 +714,13 @@ export function registerCaseHealth() {
         markCaseSince()
             .then(() => runHealthCheck())
             .catch(err => error("The case health check could not run", err));
+    });
+    /* The upgrade day's clear is put to the primary whenever the record changes after
+       that (the review's M1): the note, or a pick older than it, can arrive by merge from
+       a GM who joins later, and the check at load has run by then. */
+    Hooks.on("clientSettingChanged", key => {
+        if (key !== `${MODULE_ID}.${SETTINGS.mastermind}` || healthOpen || !gmStoresHydrated() || !isPrimaryGm()) return;
+        if (!mastermindUndecided()) return;
+        runHealthCheck().catch(err => error("The case health check could not run", err));
     });
 }

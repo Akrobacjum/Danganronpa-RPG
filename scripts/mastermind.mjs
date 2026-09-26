@@ -27,14 +27,14 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { myMastermindLair } from "./settings.mjs";
+import { SETTINGS, myMastermindLair } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { isDeceased, killCharacter } from "./chapter.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, ownerOf, primaryGmId, isPrimaryGm, log, error } from "./utils.mjs";
-import { mastermindStore, doorCopy } from "./gm-stores.mjs";
-import { RECORD } from "./gm-store.mjs";
+import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
+import { RECORD, onGmStoresHydrated, gmStoresHydrated } from "./gm-store.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -69,9 +69,27 @@ async function writeStore(actorId, room) {
     const previous = readStore().actorId ?? null;
     const fields = { actorId: actorId || null };
     if (room !== undefined) fields.room = room || null;
-    await mastermindStore.patch(RECORD, fields);
+    await ownWrite(() => mastermindStore.patch(RECORD, fields));
     const now = readStore();
     notifyDoorAccess(previous, now.actorId ?? null, now.room ?? null);
+}
+
+/** While this module's own write of the record is in flight: its change event is not a merge. */
+let writingDoor = 0;
+async function ownWrite(write) {
+    writingDoor++;
+    try { return await write(); } finally { writingDoor--; }
+}
+
+/**
+ * The record as the primary GM last told the players about it - who, where, and the
+ * two stamps - so a merge that changes it can be told too (`registerMastermind`).
+ */
+let told = null;
+function doorView() {
+    const r = readStore();
+    return { actorId: r.actorId ?? null, room: r.room ?? null,
+        actorAt: mastermindStore.stampOf(RECORD, "actorId"), roomAt: mastermindStore.stampOf(RECORD, "room") };
 }
 
 /**
@@ -90,27 +108,45 @@ async function writeStore(actorId, room) {
  * holds the newest stamp. That every player hears a pick changed at that moment
  * is the price, and it says nothing about who; nothing is sent to anybody else
  * when the pick is unchanged.
+ *
+ * ON HOLD WHILE THE UPGRADE DAY'S CLEAR IS UNDECIDED (the review's M1, 26.09.2026;
+ * `mastermindUndecided`): a pick older than a clear some GM's old store held may be
+ * one a GM took away, so its player is told "no" with everybody else until the
+ * primary GM keeps it (a fresh stamp, and then "yes") or clears it. A player who
+ * already holds the part at the pick's own stamp keeps it until then: a "no" at an
+ * equal stamp is refused (`doorCombine`), and the window that decides it is open on
+ * the primary.
  */
 function notifyDoorAccess(previousActorId, nextActorId, room = null) {
-    const stamp = mastermindStore.stampOf(RECORD);
+    const view = doorView();
+    if (isPrimaryGm()) told = view;
     const incoming = nextActorId ? ownerOf(game.actors.get(nextActorId)) : null;
-    const player = incoming && !incoming.isGM ? incoming : null;
+    // While the upgrade day's clear is undecided, the pick's player is one of "the rest".
+    const player = incoming && !incoming.isGM && !mastermindUndecided() ? incoming : null;
     if (previousActorId !== nextActorId) {
         for (const user of game.users) {
             if (!user.active || user.isGM || user.id === player?.id) continue;
-            sendDoorFlag(user.id, false, null, stamp);
+            sendDoorFlag(user.id, false, null, doorStamps(false, view));
         }
     }
-    if (player) sendDoorFlag(player.id, true, room, stamp);
+    if (player) sendDoorFlag(player.id, true, room, doorStamps(true, view));
 }
 
-function sendDoorFlag(userId, value, room, stamp) {
+/**
+ * The stamps a door answer carries (the review's B1): the pick's for "yes" and "no",
+ * and the room's only with a "yes" - see `doorCombine` in gm-stores.mjs.
+ */
+function doorStamps(value, view = doorView()) {
+    return value ? { actorId: view.actorAt, room: view.roomAt } : { actorId: view.actorAt };
+}
+
+function sendDoorFlag(userId, value, room, stamps) {
     try {
         game.socket.emit(SOCKET_EVENT,
             // `room` travels only alongside `value: true` - a "you are not the
             // Mastermind" carries no location, so a cleared player's client
             // holds nothing worth reading.
-            { action: ACTION_DOOR, value, room: value ? (room ?? null) : null, stamp },
+            { action: ACTION_DOOR, value, room: value ? (room ?? null) : null, stamps },
             { recipients: [userId] });
     } catch (err) {
         error("Could not deliver the Mastermind's private door flag", err);
@@ -172,7 +208,7 @@ export async function setMastermind(actor, { room } = {}) {
 /** Point the Mastermind's lair at a room, or clear it, without touching WHO. */
 export async function setMastermindLair(room) {
     if (!game.user.isGM) return;
-    await mastermindStore.patch(RECORD, { room: room || null });
+    await ownWrite(() => mastermindStore.patch(RECORD, { room: room || null }));
     const now = readStore();
     notifyDoorAccess(now.actorId ?? null, now.actorId ?? null, now.room ?? null);
 }
@@ -206,8 +242,9 @@ export function registerMastermind() {
      * packet. Until E04 every GM answered from its own copy, and a second GM whose
      * browser held no pick answered "no" and took the part away from the player
      * who had it (S06-19). The primary answers once its store holds the other GMs'
-     * copies, with the record's stamp; a pick nobody made yet is stamp 0, and a
-     * player's copy takes no stamp 0.
+     * copies, with the stamps of the record's fields (`doorStamps`); a pick nobody
+     * made yet is stamp 0, and a player's copy takes no stamp 0. While the upgrade
+     * day's clear is undecided the answer is "no" (see `notifyDoorAccess`).
      */
     game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
         if (payload?.action !== ACTION_DOOR_REQUEST || !isPrimaryGm()) return;
@@ -215,9 +252,32 @@ export function registerMastermind() {
         if (!sender?.active || sender.isGM) return;
         await mastermindStore.whenHydrated();
         const mine = readStore();
-        const owns = Boolean(mine.actorId && ownerOf(game.actors.get(mine.actorId))?.id === sender.id);
-        sendDoorFlag(sender.id, owns, owns ? (mine.room ?? null) : null, mastermindStore.stampOf(RECORD));
+        const owns = Boolean(mine.actorId && ownerOf(game.actors.get(mine.actorId))?.id === sender.id) && !mastermindUndecided();
+        sendDoorFlag(sender.id, owns, owns ? (mine.room ?? null) : null, doorStamps(owns));
     });
+
+    /*
+     * A MERGE THAT CHANGES THE RECORD IS TOLD TOO, by the primary (the review's B1).
+     * The GM that wrote tells the players itself; one that had not merged a newer pick
+     * sends answers that are older in the part that decides them, and they are refused
+     * (`doorCombine`) - so once the primary's store has the write, it tells the players
+     * as it would have told them of its own: a change of pick to everybody (Q3), a
+     * moved lair to the Mastermind's player. Measured (61 E6, 26.09, on the C5 tree and
+     * on this one without the watch): the Mastermind's player still held no lair once
+     * the GMs agreed on the Kitchen a stale GM had moved it to.
+     */
+    Hooks.on("clientSettingChanged", key => {
+        if (key !== `${MODULE_ID}.${SETTINGS.mastermind}` || writingDoor || !isPrimaryGm()) return;
+        const now = doorView();
+        // A GM that became the primary since it loaded starts from what it holds.
+        if (!told) { told = now; return; }
+        if (now.actorAt === told.actorAt && now.roomAt === told.roomAt) return;
+        notifyDoorAccess(told.actorId, now.actorId, now.room);
+    });
+    // What the players were told is what the store holds once the other GMs' copies are in.
+    const settled = () => { if (isPrimaryGm() && !told) told = doorView(); };
+    onGmStoresHydrated(settled);
+    if (gmStoresHydrated()) settled();
 
     /*
      * The private half: a GM -> this player, and nobody else.
@@ -239,7 +299,7 @@ export function registerMastermind() {
             // The lair travels with the flag and dies with it - a cleared
             // player keeps no record of where the room was.
             const value = { mastermind: Boolean(payload.value), room: payload.value ? (payload.room || null) : null };
-            if (!await doorCopy.receive(value, payload.stamp)) return;
+            if (!await doorCopy.receive(value, payload.stamps)) return;
             // Standing in the lair may already be true the moment the part
             // arrives - repaint rather than waiting for the next token move.
             const { applyAll } = await import("./visibility.mjs");

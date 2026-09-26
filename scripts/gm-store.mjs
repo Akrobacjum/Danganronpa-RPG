@@ -479,6 +479,38 @@ function subsection(sec, keys) {
 
 const stampOk = s => typeof s === "number" && Number.isFinite(s) && s >= 0;
 
+/** A copy's stamps as `{ part: stamp }`: an object of numbers, or one number (the part ""); null when neither. */
+export function copyStamps(s) {
+    if (isPlain(s)) {
+        const out = {};
+        for (const [part, v] of Object.entries(s)) {
+            if (UNSAFE.has(part) && part !== "") return null;
+            if (!stampOk(v)) return null;
+            out[part] = v;
+        }
+        return Object.keys(out).length ? out : null;
+    }
+    return stampOk(s) && s > 0 ? { "": s } : null;
+}
+
+/** The newest of a copy's stamps, 0 for none. */
+export const newestStamp = stamps => Math.max(0, ...Object.values(stamps ?? {}));
+
+/**
+ * Whether `next` is newer than `held`, part by part: at least as new in every part
+ * either names, and newer in one. A part at or under `cut` (a reset's) counts as none.
+ */
+export function newerStamps(next, held, cut = 0) {
+    const live = s => (s > cut ? s : 0);
+    let newer = false;
+    for (const part of new Set([...Object.keys(next ?? {}), ...Object.keys(held ?? {})])) {
+        const a = live(next?.[part] ?? 0), b = live(held?.[part] ?? 0);
+        if (a < b) return false;
+        if (a > b) newer = true;
+    }
+    return newer;
+}
+
 /** Whether a packet's section is plain objects stamped with numbers, with no key that could reach a prototype. */
 export function sectionProblem(sec) {
     if (!isPlain(sec)) return "the section is not an object";
@@ -1052,13 +1084,25 @@ export function createGmStoreEngine(env) {
         const cut = env.clock()?.resetCuts?.[spec.resetGroup];
         return Number.isFinite(cut) ? cut : 0;
     }
+    /**
+     * THE COPY'S STAMPS, PART BY PART (the review's B1, 26.09.2026). A copy was stamped
+     * with its record's newest stamp, whatever field that stamp was on: a GM that had not
+     * merged a newer pick moved the lair, sent the former Mastermind's player "yes" and
+     * the new room at the room's fresh stamp - and once the GMs agreed, that stamp was
+     * the record's newest, so the primary's correct answer came at an equal stamp and
+     * was refused. A copy now carries `{ part: stamp }`, one stamp per store field its
+     * value was computed from (one number is the part ""), and a spec's `combine(held,
+     * next)` decides what of it is taken; with none, the whole copy is taken only when
+     * it is at least as new in every part and newer in one (`newerStamps`).
+     */
     function copyRecord(cs) {
         const wid = worldId(), uid = env.selfId();
         const tag = `${wid}|${uid}`;
         if (!cs.cache.has(tag)) {
             const value = parseValue(env.storage.read(cs.spec.key));
             const rec = value.worlds?.[wid]?.[uid];
-            cs.cache.set(tag, isPlain(rec) && stampOk(rec.stamp) ? rec : null);
+            const stamps = isPlain(rec) ? copyStamps(rec.stamps ?? rec.stamp) : null;
+            cs.cache.set(tag, stamps ? { value: rec.value, stamps } : null);
         }
         return cs.cache.get(tag);
     }
@@ -1066,26 +1110,40 @@ export function createGmStoreEngine(env) {
         const cs = copies.get(name);
         if (!cs) return undefined;
         const rec = copyRecord(cs);
-        if (!rec || rec.stamp <= copyCut(cs.spec)) return clone(cs.spec.fallback);
+        if (!rec || newestStamp(rec.stamps) <= copyCut(cs.spec)) return clone(cs.spec.fallback);
         return rec.value;
     }
     function mineStamp(name) {
         const cs = copies.get(name);
-        return cs ? (copyRecord(cs)?.stamp ?? 0) : 0;
+        return cs ? newestStamp(copyRecord(cs)?.stamps) : 0;
+    }
+    function mineStamps(name) {
+        const cs = copies.get(name);
+        return cs ? clone(copyRecord(cs)?.stamps ?? {}) : {};
     }
     /**
-     * A GM's answer for this user's copy: taken only when its stamp is newer than the
-     * copy held here and than the clock's cut for its group. A stamp of 0 or none - a
-     * GM whose browser holds nothing - replaces nothing. A stamp beyond ten minutes
-     * ahead is stored at that bound, so one fast clock cannot lock the copy.
+     * A GM's answer for this user's copy: taken as its spec's `combine` decides, or whole
+     * when it is newer part by part (`newerStamps`) than the copy held here - a copy under
+     * the clock's cut for its group counts as none, and so does a part under it. An answer
+     * whose every part is 0 or under the cut - a GM whose browser holds nothing - replaces
+     * nothing. A stamp beyond ten minutes ahead is stored at that bound, so one fast clock
+     * cannot lock the copy.
      */
     async function receiveCopy(name, value, s) {
         const cs = copies.get(name);
-        if (!cs || !stampOk(s) || s <= 0) return false;
+        const incoming = copyStamps(s);
+        if (!cs || !incoming) return false;
+        const cut = copyCut(cs.spec), bound = now() + TIMING.gmStoreSkewMs;
+        for (const part of Object.keys(incoming)) incoming[part] = Math.min(incoming[part], bound);
+        if (newestStamp(incoming) <= cut) return false;
         const rec = copyRecord(cs);
-        if (s <= Math.max(rec?.stamp ?? 0, copyCut(cs.spec))) return false;
+        const held = rec && newestStamp(rec.stamps) > cut ? clone(rec) : null;
+        const offered = { value: clone(value), stamps: incoming };
+        const taken = cs.spec.combine ? cs.spec.combine(held, offered, { cut })
+            : (newerStamps(incoming, held?.stamps, cut) ? offered : null);
+        if (!taken) return false;
         const wid = worldId(), uid = env.selfId();
-        const next = { value: clone(value), stamp: Math.min(s, now() + TIMING.gmStoreSkewMs) };
+        const next = { value: clone(taken.value), stamps: { ...taken.stamps } };
         const stored = parseValue(env.storage.read(cs.spec.key));
         stored.worlds[wid] = { ...(isPlain(stored.worlds[wid]) ? stored.worlds[wid] : {}), [uid]: next };
         cs.cache.set(`${wid}|${uid}`, next);
@@ -1175,7 +1233,8 @@ export function createGmStoreEngine(env) {
     }
     function defineCopy(spec) {
         if (!copies.has(spec.name)) copies.set(spec.name, { spec: Object.freeze({ fallback: null, ...spec }), cache: new Map(), writing: false });
-        return { name: spec.name, read: () => readMine(spec.name), stamp: () => mineStamp(spec.name), receive: (v, s) => receiveCopy(spec.name, v, s) };
+        return { name: spec.name, read: () => readMine(spec.name), stamp: () => mineStamp(spec.name), stamps: () => mineStamps(spec.name),
+            receive: (v, s) => receiveCopy(spec.name, v, s) };
     }
 
     /**
@@ -1198,7 +1257,7 @@ export function createGmStoreEngine(env) {
         handles: () => [...stores.values()].map(st => st.handle),
         copySpec: name => copies.get(name)?.spec ?? null,
         copyNames: () => [...copies.keys()],
-        readMine, mineStamp, receiveCopy,
+        readMine, mineStamp, mineStamps, receiveCopy,
         whenHydrated, isHydrated,
         hydration: () => ({ world: hyd.wid, state: hyd.state, waiting: [...hyd.waiting] }),
         skew: () => Object.fromEntries(skewWarned),
@@ -1268,6 +1327,7 @@ export const gmCopySpec = name => engine.copySpec(name);
 /** This world's, this user's copy of a GM store, or its fallback: what a player's client knows. */
 export const readMine = name => engine.readMine(name);
 export const mineStamp = name => engine.mineStamp(name);
+export const mineStamps = name => engine.mineStamps(name);
 export const receiveCopy = (name, value, s) => engine.receiveCopy(name, value, s);
 export const gmStoreStamp = () => engine.stamp();
 export const gmStoreNow = () => engine.now();
