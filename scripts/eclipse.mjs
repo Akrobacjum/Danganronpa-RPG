@@ -17,15 +17,16 @@
  */
 
 import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
-import { SETTINGS, isEclipse, incomingTimeOfDay } from "./settings.mjs";
-// Both defined in settings.mjs, the leaf every side of this file's import
-// cycles can reach (audit C3); re-exported so nothing that imports them from
-// here has to know that.
-export { isEclipse, incomingTimeOfDay };
+import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId } from "./settings.mjs";
+// Defined in settings.mjs, the leaf every side of this file's import cycles can
+// reach (audit C3); re-exported so nothing that imports them from here has to
+// know that.
+export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
-import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc} from "./utils.mjs";
+import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, warn, error, plural, cardHead, esc, isPrimaryGm } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
+import { pendingMurderStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -136,7 +137,8 @@ export async function startEclipse() {
     }
 
     await game.settings.set(MODULE_ID, SETTINGS.eclipseMoves, {});
-    await setClock({ eclipse: true });
+    // Named by when it began (`eclipseId`): what is declared in it is judged by it alone.
+    await setClock({ eclipse: true, eclipseStartedAt: Date.now() });
 
     /*
      * THE OVERFLOW CHECK, AND IT HAS TO COME BEFORE THE REFILL (Z10).
@@ -251,6 +253,8 @@ export async function startEclipse() {
 export async function endEclipse({ advance = true } = {}) {
     if (!game.user.isGM) return null;
     if (!isEclipse()) return null;
+    // Its name, read while it still has one: the lights below judge what was declared in it.
+    const ending = eclipseId();
 
     await game.settings.set(MODULE_ID, SETTINGS.eclipseMoves, {});
     log("Eclipse ended.");
@@ -311,7 +315,7 @@ export async function endEclipse({ advance = true } = {}) {
     // to be: the declaration paid for itself when it was made, out of the
     // budget this Eclipse opened with (Z2). Judging spends nothing.
     try {
-        await judgePendingMurders();
+        await judgePendingMurders(ending);
     } catch (err) {
         error("Could not judge the direct murders declared during the Eclipse", err);
     }
@@ -332,12 +336,21 @@ export async function endEclipse({ advance = true } = {}) {
  * placement is the answer, not a snapshot of a room half way through it.
  * ========================================================================== */
 
-function pendingMurders() {
-    try {
-        return game.settings.get(MODULE_ID, SETTINGS.pendingMurders) ?? {};
-    } catch {
-        return {};
+/**
+ * The declarations of the Eclipse `id` - the running one's unless another is named -
+ * keyed by killer id. The GMs' store (E05, audit S10-01): until 1.2.64 this was a
+ * world setting, and every player's console read the killer, the room and the plan
+ * for the whole of the Eclipse. A row of another Eclipse is not this one's, whoever
+ * holds it: a GM who was away when an Eclipse ended hands its rows back at the next
+ * exchange, and they must not be judged by the next lights.
+ */
+function pendingMurders(id = eclipseId()) {
+    const out = {};
+    if (!game.user.isGM || !id) return out;
+    for (const [killerId, row] of Object.entries(pendingMurderStore.entries())) {
+        if (row && row.eclipse === id) out[killerId] = row;
     }
+    return out;
 }
 
 /** Record a declaration. One per killer: declaring twice replaces the first. */
@@ -353,26 +366,31 @@ export async function parkDirectMurder({ killerId, room = null, note = "" } = {}
 /** GM-side. The write itself, reached from the bridge or directly by a GM. */
 export async function writeParkedMurder({ killerId, room = null, note = "" } = {}) {
     if (!game.user.isGM || !killerId) return null;
-    const all = { ...pendingMurders() };
-    // `approved: null` is undecided, and it is written explicitly: a
-    // declaration parked before this gate existed carries no field at all, and
-    // `undefined` reading as "not yet allowed" is exactly the right answer for
-    // it - the GM is asked at the lights instead.
-    all[killerId] = { room, note, at: Date.now(), approved: null };
-    await game.settings.set(MODULE_ID, SETTINGS.pendingMurders, all);
+    // `approved: null` is undecided, and it is written explicitly: every field is
+    // named, so a second declaration by the same killer replaces the first whole.
+    // `eclipse` is the name of the Eclipse it was made in; the lights of another
+    // Eclipse drop it unjudged.
+    const entry = { room, note, at: Date.now(), approved: null, eclipse: eclipseId() };
+    await pendingMurderStore.patch(killerId, entry);
     log(`Direct murder declared in the dark by ${game.actors.get(killerId)?.name ?? killerId}.`);
 
-    await askGmToAllow(killerId, all[killerId]);
-    return all[killerId];
+    await askGmToAllow(killerId, entry);
+    return entry;
 }
 
 /**
- * Put the declaration to the GM, now, while the Eclipse is still running.
+ * Put the declaration to the GMs, now, while the Eclipse is still running.
  *
- * Into the killer's own messenger thread, like every other ruling this module
- * asks for - which means the killer sees the card too, and should: it is their
- * declaration and their sentence quoted in it. The buttons are stripped for
- * anybody who is not a GM before they are ever rendered.
+ * INTO THE GMs' LOG, NOT THE KILLER'S THREAD (E05, audit S11-02). It went into the
+ * killer's own messenger thread, like every other ruling this module asks for, so
+ * that the killer saw their own sentence quoted back. But a thread card's document
+ * names the thread it belongs to (messenger.mjs), and every browser holds the
+ * document: a new ruling card in one player's thread in the middle of an Eclipse
+ * said who had declared something. `gmOnly` whispers it to the GMs, and its title -
+ * the one line of it the document carries, as the popup's title - says nothing of
+ * what is asked. Its buttons are wired in the log as in a thread (gm-bridge.mjs,
+ * `registerGmBridge`); the killer hears the ruling, veiled, from
+ * `ruleOnParkedMurder`.
  *
  * It cannot name a victim, because there is not one yet. Nobody has finished
  * placing and the room the killer ends up in is the whole question the Eclipse
@@ -386,7 +404,8 @@ async function askGmToAllow(killerId, parked) {
     try {
         const { callGm } = await import("./gm-bridge.mjs");
         await callGm(killer, {
-            title: game.i18n.localize("DRPG.Action.directMurder"),
+            gmOnly: true,
+            title: game.i18n.localize("DRPG.Action.murderRulingTitle"),
             body: game.i18n.localize("DRPG.Action.murderNeedsApproval"),
             request: parked.note ?? "",
             room: parked.room ?? null,
@@ -413,28 +432,30 @@ async function askGmToAllow(killerId, parked) {
 /**
  * The GM's ruling on a parked declaration, from the card's two buttons.
  *
- * Refusing DELETES the record rather than marking it refused. A refusal is not
+ * Refusing DROPS the row rather than marking it refused. A refusal is not
  * a thing the judging step needs to reason about - there is nothing to judge -
- * and leaving it in the setting only creates a second way for a dead
+ * and leaving it in the store only creates a second way for a dead
  * declaration to be reconsidered at the lights.
  *
  * The action stays spent either way. That is the guide's rule for a direct
  * murder and it does not change because the GM said no: declaring is the cost.
+ *
+ * The killer's card is VEILED (E05, S11-02): addressed to them and the GMs it
+ * named their actor as its speaker and their player among its readers, in a
+ * document every browser holds, at the moment the GM ruled on a declaration.
  */
 export async function ruleOnParkedMurder(killerId, allow) {
     if (!game.user.isGM || !killerId) return null;
 
-    const all = { ...pendingMurders() };
-    const parked = all[killerId];
+    const parked = pendingMurders()[killerId];
     const killer = game.actors.get(killerId);
     if (!parked) {
         ui.notifications.warn(game.i18n.localize("DRPG.Action.murderNotParked"));
         return null;
     }
 
-    if (allow) all[killerId] = { ...parked, approved: true };
-    else delete all[killerId];
-    await game.settings.set(MODULE_ID, SETTINGS.pendingMurders, all);
+    if (allow) await pendingMurderStore.patch(killerId, { approved: true });
+    else await pendingMurderStore.drop(killerId);
 
     if (killer) {
         await whisperToOwner(killer,
@@ -442,7 +463,7 @@ export async function ruleOnParkedMurder(killerId, allow) {
                 allow
                     ? game.i18n.localize("DRPG.Action.murderApproved")
                     : `<span class="drpg-warning">${
-                        game.i18n.localize("DRPG.Action.murderRefused")}</span>`}</p>`);
+                        game.i18n.localize("DRPG.Action.murderRefused")}</span>`}</p>`, { veiled: true });
     }
 
     log(`Direct murder by ${killer?.name ?? killerId} ${allow ? "allowed" : "refused"}.`);
@@ -452,13 +473,67 @@ export async function ruleOnParkedMurder(killerId, allow) {
     return allow;
 }
 
+/** Every declaration this GM's browser holds, of any Eclipse, dropped (the season reset). */
 export async function clearParkedMurders() {
     if (!game.user.isGM) return;
-    await game.settings.set(MODULE_ID, SETTINGS.pendingMurders, {});
+    await pendingMurderStore.dropMany(Object.keys(pendingMurderStore.entries()));
 }
 
 /**
- * The lights come up: judge every declaration made in the dark.
+ * A world from before 1.2.64 holds the declarations in the world setting
+ * `pendingMurders`, which every browser reads (audit S10-01). The clause
+ * `liftPendingMurders` (migrate.mjs, since 1.2.64) runs this once, on the primary,
+ * after the store holds the other GMs' copies (E05 C3).
+ *
+ * NOTHING LEAVES WORLD DATA BEFORE THE STORE HOLDS IT. Each declaration goes in weak
+ * and fill-only, named for the Eclipse running now (a world updated between two
+ * Eclipses has none running, and the next lights drop what it held unjudged, as
+ * 1.2.63's season reset left it); a key is taken out of the world only once its row
+ * reads back from storage, and the setting is written back whole with the rest.
+ * Idempotent: a world already through this holds nothing.
+ *
+ * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}
+ */
+export async function liftPendingMurders() {
+    if (!isPrimaryGm()) return null;
+    if (await pendingMurderStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the declarations did not arrive; the next load tries again");
+    }
+    const old = game.settings.get(MODULE_ID, SETTINGS.legacyPendingMurders) ?? {};
+    const eclipse = eclipseId();
+    const rows = {};
+    for (const [killerId, entry] of Object.entries(old)) {
+        if (!killerId || !entry || typeof entry !== "object") continue;
+        rows[killerId] = { room: entry.room ?? null, note: entry.note ?? "", at: entry.at ?? null, approved: entry.approved ?? null, eclipse };
+    }
+    if (!Object.keys(old).length) return null;
+    if (Object.keys(rows).length) {
+        await pendingMurderStore.patchMany(rows, { weak: true, fillOnly: true });
+        await pendingMurderStore.idle();
+    }
+    const next = { ...old };
+    let lifted = 0, kept = 0;
+    for (const killerId of Object.keys(old)) {
+        if (!rows[killerId]) {
+            // Not a declaration at all: nothing to keep, and nothing a GM needs.
+            delete next[killerId];
+            continue;
+        }
+        if (pendingMurderStore.persisted(killerId)) {
+            delete next[killerId];
+            lifted++;
+        } else kept++;
+    }
+    if (kept) warn(`Declarations in the dark: ${kept} stayed in world data, because the GM store did not read them back.`);
+    if (Object.keys(next).length !== Object.keys(old).length) await game.settings.set(MODULE_ID, SETTINGS.legacyPendingMurders, next);
+    const left = Object.keys(game.settings.get(MODULE_ID, SETTINGS.legacyPendingMurders) ?? {}).length;
+    if (lifted) log(`Lifted ${lifted} declaration(s) made in the dark out of world data; ${left} left.`);
+    return { lifted, kept, emptied: left === 0 };
+}
+
+/**
+ * The lights come up: judge every declaration made in the Eclipse `id` - the one
+ * `endEclipse` is ending, named before the clock moved.
  *
  * The condition is the guide's and is read now, off the final placement - one
  * other character in the killer's room, and that person is the victim. Anything
@@ -476,14 +551,24 @@ export async function clearParkedMurders() {
  * backstop for the ones that are not, asked at the one moment the question is
  * fully formed: the killer, the victim, the room, and the killer's own sentence
  * about what they are doing.
+ *
+ * EVERY ROW GOES, and another Eclipse's goes unjudged (E05): a declaration the
+ * lights of its own Eclipse never reached - that Eclipse ended by a season reset, or
+ * on a GM who did not hold it yet - is not an attempt at this Eclipse's placement.
+ * Asked once the store holds the other GMs' copies, so a declaration parked through
+ * the primary is judged by whichever GM ends the Eclipse.
  */
-async function judgePendingMurders() {
+async function judgePendingMurders(id) {
     if (!game.user.isGM) return;
 
-    const all = pendingMurders();
+    await pendingMurderStore.whenHydrated();
+    const held = Object.keys(pendingMurderStore.entries());
+    const all = pendingMurders(id);
     const ids = Object.keys(all);
+    if (!held.length) return;
+    await pendingMurderStore.dropMany(held);
+    if (held.length > ids.length) log(`Dropped ${held.length - ids.length} declaration(s) made in another Eclipse, unjudged.`);
     if (!ids.length) return;
-    await clearParkedMurders();
 
     const { othersInRoom, roomOfActor } = await import("./movement.mjs");
     const { openMurder, murderState } = await import("./murder.mjs");
@@ -501,10 +586,12 @@ async function judgePendingMurders() {
         const room = roomOfActor(killer) ?? parked.room;
         const present = othersInRoom(killer);
 
+        // Veiled, as the ruling is (E05, S11-02): the document would name the killer's
+        // actor and their player at the moment the lights judged them.
         const say = async (line, cls = "") => {
             await whisperToOwner(killer,
                 `${cardHead({ action: game.i18n.localize("DRPG.Action.directMurder") })}<p>${
-                    cls ? `<span class="${cls}">${line}</span>` : line}</p>`);
+                    cls ? `<span class="${cls}">${line}</span>` : line}</p>`, { veiled: true });
         };
 
         if (murderState()) {

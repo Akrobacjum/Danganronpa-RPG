@@ -252,6 +252,35 @@ async function restore(snap) {
     if (stuck.length) throw new Error(`these settings would not be written back: ${[...new Set(stuck)].join(", ")}`);
 }
 
+/**
+ * Two students stood alone together in a room nobody else is in, for the lights of an
+ * Eclipse to judge (E05 C3): both tokens teleported to its centre and read back - a
+ * fixture that did not take would measure a refusal instead. `back()` puts them where
+ * they were. A teleport, not a walk: see the handover test's note on walls.
+ */
+async function aloneTogether(killer, victim) {
+    const { allRooms, othersInNamedRoom, othersInRoom, positionIn } = await import("./movement.mjs");
+    needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+    needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+    const scene = canvas?.scene;
+    const tokens = [killer, victim].map(a => scene?.tokens?.find(t => t.actorId === a.id));
+    ok(tokens.every(Boolean), "one of the two students has no token on the scene on screen");
+    const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+    ok(room, "every named room on the scene on screen has somebody in it");
+    const was = tokens.map(t => ({ x: t.x, y: t.y }));
+    const PLACE = { teleport: true, movementAction: "displace", animate: false };
+    for (const t of tokens) await t.update(positionIn(room, t), PLACE);
+    await settle();
+    equal(stableJson(othersInRoom(killer).map(a => a.id)), stableJson([victim.id]), `the fixture could not stand the two alone in ${room}`);
+    return {
+        room,
+        back: async () => {
+            for (const [i, t] of tokens.entries()) if (scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            await settle();
+        }
+    };
+}
+
 const SCENARIOS = [
     ["a direct murder opens on the killer and tells the victim", async () => {
         const [killer, victim] = cast(2);
@@ -404,6 +433,95 @@ const SCENARIOS = [
         const opened = await murder.openMurder({ killerId: killer.id, victimId: victim.id });
         ok(opened, "openMurder still refuses once the Eclipse has actually ended");
         equal(murder.murderState()?.killerId, killer.id, "the incident that opened has the wrong killer");
+    }],
+
+    ["a declaration made in the dark lives only on the GMs and is judged at the lights", async () => {
+        /*
+         * E05 C3, 26.09.2026; audit S10-01, S01-02, S11-02. A Direct Murder declared during an
+         * Eclipse was the world setting pendingMurders, which every browser holds, for the whole
+         * Eclipse: the killer, the room and the plan. The GM's ask was a card in the killer's
+         * messenger thread, whose document names the thread, and the ruling spoke as the killer to
+         * the killer's player. Driven through the game's own calls: the Eclipse opens; the
+         * declaration is parked; the world's old key holds nothing, and the GMs' store holds it,
+         * named for this Eclipse; the ask is one card in the GMs' log, no thread's; the GM allows
+         * it, and the killer's card of the ruling is veiled; the killer and the victim stand alone
+         * in a room, and the lights open the incident between them and leave no row behind.
+         */
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const murder = await import("./murder.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const [killer, victim] = cast(2);
+        equal(murder.murderState(), null, "an incident was already running when this scenario started");
+        const stood = await aloneTogether(killer, victim);
+        const NOTE = "SUITE E05 declared in the dark";
+        const from = game.messages.size;
+        const saying = text => game.messages.contents.slice(from).filter(m => contentOf(m).includes(text));
+        try {
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId();
+            ok(E.isEclipse() && id, `the Eclipse did not open, or has no name (${id})`);
+            await E.parkDirectMurder({ killerId: killer.id, room: stood.room, note: NOTE });
+            await settle();
+            equal(stableJson(getSetting(SETTINGS.legacyPendingMurders) ?? {}), "{}", "the declaration reached the world's old key, which every browser holds");
+            const row = S.pendingMurderStore.get(killer.id);
+            equal(stableJson([row?.room, row?.note, row?.approved, row?.eclipse]), stableJson([stood.room, NOTE, null, id]),
+                "the GMs' store does not hold the declaration, named for this Eclipse");
+            const asked = saying(NOTE);
+            ok(asked.length === 1 && asked[0].getFlag(MODULE_ID, "callCard") === true && !asked[0].getFlag(MODULE_ID, "thread")
+                && asked[0].whisper.every(u => game.users.get(u)?.isGM),
+                `the ask is not one card in the GMs' log: ${stableJson(asked.map(m => [m.whisper, m.flags?.[MODULE_ID]?.thread ?? null]))}`);
+
+            equal(await E.ruleOnParkedMurder(killer.id, true), true, "the GM could not allow the declaration");
+            const ruled = saying(game.i18n.localize("DRPG.Action.murderApproved"));
+            ok(ruled.length === 1 && ruled[0].getFlag(MODULE_ID, "veiled") === true && ruled[0].speaker?.actor !== killer.id,
+                "the killer's card of the ruling is not veiled: its document names the killer, or it was not posted");
+            equal(S.pendingMurderStore.get(killer.id)?.approved, true, "the ruling did not reach the GMs' store");
+
+            await E.endEclipse({ advance: false });
+            await settle();
+            const state = murder.murderState();
+            equal(stableJson([state?.killerId ?? null, state?.victimId ?? null]), stableJson([killer.id, victim.id]),
+                "the lights did not open the allowed declaration between the two who stood alone");
+            ok(!S.pendingMurderStore.has(killer.id), "the judged declaration is still in the GMs' store");
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (murder.murderState()) await murder.endMurder({ reason: "test", followUp: false });
+            await stood.back();
+        }
+    }],
+
+    ["a declaration from another Eclipse is dropped, not judged", async () => {
+        /*
+         * E05 C3, 26.09.2026. Each declaration is named for the Eclipse it was made in, and the
+         * lights judge their own Eclipse's: a row of another - that Eclipse ended by a season
+         * reset, or handed back by a GM who was away when it ended - is not an attempt at this
+         * placement. The same stage as the test above, where the lights open an allowed
+         * declaration: the killer and the victim alone in a room, the row allowed - but named for
+         * another Eclipse. The lights open nothing, and the row is gone.
+         */
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const murder = await import("./murder.mjs");
+        const [killer, victim] = cast(2);
+        equal(murder.murderState(), null, "an incident was already running when this scenario started");
+        const stood = await aloneTogether(killer, victim);
+        try {
+            await S.pendingMurderStore.patch(killer.id, { room: stood.room, note: "SUITE E05 another Eclipse", at: 1, approved: true, eclipse: "SUITE another Eclipse" });
+            await E.startEclipse();
+            await settle();
+            ok(E.isEclipse() && S.pendingMurderStore.has(killer.id), "the Eclipse did not open, or the other Eclipse's row did not stand in the store");
+            await E.endEclipse({ advance: false });
+            await settle();
+            equal(murder.murderState(), null, "the lights judged a declaration made in another Eclipse, and opened an incident");
+            ok(!S.pendingMurderStore.has(killer.id), "the other Eclipse's declaration was left in the GMs' store");
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (murder.murderState()) await murder.endMurder({ reason: "test", followUp: false });
+            await S.pendingMurderStore.drop(killer.id);
+            await stood.back();
+        }
     }],
 
     ["both killers may clean up, nobody else may", async () => {
@@ -7336,6 +7454,81 @@ const SCENARIOS = [
         }
     }],
 
+    ["the declarations' lift moves the world's pendingMurders into the GM store, and empties the key once they read back", async () => {
+        /*
+         * E05 C3, 26.09.2026; audit S10-01. A world from before 1.2.64 carries each Direct
+         * Murder declared in the dark in the world setting pendingMurders, under the killer's
+         * id; the clause `liftPendingMurders` moves each into the GMs' store, weak and
+         * fill-only, named for the Eclipse running (none here), and takes one out of the world
+         * only once its row reads back from storage. On fixture world data, in a world the
+         * stores have never opened (`withGmStoreWorld`), with the ruling already stamped by a GM
+         * since the update: the row reads back from disk with the world's room, note and time
+         * and the GM's ruling; the key reads back empty; a second run has nothing to do. The
+         * key is put back.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const X = await import("./eclipse.mjs");
+        const [killer] = cast(1);
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.legacyPendingMurders) ?? {});
+        try {
+            await E.withGmStoreWorld(`suite-parklift-${foundry.utils.randomID(8)}`, async () => {
+                await S.pendingMurderStore.patch(killer.id, { approved: true });
+                await game.settings.set(MODULE_ID, SETTINGS.legacyPendingMurders,
+                    { [killer.id]: { room: "SUITE lifted room", note: "SUITE lifted note", at: 1234, approved: null } });
+                const report = await X.liftPendingMurders();
+                const row = S.pendingMurderStore.persisted(killer.id) ?? {};
+                equal(stableJson([row.room, row.note, row.at, row.approved, row.eclipse]), stableJson(["SUITE lifted room", "SUITE lifted note", 1234, true, null]),
+                    "the declaration did not read back from the store's storage, or the world's overwrote the ruling a GM stamped");
+                equal(stableJson(getSetting(SETTINGS.legacyPendingMurders) ?? {}), "{}", "the world's key still holds a declaration that read back");
+                equal(stableJson([report?.lifted, report?.kept, report?.emptied]), stableJson([1, 0, true]), `the lift's report: ${stableJson(report)}`);
+                equal(await X.liftPendingMurders(), null, "a second run of the lift found something to do");
+            });
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.legacyPendingMurders, before);
+        }
+    }],
+
+    ["the declarations' lift leaves the world's pendingMurders as it was when the store's rows do not read back", async () => {
+        /*
+         * E05 C3, 26.09.2026: the other half of the pair above, as the project secrets' pair
+         * does it. The store's save is swallowed - the row stands in memory and not on disk -
+         * and the world keeps the declaration: nothing leaves world data that the store cannot
+         * read back, and the report says what was kept. In a world the stores have never
+         * opened; the key is put back.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const X = await import("./eclipse.mjs");
+        const [killer] = cast(1);
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.legacyPendingMurders) ?? {});
+        const old = { [killer.id]: { room: "SUITE kept room", note: "SUITE kept note", at: 5678, approved: true } };
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        try {
+            await E.withGmStoreWorld(`suite-parkkept-${foundry.utils.randomID(8)}`, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.legacyPendingMurders, old);
+                settings.set = async function (namespace, key, value) {
+                    if (namespace === MODULE_ID && key === S.pendingMurderStore.spec.key) return value;
+                    return realSet.call(this, namespace, key, value);
+                };
+                const report = await X.liftPendingMurders();
+                putBack();
+                ok(S.pendingMurderStore.has(killer.id), "the swallowed save left no row in memory either - this measured nothing");
+                equal(stableJson([report?.lifted, report?.kept, report?.emptied, getSetting(SETTINGS.legacyPendingMurders)]), stableJson([0, 1, false, old]),
+                    "the world lost a declaration whose row is not on disk, or the report does not say it was kept");
+            });
+        } finally {
+            putBack();
+            await game.settings.set(MODULE_ID, SETTINGS.legacyPendingMurders, before);
+        }
+    }],
+
     ["a changed old store is reported, and taking it never overwrites what changed since the upgrade", async () => {
         /*
          * E04, 26.09.2026; the design's H1. After the upgrade the old keys are frozen,
@@ -8029,6 +8222,15 @@ const SCENARIOS = [
                 },
                 gone: (report, id) => !projects.secretsOf(id).condition,
                 back: id => stableJson([projects.secretsOf(id).killerId, projects.secretsOf(id).condition]) === stableJson([holder.id, "SUITE backed-up condition"])
+            },
+            // A declaration made in the dark, through its store (E05 C3): named for no Eclipse, so no lights judge it.
+            pendingMurders: {
+                seed: async () => {
+                    await S.pendingMurderStore.patch(holder.id, { room: "SUITE backed-up room", note: "SUITE backed-up declaration", at: 1, approved: null, eclipse: null });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.pendingMurderStore.has(id),
+                back: id => S.pendingMurderStore.get(id)?.note === "SUITE backed-up declaration"
             },
             // Through the store, in this world: while tier 2 holds the stores no player is sent anything of it (R184).
             discovery: {

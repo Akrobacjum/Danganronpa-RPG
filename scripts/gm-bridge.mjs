@@ -580,13 +580,15 @@ async function handleCrisis(payload, sender, ctx, prepared) {
     if (!result) return { refused: "nothing was carried out: resolveCrisisAction resolved nothing" };
 }
 
-    // A direct murder declared in the dark. The declaration is a world write and
-    // the killer has no permission for one, so it travels; the judgement happens
-    // when the Eclipse ends, on this side, off the final placement.
+    // A direct murder declared in the dark. The declaration is written in the GMs'
+    // store (eclipse.mjs, since E05 - until then a world setting every browser
+    // held, so the parking itself was the leak), and a player's client holds no
+    // GM store, so it travels; the judgement happens when the Eclipse ends, on a
+    // GM's side, off the final placement.
     //
     // Nothing about the outcome is decided here or sent back - that is the whole
     // point of parking it, and a bridge that answered "recorded" with anything
-    // more would be the leak this change exists to close.
+    // more would tell the asker what only the GMs know.
 async function handleParkMurder(payload, sender, ctx) {
     const eclipse = await import("./eclipse.mjs");
     await eclipse.writeParkedMurder({

@@ -731,6 +731,28 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         !JSON.stringify(fogAfter ?? []).includes("Storage"), JSON.stringify(fogAfter));
 
     /*
+     * 7h2. A Direct Murder parked in another's name (E05 C3, 26.09.2026; audit S10-01). The
+     * declaration is the GMs' store's since E05, not the world setting every browser held: p1
+     * forges one for Chie (p3's), and nothing reaches the store; Chie's own player parks one, and
+     * the store holds it while the world's old key, read on p1, holds nothing.
+     */
+    phase("a Direct Murder parked", { flow: "murder-incident" });
+    const readPark = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return { row: S.pendingMurderStore.get("${ids.chie}") ?? null };`;
+    const park = await forge("murder.park", { killerId: ids.chie, room: "Gym", note: "SEC forged declaration" }, readPark);
+    check("SECURITY: a forged murder.park for Chie changed nothing in the GMs' store",
+        park.unchanged && park.after.row === null, JSON.stringify(park));
+    check("SECURITY: the GM refused the forged murder.park for ownership, and told p1",
+        park.forOwnership && park.told.some(t => t.what === "murder.park"), JSON.stringify({ reasons: park.reasons, told: park.told }));
+    await p3.eval(`const { parkDirectMurder } = await import("${repoUrl}/scripts/eclipse.mjs");
+        await parkDirectMurder({ killerId: "${ids.chie}", room: "Gym", note: "SEC Chie's own declaration" }); return true;`, { timeout: 30000 });
+    await settle(900);
+    const parkOk = await gm.eval(readPark);
+    const parkWorld = await p1.eval(`return game.settings.get("${MOD}", "pendingMurders") ?? null;`);
+    check("control: Chie's own player parks a declaration: the GMs' store holds it, and the world's old key on p1 holds nothing",
+        parkOk.row?.note === "SEC Chie's own declaration" && JSON.stringify(parkWorld) === "{}", JSON.stringify({ parkOk, parkWorld }));
+    await gm.eval(`await (await import("${repoUrl}/scripts/eclipse.mjs")).clearParkedMurders(); return true;`);
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`

@@ -1076,8 +1076,11 @@ async function wipeSeason(plan) {
         // The betrayal outlives the incident by design (D18); not the season.
         await clearBetrayalOffer();
         // A murder declared in the dark and never judged is an incident that
-        // has not happened yet. It would open on the first Eclipse of the new
-        // season, against a cast that has no idea what it is about.
+        // has not happened yet. The declarations are a GM store of this group
+        // since E05 (`pendingMurderStore`): the cut written above takes them on
+        // every GM, one away now included, and this drops what this browser
+        // holds. Each is named for its Eclipse, so no later lights would judge
+        // it - they drop it - but a reset is where it is gone for good.
         await clearParkedMurders();
     });
 

@@ -101,6 +101,9 @@ export async function setClock(patch = {}) {
         && patch.timeOfDayStartedAt === undefined) {
         next.timeOfDayStartedAt = Date.now();
     }
+    // An Eclipse's name ends with it (E05, `eclipseId`), whichever route ends it: a
+    // flag set again later by hand must not inherit the last Eclipse's name.
+    if (before.eclipse && next.eclipse !== true) next.eclipseStartedAt = null;
 
     await game.settings.set(MODULE_ID, SETTINGS.clock, next);
 

@@ -396,7 +396,19 @@ export const SETTINGS = {
     incidentCast: "gmCast",
     legacyIncidentCast: "incidentCast",
     mineCast: "mineCast",
-    pendingMurders: "pendingMurders",
+    /**
+     * THE DIRECT MURDERS DECLARED IN THE DARK (E05, 1.2.64; audit S10-01, S01-02,
+     * S11-02): a GM store (gm-stores.mjs `pendingMurderStore`), a row per killer
+     * `{ room, note, at, approved, eclipse }`, read for the running Eclipse only
+     * (`eclipseId`). Until 1.2.64 they were the world setting `pendingMurders`,
+     * which every browser holds: any console named the killer, the room and the
+     * plan for the whole of the Eclipse, before anybody knew there was an
+     * incident. That key stays registered as `legacyPendingMurders`, read only by
+     * the migration clause `liftPendingMurders`, and held empty by
+     * world-secrets.mjs. No old browser key: the first rows come out of the world.
+     */
+    pendingMurders: "gmPendingMurders",
+    legacyPendingMurders: "pendingMurders",
     /**
      * Who has killed in THIS chapter, in the order they did it.
      *
@@ -584,6 +596,14 @@ export const DEFAULT_CLOCK = {
      * An Eclipse is not part of a day - the day counter does not move for it.
      */
     eclipse: false,
+    /**
+     * When the running Eclipse began, as `Date.now()` on the GM's client that
+     * opened it (E05, 1.2.64), or null - `setClock` clears it when an Eclipse
+     * ends. It names the Eclipse (`eclipseId`): the GMs' rows of what was
+     * declared in the dark carry that name, and are judged by the Eclipse that
+     * made them and by no other.
+     */
+    eclipseStartedAt: null,
     /** Free text shown at the top of the HUD, e.g. "Hope's Peak: Drowned Summer". */
     campaignName: "",
     season: 1,
@@ -1236,13 +1256,16 @@ export function registerSettings() {
         onChange: () => onWorldChange(SETTINGS.murderState)
     });
 
-    // Direct murders declared during an Eclipse and not yet judged.
+    // Direct murders declared during an Eclipse and not yet judged: a GM store
+    // since E05 (`pendingMurderStore`), a row per killer - one killer, one
+    // attempt per Eclipse. Deliberately carries no victim: who that is depends
+    // on where everybody ends up standing, which is the whole point. See
+    // `judgePendingMurders`.
     //
-    // World-scoped like the incident itself: the declaration outlives the
-    // client that made it, and the judgement runs on the GM's when the lights
-    // come up. Keyed by killer id - one killer, one attempt per Eclipse.
-    // Deliberately carries no victim: who that is depends on where everybody
-    // ends up standing, which is the whole point. See `judgePendingMurders`.
+    // It was world-scoped "like the incident itself", on the reasoning that the
+    // declaration outlives the client that made it. It does - on the GMs'
+    // browsers, which is where the judgement runs - and world data was also
+    // every player's console, for the whole Eclipse (S10-01).
     //
     // NO `onChange`, DELIBERATELY. Nothing on any screen shows this: it is read
     // once, inside `judgePendingMurders`, on the GM's client, at the moment the
@@ -1251,6 +1274,13 @@ export function registerSettings() {
     // lie in the source, which is the shape of defect the "every setting that
     // promises a redraw gets one" invariant exists to remove.
     game.settings.register(MODULE_ID, SETTINGS.pendingMurders, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The world key before 1.2.64: read once by `liftPendingMurders`, and empty after.
+    game.settings.register(MODULE_ID, SETTINGS.legacyPendingMurders, {
         scope: "world",
         config: false,
         type: Object,
@@ -1817,6 +1847,29 @@ export function isEclipse() {
         return game.settings.get(MODULE_ID, SETTINGS.clock)?.eclipse === true;
     } catch {
         return false;
+    }
+}
+
+/**
+ * WHICH ECLIPSE THIS IS (E05, 1.2.64; audit S10-01): the name the GMs' rows of a
+ * Direct Murder declared in the dark carry, so that the lights judge the
+ * Eclipse's own declarations and drop another's unjudged. Null when no Eclipse
+ * runs.
+ *
+ * The stamp `startEclipse` writes into the clock, not where the clock stands: the
+ * clock does not move during an Eclipse, but a GM who rewinds it and opens the
+ * same Eclipse again stands exactly where the first one stood, and the first
+ * one's rows would count as the second's. An Eclipse opened before 1.2.64, or by
+ * a write of the flag alone, has no stamp and is named by where the clock stands
+ * and the season it is in.
+ */
+export function eclipseId(clock = null) {
+    try {
+        const c = clock ?? getClock();
+        if (c?.eclipse !== true) return null;
+        return c.eclipseStartedAt ? `at${c.eclipseStartedAt}` : `${c.seasonStartedAt ?? 0}:${c.chapter}:${c.day}:${c.timeOfDay}`;
+    } catch {
+        return null;
     }
 }
 

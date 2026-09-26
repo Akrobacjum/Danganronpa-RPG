@@ -17,8 +17,18 @@
  * the sidebar.
  *
  * `callGm()` in gm-bridge.mjs posts into these same threads - an action that
- * needs a human ruling (Observe, Analyze, Direct Murder…) shows up right next
- * to the player's own typed messages, in the same conversation.
+ * needs a human ruling (Observe, Analyze, Think…) shows up right next to the
+ * player's own typed messages, in the same conversation.
+ *
+ * WHAT A THREAD CARD STILL SAYS (E05, 26.09.2026; audit S11-02). The words are
+ * private; the document is not. Every browser holds it, and it names the
+ * thread's player (`thread`), its kind, whether it asks the GM (`gmAsk`) and
+ * when. So a card whose mere existence in one player's thread is the secret may
+ * not be a thread card: the Direct Murder declared in the dark is put to the
+ * GMs in their own log (`callGm` with `gmOnly`), and its ruling reaches the
+ * killer veiled (eclipse.mjs). Two such cards still land in the killer's thread
+ * - the trap's receipt and Stage 6's reshape card - and are E06's (S05-15), with
+ * the rest of what chat metadata says.
  */
 
 import { MODULE_ID } from "./config.mjs";

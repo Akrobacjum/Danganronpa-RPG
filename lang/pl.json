@@ -656,6 +656,7 @@
       "murderApprovedGm": "Direct Murder ({name}) dozwolony. Rozstrzygnie się z końcem Eclipse.",
       "murderRefusedGm": "Direct Murder ({name}) odrzucony. Akcja przepada.",
       "murderNotParked": "To zgłoszenie już nie czeka - Eclipse się skończył albo już je rozstrzygnięto.",
+      "murderRulingTitle": "Decyzja do podjęcia",
       "murderAsk": "Direct Murder w ciemności: {killer} sam na sam z: {victim} w: {room}. Otworzyć incydent?",
       "murderAskNote": "Pytano o to przy zgłoszeniu i pytanie wciąż czeka. Odmowa niczego nie otwiera; akcja przepada tak czy inaczej.",
       "sabotageSeenOn": "Robisz to na oczach innych. Akcja jest już wydana, więc sabotaż idzie dalej."
@@ -4570,7 +4571,8 @@
         "observe": "Deklaracje Observe czekające na rzut",
         "offers": "Oferowane Level Upy",
         "discovery": "Pokoje odkryte przez każdą postać",
-        "projectSecrets": "Kto buduje każdą pułapkę i co ją uruchamia"
+        "projectSecrets": "Kto buduje każdą pułapkę i co ją uruchamia",
+        "pendingMurders": "Zgłoszenia Direct Murder w ciemności"
       },
       "row": {
         "traces": {

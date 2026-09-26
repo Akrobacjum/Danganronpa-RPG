@@ -43,7 +43,9 @@
  *      and its use sets the trap off on the primary's chat.
  *   P  the same trap's killer, condition and trigger (E05, S09-05): the second GM,
  *      which joined G with an empty browser, holds them by the store's exchange,
- *      and projectMeta none of them; its Rearm reaches the primary's armed map.
+ *      and projectMeta none of them; its Rearm reaches the primary's armed map. And
+ *      a Direct Murder parked through the primary in an Eclipse (S10-01) is held by
+ *      the second GM, whose lights judge it.
  *   I  the fog ledger (S07-01): rooms found and one unticked while the second GM
  *      is away reach it when it comes back, the untick with them.
  *   H1 a Level Up offered on the primary (S03-11): its owner's copy is lit at the
@@ -666,6 +668,45 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     const rearmedP = await secretsOn(gm);
     check("P2: the second GM's Rearm reaches the primary's store and its armed map",
         rearmedP.firedAt === null && rearmedP.armed === true && rearmedP.mapped === true, J({ rearmedP }));
+    /* P3 (E05 C3, 26.09.2026; audit S10-01): a Direct Murder declared in the dark is the GM store
+       `pendingMurders` now, not a world setting, so a declaration p3 parks through the primary -
+       and the primary allows - reaches gm2 by the store's exchange alone, and gm2 ends the Eclipse
+       and judges it. Chie is stood in Storage, where nobody is, so the lights cancel it: gm2 tells
+       the GMs, and the row is gone on both. Chie goes back where she stood. The Eclipse is the
+       clock's flag and its name, written as `startEclipse` writes them and without the rest of
+       the opening: its refill rewrites every action budget's maximum, and phase M counts a price
+       handed back against that maximum - on the first run of this (26.09) M1 and M5 read 2
+       actions where the refund gives 3. */
+    const ECL = `const X = await import("${repoUrl}/scripts/eclipse.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");`;
+    const chieWas = await gm.eval(`${ECL} const t = canvas.scene.tokens.get("TOKCHIE000000000");
+        const was = { x: t.x, y: t.y };
+        await t.update(M.positionIn("Storage", t), { teleport: true, movementAction: "displace", animate: false });
+        await game.drpg.setClock({ eclipse: true, eclipseStartedAt: Date.now() });
+        return { was, alone: M.othersInRoom(game.actors.get("${IDS.chie}")).length === 0 && M.roomOfActor(game.actors.get("${IDS.chie}")) === "Storage" };`, { timeout: 60000 });
+    await p3.eval(`const X = await import("${repoUrl}/scripts/eclipse.mjs");
+        await X.parkDirectMurder({ killerId: "${IDS.chie}", room: "Storage", note: "E05 61 P3" }); return true;`, { timeout: 60000 });
+    await settle(900);
+    await gm.eval(`await game.drpg.ruleOnParkedMurder("${IDS.chie}", true); return true;`, { timeout: 30000 });
+    await settle(1200);
+    const heldP3 = await gm2.eval(`${ECL} const r = S.pendingMurderStore.get("${IDS.chie}");
+        return r ? { approved: r.approved, named: r.eclipse === X.eclipseId() && Boolean(r.eclipse) } : null;`);
+    const beforeP3 = await gm2.eval(`return game.messages.size;`);
+    await gm2.eval(`${ECL} await X.endEclipse({ advance: false }); return true;`, { timeout: 60000 });
+    await settle(1200);
+    const judgedP3 = {
+        onGm2: await gm2.eval(`${ECL} return S.pendingMurderStore.has("${IDS.chie}");`),
+        onGm: await gm.eval(`${ECL} return S.pendingMurderStore.has("${IDS.chie}");`),
+        told: await gm2.eval(`const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+            return game.messages.contents.slice(${beforeP3}).filter(m => m.author?.id === game.user.id && m.whisper.length
+                && m.whisper.every(u => game.users.get(u)?.isGM) && contentOf(m).includes("Chie Mori")).length;`),
+        eclipse: await gm.eval(`return game.drpg.isEclipse();`), incident: await gm.eval(`return game.drpg.murderState()?.stage ?? null;`)
+    };
+    check("P3: a declaration parked through the primary and allowed there is held by the second GM, whose lights judge it, and it is gone from both GMs",
+        chieWas.alone === true && heldP3?.approved === true && heldP3?.named === true && judgedP3.onGm2 === false && judgedP3.onGm === false
+        && judgedP3.told >= 1 && judgedP3.eclipse === false && judgedP3.incident === null, J({ chieWas, heldP3, judgedP3 }));
+    await gm.eval(`await canvas.scene.tokens.get("TOKCHIE000000000").update(${J(chieWas.was)}, { teleport: true, movementAction: "displace", animate: false });
+        return true;`, { timeout: 30000 });
     // Taken away again: no later phase is to meet an armed item trap with nothing planted for it.
     await gm.eval(`${TRAP} await P.deleteProject("${trap.id}"); return true;`);
     await settle(600);

@@ -611,6 +611,23 @@ const CLAUSES = [
             const report = await liftProjectSecrets();
             return report && (report.lifted || report.kept) ? report : null;
         }
+    },
+    {
+        key: "liftPendingMurders",
+        since: "1.2.64",
+        /*
+         * THE DECLARATIONS MADE IN THE DARK OUT OF WORLD DATA (E05 C3; audit S10-01,
+         * S01-02). Until 1.2.64 the world setting `pendingMurders`, which every browser
+         * holds, carried each Direct Murder declared in an Eclipse under the killer's
+         * id. Once, on the primary, after the GM store's copies arrived, with the rules
+         * written on `liftPendingMurders`: into the store weak and fill-only, and out of
+         * the world only the declarations the store reads back from storage.
+         */
+        run: async () => {
+            const { liftPendingMurders } = await import("./eclipse.mjs");
+            const report = await liftPendingMurders();
+            return report && (report.lifted || report.kept) ? report : null;
+        }
     }
 ];
 

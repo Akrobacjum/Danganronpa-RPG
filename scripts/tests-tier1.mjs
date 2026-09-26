@@ -4523,7 +4523,11 @@ const INVARIANTS = [
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             ...["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime"].map(f => [`every setting: ${f}`,
                 s => { s.settings.clock.deep = { [f]: 1 }; },
-                h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === `deep.${f}`])
+                h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === `deep.${f}`]),
+            // E05 C3: the declarations' old world key holds nothing - an entry under any key is found.
+            ["pendingMurders: empty",
+                s => { s.settings.pendingMurders = { R190OTHERACTOR01: { room: "Gym" } }; },
+                h => h.kind === "empty" && h.doc === "setting" && h.id === "pendingMurders"]
         ];
         const R = W.WORLD_SECRET_RULES;
         const named = new Set(FIXTURES.map(([what]) => what));

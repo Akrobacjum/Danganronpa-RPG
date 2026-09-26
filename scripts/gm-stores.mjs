@@ -423,6 +423,21 @@ export const projectSecretStore = defineGmStore({
 });
 
 /**
+ * THE DIRECT MURDERS DECLARED IN THE DARK (E05 C3; audit S10-01, S01-02, S11-02). A row per
+ * killer: `room`, `note`, `at`, `approved` and `eclipse`, the Eclipse it was declared in
+ * (settings.mjs `eclipseId`) - the world setting `pendingMurders` until 1.2.64, which every
+ * browser held for the whole Eclipse. Read for the running Eclipse only (eclipse.mjs
+ * `pendingMurders`); the lights judge that Eclipse's rows and drop every other unjudged. In
+ * the incident's reset group: a declaration nobody judged is an incident that has not
+ * happened yet. No old key: the first rows come out of the world by `liftPendingMurders`.
+ */
+export const pendingMurderStore = defineGmStore({
+    name: "pendingMurders", key: SETTINGS.pendingMurders,
+    kind: "ledger", resetGroup: "incident", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * THE OBSERVE DECLARATIONS WAITING FOR THEIR ROLL (E04 C7). Local: this browser's,
  * a section per world, neither synced nor backed up - the declaration and its
  * answer go through one GM, whoever `primaryGmId()` names, and last an hour at

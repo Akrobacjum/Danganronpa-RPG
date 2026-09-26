@@ -39,6 +39,11 @@ export const WORLD_SECRET_RULES = Object.freeze({
         projectMeta: Object.freeze({
             fields: Object.freeze(["killerId", "by", "condition", "trigger"]),
             since: "E05 C1", why: "an indirect murder's killer, builder, condition and trigger (S09-05, D3)"
+        }),
+        // The key before 1.2.64 (settings.mjs `legacyPendingMurders`); the declarations are a GM store.
+        pendingMurders: Object.freeze({
+            empty: true,
+            since: "E05 C3", why: "a Direct Murder declared in the dark, filed under the killer's id (S10-01, S01-02)"
         })
     }),
     everySetting: Object.freeze({

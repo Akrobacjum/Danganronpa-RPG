@@ -672,6 +672,7 @@
       "murderApprovedGm": "{name}'s direct murder is allowed. It resolves when the Eclipse ends.",
       "murderRefusedGm": "{name}'s direct murder is refused. Their action is spent.",
       "murderNotParked": "That declaration is no longer waiting - the Eclipse has ended, or it has already been ruled on.",
+      "murderRulingTitle": "A ruling to make",
       "murderAsk": "{killer} declared a direct murder in the dark and has ended up alone with {victim} in {room}. Open the incident?",
       "murderAskNote": "You were asked this when it was declared and it is still unanswered. Refusing opens nothing; the action stays spent either way."
     },
@@ -3341,7 +3342,8 @@
         "observe": "The Observe declarations waiting for their roll",
         "offers": "The Level Ups on offer",
         "discovery": "The rooms each character has found",
-        "projectSecrets": "Who builds each trap, and what sets it off"
+        "projectSecrets": "Who builds each trap, and what sets it off",
+        "pendingMurders": "The Direct Murders declared in the dark"
       },
       "row": {
         "traces": {

@@ -17,7 +17,8 @@
  * p1's and p2's world data - neither is the killer's player's - is read against
  * scripts/world-secrets.mjs and for Chie's actor id (`canary.worldScan`):
  *   trap          the indirect murder's bar filled and its trap armed (it watches Storage);
- *   eclipse       p1 crosses twice; the GM allows Chie's parked Direct Murder;
+ *   eclipse       p1 crosses twice; the GM allows Chie's parked Direct Murder, and
+ *                 neither the ask nor the ruling names her player or her (E05 C3);
  *   incident      the lights: Chie kills Botan (p2's), her opening thrown on p3's
  *                 client with forced dice (deleted after use), then a Finishing Blow;
  *   undiscovered  the incident closed with the body not found;
@@ -74,12 +75,22 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const park = canary.marker("park.note", { allowed: ["gm", "p3"] });
     const eclipse = await gm.eval(`await game.drpg.startEclipse(); return game.drpg.isEclipse();`, { timeout: 60000 });
     check("gm: an Eclipse is open", eclipse === true, String(eclipse));
+    const beforePark = await gm.eval(`return game.messages.size;`);
     await p3.eval(`const { parkDirectMurder } = await import("${repoUrl}/scripts/eclipse.mjs");
         await parkDirectMurder({ killerId: "${IDS.chie}", room: "Gym", note: "${park}" });
         return true;`, { timeout: 60000 });
     await settle(1000);
-    const parked = await gm.eval(`return game.settings.get("${MOD}", "pendingMurders")?.["${IDS.chie}"] ? true : false;`);
+    // In the GMs' store since E05 C3; the world's old key is read by 72's world scan, on the players.
+    const parked = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return Boolean(S.pendingMurderStore.get("${IDS.chie}"));`);
     check("gm: Chie's Direct Murder is parked, waiting for the GM", parked === true, String(parked));
+    /* The cards a declaration makes, found on the GM - who reads every one of their words - by
+       what they say: the ask quotes the park's note. Their documents are read on p1 and p2 in
+       phase eclipse, with the ruling's. */
+    const cardsSaying = (from, { text = null, key = null }) => gm.eval(`const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const text = ${JSON.stringify(key)} ? game.i18n.localize(${JSON.stringify(key)}) : ${JSON.stringify(text)};
+        return game.messages.contents.slice(${from}).filter(m => contentOf(m).includes(text)).map(m => m.id);`);
+    const askCards = await cardsSaying(beforePark, { text: park });
 
     /* A token the GM hid. */
     const hidden = canary.marker("token.hidden");
@@ -152,10 +163,35 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const crossings = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
         const first = await B.requestEclipseMove("${IDS.aiko}"), second = await B.requestEclipseMove("${IDS.aiko}");
         return [first?.ok ?? null, second?.ok ?? null];`, { timeout: 60000 });
+    const beforeRuling = await gm.eval(`return game.messages.size;`);
     const ruled = await gm.eval(`await game.drpg.ruleOnParkedMurder("${IDS.chie}", true);
         return { left: game.drpg.eclipseMovesLeft(game.actors.get("${IDS.aiko}")), eclipse: game.drpg.isEclipse() };`, { timeout: 60000 });
     check("p1: Aiko crosses twice in the Eclipse and has no crossing left", JSON.stringify(crossings) === "[true,true]" && ruled.left === 0 && ruled.eclipse === true,
         JSON.stringify({ crossings, ruled }));
+    /* WHAT THE DECLARATION'S CARDS SAY OF WHO DECLARED (E05 C3, 26.09.2026; audit S11-02). The
+       words of the GM's ask and of its ruling travel to their readers alone, but every browser
+       holds their documents. On 1.2.63 the ask was a card in the killer's player's messenger
+       thread - the document names the thread - and the ruling was addressed to that player with
+       Chie as its speaker: a new card of either during an Eclipse said who had declared. Read on
+       p1 and p2: neither card may name p3's thread, be addressed to p3 without them, or speak as
+       Chie. The two cards have to be found, or their absence measures nothing. */
+    await settle(600);
+    const ruling = await cardsSaying(beforeRuling, { key: "DRPG.Action.murderApproved" });
+    const declared = [...askCards, ...ruling];
+    const naming = [];
+    for (const p of [p1, p2]) {
+        const docs = await p.eval(`return ${JSON.stringify(declared)}.map(id => {
+            const m = game.messages.get(id);
+            if (!m) return { id, held: false };
+            const s = m._source;
+            return { id, held: true, thread: s.flags?.["${MOD}"]?.thread ?? null, speaker: s.speaker?.actor ?? null, whisper: s.whisper ?? [] };
+        });`);
+        for (const d of docs) {
+            if (d.held && (d.thread === p3.userId || d.speaker === IDS.chie || (d.whisper.includes(p3.userId) && !d.whisper.includes(p.userId)))) naming.push({ who: p.who, ...d });
+        }
+    }
+    check("p1 and p2: the GM's ask about Chie's declaration and its ruling name neither her player's thread, her player nor Chie",
+        askCards.length >= 1 && ruling.length >= 1 && naming.length === 0, JSON.stringify({ askCards, ruling, naming }));
     await scanned("eclipse");
 
     /* incident: the lights. Botan (p2's) stands beside Chie in Dorm B and nobody else is there;
