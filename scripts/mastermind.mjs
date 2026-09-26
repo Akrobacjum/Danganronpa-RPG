@@ -82,8 +82,10 @@ async function ownWrite(write) {
 }
 
 /**
- * The record as the primary GM last told the players about it - who, where, and the
- * two stamps - so a merge that changes it can be told too (`registerMastermind`).
+ * The record as this GM last saw the players told about it - who, where, and the two
+ * stamps - so a merge that changes it can be told too (`registerMastermind`). Kept on
+ * every GM, not the primary alone (the round-2 review's R2-m3): a GM that became the
+ * primary later took the first change it merged as its baseline and told nobody.
  */
 let told = null;
 function doorView() {
@@ -119,7 +121,7 @@ function doorView() {
  */
 function notifyDoorAccess(previousActorId, nextActorId, room = null) {
     const view = doorView();
-    if (isPrimaryGm()) told = view;
+    told = view;
     const incoming = nextActorId ? ownerOf(game.actors.get(nextActorId)) : null;
     // While the upgrade day's clear is undecided, the pick's player is one of "the rest".
     const player = incoming && !incoming.isGM && !mastermindUndecided() ? incoming : null;
@@ -153,7 +155,7 @@ export function retellDoor() {
     if (!game.user?.isGM || gmStoresQuiet()) return 0;
     const view = doorView();
     if (!view.actorAt) return 0;
-    if (isPrimaryGm()) told = view;
+    told = view;
     const owner = view.actorId ? ownerOf(game.actors.get(view.actorId)) : null;
     const player = owner && !owner.isGM && !mastermindUndecided() ? owner : null;
     let sent = 0;
@@ -293,15 +295,17 @@ export function registerMastermind() {
      * the GMs agreed on the Kitchen a stale GM had moved it to.
      */
     Hooks.on("clientSettingChanged", key => {
-        if (key !== `${MODULE_ID}.${SETTINGS.mastermind}` || writingDoor || !isPrimaryGm()) return;
+        if (key !== `${MODULE_ID}.${SETTINGS.mastermind}` || writingDoor || !game.user.isGM) return;
         const now = doorView();
-        // A GM that became the primary since it loaded starts from what it holds.
-        if (!told) { told = now; return; }
-        if (now.actorAt === told.actorAt && now.roomAt === told.roomAt) return;
-        notifyDoorAccess(told.actorId, now.actorId, now.room);
+        const was = told;
+        if (!was) { told = now; return; }
+        if (now.actorAt === was.actorAt && now.roomAt === was.roomAt) return;
+        // Every GM keeps what it saw; the primary alone tells (`notifyDoorAccess` keeps it too).
+        if (isPrimaryGm()) notifyDoorAccess(was.actorId, now.actorId, now.room);
+        else told = now;
     });
-    // What the players were told is what the store holds once the other GMs' copies are in.
-    const settled = () => { if (isPrimaryGm() && !told) told = doorView(); };
+    // What the players were told is what the store holds once the other GMs' copies are in - on every GM.
+    const settled = () => { if (!told) told = doorView(); };
     onGmStoresHydrated(settled);
     if (gmStoresHydrated()) settled();
 

@@ -62,6 +62,8 @@
  *   H2 the primary alone answers the owner with the offer and spends it; it offers
  *      again and, its store emptied, answers stamp 0 - the owner's button stays lit,
  *      and the spend is refused as not offered, with the GM told.
+ *   H3 an owner whose character went to another player still takes the next offer
+ *      (the round-2 review's M2).
  *   Z  the browser is lost (the brief's live verify, headless): the GM left from
  *      H2 picks the Mastermind and places two traces (J's resets took the others),
  *      backs up the case and leaves, a third GM comes with an empty browser and is
@@ -527,6 +529,24 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         && p3Merged.third === IDS.aiko && p3Merged.stamps?.killerTurnId === enteredAt && p1Merged.third === IDS.aiko
         && p1Merged.stamps?.killerTurnId === enteredAt && onGm2F5.killerTurnId === enteredAt, J({ enteredAt, fromGm2, p3Merged, p1Merged, onGm2F5 }));
 
+    /* F6, the round-2 review's M1 (26.09): a GM whose browser lost the cast - here forgotten, as a
+       lost browser has it - presses Pass the turn while the GM that kept it is away. Every field of
+       the record was stamped, the absent ones null, so the killer read null on every GM and in the
+       killer's player's copy once they met again (their scenario 97, P1). The turn is refused now,
+       with the way back named, and the write stamps only what it names. */
+    await disconnect("gm2");
+    await settle(300);
+    const passedF6 = await gm.eval(`${CAST} await S.castStore.forget();
+        const n = globalThis.__notifications.length;
+        const result = await M.passTurn();
+        return { result: result === null ? null : "passed", warned: globalThis.__notifications.slice(n).filter(x => x.level === "warn").map(x => x.msg) };`);
+    await connect("gm2", { storage: await storageOf("gm2") });
+    await settle(1500);
+    const afterF6 = { gm: await recordOn(gm), gm2: await recordOn(gm2), p3: await castOn(p3) };
+    check("F6: a GM whose browser lost the cast is refused the turn, told the way back, and once the GM that kept it is back every record and the killer's copy still name the killer",
+        passedF6.result === null && passedF6.warned.some(m => m.includes("Enter the cast by hand"))
+        && afterF6.gm.killer === IDS.chie && afterF6.gm2.killer === IDS.chie && afterF6.p3.killer === IDS.chie, J({ passedF6, afterF6 }));
+
     await gm2.eval(`${CAST} await M.endMurder({ reason: "E04 61F", followUp: false }); return true;`);
     await settle(800);
     const closedGm = await recordOn(gm), closedGm2 = await recordOn(gm2), closedP3 = await castOn(p3);
@@ -821,6 +841,25 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         && J(refused) === J([{ from: GM2, what: "advancement.apply", reason: "notOffered" }]) && told === 1,
         J({ secondAt, emptyAnswer, litEmpty, refused, told }));
 
+    /* H3, the round-2 review's M2 (26.09): Aiko, whose offers p1's copy holds, goes to p2, and
+       Daichi to p1; an offer to Daichi must light p1's button. Weighed as a part of every answer,
+       the character that left p1's set read as 0 in each answer after it, older than the copy,
+       and every answer was refused for the rest of the season. Put back after. */
+    phase("H3: an owner whose character went to another player still takes the next offer", { flow: "class-trial" });
+    await gm2.eval(`await game.actors.get("${IDS.aiko}").update({ ownership: { "${IDS.p1}": 0, "${IDS.p2}": 3 } });
+        await game.actors.get("${IDS.daichi}").update({ ownership: { "${IDS.p1}": 3 } }); return true;`);
+    await settle(800);
+    const offeredH3 = await gm2.eval(`${LV} await L.offerAdvancement(game.actors.get("${IDS.daichi}"), "standard");
+        return S.offerStore?.newest("${IDS.daichi}") ?? null;`);
+    await settle(800);
+    const litH3 = await p1.eval(`${LV} return { daichi: L.pendingAdvance(game.actors.get("${IDS.daichi}"))?.kind ?? null, stamps: E.mineStamps("offers") };`);
+    check("H3: p1, whose Aiko went to p2, takes the offer to Daichi, now theirs: the button lights at the offer's stamp",
+        offeredH3 > 0 && litH3.daichi === "standard" && litH3.stamps[IDS.daichi] === offeredH3 && !(IDS.aiko in litH3.stamps), J({ offeredH3, litH3 }));
+    await gm2.eval(`${LV} await L.recordOffer("${IDS.daichi}", null);
+        await game.actors.get("${IDS.daichi}").update({ ownership: { "${IDS.p1}": 0 } });
+        await game.actors.get("${IDS.aiko}").update({ ownership: { "${IDS.p1}": 3, "${IDS.p2}": 0 } }); return true;`);
+    await settle(800);
+
     /* ------------------- Z. the browser is lost, and the case comes back ------------------- */
 
     phase("Z: a GM backs up, every GM leaves, an empty browser comes back alone, and another restores", { flow: "gm-store" });
@@ -890,5 +929,21 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         toEach("mastermind.door") && toEach("advancement.offers") && toEach("fog.rows") && doorP1?.mastermind === true,
         J({ told: toldZ.map(t => [t.action, t.to]), doorP1 }));
 
-    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "Z"], gm: IDS.gm };
+    /* Z5, the round-2 review's R2-m3 (26.09): gm3 leaves, so gma - not the primary when it loaded -
+       is now; gmb comes back and moves the lair. The primary tells a merge that changes the record
+       (the review's B1): on a GM that became the primary later, the first change it merged was
+       only its baseline, and it told nobody. Read off the packets gma sends p1. */
+    await disconnect("gm3");
+    await settle(300);
+    await connect("gmb", { storage: await storageOf("gmb") });
+    await settle(1500);
+    const fromZ5 = socketTraffic.length;
+    await gmb.eval(`${MM} await M.setMastermindLair("Z5 lair"); return true;`);
+    await settle(1500);
+    const gmaTold = socketTraffic.slice(fromZ5).filter(t => t.from === "gma" && t.action === "mastermind.door" && Array.isArray(t.to) && t.to.includes(IDS.p1)).length;
+    const doorZ5 = await p1.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); return E.readMine("door");`);
+    check("Z5: a GM that became the primary after it loaded tells the Mastermind's player a lair another GM moved",
+        gmaTold >= 1 && doorZ5?.mastermind === true && doorZ5?.room === "Z5 lair", J({ gmaTold, doorZ5 }));
+
+    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "Z"], gm: IDS.gm };
 }

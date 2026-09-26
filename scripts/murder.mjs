@@ -135,15 +135,33 @@ export function murderState() {
 }
 
 /**
+ * The fields one write of the cast stamps, and with what (the round-2 review's M1):
+ * every field `next` names, and a field `previous` held that `next` leaves out - a
+ * removal, stamped null. A field neither names is not this write's: until E04's fix
+ * round every field of the record was stamped, `next`'s value or null, so a GM whose
+ * browser held no cast - a lost browser after Continue, a hydration that timed out -
+ * passed the turn and stamped null over every other GM's killer (measured: the killer
+ * null on both GMs and in the participant's copy). Pure.
+ */
+export function castFieldsToWrite(next, previous) {
+    const out = {};
+    for (const f of CAST_FIELDS) {
+        if (next && Object.hasOwn(next, f)) out[f] = next[f] ?? null;
+        else if (previous && Object.hasOwn(previous, f)) out[f] = null;
+    }
+    return out;
+}
+
+/**
  * Write the cast, and send each participant theirs.
  *
- * Every field of the record: what the caller left out of `next` is removed - a
- * stamped null - and only a field whose value differs from the one held here is
- * stamped (`changedOnly`, E04), so a writer that hands the whole cast back with one
- * field changed does not stamp the rest over another GM's newer write. `explicit`
- * names fields stamped whether or not they differ: the ones a new incident decides
- * afresh, which must win over whatever a GM that missed the last close still holds
- * (audit S04-24).
+ * The fields `castFieldsToWrite` names: what the caller hands in, and a field it left
+ * out of what this browser held - a removal. Only a field whose value differs from the
+ * one held here is stamped (`changedOnly`, E04), so a writer that hands the whole cast
+ * back with one field changed does not stamp the rest over another GM's newer write.
+ * `explicit` names fields stamped whether or not they differ: the ones a new incident
+ * decides afresh, which must win over whatever a GM that missed the last close still
+ * holds (audit S04-24).
  *
  * The participants are worked out from the cast being written rather than the
  * one being replaced, plus anybody who WAS in it - so a student who drops out
@@ -153,7 +171,7 @@ export function murderState() {
 async function writeCast(next, previous = readCast(), { explicit = [], push = true } = {}) {
     if (!game.user.isGM) return next;
 
-    const fields = Object.fromEntries(CAST_FIELDS.map(f => [f, next?.[f] ?? null]));
+    const fields = castFieldsToWrite(next, previous);
     const decided = {};
     for (const f of explicit) {
         if (!(f in fields)) continue;
@@ -276,7 +294,7 @@ function pushCastToParticipants(cast, previous, stateNow = null, statePrev = nul
 
     // The stamps of the record's fields (E04; the review's B1): a copy takes only what is newer.
     const stamps = castStamps();
-    if (isPrimaryGm()) castTold = { stamps, cast };
+    castTold = { stamps, cast };
     for (const userId of before) {
         if (!now.has(userId)) sendCast(userId, {}, stamps);
     }
@@ -304,7 +322,11 @@ function sendCast(userId, cast, stamps) {
     }
 }
 
-/** The cast as the primary GM last told the participants, and its stamps, so a merge that changes them is told too. */
+/**
+ * The cast as this GM last saw it told, and its stamps, so a merge that changes them is
+ * told too - kept on every GM, not the primary alone (the round-2 review's R2-m3): a GM
+ * that became the primary later took its first change as its baseline and told nobody.
+ */
 let castTold = null;
 
 /**
@@ -2582,10 +2604,26 @@ async function spendStress(actor, done) {
  * Hand the turn over. The victim always opens the incident, so a full round is
  * victim → killer, and the drain lands at the start of each of the victim's.
  */
+/**
+ * Whether this GM's browser holds the running incident's cast (the round-2 review's
+ * M1): a turn passed, or a third let in, from a browser that lost it wrote a rotation
+ * worked out from nobody. Said to the GM, and pointed at what puts it back.
+ */
+function castHeldHere(state) {
+    if (!castStore.isHydrated()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Murder.castNotArrived"));
+        return false;
+    }
+    if (state?.killerId && state?.victimId) return true;
+    ui.notifications.warn(game.i18n.localize("DRPG.Murder.castMissingHere"));
+    return false;
+}
+
 export async function passTurn() {
     if (!game.user.isGM) return null;
     const state = murderState();
     if (!state || state.stage !== "incident") return null;
+    if (!castHeldHere(state)) return null;
 
     /*
      * A ROUND IS: the victim, then EVERY killer in turn, then back to the
@@ -2755,14 +2793,17 @@ function registerIncidentCastSync() {
      * cast it told them, the stage being the world's own.
      */
     Hooks.on("clientSettingChanged", key => {
-        if (key !== `${MODULE_ID}.${SETTINGS.incidentCast}` || writingCast || !isPrimaryGm() || !gmStoresHydrated()) return;
-        // A GM that became the primary since it loaded starts from what it holds.
-        if (!castTold) { castTold = { stamps: castStamps(), cast: readCast() }; return; }
-        if (JSON.stringify(castStamps()) === JSON.stringify(castTold.stamps)) return;
-        pushCastToParticipants(readCast(), castTold.cast);
+        if (key !== `${MODULE_ID}.${SETTINGS.incidentCast}` || writingCast || !game.user.isGM || !gmStoresHydrated()) return;
+        const now = { stamps: castStamps(), cast: readCast() };
+        const was = castTold;
+        if (!was) { castTold = now; return; }
+        if (JSON.stringify(now.stamps) === JSON.stringify(was.stamps)) return;
+        // Every GM keeps what it saw; the primary alone tells (and keeps it in the push).
+        if (isPrimaryGm()) pushCastToParticipants(now.cast, was.cast);
+        else castTold = now;
     });
-    // What the participants were told is what the store holds once the other GMs' copies are in.
-    onGmStoresHydrated(() => { if (isPrimaryGm() && !castTold) castTold = { stamps: castStamps(), cast: readCast() }; });
+    // What the participants were told is what the store holds once the other GMs' copies are in - on every GM.
+    onGmStoresHydrated(() => { if (!castTold) castTold = { stamps: castStamps(), cast: readCast() }; });
 
     /*
      * AT READY, NOT AT REGISTRATION (found in the sandbox, 03.09): `registerMurder`
@@ -2989,6 +3030,7 @@ export async function thirdPartyEnters(actor) {
     if (!game.user.isGM || !actor) return null;
     const state = murderState();
     if (!state || state.stage !== "incident") return null;
+    if (!castHeldHere(state)) return null;
     if (state.thirdId) return null;
 
     // `thirdActed` is written explicitly rather than left undefined: it is what

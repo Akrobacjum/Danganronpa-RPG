@@ -1438,7 +1438,9 @@
       "crowdedNote": "Nikt nie ginie. To, co walka już zrobiła, zostaje: rany, Sanity i cokolwiek zostawiła na podłodze.",
       "freeResolution": "Nie ruszą się z miejsca. Weź w tej turze Survive albo Role reversal - bez rzutu, po prostu działa.",
       "trackerCastGone": "Ten incydent wskazuje kogoś, kogo nie ma już w świecie ({who}). Nic nie popchnie go dalej - zakończy go przycisk „Zamknij morderstwo”.",
-      "victimMarks": "Ofiara: zaznaczone Health {hp}, Sanity {stress}."
+      "victimMarks": "Ofiara: zaznaczone Health {hp}, Sanity {stress}.",
+      "castMissingHere": "Ta przeglądarka nie ma obsady trwającego incydentu, więc nie da się tu ustalić jego tury. Wpisz obsadę ręcznie (kontrola zdrowia sprawy) albo pozwól działać GM-owi, którego przeglądarka ją ma.",
+      "castNotArrived": "Kopie obsady incydentu od pozostałych GM-ów jeszcze nie dotarły do tej przeglądarki: spróbuj za chwilę."
     },
     "Investigation": {
       "room": "Pokój",

@@ -1423,7 +1423,9 @@
       "crowdedTitle": "Too many people",
       "crowded": "{name} walked in on top of {third}. Four people in one room is not a murder anybody can carry out - the incident is cancelled.",
       "crowdedNote": "Nobody dies. What the fight already did stands: the wounds, the Sanity, and anything it left on the floor.",
-      "freeResolution": "You stopped them cold. Take Survive or Role reversal this turn - no roll, it simply works."
+      "freeResolution": "You stopped them cold. Take Survive or Role reversal this turn - no roll, it simply works.",
+      "castMissingHere": "This browser holds no cast for the running incident, so its turn cannot be worked out here. Enter the cast by hand (the case's health check), or let the GM whose browser holds it act.",
+      "castNotArrived": "The other GMs' copies of the incident's cast have not arrived on this browser yet: try again in a moment."
     },
     "Investigation": {
       "room": "Room",

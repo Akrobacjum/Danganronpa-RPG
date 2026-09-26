@@ -446,6 +446,29 @@ export const offerStore = defineGmStore({
 });
 
 /**
+ * THE OFFERS COPY'S RULE (the round-2 review's M2, 26.09.2026). An answer names every
+ * character its owner owns now, each with the newest decision about it, and is the
+ * owner's whole set: taken when it is at least as new in every character it names and
+ * newer in one, and the characters it no longer names - given to another player,
+ * deleted - go with it. Weighed by `newerStamps`, a character that had an offer and then
+ * left the owner's set counted as a part the answer held at 0, older than the copy's:
+ * every answer after was refused, and no offer lit that owner's button again that
+ * season. Under a reset's cut a part counts as none. Pure (R176).
+ */
+export function offersCombine(held, offered, { cut = 0 } = {}) {
+    const live = s => (s > cut ? s : 0);
+    const named = Object.entries(offered?.stamps ?? {});
+    let newer = false;
+    for (const [actorId, s] of named) {
+        const theirs = live(s), mine = live(held?.stamps?.[actorId] ?? 0);
+        if (theirs < mine) return null;
+        if (theirs > mine) newer = true;
+    }
+    const gone = Object.keys(held?.stamps ?? {}).some(actorId => !Object.hasOwn(offered?.stamps ?? {}, actorId));
+    return newer || gone ? { value: offered?.value ?? {}, stamps: offered?.stamps ?? {} } : null;
+}
+
+/**
  * AN OWNER'S OFFERS (E04 C8): the Level Ups standing on this user's own characters,
  * `{ actorId: { kind } }`, as the primary GM sent them - a stamp per character (the row's,
  * a withdrawal's tombstone included), and taken whole only when it is at least as new
@@ -455,6 +478,7 @@ export const offerStore = defineGmStore({
  */
 export const offerCopy = defineGmCopy({
     name: "offers", key: SETTINGS.mineOffers, legacyKey: SETTINGS.legacyAdvanceOffers, from: "offers", resetGroup: "advancement", fallback: {},
+    combine: offersCombine,
     // A reset that withdraws the offers (the owner's Q4) sends no answer: the cut is the withdrawal.
     onCut: () => {
         import("./level-up.mjs").then(m => m.redrawOwnSheets())

@@ -3853,6 +3853,17 @@ const INVARIANTS = [
         await eng.applyCuts();
         equal(JSON.stringify([lit.read(), drawn]), JSON.stringify([{ R176ACTOR: { kind: "standard" } }, 1]),
             "a cut under what the copy holds took it, or drew it again");
+        /* A clock whose cut went down - an older clock put back - and came up again draws nothing
+           twice (the round-2 review: without `cut > was` the copy was drawn again, and nothing
+           above could tell). */
+        cuts = { ...cuts, advancement: t + 70 };
+        await eng.applyCuts();
+        equal(drawn, 2, "a cut over the offer the copy took after the reset did not draw it again");
+        cuts = { ...cuts, advancement: t + 35 };
+        await eng.applyCuts();
+        cuts = { ...cuts, advancement: t + 70 };
+        await eng.applyCuts();
+        equal(drawn, 2, "a cut that went down and came back up drew the copy again");
 
         const parts = eng.defineCopy({ name: "r176parts", key: "r176Parts", resetGroup: "incident", fallback: {} });
         equal(await parts.receive({ n: 1 }, { x: t + 100, y: t + 100 }), true, "a first copy stamped part by part was not taken");
@@ -3889,6 +3900,20 @@ const INVARIANTS = [
         // A trap's killer, answered "not in it" while it ran, and sent the cast at its end at the same seats.
         equal(castCombine({ value: {}, stamps: { ...seatsOnly, thirdId: 0 } }, { value: { killerId: "K" }, stamps: { ...castParts(100, 120), thirdId: 0 } })?.value?.killerId,
             "K", "the cast sent at a trap's end was refused by its killer's \"not in it\"");
+
+        /* The offers' rule (the round-2 review's M2): an answer is the owner's whole set, weighed
+           by the characters it names - a character that left the owner's set is not a part the
+           answer holds at 0. */
+        const { offersCombine, offerCopy } = await import("./gm-stores.mjs");
+        ok(G.gmCopySpec(offerCopy.name)?.combine === offersCombine, "the offers copy is not weighed by its own rule");
+        const offersHeld = { value: { A: { kind: "standard" } }, stamps: { A: 150 } };
+        equal(JSON.stringify(offersCombine(offersHeld, { value: { C: { kind: "standard" } }, stamps: { B: 0, C: 200 } })),
+            JSON.stringify({ value: { C: { kind: "standard" } }, stamps: { B: 0, C: 200 } }),
+            "an answer naming the owner's characters now was refused for one that left the owner's set, or kept it");
+        equal(offersCombine(offersHeld, { value: {}, stamps: { A: 100, C: 200 } }), null, "an answer older for a character it names was taken");
+        equal(offersCombine(offersHeld, { value: { A: { kind: "standard" } }, stamps: { A: 150 } }), null, "an answer that changes nothing was taken");
+        equal(offersCombine(offersHeld, { value: { A: { kind: "standard" } }, stamps: { A: 140 } }, { cut: 160 }), null,
+            "an answer under a reset's cut was taken");
 
         /* The senders: the function that emits a copy to a player, and the file that calls it.
            "own": the sender reads the stamps itself - the offers', from the store's rows for the
@@ -4084,6 +4109,32 @@ const INVARIANTS = [
         const flat = S.readCaseFile(J({ [`Actor.${student.id}.Item.R181`]: { realType: "key", updated: 5 }, "Actor.R181NOTHERE0000.Item.R181": { realType: "final", updated: 5 } }));
         equal(J([Object.keys(flat.stores.bullets.e), flat.stores.bullets.t[`Actor.${student.id}.Item.R181`], flat.notThisWorld?.bullets]),
             J([[`Actor.${student.id}.Item.R181`], 5, 1]), "the old export's row of this world was not taken at its stamp, or another world's was taken, or not counted");
+    }],
+
+    ["R183 - a write of the cast stamps only the fields it names, and no turn is worked out from a browser with no cast", async () => {
+        /*
+         * E04's fix round, 26.09.2026; the round-2 review's M1. `writeCast` stamped every field
+         * of the record - the caller's value, or null - so a GM whose browser held no cast
+         * passed the turn and stamped null over every other GM's killer (their scenario 97).
+         * What a write stamps is `castFieldsToWrite`, pure: the fields it names, and a field
+         * this browser held that it leaves out - a removal. And the two writes an incident's
+         * turn works out from what this browser holds - the pass, a third walking in - ask
+         * `castHeldHere` before they write (61 F6 drives the pass).
+         */
+        const M = await import("./murder.mjs");
+        const J = JSON.stringify;
+        equal(J(M.castFieldsToWrite({ killerTurnId: "B" }, {})), J({ killerTurnId: "B" }), "a write from a browser with no cast stamped fields it does not name");
+        equal(J(M.castFieldsToWrite({ killerId: "K", victimId: "V", killerTurnId: "K" }, { killerId: "K", victimId: "V", betrayal: { thirdId: "T" } })),
+            J({ killerId: "K", killerTurnId: "K", victimId: "V", betrayal: null }), "a field the write left out of what this browser held was not removed");
+        equal(J(M.castFieldsToWrite({ thirdId: null, notAField: 1 }, { thirdId: "T" })), J({ thirdId: null }),
+            "a named null was not written, or a field the record does not have was");
+        const src = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
+        ok(/const fields = castFieldsToWrite\(next, previous\);/.test(fnSource(src, "writeCast")), "writeCast does not stamp what castFieldsToWrite names");
+        for (const fn of ["passTurn", "thirdPartyEnters"]) {
+            const body = fnSource(src, fn);
+            const asked = body.indexOf("castHeldHere(state)"), wrote = body.indexOf("writeState(");
+            ok(asked > 0 && wrote > asked, `${fn} writes before it asks whether this browser holds the cast`);
+        }
     }],
 
     ["R182 - every store a player's copy is made from sends the copies again after a restore", async () => {
