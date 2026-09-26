@@ -2999,6 +2999,421 @@ const INVARIANTS = [
             ok(asks > 0 && judges > asks, `${name} does not ask forwardsUnjudged(sender) before judgeRelay`);
             ok(!/\bsender\.isGM\b/.test(body), `${name} decides on sender.isGM`);
         }
+    }],
+
+    ["R162 - the runner judges before it answers, answers once, and tells an exception as failed", async () => {
+        /*
+         * E31, 25.09.2026; audit S17-08. `judge` (bridge-guards.mjs) carries out every
+         * declaration of the bridge's tables. Driven here over a table of its own, with
+         * a `send` that records instead of emitting, so nothing leaves this client and
+         * nothing in the world is touched. What it must do: an action no table has is
+         * not its to judge; a guard's refusal is the one answer (no acknowledgement
+         * before it, and the run never starts); a request that passes is acknowledged
+         * and then answered at most once more - its reply, or the run's own refusal;
+         * an exception anywhere (preparing, a guard, the run) is logged and told as one
+         * refusal, "the handler failed"; a queue keeps the order packets arrived in
+         * even when the first run is the slower one, and acknowledges each packet as
+         * it arrives, ahead of the writes before it (E31 review), a refusal from its
+         * guards coming after that acknowledgement. Every refusal carries the code
+         * of the closed list its English reason stands for (E31 C4): "not their
+         * character" goes as notYours, an exception as failed, and a reason no
+         * pattern takes as refused; a declaration's `tell` is the code of every
+         * refusal but a throw, its guards' and its run's (E31 review). What reaches
+         * the GM's socket is handed to this function by the three listeners, which
+         * R1b reads.
+         */
+        const { judge, knownSender, pick, as } = await import("./bridge-guards.mjs");
+        const { sessionFailures } = await import("./utils.mjs");
+        const me = game.user.id, sent = [], ran = [];
+        const send = (to, packet) => sent.push({ to, ...packet });
+        const decl = (run, more = {}) => ({ label: "x", guards: [knownSender], sanitize: pick({ n: as.num }), run, answer: "ack", ...more });
+        let release = null;
+        const gate = new Promise(resolve => { release = resolve; });
+        const TABLE = {
+            "r162.refused": decl(() => { ran.push("refused"); }, { guards: [knownSender, () => "not their character"] }),
+            "r162.unlisted": decl(() => { ran.push("unlisted"); }, { guards: [knownSender, () => "a planted refusal no pattern takes"] }),
+            "r162.ack": decl(payload => { ran.push(`ack ${payload.n} ${Object.keys(payload).join(",")}`); }),
+            "r162.reply": decl(() => ({ reply: { answer: 42 } }), { answer: "reply" }),
+            "r162.later": decl(() => ({ later: true }), { answer: "reply" }),
+            "r162.runRefuses": decl(() => ({ refused: "no such character" })),
+            "r162.tell": decl(() => { ran.push("tell"); }, { guards: [knownSender, () => "not their character"], tell: "traceOutOfReach" }),
+            "r162.tellThrows": decl(() => { throw new Error("R162 planted: a run under a tell"); }, { tell: "traceOutOfReach" }),
+            "r162.tellRunRefuses": decl(() => ({ refused: "no such character" }), { tell: "traceOutOfReach" }),
+            "r162.throwsRun": decl(() => { throw new Error("R162 planted: the run"); }),
+            "r162.throwsGuard": decl(() => { ran.push("guard"); }, { guards: [knownSender, () => { throw new Error("R162 planted: a guard"); }] }),
+            "r162.throwsPrepare": decl(() => { ran.push("prepare"); }, { prepare: () => { throw new Error("R162 planted: prepare"); } }),
+            "r162.queued": decl(async payload => { await wait(payload.n === 1 ? 80 : 0); ran.push(`queued ${payload.n}`); },
+                { queue: "r162", answer: "reply" }),
+            "r162.held": decl(async () => { await gate; ran.push("held"); }, { queue: "r162", answer: "reply" }),
+            "r162.queuedRefused": decl(() => { ran.push("queuedRefused"); },
+                { guards: [knownSender, () => "not their character"], queue: "r162", answer: "reply" })
+        };
+        const ask = (action, extra = {}, from = me) =>
+            judge(TABLE, { action, requestId: `rid-${action}`, userId: from, n: 1, stray: "not on the list", ...extra }, from, { send });
+        const kinds = () => sent.map(p => (p.action === "bridge.refused" ? `${p.action} ${p.what} ${p.reason}` : p.action));
+        const clear = () => { sent.length = 0; ran.length = 0; };
+
+        equal(ask("r162.unknown"), false, "an action no table has was taken for judging");
+        equal(sent.length, 0, "an action no table has was answered");
+
+        await ask("r162.refused");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.refused r162.refused notYours"]),
+            "a guard's refusal was not the one answer, with its reason - an acknowledgement went first, or no refusal went at all");
+        ok(sent[0].to === me && sent[0].requestId === "rid-r162.refused" && !ran.length,
+            `the refusal went to the wrong place, or the run ran after it: ${JSON.stringify({ sent, ran })}`);
+
+        clear();
+        await ask("r162.unlisted");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.refused r162.unlisted refused"]),
+            "a reason no pattern takes was not told as the fallback, refused");
+
+        clear();
+        await ask("r162.ack", {}, "R162NOSUCHUSER00");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.refused r162.ack unknownSender"]), "a sender Foundry does not know was not refused as one");
+
+        clear();
+        await ask("r162.ack");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack"]), "a request that passed was not acknowledged once and left at that");
+        equal(JSON.stringify(ran), JSON.stringify(["ack 1 n"]), "the run was not handed the whitelisted copy - only `n` is on its list");
+
+        clear();
+        await ask("r162.reply");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.done"]), "a reply was not an acknowledgement and one answer");
+        equal(sent[1]?.value?.answer, 42, "the answer sent is not the one the run returned");
+
+        clear();
+        await ask("r162.later");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack"]), "a ruling to be given later from a card was answered now");
+
+        clear();
+        await ask("r162.runRefuses");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.refused r162.runRefuses missing"]),
+            "a run's own refusal did not follow its acknowledgement, once, with its reason");
+
+        // A declaration's `tell` is the code its guards' refusals are told with, whatever the guard's own reason;
+        // a failure of its run is still told as failed.
+        clear();
+        await ask("r162.tell");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.refused r162.tell traceOutOfReach"]),
+            "a guard's refusal was not told with the declaration's `tell`");
+        clear();
+        await ask("r162.tellThrows");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.refused r162.tellThrows failed"]),
+            "a run that threw under a `tell` was not told as failed");
+        // And the run's own refusal is told with it too (E31 review): a run that carried out nothing refuses, and
+        // under a `tell` that refusal says no more than the guards' do.
+        clear();
+        await ask("r162.tellRunRefuses");
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.refused r162.tellRunRefuses traceOutOfReach"]),
+            "a run's own refusal under a `tell` was not told with it");
+
+        for (const where of ["Run", "Guard", "Prepare"]) {
+            clear();
+            await ask(`r162.throws${where}`);
+            const refusals = sent.filter(p => p.action === "bridge.refused");
+            equal(refusals.length, 1, `an exception in the ${where.toLowerCase()} was not told as one refusal`);
+            equal(refusals[0]?.reason, "failed", `an exception in the ${where.toLowerCase()} was not told as failed`);
+            ok(sessionFailures().some(e => e.message.includes(`Refused a "r162.throws${where}"`) && e.message.includes("the handler failed")),
+                `an exception in the ${where.toLowerCase()} was not logged as "the handler failed"`);
+            if (where !== "Run") {
+                ok(!sent.some(p => p.action === "bridge.ack") && !ran.length,
+                    `an exception in the ${where.toLowerCase()} was acknowledged, or the run went on: ${JSON.stringify({ sent, ran })}`);
+            }
+        }
+
+        clear();
+        await Promise.all([ask("r162.queued", { n: 1 }), ask("r162.queued", { n: 2 })]);
+        equal(JSON.stringify(ran), JSON.stringify(["queued 1", "queued 2"]), "a queue did not keep the order its packets arrived in");
+
+        // A queued request is acknowledged as it arrives, while the write ahead of it is still running: its guards
+        // and its run wait in the queue, and the asker's clock for the "got it" does not (E31 review). A refusal by
+        // its guards follows that acknowledgement, and the run never starts.
+        clear();
+        const held = ask("r162.held");
+        const behind = ask("r162.queuedRefused");
+        await wait(30);
+        equal(JSON.stringify(kinds()), JSON.stringify(["bridge.ack", "bridge.ack"]),
+            "a queued request was not acknowledged as it arrived, behind a write that had not finished");
+        release();
+        await Promise.all([held, behind]);
+        equal(JSON.stringify({ kinds: kinds(), ran }), JSON.stringify({
+            kinds: ["bridge.ack", "bridge.ack", "bridge.done", "bridge.refused r162.queuedRefused notYours"], ran: ["held"] }),
+            "a queued request was not answered, or refused by its guards, once after its acknowledgement");
+    }],
+
+    ["R165 - one wait: a request settles once, never rejects, and one message says what and why", async () => {
+        /*
+         * E31, 25.09.2026; audit S17-09. Every request a client makes of the GM
+         * waits in `createWaiter` (bridge-guards.mjs), which the module builds once
+         * around the real socket. Driven here with fakes - an emit that records, a
+         * clock of tens of milliseconds, a message that records - so nothing leaves
+         * this client and nothing in the world is touched. What it must do: with no
+         * GM, refuse at once and send nothing; an "ack" request settles on the "got
+         * it", and a refusal after it is still said, once; a "reply" request
+         * settles on its answer; a refusal settles it, with the code; no "got it"
+         * in time is `noAnswer`; a patient request has no clock for the "got it"
+         * and is asked again once, with the same id, when a GM's world has loaded;
+         * an answer after the clock goes to `late` for as long as the request's
+         * `lateMs` says, and says nothing, and is dropped after it; an emit that
+         * throws is `failed`; a GM's own client does the work itself; and the
+         * primary GM, who answers requests, cannot send one. Every failure is one
+         * message, none for a quiet request, and no promise rejects.
+         */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const make = ({ gms = ["R165GM"], who = { id: "R165ME", isGM: false, isPrimary: false }, emitThrows = false } = {}) => {
+            const sent = [], said = [], reported = [];
+            const waiter = createWaiter({
+                emit: (packet, to) => { if (emitThrows) throw new Error("R165 planted: the socket"); sent.push({ packet, to }); },
+                gmIds: () => gms,
+                me: () => who,
+                notify: (action, reason, opts) => said.push(`${action} ${reason}${opts?.nothingSpent ? " +nothingSpent" : ""}`),
+                fromGm: id => id === "R165GM",
+                report: text => reported.push(text)
+            });
+            const reply = (action, extra = {}) => waiter.onReply({ action, userId: who.id, requestId: sent.at(-1)?.packet.requestId, ...extra }, "R165GM");
+            return { waiter, sent, said, reported, reply };
+        };
+        const fast = { ackMs: 30, timeoutMs: 200 };
+
+        // No GM: refused at once, nothing sent, said once.
+        let w = make({ gms: [] });
+        equal(JSON.stringify(await w.waiter.request("r165.x", { a: 1 }, { ...fast, nothingSpent: true })), JSON.stringify({ ok: false, reason: "noGm" }),
+            "a request with no GM was not refused as noGm");
+        equal(JSON.stringify({ sent: w.sent.length, said: w.said }), JSON.stringify({ sent: 0, said: ["r165.x noGm +nothingSpent"] }),
+            "a request with no GM sent something, or was not said once");
+
+        // "ack": settled by the "got it"; a refusal after it is said once, and changes nothing.
+        w = make();
+        let asked = w.waiter.request("r165.ack", { a: 1 }, { ...fast, settle: "ack" });
+        equal(JSON.stringify(w.sent[0]?.to), JSON.stringify(["R165GM"]), "a request went somewhere other than the GMs");
+        ok(w.sent[0]?.packet.action === "r165.ack" && w.sent[0]?.packet.userId === "R165ME" && typeof w.sent[0]?.packet.requestId === "string",
+            `a request left without its action, its asker or its id: ${JSON.stringify(w.sent[0]?.packet)}`);
+        w.reply("bridge.ack");
+        equal(JSON.stringify(await asked), JSON.stringify({ ok: true, pending: true }), "an acknowledged request did not settle as sent");
+        w.reply("bridge.refused", { what: "r165.ack", reason: "failed" });
+        w.reply("bridge.refused", { what: "r165.ack", reason: "failed" });
+        equal(JSON.stringify(w.said), JSON.stringify(["r165.ack failed"]), "a refusal after the acknowledgement was not said exactly once");
+
+        // "reply": settled by its answer.
+        w = make();
+        asked = w.waiter.request("r165.reply", {}, { ...fast, settle: "reply" });
+        w.reply("bridge.ack");
+        w.reply("bridge.done", { value: { answer: 42 } });
+        equal(JSON.stringify(await asked), JSON.stringify({ ok: true, value: { answer: 42 } }), "a reply did not settle with its answer");
+
+        // Refused before any "got it": settled with the code, said once; a code off the list is `refused`.
+        w = make();
+        asked = w.waiter.request("r165.no", {}, { ...fast, settle: "reply" });
+        w.reply("bridge.refused", { what: "r165.no", reason: "notYours" });
+        equal(JSON.stringify(await asked), JSON.stringify({ ok: false, refused: true, reason: "notYours" }), "a refusal did not settle with its code");
+        asked = w.waiter.request("r165.odd", {}, { ...fast, settle: "ack" });
+        w.reply("bridge.refused", { what: "r165.odd", reason: "DRPG.Anything.else" });
+        equal((await asked).reason, "refused", "a code off the closed list was taken as sent");
+        equal(JSON.stringify(w.said), JSON.stringify(["r165.no notYours", "r165.odd refused"]), "each refusal was not said exactly once");
+
+        // A reply from somebody who is not a GM, or to somebody else, is not a reply.
+        w = make();
+        asked = w.waiter.request("r165.forged", {}, { ackMs: 40, timeoutMs: 200, settle: "ack" });
+        w.waiter.onReply({ action: "bridge.ack", userId: "R165ME", requestId: w.sent[0].packet.requestId }, "R165PLAYER");
+        w.waiter.onReply({ action: "bridge.ack", userId: "SOMEBODYELSE0000", requestId: w.sent[0].packet.requestId }, "R165GM");
+        equal((await asked).reason, "noAnswer", "an acknowledgement from a player, or to another user, was taken");
+
+        // No "got it" in time: not answered - by the clock for the "got it", long before the answer's -
+        // said once; a late answer is dropped and says nothing.
+        w = make();
+        const t0 = Date.now();
+        asked = w.waiter.request("r165.silent", {}, { ackMs: 30, timeoutMs: 2000, settle: "ack" });
+        equal(JSON.stringify(await asked), JSON.stringify({ ok: false, reason: "noAnswer" }), "no acknowledgement in time was not noAnswer");
+        ok(Date.now() - t0 < 1000, `no acknowledgement was noticed only by the answer's clock, after ${Date.now() - t0} ms`);
+        w.reply("bridge.ack");
+        w.reply("bridge.refused", { what: "r165.silent", reason: "failed" });
+        equal(JSON.stringify(w.said), JSON.stringify(["r165.silent noAnswer"]), "a request given up on was said twice");
+
+        // Patient: no clock for the "got it"; asked again once, with the same id; then answered.
+        w = make();
+        let settled = null;
+        asked = w.waiter.request("r165.patient", {}, { ackMs: 20, timeoutMs: 400, settle: "reply", patient: true, resend: true });
+        asked.then(r => { settled = r; });
+        await wait(60);
+        equal(settled, null, "a patient request gave up on the clock for the acknowledgement");
+        w.waiter.resendOnGmReady();
+        w.waiter.resendOnGmReady();
+        equal(w.sent.length, 2, "a patient request was not asked again exactly once when a GM's world loaded");
+        equal(w.sent[1]?.packet.requestId, w.sent[0]?.packet.requestId, "the request was asked again under another id");
+        w.reply("bridge.done", { value: true });
+        equal(JSON.stringify(await asked), JSON.stringify({ ok: true, value: true }), "a patient request did not settle with its answer");
+
+        // An answer after the clock goes to `late`, and says nothing more, for as long as `lateMs` says: here more
+        // than twice the clock after the send (E31 review: the record was kept one more clock, so the plant check
+        // dropped an answer later than ten seconds). After `lateMs` the answer is dropped.
+        w = make();
+        const late = [];
+        asked = w.waiter.request("r165.late", {}, { ackMs: 1000, timeoutMs: 40, lateMs: 400, settle: "reply", quiet: true,
+            late: (value, id) => late.push([value, id === w.sent[0]?.packet.requestId]) });
+        equal(JSON.stringify(await asked), JSON.stringify({ ok: false, reason: "noAnswer" }), "a request past its clock did not settle as not answered");
+        await wait(100);
+        w.reply("bridge.done", { value: "found" });
+        equal(JSON.stringify({ late, said: w.said }), JSON.stringify({ late: [["found", true]], said: [] }),
+            "an answer more than twice the clock late did not go to `late` with its request id, or a quiet request said something");
+        w = make();
+        const dropped = [];
+        asked = w.waiter.request("r165.later", {}, { ackMs: 1000, timeoutMs: 40, lateMs: 80, settle: "reply", quiet: true,
+            late: value => dropped.push(value) });
+        await asked;
+        await wait(200);
+        w.reply("bridge.done", { value: "found" });
+        equal(JSON.stringify({ dropped, said: w.said }), JSON.stringify({ dropped: [], said: [] }),
+            "an answer after `lateMs` still went to `late`, or said something");
+
+        // An emit that throws is `failed`, said once; nothing rejects.
+        w = make({ emitThrows: true });
+        equal(JSON.stringify(await w.waiter.request("r165.throws", {}, fast)), JSON.stringify({ ok: false, reason: "failed" }),
+            "an emit that threw did not settle as failed");
+        equal(JSON.stringify(w.said), JSON.stringify(["r165.throws failed"]), "an emit that threw was not said once");
+
+        // A GM's own client does it here; a local that throws is `failed`.
+        w = make({ who: { id: "R165ME", isGM: true, isPrimary: true } });
+        equal(JSON.stringify(await w.waiter.request("r165.local", {}, { ...fast, local: () => 7 })), JSON.stringify({ ok: true, value: 7 }),
+            "a GM's own request was not done on its own client");
+        equal(JSON.stringify(await w.waiter.request("r165.localThrows", {}, { ...fast, local: () => { throw new Error("R165 planted: local"); } })),
+            JSON.stringify({ ok: false, reason: "failed" }), "a GM's own request that threw did not settle as failed");
+        // The primary GM, who answers requests, cannot send one: failed, nothing sent, nothing said.
+        equal(JSON.stringify(await w.waiter.request("r165.primary", {}, fast)), JSON.stringify({ ok: false, reason: "failed" }),
+            "the primary GM sent itself a request");
+        equal(JSON.stringify({ sent: w.sent.length, said: w.said }), JSON.stringify({ sent: 0, said: ["r165.localThrows failed"] }),
+            "the primary's own requests sent something, or said something other than the one failure");
+        equal(w.waiter.waiting(), 0, "a request is still waiting after this test");
+    }],
+
+    ["R166 - a search is recorded on the scene its guard judged, not the one the packet names", async () => {
+        /*
+         * E31, 25.09.2026; the design's W1. A player's search token is spent on the
+         * scene where the GM's client found the searcher standing (`guardSearchRoom`
+         * writes the place it judged; `searchSceneOf` reads it back), not on the scene
+         * the packet names, which is only a claim. The runner hands the guards the
+         * packet as it came and the run a new object with the whitelisted fields, so a
+         * record keyed by the packet - as it was before the table - is never found by
+         * the run, and the spend falls back to the packet's scene: the claim the guard
+         * exists to replace, with nothing refused and nothing to see. It is keyed by
+         * `ctx`, the one object the runner hands both. The harness has one scene, so no
+         * scenario can show a spend landing on the wrong one; this is where it is held.
+         *
+         * THE REAL ONES (E31 review: this test ran `searchSceneOf` and a table of its
+         * own, and none of `guardSearchRoom`, `runSpend` or `runTakePlant`, so a
+         * guard that keyed the place by the packet, or a run that dropped `ctx`,
+         * passed it). SEARCH_ACTIONS is judged here for a player who plays a
+         * character standing in a room, with a packet naming a scene nobody stands
+         * on; the token store is spied for the two calls and put back, so nothing is
+         * spent, and the runner's packets go to a recorder: nothing leaves this
+         * client. Red on copies with each of those faults planted.
+         */
+        const { searchSceneOf, SEARCH_ACTIONS, SearchTokens } = await import("./search-tokens.mjs");
+        const { judge, knownSender, pick, as } = await import("./bridge-guards.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        needs(world.atLeast("playerCharactersInRooms"), "a search is judged for a player's own character standing in a named room");
+        // The searcher: such a character, found as the bridge's guard finds it.
+        const searcher = game.users.filter(u => !u.isGM).flatMap(user => game.actors
+            .filter(a => a.type === "character" && a.testUserPermission(user, "OWNER"))
+            .map(actor => ({ user, actor, place: locateActor(actor) })))
+            .find(s => s.place?.room && s.place.scene?.id);
+        ok(searcher, "the world has a player's character standing in a named room, and locateActor finds none");
+        const A = "R166SCENEA000000", B = "R166SCENEB000000";
+        const judged = new WeakMap(), ctx = {};
+        judged.set(ctx, { scene: { id: A }, room: "Hall" });
+        equal(searchSceneOf({ isGM: false }, { sceneId: B }, ctx, judged), A,
+            "a player's search is recorded on the scene the packet names, not the one its guard judged");
+        equal(searchSceneOf({ isGM: false }, { sceneId: B }, {}, judged), B,
+            "with no place judged, the packet's scene is not the fallback it always was");
+        equal(searchSceneOf({ isGM: true }, { sceneId: B }, ctx, judged), B, "a GM's search is not taken as asked");
+
+        // Why `ctx`: through the runner, the guard and the run meet only there.
+        const handed = [], scenes = [];
+        const guard = (sender, payload, ctx) => { judged.set(ctx, { scene: { id: A } }); handed.push(payload); return null; };
+        const TABLE = { "r166.search": { label: "x", guards: [knownSender, guard], sanitize: pick({ sceneId: as.id }), answer: "none", quiet: true,
+            run: (payload, sender, ctx) => { handed.push(payload); scenes.push(searchSceneOf({ isGM: false }, payload, ctx, judged)); } } };
+        await judge(TABLE, { action: "r166.search", sceneId: B }, game.user.id, { send: () => {} });
+        ok(handed.length === 2 && handed[0] !== handed[1] && !judged.has(handed[1]),
+            "the runner handed the guard and the run the same object - this measures nothing about ctx");
+        equal(JSON.stringify(scenes), JSON.stringify([A]), "the run did not find, through ctx, the place its guard judged");
+
+        // Through the module's own table: the spend and the plant check that follows it land on the scene the
+        // character stands on, not on the one the packet names.
+        const { user, actor, place } = searcher;
+        const recorded = [], told = [];
+        const real = { spend: SearchTokens.spend, takePlant: SearchTokens.takePlant };
+        SearchTokens.spend = async (room, sceneId) => { recorded.push(`spend ${room} ${sceneId}`); return true; };
+        SearchTokens.takePlant = async (room, sceneId) => { recorded.push(`takePlant ${room} ${sceneId}`); return null; };
+        try {
+            for (const action of ["searchTokens.spend", "searchTokens.takePlant"]) {
+                await judge(SEARCH_ACTIONS, { action, requestId: `r166-${action}`, userId: user.id, actorId: actor.id,
+                    roomName: place.room, sceneId: B }, user.id, { send: (to, packet) => told.push(packet.action) });
+            }
+        } finally {
+            SearchTokens.spend = real.spend;
+            SearchTokens.takePlant = real.takePlant;
+        }
+        equal(JSON.stringify({ recorded, told }), JSON.stringify({
+            recorded: [`spend ${place.room} ${place.scene.id}`, `takePlant ${place.room} ${place.scene.id}`],
+            told: ["bridge.ack", "bridge.done", "bridge.ack", "bridge.done"] }),
+            "the real guard and runs recorded the search on the scene the packet names, or not at all");
+    }],
+
+    ["R167 - handOff closes a window without waiting for its transition", async () => {
+        /*
+         * E31, 25.09.2026; audit S01-64. `handOff` (live.mjs) closes a window and then
+         * runs what the window hands over to - reopen the GM panel, the next Season
+         * setup step. It waited for the window's closing animation, up to a second,
+         * for a window the GM had finished with; it closes as `reopen` does now, with
+         * `{ animate: false }`. Driven with spy windows, nothing on the screen: the
+         * close is asked for without its transition, the work runs only once the
+         * close has resolved, and a window that will not close - throwing, or
+         * refusing - is logged and still runs what it handed over to, as `reopen`
+         * goes on to its opener (E31 review: the work is the GM's click, and C7 had
+         * dropped it). The second the transition took is not measurable here (the
+         * harness's windows close at once): LIVE-E31-05.
+         */
+        const { handOff } = await import("./live.mjs");
+        const order = [];
+        const spy = { close: async options => { order.push(`close ${JSON.stringify(options ?? null)}`); await wait(10); order.push("closed"); } };
+        const answer = await handOff(spy, () => { order.push("work"); return "reopened"; });
+        equal(JSON.stringify(order), JSON.stringify(['close {"animate":false}', "closed", "work"]),
+            "the window was closed with its transition, or the work ran before the close resolved");
+        equal(answer, "reopened", "handOff did not answer what the work gave");
+        let ran = 0;
+        const throwing = { close: () => { throw new Error("R167 planted: the window will not close"); } };
+        const refusing = { close: () => Promise.reject(new Error("R167 planted: the close refused")) };
+        equal(await handOff(throwing, () => { ran++; return "ran"; }), "ran", "a window whose close threw did not run what it handed over to");
+        equal(await handOff(refusing, () => { ran++; return "ran"; }), "ran", "a window whose close refused did not run what it handed over to");
+        equal(ran, 2, "a window that would not close did not run what it handed over to, once each");
+    }],
+
+    ["R168 - a window's width counts its content's border once", async () => {
+        /*
+         * E31, 25.09.2026; audit S01-64. `windowWidthFor` (utils.mjs) sizes a table
+         * window from the widest row: the content's padding, and the frame around the
+         * content - measured, the window's width less the content's `clientWidth`,
+         * which already holds the content's border. It added that border a second
+         * time. Measured here on elements of its own, not the module's windows: a
+         * content box with 3 px borders and 4 px padding must be sized
+         * `ceil(widest + 8 + frame) + 2`, where `frame` is read off the same elements,
+         * so it holds in jsdom (where it is 0) and in a browser alike. The elements
+         * are removed again; nothing in the world is touched.
+         */
+        const { windowWidthFor } = await import("./utils.mjs");
+        const root = document.createElement("div");
+        const content = document.createElement("div");
+        content.style.cssText = "padding: 0 4px; border: 3px solid transparent; box-sizing: content-box;";
+        root.appendChild(content);
+        document.body.appendChild(root);
+        try {
+            const frame = Math.max(0, root.getBoundingClientRect().width - content.clientWidth);
+            const widest = 300;
+            const want = Math.ceil(widest + 8 + frame) + 2;
+            must(Math.round(window.innerWidth * 0.94) > want + 20, `the window is ${window.innerWidth} px wide, too narrow for the ceiling to stay out of this`);
+            equal(windowWidthFor(root, content, widest), want, "a bordered content box is sized with its border counted twice, or not at all");
+        } finally {
+            root.remove();
+        }
     }]
 ];
 
@@ -3011,19 +3426,20 @@ const INVARIANTS = [
  * literal "DRPG.x" in the source, from the files Foundry serves, so the list
  * only repeated it: on 1.2.60, R1's pattern read 69 of its 78 keys. Of the
  * other nine, two (Murder.betrayTileLabel and betrayTileHint) were used by no
- * file and are gone; these seven are built at run time:
+ * file and are gone; seven were built at run time. Four are left here:
  *
  *   murder.mjs         victimTrapSprung / victimUnderAttack, by `state.indirect`
  *   season-setup.mjs   `DRPG.Season.step.${key}` and `.hint.`, for the resources step
- *   gm-bridge.mjs      `DRPG.Bridge.what.${action}`, for three of its actions
  *
- * The rest of those two families (the other Bridge.what actions and season
- * steps) is checked by no test.
+ * The other three were `DRPG.Bridge.what.${action}` keys, and left in E31
+ * (25.09.2026): R1b checks that whole family now, in both files - the label of
+ * every action in the bridge's tables, every request named to `tellRefused` by
+ * hand, and the sentence of every reason (`DRPG.Bridge.why.${code}`). The rest
+ * of the season steps is checked by no test.
  */
 const LITERAL_KEYS = [
     "DRPG.Murder.victimUnderAttack", "DRPG.Murder.victimTrapSprung",
-    "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
-    "DRPG.Bridge.what.daggerheart", "DRPG.Bridge.what.call.arm", "DRPG.Bridge.what.remnant.tieForItem"
+    "DRPG.Season.step.resources", "DRPG.Season.hint.resources"
 ];
 
 export { INVARIANTS };

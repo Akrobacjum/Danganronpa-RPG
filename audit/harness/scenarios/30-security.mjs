@@ -2,7 +2,7 @@ export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
 const SOCKET = `module.${MOD}`;
-export async function run({ gm, p1, p2, check, phase, settle, permissionDenials, repoUrl }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDenials, repoUrl }) {
     const ids = await gm.eval(`return { aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id, chie: game.actors.getName("Chie Mori").id, daichi: game.actors.getName("Daichi Sato").id };`);
 
     // 1. XSS via messenger free text (player writes hostile markup)
@@ -606,6 +606,40 @@ export async function run({ gm, p1, p2, check, phase, settle, permissionDenials,
     const rerolledAfter = await gm.eval(traceOf("SEC rerolled"));
     check("control: the same Reroll re-rates the player's own fresh trace",
         Boolean(rerolled) && rerolled.visibility !== "hidden" && rerolledAfter?.visibility === "hidden", JSON.stringify({ rerolled, rerolledAfter }));
+
+    /*
+     * 7j'. What a player is told when an edit is refused (E31 review). Every refusal of
+     * a player's edit is told with one code, and none comes back before the receipt's
+     * retry. Chie's player, p3, holds no Reroll receipt in this scenario; one trace
+     * here is Chie's, the other Botan's. Both checks were red on the tree before the
+     * fix.
+     */
+    await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        await R.placeRemnant({ x: 1650, y: 450, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
+            sourceActor: "${ids.chie}", sourceName: "Chie Mori", room: "Cafeteria", subject: "SEC own, no receipt" });
+        await R.placeRemnant({ x: 1650, y: 500, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
+            sourceActor: "${ids.botan}", sourceName: "Botan Kage", room: "Cafeteria", subject: "SEC other, no receipt" });
+        return true;`, { timeout: 60000 });
+    await settle(600);
+    const ownTrace = await gm.eval(traceOf("SEC own, no receipt"));
+    const otherTrace = await gm.eval(traceOf("SEC other, no receipt"));
+    const toldEdits = await p3.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const C = await import("${repoUrl}/scripts/config.mjs");
+        const out = { retryMs: C.TIMING.rerollReceiptRetryMs };
+        for (const [k, id] of [["own", "${ownTrace?.id}"], ["other", "${otherTrace?.id}"]]) {
+            const t0 = Date.now();
+            const r = await B.requestRemnantEdit(canvas.scene.id, id, { visibility: "hidden" });
+            out[k] = { ok: r.ok, refused: r.refused ?? false, reason: r.reason ?? null, ms: Date.now() - t0 };
+        }
+        return out;`, { timeout: 60000 });
+    const editsAfter = { own: await gm.eval(traceOf("SEC own, no receipt")), other: await gm.eval(traceOf("SEC other, no receipt")) };
+    check("SECURITY: an edit with no Reroll behind it is told the same reason for the player's own trace and for another character's",
+        Boolean(ownTrace && otherTrace) && toldEdits.own?.refused === true && toldEdits.other?.refused === true
+        && toldEdits.own.reason === toldEdits.other.reason
+        && editsAfter.own?.visibility === ownTrace.visibility && editsAfter.other?.visibility === otherTrace.visibility,
+        JSON.stringify({ toldEdits, ownTrace, otherTrace, editsAfter }));
+    check("SECURITY: neither of those two refusals comes back before the receipt's retry",
+        toldEdits.own?.ms >= toldEdits.retryMs && toldEdits.other?.ms >= toldEdits.retryMs, JSON.stringify(toldEdits));
 
     /*
      * 7k. remnant.tieForItem outside a fight (audit S10-11). Holding the object is

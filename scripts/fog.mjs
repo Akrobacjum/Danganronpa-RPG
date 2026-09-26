@@ -771,7 +771,7 @@ export function fogShareRefusal({ sender, askedAt, answered, now = Date.now(), w
 
 /**
  * The same question with the bridge's one guard signature (see `firstRefusal` in
- * gm-bridge.mjs, E03), asked of the primary's own record of when it asked and who
+ * bridge-guards.mjs, E03), asked of the primary's own record of when it asked and who
  * has answered. It only reads them: marking the answer taken is the handler's.
  */
 function guardFogShare(sender, payload, ctx) {

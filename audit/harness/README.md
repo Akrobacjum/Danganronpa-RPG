@@ -29,6 +29,12 @@ at another checkout; by default they boot the one they sit in. Each run writes
 when every check passed, 1 when one failed, 2 when nothing ran, 3 when the
 cluster itself failed.
 
+The lint part also shows `drpg/bridge-result` (E31) - the rule in
+eslint.config.mjs that keeps a request's answer where it was asked - its
+fixture, `lint-fixtures/bridge-result.mjs`, linted as a file of scripts/
+(nothing is written): red unless the rule reports exactly the seven lines the
+fixture marks.
+
 `node suite-diff.mjs before.log after.log` compares two runs of
 `scenarios/01-runtests.mjs` test by test: a test gone or new, a status or a
 reason changed, the order changed. The log keeps the first 30,000 characters of
@@ -90,6 +96,7 @@ release or stage the status belongs to.
 | 30 | scenarios/30-security.mjs | ci | exists | <=1.2.50 | forged packets and writes change nothing on the GM |
 | 31 | scenarios/31-fuzz.mjs | ci, local-gate | planned | E43 | malformed packets to every bridge entry and socket: no write, no GM exception, a refusal with a reason |
 | 32 | scenarios/32-case-security.mjs | ci | planned | E43 | the hostile-client matrix, delivery proven before the effect is checked |
+| 33 | scenarios/33-bridge-paths.mjs | ci | exists | E31 | every legal road through the GM bridge, and what a player is told when a request is not carried out |
 | 40 | scenarios/40-flow.mjs | ci | exists | <=1.2.50 | a Daily Life time of day on four clients |
 | 41 | scenarios/41-trial-scene.mjs | ci, local-gate | planned | E13 | the Class Trial switches to the fixed hall (the harness needs scene switching first) |
 | 50 | scenarios/50-lang.mjs | ci | exists | <=1.2.50 | the Language setting on four clients |
@@ -257,4 +264,17 @@ number is not reused for a scenario.
   folder. Every results file records each with where it was read, and the live
   checks not yet run, as `environment`. Refreshing `versions.json`:
   LIVE-E30-08.
+- **The bridge at a real table** (E31). The socket is a relay between
+  processes on one machine, so a request's two clocks - the GM's "got it"
+  within `TIMING.ackMs`, its answer within its declaration's `timeoutMs` -
+  never meet a real server's latency:
+  how long a request waits for its answer behind queued project writes (a
+  queued request is acknowledged as it arrives), a GM who leaves mid-request
+  and a planted item that arrives after its five seconds
+  (taken back while the GM's client accepts it, `TIMING.plantWindowMs`) are
+  LIVE-E31-02, -03 and -04. A Reroll's receipt is made by rewriting the rolls of
+  the player's own roll message, not by `Roll#reroll` (LIVE-E31-01); windows
+  close at once, so what `handOff` saves under reduced motion is not measured
+  (LIVE-E31-05); and a refusal is read in Polish by a client whose language was
+  switched mid-run, not by a Polish player at a table (LIVE-E31-06).
 - **No client ever reloads.**

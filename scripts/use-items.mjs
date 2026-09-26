@@ -784,18 +784,22 @@ export async function discardBroken(actor, item) {
 
     // NO TRACE, NO DISPOSAL.
     //
-    // `dropRemnant` returns nothing in exactly two situations, and both mean
-    // the act did not happen: the character has no token on any scene, so there
-    // is nowhere for the thing to have been left, and no GM is connected, so
-    // nobody can create the token that records it. It says so loudly itself in
-    // both cases.
+    // `dropRemnant` returns nothing when the act did not happen: the character
+    // has no token on any scene, so there is nowhere for the thing to have been
+    // left, or the trace was not placed - no GM connected, or a GM's client that
+    // refused it, did not answer or failed (E31). Each road has said why, once,
+    // by the time it returns.
     //
     // Deleting the item anyway would be the one outcome this whole feature
     // exists to prevent - the murder weapon ceasing to exist, for free, with
-    // nothing left behind. So it stays in the bag and the player is told why.
+    // nothing left behind. So it stays in the bag. "There was nowhere to leave
+    // it" is added only where that is the reason; after the bridge's own
+    // message it would contradict it, so the whisper says only that the item is
+    // kept (E31 review).
     if (!placed) {
+        const { tokenFor } = await import("./remnants.mjs");
         await whisperToOwner(actor, `<p class="drpg-warning">${
-            game.i18n.format("DRPG.Items.discardNoTrace", {
+            game.i18n.format(tokenFor(actor) ? "DRPG.Items.discardKept" : "DRPG.Items.discardNoTrace", {
                 item: foundry.utils.escapeHTML(name)
             })}</p>`);
         return null;

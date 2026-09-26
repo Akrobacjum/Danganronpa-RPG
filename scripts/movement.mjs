@@ -1069,7 +1069,7 @@ async function sendBack(tokenDoc, previous, room) {
             if (game.user.isGM) error("Could not send a token back where it came from", err);
             else {
                 const { requestSendBack } = await import("./gm-bridge.mjs");
-                requestSendBack(tokenDoc.parent?.id, tokenDoc.id, previous);
+                void requestSendBack(tokenDoc.parent?.id, tokenDoc.id, previous);
             }
         }
         lastRoom.set(tokenDoc.id, room);

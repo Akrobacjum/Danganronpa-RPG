@@ -531,16 +531,31 @@ export async function reopen(className, opener) {
  *
  * It never rejects. A caller that forgets to hold the promise cannot produce an
  * unhandled rejection, and a window that failed to come back is a logged error
- * rather than a broken console.
+ * rather than a broken console. A window that would not close is logged, and the
+ * work runs all the same, as `reopen` goes on to its opener (E31 review): the
+ * work is what the GM pressed for - a row's procedure, the next step - and a
+ * window left standing, raised again rather than reopened, is the smaller loss.
+ *
+ * WITHOUT ITS CLOSING TRANSITION (E31, 25.09.2026; audit S01-64), as `reopen`
+ * closes: the work waits for the close, so a close that plays its animation made
+ * every hand-over wait for it as well - up to a second, the theme's own exit rule
+ * aside - for a window the GM has already finished with. Not measured headless:
+ * the harness's windows close at once (LIVE-E31-05).
  *
  * The precedent is `openIncidentTracker`'s own refresh (murder.mjs), which has
  * had this shape by hand since 11.09; this is that, named, so the next window can
  * have it in one line.
  */
 export function handOff(dialog, work) {
-    const closing = Promise.resolve(dialog?.close?.())
-        .catch(err => debug("A window handing over could not close", err));
-    return closing.then(work).catch(err => {
+    let closing;
+    try {
+        closing = Promise.resolve(dialog?.close?.({ animate: false }));
+    } catch (err) {
+        closing = Promise.reject(err);
+    }
+    return closing.catch(err => {
+        error("A window handing over could not close; what it handed over to runs all the same", err);
+    }).then(() => work()).catch(err => {
         error("A window that closed to hand over never came back", err);
         return null;
     });

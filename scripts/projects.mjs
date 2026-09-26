@@ -364,7 +364,11 @@ export async function addProgress(countdownId, amount, { by = null, actorId = nu
         // BACK is a Reroll's undo, and the GM pays for that from the receipt
         // for this character (reroll-receipts.mjs), not on the packet's word.
         const { requestProjectProgress } = await import("./gm-bridge.mjs");
-        return requestProjectProgress(countdownId, amount, actorId);
+        const res = await requestProjectProgress(countdownId, amount, actorId);
+        // Carried out when ok (the request answers once it is, E31 review), but
+        // `changed` is unknown from here - the GM whispers back what actually
+        // happened. Claiming a change would be a guess.
+        return res.ok ? { pending: true, changed: null } : null;
     }
 
     // Whose hands moved the bar, as a USER id - the fallback audience when a
@@ -628,7 +632,9 @@ export function repairs(countdownId) {
 export async function sabotageProject(targetId, difficulty = 3, { saboteur = null } = {}) {
     if (!game.user.isGM) {
         const { requestSabotage } = await import("./gm-bridge.mjs");
-        return requestSabotage(targetId, difficulty);
+        const res = await requestSabotage(targetId, difficulty);
+        // What the GM wrote, `{ repair, target }`, or null: the contract every caller reads.
+        return res.ok ? res.value : null;
     }
 
     const target = allProjects().find(p => p.id === targetId);
@@ -726,7 +732,8 @@ export async function undoSabotage(targetId = null, repairId = null, { actorId =
 
     if (!game.user.isGM) {
         const { requestUndoSabotage } = await import("./gm-bridge.mjs");
-        return requestUndoSabotage(targetId, repairId, actorId);
+        const res = await requestUndoSabotage(targetId, repairId, actorId);
+        return res.ok ? { pending: true } : null;
     }
 
     const why = unsabotageRefusal({ targetId, repairId, senderId });
@@ -1250,7 +1257,8 @@ export async function makeSecret(countdownId, viewerIds = []) {
 export async function shareWith(countdownId, userId) {
     if (!game.user.isGM) {
         const { requestProjectShare } = await import("./gm-bridge.mjs");
-        return requestProjectShare(countdownId, userId);
+        const res = await requestProjectShare(countdownId, userId);
+        return res.ok ? { pending: true } : null;
     }
 
     // Only a SECRET project has a guest list (E03; audit S09-02). Sharing a

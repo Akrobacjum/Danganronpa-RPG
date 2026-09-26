@@ -184,7 +184,8 @@ export async function receiveOffers(offers) {
 async function withdrawOffer(actorId) {
     if (isPrimaryGm()) return recordOffer(actorId, null);
     const { requestOfferRecord } = await import("./gm-bridge.mjs");
-    return requestOfferRecord(actorId, null);
+    const res = await requestOfferRecord(actorId, null);
+    return res.ok ? { pending: true } : null;
 }
 
 /**
@@ -219,8 +220,11 @@ export async function offerAdvancement(actor, kind = "standard") {
         if (isPrimaryGm()) {
             await recordOffer(actor.id, kind);
         } else {
+            // Awaited since E31: "offer sent" is said, and the owner told, only
+            // once the primary has the offer - a refusal has been said already.
             const { requestOfferRecord } = await import("./gm-bridge.mjs");
-            requestOfferRecord(actor.id, kind);
+            const res = await requestOfferRecord(actor.id, kind);
+            if (!res.ok) return null;
         }
     } catch (err) {
         error(`Could not offer ${actor.name} a Level Up`, err);
@@ -340,7 +344,8 @@ export async function openAdvancement(actor, kind = "standard") {
             return null;
         }
         const { requestAdvancement } = await import("./gm-bridge.mjs");
-        return requestAdvancement({ actorId: actor.id, picks: result, kind });
+        const res = await requestAdvancement({ actorId: actor.id, picks: result, kind });
+        return res.ok ? { pending: true } : null;
     }
     return applyAdvancement(actor, result, kind);
 }

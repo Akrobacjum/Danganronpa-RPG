@@ -1310,7 +1310,7 @@ async function searchStash(actor, def, roll, { room, category, goalKey, tier, st
     // action, a search token, and the -1 applied above. Without it the GM
     // side refuses every concealed stash outright, which made beating the
     // concealment worth nothing at all. See `stealFromVault`.
-    const got = await requestVaultSteal({
+    const res = await requestVaultSteal({
         thiefId: actor.id, ownerId: stashOwner.id, itemId: taken.id, viaSearch: true,
         // WAS THE HAND STEADY. The catalogue has said since E5 that `stolen`
         // is "heard by the victim, and only when the thief was clumsy enough
@@ -1319,6 +1319,8 @@ async function searchStash(actor, def, roll, { room, category, goalKey, tier, st
         // module uses: Despair, and a critical is never clumsy.
         clumsy: Boolean(roll.withFear) && !roll.isCritical
     });
+    // What came out, on a GM's own client; that the GM has it, on a player's; null when not carried out.
+    const got = res.ok ? (game.user.isGM ? res.value : { pending: true }) : null;
 
     await noteRollContext(actor, {
         actionKey: "search", room, category, goal: goalKey, tier, fromVault: true
@@ -3214,7 +3216,7 @@ async function choosePalm(actor, def, targets, mine) {
  */
 async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success }) {
     const { requestPlant } = await import("./gm-bridge.mjs");
-    await requestPlant({
+    const res = await requestPlant({
         plannerId: actor.id,
         victimId: victim.id,
         itemId: planted.id,
@@ -3229,11 +3231,12 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
         seen, success, itemId: planted.id
     });
 
+    // "Sent" only when it was (E31): a request not carried out has been said once already.
     const plantOutcome = {
         success, seen, target: victim.name,
-        text: game.i18n.format("DRPG.Steal.plantSent", {
+        text: res.ok ? game.i18n.format("DRPG.Steal.plantSent", {
             name: foundry.utils.escapeHTML(victim.name)
-        })
+        }) : ""
     };
     await report(actor, def, hand, plantOutcome);
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome: plantOutcome });
@@ -3343,7 +3346,7 @@ async function performPalm(actor, def, options) {
     const chosenId = await chooseStolen(victim, hand, success);
 
     const { requestSteal } = await import("./gm-bridge.mjs");
-    await requestSteal({
+    const res = await requestSteal({
         thiefId: actor.id,
         victimId: victim.id,
         itemId: chosenId,
@@ -3380,9 +3383,10 @@ async function performPalm(actor, def, options) {
         success,
         seen,
         target: victim.name,
-        text: game.i18n.format("DRPG.Steal.sent", {
+        // "Sent" only when it was (E31), as for a plant.
+        text: res.ok ? game.i18n.format("DRPG.Steal.sent", {
             name: foundry.utils.escapeHTML(victim.name)
-        })
+        }) : ""
     };
 
     await report(actor, def, hand, outcome);
@@ -3614,8 +3618,8 @@ async function observeRanked(actor, def, cost, options, declaration) {
     const { requestObserveTarget } = await import("./gm-bridge.mjs");
     const target = await requestObserveTarget({ actorId: actor.id, declaration, request: "" });
 
-    // No answer at all: the warning has already been shown, and nothing has been
-    // spent. Leave the action in the player's pocket.
+    // Not carried out: it has been said already, and nothing has been spent.
+    // Leave the action in the player's pocket.
     if (!target) return null;
 
     // Paid before the dice - see `abort` and ACT-07 above it.
@@ -3669,9 +3673,9 @@ async function observeSpecific(actor, def, cost, request = "") {
     const { requestObserveTarget } = await import("./gm-bridge.mjs");
     const target = await requestObserveTarget({ actorId: actor.id, declaration, request });
 
-    // Nobody answered - no GM is listening. `requestObserveTarget` has already
-    // said so, and the action stays in the player's pocket: there is nobody to
-    // rule on it either, so charging for it would be charging for silence.
+    // Not carried out - no GM listening, or refused. It has been said already,
+    // and the action stays in the player's pocket: there is nobody to rule on it
+    // either, so charging for it would be charging for silence.
     if (!target) return abort(actor, paid);
 
     // Refused, empty room, no room at all: the GM rules on the roll that has
@@ -3694,7 +3698,7 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
         room: roomOfActor(actor)
     });
 
-    await requestObserveResolve({
+    const res = await requestObserveResolve({
         actorId: actor.id,
         key: observeKey,
         total: roll.total,
@@ -3710,7 +3714,9 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
     // wait for something that had already happened, on the one branch where it
     // was never true. Naming a target and asking the GM outright do go to a
     // person, and there the wait is real.
-    const waits = declaration === "specific" || declaration === "anything";
+    // And only when the GM's client has it (E31 review): a request refused or not
+    // answered has been said once already.
+    const waits = (declaration === "specific" || declaration === "anything") && res.ok;
 
     await whisperToOwner(actor, `${rollHead(def, roll)}${
         waits ? `<p><small>${game.i18n.localize("DRPG.Observe.sent")}</small></p>` : ""}`, rollCardFlags(def, roll));
@@ -3910,9 +3916,10 @@ async function performAnalyze(actor, def, options) {
      * BEFORE the price and before the dice (T-1). Without this the action was
      * paid for, the dice were thrown, and the packet was dropped on the way out.
      */
-    const { gmOnline } = await import("./gm-bridge.mjs");
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
     if (!gmOnline()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Analyze.needGm"));
+        // The bridge's own sentence for a request with no GM (E31), and nothing was paid.
+        sayNotDone("analyze.resolve", "noGm", { nothingSpent: true });
         return null;
     }
 
@@ -3947,18 +3954,19 @@ async function performAnalyze(actor, def, options) {
  * the roll is trying to find out. See analyze.mjs.
  */
 async function analyseBullet(actor, def, roll, subject, charge = null) {
-    const { requestAnalyzeResolve, gmOnline } = await import("./gm-bridge.mjs");
+    const { requestAnalyzeResolve } = await import("./gm-bridge.mjs");
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
 
     /*
      * THE LAST GM CAN LEAVE WHILE THE DICE ARE IN THE AIR, and then there is
      * nobody to score this against the answer key. Refunded on THAT and nothing
-     * else: `requestAnalyzeResolve` returns the resolver's own value on a GM's
-     * client, which may legitimately be null, so a refund keyed on falsiness
-     * would hand the price back for a resolution that happened (T-1).
+     * else: on a GM's client `requestAnalyzeResolve` answers the resolver's own
+     * value, which may legitimately be null, so a refund keyed on what it
+     * answered would hand the price back for a resolution that happened (T-1).
      */
     if (!gmOnline()) {
         if (charge) await refundPrice(actor, charge);
-        ui.notifications.warn(game.i18n.localize("DRPG.Analyze.needGm"));
+        sayNotDone("analyze.resolve", "noGm", { nothingSpent: true });
         return null;
     }
 
@@ -3971,7 +3979,7 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
         room: roomOfActor(actor)
     });
 
-    await requestAnalyzeResolve({
+    const res = await requestAnalyzeResolve({
         actorId: actor.id,
         itemId: subject.id,
         total: roll.total,
@@ -3979,11 +3987,12 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
     });
 
     // Silent on the outcome on purpose: this client does not know the number it
-    // was measured against, and must not be told.
-    await whisperToOwner(actor, `${rollHead(def, roll)}<p><small>${
+    // was measured against, and must not be told. "The GM is working it out" only
+    // when the GM's client has done so (E31 review); a refusal has been said.
+    await whisperToOwner(actor, `${rollHead(def, roll)}${res.ok ? `<p><small>${
         game.i18n.format("DRPG.Analyze.sent", {
             name: foundry.utils.escapeHTML(subject.name)
-        })}</small></p>`, rollCardFlags(def, roll));
+        })}</small></p>` : ""}`, rollCardFlags(def, roll));
 
     return { roll, subject: subject.name };
 }
@@ -4017,7 +4026,8 @@ async function askForHint(actor, def, roll, request = "", charge = null) {
     // rather than a ruling, so the price comes back (T-1).
     if (!sent) {
         if (charge) await refundPrice(actor, charge);
-        ui.notifications.warn(game.i18n.localize("DRPG.Analyze.needGm"));
+        const { sayNotDone } = await import("./bridge-guards.mjs");
+        sayNotDone("analyze.resolve", "noGm", { nothingSpent: true });
         return null;
     }
 
@@ -4070,17 +4080,18 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
      */
     Hooks.callAll("drpgStashHunted", { actor, room, total: roll.total });
 
-    const { requestStashSearch, gmOnline } = await import("./gm-bridge.mjs");
+    const { requestStashSearch } = await import("./gm-bridge.mjs");
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
 
     // The same rule as `analyseBullet`: only a road with nobody left on it hands
     // the price back (T-1).
     if (!gmOnline()) {
         if (charge) await refundPrice(actor, charge);
-        ui.notifications.warn(game.i18n.localize("DRPG.Analyze.needGm"));
+        sayNotDone("vault.findStash", "noGm", { nothingSpent: true });
         return null;
     }
 
-    await requestStashSearch({
+    const res = await requestStashSearch({
         actorId: actor.id,
         total: roll.total,
         isCritical: Boolean(roll.isCritical)
@@ -4096,9 +4107,10 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
 
     // Silent on the outcome, like `analyseBullet`: this client does not know
     // what is in the room and must not be told by the shape of its own card.
-    // The result arrives as its own whisper a moment later.
-    await whisperToOwner(actor, `${rollHead(def, roll)}<p>${
-        game.i18n.localize("DRPG.Analyze.stashSent")}</p>`, rollCardFlags(def, roll));
+    // The result arrives as its own whisper a moment later - when the GM's client
+    // has the request (E31 review); a refusal has been said once already.
+    await whisperToOwner(actor, `${rollHead(def, roll)}${res.ok ? `<p>${
+        game.i18n.localize("DRPG.Analyze.stashSent")}</p>` : ""}`, rollCardFlags(def, roll));
 
     return { roll, subject: null };
 }
@@ -4377,7 +4389,9 @@ async function performBetrayal(actor, partner) {
     if (!confirmed) return null;
 
     const { requestBetrayal } = await import("./gm-bridge.mjs");
-    return requestBetrayal({ actorId: actor.id });
+    const res = await requestBetrayal({ actorId: actor.id });
+    if (!res.ok) return null;
+    return game.user.isGM ? res.value : { pending: true };
 }
 
 /** Direct Murder: never automatic, always a conversation. */
@@ -4433,9 +4447,9 @@ async function performDirectMurder(actor, def, options) {
     // client has written it, and with no GM connected `requestParkMurder`
     // refuses. Charging first and then telling the player "your move is made"
     // left them one action down with nothing declared anywhere.
-    const { gmOnline } = await import("./gm-bridge.mjs");
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
     if (!game.user.isGM && !gmOnline()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Bridge.noGm"));
+        sayNotDone("murder.park", "noGm", { nothingSpent: true });
         return null;
     }
 
@@ -4575,13 +4589,14 @@ async function performDynamic(actor, options) {
             picked = await askDynamicDifficulty(request);
         } else {
             const { requestDynamicDifficulty } = await import("./gm-bridge.mjs");
-            picked = await requestDynamicDifficulty(request);
+            const res = await requestDynamicDifficulty(request);
+            picked = res.ok ? res.value : null;
         }
     } finally {
         waiting();
     }
 
-    // `false` is the GM's no (ROLL-08); `null` is silence, already reported.
+    // `false` is the GM's no (ROLL-08); `null` is a request not carried out, already said.
     if (picked === false) {
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Action.dynamicRefused")}</p>`);
         return null;

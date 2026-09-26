@@ -202,16 +202,19 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
                     approved = await askHopeCallApproval(ask);
                 } else {
                     const { requestHopeCallApproval } = await import("./gm-bridge.mjs");
-                    approved = await requestHopeCallApproval(ask);
+                    const res = await requestHopeCallApproval(ask);
+                    // Not asked, not answered, refused by the GM's client: said once
+                    // already, with "Nothing was spent." (E31). Only a GM's no is left
+                    // for this card to say.
+                    approved = res.ok ? res.value : null;
                 }
             } finally {
                 waiting();
             }
 
+            if (approved === null) return null;
             if (!approved) {
-                ui.notifications.warn(game.i18n.format(
-                    approved === null ? "DRPG.Calls.noAnswer" : "DRPG.Calls.refused",
-                    { call: call.label }));
+                ui.notifications.warn(game.i18n.format("DRPG.Calls.refused", { call: call.label }));
                 log(`${call.label} was not allowed for ${actor.name}.`);
                 return null;
             }

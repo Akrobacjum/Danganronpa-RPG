@@ -35,7 +35,7 @@
 import { TIMING } from "./config.mjs";
 import { isPrimaryGm, debug, pause } from "./utils.mjs";
 import { dualityOfRoll } from "./reroll.mjs";
-import { ownsActor } from "./gm-bridge.mjs";
+import { ownsActor } from "./bridge-guards.mjs";
 
 /** `${actorId}|${userId}` -> { messageId, at, wasFear, nowFear, used: Set<string> } */
 const receipts = new Map();

@@ -259,7 +259,7 @@ export async function adjustDespair(userId, delta) {
             const { primaryGmId } = await import("./utils.mjs");
             const primary = game.users.get(primaryGmId() ?? "");
             if (primary?.active && primary.id !== game.user.id) {
-                sendDespairToPrimary(userId, delta);
+                void sendDespairToPrimary(userId, delta);
                 return Math.min(Math.max(getDespair(userId) + delta, 0), despairMax());
             }
         } catch (err) {

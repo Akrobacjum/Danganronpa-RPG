@@ -57,6 +57,8 @@ import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
     TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { isPrimaryGm, debug, log, warn, error, esc, pause } from "./utils.mjs";
+// Statically: the leaf imports config.mjs and utils.mjs only, so this edge closes no cycle (E31).
+import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, judge, table, pick, as, knownSender, bridgeRequest } from "./bridge-guards.mjs";
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
@@ -639,19 +641,19 @@ export function registerTraps() {
      * so a forged packet also disarms the trap until a GM presses Rearm. Any
      * player could have burned every armed trap on the map in a loop.
      *
-     * So the handler now asks Foundry who really sent this and whether they own
-     * the character the packet names - the same `senderOf`/`ownsActor` pair the
-     * GM bridge applies to all thirty of its own handlers. A relay is a client
-     * reporting something ITS OWN student did; there is no legitimate packet
-     * here about somebody else's.
+     * So the relay now asks Foundry who really sent this and whether they own
+     * the character the packet names - the same `senderOf`/`ownsActor` pair every
+     * request to the GM bridge is judged by. Since E31 it is a declaration that
+     * the bridge's own runner judges (`TRAP_ACTIONS`, below). A relay is a client
+     * reporting something ITS OWN student did; there is no legitimate packet here
+     * about somebody else's.
      */
     const relay = (kind, payload) => {
         if (isPrimaryGm()) return false;
-        try {
-            game.socket.emit(SOCKET_EVENT, { action: TRAP_EVENT, kind, ...payload });
-        } catch (err) {
-            error("Could not tell the GM about something a trap might be watching for", err);
-        }
+        // To the GMs and nobody else (E31): it was emitted with no recipients, so
+        // every connected browser received every crossing, and nothing read it
+        // there. A report nobody waits on, so what it cannot do is said to nobody.
+        void askTraps(TRAP_EVENT, { kind, ...payload });
         return true;
     };
 
@@ -680,83 +682,57 @@ export function registerTraps() {
     // one of the five that was ever working.
     Hooks.on("createChatMessage", onChatMessage);
 
-    game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
-        if (payload?.action !== TRAP_EVENT) return;
-        if (!isPrimaryGm()) return;
+    // The primary GM judges it, by the declaration below; nobody waits on a report,
+    // so a refusal is logged on the GM and told to nobody (`quiet`).
+    game.socket.on(SOCKET_EVENT, (payload, senderId) => isPrimaryGm() ? judge(TRAP_ACTIONS, payload, senderId) : null);
+}
 
-        // Dynamically, not at the top of the file: traps.mjs already reaches
-        // gm-bridge.mjs this way from `alert`, and a static edge here would add
-        // one to a graph that settings.mjs was reorganised to keep acyclic.
-        const { senderOf } = await import("./gm-bridge.mjs");
-        const sender = senderOf(senderId);
-        // The two guards have the bridge's one signature and its reply context
-        // (see `firstRefusal` in gm-bridge.mjs, E03); a relay is answered to nobody.
-        const ctx = { asker: senderId, requestId: payload.requestId ?? null };
-        const whose = await guardRelayOwner(sender, payload, ctx);
-        if (whose) {
-            warn(`Refused a trap relay from ${sender?.name ?? senderId}: ${whose}.`);
-            return;
+/**
+ * What a relay is, as the bridge's runner judges it (E31, 25.09.2026): who sent
+ * it, that they play the character it names, that the character exists, and
+ * that it stands in the room the report names - the guards E03 wrote for the
+ * relay, now in bridge-guards.mjs, in the order the listener asked them. The
+ * run is the switch the listener ran. Which project an action touched is taken
+ * as sent: nothing ties the action kind to a room or asks `canSee` of the
+ * project, which the E31 design wrote down rather than fixed.
+ */
+export const TRAP_ACTIONS = table({
+    [TRAP_EVENT]: {
+        label: "DRPG.Bridge.what.trap.event",
+        guards: [knownSender, guardRelayOwner, guardRelayActor, guardRelayRoom],
+        sanitize: pick({ kind: as.oneOf("crossing", "action", "rest", "stash"), actorId: as.id, to: as.maybeText,
+            room: as.maybeText, actionKey: as.text, hit: as.bool, projectId: as.id }),
+        run: handleTrapEvent,
+        answer: "none", quiet: true,
+        claims: {
+            actorId: guardRelayOwner,
+            projectId: "taken as sent: which project an action touched; the trap it could set off is found from it on this side"
         }
+    }
+});
 
-        const actor = payload.actorId ? game.actors.get(payload.actorId) : null;
-        if (!actor) return;
+/** Ask the primary GM for a trap action, as TRAP_ACTIONS says to wait for it (`ask` in gm-bridge.mjs is the same). */
+function askTraps(action, payload) {
+    const decl = TRAP_ACTIONS[action];
+    return bridgeRequest(action, payload, { settle: decl.answer, quiet: Boolean(decl.quiet) });
+}
 
-        const where = await guardRelayRoom(sender, payload, ctx);
-        if (where) {
-            warn(`Refused a trap relay from ${sender?.name ?? senderId}: ${where}.`);
-            return;
-        }
-        try {
-            switch (payload.kind) {
-                case "crossing": await onCrossed({ actor, to: payload.to }); break;
-                case "action": await onActionResolved({
-                    actor, actionKey: payload.actionKey,
-                    outcome: { success: payload.hit }, projectId: payload.projectId
-                }); break;
-                case "rest": await onRested({ actor, room: payload.room }); break;
-                case "stash": await onStashHunted({ actor, room: payload.room }); break;
-            }
-        } catch (err) {
-            error("A trap could not react to something a player did", err);
-        }
-    });
+/** A relayed event, handed to the listener that would have caught it on this client. */
+async function handleTrapEvent(payload, sender, ctx) {
+    const actor = game.actors.get(payload.actorId);
+    switch (payload.kind) {
+        case "crossing": await onCrossed({ actor, to: payload.to }); break;
+        case "action": await onActionResolved({
+            actor, actionKey: payload.actionKey,
+            outcome: { success: payload.hit }, projectId: payload.projectId
+        }); break;
+        case "rest": await onRested({ actor, room: payload.room }); break;
+        case "stash": await onStashHunted({ actor, room: payload.room }); break;
+    }
 }
 
 /** Which field of each relayed event names a room: a crossing's destination, the rest's and the stash's room. */
-const RELAYED_ROOM = { crossing: "to", rest: "room", stash: "room" };
-
-/** A relay is about the sender's own character, or it is refused - see the note above `relay`. */
-async function guardRelayOwner(sender, payload, ctx) {
-    const { ownsActor } = await import("./gm-bridge.mjs");
-    return ownsActor(sender, payload.actorId) ? null : "not their character";
-}
-
-/*
- * THE ROOM IS WHERE THE CHARACTER IS, NOT WHERE THE PACKET SAYS (E03,
- * 24.09.2026; audit S08-08). A crossing, a rest and a stash hunt each
- * named their room in the packet, and the trap in that room went off -
- * so a player could set off any trap on the map from their own
- * bedroom, or walk through one and report being somewhere else. The
- * relay leaves after the move has landed, so the GM finds the character
- * where the packet says; if the GM has not seen the move yet, it is
- * given a moment, once (`standsIn`).
- *
- * A packet with no character never reaches this. `guardRelayOwner` refuses
- * one with no `actorId`, and a player's naming a character that does not
- * exist, as "not their character"; only a GM's naming a missing character gets
- * past it, and the handler drops that one silently (`if (!actor) return`). So a
- * missing one passes here rather than being given a reason of its own.
- */
-async function guardRelayRoom(sender, payload, ctx) {
-    const actor = payload.actorId ? game.actors.get(payload.actorId) : null;
-    const field = RELAYED_ROOM[payload.kind];
-    const named = field ? payload[field] : undefined;
-    if (!actor || named === undefined) return null;
-    const there = await standsIn(actor, named, {
-        passedThrough: field === "to", sceneId: sender?.viewedScene ?? null
-    });
-    return there ? null : `${actor.name} is not in "${named}"`;
-}
+export const RELAYED_ROOM = { crossing: "to", rest: "room", stash: "room" };
 
 /**
  * Is this character in that room, as this client sees it - asked twice, a
@@ -771,7 +747,7 @@ async function guardRelayRoom(sender, payload, ctx) {
  * second review). Only a character with no token on that scene falls back to
  * every scene.
  */
-async function standsIn(actor, room, { passedThrough = false, sceneId = null } = {}) {
+export async function standsIn(actor, room, { passedThrough = false, sceneId = null } = {}) {
     const { placesOf, roomsVisited } = await import("./movement.mjs");
     const there = () => {
         const all = placesOf(actor);
@@ -947,7 +923,6 @@ async function onChatMessage(message) {
 
         const actor = game.actors.get(used.actorId ?? "")
             ?? game.actors.get(message.speaker?.actor ?? "");
-        const { ownsActor } = await import("./gm-bridge.mjs");
         const why = usedItemRefusal({ author: message.author, actor, used, trap, owns: ownsActor });
         if (why) {
             warn(`A "used an item" card from ${message.author?.name ?? "?"} did not set off ${trap.name}: ${why}.`);

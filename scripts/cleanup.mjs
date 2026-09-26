@@ -432,12 +432,12 @@ export async function attemptCleanup(actor, tokenId, {
      * can take the very point the price was going to use - which `payPrice`
      * notices, because it quotes again for itself.
      */
-    const { gmOnline } = await import("./gm-bridge.mjs");
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
     if (!gmOnline()) {
         // Nothing scores this without a GM: the roll would be thrown and the
         // packet dropped, and since T-1 there is no GM-side charge left to be the
-        // backstop either.
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.needGm"));
+        // backstop either. Said in the bridge's own words (E31).
+        sayNotDone("murder.cleanup", "noGm", { nothingSpent: true });
         return null;
     }
 
@@ -1818,9 +1818,9 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
         return null;
     }
 
-    const { gmOnline } = await import("./gm-bridge.mjs");
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
     if (!gmOnline()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.needGm"));
+        sayNotDone("murder.cleanup", "noGm", { nothingSpent: true });
         return null;
     }
 

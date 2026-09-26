@@ -32,7 +32,7 @@ If a claim cannot be measured, say that instead of rounding it up.
 | --- | --- |
 | The suite, in Foundry | `game.drpg.runTests()` in the console, as GM: tiers 0-1, read-only; `runTests({ tier: 2 })` also writes, and asks first in a window |
 | The harness, first time | `cd audit/harness && npm ci` - installs jsdom, ESLint, espree and Playwright (no browser); boots the checkout it sits in, or `DRPG_REPO` |
-| Everything CI runs | `npm test` in `audit/harness`: lint, `tools/check.mjs`, the gate's self-test, the suite and every scenario whose layers include `ci`. 8m27s-8m28s here (25.09, 4 cores); exit 1 on anything red |
+| Everything CI runs | `npm test` in `audit/harness`: lint, `tools/check.mjs`, the gate's self-test, the suite and every scenario whose layers include `ci`. 9m20s here (26.09, 4 cores, 15 scenarios); exit 1 on anything red |
 | The quick part | `npm run quick` - lint, the checks and the gate's self-test, 9-13 s here; `npm run lint` and `npm run check` alone |
 | The suite, headless | `npm run suite`, or `node cluster.mjs scenarios/01-runtests.mjs` |
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines); `node run-all.mjs scenarios --only 40-flow` also holds it to a fresh results file |
@@ -46,22 +46,27 @@ If a claim cannot be measured, say that instead of rounding it up.
 | What a screen reader cannot read | `game.drpg.a11y()` |
 
 The headless harness (`audit/harness`) runs four jsdom clients - one GM and
-three players; five in 17-assistant, which adds an Assistant GM - against a
-shim of Foundry. It is good enough to drive the rules, the sockets and the DOM,
-and it is **not** a browser. A test that needs what it lacks asks an `env.*`
-probe with `needs()` and is counted as skipped, not failed. A scenario exits 1
-on a red check since E30; before, it exited 0 whatever its checks said.
+three players; five in 17-assistant and 33-bridge-paths, which add an Assistant
+GM - against a shim of Foundry. It is good enough to drive the rules, the
+sockets and the DOM, and it is **not** a browser. A test that needs what it
+lacks asks an `env.*` probe with `needs()` and is counted as skipped, not
+failed. A scenario exits 1 on a red check since E30; before, it exited 0
+whatever its checks said.
 
-**What the harness cannot do** is listed in `audit/harness/README.md`; in
-short: no layout, canvas, fonts or audio; CSS only as far as jsdom's cascade
-goes; a permission gate that models ownership and roles and little else; v14's
+**What the harness cannot do** is listed in `audit/harness/README.md`; in short:
+no layout, canvas, fonts or audio; CSS only as far as jsdom's cascade goes; a
+permission gate that models ownership and roles and little else; v14's
 operators, pre-update steps and user roles modelled from notes, not from v14's
 source; no real server. Each assumption not confirmed on v14 has a LIVE-E30 id,
-and every results file lists them under `environment.unconfirmed`.
+and every results file lists them under `environment.unconfirmed`. What E31
+could not measure headless - a real Reroll through the table, a request's
+timing on a real server, a GM leaving mid-request, a late
+planted item, a window closing under reduced motion, a Polish player's refusal -
+is LIVE-E31-01..06 (audit/AUDIT-1.2.42.md 9.2).
 
 ## What the suite's four numbers mean
 
-`304 passed, 0 failed, 16 skipped` (headless, 25.09.2026, 1.2.61), and a fourth,
+`312 passed, 0 failed, 16 skipped` (headless, 26.09.2026, 1.2.62), and a fourth,
 `red`, printed only when it is not zero.
 
 - **passed** counts a test that ran at least one `ok()` or `equal()`; one that
@@ -116,10 +121,18 @@ that were there at load. A fifteen-tab rail has to be in the HTML before the pag
 (rewrite the response with `page.route`). Measured against the stale cut on 16.09, the
 numbers came out plausible and wrong.
 
-**A socket handler that touches an actor must check who sent the message.** R1b
-in the suite reads the source for it. `senderOf(senderId)` and
-`ownsActor(sender, actor)`, both, every time - and the rest of what that means
-is the trust model, below.
+**A request that reaches the GM is a declaration, judged by one runner.** Every
+action a player's client asks of the primary GM is a row in one of three tables,
+`BRIDGE_ACTIONS` (gm-bridge.mjs), `TRAP_ACTIONS` (traps.mjs) and
+`SEARCH_ACTIONS` (search-tokens.mjs), and `judge` in `bridge-guards.mjs` carries
+each out: who sent it, its guards in order, then its run with a whitelisted copy
+of the packet. R1b reads the tables and holds every id a run receives to a guard
+that names it or to a claim written beside it; "How to add a bridge action",
+below, is the recipe. `senderOf`, `ownsActor` and `gmOnline` live in
+`bridge-guards.mjs` and nowhere else (R161). A socket handler outside the tables
+that touches an actor checks `senderOf(senderId)` and
+`ownsActor(sender, actor)`, both, every time (R1b's second half) - and the rest
+of what that means is the trust model, below.
 
 **Delete a key with `forcedDeletion()` or `unsetFlag`.** A `-=key` in an update
 removes nothing in this Foundry (the module's own notes; LIVE-E30-01 is the check
@@ -140,15 +153,20 @@ Protection comes in two layers, and every change should know which one it
 touches.
 
 **Layer one (E03, 1.2.60).** Every request that reaches a GM's client is judged
-there: the bridge in `gm-bridge.mjs`, the search-token, trap and fog sockets, and
-Daggerheart's own GM relay (`relay-guard.mjs`). The judgement uses who Foundry
-says sent it (`senderOf(senderId)`), what that user owns (`ownsActor`, `canSee`,
-`testUserPermission`), and what the world says now: the room the character
-stands in, the incident's stage and turn, the pair a sabotage wrote, the account
-an Observe key was minted for, and a Reroll receipt (`reroll-receipts.mjs`) for
-anything taken back. Packet fields are claims. A refusal changes nothing and is
-logged on the GM; most are also told to the asker (`bridge.refused`), which E31
-makes every one of them.
+there: the bridge's three tables (gm-bridge.mjs, traps.mjs, search-tokens.mjs),
+the fog socket, and Daggerheart's own GM relay (`relay-guard.mjs`). The
+judgement uses who Foundry says sent it (`senderOf(senderId)`), what that user
+owns (`ownsActor`, `canSee`, `testUserPermission`), and what the world says now:
+the room the character stands in, the incident's stage and turn, the pair a
+sabotage wrote, the account an Observe key was minted for, and a Reroll receipt
+(`reroll-receipts.mjs`) for anything taken back. Packet fields are claims. A
+refusal changes nothing and is logged on the GM. Since E31 (1.2.62) every
+refusal of a table action is also told to the asker, with a reason code from a
+closed list (`REASONS`, `bridge-guards.mjs`) that the player's client says in
+the player's own language; four are not shown to the player, because nobody is
+waiting on them: a trap report, the Level Up catch-up, a Search's look for a
+planted item and a plant handed back. Daggerheart's relay keeps its own table
+and log line, and tells the player with the code `relay`.
 
 **Layer two (E28, E29).** The numbers - totals, dice, Hope paid - are checked
 against the roll message the GM can see. Until then a player with a console can
@@ -172,6 +190,60 @@ Daggerheart upgrade, and see AUDIT §9 for what it assumes about Foundry and has
 not measured at a table.
 The headless harness runs Daggerheart's real relay, copied verbatim into
 `audit/harness/lib/dh-relay.mjs` - re-copy it from the new tag, never edit it.
+
+## How to add a bridge action
+
+A request from a player's client to the primary GM, since E31 (1.2.62). Five
+steps; R1b, R162-R166 and the lint rule are there to catch a skipped one.
+
+1. **Name it and say it.** A wire name `domain.verb` as an `ACTION_` constant
+   beside its table (gm-bridge.mjs for the bridge; traps.mjs and
+   search-tokens.mjs keep their own), and `DRPG.Bridge.what.<action>` in
+   lang/en.json and lang/pl.json.
+2. **Declare it.** One row `{ label, guards, sanitize, run, answer }` in the
+   table. Guards come from `scripts/bridge-guards.mjs`, in the order they are
+   asked: `knownSender` (or `gmOnly`) first; for every id the run receives
+   (sanitized `as.id`, as a field named `...Id` must be), a guard that names
+   it (`owns`, `ownsActorAt`, `canSeeProject`, `gmOnly`) or a `claims` line
+   saying who judges it; a guard that spends a Reroll receipt last.
+   `sanitize: pick({...})` lists exactly what the run reads (R163). A
+   check that must not wait between itself and the write goes in `prepare`
+   (imports) or in the run. `answer` is `"reply"` when the asker says or
+   counts anything on it that claims the action was done, and for every
+   queued declaration (a queue acknowledges each request as it arrives; R1b);
+   `"ack"` when the asker says only that the GM's client has it, or nothing,
+   and when the run can wait on a person, as Observe's can; `"none"` for a
+   report nobody waits on (and then `quiet`). `patient`, `resend` and
+   `timeoutMs` say how the asker waits. `tell` names one code of `REASONS`
+   that every refusal is told with, the guards' and the run's; the GM's log
+   keeps each one's own reason.
+3. **Write the run** `(payload, sender, ctx, prepared)`. It reads only the
+   whitelisted payload, refuses by returning `{ refused: "<English reason>" }` -
+   the text must map to exactly one code of `REASONS` (R164), and a new code
+   needs `DRPG.Bridge.why.<code>` in both files - answers with `{ reply }` when
+   `answer` is `"reply"`, and never emits a packet or calls `refuse()`: the
+   runner acknowledges, answers, and turns a throw into `failed`. A resolver
+   that answers null for work it did not do is a refusal as well,
+   `"nothing was carried out: ..."`, told as `refused`: a run never answers a
+   done for nothing, and says nothing of which silent reason it was.
+4. **Ask it.** `export function requestX(...) { return ask(ACTION_X, {...}, { local }); }`,
+   with `local` when a GM runs it on their own client. It answers the bridge's
+   result, `{ ok, pending?, value?, refused?, reason? }`, which is truthy
+   whatever it says: the caller reads `.ok`, `.value`, `.refused`, `.reason` or
+   `.pending` where it asks and never hands the result on (`drpg/bridge-result`,
+   eslint.config.mjs), and never shows its own "no GM" or "refused" message -
+   `bridgeRequest` has already said what and why, in the player's language.
+   `requestCleanableTraces` and `requestObserveTarget` answer their value
+   instead, for the callers 30-security reads; the rule names them.
+5. **Prove it.** Put the action in a flow (`scripts/tests-flows.mjs`), then run
+   the suite (R1b, R162-R166), `npm run lint`, 33-bridge-paths with a legal
+   control for the action and 30-security with a forged one; run
+   `node tools/registry.mjs --write` when a test was added.
+
+`onIncidentTurn` and `sameScene`, named in E31's brief, are not written: no
+request asks either check today (`guardCrisisAction` and `guardCrisisUndo` ask
+the incident's). When a stage needs one, it goes in `bridge-guards.mjs` beside
+the other factories, and nowhere else.
 
 ## The house style
 
@@ -339,7 +411,7 @@ and the 1.2.56 performance baseline, not yet measured (`audit/perf-baseline.json
 Generated by `node tools/registry.mjs --write` from the tier files; see "Numbering new tests".
 
 <!-- r-registry:start -->
-Next free: R161. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 for A5, written in E12; R121 for A4 (E22); R122 for A1 (E23); R123-R124 for A6 (E24).
+Next free: R169. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 for A5, written in E12; R121 for A4 (E22); R122 for A1 (E23); R123-R124 for A6 (E24).
 
 | R | Tier | Since | Test |
 | --- | --- | --- | --- |
@@ -504,6 +576,14 @@ Next free: R161. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 fo
 | R158 | 0 | E30 | needs() is asked only of a probe |
 | R159 | 0 | E30 | worldDump reads every document type and setting that a write in the module names |
 | R160 | 0 | E30 | every way a player reaches the GM belongs to a flow |
+| R161 | 0 | E31 | who asks, and whether a GM is there, is answered in one leaf, with no import cycle |
+| R162 | 1 | E31 | the runner judges before it answers, answers once, and tells an exception as failed |
+| R163 | 0 | E31 | a run reads exactly what its whitelist lets through |
+| R164 | 0 | E31 | every refusal the bridge can give maps to one reason of a closed list |
+| R165 | 1 | E31 | one wait: a request settles once, never rejects, and one message says what and why |
+| R166 | 1 | E31 | a search is recorded on the scene its guard judged, not the one the packet names |
+| R167 | 1 | E31 | handOff closes a window without waiting for its transition |
+| R168 | 1 | E31 | a window's width counts its content's border once |
 
 Tier-1 tests older than 1.2.61 with no number (70, names kept):
 

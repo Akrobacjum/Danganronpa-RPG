@@ -184,8 +184,8 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
         // Answered now, not just sent (E03): the GM charges the buyer and may
         // refuse, and null here is "not armed, and nothing was charged".
         const { requestArmCall } = await import("./gm-bridge.mjs");
-        const sent = await requestArmCall(actor.id, payload);
-        if (!sent) return null;
+        const res = await requestArmCall(actor.id, payload);
+        if (!res.ok || !res.value) return null;
         log(`The GM armed ${key} on ${actor.name} (${grants}).`);
         return true;
     }

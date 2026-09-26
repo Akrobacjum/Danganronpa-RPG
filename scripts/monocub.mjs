@@ -239,12 +239,12 @@ export async function performMeddle(actor, targetId, help) {
 
     // Paid on this client, resolved on the GM's: with no GM there is nobody
     // to resolve it, and the price would simply be gone (DESP-05). `gmOnline`
-    // is the bridge's exported question; its toasting `hasGm` is private to it,
-    // so the toast is this line's own.
+    // is the question alone; what is said is the bridge's own sentence for a
+    // request with no GM (`sayNotDone`, E31), so it reads as every other does.
     if (!game.user.isGM) {
-        const { gmOnline } = await import("./gm-bridge.mjs");
+        const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
         if (!gmOnline()) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Bridge.noGm"));
+            sayNotDone("monocub.meddle", "noGm", { nothingSpent: true });
             return null;
         }
     }

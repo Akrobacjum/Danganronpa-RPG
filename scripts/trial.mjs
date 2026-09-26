@@ -54,7 +54,7 @@ import { announce, dialogContent, isPrimaryGm, log, error, tableDialog,
 import { quotePrice, priceLine, payPrice, refundPrice, paidLine } from "./price.mjs";
 // The question alone, with no toast: this decides a button, and a window that
 // opens with no GM connected must not warn every player who opens it (audit A16).
-import { gmOnline } from "./gm-bridge.mjs";
+import { gmOnline } from "./bridge-guards.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
 import { contentOf } from "./secret.mjs";

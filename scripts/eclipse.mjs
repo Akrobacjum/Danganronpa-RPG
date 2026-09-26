@@ -344,7 +344,10 @@ function pendingMurders() {
 export async function parkDirectMurder({ killerId, room = null, note = "" } = {}) {
     if (!killerId) return null;
     const { requestParkMurder } = await import("./gm-bridge.mjs");
-    return requestParkMurder({ killerId, room, note });
+    const res = await requestParkMurder({ killerId, room, note });
+    // A GM's own client answers the entry it wrote; a player's, that the GM has it.
+    if (!res.ok) return null;
+    return game.user.isGM ? res.value : { pending: true };
 }
 
 /** GM-side. The write itself, reached from the bridge or directly by a GM. */
@@ -717,17 +720,19 @@ export async function judgeEclipseCrossing(actor, from, to) {
  * Count a crossing. World setting, so players route through the GM.
  *
  * @returns {Promise<number>} crossings used AFTER this one. A player's client
- *   predicts it - the write is somebody else's and has not landed yet - which is
- *   the honest answer to "how many have I used": the request has been sent, and
- *   the setting will agree in a moment. A GM's client returns what it just wrote.
+ *   counts it once the GM's client has written it (the request answers then,
+ *   E31 review), before the setting reaches this client; a crossing the GM's
+ *   client did not write is not counted. A GM's client returns what it just
+ *   wrote.
  */
 async function recordMove(actor) {
     const before = movesUsed(actor);
 
     if (!game.user.isGM) {
         const { requestEclipseMove } = await import("./gm-bridge.mjs");
-        await requestEclipseMove(actor.id);
-        return before + 1;
+        const res = await requestEclipseMove(actor.id);
+        // A crossing the GM did not count is not used up (E31).
+        return res.ok ? before + 1 : before;
     }
 
     const used = { ...eclipseMoves() };

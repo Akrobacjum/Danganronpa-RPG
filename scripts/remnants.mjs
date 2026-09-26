@@ -88,7 +88,7 @@ export const REMNANT_FLAGS = {
  * matter - a GM resolving something on another scene, a canvas mid-load. The
  * scene's own token list is checked as well, which needs neither.
  */
-function tokenFor(actor) {
+export function tokenFor(actor) {
     if (!actor) return null;
 
     const active = actor.getActiveTokens?.()?.[0];
@@ -253,8 +253,11 @@ export async function dropRemnant(actor, {
  */
 export async function placeRemnant(data = {}) {
     if (!game.user.isGM) {
+        // Answered once placed (E31), and refused as failed when the GM's client
+        // could not place it (E31 review), so "placed" means placed at every caller.
         const { requestRemnant } = await import("./gm-bridge.mjs");
-        return requestRemnant(data);
+        const res = await requestRemnant(data);
+        return res.ok ? { pending: true } : null;
     }
 
     /*
@@ -1699,7 +1702,8 @@ export async function retuneRemnant(sceneId, tokenId,
 
     if (!game.user.isGM) {
         const { requestRemnantEdit } = await import("./gm-bridge.mjs");
-        return requestRemnantEdit(sceneId, tokenId, { visibility, type, remove });
+        const res = await requestRemnantEdit(sceneId, tokenId, { visibility, type, remove });
+        return res.ok ? { pending: true } : null;
     }
 
     const scene = (sceneId ? game.scenes.get(sceneId) : null) ?? canvas?.scene;
