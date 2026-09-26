@@ -24,8 +24,8 @@ import { MODULE_ID, moduleVersion } from "./config.mjs";
 import { SETTINGS, getClock, getSetting, setSetting, incidentCast } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, dialogContent, whisperToGms } from "./utils.mjs";
 import {
-    configureGmStore, openGmStoreEngine, defineGmStore, gmStoreByName, gmStoreHandles, gmStoresHydrated, gmStoreHydration,
-    gmStoreSkew, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey
+    configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated,
+    gmStoreHydration, gmStoreSkew, onGmStoresHydrated, flatToSection, previewSection, mergeSections, writeFields, dropKey, RECORD
 } from "./gm-store.mjs";
 
 const isPlain = o => o !== null && typeof o === "object" && !Array.isArray(o);
@@ -100,6 +100,48 @@ export const remnantStore = defineGmStore({
         const [sceneId, tokenId] = String(key).split(".");
         return Boolean(game.scenes?.get(sceneId)?.tokens?.get(tokenId));
     }
+});
+
+/**
+ * WHO THE MASTERMIND IS (E04 C5; audit S06-19). One record of this world,
+ * `actorId` and the lair's `room`, each stamped on its own: a GM moving the lair
+ * and another picking the Mastermind both keep theirs, and a clear is a stamped
+ * null that reaches a GM who was offline (the old store answered a request only
+ * while it held a pick, so a clear never did). The old entry is claimed when its
+ * actor is this world's. A cleared one is not claimed: nothing says which world
+ * it cleared, so its time is kept aside (`unassigned.mastermindClearedAt`) and the
+ * health check asks the primary GM when it is newer than the pick the store holds
+ * (the design's H4) - a clear made in another world must not end this one's
+ * season without a GM deciding it.
+ */
+export const mastermindStore = defineGmStore({
+    name: "mastermind", key: SETTINGS.mastermind, legacyKey: SETTINGS.legacyMastermind,
+    kind: "record", fields: ["actorId", "room"], resetGroup: "mastermind", backup: true, sync: true,
+    legacyCount: legacy => (isPlain(legacy) && Object.keys(legacy).length ? 1 : 0),
+    claim: legacy => {
+        if (!isPlain(legacy) || !Object.keys(legacy).length) return { rows: [], left: [] };
+        const { actorId = null, room = null, updated } = legacy;
+        if (!actorId) {
+            return { rows: [], left: [{ key: RECORD, reason: "cleared" }],
+                unassigned: Number.isFinite(updated) && updated > 0 ? { mastermindClearedAt: updated } : {} };
+        }
+        if (!game.actors?.has(actorId)) return { rows: [], left: [{ key: RECORD, reason: "otherWorld" }] };
+        return { rows: [{ key: RECORD, fields: { actorId, room: room || null }, stamp: updated }], left: [] };
+    }
+});
+
+/**
+ * THE MASTERMIND'S PLAYER'S DOOR (E04 C5; audit S06-19): `{ mastermind, room }` on
+ * a player's browser - true, with the lair, on the one client that holds the part,
+ * false on every other. A GM sends it with the record's stamp, and a copy is
+ * replaced only by a newer stamp: an answer from a GM whose browser holds no pick
+ * (stamp 0) replaces nothing, which is how the part used to be taken away. The two
+ * old keys are named so that nothing reads them (R171); the copy starts from a GM's
+ * answer, which a player asks for when it loads and when a GM connects.
+ */
+export const doorCopy = defineGmCopy({
+    name: "door", key: SETTINGS.mineDoor, legacyKeys: [SETTINGS.legacyIAmMastermind, SETTINGS.legacyMyMastermindLair],
+    resetGroup: "mastermind", fallback: { mastermind: false, room: null }
 });
 
 /** Whether a store's old key changed since this browser claimed it (a 1.2.x session wrote it since: the design's H1). */
@@ -426,6 +468,18 @@ export async function gmStoreHealth() {
     const cast = incidentCast();
     if (state.active && !cast.killerId && !cast.victimId) add("incident", "missing", "DRPG.Case.row.incident");
 
+    /* THE UPGRADE DAY'S CLEAR (the design's H4): this browser's old store says the
+       Mastermind was cleared after the pick the store holds was made. Nothing in the
+       old entry said which world it cleared, so the primary GM decides (Keep or Clear);
+       a Keep stamps the pick again, and the row is gone. */
+    const clearedAt = mastermindStore.unassigned().mastermindClearedAt ?? 0;
+    const pick = mastermindStore.record().actorId ?? null;
+    const pickedAt = mastermindStore.stampOf(RECORD, "actorId");
+    if (pick && clearedAt > pickedAt) {
+        add("mastermindCleared", "conflict", "DRPG.Case.row.mastermindCleared", { cleared: new Date(clearedAt).toLocaleString(),
+            name: game.actors.get(pick)?.name ?? pick, picked: new Date(pickedAt).toLocaleString() });
+    }
+
     const since = caseMark().since;
     const holdsNothing = gmStoreHandles().every(h => !Object.keys(h.entries()).length && !(h.census()?.claimed));
     if (since && holdsNothing) add("neverHeld", "missing", "DRPG.Case.row.neverHeld", { date: new Date(since).toLocaleString() });
@@ -493,7 +547,8 @@ export async function runHealthCheck() {
     if (!isPrimaryGm()) return null;
     const report = await gmStoreHealth();
     lastHealth = report;
-    if (!report?.missing || healthOpen) return report;
+    const decide = report?.rows?.some(r => r.id === "mastermindCleared");
+    if ((!report?.missing && !decide) || healthOpen) return report;
     healthOpen = true;
     try {
         const lines = report.rows.filter(r => r.level !== "info").map(r =>
@@ -502,12 +557,15 @@ export async function runHealthCheck() {
         const choice = await DialogV2.wait({
             window: { title: game.i18n.localize("DRPG.Case.healthTitle") },
             classes: ["drpg-panel"],
-            content: dialogContent(`<p>${esc(game.i18n.localize("DRPG.Case.healthIntro"))}</p><ul>${lines}</ul>
-                <p class="notes">${esc(game.i18n.localize("DRPG.Case.healthNote"))}</p>`),
+            content: dialogContent(`<p>${esc(game.i18n.localize(report.missing ? "DRPG.Case.healthIntro" : "DRPG.Case.decideIntro"))}</p>
+                <ul>${lines}</ul>${report.missing ? `<p class="notes">${esc(game.i18n.localize("DRPG.Case.healthNote"))}</p>` : ""}`),
             buttons: [
-                { action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile") },
+                ...(report.missing ? [{ action: "restore", label: game.i18n.localize("DRPG.Case.restoreFromFile") }] : []),
                 ...(fillable ? [{ action: "fill", label: game.i18n.format("DRPG.Case.fillFromTraces", { n: fillable }) }] : []),
-                { action: "continue", label: game.i18n.localize("DRPG.Case.continue"), default: true }
+                // The H4 decision: Keep (the default) stamps the pick again; Clear clears it.
+                ...(decide ? [{ action: "clearMastermind", label: game.i18n.localize("DRPG.Case.clearMastermind") },
+                    { action: "keepMastermind", label: game.i18n.localize("DRPG.Case.keepMastermind"), default: true }]
+                    : [{ action: "continue", label: game.i18n.localize("DRPG.Case.continue"), default: true }])
             ],
             rejectClose: false
         });
@@ -520,6 +578,15 @@ export async function runHealthCheck() {
             ui.notifications.info(plural("DRPG.Case.filled", { n: filled }));
             healthOpen = false;
             return runHealthCheck();
+        }
+        if (decide) {
+            // Closing the window keeps the pick as well: the default, and nothing is cleared unasked.
+            const m = await import("./mastermind.mjs");
+            const pick = game.actors.get(mastermindStore.record().actorId ?? "");
+            if (choice === "clearMastermind") await m.clearMastermind();
+            else if (pick) await m.setMastermind(pick);
+            lastHealth = await gmStoreHealth();
+            if (!report.missing) return lastHealth;
         }
         ui.notifications.warn(game.i18n.localize("DRPG.Case.continued"), { permanent: true });
     } finally {

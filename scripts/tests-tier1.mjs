@@ -3750,6 +3750,70 @@ const INVARIANTS = [
         ok(/OLD_ICON/.test(sweep), "the sweep's body was not found - the reader is not reading it");
         const reach = sweep.match(/\b(?:remnantStore|setRemnantSecret\w*|readRemnantLedger|SETTINGS\.\w+)/g) ?? [];
         ok(!reach.length, `the questionMarkIcon clause's sweep reaches the ledger: ${reach.join(", ")}`);
+    }],
+
+    ["R176 - a player keeps the newer of two stamped copies, and every copy the GM sends is stamped", async () => {
+        /*
+         * E04, 26.09.2026; audit S06-19. What a player's browser holds of a GM store - the
+         * Mastermind's door (C5), and from C6, C8 and C9 the cast, the offers and the fog
+         * rows - is a copy a GM sends, and until E04 it was whatever the last GM to answer
+         * said: a second GM whose browser held no pick answered "not the Mastermind" and
+         * took the part away. A copy is stamped now, and replaced only by a newer stamp
+         * (gm-store.mjs, `receiveCopy`). Driven on an engine built with fakes - storage in
+         * a Map, a clock that moves when told - so nothing in this browser is written: an
+         * answer with no stamp, an older one and an equal one change nothing; a newer one
+         * does; one from far in the future is kept at the skew bound, so it cannot lock the
+         * copy; and a reset's cut above the copy reads as the fallback. Then the source:
+         * each GM-to-player sender in the table below puts a stamp in what it sends, and
+         * every call of it passes one.
+         */
+        const G = await import("./gm-store.mjs");
+        const { TIMING } = await import("./config.mjs");
+        let t = 5_000_000;
+        let cuts = {};
+        const store = new Map();
+        const eng = G.createGmStoreEngine({
+            selfId: () => "R176PLAYER", isGM: () => false, isPrimary: () => false, worldId: () => "R176WORLD",
+            activeGmIds: () => [], primaryGmId: () => null, senderIsGM: () => false, userName: u => u, send: () => {},
+            storage: { read: k => store.get(k) ?? null, write: async (k, v) => { store.set(k, JSON.stringify(v)); } },
+            readLegacy: () => undefined, now: () => t, timers: { set: () => null, clear: () => {} }, clock: () => ({ resetCuts: cuts }),
+            log: { warn: () => {}, error: () => {}, debug: () => {} }, notify: () => {}
+        });
+        const copy = eng.defineCopy({ name: "r176", key: "r176Copy", resetGroup: "mastermind", fallback: { mastermind: false, room: null } });
+        const read = () => JSON.stringify(copy.read());
+        const yes = { mastermind: true, room: "R176 lair" }, no = { mastermind: false, room: null };
+        equal(await copy.receive(no, 0), false, "an answer with stamp 0 was taken");
+        equal(await copy.receive(no, undefined), false, "an answer with no stamp was taken");
+        equal(read(), JSON.stringify(no), "the copy with nothing received is not the fallback");
+        equal(await copy.receive(yes, t - 100), true, "a first stamped answer was not taken");
+        equal(read(), JSON.stringify(yes), "the copy does not read what was taken");
+        equal(await copy.receive(no, t - 200), false, "an older answer was taken");
+        equal(await copy.receive(no, t - 100), false, "an equal stamp was taken");
+        equal(read(), JSON.stringify(yes), "an older or equal answer changed the copy");
+        equal(await copy.receive(no, t + 50), true, "a newer answer was not taken");
+        equal(read(), JSON.stringify(no), "the newer answer does not read back");
+        equal(await copy.receive(yes, t + 24 * 3600 * 1000), true, "an answer from far in the future was refused outright");
+        equal(copy.stamp(), t + TIMING.gmStoreSkewMs, "a far-future stamp was not kept at the skew bound");
+        t += TIMING.gmStoreSkewMs + 1000;
+        equal(await copy.receive(no, t), true, "once the bound has passed, a real answer was not taken - one fast clock locked the copy");
+        cuts = { mastermind: t + 10 };
+        equal(read(), JSON.stringify(no), "a copy under its group's reset cut does not read as the fallback");
+        equal(await copy.receive(yes, t + 5), false, "an answer under the reset's cut was taken");
+        equal(await copy.receive(yes, t + 20), true, "an answer above the reset's cut was refused");
+
+        // The senders: the function that emits a copy to a player, and the file that calls it.
+        const SENDERS = [["mastermind.mjs", "sendDoorFlag"]];
+        const sources = new Map(await otherSources());
+        const found = [];
+        for (const [file, fn] of SENDERS) {
+            const src = stripComments(sources.get(file) ?? "");
+            const body = fnSource(src, fn);
+            if (!/\bemit\([^;]*\bstamp\b/.test(body)) found.push(`${file} ${fn} emits no stamp`);
+            const calls = [...src.matchAll(new RegExp(`\\b${fn}\\(([^;]*)\\);`, "g"))].filter(m => !/^\s*function\b/.test(src.slice(Math.max(0, m.index - 9), m.index + 1)));
+            if (!calls.length) found.push(`${file} ${fn} is called nowhere - take its row out`);
+            for (const m of calls) if (!/\bstamp/i.test(m[1])) found.push(`${file}: ${fn}(${m[1].slice(0, 60)}) passes no stamp`);
+        }
+        ok(!found.length, `a copy goes to a player without a stamp: ${found.join("; ")}`);
     }]
 ];
 

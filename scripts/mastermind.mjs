@@ -27,99 +27,90 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
+import { myMastermindLair } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { isDeceased, killCharacter } from "./chapter.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error } from "./utils.mjs";
+import { announce, dialogContent, whisperToGms, ownerOf, primaryGmId, isPrimaryGm, log, error } from "./utils.mjs";
+import { mastermindStore, doorCopy } from "./gm-stores.mjs";
+import { RECORD } from "./gm-store.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 const SOCKET_EVENT = `module.${MODULE_ID}`;
-const ACTION_SET = "mastermind.set";
-const ACTION_REQUEST = "mastermind.request";
-/** GM -> the one player who already knows they hold the part. See below. */
+/** GM -> the one player who already knows they hold the part, and "not you" to the rest. See below. */
 const ACTION_DOOR = "mastermind.door";
-/** A player's client, catching up after a reload. See below. */
+/** A player's client, catching up after a reload or when a GM connects. See below. */
 const ACTION_DOOR_REQUEST = "mastermind.doorRequest";
 
 /* ==========================================================================
  * IDENTITY - GM browsers only, never world data
+ * --------------------------------------------------------------------------
+ * A GM STORE SINCE E04 (1.2.63; audit S06-19): `mastermindStore`
+ * (gm-stores.mjs), one record `{ actorId, room }` whose fields are stamped one
+ * by one and merged with the other GMs. The socket that synced it went with it:
+ * its SET kept the newest whole entry, and its REQUEST was answered only by a GM
+ * holding a pick, so a clear never reached a GM who had been offline.
  * ========================================================================== */
 
 function readStore() {
-    if (!game.user.isGM) return {};
-    try {
-        return game.settings.get(MODULE_ID, SETTINGS.mastermind) ?? {};
-    } catch {
-        return {};
-    }
-}
-
-async function writeStore(actorId, room) {
-    if (!game.user.isGM) return;
-    const before = readStore();
-    const previous = before.actorId ?? null;
-    // The lair rides in the same entry as the identity because it is the same
-    // kind of secret: where the Mastermind's own room is says almost as much
-    // as who they are. `room === undefined` keeps whatever is stored, so the
-    // callers that only ever meant the identity cannot silently drop it.
-    const entry = {
-        actorId: actorId || null,
-        room: room === undefined ? (before.room ?? null) : (room || null),
-        updated: Date.now()
-    };
-    await game.settings.set(MODULE_ID, SETTINGS.mastermind, entry);
-    syncToGms(entry);
-    notifyDoorAccess(previous, entry.actorId, entry.room);
-}
-
-function syncToGms(entry) {
-    const recipients = gmIds().filter(id => id !== game.user.id);
-    if (!recipients.length) return;
-    try {
-        game.socket.emit(SOCKET_EVENT, { action: ACTION_SET, from: game.user.id, entry }, { recipients });
-    } catch (err) {
-        error("Could not sync the Mastermind to the other GMs", err);
-    }
+    return game.user.isGM ? mastermindStore.record() : {};
 }
 
 /**
- * Tell the ONE client that needs to know: the Mastermind's own player.
- *
- * Nothing here ever names the Mastermind. The message is a bare boolean,
- * addressed by Foundry's own `recipients` - the same mechanism `syncToGms`
- * above uses - to whichever single user id owns the actor. A player who is
- * not that owner receives nothing at all, not even an empty envelope.
- *
- * Both ends of a change are handled: the outgoing Mastermind's player (if
- * there was one, and if somebody actually owns that character) has their flag
- * cleared, and the incoming one's is set - in that order, so a single player
- * who somehow owns both never ends up cleared by the second half of their own
- * promotion.
+ * The pick, and the lair when one is given. `actorId` is always stamped - naming
+ * the Mastermind, or naming nobody, is a decision; `room === undefined` stamps
+ * nothing for the lair, so a caller that only meant the identity cannot drop a
+ * lair another GM set a moment ago.
  */
-function notifyDoorAccess(previousActorId, nextActorId, room = null) {
-    if (previousActorId && previousActorId !== nextActorId) {
-        const outgoing = ownerOf(game.actors.get(previousActorId));
-        if (outgoing && !outgoing.isGM) sendDoorFlag(outgoing.id, false);
-    }
-    if (nextActorId) {
-        const incoming = ownerOf(game.actors.get(nextActorId));
-        // Sent on every write, not only on a change of WHO - the lair moving
-        // is the other thing this flag carries now, and the recipient's copy
-        // must follow it.
-        if (incoming && !incoming.isGM) sendDoorFlag(incoming.id, true, room);
-    }
+async function writeStore(actorId, room) {
+    if (!game.user.isGM) return;
+    const previous = readStore().actorId ?? null;
+    const fields = { actorId: actorId || null };
+    if (room !== undefined) fields.room = room || null;
+    await mastermindStore.patch(RECORD, fields);
+    const now = readStore();
+    notifyDoorAccess(previous, now.actorId ?? null, now.room ?? null);
 }
 
-function sendDoorFlag(userId, value, room = null) {
+/**
+ * Tell the clients that need to know, and nothing more than a boolean.
+ *
+ * Nothing here ever names the Mastermind. The message is a bare boolean,
+ * addressed by Foundry's own `recipients`, and every one carries the record's
+ * stamp: a player's copy (`doorCopy`) takes only a newer one, so an answer from a
+ * GM whose browser holds less cannot undo a newer one.
+ *
+ * The incoming Mastermind's player gets `true` and the lair on every write - the
+ * lair moving is the other thing this copy carries. On a CHANGE of pick (a new
+ * one, or a clear), every other connected player gets `false` as well (E04, the
+ * owner's Q3): the outgoing Mastermind's player loses lair sight at once even
+ * when this browser never knew who the outgoing one was, and every player's copy
+ * holds the newest stamp. That every player hears a pick changed at that moment
+ * is the price, and it says nothing about who; nothing is sent to anybody else
+ * when the pick is unchanged.
+ */
+function notifyDoorAccess(previousActorId, nextActorId, room = null) {
+    const stamp = mastermindStore.stampOf(RECORD);
+    const incoming = nextActorId ? ownerOf(game.actors.get(nextActorId)) : null;
+    const player = incoming && !incoming.isGM ? incoming : null;
+    if (previousActorId !== nextActorId) {
+        for (const user of game.users) {
+            if (!user.active || user.isGM || user.id === player?.id) continue;
+            sendDoorFlag(user.id, false, null, stamp);
+        }
+    }
+    if (player) sendDoorFlag(player.id, true, room, stamp);
+}
+
+function sendDoorFlag(userId, value, room, stamp) {
     try {
         game.socket.emit(SOCKET_EVENT,
             // `room` travels only alongside `value: true` - a "you are not the
             // Mastermind" carries no location, so a cleared player's client
             // holds nothing worth reading.
-            { action: ACTION_DOOR, from: game.user.id, value, room: value ? (room ?? null) : null },
+            { action: ACTION_DOOR, value, room: value ? (room ?? null) : null, stamp },
             { recipients: [userId] });
     } catch (err) {
         error("Could not deliver the Mastermind's private door flag", err);
@@ -128,12 +119,10 @@ function sendDoorFlag(userId, value, room = null) {
 
 /**
  * `iAmTheMastermind()` used to live here and now lives in settings.mjs, beside
- * the client-scoped setting it reads. It was the single edge every static
- * import cycle in the module passed through - movement.mjs had to reach into
- * this file for it - and the note above the function there says why moving it
- * was the fix rather than a workaround.
- *
- * Still imported here, because `myLairRoom` asks the same question.
+ * the copy it reads. It was the single edge every static import cycle in the
+ * module passed through - movement.mjs had to reach into this file for it - and
+ * the note above the function there says why moving it was the fix rather than
+ * a workaround.
  */
 
 /**
@@ -146,12 +135,7 @@ function sendDoorFlag(userId, value, room = null) {
  * away the moment they leave.
  */
 export function myLairRoom() {
-    if (!iAmTheMastermind()) return null;
-    try {
-        return game.settings.get(MODULE_ID, SETTINGS.myMastermindLair) || null;
-    } catch {
-        return null;
-    }
+    return myMastermindLair();
 }
 
 /** The lair as the GMs know it. `null` off a non-GM client - not an error. */
@@ -188,100 +172,74 @@ export async function setMastermind(actor, { room } = {}) {
 /** Point the Mastermind's lair at a room, or clear it, without touching WHO. */
 export async function setMastermindLair(room) {
     if (!game.user.isGM) return;
-    await writeStore(readStore().actorId ?? null, room ?? null);
+    await mastermindStore.patch(RECORD, { room: room || null });
+    const now = readStore();
+    notifyDoorAccess(now.actorId ?? null, now.actorId ?? null, now.room ?? null);
 }
 
-/** Clear the pick - a fresh season, or a correction. The lair goes with it. */
+/** Clear the pick - a fresh season, or a correction. The lair goes with it: both stamped null. */
 export async function clearMastermind() {
     if (!game.user.isGM) return;
     await writeStore(null, null);
 }
 
+/**
+ * Ask the primary GM whether this browser holds the part (a player's client).
+ * The primary alone answers - from the store the GMs share, once it has the other
+ * GMs' copies - and its answer is stamped, so asking twice, or an answer that
+ * crosses a newer one, changes nothing.
+ */
+function askForDoor() {
+    const primary = primaryGmId();
+    if (!primary || game.user.isGM) return;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: ACTION_DOOR_REQUEST }, { recipients: [primary] });
+    } catch (err) {
+        error("Could not ask the GM for door access", err);
+    }
+}
+
 export function registerMastermind() {
     /*
-     * GM-to-GM only, and that has to be checked on BOTH ends.
-     *
-     * It used to be checked on one. "A player's client never receives this - the
-     * server filters by `recipients`" was true and beside the point: nothing
-     * stopped a player from SENDING one. Two consequences, and the second is the
-     * worst hole this module has had:
-     *
-     *   · a forged `set` with a large `updated` rewrote every GM's copy of who
-     *     the Mastermind is;
-     *   · a forged `request` was answered - the reply went to `payload.from`,
-     *     an id the sender chose, so any player could ask the GMs to send them
-     *     the Mastermind's identity and be given it.
-     *
-     * Both are closed the same way: trust Foundry's own `senderId` argument and
-     * nothing inside the payload. `from` is kept only so a GM ignores its own
-     * broadcast, and the reply is addressed to whoever actually asked.
+     * A PLAYER ASKING "AM I THE MASTERMIND", answered by the primary GM alone and
+     * about the one who asked - Foundry's own `senderId`, never a field in the
+     * packet. Until E04 every GM answered from its own copy, and a second GM whose
+     * browser held no pick answered "no" and took the part away from the player
+     * who had it (S06-19). The primary answers once its store holds the other GMs'
+     * copies, with the record's stamp; a pick nobody made yet is stamp 0, and a
+     * player's copy takes no stamp 0.
      */
     game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
-        if (!game.user?.isGM) return;
-
-        // A player asking "am I the Mastermind" is the one legitimate non-GM
-        // sender on this channel - see the reload note on ACTION_DOOR_REQUEST
-        // below. Every GM answers, from their own (synced) copy of the pick,
-        // so a duplicate reply here is harmless: the player's client just
-        // writes the same boolean twice.
-        if (payload?.action === ACTION_DOOR_REQUEST) {
-            const mine = readStore();
-            const owns = Boolean(mine.actorId
-                && ownerOf(game.actors.get(mine.actorId))?.id === senderId);
-            sendDoorFlag(senderId, owns, owns ? (mine.room ?? null) : null);
-            return;
-        }
-
-        if (!game.users.get(senderId)?.isGM) {
-            if (payload?.action === ACTION_SET || payload?.action === ACTION_REQUEST) {
-                warn(`Refused a Mastermind "${payload.action}" from a non-GM (${
-                    game.users.get(senderId)?.name ?? senderId}).`);
-            }
-            return;
-        }
-        if (senderId === game.user.id) return;
-
-        if (payload?.action === ACTION_SET) {
-            const mine = readStore();
-            if ((mine.updated ?? 0) >= (payload.entry?.updated ?? 0)) return;
-            await game.settings.set(MODULE_ID, SETTINGS.mastermind, payload.entry);
-            return;
-        }
-
-        if (payload?.action === ACTION_REQUEST) {
-            const mine = readStore();
-            if (!mine.actorId) return;
-            try {
-                game.socket.emit(SOCKET_EVENT,
-                    { action: ACTION_SET, from: game.user.id, entry: mine },
-                    { recipients: [senderId] });
-            } catch (err) {
-                error("Could not answer a Mastermind request", err);
-            }
-        }
+        if (payload?.action !== ACTION_DOOR_REQUEST || !isPrimaryGm()) return;
+        const sender = game.users.get(senderId);
+        if (!sender?.active || sender.isGM) return;
+        await mastermindStore.whenHydrated();
+        const mine = readStore();
+        const owns = Boolean(mine.actorId && ownerOf(game.actors.get(mine.actorId))?.id === sender.id);
+        sendDoorFlag(sender.id, owns, owns ? (mine.room ?? null) : null, mastermindStore.stampOf(RECORD));
     });
 
     /*
-     * The private half: GM -> the Mastermind's own player, and nobody else.
+     * The private half: a GM -> this player, and nobody else.
      *
-     * A SEPARATE listener rather than a branch inside the one above, because
-     * that one starts with `if (!game.user.isGM) return` - this is the one
-     * message in the whole module that a PLAYER client is meant to act on.
-     * Foundry's `recipients` addressing already means only the intended
-     * player's browser ever receives a payload here at all; the sender check
-     * below is the same discipline as the GM-to-GM handler regardless, so a
-     * forged message from a player cannot plant this flag on themselves -
-     * `senderId` is Foundry's own, not a claim inside the payload.
+     * A SEPARATE listener rather than a branch inside the one above - this is the
+     * one message in the whole module that a PLAYER client is meant to act on.
+     * Foundry's `recipients` addressing already means only the intended player's
+     * browser ever receives a payload here at all; the sender check below is the
+     * same discipline as every GM-bound handler regardless, so a forged message
+     * from a player cannot plant this flag on themselves - `senderId` is
+     * Foundry's own, not a claim inside the payload. What it holds is the copy's,
+     * taken only when its stamp is newer than the one held (gm-store.mjs,
+     * `receiveCopy`).
      */
     game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
         if (payload?.action !== ACTION_DOOR) return;
         if (!game.users.get(senderId)?.isGM) return;
         try {
-            await game.settings.set(MODULE_ID, SETTINGS.iAmMastermind, Boolean(payload.value));
             // The lair travels with the flag and dies with it - a cleared
             // player keeps no record of where the room was.
-            await game.settings.set(MODULE_ID, SETTINGS.myMastermindLair,
-                payload.value ? (payload.room ?? "") : "");
+            const value = { mastermind: Boolean(payload.value), room: payload.value ? (payload.room || null) : null };
+            if (!await doorCopy.receive(value, payload.stamp)) return;
             // Standing in the lair may already be true the moment the part
             // arrives - repaint rather than waiting for the next token move.
             const { applyAll } = await import("./visibility.mjs");
@@ -291,41 +249,17 @@ export function registerMastermind() {
         }
     });
 
-    // A GM who just joined, or whose browser storage was cleared, asks the
-    // others rather than starting the season blind.
-    //
-    // EVERY GM asks, not only the primary one - the same unconditional catch-up
-    // `truth-bullets.mjs` does for the answer key. Gating it on `isPrimaryGm()`
-    // meant the one client most likely to be missing the pick, a second GM
-    // joining after the season started, was the one client that never asked.
-    if (game.user.isGM) {
-        const recipients = gmIds().filter(id => id !== game.user.id);
-        if (recipients.length) {
-            try {
-                game.socket.emit(SOCKET_EVENT,
-                    { action: ACTION_REQUEST, from: game.user.id }, { recipients });
-            } catch (err) {
-                error("Could not ask the other GMs for the Mastermind", err);
-            }
-        }
-        return;
-    }
+    if (game.user.isGM) return;
 
-    // A player's browser storage does not survive a reload the way a GM's
-    // synced copy does - `iAmMastermind` is client-scoped precisely so it
-    // never becomes world data, and the cost of that is that nobody re-sends
-    // it unasked. Every player asks, every time; the GM's answer is a single
-    // boolean about this one user and nothing else, so asking is free even
-    // for the vast majority of players who get "no" back.
-    const gms = gmIds();
-    if (gms.length) {
-        try {
-            game.socket.emit(SOCKET_EVENT,
-                { action: ACTION_DOOR_REQUEST, from: game.user.id }, { recipients: gms });
-        } catch (err) {
-            error("Could not ask the GMs for door access", err);
-        }
-    }
+    // A player's copy is kept in this browser, and a GM's answer is what starts
+    // and corrects it: every player asks when it loads, and again when a GM
+    // connects (a player who loaded first asked nobody). The answer is a single
+    // boolean about this one user, so asking is free for the players who get
+    // "no" back.
+    askForDoor();
+    Hooks.on("userConnected", (user, connected) => {
+        if (connected && user?.isGM) askForDoor();
+    });
 }
 
 /**
@@ -496,6 +430,9 @@ export async function openMastermindDialog() {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    // The pick another GM holds, first (E04): a browser that has not heard from
+    // the others yet would open on "nobody", and a GM would pick again on top.
+    await mastermindStore.whenHydrated();
 
     const students = studentActors();
     const current = mastermindActor();

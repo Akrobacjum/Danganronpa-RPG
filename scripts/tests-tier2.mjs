@@ -6752,7 +6752,18 @@ const SCENARIOS = [
         const sceneId = (game.scenes.active ?? canvas?.scene)?.id;
         // A trace's token as remnantData reads one: its flag, its scene, its id.
         const trace = id => ({ id, parent: { id: sceneId }, hidden: true, getFlag: (scope, flag) => (flag === "isRemnant" ? true : undefined) });
+        const mastermind = await import("./mastermind.mjs");
         const FIXTURES = {
+            mastermind: {
+                legacy: SETTINGS.legacyMastermind,
+                seed: { actorId: student.id, room: "SUITE lair", updated: T },
+                census: { legacy: 1, claimed: 1, left: 0, tombstones: 0, reasons: {} },
+                readBack: store => {
+                    equal(stableJson([mastermind.mastermindActor()?.id, mastermind.mastermindLair()]), stableJson([student.id, "SUITE lair"]),
+                        "the claimed pick does not read back through mastermindActor and mastermindLair");
+                    equal(store.stampOf("record", "actorId"), T, "the pick was not claimed at its own stamp");
+                }
+            },
             remnants: {
                 legacy: SETTINGS.legacyRemnantSecrets,
                 seed: {
@@ -6996,6 +7007,41 @@ const SCENARIOS = [
         }
     }],
 
+    ["a cleared Mastermind in the old store is reported, not claimed", async () => {
+        /*
+         * E04, 26.09.2026; the design's H4. The old Mastermind entry named no world, and a
+         * cleared one - `{ actorId: null, updated }` - says only that a GM cleared the pick
+         * somewhere, some time. Claimed, it would end this world's season on the upgrade
+         * day if the clear was another world's. So it is not claimed: the census counts it
+         * as left, its time is kept aside, and once the store holds a pick made before it
+         * the health report says so, as a decision for the primary GM - and a Keep (the pick
+         * stamped again) takes the row away. Stood in a world this browser has never opened;
+         * the old key is seeded, and put back by tier 2's restore.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const mastermind = await import("./mastermind.mjs");
+        const [student] = cast(1);
+        const T = Date.now() - 60 * 60 * 1000;
+        await game.settings.set(MODULE_ID, SETTINGS.legacyMastermind, { actorId: null, room: null, updated: T });
+        await E.withGmStoreWorld(`suite-cleared-${foundry.utils.randomID(8)}`, async () => {
+            const census = await S.mastermindStore.claim();
+            equal(stableJson(census), stableJson({ legacy: 1, claimed: 0, left: 1, tombstones: 0, reasons: { cleared: 1 } }),
+                "the cleared entry was claimed, or not counted");
+            equal(S.mastermindStore.unassigned().mastermindClearedAt, T, "the clear's time was not kept aside");
+            equal(mastermind.mastermindActor(), null, "a pick came out of a cleared entry");
+            // A pick another GM made before that clear, as a sync brings it.
+            const theirs = E.emptySection();
+            E.writeFields(theirs, "record", { actorId: student.id, room: null }, T - 60 * 1000, S.mastermindStore.spec, { whole: true });
+            await S.mastermindStore.mergeIn(theirs, { source: "sync" });
+            const row = (await S.gmStoreHealth()).rows.find(r => r.id === "mastermindCleared");
+            equal(row?.level, "conflict", "a pick older than the old store's clear is not reported for a GM to decide");
+            ok(row && game.i18n.format(row.key, row.data).includes(student.name), "the decision does not name the pick it is about");
+            await S.mastermindStore.patch("record", { actorId: student.id });
+            ok(!(await S.gmStoreHealth()).rows.some(r => r.id === "mastermindCleared"), "after the pick was kept (stamped again) the row is still there");
+        });
+    }],
+
     ["Back up the case, then Restore, brings every store back", async () => {
         /*
          * E04, 26.09.2026; audit S05-09, the brief's verify. Each store is given a row
@@ -7016,7 +7062,17 @@ const SCENARIOS = [
         const anchor = scene?.tokens?.find(t => t.x || t.y);
         const [holder] = cast(1);
         const made = [], traces = [];
+        const mastermind = await import("./mastermind.mjs");
         const FIXTURES = {
+            mastermind: {
+                // Through the store and not setMastermind: the fixture tells no player's browser anything.
+                seed: async () => {
+                    await S.mastermindStore.patch("record", { actorId: holder.id, room: "SUITE backed-up lair" });
+                    return holder.id;
+                },
+                gone: (report, id) => mastermind.mastermindActor() === null,
+                back: id => stableJson([mastermind.mastermindActor()?.id, mastermind.mastermindLair()]) === stableJson([id, "SUITE backed-up lair"])
+            },
             remnants: {
                 seed: async () => {
                     const token = await remnants.placeRemnant({ type: "key", visibility: "hidden", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,

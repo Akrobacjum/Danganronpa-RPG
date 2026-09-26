@@ -372,7 +372,7 @@ const REGRESSIONS = [
             // Answers only to the sender's own id, never to an id in the packet.
             "vote.mjs": "keys the tally by senderId; the payload's actor is an address, not a claim",
             "murder.mjs": "GM-to-GM sync plus one request answered from the sender's own cast",
-            "mastermind.mjs": "GM-to-GM sync; the one player request is answered about the sender",
+            "mastermind.mjs": "the door request is answered by the primary GM alone, about Foundry's own sender and nobody in the packet; the door flag is taken only from a GM, and only with a newer stamp",
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
             "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns",
             "sync.mjs": "world-state fan-out from a GM; carries no actor id",
@@ -5512,7 +5512,10 @@ const REGRESSIONS = [
         const E = await import("./gm-store.mjs");
         const keys = new Set(GM_STORE_PENDING);
         for (const h of E.gmStoreHandles()) for (const k of [h.spec.key, h.spec.legacyKey]) if (k) keys.add(k);
-        for (const name of E.gmCopyNames()) for (const k of [E.gmCopySpec(name).key, E.gmCopySpec(name).legacyKey]) if (k) keys.add(k);
+        for (const name of E.gmCopyNames()) {
+            const spec = E.gmCopySpec(name);
+            for (const k of [spec.key, spec.legacyKey, ...(spec.legacyKeys ?? [])]) if (k) keys.add(k);
+        }
         const props = Object.keys(SETTINGS).filter(p => keys.has(SETTINGS[p]));
         const named = new Set(props.map(p => SETTINGS[p]));
         ok([...keys].every(k => named.has(k)), `a GM store's key is not a SETTINGS name, so nothing here could find it read: ${
@@ -5521,10 +5524,7 @@ const REGRESSIONS = [
             // The census and old-store tests of tier 2 seed each old key they read, and tier 2's restore puts it back.
             "tests-tier2.mjs#legacyTruthBulletSecrets": "the claim's census seeds the old key it counts",
             "tests-tier2.mjs#legacyRemnantSecrets": "the claim's census seeds the old key it counts",
-            "mastermind.mjs#mastermind": "the Mastermind, until it moves (E04 C5)",
-            "mastermind.mjs#myMastermindLair": "the Mastermind's player copy, until it moves (E04 C5)",
-            "mastermind.mjs#iAmMastermind": "the Mastermind's player copy, until it moves (E04 C5)",
-            "settings.mjs#iAmMastermind": "the leaf iAmTheMastermind, until the door copy moves (E04 C5)",
+            "tests-tier2.mjs#legacyMastermind": "the claim's census seeds the old key it counts",
             "murder.mjs#incidentCast": "the incident cast, until it moves (E04 C6)",
             "murder.mjs#blackenedLedger": "the Blackened register, until it moves (E04 C6)",
             "season-setup.mjs#incidentCast": "the reset's raw write of the cast, until the cast moves (E04 C6)",

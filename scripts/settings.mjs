@@ -7,6 +7,7 @@
  */
 
 import { MODULE_ID, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
+import { readMine } from "./gm-store.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
 export const SETTINGS = {
@@ -417,11 +418,18 @@ export const SETTINGS = {
      * on `truthBulletSecrets`); the Mastermind's own player reading their own
      * flag might be harmless, but every OTHER player reading it from the
      * console would end the game before it started. So this lives in browser
-     * storage on GM clients, synced GM-to-GM over a recipient-addressed socket,
-     * exactly like the Truth Bullet ledger - a player's client never receives
-     * it, full stop.
+     * storage on GM clients - a player's client never receives it, full stop.
+     *
+     * A GM STORE SINCE E04 (1.2.63): `gmMastermind` (gm-stores.mjs,
+     * `mastermindStore`), one record of this world, `actorId` and the lair's
+     * `room` each stamped on its own and merged with the other GMs; until then it
+     * was one entry synced over a socket of its own, newest whole entry winning,
+     * and a clear never reached a GM who was offline (audit S06-19).
+     * `legacyMastermind` is the key before it, read once per world and never
+     * written.
      */
-    mastermind: "mastermind",
+    mastermind: "gmMastermind",
+    legacyMastermind: "mastermind",
     /**
      * "Is THIS browser the Mastermind's player." Client-scoped, boolean, and
      * the only thing about the Mastermind that ever reaches a player's client
@@ -442,20 +450,24 @@ export const SETTINGS = {
      * visibility.mjs, but only through `myLairRoom()`: standing in their own
      * room shows them the cast, anywhere else they are exactly as blind as
      * every other player's client.
-     */
-    iAmMastermind: "iAmMastermind",
-    /**
-     * The Mastermind's own room, on the ONE client that holds the part -
-     * delivered over the same recipient-addressed whisper as `iAmMastermind`
-     * and cleared with it. Every other client's copy stays empty forever.
      *
-     * Read by visibility.mjs: a Mastermind whose own token stands in this
-     * room sees the whole cast, the way the GM does, and loses that the
-     * moment they leave. (This is the 26.08 revision of the old contract -
-     * the note on `iAmMastermind` used to promise visibility.mjs would never
-     * read either of these.)
+     * The Mastermind's own room travels with it - delivered over the same
+     * recipient-addressed whisper and cleared with it. Read by visibility.mjs:
+     * a Mastermind whose own token stands in this room sees the whole cast, the
+     * way the GM does, and loses that the moment they leave. (This is the 26.08
+     * revision of the old contract - the note here used to promise visibility.mjs
+     * would never read it.)
+     *
+     * A PLAYER COPY SINCE E04 (1.2.63): `mineDoor` (gm-stores.mjs, `doorCopy`),
+     * `{ mastermind, room }`, stamped by the GM who sent it with the record's
+     * stamp and replaced only by a newer one (audit S06-19: a second GM whose
+     * browser held no pick answered "not the Mastermind" and took the part away).
+     * `legacyIAmMastermind` and `legacyMyMastermindLair` are the two keys before
+     * it; nothing reads them.
      */
-    myMastermindLair: "myMastermindLair",
+    mineDoor: "mineDoor",
+    legacyIAmMastermind: "iAmMastermind",
+    legacyMyMastermindLair: "myMastermindLair",
     /**
      * While `isometric-perspective` is active, keep its fingers out of token
      * configuration windows - see iso-shield.mjs for what exactly is parked
@@ -1205,15 +1217,26 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    game.settings.register(MODULE_ID, SETTINGS.legacyMastermind, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
 
-    game.settings.register(MODULE_ID, SETTINGS.iAmMastermind, {
+    game.settings.register(MODULE_ID, SETTINGS.mineDoor, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.legacyIAmMastermind, {
         scope: "client",
         config: false,
         type: Boolean,
         default: false
     });
-
-    game.settings.register(MODULE_ID, SETTINGS.myMastermindLair, {
+    game.settings.register(MODULE_ID, SETTINGS.legacyMyMastermindLair, {
         scope: "client",
         config: false,
         type: String,
@@ -1702,9 +1725,9 @@ export function setSetting(key, value) {
 
 /**
  * Is THIS browser the Mastermind's player, for the narrow purpose of locked
- * doors, the fog layer and a concealed stash? See `SETTINGS.iAmMastermind`'s
- * own header - this is the only thing about the Mastermind a player's client
- * ever holds, and reading one client-scoped boolean is the whole of it.
+ * doors, the fog layer and a concealed stash? See `SETTINGS.mineDoor`'s own
+ * header - this is the only thing about the Mastermind a player's client ever
+ * holds, and reading its copy (`readMine("door")`, E04) is the whole of it.
  *
  * IT LIVES HERE RATHER THAN IN mastermind.mjs, AND THAT IS THE POINT.
  *
@@ -1722,20 +1745,32 @@ export function setSetting(key, value) {
  * `ReferenceError` at boot, thrown before anything renders, from a file that
  * looks innocent.
  *
- * Nothing about this predicate needed mastermind.mjs. It reads a setting, and
- * the setting exists precisely so `canCross()` can ask synchronously inside a
+ * Nothing about this predicate needed mastermind.mjs. It reads a copy, and the
+ * copy exists precisely so `canCross()` can ask synchronously inside a
  * `preUpdateToken` veto - which is the note already written above the key
  * itself. Moving the reader next to what it reads is what removes the edge, and
- * with it both cycles; the GM-side Mastermind machinery stays where it is.
+ * with it both cycles; the GM-side Mastermind machinery stays where it is. The
+ * engine (gm-store.mjs) imports config.mjs alone, so reading the copy through it
+ * adds no edge back (R161).
  */
 export function iAmTheMastermind() {
     if (game.user.isGM) return false;
     try {
-        return game.settings.get(MODULE_ID, SETTINGS.iAmMastermind) === true;
+        return readMine("door")?.mastermind === true;
     } catch {
-        // Asked before the settings are registered - during boot, or from a
-        // client that never received the whisper. Not the Mastermind.
+        // Asked before the copy is defined - during boot, or from a client that
+        // never received the whisper. Not the Mastermind.
         return false;
+    }
+}
+
+/** The Mastermind's own room, on the one client that holds the part; null everywhere else. */
+export function myMastermindLair() {
+    if (!iAmTheMastermind()) return null;
+    try {
+        return readMine("door")?.room || null;
+    } catch {
+        return null;
     }
 }
 

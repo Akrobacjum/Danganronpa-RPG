@@ -24,6 +24,10 @@
  *      world's, it claims the same old rows (a duplicated world), its clear drops
  *      world B's rows only, and back in world A the same browser reads its traces
  *      intact without a GM having to send them.
+ *   E  the Mastermind's door (S06-19): the pick reaches its player's copy with the
+ *      record's stamp; a second GM whose browser holds no pick is asked and does
+ *      not answer (the primary alone does); and a GM that lost the pick and picks
+ *      somebody else still takes the part away from the first player (Q3).
  *   Z  the browser is lost (the brief's live verify, headless): a GM backs up the
  *      case, every GM leaves, a third GM comes with an empty browser and is alone,
  *      so the primary; its health check opens and names what is missing, Continue
@@ -43,7 +47,7 @@ const PROBE_KEY = "drpg-harness.probe";
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, gm2, gm3, gma, gmb, p1, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
+export async function run({ gm, gm2, gm3, gma, gmb, p1, p2, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
     const GM2 = "USERGM2000000000", GMA = "USERGMA000000000";
 
     /* ------------------------------ A. the harness ------------------------------ */
@@ -234,6 +238,51 @@ export async function run({ gm, gm2, gm3, gma, gmb, p1, check, phase, settle, co
     await disconnect("gm2");
     await settle(300);
 
+    /* ------------------- E. the Mastermind's door, stamped ------------------- */
+
+    phase("E: the Mastermind's door through the primary GM, stamped", { flow: "mastermind" });
+    const MM = `const M = await import("${repoUrl}/scripts/mastermind.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");`;
+    const doorOf = client => client.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        const { iAmTheMastermind } = await import("${repoUrl}/scripts/settings.mjs");
+        return { mine: iAmTheMastermind(), stamp: E.mineStamp("door"), copy: E.readMine("door") };`);
+    const pickedAt = await gm.eval(`${MM} await M.setMastermind(game.actors.get("${IDS.aiko}"), { room: "Main Hall" });
+        return S.mastermindStore.stampOf("record");`);
+    await settle(600);
+    const p1First = await doorOf(p1);
+    check("E1: the Mastermind picked on the GM reaches its player's copy, the lair with it, at the record's stamp",
+        p1First.mine === true && p1First.copy?.room === "Main Hall" && p1First.stamp === pickedAt && pickedAt > 0, J({ pickedAt, p1First }));
+
+    await connect("gm2");
+    await settle(1500);
+    const doorsFrom = from => socketTraffic.filter(t => t.from === from && t.action === "mastermind.door").length;
+    const beforeAsk = { gm: doorsFrom("gm"), gm2: doorsFrom("gm2") };
+    await p1.eval(`game.socket.emit("module.${MOD}", { action: "mastermind.doorRequest" }, { recipients: ["${GM2}"] }); return true;`);
+    await settle(500);
+    const afterGm2 = await doorOf(p1);
+    check("E2: a second GM with an empty browser, asked for the door, does not answer (the primary alone does), and the player keeps the part",
+        doorsFrom("gm2") === beforeAsk.gm2 && afterGm2.mine === true && afterGm2.stamp === pickedAt, J({ beforeAsk, gm2Sent: doorsFrom("gm2"), afterGm2 }));
+
+    await p1.eval(`game.socket.emit("module.${MOD}", { action: "mastermind.doorRequest" }, { recipients: ["${IDS.gm}"] }); return true;`);
+    await settle(500);
+    const afterGm = await doorOf(p1);
+    check("E3: the primary answers the same player true, with the record's stamp",
+        doorsFrom("gm") > beforeAsk.gm && afterGm.mine === true && afterGm.stamp === pickedAt, J({ gmSent: doorsFrom("gm") - beforeAsk.gm, afterGm }));
+
+    const botanAt = await gm.eval(`${MM} await S.mastermindStore.forget();
+        const lost = M.mastermindActor();
+        await M.setMastermind(game.actors.get("${IDS.botan}"));
+        return { lost: lost?.id ?? null, stamp: S.mastermindStore.stampOf("record") };`);
+    await settle(600);
+    const p1After = await doorOf(p1), p2After = await doorOf(p2);
+    const pickOnGm2 = await gm2.eval(`${MM} return M.mastermindActor()?.id ?? null;`);
+    check("E4: a GM whose browser lost the pick picks another: the first player's copy says no at the new stamp, the new one's yes, and the other GM holds the new pick (Q3)",
+        botanAt.lost === null && p1After.mine === false && p1After.copy?.room === null && p1After.stamp === botanAt.stamp
+        && p2After.mine === true && pickOnGm2 === IDS.botan, J({ botanAt, p1After, p2After, pickOnGm2 }));
+    await gm.eval(`${MM} await M.clearMastermind(); return true;`);
+    await disconnect("gm2");
+    await settle(300);
+
     /* ------------------- Z. the browser is lost, and the case comes back ------------------- */
 
     phase("Z: a GM backs up, every GM leaves, an empty browser comes back alone and restores", { flow: "gm-store" });
@@ -276,5 +325,5 @@ export async function run({ gm, gm2, gm3, gma, gmb, p1, check, phase, settle, co
         && J(tracesOnGm3) === J(expectD.slice(0, 2)) && J(restored.missing) === J([])
         && restored.bullets.missing === 0 && restored.bullets.noAnswer === 0 && restored.traces.missing === 0, J({ restored, keysOnGm3, tracesOnGm3 }));
 
-    return { phases: ["A", "B", "D", "Z"], gm: IDS.gm };
+    return { phases: ["A", "B", "D", "E", "Z"], gm: IDS.gm };
 }

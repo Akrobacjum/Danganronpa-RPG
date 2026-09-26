@@ -432,7 +432,7 @@ export function vacuousChecks(text) {
  */
 export const GM_STORE_PENDING = Object.freeze([
     "observePending", "advanceOffers", "trapLedger", "trapPlants",
-    "incidentCast", "blackenedLedger", "mastermind", "iAmMastermind", "myMastermindLair", "discoveryLedger", "discoveryMine"
+    "incidentCast", "blackenedLedger", "discoveryLedger", "discoveryMine"
 ]);
 
 /*
@@ -452,13 +452,17 @@ export const GM_STORE_SCENARIO_ALLOW = Object.freeze({
 /**
  * The settings the GM stores use, read off the source text alone, for Node, which
  * cannot load settings.mjs: SETTINGS's `name: "key"` pairs, and the names the
- * store table (gm-stores.mjs) hands `defineGmStore` and `defineGmCopy` as a `key`
- * or a `legacyKey`. Answers `{ props, keys }`: the SETTINGS names and their keys.
+ * store table (gm-stores.mjs) hands `defineGmStore` and `defineGmCopy` as a `key`,
+ * a `legacyKey` or one of `legacyKeys`. Answers `{ props, keys }`: the SETTINGS
+ * names and their keys.
  */
 export function gmStoreSettingsFromSource(settingsText, storesText) {
     const body = /export const SETTINGS = \{([\s\S]*?)\n\};/.exec(String(settingsText ?? ""))?.[1] ?? "";
     const map = new Map([...stripComments(body).matchAll(/^\s*(\w+):\s*"([^"]+)"/gm)].map(m => [m[1], m[2]]));
-    const props = new Set([...stripComments(String(storesText ?? "")).matchAll(/\b(?:key|legacyKey):\s*SETTINGS\.(\w+)\b/g)].map(m => m[1]));
+    const table = stripComments(String(storesText ?? ""));
+    const props = new Set([...table.matchAll(/\b(?:key|legacyKey):\s*SETTINGS\.(\w+)\b/g)].map(m => m[1]));
+    // A copy that replaced more than one old key names them all (`legacyKeys: [SETTINGS.a, SETTINGS.b]`).
+    for (const list of table.matchAll(/\blegacyKeys:\s*\[([^\]]*)\]/g)) for (const m of list[1].matchAll(/\bSETTINGS\.(\w+)\b/g)) props.add(m[1]);
     for (const [prop, key] of map) if (GM_STORE_PENDING.includes(key)) props.add(prop);
     return { props: [...props].sort(), keys: [...props].map(p => map.get(p)).filter(Boolean).sort(), settings: map.size };
 }

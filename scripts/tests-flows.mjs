@@ -80,7 +80,7 @@ export const FLOWS = Object.freeze([
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",
         entry: {}, scenarios: [], status: "planned", stage: "E39" },
     { id: "mastermind", what: "The Mastermind's doors: asked for and granted across clients",
-        entry: { sockets: ["mastermind.mjs"] }, scenarios: [], status: "planned", stage: "E40" },
+        entry: { sockets: ["mastermind.mjs"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E40" },
     { id: "messenger", what: "The messenger and every private card: the words travel only to the people on the card",
         entry: { sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",

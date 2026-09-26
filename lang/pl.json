@@ -4542,7 +4542,8 @@
       "restoredStore": "{store}: zmienione {n}, pominięte pod cięciem resetu {cut}",
       "store": {
         "bullets": "Truth Bullety",
-        "remnants": "Ślady"
+        "remnants": "Ślady",
+        "mastermind": "Mastermind"
       },
       "row": {
         "traces": {
@@ -4583,7 +4584,8 @@
           "few": "{n} klucze odpowiedzi śladów nie mają żetonu na żadnej scenie: zostają, nic ich nie czyta.",
           "many": "{n} kluczy odpowiedzi śladów nie ma żetonu na żadnej scenie: zostają, nic ich nie czyta.",
           "other": "{n} klucza odpowiedzi śladów nie ma żetonu na żadnej scenie: zostają, nic ich nie czyta."
-        }
+        },
+        "mastermindCleared": "Stary magazyn tej przeglądarki mówi, że Masterminda wyczyszczono {cleared}, już po tym, jak {picked} wybrano na niego postać {name} - być może w innym świecie. Zachowaj ten wybór albo go wyczyść."
       },
       "healthTitle": "Sprawa w tej przeglądarce",
       "healthIntro": "Tej przeglądarce brakuje części sprawy tego świata:",
@@ -4611,7 +4613,10 @@
         "few": "{n} Truth Bullety wzięły klucze odpowiedzi ze swoich śladów.",
         "many": "{n} Truth Bulletów wzięło klucze odpowiedzi ze swoich śladów.",
         "other": "{n} Truth Bulletu wzięło klucze odpowiedzi ze swoich śladów."
-      }
+      },
+      "decideIntro": "Jedna rzecz w tej przeglądarce wymaga decyzji GM-a:",
+      "keepMastermind": "Zachowaj Masterminda",
+      "clearMastermind": "Wyczyść Masterminda"
     }
   }
 }

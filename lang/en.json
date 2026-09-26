@@ -3315,7 +3315,8 @@
       "restoredStore": "{store}: {n} changed, {cut} under the reset's cut left out",
       "store": {
         "bullets": "Truth Bullets",
-        "remnants": "Traces"
+        "remnants": "Traces",
+        "mastermind": "The Mastermind"
       },
       "row": {
         "traces": {
@@ -3346,7 +3347,8 @@
         "traceOrphans": {
           "one": "{n} trace's answer key has no token on any scene: kept, and read by nothing.",
           "other": "{n} traces' answer keys have no token on any scene: kept, and read by nothing."
-        }
+        },
+        "mastermindCleared": "This browser's old store says the Mastermind was cleared on {cleared}, after {name} was picked on {picked} - possibly in another world. Keep the pick, or clear it."
       },
       "healthTitle": "The case on this browser",
       "healthIntro": "This browser is missing part of this world's case:",
@@ -3370,7 +3372,10 @@
       "filled": {
         "one": "{n} Truth Bullet took its answer key from its trace.",
         "other": "{n} Truth Bullets took their answer keys from their traces."
-      }
+      },
+      "decideIntro": "One thing on this browser needs a GM to decide it:",
+      "keepMastermind": "Keep the Mastermind",
+      "clearMastermind": "Clear the Mastermind"
     }
   }
 }
