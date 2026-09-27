@@ -2483,6 +2483,7 @@
         "call.approve": "Zgoda na Hope Call",
         "dynamic.difficulty": "Trudność akcji Dynamic",
         "trap.event": "Zgłoszenie dla pułapek",
+        "roll.subject": "Zgłoszenie, czyj to był rzut",
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
         "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu"

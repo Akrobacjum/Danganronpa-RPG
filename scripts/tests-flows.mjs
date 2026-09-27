@@ -16,7 +16,7 @@
  * holds its scenarios and stages to audit/harness/README.md and tools/stages.json.
  * It imports nothing, so Node can read it as it is.
  *
- *   entry.bridge   the bridge's table actions (BRIDGE_ACTIONS, TRAP_ACTIONS, SEARCH_ACTIONS), by their wire name
+ *   entry.bridge   the bridge's table actions (BRIDGE_ACTIONS, TRAP_ACTIONS, SEARCH_ACTIONS, ROLL_ACTIONS), by their wire name
  *   entry.sockets  the files that listen on the module's socket for it
  *   entry.api      the game.drpg calls that start it (R160 asks that they exist)
  *   entry.calls    "file.mjs#function" for a start that is not on game.drpg
@@ -106,7 +106,8 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },
         scenarios: ["72-canary", "11-killer-secrecy", "33-bridge-paths", "30-security", "61-gmstore-case"], status: "covered", stage: "1.2.64" },
     { id: "private-rolls", what: "A roll made in private: whispered, and hidden from the other players' chat",
-        entry: { sockets: ["dice-sync.mjs"] }, scenarios: ["12-social", "20-crit-hope"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["roll.subject"], sockets: ["dice-sync.mjs", "private-rolls.mjs"] },
+        scenarios: ["12-social", "20-crit-hope", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
         entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage"] },
         scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },

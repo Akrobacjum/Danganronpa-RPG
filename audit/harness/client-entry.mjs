@@ -317,6 +317,17 @@ const FOREIGN_SETTING_DEFAULTS = {
 };
 
 /*
+ * DAGGERHEART'S OWN SETTINGS, REGISTERED AS DAGGERHEART DOES, AT INIT (E06 C5a, 27.09.2026).
+ * They were registered here on their first read, and tier 2's world dump files a setting that
+ * was not registered when the world was first read as one that "appeared": C5a's by-name run
+ * failed "could not restore the world" after a test that only read Fear, to put it back after a
+ * roll. At a table the system has registered them before any module runs.
+ */
+for (const [full, def] of Object.entries(FOREIGN_SETTING_DEFAULTS)) {
+    if (full.startsWith("daggerheart.")) settingDefs.set(full, def);
+}
+
+/*
  * ANOTHER MODULE'S OWN SETTING, REGISTERED THE WAY THAT MODULE DOES (E27, 24.09.2026).
  * Isometric Perspective registers `showWelcome` in its `init` - client-scoped,
  * shown in Configure Settings, on by default - and reads it in its `ready`.

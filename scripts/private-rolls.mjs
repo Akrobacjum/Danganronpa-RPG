@@ -18,10 +18,11 @@
  * Incident rolls widen the audience deliberately; see `incidentAudience`.
  */
 
-import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS, getSetting, incidentParticipants } from "./settings.mjs";
+import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";
+import { SETTINGS, getSetting, incidentParticipants, isDeadForGm } from "./settings.mjs";
 import { roomOfActor, occupantsOf } from "./movement.mjs";
-import { gmIds, ownerOf, error, debug, MESSAGE_FLAG } from "./utils.mjs";
+import { gmIds, ownerOf, error, debug, isPrimaryGm, MESSAGE_FLAG } from "./utils.mjs";
+import { judge, table, pick, as, knownSender, owns, guardRollAuthor, bridgeRequest } from "./bridge-guards.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
 
 // The module's one reader of "what did these two d12s say" - see `rollOutcomeOf`.
@@ -57,6 +58,10 @@ export function registerPrivateRolls() {
     // module scope because `game.messages` does not exist until the world is
     // ready, and `ready` fires before the chat log has rendered a single card.
     Hooks.once("ready", rememberExistingMessages);
+
+    // Which character a roll is about, reported by the roller to the primary GM,
+    // who judges it by the declaration below (`ROLL_ACTIONS`, E06 C5a).
+    game.socket.on(SOCKET_EVENT, (payload, senderId) => isPrimaryGm() ? judge(ROLL_ACTIONS, payload, senderId) : null);
 }
 
 /**
@@ -678,4 +683,168 @@ function onPreCreateChatMessage(message, data, options, userId) {
     } catch (err) {
         error("preCreateChatMessage failed", err);
     }
+}
+
+/* ==========================================================================
+ * WHO A ROLL IS ABOUT, KEPT ON THE GM (E06 C5a, 27.09.2026)
+ * --------------------------------------------------------------------------
+ * Three readers on the primary GM find the character a roll is about on its
+ * message: the Despair award (despair-award.mjs `resolveActor`), the Reroll
+ * receipts (reroll-receipts.mjs `actorIdsOf`) and the diagnostics - by the
+ * speaker and by Daggerheart's `system.source.actor`. Both name the roller's
+ * character to every browser that holds the message, and the next commit of
+ * E06 empties them on every roll the module throws; a neutral speaker would
+ * have left all three with nobody. So the subject reaches the GM another way
+ * first: `throwDice` (action-rolls.mjs) reports `{ messageId, actorId }` in an
+ * addressed request, `roll.subject`, the primary GM keeps it in memory, and
+ * `rollSubject` answers from that before it reads the message. This commit
+ * changes nothing a console reads: the speaker is still written, and every
+ * reader still falls back to it.
+ *
+ * In memory, like the Reroll receipts: a GM who reloads forgets what was
+ * reported before, and such a message is read as an unclaimed one is - its
+ * speaker, its source, then its author's one living character. E28 moves the
+ * record into the GM's store behind the same function.
+ * ========================================================================== */
+
+const SOCKET_EVENT = `module.${MODULE_ID}`;
+
+/** message id -> { actorId, userId, at }: what this client was told, or threw itself. Oldest first. */
+const rollSubjects = new Map();
+
+/*
+ * HOW LONG, AND HOW MANY. A subject is read when the roll lands (the Despair
+ * award) and again whenever a Reroll rewrites the roll (the receipt), which
+ * the recent-chat scan allows up to `TIMING.rerollWindowMinutes` after it, so
+ * that is how long one is kept. The E06 plan said twice `rerollReceiptMs`, ten
+ * minutes: that would forget a roll a Reroll can still reach, and the receipt
+ * would fall back to the author's character. Five hundred bounds a table that
+ * rolls faster than that; it is a bound, not a measured session.
+ */
+const SUBJECTS_KEPT = 500;
+const SUBJECT_KEPT_MS = TIMING.rerollWindowMinutes * 60_000;
+
+/** message id -> the resolvers of `rollSubject` calls waiting for its report. */
+const subjectWaiters = new Map();
+
+/** Record a subject, forget what is too old or too many, and wake whoever waits for this one. */
+function keepSubject(messageId, actorId, userId) {
+    const now = Date.now();
+    rollSubjects.delete(messageId);
+    rollSubjects.set(messageId, { actorId, userId, at: now });
+    for (const [id, entry] of rollSubjects) {
+        if (rollSubjects.size <= SUBJECTS_KEPT && now - entry.at <= SUBJECT_KEPT_MS) break;
+        rollSubjects.delete(id);
+    }
+    const waiting = subjectWaiters.get(messageId) ?? [];
+    subjectWaiters.delete(messageId);
+    for (const wake of waiting) wake();
+}
+
+/**
+ * The report, as the primary GM judges it: who sent it, that they play the
+ * character it names, and that the message is a roll the module threw, written
+ * by the sender a moment ago (`guardRollAuthor`). A report nobody waits on, so
+ * a refusal is logged on the GM and told to nobody.
+ */
+export const ROLL_ACTIONS = table({
+    "roll.subject": {
+        label: "DRPG.Bridge.what.roll.subject",
+        guards: [knownSender, owns("actorId", "sender does not own that character"), guardRollAuthor],
+        sanitize: pick({ messageId: as.id, actorId: as.id }),
+        run: keepRollSubject,
+        answer: "none", quiet: true,
+        claims: { messageId: guardRollAuthor }
+    }
+});
+
+/** The run of `roll.subject`: its guards tied the message to the sender and the character to them. */
+function keepRollSubject(payload, sender, ctx) {
+    keepSubject(payload.messageId, payload.actorId, sender.id);
+}
+
+/**
+ * Tell the primary GM which character a roll the module threw is about
+ * (`throwDice`, action-rolls.mjs). Kept on this client as well: the roller's
+ * own Reroll finds its roll by it (`belongsTo`, reroll.mjs). A primary GM's
+ * own roll is recorded without a packet.
+ */
+export function reportRollSubject(message, actor) {
+    const messageId = message?.id ?? message?._id ?? null;
+    if (!messageId || !actor?.id) return;
+    keepSubject(messageId, actor.id, game.user?.id ?? null);
+    if (isPrimaryGm()) return;
+    const decl = ROLL_ACTIONS["roll.subject"];
+    void bridgeRequest("roll.subject", { messageId, actorId: actor.id }, { settle: decl.answer, quiet: decl.quiet });
+}
+
+/** Is this a roll the module threw - a message `supersedingRoll` claimed as it was created? */
+export function isClaimedRoll(message) {
+    return Boolean(message?.getFlag?.(MODULE_ID, SUPERSEDED_FLAG));
+}
+
+/** The character this client was told (or knows, having thrown it) a roll is about, as an id, or null. */
+export function keptRollSubject(message) {
+    return rollSubjects.get(message?.id ?? "")?.actorId ?? null;
+}
+
+/**
+ * The character a roll is about, as this client can tell now: the subject kept
+ * for it, then the speaker (its actor, then its token), then Daggerheart's
+ * `system.source.actor`, then the author's one living character - a player who
+ * plays two is not guessed between, and a GM owns every one. Null when none.
+ */
+export function rollSubjectNow(message) {
+    if (!message) return null;
+    const kept = game.actors.get(keptRollSubject(message) ?? "");
+    if (kept) return kept;
+
+    const speaker = message.speaker;
+    const spoken = game.actors.get(speaker?.actor ?? "");
+    if (spoken) return spoken;
+    if (speaker?.token && speaker?.scene) {
+        const token = game.scenes.get(speaker.scene)?.tokens?.get(speaker.token);
+        if (token?.actor) return token.actor;
+    }
+
+    const source = message.system?.source?.actor;
+    if (typeof source === "string" && source) {
+        let doc = null;
+        try { doc = fromUuidSync(source); } catch { doc = null; }
+        const actor = doc?.documentName === "Actor" ? doc : doc?.actor ?? null;
+        if (actor) return actor;
+    }
+
+    const author = game.users.get(message.author?.id ?? message.user?.id ?? "");
+    if (!author || author.isGM) return null;
+    const living = game.actors.filter(a => a.type === "character"
+        && a.testUserPermission(author, "OWNER") && !isDeadForGm(a));
+    return living.length === 1 ? living[0] : null;
+}
+
+/**
+ * `rollSubjectNow`, after waiting up to `waitMs` for the report of a roll the
+ * module threw and nobody has reported yet. The Despair award asks as the
+ * message is created, and the roller's report leaves only once its roll has
+ * returned, so on the primary GM the report usually comes second. An
+ * unclaimed roll is never reported and is not waited for.
+ */
+export async function rollSubject(message, { waitMs = 0 } = {}) {
+    if (!message) return null;
+    if (waitMs > 0 && !keptRollSubject(message) && isClaimedRoll(message)) await subjectReported(message.id, waitMs);
+    return rollSubjectNow(message);
+}
+
+/** Resolves when this message's subject is kept, or after `ms`. */
+function subjectReported(messageId, ms) {
+    return new Promise(resolve => {
+        const wake = () => { clearTimeout(timer); resolve(); };
+        const timer = setTimeout(() => {
+            const rest = (subjectWaiters.get(messageId) ?? []).filter(w => w !== wake);
+            if (rest.length) subjectWaiters.set(messageId, rest);
+            else subjectWaiters.delete(messageId);
+            resolve();
+        }, ms);
+        subjectWaiters.set(messageId, [...(subjectWaiters.get(messageId) ?? []), wake]);
+    });
 }

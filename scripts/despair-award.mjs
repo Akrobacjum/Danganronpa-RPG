@@ -53,7 +53,7 @@ async function onChatMessage(message) {
             return;
         }
 
-        const actor = resolveActor(message);
+        const actor = await resolveActor(message);
         if (!actor || actor.type !== "character") {
             debug("Roll had no character behind it; nothing awarded.", message?.speaker);
             return;
@@ -223,32 +223,18 @@ function findDualityDice(message) {
 }
 
 /**
- * The actor a chat message came from. Trait rolls, action rolls and item rolls
- * all identify their actor differently, so every route is tried.
+ * The actor a chat message came from: `rollSubject` in private-rolls.mjs (E06
+ * C5a), which tries every route this function used to try itself - the speaker's
+ * actor and token, Daggerheart's `system.source.actor` - after the subject the
+ * roller reported, and ends at the author's one living character rather than
+ * `user.character` (a player's assigned character, dead or not).
+ *
+ * A roll the module threw is waited for, up to four seconds: this runs as the
+ * message is created, and its report leaves once the roll has returned. Four is
+ * the wait secret.mjs gives a card's document to arrive, not a measured delay.
+ * Imported when asked, because private-rolls.mjs imports this file.
  */
-function resolveActor(message) {
-    const speaker = message?.speaker;
-
-    if (speaker?.actor) {
-        const actor = game.actors.get(speaker.actor);
-        if (actor) return actor;
-    }
-
-    if (speaker?.token && speaker?.scene) {
-        const scene = game.scenes.get(speaker.scene);
-        const token = scene?.tokens?.get(speaker.token);
-        if (token?.actor) return token.actor;
-    }
-
-    // Daggerheart records the originating actor as a UUID on action rolls.
-    const sourceUuid = message?.system?.source?.actor;
-    if (sourceUuid) {
-        const doc = fromUuidSync(sourceUuid);
-        const actor = doc?.documentName === "Actor" ? doc : doc?.actor ?? null;
-        if (actor) return actor;
-    }
-
-    // Finally, the rolling user's own character.
-    const user = game.users.get(message?.author?.id ?? message?.user?.id);
-    return user?.character ?? null;
+async function resolveActor(message) {
+    const { rollSubject } = await import("./private-rolls.mjs");
+    return rollSubject(message, { waitMs: 4000 });
 }

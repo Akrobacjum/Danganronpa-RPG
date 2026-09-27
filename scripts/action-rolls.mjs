@@ -41,7 +41,7 @@ import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor, projectsL
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
 import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, ownerOf } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
-import { supersedingRoll } from "./private-rolls.mjs";
+import { supersedingRoll, reportRollSubject } from "./private-rolls.mjs";
 // One reader, for the Tamper menu's "what you have readied" line. use-items.mjs
 // does not import this file.
 import { equippedFor, tierOf } from "./use-items.mjs";
@@ -725,6 +725,10 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         ...(title ? { title, headerTitle: title } : {})
     }));
     if (!result) return null;
+    // Which character the roll is about, told to the primary GM before anything
+    // else here awaits: the Despair award is waiting for it (`rollSubject`,
+    // private-rolls.mjs, E06 C5a).
+    reportRollSubject(result.message ?? result.raw?.message, actor);
 
     const roll = result.roll ?? result;
     const total = roll?.total ?? result?.total;

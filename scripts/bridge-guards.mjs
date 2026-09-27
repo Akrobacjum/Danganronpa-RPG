@@ -257,7 +257,13 @@ export const REASON_PATTERNS = Object.freeze([
     // E04: the GM's browser does not hold that bullet's answer key (analyze.mjs).
     ["answerKeyMissing", /^the answer key for that bullet is not on this GM's browser$/],
     // E04's fix round 10: its stores did not open in time, or at all (gm-stores.mjs answerKeysRefusal).
-    ["keysNotOpen", /^the answer keys are not open on this GM's browser$/]
+    ["keysNotOpen", /^the answer keys are not open on this GM's browser$/],
+    // E06 C5a: a roll's subject reported for a message that is not the sender's fresh roll (guardRollAuthor).
+    // Quiet, so told to nobody; R164 holds every reason to one code all the same.
+    ["missing", /^no such roll message$/],
+    ["badRequest", /^that message is not a roll the module threw$/],
+    ["notYours", /^sender did not write that roll message$/],
+    ["cannotNow", /^that roll message is too old to report$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */
@@ -756,6 +762,33 @@ export async function guardDespairReceipt(sender, payload, ctx) {
         const owed = receiptDespairDelta(receipt);
         return owed === asked ? null : `the Reroll moved Despair by ${owed}, not ${payload.delta}`;
     });
+}
+
+/*
+ * A ROLL'S SUBJECT IS REPORTED BY WHOEVER THREW IT (E06 C5a, 27.09.2026).
+ * `roll.subject` tells the primary GM which character a roll the module threw
+ * is about (private-rolls.mjs `ROLL_ACTIONS`). `owns` judges the character;
+ * this ties the report to its message: the message exists - waited for, as a
+ * card's words wait for theirs in secret.mjs, because the report can arrive
+ * before the document - it is a roll the module claimed, the sender wrote it,
+ * and it is under a minute old. A report leaves as its roll returns, so an
+ * older message is not the roll the sender just threw. The age is the GM's clock
+ * against the message's `timestamp`, stamped as the message was created - whose
+ * clock stamps it, and how far the two drift at a table, is not measured here;
+ * a minute leaves room.
+ */
+const ROLL_REPORT_MS = 60_000;
+
+export async function guardRollAuthor(sender, payload, ctx) {
+    const id = payload?.messageId;
+    const { messageArrives } = await import("./secret.mjs");
+    const message = typeof id === "string" && id ? game.messages.get(id) ?? await messageArrives(id) : null;
+    if (!message) return "no such roll message";
+    const { isClaimedRoll } = await import("./private-rolls.mjs");
+    if (!isClaimedRoll(message)) return "that message is not a roll the module threw";
+    if ((message.author?.id ?? message.user?.id) !== sender.id) return "sender did not write that roll message";
+    if (!(Date.now() - (message.timestamp ?? 0) <= ROLL_REPORT_MS)) return "that roll message is too old to report";
+    return null;
 }
 
 /** A relay is about the sender's own character, or it is refused - see the note above `relay` in traps.mjs. */

@@ -250,7 +250,8 @@ const REGRESSIONS = [
          * Every request a player's client sends the primary GM is a declaration in
          * one of the bridge's tables (E31, 25.09.2026: BRIDGE_ACTIONS in
          * gm-bridge.mjs, TRAP_ACTIONS in traps.mjs, SEARCH_ACTIONS in
-         * search-tokens.mjs), judged by one runner: who really
+         * search-tokens.mjs; since E06 C5a ROLL_ACTIONS in private-rolls.mjs,
+         * whose one report names its message by a guard's claim), judged by one runner: who really
          * sent it (`senderOf(senderId)`, Foundry's own argument, which cannot be
          * forged), then the guards the declaration names, in order, and only then
          * the run, with a copy of the packet that holds only the fields the

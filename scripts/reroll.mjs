@@ -32,6 +32,7 @@ import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING
 import { resolveThreshold, easedBy, log, error, plural } from "./utils.mjs";
 import { rollBookmark, keepRollBookmark } from "./action-rolls.mjs";
 import { leavesTraceFor } from "./inventory.mjs";
+import { keptRollSubject } from "./private-rolls.mjs";
 
 /**
  * Reroll, with the dice the first roll was actually made with.
@@ -64,11 +65,11 @@ import { leavesTraceFor } from "./inventory.mjs";
  * game's critical never does, and compensating after its unawaited, clamped
  * write could not know what it had really moved.
  */
-async function rerollKeepingDice(original) {
+async function rerollKeepingDice(original, actor) {
     const wanted = advantageDice(original);
     if (wanted <= 1) {
         const rerolled = await original.reroll();
-        await settleDualityReroll(original, rerolled);
+        await settleDualityReroll(original, rerolled, actor);
         return rerolled;
     }
 
@@ -76,7 +77,7 @@ async function rerollKeepingDice(original) {
     clone.advantageNumber = wanted;
     clone.constructFormula(clone.options);
     const rerolled = await clone.evaluate();
-    await settleDualityReroll(original, rerolled);
+    await settleDualityReroll(original, rerolled, actor);
     return rerolled;
 }
 
@@ -95,7 +96,7 @@ async function rerollKeepingDice(original) {
  * own resource map calls. Dice So Nice gets the system's Hope and Fear colours
  * from `CONFIG.DH.GENERAL.getDiceSoNicePresets`, as a fresh roll does.
  */
-async function settleDualityReroll(original, rerolled) {
+async function settleDualityReroll(original, rerolled, actor) {
     try {
         if (game.modules.get("dice-so-nice")?.active) {
             // Their own try: a missing dice system makes the preset lookup throw,
@@ -135,7 +136,7 @@ async function settleDualityReroll(original, rerolled) {
             // roll in critical.mjs - so a reroll has none to give back or take.
             if (stress && CRITICAL.clearsStress) updates.push({ key: "stress", value: -1 * stress, enabled: true });
             if (fear) updates.push({ key: "fear", value: fear, enabled: true });
-            await modifyRollActor(original, updates);
+            await modifyRollActor(original, updates, actor);
         }
 
         if (countdownAutomation && fear) {
@@ -172,15 +173,21 @@ function dhAutomation() {
     return game.settings.get(CONFIG.DH.id, gameSettings.Automation);
 }
 
-/** The actor a roll's resources land on - the system's own choice of it. */
-async function rollTarget(original) {
-    const actor = await foundry.utils.fromUuid(original.options?.source?.actor ?? "");
-    return actor?.system?.partner ?? actor ?? null;
+/**
+ * The actor a roll's resources land on - the system's own choice of it (a
+ * companion's partner), made from the character the Reroll was asked for
+ * (`rerollLastAction`). The roll's own `source.actor` names it too, for now:
+ * E06's next commit empties it on every roll the module throws, so it is read
+ * only when no character is handed down (E06 C5a). Exported for the suite.
+ */
+export async function rollTarget(original, actor = null) {
+    const subject = actor ?? await foundry.utils.fromUuid(original?.options?.source?.actor ?? "");
+    return subject?.system?.partner ?? subject ?? null;
 }
 
-async function modifyRollActor(original, updates) {
+async function modifyRollActor(original, updates, actor) {
     if (!updates.length) return;
-    const target = await rollTarget(original);
+    const target = await rollTarget(original, actor);
     if (target?.modifyResource) await target.modifyResource(updates);
 }
 
@@ -222,7 +229,7 @@ export async function rerollLastAction(actor) {
     // result granted - see `settleDualityReroll`.
     let rerolled;
     try {
-        rerolled = await rerollKeepingDice(original);
+        rerolled = await rerollKeepingDice(original, actor);
         await message.update({ rolls: [rerolled] });
     } catch (err) {
         error("Could not reroll the last action", err);
@@ -315,7 +322,9 @@ function findMessage(actor, bookmark) {
     return mine.length ? mine[mine.length - 1] : null;
 }
 
+/** Is this roll about `actor`: as this browser kept it when it threw the roll (E06 C5a), or as the message names it. */
 function belongsTo(message, actor) {
+    if (keptRollSubject(message) === actor.id) return true;
     if (message.speaker?.actor === actor.id) return true;
     const source = message.system?.source?.actor;
     return typeof source === "string" && source === actor.uuid;

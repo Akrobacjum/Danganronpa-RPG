@@ -15,7 +15,7 @@ import { voiceTargets } from "./voice.mjs";
 import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle } from "./gm-store.mjs";
 import {
-    ok, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf, fnSource,
+    ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, cast
 } from "./tests-kit.mjs";
 
@@ -343,6 +343,45 @@ async function wordsSent(run) {
         if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
     }
     return sent;
+}
+
+/**
+ * A roll the module throws, whose document names nobody (E06 C5a). Thrown through `rollTrait`
+ * as the suite throws every roll, with the speaker, Daggerheart's `system.source.actor`, each
+ * roll's `source.actor` and the actor's id and name in its data emptied as the message is
+ * created - what E06's next commit does in private-rolls.mjs, done here by a hook taken off
+ * again, after the module's own hook has claimed the roll. `faces` sets the dice where the
+ * harness reads them (`__forceRoll`); a real table throws its own, so a Fear there moves
+ * Daggerheart's Fear, which restore() does not put back and this does. The caller deletes the
+ * message.
+ */
+async function neutralRoll(who, { remember = false, faces = null } = {}) {
+    const rolls = await import("./action-rolls.mjs");
+    // The claim's flag by name, not `isClaimedRoll`: the tree before C5a has no such export, and its red run needs the scrub.
+    const scrub = Hooks.on("preCreateChatMessage", (message, data) => {
+        if (!message.getFlag?.(MODULE_ID, "supersededRoll")) return;
+        const neutral = (data?.rolls ?? []).map(r => {
+            const roll = typeof r === "string" ? JSON.parse(r) : foundry.utils.deepClone(r);
+            if (roll.options?.source) roll.options.source.actor = "";
+            if (roll.options?.data) { delete roll.options.data.id; delete roll.options.data.name; }
+            return JSON.stringify(roll);
+        });
+        message.updateSource({ speaker: { alias: "?", actor: null, token: null, scene: null }, "system.source.actor": "", rolls: neutral });
+    });
+    const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+    const { gameSettings } = CONFIG.DH.SETTINGS;
+    const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+    try {
+        if (faces) globalThis.__forceRoll = faces;
+        const outcome = await rolls.rollTrait(who, "eye", { remember });
+        return { outcome, message: outcome?.raw?.message ?? null };
+    } finally {
+        Hooks.off("preCreateChatMessage", scrub);
+        if (hadForce) globalThis.__forceRoll = force;
+        else delete globalThis.__forceRoll;
+        await settle();
+        if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+    }
 }
 
 /**
@@ -762,6 +801,128 @@ const SCENARIOS = [
         equal(stableJson([toSecond.length, toSecond.some(h => h.includes(refused)), gmKept]), stableJson([1, true, true]),
             `the second killer was not sent one card, the ordinary refusal, or the GMs lost the reason: ${
                 stableJson(toSecond.map(h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 100)))}`);
+    }],
+
+    ["the GM finds a neutral roll's subject", async () => {
+        /*
+         * E06 C5a, 27.09.2026; audit S02-02, S04-02 (the plan's 2.3). A roll's document is to
+         * name nobody, so the character it is about reaches the primary GM by a report,
+         * `roll.subject`, and `rollSubject` answers from what was reported. A roll thrown here,
+         * its document emptied as it was created (`neutralRoll`): its subject is found - on the
+         * GM who threw it, kept without a packet. Then four reports, judged as the listener
+         * judges them: a connected player's of a roll the GM wrote, and of a character they do
+         * not play; a GM's of a message that is not a roll the module threw - each refused,
+         * logged and told to nobody (quiet); and a GM's of its own roll, which is taken and read
+         * back. The report crossing the socket from a player is 33-bridge-paths' A10.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a refused report is sent by a player, and Foundry names only a connected one");
+        const [who] = cast(1);
+        const P = await import("./private-rolls.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const U = await import("./utils.mjs");
+        const plays = (u, a) => a.type === "character" && a.testUserPermission(u, "OWNER");
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => plays(u, a)));
+        const theirs = game.actors.find(a => plays(player, a));
+        const other = game.actors.find(a => a.type === "character" && !plays(player, a));
+        must(other, `${player.name} plays every character - a report of somebody else's cannot be made here`);
+        const made = [];
+        const refusals = () => U.sessionFailures().filter(e => String(e.message).includes('Refused a "roll.subject"')).length;
+        try {
+            const { message } = await neutralRoll(who, { faces: { hope: 9, fear: 5 } });
+            made.push(message?.id);
+            must(message && !message.speaker?.actor && !message.system?.source?.actor,
+                "the roll's document still names its character, or there is none - this measured nothing");
+            const found = P.rollSubjectNow(message)?.id ?? null;
+            const plain = await ChatMessage.create({ content: "E06 C5a: not a roll the module threw" });
+            made.push(plain?.id);
+            const sent = [];
+            const ask = (from, messageId, actorId) => G.judge(P.ROLL_ACTIONS,
+                { action: "roll.subject", messageId, actorId }, from, { send: (to, packet) => sent.push(packet?.action ?? null) });
+            const before = refusals();
+            const verdicts = [
+                await ask(player.id, message.id, theirs.id),
+                await ask(player.id, message.id, other.id),
+                await ask(game.user.id, plain.id, who.id),
+                await ask(game.user.id, message.id, other.id)
+            ];
+            equal(stableJson([found, verdicts, refusals() - before, sent, P.rollSubjectNow(message)?.id ?? null]),
+                stableJson([who.id, [null, null, null, true], 3, [], other.id]),
+                "the subject was not found, a report that is not the sender's to make was taken or told, or a GM's own was not kept");
+        } finally {
+            for (const id of made) await game.messages.get(id ?? "")?.delete();
+        }
+    }],
+
+    ["a Fear on a neutral roll feeds the right Monokuma", async () => {
+        /*
+         * E06 C5a, 27.09.2026; the plan's section 0, fact 6. The Despair award found the roller's
+         * character on the message - its speaker, then `system.source.actor`, then the author's
+         * assigned character - and a roll whose document names nobody left it with the GM's, which
+         * is nobody's: the Fear fed no pool. It asks `rollSubject` now, which waits for the
+         * report. The student's Monokuma is set to 0 and a Fear thrown for the student; that pool
+         * gains one and no other moves. The harness sets the dice; at a real table they fall as
+         * they fall, and a Hope there measures only that nothing was fed.
+         */
+        const [who] = cast(1);
+        const D = await import("./despair.mjs");
+        const { monokumaFor } = await import("./assignments.mjs");
+        const { readDuality } = await import("./despair-award.mjs");
+        const mono = monokumaFor(who);
+        must(mono, `${who.name} feeds no Monokuma's pool - this would measure nothing`);
+        const pools = () => D.monokumas().map(u => [u.id, D.getDespair(u.id)]);
+        let message = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, true);
+            await D.setDespair(mono.id, 0);
+            const before = pools();
+            ({ message } = await neutralRoll(who, { faces: { hope: 3, fear: 9 } }));
+            must(message && !message.speaker?.actor && !message.system?.source?.actor,
+                "the roll's document still names its character, or there is none - this measured nothing");
+            const feared = Boolean(readDuality(message)?.withFear);
+            const expected = before.map(([id, n]) => [id, id === mono.id && feared ? n + 1 : n]);
+            await until(() => stableJson(pools()) === stableJson(expected), 6000);
+            await settle();
+            equal(stableJson(pools()), stableJson(expected),
+                `${feared ? "a Fear" : "a Hope"} on a roll that names nobody fed the wrong pools, or none`);
+        } finally {
+            await message?.delete();
+        }
+    }],
+
+    ["a Reroll of a neutral roll finds it, and its receipt and its settlement name its character", async () => {
+        /*
+         * E06 C5a, 27.09.2026; the plan's section 0, fact 6. Three readers of a Reroll found the
+         * character on the message: the roller's scan of recent chat (`belongsTo`), the GM's
+         * receipt (`actorIdsOf`) and the settlement of Hope and Sanity (`rollTarget`, from the
+         * roll's `source.actor`). A roll whose document names nobody, with its bookmark: the
+         * bookmark finds it, and so does the scan once the bookmark is gone - from what this
+         * browser kept when it threw it; the receipt's reader names the character; and the
+         * settlement lands on the character the Reroll was asked for, where the roll alone names
+         * nobody. The Reroll itself is not thrown: `Roll#reroll` is not in the harness, and a
+         * receipt is a player's, made on the GM's client from that player's rewrite -
+         * 33-bridge-paths' A10 makes one. The bookmark store and the message are put back.
+         */
+        const [who] = cast(1);
+        const R = await import("./reroll.mjs");
+        const { actorIdsOf } = await import("./reroll-receipts.mjs");
+        const kept = getSetting(SETTINGS.rollBookmarks);
+        let message = null;
+        try {
+            ({ message } = await neutralRoll(who, { remember: true, faces: { hope: 9, fear: 5 } }));
+            must(message && !message.speaker?.actor && !message.system?.source?.actor && message.rolls?.[0],
+                "the roll's document still names its character, or holds no roll - this measured nothing");
+            const byMark = R.lastRollOf(who).message?.id ?? null;
+            await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, {});
+            const byScan = R.lastRollOf(who).message?.id ?? null;
+            const original = message.rolls[0];
+            const [target, alone] = [await R.rollTarget(original, who), await R.rollTarget(original)];
+            equal(stableJson([byMark, byScan, actorIdsOf(message), target?.id ?? null, alone?.id ?? null]),
+                stableJson([message.id, message.id, [who.id], (who.system?.partner ?? who).id, null]),
+                "a Reroll would not find the roll, or its receipt or its settlement would not name the character");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, kept ?? {});
+            await message?.delete();
+        }
     }],
 
     ["two killers act back to back, not alternating with the victim", async () => {

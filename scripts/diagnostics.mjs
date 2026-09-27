@@ -19,6 +19,7 @@ import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { isPrimaryGm, log, debug } from "./utils.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
+import { rollSubjectNow } from "./private-rolls.mjs";
 
 /**
  * Why Dice So Nice might be rolling unskinned dice.
@@ -73,7 +74,8 @@ function rollAudienceLines() {
     }
 
     for (const message of rolls) {
-        const subject = game.actors.get(message.speaker?.actor ?? "");
+        // Who the roll is about as this browser can tell (E06 C5a): what its roller reported, then the speaker.
+        const subject = rollSubjectNow(message);
         const author = message.author?.name ?? "?";
         const whisper = message.whisper ?? [];
         const names = whisper.length
@@ -183,7 +185,8 @@ export function diagnoseDespair() {
     const last = [...game.messages].reverse().find(m => (m.rolls?.length ?? 0) > 0);
     if (last) {
         lines.push("");
-        lines.push(`Most recent roll message: type "${last.type}", speaker actor "${last.speaker?.actor ?? "(none)"}"`);
+        lines.push(`Most recent roll message: type "${last.type}", speaker actor "${last.speaker?.actor ?? "(none)"}", `
+            + `about "${rollSubjectNow(last)?.name ?? "(nobody this browser can tell)"}"`);
         import("./despair-award.mjs").then(m => {
             const outcome = m.readDuality(last);
             console.log(`${MODULE_ID} | last roll read as:`, outcome ?? "not a duality roll");

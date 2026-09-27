@@ -2399,6 +2399,7 @@
         "call.approve": "Hope Call approval",
         "dynamic.difficulty": "Dynamic action difficulty",
         "trap.event": "A report for the traps",
+        "roll.subject": "A report of whose roll it was",
         "searchTokens.spend": "Spend a search token",
         "searchTokens.takePlant": "Look for a planted item",
         "searchTokens.returnPlant": "Put a planted item back"

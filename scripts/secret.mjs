@@ -488,8 +488,8 @@ export async function updateSecret(message, html, recipients = null) {
     return message;
 }
 
-/** The document a socket packet named, once Foundry delivers it - or null after a while. */
-function messageArrives(id, ms = 4000) {
+/** The document a socket packet named, once Foundry delivers it - or null after a while. Also `guardRollAuthor`'s wait (E06). */
+export function messageArrives(id, ms = 4000) {
     return new Promise(resolve => {
         const hook = Hooks.on("createChatMessage", message => {
             if (message?.id !== id) return;

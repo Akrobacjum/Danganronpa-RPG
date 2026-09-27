@@ -894,9 +894,10 @@ async function bridgeTables() {
     return out;
 }
 
-/** The tables and the files that hold them (E31: the bridge, the trap relay, the search tokens). */
+/** The tables and the files that hold them (E31: the bridge, the trap relay, the search tokens; E06 C5a: a roll's subject). */
 const BRIDGE_TABLE_FILES = Object.freeze([
-    ["gm-bridge.mjs", "BRIDGE_ACTIONS"], ["traps.mjs", "TRAP_ACTIONS"], ["search-tokens.mjs", "SEARCH_ACTIONS"]
+    ["gm-bridge.mjs", "BRIDGE_ACTIONS"], ["traps.mjs", "TRAP_ACTIONS"], ["search-tokens.mjs", "SEARCH_ACTIONS"],
+    ["private-rolls.mjs", "ROLL_ACTIONS"]
 ]);
 
 /**
