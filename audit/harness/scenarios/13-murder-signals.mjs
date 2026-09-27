@@ -149,6 +149,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     `, { timeout: 60000 });
     await settle(700);
 
+    /* The victim's opening roll is thrown on p1 as the trap opens, and a miss starts the incident
+       at once - which took the opening stage, and its Event card, away before the read below in
+       one run of two (27.09). Forced to a critical, which the victim survives noticing, so the
+       opening stays open until the GM rules it; deleted once the card is read. */
+    await p1.eval(`globalThis.__forceRoll = { hope: 10, fear: 10 }; return true;`);
     await gm.eval(`
         await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}", indirect: true });
         return true;
@@ -169,6 +174,23 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     check("trap: the killer is indistinguishable from a bystander",
         JSON.stringify(trap.killer) === JSON.stringify(trap.bystander),
         `killer ${JSON.stringify(trap.killer)} vs bystander ${JSON.stringify(trap.bystander)}`);
+
+    /* THE OPENING EVENT CARD (E05's fix round, M7, 27.09.2026). While the trap's opening runs,
+       the Event panel's "A murder is under way" card is the victim's and the GM's, and not the
+       killer's - events.mjs `openingCard`, which asks `incidentIndirect(cast, state)` whether it
+       is a trap. Nothing read it on a browser until now: with the card asking the world half
+       alone (which holds no method since C8), the victim lost it and every check stayed green
+       (the C8 session's finding). Read from the panel each browser draws. */
+    const OPENING = `const E = await import("${repoUrl}/scripts/events.mjs");
+        E.renderEvents();
+        const sig = JSON.parse(document.getElementById("drpg-events")?.dataset.signature ?? "[]");
+        return { stage: game.settings.get("${MOD}", "murderState")?.stage ?? null,
+            card: sig.some(c => c[0] === "incident" && c[1] === game.i18n.localize("DRPG.Events.openingTitle")) };`;
+    const opening = { gm: await gm.eval(OPENING), victim: await p1.eval(OPENING), bystander: await p2.eval(OPENING), killer: await p3.eval(OPENING) };
+    await p1.eval(`delete globalThis.__forceRoll; return true;`);
+    check("trap: the opening Event card is the victim's and the GM's, not the killer's or a bystander's",
+        Object.values(opening).every(o => o.stage === "openingRoll")
+        && opening.gm.card && opening.victim.card && !opening.bystander.card && !opening.killer.card, JSON.stringify(opening));
 
     /* HOW IT HAPPENED IS NOT IN THE WORLD (E05 C8; audit S04-08). The world half of
        `murderState` said `indirect: true` on every browser - the killer's too, who is told
@@ -192,7 +214,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
        world half's. The gate compares both halves since E05 C8; a mutant comparing the world
        halves alone still passes here (26.09), because every road into Stage 6 writes `endedBy`,
        a cast field now, and a write of the cast is pushed anyway - this guards the outcome,
-       not that line. */
+       not that line.
+       THAT MUTANT IS EQUIVALENT TODAY, AND WHY (E05's fix round, 27.09.2026). The gate
+       (`trapMoved` in murder.mjs `writeState`) only decides anything on a write that names no
+       cast field, and read on 27.09 no such write moves `trapRunning`: the incident opens with
+       the cast (`openMurder`), openingRoll -> incident keeps it running, every road into
+       Stage 6 writes `endedBy`, and an incident ends through `restoreState`, not `writeState`.
+       `writeState` is not exported, so no test can make the write that would tell the two
+       apart; the gate is kept for the next road that moves the stage alone. Re-measured with
+       the opening card above: the mutant still passes every check in this file. */
     await gm.eval(`
         await game.drpg.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
         await game.drpg.beginResolution("victimKilled");

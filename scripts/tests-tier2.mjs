@@ -8165,18 +8165,33 @@ const SCENARIOS = [
          * the drop deletes it, reads it back and says how many, and a second run has
          * nothing to do. Nothing is lifted, so nothing is put back but the flag, if the
          * drop left it.
+         *
+         * AND ON AN UNLINKED TOKEN'S OWN ACTOR DATA (E05's fix round, S1-m4, 27.09.2026): a
+         * token of the same character, unlinked, whose delta holds a Stage 6 bookmark as a
+         * sheet opened from it wrote one - the drop takes it off the delta as well, and
+         * counts both. Red first (27.09): on the fix's parent the delta kept its bookmark.
+         * The token is deleted.
          */
         const [who] = cast(1);
         const A = await import("./action-rolls.mjs");
+        const scene = canvas.scene ?? game.scenes.contents[0];
+        let token = null;
+        const deltaHolds = () => Object.hasOwn(scene.tokens.get(token?.id ?? "")?.toObject()?.delta?.flags?.[MODULE_ID] ?? {}, FLAGS.lastAction);
         try {
             await who.setFlag(MODULE_ID, FLAGS.lastAction, { messageId: "SUITEMESSAGE0001", actionKey: "crisis", crisis: "SUITE key" });
             ok(Object.hasOwn(who.flags?.[MODULE_ID] ?? {}, FLAGS.lastAction), "the old bookmark was not planted - this measured nothing");
+            [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE unlinked", actorId: who.id, actorLink: false,
+                x: 100, y: 100, width: 1, height: 1, hidden: true,
+                delta: { flags: { [MODULE_ID]: { [FLAGS.lastAction]: { messageId: "SUITEMESSAGE0002", actionKey: "stage6", tokenIds: ["SUITETOKEN000001"] } } } } }]);
+            ok(deltaHolds(), "the unlinked token's bookmark was not planted - this measured nothing");
             const report = await A.dropRollBookmarks();
             ok(!Object.hasOwn(game.actors.get(who.id)?.flags?.[MODULE_ID] ?? {}, FLAGS.lastAction), "the actor still carries its bookmark after the drop");
-            ok(report?.dropped >= 1, `the drop's report does not count the bookmark: ${stableJson(report)}`);
+            ok(!deltaHolds(), "the unlinked token's own actor data still carries its bookmark after the drop");
+            ok(report?.dropped >= 2, `the drop's report does not count both bookmarks: ${stableJson(report)}`);
             equal(await A.dropRollBookmarks(), null, "a second run of the drop found something to do");
         } finally {
             if (Object.hasOwn(who.flags?.[MODULE_ID] ?? {}, FLAGS.lastAction)) await who.unsetFlag(MODULE_ID, FLAGS.lastAction);
+            if (token) await scene.tokens.get(token.id)?.delete();
         }
     }],
 

@@ -3,7 +3,8 @@
  * verify, R9's extension).
  * ---------------------------------------------------------------------------
  * Foundry sends the whole world to every browser: every world setting, and every
- * actor's, user's and token's flags, are on every player's machine, readable from
+ * actor's, user's, token's and chat message's flags - an unlinked token's own actor
+ * data among them - are on every player's machine, readable from
  * its console whatever the interface chooses to show. This file is the one
  * statement of what must never be among them - a rule per module world setting,
  * one for every module world setting, and one per document type's flags - and
@@ -32,8 +33,10 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
  * namespace: `fields` it may never hold at any depth, `empty` (it holds nothing at
  * all), or `only` (the top-level keys it may hold). `everySetting` holds for every
  * module world setting, but for the fields `except` lets one setting hold. `flags` is
- * keyed by document type (Actor, User, Token): a path under the module's flag scope
- * that may never be there. Each rule says what it keeps out, and since when.
+ * keyed by document type (Actor, User, Token, ChatMessage): a path under the module's
+ * flag scope that may never be there - an unlinked token's own actor data (its delta)
+ * is read under `Actor`, since that is where a sheet opened from the token writes. Each
+ * rule says what it keeps out, and since when.
  */
 export const WORLD_SECRET_RULES = Object.freeze({
     settings: Object.freeze({
@@ -91,7 +94,12 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // E05 C6: a player's pre-session note for the GMs - "Am I planning to kill? How?" - is a GM
         // store; the flag keeps only `{ updatedAt, written }` (pre-session-note.mjs; S11-03, S01-08).
         User: Object.freeze(["preSessionNote.text"]),
-        Token: Object.freeze([])
+        Token: Object.freeze([]),
+        // E05 C7: a card's facts - a Search's find, the actor it was about - are its recipients'
+        // client store; the `summary` flag that held them on the document is gone (secret.mjs
+        // `dropCardSummaries`; S10-05, S02-11). Read since E05's fix round (S1-m3): until then
+        // one check in 40-flow held this, and the rule read no ChatMessage at all.
+        ChatMessage: Object.freeze(["summary"])
     })
 });
 
@@ -123,13 +131,16 @@ function at(value, path) {
  * Pure.
  *
  * `snapshot`: `{ settings: { [key]: value } }` - the module's world settings,
- * keyed without the namespace - and `actors`, `users`, `tokens`: arrays of
- * `{ id, flags }` (a token's id may be written "sceneId.tokenId"), where `flags`
- * is the document's whole flags object.
+ * keyed without the namespace - and `actors`, `users`, `tokens`, `messages`: arrays
+ * of `{ id, flags }` (a token's id may be written "sceneId.tokenId"), where `flags`
+ * is the document's whole flags object. A token may carry `delta` too - its own
+ * actor data, `{ flags }` - which is read against the `Actor` rule and for `ids`,
+ * with the hit's `doc` "Actor" and its `path` under `delta.` (E05's fix round,
+ * S1-m4: a bookmark 1.2.63 wrote from an unlinked token's sheet is there).
  *
  * `ids`: actor ids no world data may name - a string that contains one, value or
- * key, anywhere under a module world setting or under an actor's, user's or
- * token's module flags. A document's own id, and the flags outside the module's
+ * key, anywhere under a module world setting or under an actor's, user's,
+ * token's (and its delta's) or message's module flags. A document's own id, and the flags outside the module's
  * scope, are not read.
  *
  * Answers `[{ kind: "field" | "empty" | "only" | "flag" | "id", doc, id, path, key?, rule }]`:
@@ -169,14 +180,18 @@ export function findWorldSecrets(snapshot, { ids = [], rules = WORLD_SECRET_RULE
         if (isObject(value)) idsIn("setting", key, value, "");
         else if (typeof value === "string" && wanted.some(w => value.includes(w))) out.push({ kind: "id", doc: "setting", id: key, path: "", rule: "an actor id no world data may name" });
     }
-    for (const [doc, list] of [["Actor", snapshot?.actors], ["User", snapshot?.users], ["Token", snapshot?.tokens]]) {
+    const flagsIn = (doc, id, flags, base) => {
+        const scope = flags?.[WORLD_SECRET_MODULE];
+        if (!isObject(scope)) return;
+        for (const path of rules.flags?.[doc] ?? []) {
+            if (at(scope, path) !== undefined) out.push({ kind: "flag", doc, id, path: `${base}${WORLD_SECRET_MODULE}.${path}`, rule: `a flag no ${doc} may carry` });
+        }
+        idsIn(doc, id, scope, `${base}${WORLD_SECRET_MODULE}`);
+    };
+    for (const [doc, list] of [["Actor", snapshot?.actors], ["User", snapshot?.users], ["Token", snapshot?.tokens], ["ChatMessage", snapshot?.messages]]) {
         for (const entry of Array.isArray(list) ? list : []) {
-            const scope = entry?.flags?.[WORLD_SECRET_MODULE];
-            if (!isObject(scope)) continue;
-            for (const path of rules.flags?.[doc] ?? []) {
-                if (at(scope, path) !== undefined) out.push({ kind: "flag", doc, id: String(entry.id ?? ""), path: `flags.${WORLD_SECRET_MODULE}.${path}`, rule: `a flag no ${doc} may carry` });
-            }
-            idsIn(doc, String(entry.id ?? ""), scope, `flags.${WORLD_SECRET_MODULE}`);
+            flagsIn(doc, String(entry?.id ?? ""), entry?.flags, "flags.");
+            if (doc === "Token" && isObject(entry?.delta)) flagsIn("Actor", String(entry.id ?? ""), entry.delta.flags, "delta.flags.");
         }
     }
     return out;

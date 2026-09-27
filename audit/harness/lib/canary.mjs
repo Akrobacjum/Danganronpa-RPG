@@ -191,7 +191,10 @@ export function scanDump(dump, markers) {
  * breaks scripts/world-secrets.mjs's rule or names one of `ids`, as canary hits:
  * `{ seed: "world.id" | "world.field", surface, where, path, phase, via, n, sample }`,
  * a setting at `danganronpa-rpg.<key>`, a document at its collection with the path
- * the canary gives it ("<id>.flags...", a token "<sceneId>.tokens.<id>.flags...").
+ * the canary gives it ("<id>.flags...", a token "<sceneId>.tokens.<id>.flags...", an
+ * unlinked token's own actor data "<sceneId>.tokens.<id>.delta.flags..." under Scene).
+ * Chat messages and token deltas are read since E05's fix round (S1-m3, S1-m4): the
+ * rule's ChatMessage and delta halves had no scan on a player's browser until then.
  */
 export function worldScan(dump, { ids = [] } = {}) {
     const prefix = `${WORLD_SECRET_MODULE}.`;
@@ -202,13 +205,15 @@ export function worldScan(dump, { ids = [] } = {}) {
         settings,
         actors: docs("Actor").map(d => ({ id: d?._id, flags: d?.flags })),
         users: docs("User").map(d => ({ id: d?._id, flags: d?.flags })),
-        tokens: docs("Scene").flatMap(scene => (scene?.tokens ?? []).map(t => ({ id: `${scene?._id}.tokens.${t?._id}`, flags: t?.flags })))
+        tokens: docs("Scene").flatMap(scene => (scene?.tokens ?? []).map(t => ({ id: `${scene?._id}.tokens.${t?._id}`, flags: t?.flags,
+            delta: t?.delta ? { flags: t.delta.flags } : null }))),
+        messages: docs("ChatMessage").map(d => ({ id: d?._id, flags: d?.flags }))
     };
     return findWorldSecrets(snapshot, { ids }).map(h => {
         const setting = h.doc === "setting";
         const full = setting ? h.path : `${h.id}${h.path ? `.${h.path}` : ""}`;
         return { seed: h.kind === "id" ? "world.id" : "world.field", surface: setting ? "setting" : "document",
-            where: setting ? `${prefix}${h.id}` : (h.doc === "Token" ? "Scene" : h.doc),
+            where: setting ? `${prefix}${h.id}` : (h.doc === "Token" || /^delta\./.test(h.path) ? "Scene" : h.doc),
             path: `${norm(full)}${h.key ? "#key" : ""}`, phase: dump?.phase ?? null, via: ["rest"], n: null, sample: h.rule };
     });
 }

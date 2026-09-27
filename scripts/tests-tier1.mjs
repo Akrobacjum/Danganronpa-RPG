@@ -4532,6 +4532,9 @@ const INVARIANTS = [
          * own id), which reads clean. An exemption (`everySetting.except`) is fixtured too
          * (E05 C5): planted where the rule lets it stand it reads clean, and the same field in
          * another setting beside it is still found - and an exemption with no fixture fails.
+         * E05's fix round (S1-m3, S1-m4, 27.09.2026): a chat message's flags are read, and a
+         * token's own actor data (its delta) under the Actor rule - each Actor flag is fixtured
+         * on a delta as well, so a rule that reads world actors alone fails here.
          */
         const W = await import("./world-secrets.mjs");
         const MOD = W.WORLD_SECRET_MODULE;
@@ -4545,7 +4548,9 @@ const INVARIANTS = [
             actors: [{ id: KILLER, flags: { [MOD]: { advances: 1 }, "r190-other-module": { memo: KILLER } } },
                 { id: "R190BYSTANDER001", flags: { [MOD]: { deceased: false } } }],
             users: [{ id: "R190USER00000001", flags: { [MOD]: { preSessionNote: { updatedAt: 1, written: true } } } }],
-            tokens: [{ id: "R190SCENE0000001.R190TOKEN0000001", flags: { [MOD]: { isRemnant: true } } }]
+            tokens: [{ id: "R190SCENE0000001.R190TOKEN0000001", flags: { [MOD]: { isRemnant: true } },
+                delta: { flags: { [MOD]: { advances: 2 } } } }],
+            messages: [{ id: "R190MESSAGE00001", flags: { [MOD]: { callCard: true, popupTitle: "A ruling to make" } } }]
         });
         // One secret each: what it is, how it is planted in a clean snapshot, and the hit it must give.
         const FIXTURES = [
@@ -4577,6 +4582,15 @@ const INVARIANTS = [
             ["Actor flag lastAction",
                 s => { s.actors[1].flags[MOD].lastAction = {}; },
                 h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.lastAction`],
+            // E05's fix round (S1-m4): the same bookmark on an unlinked token's own actor data, where
+            // 1.2.63 wrote it from a sheet opened from the token.
+            ["unlinked token's Actor flag lastAction",
+                s => { s.tokens[0].delta.flags[MOD].lastAction = {}; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `delta.flags.${MOD}.lastAction`],
+            // E05 C7, read since the fix round (S1-m3): a card carries no facts in its `summary` flag.
+            ["ChatMessage flag summary",
+                s => { s.messages[0].flags[MOD].summary = { action: "Search", item: "R190 a find" }; },
+                h => h.kind === "flag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00001" && h.path === `flags.${MOD}.summary`],
             // E05 C8: the world half of an incident holds the public list alone - a trap's `false` is found as well.
             ["murderState: only active, stage, turn, turnSide, keyRemnants, deniedToVictim, hindered, blocked, unlocked, spent, drainStopped, advantageNext, freeResolution, thirdActed",
                 s => { s.settings.murderState = { active: true, stage: "incident", turn: 1, turnSide: "victim", indirect: false }; },
@@ -4600,7 +4614,8 @@ const INVARIANTS = [
                 ...(rule.empty ? [`${key}: empty`] : []), ...(rule.only ? [`${key}: only ${rule.only.join(", ")}`] : [])]),
             ...(R.everySetting?.fields ?? []).map(f => `every setting: ${f}`),
             ...Object.entries(R.everySetting?.except ?? {}).flatMap(([key, fields]) => fields.map(f => `${key} may hold ${f}`)),
-            ...Object.entries(R.flags ?? {}).flatMap(([doc, paths]) => paths.map(p => `${doc} flag ${p}`))
+            ...Object.entries(R.flags ?? {}).flatMap(([doc, paths]) => paths.map(p => `${doc} flag ${p}`)),
+            ...(R.flags?.Actor ?? []).map(p => `unlinked token's Actor flag ${p}`)
         ].filter(what => !named.has(what));
         ok(!unfixtured.length, `a rule of world-secrets.mjs has no fixture here: ${unfixtured.join(", ")}`);
         const missed = [];
@@ -4623,10 +4638,14 @@ const INVARIANTS = [
         const planted = clean();
         planted.settings.pendingMurders = { [KILLER]: { room: "Gym" } };
         planted.actors[1].flags[MOD].memo = { met: ["nobody", `Actor.${KILLER}.Item.R190ITEM00000001`] };
+        planted.tokens[0].delta.flags[MOD].memo = KILLER;
+        planted.messages[0].flags[MOD].actorId = KILLER;
         const ids = W.findWorldSecrets(planted, { ids: [KILLER] }).filter(h => h.kind === "id");
         equal(JSON.stringify(ids.map(h => [h.doc, h.id, h.path, Boolean(h.key)])),
-            JSON.stringify([["setting", "pendingMurders", KILLER, true], ["Actor", "R190BYSTANDER001", `flags.${MOD}.memo.met.1`, false]]),
-            "the killer's id planted as a setting's key and deep in an actor's flag was not found at each, or was found somewhere else");
+            JSON.stringify([["setting", "pendingMurders", KILLER, true], ["Actor", "R190BYSTANDER001", `flags.${MOD}.memo.met.1`, false],
+                ["Actor", "R190SCENE0000001.R190TOKEN0000001", `delta.flags.${MOD}.memo`, false],
+                ["ChatMessage", "R190MESSAGE00001", `flags.${MOD}.actorId`, false]]),
+            "the killer's id planted as a setting's key, deep in an actor's flag, in an unlinked token's own actor data and in a card's flag was not found at each, or was found somewhere else");
         equal(JSON.stringify(W.findWorldSecrets(clean(), { ids: [KILLER] })), "[]",
             "a clean snapshot reads as holding a secret - the killer's id in another module's flags, or as the document's own id");
     }],

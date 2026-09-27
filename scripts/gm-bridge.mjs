@@ -2209,11 +2209,24 @@ export async function callGm(actor, {
          * unless the poster insists), no sound, and two buttons nothing wired,
          * because the only wiring lived in the messenger's bubbles. `callCard`
          * is what the render hook in `registerGmBridge` keys on.
+         *
+         * THE TITLE IN THE WORDS, A NEUTRAL ONE IN THE FLAGS (E05's fix round, S1-m2,
+         * 27.09.2026). The words of a whisper are the GMs'; its flags are on every
+         * browser. A trap's alert put "<project> - something set it off" in
+         * `popupTitle`, on every player's copy of the card, at the moment the trap
+         * went off - whatever the GM then ruled. A `gmOnly` card's popup is headed
+         * "A ruling to make", and the real title is the first line of the words it
+         * shows (the `<h3>` above). A card with no owner that is not `gmOnly` names
+         * an action somebody asked for, and keeps its title. What is left in the
+         * flags is that a card went to the GMs, and when - chat metadata, E06's.
+         * Measured in 30's trap phase: p2's copy of the alert held the project's
+         * name before this, and holds nothing of it after.
          */
         try {
             await whisperToGms(content, {
                 flags: { [MODULE_ID]: {
-                    callCard: true, gmPopup: true, popupTitle: title,
+                    callCard: true, gmPopup: true,
+                    popupTitle: gmOnly ? game.i18n.localize("DRPG.Action.murderRulingTitle") : title,
                     sfx: { key: "gmAsk", gm: true }
                 } }
             });

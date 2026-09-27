@@ -715,7 +715,8 @@ const CLAUSES = [
          * character's newest roll and its context - a crisis roll's keys, Stage 6's token
          * ids, a palm's victim - was the actor flag `lastAction`, which every browser holds.
          * The bookmark is the roller's own client setting now; the old flags are deleted,
-         * with nothing lifted (a Reroll does not reach across an update), on `dropRollBookmarks`.
+         * with nothing lifted (a Reroll does not reach across an update), on `dropRollBookmarks` -
+         * a world actor's, and since E05's fix round (S1-m4) a token's own actor data's too.
          */
         run: async () => {
             const { dropRollBookmarks } = await import("./action-rolls.mjs");

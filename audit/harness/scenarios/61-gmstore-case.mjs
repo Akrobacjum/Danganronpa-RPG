@@ -656,8 +656,13 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         try { r = await game.drpg.useItem(actor, item); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
         return { r: r === null ? null : typeof r, err };`, { timeout: 60000 });
     await settle(1200);
-    const alert = await gm.eval(`const msgs = game.messages.contents.slice(${cardsBefore});
-        return msgs.filter(m => /E04 poisoned kit/.test(m.content ?? "") || /E04 poisoned kit/.test(JSON.stringify(m.flags ?? {}))).length;`);
+    /* The alert is found by its words, which a GM holds (secret.mjs `wordsOf`): the document's
+       content is a stub, and since E05's fix round (S1-m2, 27.09.2026) its flags no longer carry
+       the trap's name in `popupTitle` - which is where this read found it until then. */
+    const alert = await gm.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        let n = 0;
+        for (const m of game.messages.contents.slice(${cardsBefore})) if (/E04 poisoned kit/.test(await wordsOf(m) ?? "")) n++;
+        return n;`);
     check("G3: its use sets the trap off on the primary GM",
         !used.err && alert >= 1, J({ used, alert, cardsBefore }));
     // p1's dice go back to the harness's own (the round-2 review's m2): a later roll must not use G's.

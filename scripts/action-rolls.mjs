@@ -886,26 +886,40 @@ async function noteRollContext(actor, data) {
  * reroll.mjs's recent-chat scan. Every actor's `lastAction` flag is deleted in one
  * write (`forcedDeletion()`, `unsetFlag` in a Foundry without it) and read back; one
  * still there throws, so the world is not stamped and the next load tries again.
- * Idempotent: a world already through it holds none. World actors only - a bookmark
- * on an unlinked token's own actor data is not looked for (none was measured: a
- * character that takes actions is a world actor).
+ * Idempotent: a world already through it holds none.
+ *
+ * AND EVERY TOKEN'S OWN ACTOR DATA (E05's fix round, S1-m4, 27.09.2026). 1.2.63 wrote the
+ * flag on whatever actor rolled, and a sheet opened from an unlinked token is that
+ * token's synthetic actor, whose flags are kept in the token's delta on its scene -
+ * world data too. Those are deleted on the delta's path through the token, and read
+ * back from the token's source. Whether any table rolled from an unlinked character
+ * token is not known; the suite plants one (the tier-2 bookmarks' drop), in a harness
+ * whose tokens keep their delta as plain data - how a real Foundry applies a deletion
+ * on that path is not measured here.
  *
  * @returns {Promise<null|{dropped: number}>}
  */
 export async function dropRollBookmarks() {
     if (!isPrimaryGm()) return null;
-    const holding = () => (game.actors?.contents ?? []).filter(actor =>
-        Object.hasOwn(actor.flags?.[MODULE_ID] ?? {}, FLAGS.lastAction));
+    const held = flags => Object.hasOwn(flags?.[MODULE_ID] ?? {}, FLAGS.lastAction);
+    const holding = () => [
+        ...(game.actors?.contents ?? []).filter(actor => held(actor.flags)),
+        ...(game.scenes?.contents ?? []).flatMap(scene => scene.tokens?.contents ?? [])
+            .filter(token => held(token.toObject()?.delta?.flags))
+    ];
     const found = holding();
     if (!found.length) return null;
     const deletion = forcedDeletion();
-    for (const actor of found) {
-        if (deletion) await actor.update({ [`flags.${MODULE_ID}.${FLAGS.lastAction}`]: deletion });
-        else await actor.unsetFlag(MODULE_ID, FLAGS.lastAction);
+    for (const doc of found) {
+        const onToken = doc.documentName === "Token";
+        const path = `${onToken ? "delta." : ""}flags.${MODULE_ID}`;
+        if (deletion) await doc.update({ [`${path}.${FLAGS.lastAction}`]: deletion });
+        // A token's synthetic actor writes its flags into the token's delta.
+        else await (onToken ? doc.actor : doc)?.unsetFlag(MODULE_ID, FLAGS.lastAction);
     }
     const left = holding().length;
     if (left) {
-        warn(`Reroll bookmarks: ${left} actor(s) still carry one in world data after the deletion.`);
+        warn(`Reroll bookmarks: ${left} actor(s) or token(s) still carry one in world data after the deletion.`);
         throw new Error(`${left} Reroll bookmark(s) stayed in world data; the next load tries again`);
     }
     log(`Took ${found.length} Reroll bookmark(s) out of world data.`);

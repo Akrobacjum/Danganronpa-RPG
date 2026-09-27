@@ -743,6 +743,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     const trapHere = await gm.eval(readTraps);
     check("control: a crossing into the room the character stands in sets off the trap there",
         trapHere.here !== null && trapHere.away === null, JSON.stringify(trapHere));
+    /* 7l2. The alert that trap sent the GMs names it in its words alone (E05's fix round, S1-m2,
+       27.09.2026). The card is whispered to the GMs, and its flags are on every browser: its
+       popup's title said "SEC trap here - something set it off" on p2's copy. The GM finds the
+       card by its words; p2's copy of it - the whole document - holds no name of the trap.
+       Red on the fix's parent: p2's popupTitle named it. */
+    const alertId = await gm.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        for (const m of game.messages.contents.filter(m => m.getFlag("${MOD}", "callCard") && m.getFlag("${MOD}", "gmPopup")).reverse()) {
+            if ((await wordsOf(m) ?? "").includes("SEC trap here")) return m.id;
+        }
+        return null;`);
+    const alertOnP2 = await p2.eval(`const m = game.messages.get(${JSON.stringify(alertId)});
+        return m ? { held: true, named: JSON.stringify(m.toObject()).includes("SEC trap here"), title: m.getFlag("${MOD}", "popupTitle") ?? null } : { held: false };`);
+    check("SECURITY: a trap's alert card names the trap in the GMs' words, and nowhere in p2's copy of the card",
+        Boolean(alertId) && alertOnP2.held && !alertOnP2.named, JSON.stringify({ alertId, alertOnP2 }));
 
 
     // 7g. search tokens in a room the character is not in, and in the one she is.

@@ -785,7 +785,7 @@ const REGRESSIONS = [
          *
          * There is an invariant for Remnant TOKENS already. This is the same
          * question asked of every store the module registers, and of every
-         * actor's, user's and token's flags.
+         * actor's, user's, token's and chat message's flags.
          *
          * THE RULE IS ITS OWN FILE SINCE E05 (C2, 26.09.2026; the stage's
          * verify). scripts/world-secrets.mjs says what world data may never
@@ -798,8 +798,12 @@ const REGRESSIONS = [
          * and tokenId joined them - and projectMeta's own map token is the one
          * tokenId a setting may hold (its reason is in the rule). Here it reads
          * this world: every module world setting, and the module's flags on
-         * every actor, user and token. A rule comes in with the commit that takes its secret
-         * out of world data; E05's later commits add theirs.
+         * every actor, user, token and chat message, and on every token's own actor
+         * data (its delta). A rule comes in with the commit that takes its secret
+         * out of world data; E05's later commits add theirs. The messages and the
+         * deltas since E05's fix round (S1-m3, S1-m4, 27.09.2026): measured first by a
+         * probe that planted a card with a `summary` flag and an unlinked token whose
+         * delta held a `lastAction`, R9 passed over both before and named both after.
          */
         const { findWorldSecrets, WORLD_SECRET_RULES } = await import("./world-secrets.mjs");
         const { PROJECT_SECRET_FIELDS } = await import("./projects.mjs");
@@ -817,7 +821,13 @@ const REGRESSIONS = [
             settings,
             actors: game.actors.contents.map(flagsOf),
             users: game.users.contents.map(flagsOf),
-            tokens: game.scenes.contents.flatMap(scene => scene.tokens.contents.map(t => ({ id: `${scene.id}.${t.id}`, flags: t.flags ?? {} })))
+            // `toObject()` for the delta: a token's own actor data is a document of its own in
+            // Foundry, and its source is what every browser was sent.
+            tokens: game.scenes.contents.flatMap(scene => scene.tokens.contents.map(t => {
+                const delta = t.toObject()?.delta;
+                return { id: `${scene.id}.${t.id}`, flags: t.flags ?? {}, delta: delta ? { flags: delta.flags ?? {} } : null };
+            })),
+            messages: (game.messages?.contents ?? []).map(flagsOf)
         });
         ok(!found.length, `these are on every player's machine right now: ${found.map(h => `${h.doc} ${h.id} :: ${h.path} - ${h.rule}`).join("; ")}`);
     }],
