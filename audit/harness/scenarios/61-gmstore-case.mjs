@@ -89,6 +89,9 @@
  *   N  an owner's ask for their Eclipse crossings (E05 fix r1-G3): with the primary's
  *      crossings store held unhydrated nothing is sent; the row another GM counted
  *      arrives, the hold ends, and the owner's copy reads it.
+ *   O  the pre-session note (E05 fix r1-G4): a player's ask is answered only once the
+ *      primary's notes store holds the other GMs' rows; then every GM leaves, p1 keeps
+ *      a note, and a GM that p1 hears connect before its world has loaded gets it.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -1367,5 +1370,66 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     await gma.eval(`${XS} if (globalThis.__nReal) S.eclipseMoveStore.whenHydrated = globalThis.__nReal; await S.eclipseMoveStore.drop("${IDS.aiko}");
         await game.drpg.setClock({ eclipse: false, ...${J(clockN.was)} }); return true;`);
 
-    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N"], gm: IDS.gm };
+    /* E05 fix r1-G4, 27.09.2026; review M1, the note half. A player asks the primary for their own
+       note at load and at `drpgPrimaryReady`, sent from the ready hook that opens the stores without
+       waiting for them; the primary answered once the suite let the stores go, from its own
+       browser's rows. gma, the primary, holds its notes store unhydrated as N holds its crossings;
+       p1 asks, and nothing is sent while held. gmb writes p1's note into its own store (no copy
+       sent: a patch, not a Save), the hold ends, and p1's copy reads gmb's words. Red on 7c846b2:
+       the answer went out at once. */
+    phase("O: a player's note is answered from the GMs' rows, and a note kept offline reaches a GM heard connecting before it loaded", { flow: "pre-session-note" });
+    const NS = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const N = await import("${repoUrl}/scripts/pre-session-note.mjs");`;
+    const primaryO = await gma.eval(`${NS} globalThis.__oReal = S.noteStore.whenHydrated;
+        S.noteStore.whenHydrated = () => new Promise(r => { globalThis.__oRelease = r; });
+        return (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm();`);
+    const fromO = socketTraffic.length;
+    const sentO = () => socketTraffic.slice(fromO).filter(t => t.from === "gma" && t.action === "note.copy" && Array.isArray(t.to) && t.to.includes(IDS.p1)).length;
+    await p1.eval(`game.socket.emit("module.${MOD}", { action: "note.ask" }, { recipients: ["${GMA}"] }); return true;`);
+    await settle(1500);
+    const heldO = sentO();
+    await gmb.eval(`${NS} await S.noteStore.patch("${IDS.p1}", { text: "E05 61 O1 gmb's note", updatedAt: Date.now(), byGm: true }); return true;`);
+    await settle(1500);
+    await gma.eval(`${NS} S.noteStore.whenHydrated = globalThis.__oReal; globalThis.__oRelease?.("answered"); return true;`);
+    await settle(1500);
+    const copyO = await p1.eval(`${NS} return { text: N.noteFor(game.user.id), unsent: N.noteUnsent() };`);
+    check("O1: the primary answers a player's ask for their note only once its store holds the other GMs' rows, and the copy reads them",
+        primaryO === true && heldO === 0 && sentO() >= 1 && copyO.text === "E05 61 O1 gmb's note" && copyO.unsent === false,
+        J({ primaryO, heldO, sent: sentO(), copyO }), { flow: "pre-session-note" });
+
+    /* O2 (E05 fix r1-G4; C6's open question): Z6 measured a note kept offline reaching a GM whose world
+       said it had loaded (`bridge.gmReady`) before p1 heard it connect - the harness's own order. Here
+       the other: every GM leaves, p1 keeps a note, and gma comes back announced first (cluster.mjs
+       `connect`'s `announceFirst`), so p1 hears `userConnected` while gma's world is still loading and
+       `drpgPrimaryReady` after. p1 records the order it heard them in; the note must reach gma. Which
+       order v14 takes is LIVE-E04-12. And p1's Note tab, open all along, says so without a redraw
+       (review M5: it said "Kept here until a GM connects." until the next one). */
+    await gma.eval(`if (globalThis.__oReal) (await import("${repoUrl}/scripts/gm-stores.mjs")).noteStore.whenHydrated = globalThis.__oReal; return true;`);
+    await disconnect("gmb");
+    await disconnect("gma");
+    await settle(300);
+    const keptO2 = await p1.eval(`${NS} const U = await import("${repoUrl}/scripts/utils.mjs");
+        globalThis.__o2heard = [];
+        Hooks.on("userConnected", (user, on) => { if (on && user?.id === "${GMA}") globalThis.__o2heard.push("connected"); });
+        Hooks.on("drpgPrimaryReady", id => { if (id === "${GMA}") globalThis.__o2heard.push("ready"); });
+        return { gms: U.activeGmIds().length, saved: await N.saveNote(game.user.id, "E05 61 O2 kept note") };`, { timeout: 30000 });
+    const TAB = `const M = await import("${repoUrl}/scripts/messenger-app.mjs");
+        const shown = () => globalThis.__o2tab?.element?.querySelector(".drpg-messenger-note-status")?.textContent ?? null;`;
+    const tabO2 = await p1.eval(`${TAB} const app = new M.DrpgMessengerApp(game.user.id);
+        M.DrpgMessengerApp.instances.set(game.user.id, app); app.tab = "note"; await app.render({ force: true });
+        globalThis.__o2tab = app; return { status: shown(), kept: game.i18n.localize("DRPG.Note.keptUntilGm") };`);
+    await connect("gma", { storage: await storageOf("gma"), announceFirst: true });
+    await settle(2500);
+    const noteO2 = { kept: keptO2, tab: tabO2, gma: await gma.eval(`${NS} return N.noteFor("${IDS.p1}");`),
+        p1: await p1.eval(`${NS} ${TAB} const out = { heard: globalThis.__o2heard, unsent: N.noteUnsent(), text: N.noteFor(game.user.id),
+            status: shown(), statusNow: N.noteStatus(game.user.id) };
+            await globalThis.__o2tab?.close(); return out;`) };
+    check("O2: a note p1 kept with no GM connected reaches the primary GM p1 heard connect before its world had loaded",
+        keptO2.gms === 0 && keptO2.saved === "kept" && J(noteO2.p1.heard) === J(["connected", "ready"])
+        && noteO2.gma === "E05 61 O2 kept note" && noteO2.p1.unsent === false && noteO2.p1.text === "E05 61 O2 kept note",
+        J(noteO2), { flow: "pre-session-note" });
+    check("O3: p1's open Note tab said the note was kept here, and once it reached the GM says what the note's status is, with no redraw",
+        noteO2.tab.status === noteO2.tab.kept && !noteO2.tab.kept.startsWith("DRPG.")
+        && noteO2.p1.status === noteO2.p1.statusNow && noteO2.p1.status !== noteO2.tab.kept, J(noteO2), { flow: "pre-session-note" });
+
+    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O"], gm: IDS.gm };
 }

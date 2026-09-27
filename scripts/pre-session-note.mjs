@@ -88,6 +88,15 @@ export function noteFor(userId) {
     return String(mine().text ?? "");
 }
 
+/**
+ * Resolves once a GM's browser holds the other GMs' notes (E05 fix r1-G4; review M1): the
+ * Note tab's first draw on a GM waits for it, or a Save there wrote the whole text over a
+ * note the store had not received yet. At once on a player's, whose copy is its own.
+ */
+export function whenNotesHeld() {
+    return game.user?.isGM ? noteStore.whenHydrated() : Promise.resolve("player");
+}
+
 /** Whether this player's own note is waiting in this browser for a GM (`sendDraft`). */
 export function noteUnsent() {
     return !game.user?.isGM && mine().unsent === true;
@@ -124,11 +133,18 @@ export function noteTooLong(text) {
  * world's text beside it), and the user's copy. Answers `{ updatedAt, stamp }`, the
  * store's newest stamp for the row, or null on a client that is not a GM's or for no
  * such user. The bridge's `note.save` runs it for a player, with the sender's own id.
+ *
+ * `base`, the text a GM's Note tab was drawn from (E05 fix r1-G4; review M5): when the
+ * store holds other words by now - another GM's Save, or the player's own, arrived while
+ * the tab was open - nothing is written, and the answer is `{ changed: true }`. Until
+ * then a GM's Save wrote the whole text it was drawn with over the newer note. As
+ * `setKeyPlan`'s `base`, it is judged against this browser's rows.
  */
-export async function writeNote(userId, text, { byGm = false } = {}) {
+export async function writeNote(userId, text, { byGm = false, base } = {}) {
     if (!game.user?.isGM) return null;
     const user = game.users.get(userId);
     if (!user) return null;
+    if (typeof base === "string" && String(noteStore.get(userId)?.text ?? "") !== base) return { changed: true };
     const body = String(text ?? "");
     const updatedAt = Date.now();
     await noteStore.patch(userId, { text: body, updatedAt, byGm: Boolean(byGm) });
@@ -147,14 +163,18 @@ export async function writeNote(userId, text, { byGm = false } = {}) {
  * write it down. A player writes only their own, kept here until the GMs hold it
  * (`sendDraft`). Answers what became of it, for the Note tab to say: true (a GM's
  * write), "sent" (the GMs hold it), "kept" (this browser holds it until a GM
- * connects), false (not saved), or null (not this user's to write).
+ * connects), false (not saved), or null (not this user's to write) - and on a GM given
+ * `base`, "changed" when the note is no longer the one the tab was drawn from (`writeNote`).
  */
-export async function saveNote(userId, text) {
+export async function saveNote(userId, text, { base } = {}) {
     const user = game.users.get(userId);
     if (!user || (game.user.id !== userId && !game.user.isGM)) return null;
     const body = String(text ?? "");
     try {
-        if (game.user.isGM) return Boolean(await writeNote(userId, body, { byGm: game.user.id !== userId }));
+        if (game.user.isGM) {
+            const written = await writeNote(userId, body, { byGm: game.user.id !== userId, base });
+            return written?.changed ? "changed" : Boolean(written);
+        }
         if (noteTooLong(body)) {
             ui.notifications?.warn(game.i18n.format("DRPG.Note.tooLong", { kb: MAX_PLAYER_BYTES / 1024 }));
             return false;
@@ -252,6 +272,53 @@ export async function retellNotes() {
     return sent;
 }
 
+/*
+ * A flag that says a note was written after the row this browser holds: the row is not
+ * the note the player last wrote. `written` only - a flag saying nothing is written is a
+ * reset's (season-setup.mjs's preNotes step writes `{ written: false }` with no date).
+ */
+function flagAhead(flag, row) {
+    if (flag.written !== true || !Number.isFinite(flag.updatedAt)) return false;
+    return !row || !Number.isFinite(row.updatedAt) || flag.updatedAt > row.updatedAt;
+}
+
+/**
+ * GM: the users whose flag says a note is written that this browser does not hold - no
+ * row, or an older one (E05 fix r1-G4; reviews M4 = S1-m5, M6 = S1-m6). A browser that
+ * lost its storage with no other GM to hand the rows back said nothing about the notes,
+ * while each player's status line said "written"; the case health check counts these.
+ */
+export function notesMissing() {
+    if (!game.user?.isGM) return [];
+    return (game.users ?? []).filter(user => flagAhead(flagOf(user.id), noteStore.get(user.id))).map(user => user.id);
+}
+
+/**
+ * After a restore (gm-stores.mjs `noteStore.afterRestore`; E05 fix r1-G4, reviews M6 =
+ * S1-m6): each user's flag `{ updatedAt, written }` is written from the row this browser
+ * now holds, as `writeNote` writes it. The file brings the rows back and not the flags,
+ * which are world data: after a reset (`{ written: false }`) and a restore each player's
+ * status line said "Nothing written yet" while their copy held text. A flag that says a
+ * note was written after the row is left as it is and counted missing (`notesMissing`),
+ * not overwritten with the older date: the newer words are the player's alone now. A flag
+ * still holding a text is the lift's (`liftNotes`). Run by the GM who restored, which
+ * holds the file's rows the moment they are merged; the others take them by sync, with
+ * no hook of their own. Answers how many flags were written.
+ */
+export async function settleNoteFlags() {
+    if (!game.user?.isGM) return 0;
+    let written = 0;
+    for (const userId of Object.keys(noteStore.entries() ?? {})) {
+        const user = game.users?.get(userId), row = noteStore.get(userId), flag = flagOf(userId);
+        if (!user || !row || Object.hasOwn(flag, "text") || flagAhead(flag, row)) continue;
+        const want = { updatedAt: Number.isFinite(row.updatedAt) ? row.updatedAt : null, written: Boolean(String(row.text ?? "").trim()) };
+        if (flag.written === want.written && (flag.updatedAt ?? null) === want.updatedAt) continue;
+        await replaceFlag(user, NOTE_FLAG, want);
+        written++;
+    }
+    return written;
+}
+
 /** Player: take a GM's copy of this user's own note, as `noteCombine` decides. A GM's copy is never a draft. */
 export async function receiveNote(note, stamp) {
     const value = note && typeof note === "object" && typeof note.text === "string"
@@ -276,7 +343,10 @@ function askForNote(primary = primaryGmId()) {
  * browser has seen connect, so the unsent note waits for `userConnected`. Which comes first
  * on v14 is LIVE-E04-12; the harness sends the loaded world's packet first (cluster.mjs
  * `connect`), and 61-gmstore-case's Z6 measured the note still unsent, and the GM without
- * it, when it was sent at once (26.09.2026).
+ * it, when it was sent at once (26.09.2026). In the other order the GM is connected when its
+ * world says it has loaded, and the note goes then: 61's O2 drives it (cluster.mjs `connect`'s
+ * `announceFirst`) and measured it reaching the GM with no change here (E05 fix r1-G4,
+ * 27.09.2026). Both orders are held by a test; neither is proven the one v14 takes.
  */
 let owedTo = null;
 
@@ -300,8 +370,11 @@ function onNoteSocket(payload, senderId) {
         if (!isPrimaryGm()) return;
         const sender = game.users.get(senderId);
         if (!sender?.active || sender.isGM) return;
-        // Asked while the suite holds the stores: answered once it lets them go (as the crossings are).
-        whenGmStoresAudible().then(() => sendNoteTo(sender.id)).catch(err => error("Could not answer a player's pre-session note", err));
+        // Asked while the suite holds the stores: answered once it lets them go, and once the store holds the
+        // other GMs' rows (E05 fix r1-G4; review M1: the ask comes at `drpgPrimaryReady`, sent from the ready
+        // hook that opens the stores without waiting, so a primary's reload answered from its own rows alone).
+        whenGmStoresAudible().then(() => noteStore.whenHydrated()).then(() => sendNoteTo(sender.id))
+            .catch(err => error("Could not answer a player's pre-session note", err));
         return;
     }
     if (payload?.action !== ACTION_NOTE_COPY || game.user.isGM) return;

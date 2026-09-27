@@ -27,7 +27,7 @@ import {
     threadUsers, isThreadUser, threadMessages, lastMessage,
     unreadCount, totalUnread, markThreadRead, sendMessage
 } from "./messenger.mjs";
-import { noteFor, noteStatus, noteTemplate, saveNote } from "./pre-session-note.mjs";
+import { noteFor, noteStatus, noteTemplate, saveNote, whenNotesHeld } from "./pre-session-note.mjs";
 // The chat log's own roll-card painter, shared rather than reimplemented.
 import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -40,6 +40,10 @@ export function registerMessengerUi() {
     Hooks.on("canvasReady", () => renderLauncher());
     Hooks.on("drpgMessengerMessage", () => renderLauncher());
     Hooks.on("drpgMessengerRead", () => renderLauncher());
+    // A note changed on this browser (settings.mjs, the note store's and copy's `onChange`).
+    Hooks.on("drpgNotesChanged", () => {
+        for (const app of DrpgMessengerApp.instances.values()) app.refreshNote();
+    });
 
     // A quick way in from the Players sidebar, mirroring how avclient-livekit
     // adds its own breakout-room entries to the same context menu.
@@ -151,6 +155,13 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
      */
     noteSaid = null;
 
+    /**
+     * The note the Note tab was drawn from, or last followed (`refreshNote`): the textarea
+     * holds it until somebody types, and a GM's Save is judged against it (E05 fix r1-G4;
+     * review M5 - a GM's tab drawn with another GM's older words wrote them back whole).
+     */
+    noteShown = null;
+
     constructor(playerUserId) {
         const options = { id: `drpg-messenger-${playerUserId}` };
         // Only set `position` when there is a saved one - passing `undefined`
@@ -175,6 +186,8 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
     }
 
     async _prepareContext(_options) {
+        // A GM's Note tab is drawn once the store holds the other GMs' notes (E05 fix r1-G4; review M1).
+        if (this.tab === "note") await whenNotesHeld();
         const player = game.users.get(this.playerUserId);
         const gms = gmIds().map(id => game.users.get(id)).filter(Boolean);
         return {
@@ -267,6 +280,7 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         const area = document.createElement("textarea");
         area.className = "drpg-messenger-note-text";
         area.value = context.note;
+        this.noteShown = context.note;
         area.placeholder = game.i18n.localize("DRPG.Note.placeholder");
         wrap.append(area);
 
@@ -295,8 +309,12 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         save.addEventListener("click", async () => {
             save.disabled = true;
             try {
-                const outcome = await saveNote(this.playerUserId, area.value);
-                if (outcome) {
+                const outcome = await saveNote(this.playerUserId, area.value, { base: this.noteShown });
+                if (outcome === "changed") {
+                    // Kept in the box, not drawn over: the next Save puts it in place of the newer note, knowingly.
+                    status.textContent = game.i18n.localize("DRPG.Note.changedElsewhere");
+                    this.noteShown = noteFor(this.playerUserId);
+                } else if (outcome) {
                     this.noteSaid = game.i18n.localize(outcome === "sent" ? "DRPG.Note.sentToGms"
                         : outcome === "kept" ? "DRPG.Note.keptUntilGm" : "DRPG.Note.saved");
                     status.textContent = this.noteSaid;
@@ -310,6 +328,24 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
 
         wrap.append(row);
         return wrap;
+    }
+
+    /**
+     * The note changed on this browser (E05 fix r1-G4; review M5): the status line says so
+     * at once, and the textarea takes the new words only while it still holds the ones it
+     * was drawn with - never over what is being typed. No redraw.
+     */
+    refreshNote() {
+        if (!this.rendered || this.tab !== "note") return;
+        const area = this.element?.querySelector(".drpg-messenger-note-text");
+        const status = this.element?.querySelector(".drpg-messenger-note-status");
+        if (!area || !status) return;
+        const text = noteFor(this.playerUserId);
+        if (area.value === this.noteShown) {
+            area.value = text;
+            this.noteShown = text;
+        }
+        status.textContent = noteStatus(this.playerUserId);
     }
 
     async _replaceHTML(result, content, _options) {

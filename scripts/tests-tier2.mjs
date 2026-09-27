@@ -8145,6 +8145,128 @@ const SCENARIOS = [
         }
     }],
 
+    ["a GM's Note tab waits for the GMs' notes, follows its note without losing what is typed, and does not save over a newer one unasked", async () => {
+        /*
+         * E05 fix r1-G4, 27.09.2026; reviews M1 (the note half) and M5. A GM's Note tab was drawn
+         * from this browser's rows with no wait for the other GMs' - and never followed its note
+         * after: the settings had no `onChange`, so a tab drawn with older words kept them, and its
+         * Save wrote them back whole over the newer note. In a world the stores have never opened,
+         * with the notes store's hydration held (as the crossings' test holds its store): the tab
+         * is not drawn while held; drawn with the row another GM wrote; it follows a newer note,
+         * status line and all; it keeps what is typed when the note changes again; the Save of the
+         * typed text is refused and says why, and a second Save puts it in place. Red on 7c846b2:
+         * drawn at once, empty, and the typed text saved over the newest note.
+         */
+        needs(world.atLeast("playerAccounts", 1), "the tab shows a player's note");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./messenger-app.mjs");
+        const [one] = game.users.filter(u => !u.isGM);
+        const before = noteFlagsNow();
+        const kept = [SETTINGS.messengerLastRead, SETTINGS.messengerWindowPositions]
+            .map(key => [key, foundry.utils.deepClone(game.settings.get(MODULE_ID, key))]);
+        const real = S.noteStore.whenHydrated;
+        const earlier = M.DrpgMessengerApp.instances.get(one.id) ?? null;
+        let app = null;
+        try {
+            if (earlier) await earlier.close();
+            await E.withGmStoreWorld(`suite-notetab-${foundry.utils.randomID(8)}`, async () => {
+                const gate = {};
+                gate.promise = new Promise(resolve => { gate.open = () => resolve("answered"); });
+                S.noteStore.whenHydrated = () => gate.promise;
+                app = new M.DrpgMessengerApp(one.id);
+                M.DrpgMessengerApp.instances.set(one.id, app);
+                app.tab = "note";
+                const drawing = app.render({ force: true });
+                const area = () => app.element?.querySelector(".drpg-messenger-note-text") ?? null;
+                const status = () => app.element?.querySelector(".drpg-messenger-note-status")?.textContent ?? null;
+                const save = async () => { app.element.querySelector(".drpg-messenger-note-save").click(); await settle(); };
+                await settle();
+                equal(area(), null, "the Note tab was drawn before the store held the other GMs' notes");
+                await S.noteStore.patch(one.id, { text: "SUITE r1-G4 another GM's note", updatedAt: 1, byGm: true });
+                gate.open();
+                await drawing;
+                equal(area()?.value, "SUITE r1-G4 another GM's note", "the Note tab was not drawn with the note the other GMs held");
+                await S.noteStore.patch(one.id, { text: "SUITE r1-G4 a newer note", updatedAt: Date.now(), byGm: true });
+                await settle();
+                equal(stableJson([area()?.value, status()]), stableJson(["SUITE r1-G4 a newer note", game.i18n.localize("DRPG.Note.statusToday")]),
+                    "the open Note tab did not follow its note's change, or its status line did not");
+                area().value = "SUITE r1-G4 typed here";
+                await S.noteStore.patch(one.id, { text: "SUITE r1-G4 the newest note", updatedAt: Date.now(), byGm: true });
+                await settle();
+                equal(area()?.value, "SUITE r1-G4 typed here", "the note's change was written over what was being typed");
+                await save();
+                equal(stableJson([S.noteStore.get(one.id)?.text, status()]),
+                    stableJson(["SUITE r1-G4 the newest note", game.i18n.localize("DRPG.Note.changedElsewhere")]),
+                    "a Save of a text typed over an older note wrote over the newer one, or did not say why it did not");
+                await save();
+                equal(S.noteStore.get(one.id)?.text, "SUITE r1-G4 typed here", "a second Save, once told, did not put the typed text in place");
+            });
+        } finally {
+            S.noteStore.whenHydrated = real;
+            if (app) await app.close();
+            for (const [key, value] of kept) await game.settings.set(MODULE_ID, key, value);
+            await putNoteFlagsBack(before);
+        }
+    }],
+
+    ["the case health check names an indirect murder and a note this browser does not hold, and a restore's flags keep a newer note's date", async () => {
+        /*
+         * E05 fix r1-G4, 27.09.2026; reviews M4 = S1-m5, M6 = S1-m6. A GM browser that lost its
+         * storage with no other GM to hand the rows back lost every indirect murder's killer,
+         * condition and trigger (projectMeta still says `indirectMurder`; the trap never arms)
+         * and every note a flag still calls written - and the health check said nothing. In a
+         * world the stores have never opened: two indirect murders in projectMeta, one with its
+         * row; two players' flags saying a note is written, one with no row and one with an
+         * older row - each counted, and the older one no longer once its row is newer. Then
+         * `settleNoteFlags`, a restore's step: a flag a reset left (`{ written: false }`) takes
+         * the row's date, a flag newer than its row keeps its own. projectMeta and every flag are
+         * put back. Red on 7c846b2: no row for either, and no counts.
+         */
+        needs(world.atLeast("playerAccounts", 2), "two players' notes");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const N = await import("./pre-session-note.mjs");
+        const [one, two] = game.users.filter(u => !u.isGM);
+        const before = noteFlagsNow();
+        const meta = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const counts = report => stableJson([report.counts.projectSecrets, report.counts.notes]);
+        const rowOf = (report, id) => report.rows.find(r => r.id === id) ?? null;
+        try {
+            await E.withGmStoreWorld(`suite-health-${foundry.utils.randomID(8)}`, async () => {
+                await setNoteFlag(one, { written: false });
+                await setNoteFlag(two, { written: false });
+                const base = await S.gmStoreHealth();
+                const was = { murders: base.counts.projectSecrets?.of ?? 0, lost: base.counts.projectSecrets?.missing ?? 0, notes: base.counts.notes?.missing ?? 0 };
+                await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { ...meta,
+                    SUITEG4LOSTPJ00: { room: null, indirectMurder: true }, SUITEG4KEPTPJ00: { room: null, indirectMurder: true } });
+                await S.projectSecretStore.patch("SUITEG4KEPTPJ00", { condition: "SUITE r1-G4 kept condition" });
+                await setNoteFlag(one, { updatedAt: 50, written: true });
+                await setNoteFlag(two, { updatedAt: 50, written: true });
+                await S.noteStore.patch(two.id, { text: "SUITE r1-G4 an older note", updatedAt: 40, byGm: false });
+                const report = await S.gmStoreHealth();
+                equal(counts(report), stableJson([{ of: was.murders + 2, missing: was.lost + 1 }, { missing: was.notes + 2 }]),
+                    "the indirect murder with no row, or the two notes this browser lacks or holds older, were not counted");
+                const lines = ["projectSecrets", "notes"].map(id => rowOf(report, id));
+                ok(lines.every(r => r?.level === "missing" && !S.healthLine(r).startsWith("DRPG.")),
+                    `the report has no missing row with a text for them: ${stableJson(lines)}`);
+                await S.noteStore.patch(two.id, { text: "SUITE r1-G4 a newer note", updatedAt: 60, byGm: false });
+                equal((await S.gmStoreHealth()).counts.notes?.missing, was.notes + 1, "a note whose row is newer than its flag is still counted missing");
+
+                await S.noteStore.patch(one.id, { text: "SUITE r1-G4 restored note", updatedAt: 30, byGm: false });
+                await setNoteFlag(one, { written: false });
+                await setNoteFlag(two, { updatedAt: 70, written: true });
+                await N.settleNoteFlags();
+                equal(stableJson([one.getFlag(MODULE_ID, N.NOTE_FLAG), two.getFlag(MODULE_ID, N.NOTE_FLAG)]),
+                    stableJson([{ updatedAt: 30, written: true }, { updatedAt: 70, written: true }]),
+                    "a restore's step did not write a reset flag from its row, or wrote an older date over a newer note's flag");
+            });
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await putNoteFlagsBack(before);
+        }
+    }],
+
     ["a Reroll finds its bookmark in the roller's browser, and the actor carries none", async () => {
         /*
          * E05 C7, 26.09.2026; audit S02-01. The bookmark was the actor flag `lastAction`,
@@ -9336,14 +9458,17 @@ const SCENARIOS = [
                 gone: (report, id) => !S.deathStore.has(id),
                 back: id => S.deathStore.get(id)?.chapter === 99
             },
-            // A pre-session note, through its store (E05 C6): the GM's own row, which no player is sent.
+            // A pre-session note, through its store (E05 C6): the GM's own row, which no player is sent. Its
+            // flag as a reset leaves it, and after the restore as the row says (E05 fix r1-G4, M6 = S1-m6).
             notes: {
                 seed: async () => {
                     await S.noteStore.patch(game.user.id, { text: "SUITE backed-up note", updatedAt: 1, byGm: true });
+                    await setNoteFlag(game.user, { written: false });
                     return game.user.id;
                 },
                 gone: (report, id) => !S.noteStore.has(id),
                 back: id => S.noteStore.get(id)?.text === "SUITE backed-up note"
+                    && stableJson(game.users.get(id)?.getFlag(MODULE_ID, "preSessionNote")) === stableJson({ updatedAt: 1, written: true })
             },
             // Through the store, in this world: while tier 2 holds the stores no player is sent anything of it (R184).
             discovery: {
@@ -9437,6 +9562,7 @@ const SCENARIOS = [
         const unsaved = Object.keys(FIXTURES).filter(name => !stores.some(h => h.name === name));
         ok(!unsaved.length, `this test has a fixture for a store the backup leaves out: ${unsaved.join(", ")}`);
         const saveDataToFile = foundry.utils.saveDataToFile;
+        const noteFlags = noteFlagsNow();
         let saved = null;
         try {
             foundry.utils.saveDataToFile = data => { saved = data; };
@@ -9455,6 +9581,7 @@ const SCENARIOS = [
             for (const store of stores) ok(FIXTURES[store.name].back(keys[store.name]), `${store.name}: its row did not come back from the file`);
         } finally {
             foundry.utils.saveDataToFile = saveDataToFile;
+            await putNoteFlagsBack(noteFlags);
             for (const item of made) {
                 await bullets.dropSecret(item.uuid);
                 await item.actor?.items?.get(item.id)?.delete();

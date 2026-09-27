@@ -2946,6 +2946,7 @@
       "saveFailed": "The note could not be saved. Tell the GM.",
       "sentToGms": "Sent to the GMs.",
       "keptUntilGm": "Kept here until a GM connects.",
+      "changedElsewhere": "This note changed after you opened it. Your text is still here: Save again to put it in place of the newer one.",
       "tooLong": "The note is too long to send to the GMs - over {kb} KB.",
       "statusEmpty": "Nothing written yet",
       "statusWritten": "Written",
@@ -3400,6 +3401,14 @@
         "traps": {
           "one": "{n} armed item trap has no planted object on this browser: it cannot fire.",
           "other": "{n} armed item traps have no planted object on this browser: they cannot fire."
+        },
+        "projectSecrets": {
+          "one": "{n} indirect murder (of {of}) has no killer, condition or trigger on this browser: its trap cannot arm or fire.",
+          "other": "{n} indirect murders (of {of}) have no killer, condition or trigger on this browser: their traps cannot arm or fire."
+        },
+        "notes": {
+          "one": "{n} pre-session note is marked written, and this browser does not hold it, or holds an older one.",
+          "other": "{n} pre-session notes are marked written, and this browser does not hold them, or holds older ones."
         },
         "tracesOnToken": {"one": "{n} trace on the map (of {of}) still carries its answer key on its token: it is moved into the ledger, not restored.", "other": "{n} traces on the map (of {of}) still carry their answer keys on their tokens: they are moved into the ledger, not restored."},
         "leftNotPrimary": {"one": "{n} of this world's old offers or fog rows stays in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes it (the diagnostics name the store).", "other": "{n} of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store)."}

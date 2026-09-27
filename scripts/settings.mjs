@@ -1274,19 +1274,23 @@ export function registerSettings() {
     });
 
     // The pre-session notes: a GM store since E05 (`noteStore`), and each player's copy of
-    // their own (`noteCopy`). No `onChange`, as the flag had none: the messenger's Note tab
-    // reads them when it is drawn, and a redraw there would throw away what is being typed.
+    // their own (`noteCopy`). On a change the open Note tabs follow it without a redraw,
+    // which would throw away what is being typed (messenger-app.mjs `refreshNote`): until
+    // E05's fix round (r1-G4, review M5) there was no `onChange`, and a player's "Kept here
+    // until a GM connects." stood after the note had gone, a GM's tab kept older words.
     game.settings.register(MODULE_ID, SETTINGS.gmNotes, {
         scope: "client",
         config: false,
         type: Object,
-        default: {}
+        default: {},
+        onChange: () => Hooks.callAll("drpgNotesChanged")
     });
     game.settings.register(MODULE_ID, SETTINGS.mineNote, {
         scope: "client",
         config: false,
         type: Object,
-        default: {}
+        default: {},
+        onChange: () => Hooks.callAll("drpgNotesChanged")
     });
 
     /*

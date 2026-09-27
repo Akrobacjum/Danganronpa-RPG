@@ -475,21 +475,25 @@ const lateAccounts = new Map();
  * user active, its client boots with `storage` in its localStorage (null: an empty
  * browser) and `world` as its world id, and once it is ready every other client gets
  * `userActivity`, on which client-entry.mjs sets the user active and calls
- * `userConnected` with `true` - the order of those steps on v14 is LIVE-E04-12. An
- * account that has disconnected may connect again, with the storage it left with
- * (`storageOf`) or another. The seeded four are spawned at start and cannot.
+ * `userConnected` with `true` - the order of those steps on v14 is LIVE-E04-12. With
+ * `announceFirst` the others get `userActivity` before its client boots, so they hear
+ * the user connect before its world has loaded and it says so (`bridge.gmReady`) - the
+ * other order, which 61's O2 drives (E05 fix r1-G4, 27.09.2026). An account that has
+ * disconnected may connect again, with the storage it left with (`storageOf`) or
+ * another. The seeded four are spawned at start and cannot.
  */
-async function connect(who, { storage = null, world = null, clockSkewMs = null } = {}) {
+async function connect(who, { storage = null, world = null, clockSkewMs = null, announceFirst = false } = {}) {
     const account = lateAccounts.get(who);
     if (!account) throw new Error(`${who} is not an account declared late: true`);
     const existing = clients.get(who);
     if (existing && !existing.gone) return false;
     const rec = userRec(account.id);
     if (rec) rec.active = true;
+    if (announceFirst) broadcast({ t: "userActivity", userId: account.id, active: true }, { except: who });
     const entry = spawnClient(who, account.id, { world, storage, clockSkewMs });
     const info = await entry.ready;
     if (info?.t === "bootFailed") throw new Error(`${who} did not boot: ${info.error}`);
-    broadcast({ t: "userActivity", userId: account.id, active: true }, { except: who });
+    if (!announceFirst) broadcast({ t: "userActivity", userId: account.id, active: true }, { except: who });
     return true;
 }
 

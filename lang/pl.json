@@ -3060,6 +3060,7 @@
       "saveFailed": "Nie udało się zapisać notatki. Powiedz GM-owi.",
       "sentToGms": "Wysłana do GM-ów.",
       "keptUntilGm": "Czeka tutaj, aż połączy się GM.",
+      "changedElsewhere": "Ta notatka zmieniła się, odkąd ją otwarto. Twój tekst nadal tu jest: zapisz ponownie, aby zastąpił nowszą.",
       "tooLong": "Notatka jest za długa, żeby wysłać ją GM-om - ponad {kb} KB.",
       "statusEmpty": "Jeszcze nic nie napisano",
       "statusWritten": "Napisana",
@@ -4645,6 +4646,18 @@
           "few": "{n} uzbrojone pułapki na przedmiot nie mają w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.",
           "many": "{n} uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.",
           "other": "{n} uzbrojonej pułapki na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać."
+        },
+        "projectSecrets": {
+          "one": "{n} morderstwo pośrednie (z {of}) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: jego pułapka nie może się uzbroić ani zadziałać.",
+          "few": "{n} morderstwa pośrednie (z {of}) nie mają w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.",
+          "many": "{n} morderstw pośrednich (z {of}) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.",
+          "other": "{n} morderstwa pośredniego (z {of}) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać."
+        },
+        "notes": {
+          "one": "{n} notatka przed sesją jest oznaczona jako napisana, a ta przeglądarka jej nie ma albo ma starszą.",
+          "few": "{n} notatki przed sesją są oznaczone jako napisane, a ta przeglądarka ich nie ma albo ma starsze.",
+          "many": "{n} notatek przed sesją jest oznaczonych jako napisane, a ta przeglądarka ich nie ma albo ma starsze.",
+          "other": "{n} notatki przed sesją jest oznaczone jako napisane, a ta przeglądarka ich nie ma albo ma starsze."
         },
         "tracesOnToken": {"one": "{n} ślad na mapie (z {of}) wciąż ma klucz odpowiedzi na swoim żetonie: przenosi się go do rejestru, a nie przywraca.", "few": "{n} ślady na mapie (z {of}) wciąż mają klucze odpowiedzi na swoich żetonach: przenosi się je do rejestru, a nie przywraca.", "many": "{n} śladów na mapie (z {of}) wciąż ma klucze odpowiedzi na swoich żetonach: przenosi się je do rejestru, a nie przywraca.", "other": "{n} śladu na mapie (z {of}) wciąż ma klucze odpowiedzi na swoich żetonach: przenosi się je do rejestru, a nie przywraca."},
         "leftNotPrimary": {"one": "{n} stary wiersz ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie go game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).", "few": "{n} stare wiersze ofert lub mgły tego świata zostają w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).", "many": "{n} starych wierszy ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).", "other": "{n} starego wiersza ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn)."}

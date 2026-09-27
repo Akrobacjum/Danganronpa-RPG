@@ -635,7 +635,8 @@ export const keyPlanStore = defineGmStore({
 export const noteStore = defineGmStore({
     name: "notes", key: SETTINGS.gmNotes,
     kind: "ledger", resetGroup: "preNotes", backup: true, sync: true,
-    afterRestore: () => import("./pre-session-note.mjs").then(m => m.retellNotes()),
+    // The users' flags first (E05 fix r1-G4, M6 = S1-m6): the file holds the rows, not the flags that describe them.
+    afterRestore: () => import("./pre-session-note.mjs").then(async m => { await m.settleNoteFlags(); return m.retellNotes(); }),
     exists: userId => Boolean(game.users?.has(userId))
 });
 
@@ -1309,6 +1310,19 @@ export async function gmStoreHealth() {
     const cast = incidentCast();
     if (state.active && !cast.killerId && !cast.victimId) add("incident", "missing", "DRPG.Case.row.incident");
 
+    /* E05's two secrets the world still has evidence of (fix r1-G4; reviews M4 = S1-m5). An indirect
+       murder whose killer, condition and trigger this browser lacks: projectMeta still says so, and
+       `trapProjects` skips a trap with no trigger, so it never arms or fires. And a note a user's flag
+       says is written that this browser does not hold (pre-session-note.mjs `notesMissing`). Both went
+       unreported on a browser that lost its storage with no other GM to hand the rows back. */
+    const meta = getSetting(SETTINGS.projectMeta) ?? {};
+    const murders = Object.keys(meta).filter(id => meta[id]?.indirectMurder === true);
+    const noSecrets = murders.filter(id => !projectSecretStore.has(id));
+    if (noSecrets.length) add("projectSecrets", "missing", "DRPG.Case.row.projectSecrets", { n: noSecrets.length, of: murders.length });
+    const { notesMissing } = await import("./pre-session-note.mjs");
+    const lostNotes = notesMissing();
+    if (lostNotes.length) add("notes", "missing", "DRPG.Case.row.notes", { n: lostNotes.length });
+
     // Armed item traps whose planted object this browser does not know: they cannot fire (C7).
     try {
         const { itemTrapsWithoutPlant } = await import("./traps.mjs");
@@ -1358,7 +1372,9 @@ export async function gmStoreHealth() {
 
     const counts = {
         traces: { of: traces.length, missing: traceGaps.length, onToken: onToken.length, orphans },
-        bullets: { of: bullets.length, missing: unkeyed.length, noAnswer: noAnswer.length, fillable: Object.keys(fillsFromTraces()).length }
+        bullets: { of: bullets.length, missing: unkeyed.length, noAnswer: noAnswer.length, fillable: Object.keys(fillsFromTraces()).length },
+        projectSecrets: { of: murders.length, missing: noSecrets.length },
+        notes: { missing: lostNotes.length }
     };
     return { world: game.world.id, hydrated: gmStoresHydrated(), rows, counts, missing: rows.filter(r => r.level === "missing").length };
 }
