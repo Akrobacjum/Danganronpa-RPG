@@ -2805,7 +2805,8 @@
       "bulletText": "Zabrane z ciała: {who}.",
       "traceNote": "Ktoś przeszukał to ciało. Brakuje: {items}.",
       "noCharacter": "Nie grasz postacią, którą moduł zna, więc nie ma gdzie tego umieścić.",
-      "took": "Bierzesz „{item}”. Warto pamiętać, skąd - to teraz twój dowód."
+      "took": "Bierzesz „{item}”. Warto pamiętać, skąd - to teraz twój dowód.",
+      "tookUnfound": "Bierzesz „{item}”. Nikt jeszcze nie znalazł tego ciała: Truth Bullet tej rzeczy trafi do twoich dowodów, gdy śmierć wyjdzie na jaw."
     },
     "Redacted": {
       "tabLocked": "To oni mają ci powiedzieć, nie ty przeczytać.",

@@ -5759,10 +5759,13 @@ const REGRESSIONS = [
          * neutral names (C13), which lift nothing, and C14's two: the bodies' loot records,
          * and the per-token routine of `migrateRemnants` that was a console call (Q5).
          * E05's fix round (r1-G1) gave E04's names and fog lifts 1.2.64 too, so that a world
-         * 1.2.63 stamped over rows they kept runs them once more.
+         * 1.2.63 stamped over rows they kept runs them once more, and its second (r2-F0b) the
+         * Faint's pass, for the same reason.
          */
-        const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"], ["faintIntoSecrets", "migrateFaintIntoSecrets", "1.2.63"],
-            // E04's two, given 1.2.64 by E05's fix round (r1-G1): a world 1.2.63 stamped over rows they kept runs them again.
+        const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"],
+            // E04's three, given 1.2.64 by E05's fix rounds (r1-G1; the Faint's pass r2-F0b): a world 1.2.63
+            // stamped over rows they kept runs them again.
+            ["faintIntoSecrets", "migrateFaintIntoSecrets", "1.2.64"],
             ["liftIncidentSecrets", "liftIncidentSecrets", "1.2.64"], ["liftDiscoveryLedger", "liftDiscoveryLedger", "1.2.64"],
             ["liftProjectSecrets", "liftProjectSecrets", "1.2.64"], ["liftPendingMurders", "liftPendingMurders", "1.2.64"],
             ["liftEclipseMoves", "liftEclipseMoves", "1.2.64"], ["liftKeyPlan", "liftKeyPlan", "1.2.64"], ["liftNotes", "liftNotes", "1.2.64"],

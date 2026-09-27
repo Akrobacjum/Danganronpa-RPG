@@ -367,7 +367,9 @@ async function tellDeathKnowers(actor, known = [], { dropped = false } = {}) {
  * Idempotent: a death already public answers its record, a body nobody killed null. Run
  * by the body's discovery (`runDiscovery`) and by a GM's hand - the Players window's
  * "dead" (gm-panel.mjs) - and by nothing else: no trial and no chapter's end publishes a
- * death on its own (the owner's Q3, 26.09.2026).
+ * death on its own (the owner's Q3, 26.09.2026). Last, each loot of the body before this
+ * is given its Truth Bullet, which names the body and so waited in the row (handover.mjs
+ * `payOwedLoot`; E05 fix r2-F0b).
  */
 export async function publishDeath(actor) {
     if (!game.user.isGM || !actor) return null;
@@ -378,9 +380,16 @@ export async function publishDeath(actor) {
         record: { chapter: row.chapter ?? getClock().chapter, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null }
     });
     if (!record) return null;
+    // Read again after the awaits above: a loot served meanwhile joined the row (handover.mjs `oweLootBullet`).
+    const owed = deathStore.get(actor.id)?.loot ?? row.loot;
     await deathStore.drop(actor.id);
     await tellDeathKnowers(actor, row.known, { dropped: true });
-    log(`${actor.name}'s death is the table's now (chapter ${record.chapter}); ${removed} Truth Bullet(s) destroyed.`);
+    let paid = 0;
+    if (Array.isArray(owed) && owed.length) {
+        const { payOwedLoot } = await import("./handover.mjs");
+        paid = await payOwedLoot(actor, owed);
+    }
+    log(`${actor.name}'s death is the table's now (chapter ${record.chapter}); ${removed} Truth Bullet(s) destroyed, ${paid} owed for a loot given.`);
     return record;
 }
 

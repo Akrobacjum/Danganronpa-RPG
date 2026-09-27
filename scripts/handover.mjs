@@ -24,7 +24,7 @@ import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { grantItem, canCarry, preservedFlags, capacityLabel, isStashed } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet } from "./truth-bullets.mjs";
 import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion } from "./utils.mjs";
-import { answerKeysRefusal, lootTraceStore } from "./gm-stores.mjs";
+import { answerKeysRefusal, lootTraceStore, deathStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -435,10 +435,69 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
     }
 
     const trace = await markBodyDisturbed(body, name);
-    await mintLootBullet(taker, body, item, name, category, trace);
+    /* THE BULLET WAITS FOR THE TABLE (E05 fix r2-F0b, 27.09.2026; the owner's Q1-Q3, the plan's
+       section 2). The Truth Bullet of a loot names the body it came off, and it is an item on the
+       taker's sheet, which every console reads: minted here before the discovery, it told a death
+       nobody had been told of - measured on e47a5d5: in 72-canary its creation reached p1, who knew
+       nothing, carrying "Taken from Botan Kage's body.", and in tier 2 a body's second loot kept
+       those words at rest (the first's were covered by its trace's reveal, below). A body the
+       table does not know is dead gets the item's move alone, which the owner chose (Q2); the
+       bullet is owed by the death's row in the GMs' store and given by the publication
+       (chapter.mjs `publishDeath`), dated when and where the item was taken. The taker knows
+       what they took; the GMs have the row. */
+    const loot = await lootRecord(taker, item, name, trace);
+    if (isDeceased(body)) await mintLootBullet(taker, body, loot);
+    else await oweLootBullet(body, loot);
 
     log(`${taker.name} took "${name}" from ${body.name}'s body.`);
     return taken;
+}
+
+/**
+ * What a loot's Truth Bullet is made of, as plain data: minted at once for a body the table
+ * knows is dead, kept in the death's row until the publication for one it does not (E05 fix
+ * r2-F0b). The stamp and the room are the loot's own - the clock and the taker's room now.
+ */
+async function lootRecord(taker, item, name, trace) {
+    const { servesAs } = await import("./inventory.mjs");
+    const { roomOfActor } = await import("./movement.mjs");
+    const { getClock } = await import("./clock.mjs");
+    const clock = getClock();
+    return {
+        takerId: taker.id, item: name, img: item.img ?? null,
+        tied: ["crimeTool", "cleaningTool"].some(role => servesAs(item, role)),
+        sceneId: trace?.sceneId ?? null, tokenId: trace?.tokenId ?? null,
+        room: roomOfActor(taker) ?? null, chapter: clock.chapter ?? null, day: clock.day ?? null, timeOfDay: clock.timeOfDay ?? null
+    };
+}
+
+/**
+ * A loot of a body nobody has found (E05 fix r2-F0b): its bullet's record joins the death's row,
+ * which only a GM holds (`deathsFor` sends a player the kill's chapter, day and time of day, and
+ * nothing else of it). `ifLive`: a death revived in the meantime has no row, and a loot off it
+ * owes nothing.
+ */
+function oweLootBullet(body, loot) {
+    const owed = deathStore.get(body.id)?.loot;
+    return deathStore.patch(body.id, { loot: [...(Array.isArray(owed) ? owed : []), loot] }, { ifLive: true });
+}
+
+/**
+ * THE PUBLICATION GIVES WHAT A LOOT BEFORE IT OWED (E05 fix r2-F0b): each taker the Truth Bullet
+ * of what they took, as a loot of a published body mints it, with the loot's own stamp and room.
+ * Run by chapter.mjs `publishDeath` with the row it drops; a taker no longer in the world is
+ * passed over. Answers how many were given.
+ */
+export async function payOwedLoot(body, owed = []) {
+    if (!game.user.isGM || !body) return 0;
+    let paid = 0;
+    for (const loot of Array.isArray(owed) ? owed : []) {
+        const taker = game.actors.get(loot?.takerId ?? "");
+        if (!taker) continue;
+        await mintLootBullet(taker, body, loot);
+        paid++;
+    }
+    return paid;
 }
 
 /**
@@ -579,38 +638,54 @@ export async function liftLootTraces() {
  * answer key, published on analysis, so a cereal bar off a body does not arrive
  * pre-labelled as meaningless either.
  */
-async function mintLootBullet(taker, body, item, name, category, trace) {
+async function mintLootBullet(taker, body, loot) {
     try {
         const { createTruthBullet } = await import("./truth-bullets.mjs");
-        const { servesAs } = await import("./inventory.mjs");
-        const incriminating = ["crimeTool", "cleaningTool"].some(role => servesAs(item, role));
 
         /*
          * WHAT ANALYSING THE TRACE WILL SAY, off the trace's own `public` record.
          *
-         * `trace` is the bookmark on the body - a scene id, a token id and what has
-         * been taken - not a ledger entry, so it has no reading of its own. The
-         * second looter's trace already exists, a GM may have written its lab
-         * reading hours ago, and it is usually already revealed - so the
-         * `revealSourceOf` at the end of `createTruthBullet` returns before it
-         * reconciles this copy. Without this the copy would be the one bullet in
-         * the game whose analysis said nothing, however much the GM had written.
+         * The loot's trace is the bookmark on the body - a scene id and a token id
+         * - not a ledger entry, so it has no reading of its own. The second
+         * looter's trace already exists, a GM may have written its lab reading
+         * hours ago, and it is usually already revealed - so the `revealSourceOf`
+         * at the end of `createTruthBullet` returns before it reconciles this
+         * copy. Without this the copy would be the one bullet in the game whose
+         * analysis said nothing, however much the GM had written.
          */
-        const { remnantPublicById } = await import("./remnants.mjs");
-        const analyzedText = remnantPublicById(trace?.sceneId, trace?.tokenId)?.analyzedText ?? "";
+        const { remnantPublicById, revealRemnantToFinderById } = await import("./remnants.mjs");
+        const analyzedText = remnantPublicById(loot.sceneId, loot.tokenId)?.analyzedText ?? "";
+
+        /*
+         * THE TRACE IS REVEALED BEFORE THE BULLET IS MADE (E05 fix r2-F0b, 27.09.2026).
+         * A body's first loot finds its trace hidden, and `createTruthBullet` reveals a
+         * hidden trace at its end - which puts the trace's `public` record onto every
+         * copy of it, this one included: the neutral word and no words, for a trace no
+         * GM has described. Measured on e47a5d5: the first loot's bullet read "Trace" on
+         * the GM (tier 2) and on p1 (72-canary), and said nothing of what was taken or off
+         * whom; only a later loot's kept its words. Revealed here first, the record goes
+         * onto the copies there were before, and this one says what the loot says, as
+         * every later one does - once the death is the table's (`lootBody`). The owners'
+         * copy of the trace comes a moment after the reveal and redraws their map when it
+         * arrives (visibility.mjs, on `drpgBulletRefsChanged`); the drawing needs a canvas,
+         * which the harness has not, so that order is read in the code, not seen.
+         */
+        if (loot.sceneId && loot.tokenId) await revealRemnantToFinderById(loot.sceneId, loot.tokenId);
 
         await createTruthBullet(taker, {
-            name: game.i18n.format("DRPG.Loot.bulletName", { item: name }),
+            name: game.i18n.format("DRPG.Loot.bulletName", { item: loot.item }),
             realType: "neutral",
             visibility: "evident",
             playerText: game.i18n.format("DRPG.Loot.bulletText", {
-                item: name, who: body.name
+                item: loot.item, who: body.name
             }),
-            img: item.img,
+            img: loot.img,
             sourceAction: "loot",
-            tiedToCrime: incriminating ? true : null,
-            remnantId: trace?.tokenId ?? null,
-            sceneId: trace?.sceneId ?? null,
+            tiedToCrime: loot.tied ? true : null,
+            remnantId: loot.tokenId ?? null,
+            sceneId: loot.sceneId ?? null,
+            room: loot.room ?? null,
+            stamp: { chapter: loot.chapter, day: loot.day, timeOfDay: loot.timeOfDay },
             analyzedText
         });
     } catch (err) {

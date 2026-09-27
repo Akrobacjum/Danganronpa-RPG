@@ -2703,7 +2703,8 @@
       "bulletText": "Taken from {who}'s body.",
       "traceNote": "Somebody has been through this body. Gone: {items}.",
       "noCharacter": "You are not playing a character the module knows about, so there is nowhere for this to go.",
-      "took": "You take “{item}”. Where you found it is worth remembering - it is in your evidence now."
+      "took": "You take “{item}”. Where you found it is worth remembering - it is in your evidence now.",
+      "tookUnfound": "You take “{item}”. Nobody has found this body yet: its Truth Bullet joins your evidence once the death is known."
     },
     "Redacted": {
       "tabLocked": "Theirs to tell you, not yours to read.",

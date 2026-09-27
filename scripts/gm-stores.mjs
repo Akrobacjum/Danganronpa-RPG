@@ -328,8 +328,10 @@ export const blackenedStore = defineGmStore({
 /**
  * THE DEATHS NOBODY HAS FOUND (E05 C10; audit S06-11). A row per body: `chapter`, `day`,
  * `timeOfDay` (the kill's, which the flag carries once the death is published), `at`,
- * `keepBullets`, and `known`, the users besides the GMs who may know of it - the victim's
- * player, the incident's, and later one who found the body alone. Written by the kill
+ * `keepBullets`, `known`, the users besides the GMs who may know of it - the victim's
+ * player, the incident's, and later one who found the body alone - and `loot`, a record
+ * per item taken off the body meanwhile, whose Truth Bullet names the body and waits for
+ * the publication (handover.mjs `lootBody`, E05 fix r2-F0b). Written by the kill
  * (chapter.mjs `killCharacter`), dropped by the publication, a revival or the reset's
  * "deaths" group; a dropped row's tombstone is what a player's copy weighs its loss
  * against. No old key: a death before 1.2.64 was published at the kill.
@@ -1293,7 +1295,7 @@ export async function restoreCase(file, { otherWorld = false, beforeCut = false,
     try {
         const { migrateFaintIntoSecrets } = await import("./truth-bullets.mjs");
         await migrateFaintIntoSecrets();
-    } catch (err) { error("After a restore, the Faint pass could not run", err); }
+    } catch (err) { error("After a restore, the Faint pass did not finish", err); }
     const lines = Object.entries(counts).map(([name, c]) => (c.skipped
         ? game.i18n.format("DRPG.Case.restoredSkipped", { store: storeLabel(name) })
         : game.i18n.format("DRPG.Case.restoredStore", { store: storeLabel(name), n: c.changed + c.filled, cut: c.beforeCut })));

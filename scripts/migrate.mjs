@@ -551,14 +551,18 @@ const CLAUSES = [
     },
     {
         key: "faintIntoSecrets",
-        since: "1.2.63",
+        since: "1.2.64",
         /*
          * FAINT OFF THE PLAYER'S ITEM, INTO THE ANSWER KEY (E04; audit S05-01). The
          * live road of the one critical in the module's code: it ran on every GM at
          * every load and built a row from nothing for a bullet that GM lacked. Once
          * now, after `truthBulletShape` (it reads the rows that one fills), with the
          * rules written on `migrateFaintIntoSecrets`: only rows this GM holds, weak,
-         * and the item's flag cleared only where the row reads back from storage.
+         * and the item's flag cleared only where the row reads back from storage. A
+         * Faint left on its item with a row here throws since E05's second fix round
+         * (r2-F0b), as the lifts below do. Since 1.2.63; given 1.2.64 as E04's two lifts
+         * below were, and for their reason: a world stamped 1.2.63 over a Faint the pass
+         * kept runs it again.
          */
         run: async () => {
             const { migrateFaintIntoSecrets } = await import("./truth-bullets.mjs");
@@ -585,7 +589,8 @@ const CLAUSES = [
      * AND E04'S TWO RUN AGAIN UNDER 1.2.64. They shipped in 1.2.63 with the same gap, and
      * a world stamped 1.2.63 whose lift kept its rows would never reach the fix above, so
      * their `since` is 1.2.64: such a world runs them once more, and one they emptied
-     * finds nothing and says nothing.
+     * finds nothing and says nothing. E04's Faint pass (`faintIntoSecrets`, above) had
+     * the gap too, and has had the throw and 1.2.64 since E05's second fix round (r2-F0b).
      */
     {
         key: "liftIncidentSecrets",

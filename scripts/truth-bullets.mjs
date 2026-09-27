@@ -914,11 +914,26 @@ export async function issueAutopsy(actors, { name, playerText = "", gmNote = "" 
  * item's flag comes off only where the row, read back from storage and not from
  * memory, holds a Faint.
  *
+ * WHAT DID NOT READ BACK STOPS THE MIGRATION (E05 fix r2-F0b, 27.09.2026; the
+ * reviews' S1-M1, as r1-G1 gave the other lifts). Until this fix a row whose save
+ * failed left the Faint on its item, the pass counted the bullet as moved, and
+ * the world was stamped: nothing tried again, and a row that already held its
+ * Faint (an earlier pass whose item write did not go through) was passed over for
+ * good. Now every bullet whose row is here has its item's flag taken off once the
+ * row reads back holding a Faint - the item and its flag read again after the
+ * store's save, so a bullet identified or deleted during that await is left as it
+ * is - and one still carrying it at the end, unidentified, with a row here, is
+ * counted, and the count is thrown: the runner does not stamp the world, names
+ * the clause on the GM's screen, and the next load runs this again. A bullet with
+ * no row on this GM is kept and not counted, by design: no pass can read back a
+ * row nobody has, and counting it would stop the migration at every load.
+ *
  * IDEMPOTENT: a second run finds `typeof secret.faint === "boolean"` wherever it
- * wrote, and nothing else to do.
+ * wrote, and no flag left to take off.
  *
  * @returns {Promise<{moved: number, kept: number}>} rows given a Faint, and
- *   bullets with no row whose item still carries it.
+ *   bullets with no row whose item still carries it. Anything else left on an
+ *   item throws.
  */
 export async function migrateFaintIntoSecrets() {
     if (!game.user.isGM) return { moved: 0, kept: 0 };
@@ -926,33 +941,42 @@ export async function migrateFaintIntoSecrets() {
         throw new Error("the other GMs' copies of the answer key did not arrive; the next load tries again");
     }
 
+    const onItem = item => !!item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint);
+    // A Faint on an item nobody has identified, where a row here could hold it instead.
+    const leftOn = item => isTruthBullet(item) && onItem(item) && !isIdentified(item) && bulletStore.has(item.uuid);
     let moved = 0, kept = 0;
     for (const actor of game.actors ?? []) {
         for (const item of actor.items ?? []) {
             if (!isTruthBullet(item)) continue;
-            const secret = secretOf(item.uuid);
-            if (typeof secret.faint === "boolean") continue;
-
-            const onItem = !!item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint);
-            if (!bulletStore.has(item.uuid)) {
-                if (onItem) kept++;
-                continue;
-            }
-            try {
-                await setSecret(item.uuid, { faint: onItem }, { ifLive: true, weak: true });
-                if (onItem && !isIdentified(item) && typeof bulletStore.persisted(item.uuid)?.faint === "boolean") {
-                    await item.update({
-                        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: false
-                    });
+            if (typeof secretOf(item.uuid).faint !== "boolean") {
+                if (!bulletStore.has(item.uuid)) {
+                    if (onItem(item)) kept++;
+                    continue;
                 }
-                moved++;
+                try {
+                    await setSecret(item.uuid, { faint: onItem(item) }, { ifLive: true, weak: true });
+                    moved++;
+                } catch (err) {
+                    error(`Could not move Faint into the ledger for "${item.name}"`, err);
+                    continue;
+                }
+            }
+            const now = actor.items.get(item.id);
+            if (!now || !leftOn(now) || typeof bulletStore.persisted(now.uuid)?.faint !== "boolean") continue;
+            try {
+                await now.update({ [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: false });
             } catch (err) {
-                error(`Could not move Faint into the ledger for "${item.name}"`, err);
+                error(`Could not take Faint off "${now.name}"`, err);
             }
         }
     }
 
     if (moved || kept) log(`Moved Faint into the ledger for ${moved} Truth Bullet(s); ${kept} with no row here keep it on the item.`);
+    let left = 0;
+    for (const actor of game.actors ?? []) for (const item of actor.items ?? []) if (leftOn(item)) left++;
+    if (left) {
+        throw new Error(`${left} Truth Bullet(s) still carry their Faint on the item, with a row here to hold it; the next load tries again`);
+    }
     return { moved, kept };
 }
 

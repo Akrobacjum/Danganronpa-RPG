@@ -612,7 +612,7 @@ Gdy się przyłączyłeś i przeżyłeś, możesz potem **zwrócić się przeciw
 
 Ktoś znajduje ciało. W chwili, gdy <ins>w pokoju z nim stanie dwoje uczniów</ins>, a przynajmniej jedno z nich nie należy do zabójców, ciało zostaje odkryte - nigdy podczas Eclipse. Sami zabójcy, wciąż sprzątając, mogą stać nad nim i go nie znaleźć. GM może też ogłosić je ręcznie. Wszyscy są wzywani na miejsce, a gra staje tam, dopóki nie zacznie się Investigation. Śmierć z własnej ręki to zabójstwo jak każde inne - klasa ma tylko scenę.
 
-Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie dowiaduje, a nic na ciele o niej nie mówi. Ci, którzy byli w incydencie, wiedzą. Jeśli natkniesz się na ciało sam, bez nikogo innego w pokoju, dowiadujesz się prywatnie, co znalazłeś, i tylko twój ekran pokazuje je jako ciało - nikt inny się nie dowiaduje, a jeden świadek to nie odkrycie. Możesz wtedy przeszukać jego kieszenie, tak jak ci, którzy byli w incydencie; to, co weźmiesz, przechodzi między dwoma arkuszami, a to przeglądarka każdego gracza może odczytać.
+Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie dowiaduje, a nic na ciele o niej nie mówi. Ci, którzy byli w incydencie, wiedzą. Jeśli natkniesz się na ciało sam, bez nikogo innego w pokoju, dowiadujesz się prywatnie, co znalazłeś, i tylko twój ekran pokazuje je jako ciało - nikt inny się nie dowiaduje, a jeden świadek to nie odkrycie. Możesz wtedy przeszukać jego kieszenie, tak jak ci, którzy byli w incydencie; to, co weźmiesz, przechodzi między dwoma arkuszami, a to przeglądarka każdego gracza może odczytać. Truth Bullet tej rzeczy, mówiący, czyje to było ciało, dostajesz, gdy śmierć zostanie ujawniona.
 
 ---
 

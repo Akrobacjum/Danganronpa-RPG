@@ -29,10 +29,13 @@
  *                 client with forced dice (deleted after use), then a Finishing Blow;
  *                 the GM leaves an incident's trace in Dorm B while it runs;
  *   undiscovered  the incident closed with the body not found; its trace, which nobody
- *                 copied, is read hidden and unmarked on p1 and p2 (E05 C14);
+ *                 copied, is read hidden and unmarked on p1 and p2 (E05 C14); Chie
+ *                 takes a watch off Botan, and p1 reads no word of him on her sheet
+ *                 (E05 fix r2-F0b);
  *   discovery     a Faint Prep trace in Dorm B; Aiko and Daichi walk in, and the
  *                 promotion dialog ticks it - its row and p1's copy of its token are
- *                 read (E05 C14); Aiko takes a torch off Botan's body (E05 C14);
+ *                 read (E05 C14); the watch's Truth Bullet reaches Chie, naming Botan
+ *                 (E05 fix r2-F0b); Aiko takes a torch off Botan's body (E05 C14);
  *   verdict       a trial naming Daichi, a wrong verdict: Chie survives, nothing is written on
  *                 her, and her Reinforced Level Up waits in the GMs' store (E05 C11).
  * Each later E05 commit adds its checks to the phase that shows its secret.
@@ -400,6 +403,37 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         incidentTrace?.hidden === false && incidentTrace?.marked === true
         && JSON.stringify(tracesP1) === JSON.stringify([[true, null], [true, null]]) && JSON.stringify(tracesP2) === JSON.stringify(tracesP1),
         JSON.stringify({ incidentTrace, lateTrace, tracesP1, tracesP2 }));
+    /* A BODY LOOTED BEFORE ANYBODY FOUND IT (E05 fix r2-F0b, 27.09.2026; the owner's Q1-Q3). Chie, still
+       in Dorm B, takes a watch the GM put on Botan - p3's own request, as one who knows of the death
+       (Q2). The watch moving between two sheets is world data, which the owner chose; the Truth Bullet
+       of it was an item on Chie's sheet, and its creation reached every browser saying "Taken from
+       Botan's body." - a death nobody had found (red on e47a5d5). p1 knows nothing yet: what p1's
+       browser was sent of Chie's items (each creation and change, as it arrived) and what it holds
+       after are the watch, no bullet, and no word of Botan. The bullet comes with the discovery (below). */
+    const WHAT = `const botan = game.actors.get("${IDS.botan}")?.name ?? "?";
+        const what = i => ({ name: i.name, bullet: i.getFlag("${MOD}", "category") === "truthBullet",
+            names: [i.name, i.system?.description ?? "", JSON.stringify(i.flags?.["${MOD}"] ?? {})].join(" ").includes(botan) });`;
+    const newOnChie = (c, before) => c.eval(`${WHAT} const had = new Set(${JSON.stringify(before ?? [])});
+        return game.actors.get("${IDS.chie}").items.filter(i => !had.has(i.id)).map(what);`);
+    const chieHad = await p1.eval(`${WHAT} globalThis.__chieSent = [];
+        globalThis.__chieHook = (i, how) => { if (i?.parent?.id === "${IDS.chie}") globalThis.__chieSent.push({ how, ...what(i) }); };
+        globalThis.__chieHooks = [["createItem", i => globalThis.__chieHook(i, "create")], ["updateItem", i => globalThis.__chieHook(i, "update")]];
+        for (const [name, fn] of globalThis.__chieHooks) Hooks.on(name, fn);
+        return game.actors.get("${IDS.chie}").items.map(i => i.id);`);
+    const watch = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const item = await INV.grantItem(game.actors.get("${IDS.botan}"), { name: "72: Botan's watch", category: "tool", tier: 1, override: true, quiet: true });
+        return item?.id ?? null;`, { timeout: 60000 });
+    const tookWatch = await p3.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestBodyLoot({ takerId: "${IDS.chie}", bodyId: "${IDS.botan}", itemId: "${watch ?? "none"}" });`, { timeout: 60000 });
+    await settled("undiscovered", async () => ((await newOnChie(p1, chieHad)).length ? true : null));
+    await settle(800);
+    const watchOnP1 = await newOnChie(p1, chieHad);
+    const sentToP1 = await p1.eval(`for (const [name, fn] of globalThis.__chieHooks ?? []) Hooks.off(name, fn);
+        const sent = globalThis.__chieSent ?? []; delete globalThis.__chieSent; delete globalThis.__chieHooks; delete globalThis.__chieHook; return sent;`);
+    check("p1: Chie's loot of Botan's body before the discovery reaches p1 as the watch alone - sent and held: no Truth Bullet, and no word of Botan (E05 fix r2-F0b)",
+        Boolean(watch) && tookWatch?.ok === true && JSON.stringify(watchOnP1) === JSON.stringify([{ name: "72: Botan's watch", bullet: false, names: false }])
+        && sentToP1.some(r => r.how === "create" && r.name === "72: Botan's watch") && !sentToP1.some(r => r.bullet || r.names),
+        JSON.stringify({ watch, tookWatch, watchOnP1, sentToP1 }));
     /* THE LONE FINDER (E05 C10; the owner's Q1, 26.09.2026). Chie leaves Dorm B for the Hall, and
        Aiko (p1's), in no part of the incident, walks in alone: p1 is told privately and knows
        Botan is dead, the table reads no flag, and nothing is announced - two witnesses stay the
@@ -440,6 +474,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const afterP1 = await botanOn(p1);
     check("p1: the discovery made Botan's death the table's - the flag and the status on p1, his bullet gone",
         Boolean(afterP1.flag) && afterP1.status === true && afterP1.bullet === false, JSON.stringify(afterP1));
+    /* THE WATCH'S BULLET (E05 fix r2-F0b): the publication gave Chie what the death's row owed her - the
+       Truth Bullet of the watch, which names Botan's body now that the table knows it. */
+    const watchBullet = await settled("discovery", async () => {
+        const got = (await newOnChie(p1, chieHad)).filter(i => i.bullet);
+        return got.length ? got : null;
+    });
+    const watchBulletName = await p1.eval(`return game.i18n.format("DRPG.Loot.bulletName", { item: "72: Botan's watch" });`);
+    check("p1: with the discovery Chie holds the Truth Bullet of Botan's watch, and it names his body (E05 fix r2-F0b)",
+        JSON.stringify(watchBullet) === JSON.stringify([{ name: watchBulletName, bullet: true, names: true }]), JSON.stringify({ watchBullet, watchBulletName }));
     /* WHAT THE PROMOTION WROTE (E05 C14, 27.09.2026; audit S05-06, S06-02). The dialog above ticked the
        Faint Prep trace: its row on the GM reads faint no more and tied to the crime, and p1's copy of its
        token carries nothing of it - until E04 the ticks went onto the token, where every console read

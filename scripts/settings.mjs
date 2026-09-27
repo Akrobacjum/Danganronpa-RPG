@@ -54,12 +54,13 @@ export const SETTINGS = {
     /**
      * THE DEATHS NOBODY HAS FOUND (E05 C10, 1.2.64; audit S06-11): a GM store
      * (gm-stores.mjs `deathStore`), a row per body `{ chapter, day, timeOfDay, at,
-     * keepBullets, known }`, and each player's copy of the bodies they may know
-     * (`deathCopy`: their own character, the incident they were in, a body they found
-     * alone). Until 1.2.64 a kill wrote the `deceased` flag, the `dead` status and the
-     * Truth Bullets' deletion at once, so every console knew who died from the moment
-     * of the killing. `isDeadForGm` reads these; the flag waits for the publication
-     * (chapter.mjs `publishDeath`).
+     * keepBullets, known, loot }` (`loot` since E05 fix r2-F0b: the Truth Bullets a
+     * loot of the body owes, given at the publication), and each player's copy of the
+     * bodies they may know (`deathCopy`: their own character, the incident they were
+     * in, a body they found alone). Until 1.2.64 a kill wrote the `deceased` flag, the
+     * `dead` status and the Truth Bullets' deletion at once, so every console knew who
+     * died from the moment of the killing. `isDeadForGm` reads these; the flag waits
+     * for the publication (chapter.mjs `publishDeath`).
      */
     gmDeaths: "gmDeaths",
     mineDeaths: "mineDeaths",

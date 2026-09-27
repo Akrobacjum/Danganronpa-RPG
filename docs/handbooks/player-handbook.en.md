@@ -612,7 +612,7 @@ Having thrown in and survived, you may afterwards **turn on your partner** - the
 
 Somebody finds the body. The moment <ins>two students stand in the room with it</ins>, and at least one of them is not among its killers, it is discovered - never during an Eclipse. The killers themselves, still cleaning up, can stand over it without finding it. The GM can also announce it by hand. Everyone is called to the scene, and the game holds there until the Investigation starts. A killing by one's own hand is a killing like any other - the class has only the scene to go on.
 
-Until somebody finds the body, the death is the GMs' to keep: the table is not told, and nothing on the body says so. Those who were in the incident know. If you come upon a body alone, with nobody else in the room, you are told privately what you found, and your screen alone shows it as a body - nobody else is told, and one witness is not a discovery. You may go through its pockets then, as those who were in the incident may; what you take moves between two sheets, which every player's browser can read.
+Until somebody finds the body, the death is the GMs' to keep: the table is not told, and nothing on the body says so. Those who were in the incident know. If you come upon a body alone, with nobody else in the room, you are told privately what you found, and your screen alone shows it as a body - nobody else is told, and one witness is not a discovery. You may go through its pockets then, as those who were in the incident may; what you take moves between two sheets, which every player's browser can read. The Truth Bullet of it, which says whose body it was, comes when the death is made known.
 
 ---
 

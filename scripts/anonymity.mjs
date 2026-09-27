@@ -47,7 +47,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isDeadForGm } from "./chapter.mjs";
+import { isDeadForGm, isDeceased } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToGms, isPrimaryGm, debug, error } from "./utils.mjs";
@@ -263,7 +263,8 @@ async function takeFromBody(body, item) {
     const { requestBodyLoot } = await import("./gm-bridge.mjs");
     const res = await requestBodyLoot({ takerId: taker.id, bodyId: body.id, itemId: item.id });
     // Only what the GM has: a refusal has been said, and "you took it" beside it would be two answers.
-    if (res.ok) ui.notifications.info(game.i18n.format("DRPG.Loot.took", { item: item.name }));
+    // Off a body nobody has found, the Truth Bullet waits for the death to be known (E05 fix r2-F0b).
+    if (res.ok) ui.notifications.info(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: item.name }));
 }
 
 /**

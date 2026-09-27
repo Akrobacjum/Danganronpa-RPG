@@ -3059,6 +3059,90 @@ const SCENARIOS = [
         }
     }],
 
+    ["a body looted before anybody found it gives its taker no word of it until the death is published", async () => {
+        /*
+         * E05 fix r2-F0b, 27.09.2026; the owner's Q1-Q3 (the plan's section 9), seen by C16. A body
+         * nobody has found may be searched by those who know of the death (Q2), and the taker was
+         * handed the Truth Bullet of it at once - "“X”, taken from a body", "Taken from {who}'s
+         * body." - an item on the taker's sheet, which every console reads, naming a death the
+         * table had not been told of. The item moving between the two sheets is all of a loot
+         * that world data holds then (Q2's choice); the bullet is owed by the death's row in the
+         * GMs' store and minted by the publication, dated when the loot was. A secret death, and
+         * two things put on the body and taken by the GM's hand: what reached the taker's sheet is
+         * read as it arrived (the creations) and as it rests - on e47a5d5 each bullet's creation
+         * named the body, and the second's words stayed at rest (the first's trace, revealed by
+         * its mint, put its neutral word over them). The day in the row's owed loot is moved on,
+         * as a loot on another day writes it, so each bullet's day says which one the mint read;
+         * and both keep the loot's words, the first too since its trace is revealed before it is
+         * made (handover.mjs `mintLootBullet`). Put back after: the taker's new items, the trace,
+         * the rows, the body alive.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace and warns the GMs instead (trap 142)");
+        const [taker, body] = cast(2);
+        const { killCharacter, reviveCharacter, publishDeath, isDeceased } = await import("./chapter.mjs");
+        const { lootBody } = await import("./handover.mjs");
+        const { lootTraceStore, deathStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { isTruthBullet } = await import("./truth-bullets.mjs");
+        const remnants = await import("./remnants.mjs");
+        const ITEMS = ["SUITE F0b a watch", "SUITE F0b a rope"];
+        const had = new Set(taker.items.map(i => i.id));
+        const fresh = () => taker.items.filter(i => !had.has(i.id));
+        const names = i => `${i.name} ${i.system?.description ?? ""} ${JSON.stringify(i.flags?.[MODULE_ID] ?? {})}`.includes(body.name);
+        const read = i => [i.name, isTruthBullet(i), names(i)];
+        try {
+            ok(await killCharacter(body, { secret: true, keepBullets: true }), "the secret death was not recorded");
+            ok(!isDeceased(body) && deathStore.has(body.id), "the death is not the GMs' alone");
+            const arrived = [];
+            const onCreate = i => { if (i.parent?.id === taker.id) arrived.push(read(i)); };
+            Hooks.on("createItem", onCreate);
+            try {
+                for (const name of ITEMS) {
+                    const put = await grantItem(body, { name, category: "tool", tier: 1, override: true, quiet: true });
+                    ok(put, "the fixture item was not put on the body");
+                    ok(await lootBody({ takerId: taker.id, bodyId: body.id, itemId: put.id }), "a loot before the publication took nothing");
+                }
+                await settle();
+            } finally {
+                Hooks.off("createItem", onCreate);
+            }
+            const items = ITEMS.map(name => [name, false, false]);
+            equal(stableJson([arrived, fresh().map(read)]), stableJson([items, items]),
+                "before the death was published more than the items reached the taker, or something that did names the body");
+            const owed = deathStore.get(body.id)?.loot ?? [];
+            equal(stableJson(owed.map(l => [l.takerId, l.item])), stableJson(ITEMS.map(name => [taker.id, name])),
+                "the death's row does not owe the taker each loot's bullet");
+            const day = (Number(owed[0].day) || 0) + 7;
+            await deathStore.patch(body.id, { loot: owed.map(l => ({ ...l, day })) });
+
+            await publishDeath(body);
+            await settle();
+            const minted = fresh().filter(i => isTruthBullet(i));
+            equal(stableJson([minted.map(i => [i.name, i.getFlag(MODULE_ID, "playerText"), i.getFlag(MODULE_ID, "day")]), deathStore.has(body.id)]),
+                stableJson([ITEMS.map(item => [game.i18n.format("DRPG.Loot.bulletName", { item }),
+                    game.i18n.format("DRPG.Loot.bulletText", { item, who: body.name }), day]), false]),
+                "the publication did not give the taker each owed bullet with the loot's words naming the body, dated by the loot, or kept the row");
+            await publishDeath(body);
+            equal(fresh().filter(i => isTruthBullet(i)).length, ITEMS.length, "a second publication gave the bullets again");
+        } finally {
+            for (const i of fresh()) {
+                try { await i.delete(); } catch { /* already gone */ }
+            }
+            const row = lootTraceStore.get(body.id);
+            const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+            if (trace) {
+                try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            if (lootTraceStore.has(body.id)) await lootTraceStore.drop(body.id);
+            for (const i of body.items.filter(i => i.name.startsWith("SUITE F0b"))) {
+                try { await i.delete(); } catch { /* already gone */ }
+            }
+            await reviveCharacter(body, { quiet: true });
+            await settle();
+        }
+    }],
+
     ["a closed incident's traces nobody copied are hidden, none stays marked, and one placed with none running is hidden", async () => {
         /*
          * E05 C14, 27.09.2026; audit S05-42. D11 creates an incident's traces un-hidden and marked
@@ -8373,10 +8457,12 @@ const SCENARIOS = [
          * the rows stand in memory and not on disk, as after a failed save: the world data
          * stays, and since E05's fix round (r1-G1) the fog's and the names' lifts throw with
          * the count, so the migration does not stamp the world and the next load tries again.
-         * The Faint's pass counts a bullet with no row here as kept, by design, and does not
-         * throw. The fourth clause, `truthBulletShape`, removes nothing it does not rewrite in
-         * the same update. The world settings are put back by tier 2's restore; the item is
-         * deleted here.
+         * The Faint's pass did not until E05's second fix round (r2-F0b): a Faint whose row did
+         * not read back stayed on its item and the world was stamped; it throws too now, for a
+         * bullet with a row here - one with no row on this GM it keeps by design and does not
+         * count - and a next pass lifts what it kept. The fourth clause, `truthBulletShape`,
+         * removes nothing it does not rewrite in the same update. The world settings are put
+         * back by tier 2's restore; the items are deleted here.
          */
         const E = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -8399,7 +8485,7 @@ const SCENARIOS = [
             if (ownSet) settings.set = realSet;
             else delete settings.set;
         };
-        let item = null;
+        const made = [];
         try {
             await E.withGmStoreWorld(`suite-lifts-${foundry.utils.randomID(8)}`, async () => {
                 const oldFog = { [sceneId]: { [student.id]: ["SUITE lifted room"] } };
@@ -8419,17 +8505,36 @@ const SCENARIOS = [
                 equal(stableJson([/^2 of the incident's names/.test(castThrew ?? ""), state.killerId ?? null, state.victimId ?? null]), stableJson([true, student.id, other.id]),
                     `the incident's names were taken out of the world with their row not on disk, or the lift did not throw with the count: ${castThrew}`);
 
-                [item] = await student.createEmbeddedDocuments("Item", [{ name: "Suite fixture: a Faint on its item", type: "loot",
-                    flags: { [MODULE_ID]: { category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "evident", analyzed: false, faint: true } } }]);
-                await S.bulletStore.patch(item.uuid, { realType: "prep" });
+                /* The Faint's pass (E05 fix r2-F0b): three unanalysed bullets carry Faint on the item. The
+                   first has a row here, and its save is swallowed; the second has no row on this GM, which
+                   the pass keeps by design - no pass can read back a row nobody has, and counting it would
+                   stop the migration at every load; the third's row already holds its Faint on disk, as a
+                   pass whose item write did not go through left it. Its flag comes off, and the pass throws
+                   with the count: one. Then the next load - the store's memory dropped, as a raw write of
+                   its key drops it (the runner test's note), and the save let through: the first reads
+                   back and its flag comes off, and nothing is thrown. */
+                const faint = async name => (await student.createEmbeddedDocuments("Item", [{ name, type: "loot",
+                    flags: { [MODULE_ID]: { category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "evident", analyzed: false, faint: true } } }]))[0];
+                for (const name of ["Suite fixture: a Faint on its item", "Suite fixture: a Faint with no row here", "Suite fixture: a Faint its row holds"]) {
+                    made.push(await faint(name));
+                }
+                const [unsaved, , held] = made;
+                await S.bulletStore.patch(unsaved.uuid, { realType: "prep" });
+                await S.bulletStore.patch(held.uuid, { realType: "prep", faint: true });
+                const onItems = () => made.map(i => student.items.get(i.id)?.getFlag(MODULE_ID, "faint") ?? null);
                 swallow(S.bulletStore.spec.key);
-                await bullets.migrateFaintIntoSecrets();
+                const faintThrew = await thrown(() => bullets.migrateFaintIntoSecrets());
                 putBack();
-                equal(student.items.get(item.id)?.getFlag(MODULE_ID, "faint"), true, "a bullet's Faint was taken off its item with its row not on disk");
+                equal(stableJson([/^1 Truth Bullet\(s\) still carry their Faint/.test(faintThrew ?? ""), onItems()]), stableJson([true, [true, true, false]]),
+                    `a Faint left its item with its row not on disk, one whose row holds it kept its flag, the one with no row was counted, or the pass did not throw with the count: ${faintThrew}`);
+                await game.settings.set(MODULE_ID, S.bulletStore.spec.key, game.settings.get(MODULE_ID, S.bulletStore.spec.key));
+                const again = await thrown(() => bullets.migrateFaintIntoSecrets());
+                equal(stableJson([again, onItems(), S.bulletStore.persisted(unsaved.uuid)?.faint ?? null]), stableJson([null, [false, true, false], true]),
+                    `the next pass did not lift the Faint it kept into its row and off its item, or threw over the bullet with no row: ${again}`);
             });
         } finally {
             putBack();
-            if (item && student.items.get(item.id)) await student.items.get(item.id).delete();
+            for (const i of made) if (student.items.get(i.id)) await student.items.get(i.id).delete();
         }
     }],
 
@@ -9647,7 +9752,8 @@ const SCENARIOS = [
          * stamp and says so on the GM's screen in a notice that stays, naming the clause, and
          * the next pass lifts. E04's fog lift is the one run here, because it is also the second
          * chance: its `since` is 1.2.64, so a world 1.2.63 stamped over a ledger its lift kept
-         * runs it again.
+         * runs it again - as it does the names' lift and, since E05's second fix round (r2-F0b),
+         * the Faint's pass, which a world stamped 1.2.63 is read below to owe.
          *
          * THE STAMP IS 1.2.63.5, AND WHY. The runner does nothing when the stamp is the
          * installed version, and this tree is 1.2.63 until the release commit, so a stamp of
@@ -9685,8 +9791,9 @@ const SCENARIOS = [
             const at63 = await owed("1.2.63");
             equal(stableJson(await owed("1.2.63.5")), stableJson(at63),
                 "a stamp of 1.2.63.5 does not owe what a stamp of 1.2.63 owes - the pass below does not stand for a world 1.2.63 stamped");
-            ok(at63.includes("liftDiscoveryLedger") && at63.includes("liftIncidentSecrets"),
-                `a world stamped 1.2.63 is not given E04's two lifts again: it owes ${at63.join(", ")}`);
+            // E04's three: the names and the fog since r1-G1, the Faint's pass since r2-F0b.
+            ok(["liftDiscoveryLedger", "liftIncidentSecrets", "faintIntoSecrets"].every(key => at63.includes(key)),
+                `a world stamped 1.2.63 is not given E04's three lifts again: it owes ${at63.join(", ")}`);
             const oldFog = { [sceneId]: { [student.id]: ["SUITE retried room"] } };
             await E.withGmStoreWorld(`suite-liftretry-${foundry.utils.randomID(8)}`, async () => {
                 await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, oldFog);
