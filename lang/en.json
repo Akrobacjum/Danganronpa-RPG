@@ -466,7 +466,7 @@
       "noMonokumas": "Assistant GMs do not get a Despair pool.",
       "nobody": "- nobody -",
       "implicitHint": "Never assigned - falling back to the first Monokuma.",
-      "footnote": "* = unassigned, using the fallback. Choose “- nobody -” to keep a student out of every pool: a Mastermind, an NPC, a template."
+      "footnote": "* = unassigned, using the fallback. “- nobody -” keeps a student out of every pool - an NPC, a template - and every player's browser can read who is set to it."
     },
     "Despair": {
       "label": "Despair",
@@ -2867,7 +2867,8 @@
         "one": "{n} player sent back to the main voice room.",
         "other": "{n} players sent back to the main voice room."
       },
-      "resetRefused": "Nothing to reset: regional voice is off, LiveKit is inactive, or another GM's client is running it."
+      "resetRefused": "Nothing to reset: regional voice is off, LiveKit is inactive, or another GM's client is running it.",
+      "liveKitSecret": "LiveKit AVClient is set to a self-hosted server, and its API secret is kept in a world setting, which reaches every player's browser. Anyone holding it can connect to any voice room. This module cannot move another module's setting; a server that issues its own access tokens, such as the Tavern, keeps the secret off every browser."
     },
     "States": {
       "drpgBreakdown": {
@@ -3046,7 +3047,10 @@
       "step.despairSplit": "The students are split evenly between the pools",
       "hint.despairSplit": "Whatever the number of Monokumas, the living cast should be shared out evenly - at most one student apart. Advisory: a cast that will not divide, or a Monokuma who is meant to watch the dangerous half, is a decision, not a mistake.",
       "step.assignments": "Every student has a Monokuma watching",
-      "hint.assignments": "Despair from a student's rolls goes to their Monokuma's pool. A student set to nobody on purpose, such as the Mastermind, feeds no pool, and that is fine.",
+      "hint.assignments": "Despair from a student's rolls goes to their Monokuma's pool. A student set to nobody on purpose - an NPC, a template - feeds no pool, and that is fine; every player's browser can read who is.",
+      "step.nobodyPublic": "The Mastermind feeds a Despair pool",
+      "hint.nobodyPublic": "The Mastermind is set in Despair Flow to feed no pool. The division is world data every player's browser can read, and the one student left out stands out - give them a Monokuma like any other student.",
+      "step.liveKitSecret": "The voice server's secret is not in the world",
       "step.sound": "Sound files",
       "hint.sound": "This module ships no audio and assigns none - the files are yours, the same bargain the playlists make. Map what you want in the Sound panel; anything left blank stays silent by choice, not by fault.",
       "step.rooms": "The map has rooms",

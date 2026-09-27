@@ -445,7 +445,7 @@
       "noMonokumas": "Asystenci GM-a nie dostają puli Despair.",
       "nobody": "- nikt -",
       "implicitHint": "Nigdy nie przypisano - domyślnie pierwszy Monokuma.",
-      "footnote": "* = nieprzypisany, działa domyślny. Wybierz „- nikt -”, by trzymać ucznia poza wszystkimi pulami: Mastermind, BN, szablon."
+      "footnote": "* = nieprzypisany, działa domyślny. „- nikt -” trzyma ucznia poza wszystkimi pulami - BN, szablon - a przeglądarka każdego gracza może odczytać, kto jest tak ustawiony."
     },
     "Despair": {
       "label": "Despair",
@@ -2977,7 +2977,8 @@
         "many": "{n} graczy odesłanych do głównego pokoju głosowego.",
         "other": "{n} graczy odesłanych do głównego pokoju głosowego."
       },
-      "resetRefused": "Nie ma czego resetować: głos per pokój jest wyłączony, LiveKit nieaktywny albo prowadzi go klient innego GM-a."
+      "resetRefused": "Nie ma czego resetować: głos per pokój jest wyłączony, LiveKit nieaktywny albo prowadzi go klient innego GM-a.",
+      "liveKitSecret": "LiveKit AVClient jest ustawiony na własny serwer, a jego sekret API leży w ustawieniu świata, które trafia do przeglądarki każdego gracza. Kto go ma, może połączyć się z każdym pokojem głosowym. Ten moduł nie przeniesie ustawienia innego modułu; serwer, który sam wydaje tokeny dostępu, na przykład Tavern, trzyma sekret z dala od przeglądarek."
     },
     "States": {
       "drpgBreakdown": {
@@ -3156,6 +3157,8 @@
         "experiences": "Każdy ma swoje doświadczenia",
         "items": "Każdy coś nosi",
         "assignments": "Każdego ucznia pilnuje Monokuma",
+        "nobodyPublic": "Mastermind zasila pulę Despair",
+        "liveKitSecret": "Sekretu serwera głosu nie ma w świecie",
         "sound": "Pliki dźwiękowe",
         "rooms": "Mapa ma pokoje",
         "cursor": "Kursor GM-a jest prywatny (zalecane)",
@@ -3171,7 +3174,8 @@
         "ultimate": "Tytuł to postać. To zdanie, które ktoś pisze, więc to otwiera arkusz zamiast wymyślać za niego.",
         "experiences": "Pierwszy rzut, który chce doświadczenia, to moment, w którym zauważa się jego brak - i to w środku sceny.",
         "items": "Przedmiot startowy. Uczeń z pustą torbą nie ma czym szukać, nie ma co oddać i nie ma czym zabić.",
-        "assignments": "Despair z rzutów ucznia idzie do puli jego Monokumy. Uczeń celowo ustawiony na nikogo, na przykład Mastermind, nie zasila żadnej puli i tak ma być.",
+        "assignments": "Despair z rzutów ucznia idzie do puli jego Monokumy. Uczeń celowo ustawiony na nikogo - BN, szablon - nie zasila żadnej puli i tak ma być; przeglądarka każdego gracza może odczytać, kto to jest.",
+        "nobodyPublic": "Mastermind jest w Despair Flow ustawiony tak, że nie zasila żadnej puli. Ten podział to dane świata, które odczyta przeglądarka każdego gracza, a jedyny uczeń poza pulami rzuca się w oczy - przypisz go do Monokumy jak każdego innego ucznia.",
         "sound": "Ten moduł nie zawiera dźwięków i żadnych nie przypisuje - pliki są twoje, ta sama umowa co przy playlistach. Przypisz, co chcesz, w panelu Dźwięk; puste pole gra ciszą z wyboru, nie z winy.",
         "rooms": "Pokoje to regiony sceny. Ruch, Search, Listen i każdy incydent są rozstrzygane w ich kategoriach.",
         "cursor": "Foundry pokazuje stołowi każdy kursor z nazwiskiem - transmisja na żywo z tego, na co patrzysz. To wyłącza ją dla dwóch ról GM-a i zostawia kursory graczy w spokoju.",

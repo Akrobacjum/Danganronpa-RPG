@@ -4881,6 +4881,55 @@ const INVARIANTS = [
             const missing = forms.filter(f => typeof foundry.utils.getProperty(text, `DRPG.Despair.owed.${f}`) !== "string");
             ok(!missing.length, `the pickers' "owed" has no ${lang} text for ${missing.join(", ")}`);
         }
+    }],
+
+    ["R198 - a self-hosted LiveKit secret in the world is told to the GM, and nothing else is", async () => {
+        /*
+         * E05 C15, 27.09.2026; audit S11-59. avclient-livekit keeps a self-hosted server's API
+         * key and secret in its world setting `liveKitConnectionSettings`, which every browser
+         * receives; this module cannot move it and warns the GM instead. voice.mjs
+         * `liveKitSecretWarning` is the rule, pure, driven here over settings shaped as
+         * avclient-livekit 0.6.8's source writes them ({ serverType, url, room, username,
+         * password }; "custom" and "tavern", read 27.09.2026 - not measured against a live
+         * install, AUDIT §9 LIVE-E05-11). Then read from the source: the season checklist and
+         * the voice diagnosis ask it (the diagnosis on a GM only), and both texts exist.
+         */
+        const { liveKitSecretWarning, liveKitConnectionSettings } = await import("./voice.mjs");
+        const KEY = "DRPG.Voice.liveKitSecret";
+        const TABLE = [
+            ["no setting at all", undefined, null],
+            ["an empty setting (A/V never configured)", {}, null],
+            ["not an object", "custom", null],
+            ["the Tavern", { serverType: "tavern", room: "R198ROOM" }, null],
+            ["the Tavern, a secret left behind", { serverType: "tavern", password: "R198SECRET" }, null],
+            ["a self-hosted server with its secret", { serverType: "custom", url: "wss://r198", username: "R198KEY", password: "R198SECRET" }, KEY],
+            ["a self-hosted server, the secret not filled in", { serverType: "custom", username: "R198KEY", password: "" }, null],
+            ["a self-hosted server, a blank secret", { serverType: "custom", password: "   " }, null],
+            ["no type yet (a GM's first connect makes it custom), the secret filled in", { password: "R198SECRET" }, KEY],
+            ["a type this module does not know, the secret filled in", { serverType: "R198TYPE", password: "R198SECRET" }, KEY]
+        ];
+        const wrong = TABLE.filter(([, settings, want]) => liveKitSecretWarning(settings) !== want)
+            .map(([label, settings]) => `${label}: ${liveKitSecretWarning(settings)}`);
+        ok(!wrong.length, `the LiveKit warning is wrong: ${wrong.join("; ")}`);
+        if (!game.modules.get("avclient-livekit")?.active) {
+            equal(String(liveKitConnectionSettings()), "null", "with avclient-livekit inactive there is still a setting to read");
+        }
+
+        const sources = new Map(await otherSources());
+        const season = stripComments(sources.get("season-setup.mjs") ?? "");
+        const diagnostics = stripComments(sources.get("diagnostics.mjs") ?? "");
+        ok(/liveKitSecretWarning\(liveKitConnectionSettings\(\)\)[\s\S]{0,80}key: "liveKitSecret",\s*hintKey: "DRPG\.Voice\.liveKitSecret"/
+            .test(bodyOf(season, "function steps(", { until: "\n}\n" })),
+            "the season checklist does not ask the rule, or its row does not carry the warning's sentence");
+        ok(/game\.user\.isGM \? liveKitSecretWarning\(liveKitConnectionSettings\(\)\) : null/
+            .test(bodyOf(diagnostics, "export function diagnoseVoice(", { until: "\n}\n" })),
+            "the voice diagnosis does not ask the rule, or asks it on a player's browser as well");
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const flat = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+            const missing = [KEY, "DRPG.Season.step.liveKitSecret"].filter(k => typeof flat[k] !== "string");
+            ok(!missing.length, `${lang}.json has no ${missing.join(", ")}`);
+        }
     }]
 ];
 

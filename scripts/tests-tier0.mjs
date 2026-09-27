@@ -6001,6 +6001,63 @@ const REGRESSIONS = [
         for (const [file, fn] of READERS) found.push(...problems(`${file} ${fn}`, fnSource(stripComments(sources.get(file) ?? ""), fn)));
         log(`R194: ${READERS.length} readers of whether an incident is a trap, read in ${new Set(READERS.map(r => r[0])).size} files`);
         ok(!found.length, `whether an incident is a trap is not asked of one rule: ${found.join("; ")}`);
+    }],
+
+    ["R197 - no text of the Despair Flow window or the season checklist names the Mastermind beside \"- nobody -\"", async () => {
+        /*
+         * E05 C15, 27.09.2026; audit S03-03, S10-12. Despair Flow's footnote and the season
+         * checklist's hint named the Mastermind as the student to set to "- nobody -", and the
+         * division is the world setting `gmAssignments`, which every player's browser receives:
+         * a GM who followed the advice made the Mastermind the one student a console could see
+         * left out of every pool. The advice is gone (the season checklist and the case health
+         * report now warn when it has been followed - mastermind.mjs `mastermindUnpooled`), and
+         * this holds it gone, in both languages: no string the window's source names, and no
+         * DRPG.Season string, mentions the Mastermind together with the "- nobody -" choice - its
+         * label, or the word (en "nobody", pl "nikt", "nikogo", "nikomu"). The reader is shown a
+         * planted string first. What it cannot see: a sentence that gives the same advice in
+         * other words.
+         */
+        const NOBODY = { en: /\bnobody\b/i, pl: /\bnik(?:t|ogo|omu)\b/i };
+        const offenders = (strings, inScope, lang) => Object.keys(strings).filter(key => inScope(key)
+            && /mastermind/i.test(strings[key])
+            && (NOBODY[lang].test(strings[key]) || strings[key].includes(strings["DRPG.Assign.nobody"] ?? "\u0000")));
+        const PLANTED = {
+            "DRPG.Assign.nobody": "- nobody -",
+            "DRPG.Assign.planted": "Choose “- nobody -” for a Mastermind.",
+            "DRPG.Season.hint.plantedWord": "Set the Mastermind to nobody.",
+            "DRPG.Season.hint.plantedFine": "A season without a Mastermind is a legal season.",
+            "DRPG.Other.plantedOutOfScope": "Set the Mastermind to nobody."
+        };
+        equal(JSON.stringify(offenders(PLANTED, key => key !== "DRPG.Other.plantedOutOfScope", "en")),
+            JSON.stringify(["DRPG.Assign.planted", "DRPG.Season.hint.plantedWord"]),
+            "the reader does not find the two strings planted for it, or finds the one that is fine");
+
+        const flat = (o, p = "") => Object.entries(o ?? {}).flatMap(([k, v]) =>
+            typeof v === "object" && v !== null ? flat(v, p ? `${p}.${k}` : k) : [[p ? `${p}.${k}` : k, String(v)]]);
+        const language = async lang => {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`);
+            must(res.ok, `${lang}.json: HTTP ${res.status}`);
+            return Object.fromEntries(flat(foundry.utils.expandObject(await res.json())));
+        };
+        // The keys the two windows' sources name, the checklist's own rows (`DRPG.Season.step.<key>`,
+        // `.hint.<key>`) being every DRPG.Season string.
+        const named = new Set();
+        for (const file of ["gm-team-dialog.mjs", "season-setup.mjs"]) {
+            const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text());
+            for (const m of src.matchAll(/["`](DRPG\.[A-Za-z0-9_.]*[A-Za-z0-9_])["`]/g)) named.add(m[1]);
+        }
+        const inScope = key => named.has(key) || key.startsWith("DRPG.Season.");
+        const found = [];
+        let read = 0;
+        for (const lang of ["en", "pl"]) {
+            const strings = await language(lang);
+            must(strings["DRPG.Assign.nobody"], `${lang}.json has no DRPG.Assign.nobody - this test reads nothing until it is pointed at it again`);
+            read += Object.keys(strings).filter(inScope).length;
+            found.push(...offenders(strings, inScope, lang).map(key => `${lang} ${key}`));
+        }
+        log(`R197: ${named.size} keys named by the two windows' sources, ${read} strings read in en and pl`);
+        ok(read >= 100, `only ${read} strings were read - the scope is not what this test thinks it is`);
+        ok(!found.length, `a text of Despair Flow or the season checklist still names the Mastermind beside "- nobody -": ${found.join(", ")}`);
     }]
 ];
 

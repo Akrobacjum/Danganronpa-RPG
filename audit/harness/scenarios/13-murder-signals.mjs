@@ -111,6 +111,50 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         direct.bystander?.roomVolume === 0.8 && direct.bystander?.parked === -1,
         JSON.stringify(direct.bystander));
 
+    /* ---- 1a. the clock moves in private (E05 C15, S01-11) --------------------
+       The GM moves the time of day while the incident runs. The bystander's HUD keeps
+       the hour the incident began at (hud.mjs `clockForDisplay`); the explainer a click
+       on the HUD opens ("Where things stand") read the clock itself and marked the new
+       hour. Its window is caught by a queued answer, which reads what it would show.
+       The clock is put back afterwards, stamp and all. */
+    const moved = await gm.eval(`
+        const C = await import("${repoUrl}/scripts/clock.mjs");
+        const { TIMES_OF_DAY } = await import("${repoUrl}/scripts/config.mjs");
+        const before = C.getClock();
+        const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(before.timeOfDay) + 1) % TIMES_OF_DAY.length];
+        await C.setClock({ timeOfDay: next });
+        return { before: before.timeOfDay, startedAt: before.timeOfDayStartedAt ?? null, next };
+    `, { timeout: 60000 });
+    await settle(900);
+    const shown = await p2.eval(`
+        const hud = await import("${repoUrl}/scripts/hud.mjs");
+        const E = await import("${repoUrl}/scripts/explain.mjs");
+        const C = await import("${repoUrl}/scripts/clock.mjs");
+        const { TIMES_OF_DAY, TIME_OF_DAY_LABELS } = await import("${repoUrl}/scripts/config.mjs");
+        hud.renderHud();
+        await new Promise(r => setTimeout(r, 120));
+        const onHud = document.querySelector(".drpg-hud-time[data-drpg-time]:not(.drpg-hud-time-ghost)")?.dataset.drpgTime ?? null;
+        let content = null;
+        globalThis.__dialogAnswers.push(config => {
+            content = typeof config.content === "string" ? config.content : (config.content?.outerHTML ?? "");
+            return null;
+        });
+        await E.openStateExplainer();
+        const marked = /class="drpg-explain-now">([^<]*)</.exec(content ?? "")?.[1] ?? null;
+        return { onHud, explainer: TIMES_OF_DAY.find(k => (TIME_OF_DAY_LABELS[k] ?? k) === marked) ?? marked,
+                 truth: C.getClock().timeOfDay };
+    `, { timeout: 60000 });
+    await gm.eval(`
+        const C = await import("${repoUrl}/scripts/clock.mjs");
+        await C.setClock({ timeOfDay: "${moved.before}", timeOfDayStartedAt: ${JSON.stringify(moved.startedAt)} });
+        return true;
+    `, { timeout: 60000 });
+    await settle(900);
+    check("direct: the bystander's explainer shows the time their HUD does, not the one the incident moved to (S01-11)",
+        moved.next !== moved.before && shown?.truth === moved.next
+            && shown?.onHud === moved.before && shown?.explainer === moved.before,
+        JSON.stringify({ moved, shown }));
+
     /* ---- 1b. somebody walks in on it ---------------------------------------
        The guide gives the scene one third party, and from the moment they are
        in it they are in it: `thirdPartyEnters` writes `thirdId`, which is a

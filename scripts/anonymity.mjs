@@ -312,10 +312,15 @@ function lockedPlaceholder() {
  * tell you.
  */
 function redactValues(root) {
+    // A question mark that still carries its tooltip is not a question mark (S03-06, E05
+    // C15, 27.09.2026): "1 of 2 actions this time of day" and "Free Move used" were a
+    // hover away on every pip this made "?". The label a screen reader reads goes with it.
     const mark = (el, text, cls) => {
         el.textContent = text;
         el.classList.add("drpg-redacted-value");
         if (cls) el.classList.add(cls);
+        el.removeAttribute("data-tooltip");
+        el.removeAttribute("aria-label");
     };
 
     for (const value of root.querySelectorAll(".trait-value")) mark(value, "?");
@@ -344,6 +349,13 @@ function redactValues(root) {
         row.querySelector(".controls")?.remove();
         row.removeAttribute("data-tooltip-text");
     }
+
+    // The Calls armed on the owner's next roll and what is standing on them: whispered
+    // to the owner and the GM everywhere else. sheet.mjs draws none for a viewer
+    // (`viewerOf`); removed here as well, so a stack drawn by anything else goes too -
+    // EMPTIED, NOT HIDDEN, as the tabs are.
+    for (const badge of root.querySelectorAll(".drpg-pending-call")) badge.remove();
+    for (const stack of root.querySelectorAll(".drpg-pending-stack")) stack.remove();
 }
 
 /**

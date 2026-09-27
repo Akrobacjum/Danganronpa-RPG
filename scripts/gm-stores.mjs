@@ -1434,6 +1434,13 @@ export async function gmStoreHealth() {
             name: game.actors.get(pick)?.name ?? pick, picked: new Date(pickedAt).toLocaleString(), shown: { pick, clearedAt, pickedAt } });
     }
 
+    /* THE MASTERMIND OUT OF EVERY POOL (E05 C15, 27.09.2026; audit S03-03, S10-12): Despair
+       Flow's division is a world setting every player's browser reads, and the one student
+       set to feed no pool stands out. mastermind.mjs `mastermindUnpooled`; the season
+       checklist carries the same row. No name in it, as the checklist has none. */
+    const { mastermindUnpooled } = await import("./mastermind.mjs");
+    if (mastermindUnpooled()) add("nobodyPublic", "conflict", "DRPG.Season.hint.nobodyPublic");
+
     const since = caseMark().since;
     const holdsNothing = gmStoreHandles().every(h => !Object.keys(h.entries()).length && !(h.census()?.claimed));
     if (since && holdsNothing) add("neverHeld", "missing", "DRPG.Case.row.neverHeld", { date: new Date(since).toLocaleString() });

@@ -1218,7 +1218,7 @@ function markHopeChange(actor, element, fresh = false) {
 // Always draw the full base budget. A wounded character keeps both circles,
 // but the one they have lost shows as a locked red slot - clearer than
 // silently rendering "1 / 1", which reads like an action already spent.
-function actionPips(actor, { left, max, spentActions, fresh }) {
+function actionPips(actor, { left, max, spentActions, fresh, viewer = false }) {
     const pips = [];
     const budget = Math.max(max, 1);
     for (let i = 1; i <= Math.max(STARTING.actions, budget); i++) {
@@ -1235,7 +1235,8 @@ function actionPips(actor, { left, max, spentActions, fresh }) {
         pip.innerHTML = `<i class="fa-${filled ? "solid" : "regular"} fa-circle" inert></i>`;
 
         if (locked) {
-            pip.dataset.tooltip = game.i18n.localize("DRPG.Actions.lockedTooltip");
+            // A viewer's pips say nothing (S03-06, `viewerOf`); the redaction marks them.
+            if (!viewer) pip.dataset.tooltip = game.i18n.localize("DRPG.Actions.lockedTooltip");
         } else if (game.user.isGM) {
             // GM only: players spend actions by taking actions, not by clicking.
             pip.classList.add("gm-editable");
@@ -1252,7 +1253,7 @@ function actionPips(actor, { left, max, spentActions, fresh }) {
                 event.preventDefault();
                 set();
             });
-        } else {
+        } else if (!viewer) {
             pip.dataset.tooltip = game.i18n.format("DRPG.Actions.pipReadOnly", { left, max: budget });
         }
         pips.push(pip);
@@ -1261,14 +1262,16 @@ function actionPips(actor, { left, max, spentActions, fresh }) {
 }
 
 /* ---- free move ---- */
-function freeMovePip(actor, { spentMove, fresh }) {
+function freeMovePip(actor, { spentMove, fresh, viewer = false }) {
     const move = document.createElement("span");
     const freeMove = hasFreeMove(actor);
     move.className = `drpg-free-move${freeMove ? " available" : " spent"}`;
     markSpent(move, fresh ? null : spentMove);
-    move.dataset.tooltip = game.i18n.localize(
-        freeMove ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent"
-    );
+    if (!viewer) {
+        move.dataset.tooltip = game.i18n.localize(
+            freeMove ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent"
+        );
+    }
     // Solid while it is there, OUTLINED once it is gone - the same pair the
     // action pips use (`fa-solid fa-circle` / `fa-regular fa-circle`), so a
     // spent Move and a spent action say the same thing in the same way. Foundry
@@ -1343,11 +1346,28 @@ function pendingStack(actor) {
     return stack;
 }
 
+/**
+ * Somebody looking at a sheet that is not theirs: neither a GM nor an owner.
+ *
+ * A VIEWER IS DRAWN NOTHING THE REDACTION WOULD HAVE TO TAKE BACK (E05 C15,
+ * 27.09.2026; audit S03-06). anonymity.mjs turns a viewer's pips and free Move
+ * into question marks, and their tooltips stayed - "1 of 2 actions this time of
+ * day", "Free Move used" - a hover away; and the stack beside them showed the
+ * Calls armed on the owner's next roll, whispered to the owner and the GM
+ * everywhere else, with nothing on the sheet taking it off. So the three are not
+ * drawn for a viewer at all, whether or not the table enforces anonymity, and the
+ * redaction strips them too (`redactValues`) for anything a later hand adds.
+ */
+function viewerOf(actor) {
+    return !game.user.isGM && !actor?.testUserPermission?.(game.user, "OWNER");
+}
+
 function injectActionBar(app, element, fresh = false) {
     const row = element.querySelector(".character-header-sheet .character-row");
     if (!row || row.querySelector(".drpg-actions-section")) return;
 
     const actor = app.document;
+    const viewer = viewerOf(actor);
     const left = actionsLeft(actor);
     const max = actionsMax(actor);
     const { wounded } = actionBudget(actor);
@@ -1373,14 +1393,14 @@ function injectActionBar(app, element, fresh = false) {
     }
     actions.append(label);
 
-    for (const pip of actionPips(actor, { left, max, spentActions, fresh })) actions.append(pip);
+    for (const pip of actionPips(actor, { left, max, spentActions, fresh, viewer })) actions.append(pip);
 
-    actions.append(freeMovePip(actor, { spentMove, fresh }));
+    actions.append(freeMovePip(actor, { spentMove, fresh, viewer }));
 
     section.append(actions);
 
-    const stack = pendingStack(actor);
-    if (stack.children.length) section.append(stack);
+    const stack = viewer ? null : pendingStack(actor);
+    if (stack?.children.length) section.append(stack);
 
     // Sit right after Hope, before the domains/downtime buttons.
     const hope = row.querySelector(".resource-section");

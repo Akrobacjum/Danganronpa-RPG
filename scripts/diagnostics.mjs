@@ -16,7 +16,7 @@ import { monokumaFor, students, unassigned } from "./assignments.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { listExperiences } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
-import { competingModuleWarnings } from "./voice.mjs";
+import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { isPrimaryGm, log, debug } from "./utils.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
 
@@ -1183,6 +1183,11 @@ export function diagnoseVoice() {
         lines.push("→ Nothing else matters until LiveKit AVClient is enabled.");
         return report("Voice diagnostics", lines);
     }
+    // A self-hosted server's secret in a world setting (S11-59; voice.mjs
+    // `liveKitSecretWarning`). Told to a GM only: on a player's screen the line would
+    // be a pointer to it.
+    const secret = game.user.isGM ? liveKitSecretWarning(liveKitConnectionSettings()) : null;
+    if (secret) lines.push(`→ ${game.i18n.localize(secret)}`);
 
     const modes = foundry.av.AVSettings.AV_MODES;
     const mode = game.webrtc?.mode;

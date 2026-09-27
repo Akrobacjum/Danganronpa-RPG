@@ -32,6 +32,9 @@ import { getClock, setClock } from "./clock.mjs";
 import { isDeadForGm, killCharacter, livingStudentsForGm } from "./chapter.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
+// No cycle: walked 27.09.2026, the 16 modules assignments.mjs reaches through its
+// static imports do not include this file.
+import { feedsNobody } from "./assignments.mjs";
 import { announce, dialogContent, whisperToGms, ownerOf, primaryGmId, isPrimaryGm, log, error } from "./utils.mjs";
 import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
@@ -236,6 +239,18 @@ export function mastermindActor() {
     if (!game.user.isGM) return null;
     const id = readStore().actorId;
     return id ? (game.actors.get(id) ?? null) : null;
+}
+
+/**
+ * The Mastermind, set in Despair Flow to feed no pool (NO_MONOKUMA): the one choice
+ * about them every player's browser can read, because the division is the world
+ * setting `gmAssignments` (E05 C15, 27.09.2026; audit S03-03, S10-12). Asked by the
+ * season checklist and the case health report, which warn the GM; `false` off a
+ * non-GM client, as the Mastermind is.
+ */
+export function mastermindUnpooled() {
+    const actor = mastermindActor();
+    return Boolean(actor && feedsNobody(actor));
 }
 
 /** Is this actor the Mastermind? Always `false` off a non-GM client. */

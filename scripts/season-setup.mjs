@@ -43,7 +43,8 @@ import { carriableCategories } from "./inventory.mjs";
 // synchronous - a `done` that had to await could not answer at all.
 import { sharedRooms, roomsWantedFor, forgetAllStashesFound } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
-import { mastermindActor } from "./mastermind.mjs";
+import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
+import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { NOTE_FLAG, hasNote } from "./pre-session-note.mjs";
@@ -218,13 +219,26 @@ function steps() {
         },
         {
             key: "assignments",
-            /* NOBODY, ON PURPOSE, IS AN ANSWER (22.09). Despair Flow recommends "- nobody -" for
-               the Mastermind, and this row then showed them as a red cross forever. A student
-               deliberately set to feed no pool is watched as intended. */
+            /* NOBODY, ON PURPOSE, IS AN ANSWER (22.09). A student deliberately set to feed no
+               pool - an NPC-run character, a template - is watched as intended, and this row
+               showed them as a red cross forever. Despair Flow no longer names the Mastermind
+               as one (E05 C15, 27.09.2026; audit S03-03, S10-12): the division is a world
+               setting every player's browser reads, so the one student left out stands out.
+               The row below says so when it has been done anyway. */
             done: roster.every(a => feedsNobody(a) || monokumaFor(a)),
             missing: () => roster.filter(a => !feedsNobody(a) && !monokumaFor(a)).map(a => a.name),
             open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
         },
+        /* THE MASTERMIND OUT OF EVERY POOL (S03-03, S10-12). Only while it is true, and a
+           cross, not a dash: it is the module's old advice followed, and every console can
+           read it. No name under it - the window may be open while a screen is shared, and
+           the Mastermind window is the one place that names them. */
+        ...(mastermindUnpooled() ? [{
+            key: "nobodyPublic",
+            done: false,
+            missing: () => [],
+            open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
+        }] : []),
         {
             /*
              * EVENLY, AND THAT IS ALL IT SAYS (S-4, Dawid 17.09).
@@ -351,6 +365,16 @@ function steps() {
             // counts GM roles that have stopped broadcasting their pointer.
             fixedKey: "DRPG.Season.fixedCursor"
         },
+        /* A SELF-HOSTED VOICE SERVER'S SECRET IN THE WORLD (S11-59; voice.mjs
+           `liveKitSecretWarning`). Only while it is true; a cross with nothing to open,
+           because the setting is avclient-livekit's and the repair is choosing a server
+           that keeps its secret to itself. The sentence is the voice diagnosis's. */
+        ...(liveKitSecretWarning(liveKitConnectionSettings()) ? [{
+            key: "liveKitSecret",
+            hintKey: "DRPG.Voice.liveKitSecret",
+            done: false,
+            missing: () => []
+        }] : []),
         {
             key: "mastermind",
             // The one row that is allowed to stay unticked for ever.
@@ -458,7 +482,7 @@ function setupRows(list) {
             <span class="drpg-setup-mark">${mark}</span>
             <div class="drpg-setup-body">
                 <strong>${esc(game.i18n.localize(`DRPG.Season.step.${step.key}`))}</strong>
-                <div class="notes">${esc(game.i18n.localize(`DRPG.Season.hint.${step.key}`))}</div>
+                <div class="notes">${esc(game.i18n.localize(step.hintKey ?? `DRPG.Season.hint.${step.key}`))}</div>
                 ${detail}
                 ${step.extra ? step.extra() : ""}
             </div>

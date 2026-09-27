@@ -10854,6 +10854,65 @@ const SCENARIOS = [
         }
     }],
 
+    ["the Mastermind set to feed no pool is the GMs' warning, in the season checklist and the case health report", async () => {
+        /*
+         * E05 C15, 27.09.2026; audit S03-03, S10-12. Despair Flow's division is the world
+         * setting `gmAssignments`, and the module used to advise setting the Mastermind to
+         * "- nobody -": the one student a console could see left out of every pool. The advice
+         * is gone (R197 holds the texts), and a GM who follows it anyway is told, by a row of
+         * the season checklist and of the case health report (mastermind.mjs
+         * `mastermindUnpooled`). In a world the stores have never opened (`withGmStoreWorld`)
+         * a student is the pick; assigned to this GM, neither row is there; set to nobody, both
+         * are, and the checklist's row names nobody. The checklist is answered by a stub that
+         * reads its rows. The division is put back as it was.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./mastermind.mjs");
+        const A = await import("./assignments.mjs");
+        const { openSeasonSetup } = await import("./season-setup.mjs");
+        const [student] = cast(1);
+        const before = foundry.utils.deepClone(A.assignments());
+        const title = game.i18n.localize("DRPG.Season.step.nobodyPublic");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const read = async () => {
+            let rows = null;
+            D.wait = async cfg => {
+                const el = document.createElement("div");
+                if (typeof cfg?.content === "string") el.innerHTML = cfg.content;
+                else if (cfg?.content) el.append(cfg.content.cloneNode(true));
+                rows = [...el.querySelectorAll(".drpg-setup-step")].map(li => ({
+                    title: li.querySelector("strong")?.textContent ?? "",
+                    detail: li.querySelector(".drpg-setup-missing")?.textContent ?? ""
+                }));
+                return null;
+            };
+            await openSeasonSetup();
+            const health = (await S.gmStoreHealth())?.rows ?? [];
+            return { unpooled: M.mastermindUnpooled(), rows, health: health.filter(r => r.id === "nobodyPublic").map(r => r.level) };
+        };
+        try {
+            await E.withGmStoreWorld(`suite-unpooled-${foundry.utils.randomID(8)}`, async () => {
+                await S.mastermindStore.patch("record", { actorId: student.id });
+                await A.setAssignments({ ...before, [student.id]: game.user.id });
+                const pooled = await read();
+                ok(Array.isArray(pooled.rows) && pooled.rows.length > 3, "the season checklist drew no rows - this measured nothing");
+                equal(stableJson([pooled.unpooled, pooled.rows.some(r => r.title === title), pooled.health]), stableJson([false, false, []]),
+                    "a Mastermind in a pool is warned about");
+                await A.setAssignments({ ...before, [student.id]: A.NO_MONOKUMA });
+                const out = await read();
+                const row = out.rows?.find(r => r.title === title);
+                equal(stableJson([out.unpooled, Boolean(row), row?.detail ?? null, out.health]), stableJson([true, true, "", ["conflict"]]),
+                    `a Mastermind set to nobody is not warned about in both places, or the checklist's row names them: ${stableJson(out)}`);
+            });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            await A.setAssignments(before);
+        }
+    }],
+
     ["Analyze refuses rather than announcing Neutral when the answer key is missing", async () => {
         /*
          * E04, 26.09.2026; audit S05-01, S05-09. A bullet whose answer key this GM's

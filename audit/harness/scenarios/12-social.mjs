@@ -92,6 +92,61 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
     `, { timeout: 60000 });
     check("ANONYMITY: self-audit runs", !String(anon).startsWith("threw"), String(anon));
 
+    // --- a sheet that is not yours (E05 C15, S03-06) ---
+    // p2 opens Aiko's sheet (p1's) with a Call armed on it. The harness registers no
+    // Daggerheart sheet, so the module's two render hooks are called on a bare frame, in
+    // Foundry's order (the class's own, then ActorSheetV2's): what they draw is what the
+    // viewer gets. The redacted pips kept "1 of 2 actions ..." and "Free Move used" as
+    // tooltips, and the stack beside them showed the armed Call. p1, the owner, draws the
+    // same frame first, so the check is shown able to see a stack and a tooltip. Two
+    // layers hold it, and each is read alone too, because either one hides the other's
+    // absence: sheet.mjs draws a viewer none of the three (the class's hook alone), and
+    // anonymity.mjs strips them from a frame another hand drew them on (ActorSheetV2's alone).
+    phase("a sheet that is not yours");
+    await gm.eval(`
+        const a = game.actors.get("${ids.aiko}");
+        globalThis.__c15Call = a.getFlag("${MOD}", "pendingCall") ?? null;
+        await a.setFlag("${MOD}", "pendingCall", [{ kind: "hope", key: "experience", grants: "experience" }]);
+        return true;`, { timeout: 60000 });
+    await settle(600);
+    const DRAWN = '<div class="drpg-actions-section"><div class="drpg-actions">'
+        + '<span class="drpg-action-pip" data-tooltip="planted: 1 of 2" aria-label="planted: 1 of 2"></span>'
+        + '<span class="drpg-free-move" data-tooltip="planted: Free Move used"></span></div>'
+        + '<div class="drpg-pending-stack"><div class="drpg-pending-call" data-tooltip="planted: a Call"></div></div></div>';
+    const drawSheet = (hooks, drawn = "") => `
+        const a = game.actors.get("${ids.aiko}");
+        const root = document.createElement("div");
+        root.innerHTML = '<div class="character-header-sheet"><div class="character-row"><div class="resource-section"></div>${drawn}</div></div>';
+        document.body.append(root);
+        const app = { document: a, element: root };
+        try {
+            for (const hook of ${JSON.stringify(hooks)}) Hooks.callAll(hook, app, root, {}, { isFirstRender: true });
+            return {
+                owner: a.testUserPermission(game.user, "OWNER"),
+                enforced: game.settings.get("${MOD}", "enforceAnonymity"),
+                pips: root.querySelectorAll(".drpg-action-pip").length,
+                tips: [...root.querySelectorAll(".drpg-action-pip, .drpg-free-move")]
+                    .map(el => el.dataset.tooltip ?? el.getAttribute("aria-label")).filter(Boolean),
+                calls: root.querySelectorAll(".drpg-pending-call, .drpg-pending-stack").length
+            };
+        } finally { root.remove(); }`;
+    const BOTH = ["renderCharacterSheet", "renderActorSheetV2"];
+    const own = await p1.eval(drawSheet(BOTH), { timeout: 60000 });
+    const other = await p2.eval(drawSheet(BOTH), { timeout: 60000 });
+    const sheetAlone = await p2.eval(drawSheet(["renderCharacterSheet"]), { timeout: 60000 });
+    const redactAlone = await p2.eval(drawSheet(["renderActorSheetV2"], DRAWN), { timeout: 60000 });
+    await gm.eval(`
+        const a = game.actors.get("${ids.aiko}");
+        if (globalThis.__c15Call) await a.setFlag("${MOD}", "pendingCall", globalThis.__c15Call);
+        else await a.unsetFlag("${MOD}", "pendingCall");
+        return true;`, { timeout: 60000 });
+    const bare = r => r?.owner === false && r.pips > 0 && r.tips.length === 0 && r.calls === 0;
+    check("SHEET: p1, Aiko's owner, sees the Call armed on their own sheet and the pips' tooltips",
+        own?.owner === true && own.pips > 0 && own.calls > 0 && own.tips.length > 0, JSON.stringify(own));
+    check("SHEET: p2 opening p1's sheet finds no tooltip text and no Call stack (S03-06)", bare(other), JSON.stringify(other));
+    check("SHEET: each layer holds alone - the sheet draws p2 none, the redaction strips what another hand drew",
+        bare(sheetAlone) && redactAlone?.enforced === true && bare(redactAlone), JSON.stringify({ sheetAlone, redactAlone }));
+
     // errors?
     for (const c of [gm, p1, p2]) {
         const errs = await c.eval(`return (globalThis.__errors ?? []).slice(0,5);`);

@@ -901,6 +901,38 @@ export function competingModuleWarnings() {
 }
 
 /**
+ * A self-hosted LiveKit server's API secret, kept in a world setting (E05 C15,
+ * 27.09.2026; audit S11-59). Pure: the value of avclient-livekit's
+ * `liveKitConnectionSettings` in, the warning's lang key or `null` out.
+ *
+ * WHAT WAS READ, AND WHAT WAS NOT. avclient-livekit 0.6.8's source (its main branch,
+ * read 27.09.2026; its manifest says verified on Foundry 14) registers the setting at
+ * world scope - so every browser receives it - as `{ serverType, url, room, username,
+ * password }`, with two server types: "custom", which needs the API key and secret
+ * (`username`, `password`) and signs its own access tokens with them, and "tavern",
+ * which needs neither. A world with no `serverType` is given the default, "custom", by
+ * the first GM to connect. So: a secret filled in and any type but "tavern". Not
+ * measured against a live install here (no Foundry, no LiveKit): AUDIT §9's
+ * LIVE-E05-11. This module cannot move another module's setting; it tells the GM.
+ */
+export function liveKitSecretWarning(settings) {
+    if (!settings || typeof settings !== "object") return null;
+    const secret = typeof settings.password === "string" && settings.password.trim() !== "";
+    return secret && settings.serverType !== "tavern" ? "DRPG.Voice.liveKitSecret" : null;
+}
+
+/** avclient-livekit's connection setting on this browser, or `null` when it is not there to read. */
+export function liveKitConnectionSettings() {
+    if (!game.modules.get(AV_MODULE)?.active) return null;
+    try {
+        return game.settings.get(AV_MODULE, "liveKitConnectionSettings") ?? null;
+    } catch {
+        // Not registered on this client - nothing to warn about.
+        return null;
+    }
+}
+
+/**
  * Where everybody WOULD be sent, without sending anybody anywhere.
  *
  *     game.drpg.voicePlan()
