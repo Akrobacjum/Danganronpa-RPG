@@ -437,9 +437,10 @@ export async function toggleFinalTrialFlag() {
  * fieldset is a live region now, so the two figures a donation moves - the
  * Mastermind's Hope and the pool it came out of - redraw where they stand.
  */
-function mastermindHopeBox({ monokumas, poolLabel, getDespair }) {
+function mastermindHopeBox({ monokumas, donorLabel }) {
+    // What each pool can spend, and what it owes (E05 C12; despair.mjs `donorLabel`).
     const buildDonors = () => monokumas().map(u =>
-        `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))} (${getDespair(u.id)})</option>`
+        `<option value="${u.id}">${foundry.utils.escapeHTML(donorLabel(u))}</option>`
     ).join("");
 
     /*
@@ -551,8 +552,8 @@ export async function openMastermindDialog() {
         `<option value="${a.id}"${a.id === current?.id ? " selected" : ""}>${
             foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
-    const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
-    const hopeBox = () => mastermindHopeBox({ monokumas, poolLabel, getDespair });
+    const { monokumas, donorLabel } = await import("./despair.mjs");
+    const hopeBox = () => mastermindHopeBox({ monokumas, donorLabel });
 
     const { allRooms } = await import("./movement.mjs");
 
@@ -627,7 +628,8 @@ export async function openMastermindDialog() {
             keepLive(dialog, {
                 region: ".drpg-mm-live",
                 build: hopeBox,
-                watch: { actors: true },
+                // A pool's debt changes with no actor's write (E05 C12): its store's hook.
+                watch: { actors: true, hooks: ["drpgDespairOwedChanged"] },
                 after: wireGive
             });
         },

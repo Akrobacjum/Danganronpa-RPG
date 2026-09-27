@@ -755,6 +755,23 @@ const CLAUSES = [
             const report = await liftIncidentMethod();
             return report && (report.lifted || report.dropped) ? report : null;
         }
+    },
+    {
+        key: "liftOverflowCount",
+        since: "1.2.64",
+        /*
+         * THE OVERFLOW'S COUNT OUT OF WORLD DATA (E05 C12; audit S01-60). Until 1.2.64 the world
+         * setting `overflow` held the spilled Despair's count beside the darkening's stamp, and
+         * every browser holds it - the number a player's caption masks. Once, on the primary,
+         * after the GM stores' copies arrived, with the rules written on `liftOverflowCount`
+         * (overflow.mjs): the count into the GMs' record weak and fill-only, and the world value
+         * rewritten to `{ active }` only once the record reads back holding one.
+         */
+        run: async () => {
+            const { liftOverflowCount } = await import("./overflow.mjs");
+            const report = await liftOverflowCount();
+            return report && (report.lifted || report.dropped) ? report : null;
+        }
     }
 ];
 

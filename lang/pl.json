@@ -457,6 +457,12 @@
       "notEnoughPool": "Ta pula ma {held} Despair; poproszono o {needed}.",
       "hopeAlreadyFull": "Ich Hope jest już na maksimum.",
       "hopeConverted": "{who} zamienia część swojego Despair - zyskujesz {n} Hope.",
+      "owed": {
+        "one": "{n} do spłaty",
+        "few": "{n} do spłaty",
+        "many": "{n} do spłaty",
+        "other": "{n} do spłaty"
+      },
       "poolsTitle": "Pule Despair",
       "poolsIntro": "Nazwij każdą pulę. Nie musi pasować do konta.",
       "poolName": "Nazwa puli",
@@ -4595,7 +4601,9 @@
         "keyPlan": "Plan Key Remnants, rozdział po rozdziale",
         "notes": "Notatki graczy przed sesją",
         "deaths": "Śmierci, których nikt jeszcze nie odkrył",
-        "deferredOffers": "Reinforced Level Upy czekające na klasę"
+        "deferredOffers": "Reinforced Level Upy czekające na klasę",
+        "overflow": "Licznik Despair overflow",
+        "despairOwed": "Despair, który każda pula jest winna za zamiany na Hope"
       },
       "row": {
         "traces": {

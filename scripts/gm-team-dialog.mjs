@@ -293,7 +293,8 @@ export async function openGmTeamDialog({ draft = null } = {}) {
                     const line = root.querySelector(".drpg-overflow-now");
                     if (line) line.textContent = overflowNowLine();
                 },
-                watch: { settings: [SETTINGS.overflow] }
+                // The count is the GMs' store since E05 C12, whose write fires its own hook.
+                watch: { settings: [SETTINGS.overflow], hooks: ["drpgOverflowChanged"] }
             });
         },
         rejectClose: false

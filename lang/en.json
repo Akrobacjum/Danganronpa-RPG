@@ -478,6 +478,10 @@
       "notEnoughPool": "That pool holds {held} Despair; {needed} was asked for.",
       "hopeAlreadyFull": "Their Hope is already at maximum.",
       "hopeConverted": "{who} converts some of their Despair - you gain {n} Hope.",
+      "owed": {
+        "one": "{n} owed",
+        "other": "{n} owed"
+      },
       "poolsTitle": "Despair Pools",
       "poolsIntro": "Name each pool. It need not match the account.",
       "poolName": "Pool name",
@@ -3364,7 +3368,9 @@
         "keyPlan": "The Key Remnant plan, chapter by chapter",
         "notes": "The players' pre-session notes",
         "deaths": "The deaths nobody has found yet",
-        "deferredOffers": "The Reinforced Level Ups waiting for the class"
+        "deferredOffers": "The Reinforced Level Ups waiting for the class",
+        "overflow": "The Despair overflow's count",
+        "despairOwed": "The Despair each pool owes for its conversions to Hope"
       },
       "row": {
         "traces": {

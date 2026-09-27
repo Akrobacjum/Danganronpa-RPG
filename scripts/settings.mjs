@@ -64,12 +64,19 @@ export const SETTINGS = {
     gmDeaths: "gmDeaths",
     mineDeaths: "mineDeaths",
     /**
-     * The live Despair Overflow: `{ count, active }` (Z10).
+     * The live Despair Overflow: `{ active }` (Z10), the stamp of the ONE time of
+     * day a darkening covers, or null - public, since the card that fires it is.
      *
-     * `count` is spilled Despair waiting to be spent; `active` is the stamp of
-     * the ONE time of day a darkening covers, or null. Both in one setting
-     * because they change together and a reader that saw one without the other
-     * would draw a HUD that contradicts itself.
+     * THE COUNT IS THE GMS' SINCE 1.2.64 (E05 C12, 27.09.2026; audit S01-60): the
+     * spilled Despair waiting to be spent is the record of the GM store `overflow`
+     * (`gmOverflow` below; overflow.mjs `state`). Both halves were one setting so a
+     * reader could not see one without the other, and every browser holds a world
+     * setting: a player's caption masked the count as "?" over a value their
+     * console read. A GM's HUD now reads the two from two places, and a firing
+     * writes the count before the stamp (`checkOverflow`), so what it can show for
+     * a moment is a count already paid beside no darkening yet - never a darkening
+     * the count did not pay for. The clause `liftOverflowCount` takes an older
+     * world's count out of this value.
      */
     overflow: "overflow",
     /**
@@ -285,6 +292,16 @@ export const SETTINGS = {
      * copy: the owner is told on a veiled card, and nothing on a player's browser reads it.
      */
     gmDeferredOffers: "gmDeferredOffers",
+    /**
+     * THE DESPAIR COUNTERS ON THE GMS' SIDE (E05 C12, 27.09.2026; audit S01-60, S09-28). Two GM
+     * stores, synced and backed up, with no player copy: `gmOverflow` (gm-stores.mjs
+     * `overflowStore`) is the overflow's count, a record `{ count }` - the world setting
+     * `overflow` keeps `{ active }`; `gmDespairOwed` (`despairOwedStore`) is a row per Monokuma
+     * `{ owed, since }`, the Despair its conversions to Hope took and its pool has not yet paid
+     * (despair.mjs `settleOwed`, at the next time of day).
+     */
+    gmOverflow: "gmOverflow",
+    gmDespairOwed: "gmDespairOwed",
     /**
      * The words of every private card this browser is a recipient of.
      *
@@ -1221,6 +1238,30 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    /* The Despair counters (E05 C12). A change - this GM's write or another GM's merged in -
+       redraws what the world setting's change redrew (the caption, the HUD row, the sheets;
+       the pools' bar and sheets), and tells the windows that show a count or what a pool
+       can spend: a client setting's write fires no `updateSetting` for their watches. */
+    game.settings.register(MODULE_ID, SETTINGS.gmOverflow, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => {
+            onStoreChange("overflow");
+            Hooks.callAll("drpgOverflowChanged");
+        }
+    });
+    game.settings.register(MODULE_ID, SETTINGS.gmDespairOwed, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => {
+            onStoreChange("despair");
+            Hooks.callAll("drpgDespairOwedChanged");
+        }
+    });
 
     game.settings.register(MODULE_ID, SETTINGS.secretCards, {
         scope: "client",
@@ -1459,11 +1500,12 @@ export function registerSettings() {
      * and splitting a setting from its first reader buys nothing but the risk
      * that its shape goes stale before anybody uses it.
      */
+    // `{ active }` alone since E05 C12: the count is the GMs' record (`gmOverflow`).
     game.settings.register(MODULE_ID, SETTINGS.overflow, {
         scope: "world",
         config: false,
         type: Object,
-        default: { count: 0, active: null },
+        default: { active: null },
         onChange: () => onWorldChange(SETTINGS.overflow)
     });
 

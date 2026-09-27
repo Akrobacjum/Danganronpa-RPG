@@ -5157,19 +5157,22 @@ const SCENARIOS = [
          * CALL-06 (17.09). The overflow holds one stamp, and a spill that reached X in a
          * darkened time of day armed the next one over it, ending this one on the spot.
          * Only Fog is left in the hat while this runs, so a regression announces a Fog
-         * and changes nobody's sheet.
+         * and changes nobody's sheet. The count is the GMs' record since E05 C12 (the
+         * world keeps the stamp): it starts at 0 there and is put back there.
          */
         const o = await import("./overflow.mjs");
+        const { overflowStore } = await import("./gm-stores.mjs");
         const clock = getClock();
         if (clock.eclipse) return;               // the Eclipse half reads another stamp
         const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
+        const count = o.overflowCount();
         const rules = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {});
         try {
             const effects = Object.fromEntries(Object.keys(o.overflowRules().effects)
                 .map(key => [key, { on: key === "fog" }]));
             await game.settings.set(MODULE_ID, SETTINGS.overflowRules, { ...rules, effects });
+            await overflowStore.patch("record", { count: 0 });
             await game.settings.set(MODULE_ID, SETTINGS.overflow, {
-                count: 0,
                 active: { session: clock.session, day: clock.day ?? 1, timeOfDay: clock.timeOfDay, effect: "fog" }
             });
             equal(o.overflowEffect(), "fog", "could not set up a darkening for this time of day");
@@ -5180,6 +5183,7 @@ const SCENARIOS = [
         } finally {
             await game.settings.set(MODULE_ID, SETTINGS.overflowRules, rules);
             await game.settings.set(MODULE_ID, SETTINGS.overflow, stored);
+            await overflowStore.patch("record", { count });
             await settle();
         }
     }],
@@ -5228,7 +5232,7 @@ const SCENARIOS = [
         const stamp = { session: clock.session, day: clock.day ?? 1, timeOfDay: clock.timeOfDay };
         try {
             await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: false });
-            await game.settings.set(MODULE_ID, SETTINGS.overflow, { count: 0, active: { ...stamp, effect: "panic" } });
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: { ...stamp, effect: "panic" } });
             await settle();
             equal(o.overflowEffect(), "panic", "could not set up a darkening for this time of day");
             await game.settings.set(MODULE_ID, SETTINGS.clock, { ...clock, eclipse: true });
@@ -5237,6 +5241,81 @@ const SCENARIOS = [
         } finally {
             await game.settings.set(MODULE_ID, SETTINGS.clock, clock);
             await game.settings.set(MODULE_ID, SETTINGS.overflow, stored);
+            await settle();
+        }
+    }],
+
+    ["a conversion leaves the pool until the time of day moves", async () => {
+        /*
+         * E05 C12, 27.09.2026; audit S09-28. A conversion of a Monokuma's Despair to somebody's
+         * Hope took the pool down as the Hope went up, and its card was spoken by the recipient:
+         * the pools are on every bar (D3), so every console could pair the two. The Hope comes now,
+         * the pool's drop is owed in the GMs' `despairOwed` store and paid at the next time of day
+         * (`settleOwed`, on the primary), and the card is veiled. Until then what the pool can spend
+         * is the pool less the owed - a second conversion or a Call beyond it is refused - and income
+         * into a full pool pays the owed before anything spills. A wrong verdict's fill and the
+         * season's zero leave nothing owed. The time of day moves by a write of the clock, the road
+         * every change of it takes to `drpgTimeOfDayChanged`. The rows are dropped here; the clock,
+         * the pools and the Hope are put back by tier 2's restore.
+         */
+        const D = await import("./despair.mjs");
+        const o = await import("./overflow.mjs");
+        const { despairOwedStore } = await import("./gm-stores.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { resourceValue } = await import("./character.mjs");
+        const donor = D.monokumas().find(u => u.id === game.user.id) ?? D.monokumas()[0];
+        ok(Boolean(donor), "no Monokuma's pool to convert from - this measures nothing");
+        const [who] = cast(1);
+        const clock = foundry.utils.deepClone(getClock());
+        const state = () => [D.getDespair(donor.id), D.owedOf(donor.id), D.spendableDespair(donor.id)];
+        const noHope = () => automatedUpdate(who, { "system.resources.hope.value": 0 });
+        try {
+            await despairOwedStore.drop(donor.id);
+            await D.setDespair(donor.id, 5);
+            await noHope();
+            const from = new Set(game.messages.map(m => m.id));
+            const granted = await D.convertDespairToHope(donor.id, who, 2);
+            await settle();
+            equal(stableJson([granted, ...state(), resourceValue(who, "hope")]), stableJson([2, 5, 2, 3, 2]),
+                "the conversion took the pool down at once, owes nothing, or gave no Hope (granted, pool, owed, spendable, Hope)");
+            const cards = game.messages.filter(m => !from.has(m.id));
+            ok(cards.filter(m => m.getFlag(MODULE_ID, "veiled") === true).length === 1 && !cards.some(m => m.speaker?.actor === who.id),
+                `the conversion's card is not one veiled card, or a card is spoken by the recipient: ${stableJson(cards.map(m => [m.speaker?.actor ?? null, Boolean(m.getFlag(MODULE_ID, "veiled"))]))}`);
+
+            // A write of the clock that leaves the time of day where it is - an Eclipse's opening is one - pays nothing.
+            await setClock({ timeOfDayStartedAt: (Number(clock.timeOfDayStartedAt) || 0) + 1 });
+            await settle();
+            await settle();
+            equal(stableJson(state()), stableJson([5, 2, 3]), "a write of the clock that left the time of day where it was paid what the pool owes (pool, owed, spendable)");
+
+            equal(stableJson([await D.convertDespairToHope(donor.id, who, 4), await D.spendDespairCall(donor.id, "silence", { announce: false }), ...state()]),
+                stableJson([0, false, 5, 2, 3]), "a conversion or a Call beyond what the pool can spend went through: the owed Despair was spent twice");
+
+            const spilled = o.overflowCount();
+            await D.setDespair(donor.id, D.despairMax());
+            await D.adjustDespair(donor.id, 1);
+            await settle();
+            equal(stableJson([...state(), o.overflowCount()]), stableJson([D.despairMax(), 1, D.despairMax() - 1, spilled]),
+                "income into a full pool spilled before it paid what the pool owes (pool, owed, spendable, the overflow's count)");
+
+            const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1) % TIMES_OF_DAY.length];
+            await setClock({ timeOfDay: next });
+            await until(() => D.owedOf(donor.id) === 0, 4000);
+            await settle();
+            equal(stableJson(state()), stableJson([D.despairMax() - 1, 0, D.despairMax() - 1]),
+                "the time of day moved on and the pool did not pay what it owed, or paid it twice (pool, owed, spendable)");
+
+            for (const [what, run, pool] of [["a fill", () => D.fillAllDespair(), D.despairMax()], ["a zero", () => D.zeroAllDespair(), 0]]) {
+                await D.setDespair(donor.id, 5);
+                await noHope();
+                await D.convertDespairToHope(donor.id, who, 1);
+                ok(D.owedOf(donor.id) === 1, `the conversion before ${what} owes nothing - this measures nothing`);
+                await run();
+                equal(stableJson(state()), stableJson([pool, 0, pool]), `${what} left the pool owing a conversion it covers (pool, owed, spendable)`);
+            }
+        } finally {
+            await despairOwedStore.drop(donor.id);
             await settle();
         }
     }],
@@ -8750,6 +8829,91 @@ const SCENARIOS = [
         }
     }],
 
+    ["the overflow's lift moves the world's count into the GMs' record, and the world keeps { active } once it reads back", async () => {
+        /*
+         * E05 C12, 27.09.2026; audit S01-60. A world from before 1.2.64 keeps the overflow's count
+         * in the world setting `overflow`, beside the darkening's stamp; the clause
+         * `liftOverflowCount` moves a count above zero into the GMs' record, weak and fill-only,
+         * and rewrites the world value to `{ active }` once the record reads back from storage
+         * holding a count. In a world the stores have never opened (`withGmStoreWorld`): a spill
+         * before the lift is counted on top of the world's count (overflow.mjs `state`) into the
+         * record, the lift keeps it, the stamp stands, and the report counts the count lifted; a
+         * second run has nothing to do. Then a count the record holds stands over the world's
+         * (fill-only), and a count of 0 simply leaves. The world setting is put back.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const o = await import("./overflow.mjs");
+        const before = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
+        const armed = { session: 99, day: 9, timeOfDay: "night", effect: "fog" };
+        const world = () => game.settings.get(MODULE_ID, SETTINGS.overflow);
+        try {
+            await E.withGmStoreWorld(`suite-overflowlift-${foundry.utils.randomID(8)}`, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.overflow, { count: 7, active: armed });
+                await o.addOverflow(1, { reason: "suite" });
+                equal(stableJson([o.overflowCount(), S.overflowStore.record().count ?? null]), stableJson([8, 8]),
+                    "a spill before the lift was not counted on top of the world's count, into the record");
+                const report = await o.liftOverflowCount();
+                equal(stableJson([S.overflowStore.persisted("record")?.count ?? null, world(), o.overflowCount()]), stableJson([8, { active: armed }, 8]),
+                    "the count did not read back from the record's storage, the world still holds it or lost its stamp, or a GM does not read it");
+                equal(stableJson(report), stableJson({ lifted: 1, dropped: 0, kept: 0 }), `the lift's report: ${stableJson(report)}`);
+                equal(await o.liftOverflowCount(), null, "a second run of the lift found something to do");
+
+                await S.overflowStore.patch("record", { count: 11 });
+                await game.settings.set(MODULE_ID, SETTINGS.overflow, { count: 3, active: null });
+                await o.liftOverflowCount();
+                equal(stableJson([S.overflowStore.persisted("record")?.count ?? null, world()]), stableJson([11, { active: null }]),
+                    "the world's count overwrote a count a GM wrote since the update, or stayed in the world");
+
+                await game.settings.set(MODULE_ID, SETTINGS.overflow, { count: 0, active: null });
+                equal(stableJson([await o.liftOverflowCount(), world()]), stableJson([{ lifted: 0, dropped: 1, kept: 0 }, { active: null }]),
+                    "a count of 0 did not simply leave the world");
+            });
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, before);
+        }
+    }],
+
+    ["the overflow's lift leaves the world's count as it was when the record does not read it back", async () => {
+        /*
+         * E05 C12, 27.09.2026: the other half of the pair above, as the method's pair does it. The
+         * store's save is swallowed - the count stands in memory and not on disk - and the world
+         * keeps its value whole: nothing leaves world data that the store cannot read back. The
+         * lift throws (E05's fix round r1-G1), so the migration does not stamp the world and the
+         * next load tries again. In a world the stores have never opened; the world setting is put
+         * back.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const o = await import("./overflow.mjs");
+        const before = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
+        const old = { count: 7, active: null };
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        try {
+            await E.withGmStoreWorld(`suite-overflowkept-${foundry.utils.randomID(8)}`, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.overflow, old);
+                settings.set = async function (namespace, key, value) {
+                    if (namespace === MODULE_ID && key === S.overflowStore.spec.key) return value;
+                    return realSet.call(this, namespace, key, value);
+                };
+                const threw = await thrown(() => o.liftOverflowCount());
+                putBack();
+                equal(S.overflowStore.record()?.count, 7, "the swallowed save left no count in memory either - this measured nothing");
+                equal(stableJson([/^the overflow's count did not read back/.test(threw ?? ""), game.settings.get(MODULE_ID, SETTINGS.overflow)]), stableJson([true, old]),
+                    `the world lost a count that is not on disk, or the lift did not throw: ${threw}`);
+            });
+        } finally {
+            putBack();
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, before);
+        }
+    }],
+
     ["a lift that leaves its secret in world data stops the migration short on the GM's screen, and the next pass lifts it - on a world stamped 1.2.63 too", async () => {
         /*
          * E05 fix r1-G1, 27.09.2026; the reviews' S1-M1 and M2, and the orchestrator's note on
@@ -8851,7 +9015,9 @@ const SCENARIOS = [
          * write made at the moment the store saves (its save goes through after it): the lift's
          * own write comes after the other GM's, which stands, and the secret fields are gone.
          * The old key nothing but its lift writes (`legacyPendingMurders`, `legacyEclipseMoves`)
-         * has no such race. projectMeta is put back here, murderState by tier 2's restore.
+         * has no such race. projectMeta is put back here, murderState and overflow by tier 2's
+         * restore. E05 C12's liftOverflowCount follows the rule from its first line: a darkening
+         * another GM armed during the record's save stands, and the count is gone.
          */
         const E = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -8911,6 +9077,17 @@ const SCENARIOS = [
                 putBack();
                 equal(stableJson([order, murderNow()]), stableJson([["other GM", "lift"], { active: true, stage: "incident", turn: 2, turnSide: "killer" }]),
                     "liftIncidentSecrets put back a turn another GM passed during the cast's save, or kept a name");
+
+                const O = await import("./overflow.mjs");
+                const overflowNow = () => foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
+                const armed = { session: 99, day: 9, timeOfDay: "night", effect: "fog" };
+                await game.settings.set(MODULE_ID, SETTINGS.overflow, { count: 5, active: null });
+                race(S.overflowStore.spec.key, SETTINGS.overflow,
+                    () => realSet.call(settings, MODULE_ID, SETTINGS.overflow, { ...overflowNow(), active: armed }));
+                await O.liftOverflowCount();
+                putBack();
+                equal(stableJson([order, overflowNow()]), stableJson([["other GM", "lift"], { active: armed }]),
+                    "liftOverflowCount put back an overflow another GM armed during the record's save, or kept the count");
             });
         } finally {
             putBack();
@@ -9698,6 +9875,25 @@ const SCENARIOS = [
                 },
                 gone: (report, id) => !S.deferredOfferStore.has(id),
                 back: id => S.deferredOfferStore.get(id)?.chapter === 99 && S.deferredOfferStore.get(id)?.kind === "reinforced"
+            },
+            // The overflow's count, through its record (E05 C12): below any X, so nothing is armed by it.
+            overflow: {
+                seed: async () => {
+                    await S.overflowStore.patch("record", { count: 3 });
+                    return "record";
+                },
+                gone: () => S.overflowStore.record().count === undefined,
+                back: () => S.overflowStore.record().count === 3
+            },
+            // Despair a pool owes, through its store (E05 C12): dated this time of day, so no clock write here settles it.
+            despairOwed: {
+                seed: async () => {
+                    const c = getClock();
+                    await S.despairOwedStore.patch(game.user.id, { owed: 2, since: `${c.session ?? 0}.${c.day ?? 1}.${c.timeOfDay ?? ""}` });
+                    return game.user.id;
+                },
+                gone: (report, id) => !S.despairOwedStore.has(id),
+                back: id => S.despairOwedStore.get(id)?.owed === 2
             },
             // A pre-session note, through its store (E05 C6): the GM's own row, which no player is sent. Its
             // flag as a reset leaves it, and after the restore as the row says (E05 fix r1-G4, M6 = S1-m6).

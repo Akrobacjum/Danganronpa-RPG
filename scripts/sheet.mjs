@@ -22,7 +22,7 @@ import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
 import { resourceMax, resourceValue, initCharacter, needsStartingResources } from "./character.mjs";
 import { pendingAdvance as pendingAdvanceFor } from "./level-up.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
-import { getDespair } from "./despair.mjs";
+import { spendableDespair } from "./despair.mjs";
 import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
 import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
 import {
@@ -3701,11 +3701,11 @@ function callButton(call, monokuma, lockNote = null) {
     return button;
 }
 
-/** The Despair pool backing a Monokuma actor. */
+/** What the Despair pool backing a Monokuma actor can spend: less what it owes (E05 C12). */
 function monokumaPool(actor) {
     try {
         const user = poolUserFor(actor);
-        return user ? getDespair(user.id) : 0;
+        return user ? spendableDespair(user.id) : 0;
     } catch {
         return 0;
     }

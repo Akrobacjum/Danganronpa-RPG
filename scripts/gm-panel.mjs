@@ -812,7 +812,7 @@ async function openWhoIsAliveDialog() {
     // (F15): `applyAliveStates` below imports what it writes.
     const { isDeceased, isDeadForGm, openDeathDialog } = await import("./chapter.mjs");
     const { isMonocub, setMonocub, isSilenced } = await import("./monocub.mjs");
-    const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
+    const { monokumas, donorLabel } = await import("./despair.mjs");
     const { resourceValue, resourceMax } = await import("./character.mjs");
 
     /*
@@ -842,9 +842,12 @@ async function openWhoIsAliveDialog() {
      * donation went on offering the Despair it no longer had, and a Monokuma who
      * opted in while the window stood open never appeared in the list at all. The
      * row above it made exactly this mistake with `anyCub` and says so.
+     *
+     * What each pool can spend, and what it owes (E05 C12): a conversion's Despair is
+     * taken from the pool at the next time of day (despair.mjs `donorLabel`).
      */
     const buildDonors = () => monokumas().map(u =>
-        `<option value="${u.id}">${esc(poolLabel(u))} (${getDespair(u.id)})</option>`).join("");
+        `<option value="${u.id}">${esc(donorLabel(u))}</option>`).join("");
 
     const table = () => {
         const donors = buildDonors();
@@ -897,7 +900,7 @@ async function openWhoIsAliveDialog() {
                 region: ".drpg-alive-live",
                 build: table,
                 // A death kept by the GMs writes no actor (E05 C10): its store's change is the sign.
-                watch: { actors: true, hooks: ["drpgDeathsChanged"] },
+                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged"] },
                 after: wireAll
             });
         },

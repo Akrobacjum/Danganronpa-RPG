@@ -4543,7 +4543,8 @@ const INVARIANTS = [
             settings: {
                 projectMeta: { R190PROJECT00001: { room: "Gym", indirectMurder: true, secret: true, trait: null, countsUp: true } },
                 clock: { chapter: 2, day: 3 },
-                murderState: { active: true, stage: "incident", turn: 2, turnSide: "killer", blocked: { victim: { survive: 1 }, killer: {} } }
+                murderState: { active: true, stage: "incident", turn: 2, turnSide: "killer", blocked: { victim: { survive: 1 }, killer: {} } },
+                overflow: { active: { session: 1, day: 2, timeOfDay: "noon", effect: "fog" } }
             },
             actors: [{ id: KILLER, flags: { [MOD]: { advances: 1 }, "r190-other-module": { memo: KILLER } } },
                 { id: "R190BYSTANDER001", flags: { [MOD]: { deceased: false } } }],
@@ -4591,6 +4592,10 @@ const INVARIANTS = [
             ["ChatMessage flag summary",
                 s => { s.messages[0].flags[MOD].summary = { action: "Search", item: "R190 a find" }; },
                 h => h.kind === "flag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00001" && h.path === `flags.${MOD}.summary`],
+            // E05 C12: the overflow keeps its darkening's stamp, and the count behind it is the GMs' - a 0 is found as well.
+            ["overflow.count",
+                s => { s.settings.overflow.count = 0; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "overflow" && h.path === "count"],
             // E05 C8: the world half of an incident holds the public list alone - a trap's `false` is found as well.
             ["murderState: only active, stage, turn, turnSide, keyRemnants, deniedToVictim, hindered, blocked, unlocked, spent, drainStopped, advantageNext, freeResolution, thirdActed",
                 s => { s.settings.murderState = { active: true, stage: "incident", turn: 1, turnSide: "victim", indirect: false }; },
@@ -4763,6 +4768,85 @@ const INVARIANTS = [
         ok(kill > 0 && batch > kill, "the Final Trial's verdict does not hand out what waited for the class (Q7), or does so before its kill");
         equal(stableJson([deferredOfferStore.spec?.resetGroup, deferredOfferStore.spec?.backup, deferredOfferStore.spec?.sync]),
             stableJson(["advancement", true, true]), "the waiting Level Ups are not cut by the reset's advancement group, backed up and synced");
+    }],
+
+    ["R196 - owed Despair is paid at the time of day's change and never spent twice", async () => {
+        /*
+         * E05 C12, 27.09.2026; audit S09-28. A conversion of a Monokuma's Despair to somebody's Hope
+         * took the pool down as the Hope went up, and the pools are on every bar (D3): every console
+         * could pair the two. The drop is owed now, in the GMs' `despairOwed` store, and paid at the
+         * next time of day. `owedAfter` is its arithmetic, pure, and driven here: a conversion owes
+         * and leaves the pool; income that will not fit pays what is owed before it spills; the
+         * settlement pays, never below zero. NEVER SPENT TWICE: over every pool and debt, what can be
+         * spent is the same after the settlement as before it, and income lands - in the pool and in
+         * the overflow - as it would have on the pool an immediate drop left. Then read from the
+         * source, as the rest needs a world (tier 2 drives it): every spending path asks what the pool
+         * can spend, both roads into a full pool pay the debt first, a fill and a zero drop the rows,
+         * the primary settles at every write of the clock after waiting for the other GMs' copies; the two
+         * stores' reset groups, backup and sync; and the words the pickers show.
+         */
+        const D = await import("./despair.mjs");
+        const { despairOwedStore, overflowStore } = await import("./gm-stores.mjs");
+        const { stableJson } = await import("./gm-store.mjs");
+        const MAX = 12;
+        const step = (pool, owed, event) => { const r = D.owedAfter({ pool, owed }, event, MAX); return [r.pool, r.owed, r.spill]; };
+        const TABLE = [
+            ["a conversion owes, and the pool stands", [5, 0, { kind: "convert", n: 2 }], [5, 2, 0]],
+            ["a second conversion owes more", [5, 2, { kind: "convert", n: 1 }], [5, 3, 0]],
+            ["income below the cap goes into the pool", [8, 2, { kind: "income", n: 1 }], [9, 2, 0]],
+            ["income into a full pool pays what it owes", [12, 2, { kind: "income", n: 1 }], [12, 1, 0]],
+            ["income past what is owed spills the rest", [11, 2, { kind: "income", n: 5 }], [12, 0, 2]],
+            ["owing nothing, what will not fit spills", [12, 0, { kind: "income", n: 3 }], [12, 0, 3]],
+            ["a spend takes from the pool and leaves the debt", [5, 2, { kind: "income", n: -3 }], [2, 2, 0]],
+            ["the settlement pays", [5, 2, { kind: "settle" }], [3, 0, 0]],
+            ["the settlement stops at zero", [1, 3, { kind: "settle" }], [0, 0, 0]]
+        ];
+        const wrong = TABLE.filter(([, [pool, owed, event], want]) => stableJson(step(pool, owed, event)) !== stableJson(want))
+            .map(([what, [pool, owed, event]]) => `${what}: ${stableJson(step(pool, owed, event))}`);
+        ok(!wrong.length, `the owed Despair's arithmetic is wrong: ${wrong.join("; ")}`);
+
+        const twice = [];
+        for (let pool = 0; pool <= MAX; pool++) for (let owed = 0; owed <= pool; owed++) {
+            const spendable = pool - owed;
+            const settled = D.owedAfter({ pool, owed }, { kind: "settle" }, MAX);
+            if (settled.pool - settled.owed !== spendable) twice.push(`settle ${pool}/${owed}`);
+            for (const n of [1, 2, 5, MAX]) {
+                const got = D.owedAfter({ pool, owed }, { kind: "income", n }, MAX);
+                if (got.pool - got.owed !== Math.min(spendable + n, MAX) || got.spill !== Math.max(spendable + n - MAX, 0)) twice.push(`income ${n} at ${pool}/${owed}`);
+            }
+        }
+        ok(!twice.length, `a settlement or an income spends what is owed twice, or loses it (pool/owed): ${twice.slice(0, 6).join(", ")}`);
+
+        const sources = new Map(await otherSources());
+        const despair = stripComments(sources.get("despair.mjs") ?? "");
+        const body = head => bodyOf(despair, head, { until: "\n}\n" });
+        for (const name of ["spendDespairCall", "convertDespairToHope"]) {
+            const fn = body(`export async function ${name}(`);
+            ok(/const held = spendableDespair\(/.test(fn) && !/getDespair\(/.test(fn), `${name} asks what the pool shows, not what it can spend`);
+        }
+        ok(/spillFrom\(userId, before, delta,/.test(body("export async function adjustDespair(")),
+            "income into a full pool through adjustDespair spills before it pays what is owed");
+        const award = stripComments(sources.get("despair-award.mjs") ?? "");
+        ok(/spillFrom\(monokuma\.id, before, 1,/.test(award) && !/addOverflow\(/.test(award),
+            "a roll's point into a full pool spills before it pays what is owed");
+        for (const name of ["fillAllDespair", "zeroAllDespair"]) {
+            ok(/await clearOwed\(\);/.test(body(`export async function ${name}(`)), `${name} leaves the pools owing what they covered`);
+        }
+        const settling = body("export async function settleOwed(");
+        ok(/if \(!isPrimaryGm\(\)\) return 0;/.test(settling) && /await despairOwedStore\.whenHydrated\(\);/.test(settling)
+            && settling.indexOf("SETTINGS.despairPools") < settling.indexOf("dropMany("),
+            "the settlement runs off the primary, without waiting for the other GMs' copies, or drops the rows before the pools pay");
+        ok(/Hooks\.on\("drpgTimeOfDayChanged", \(\) => \{\s*settleOwed\(\)/.test(body("export function registerDespair(")),
+            "nothing settles what is owed when the time of day moves on");
+        equal(stableJson([[despairOwedStore.spec?.resetGroup, despairOwedStore.spec?.backup, despairOwedStore.spec?.sync],
+            [overflowStore.spec?.kind, overflowStore.spec?.resetGroup, overflowStore.spec?.backup, overflowStore.spec?.sync]]),
+            stableJson([["despair", true, true], ["record", "overflow", true, true]]),
+            "the owed Despair or the overflow's count is not cut by its reset group, backed up and synced");
+        for (const [lang, forms] of [["en", ["one", "other"]], ["pl", ["one", "few", "many", "other"]]]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const missing = forms.filter(f => typeof foundry.utils.getProperty(text, `DRPG.Despair.owed.${f}`) !== "string");
+            ok(!missing.length, `the pickers' "owed" has no ${lang} text for ${missing.join(", ")}`);
+        }
     }]
 ];
 

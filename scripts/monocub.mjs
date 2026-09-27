@@ -492,7 +492,7 @@ export async function openMonocubDialog() {
         return null;
     }
 
-    const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
+    const { monokumas, donorLabel } = await import("./despair.mjs");
     const gms = monokumas();
 
     /*
@@ -509,8 +509,9 @@ export async function openMonocubDialog() {
         const cub = isMonocub(a);
         const hope = cub ? resourceValue(a, "hope") : null;
         const silenced = cub && isSilenced(a);
+        // What each pool can spend, and what it owes (E05 C12; despair.mjs `donorLabel`).
         const donors = gms.map(u =>
-            `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))} (${getDespair(u.id)})</option>`
+            `<option value="${u.id}">${foundry.utils.escapeHTML(donorLabel(u))}</option>`
         ).join("");
 
         return `<tr>
@@ -587,7 +588,8 @@ export async function openMonocubDialog() {
             keepLive(dialog, {
                 region: ".drpg-cub-live",
                 build: buildRows,
-                watch: { actors: true },
+                // A pool's debt changes with no actor's write (E05 C12): its store's hook.
+                watch: { actors: true, hooks: ["drpgDespairOwedChanged"] },
                 after: wireGive
             });
         },

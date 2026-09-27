@@ -59,6 +59,11 @@ export const WORLD_SECRET_RULES = Object.freeze({
             empty: true,
             since: "E05 C5", why: "the Key Remnant plan: each clue's name, what it says, its analysis, the GM's note and its token (S01-01, S05-02)"
         }),
+        // The darkening's stamp is public (its card is); the count behind it is the GMs' record (overflow.mjs).
+        overflow: Object.freeze({
+            fields: Object.freeze(["count"]),
+            since: "E05 C12", why: "the Despair overflow's count, which a player's caption masks (S01-60)"
+        }),
         /* The world half of an incident: murder.mjs's `PUBLIC_INCIDENT`, written out (this file
            imports nothing; R191 holds the two equal). Anything else - the names since LIVE-001,
            the method since E05 C8 - is the cast's. */

@@ -11,7 +11,8 @@
  * player's browser once the table is at rest. A marker found where it may not be
  * is a hit: one known-leaks.json describes is that leak, reproduced, and red until
  * its stage; any other fails this run. At rest p1's `game.drpg.keyPlan()` is asked
- * too: the plan is the GMs' store since E05 C5.
+ * too: the plan is the GMs' store since E05 C5; and a spill is planted and the
+ * Despair overflow's count read on the GM and on p1: the GMs' record since E05 C12.
  *
  * THROUGH A CHAPTER (E05 C2, 26.09.2026). After "rest" the chapter those secrets
  * belong to is played on, and after each phase the markers are scanned again and
@@ -147,6 +148,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     check("p3's pre-session note is sent to the GMs and kept in their store; p1 reads none of it, and p3's flag holds no text",
         noteSaved === "sent" && noteGm.text === note && noteP1.text === "" && noteP1.flag?.written === true && !Object.hasOwn(noteP1.flag ?? {}, "text"),
         JSON.stringify({ noteSaved, noteGm, noteP1 }), { flow: "pre-session-note" });
+
+    /* THE OVERFLOW'S COUNT IS THE GMS' (E05 C12, 27.09.2026; audit S01-60): the record of a GM store
+       since 1.2.64, and the world setting `overflow` keeps the darkening's stamp alone. A spill is
+       planted the way a roll's point makes one - the GM's pool filled, then two points more through
+       `adjustDespair` - and the count read where each reads it: the GM's from the record, two up;
+       p1's world value holding no count, and p1's `overflowCount()` 0. The pool is put back; the
+       two points stay, below any X. The world scans of the chapter below read the rule's
+       `overflow.count` on p1 and p2 after it. */
+    const overflowOn = c => c.eval(`const o = await import("${repoUrl}/scripts/overflow.mjs");
+        return { count: o.overflowCount(), world: game.settings.get("${MOD}", "overflow") ?? null };`);
+    const poolBefore = await gm.eval(`return game.drpg.getDespair(game.user.id);`);
+    const beforeSpill = await overflowOn(gm);
+    await gm.eval(`await game.drpg.setDespair(game.user.id, game.drpg.despairMax()); await game.drpg.adjustDespair(game.user.id, 2); return true;`);
+    await settle(800);
+    const spillGm = await overflowOn(gm), spillP1 = await overflowOn(p1);
+    await gm.eval(`await game.drpg.setDespair(game.user.id, ${Number(poolBefore) || 0}); return true;`);
+    check("a spill counts on the GM, and p1's world value holds no overflow count",
+        spillGm.count === beforeSpill.count + 2 && spillP1.count === 0 && !Object.hasOwn(spillP1.world ?? {}, "count"),
+        JSON.stringify({ beforeSpill, spillGm, spillP1 }));
 
     /* An unfound trace is a token, and a token reaches every browser (S17-64): not a
        marker in a field, so it is asked of the scene itself. */

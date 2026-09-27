@@ -355,7 +355,8 @@ export const DrpgApi = {
     renderDespairBar,
 
     /* ---- despair overflow (Z10) ---------------------------------------- *
-     * The counter fed by Despair that would not fit in a full pool.
+     * The counter fed by Despair that would not fit in a full pool - the GMs'
+     * since E05 C12, so `overflowCount` answers 0 on a player's client.
      * `addOverflow` is here for a GM repairing a session by hand; the rest are
      * readers. There is deliberately no "fire it now": a darkening belongs to
      * a time-of-day boundary, and one conjured in the middle of an hour would
