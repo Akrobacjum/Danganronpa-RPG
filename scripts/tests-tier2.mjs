@@ -489,6 +489,51 @@ const SCENARIOS = [
                 flags: Object.keys(m.flags?.[MODULE_ID] ?? {}), text: String(m.content ?? "").replace(/<[^>]+>/g, "").slice(0, 80) }))));
     }],
 
+    ["an indirect victim's copy does not name the builder, and no copy holds the Reroll receipt", async () => {
+        /*
+         * E06 C3, 27.09.2026; audit S04-01 (L09, L10). Every holder of the cast was sent the
+         * record whole but for the swing memo: a trap's victim read its builder in their copy
+         * (and on their Event card), and every participant held the Reroll receipt. What each
+         * holder is sent is `castFor` in murder.mjs, read here for three students with players:
+         * a trap is opened, its victim's roll misses (the incident starts), a third walks in on
+         * the victim's side and the victim takes a crisis action, which writes the receipt;
+         * then Stage 6, where the builder is let back in and the third is offered the betrayal.
+         * Read, not sent: tier 2 holds the stores and `sendCast` sends nothing while it does
+         * (the packet a browser receives is 13-murder-signals' "trap" phase). Red on 699b29d:
+         * `castFor` did not exist.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a builder, a victim and a third, each with a player to be sent a copy");
+        const M = await import("./murder.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim, third] = livingStudents().filter(player);
+        const copies = (...whom) => whom.map(a => {
+            const c = M.castFor(player(a).id, incidentCast());
+            return { killer: c.killerId ?? null, turn: c.killerTurnId ?? null, receipt: c.lastCrisis ?? null, offer: c.betrayal?.killerId ?? null };
+        });
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        // The victim's player is asked the roll too; whichever lands first, a miss starts the incident.
+        if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await settle();
+        await M.thirdPartyEnters(third);
+        await game.drpg.resolveCrisisAction({ actorId: victim.id, key: "leaveClue", total: 2, isCritical: false, withHope: false });
+        await settle();
+        const record = incidentCast();
+        const atIncident = copies(victim, third);
+        await M.beginResolution("test");
+        await settle();
+        const atStage6 = copies(victim, third, builder);
+        const turn = incidentCast().killerTurnId ?? null;
+        const none = { killer: null, turn: null, receipt: null, offer: null };
+        equal(stableJson([record.killerId, record.thirdId, Boolean(record.lastCrisis), turn]), stableJson([builder.id, third.id, true, builder.id]),
+            `the fixture is not a trap with a third and a receipt, its killers' turn is not the builder's: ${stableJson(record)}`);
+        equal(stableJson(atIncident), stableJson([none, none]),
+            "during the trap the victim's or the third's copy names the builder, or a copy holds the Reroll receipt");
+        equal(stableJson(atStage6), stableJson([none, { ...none, offer: builder.id }, { killer: builder.id, turn: builder.id, receipt: null, offer: builder.id }]),
+            "at Stage 6 the victim's copy names the builder, the third's lost the betrayal offered to them, the builder's own copy lost its name, or a copy holds the receipt");
+    }],
+
     ["two killers act back to back, not alternating with the victim", async () => {
         const [killer, victim, third] = cast();
         const drpg = game.drpg;

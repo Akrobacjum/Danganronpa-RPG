@@ -99,9 +99,9 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * `victimId` and a snapshot of the MERGED state, so a receipt written to the
  * world half named every participant from the first crisis action until
  * `endMurder`, undoing LIVE-001 for the whole of Stages 5 and 6. Routed into
- * the cast it stays on GM browsers (and reaches the participants, who already
- * hold the cast), and `murderState()` merges it back so every reader is
- * unchanged.
+ * the cast it stays on GM browsers, and `murderState()` merges it back so every
+ * reader is unchanged. Until E06 it also reached every participant's copy, swing
+ * memo and all; only a GM judges an undo, so a copy holds it null (`castFor`).
  */
 /*
  * The list itself lives in the GM store's table since E04 (gm-stores.mjs,
@@ -345,12 +345,8 @@ function castOwners(cast, state = null) {
 }
 
 /**
- * Each participant gets the cast; everyone who has left it gets an empty one.
- *
- * The full cast rather than only their own role, which is exactly what they
- * could read before this change - participants already see each other's rolls
- * through `incidentAudience`. Narrowing it further is a question about what the
- * victim may know and when, which is a rule, not a leak.
+ * Each participant gets their copy of the cast (`castFor`); everyone who has left it
+ * gets an empty one.
  */
 function pushCastToParticipants(cast, previous, stateNow = null, statePrev = null) {
     const now = castOwners(cast, stateNow);
@@ -363,7 +359,7 @@ function pushCastToParticipants(cast, previous, stateNow = null, statePrev = nul
     for (const userId of before) {
         if (!now.has(userId)) sendCast(userId, {}, stamps);
     }
-    for (const userId of now) sendCast(userId, cast, stamps);
+    for (const userId of now) sendCast(userId, cast, stamps, stateNow);
 }
 
 /**
@@ -375,11 +371,46 @@ function castStamps() {
     return Object.fromEntries(CAST_FIELDS.filter(f => f !== "swung").map(f => [f, castStore.stampOf(RECORD, f)]));
 }
 
-function sendCast(userId, cast, stamps) {
+/**
+ * WHAT ONE HOLDER OF THE CAST IS SENT (E06 C3, 27.09.2026; audit S04-01). Until 1.2.65
+ * every holder was sent the record whole but for the swing memo (Stage 6's business on
+ * the GM's side), and more of it was not every holder's to keep:
+ *   - `lastCrisis`, the Reroll receipt, with a snapshot of the incident in it. Only a GM
+ *     judges an undo (`crisisUndoRefusal`, asked by bridge-guards.mjs on the GM's
+ *     browser), so every copy holds it null.
+ *   - In a trap, the builder. A holder who is not on the killers' side (`killerIds`) -
+ *     the victim, a third who did not throw in with them - holds `killerId` and
+ *     `killerTurnId` null: the trap's victim reads their incident from their copy
+ *     (`incidentSeats`, the Event card), and with the builder in it their Event card
+ *     read "builder against victim".
+ *   - In a trap, the betrayal offer, which names the builder too: null but in the copy
+ *     of the third it is offered to, who needs it to turn on them (`betrayalTarget`).
+ * A direct murder keeps the killer's name in every copy: it is fought face to face (D6).
+ * The builder's own copy, from Stage 6 on (`castOwners`), keeps every name.
+ *
+ * THE VALUES ARE NULLED AND THE STAMPS KEPT, so `castCombine` (gm-stores.mjs) and R176
+ * do not change: a copy takes the nulls at the record's stamps. A third who moves to
+ * the killers' side moves `thirdSide`'s stamp with them, so the copy they are sent next
+ * is newer in that part and taken whole (read off `castCombine`, not measured on its
+ * own). "Not in it" (`{}`) stays `{}`. The world half is read for `indirect` as
+ * `castOwners` reads it. GM-side; exported for the suite.
+ */
+export function castFor(userId, cast, state = null) {
+    const { swung, ...theirs } = cast ?? {};
+    if (!Object.keys(theirs).length) return theirs;
+    const copy = { ...theirs, lastCrisis: null };
+    const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    if (!incidentIndirect(theirs, live)) return copy;
+    const owns = id => Boolean(id) && ownerOf(game.actors.get(id))?.id === userId;
+    if (killerIds(theirs).some(owns)) return copy;
+    const offer = copy.betrayal && owns(copy.betrayal.thirdId) ? copy.betrayal : null;
+    return { ...copy, killerId: null, killerTurnId: null, ...("betrayal" in copy ? { betrayal: offer } : {}) };
+}
+
+function sendCast(userId, cast, stamps, state = null) {
     // While tier 2 holds the stores the cast is a fixture's: no participant is sent it (R2-M1).
     if (gmStoresQuiet()) return;
-    // The swing memo is Stage 6's business on the GM's side, not a participant's.
-    const { swung, ...theirs } = cast ?? {};
+    const theirs = castFor(userId, cast, state);
     const out = Object.keys(theirs).length ? stamps : Object.fromEntries(CAST_SEATS.map(f => [f, stamps?.[f] ?? 0]));
     try {
         game.socket.emit(SOCKET_EVENT,

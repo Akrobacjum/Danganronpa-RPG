@@ -176,6 +176,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         JSON.stringify(direct.killer));
     check("direct: the victim is in it", direct.victim?.witness === true && direct.victim?.seat === true,
         JSON.stringify(direct.victim));
+    /* A direct murder is fought face to face, so the victim's copy names the killer (the owner's D6);
+       only a trap's copy holds the builder null (E06 C3, murder.mjs `castFor`, and part 2 below). */
+    const directCopy = await p1.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs"); const c = incidentCast();
+        return { killer: c.killerId ?? null, turn: c.killerTurnId ?? null };`);
+    check("direct: the victim's copy names the killer, face to face",
+        directCopy.killer === ids.chie && directCopy.turn === ids.chie, JSON.stringify(directCopy));
     check("direct: the bystander is not", direct.bystander?.witness === false && direct.bystander?.knowsCast === false,
         JSON.stringify(direct.bystander));
 
@@ -322,17 +328,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
        `murderState` said `indirect: true` on every browser - the killer's too, who is told
        nothing else. Each player's world half holds only the public list (world-secrets.mjs,
        `murderState`'s `only`), and the victim reads the trap from their own copy of the cast.
-       Red on the C7 tree: p1, p2 and p3 each read indirect, selfInflicted and openedAt there. */
+       Red on the C7 tree: p1, p2 and p3 each read indirect, selfInflicted and openedAt there.
+       AND THAT COPY DOES NOT NAME THE BUILDER (E06 C3, 27.09.2026; audit S04-01): the victim's
+       copy holds `killerId` and `killerTurnId` null (murder.mjs `castFor`), so no field of it
+       holds Chie's id - read as the copy's whole text. */
     const METHOD = `const W = await import("${repoUrl}/scripts/world-secrets.mjs");
         const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
         const world = game.settings.get("${MOD}", "murderState") ?? {};
         return { unlisted: Object.keys(world).filter(k => !W.WORLD_SECRET_RULES.settings.murderState?.only?.includes(k)),
-            active: Boolean(world.active), copy: incidentCast().indirect ?? null };`;
+            active: Boolean(world.active), copy: incidentCast().indirect ?? null, builder: JSON.stringify(incidentCast()).includes("${ids.chie}") };`;
     const method = { victim: await p1.eval(METHOD), bystander: await p2.eval(METHOD), killer: await p3.eval(METHOD) };
     check("trap: no player's world half says how it happened",
         Object.values(method).every(m => m.active && !m.unlisted.length), JSON.stringify(method));
-    check("trap: the victim reads the trap from their copy of the cast, and nobody else holds it",
-        method.victim.copy === true && method.bystander.copy === null && method.killer.copy === null, JSON.stringify(method));
+    check("trap: the victim reads the trap from their copy of the cast, and the builder's id is not in it, and nobody else holds it",
+        method.victim.copy === true && method.victim.builder === false && method.bystander.copy === null && method.killer.copy === null,
+        JSON.stringify(method));
 
     /* AND THE KILLER IS LET BACK IN AT STAGE 6 (`castOwners`, murder.mjs), the trap in their
        copy. The GM rules the victim's roll a failure - the trap closes - and moves the incident
@@ -352,6 +362,41 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
        once" above; this part still guards only the trap's outcome. */
     await gm.eval(`
         await game.drpg.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        return true;
+    `, { timeout: 60000 });
+    await settle(600);
+
+    /* WHILE THE TRAP RUNS, THE VICTIM'S BROWSER HOLDS NEITHER THE BUILDER NOR THE REROLL RECEIPT
+       (E06 C3, 27.09.2026; audit S04-01, L09 and L10). The victim takes a crisis action - a missed
+       clue, which writes the receipt (`lastCrisis`) into the GMs' record - and p1 reads its copy,
+       the packets it was sent for the incident (`incident.myCast`, every one since the action) and
+       its Event card's line under the title. Until 1.2.65 every copy held the receipt, and the
+       victim's copy the builder, whose name the card set against the victim's ("Chie Mori against
+       Aiko Hoshino"): the card names the victim alone now. */
+    await p1.eval(`globalThis.__trapCasts = [];
+        game.socket.on("module.${MOD}", payload => { if (payload?.action === "incident.myCast") globalThis.__trapCasts.push(payload.cast ?? null); });
+        return true;`);
+    const acted = await gm.eval(`
+        await game.drpg.resolveCrisisAction({ actorId: "${ids.aiko}", key: "leaveClue", total: 2, isCritical: false, withHope: false });
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { stage: game.drpg.murderState()?.stage ?? null, receipt: Boolean(S.castStore.record().lastCrisis) };
+    `, { timeout: 60000 });
+    await settle(900);
+    const during = await p1.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        const E = await import("${repoUrl}/scripts/events.mjs");
+        E.renderEvents();
+        const sig = JSON.parse(document.getElementById("drpg-events")?.dataset.signature ?? "[]");
+        const card = sig.find(c => c[0] === "incident" && c[1] === game.i18n.localize("DRPG.Events.incidentTitle"));
+        const c = incidentCast();
+        return { packets: globalThis.__trapCasts.length, builder: JSON.stringify([c, globalThis.__trapCasts]).includes("${ids.chie}"),
+            receipt: c.lastCrisis ?? null, heldReceipt: globalThis.__trapCasts.some(p => p?.lastCrisis), card: card?.[2] ?? null,
+            victim: game.actors.get("${ids.aiko}")?.name ?? null };`);
+    check("trap: during the incident the victim's copy and its packets hold neither the builder nor the Reroll receipt, and their Event card names the victim alone",
+        acted.stage === "incident" && acted.receipt === true && during.packets > 0 && during.builder === false
+        && during.receipt === null && during.heldReceipt === false && during.card === during.victim && Boolean(during.victim),
+        JSON.stringify({ acted, during }));
+
+    await gm.eval(`
         await game.drpg.beginResolution("victimKilled");
         return true;
     `, { timeout: 60000 });
@@ -360,6 +405,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         return { stage: game.settings.get("${MOD}", "murderState")?.stage ?? null, killer: c.killerId ?? null, indirect: c.indirect ?? null };`);
     check("trap: at Stage 6 the killer is sent the cast, the trap with it",
         stage6.stage === "resolution" && stage6.killer === ids.chie && stage6.indirect === true, JSON.stringify(stage6));
+    const victim6 = await p1.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs"); const c = incidentCast();
+        return { victim: c.victimId ?? null, builder: JSON.stringify(c).includes("${ids.chie}") };`);
+    check("trap: at Stage 6 the victim still holds their copy, and it does not name the builder",
+        victim6.victim === ids.aiko && victim6.builder === false, JSON.stringify(victim6));
 
     /* ---- 3. and it all goes back ------------------------------------------- */
     phase("after", { flow: "murder-incident" });
