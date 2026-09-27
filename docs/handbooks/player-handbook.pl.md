@@ -710,7 +710,7 @@ Przycisk w prawym dolnym rogu otwiera **Czat z GMem**: jeden wątek między tob�
 
 Wszystko, co potrzebuje człowieka, ląduje w tym samym wątku: Observe na punkt zainteresowania, podpowiedź z Analyze, akcja dynamiczna, propozycja projektu, Search na coś konkretnego, Calle Experience i Ultimate, przedmiot Tier 0, którego chcesz użyć kreatywnie. Widzisz swój rzut, własne słowa i decyzję, gdy przyjdzie. Jeśli żaden GM nie odpowie, nic nie zostaje wydane.
 
-Komunikator ma też zakładkę **Notatka**: twoje plany na sesję, dla GMów, do przeczytania przed nią. Jest tylko dla GMów: jej słowa idą do ich przeglądarek i zostają w twojej, a przeglądarka żadnego innego gracza ich nie ma. Zapisana, gdy żaden GM nie jest online, mówi "Czeka tutaj, aż połączy się GM." i idzie, gdy któryś się połączy. Jeśli GM zmienił ją, odkąd ją otworzyłeś, Zapisz zachowuje twój tekst i mówi ci o tym; zapisz jeszcze raz, żeby twój zastąpił jego. Szablon zadaje siedem pytań:
+Komunikator ma też zakładkę **Notatka**: twoje plany na sesję, dla GMów, do przeczytania przed nią. Jest tylko dla GMów: jej słowa idą do ich przeglądarek i zostają w twojej, a przeglądarka żadnego innego gracza ich nie ma. Zapisana, gdy żaden GM nie jest online, mówi "Czeka tutaj, aż połączy się GM." i idzie, gdy któryś się połączy. Jeśli GM zmienił ją, odkąd ją otworzyłeś, Zapisz zachowuje twój tekst i mówi ci o tym; zapisz jeszcze raz, żeby twój zastąpił jego. Notatka, która czeka tutaj, czeka taka, jak ją napisałeś: gdy połączy się GM, zastępuje to, co GM w międzyczasie zmienił. Szablon zadaje siedem pytań:
 
 - czy planujesz zabić i jak,
 - czy jesteś otwarty na śmierć,

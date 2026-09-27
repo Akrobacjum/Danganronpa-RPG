@@ -781,6 +781,23 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     check("P5: a note p1 saves through the primary reaches the second GM, p1 holds its own copy, p2 nothing, and p1's flag holds no text",
         noteP5.saved === "sent" && [noteP5.gm, noteP5.gm2, noteP5.p1].every(t => t === "E05 61 P5 p1's note") && noteP5.p2 === ""
         && noteP5.flag?.written === true && !Object.hasOwn(noteP5.flag ?? {}, "text"), J(noteP5), { flow: "pre-session-note" });
+    /* P5b (E05 fix r2-G5, 27.09.2026; review S2-m9): p1's Note tab was drawn with P5's note; the
+       primary edits it; p1 saves what was typed there, with the text the tab was drawn from as its
+       base. The GM's edit stays and p1 is answered "changed"; a second Save, drawn from the note p1
+       now holds, puts p1's words in place. Red on ff588ab: the first Save answered "sent" and wrote
+       over the GM's edit. Taken away with P5's row below. */
+    await gm.eval(`${NOTE61} await N.writeNote("${IDS.p1}", "E05 61 P5b the GM's edit", { byGm: true }); return true;`, { timeout: 30000 });
+    await settle(1200);
+    const noteP5b = await p1.eval(`${NOTE61} const copy = N.noteFor(game.user.id);
+        return { copy, saved: await N.saveNote(game.user.id, "E05 61 P5b typed by p1", { base: "E05 61 P5 p1's note" }) };`, { timeout: 30000 });
+    await settle(1200);
+    noteP5b.gmAfterFirst = await gm.eval(`${NOTE61} return N.noteFor("${IDS.p1}");`);
+    noteP5b.again = await p1.eval(`${NOTE61} return await N.saveNote(game.user.id, "E05 61 P5b typed by p1", { base: N.noteFor(game.user.id) });`, { timeout: 30000 });
+    await settle(1200);
+    noteP5b.gmAfterAgain = await gm.eval(`${NOTE61} return N.noteFor("${IDS.p1}");`);
+    check("P5b: p1's Save of a note a GM edited after p1's tab was drawn leaves the GM's edit and says so; a second Save puts p1's words in place",
+        noteP5b.copy === "E05 61 P5b the GM's edit" && noteP5b.saved === "changed" && noteP5b.gmAfterFirst === "E05 61 P5b the GM's edit"
+        && noteP5b.again === "sent" && noteP5b.gmAfterAgain === "E05 61 P5b typed by p1", J(noteP5b), { flow: "pre-session-note" });
     await gm.eval(`${NOTE61} const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");
         // A tree before C6 has no store to take it from (its red run, 26.09): the flag alone is put back there.
         if (S.noteStore) {

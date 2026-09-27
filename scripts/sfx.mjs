@@ -530,16 +530,6 @@ export function playSfxFor(actor, key) {
 }
 
 /**
- * @param {object} data
- * @param {string} senderId  Foundry's own second argument - who really sent
- *   this, which the sender cannot forge.
- *
- * Only a GM may make another browser make a noise. Without the check any player
- * could emit this at any other player, at any time, as often as they liked -
- * and the one thing a horror game's sound design cannot survive is a stranger
- * with the button.
- */
-/**
  * `playSfxFor` for a list of users (E05 C10). A death kept by the GMs has a card, and a
  * sound on a card is a flag of the message, which every console receives whoever it is
  * whispered to - a death sound at that moment would say somebody died. So the sound goes
@@ -560,6 +550,16 @@ export function playSfxForUsers(userIds, key) {
     }
 }
 
+/**
+ * @param {object} data
+ * @param {string} senderId  Foundry's own second argument - who really sent
+ *   this, which the sender cannot forge.
+ *
+ * Only a GM may make another browser make a noise. Without the check any player
+ * could emit this at any other player, at any time, as often as they liked -
+ * and the one thing a horror game's sound design cannot survive is a stranger
+ * with the button.
+ */
 function onSfxSocket(data, senderId) {
     if (data?.action !== SFX_ACTION) return;
     if (!game.users.get(senderId)?.isGM) return;

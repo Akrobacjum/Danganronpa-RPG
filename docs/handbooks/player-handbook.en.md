@@ -710,7 +710,7 @@ The button in the bottom-right corner opens **GM Chat**: one thread between you 
 
 Everything that needs a human lands in the same thread: an Observe aimed at a point of interest, an Analyze hint, a Dynamic action, a project proposal, a Search for something specific, the Experience and Ultimate Calls, a Tier 0 item you want to use creatively. You see your roll, your own words, and the ruling when it comes. If no GM answers, nothing is spent.
 
-The messenger also has a **Note** tab: your plans for the session, for the GMs to read before it. It is for the GMs only: its words go to their browsers and stay on yours, and no other player's browser holds them. Saved while no GM is online, it says "Kept here until a GM connects." and goes when one does. If a GM changed it after you opened it, Save keeps your text and tells you; Save again to put yours in place of theirs. The template asks seven questions:
+The messenger also has a **Note** tab: your plans for the session, for the GMs to read before it. It is for the GMs only: its words go to their browsers and stay on yours, and no other player's browser holds them. Saved while no GM is online, it says "Kept here until a GM connects." and goes when one does. If a GM changed it after you opened it, Save keeps your text and tells you; Save again to put yours in place of theirs. A note kept here waits as you wrote it: when a GM connects, it goes in place of whatever a GM changed meanwhile. The template asks seven questions:
 
 - whether you plan to kill and how,
 - whether you are open to dying,

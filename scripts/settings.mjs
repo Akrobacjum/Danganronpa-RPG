@@ -2260,7 +2260,7 @@ export function incomingTimeOfDay(clock = getClock()) {
  * chapter.mjs, events.mjs, music.mjs, cleanup.mjs and hud.mjs all need the
  * answer, and every one of them is already downstream of somebody who would
  * close a cycle if the record lived anywhere else. This file imports config.mjs
- * and nothing else.
+ * and gm-store.mjs (see the three above) and nothing else.
  */
 
 /** The body found and not yet answered, or `null`. Never a throw before `ready`. */

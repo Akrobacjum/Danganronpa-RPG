@@ -164,8 +164,17 @@ export async function writeNote(userId, text, { byGm = false, base } = {}) {
  * write it down. A player writes only their own, kept here until the GMs hold it
  * (`sendDraft`). Answers what became of it, for the Note tab to say: true (a GM's
  * write), "sent" (the GMs hold it), "kept" (this browser holds it until a GM
- * connects), false (not saved), or null (not this user's to write) - and on a GM given
- * `base`, "changed" when the note is no longer the one the tab was drawn from (`writeNote`).
+ * connects), false (not saved), or null (not this user's to write) - and given `base`,
+ * "changed" when the note is no longer the one the tab was drawn from (`writeNote`).
+ *
+ * A player's `base` is judged here, against this browser's copy, as a GM's is against its
+ * rows (E05 fix r2-G5; review S2-m9): a GM's Save sends the writer their copy at once
+ * (`sendNoteTo`), and the copy takes it while no draft of theirs waits, so a GM's edit made
+ * while the tab stood open is here by the time the player saves. Until then the player's
+ * Save went to the primary with no base and wrote over it, and the player handbook said it
+ * did not (61-gmstore-case P5b, red on ff588ab, 27.09.2026). Not judged: a GM's Save still
+ * on its way when the player's goes, and a draft kept here while no GM was online, which
+ * goes as it is when one connects - the copy does not take a GM's words over a draft.
  */
 export async function saveNote(userId, text, { base } = {}) {
     const user = game.users.get(userId);
@@ -176,6 +185,7 @@ export async function saveNote(userId, text, { base } = {}) {
             const written = await writeNote(userId, body, { byGm: game.user.id !== userId, base });
             return written?.changed ? "changed" : Boolean(written);
         }
+        if (typeof base === "string" && noteFor(userId) !== base) return "changed";
         if (noteTooLong(body)) {
             ui.notifications?.warn(game.i18n.format("DRPG.Note.tooLong", { kb: MAX_PLAYER_BYTES / 1024 }));
             return false;
