@@ -22,7 +22,8 @@
  * about them: getting it right executes the Blackened and levels everybody up.
  * Getting it wrong executes an innocent, leaves the Blackened anonymous and in
  * play with a Reinforced Level Up and a new rule of their choosing, and fills
- * every Monokuma's Despair to maximum.
+ * every Monokuma's Despair to maximum. The Reinforced Level Up waits for the class's
+ * next one since E05 (level-up.mjs `deferAdvancement`): applied at once, it named them.
  */
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
@@ -867,6 +868,9 @@ export async function applyVerdict({
         // answer levels the table up. The Blackened have just been executed, so
         // they are not in this list, which is what keeps that honest even when
         // there were two of them.
+        //
+        // A Reinforced Level Up a wrong verdict left waiting (E05 C11) is picked here, with
+        // its owner's Standard, in the same window - see `runAdvancementBatch`.
         const survivors = livingStudentsForGm();
         done.push(plural("DRPG.Vote.levelUp", {
             n: survivors.length,
@@ -875,13 +879,27 @@ export async function applyVerdict({
         await promptAdvancements(survivors, TRIAL.correct.levelUp);
     } else {
         // EVERY killer who is still breathing, not just the first one named.
+        //
+        // THEIR LEVEL UP WAITS FOR THE CLASS (E05 C11, 27.09.2026; D4; audit S03-01,
+        // S06-01). Applied here it wrote new maxima and `advances` on the Blackened and a
+        // card spoken by them, which every console receives - the student the class had
+        // just failed to name. It is a row of the GMs' store now, picked with the class's
+        // next Standard or at the Final Trial's verdict (level-up.mjs `deferAdvancement`).
         const survivingKillers = blackened.filter(a => !isDeadForGm(a));
         if (survivingKillers.length) {
+            const { deferAdvancement } = await import("./level-up.mjs");
+            let waiting = 0;
+            for (const actor of survivingKillers) {
+                try {
+                    if (await deferAdvancement(actor, TRIAL.wrong.blackenedLevelUp, getClock().chapter ?? null)) waiting++;
+                } catch (err) {
+                    error(`Could not keep ${actor.name}'s Level Up for the class`, err);
+                }
+            }
             done.push(plural("DRPG.Vote.blackenedRewarded", {
-                n: survivingKillers.length,
+                n: waiting,
                 kind: TRIAL.wrong.blackenedLevelUp
             }));
-            await promptAdvancements(survivingKillers, TRIAL.wrong.blackenedLevelUp);
         }
         if (TRIAL.wrong.fillDespair) {
             await fillAllDespair();
@@ -937,15 +955,16 @@ export async function applyVerdict({
  *
  * Opened on the GM's client rather than pushed at the players: a level-up is a
  * conversation about what the character became, and the module already puts the
- * same dialog behind a button on every sheet.
+ * same dialog behind a button on every sheet. A survivor holding a Reinforced
+ * that waited for the class picks both in one window (level-up.mjs
+ * `runAdvancementBatch`, E05 C11).
  */
 async function promptAdvancements(actors, kind) {
-    const { openAdvancement } = await import("./level-up.mjs");
-    for (const actor of actors) {
-        try {
-            await openAdvancement(actor, kind);
-        } catch (err) {
-            error(`Could not open the advancement for ${actor.name}`, err);
-        }
+    try {
+        const { runAdvancementBatch } = await import("./level-up.mjs");
+        return await runAdvancementBatch(actors, kind);
+    } catch (err) {
+        error("Could not open the verdict's Level Ups", err);
+        return null;
     }
 }

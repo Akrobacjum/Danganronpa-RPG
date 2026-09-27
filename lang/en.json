@@ -1082,8 +1082,8 @@
         "other": "{n} survivors take a {kind} Level Up."
       },
       "blackenedRewarded": {
-        "one": "The Blackened stays anonymous and in play, and takes a {kind} Level Up.",
-        "other": "{n} Blackened stay anonymous and in play, and each takes a {kind} Level Up."
+        "one": "The Blackened stays anonymous and in play; their {kind} Level Up waits for the class's next Level Up.",
+        "other": "{n} Blackened stay anonymous and in play; each one's {kind} Level Up waits for the class's next Level Up."
       },
       "despairFilled": "Despair filled to maximum for: {who}.",
       "newRule": "The Blackened introduces one new rule of their choosing, with Monokuma's consent.",
@@ -2654,7 +2654,8 @@
       "introMany": "{reason} Choose {picks} improvements. You may take the same one more than once.",
       "reason": {
         "standard": "You named the Blackened.",
-        "reinforced": "The Blackened walked out of a wrong vote."
+        "reinforced": "The Blackened walked out of a wrong vote.",
+        "withClass": "The Reinforced Level Up earned by walking out of a wrong vote waited for this one, and comes with it."
       },
       "buttonTooltip": "Level Up",
       "whoPicks": "Who chooses what {actor} takes?",
@@ -2666,6 +2667,7 @@
       },
       "offerTitle": "A Level Up is yours to spend",
       "offered": "{kind}. Press the button beside your name on your sheet and choose - you have {n} pick(s).",
+      "deferred": "After a wrong vote, your Reinforced Level Up waits for the class's next Level Up: you choose it, {n} picks, together with the class's own when a vote names the Blackened correctly, or at the Final Trial's verdict. It lapses if you die first.",
       "offerSent": "{name} has been told; the choice is theirs now.",
       "offerFailed": "The offer could not be written to that character.",
       "notOfferedHere": "{player} asked to spend a Level Up on {name}, and this GM's browser holds no offer for them - it has not heard from the other GMs yet, or holds no offers at all. If one was made, offer it again, or restore the case from a backup (GM panel).",
@@ -3361,7 +3363,8 @@
         "eclipseMoves": "Who has crossed how often in the Eclipse",
         "keyPlan": "The Key Remnant plan, chapter by chapter",
         "notes": "The players' pre-session notes",
-        "deaths": "The deaths nobody has found yet"
+        "deaths": "The deaths nobody has found yet",
+        "deferredOffers": "The Reinforced Level Ups waiting for the class"
       },
       "row": {
         "traces": {

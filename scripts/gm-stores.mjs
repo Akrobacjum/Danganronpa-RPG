@@ -536,6 +536,22 @@ export const offerStore = defineGmStore({
 });
 
 /**
+ * THE REINFORCED LEVEL UPS WAITING FOR THE CLASS (E05 C11, 27.09.2026; D4; audit S03-01,
+ * S06-01). A row per surviving Blackened: `kind`, `chapter` (the wrong verdict's), `at` and
+ * `count`, how many wrong verdicts it waited through - two Reinforced for one character
+ * would otherwise be one row, and the second verdict's would take the first's place. Written
+ * by a wrong verdict (level-up.mjs `deferAdvancement`), applied and dropped by the class's
+ * next correct verdict or the Final Trial's (`runAdvancementBatch`, the owner's Q7), dropped
+ * by a kill (chapter.mjs `killCharacter`) and cut by the reset's "advancement" group - the
+ * two ways it lapses. No player copy and no old key: a 1.2.63 world applied it at once.
+ */
+export const deferredOfferStore = defineGmStore({
+    name: "deferredOffers", key: SETTINGS.gmDeferredOffers,
+    kind: "ledger", resetGroup: "advancement", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * THE OFFERS COPY'S RULE (the round-2 review's M2, 26.09.2026). An answer names every
  * character its owner owns now, each with the newest decision about it, and is the
  * owner's whole set: taken when it is at least as new in every character it names and

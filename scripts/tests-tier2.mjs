@@ -311,6 +311,45 @@ async function aloneTogether(killer, victim) {
     };
 }
 
+/**
+ * A verdict run with its windows answered (E05 C11): every `DialogV2.wait` for the length
+ * of `run` is recorded - its classes, title and how many picks a Level Up window offers -
+ * and a Level Up window is answered by `answer(entry)`, any other closed. The GM's Level Up
+ * windows are real windows on this client (01-runtests draws them), so a verdict awaited
+ * unanswered would wait for somebody to press a button. Foundry's own `wait` is put back.
+ */
+async function withAdvanceWindows(answer, run) {
+    const D = foundry.applications.api.DialogV2;
+    const own = Object.getOwnPropertyDescriptor(D, "wait");
+    const asked = [];
+    D.wait = async cfg => {
+        const classes = [...(cfg?.classes ?? [])];
+        const entry = { classes, title: cfg?.window?.title ?? "",
+            picks: (String(cfg?.content ?? "").match(/name="pick\.\d+\.option"/g) ?? []).length };
+        asked.push(entry);
+        return classes.includes("drpg-advance") ? answer(entry) : null;
+    };
+    try {
+        await run();
+    } finally {
+        if (own) Object.defineProperty(D, "wait", own);
+        else delete D.wait;
+    }
+    return asked;
+}
+
+/** The trial's record with the verdict not yet given, for `run`, and as it was afterwards. */
+async function withVerdictOpen(run) {
+    const { trialProgress } = await import("./vote.mjs");
+    const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+    try {
+        await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...trialProgress(), chapter: getClock().chapter, verdictApplied: false });
+        return await run();
+    } finally {
+        await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+    }
+}
+
 const SCENARIOS = [
     ["a direct murder opens on the killer and tells the victim", async () => {
         const [killer, victim] = cast(2);
@@ -504,6 +543,95 @@ const SCENARIOS = [
                 "a Call on a body nobody has found was not refused as cannot now, or a GM's own road was");
         } finally {
             await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["a wrong verdict writes nothing on a surviving Blackened, and keeps their Level Up for the class", async () => {
+        /* E05 C11, 27.09.2026; D4; audit S03-01, S06-01. The wrong verdict applied the surviving
+           Blackened's Reinforced Level Up at once: new maxima and `advances` on the actor and a
+           card spoken by it with the Level Up's sound, which every console receives. It writes a
+           row of the GMs' `deferredOffers` store now, tells the owner on a veiled card, and opens
+           no Level Up window. 72-canary measures the same on a bystander's browser. */
+        const [killer] = cast(1);
+        const { applyVerdict } = await import("./vote.mjs");
+        const { deferredOfferStore } = await import("./gm-stores.mjs");
+        const hpMax = killer.system?.resources?.hitPoints?.max ?? null;
+        const advances = killer.getFlag(MODULE_ID, FLAGS.advances) ?? 0;
+        const from = new Set(game.messages.map(m => m.id));
+        let writes = 0;
+        const hook = Hooks.on("updateActor", a => { if (a.id === killer.id) writes++; });
+        let asked;
+        try {
+            asked = await withVerdictOpen(() => withAdvanceWindows(() => null,
+                () => applyVerdict({ correct: false, executedIds: [], blackenedIds: [killer.id] })));
+            await settle();
+            const cards = game.messages.filter(m => !from.has(m.id));
+            equal(stableJson([writes, killer.system?.resources?.hitPoints?.max ?? null, killer.getFlag(MODULE_ID, FLAGS.advances) ?? 0]),
+                stableJson([0, hpMax, advances]), "the wrong verdict wrote on the surviving Blackened (writes, maximum Health, advances)");
+            equal(stableJson(cards.filter(m => m.speaker?.actor === killer.id || m.getFlag(MODULE_ID, "sfx") === "levelUp").length), "0",
+                "a card of the wrong verdict is spoken by the Blackened or carries the Level Up's sound");
+            ok(cards.some(m => m.getFlag(MODULE_ID, "veiled") === true), "the Blackened's owner was not told on a veiled card");
+            ok(!asked.some(e => e.classes.includes("drpg-advance")), "a Level Up window opened at a wrong verdict");
+            const row = deferredOfferStore.get(killer.id);
+            equal(stableJson([row?.kind ?? null, row?.count ?? null, row?.chapter ?? null]), stableJson(["reinforced", 1, getClock().chapter]),
+                "the Blackened's Reinforced Level Up is not waiting in the GMs' store, once, with the verdict's chapter");
+        } finally {
+            Hooks.off("updateActor", hook);
+            await deferredOfferStore.drop(killer.id);
+        }
+    }],
+
+    ["the next correct verdict applies a waiting Reinforced with its owner's Standard in one write, and a kill drops one", async () => {
+        /* E05 C11, 27.09.2026; D4, the owner's Q7. The batch opens one window per survivor, in
+           turn: the holder of a waiting Reinforced picks 1 + 3 in it and is written once, one
+           step of `advances`; another survivor picks 1. A kill drops the dead's row (the
+           design's 2.3 step 5). The windows are answered for these two only - every other
+           living student's is closed, which writes nothing - and all four picks are "+1 max
+           Health", so the rise is the count. Put back by hand: the snapshot records no maximum. */
+        const [holder, other, dead] = cast(3);
+        const { applyVerdict } = await import("./vote.mjs");
+        const { deferredOfferStore } = await import("./gm-stores.mjs");
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { deferAdvancement } = await import("./level-up.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const pair = [holder, other];
+        const before = new Map(pair.map(a => [a.id, { max: a.system?.resources?.hitPoints?.max ?? 0, advances: a.getFlag(MODULE_ID, FLAGS.advances) ?? 0 }]));
+        const titles = new Map(pair.map(a => [game.i18n.format("DRPG.Advance.title", { actor: a.name }), a.id]));
+        const writes = new Map();
+        const hook = Hooks.on("updateActor", a => { if (before.has(a.id)) writes.set(a.id, (writes.get(a.id) ?? 0) + 1); });
+        try {
+            ok(await deferAdvancement(holder, "reinforced", getClock().chapter), "the holder's Reinforced was not kept for the class");
+            ok(await deferAdvancement(dead, "reinforced", getClock().chapter), "the second Reinforced was not kept for the class");
+            ok(await killCharacter(dead, { secret: false, keepBullets: true }), "the death was not recorded");
+            equal(stableJson([deferredOfferStore.has(dead.id), deferredOfferStore.has(holder.id)]), stableJson([false, true]),
+                "the kill did not drop the dead's waiting Level Up, or dropped another's");
+            writes.clear();
+            const from = new Set(game.messages.map(m => m.id));
+
+            const asked = await withVerdictOpen(() => withAdvanceWindows(
+                entry => (titles.has(entry.title) ? Array.from({ length: entry.picks }, () => ({ option: "hp" })) : null),
+                () => applyVerdict({ correct: true, executedIds: [], blackenedIds: [] })));
+            await settle();
+            const picked = id => asked.filter(e => titles.get(e.title) === id).map(e => e.picks);
+            equal(stableJson([picked(holder.id), picked(other.id)]), stableJson([[4], [1]]),
+                "the holder did not pick the Standard and the waiting Reinforced in one window of 1 + 3, or another survivor did not pick 1");
+            const now = a => [(a.system?.resources?.hitPoints?.max ?? 0) - before.get(a.id).max,
+                (a.getFlag(MODULE_ID, FLAGS.advances) ?? 0) - before.get(a.id).advances, writes.get(a.id) ?? 0];
+            equal(stableJson([now(holder), now(other)]), stableJson([[4, 1, 1], [1, 1, 1]]),
+                "a survivor's Level Up is not its picks in one write and one step of advances (rise, advances, writes)");
+            ok(!deferredOfferStore.has(holder.id), "the Reinforced that was applied still waits");
+            const cards = game.messages.filter(m => !from.has(m.id));
+            equal(stableJson(cards.filter(m => before.has(m.speaker?.actor) || m.getFlag(MODULE_ID, "sfx") === "levelUp").length), "0",
+                "a Level Up's card is spoken by its owner or carries its sound, which every console receives");
+            ok(cards.filter(m => m.getFlag(MODULE_ID, "veiled") === true).length >= 2, "the two Level Ups were not told on veiled cards");
+        } finally {
+            Hooks.off("updateActor", hook);
+            for (const a of pair) {
+                await automatedUpdate(a, { "system.resources.hitPoints.max": before.get(a.id).max,
+                    [`flags.${MODULE_ID}.${FLAGS.advances}`]: before.get(a.id).advances });
+            }
+            await deferredOfferStore.dropMany([holder.id, dead.id].filter(id => deferredOfferStore.has(id)));
+            await reviveCharacter(dead, { quiet: true });
         }
     }],
 
@@ -9561,6 +9689,15 @@ const SCENARIOS = [
                 },
                 gone: (report, id) => !S.deathStore.has(id),
                 back: id => S.deathStore.get(id)?.chapter === 99
+            },
+            // A Reinforced Level Up waiting for the class, through its store (E05 C11): chapter 99, which no verdict here reaches.
+            deferredOffers: {
+                seed: async () => {
+                    await S.deferredOfferStore.patch(holder.id, { kind: "reinforced", chapter: 99, at: 1, count: 1 }, { whole: true });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.deferredOfferStore.has(id),
+                back: id => S.deferredOfferStore.get(id)?.chapter === 99 && S.deferredOfferStore.get(id)?.kind === "reinforced"
             },
             // A pre-session note, through its store (E05 C6): the GM's own row, which no player is sent. Its
             // flag as a reset leaves it, and after the restore as the row says (E05 fix r1-G4, M6 = S1-m6).

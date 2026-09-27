@@ -39,7 +39,7 @@ import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc }
     from "./utils.mjs";
-import { caseMark, deathStore } from "./gm-stores.mjs";
+import { caseMark, deathStore, deferredOfferStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -180,6 +180,22 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
         record = await markDeceased(actor);
     }
     if (!record) return null;
+
+    /*
+     * A REINFORCED LEVEL UP WAITING FOR THE CLASS LAPSES AT THE KILL (E05 C11, 27.09.2026;
+     * the design's 2.3 step 5, the owner's Q7). At the kill and not at the publication: the
+     * row is the GMs' alone, so dropping it tells nobody anything. A verdict's batch drops
+     * a dead student's row too (level-up.mjs `advancementPlan` keeps the living), but left
+     * to it the row would outlive the death until the next verdict, in the store and in
+     * every backup taken meanwhile.
+     */
+    if (deferredOfferStore.has(actor.id)) {
+        try {
+            await deferredOfferStore.drop(actor.id);
+        } catch (err) {
+            error(`Could not drop ${actor.name}'s deferred Level Up at the death`, err);
+        }
+    }
 
     /*
      * WHO IS TOLD A STUDENT DIED (Dawid, 28.08 - widen it).

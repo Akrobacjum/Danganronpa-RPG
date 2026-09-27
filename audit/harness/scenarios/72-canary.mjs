@@ -26,7 +26,8 @@
  *   undiscovered  the incident closed with the body not found;
  *   discovery     a Faint Prep trace in Dorm B; Aiko and Daichi walk in, and the
  *                 promotion dialog ticks it;
- *   verdict       a trial naming Daichi, a wrong verdict: Chie survives.
+ *   verdict       a trial naming Daichi, a wrong verdict: Chie survives, nothing is written on
+ *                 her, and her Reinforced Level Up waits in the GMs' store (E05 C11).
  * Each later E05 commit adds its checks to the phase that shows its secret.
  *
  * E43 extends this to the season (the identity needles of lib/canary.mjs's path).
@@ -363,12 +364,44 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     }
     const ballots = await gm.eval(`return await game.drpg.openVote();`, { timeout: 60000 });
     await settled("verdict", () => gm.eval(`const V = await import("${repoUrl}/scripts/vote.mjs"); return V.votesIn() >= 2 ? true : null;`));
-    const verdict = await gm.eval(`const r = await game.drpg.closeVote();
-        await game.drpg.applyVerdict?.({ correct: false, executedIds: ["${IDS.daichi}"], blackenedIds: ["${IDS.chie}"] });
+    /* The surviving Blackened's Level Up (E05 C11; audit S03-01, S06-01): until 1.2.64 the wrong
+       verdict applied it at once, and p1 read Chie's new maximum Health and `advances`, and a card
+       spoken by Chie with the Level Up's sound. The GM's Level Up window, if one opens, is answered
+       with every pick "+1 max Health" (the harness's own default press cannot read that form), so
+       a verdict that still applied it would show on p1 as a rise; it waits in the GMs' store now. */
+    const chieOnP1 = () => p1.eval(`const a = game.actors.get("${IDS.chie}");
+        const fresh = game.messages.filter(m => !(globalThis.__verdictFrom ?? new Set()).has(m.id));
+        return { max: a.system?.resources?.hitPoints?.max ?? null, advances: a.getFlag("${MOD}", "advances") ?? 0,
+            spoken: fresh.filter(m => m.speaker?.actor === "${IDS.chie}").length,
+            sfx: fresh.filter(m => m.flags?.["${MOD}"]?.sfx === "levelUp").length };`);
+    await p1.eval(`globalThis.__verdictFrom = new Set(game.messages.map(m => m.id)); return true;`);
+    const chieBefore = await chieOnP1();
+    const verdict = await gm.eval(`globalThis.__dialogAnswers.push(async function advance(cfg) {
+            if (!(cfg.classes ?? []).includes("drpg-advance")) { globalThis.__dialogAnswers.unshift(advance); return null; }
+            const n = (String(cfg.content ?? "").match(/name="pick\\.\\d+\\.option"/g) ?? []).length;
+            return Array.from({ length: n }, () => ({ option: "hp" }));
+        });
+        const r = await game.drpg.closeVote();
+        try {
+            await game.drpg.applyVerdict?.({ correct: false, executedIds: ["${IDS.daichi}"], blackenedIds: ["${IDS.chie}"] });
+        } finally {
+            const q = globalThis.__dialogAnswers, at = q.findIndex(f => f?.name === "advance");
+            if (at >= 0) q.splice(at, 1);
+        }
         const V = await import("${repoUrl}/scripts/vote.mjs");
         return { accused: r?.accusedId ?? null, applied: V.trialProgress().verdictApplied === true,
             chieAlive: !game.drpg.isDeceased(game.actors.get("${IDS.chie}")) };`, { timeout: 90000 });
     check("gm: the vote names Daichi, a wrong verdict, and Chie survives it",
         ballots >= 2 && verdict.accused === IDS.daichi && verdict.applied && verdict.chieAlive, JSON.stringify({ ballots, verdict }));
+    await settle(800);
+    const chieAfter = await chieOnP1();
+    check("p1: the wrong verdict wrote nothing on Chie - her maximum Health and advances are as they were (E05 C11)",
+        chieAfter.max === chieBefore.max && chieAfter.advances === chieBefore.advances, JSON.stringify({ chieBefore, chieAfter }));
+    check("p1: no card of the wrong verdict is spoken by Chie or carries the Level Up's sound (E05 C11)",
+        chieAfter.spoken === 0 && chieAfter.sfx === 0, JSON.stringify(chieAfter));
+    const waiting = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = S.deferredOfferStore?.get("${IDS.chie}"); return row ? { kind: row.kind, count: row.count } : null;`);
+    check("gm: Chie's Reinforced Level Up waits in the GMs' store for the class (E05 C11)",
+        waiting?.kind === "reinforced" && waiting?.count === 1, JSON.stringify(waiting));
     await scanned("verdict");
 }

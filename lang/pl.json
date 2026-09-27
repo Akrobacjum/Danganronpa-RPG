@@ -1076,10 +1076,10 @@
         "other": "{n} ocalałych dostaje {kind} Level Up."
       },
       "blackenedRewarded": {
-        "one": "Blackened pozostaje anonimowy i w grze, i dostaje {kind} Level Up.",
-        "few": "{n} Blackened pozostaje anonimowych i w grze, każdy dostaje {kind} Level Up.",
-        "many": "{n} Blackened pozostaje anonimowych i w grze, każdy dostaje {kind} Level Up.",
-        "other": "{n} Blackened pozostaje anonimowych i w grze, każdy dostaje {kind} Level Up."
+        "one": "Blackened pozostaje anonimowy i w grze; jego {kind} Level Up czeka na następny Level Up klasy.",
+        "few": "{n} Blackened pozostaje anonimowych i w grze; {kind} Level Up każdego z nich czeka na następny Level Up klasy.",
+        "many": "{n} Blackened pozostaje anonimowych i w grze; {kind} Level Up każdego z nich czeka na następny Level Up klasy.",
+        "other": "{n} Blackened pozostaje anonimowych i w grze; {kind} Level Up każdego z nich czeka na następny Level Up klasy."
       },
       "despairFilled": "Despair napełniony do maksimum: {who}.",
       "newRule": "Blackened wprowadza jedną nową zasadę własnego wyboru, za zgodą Monokumy.",
@@ -2753,7 +2753,8 @@
       "introMany": "{reason} Wybierz {picks} ulepszenia. To samo możesz wziąć więcej niż raz.",
       "reason": {
         "standard": "Wskazaliście Blackened.",
-        "reinforced": "Blackened wyszedł z błędnego głosowania."
+        "reinforced": "Blackened wyszedł z błędnego głosowania.",
+        "withClass": "Reinforced Level Up za wyjście z błędnego głosowania czekał na ten i przychodzi razem z nim."
       },
       "buttonTooltip": "Level Up",
       "whichKind": "Jaki Level Up zdobył(a) <strong>{actor}</strong>?",
@@ -2782,6 +2783,7 @@
       },
       "offerTitle": "Masz Level Up do wykorzystania",
       "offered": "{kind}. Naciśnij przycisk obok swojego imienia na arkuszu i wybierz - liczba wyborów: {n}.",
+      "deferred": "Po błędnym głosowaniu Twój Reinforced Level Up czeka na następny Level Up klasy: wybierzesz go (liczba wyborów: {n}) razem z Level Upem klasy, gdy głosowanie poprawnie wskaże Blackened, albo przy werdykcie Final Trial. Przepada, jeśli wcześniej zginiesz.",
       "offerSent": "{name} - powiadomienie wysłane; wybór należy teraz do gracza.",
       "offerFailed": "Nie udało się zapisać oferty na tej postaci.",
       "notOfferedHere": "{player} chce wykorzystać Level Up postaci {name}, a przeglądarka tego GM-a nie ma dla niej żadnej oferty - nie dostała jeszcze kopii od pozostałych GM-ów albo nie ma żadnych ofert. Jeśli oferta była, złóż ją ponownie albo przywróć sprawę z kopii (panel GM-a).",
@@ -4592,7 +4594,8 @@
         "eclipseMoves": "Kto ile razy przeszedł w czasie Eclipse",
         "keyPlan": "Plan Key Remnants, rozdział po rozdziale",
         "notes": "Notatki graczy przed sesją",
-        "deaths": "Śmierci, których nikt jeszcze nie odkrył"
+        "deaths": "Śmierci, których nikt jeszcze nie odkrył",
+        "deferredOffers": "Reinforced Level Upy czekające na klasę"
       },
       "row": {
         "traces": {

@@ -277,6 +277,15 @@ export const SETTINGS = {
     legacyAdvanceOffers: "advanceOffers",
     mineOffers: "mineOffers",
     /**
+     * THE REINFORCED LEVEL UPS WAITING FOR THE CLASS (E05 C11, 1.2.64; D4; audit S03-01,
+     * S06-01): a GM store (gm-stores.mjs `deferredOfferStore`), a row per surviving
+     * Blackened `{ kind, chapter, at, count }`. Until 1.2.64 a wrong verdict applied the
+     * Reinforced Level Up at once - new maxima and `advances` on the actor, a card spoken by
+     * it - so every console could name the Blackened the class had just missed. No player
+     * copy: the owner is told on a veiled card, and nothing on a player's browser reads it.
+     */
+    gmDeferredOffers: "gmDeferredOffers",
+    /**
      * The words of every private card this browser is a recipient of.
      *
      * CLIENT-SCOPED, and that is the entire point - see secret.mjs. A whisper
@@ -1199,6 +1208,14 @@ export function registerSettings() {
         default: {}
     });
     game.settings.register(MODULE_ID, SETTINGS.mineOffers, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The deferred Reinforced Level Ups (E05 C11): no `onChange`, as nothing on any screen
+    // shows them - read by the verdicts' batches and dropped by a kill, on a GM's client.
+    game.settings.register(MODULE_ID, SETTINGS.gmDeferredOffers, {
         scope: "client",
         config: false,
         type: Object,

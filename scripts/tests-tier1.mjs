@@ -4711,6 +4711,58 @@ const INVARIANTS = [
         equal(await ownerCopy.receive({}, { [VICTIM]: rows.newest(VICTIM) }), true, "an answer naming the published body gone was refused");
         equal(JSON.stringify(ownerCopy.read()), "{}", "the copy still holds a death the GMs published");
         ok(G.gmCopySpec(deathCopy.name)?.combine === offersCombine, "the deaths' copy is not weighed by the offers' rule");
+    }],
+
+    ["R195 - a deferred Reinforced joins its owner's Standard in one write", async () => {
+        /*
+         * E05 C11, 27.09.2026; D4; audit S03-01, S06-01. A wrong verdict used to apply the
+         * surviving Blackened's Reinforced Level Up at once, on the actor and on a card spoken
+         * by it; it waits in the GMs' `deferredOffers` store now and is picked with the class's
+         * next Standard or at the Final Trial's verdict (the owner's Q7). `advancementPlan` is
+         * the batch's whole decision, pure: one entry per survivor - one picker, which is one
+         * write and one step of `advances` (`applyAdvancement`, measured in tier 2) - with 1
+         * or 1 + 3 picks, 1 + 6 for two wrong verdicts survived; at the Final Trial only what
+         * waited; and the rows of the dead, or of no kind there is, dropped.
+         */
+        const { advancementPlan } = await import("./level-up.mjs");
+        const { deferredOfferStore } = await import("./gm-stores.mjs");
+        const { stableJson } = await import("./gm-store.mjs");
+        const row = (count = 1) => ({ kind: "reinforced", chapter: 1, at: 1, count });
+        const rows = { R195HOLDER000001: row(), R195TWICE0000001: row(2), R195DEAD00000001: row(), R195BOGUS0000001: { kind: "R195NOKIND", at: 1 } };
+        const survivors = ["R195PLAIN0000001", "R195HOLDER000001", "R195TWICE0000001", "R195BOGUS0000001"];
+        const shape = plan => plan.entries.map(e => [e.actorId, e.kind, e.picks, e.extraPicks, e.deferred, e.reasons.join("+")]);
+
+        const verdict = advancementPlan(survivors, rows, "standard");
+        equal(stableJson(shape(verdict)), stableJson([
+            ["R195PLAIN0000001", "standard", 1, 0, false, "DRPG.Advance.reason.standard"],
+            ["R195HOLDER000001", "standard", 4, 3, true, "DRPG.Advance.reason.standard+DRPG.Advance.reason.withClass"],
+            ["R195TWICE0000001", "standard", 7, 6, true, "DRPG.Advance.reason.standard+DRPG.Advance.reason.withClass"],
+            ["R195BOGUS0000001", "standard", 1, 0, false, "DRPG.Advance.reason.standard"]
+        ]), "a correct verdict's batch is not one picker per survivor with its Standard and whatever waited, in the survivors' order");
+        equal(stableJson(verdict.drop.sort()), stableJson(["R195BOGUS0000001", "R195DEAD00000001"]),
+            "the dead's row, or a row of no kind, outlives the batch - or a survivor's is dropped with them");
+
+        const final = advancementPlan(survivors, rows, null);
+        equal(stableJson(shape(final)), stableJson([
+            ["R195HOLDER000001", "reinforced", 3, 0, true, "DRPG.Advance.reason.reinforced"],
+            ["R195TWICE0000001", "reinforced", 6, 3, true, "DRPG.Advance.reason.reinforced"]
+        ]), "the Final Trial's batch hands out something besides what waited, or not all of that");
+        equal(stableJson(advancementPlan([], {}, "standard")), stableJson({ entries: [], drop: [] }), "an empty class plans something");
+        equal(stableJson(advancementPlan(["R195PLAIN0000001", "R195PLAIN0000001"], {}, "standard").entries.length), "1",
+            "a survivor named twice is two pickers, two writes and two advances");
+
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            ok(typeof foundry.utils.getProperty(text, "DRPG.Advance.reason.withClass") === "string",
+                `the reason a waiting Reinforced gives has no ${lang} text`);
+        }
+        // The Final Trial's verdict is not driven here or in tier 2 (a Mastermind, a public banner,
+        // the pick cleared): its call is read, after the kill that takes an executed Mastermind's.
+        const finalVerdict = bodyOf(stripComments(new Map(await otherSources()).get("mastermind.mjs") ?? ""), "export async function applyFinalVerdict");
+        const kill = finalVerdict.indexOf("killCharacter("), batch = finalVerdict.indexOf("runAdvancementBatch(livingStudentsForGm(), null)");
+        ok(kill > 0 && batch > kill, "the Final Trial's verdict does not hand out what waited for the class (Q7), or does so before its kill");
+        equal(stableJson([deferredOfferStore.spec?.resetGroup, deferredOfferStore.spec?.backup, deferredOfferStore.spec?.sync]),
+            stableJson(["advancement", true, true]), "the waiting Level Ups are not cut by the reset's advancement group, backed up and synced");
     }]
 ];
 

@@ -837,6 +837,19 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     check("H1: a Standard Level Up offered on the primary reaches Aiko's player at its stamp, and the second GM holds it",
         offeredAt > 0 && J([litH1.offer, litH1.stamp]) === J(["standard", offeredAt]) && J([onGm2H1.offer, onGm2H1.stamp]) === J(["standard", offeredAt]),
         J({ offeredAt, litH1, onGm2H1 }));
+    /* H1b (E05 C11, 27.09.2026; D4): a Reinforced Level Up a wrong verdict left waiting for the
+       class is a row of the GMs' `deferredOffers` store, written on the primary and held by the
+       second GM, which may be the one that runs the next verdict. Written to the store directly:
+       the verdict itself, and its veiled card, are 72-canary's. K4 has the kill drop it. */
+    const deferredOn = client => client.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = S.deferredOfferStore?.get("${IDS.daichi}"); return row ? { kind: row.kind, count: row.count } : null;`);
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await S.deferredOfferStore?.patch("${IDS.daichi}", { kind: "reinforced", chapter: 1, at: Date.now(), count: 1 }, { whole: true });
+        return true;`);
+    await settle(800);
+    const waitingH1b = { gm: await deferredOn(gm), gm2: await deferredOn(gm2) };
+    check("H1b: a Reinforced Level Up waiting for the class, written on the primary, is held by the second GM",
+        [waitingH1b.gm, waitingH1b.gm2].every(r => r?.kind === "reinforced" && r?.count === 1), J(waitingH1b));
 
     /* ------------------- K. the upgrade day's claim of an old cast, one of them stale ------------------- */
 
@@ -891,6 +904,11 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     check("K3: a death nobody has found reaches the second GM, and its publication there writes the flag and drops the row on both GMs",
         heldK3.held && heldK3.row && !heldK3.flag && publishedK3 && afterK3.gm.flag && !afterK3.gm.row && afterK3.gmb.flag && !afterK3.gmb.row,
         J({ heldK3, publishedK3, afterK3 }));
+    /* K4 (E05 C11; the design's 2.3 step 5): the kill - a secret one, before any publication -
+       dropped the Reinforced Level Up H1b left waiting for Daichi, on every GM. */
+    const lapsedK4 = { gm: await deferredOn(gm), gm2: await deferredOn(gm2), gmb: await deferredOn(gmb) };
+    check("K4: a secret kill drops the dead's Reinforced Level Up waiting for the class, on every GM",
+        waitingH1b.gm !== null && Object.values(lapsedK4).every(r => r === null), J({ waitingH1b, lapsedK4 }));
     await gm.eval(`const ch = await import("${repoUrl}/scripts/chapter.mjs");
         await ch.reviveCharacter(game.actors.get("${IDS.daichi}"), { quiet: true }); return true;`, { timeout: 60000 });
     await settle(800);

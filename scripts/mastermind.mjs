@@ -29,7 +29,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, myMastermindLair } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
-import { isDeadForGm, killCharacter } from "./chapter.mjs";
+import { isDeadForGm, killCharacter, livingStudentsForGm } from "./chapter.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, ownerOf, primaryGmId, isPrimaryGm, log, error } from "./utils.mjs";
@@ -871,6 +871,21 @@ export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null
             outcome: game.i18n.localize(executed ? "DRPG.Mastermind.outcomeExecuted"
                 : dead ? "DRPG.Mastermind.outcomeAlreadyDead" : "DRPG.Mastermind.outcomeEscaped")
         })}</p>`);
+
+    /*
+     * THE LEVEL UPS THAT WAITED FOR THE CLASS ARE PICKED NOW (E05 C11, 27.09.2026; the
+     * owner's Q7, option b). A Reinforced Level Up left by a wrong verdict waits for the
+     * class's next correct one, and a season can end on the Final Trial before there is one:
+     * the season's secrets are out here anyway, and a table that keeps advancement across
+     * seasons would otherwise lose it. Only what waited - the Final Trial hands out nothing
+     * of its own - and after the kill, which takes an executed Mastermind's.
+     */
+    try {
+        const { runAdvancementBatch } = await import("./level-up.mjs");
+        await runAdvancementBatch(livingStudentsForGm(), null);
+    } catch (err) {
+        error("Could not open the Level Ups that waited for the Final Trial", err);
+    }
 
     // The season is over either way - a Final Trial is the guide's ending, not
     // a chapter like the others. Clearing the pick here rather than leaving it
