@@ -290,6 +290,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
        at once - which took the opening stage, and its Event card, away before the read below in
        one run of two (27.09). Forced to a critical, which the victim survives noticing, so the
        opening stays open until the GM rules it; deleted once the card is read. */
+    /* Every card's words the victim's and the builder's browsers are sent from here to Stage 6
+       (E06 C4, 27.09.2026; audit S04-01, S10-04): the `secret.card` packets (secret.mjs), read
+       below, before the incident moves on. */
+    const WORDS_NET = `globalThis.__trapWords = [];
+        game.socket.on("module.${MOD}", p => { if (p?.action === "secret.card") globalThis.__trapWords.push(String(p.html ?? "")); });
+        return true;`;
+    await p1.eval(WORDS_NET);
+    await p3.eval(WORDS_NET);
     await p1.eval(`globalThis.__forceRoll = { hope: 10, fear: 10 }; return true;`);
     await gm.eval(`
         await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}", indirect: true });
@@ -395,6 +403,36 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         acted.stage === "incident" && acted.receipt === true && during.packets > 0 && during.builder === false
         && during.receipt === null && during.heldReceipt === false && during.card === during.victim && Boolean(during.victim),
         JSON.stringify({ acted, during }));
+
+    /* NOTHING OF ANY CARD OF THE TRAP REACHES ITS BUILDER UNTIL STAGE 6 (E06 C4, 27.09.2026;
+       audit S04-01, S10-04, L11 and L12). The GM moves the time of day while the trap runs (the
+       card `announceTimeOfDay` narrows to the incident, veiled now) and puts the clock back,
+       stamp and all, as 1a does; then both nets are read. Until 1.2.65 the builder's browser was
+       sent the words of the victim's crisis card and of the time of day - every whisper of the
+       incident read its list off the participants, the builder among them. The victim's browser
+       is sent both, and the trap's closing, and no card of theirs names the builder. */
+    const hour = await gm.eval(`
+        const C = await import("${repoUrl}/scripts/clock.mjs");
+        const { TIMES_OF_DAY } = await import("${repoUrl}/scripts/config.mjs");
+        const before = C.getClock();
+        const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(before.timeOfDay) + 1) % TIMES_OF_DAY.length];
+        await C.setTimeOfDay(next, { resetSearchTokens: false });
+        await new Promise(r => setTimeout(r, 600));
+        await C.setClock({ timeOfDay: before.timeOfDay, timeOfDayStartedAt: before.timeOfDayStartedAt ?? null });
+        return { label: C.timeOfDayLabel(next), stage: game.drpg.murderState()?.stage ?? null };
+    `, { timeout: 60000 });
+    await settle(900);
+    const WORDS_READ = `const w = globalThis.__trapWords ?? [];
+        return { n: w.length, hour: w.some(h => h.includes(${JSON.stringify(hour.label)})),
+            crisis: w.some(h => h.includes("- " + foundry.utils.escapeHTML(game.actors.get("${ids.aiko}").name) + "</h3>")),
+            sprung: w.some(h => h.includes(game.i18n.localize("DRPG.Murder.victimTrapSprung"))),
+            builder: w.some(h => h.includes(foundry.utils.escapeHTML(game.actors.get("${ids.chie}").name))),
+            text: w.map(h => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 60)) };`;
+    const trapWords = { victim: await p1.eval(WORDS_READ), builder: await p3.eval(WORDS_READ) };
+    check("trap: until Stage 6 the builder's browser is sent the words of no card of the incident; the victim's is sent the trap's closing, the crisis card and the time of day, none naming the builder",
+        hour.stage === "incident" && trapWords.builder.n === 0 && trapWords.victim.hour && trapWords.victim.crisis
+        && trapWords.victim.sprung && trapWords.victim.builder === false,
+        JSON.stringify({ hour, trapWords }));
 
     await gm.eval(`
         await game.drpg.beginResolution("victimKilled");

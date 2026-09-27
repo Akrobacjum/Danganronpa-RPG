@@ -5165,7 +5165,8 @@ const INVARIANTS = [
  * other nine, two (Murder.betrayTileLabel and betrayTileHint) were used by no
  * file and are gone; seven were built at run time. Four are left here:
  *
- *   murder.mjs         victimTrapSprung / victimUnderAttack, by `state.indirect`
+ *   murder.mjs         victimTrapSprung / victimUnderAttackBy, by `state.indirect`
+ *                      (victimUnderAttack until E06 C4, which names the killer)
  *   season-setup.mjs   `DRPG.Season.step.${key}` and `.hint.`, for the resources step
  *
  * The other three were `DRPG.Bridge.what.${action}` keys, and left in E31
@@ -5175,7 +5176,7 @@ const INVARIANTS = [
  * of the season steps is checked by no test.
  */
 const LITERAL_KEYS = [
-    "DRPG.Murder.victimUnderAttack", "DRPG.Murder.victimTrapSprung",
+    "DRPG.Murder.victimUnderAttackBy", "DRPG.Murder.victimTrapSprung",
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources"
 ];
 

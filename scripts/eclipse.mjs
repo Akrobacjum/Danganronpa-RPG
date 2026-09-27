@@ -566,8 +566,11 @@ export async function liftPendingMurders() {
  *
  * Only the FIRST successful declaration opens an incident. Two killings at once
  * is not something this engine models - `murderState` is a single incident -
- * and the honest thing is to say so to the second killer rather than to drop
- * their attempt silently.
+ * and the second killer is told their attempt is refused rather than having it
+ * dropped silently. Told THAT, not WHY (E06 C4, 27.09.2026; audit S10-38, the
+ * owner's D6): "an incident was already running" told them somebody was being
+ * killed somewhere at that moment. The words are the ordinary refusal a GM's
+ * "no" sends (`murderRefused`); the GMs keep the reason (`murderSecondDeclaration`).
  *
  * AND NOTHING OPENS WITHOUT THE GM. The room condition is the guide's and the
  * module can read it; whether this killing happens at this table tonight is not
@@ -620,7 +623,7 @@ async function judgePendingMurders(id) {
         };
 
         if (murderState()) {
-            await say(game.i18n.localize("DRPG.Action.murderAlreadyRunning"), "drpg-warning");
+            await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");
             await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderSecondDeclaration", {
                 killer: foundry.utils.escapeHTML(killer.name)
             })}</p>`);

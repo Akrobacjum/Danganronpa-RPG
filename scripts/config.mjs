@@ -2863,7 +2863,7 @@ export const MURDER_OPENING = {
         hope: "The incident begins.",
         despair: "The incident begins. The victim loses all their Sanity and loses access to "
             + "Role reversal for this incident.",
-        critical: "The incident begins, and the victim learns who is attacking them.",
+        critical: "The incident begins.",
         failure: "No incident, and the victim never learns anything was attempted. The action is "
             + "spent; the attempt can be made again in another time of day.",
         /**
@@ -2873,10 +2873,13 @@ export const MURDER_OPENING = {
          * one of the oldest shapes this story has - and the roll they throw is
          * still the killer's: the numbers, the thresholds and the sliding scale
          * of Key Remnants are all unchanged. Only the prose is, because every
-         * line of the ordinary table speaks about a victim who is somebody else.
-         * "The victim learns who is attacking them" is not a critical success
-         * when the victim already knows; "the victim loses Role Reversal" is a
-         * Stage 5 penalty for an incident that has no Stage 5.
+         * line of the ordinary table speaks about a victim who is somebody else:
+         * "the incident begins" has nobody to begin against, and "the victim
+         * loses Role Reversal" is a Stage 5 penalty for an incident that has no
+         * Stage 5. (The ordinary critical also promised, until 1.2.65, that the
+         * victim would learn who was attacking them - which a direct murder's
+         * victim, face to face, always does, so the promise went; E06 C4, the
+         * owner's D6.)
          *
          * Read as `def.selfInflicted ?? def`, the same variant idiom
          * `indirectVictim` uses in CRISIS_ACTIONS.

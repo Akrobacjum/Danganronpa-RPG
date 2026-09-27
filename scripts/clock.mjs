@@ -409,21 +409,27 @@ async function announceTimeOfDay(clock, summary, { sfx = null } = {}) {
      * else (see `clockForDisplay` in hud.mjs) and catches up the moment the
      * incident ends. Everything else the change did - refills, restocks -
      * happened either way; only who is TOLD changes.
+     *
+     * VEILED, AND TOLD BY THE ONE TABLE (E06 C4, 27.09.2026; audit S10-04). The
+     * card was a plain whisper, and a whisper list is a field every console reads:
+     * the GMs and the participants' owners, which is the cast spelled out to
+     * anybody who looks, a trap's builder among them. It is posted veiled now - the
+     * document names everybody - and its words go to the GMs and the incident's
+     * audience (`incidentAudienceIds`, murder.mjs), the same people every card of
+     * the incident reaches. The sound stays on the card: sfx.mjs plays a veiled
+     * card's sound only where its words arrived.
      */
     // Whatever the caller hung on this change - today only the Eclipse's
     // ending. Built once so both branches below carry it, because the sound
     // belongs to the event and not to how many people were told about it.
     const flags = sfx ? { flags: { [MODULE_ID]: { sfx } } } : {};
 
-    const { murderState, participantIds } = await import("./murder.mjs");
+    const { murderState, incidentAudienceIds } = await import("./murder.mjs");
     const state = murderState();
     if (state) {
-        const { whisperToGms, ownerOf, gmIds } = await import("./utils.mjs");
-        const owners = [...participantIds(state)]
-            .map(id => ownerOf(game.actors.get(id))?.id)
-            .filter(Boolean);
+        const { whisperToGms, gmIds } = await import("./utils.mjs");
         await whisperToGms(content, {
-            whisper: Array.from(new Set([...gmIds(), ...owners])), ...flags
+            whisper: Array.from(new Set([...gmIds(), ...incidentAudienceIds(state)])), veiled: true, ...flags
         });
     } else {
         await announce({ content, ...flags });

@@ -292,12 +292,16 @@ async function restore(snap) {
  * Two students stood alone together in a room nobody else is in, for the lights of an
  * Eclipse to judge (E05 C3): both tokens teleported to its centre and read back - a
  * fixture that did not take would measure a refusal instead. `back()` puts them where
- * they were. A teleport, not a walk: see the handover test's note on walls.
+ * they were. A teleport, not a walk: see the handover test's note on walls. `asked`: the
+ * test has asked the world for a second pair already (E06 C4) - a probe asked after the
+ * first pair was stood is a write before the ask.
  */
-async function aloneTogether(killer, victim) {
+async function aloneTogether(killer, victim, { asked = false } = {}) {
     const { allRooms, othersInNamedRoom, othersInRoom, positionIn } = await import("./movement.mjs");
-    needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
-    needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+    if (!asked) {
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+    }
     const scene = canvas?.scene;
     const tokens = [killer, victim].map(a => scene?.tokens?.find(t => t.actorId === a.id));
     ok(tokens.every(Boolean), "one of the two students has no token on the scene on screen");
@@ -315,6 +319,30 @@ async function aloneTogether(killer, victim) {
             await settle();
         }
     };
+}
+
+/**
+ * The words of every private card this client sent while `run` ran (E06 C4): each
+ * `secret.card` packet (secret.mjs `postSecret`) as { id, to, html } - the card's id, the
+ * users it was addressed to and its words - and every packet let through. A card's
+ * document names nobody when it is veiled, so who was told is read here, off the packets.
+ * The GM's own copy travels no socket and is not among them.
+ */
+async function wordsSent(run) {
+    const socket = game.socket;
+    const own = Object.getOwnPropertyDescriptor(socket, "emit");
+    const send = socket.emit;
+    const sent = [];
+    socket.emit = function (event, packet, options, ...rest) {
+        if (packet?.action === "secret.card") sent.push({ id: packet.id ?? null, to: options?.recipients ?? [], html: String(packet.html ?? "") });
+        return send.call(this, event, packet, options, ...rest);
+    };
+    try {
+        await run();
+    } finally {
+        if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+    }
+    return sent;
 }
 
 /**
@@ -532,6 +560,208 @@ const SCENARIOS = [
             "during the trap the victim's or the third's copy names the builder, or a copy holds the Reroll receipt");
         equal(stableJson(atStage6), stableJson([none, { ...none, offer: builder.id }, { killer: builder.id, turn: builder.id, receipt: null, offer: builder.id }]),
             "at Stage 6 the victim's copy names the builder, the third's lost the betrayal offered to them, the builder's own copy lost its name, or a copy holds the receipt");
+    }],
+
+    ["the incident's cards reach its audience and no one else", async () => {
+        /*
+         * E06 C4, 27.09.2026; audit S04-01 (L11). A crisis card was whispered to the owners of
+         * the killer, the victim and the third read off the state, so a trap's builder - in no
+         * room, holding no copy of the cast until Stage 6 - was sent the words of every card of
+         * the fight. The card's audience is `incidentAudienceIds` now and the actor who acted
+         * (murder.mjs `announceCrisis`). A trap is opened, its victim's roll misses and the
+         * victim takes a crisis action (C3's fixture); every card's words this GM sends for it
+         * are read off the packets (`wordsSent`): the victim's player is sent the card, the
+         * builder's player nothing.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a trap's builder and its victim, each with a player to be sent a card's words");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim] = livingStudents().filter(player);
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        // The victim's player is asked the roll too; whichever lands first, a miss starts the incident.
+        if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await settle();
+        const stage = M.murderState()?.stage ?? null;
+        const words = await wordsSent(async () => {
+            await game.drpg.resolveCrisisAction({ actorId: victim.id, key: "leaveClue", total: 2, isCritical: false, withHope: false });
+            await settle();
+        });
+        const to = user => words.filter(w => w.to.includes(user.id));
+        const card = to(player(victim)).some(w => w.html.includes(`- ${foundry.utils.escapeHTML(victim.name)}</h3>`));
+        equal(stableJson([stage, card, to(player(builder)).length]), stableJson(["incident", true, 0]),
+            `the trap's incident did not start, its victim's player was not sent the crisis card, or its builder's player was sent a card's words: ${
+                stableJson(words.map(w => ({ to: w.to, text: w.html.replace(/<[^>]+>/g, " ").trim().slice(0, 80) })))}`);
+    }],
+
+    ["the third party who leaves is told", async () => {
+        /*
+         * E06 C4, 27.09.2026; audit S04-36 (L11). A third party who walks in and chooses Averted
+         * eyes leaves the incident before the card of that choice is written - `thirdId` is
+         * nulled on the way (murder.mjs `applyThirdPartyChoice`) - and the card's list was read
+         * off the state afterwards, so the one person the card is about was the one not sent it.
+         * `announceCrisis` adds the actor who acted (`also`). A direct murder, its opening ruled
+         * a success here (C2's fixture), a third walks in and averts their eyes; the packets
+         * this GM sends for the choice are read (`wordsSent`).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player to be sent the card");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await M.thirdPartyEnters(third);
+        await settle();
+        const joined = M.murderState()?.thirdId ?? null;
+        const words = await wordsSent(async () => {
+            await game.drpg.resolveCrisisAction({ actorId: third.id, key: "avertedEyes", total: 0, isCritical: false, withHope: true });
+            await settle();
+        });
+        const cardTo = user => words.some(w => w.to.includes(user.id) && w.html.includes(`- ${foundry.utils.escapeHTML(third.name)}</h3>`));
+        equal(stableJson([joined, M.murderState()?.thirdId ?? null, cardTo(player(third)), cardTo(player(killer)), cardTo(player(victim))]),
+            stableJson([third.id, null, true, true, true]),
+            `the third did not walk in and leave, or the card of their choice did not reach them, the killer or the victim: ${
+                stableJson(words.map(w => ({ to: w.to, text: w.html.replace(/<[^>]+>/g, " ").trim().slice(0, 80) })))}`);
+    }],
+
+    ["the time of day in an incident is veiled and names nobody", async () => {
+        /*
+         * E06 C4, 27.09.2026; audit S10-04 (L12). While an incident runs the time of day is told
+         * to the people in it alone (clock.mjs `announceTimeOfDay`, since 26.08), and it was a
+         * plain whisper: its list - the GMs and every participant's owner, a trap's builder
+         * among them - is a field every console reads. It is veiled now and its words go to
+         * the GMs and `incidentAudienceIds`. A trap is opened and its incident started; the GM
+         * moves the time of day; the card is read off the log (veiled, everybody on its list,
+         * no actor speaking) and its words off the packets (`wordsSent`): the victim's player
+         * is sent them, the builder's is not. The clock is put back.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a trap's builder and its victim, each with a player to be sent the words");
+        const M = await import("./murder.mjs");
+        const C = await import("./clock.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim] = livingStudents().filter(player);
+        const clock = getClock();
+        const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1) % TIMES_OF_DAY.length];
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await settle();
+        const from = game.messages.size;
+        let words = [];
+        try {
+            words = await wordsSent(async () => {
+                await C.setTimeOfDay(next, { resetSearchTokens: false });
+                await settle();
+            });
+        } finally {
+            await setClock(clock);
+            await settle();
+        }
+        const label = C.timeOfDayLabel(next);
+        const card = game.messages.contents.slice(from).find(m => words.some(w => w.id === m.id && w.html.includes(label)))
+            ?? game.messages.contents.slice(from).find(m => String(m.content ?? "").includes(label)) ?? null;
+        const sent = words.find(w => w.id === card?.id) ?? { to: [] };
+        const everybody = game.users.map(u => u.id).sort();
+        equal(stableJson([M.murderState()?.stage ?? null, Boolean(card), Boolean(card?.getFlag(MODULE_ID, "veiled")),
+            stableJson([...(card?.whisper ?? [])].sort()) === stableJson(everybody), card?.speaker?.actor ?? null,
+            sent.to.includes(player(victim).id), sent.to.includes(player(builder).id)]),
+            stableJson(["incident", true, true, true, null, true, false]),
+            `the time of day in the trap was not one veiled card naming everybody, or its words missed the victim or reached the builder: ${
+                stableJson({ whisper: card?.whisper ?? null, speaker: card?.speaker ?? null, flags: Object.keys(card?.flags?.[MODULE_ID] ?? {}), to: sent.to })}`);
+    }],
+
+    ["a direct murder's victim is told who is moving on them, a trap's victim is not", async () => {
+        /*
+         * E06 C4, 27.09.2026; audit S04-31, the owner's D6. The victim of a direct murder was
+         * told "Someone is moving on you" while the Event card and their copy of the cast named
+         * the killer - face to face; the whisper names the killer now (`victimUnderAttackBy`,
+         * murder.mjs `tellVictimTheIncidentBegan`). A trap's victim is told the trap closed,
+         * and nothing of its builder. Each murder is opened and its incident started with the
+         * same two students; the words sent to the victim's player are read off the packets.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player to be told");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const name = foundry.utils.escapeHTML(killer.name);
+        const toVictim = words => words.filter(w => w.to.includes(player(victim).id)).map(w => w.html);
+        const direct = toVictim(await wordsSent(async () => {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+        }));
+        await M.endMurder({ reason: "test", followUp: false });
+        await settle();
+        const trap = toVictim(await wordsSent(async () => {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, indirect: true });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+        }));
+        const attacked = game.i18n.format("DRPG.Murder.victimUnderAttackBy", { killer: name });
+        const sprung = game.i18n.localize("DRPG.Murder.victimTrapSprung");
+        equal(stableJson([direct.some(h => h.includes(attacked)), trap.some(h => h.includes(sprung)), trap.some(h => h.includes(name))]),
+            stableJson([true, true, false]),
+            `the direct victim was not told the killer's name, or the trap's victim was not told it closed, or was told its builder's name: ${
+                stableJson({ direct: direct.map(h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 80)), trap: trap.map(h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 80)) })}`);
+    }],
+
+    ["a second killer in the same Eclipse is told only that the attempt is refused", async () => {
+        /*
+         * E06 C4, 27.09.2026; audit S10-38, the owner's D6. Two direct murders declared in one
+         * Eclipse and both standing at the lights: the first opens the incident, the second is
+         * refused (eclipse.mjs `judgePendingMurders`). Its killer was told "an incident was
+         * already running" - that somebody was being killed somewhere at that moment. They are
+         * told the ordinary refusal now (`murderRefused`), and the GMs keep the reason
+         * (`murderSecondDeclaration`). Two pairs stood alone in two rooms, both declarations
+         * allowed and named for this Eclipse, the second declared after the first; the Eclipse
+         * ends and the words sent to the second killer's player are read off the packets, the
+         * GMs' card off this GM's own copy.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two killers whose players are sent the lights' answers");
+        needs(world.atLeast("livingStudents", 4), "two killers and two victims");
+        needs(world.atLeast("studentTokensOnScreen", 4), "each pair is stood in a room by their tokens");
+        needs(world.atLeast("namedRooms", 3), "a room is left to each pair");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [first, second] = livingStudents().filter(player);
+        const [firstVictim, secondVictim] = livingStudents().filter(a => a !== first && a !== second);
+        equal(M.murderState(), null, "an incident was already running when this scenario started");
+        const stood = [await aloneTogether(first, firstVictim, { asked: true })];
+        let words = [];
+        const from = game.messages.size;
+        try {
+            stood.push(await aloneTogether(second, secondVictim, { asked: true }));
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId();
+            ok(E.isEclipse() && id, `the Eclipse did not open, or has no name (${id})`);
+            for (const [at, killer, room] of [[1, first, stood[0].room], [2, second, stood[1].room]]) {
+                await S.pendingMurderStore.patch(killer.id, { room, note: "SUITE E06 C4 declared in the dark", at, approved: true, eclipse: id });
+            }
+            words = await wordsSent(async () => {
+                await E.endEclipse({ advance: false });
+                await settle();
+            });
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await S.pendingMurderStore.dropMany([first.id, second.id].filter(id => S.pendingMurderStore.has(id)));
+            for (const s of stood.reverse()) await s.back();
+        }
+        const refused = game.i18n.localize("DRPG.Action.murderRefused");
+        const toSecond = words.filter(w => w.to.includes(player(second).id)).map(w => w.html);
+        const reason = game.i18n.format("DRPG.Action.murderSecondDeclaration", { killer: foundry.utils.escapeHTML(second.name) });
+        const gmKept = game.messages.contents.slice(from).some(m => contentOf(m).includes(reason));
+        equal(stableJson([toSecond.length, toSecond.some(h => h.includes(refused)), gmKept]), stableJson([1, true, true]),
+            `the second killer was not sent one card, the ordinary refusal, or the GMs lost the reason: ${
+                stableJson(toSecond.map(h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 100)))}`);
     }],
 
     ["two killers act back to back, not alternating with the victim", async () => {

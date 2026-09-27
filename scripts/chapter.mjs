@@ -216,9 +216,13 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
      * Outside an incident there are no participants and this is exactly what
      * it always was, a whisper to the GMs.
      *
-     * The list is built the way `announceTimeOfDay` builds it in clock.mjs,
-     * from `gmIds()` plus the participants' owners - same function, same
-     * shape, no second idea of who counts as "inside this".
+     * "Inside" is `incidentAudienceIds` (murder.mjs) at the stage the kill leaves,
+     * the one table every card of the incident reads (E06 C4, 27.09.2026; audit
+     * S04-01). It was every participant's owner, and a trap's builder is a
+     * participant who is in no room: a death while the trap runs told them it had
+     * worked. The engine's own kill sites run once the stage has moved to Stage 6,
+     * where the builder is let back in; a GM's kill in the middle of the fight is
+     * told to the room. `announceTimeOfDay` in clock.mjs reads the same function.
      *
      * A SECRET DEATH'S SOUND IS ADDRESSED (E05 C10). On the card it is a flag of the
      * message, which every console receives whoever the card is whispered to - a death
@@ -227,13 +231,10 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
      */
     const deathAudience = await (async () => {
         try {
-            const { murderState, participantIds } = await import("./murder.mjs");
+            const { murderState, incidentAudienceIds } = await import("./murder.mjs");
             const state = murderState();
             if (!state) return null;
-            const owners = [...participantIds(state)]
-                .map(id => ownerOf(game.actors.get(id))?.id)
-                .filter(Boolean);
-            return Array.from(new Set([...gmIds(), ...owners]));
+            return Array.from(new Set([...gmIds(), ...incidentAudienceIds(state)]));
         } catch (err) {
             // A death that cannot work out its audience is still a death the
             // GMs must be told about.

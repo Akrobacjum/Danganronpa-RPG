@@ -999,13 +999,21 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
  * is concerned: the killer lost their nerve, no one was ever in danger, and
  * telling them "someone tried to kill you" would hand the table a fact the
  * rules never generated. See the note on `MURDER_OPENING`.
+ *
+ * A DIRECT VICTIM IS TOLD WHO (E06 C4, 27.09.2026; audit S04-31, the owner's D6). The
+ * whisper said "Someone is moving on you" while the Event card and the cast the victim
+ * is sent at this moment named the killer - a direct murder is fought face to face, and
+ * the one sentence that pretended otherwise was this one. It names the killer now
+ * (`victimUnderAttackBy`). A trap's victim is still told only that the trap closed: its
+ * builder is not in the room, and their copy of the cast holds no name (`castFor`).
  */
 async function tellVictimTheIncidentBegan(state) {
     try {
         const victim = game.actors.get(state?.victimId ?? "");
         if (!victim) return;
-        const key = state.indirect ? "victimTrapSprung" : "victimUnderAttack";
-        await whisperToOwner(victim, `<p>${game.i18n.localize(`DRPG.Murder.${key}`)}</p>`);
+        const key = state.indirect ? "victimTrapSprung" : "victimUnderAttackBy";
+        const data = state.indirect ? {} : { killer: esc(game.actors.get(state.killerId ?? "")?.name ?? "?") };
+        await whisperToOwner(victim, `<p>${game.i18n.format(`DRPG.Murder.${key}`, data)}</p>`);
     } catch (err) {
         // The incident has already started in world state; a message that fails
         // to send must not roll that back.
@@ -3477,12 +3485,10 @@ async function crowdedOut(actor) {
     const third = game.actors.get(state.thirdId);
 
     // The GMs and everybody in the room it was happening in - the same audience
-    // `announceCrisis` writes to, and for the same reason.
-    const recipients = new Set(gmIds());
-    for (const id of participantIds(state)) {
-        const owner = ownerOf(game.actors.get(id));
-        if (owner) recipients.add(owner.id);
-    }
+    // `announceCrisis` writes to, and for the same reason: `incidentAudienceIds`,
+    // the one table of who is told (E06 C4, 27.09.2026). Only a direct incident
+    // is crowded out, and its seats are the killer, the victim and the third.
+    const recipients = new Set([...gmIds(), ...incidentAudienceIds(state)]);
 
     await announce({
         content: `
@@ -4167,6 +4173,16 @@ async function tellGms(text, extra = {}) {
  *
  * A third party who has walked in is included for the same reason: they are in
  * the room.
+ *
+ * WHO THAT IS, BY THE ONE TABLE (E06 C4, 27.09.2026; audit S04-01, S04-36): the
+ * incident's audience at the stage the card is written (`incidentAudienceIds`) and
+ * the actor who acted. The list used to be the owners of the killer, the victim
+ * and the third, read off the state - so a trap's builder, who is in no room and
+ * holds no copy of the cast until Stage 6, was sent every card of the fight, and
+ * a third who chose Averted eyes was not sent the card of their own choice: the
+ * choice nulls `thirdId` before the card is written. The acting actor is on it
+ * whoever the table seats; the builder of a running trap is not, unless the card
+ * is theirs.
  */
 async function announceCrisis(actor, def, { success, band, total, threshold, done }) {
     // On a success, the sentence for the band that came up. On a failure,
@@ -4208,11 +4224,7 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
         ${nothing}
         ${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`;
 
-    const recipients = new Set(gmIds());
-    for (const id of [state?.killerId, state?.victimId, state?.thirdId]) {
-        const owner = id ? ownerOf(game.actors.get(id)) : null;
-        if (owner) recipients.add(owner.id);
-    }
+    const recipients = new Set([...gmIds(), ...(state ? incidentAudienceIds(state, { also: [actor] }) : [])]);
 
     return announce({ content, whisper: Array.from(recipients) });
 }
