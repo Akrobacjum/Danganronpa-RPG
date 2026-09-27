@@ -2760,6 +2760,7 @@
       "frame": "Misleading trail",
       "frameHint": "Leave something that points at somebody else. Needs {n} or more. A miss with Hope still plants a Faint, Hidden trace; a miss with Despair leaves nothing behind.",
       "whichTrace": "Which trace",
+      "yourCopy": "{name} (your copy)",
       "coverAction": "Cover your tracks",
       "trailAction": "Misleading trail",
       "notFound": "You have not found that trace.",
@@ -3370,7 +3371,8 @@
         "deaths": "The deaths nobody has found yet",
         "deferredOffers": "The Reinforced Level Ups waiting for the class",
         "overflow": "The Despair overflow's count",
-        "despairOwed": "The Despair each pool owes for its conversions to Hope"
+        "despairOwed": "The Despair each pool owes for its conversions to Hope",
+        "lootTraces": "What has been taken off each body, and its trace"
       },
       "row": {
         "traces": {

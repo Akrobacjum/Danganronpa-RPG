@@ -2864,6 +2864,7 @@
       "frame": "Mylny trop",
       "frameHint": "Zostaw coś, co wskazuje na kogoś innego. Wymaga {n} lub więcej, a ślad podkłada tak czy inaczej.",
       "whichTrace": "Który ślad",
+      "yourCopy": "{name} (twoja kopia)",
       "coverAction": "Zatrzyj ślady",
       "trailAction": "Mylny trop",
       "notFound": "Nie ma takiego śladu.",
@@ -4603,7 +4604,8 @@
         "deaths": "Śmierci, których nikt jeszcze nie odkrył",
         "deferredOffers": "Reinforced Level Upy czekające na klasę",
         "overflow": "Licznik Despair overflow",
-        "despairOwed": "Despair, który każda pula jest winna za zamiany na Hope"
+        "despairOwed": "Despair, który każda pula jest winna za zamiany na Hope",
+        "lootTraces": "Co zabrano z każdego ciała, i jego ślad"
       },
       "row": {
         "traces": {

@@ -96,11 +96,19 @@ export const WORLD_SECRET_RULES = Object.freeze({
     flags: Object.freeze({
         // E05 C7: the Reroll bookmark - a crisis roll's keys, Stage 6's token ids, a palm's victim -
         // is the roller's own client setting `rollBookmarks` (action-rolls.mjs; S02-01).
-        Actor: Object.freeze(["lastAction"]),
+        // E05 C14: what was taken off a body, and which trace on the map is its, is a row of the
+        // GMs' `lootTraces` store (handover.mjs `liftLootTraces`; S05-39 (3)).
+        Actor: Object.freeze(["lastAction", "lootTrace"]),
         // E05 C6: a player's pre-session note for the GMs - "Am I planning to kill? How?" - is a GM
         // store; the flag keeps only `{ updatedAt, written }` (pre-session-note.mjs; S11-03, S01-08).
         User: Object.freeze(["preSessionNote.text"]),
-        Token: Object.freeze([]),
+        /* E05 C14: a trace's answer key - remnants.mjs `ANSWER_KEY_FLAGS`, written out, as this file
+           imports nothing (R190 holds the two equal) - is its row's in the GMs' store; a token keeps
+           `isRemnant` and, while its incident runs, `fromIncident`. What an older world still carried
+           there, a trace's from before the ledger and a Faint Prep promotion written until E04,
+           comes off at the first load of 1.2.64 (`migrateRemnantsOnce`; S05-06, S06-02). */
+        Token: Object.freeze(["remnantType", "visibility", "reinforced", "faint", "tiedToCrime", "note", "action", "subject",
+            "sourceActor", "sourceName", "room", "chapter", "day", "timeOfDay", "pointsAt"]),
         // E05 C7: a card's facts - a Search's find, the actor it was about - are its recipients'
         // client store; the `summary` flag that held them on the document is gone (secret.mjs
         // `dropCardSummaries`; S10-05, S02-11). Read since E05's fix round (S1-m3): until then

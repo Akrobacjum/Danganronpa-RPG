@@ -23,8 +23,8 @@
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { grantItem, canCarry, preservedFlags, capacityLabel, isStashed } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet } from "./truth-bullets.mjs";
-import { dialogContent, whisperToOwner, log, warn, error } from "./utils.mjs";
-import { answerKeysRefusal } from "./gm-stores.mjs";
+import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion } from "./utils.mjs";
+import { answerKeysRefusal, lootTraceStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -444,7 +444,7 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
 /**
  * One trace per body, and the list of what has left it grows inside it.
  *
- * The remnant is recorded on the CORPSE rather than looked up on the map,
+ * The remnant is recorded against the CORPSE rather than looked up on the map,
  * because "is there already a trace here" is a question the map answers badly:
  * a room can hold a dozen traces and none of them about this body.
  *
@@ -452,9 +452,22 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
  * missing token - rightly, since a silent missing trace is the one failure an
  * investigation never recovers from - but a body with no token on the scene is
  * a situation rather than a fault, and it must not cost the player their loot.
+ *
+ * THE RECORD IS THE GMS' (E05 C14, 27.09.2026; audit S05-39 (3)). It was the body's
+ * own `lootTrace` flag - the trace's token id and every item's name - and every
+ * browser holds every actor's flags: a console read which trace on the map was the
+ * body's, and what had left it, before anybody had found either. It is a row of the
+ * GMs' `lootTraces` store now, read after the other GMs' copies have arrived, since
+ * a row this browser has not received yet would read as a body nobody has touched
+ * and a second trace would go down beside the first. The old flag is read while its
+ * clause has not taken it (`liftLootTraces`, which runs once, on the primary, a
+ * moment after the first load of 1.2.64): a loot in that moment adds to the trace
+ * the flag names, and the clause, fill-only, then finds the row written and only
+ * takes the flag off.
  */
 async function markBodyDisturbed(body, itemName) {
-    const record = body.getFlag(MODULE_ID, FLAGS.lootTrace) ?? null;
+    await lootTraceStore.whenHydrated();
+    const record = lootTraceStore.get(body.id) ?? body.getFlag(MODULE_ID, FLAGS.lootTrace) ?? null;
     const taken = [...(record?.taken ?? []), itemName];
 
     const { setRemnantSecretById } = await import("./remnants.mjs");
@@ -467,7 +480,7 @@ async function markBodyDisturbed(body, itemName) {
         await setRemnantSecretById(record.sceneId, record.tokenId, {
             note: game.i18n.format("DRPG.Loot.traceNote", { items: taken.join(", ") })
         });
-        await body.setFlag(MODULE_ID, FLAGS.lootTrace, { ...record, taken });
+        await lootTraceStore.patch(body.id, { sceneId: record.sceneId, tokenId: record.tokenId, taken });
         return record;
     }
 
@@ -487,8 +500,71 @@ async function markBodyDisturbed(body, itemName) {
     if (!token) return null;
 
     const next = { sceneId: token.parent?.id ?? null, tokenId: token.id, taken };
-    await body.setFlag(MODULE_ID, FLAGS.lootTrace, next);
+    await lootTraceStore.patch(body.id, next);
     return next;
+}
+
+/**
+ * A world from before 1.2.64 records each looted body's trace in the body's own
+ * `lootTrace` flag, which every browser reads (audit S05-39 (3)). The clause
+ * `liftLootTraces` (migrate.mjs, since 1.2.64) runs this once, on the primary, after
+ * the store holds the other GMs' copies (E05 C14).
+ *
+ * Each record goes into the body's row weak and fill-only - a row a loot wrote since
+ * keeps its own - and the flag leaves the actor only once the row reads back from
+ * storage holding a `tokenId`. A flag that names no trace (a record with no token id,
+ * a `null`) has nothing to lift and is deleted. A flag still on an actor after that
+ * throws, with the count, so the world is not stamped and the next load tries again
+ * (E05 fix r1-G1; migrate.mjs, above the lifts). Idempotent: a world already through
+ * this holds no such flag.
+ *
+ * @returns {Promise<null|{lifted: number, dropped: number, kept: number}>}  `kept` 0:
+ *   anything else throws.
+ */
+export async function liftLootTraces() {
+    if (!isPrimaryGm()) return null;
+    if (await lootTraceStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the bodies' loot traces did not arrive; the next load tries again");
+    }
+    const flag = FLAGS.lootTrace;
+    const flagged = () => (game.actors?.contents ?? []).filter(actor => Object.hasOwn(actor.flags?.[MODULE_ID] ?? {}, flag));
+    const found = flagged();
+    if (!found.length) return null;
+    const rows = {};
+    for (const actor of found) {
+        const record = actor.flags[MODULE_ID][flag];
+        if (typeof record?.tokenId !== "string" || !record.tokenId) continue;
+        rows[actor.id] = { sceneId: typeof record.sceneId === "string" ? record.sceneId : null, tokenId: record.tokenId,
+            taken: Array.isArray(record.taken) ? record.taken.map(String) : [] };
+    }
+    if (Object.keys(rows).length) {
+        await lootTraceStore.patchMany(rows, { weak: true, fillOnly: true });
+        await lootTraceStore.idle();
+    }
+    const deletion = forcedDeletion();
+    let lifted = 0, dropped = 0, kept = 0;
+    for (const actor of found) {
+        if (rows[actor.id]) {
+            const row = lootTraceStore.persisted(actor.id);
+            if (!row || !Object.hasOwn(row, "tokenId")) {
+                kept++;
+                continue;
+            }
+            lifted++;
+        } else {
+            dropped++;
+        }
+        if (deletion) await actor.update({ [`flags.${MODULE_ID}.${flag}`]: deletion });
+        else await actor.unsetFlag(MODULE_ID, flag);
+    }
+    const left = flagged().length;
+    if (lifted || dropped) {
+        log(`Took ${lifted + dropped} body loot record(s) out of world data (${lifted} held by the GM store, ${dropped} naming no trace); ${left} left.`);
+    }
+    if (left) {
+        throw new Error(`${left} bod(ies) still name their loot trace in a flag (${kept} whose row the GM store did not read back); the next load tries again`);
+    }
+    return { lifted, dropped, kept };
 }
 
 /**

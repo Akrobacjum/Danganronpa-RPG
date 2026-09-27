@@ -5755,7 +5755,8 @@ const REGRESSIONS = [
          * again when a GM asks, and diagnostics' line telling the GM what to type. The
          * reader is shown a planted ready hook first. E05's lifts join the list, each
          * with its own `since` (1.2.64), and so do its two drops (C7) and the traces'
-         * neutral names (C13), which lift nothing.
+         * neutral names (C13), which lift nothing, and C14's two: the bodies' loot records,
+         * and the per-token routine of `migrateRemnants` that was a console call (Q5).
          * E05's fix round (r1-G1) gave E04's names and fog lifts 1.2.64 too, so that a world
          * 1.2.63 stamped over rows they kept runs them once more.
          */
@@ -5767,11 +5768,15 @@ const REGRESSIONS = [
             ["dropRollBookmarks", "dropRollBookmarks", "1.2.64"], ["dropCardSummaries", "dropCardSummaries", "1.2.64"],
             ["liftIncidentMethod", "liftIncidentMethod", "1.2.64"], ["liftOverflowCount", "liftOverflowCount", "1.2.64"],
             // E05 C13: a bullet's trace key into its row, and a found trace's token back to the neutral word.
-            ["liftBulletRefs", "liftBulletRefs", "1.2.64"], ["neutralTraceNames", "neutralTraceNames", "1.2.64"]];
+            ["liftBulletRefs", "liftBulletRefs", "1.2.64"], ["neutralTraceNames", "neutralTraceNames", "1.2.64"],
+            // E05 C14: a body's loot record into its row, and an old trace's answer key off its token.
+            ["liftLootTraces", "liftLootTraces", "1.2.64"], ["migrateRemnantsOnce", "migrateRemnantsOnce", "1.2.64"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.
             "gm-stores.mjs": ["migrateFaintIntoSecrets"],
+            // E05 C14: `migrateRemnantsOnce`, itself run only by its clause, gives what it stripped the neutral word.
+            "remnants.mjs": ["neutralTraceNames"],
             // Not a call: the line diagnostics prints, telling a GM the console command.
             "diagnostics.mjs": ["migrateTruthBullets"]
         };

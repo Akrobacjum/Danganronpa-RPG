@@ -27,9 +27,12 @@
  *                 the ruling names her player or her (E05 C3);
  *   incident      the lights: Chie kills Botan (p2's), her opening thrown on p3's
  *                 client with forced dice (deleted after use), then a Finishing Blow;
- *   undiscovered  the incident closed with the body not found;
+ *                 the GM leaves an incident's trace in Dorm B while it runs;
+ *   undiscovered  the incident closed with the body not found; its trace, which nobody
+ *                 copied, is read hidden and unmarked on p1 and p2 (E05 C14);
  *   discovery     a Faint Prep trace in Dorm B; Aiko and Daichi walk in, and the
- *                 promotion dialog ticks it;
+ *                 promotion dialog ticks it - its row and p1's copy of its token are
+ *                 read (E05 C14); Aiko takes a torch off Botan's body (E05 C14);
  *   verdict       a trial naming Daichi, a wrong verdict: Chie survives, nothing is written on
  *                 her, and her Reinforced Level Up waits in the GMs' store (E05 C11).
  * Each later E05 commit adds its checks to the phase that shows its secret.
@@ -337,6 +340,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     await p3.eval(`globalThis.__forceRoll = { hope: 10, fear: 10 }; return true;`);
     await gm.eval(`await game.drpg.endEclipse(); return true;`, { timeout: 90000 });
     const opened = await settled("incident", () => gm.eval(`const s = game.drpg.murderState(); return s?.stage === "incident" ? s.stage : null;`));
+    /* AN INCIDENT'S TRACE (E05 C14, 27.09.2026; audit S05-42). The GM leaves one in Dorm B while the
+       incident runs: D11 creates it un-hidden and marked as the incident's, for its cast to draw. It is
+       read again once the incident has closed (phase undiscovered). */
+    const incidentTrace = await gm.eval(`const t = await game.drpg.placeRemnant({ room: "Dorm B", type: "incident", visibility: "evident", note: "72: an incident's trace" });
+        return t ? { id: t.id, scene: t.parent?.id ?? null, hidden: t.hidden, marked: t.getFlag("${MOD}", "fromIncident") ?? null } : null;`, { timeout: 60000 });
     await p3.eval(`delete globalThis.__forceRoll; globalThis.__dialogAuto = false; return true;`);
     /* THE CRISIS ROLL'S BOOKMARK (E05 C7, 26.09.2026; audit S02-01). A crisis action's roll is
        bookmarked for a Reroll with its key (murder.mjs `takeCrisisAction`); here p3 throws Chie's
@@ -375,6 +383,23 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const closed = await gm.eval(`await game.drpg.endMurder({ reason: "closed", followUp: false });
         return { stage: game.drpg.murderState()?.stage ?? null, found: game.settings.get("${MOD}", "bodyFound") ?? null };`, { timeout: 60000 });
     check("gm: the incident closes with the body not yet found", !closed.stage || closed.stage === "idle", JSON.stringify(closed));
+    /* THE CLOSED INCIDENT'S TRACE (E05 C14, 27.09.2026; audit S05-42). Nobody copied it, so the close
+       hid it, and it is no longer marked as an incident's: the mark names no incident, and until 1.2.64
+       the cast of every later incident was drawn it - where this crime scene was. The drawing needs a
+       canvas; what p1's and p2's copies of the token say is read here. And a trace of the incident type
+       placed now, with none running, is created hidden and unmarked. Red on the C13 tree: both un-hidden
+       and marked. */
+    const lateTrace = await gm.eval(`const t = await game.drpg.placeRemnant({ room: "Dorm B", type: "incident", visibility: "evident", note: "72: an incident's trace, after the close" });
+        return t?.id ?? null;`, { timeout: 60000 });
+    await settle(600);
+    const tracesOn = c => c.eval(`const scene = game.scenes.get("${incidentTrace?.scene ?? "none"}");
+        return ${JSON.stringify([incidentTrace?.id ?? "none", lateTrace ?? "none"])}.map(id => { const t = scene?.tokens.get(id);
+            return t ? [t.hidden, t.getFlag("${MOD}", "fromIncident") ?? null] : null; });`);
+    const [tracesP1, tracesP2] = [await tracesOn(p1), await tracesOn(p2)];
+    check("p1 and p2: the closed incident's trace nobody copied is hidden and no longer the incident's, and one placed after the close is created so (E05 C14)",
+        incidentTrace?.hidden === false && incidentTrace?.marked === true
+        && JSON.stringify(tracesP1) === JSON.stringify([[true, null], [true, null]]) && JSON.stringify(tracesP2) === JSON.stringify(tracesP1),
+        JSON.stringify({ incidentTrace, lateTrace, tracesP1, tracesP2 }));
     /* THE LONE FINDER (E05 C10; the owner's Q1, 26.09.2026). Chie leaves Dorm B for the Hall, and
        Aiko (p1's), in no part of the incident, walks in alone: p1 is told privately and knows
        Botan is dead, the table reads no flag, and nothing is announced - two witnesses stay the
@@ -415,6 +440,35 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const afterP1 = await botanOn(p1);
     check("p1: the discovery made Botan's death the table's - the flag and the status on p1, his bullet gone",
         Boolean(afterP1.flag) && afterP1.status === true && afterP1.bullet === false, JSON.stringify(afterP1));
+    /* WHAT THE PROMOTION WROTE (E05 C14, 27.09.2026; audit S05-06, S06-02). The dialog above ticked the
+       Faint Prep trace: its row on the GM reads faint no more and tied to the crime, and p1's copy of its
+       token carries nothing of it - until E04 the ticks went onto the token, where every console read
+       them and nothing else did. The token reaches p1 as every hidden token does (S17-64). */
+    const REM = `const R = await import("${repoUrl}/scripts/remnants.mjs"); const scene = game.scenes.active ?? canvas.scene;`;
+    const promotedRow = await gm.eval(`${REM} const d = R.remnantData(scene.tokens.get("${prep ?? "none"}"));
+        return d ? { faint: d.faint, tied: d.tiedToCrime } : null;`);
+    const promotedOnP1 = await p1.eval(`const t = (game.scenes.active ?? canvas.scene).tokens.get("${prep ?? "none"}");
+        return t ? Object.keys(t._source?.flags?.["${MOD}"] ?? {}).sort() : null;`);
+    check("gm and p1: the promoted Faint Prep trace's row reads faint no more and tied to the crime, and p1's copy of its token carries neither (E05 C14)",
+        promotedRow?.faint === false && promotedRow?.tied === true && JSON.stringify(promotedOnP1) === JSON.stringify(["isRemnant"]),
+        JSON.stringify({ promotedRow, promotedOnP1 }));
+    /* A BODY LOOTED (E05 C14, 27.09.2026; audit S05-39 (3)). Botan's death is the table's now; the GM
+       puts a torch on him, and Aiko (p1's) takes it through p1's own request. The GMs' row names the
+       body's trace and the torch, and Botan carries no `lootTrace` flag on p1 or p2 - until 1.2.64 he
+       did, and every console read the trace's token id and what had been taken off him (red on the C13
+       tree). The torch moving between two sheets is world data, which the handbook writes down (S05-39 (4)). */
+    const torch = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const item = await INV.grantItem(game.actors.get("${IDS.botan}"), { name: "72: Botan's torch", category: "tool", tier: 1, override: true, quiet: true });
+        return item?.id ?? null;`, { timeout: 60000 });
+    const looted = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestBodyLoot({ takerId: "${IDS.aiko}", bodyId: "${IDS.botan}", itemId: "${torch ?? "none"}" });`, { timeout: 60000 });
+    const lootRow = await settled("discovery", () => gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = S.lootTraceStore?.get("${IDS.botan}"); return row?.tokenId ? { tokenId: row.tokenId, taken: row.taken } : null;`));
+    const lootFlag = c => c.eval(`return game.actors.get("${IDS.botan}")?.flags?.["${MOD}"]?.lootTrace ?? null;`);
+    const [lootP1, lootP2] = [await lootFlag(p1), await lootFlag(p2)];
+    check("gm, p1 and p2: Aiko's loot of Botan's torch is the GMs' row, and Botan carries no loot record on p1 or p2 (E05 C14)",
+        Boolean(torch) && (lootRow?.taken ?? []).includes("72: Botan's torch") && lootP1 === null && lootP2 === null,
+        JSON.stringify({ torch, looted, lootRow, lootP1, lootP2 }));
     await scanned("discovery");
 
     /* verdict: the trial names Daichi, which is wrong - Chie survives, and is the Blackened

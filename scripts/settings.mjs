@@ -311,6 +311,13 @@ export const SETTINGS = {
     gmOverflow: "gmOverflow",
     gmDespairOwed: "gmDespairOwed",
     /**
+     * WHAT HAS BEEN TAKEN OFF EACH BODY (E05 C14, 1.2.64; audit S05-39 (3)): a GM store
+     * (gm-stores.mjs `lootTraceStore`), a row per body `{ sceneId, tokenId, taken }` - its one
+     * loot trace and the items' names. The body's `lootTrace` flag until 1.2.64, which every
+     * browser holds. No player copy.
+     */
+    gmLootTraces: "gmLootTraces",
+    /**
      * The words of every private card this browser is a recipient of.
      *
      * CLIENT-SCOPED, and that is the entire point - see secret.mjs. A whisper
@@ -1278,6 +1285,14 @@ export function registerSettings() {
             onStoreChange("despair");
             Hooks.callAll("drpgDespairOwedChanged");
         }
+    });
+    // What has been taken off each body (E05 C14): no `onChange`, as nothing on any screen
+    // shows it - read by the next loot of the same body, on the GM that serves it.
+    game.settings.register(MODULE_ID, SETTINGS.gmLootTraces, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     game.settings.register(MODULE_ID, SETTINGS.secretCards, {

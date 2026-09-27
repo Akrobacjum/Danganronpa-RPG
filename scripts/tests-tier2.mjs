@@ -2851,7 +2851,10 @@ const SCENARIOS = [
                 x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, note: "test fixture - incident name"
             });
             ok(token, "could not place the fixture trace");
-            equal(token.hidden, false, "incident traces are created hidden now - this test measures nothing");
+            /* Placed with no incident running it is created hidden since E05 C14 (S05-42); an
+               incident's own trace is not, and that is the token this test holds. */
+            if (token.hidden) await token.update({ hidden: false });
+            equal(scene.tokens.get(token.id)?.hidden, false, "the fixture trace could not be revealed - this test measures nothing");
             await remnants.setRemnantPublic(token, { name: said });
             await settle();
             equal(scene.tokens.get(token.id)?.name, word,
@@ -2998,6 +3001,280 @@ const SCENARIOS = [
             if (token) {
                 try { await remnants.dropRemnantSecret(token); } catch { /* nothing filed */ }
                 try { await token.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["a looted body's trace and what left it are the GMs' row, and the body carries no flag of it", async () => {
+        /*
+         * E05 C14, 27.09.2026; audit S05-39 (3). A looted body carried a `lootTrace` flag - its
+         * trace's token id and every item's name taken off it - which every browser holds: a
+         * console read which trace on the map was the body's and what had left it. It is a row of
+         * the GMs' `lootTraces` store now. Two items are taken off a dead student one after the
+         * other: one trace for both (the row names it, and it stands on the map as a loot's), the
+         * row lists both names, and the body carries no such flag. Put back after: the taker's new
+         * items, the trace, the row, the body alive.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace (trap 142), and the row names the trace");
+        const [taker, body] = cast(2);
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { lootBody } = await import("./handover.mjs");
+        const { lootTraceStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const remnants = await import("./remnants.mjs");
+        ok(remnants.tokenFor(body), "the body has no token on any scene: a body with no token leaves no trace (trap 142), and this measures nothing");
+        const had = new Set(taker.items.map(i => i.id));
+        const traceOf = row => (row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null);
+        try {
+            ok(await killCharacter(body, { secret: false, keepBullets: true }), "the death was not recorded");
+            const put = name => grantItem(body, { name, category: "tool", tier: 1, override: true, quiet: true });
+            const first = await put("SUITE C14 a torch");
+            const second = await put("SUITE C14 a rope");
+            ok(first && second, "the fixture items were not put on the body");
+            ok(await lootBody({ takerId: taker.id, bodyId: body.id, itemId: first.id }), "the first loot took nothing");
+            ok(await lootBody({ takerId: taker.id, bodyId: body.id, itemId: second.id }), "the second loot took nothing");
+            await settle();
+            const row = lootTraceStore.get(body.id);
+            const trace = traceOf(row);
+            equal(stableJson([row?.taken ?? null, Boolean(trace), trace ? remnants.remnantData(trace)?.action ?? null : null]),
+                stableJson([["SUITE C14 a torch", "SUITE C14 a rope"], true, "loot"]),
+                "the GMs' row does not list both items taken, or does not name the body's one loot trace");
+            equal(stableJson(body.flags?.[MODULE_ID]?.lootTrace ?? null), "null", "the body carries its loot trace in a flag every browser reads");
+        } finally {
+            for (const item of taker.items.filter(i => !had.has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            const trace = traceOf(lootTraceStore.get(body.id));
+            if (trace) {
+                try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            if (lootTraceStore.has(body.id)) await lootTraceStore.drop(body.id);
+            for (const item of body.items.filter(i => i.name.startsWith("SUITE C14"))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            await reviveCharacter(body, { quiet: true });
+            await settle();
+        }
+    }],
+
+    ["a closed incident's traces nobody copied are hidden, none stays marked, and one placed with none running is hidden", async () => {
+        /*
+         * E05 C14, 27.09.2026; audit S05-42. D11 creates an incident's traces un-hidden and marked
+         * `fromIncident`, so its participants' clients draw them - and that client asks only whether
+         * AN incident is running and whether its viewer is in it. The cast of every later incident
+         * was drawn every earlier one's trace nobody had copied. Two incident traces are placed while
+         * one runs, and a bullet is copied from one of them; the incident is closed: the other is
+         * hidden, the copied one stays revealed for its finder, and neither is marked any more. A
+         * trace of the incident type placed with no incident running is created hidden and unmarked.
+         * Drawing is not measured here - no canvas - only what every browser's copy of the token says.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the incident's traces are placed on the scene on screen");
+        const [killer, victim, finder] = cast(3);
+        const drpg = game.drpg;
+        const murder = await import("./murder.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const at = { x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene };
+        const now = t => {
+            const d = scene.tokens.get(t?.id);
+            return [d?.hidden ?? null, d?.getFlag(MODULE_ID, "fromIncident") ?? null];
+        };
+        equal(murder.murderState(), null, "an incident was already running when this test started");
+        const placed = [], made = [];
+        try {
+            await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+            await settle();
+            ok(murder.murderState(), "no incident opened");
+            const lost = await remnants.placeRemnant({ type: "incident", visibility: "evident", ...at, note: "SUITE C14 an incident's trace nobody finds" });
+            const found = await remnants.placeRemnant({ type: "incident", visibility: "evident", ...at, note: "SUITE C14 an incident's trace somebody copies" });
+            placed.push(lost, found);
+            equal(stableJson([now(lost), now(found)]), stableJson([[false, true], [false, true]]),
+                "an incident's traces are not created un-hidden and marked while it runs - this test measures nothing");
+            made.push(await bullets.createTruthBullet(finder, { name: "SUITE C14 a copy", realType: "incident", visibility: "evident",
+                remnantId: found.id, sceneId: scene.id }));
+            ok(made[0], "no bullet was copied from the found trace");
+
+            await murder.endMurder({ reason: "test", followUp: false });
+            await settle();
+            equal(stableJson([now(lost), now(found)]), stableJson([[true, null], [false, null]]),
+                "the closed incident's trace nobody copied is not hidden, the copied one was hidden from its finder, or one is still marked as an incident's");
+            equal(await remnants.retireIncidentTraces(), null, "a second pass found a trace still marked as an incident's");
+
+            const after = await remnants.placeRemnant({ type: "incident", visibility: "evident", ...at, note: "SUITE C14 an incident's trace with none running" });
+            placed.push(after);
+            equal(stableJson(now(after)), stableJson([true, null]), "an incident's trace placed with no incident running is not created hidden and unmarked");
+        } finally {
+            if (murder.murderState()) await murder.endMurder({ reason: "test", followUp: false });
+            for (const item of made) {
+                try { await item?.delete(); } catch { /* already gone */ }
+            }
+            for (const t of placed.filter(Boolean)) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["the Remnant and project actors are found by their flag, and by name only while they hold nothing", async () => {
+        /*
+         * E05 C14, 27.09.2026; audit S05-41. Both base actors were looked up by their names,
+         * "Remnant" and "DRPG Project", though each is created carrying its flag: a GM's own
+         * adversary called "Remnant" was raised to OBSERVER for every player at each load, and
+         * every trace became a token of it. Pure first, on fakes: the flag wins over the name, a
+         * named actor holding an item is never taken, and an older world's empty one still is.
+         * Then in this world: the module's Remnant actor renamed (so that a lookup by name meets
+         * the GM's first) and a GM's "Remnant" holding an item beside it - the reconcile at load
+         * leaves the GM's at its level, and a trace is placed as a token of the module's. Put back.
+         */
+        const R = await import("./remnants.mjs");
+        const P = await import("./projects-map.mjs");
+        const fake = (name, { flag = null, items = 0 } = {}) => ({ name, items: { size: items }, effects: { size: 0 },
+            getFlag: (scope, key) => (scope === MODULE_ID && key === flag ? true : undefined) });
+        const ours = fake("SUITE renamed", { flag: "isRemnant" }), theirs = fake("Remnant", { items: 2 }), older = fake("Remnant");
+        equal(stableJson([R.findRemnantActor([theirs, ours]) === ours, R.findRemnantActor([theirs]), R.findRemnantActor([theirs, older]) === older]),
+            stableJson([true, null, true]), "the Remnant actor is not the flagged one, a named actor holding items was taken, or an older world's empty one was not");
+        const board = fake("SUITE renamed", { flag: "projectId" }), gmOwn = fake("DRPG Project", { items: 1 }), oldBoard = fake("DRPG Project");
+        equal(stableJson([P.findProjectActor([gmOwn, board]) === board, P.findProjectActor([gmOwn]), P.findProjectActor([gmOwn, oldBoard]) === oldBoard]),
+            stableJson([true, null, true]), "the project actor is not the flagged one, a named actor holding items was taken, or an older world's empty one was not");
+
+        needs(world.atLeast("sceneOnScreen"), "the trace is placed on the scene on screen");
+        const module = R.findRemnantActor();
+        ok(module?.getFlag(MODULE_ID, "isRemnant"), "this world has no flagged Remnant actor to find");
+        const name = module.name;
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        let gms = null, trace = null;
+        try {
+            await module.update({ name: "SUITE C14 the module's Remnant" });
+            [gms] = await Actor.createDocuments([{ name: "Remnant", type: "npc", ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE } }]);
+            ok(gms, "could not make the GM's own actor");
+            await gms.createEmbeddedDocuments("Item", [{ name: "SUITE C14 a claw", type: "loot" }]);
+            ok(game.actors.getName("Remnant")?.id === gms.id, "a lookup by name does not meet the GM's actor - this measures nothing");
+            await R.reconcileRemnantActor();
+            trace = await R.placeRemnant({ type: "prep", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, note: "SUITE C14 whose token" });
+            equal(stableJson([game.actors.get(gms.id)?.ownership?.default ?? null, trace?.actorId ?? null]),
+                stableJson([CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE, module.id]),
+                "the GM's own \"Remnant\" was raised for the players, or a trace was placed as a token of it");
+        } finally {
+            if (trace) {
+                try { await R.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            if (gms) {
+                try { await gms.delete(); } catch { /* already gone */ }
+            }
+            if (module.name !== name) await module.update({ name });
+            await settle();
+        }
+    }],
+
+    ["Tamper names a trace of one's own by one's own copy, and the reshape card keeps its ruling for the GMs", async () => {
+        /*
+         * E05 C14, 27.09.2026; audit S05-14. Tamper's list labelled every trace with its band and
+         * its real category off the ledger, and opening the menu costs nothing: an investigator
+         * holding an unanalysed copy read the category an Analyze exists to price. Off Stage 6 a
+         * trace of one's own is labelled by one's own copy's name now. A trace placed where a
+         * student stands, and copied onto their sheet: its row in their list is "<copy> (your
+         * copy)", with neither the band nor the category. And the reshape card's "was/now" line
+         * and the killer's tie line are the GMs' part of the card (`gmBody`), not the player's.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "a student with a token has to stand in the trace's room");
+        const { cleanableTracesForPlayer, isCleaner, reshapeCardParts } = await import("./cleanup.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { studentActors } = await import("./monokuma.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const scene = canvas.scene;
+        const student = studentActors().find(a => scene?.tokens?.some(t => t.actorId === a.id) && !isCleaner(a) && locateActor(a)?.room);
+        ok(student, "no student with a token on the scene on screen stands in a room outside Stage 6");
+        const stand = scene.tokens.find(t => t.actorId === student.id);
+        let trace = null, copy = null;
+        try {
+            trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: stand.x, y: stand.y, scene,
+                room: locateActor(student).room, note: "SUITE C14 a trace of one's own" });
+            ok(trace, "could not place the fixture trace");
+            copy = await bullets.createTruthBullet(student, { name: "SUITE C14 my copy", realType: "prep", visibility: "evident",
+                remnantId: trace.id, sceneId: scene.id });
+            ok(copy, "could not copy the trace onto the student's sheet");
+            const data = remnants.remnantData(trace);
+            const row = cleanableTracesForPlayer(student.id, { mine: true }).find(t => t.id === trace.id);
+            /* The copy's name as it stands, not the one it was created with: the copy takes its
+               trace's public name (truth-bullets.mjs `propagateRemnantPublic`), the neutral word
+               while nobody has described it - measured 27.09.2026, the first run read "Trace". */
+            const mine = student.items.get(copy.id)?.name ?? copy.name;
+            equal(row?.label ?? null, game.i18n.format("DRPG.Tamper.yourCopy", { name: mine }),
+                "a trace of one's own is not labelled by one's own copy in the Tamper list");
+            ok(!row.label.includes(data.typeLabel) && !row.label.includes(data.visibilityLabel),
+                `the Tamper list names the trace's category or band: ${row.label}`);
+
+            const parts = reshapeCardParts(data, { name: "SUITE C14 a kettle", text: "SUITE C14 it was always there", tie: true });
+            const ties = foundry.utils.escapeHTML(game.i18n.localize("DRPG.Cleanup.reshapeRulingTies"));
+            equal(stableJson([parts.body.includes("SUITE C14 a kettle"), parts.body.includes(data.typeLabel), parts.body.includes(ties),
+                parts.gmBody.includes(data.typeLabel), parts.gmBody.includes(ties)]), stableJson([true, false, false, true, true]),
+                "the reshape card's player part holds the trace's category or the tie line, or its GMs' part lacks them");
+        } finally {
+            try { await copy?.delete(); } catch { /* already gone */ }
+            if (trace) {
+                try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["the Faint Prep promotion offers no trace already tied to the crime, and writes what it ticks into the ledger alone", async () => {
+        /*
+         * E05 C14, 27.09.2026; audit S05-06, S06-02. `promoteFaintPrep` (chapter.mjs), at a body's
+         * discovery, lists the Faint Prep traces and the GM ticks the murder's. It offered one already
+         * tied to the crime - a hand-ticked box, a trace that delivered the weapon - as though it were
+         * still a question; and until E04 it wrote the ticks onto the token, where every console read
+         * them and nothing else did. Nothing drove it until now. Two Faint Prep traces, one of them
+         * tied; the window, answered here, must list the other alone; ticked, its row reads faint no
+         * more and tied to the crime, and its token carries nothing but `isRemnant`. Put back.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const { promoteFaintPrep } = await import("./chapter.mjs");
+        const remnants = await import("./remnants.mjs");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const at = { x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene };
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const placed = [];
+        let listed = null;
+        try {
+            const open = await remnants.placeRemnant({ type: "prep", visibility: "subtle", faint: true, tiedToCrime: false, ...at, subject: "SUITE C14 still a question" });
+            const tied = await remnants.placeRemnant({ type: "prep", visibility: "subtle", faint: true, tiedToCrime: true, ...at, subject: "SUITE C14 already tied" });
+            placed.push(open, tied);
+            ok(open && tied, "could not place the fixture traces");
+            D.wait = async cfg => {
+                const el = document.createElement("div");
+                if (typeof cfg?.content === "string") el.innerHTML = cfg.content;
+                else if (cfg?.content) el.append(cfg.content.cloneNode(true));
+                const rows = [...el.querySelectorAll("label")].map(l => [l.textContent ?? "", l.querySelector('input[name="promote"]')?.value]);
+                listed = rows.map(([text]) => text);
+                return rows.filter(([text]) => text.includes("SUITE C14 still a question")).map(([, value]) => Number(value));
+            };
+            const promoted = await promoteFaintPrep();
+            ok(Array.isArray(listed), "the promotion asked nothing - this measured nothing");
+            equal(stableJson([listed.some(t => t.includes("SUITE C14 still a question")), listed.some(t => t.includes("SUITE C14 already tied"))]),
+                stableJson([true, false]), "the promotion did not offer the open trace, or offered one already tied to the crime");
+            const data = remnants.remnantData(open);
+            equal(stableJson([promoted, data?.faint ?? null, data?.tiedToCrime ?? null]), stableJson([1, false, true]),
+                "the ticked trace's row does not read faint no more and tied to the crime");
+            equal(stableJson(Object.keys(scene.tokens.get(open.id)?._source?.flags?.[MODULE_ID] ?? {})), stableJson(["isRemnant"]),
+                "the promotion wrote on the token, which every browser reads");
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            for (const t of placed.filter(Boolean)) {
+                try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
             }
             await settle();
         }
@@ -9200,6 +9477,167 @@ const SCENARIOS = [
         }
     }],
 
+    ["the loot's lift moves each body's lootTrace flag into the GMs' store, and takes the flag off once it reads back", async () => {
+        /*
+         * E05 C14, 27.09.2026; audit S05-39 (3). A world from before 1.2.64 records each looted
+         * body's trace in the body's own `lootTrace` flag, which every browser reads; the clause
+         * `liftLootTraces` moves the record into the body's row, weak and fill-only, and takes the
+         * flag off only once the row reads back from storage. Three students carry a fixture flag,
+         * in a world the stores have never opened (`withGmStoreWorld`): one whose row this browser
+         * never had, one whose row a loot wrote since (its trace and a longer list), and one whose
+         * record names no trace. The first's row reads back from disk holding the flag's record,
+         * weak; the second's keeps its own; the third is given no row; no student carries the flag
+         * after; the report counts two lifted and one dropped; a second run has nothing to do.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const H = await import("./handover.mjs");
+        const fixtures = cast(3);
+        const [lost, decided, none] = fixtures;
+        const flagged = () => fixtures.map(a => Object.hasOwn(game.actors.get(a.id)?.flags?.[MODULE_ID] ?? {}, "lootTrace"));
+        try {
+            await E.withGmStoreWorld(`suite-lootlift-${foundry.utils.randomID(8)}`, async () => {
+                await lost.setFlag(MODULE_ID, "lootTrace", { sceneId: "SUITESCENE000001", tokenId: "SUITETOKEN000011", taken: ["SUITE a knife"] });
+                await decided.setFlag(MODULE_ID, "lootTrace", { sceneId: "SUITESCENE000001", tokenId: "SUITETOKEN000012", taken: ["SUITE a rope"] });
+                await none.setFlag(MODULE_ID, "lootTrace", { taken: [] });
+                await S.lootTraceStore.patch(decided.id, { sceneId: "SUITESCENE000001", tokenId: "SUITETOKEN000013", taken: ["SUITE a rope", "SUITE a lamp"] });
+                equal(stableJson(flagged()), stableJson([true, true, true]), "a fixture body does not carry its flag - this measured nothing");
+                const report = await H.liftLootTraces();
+                const disk = id => {
+                    const row = S.lootTraceStore.persisted(id);
+                    return row ? [row.tokenId ?? null, row.taken ?? null] : null;
+                };
+                equal(stableJson([disk(lost.id), disk(decided.id), disk(none.id)]),
+                    stableJson([["SUITETOKEN000011", ["SUITE a knife"]], ["SUITETOKEN000013", ["SUITE a rope", "SUITE a lamp"]], null]),
+                    "a record did not read back from the store's storage, the world's overwrote the row a loot wrote since, or a record naming no trace was given a row");
+                equal(S.lootTraceStore.stampOf(lost.id, "tokenId"), S.lootTraceStore.weak(), "the lifted record was not written weak");
+                equal(stableJson(flagged()), stableJson([false, false, false]), "a body still carries its loot trace in a flag");
+                equal(stableJson([report?.lifted, report?.dropped, report?.kept]), stableJson([2, 1, 0]), `the lift's report: ${stableJson(report)}`);
+                equal(await H.liftLootTraces(), null, "a second run of the lift found something to do");
+            });
+        } finally {
+            for (const a of fixtures) {
+                if (Object.hasOwn(game.actors.get(a.id)?.flags?.[MODULE_ID] ?? {}, "lootTrace")) await a.unsetFlag(MODULE_ID, "lootTrace");
+            }
+        }
+    }],
+
+    ["the loot's lift leaves a body's flag when the row does not read back", async () => {
+        /*
+         * E05 C14, 27.09.2026: the other half of the pair above, as the bullets' pair does it. The
+         * store's save is swallowed - the row stands in memory and not on disk - and the body keeps
+         * its flag: nothing leaves world data that the store cannot read back, and the lift throws
+         * with the count (E05 fix r1-G1), so the migration does not stamp the world and the next load
+         * tries again. In a world the stores have never opened; the flag is taken off after.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const H = await import("./handover.mjs");
+        const [body] = cast(1);
+        const record = { sceneId: "SUITESCENE000001", tokenId: "SUITETOKEN000019", taken: ["SUITE a kept knife"] };
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        try {
+            await E.withGmStoreWorld(`suite-lootkept-${foundry.utils.randomID(8)}`, async () => {
+                await body.setFlag(MODULE_ID, "lootTrace", record);
+                settings.set = async function (namespace, key, value) {
+                    if (namespace === MODULE_ID && key === S.lootTraceStore.spec.key) return value;
+                    return realSet.call(this, namespace, key, value);
+                };
+                const threw = await thrown(() => H.liftLootTraces());
+                putBack();
+                ok(S.lootTraceStore.has(body.id), "the swallowed save left no row in memory either - this measured nothing");
+                equal(stableJson([/^1 bod\(ies\) still name their loot trace in a flag \(1 /.test(threw ?? ""), body.getFlag(MODULE_ID, "lootTrace")?.tokenId ?? null]),
+                    stableJson([true, record.tokenId]), `the world lost a record whose row is not on disk, or the lift did not throw with the count: ${threw}`);
+            });
+        } finally {
+            putBack();
+            if (Object.hasOwn(body.flags?.[MODULE_ID] ?? {}, "lootTrace")) await body.unsetFlag(MODULE_ID, "lootTrace");
+        }
+    }],
+
+    ["the traces' answer-key clause moves an old trace's flags into the ledger and off its token, and throws while one stays", async () => {
+        /*
+         * E05 C14, 27.09.2026; audit S05-06, S06-02; the owner's Q5. `migrateRemnants` was a console
+         * call, and a world whose GM never typed it kept, on tokens every browser holds, the answer
+         * key of each trace from before the ledger and the Faint Prep promotions written until E04.
+         * The clause `migrateRemnantsOnce` runs its per-token routine once. Fixture tokens, handed to
+         * it (the clause itself takes every trace in the world; the suite does not migrate a table's):
+         * a trace from before the ledger - its answer key in its flags, its label as its name, no row;
+         * one placed since, carrying a promotion over a row from before the upgrade; and a quiet one.
+         * The first gets a row with its type and its label, the second's row reads the promotion, both
+         * tokens keep `isRemnant` alone under the neutral word, the quiet one is not touched, and a
+         * second run has nothing to do. Then the kept half: the store's save swallowed, a typed token
+         * keeps its flags, and the clause throws with the count. The tokens are deleted after.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces stand on the scene on screen");
+        const R = await import("./remnants.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const word = game.i18n.localize("DRPG.Remnant.tokenName");
+        const label = "SUITE C14 Subtle Prep Remnant - Player B";
+        const made = [];
+        const trace = async (name, flags) => {
+            const [t] = await scene.createEmbeddedDocuments("Token", [{ name, actorId: R.findRemnantActor()?.id ?? null, actorLink: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, hidden: true, flags: { [MODULE_ID]: { isRemnant: true, ...flags } } }]);
+            ok(t, `could not place the fixture token "${name}"`);
+            made.push(t);
+            return t;
+        };
+        const face = t => {
+            const d = scene.tokens.get(t.id);
+            return [d?.name ?? null, Object.keys(d?._source?.flags?.[MODULE_ID] ?? {}).sort()];
+        };
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        try {
+            const old = await trace(label, { remnantType: "prep", visibility: "subtle", note: "SUITE C14 old note" });
+            const promoted = await trace(word, { faint: false, tiedToCrime: true });
+            await remnantStore.patch(R.keyOf(promoted), { type: "prep", visibility: "subtle", faint: true, tiedToCrime: false,
+                note: "test fixture - a promoted trace" }, { weak: true });
+            const quiet = await trace(word, {});
+            ok(R.answerKeyOnToken(old) && R.remnantData(old) === null, "the first fixture is not a trace from before the ledger - this measures nothing");
+            const report = await R.migrateRemnantsOnce({ tokens: [old, promoted, quiet] });
+            const oldRow = remnantStore.get(R.keyOf(old)), promotedRow = R.remnantData(promoted);
+            equal(stableJson([oldRow?.type ?? null, oldRow?.label ?? null, oldRow?.note ?? null, promotedRow?.faint ?? null, promotedRow?.tiedToCrime ?? null]),
+                stableJson(["prep", label, "SUITE C14 old note", false, true]),
+                "the old trace's answer key and label, or the promotion, did not reach the ledger");
+            equal(stableJson([face(old), face(promoted), face(quiet)]), stableJson([[word, ["isRemnant"]], [word, ["isRemnant"]], [word, ["isRemnant"]]]),
+                "a token still carries its answer key or its old label, or the quiet one was touched");
+            equal(stableJson([report?.moved, report?.filled, report?.carried]), stableJson([1, 1, 1]), `the clause's report: ${stableJson(report)}`);
+            equal(await R.migrateRemnantsOnce({ tokens: [old, promoted, quiet] }), null, "a second run of the clause found something to do");
+
+            const kept = await trace("SUITE C14 Evident Key Remnant", { remnantType: "key", visibility: "evident" });
+            settings.set = async function (namespace, key, value) {
+                if (namespace === MODULE_ID && key === remnantStore.spec.key) return value;
+                return realSet.call(this, namespace, key, value);
+            };
+            const threw = await thrown(() => R.migrateRemnantsOnce({ tokens: [kept] }));
+            putBack();
+            equal(stableJson([/^1 trace token\(s\) still carry their answer key /.test(threw ?? ""), R.answerKeyOnToken(scene.tokens.get(kept.id))]),
+                stableJson([true, true]), `a token lost its answer key with no row on disk, or the clause did not throw with the count: ${threw}`);
+        } finally {
+            putBack();
+            for (const t of made) {
+                try { await R.dropRemnantSecret(t); } catch { /* nothing filed */ }
+            }
+            const left = made.map(t => t.id).filter(id => scene.tokens.has(id));
+            if (left.length) await scene.deleteEmbeddedDocuments("Token", left);
+            await settle();
+        }
+    }],
+
     ["a lift that leaves its secret in world data stops the migration short on the GM's screen, and the next pass lifts it - on a world stamped 1.2.63 too", async () => {
         /*
          * E05 fix r1-G1, 27.09.2026; the reviews' S1-M1 and M2, and the orchestrator's note on
@@ -10189,6 +10627,15 @@ const SCENARIOS = [
                 },
                 gone: (report, id) => !S.despairOwedStore.has(id),
                 back: id => S.despairOwedStore.get(id)?.owed === 2
+            },
+            // What was taken off a body, through its store (E05 C14): a trace no scene has, which no loot reaches.
+            lootTraces: {
+                seed: async () => {
+                    await S.lootTraceStore.patch(holder.id, { sceneId: "SUITEE05BACKUPSC", tokenId: "SUITEE05BACKUPTK", taken: ["SUITE backed-up torch"] });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.lootTraceStore.has(id),
+                back: id => stableJson(S.lootTraceStore.get(id)?.taken ?? null) === stableJson(["SUITE backed-up torch"])
             },
             // A pre-session note, through its store (E05 C6): the GM's own row, which no player is sent. Its
             // flag as a reset leaves it, and after the restore as the row says (E05 fix r1-G4, M6 = S1-m6).

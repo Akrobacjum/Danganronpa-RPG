@@ -543,14 +543,21 @@ export async function openDeathDialog({ actor = null } = {}) {
  * left by anyone gathering tools, and most of them mean nothing. So this offers
  * the list and the GM ticks. Ticking sets `tiedToCrime` as well as clearing
  * `faint`, which is what actually exempts a trace from the chapter-end sweep.
+ *
+ * NOT ONE ALREADY TIED TO THE CRIME (E05 C14, 27.09.2026; audit S05-06). A Faint
+ * Prep trace a GM had tied by hand, or that delivered the weapon (remnants.mjs
+ * `tieTraceForItem`), was offered at every discovery as though it were still a
+ * question - and it survives the sweep already. Exported for the suite, which
+ * answers the window itself.
  */
-async function promoteFaintPrep() {
+export async function promoteFaintPrep() {
     const candidates = [];
     for (const scene of game.scenes) {
         for (const token of remnantsOn(scene)) {
             const data = remnantData(token);
             if (!data?.faint) continue;
             if (data.type !== "prep") continue;
+            if (data.tiedToCrime) continue;
             candidates.push({ token, data, scene });
         }
     }

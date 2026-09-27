@@ -600,6 +600,22 @@ export const despairOwedStore = defineGmStore({
 });
 
 /**
+ * WHAT HAS BEEN TAKEN OFF EACH BODY (E05 C14, 27.09.2026; audit S05-39 (3)). A row per body:
+ * `sceneId` and `tokenId`, its one loot trace, and `taken`, every item's name that has left
+ * it. Until 1.2.64 it was the body's own `lootTrace` flag, which every browser holds: a
+ * console read which trace on the map was the body's and everything taken off it, whoever
+ * found it. Written by the GM that serves a loot (handover.mjs `markBodyDisturbed`), cut by
+ * the reset's "remnants" group with the traces it points at. No player copy - nothing on a
+ * player's client reads it - and no old key: an older world's flags come out of the world by
+ * `liftLootTraces`.
+ */
+export const lootTraceStore = defineGmStore({
+    name: "lootTraces", key: SETTINGS.gmLootTraces,
+    kind: "ledger", resetGroup: "remnants", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * THE OFFERS COPY'S RULE (the round-2 review's M2, 26.09.2026). An answer names every
  * character its owner owns now, each with the newest decision about it, and is the
  * owner's whole set: taken when it is at least as new in every character it names and

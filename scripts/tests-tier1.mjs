@@ -4541,7 +4541,10 @@ const INVARIANTS = [
          * E05's fix round (S1-m3, S1-m4, 27.09.2026): a chat message's flags are read, and a
          * token's own actor data (its delta) under the Actor rule - each Actor flag is fixtured
          * on a delta as well, so a rule that reads world actors alone fails here. E05 C13: an
-         * item's flags too (the rule's Item half), with the killer's id planted in one.
+         * item's flags too (the rule's Item half), with the killer's id planted in one. E05 C14:
+         * a body's loot record, and a token's answer key - each flag of remnants.mjs's
+         * `ANSWER_KEY_FLAGS`, which the rule writes out and must equal, while the clean token
+         * keeps `fromIncident` beside `isRemnant`.
          */
         const W = await import("./world-secrets.mjs");
         const MOD = W.WORLD_SECRET_MODULE;
@@ -4556,7 +4559,7 @@ const INVARIANTS = [
             actors: [{ id: KILLER, flags: { [MOD]: { advances: 1 }, "r190-other-module": { memo: KILLER } } },
                 { id: "R190BYSTANDER001", flags: { [MOD]: { deceased: false } } }],
             users: [{ id: "R190USER00000001", flags: { [MOD]: { preSessionNote: { updatedAt: 1, written: true } } } }],
-            tokens: [{ id: "R190SCENE0000001.R190TOKEN0000001", flags: { [MOD]: { isRemnant: true } },
+            tokens: [{ id: "R190SCENE0000001.R190TOKEN0000001", flags: { [MOD]: { isRemnant: true, fromIncident: true } },
                 delta: { flags: { [MOD]: { advances: 2 } } } }],
             messages: [{ id: "R190MESSAGE00001", flags: { [MOD]: { callCard: true, popupTitle: "A ruling to make" } } }],
             items: [{ id: "R190BYSTANDER001.items.R190ITEM00000001", flags: { [MOD]: {
@@ -4601,6 +4604,18 @@ const INVARIANTS = [
             ["ChatMessage flag summary",
                 s => { s.messages[0].flags[MOD].summary = { action: "Search", item: "R190 a find" }; },
                 h => h.kind === "flag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00001" && h.path === `flags.${MOD}.summary`],
+            // E05 C14: a body carries no loot record - on a world actor, and on an unlinked token's own actor data.
+            ["Actor flag lootTrace",
+                s => { s.actors[1].flags[MOD].lootTrace = { sceneId: "R190SCENE0000001", tokenId: "R190TOKEN0000009", taken: ["R190 a knife"] }; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.lootTrace`],
+            ["unlinked token's Actor flag lootTrace",
+                s => { s.tokens[0].delta.flags[MOD].lootTrace = { taken: [] }; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `delta.flags.${MOD}.lootTrace`],
+            // E05 C14: a trace's token carries none of its answer key - a promotion's `false` is found as well.
+            ...["remnantType", "visibility", "reinforced", "faint", "tiedToCrime", "note", "action", "subject", "sourceActor", "sourceName",
+                "room", "chapter", "day", "timeOfDay", "pointsAt"].map(f => [`Token flag ${f}`,
+                s => { s.tokens[0].flags[MOD][f] = f === "faint" ? false : "R190"; },
+                h => h.kind === "flag" && h.doc === "Token" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `flags.${MOD}.${f}`]),
             // E05 C13: a bullet names no trace in its flags - a `null` one, which every bullet no trace made carried, is found as well.
             ["Item flag remnantRef",
                 s => { s.items[0].flags[MOD].remnantRef = null; },
@@ -4626,6 +4641,10 @@ const INVARIANTS = [
                 hits => !hits.some(h => h.id === "projectMeta") && hits.some(h => h.kind === "field" && h.id === "clock" && h.path === "deep.tokenId")]
         ];
         const R = W.WORLD_SECRET_RULES;
+        // E05 C14: the Token rule is remnants.mjs's list of what a trace's token may not carry, written out.
+        const { ANSWER_KEY_FLAGS } = await import("./remnants.mjs");
+        equal(JSON.stringify(R.flags?.Token ?? []), JSON.stringify(ANSWER_KEY_FLAGS),
+            "the world-secrets rule's Token half is not remnants.mjs's ANSWER_KEY_FLAGS");
         const named = new Set([...FIXTURES, ...EXEMPT].map(([what]) => what));
         const unfixtured = [
             ...Object.entries(R.settings).flatMap(([key, rule]) => [...(rule.fields ?? []).map(f => `${key}.${f}`),

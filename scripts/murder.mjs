@@ -3576,6 +3576,18 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
     await restoreState({}, { keep: ["betrayal"] });
     log(`Murder closed (${reason}).`);
 
+    /* AND ITS TRACES LEAVE THE NEXT INCIDENT'S MAP (E05 C14, 27.09.2026; audit S05-42).
+       The ones nobody copied are hidden and none is marked as an incident's any more
+       (remnants.mjs `retireIncidentTraces`): the mark names no incident, so the cast of
+       every later one was drawn them. On the GM that closes it, the one GM that runs this
+       function; after the state is wiped, as the tracker below. */
+    try {
+        const { retireIncidentTraces } = await import("./remnants.mjs");
+        await retireIncidentTraces();
+    } catch (err) {
+        error("Could not take the closed incident's traces off the next one's map", err);
+    }
+
     /* AND THE TRACKER GOES WITH IT.
 
        Measured on 11.09: close the murder and the Incident tracker stays on screen,

@@ -805,6 +805,41 @@ const CLAUSES = [
             const { neutralTraceNames } = await import("./remnants.mjs");
             return neutralTraceNames();
         }
+    },
+    {
+        key: "liftLootTraces",
+        since: "1.2.64",
+        /*
+         * WHAT WAS TAKEN OFF A BODY, OUT OF WORLD DATA (E05 C14; audit S05-39 (3)). Until 1.2.64
+         * each looted body carried a `lootTrace` flag - its trace's token id and every item's
+         * name taken off it - and every browser holds every actor's flags. Once, on the primary,
+         * after the GM stores' copies arrived, with the rules written on `liftLootTraces`
+         * (handover.mjs): each record into the GMs' `lootTraces` store weak and fill-only, and
+         * off the body only once its row reads back holding the trace.
+         */
+        run: async () => {
+            const { liftLootTraces } = await import("./handover.mjs");
+            const report = await liftLootTraces();
+            return report && (report.lifted || report.dropped) ? report : null;
+        }
+    },
+    {
+        key: "migrateRemnantsOnce",
+        since: "1.2.64",
+        /*
+         * THE ANSWER KEYS STILL ON OLD TRACES' TOKENS (E05 C14; audit S05-06, S06-02; the
+         * owner's Q5). `migrateRemnants` - the answer key of a trace from before the ledger,
+         * and a Faint Prep promotion `promoteFaintPrep` wrote onto a token until E04, into the
+         * ledger and off the token - was a console call, and a world whose GM never typed it
+         * kept both on tokens every browser holds. Once, on the primary, after the traces'
+         * store has the other GMs' copies, its per-token routine over the tokens that still
+         * carry one (remnants.mjs `migrateRemnantsOnce`); after `neutralTraceNames`, which
+         * leaves such a token's old name for this to read as its label.
+         */
+        run: async () => {
+            const { migrateRemnantsOnce } = await import("./remnants.mjs");
+            return migrateRemnantsOnce();
+        }
     }
 ];
 
