@@ -67,16 +67,24 @@ export function livingStudentsForGm() {
  *
  * What perishes is the Truth Bullets - carried and stashed alike - and the
  * answer-key entries go with them, so the ledger does not fill up with rows
- * nothing can ever reach again. Everything else they owned stays on the sheet
+ * nothing can ever reach again: here, or for a death the GMs keep, at its
+ * publication (`publishDeath`). Everything else they owned stays on the sheet
  * to be found on the body; decision D1 used to take that too, and no longer
  * does (see the long note inside).
  *
  * Quiet on purpose. A murder is a secret until somebody finds the body - the
- * announcement belongs to `discoverBody`, not here. Only the GMs are told.
+ * announcement belongs to `discoverBody`, not here. The card goes to the GMs
+ * and, inside a running incident, to its participants' owners (WHO IS TOLD, below).
+ * This comment said "only the GMs are told" after the card was widened (28.08) and
+ * until the E05 comment sweep (C16, 27.09.2026). Since E05 C10 the running
+ * incident's victim is not even the table's fact yet: no flag, no status, no
+ * bullets deleted until the discovery or a GM's hand (TWO PHASES, below).
  *
  * The token stays where it is. A body is usually the thing the cast will be
  * standing around looking at; what changes is that the rules stop counting them
- * as a person in the room (see `FLAGS.deceased` and `othersInRoom`).
+ * as a person in the room - on the GMs' side and for those who know from the
+ * kill, for everybody else from the publication (`isDeadForGm`, `isDeceased`,
+ * movement.mjs `countsAsPresent`).
  *
  * @param {Actor} actor
  * @param {object} [options]

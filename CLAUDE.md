@@ -171,6 +171,24 @@ settles only on a real hydration - never on an open that threw - so a player's r
 that waits on the stores waits through `answerKeysOpen`, bounded by
 `TIMING.gmStoreOpenMs`, and is refused past it (R189, 61 M).
 
+**A new world setting or flag is checked by `scripts/world-secrets.mjs`** (E05,
+1.2.64). Foundry sends every world setting and every actor's, user's, token's, item's
+and chat message's flags to every browser, and `WORLD_SECRET_RULES` is the one
+statement of what they may never hold. R9 (tier 0) reads the suite's world against
+it, R190 (tier 1) fails a rule with no fixture, and 72-canary scans a player's
+browser with it after every phase of a chapter. A secret moved out of world data
+comes with its rule in the same commit, and a field it lets one setting keep
+(`except`) comes with the reason beside it.
+
+**Death is two predicates** (E05 C9, C10). `isDeceased` is the table's fact - the
+flag, written at the publication - and `isDeadForGm` is what this browser may know:
+the flag, or a death the GMs keep (the `deaths` store on a GM, the `mineDeaths` copy
+on a player who knows of it). World-visible bookkeeping and anything posted per
+student asks the first; the GMs' judgement, and a player's own sheet and moves, the
+second. Both live in `settings.mjs`; R192 fails any other read of the flag, and R193
+holds that a death is the table's only once it is published (`publishDeath`, run
+by the discovery and the Students window, nothing else).
+
 **Two functions are deliberately long.** `registerSettings` (a flat registration
 table) and `steps()` (a data table). Everything else the audit measured over 300
 lines has been split. Splitting either of those two would produce a dozen

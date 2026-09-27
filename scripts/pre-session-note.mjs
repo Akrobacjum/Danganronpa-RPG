@@ -31,7 +31,8 @@
  * Foundry names as the sender - the packet names nobody. Until the GM's client
  * answers, the player's browser keeps the note in its copy of its own
  * (`noteCopy`), marked unsent: with no GM connected it stays there, "kept here
- * until a GM connects", and goes again when a primary GM's world has loaded.
+ * until a GM connects", and goes again when a primary GM's world has loaded and
+ * this browser has seen that GM connect (`owedTo`, below).
  * Each player holds a copy of their own note and of nobody else's, sent by a GM
  * when it changes, when they ask at load, and after a restore.
  */

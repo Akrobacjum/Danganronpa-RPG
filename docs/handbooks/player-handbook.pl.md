@@ -82,7 +82,7 @@ Trzy fazy:
 
 Przed każdą porą dnia gasną światła. To okno ustawiania to **Eclipse**:
 
-- Nikt nie widzi cudzego tokenu, w żadnym pokoju. Każdy gracz jest we własnym kanale głosowym.
+- Niczyj ekran nie pokazuje cudzego tokenu, w żadnym pokoju. Każdy gracz jest we własnym kanale głosowym. (Ciemność jest ekranów: to, gdzie stoi każdy token, i tak dociera do każdej przeglądarki, bo tak wysyła to Foundry.)
 - Ustawiasz swój token: do **2 przejść między połączonymi pokojami**, drzwi i przejścia wciąż obowiązują. Wyjątkiem jest **Eclipse przed Nocą** - wybierasz **dowolny pokój na mapie**.
 - Twoje akcje są już odnowione, gdy Eclipse się otwiera, ale nic ich nie wydaje poza **Direct Murder**. Żadnych Calli, dopóki nie zapali się światło.
 - Otwiera ci się karta z podsumowaniem poprzedniej pory dnia - co znalazłeś, co zostawiłeś.
@@ -335,7 +335,7 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | **Ultimate** | 1 | Przewaga na rzut, do którego twój Ultimate naprawdę się stosuje. Czeka na GMa tak samo. |
 | **Contribution** | 2 | +1 postępu do projektu, nad którym trwa praca w pokoju, w którym jesteś. |
 | **Sprint** | 2 | Jeszcze jedno przejście między pokojami o tej porze dnia, bez płacenia akcją. |
-| **Reroll** | 3 | Przerzuć ostatnią akcję. Cofa poprzedni wynik - ślad, przedmiot, Sanity idą razem z nim. Niektóre rzeczy zostają: ręka, która już była w kieszeni, trop, który już podłożono. |
+| **Reroll** | 3 | Przerzuć ostatnią akcję. Cofa poprzedni wynik - ślad, przedmiot, Sanity idą razem z nim. Niektóre rzeczy zostają: ręka, która już była w kieszeni, trop, który już podłożono. Akcję pamięta przeglądarka, w której rzucałeś; z innej Reroll rzuca kośćmi jeszcze raz i niczego nie cofa. |
 | **Resolve** | 3 | Na jeden rzut sam wybierz, którą statystykę dodać. |
 | **Burst** | 4 | Twoja następna akcja nic nie kosztuje - cała akcja, ile by nie kosztowała. |
 | **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |
@@ -441,7 +441,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 
 **Remnant** to ślad na mapie. Większość tego, co robisz w pokoju, jakiś zostawia: wzięcie broni, akcja dynamiczna, sabotaż, praca nad projektem morderstwa, wyrzucenie czegoś, przeszukanie kieszeni ciała, walka, sprzątanie. To, jak trudno go zobaczyć, to jego **widoczność**: Obvious, Evident, Subtle, Hidden. Niektóre są **Reinforced** - nikt nie może ich usunąć.
 
-Ślad pojawia się na twojej mapie <ins>dopiero wtedy, gdy masz skopiowany z niego Truth Bullet</ins> (ślady walki, w której bierzesz udział, widać od chwili, gdy powstają). Nosi znak zapytania, dopóki twoja kopia nie zostanie przeanalizowana, a potem ikonę tego, co go zostawiło - Search, akcja dynamiczna, projekt, sabotaż, sama walka, sprzątanie, wyrzucona rzecz, przeszukane ciało, ręka samego GMa. Jego ramka przybiera kolor tego, czym według twojej kopii jest.
+Ślad pojawia się na twojej mapie <ins>dopiero wtedy, gdy masz skopiowany z niego Truth Bullet</ins> (ślady walki, w której bierzesz udział, widać od chwili, gdy powstają). Na twoim ekranie nosi nazwę i obrazek twojej kopii - na niczyim innym: sam ślad ma jedną neutralną nazwę. Nosi znak zapytania, dopóki twoja kopia nie zostanie przeanalizowana, a potem ikonę tego, co go zostawiło - Search, akcja dynamiczna, projekt, sabotaż, sama walka, sprzątanie, wyrzucona rzecz, przeszukane ciało, ręka samego GMa. Jego ramka przybiera kolor tego, czym według twojej kopii jest.
 
 | Remnant | Co znaczy |
 |---|---|
@@ -612,6 +612,8 @@ Gdy się przyłączyłeś i przeżyłeś, możesz potem **zwrócić się przeciw
 
 Ktoś znajduje ciało. W chwili, gdy <ins>w pokoju z nim stanie dwoje uczniów</ins>, a przynajmniej jedno z nich nie należy do zabójców, ciało zostaje odkryte - nigdy podczas Eclipse. Sami zabójcy, wciąż sprzątając, mogą stać nad nim i go nie znaleźć. GM może też ogłosić je ręcznie. Wszyscy są wzywani na miejsce, a gra staje tam, dopóki nie zacznie się Investigation. Śmierć z własnej ręki to zabójstwo jak każde inne - klasa ma tylko scenę.
 
+Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie dowiaduje, a nic na ciele o niej nie mówi. Ci, którzy byli w incydencie, wiedzą. Jeśli natkniesz się na ciało sam, bez nikogo innego w pokoju, dowiadujesz się prywatnie, co znalazłeś, i tylko twój ekran pokazuje je jako ciało - nikt inny się nie dowiaduje, a jeden świadek to nie odkrycie. Możesz wtedy przeszukać jego kieszenie, tak jak ci, którzy byli w incydencie; to, co weźmiesz, przechodzi między dwoma arkuszami, a to przeglądarka każdego gracza może odczytać.
+
 ---
 
 ## 11. Investigation
@@ -654,7 +656,7 @@ Każdy żyjący gracz dostaje **kartę do głosowania**. Głosujesz na tego, kto
 | Wynik | Co się dzieje |
 |---|---|
 | **Trafnie** | Blackened zostaje stracony. Każdy ocalały dostaje **Level Up** (wybierz 1). |
-| **Błędnie** | Stracony zostaje oskarżony. Blackened pozostaje anonimowy i w grze z **Reinforced Level Up** (wybierz 3) i jedną nową zasadą własnego wyboru, a każdy Monokuma napełnia pulę Despair. |
+| **Błędnie** | Stracony zostaje oskarżony. Blackened pozostaje anonimowy i w grze z **Reinforced Level Up** (wybierz 3) i jedną nową zasadą własnego wyboru, a każdy Monokuma napełnia pulę Despair. Reinforced Level Up czeka na następny Level Up klasy: jego właściciel dowiaduje się o tym prywatnie i wybiera go razem z Level Upem klasy, gdy głosowanie trafnie wskaże Blackened, albo przy werdykcie Final Trial. Przepada, jeśli wcześniej zginie. |
 
 Rozdział może wydać dwóch Blackened (zdrada zostawia dwa ciała); głosowanie musi wskazać <ins>wszystkich</ins>.
 
@@ -679,7 +681,8 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden 
 ## 13. Śmierć i to, co po niej
 
 - Zmarli nie wykonują akcji i nie wydają Hope. Zachowujesz arkusz i głos przy stole.
-- Twoje **Truth Bullets giną razem z tobą**, noszone i schowane jednakowo, chyba że GM je zachowa. Wszystko inne zostaje przy ciele do znalezienia.
+- Twoje **Truth Bullets giną razem z tobą**, noszone i schowane jednakowo, chyba że GM je zachowa - gdy twoja śmierć wyjdzie na jaw. Wszystko inne zostaje przy ciele do znalezienia.
+- Jeśli zginiesz w incydencie, nikt inny się nie dowie, dopóki ktoś nie znajdzie twojego ciała albo GM tego nie ujawni: twój arkusz pokazuje cię jako martwego, z "Nikt jeszcze nie znalazł twojego ciała.", a twoje Truth Bullets zostają na nim do tego czasu.
 - Ciało zostaje tam, gdzie upadło, i zabójca może je przenieść. Zmarli nie liczą się jako obecni w pokoju: nie są świadkami, nie przekazują.
 - GM może zakończyć rozdział, ujawniając, czym naprawdę był każdy Truth Bullet, zbierając je (Faint i Final Truth zostają) i czyszcząc Faint ślady.
 
@@ -707,7 +710,7 @@ Przycisk w prawym dolnym rogu otwiera **Czat z GMem**: jeden wątek między tob�
 
 Wszystko, co potrzebuje człowieka, ląduje w tym samym wątku: Observe na punkt zainteresowania, podpowiedź z Analyze, akcja dynamiczna, propozycja projektu, Search na coś konkretnego, Calle Experience i Ultimate, przedmiot Tier 0, którego chcesz użyć kreatywnie. Widzisz swój rzut, własne słowa i decyzję, gdy przyjdzie. Jeśli żaden GM nie odpowie, nic nie zostaje wydane.
 
-Komunikator ma też zakładkę **Notatka**: twoje plany na sesję, dla GMów, do przeczytania przed nią. Szablon zadaje siedem pytań:
+Komunikator ma też zakładkę **Notatka**: twoje plany na sesję, dla GMów, do przeczytania przed nią. Jest tylko dla GMów: jej słowa idą do ich przeglądarek i zostają w twojej, a przeglądarka żadnego innego gracza ich nie ma. Zapisana, gdy żaden GM nie jest online, mówi "Czeka tutaj, aż połączy się GM." i idzie, gdy któryś się połączy. Jeśli GM zmienił ją, odkąd ją otworzyłeś, Zapisz zachowuje twój tekst i mówi ci o tym; zapisz jeszcze raz, żeby twój zastąpił jego. Szablon zadaje siedem pytań:
 
 - czy planujesz zabić i jak,
 - czy jesteś otwarty na śmierć,

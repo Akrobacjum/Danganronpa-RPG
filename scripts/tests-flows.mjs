@@ -11,8 +11,8 @@
  * which tags the checks that do with `phase(name, { flow })` or a check's own
  * `flow` - or, where none does yet, the stage that is to write one.
  *
- * Read by R160 (tier 0, through the kit), which holds it to GM_HANDLERS and the
- * socket listeners in the source, and by `node tools/check.mjs registry`, which
+ * Read by R160 (tier 0, through the kit), which holds it to the bridge's tables
+ * (GM_HANDLERS until E31) and the socket listeners in the source, and by `node tools/check.mjs registry`, which
  * holds its scenarios and stages to audit/harness/README.md and tools/stages.json.
  * It imports nothing, so Node can read it as it is.
  *

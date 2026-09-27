@@ -5258,7 +5258,7 @@ const REGRESSIONS = [
          * on the GM's, shown on a third - so the suite, in one browser, cannot drive one
          * end to end; the harness can, and FLOWS (tests-flows.mjs) says which scenario
          * does, or which stage will write one. That list is only worth anything if
-         * nothing reaches the GM outside it: every GM_HANDLERS action and every file
+         * nothing reaches the GM outside it: every bridge action and every file
          * that listens on the module's socket belongs to exactly one flow (or is exempt
          * with a reason), and no flow names an action, a file, a game.drpg call or a
          * function that is gone. Read off the bridge's tables (E31: the declarations the
@@ -5267,8 +5267,9 @@ const REGRESSIONS = [
          * means the source moved and this measured nothing, and fails as such.
          */
         const sources = new Map(await otherSources());
-        // The bridge's tables, read live since E31 (25.09.2026): 33 actions in gm-bridge.mjs, the trap relay's one
-        // and the search tokens' three.
+        // The bridge's tables, read live since E31 (25.09.2026): gm-bridge.mjs's, the trap relay's and the search
+        // tokens'. No count here: a stage that adds an action (E05's note.save) would make one stale, and the
+        // floor below is what says the tables were read at all.
         const actions = (await bridgeTables()).flatMap(t => Object.keys(t.table));
         const listeners = [...sources].filter(([, text]) => /game\.socket\.on\(/.test(stripComments(text))).map(([file]) => file);
         ok(actions.length >= 37, `read ${actions.length} bridge actions, and there were 37 - the tables have moved, and this measured nothing`);

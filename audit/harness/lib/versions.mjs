@@ -30,6 +30,14 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 /**
  * The LIVE-E30 checks: what the harness models of v14 that nobody has yet
  * tried on it. One leaves this list when audit/live has run it at a table.
+ *
+ * E05's (C16, 27.09.2026) are the seven the harness stands in for: the
+ * console's world scan (01), the lifts on planted world data (02), the
+ * crossing card (06), the owed Despair (07), the verdict's pickers (08),
+ * `replaceFlag` and `forcedDeletion()` (09) and the note that waits for a GM
+ * (10). LIVE-E05-03 and -05 (a canvas), -04 (LiveKit) and -11 (avclient-
+ * livekit's own setting) are not modelled at all, so nothing here stands in
+ * for them: they stay in AUDIT section 9.2 only.
  */
 export const UNCONFIRMED = [
     "LIVE-E30-01", "LIVE-E30-02", "LIVE-E30-03", "LIVE-E30-04",
@@ -37,7 +45,9 @@ export const UNCONFIRMED = [
     "LIVE-E30-10",
     "LIVE-E31-01", "LIVE-E31-02", "LIVE-E31-03", "LIVE-E31-04", "LIVE-E31-05", "LIVE-E31-06",
     "LIVE-E04-01", "LIVE-E04-02", "LIVE-E04-03", "LIVE-E04-04", "LIVE-E04-05", "LIVE-E04-06",
-    "LIVE-E04-07", "LIVE-E04-08", "LIVE-E04-09", "LIVE-E04-10", "LIVE-E04-11", "LIVE-E04-12"
+    "LIVE-E04-07", "LIVE-E04-08", "LIVE-E04-09", "LIVE-E04-10", "LIVE-E04-11", "LIVE-E04-12",
+    "LIVE-E05-01", "LIVE-E05-02", "LIVE-E05-06", "LIVE-E05-07", "LIVE-E05-08", "LIVE-E05-09",
+    "LIVE-E05-10"
 ];
 
 function readJson(file) {
