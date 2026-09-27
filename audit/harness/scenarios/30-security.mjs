@@ -337,6 +337,50 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: a player's facts about their own character are kept as plain fields only",
         factsKept.own?.item === "SEC yours" && !("extra" in (factsKept.own ?? {})) && factsKept.own?.total === null, JSON.stringify(factsKept));
 
+    /* A CARD'S META FROM A PLAYER (E06 C7a, 27.09.2026). What a private card says of itself
+       travels with its words now, and the GM's popup and ruling wiring read it there - so a
+       player's meta is judged as a player's facts are: it cannot ask the GMs for a notice
+       (`gmPopup`, `popupForce`) or put a ruling's buttons on a card (`callCard`); what else
+       it says of the player's own card is kept. p1's own card, its packet as a console would
+       write it. */
+    const metaCard = await p1.eval(`
+        const msg = await ChatMessage.create({ content: '<p class="notes" data-drpg-secret>-</p>',
+            whisper: ["${gm.userId}"], flags: { "${MOD}": { secret: true } } });
+        game.socket.emit("${SOCKET}", { action: "secret.card", id: msg.id, html: "<p>SEC meta</p>", at: Date.now(),
+            meta: { gmPopup: true, popupForce: true, callCard: true, popupTitle: "SEC meta title" } });
+        return msg.id;
+    `, { timeout: 30000 });
+    await settle(1200);
+    const metaKept = await gm.eval(`
+        const store = game.settings.get("${MOD}", "secretCards") ?? {};
+        return { words: Boolean(store[${JSON.stringify(metaCard)}]?.html), meta: store[${JSON.stringify(metaCard)}]?.meta ?? null };
+    `);
+    check("SECURITY: a player's card cannot ask the GMs for a notice or carry a ruling's buttons, and keeps its own title",
+        metaKept.words && JSON.stringify(metaKept.meta) === JSON.stringify({ popupTitle: "SEC meta title" }), JSON.stringify(metaKept));
+
+    /* A RULING CARD SETTLED (E06 C7a). `settleCall` wrote `settled` on the card's document,
+       which told every browser a ruling was made; it goes with the receipt's words now, and
+       the thread's player - one of the card's readers - reads it there. */
+    const ruled = await gm.eval(`
+        const { postToThread } = await import("${repoUrl}/scripts/messenger.mjs");
+        const { settleCall } = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const msg = await postToThread("${p1.userId}", '<p>SEC ruling</p><div class="drpg-call-actions"><button type="button" data-drpg-call="probe">x</button></div>');
+        await settleCall(msg, "SEC ruled");
+        return msg?.id ?? null;
+    `, { timeout: 30000 });
+    await settle(1200);
+    const ruledOnP1 = await p1.eval(`
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const m = game.messages.get(${JSON.stringify(ruled)});
+        // Through the document on a tree without cardFlag (red first), so the check reads it there.
+        const flag = S.cardFlag ?? ((doc, key) => doc.getFlag("${MOD}", key));
+        return m ? { settled: flag(m, "settled") ?? null, onDocument: m.toObject().flags?.["${MOD}"]?.settled ?? null,
+            receipt: S.contentOf(m).includes("SEC ruled") } : null;
+    `);
+    check("p1: a settled ruling card in p1's thread is settled from its words, and not on its document",
+        Boolean(ruled) && ruledOnP1?.settled === true && ruledOnP1.onDocument === null && ruledOnP1.receipt, JSON.stringify({ ruled, ruledOnP1 }));
+    await gm.eval(`await game.messages.get(${JSON.stringify(ruled)})?.delete(); return true;`);
+
     /* The same words, stored before this was fixed: an entry with no trust mark is
        cleaned when it is read, whoever wrote it. */
     const legacy = await gm.eval(`
@@ -783,15 +827,22 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
        popup's title said "SEC trap here - something set it off" on p2's copy. The GM finds the
        card by its words; p2's copy of it - the whole document - holds no name of the trap.
        Red on the fix's parent: p2's popupTitle named it. */
-    const alertId = await gm.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
-        for (const m of game.messages.contents.filter(m => m.getFlag("${MOD}", "callCard") && m.getFlag("${MOD}", "gmPopup")).reverse()) {
-            if ((await wordsOf(m) ?? "").includes("SEC trap here")) return m.id;
+    const alertId = await gm.eval(`const { wordsOf, cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
+        for (const m of game.messages.contents.filter(m => m.getFlag("${MOD}", "secret")).reverse()) {
+            if (!(await wordsOf(m) ?? "").includes("SEC trap here")) continue;
+            const flag = cardFlag ?? ((doc, key) => doc.getFlag("${MOD}", key));
+            return flag(m, "callCard") && flag(m, "gmPopup") ? m.id : null;
         }
         return null;`);
     const alertOnP2 = await p2.eval(`const m = game.messages.get(${JSON.stringify(alertId)});
-        return m ? { held: true, named: JSON.stringify(m.toObject()).includes("SEC trap here"), title: m.getFlag("${MOD}", "popupTitle") ?? null } : { held: false };`);
+        return m ? { held: true, named: JSON.stringify(m.toObject()).includes("SEC trap here"), title: m.getFlag("${MOD}", "popupTitle") ?? null,
+            flags: Object.keys(m.toObject().flags?.["${MOD}"] ?? {}).sort() } : { held: false };`);
     check("SECURITY: a trap's alert card names the trap in the GMs' words, and nowhere in p2's copy of the card",
         Boolean(alertId) && alertOnP2.held && !alertOnP2.named, JSON.stringify({ alertId, alertOnP2 }));
+    /* E06 C7a: nor does p2's copy say what the card is - a ruling to make, its sound, its
+       popup: the GM found those in the words' meta above, and the document keeps two flags. */
+    check("SECURITY: p2's copy of the trap's alert holds no flag but secret and drpgMessage",
+        Boolean(alertId) && JSON.stringify(alertOnP2.flags) === JSON.stringify(["drpgMessage", "secret"]), JSON.stringify({ alertId, alertOnP2 }));
 
 
     // 7g. search tokens in a room the character is not in, and in the one she is.

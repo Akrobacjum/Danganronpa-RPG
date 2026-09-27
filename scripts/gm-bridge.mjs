@@ -30,7 +30,7 @@ import {
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
 export { removalRefusal } from "./bridge-guards.mjs";
 
-import { contentOf } from "./secret.mjs";
+import { contentOf, cardFlag } from "./secret.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_PROGRESS = "project.progress";
@@ -137,7 +137,8 @@ export function registerGmBridge() {
     // this same hook dispatch.
     if (game.user.isGM) {
         Hooks.on("renderChatMessageHTML", (message, element) => {
-            if (!message.getFlag(MODULE_ID, "callCard")) return;
+            // From the words' meta (E06 C7a): the card is drawn again when they land.
+            if (!cardFlag(message, "callCard")) return;
             import("./messenger-app.mjs")
                 .then(m => m.wireCallActions(element.querySelector(".message-content") ?? element, message))
                 .catch(err => debug("Could not wire a ruling card in the log", err));
@@ -2228,7 +2229,8 @@ export async function callGm(actor, {
          * an action somebody asked for, and keeps its title. What is left in the
          * flags is that a card went to the GMs, and when - chat metadata, E06's.
          * Measured in 30's trap phase: p2's copy of the alert held the project's
-         * name before this, and holds nothing of it after.
+         * name before this, and holds nothing of it after. Since E06 C7a none of these
+         * flags is on the document at all: `postSecret` sends them with the words.
          */
         try {
             await whisperToGms(content, {
@@ -2300,10 +2302,11 @@ export async function settleCall(message, text) {
         if (message.getFlag(MODULE_ID, "secret")) {
             // The words live off the document (secret.mjs). Writing them into
             // `content` here would hand every client the private text in
-            // clear; the receipt travels the road the question did.
+            // clear; the receipt travels the road the question did - and so
+            // does `settled` since E06 C7a, into the meta its readers keep: on
+            // the document it told every browser that a ruling was made, and when.
             const { updateSecret } = await import("./secret.mjs");
-            await updateSecret(message, wrap.innerHTML);
-            return await message.update({ flags });
+            return await updateSecret(message, wrap.innerHTML, null, flags[MODULE_ID]);
         }
         return await message.update({ content: wrap.innerHTML, flags });
     } catch (err) {

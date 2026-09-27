@@ -143,6 +143,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     check("gm: the Search's facts reached the GM with its words, for the day summary",
         foundItems.length > 0 && gmFacts.some(f => foundItems.includes(f.item)),
         JSON.stringify({ found: foundItems, facts: gmFacts }));
+    /* WHAT THE CARD SAYS OF ITSELF (E06 C7a, 27.09.2026; audit L16, S02-02). Its module flags
+       said which action it was about and which way the roll went - "Search", on p2's copy.
+       They go with the words now: p2's copy keeps two flags, and the GM, a reader, reads the
+       title from the meta the words brought. */
+    const p2Flags = theirs ? Object.keys(JSON.parse(theirs.doc)?.flags?.[MOD] ?? {}).sort() : null;
+    const gmTitle = await gm.eval(`const S = await import("${REPO}/scripts/secret.mjs");
+        const m = game.messages.get(${JSON.stringify(searchCard?.id ?? null)});
+        return m && S.cardFlag ? S.cardFlag(m, "popupTitle") ?? null : null;`);
+    check("p2: the Search card's document says nothing of itself, and the GM reads its title from the words",
+        JSON.stringify(p2Flags) === JSON.stringify(["drpgMessage", "secret"]) && typeof gmTitle === "string" && /search/i.test(gmTitle),
+        JSON.stringify({ p2Flags, gmTitle }));
     console.log("[qa] p1 notifications after Search:", JSON.stringify(search.notifs));
 
     // ---- 3. a Hope Call that waits for the GM (Ultimate) ------------------------------------

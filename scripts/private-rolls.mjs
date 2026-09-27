@@ -44,6 +44,7 @@ import { murderState, incidentAudienceIds } from "./murder.mjs";
 // to this file. It replaced `contentOf` from secret.mjs, which this file needed
 // only to match words against a card's prose.
 import { readDuality } from "./despair-award.mjs";
+import { cardFlag } from "./secret.mjs";
 
 export function registerPrivateRolls() {
     Hooks.on("preCreateChatMessage", onPreCreateChatMessage);
@@ -260,7 +261,8 @@ function paintChatCard(message, element) {
              * better: not the composition, the CARD. Same treatment, same
              * tokens, applied to ours.
              */
-            const tone = message.getFlag(MODULE_ID, "popupTone");
+            // A private card's tone came with its words (E06 C7a): this hook runs again when they land.
+            const tone = cardFlag(message, "popupTone");
             if (tone && OUTCOME_TOKEN[tone]) {
                 html.classList.add("drpg-outcome", `drpg-outcome-${tone}`);
                 markOutcome(html, tone);

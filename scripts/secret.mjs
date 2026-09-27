@@ -49,7 +49,7 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { debug, warn, error, isPrimaryGm, log, forcedDeletion } from "./utils.mjs";
+import { debug, warn, error, isPrimaryGm, log, forcedDeletion, MESSAGE_FLAG } from "./utils.mjs";
 import { ownsActor } from "./bridge-guards.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -166,6 +166,53 @@ export function plainSummary(raw) {
     };
 }
 
+/*
+ * A CARD'S FACTS OF ITSELF TRAVEL WITH ITS WORDS TOO (E06 C7a, 27.09.2026; audit L16, S02-02).
+ *
+ * `summary` above took the day summary's facts off the document; the rest of what a
+ * private card's module flags said stayed on it - the action it is about (`popupTitle`),
+ * which way its roll went (`popupTone`), its sound, the item it used, that it asks the
+ * GMs to rule (`callCard`, `gmPopup`) and that they have (`settled`). Every browser holds
+ * the document, so p2 read "Search" and "hope" off p1's card. `postSecret` splits the
+ * flags now: the document keeps what a client that holds no words needs to place the
+ * card - that it is secret, veiled, the module's - and an ordinary thread card its
+ * placement, because its whisper list names the thread's player already; the rest is
+ * the card's `meta`, sent with the words and kept beside them. A veiled card's
+ * placement is meta as well, since a veiled card is one whose audience is the secret.
+ * `cardFlag` reads the document's flag, else the meta this browser holds.
+ */
+const DOCUMENT_FLAGS = Object.freeze([SECRET_FLAG, VEILED_FLAG, MESSAGE_FLAG]);
+/** The messenger's (messenger.mjs `MESSENGER_FLAGS`): on an ordinary thread card's document, in a veiled one's meta. */
+const PLACEMENT_FLAGS = Object.freeze(["thread", "kind", "gmAsk"]);
+/**
+ * What a player's meta may not say, judged where it arrives as a player's summary is: a
+ * card that interrupts the GMs (`gmPopup`, `popupForce`) or carries a ruling's buttons
+ * (`callCard`) is the module's to post, not a console's.
+ */
+const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard"]);
+
+/** A card's meta as a plain object without the document's own flags, or null. Pure. */
+function plainMeta(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const out = Object.fromEntries(Object.entries(raw).filter(([key]) => !DOCUMENT_FLAGS.includes(key)));
+    return Object.keys(out).length ? out : null;
+}
+
+/** `{ flags, meta }`: the module flags a private card's document keeps, and the rest. Pure. */
+function splitFlags(flags, veiled) {
+    const own = flags?.[MODULE_ID] ?? {};
+    const keep = veiled ? DOCUMENT_FLAGS : [...DOCUMENT_FLAGS, ...PLACEMENT_FLAGS];
+    const kept = Object.fromEntries(Object.entries(own).filter(([key]) => keep.includes(key)));
+    const meta = plainMeta(Object.fromEntries(Object.entries(own).filter(([key]) => !keep.includes(key))));
+    return {
+        flags: { ...(flags ?? {}), [MODULE_ID]: { ...kept, [SECRET_FLAG]: true, ...(veiled ? { [VEILED_FLAG]: true } : {}) } },
+        meta
+    };
+}
+
+/** How much a player's packet weighs: its words and its meta, against `MAX_PLAYER_BYTES`. */
+const packetBytes = (html, meta) => new Blob([String(html ?? ""), meta ? JSON.stringify(meta) : ""]).size;
+
 /**
  * Pinned cards are a messenger's threads and are never aged out with the
  * ordinary ones - but "never" was also "without limit", and a thread of years
@@ -257,6 +304,21 @@ export function secretHtml(message) {
 }
 
 /**
+ * One of a card's module flags, as this browser can know it: the document's, else the
+ * meta that came with the words (E06 C7a) - for this user only, as the words are. A
+ * reader that runs as the document arrives waits for the words first (`wordsOf`), or it
+ * reads a private card's meta before it is here.
+ */
+export function cardFlag(message, key) {
+    const own = typeof message?.getFlag === "function" ? message.getFlag(MODULE_ID, key) : message?.flags?.[MODULE_ID]?.[key];
+    if (own !== undefined && own !== null) return own;
+    if (!message?.id || !message.flags?.[MODULE_ID]?.[SECRET_FLAG]) return own;
+    const entry = read()[message.id];
+    if (!entry || (entry.user && entry.user !== game.user?.id)) return own;
+    return entry.meta?.[key] ?? own;
+}
+
+/**
  * What a card SAYS on this client.
  *
  * Every reader of `message.content` in this module goes through here, because
@@ -325,17 +387,18 @@ export function contentOf(message) {
  * @param {boolean} [trusted]  Written by a GM, as the GM wrote it. Anything else
  *   is cleaned before it is shown - see the note above `MAX_PLAYER_BYTES`.
  */
-async function remember(id, html, at, pin = false, trusted = false, summary = undefined) {
+async function remember(id, html, at, pin = false, trusted = false, summary = undefined, meta = undefined) {
     const words = trusted ? html : sanitize(html);
-    // Anything holding a notice open for these words gets them now.
-    for (const wake of waiting.get(id) ?? []) wake(words);
 
     cleaned.delete(id);
     // New words for a card keep the facts it was posted with (`updateSecret` sends none).
     const facts = summary === undefined ? (read()[id]?.summary ?? null) : plainSummary(summary);
+    // And its meta, with whatever the new packet adds to it - `settleCall`'s `settled`.
+    const kept = plainMeta({ ...(read()[id]?.meta ?? {}), ...(plainMeta(meta) ?? {}) });
     const store = { ...read(), [id]: {
         html: words, at: at ?? Date.now(), user: game.user?.id ?? null,
         ...(facts ? { summary: facts } : {}),
+        ...(kept ? { meta: kept } : {}),
         // Which world the card is in: the store is a CLIENT setting, one per
         // browser for every world it opens, and `pruneOrphans` must only ever
         // judge this world's cards against this world's chat log.
@@ -355,12 +418,16 @@ async function remember(id, html, at, pin = false, trusted = false, summary = un
         ids.sort((a, b) => (store[a].at ?? 0) - (store[b].at ?? 0));
         for (const stale of ids.slice(0, ids.length - cap)) delete store[stale];
     }
-    await write(store);
+    // `write` holds the new store before its first await, so anything holding a notice
+    // open for these words - woken now - reads the card's meta with them (E06 C7a).
+    const saving = write(store);
+    for (const wake of waiting.get(id) ?? []) wake(words);
+    await saving;
 
     // A thread's window draws its bubbles from this store: the one whose
     // words just landed is redrawn in place, the way a settled card is.
     const message = game.messages?.get(id);
-    const thread = message?.flags?.[MODULE_ID]?.thread;
+    const thread = cardFlag(message, "thread");
     if (thread) Hooks.callAll("drpgMessengerEdited", thread, message);
 }
 
@@ -397,11 +464,14 @@ async function forget(ids = []) {
  *                                     be a secret - an incident's.
  * @param {object}   [data.summary]    The card's facts, for the day summary: kept
  *                                     with the words, never on the document.
+ * @param {object}   [data.flags]      Split (`splitFlags`): the document keeps its
+ *                                     own, the rest go with the words as `meta`.
  * @returns {Promise<ChatMessage|null>}
  */
 export async function postSecret(data = {}) {
     const { veiled = false, summary: rawSummary = null, ...rest } = data ?? {};
     const summary = plainSummary(rawSummary);
+    const { flags, meta } = splitFlags(rest.flags, veiled);
     const recipients = [...new Set((rest.whisper ?? []).filter(Boolean))];
     if (!recipients.length) {
         error("Refused to post a private card with nobody to read it.");
@@ -415,7 +485,7 @@ export async function postSecret(data = {}) {
        only side that knew: the card was posted, the GM saw a dash, and the
        player was told nothing. A player's own browser checks first now and
        posts nothing. */
-    if (!game.user.isGM && new Blob([html]).size > MAX_PLAYER_BYTES) {
+    if (!game.user.isGM && packetBytes(html, meta) > MAX_PLAYER_BYTES) {
         ui.notifications?.warn(game.i18n.format("DRPG.Secret.tooLong", { kb: MAX_PLAYER_BYTES / 1024 }));
         return null;
     }
@@ -424,11 +494,7 @@ export async function postSecret(data = {}) {
         ...(veiled ? { speaker: { alias: game.i18n.localize("DRPG.Secret.speaker") } } : {}),
         content: STUB,
         whisper: veiled ? everyone() : recipients,
-        flags: foundry.utils.mergeObject(
-            rest.flags ?? {},
-            { [MODULE_ID]: { [SECRET_FLAG]: true, ...(veiled ? { [VEILED_FLAG]: true } : {}) } },
-            { inplace: false }
-        )
+        flags
     });
     if (!message) return null;
 
@@ -439,7 +505,7 @@ export async function postSecret(data = {}) {
     // recipient of should never be waiting on their own network round trip to
     // read what they just wrote.
     if (recipients.includes(game.user.id)) {
-        await remember(message.id, html, at, pin, game.user.isGM, summary);
+        await remember(message.id, html, at, pin, game.user.isGM, summary, meta);
         refresh(message);
     }
 
@@ -447,7 +513,7 @@ export async function postSecret(data = {}) {
     if (others.length) {
         try {
             game.socket.emit(SOCKET_EVENT,
-                { action: ACTION_SECRET, id: message.id, html, at, pin, ...(summary ? { summary } : {}) },
+                { action: ACTION_SECRET, id: message.id, html, at, pin, ...(summary ? { summary } : {}), ...(meta ? { meta } : {}) },
                 { recipients: others });
         } catch (err) {
             // The card exists and says nothing. Better than the reverse.
@@ -470,21 +536,24 @@ export async function postSecret(data = {}) {
  * @param {string} html
  * @param {string[]} [recipients]  Who holds the words. Defaults to the card's
  *   whisper list, which is right for every card that is not veiled.
+ * @param {object} [meta]  Flags of the card's own to add to the meta its readers keep
+ *   (`settleCall`'s `settled`) - never to the document, for the reason `postSecret` splits.
  */
-export async function updateSecret(message, html, recipients = null) {
+export async function updateSecret(message, html, recipients = null, meta = undefined) {
+    const more = plainMeta(meta) ?? undefined;
     if (!message?.id) return null;
     const readers = [...new Set((recipients ?? message.whisper ?? []).filter(Boolean))];
     const at = read()[message.id]?.at ?? message.timestamp ?? Date.now();
     const pin = pinned(message.flags);
     if (readers.includes(game.user.id) || !readers.length) {
-        await remember(message.id, html, at, pin, game.user.isGM);
+        await remember(message.id, html, at, pin, game.user.isGM, undefined, more);
         refresh(message);
     }
     const others = readers.filter(id => id !== game.user.id);
     if (others.length) {
         try {
             game.socket.emit(SOCKET_EVENT,
-                { action: ACTION_SECRET, id: message.id, html, at, pin }, { recipients: others });
+                { action: ACTION_SECRET, id: message.id, html, at, pin, ...(more ? { meta: more } : {}) }, { recipients: others });
         } catch (err) {
             error("Could not deliver a private card's new words", err);
         }
@@ -546,7 +615,7 @@ export function registerSecrets() {
                 /* A PLAYER'S WORDS: bounded, cleaned, and pinned only if the card
                    really is a thread's - read off the document, not the packet
                    (S11-28). `remember` cleans them, because `trusted` is false. */
-                if (new Blob([payload.html]).size > MAX_PLAYER_BYTES) {
+                if (packetBytes(payload.html, payload.meta) > MAX_PLAYER_BYTES) {
                     // A warning, not a debug line (E02 review): the sender's own
                     // browser refuses this before posting (`postSecret`), so a
                     // packet this size came from somewhere else.
@@ -558,12 +627,17 @@ export function registerSecrets() {
                 const facts = plainSummary(payload.summary);
                 const given = payload.summary === undefined ? undefined
                     : (facts && (!facts.actorId || ownsActor(sender, facts.actorId)) ? facts : null);
-                await remember(payload.id, payload.html, payload.at, pinned(message.flags), false, given);
+                /* A player's meta without what only the module may ask of the GMs (E06 C7a),
+                   and a pin only for the sender's own thread - the one a player writes in. */
+                const meta = plainMeta(Object.fromEntries(Object.entries(plainMeta(payload.meta) ?? {})
+                    .filter(([key]) => !GM_META.includes(key))));
+                const pin = pinned(message.flags) || meta?.thread === senderId;
+                await remember(payload.id, payload.html, payload.at, pin, false, given, meta ?? undefined);
                 refresh(game.messages.get(payload.id));
                 return;
             }
             await remember(payload.id, payload.html, payload.at, Boolean(payload.pin), true,
-                payload.summary === undefined ? undefined : plainSummary(payload.summary));
+                payload.summary === undefined ? undefined : plainSummary(payload.summary), payload.meta);
             refresh(game.messages.get(payload.id));
         } catch (err) {
             error("Could not keep a private card that arrived", err);

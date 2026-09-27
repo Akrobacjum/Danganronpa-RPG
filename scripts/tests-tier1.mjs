@@ -4627,6 +4627,10 @@ const INVARIANTS = [
                     if (inRoll) message.rolls[0] = JSON.stringify(roll);
                 },
                 h => h.kind === "messageField" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00002" && h.path === f.replace("*", "0")]),
+            // E06 C7a: a private card's document says nothing of itself - its action's title is found.
+            ["message secret: only secret, veiled, drpgMessage, thread, kind, gmAsk, settled",
+                s => { s.messages.push({ id: "R190MESSAGE00003", flags: { [MOD]: { secret: true, drpgMessage: true, popupTitle: "R190 Search" } } }); },
+                h => h.kind === "messageFlag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00003" && h.path === `flags.${MOD}.popupTitle`],
             // E05 C14: a body carries no loot record - on a world actor, and on an unlinked token's own actor data.
             ["Actor flag lootTrace",
                 s => { s.actors[1].flags[MOD].lootTrace = { sceneId: "R190SCENE0000001", tokenId: "R190TOKEN0000009", taken: ["R190 a knife"] }; },
@@ -4661,7 +4665,18 @@ const INVARIANTS = [
                     Object.assign(s.settings.projectMeta.R190PROJECT00001, { tokenId: "R190TOKEN0000002", tokenScene: "R190SCENE0000001" });
                     s.settings.clock.deep = { tokenId: "R190TOKEN0000003" };
                 },
-                hits => !hits.some(h => h.id === "projectMeta") && hits.some(h => h.kind === "field" && h.id === "clock" && h.path === "deep.tokenId")]
+                hits => !hits.some(h => h.id === "projectMeta") && hits.some(h => h.kind === "field" && h.id === "clock" && h.path === "deep.tokenId")],
+            /* E06 C7a, both ways: a thread card keeps its placement, an old one its `settled`, and it
+               speaks as its actor (a rule of `flagsOnly` alone reads no speaker) - it reads clean; the
+               same card with its sound on the document is found. */
+            ["a private card may hold its placement and settled",
+                s => {
+                    const card = (id, more) => ({ id, flags: { [MOD]: { secret: true, drpgMessage: true, thread: "R190USER00000001", kind: "action",
+                        gmAsk: true, settled: true, ...more } }, speaker: { actor: KILLER, alias: "R190 Killer" }, whisper: ["R190USER00000001"] });
+                    s.messages.push(card("R190MESSAGE00004", {}), card("R190MESSAGE00005", { sfx: "gmAsk" }));
+                },
+                hits => !hits.some(h => h.id === "R190MESSAGE00004")
+                    && hits.some(h => h.kind === "messageFlag" && h.id === "R190MESSAGE00005" && h.path === `flags.${MOD}.sfx`)]
         ];
         const R = W.WORLD_SECRET_RULES;
         // E05 C14: the Token rule is remnants.mjs's list of what a trace's token may not carry, written out.

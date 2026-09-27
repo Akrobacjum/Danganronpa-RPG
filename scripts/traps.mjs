@@ -69,6 +69,7 @@ import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, judge, tab
 // into this file through dynamic imports, which is not a cycle.
 import { allProjects, secretsOf, patchTrigger } from "./projects.mjs";
 import { newItemIdentity } from "./inventory.mjs";
+import { cardFlag, wordsOf, SECRET_FLAG } from "./secret.mjs";
 
 /* ==========================================================================
  * THE ARMED MAP - trap 157
@@ -923,7 +924,9 @@ async function onStashHunted({ actor, room } = {}) {
 async function onChatMessage(message) {
     try {
         if (!isPrimaryGm()) return;
-        const used = message?.getFlag?.(MODULE_ID, "usedItem");
+        // The card's `usedItem` came with its words to its readers, the GMs among them (E06 C7a).
+        if (message?.getFlag?.(MODULE_ID, SECRET_FLAG)) await wordsOf(message);
+        const used = cardFlag(message, "usedItem");
         if (!used) return;
 
         const projectId = trapForItemId(used.id);

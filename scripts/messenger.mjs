@@ -35,7 +35,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, error, warn } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
-import { postSecret } from "./secret.mjs";
+import { postSecret, cardFlag } from "./secret.mjs";
 
 /**
  * Whether this browser hears the messenger at all.
@@ -98,7 +98,8 @@ export function isThreadUser(userId) {
 /** Every message in a player's thread, oldest first. */
 export function threadMessages(playerUserId) {
     return game.messages
-        .filter(m => m.getFlag(MODULE_ID, MESSENGER_FLAGS.thread) === playerUserId)
+        // A veiled thread card keeps its thread in the meta its words brought (E06 C7a).
+        .filter(m => cardFlag(m, MESSENGER_FLAGS.thread) === playerUserId)
         .sort((a, b) => a.timestamp - b.timestamp);
 }
 

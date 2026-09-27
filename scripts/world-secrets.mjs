@@ -45,9 +45,11 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
  * an array - that must be absent or empty on such a message, and `flagsOnly` the module
  * flags it may carry at all. An ordinary card's speaker is its actor by design, so actor
  * ids are read in a message's speaker, `system` and rolls only where one of these rules
- * holds; its module flags are read for them always. Each commit that takes a kind of
- * card's names off its documents brings the kind's rule: a roll the module threw since
- * E06 C5b.
+ * holds and names `fields` - a rule of `flagsOnly` alone says nothing of the speaker (E06
+ * C7a: every private card is of the kind `secret`, and most speak as their actor); its
+ * module flags are read for them always. Each commit that takes a kind of card's names
+ * off its documents brings the kind's rule: a roll the module threw since E06 C5b, a
+ * private card's facts of itself since E06 C7a.
  */
 export const WORLD_SECRET_RULES = Object.freeze({
     settings: Object.freeze({
@@ -140,6 +142,16 @@ export const WORLD_SECRET_RULES = Object.freeze({
                 "rolls.*.options.title", "rolls.*.options.headerTitle", "rolls.*.options.source.actor",
                 "rolls.*.options.data.id", "rolls.*.options.data.name"]),
             since: "E06 C5b", why: "a roll the module threw names its character and its action to every browser (S02-02, S04-02)"
+        }),
+        /* E06 C7a: a private card's document keeps what places it (secret.mjs `splitFlags`); what
+           it says of itself - its title, tone, sound, used item, that it asks for a ruling - goes
+           with its words. `settled` is allowed for the cards settled before 1.2.65, on which the
+           rewrite at 1.2.65's first load (E06 C12) keeps it; until that rewrite has run, or the
+           chat log is cleared, a world's older private cards break this rule. */
+        Object.freeze({
+            when: "secret",
+            flagsOnly: Object.freeze(["secret", "veiled", "drpgMessage", "thread", "kind", "gmAsk", "settled"]),
+            since: "E06 C7a", why: "a private card's document says what it is about - its action, its roll's way, its sound, its item, a ruling asked (L16, S02-02)"
         })
     ])
 });
@@ -208,7 +220,7 @@ function at(value, path) {
  * `ids`: actor ids no world data may name - a string that contains one, value or
  * key, anywhere under a module world setting or under an actor's, user's,
  * token's (and its delta's), message's or item's module flags - and in a message's
- * speaker, `system` and rolls where a `messages` rule holds. A document's own id, and the flags outside the module's
+ * speaker, `system` and rolls where a `messages` rule with `fields` holds. A document's own id, and the flags outside the module's
  * scope, are not read.
  *
  * Answers `[{ kind: "field" | "empty" | "only" | "flag" | "messageField" | "messageFlag" | "id", doc, id, path, key?, rule }]`
@@ -285,6 +297,7 @@ export function findWorldSecrets(snapshot, { ids = [], rules = WORLD_SECRET_RULE
                 }
             }
         }
+        if (!held.some(rule => rule.fields?.length)) continue;
         for (const part of ["speaker", "system", "rolls"]) {
             if (isObject(source[part])) idsIn("ChatMessage", id, source[part], part);
         }

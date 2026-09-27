@@ -1675,6 +1675,8 @@ const SCENARIOS = [
         const [killer] = cast(1);
         const { applyVerdict } = await import("./vote.mjs");
         const { deferredOfferStore } = await import("./gm-stores.mjs");
+        // A private card's sound is in its words' meta since E06 C7a; the GM, a reader, holds it.
+        const { cardFlag } = await import("./secret.mjs");
         const hpMax = killer.system?.resources?.hitPoints?.max ?? null;
         const advances = killer.getFlag(MODULE_ID, FLAGS.advances) ?? 0;
         const from = new Set(game.messages.map(m => m.id));
@@ -1688,7 +1690,7 @@ const SCENARIOS = [
             const cards = game.messages.filter(m => !from.has(m.id));
             equal(stableJson([writes, killer.system?.resources?.hitPoints?.max ?? null, killer.getFlag(MODULE_ID, FLAGS.advances) ?? 0]),
                 stableJson([0, hpMax, advances]), "the wrong verdict wrote on the surviving Blackened (writes, maximum Health, advances)");
-            equal(stableJson(cards.filter(m => m.speaker?.actor === killer.id || m.getFlag(MODULE_ID, "sfx") === "levelUp").length), "0",
+            equal(stableJson(cards.filter(m => m.speaker?.actor === killer.id || cardFlag(m, "sfx") === "levelUp").length), "0",
                 "a card of the wrong verdict is spoken by the Blackened or carries the Level Up's sound");
             ok(cards.some(m => m.getFlag(MODULE_ID, "veiled") === true), "the Blackened's owner was not told on a veiled card");
             ok(!asked.some(e => e.classes.includes("drpg-advance")), "a Level Up window opened at a wrong verdict");
@@ -1711,6 +1713,8 @@ const SCENARIOS = [
         const [holder, other, dead] = cast(3);
         const { applyVerdict } = await import("./vote.mjs");
         const { deferredOfferStore } = await import("./gm-stores.mjs");
+        // A private card's sound is in its words' meta since E06 C7a; the GM, a reader, holds it.
+        const { cardFlag } = await import("./secret.mjs");
         const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
         const { deferAdvancement } = await import("./level-up.mjs");
         const { automatedUpdate } = await import("./resource-guard.mjs");
@@ -1741,7 +1745,7 @@ const SCENARIOS = [
                 "a survivor's Level Up is not its picks in one write and one step of advances (rise, advances, writes)");
             ok(!deferredOfferStore.has(holder.id), "the Reinforced that was applied still waits");
             const cards = game.messages.filter(m => !from.has(m.id));
-            equal(stableJson(cards.filter(m => before.has(m.speaker?.actor) || m.getFlag(MODULE_ID, "sfx") === "levelUp").length), "0",
+            equal(stableJson(cards.filter(m => before.has(m.speaker?.actor) || cardFlag(m, "sfx") === "levelUp").length), "0",
                 "a Level Up's card is spoken by its owner or carries its sound, which every console receives");
             ok(cards.filter(m => m.getFlag(MODULE_ID, "veiled") === true).length >= 2, "the two Level Ups were not told on veiled cards");
         } finally {
@@ -1801,7 +1805,7 @@ const SCENARIOS = [
         const E = await import("./eclipse.mjs");
         const S = await import("./gm-stores.mjs");
         const murder = await import("./murder.mjs");
-        const { contentOf } = await import("./secret.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
         const [killer, victim] = cast(2);
         equal(murder.murderState(), null, "an incident was already running when this scenario started");
         const stood = await aloneTogether(killer, victim);
@@ -1820,7 +1824,8 @@ const SCENARIOS = [
             equal(stableJson([row?.room, row?.note, row?.approved, row?.eclipse]), stableJson([stood.room, NOTE, null, id]),
                 "the GMs' store does not hold the declaration, named for this Eclipse");
             const asked = saying(NOTE);
-            ok(asked.length === 1 && asked[0].getFlag(MODULE_ID, "callCard") === true && !asked[0].getFlag(MODULE_ID, "thread")
+            // `callCard` is the words' meta since E06 C7a: the GM, a reader, holds it.
+            ok(asked.length === 1 && cardFlag(asked[0], "callCard") === true && !asked[0].getFlag(MODULE_ID, "thread")
                 && asked[0].whisper.every(u => game.users.get(u)?.isGM),
                 `the ask is not one card in the GMs' log: ${stableJson(asked.map(m => [m.whisper, m.flags?.[MODULE_ID]?.thread ?? null]))}`);
 
@@ -5898,6 +5903,160 @@ const SCENARIOS = [
             if (message) await message.delete();
         }
     }],
+    ["a private card's document says nothing of itself", async () => {
+        /*
+         * E06 C7a, 27.09.2026; audit L16, S02-02. `report()` (action-rolls.mjs) posted an
+         * action's result card with its title and its roll's way as module flags, and
+         * `usedStamp` (use-items.mjs) the item a card used - on the document, which every
+         * browser holds: 40-flow read "Search" off p2's copy of p1's card. `postSecret` sends
+         * them with the words now. Posted here as those two post, through `whisperToOwner`:
+         * the document's module flags are `secret` and `drpgMessage` alone and none of the
+         * facts is anywhere in it, and the GM - one of the card's readers - reads each of them
+         * through `cardFlag`, from the words' meta.
+         */
+        const [actor] = cast(1);
+        const { whisperToOwner } = await import("./utils.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const TITLE = `Suite Search ${Date.now() % 100000}`;
+        const used = { id: "SUITEC7AITEM0001", name: "Suite C7a kit", actorId: actor.id };
+        let message = null;
+        try {
+            message = await whisperToOwner(actor, "<p>Suite: an action's result</p>", {
+                flags: { [MODULE_ID]: { popupTitle: TITLE, popupTone: "hope", usedItem: used } }
+            });
+            must(message, "the card was not posted - this would measure nothing");
+            const source = JSON.stringify(message.toObject());
+            equal(stableJson([Object.keys(message.toObject().flags?.[MODULE_ID] ?? {}).sort(),
+                [TITLE, used.name, used.id].filter(fact => source.includes(fact))]),
+            stableJson([["drpgMessage", "secret"], []]), "the card's document says what it is about (its module flags, then the facts found in it)");
+            equal(stableJson([cardFlag(message, "popupTitle"), cardFlag(message, "popupTone"), cardFlag(message, "usedItem")]),
+                stableJson([TITLE, "hope", used]), "the GM, a reader of the card, does not read its title, tone and item from the words");
+        } finally {
+            if (message) await message.delete();
+        }
+    }],
+
+    ["the popup's title and the card's sound reach its readers from the words", async () => {
+        /*
+         * E06 C7a, 27.09.2026. The other half of the test above: what left the document
+         * still reaches the card's readers. A notice is drawn once, as the document arrives
+         * and before the words and their meta do, so popup.mjs and sfx.mjs wait for the words
+         * of every private card now, where they waited only for a veiled one's. The notice is
+         * read in its DOM - the title bar and the tone's class; the sound where it leaves the
+         * module, `AudioHelper.play`, with a file mapped to it for the test (the one the
+         * unplayable-file test above plays; a GM whose sound slider is at zero hears
+         * nothing, and that reads as a failure here), and as the decision sfx.mjs plays from
+         * (`soundFromMessage`). The card is forced onto the GM's screen (`popupForce`, a
+         * GM's), which is itself read from the meta: without it the GM, copied on a player's
+         * card, is shown no notice.
+         */
+        const [actor] = cast(1);
+        const { whisperToOwner } = await import("./utils.mjs");
+        const { soundFromMessage } = await import("./sfx.mjs");
+        document.querySelectorAll(".drpg-popup").forEach(node => node.remove());
+        const TITLE = `Suite notice title ${Date.now() % 100000}`;
+        const FILE = "modules/dice-so-nice/sounds/dicehit.mp3";
+        const map = foundry.utils.deepClone(getSetting(SETTINGS.sfxMap) ?? {});
+        const helper = foundry.audio.AudioHelper;
+        const play = helper.play;
+        const heard = [];
+        let message = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, { ...map, gmAsk: FILE });
+            helper.play = function (data, ...rest) {
+                heard.push(data?.src ?? null);
+                return play.call(this, data, ...rest);
+            };
+            message = await whisperToOwner(actor, "<p>Suite: a notice with a title</p>", {
+                flags: { [MODULE_ID]: { popupTitle: TITLE, popupTone: "hope", popupForce: true, sfx: { key: "gmAsk", gm: true } } }
+            });
+            must(message, "the card was not posted - this would measure nothing");
+            const card = () => [...document.querySelectorAll(".drpg-popup")]
+                .find(c => c.querySelector(".drpg-popup-title")?.textContent?.includes(TITLE)) ?? null;
+            await until(() => card() && heard.includes(FILE), 4000);
+            const notice = card();
+            equal(stableJson([Boolean(notice), notice?.classList.contains("drpg-popup-tone-hope") ?? false, heard.includes(FILE),
+                soundFromMessage(message), message.toObject().flags?.[MODULE_ID]?.sfx ?? null]),
+            stableJson([true, true, true, { key: "gmAsk", forGm: true }, null]),
+                "the notice has no title or tone from the card, its sound did not play, or the sound is not read from its words (or is on its document)");
+        } finally {
+            helper.play = play;
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            if (message) await message.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, map);
+        }
+    }],
+
+    ["a thread card still lists in its thread", async () => {
+        /*
+         * E06 C7a, 27.09.2026. A thread card's placement - its thread, kind and whether it
+         * asks the GM - stays on an ordinary thread card's document, whose whisper list names
+         * the thread's player anyway, and a GM whose browser missed the words still places it.
+         * A veiled one (callGm's, from E06 C8) says nothing of whose thread it is, so its
+         * placement goes with the words: `threadMessages` reads it through `cardFlag` and
+         * lists the card for its readers. Both kinds are posted into one player's thread.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a thread is a player's");
+        const player = game.users.find(u => !u.isGM);
+        const { postSecret } = await import("./secret.mjs");
+        const { postToThread, threadMessages, MESSENGER_FLAGS } = await import("./messenger.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        const made = [];
+        try {
+            const plain = await postToThread(player.id, "<p>Suite: an ordinary thread card</p>");
+            made.push(plain);
+            const veiled = await postSecret({ content: "<p>Suite: a veiled thread card</p>", whisper: [player.id, ...gmIds()], veiled: true,
+                flags: { [MODULE_ID]: { [MESSENGER_FLAGS.thread]: player.id, [MESSENGER_FLAGS.kind]: "action" } } });
+            made.push(veiled);
+            must(plain && veiled, "a thread card was not posted - this would measure nothing");
+            const listed = threadMessages(player.id).map(m => m.id);
+            const own = m => Object.keys(m.toObject().flags?.[MODULE_ID] ?? {}).sort();
+            equal(stableJson([own(plain), own(veiled), listed.includes(plain.id), listed.includes(veiled.id)]),
+                stableJson([["kind", "secret", "thread"], ["secret", "veiled"], true, true]),
+                "a thread card's document lost its placement, a veiled one's names its thread, or either is not listed in the thread");
+        } finally {
+            for (const message of made) if (message) await message.delete();
+        }
+    }],
+
+    ["a settled ruling card is settled for its readers", async () => {
+        /*
+         * E06 C7a, 27.09.2026. `settleCall` (gm-bridge.mjs) wrote `settled` onto the card's
+         * document - and so told every browser that a ruling had been made, and when. It
+         * goes with the new words now, into the meta the card's readers keep, and the
+         * messenger's settled check (`wireCallActions`) reads it there: a GM shown the card
+         * again finds no ruling buttons on it. The same check on a card not yet settled keeps
+         * them, so the removal is the settlement's and not the check's.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a ruling card lives in a player's thread");
+        const player = game.users.find(u => !u.isGM);
+        const { postToThread } = await import("./messenger.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const { cardFlag, contentOf } = await import("./secret.mjs");
+        const html = `<p>Suite: a ruling card</p><div class="drpg-call-actions"><button type="button" class="drpg-call-action" data-drpg-call="suite">Suite</button></div>`;
+        const buttonsAfterWiring = message => {
+            const body = document.createElement("div");
+            body.innerHTML = html;
+            wireCallActions(body, message);
+            return body.querySelectorAll("[data-drpg-call]").length;
+        };
+        let message = null;
+        try {
+            message = await postToThread(player.id, html);
+            must(message, "the ruling card was not posted - this would measure nothing");
+            const before = buttonsAfterWiring(message);
+            await settleCall(message, "Suite: settled");
+            await settle();
+            equal(stableJson([before, buttonsAfterWiring(message), cardFlag(message, "settled") ?? null,
+                message.toObject().flags?.[MODULE_ID]?.settled ?? null, contentOf(message).includes("Suite: settled")]),
+            stableJson([1, 0, true, null, true]),
+                "the settled card keeps its buttons for the GM, its words are not the receipt, or `settled` is on its document");
+        } finally {
+            if (message) await message.delete();
+        }
+    }],
+
 
     ["every objection takes a different track from the objection playlist", async () => {
         /*

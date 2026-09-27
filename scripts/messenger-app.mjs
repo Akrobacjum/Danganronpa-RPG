@@ -32,7 +32,7 @@ import { noteFor, noteStatus, noteTemplate, saveNote, whenNotesHeld } from "./pr
 import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
-import { contentOf, wordsOf } from "./secret.mjs";
+import { contentOf, wordsOf, cardFlag } from "./secret.mjs";
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
 export function registerMessengerUi() {
@@ -577,7 +577,7 @@ export function wireCallActions(body, message = null) {
 
     // Already answered. The card's own text says so - see `settleCall` - and a
     // card from before that existed still gets its buttons taken off here.
-    if (message?.getFlag(MODULE_ID, MESSENGER_FLAGS.settled)) {
+    if (message && cardFlag(message, MESSENGER_FLAGS.settled)) {
         for (const button of buttons) button.closest(".drpg-call-actions")?.remove();
         return;
     }

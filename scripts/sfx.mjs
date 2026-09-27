@@ -62,6 +62,7 @@ import { MODULE_ID, FLAGS, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VOLUME_K
     SFX_VARIATION, GAME_WINDOWS } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { log, warn, error, clamp, ownerOf, esc} from "./utils.mjs";
+import { cardFlag, wordsOf, secretHtml, isVeiled, SECRET_FLAG } from "./secret.mjs";
 
 
 /**
@@ -718,7 +719,8 @@ function reportUnplayable(key, src, err) {
  * Exported for the suite (R128), which asks it about messages it builds.
  */
 export function soundFromMessage(message) {
-    const carried = message?.getFlag?.(MODULE_ID, SFX_FLAG);
+    // A private card's sound is in the meta its words brought (E06 C7a), not on the document.
+    const carried = cardFlag(message, SFX_FLAG);
     if (!carried) return null;
 
     const key = typeof carried === "string" ? carried : carried?.key;
@@ -726,7 +728,7 @@ export function soundFromMessage(message) {
     if (!key) return null;
 
     const byPlayer = !message.author?.isGM;
-    if (byPlayer && !message.getFlag(MODULE_ID, "safeword")) {
+    if (byPlayer && !cardFlag(message, "safeword")) {
         if (SFX_EVENTS[key]?.ignoresVolume) return null;
         forGm = false;
     }
@@ -747,25 +749,24 @@ export function soundFromMessage(message) {
  * A death is the case in point: the message goes to the GMs and to the owners
  * of everyone caught in the incident, and every one of them is an audience.
  */
-function onCreateChatMessage(message) {
-    const asked = soundFromMessage(message);
-    if (!asked) return;
-    const { key, forGm } = asked;
-
+async function onCreateChatMessage(message) {
     // A whisper reaches the people it names. No whisper list at all is a public
     // announcement, and everyone hears an announcement.
     const whisper = message.whisper ?? [];
     if (whisper.length && !whisper.includes(game.user.id)) return;
-    if (game.user.isGM && whisper.length && !forGm) return;
 
-    // A veiled card names everybody and is meant for its readers alone: the
-    // sound is theirs, and a client that never receives the words hears nothing.
-    if (message.getFlag(MODULE_ID, "veiled")) {
-        import("./secret.mjs")
-            .then(async S => { await S.wordsOf(message); if (S.secretHtml(message)) playSfx(key); })
-            .catch(() => {});
-        return;
+    // A private card's sound came with its words (E06 C7a), so it is asked for once
+    // they are here. A veiled card names everybody and is meant for its readers alone:
+    // a client that never receives the words hears nothing.
+    if (message.getFlag?.(MODULE_ID, SECRET_FLAG)) {
+        await wordsOf(message);
+        if (isVeiled(message) && !secretHtml(message)) return;
     }
+
+    const asked = soundFromMessage(message);
+    if (!asked) return;
+    const { key, forGm } = asked;
+    if (game.user.isGM && whisper.length && !forGm) return;
 
     playSfx(key);
 }
