@@ -3607,7 +3607,16 @@ function clearLayer(container) {
 }
 
 function hideLayer() {
-    document.body.classList.remove("drpg-fog-active");
+    /* `toggle(name, false)`, not `remove(name)`, for the reason `repaintFog` gives at its
+       `toggle(name, true)`: `remove` of a class the body does not carry still rewrites
+       `class` (DOMTokenList runs its update steps whatever it found - jsdom's code, and the
+       spec's). This runs on every repaint the fog stands down from, which is every repaint
+       on a scene it cannot draw, so each one woke the three body observers for nothing.
+       Found by scenario 14 (27.09.2026): "five identical clock redraws write nothing to the
+       body" read one record in 13 of 28 runs across 51e10c7 and c4cedda - a SYNC.fog
+       arriving inside its window, `repaintFog` -> `stand` -> here, writing `class` with the
+       value it already had. */
+    document.body.classList.toggle("drpg-fog-active", false);
     dropBackdrop();
     const container = findLayer();
     if (container) {
