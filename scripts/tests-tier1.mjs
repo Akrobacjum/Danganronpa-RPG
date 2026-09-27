@@ -4544,7 +4544,8 @@ const INVARIANTS = [
          * item's flags too (the rule's Item half), with the killer's id planted in one. E05 C14:
          * a body's loot record, and a token's answer key - each flag of remnants.mjs's
          * `ANSWER_KEY_FLAGS`, which the rule writes out and must equal, while the clean token
-         * keeps `fromIncident` beside `isRemnant`.
+         * keeps `fromIncident` beside `isRemnant`. E06 C1: each field of a `messages` rule, and its
+         * `flagsOnly`, needs a fixture as well (the list is empty at C1; R202 reads the kinds).
          */
         const W = await import("./world-secrets.mjs");
         const MOD = W.WORLD_SECRET_MODULE;
@@ -4652,7 +4653,10 @@ const INVARIANTS = [
             ...(R.everySetting?.fields ?? []).map(f => `every setting: ${f}`),
             ...Object.entries(R.everySetting?.except ?? {}).flatMap(([key, fields]) => fields.map(f => `${key} may hold ${f}`)),
             ...Object.entries(R.flags ?? {}).flatMap(([doc, paths]) => paths.map(p => `${doc} flag ${p}`)),
-            ...(R.flags?.Actor ?? []).map(p => `unlinked token's Actor flag ${p}`)
+            ...(R.flags?.Actor ?? []).map(p => `unlinked token's Actor flag ${p}`),
+            // E06 C1: a message rule's fields, and the flags it lets a card of its kind carry.
+            ...(R.messages ?? []).flatMap(rule => [...(rule.fields ?? []).map(f => `message ${rule.when}: ${f}`),
+                ...(rule.flagsOnly ? [`message ${rule.when}: only ${rule.flagsOnly.join(", ")}`] : [])])
         ].filter(what => !named.has(what));
         ok(!unfixtured.length, `a rule of world-secrets.mjs has no fixture here: ${unfixtured.join(", ")}`);
         const missed = [];
@@ -5067,6 +5071,41 @@ const INVARIANTS = [
             return !(at >= 0 && reads > at);
         }).map(([file, name]) => `${file} ${name}`);
         ok(!early.length, `these read their store before it holds the other GMs' rows: ${early.join(", ")}`);
+    }],
+
+    ["R202 - a message rule of the world-secrets rule reads a card of its kind, and an ordinary card's speaker stays its actor", async () => {
+        /*
+         * E06 C1, 27.09.2026. world-secrets.mjs gains `messages`: rules for chat messages of one kind
+         * (a module flag, `when`) - `fields` that must be absent or empty, `*` for an array index,
+         * and `flagsOnly`, the module flags such a card may carry. The list is empty at C1; each
+         * later rule brings its R190 fixture (R190 names every field and `flagsOnly` of every message
+         * rule it has none for). This reads the two new kinds on fabricated messages
+         * with a rule written here: a roll card of the kind, with its speaker, a roll's title (the
+         * JSON text Foundry keeps a roll as, beside one already parsed, whose title is empty) and a
+         * flag the rule does not allow, each found where it is and nowhere else - the killer's id
+         * found in its speaker and in a roll's `options.data`, which a rule of its kind lets the
+         * reader look at; the same card without the flag reads clean, its speaker being its actor
+         * by design; and one of the kind that holds nothing reads clean.
+         */
+        const W = await import("./world-secrets.mjs");
+        const MOD = W.WORLD_SECRET_MODULE;
+        const KILLER = "R202KILLERACTOR1";
+        const RULES = { settings: {}, flags: {}, messages: [{ when: "r202Card", fields: ["speaker.actor", "system.title", "rolls.*.options.title"],
+            flagsOnly: ["r202Card", "secret"], since: "R202", why: "a fixture" }] };
+        const roll = (title, id = null) => ({ class: "DualityRoll", options: { title, ...(id ? { data: { id, name: "R202" } } : {}) } });
+        const card = (id, flags) => ({ id, flags: { [MOD]: flags }, speaker: { actor: KILLER, alias: "R202" }, system: { title: "" },
+            rolls: [JSON.stringify(roll("R202 Strike", KILLER)), roll("")], whisper: [], author: "R202USER00000001" });
+        const hits = W.findWorldSecrets({ messages: [
+            card("R202MESSAGE00001", { r202Card: true, secret: true, popupTitle: "R202 Strike" }),
+            card("R202MESSAGE00002", { secret: true }),
+            { id: "R202MESSAGE00003", flags: { [MOD]: { r202Card: true } }, speaker: { actor: null, alias: "" }, system: { title: "" },
+                rolls: [roll("")], whisper: [], author: "R202USER00000001" }
+        ] }, { ids: [KILLER], rules: RULES });
+        equal(JSON.stringify(hits.map(h => [h.kind, h.id, h.path])), JSON.stringify([
+            ["messageField", "R202MESSAGE00001", "speaker.actor"], ["messageField", "R202MESSAGE00001", "rolls.0.options.title"],
+            ["messageFlag", "R202MESSAGE00001", `flags.${MOD}.popupTitle`],
+            ["id", "R202MESSAGE00001", "speaker.actor"], ["id", "R202MESSAGE00001", "rolls.0.options.data.id"]
+        ]), "a message rule did not find what a card of its kind held, found something where it is empty, or read a card of another kind");
     }]
 ];
 

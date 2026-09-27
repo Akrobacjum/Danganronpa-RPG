@@ -7,7 +7,7 @@ export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO, canary, IDS }) {
     const players = [p1, p2, p3];
     const ids = await gm.eval(`return {
         aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id,
@@ -211,6 +211,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     await clearLogs();
     const sw0 = {};
     for (const c of [gm, p1, p2]) sw0[c.who] = await count(c);
+    await canary.chatMark({ who: ["p1", "p2"] });
     const sw = await p3.eval(`const S = await import("${REPO}/scripts/safeword.mjs"); await S.callSafeword({}); await new Promise(r => setTimeout(r, 600)); return true;`, { timeout: 30000 }).catch(e => String(e));
     await settle(800);
     for (const c of [gm, p1, p2]) {
@@ -218,6 +219,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
         const heard = { ...(await c.eval(`return { paused: game.paused, notifs: globalThis.__notifications.map(n => n.msg) };`)), cards };
         check(`${c.who}: the safeword reached this client`, heard.cards.some(t => /safe ?word|stop/i.test(t)) || heard.notifs.some(t => /safe ?word|stop/i.test(t)) || heard.paused, JSON.stringify(heard));
     }
+    /* WHAT P1'S AND P2'S CHAT SAYS OF WHO CALLED IT (E06 C1; lib/canary.mjs `chatScan`): the cards
+       they were sent since p3 called the safeword, read for p3, p3's name and Chie. */
+    await canary.chatScan({ who: ["p1", "p2"], actorIds: [IDS.chie], names: ["Chie Mori", "PlayerThree"], userIds: [p3.userId] });
     await gm.eval(`if (game.paused) game.togglePause(false); return true;`);
 
     // ---- 6. a Despair Call aimed at p1 -----------------------------------------------------------

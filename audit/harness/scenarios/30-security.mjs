@@ -2,7 +2,7 @@ export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
 const SOCKET = `module.${MOD}`;
-export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDenials, repoUrl }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDenials, repoUrl, canary }) {
     const ids = await gm.eval(`return { aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id, chie: game.actors.getName("Chie Mori").id, daichi: game.actors.getName("Daichi Sato").id };`);
 
     // 1. XSS via messenger free text (player writes hostile markup)
@@ -457,6 +457,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
 
     // 7a. project.unsabotage: a repair id that is not the one the sabotage made.
     phase("projects", { flow: "projects" });
+    await canary.chatMark({ who: ["p1"] });
     const projects = await gm.eval(`
         const P = await import("${repoUrl}/scripts/projects.mjs");
         const pub = await P.createProject({ name: "SEC public", target: 6, room: "Cafeteria", secret: false });
@@ -483,6 +484,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     };
     check("SECURITY: who sabotaged a project is not in projectMeta on p1 - the GMs' store holds p2's user id",
         Boolean(whoAsked.p1?.repairs) && !Object.hasOwn(whoAsked.p1, "saboteur") && whoAsked.gm === p2.userId, JSON.stringify(whoAsked));
+    /* WHAT P1'S CHAT SAYS OF THE SABOTAGE (E06 C1; lib/canary.mjs `chatScan`): the cards p1 was
+       sent since the phase began, read for Botan, p2 and the sabotage's titles. */
+    const sabotageTitles = await gm.eval(`const C = await import("${repoUrl}/scripts/config.mjs");
+        return [C.ACTIONS.sabotage?.label, game.i18n.localize("DRPG.Roll.concealIntent")].filter(t => typeof t === "string" && t.trim() && !t.startsWith("DRPG."));`);
+    await canary.chatScan({ who: ["p1"], actorIds: [ids.botan], names: ["Botan Kage"], userIds: [p2.userId], titles: sabotageTitles });
     const notTheirs = await forge("project.unsabotage", { targetId: projects.pub, repairId: sabotaged.repair, actorId: ids.aiko }, readPair);
     check("SECURITY: p1 taking back p2's sabotage is refused - the GM reads who asked from its store - and nothing is thawed",
         notTheirs.unchanged && notTheirs.after.frozen && notTheirs.reasons.some(r => /did not ask for that sabotage/.test(r)), JSON.stringify(notTheirs));

@@ -15,6 +15,47 @@
       "measuredAt": "E30 C19 on 46133ec, 24.09.2026: p1 held a card by p3, speaker ACTORCHIE0000000 / Chie Mori, whisper [GM, p3], content \"Duality: 3\" - the killer's opening roll"
     },
     {
+      "id": "S02-02",
+      "findings": ["S02-02", "S04-02"],
+      "class": "killer-identity",
+      "severity": "high",
+      "what": "During an incident a bystander's browser holds the killer's roll cards (claimed rolls, flagged supersededRoll): the speaker, system.source.actor and each roll's options (source.actor, data.id, data.name, headerTitle) name the killer's actor, the whisper list names the killer's player, and a Stage 6 roll's system.title and options' title name the action. E06 C5 closes it (L01, L02).",
+      "closes": "E06",
+      "match": [
+        {"seed": "chat.id", "surface": "document", "where": "ChatMessage#roll", "path": "*.speaker.actor"},
+        {"seed": "chat.name", "surface": "document", "where": "ChatMessage#roll", "path": "*.speaker.alias"},
+        {"seed": "chat.id", "surface": "document", "where": "ChatMessage#roll", "path": "*.system.source.actor"},
+        {"seed": "chat.id", "surface": "document", "where": "ChatMessage#roll", "path": "*.rolls.*.options.source.actor"},
+        {"seed": "chat.id", "surface": "document", "where": "ChatMessage#roll", "path": "*.rolls.*.options.data.id"},
+        {"seed": "chat.name", "surface": "document", "where": "ChatMessage#roll", "path": "*.rolls.*.options.data.name"},
+        {"seed": "chat.name", "surface": "document", "where": "ChatMessage#roll", "path": "*.rolls.*.options.headerTitle"},
+        {"seed": "chat.whisper", "surface": "document", "where": "ChatMessage#roll", "path": "*.whisper"},
+        {"seed": "chat.title", "surface": "document", "where": "ChatMessage#roll", "path": "*.system.title"},
+        {"seed": "chat.title", "surface": "document", "where": "ChatMessage#roll", "path": "*.rolls.*.options.title"},
+        {"seed": "chat.title", "surface": "document", "where": "ChatMessage#roll", "path": "*.rolls.*.options.headerTitle"}
+      ],
+      "detectedBy": [
+        {"scenario": "72-canary", "seed": "chat.id", "phase": "incident"}
+      ],
+      "measuredAt": "E06 C1 on the C1 tree over d666a2a, 27.09.2026 (72-canary, e06run/c1c): p1 held three claimed roll cards by p3 in phase incident - Chie's opening, her crisis roll and her Stage 6 cleanup - each with speaker ACTORCHIE0000000 / Chie Mori, system.source.actor and the options' source.actor Actor.ACTORCHIE0000000, the options' data.id and data.name, whisper [GM, p3]; the cleanup's system.title, options' title and headerTitle \"Clean up a trace\". The harness's roll message models Daggerheart 2.6.5's source (client-entry.mjs diceRoll); a real one is LIVE-E06-02"
+    },
+    {
+      "id": "S05-15",
+      "findings": ["S05-15"],
+      "class": "killer-identity",
+      "severity": "high",
+      "what": "An armed trap's receipt lands in its builder's messenger thread, and every browser holds the card: its thread flag names the builder's player, and so does its whisper list [the builder's player, the GMs]. E06 C8 closes it (L18).",
+      "closes": "E06",
+      "match": [
+        {"seed": "chat.id", "surface": "document", "where": "ChatMessage#thread", "path": "*.flags.danganronpa-rpg.thread"},
+        {"seed": "chat.whisper", "surface": "document", "where": "ChatMessage#thread", "path": "*.whisper"}
+      ],
+      "detectedBy": [
+        {"scenario": "72-canary", "seed": "chat.id", "phase": "trap"}
+      ],
+      "measuredAt": "E06 C1 on the C1 tree over d666a2a, 27.09.2026 (72-canary, e06run/c1c): in phase trap p1 and p2 each held the card flagged thread/kind/gmAsk/secret, thread USERP30000000000, whisper [p3, GM], posted when the indirect murder's trap was armed"
+    },
+    {
       "id": "S17-31",
       "findings": ["S17-31"],
       "class": "killer-identity",

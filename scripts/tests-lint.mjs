@@ -215,8 +215,9 @@ export function blankLiterals(code) {
 }
 
 /* The arguments of the call whose "(" is at `open`, in blanked code: [{ start, end }], and
-   where the call closes. Brackets are counted; literals are blank, so none of theirs count. */
-function callArgs(blank, open) {
+   where the call closes. Brackets are counted; literals are blank, so none of theirs count.
+   R201 reads the module's socket emits with it (E06 C1). */
+export function callArgs(blank, open) {
     const args = [];
     let depth = 0, start = open + 1;
     for (let i = open; i < blank.length; i++) {

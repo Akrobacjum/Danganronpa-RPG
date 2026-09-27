@@ -554,9 +554,25 @@ globalThis.__harnessWorldState = () => JSON.parse(JSON.stringify({
  * that, as the sheet's trait button and this module's `commitResources` do. The
  * dice are the harness's: random, or the faces in globalThis.__forceRoll =
  * {hope, fear}. The dialog is not modelled; game.drpg.suiteRolling asks for none.
+ *
+ * THE MESSAGE AS 2.6.5 WRITES IT (E06 C1, 27.09.2026), read in its source, not measured on a
+ * real message (LIVE-E06-02 does that). actor.mjs `rollTrait` (:568-590) gives the config a
+ * `title` (the trait's check) and a `headerTitle` carrying the actor's name, which the
+ * caller's options override - written here in English with the trait's key, as the harness
+ * loads no Daggerheart language file and an unknown key would count as a missing one;
+ * `diceRoll` (:560-566) sets `source.actor` to the actor's uuid
+ * and `data` to `getRollData()`, which holds the actor's `id` and `name` (:636-645); the roll
+ * is built with the config as its options (dhRoll.mjs:45), and `toMessage` (:118, :144-157) writes
+ * the speaker by `getSpeaker`, `system` as the config through actorRoll.mjs's schema (a
+ * `title`, `source.actor`, `targets`) and the roll. Here the roll's options are that config's
+ * serialisable part - title, headerTitle, source.actor, data's id and name, actionType. And
+ * `system.roll` stays as E30 wrote it, the options its actionType alone: it stands in for
+ * actorRoll.mjs's `roll` getter (:64), which finds the roll among the message's rolls and is
+ * no field of the source - despair-award and private-rolls read it.
  */
 classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, options = {}) {
-    return this.diceRoll({ roll: { trait: traitKey, type: "trait" }, hasRoll: true, actionType: "action", ...options });
+    return this.diceRoll({ title: `${traitKey} Check`, headerTitle: `Duality Roll: ${this.name}`,
+        roll: { trait: traitKey, type: "trait" }, hasRoll: true, actionType: "action", ...options });
 };
 
 /* actor.mjs `modifyResource` (lib/daggerheart.mjs): a GM writes, a player asks the GM relay (E30, G9). */
@@ -564,7 +580,7 @@ classes.Actor.prototype.modifyResource = function (resources) { return modifyRes
 
 classes.Actor.prototype.diceRoll = async function diceRoll(config) {
     config.source = { ...(config.source ?? {}), actor: this.uuid };
-    config.data = this.getRollData();
+    config.data = { ...this.getRollData(), id: this.id, name: this.name };
     config.resourceUpdates = new ResourceUpdateMap(this);
 
     const traitKey = config.roll?.trait;
@@ -604,14 +620,15 @@ classes.Actor.prototype.diceRoll = async function diceRoll(config) {
         dHope: { total: hope }, dFear: { total: fear },
         dice: [{ faces: 12, total: hope, results: [{ result: hope, active: true }] },
                { faces: 12, total: fear, results: [{ result: fear, active: true }] }],
-        options: { actionType: config.actionType }
+        options: { title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
+            data: { id: config.data.id, name: config.data.name }, actionType: config.actionType }
     };
     config.message = await classes.ChatMessage.create({
         author: game.userId,
         speaker: classes.ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="dice-roll">Duality: ${total}</div>`,
         rolls: [rollJson],
-        system: { roll: rollJson },
+        system: { title: config.title ?? "", source: { actor: config.source.actor }, targets: [], roll: { ...rollJson, options: { actionType: config.actionType } } },
         flags: {}
     });
     await game.system.api.dice.DualityRoll.addDualityResourceUpdates(config);

@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING
+    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -845,7 +845,11 @@ const REGRESSIONS = [
                 const delta = t.toObject()?.delta;
                 return { id: `${scene.id}.${t.id}`, flags: t.flags ?? {}, delta: delta ? { flags: delta.flags ?? {} } : null };
             })),
-            messages: (game.messages?.contents ?? []).map(flagsOf),
+            // E06 C1: with what a `messages` rule reads - the source's speaker, system, rolls, whisper and author.
+            messages: (game.messages?.contents ?? []).map(m => {
+                const { speaker, system, rolls, whisper, author } = m.toObject();
+                return { ...flagsOf(m), speaker, system, rolls, whisper, author };
+            }),
             // An item by its uuid, which says whose sheet it is on.
             items: [...(game.items?.contents ?? []), ...game.actors.contents.flatMap(actor => actor.items?.contents ?? [])]
                 .map(item => ({ id: item.uuid, flags: item.flags ?? {} }))
@@ -6079,6 +6083,87 @@ const REGRESSIONS = [
         log(`R197: ${named.size} keys named by the two windows' sources, ${read} strings read in en and pl`);
         ok(read >= 100, `only ${read} strings were read - the scope is not what this test thinks it is`);
         ok(!found.length, `a text of Despair Flow or the season checklist still names the Mastermind beside "- nobody -": ${found.join(", ")}`);
+    }],
+
+    ["R201 - every socket emit names its recipients but the four that carry nothing", async () => {
+        /*
+         * E06 C1, 27.09.2026; audit S08-07 (the net it asked for), L27. A `socket.emit` with no
+         * `recipients` reaches every connected browser, a player's among them, whatever the packet
+         * was meant for. S08-07's own case - the trap relay - goes to the primary through the bridge
+         * since E31. The E06 design read scripts/*.mjs without the suite's files at 51e10c7: 39
+         * emits, 35 addressed, and four that name nobody and carry no id - the same four at d666a2a,
+         * listed below with what they carry and why everybody gets them. A fifth un-addressed emit, a second one in a file
+         * that has one, or one of the four gaining a field fails; one of the four gone fails too, so
+         * the list does not outlive its reason. The reader is shown planted source first. What it
+         * cannot see: an emit through a name other than `socket`, and what a packet's own values
+         * hold - `data` of sync.mjs is whatever its caller hands `broadcast` (at d666a2a the clock,
+         * whether an Eclipse is on, and two empty packets: clock.mjs, eclipse.mjs, call-effects.mjs,
+         * observe.mjs).
+         */
+        const BROADCAST = {
+            "fog.mjs": { fields: ["action"], why: "the primary GM asking every player's browser for its copy of the fog ledger when its own store holds nothing (askForShares)" },
+            "gm-bridge.mjs": { fields: ["action"], why: "a GM saying they are listening, so a player whose request is still waiting sends it again" },
+            "relay-guard.mjs": { fields: ["action", "data"], why: "Daggerheart's countdown refresh after a countdown change, sent as Daggerheart's own handler sends it" },
+            "sync.mjs": { fields: ["action", "data", "kind"], why: "a public change every browser redraws: the clock, the Eclipse, the projects, the restrictions" }
+        };
+        /* The emits of one file: where, whether the third argument names `recipients`, and the
+           payload's top-level keys when it is an object literal ("..." a spread; null any other
+           payload, which no entry above matches). Comments and strings are blanked first. */
+        const keysOf = literal => {
+            const inner = literal.slice(1, -1);
+            const keys = [];
+            let depth = 0, start = 0;
+            for (let i = 0; i <= inner.length; i++) {
+                const c = inner[i];
+                if (c === "(" || c === "[" || c === "{") depth++;
+                else if (c === ")" || c === "]" || c === "}") depth--;
+                else if ((c === "," && depth === 0) || i === inner.length) {
+                    const part = inner.slice(start, i).trim();
+                    if (part) keys.push(part.startsWith("...") ? "..." : (part.match(/^[A-Za-z_$][\w$]*/)?.[0] ?? part));
+                    start = i + 1;
+                }
+            }
+            return keys.sort();
+        };
+        const emitsIn = text => {
+            const code = blankComments(text), blank = blankLiterals(code);
+            return [...blank.matchAll(/\bsocket\s*\??\.\s*emit\s*\(/g)].map(m => {
+                const { args } = callArgs(blank, m.index + m[0].length - 1);
+                const arg = i => (args[i] ? blank.slice(args[i].start, args[i].end).trim() : "");
+                return { line: lineAt(code, m.index), addressed: /\brecipients\b/.test(arg(2)),
+                    fields: /^\{[\s\S]*\}$/.test(arg(1)) ? keysOf(arg(1)) : null };
+            });
+        };
+        const PLANTED = [
+            "game.socket.emit(SOCKET_EVENT, { action: A, who }, { recipients: [id] });",
+            "game.socket.emit(SOCKET_EVENT, { action: B, note: \"recipients\", ...(x ? { x } : {}) }, { note: \"recipients\" });",
+            "game.socket?.emit(`module.${MODULE_ID}`, payload);",
+            "// game.socket.emit(SOCKET_EVENT, { action: C });"
+        ].join("\n");
+        equal(JSON.stringify(emitsIn(PLANTED)), JSON.stringify([{ line: 1, addressed: true, fields: ["action", "who"] },
+            { line: 2, addressed: false, fields: ["...", "action", "note"] }, { line: 3, addressed: false, fields: null }]),
+            "the reader does not see the planted emits as they are - an address, a word \"recipients\" in a string, a payload by name, a comment");
+
+        const found = [], broadcast = new Map();
+        let read = 0;
+        for (const [file, raw] of await otherSources()) {
+            for (const emit of emitsIn(raw)) {
+                read++;
+                if (emit.addressed) continue;
+                const listed = BROADCAST[file];
+                if (!listed) found.push(`${file}:${emit.line} sends to every browser and is not one of the four`);
+                else if (broadcast.has(file)) found.push(`${file}:${emit.line} is a second emit to every browser in ${file} (the listed one is at :${broadcast.get(file)})`);
+                else if (JSON.stringify(emit.fields) !== JSON.stringify(listed.fields)) {
+                    found.push(`${file}:${emit.line} carries ${JSON.stringify(emit.fields)} to every browser, and the list says ${JSON.stringify(listed.fields)} (${listed.why})`);
+                }
+                if (!broadcast.has(file)) broadcast.set(file, emit.line);
+            }
+        }
+        log(`R201: ${read} socket emits read in the served sources, ${[...broadcast.keys()].length} of them to every browser`);
+        ok(read >= 30, `only ${read} socket emits were read - the reader is not reading what this test thinks`);
+        const gone = Object.keys(BROADCAST).filter(file => !broadcast.has(file));
+        ok(!gone.length, `listed as an emit to every browser and no longer found - take it off the list: ${gone.join(", ")}`);
+        ok(!found.length, `an emit reaches every browser that the list does not describe: ${found.join("; ")}`);
     }]
 ];
 
