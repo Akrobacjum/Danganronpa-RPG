@@ -21,7 +21,7 @@
  */
 
 import { MODULE_ID, FLAGS, TIMING, LEVEL_UP, moduleVersion } from "./config.mjs";
-import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch } from "./settings.mjs";
+import { SETTINGS, getClock, getSetting, setSetting, incidentCast, seasonEpoch, deathRecordFor } from "./settings.mjs";
 import { activeGmIds, primaryGmId, isPrimaryGm, warn, error, debug, plural, esc, dialogContent, whisperToGms } from "./utils.mjs";
 import {
     configureGmStore, openGmStoreEngine, defineGmStore, defineGmCopy, gmStoreByName, gmStoreHandles, gmStoresHydrated, whenGmStoresHydrated, gmStoresIdle,
@@ -62,6 +62,8 @@ export function uuidInThisWorld(uuid) {
 export const bulletStore = defineGmStore({
     name: "bullets", key: SETTINGS.truthBulletSecrets, legacyKey: SETTINGS.legacyTruthBulletSecrets,
     kind: "ledger", resetGroup: "bullets", backup: true, sync: true,
+    // Its owners' copy of which trace each bullet came from is made of it since E05 C13 (R182).
+    afterRestore: () => import("./truth-bullets.mjs").then(m => m.retellBulletRefs()),
     claim: legacy => {
         const rows = [], left = [];
         for (const [uuid, entry] of Object.entries(isPlain(legacy) ? legacy : {})) {
@@ -75,6 +77,20 @@ export const bulletStore = defineGmStore({
     exists: uuid => {
         try { return Boolean(fromUuidSync(uuid)); } catch { return false; }
     }
+});
+
+/**
+ * AN OWNER'S BULLETS' TRACES (E05 C13; audit S05-39 (2)): `{ itemUuid: "sceneId.tokenId" }`
+ * for the bullets on the characters this user owns, as a GM sent them - the trace each came
+ * from, the key the bullet's public `remnantRef` flag held until 1.2.64 - a stamp per bullet,
+ * taken by the offers' rule (`offersCombine`, below): an answer is the owner's whole set, at
+ * least as new for every bullet it names and newer for one, and a bullet it no longer names
+ * goes with it. Read by visibility.mjs and remnant-icons.mjs through truth-bullets.mjs
+ * `bulletRefOf`. No old key: the flag is lifted into the rows (`liftBulletRefs`).
+ */
+export const bulletRefCopy = defineGmCopy({
+    name: "bulletRefs", key: SETTINGS.mineBulletRefs, from: "bullets", resetGroup: "bullets", fallback: {},
+    combine: offersCombine
 });
 
 /**
@@ -208,13 +224,26 @@ export const doorCopy = defineGmCopy({
 });
 
 /**
+ * HOW THE INCIDENT HAPPENED (E05 C8; audit S04-08): whether it is a trap, whether the
+ * killer and the victim are one person, whether a reversal left the Key Remnant plan
+ * to be written again, when it opened and how it ended. Until 1.2.64 these sat in the
+ * world half of `murderState`, which every browser holds: through the whole of Stage 6
+ * a console read `selfInflicted: true` - the answer to the Class Trial - and a trap's
+ * builder read `indirect` at the moment it went off, which `castOwners` withholds the
+ * cast to keep from them. They are the cast's now, and reach only its participants.
+ */
+export const INCIDENT_METHOD = Object.freeze(["indirect", "selfInflicted", "keyRemnantsStale", "openedAt", "endedBy"]);
+
+/**
  * The fields of an incident's cast (murder.mjs): who is in it, whose turn it is
  * on the killers' side, the accomplice and which side they took, the Reroll
  * receipt (`lastCrisis`, which names every participant), the betrayal offer and
- * the swing memo. The record's closed set: `resetRecord` stamps each of them.
+ * the swing memo - and since E05 C8 the method (`INCIDENT_METHOD`). The record's
+ * closed set: `resetRecord` stamps each of them, `castStamps` sends a stamp for each
+ * but the swing memo, and `castCombine` weighs them all.
  */
 export const CAST_FIELDS = Object.freeze([
-    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "betrayal", "swung"
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD
 ]);
 
 /**
@@ -250,7 +279,10 @@ export const castStore = defineGmStore({
         const held = Object.fromEntries(Object.entries(rest).filter(([f, v]) => CAST_FIELDS.includes(f) && v !== undefined));
         const state = getSetting(SETTINGS.murderState) ?? {};
         const here = [held.killerId, held.victimId].some(id => id && game.actors?.has(id));
-        const before = Number.isFinite(state.openedAt) && Number.isFinite(updated) && updated < state.openedAt - TIMING.gmStoreSkewMs;
+        /* `openedAt` is the cast's since E05 C8: a browser that claims after the primary lifted
+           it out of the world reads the one the GMs' copies brought (read, not measured). */
+        const openedAt = state.openedAt ?? castStore.record()?.openedAt;
+        const before = Number.isFinite(openedAt) && Number.isFinite(updated) && updated < openedAt - TIMING.gmStoreSkewMs;
         const running = Boolean(state.active) && here && !before;
         const clock = getClock() ?? {};
         const offer = betrayal?.killerId && betrayal.chapter === clock.chapter && betrayal.day === clock.day
@@ -269,6 +301,8 @@ export const castStore = defineGmStore({
  * `{ chapter, epoch, at }` (`at` orders them); murder.mjs's `blackenedIds` reads the
  * rows of the clock's chapter and season, so the register is never emptied at a
  * chapter's end and a GM's stale copy cannot bring last chapter's killers back.
+ * Since 1.2.64 a row also names its `victims`, and the trial counts a killer only for
+ * a death the table knows (murder.mjs `trialBlackenedIds`; E05 fix r2-G1).
  * The old ids are claimed only with world evidence of a verdict still to come in
  * this chapter - a death recorded in the clock's chapter, and no verdict applied
  * (the design's H4) - weak, in their order; otherwise they stay behind.
@@ -280,7 +314,7 @@ export const blackenedStore = defineGmStore({
         const ids = Array.isArray(legacy) ? legacy.filter(id => typeof id === "string" && id) : [];
         const chapter = getClock()?.chapter ?? null;
         const trial = getSetting(SETTINGS.trialProgress) ?? {};
-        const died = (game.actors ?? []).some(a => a.getFlag?.(MODULE_ID, FLAGS.deceased)?.chapter === chapter);
+        const died = (game.actors ?? []).some(a => deathRecordFor(a)?.chapter === chapter);
         const pending = died && !(trial.chapter === chapter && trial.verdictApplied);
         const rows = [], left = [];
         ids.forEach((id, at) => {
@@ -291,6 +325,38 @@ export const blackenedStore = defineGmStore({
         return { rows, left };
     },
     exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * THE DEATHS NOBODY HAS FOUND (E05 C10; audit S06-11). A row per body: `chapter`, `day`,
+ * `timeOfDay` (the kill's, which the flag carries once the death is published), `at`,
+ * `keepBullets`, `known`, the users besides the GMs who may know of it - the victim's
+ * player, the incident's, and later one who found the body alone - and `loot`, a record
+ * per item taken off the body meanwhile, whose Truth Bullet names the body and waits for
+ * the publication (handover.mjs `lootBody`, E05 fix r2-F0b). `loot` is split, a stamp per
+ * record (E05 fix r2-G3): it was one list, and two GMs each adding a loot kept only the
+ * later write - see handover.mjs `oweLootBullet`. Written by the kill
+ * (chapter.mjs `killCharacter`), dropped by the publication, a revival or the reset's
+ * "deaths" group; a dropped row's tombstone is what a player's copy weighs its loss
+ * against. No old key: a death before 1.2.64 was published at the kill.
+ */
+export const deathStore = defineGmStore({
+    name: "deaths", key: SETTINGS.gmDeaths,
+    kind: "ledger", split: ["loot"], resetGroup: "deaths", backup: true, sync: true,
+    afterRestore: () => import("./murder.mjs").then(m => m.retellDeaths()),
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * A PLAYER'S DEATHS (E05 C10): `{ actorId: { chapter, day, timeOfDay } }` for the bodies
+ * this user may know and nobody has published, as a GM sent them, a stamp per body - taken
+ * by the offers' rule (`offersCombine`): an answer is the user's whole set, at least as new
+ * for every body it names and newer for one, and a body it no longer names goes with it
+ * (published - the flag says it now - or revived).
+ */
+export const deathCopy = defineGmCopy({
+    name: "deaths", key: SETTINGS.mineDeaths, from: "deaths", resetGroup: "deaths", fallback: {},
+    combine: offersCombine
 });
 
 /**
@@ -408,6 +474,37 @@ export const trapPlantStore = defineGmStore({
 });
 
 /**
+ * AN INDIRECT MURDER'S KILLER, BUILDER, CONDITION AND TRIGGER (E05 C1; audit S09-05, D3). A row per
+ * countdown id: `killerId`, `by`, `condition`, `trigger` - projectMeta's four fields until 1.2.64,
+ * which every browser held - and, on a repair's row, `saboteur`, the user who asked for the sabotage
+ * (E05's fix round, S1-m1; projects.mjs `PROJECT_SECRET_FIELDS`). `trigger` is split, a stamp per part, so the primary stamping a trap fired
+ * and another GM re-arming it keep theirs (projects.mjs `patchTrigger`). No old key: the first rows
+ * come out of the world by the clause `liftProjectSecrets` (migrate.mjs). A row's subject is its
+ * project - its row in projectMeta, or its countdown.
+ */
+export const projectSecretStore = defineGmStore({
+    name: "projectSecrets", key: SETTINGS.projectSecrets,
+    kind: "ledger", split: ["trigger"], resetGroup: "projects", backup: true, sync: true,
+    exists: id => Object.hasOwn(getSetting(SETTINGS.projectMeta) ?? {}, id)
+        || Boolean(game.settings.get("daggerheart", "Countdowns")?.countdowns?.[id])
+});
+
+/**
+ * THE DIRECT MURDERS DECLARED IN THE DARK (E05 C3; audit S10-01, S01-02, S11-02). A row per
+ * killer: `room`, `note`, `at`, `approved` and `eclipse`, the Eclipse it was declared in
+ * (settings.mjs `eclipseId`) - the world setting `pendingMurders` until 1.2.64, which every
+ * browser held for the whole Eclipse. Read for the running Eclipse only (eclipse.mjs
+ * `pendingMurders`); the lights judge that Eclipse's rows and drop every other unjudged. In
+ * the incident's reset group: a declaration nobody judged is an incident that has not
+ * happened yet. No old key: the first rows come out of the world by `liftPendingMurders`.
+ */
+export const pendingMurderStore = defineGmStore({
+    name: "pendingMurders", key: SETTINGS.pendingMurders,
+    kind: "ledger", resetGroup: "incident", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * THE OBSERVE DECLARATIONS WAITING FOR THEIR ROLL (E04 C7). Local: this browser's,
  * a section per world, neither synced nor backed up - the declaration and its
  * answer go through one GM, whoever `primaryGmId()` names, and last an hour at
@@ -461,6 +558,72 @@ export const offerStore = defineGmStore({
 });
 
 /**
+ * THE REINFORCED LEVEL UPS WAITING FOR THE CLASS (E05 C11, 27.09.2026; D4; audit S03-01,
+ * S06-01). A row per surviving Blackened: `kind`, `chapter` (the wrong verdict's), `at` and
+ * `count`, how many wrong verdicts it waited through - two Reinforced for one character
+ * would otherwise be one row, and the second verdict's would take the first's place. Written
+ * by a wrong verdict (level-up.mjs `deferAdvancement`), applied and dropped by the class's
+ * next correct verdict or the Final Trial's (`runAdvancementBatch`, the owner's Q7), dropped
+ * by a kill (chapter.mjs `killCharacter`) and cut by the reset's "advancement" group - the
+ * two ways it lapses. No player copy and no old key: a 1.2.63 world applied it at once.
+ */
+export const deferredOfferStore = defineGmStore({
+    name: "deferredOffers", key: SETTINGS.gmDeferredOffers,
+    kind: "ledger", resetGroup: "advancement", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * THE DESPAIR OVERFLOW'S COUNT (E05 C12, 27.09.2026; audit S01-60). A record, `{ count }`: the
+ * spilled Despair waiting to be spent - half of the world setting `overflow` until 1.2.64, which
+ * every browser held while a player's caption masked it as "?". The other half, the darkening's
+ * stamp, stays in the world (it is announced when it fires). Written by `addOverflow`,
+ * `checkOverflow` and `resetOverflow` on whichever GM runs them; two GMs adding within one
+ * exchange's latency keep the newer write - the race the world setting had, which the pools'
+ * one writer (DESP-12) could be extended to. Each of the three reads the count once the store
+ * holds the other GMs' copies (E05 fix r2-G2; review S2-m7). Cut by the reset's "overflow"
+ * group beside `resetOverflow`. No old key: an older world's count comes out of the world by
+ * `liftOverflowCount`.
+ */
+export const overflowStore = defineGmStore({
+    name: "overflow", key: SETTINGS.gmOverflow,
+    kind: "record", fields: ["count"], resetGroup: "overflow", backup: true, sync: true
+});
+
+/**
+ * THE DESPAIR A POOL OWES (E05 C12, 27.09.2026; audit S09-28). A row per conversion to Hope,
+ * keyed `<pool's user>:<converting GM>:<ms>` since E05 fix r2-G2 (one row per pool lost a debt
+ * when two GMs converted at once): `owed`, what it took and the pool has not paid yet, and
+ * `since`, the time of day it was made in (despair.mjs `timeOfDayMark`). A conversion took the
+ * pool down at the moment the recipient's Hope rose, which every console could pair; the pool now
+ * pays at the next time of day (`settleOwed`, on the primary), and until then what it can spend
+ * is the pool less this (`spendableDespair`). Dropped by a fill and a zero, cut by the reset's
+ * "despair" group. No player copy - nothing a player's client reads - and nothing to lift: a
+ * 1.2.63 world's pool already paid.
+ */
+export const despairOwedStore = defineGmStore({
+    name: "despairOwed", key: SETTINGS.gmDespairOwed,
+    kind: "ledger", resetGroup: "despair", backup: true, sync: true,
+    exists: key => Boolean(game.users?.has(String(key).split(":")[0]))
+});
+
+/**
+ * WHAT HAS BEEN TAKEN OFF EACH BODY (E05 C14, 27.09.2026; audit S05-39 (3)). A row per body:
+ * `sceneId` and `tokenId`, its one loot trace, and `taken`, every item's name that has left
+ * it. Until 1.2.64 it was the body's own `lootTrace` flag, which every browser holds: a
+ * console read which trace on the map was the body's and everything taken off it, whoever
+ * found it. Written by the GM that serves a loot (handover.mjs `markBodyDisturbed`), cut by
+ * the reset's "remnants" group with the traces it points at. No player copy - nothing on a
+ * player's client reads it - and no old key: an older world's flags come out of the world by
+ * `liftLootTraces`.
+ */
+export const lootTraceStore = defineGmStore({
+    name: "lootTraces", key: SETTINGS.gmLootTraces,
+    kind: "ledger", resetGroup: "remnants", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * THE OFFERS COPY'S RULE (the round-2 review's M2, 26.09.2026). An answer names every
  * character its owner owns now, each with the newest decision about it, and is the
  * owner's whole set: taken when it is at least as new in every character it names and
@@ -499,6 +662,100 @@ export const offerCopy = defineGmCopy({
         import("./level-up.mjs").then(m => m.redrawOwnSheets())
             .catch(err => error("The Level Up button could not be drawn again after a reset", err));
     }
+});
+
+/**
+ * THE ECLIPSE'S CROSSINGS (E05 C4; audit S10-39). A row per character: `used`, and
+ * `eclipse`, the Eclipse they were used in (settings.mjs `eclipseId`) - the world setting
+ * `eclipseMoves` until 1.2.64, which every browser held. A row of another Eclipse counts
+ * nothing, so nothing clears the store when an Eclipse starts or ends. Counted by the
+ * primary GM, which judges the allowance (eclipse.mjs `applyRecordedMove`). Backed up, and
+ * its owners told again after a restore, as every store a player's copy is made of is
+ * (R182) - the design's table had it not backed up, which that rule does not allow. No old
+ * key: the first rows come out of the world by `liftEclipseMoves`.
+ */
+export const eclipseMoveStore = defineGmStore({
+    name: "eclipseMoves", key: SETTINGS.gmEclipseMoves,
+    kind: "ledger", resetGroup: "eclipseMoves", backup: true, sync: true,
+    afterRestore: () => import("./eclipse.mjs").then(m => m.retellMoves()),
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * AN OWNER'S CROSSINGS (E05 C4): `{ actorId: { used, eclipse } }` for the characters this
+ * user owns, as the primary GM sent them, a stamp per character - taken by the offers' rule
+ * (`offersCombine`): an answer is the owner's whole set, at least as new for every character
+ * it names and newer for one, and an answer from a GM whose browser holds no row (stamp 0)
+ * takes nothing away. Read by the sheet, the status panel and the veto (`eclipseMovesUsed`).
+ */
+export const eclipseMoveCopy = defineGmCopy({
+    name: "eclipseMoves", key: SETTINGS.mineEclipseMoves, from: "eclipseMoves", resetGroup: "eclipseMoves", fallback: {},
+    combine: offersCombine
+});
+
+/**
+ * THE KEY REMNANT PLAN (E05 C5; audit S01-01, S05-02). A row per chapter and slot,
+ * `${chapter}:${slot}`: scale, name, text, analysis, note, tokenId, sceneId - the world
+ * setting `keyRemnantPlan` until 1.2.64, which every browser held: one chapter's plan, the
+ * others filed under `archive` when the clock left them. A row is a chapter's already, so
+ * nothing is filed when the chapter ends (investigation.mjs `keyPlan`), and a stamp per
+ * field lets a GM writing one slot and another GM another both keep theirs (`setKeyPlan`
+ * writes only what it changes). No `exists`: a row outlives the trace it names, as the
+ * world key's entries did - a chapter's plan stays until a reset's cut takes it. A reset
+ * that keeps the plan (E05 fix r1-G5, M3) keeps ONE chapter's rows, not every chapter's:
+ * investigation.mjs's `keepOnlyKeyPlanChapter`, which `season-setup.mjs`'s `wipeSeason` calls
+ * instead of `clearKeyPlan` when the group is kept, drops the rest - so the next season's
+ * chapter of that same number opens with them, as 1.2.63's one stored plan did, and a row has
+ * no season stamped on it, so any chapter left standing would otherwise read as planned
+ * before this season ever opened the planner (`chargeForUnfoundKeys`). No old key: the first
+ * rows come out of the world by `liftKeyPlan`.
+ */
+export const keyPlanStore = defineGmStore({
+    name: "keyPlan", key: SETTINGS.gmKeyPlan,
+    kind: "ledger", resetGroup: "keyPlan", backup: true, sync: true
+});
+
+/**
+ * THE PRE-SESSION NOTES (E05 C6; audit S11-03, S01-08). A row per user: text, updatedAt,
+ * byGm - a flag on the player's own User document until 1.2.64, which every browser held,
+ * and whose first question is "Am I planning to kill? How?". Written by a GM, a player's
+ * own through the primary (the bridge's `note.save`); backed up, and each player told
+ * again after a restore (R182). Wiped by the reset group the flag's step always had,
+ * preNotes: its cut takes the rows on every GM and every player's copy. No old key: the
+ * first rows come out of the flags by `liftNotes`.
+ */
+export const noteStore = defineGmStore({
+    name: "notes", key: SETTINGS.gmNotes,
+    kind: "ledger", resetGroup: "preNotes", backup: true, sync: true,
+    // The users' flags first (E05 fix r1-G4, M6 = S1-m6): the file holds the rows, not the flags that describe them.
+    afterRestore: () => import("./pre-session-note.mjs").then(async m => { await m.settleNoteFlags(); return m.retellNotes(); }),
+    exists: userId => Boolean(game.users?.has(userId))
+});
+
+/**
+ * THE NOTE COPY'S RULE (E05 C6). One stamp, the row's newest (`sendNoteTo`), and a
+ * draft: a player's own note written in this browser and not yet held by the GMs,
+ * marked `unsent` - which a GM's copy never carries (pre-session-note.mjs
+ * `receiveNote`). A draft is always taken, whatever its stamp; while one is held, a
+ * GM's copy is taken only when it holds the draft's words, which is the GMs saying they
+ * have it - an older copy, sent to the player's ask at load before the draft reached the
+ * GM, would otherwise put the older words back over the ones typed. Otherwise a copy is
+ * taken when its stamp is newer, a stamp under a reset's cut counting as none. Pure (R176).
+ */
+export function noteCombine(held, offered, { cut = 0 } = {}) {
+    if (offered?.value?.unsent === true) return offered;
+    if (held?.value?.unsent === true) return offered?.value?.text === held.value.text ? offered : null;
+    return newerStamps(offered?.stamps, held?.stamps, cut) ? offered : null;
+}
+
+/**
+ * A PLAYER'S OWN NOTE (E05 C6): `{ text, updatedAt, byGm }` as a GM sent it, or with
+ * `unsent` as the player wrote it here - taken by `noteCombine`. Read by the Note tab
+ * (pre-session-note.mjs `noteFor`, `noteStatus`); nothing of another player's is here.
+ */
+export const noteCopy = defineGmCopy({
+    name: "note", key: SETTINGS.mineNote, from: "notes", resetGroup: "preNotes", fallback: {},
+    combine: noteCombine
 });
 
 /** The rows of an old ledger `{ sceneId: { actorId: [room, ...] } }`, one per scene and character. */
@@ -1044,7 +1301,7 @@ export async function restoreCase(file, { otherWorld = false, beforeCut = false,
     try {
         const { migrateFaintIntoSecrets } = await import("./truth-bullets.mjs");
         await migrateFaintIntoSecrets();
-    } catch (err) { error("After a restore, the Faint pass could not run", err); }
+    } catch (err) { error("After a restore, the Faint pass did not finish", err); }
     const lines = Object.entries(counts).map(([name, c]) => (c.skipped
         ? game.i18n.format("DRPG.Case.restoredSkipped", { store: storeLabel(name) })
         : game.i18n.format("DRPG.Case.restoredStore", { store: storeLabel(name), n: c.changed + c.filled, cut: c.beforeCut })));
@@ -1074,30 +1331,36 @@ export function bulletsWithoutAnswer() {
 }
 
 /**
- * What a bullet with no real type here can take from its trace: a bullet copied
- * from a trace carries the trace's key in its `remnantRef` flag (public, the one
- * a player's own trace icon reads), and the trace's row says what it really is
- * - the type the copy was made with (observe.mjs, gm-items.mjs). `{ uuid:
- * { realType, remnantId } }`, for the bullets whose trace's row is here.
+ * What a bullet with no real type here can take from its trace: the bullet's row names
+ * the trace it was copied from (`sceneId` and `remnantId`), and the trace's row says what
+ * it really is - the type the copy was made with (observe.mjs, gm-items.mjs). `{ uuid:
+ * { realType } }`, for the bullets whose trace's row is here.
+ *
+ * THE ROW'S KEY, NOT THE ITEM'S FLAG (E05 C13, 27.09.2026). Until 1.2.64 the bullet's
+ * public `remnantRef` flag named the trace, on every browser; the clause `liftBulletRefs`
+ * moves an older world's into the rows - a row this browser had lost whole comes back as
+ * the key alone, which this then fills. A bullet made since whose row is lost whole names
+ * no trace here any more: a backup, or another GM's copy, brings it back.
  */
 function fillsFromTraces() {
     const fills = {};
     for (const item of allBullets()) {
-        if (bulletStore.get(item.uuid)?.realType) continue;
-        const ref = item.getFlag(MODULE_ID, "remnantRef");
+        const row = bulletStore.get(item.uuid);
+        if (row?.realType) continue;
+        const ref = row?.sceneId && row?.remnantId ? `${row.sceneId}.${row.remnantId}` : null;
         const type = ref ? remnantStore.get(ref)?.type : null;
-        if (type) fills[item.uuid] = { realType: type, remnantId: String(ref).split(".")[1] || null };
+        if (type) fills[item.uuid] = { realType: type };
     }
     return fills;
 }
 
 /**
  * FILL FROM THEIR TRACES (the design's 6.3; E04 C4). The bullets whose answer key
- * this browser lost, or whose key lost its real type (S05-01's damage), and whose
- * trace's row is here, take `realType` and `remnantId` from it - weak and fill-only,
- * so a value any GM holds for either wins, and nothing else of the key is made up:
- * a GM's note, the analysed reading and the rest come back only from a backup.
- * Answers how many bullets were filled.
+ * this browser holds with no real type (S05-01's damage, or a lost row whose trace's
+ * key the lift of E05 C13 brought back), and whose trace's row is here, take `realType`
+ * from it - weak and fill-only, so a value any GM holds wins, and nothing else of the
+ * key is made up: a GM's note, the analysed reading and the rest come back only from a
+ * backup. Answers how many bullets were filled.
  */
 export async function fillBulletsFromTraces() {
     if (!game.user?.isGM) return 0;
@@ -1124,12 +1387,22 @@ export async function gmStoreHealth() {
     for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) if (token.getFlag(MODULE_ID, "isRemnant")) traces.push(token);
     const traceKey = token => `${token.parent?.id}.${token.id}`;
     // A trace whose answer key is still on its token is moved, not restored: counted apart (C-m14).
-    const { answerKeyOnToken } = await import("./remnants.mjs");
+    const { answerKeyOnToken, ANSWER_KEY_FLAGS } = await import("./remnants.mjs");
     const noRow = traces.filter(token => !remnantStore.has(traceKey(token)));
     const onToken = noRow.filter(answerKeyOnToken);
     const traceGaps = noRow.filter(token => !answerKeyOnToken(token));
     if (traceGaps.length) add("traces", "missing", "DRPG.Case.row.traces", { n: traceGaps.length, of: traces.length });
     if (onToken.length) add("tracesOnToken", "missing", "DRPG.Case.row.tracesOnToken", { n: onToken.length, of: traces.length });
+    /* Any other trace token still holding a flag of its answer key (E05 fix r2-G4, 27.09.2026;
+       review S2-m3): the two the migration keeps on purpose - a Faint Prep promotion a later
+       correction stood against, flags with no type and no row to carry them into - and one
+       whose strip did not take. Read by `remnantType` alone, the check named none of them as
+       flags on a token - flags with no row read as a missing row, to restore - and a token every
+       browser holds kept saying which trace a GM had judged the murder's (tier 2, red on 40ac88d).
+       A GM decides each (remnants.mjs `migrateRemnantsOnce`), so it is a conflict, not missing. */
+    const flagged = traces.filter(token => !onToken.includes(token)
+        && ANSWER_KEY_FLAGS.some(flag => flag in (token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {})));
+    if (flagged.length) add("tracesKept", "conflict", "DRPG.Case.row.tracesKept", { n: flagged.length, of: traces.length });
     // A row whose token is gone: unreachable (every read goes through a token), counted, never removed on its own.
     const onMap = new Set(traces.map(traceKey));
     const orphans = Object.keys(remnantStore.entries()).filter(key => !onMap.has(key)).length;
@@ -1144,6 +1417,19 @@ export async function gmStoreHealth() {
     const state = getSetting(SETTINGS.murderState) ?? {};
     const cast = incidentCast();
     if (state.active && !cast.killerId && !cast.victimId) add("incident", "missing", "DRPG.Case.row.incident");
+
+    /* E05's two secrets the world still has evidence of (fix r1-G4; reviews M4 = S1-m5). An indirect
+       murder whose killer, condition and trigger this browser lacks: projectMeta still says so, and
+       `trapProjects` skips a trap with no trigger, so it never arms or fires. And a note a user's flag
+       says is written that this browser does not hold (pre-session-note.mjs `notesMissing`). Both went
+       unreported on a browser that lost its storage with no other GM to hand the rows back. */
+    const meta = getSetting(SETTINGS.projectMeta) ?? {};
+    const murders = Object.keys(meta).filter(id => meta[id]?.indirectMurder === true);
+    const noSecrets = murders.filter(id => !projectSecretStore.has(id));
+    if (noSecrets.length) add("projectSecrets", "missing", "DRPG.Case.row.projectSecrets", { n: noSecrets.length, of: murders.length });
+    const { notesMissing } = await import("./pre-session-note.mjs");
+    const lostNotes = notesMissing();
+    if (lostNotes.length) add("notes", "missing", "DRPG.Case.row.notes", { n: lostNotes.length });
 
     // Armed item traps whose planted object this browser does not know: they cannot fire (C7).
     try {
@@ -1165,6 +1451,13 @@ export async function gmStoreHealth() {
         add("mastermindCleared", "conflict", "DRPG.Case.row.mastermindCleared", { cleared: new Date(clearedAt).toLocaleString(),
             name: game.actors.get(pick)?.name ?? pick, picked: new Date(pickedAt).toLocaleString(), shown: { pick, clearedAt, pickedAt } });
     }
+
+    /* THE MASTERMIND OUT OF EVERY POOL (E05 C15, 27.09.2026; audit S03-03, S10-12): Despair
+       Flow's division is a world setting every player's browser reads, and the one student
+       set to feed no pool stands out. mastermind.mjs `mastermindUnpooled`; the season
+       checklist carries the same row. No name in it, as the checklist has none. */
+    const { mastermindUnpooled } = await import("./mastermind.mjs");
+    if (mastermindUnpooled()) add("nobodyPublic", "conflict", "DRPG.Season.hint.nobodyPublic");
 
     const since = caseMark().since;
     const holdsNothing = gmStoreHandles().every(h => !Object.keys(h.entries()).length && !(h.census()?.claimed));
@@ -1193,8 +1486,10 @@ export async function gmStoreHealth() {
         { when: mark.lastBackupAt ? new Date(mark.lastBackupAt).toLocaleString() : "", who: mark.lastBackupBy ?? "" });
 
     const counts = {
-        traces: { of: traces.length, missing: traceGaps.length, onToken: onToken.length, orphans },
-        bullets: { of: bullets.length, missing: unkeyed.length, noAnswer: noAnswer.length, fillable: Object.keys(fillsFromTraces()).length }
+        traces: { of: traces.length, missing: traceGaps.length, onToken: onToken.length, kept: flagged.length, orphans },
+        bullets: { of: bullets.length, missing: unkeyed.length, noAnswer: noAnswer.length, fillable: Object.keys(fillsFromTraces()).length },
+        projectSecrets: { of: murders.length, missing: noSecrets.length },
+        notes: { missing: lostNotes.length }
     };
     return { world: game.world.id, hydrated: gmStoresHydrated(), rows, counts, missing: rows.filter(r => r.level === "missing").length };
 }

@@ -14,7 +14,7 @@
  */
 
 import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_DAY_LABELS,
-    BROKEN_ITEMS, observeDc } from "./config.mjs";
+    BROKEN_ITEMS, observeDc, TIMING } from "./config.mjs";
 // Statically imported: `remnantsInRoom` is synchronous, and movement.mjs does
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken } from "./movement.mjs";
@@ -22,11 +22,22 @@ import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, log, warn, error, plural, workingScene, esc, forcedDeletion } from "./utils.mjs";
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
 // so a static import here is no cycle (R161).
-import { remnantStore, upgradeMark } from "./gm-stores.mjs";
+import { remnantStore, bulletStore, upgradeMark } from "./gm-stores.mjs";
 
 /**
- * Everything the guide says a Remnant carries, recorded on the token so an
- * investigation two sessions later can still answer "where did this come from".
+ * Everything the guide says a Remnant carries, so an investigation two sessions
+ * later can still answer "where did this come from" - the names of its fields.
+ *
+ * NOT WHERE THEY LIVE (E05 C14, 27.09.2026; audit S05-06). This said "recorded on
+ * the token", and it was true until the ledger: a token reaches every browser, so
+ * every field below but two is the answer key and lives in the GMs' store (`remnantStore`,
+ * keyed `sceneId.tokenId`; see "WHAT A REMNANT REALLY IS" below). The token carries
+ * `isRemnant`, which every GM-side query finds its tokens by, and `fromIncident` while
+ * its incident runs (D11) - nothing else. `promoteFaintPrep` (chapter.mjs) believed
+ * the old sentence and wrote `faint` and `tiedToCrime` onto the token until E04, where
+ * nothing read them and every console did; what an older world still carries there
+ * comes off once, at the first load of 1.2.64 (`migrateRemnantsOnce`), and R9 and
+ * 72-canary read every token against the list (world-secrets.mjs, `flags.Token`).
  */
 export const REMNANT_FLAGS = {
     isRemnant: "isRemnant",
@@ -337,6 +348,26 @@ export async function placeRemnant(data = {}) {
     const target = scene ?? (sceneId ? game.scenes.get(sceneId) : null) ?? canvas?.scene;
     if (!target) return null;
 
+    /*
+     * AN INCIDENT'S TRACE IS THE CAST'S ONLY WHILE ITS INCIDENT RUNS (E05 C14, 27.09.2026;
+     * audit S05-42). D11 creates one un-hidden, marked `fromIncident`, so a participant's
+     * client can draw it (below, and visibility.mjs `myIncidentTrace`) - and that client
+     * asks only whether AN incident is running and whether its viewer is in it. A trace of
+     * the incident type placed with none running - a GM's "New trace" at a crime scene the
+     * morning after - was drawn for the cast of the next incident, whoever they were. It
+     * is created hidden and unmarked now, like any trace nobody has found; the closing of
+     * an incident does the same to the traces it leaves (`retireIncidentTraces`).
+     */
+    let castSees = false;
+    if (type === "incident") {
+        try {
+            const { murderState } = await import("./murder.mjs");
+            castSees = Boolean(murderState());
+        } catch {
+            // No incident module, no incident: hidden, as the rest.
+        }
+    }
+
     const actor = await ensureRemnantActor();
     if (!actor) return null;
 
@@ -398,7 +429,8 @@ export async function placeRemnant(data = {}) {
              * themselves left with their last action, and a killer had to wait
              * for a stage to be told what they had just done.
              *
-             * So an incident trace is created un-hidden and the filtering moves
+             * So an incident trace is created un-hidden - while its incident
+             * runs, and only then (`castSees`, above) - and the filtering moves
              * to the client, exactly as it already works for a revealed trace:
              * `applyToRemnantToken` in visibility.mjs shows it to the incident's
              * participants and hides it from everybody else. Foundry's own flag
@@ -410,7 +442,7 @@ export async function placeRemnant(data = {}) {
              * in front of anybody, so the "you left it AND you found it" rule
              * still governs them.
              */
-            hidden: type !== "incident",
+            hidden: !castSees,
             disposition: CONST.TOKEN_DISPOSITIONS.NEUTRAL,
             lockRotation: true,
             /*
@@ -429,7 +461,7 @@ export async function placeRemnant(data = {}) {
             flags: {
                 [MODULE_ID]: {
                     [REMNANT_FLAGS.isRemnant]: true,
-                    ...(type === "incident" ? { [REMNANT_FLAGS.fromIncident]: true } : {})
+                    ...(castSees ? { [REMNANT_FLAGS.fromIncident]: true } : {})
                 }
             }
         }]);
@@ -678,6 +710,29 @@ export async function markRemnantEditedById(sceneId, tokenId) {
 }
 
 /**
+ * THE REMNANT ACTOR, FOUND BY ITS FLAG (E05 C14, 27.09.2026; audit S05-41). It was
+ * looked up by its name, "Remnant", though it is created carrying `isRemnant`: in a
+ * world where a GM already had an actor of that name - an adversary, an NPC - the
+ * primary raised that actor to OBSERVER for every player at each load, its sheet and
+ * whatever the GM had written on it with it, and every trace was placed as a token of
+ * it. The flag decides now. The name is asked only when no actor carries the flag,
+ * and only of an actor that holds nothing - no item, no effect - which is what the
+ * module's own actor looks like and a GM's adversary does not. Pure over what it is
+ * handed (`game.actors` by default), so the suite drives it with fakes.
+ */
+export function findRemnantActor(actors = game.actors) {
+    const all = [...(actors ?? [])];
+    return all.find(actor => actor?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant))
+        ?? all.find(actor => actor?.name === REMNANT_ACTOR && holdsNothing(actor)) ?? null;
+}
+
+/** No item and no effect: the module's own base actors (the Remnant's, and projects-map.mjs's). */
+export function holdsNothing(actor) {
+    const count = c => c?.size ?? c?.length ?? 0;
+    return !count(actor?.items) && !count(actor?.effects);
+}
+
+/**
  * The actor Remnant tokens are instances of. Created once.
  *
  * OBSERVER BY DEFAULT, AND THAT IS NOT A LEAK.
@@ -705,7 +760,7 @@ export async function markRemnantEditedById(sceneId, tokenId) {
  * would apply to nobody.
  */
 async function ensureRemnantActor() {
-    let actor = game.actors.getName(REMNANT_ACTOR);
+    let actor = findRemnantActor();
     if (actor) {
         await raiseRemnantOwnership(actor);
         return actor;
@@ -763,7 +818,7 @@ async function raiseRemnantOwnership(actor) {
  */
 export async function reconcileRemnantActor() {
     if (!game.user.isGM) return;
-    const actor = game.actors.getName(REMNANT_ACTOR);
+    const actor = findRemnantActor();
     if (actor) await raiseRemnantOwnership(actor);
     // The icon sweep is a migration clause now (`questionMarkIcon` in
     // migrate.mjs): it walked every scene's tokens on every load for a world
@@ -781,7 +836,7 @@ export async function reconcileRemnantActor() {
  * and for the same reason: every existing world placed its traces under the
  * old icon, and `placeRemnant` only reaches the ones placed from now on.
  */
-export async function adoptQuestionMark(actor = game.actors.getName(REMNANT_ACTOR)) {
+export async function adoptQuestionMark(actor = findRemnantActor()) {
     // One GM does the sweep; the token writes are world data, which every
     // client receives.
     if (!isPrimaryGm()) return 0;
@@ -842,8 +897,10 @@ export async function adoptQuestionMark(actor = game.actors.getName(REMNANT_ACTO
 
 /**
  * Ledger key. Token ids are only unique inside their own scene.
- * Exported for visibility.mjs, which needs the SAME shape to match a Truth
- * Bullet's public `remnantRef` flag against a token - see `applyToRemnantToken`.
+ * Exported for visibility.mjs and remnant-icons.mjs, which need the SAME shape
+ * to match the trace a Truth Bullet came from against a token - the bullet's
+ * row's key, or its owner's copy of it, since E05 C13 (truth-bullets.mjs
+ * `bulletRefOf`); the bullet's public `remnantRef` flag until then.
  */
 export function keyOf(tokenDoc) {
     const scene = tokenDoc?.parent?.id ?? tokenDoc?.parent ?? null;
@@ -1039,48 +1096,86 @@ export async function setRemnantPublic(tokenDoc, patch = {}) {
 }
 
 /**
- * Token and Truth Bullets, brought into line with `public`.
+ * The Truth Bullets brought into line with `public`, and the token kept out of it.
  *
- * The token only moves once it is actually revealed - see the note on
- * `revealRemnantToFinder` - because writing a player-facing name onto a
- * token that is still `hidden: true` would be the answer key leaking through
- * a field nobody thought to check.
- *
- * The token gets a COPY, never a reference: it is a world document a scene
- * exports and imports independently of the ledger, so anything short of a
- * copy would desync the moment either one changed without the other.
+ * THE TOKEN SAYS NOTHING OF THE TRACE, FOUND OR NOT (E05 C13, 27.09.2026; audit
+ * S05-39 (1)). It used to take a COPY of the public name and image once the trace
+ * was revealed - never while it was hidden, and since the review of stage D (D11)
+ * never on an incident's own traces, created un-hidden, until a bullet had been
+ * copied from one. But a token is a world document every browser holds, hidden or
+ * not: once one student had found a trace, every console read what it was called
+ * and where it lay, and a GM naming an incident trace "Kettle, still warm - matches
+ * the burn" after the first find published the sentence to the whole table. The
+ * token keeps the neutral word and the question mark now, and the screens that may
+ * know the rest draw it on their own copy of the canvas - a finder's from their
+ * bullet, a GM's from the row (remnant-icons.mjs `shownOnTrace`). A name or an image
+ * an earlier build left on the token is put back, here and once for the whole world
+ * by the clause `neutralTraceNames` - but for a token that still carries its answer
+ * key (`saysMore`).
  */
 async function propagatePublic(tokenDoc, pub) {
-    // The copies first: how many there are is the answer to "has anybody found it".
-    let copies = 0;
     try {
         const { propagateRemnantPublic } = await import("./truth-bullets.mjs");
-        copies = await propagateRemnantPublic(tokenDoc.id, pub);
+        await propagateRemnantPublic(tokenDoc.id, pub);
     } catch (err) {
         error("Could not propagate `public` to the Truth Bullets copied from this trace", err);
     }
 
-    if (tokenDoc && !tokenDoc.hidden) {
-        /*
-         * UN-HIDDEN IS NOT FOUND, for an incident's own traces (D11). `placeRemnant`
-         * creates them un-hidden so a participant's client can draw them - and this
-         * wrote the public name onto that token the moment one was set, where every
-         * client reads it. A GM placing an Incident Remnant by hand from the case
-         * panel (N-4) and naming it "Kettle, still warm - matches the burn" published
-         * that sentence to the table before anybody had looked (review of stage D).
-         * Until a bullet has been copied from one, the token keeps the public word
-         * and the plain icon; a name an earlier write left there is put back.
-         */
-        const unfound = Boolean(tokenDoc.getFlag(MODULE_ID, REMNANT_FLAGS.fromIncident)) && !copies;
-        try {
-            await tokenDoc.update({
-                name: (!unfound && pub.name) || game.i18n.localize("DRPG.Remnant.tokenName"),
-                "texture.src": (!unfound && pub.img) || ICON
-            });
-        } catch (err) {
-            error("Could not copy `public` onto the Remnant token", err);
-        }
+    if (!saysMore(tokenDoc)) return;
+    try {
+        await tokenDoc.update({ name: game.i18n.localize("DRPG.Remnant.tokenName"), "texture.src": ICON });
+    } catch (err) {
+        error("Could not put the neutral name back on the Remnant token", err);
     }
+}
+
+/**
+ * Whether a trace's token says more than the neutral word and the question mark,
+ * and is `propagatePublic`'s and `neutralTraceNames`' to quiet. Not a token that
+ * still carries its answer key (`answerKeyOnToken`): its old name is the label the
+ * migration moves into the ledger (`migrateRemnantToken`, which then strips the
+ * name itself), and a write here would lose it first. The word is this client's
+ * language's, as `leftOnToken` reads it.
+ */
+function saysMore(token) {
+    if (!token || answerKeyOnToken(token)) return false;
+    return token.name !== game.i18n.localize("DRPG.Remnant.tokenName") || (token.texture?.src ?? ICON) !== ICON;
+}
+
+/**
+ * A world from before 1.2.64 may hold found traces whose tokens say what they are:
+ * the public name and the image `propagatePublic` wrote there until E05 C13 (audit
+ * S05-39 (1)). The clause `neutralTraceNames` (migrate.mjs, since 1.2.64) runs this
+ * once, on the primary: every trace token whose name is not the neutral word, or whose
+ * image is not the question mark (`saysMore`), is given both back, a write per scene.
+ * Nothing is lifted - what a trace is called is its row's `public` already, which the
+ * screens that may know it draw from. A token still saying more after the write
+ * throws, with the count, so the world is not stamped and the next load tries again
+ * (the lifts' rule, E05 fix r1-G1). Idempotent: a world already through this has
+ * nothing to write.
+ *
+ * `tokens` is the suite's, as `migrateRemnantsOnce`'s is (E05 fix r2-G4, 27.09.2026;
+ * reviews S2-m12 = F7): its own fixtures. The routine read the whole world whatever it
+ * was handed, so a tier-2 run at a table renamed and re-iconed every trace token there
+ * that a GM had named by hand. The clause hands none, and every trace in the world is read.
+ *
+ * @returns {Promise<null|{neutralised: number}>}
+ */
+export async function neutralTraceNames({ tokens = null } = {}) {
+    if (!isPrimaryGm()) return null;
+    const word = game.i18n.localize("DRPG.Remnant.tokenName");
+    const telling = () => (tokens ?? (game.scenes?.contents ?? []).flatMap(scene => remnantsOn(scene))).filter(saysMore);
+    const found = telling();
+    if (!found.length) return null;
+    const byScene = new Map();
+    for (const token of found) byScene.set(token.parent, [...(byScene.get(token.parent) ?? []), token]);
+    for (const [scene, tokens] of byScene) {
+        await scene.updateEmbeddedDocuments("Token", tokens.map(token => ({ _id: token.id, name: word, "texture.src": ICON })));
+    }
+    const left = telling().length;
+    if (left) throw new Error(`${left} trace token(s) still show a name or an image of their own; the next load tries again`);
+    log(`Gave ${found.length} trace token(s) back the neutral name and the question mark.`);
+    return { neutralised: found.length };
 }
 
 /**
@@ -1158,6 +1253,87 @@ export async function setRemnantPublicById(sceneId, tokenId, patch = {}) {
 export async function revealRemnantToFinderById(sceneId, tokenId) {
     const tokenDoc = tokenById(sceneId, tokenId);
     return tokenDoc ? revealRemnantToFinder(tokenDoc) : null;
+}
+
+/**
+ * AN INCIDENT'S TRACES LEAVE THE NEXT ONE'S MAP (E05 C14, 27.09.2026; audit S05-42).
+ * D11 creates an incident's traces un-hidden and marked `fromIncident`, so that its
+ * participants' clients draw them (visibility.mjs `myIncidentTrace`) - and that client
+ * asks only whether an incident is running and whether its viewer is in it: the mark
+ * names no incident, and a tied trace outlives the chapter's sweep. So the killer and
+ * the victim of chapter three's incident were drawn every trace of chapter one's and
+ * two's that nobody had copied - where the old crime scenes were. `endMurder` runs
+ * this on the GM that closes an incident: every trace still marked is hidden unless
+ * somebody holds a copy of it (its first find revealed it, and it stays its finders'),
+ * and the mark comes off all of them, a copied one included - left on a found trace it
+ * showed the next cast that one too. A trace found later is revealed as any other
+ * (`revealRemnantToFinder`). Who holds a copy is read off the bullets' rows (truth-
+ * bullets.mjs `ownBulletRefs`), so only once the GM stores have heard from the other
+ * GMs: until then nothing is hidden, and the mark alone comes off - which already keeps
+ * a trace off the next cast's screens. One write per scene; with nothing marked, none.
+ * `before` (a stamp) keeps the mark on every trace whose row was written from then on -
+ * the running incident's, for `retireOldIncidentMarks` below; a trace with no row here
+ * has no date and is retired with the old ones. `tokens` is the suite's fixtures, as
+ * `neutralTraceNames`' is; with none, every trace in the world is read.
+ *
+ * @returns {Promise<null|{retired: number, hidden: number}>}
+ */
+export async function retireIncidentTraces({ before = null, tokens = null } = {}) {
+    if (!game.user.isGM) return null;
+    const flag = REMNANT_FLAGS.fromIncident;
+    const old = token => before === null || remnantStore.stampOf(keyOf(token), "type") < before;
+    const marked = scene => (tokens ? tokens.filter(token => token.parent === scene) : remnantsOn(scene))
+        .filter(token => token.getFlag(MODULE_ID, flag) && old(token));
+    const scenes = (game.scenes?.contents ?? []).filter(scene => marked(scene).length);
+    if (!scenes.length) return null;
+    const { ownBulletRefs } = await import("./truth-bullets.mjs");
+    const copied = bulletStore.isHydrated() ? new Set(ownBulletRefs().map(({ ref }) => ref)) : null;
+    const deletion = forcedDeletion();
+    let retired = 0, hidden = 0;
+    for (const scene of scenes) {
+        const tokens = marked(scene);
+        const updates = tokens.map(token => {
+            const hide = copied !== null && !token.hidden && !copied.has(keyOf(token));
+            if (hide) hidden++;
+            return { _id: token.id, ...(hide ? { hidden: true } : {}), ...(deletion ? { [`flags.${MODULE_ID}.${flag}`]: deletion } : {}) };
+        });
+        await scene.updateEmbeddedDocuments("Token", updates);
+        if (!deletion) for (const token of tokens) await token.unsetFlag(MODULE_ID, flag);
+        retired += tokens.length;
+    }
+    log(`The incident's ${retired} trace(s) are no longer marked as its own; ${hidden} nobody had copied are hidden.`);
+    return { retired, hidden };
+}
+
+/**
+ * THE MARKS AN UPDATED WORLD STILL CARRIES, AT ITS FIRST LOAD OF 1.2.64 (E05 fix r2-G4,
+ * 27.09.2026; review S2-m4). `retireIncidentTraces` runs at `endMurder` since E05 C14,
+ * and every incident closed before that left its traces marked: the first incident run
+ * after the update drew them all for its cast. The clause `retireOldIncidentMarks`
+ * (migrate.mjs, since 1.2.64) runs this once, on the primary, once the traces' and the
+ * bullets' stores hold the other GMs' copies (the hiding reads who holds a copy). With no
+ * incident running, every mark is retired. With one running - a world updated in the
+ * middle of it - its own traces keep theirs: a trace is the running incident's when its
+ * row's `type` was written after the incident opened, less the clocks' bound (the cast's
+ * claim reads `openedAt` the same way, gm-stores.mjs `castStore`), so an older trace
+ * placed in the ten minutes before that opening keeps its mark until the close. A
+ * running incident whose opening this browser does not know throws, so the world is not
+ * stamped and the next load tries again. Idempotent: a world through this holds no old
+ * mark. `tokens` is the suite's fixtures (`retireIncidentTraces`).
+ *
+ * @returns {Promise<null|{retired: number, hidden: number}>}
+ */
+export async function retireOldIncidentMarks({ tokens = null } = {}) {
+    if (!isPrimaryGm()) return null;
+    const waited = await Promise.all([remnantStore.whenHydrated(), bulletStore.whenHydrated()]);
+    if (waited.includes("timedOut")) throw new Error("the other GMs' copies of the traces and the bullets did not arrive; the next load tries again");
+    const { murderState } = await import("./murder.mjs");
+    const state = murderState();
+    if (!state) return retireIncidentTraces({ tokens });
+    if (!Number.isFinite(state.openedAt)) {
+        throw new Error("an incident is running and this browser does not know when it opened; the next load tries again");
+    }
+    return retireIncidentTraces({ before: state.openedAt - TIMING.gmStoreSkewMs, tokens });
 }
 
 /**
@@ -1829,12 +2005,106 @@ export async function migrateRemnants() {
 }
 
 /**
+ * WHAT AN OLDER WORLD STILL CARRIES ON ITS TRACES' TOKENS, TAKEN OFF ONCE (E05 C14,
+ * 27.09.2026; audit S05-06, S06-02; the owner's Q5). `migrateRemnants` above moves a
+ * token's answer key into the ledger and strips it, and it was a console call: a world
+ * whose GM never typed it kept, on tokens every browser holds, the answer key of each
+ * trace from before the ledger, and the `faint: false`, `tiedToCrime: true` that
+ * `promoteFaintPrep` wrote there until E04 - which traces the GM had judged the
+ * murder's. The clause `migrateRemnantsOnce` (migrate.mjs, since 1.2.64) runs its
+ * per-token routine, `migrateRemnantToken` - which reads each row back before it strips
+ * anything - once, on the primary, after the other GMs' copies have arrived, over the
+ * trace tokens that still carry an answer-key flag or an old label in their own actor
+ * data's name. An old name on such a token is the label the routine moves into the row
+ * (C13's `neutralTraceNames` leaves it for this, `saysMore`); what was stripped is then
+ * given the neutral word and the question mark (`neutralTraceNames` again).
+ *
+ * WHAT STAYS IS SAID, AND TWO KINDS OF IT STOP THE STAMP. A token whose row did not
+ * read back keeps its whole answer key, and one whose strip did not take keeps what it
+ * did not strip: both throw, with the count, so the world is not stamped and the next
+ * load tries again (E05 fix r1-G1). The routine's two deliberate keeps do not - a
+ * Faint Prep promotion a later correction stood against stays on its token as its only
+ * record, and a token with flags, no type and no row on any GM that answered has
+ * nothing to be carried into (DS-M2): a retry would find each the same at every load,
+ * so they are counted, named in a warning, and left to the console's `migrateRemnants`
+ * once a GM has decided. R9 and 72-canary name any of them that stays.
+ *
+ * AND THE GM IS TOLD, NOT ONLY THE CONSOLE (E05 fix r2-G4, 27.09.2026; review S2-m3).
+ * Both keeps are secrets on tokens every browser holds - a promotion says which trace a
+ * GM judged the murder's - and the world is stamped over them, so the next load does not
+ * look again: the warning went to the console alone, and the health check counted
+ * neither (it read only a token's type). So a kept one is also a notification that stays,
+ * with the count and the console call that names each, and a row of the case health
+ * check (gm-stores.mjs `gmStoreHealth`, `tracesKept`) for as long as one is on its token.
+ *
+ * `tokens` is the suite's: its own fixtures, so that a run at a table migrates none of
+ * the table's traces - and gives none of them the neutral word (`neutralTraceNames`,
+ * handed the same list; review S2-m12); the clause hands none, and every trace in the
+ * world is read.
+ *
+ * @returns {Promise<null|{moved: number, filled: number, kept: number, already: number, noRow: number,
+ *   carried: number, notCarried: number, stripped: number, deltaCleaned: number}>}
+ */
+export async function migrateRemnantsOnce({ tokens = null } = {}) {
+    if (!isPrimaryGm()) return null;
+    if (await remnantStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the traces' answer keys did not arrive; the next load tries again");
+    }
+    const neutral = game.i18n.localize("DRPG.Remnant.tokenName");
+    const flagsOf = token => token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {};
+    const labelledDelta = token => typeof token.delta?.name === "string" && token.delta.name !== "" && token.delta.name !== neutral;
+    const found = (tokens ?? (game.scenes?.contents ?? []).flatMap(scene => remnantsOn(scene)))
+        .filter(token => ANSWER_KEY_FLAGS.some(flag => flag in flagsOf(token)) || labelledDelta(token));
+    if (!found.length) return null;
+    const counts = { moved: 0, filled: 0, kept: 0, already: 0, noRow: 0 };
+    let carried = 0, notCarried = 0, stripped = 0, deltaCleaned = 0;
+    const stuck = [], stays = [];
+    for (const token of found) {
+        const done = await migrateRemnantToken(token);
+        if (!done) continue;
+        counts[done.ledger] = (counts[done.ledger] ?? 0) + 1;
+        if (done.carried) carried++;
+        if (done.stripped) stripped++;
+        deltaCleaned += done.deltaCleaned;
+        const where = `${token.parent?.name ?? "?"}/${token.id}`;
+        if (done.ledger === "noRow") {
+            stays.push(`${where}: no ledger row to carry ${done.left.join(", ")} into`);
+            continue;
+        }
+        if (done.unwritten.length) {
+            stuck.push(`${where}: its row did not read back (${done.unwritten.join(", ")})`);
+            continue;
+        }
+        const kept = new Set(Object.keys(done.notCarried ?? {}).map(field => REMNANT_FLAGS[field] ?? field));
+        if (kept.size) {
+            notCarried++;
+            stays.push(`${where}: a Faint Prep promotion a later correction stood against (${[...kept].join(", ")})`);
+        }
+        const left = done.left.filter(what => (ANSWER_KEY_FLAGS.includes(what) && !kept.has(what)) || what === "delta name");
+        if (left.length) stuck.push(`${where}: ${left.join(", ")}`);
+    }
+    await neutralTraceNames({ tokens });
+    log(`Traces' tokens migrated: ${counts.moved} moved into the ledger, ${counts.filled} filled in, ${counts.kept} kept, `
+        + `${carried} Faint Prep promotion(s) carried, ${stripped} stripped, ${deltaCleaned} delta name(s) neutralised; `
+        + `${stays.length} left as they were, ${stuck.length} still carrying their answer key.`);
+    if (stays.length) {
+        warn(`Traces left carrying flags on their tokens, each its only record (game.drpg.migrateRemnants() takes them `
+            + `once a GM has set the trace in the Investigation dashboard): ${stays.join("; ")}`);
+        ui.notifications.warn(plural("DRPG.Remnant.keptOnTokens", { n: stays.length }), { permanent: true });
+    }
+    if (stuck.length) {
+        throw new Error(`${stuck.length} trace token(s) still carry their answer key (${stuck.join("; ")}); the next load tries again`);
+    }
+    return { ...counts, carried, notCarried, stripped, deltaCleaned };
+}
+
+/**
  * What a trace's token may keep: `isRemnant`, which every GM-side query finds its
  * tokens by, and `fromIncident`, the one field D11 puts on the token on purpose
  * (see REMNANT_FLAGS). Everything else there is the answer key.
  */
 const TOKEN_KEEPS = [REMNANT_FLAGS.isRemnant, REMNANT_FLAGS.fromIncident];
-const ANSWER_KEY_FLAGS = Object.entries(REMNANT_FLAGS)
+export const ANSWER_KEY_FLAGS = Object.entries(REMNANT_FLAGS)
     .filter(([, flag]) => !TOKEN_KEEPS.includes(flag))
     .map(([, flag]) => flag);
 

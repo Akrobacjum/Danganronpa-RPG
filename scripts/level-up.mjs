@@ -4,7 +4,8 @@
  * Replaces the Daggerheart level-up entirely. The guide gives two flavours:
  *
  *   Standard    - everyone who voted for the correct Blackened picks ONE.
- *   Reinforced  - a Blackened who survived a wrong vote picks THREE.
+ *   Reinforced  - a Blackened who survived a wrong vote picks THREE - with the
+ *                 class's next Standard, or at the Final Trial (E05 C11).
  *
  * Options (repeatable - picking "+1 max Health" three times means +3):
  *   +1 max Health · +1 max Sanity · +1 to a trait · +1 to an experience ·
@@ -14,7 +15,7 @@
 import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, TRAITS, STARTING } from "./config.mjs";
 import { listExperiences, resourceMax } from "./character.mjs";
 import { log, error, isPrimaryGm, ownerIdsOf } from "./utils.mjs";
-import { offerStore, offerCopy } from "./gm-stores.mjs";
+import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -313,8 +314,15 @@ export function pendingAdvance(actor) {
  *
  * @param {Actor} actor
  * @param {"standard"|"reinforced"} kind
+ * @param {object} [options]
+ * @param {number} [options.extraPicks]   Picks on top of the kind's own, in the same window
+ *                                        and the same write: a Reinforced Level Up that waited
+ *                                        for the class (E05 C11). A GM's only - a player's
+ *                                        picker takes the offer's count and nothing else.
+ * @param {string[]} [options.reasons]    The translation keys the window and the card give as
+ *                                        the reason; the kind's own when none.
  */
-export async function openAdvancement(actor, kind = "standard") {
+export async function openAdvancement(actor, kind = "standard", { extraPicks = 0, reasons = null } = {}) {
     /*
      * THE PICKER IS THE PLAYER'S TOO NOW (N-2), AND THE APPLY IS STILL NOT.
      *
@@ -345,18 +353,20 @@ export async function openAdvancement(actor, kind = "standard") {
         return null;
     }
 
-    const picks = LEVEL_UP[kind]?.picks;
-    if (!picks) {
+    const own = LEVEL_UP[kind]?.picks;
+    if (!own) {
         ui.notifications.error(game.i18n.format("DRPG.Advance.unknownKind", { kind }));
         return null;
     }
+    const picks = own + (asPlayer ? 0 : Math.max(0, Math.trunc(Number(extraPicks) || 0)));
+    const why = asPlayer || !Array.isArray(reasons) || !reasons.length ? [`DRPG.Advance.reason.${kind}`] : reasons;
 
     const experiences = listExperiences(actor);
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }) },
         classes: ["drpg-advance"],
-        content: buildContent(actor, kind, picks, experiences),
+        content: buildContent(picks, experiences, why),
         buttons: [
             {
                 action: "apply",
@@ -396,17 +406,17 @@ export async function openAdvancement(actor, kind = "standard") {
         const res = await requestAdvancement({ actorId: actor.id, picks: result, kind });
         return res.ok ? { pending: true } : null;
     }
-    return applyAdvancement(actor, result, kind);
+    return applyAdvancement(actor, result, kind, { reasons: why });
 }
 
 /* ==========================================================================
  * FORM
  * ========================================================================== */
 
-function buildContent(actor, kind, picks, experiences) {
+function buildContent(picks, experiences, reasons) {
     const intro = game.i18n.format(
         picks === 1 ? "DRPG.Advance.introOne" : "DRPG.Advance.introMany",
-        { picks, reason: game.i18n.localize(`DRPG.Advance.reason.${kind}`) }
+        { picks, reason: reasons.map(key => game.i18n.localize(key)).join(" ") }
     );
 
     const rows = Array.from({ length: picks }, (_, i) => `
@@ -505,8 +515,16 @@ function readForm(dialog, picks) {
 /**
  * Turn a list of picks into a single actor update, so three "+1 max Health" picks
  * accumulate instead of overwriting each other.
+ *
+ * ONE WRITE, ONE ADVANCE (E05 C11, 27.09.2026). The rises and the `advances` count went
+ * as two updates, a rise and then `setFlag`; they are one now, so a Standard and a
+ * Reinforced that waited for the class (`runAdvancementBatch`) are one write and one step
+ * of `advances`, and a batch of survivors is as many writes as survivors.
+ *
+ * @param {object} [options]
+ * @param {string[]} [options.reasons]  the translation keys the card gives as the reason
  */
-export async function applyAdvancement(actor, picks, kind = "standard") {
+export async function applyAdvancement(actor, picks, kind = "standard", { reasons = null } = {}) {
     // Same guard as `openAdvancement`, and for the same reason. This is also on
     // `game.drpg`, and it writes through `automatedUpdate` - which bypasses the
     // resource guard by design - so without it a player could raise their own
@@ -603,9 +621,9 @@ export async function applyAdvancement(actor, picks, kind = "standard") {
         // so a plain update would have the trait rise silently stripped while the
         // Health and Sanity rises went through - a half-applied advancement.
         const { automatedUpdate } = await import("./resource-guard.mjs");
-        await automatedUpdate(actor, update);
         const taken = (actor.getFlag(MODULE_ID, FLAGS.advances) ?? 0) + 1;
-        await actor.setFlag(MODULE_ID, FLAGS.advances, taken);
+        update[`flags.${MODULE_ID}.${FLAGS.advances}`] = taken;
+        await automatedUpdate(actor, update);
         /* AN OFFER IS SPENT BY BEING TAKEN (N-2). Withdrawn here rather than at the
            three call sites - the GM's own picker, a player's picks arriving over the
            socket, and the API - because this is the one place that writes an
@@ -613,7 +631,7 @@ export async function applyAdvancement(actor, picks, kind = "standard") {
         await withdrawOffer(actor.id);
 
         log(`Advancement (${kind}) applied to ${actor.name}: ${summary.join(", ")}`);
-        await tellPlayer(actor, kind, summary, taken);
+        await tellPlayer(actor, Array.isArray(reasons) && reasons.length ? reasons : [`DRPG.Advance.reason.${kind}`], summary, taken);
         return summary;
     } catch (err) {
         error("Could not apply the advancement", err);
@@ -623,9 +641,9 @@ export async function applyAdvancement(actor, picks, kind = "standard") {
 }
 
 /** Private note to the player and the GMs. Advancement is not public knowledge. */
-async function tellPlayer(actor, kind, summary, taken) {
+async function tellPlayer(actor, reasons, summary, taken) {
     const { whisperToOwner } = await import("./utils.mjs");
-    const title = game.i18n.localize(`DRPG.Advance.reason.${kind}`);
+    const title = reasons.map(key => game.i18n.localize(key)).join(" ");
     const items = summary.map(s => `<li>${foundry.utils.escapeHTML(s)}</li>`).join("");
     /*
      * On the card that already reaches the player, and NOT marked for the GMs.
@@ -634,12 +652,127 @@ async function tellPlayer(actor, kind, summary, taken) {
      * witnesses - the same reason the popup diet leaves them out of a card they
      * were merely copied into. A GM applying an advancement already knows: they
      * are the one who pressed it.
+     *
+     * VEILED, AND THE SOUND ADDRESSED (E05 C11, 27.09.2026; audit S06-01). The card was a
+     * whisper spoken by the character with the sound as a flag of the message, and every
+     * console receives the document whoever it is whispered to: after a wrong verdict it
+     * named the Blackened the class had just missed. It speaks as nobody and is addressed
+     * to everybody now (secret.mjs), and the sound goes to the owner alone (`playSfxFor`).
      */
-    return whisperToOwner(
+    const card = await whisperToOwner(
         actor,
         `<h3>${game.i18n.format("DRPG.Advance.chatTitle", { n: taken })}</h3>
          <p><em>${title}</em></p>
          <ul>${items}</ul>`,
-        { flags: { [MODULE_ID]: { sfx: "levelUp" } } }
+        { veiled: true }
     );
+    try {
+        const { playSfxFor } = await import("./sfx.mjs");
+        playSfxFor(actor, "levelUp");
+    } catch (err) {
+        error("Could not play the Level Up's sound to its owner", err);
+    }
+    return card;
+}
+
+/* ==========================================================================
+ * THE REINFORCED LEVEL UP WAITS FOR THE CLASS (E05 C11, 27.09.2026; D4; audit
+ * S03-01, S06-01)
+ * ==========================================================================
+ *
+ * A wrong verdict applied the surviving Blackened's Reinforced Level Up at once: new
+ * maxima and `advances` on the actor and a card spoken by it with the Level Up's sound,
+ * all of it world data every console holds - the one student the class had just failed
+ * to name, named by the reward. D4 gives everybody's advancement at the chapter's end,
+ * which exists only at a correct verdict (vote.mjs `applyVerdict`), so the Reinforced
+ * waits for the class's next correct verdict and is picked with that survivor's
+ * Standard, 1 + 3 picks in one window and one write; or for the Final Trial's verdict,
+ * when the season's secrets are out anyway (the owner's Q7, option b). It lapses at a
+ * kill (chapter.mjs `killCharacter`) and a season reset (the "advancement" group).
+ *
+ * A picker the GM closes spends nothing: the Standard is lost as it always was, and the
+ * row stays for the next batch rather than going with a misclick.
+ */
+
+/** How many picks a deferred row stands for: its kind's, once per wrong verdict it waited through. */
+function deferredPicks(row) {
+    const per = LEVEL_UP[row?.kind]?.picks ?? 0;
+    return per * Math.max(1, Math.trunc(Number(row?.count) || 1));
+}
+
+/**
+ * Who picks what in one verdict's batch - pure (R195). `survivorIds` are the living
+ * students, `rows` the deferred store's rows by actor id, `kind` the Level Up the batch
+ * hands out (null at the Final Trial, which hands out only what waited). One entry per
+ * survivor who picks anything, with the picker's arguments and `picks`, its total; `drop`
+ * names the rows whose character is not among the living, which lapse here if a kill did
+ * not already take them, and any row that names no kind there is.
+ */
+export function advancementPlan(survivorIds, rows = {}, kind = "standard") {
+    const own = LEVEL_UP[kind]?.picks ?? 0;
+    const alive = new Set(survivorIds ?? []);
+    const entries = [];
+    for (const actorId of alive) {
+        const row = rows?.[actorId];
+        const extra = deferredPicks(row);
+        if (!own && !extra) continue;
+        const base = own ? kind : row.kind;
+        entries.push({
+            actorId, kind: base, picks: own + extra,
+            extraPicks: own ? extra : extra - LEVEL_UP[base].picks,
+            deferred: extra > 0,
+            reasons: own && extra
+                ? [`DRPG.Advance.reason.${kind}`, "DRPG.Advance.reason.withClass"]
+                : [`DRPG.Advance.reason.${base}`]
+        });
+    }
+    const drop = Object.keys(rows ?? {}).filter(actorId => !alive.has(actorId) || !deferredPicks(rows[actorId]));
+    return { entries, drop };
+}
+
+/**
+ * A wrong verdict: the surviving Blackened's Level Up is written down for the class's next
+ * one, and its owner is told on a veiled card. Nothing is written on the actor. Answers
+ * the row, or null.
+ */
+export async function deferAdvancement(actor, kind = "reinforced", chapter = null) {
+    if (!game.user.isGM || !actor || !LEVEL_UP[kind]?.picks) return null;
+    await deferredOfferStore.whenHydrated();
+    const held = deferredOfferStore.get(actor.id);
+    const count = (held?.kind === kind ? Math.max(1, Math.trunc(Number(held.count) || 1)) : 0) + 1;
+    const row = { kind, chapter, at: Date.now(), count };
+    await deferredOfferStore.patch(actor.id, row, { whole: true });
+
+    const { whisperToOwner } = await import("./utils.mjs");
+    await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Advance.offerTitle")}</strong></p>
+        <p>${game.i18n.format("DRPG.Advance.deferred", { n: deferredPicks(row) })}</p>`, { veiled: true });
+    log(`${actor.name}'s ${kind} Level Up waits for the class's next one.`);
+    return row;
+}
+
+/**
+ * A verdict's Level Ups, on the GM's client: one picker per entry of `advancementPlan`,
+ * in turn, and a deferred row dropped once the picker that carried it has written. At a
+ * correct verdict `kind` is the class's Standard; at the Final Trial's it is null.
+ * Answers `{ opened, applied, lapsed }`.
+ */
+export async function runAdvancementBatch(actors, kind = "standard") {
+    if (!game.user.isGM) return null;
+    await deferredOfferStore.whenHydrated();
+    const byId = new Map((actors ?? []).filter(Boolean).map(a => [a.id, a]));
+    const { entries, drop } = advancementPlan([...byId.keys()], deferredOfferStore.entries(), kind);
+    if (drop.length) await deferredOfferStore.dropMany(drop);
+    let applied = 0;
+    for (const entry of entries) {
+        const actor = byId.get(entry.actorId);
+        try {
+            const done = await openAdvancement(actor, entry.kind, { extraPicks: entry.extraPicks, reasons: entry.reasons });
+            if (!done) continue;
+            applied++;
+            if (entry.deferred) await deferredOfferStore.drop(actor.id);
+        } catch (err) {
+            error(`Could not open the advancement for ${actor.name}`, err);
+        }
+    }
+    return { opened: entries.length, applied, lapsed: drop.length };
 }

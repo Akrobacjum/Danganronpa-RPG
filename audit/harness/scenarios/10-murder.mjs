@@ -58,13 +58,16 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const kill = await gm.eval(`
         await game.drpg.resolveCrisisAction({ actorId: "${ids.chie}", key: "finishingBlow", total: 99, isCritical: false, withHope: true });
         await new Promise(r => setTimeout(r, 1700));
-        return { stage: game.drpg.murderState()?.stage, dead: game.drpg.isDeceased(game.actors.get("${ids.daichi}")) };
+        const daichi = game.actors.get("${ids.daichi}");
+        return { stage: game.drpg.murderState()?.stage, dead: game.drpg.isDeadForGm(daichi), flag: game.drpg.isDeceased(daichi) };
     `, { timeout: 60000 });
-    check("gm: finishing blow kills", kill.dead === true && kill.stage === "resolution", JSON.stringify(kill));
+    /* TWO PHASES (E05 C10, 26.09.2026; audit S06-11): the blow kills for the GMs, and the table
+       learns of it when the body is found - the flag used to reach p1 with the blow. */
+    check("gm: finishing blow kills, for the GMs, with no flag yet", kill.dead === true && kill.flag === false && kill.stage === "resolution", JSON.stringify(kill));
 
     await settle(400);
-    const deadOnP1 = await p1.eval(`return game.drpg.isDeceased(game.actors.get("${ids.daichi}"));`);
-    check("p1: death replicated to player client", deadOnP1 === true, String(deadOnP1));
+    const deadOnP1 = await p1.eval(`const a = game.actors.get("${ids.daichi}"); return { flag: game.drpg.isDeceased(a), known: game.drpg.isDeadForGm(a) };`);
+    check("p1: the death is not on p1's client before the body is found", deadOnP1.flag === false && deadOnP1.known === false, JSON.stringify(deadOnP1));
 
     // -- 4. resolution & body discovery --------------------------------------
     phase("discovery", { flow: "body-discovery" });
@@ -87,6 +90,40 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     `, { timeout: 60000 });
     check("p1: body discovery flow responds", discover.ok, JSON.stringify(discover).slice(0, 400));
     await settle(500);
+    /* The GM's discovery (a player's call above does nothing) publishes the death: the flag reaches p1 now.
+       ON THE BODY'S SCENE (E05 fix r2-G3, 27.09.2026; review F6). The watcher runs on the primary GM
+       whatever scene it is looking at, and the discovery published the kept bodies of a same-named
+       room on the scene in view. So the GM looks at the Annex here; Botan is killed and kept too and
+       lies in Daichi's room, and Aiko and Chie walk in together: the watcher names the first body it
+       finds (Botan), and Daichi has to be found in the room by the discovery itself. Botan is revived
+       after, for the vote. Red on 8c6dfd6: Daichi stayed a death nobody had found. */
+    const found = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const daichi = game.actors.get("${ids.daichi}"), botan = game.actors.get("${ids.botan}");
+        const floor = canvas.scene, room = M.roomOfActor(daichi);
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const tok = a => floor.tokens.find(t => t.actorId === a.id);
+        canvas.scene = game.scenes.get("SCENEANNEX000000");
+        try {
+            await C.killCharacter(botan, { secret: true, keepBullets: true });
+            await tok(botan).update(M.positionIn(room, tok(botan)), PLACE);
+            await floor.updateEmbeddedDocuments("Token", ["${ids.aiko}", "${ids.chie}"].map(id => {
+                const t = floor.tokens.find(x => x.actorId === id);
+                return { _id: t.id, ...M.positionIn(room, t) };
+            }), PLACE);
+            const end = Date.now() + 8000;
+            while (!game.drpg.bodyDiscovery?.() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 500));
+        } finally {
+            canvas.scene = floor;
+        }
+        const out = { room, viewed: "annex", found: game.drpg.bodyDiscovery?.()?.room ?? null, flag: game.drpg.isDeceased(daichi), botan: game.drpg.isDeceased(botan) };
+        await C.reviveCharacter(botan, { quiet: true });
+        return out;`, { timeout: 60000 });
+    await settle(500);
+    const deadOnP1After = await p1.eval(`return game.drpg.isDeceased(game.actors.get("${ids.daichi}"));`);
+    check("p1: the body's discovery makes the death the table's, on p1's client too - both bodies in the room, on the body's scene while the GM looks at another",
+        found.found === found.room && found.flag === true && found.botan === true && deadOnP1After === true, JSON.stringify({ found, deadOnP1After }));
 
     // -- 5. traces: place a Remnant, observe it into a Truth Bullet ----------
     phase("traces", { flow: "trace-remnant" });

@@ -10,17 +10,18 @@
  * to read - opens a summary instead. What you did, what you found, what you
  * left behind.
  *
- * It invents nothing. Every line comes from a `summary` flag that `report()`
- * already stamps on the card it posts, and the window is bounded by
- * `timeOfDayStartedAt` on the clock. Two things the module was producing and
- * throwing away.
+ * It invents nothing. Every line comes from the facts `report()` sends with the
+ * card it posts - kept beside the card's words in this browser's private-card
+ * store (secret.mjs `secretSummaries`), not on the card since E05 C7 - and the
+ * window is bounded by `timeOfDayStartedAt` on the clock. Two things the module
+ * was producing and throwing away.
  *
  * Per client, and per that client's own actor: a player's summary is their
  * own, and a GM gets the table's.
  */
 
-import { MODULE_ID } from "./config.mjs";
 import { getClock, timeOfDayLabel } from "./clock.mjs";
+import { secretSummaries } from "./secret.mjs";
 import { error, esc} from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 
@@ -33,22 +34,19 @@ export function registerDaySummary() {
 }
 
 /**
- * Everything this client is entitled to see from the time of day just ended.
+ * Everything this client holds from the time of day just ended.
  *
- * `game.messages` is already filtered by Foundry to what this user may read, so
- * a player cannot learn what anybody else did by opening their own summary -
- * the whispers that carried those results never reached them in the first
- * place.
+ * WHAT THIS SAID WAS NOT TRUE (E05 C7, 26.09.2026; audit S10-05). It read the
+ * facts off `game.messages`, "already filtered by Foundry to what this user may
+ * read" - but Foundry sends every chat message to every browser and only hides
+ * the whispers in the interface, and the facts were a flag on the document: p2's
+ * copy of p1's Search card said what p1 found (40-flow, S02-11). The facts come
+ * with the card's words now, to the card's readers alone, and are read from this
+ * browser's store: a player's summary can hold only what was sent to them.
+ * Exported for the suite.
  */
-function entriesSince(startedAt) {
-    const out = [];
-    for (const message of game.messages) {
-        const s = message.getFlag(MODULE_ID, "summary");
-        if (!s) continue;
-        if (startedAt && (s.at ?? message.timestamp) < startedAt) continue;
-        out.push(s);
-    }
-    return out.sort((a, b) => (a.at ?? 0) - (b.at ?? 0));
+export function entriesSince(startedAt) {
+    return secretSummaries(startedAt);
 }
 
 export async function showDaySummary() {

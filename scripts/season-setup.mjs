@@ -24,7 +24,7 @@
 import {
     MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON, TIMING
 } from "./config.mjs";
-import { SETTINGS, DEFAULT_SAFEWORD, setSetting } from "./settings.mjs";
+import { SETTINGS, DEFAULT_SAFEWORD, setSetting, isDeceased, isDeadForGm } from "./settings.mjs";
 // What a reset is allowed to keep (R-1). Static and by a literal path, so the
 // suite's own source sweep can follow it.
 import {
@@ -43,10 +43,11 @@ import { carriableCategories } from "./inventory.mjs";
 // synchronous - a `done` that had to await could not answer at all.
 import { sharedRooms, roomsWantedFor, forgetAllStashesFound } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
-import { mastermindActor } from "./mastermind.mjs";
-import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId } from "./utils.mjs";
+import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
+import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
+import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
-import { NOTE_FLAG } from "./pre-session-note.mjs";
+import { NOTE_FLAG, hasNote } from "./pre-session-note.mjs";
 import { alreadyOpen, handOff } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -218,13 +219,26 @@ function steps() {
         },
         {
             key: "assignments",
-            /* NOBODY, ON PURPOSE, IS AN ANSWER (22.09). Despair Flow recommends "- nobody -" for
-               the Mastermind, and this row then showed them as a red cross forever. A student
-               deliberately set to feed no pool is watched as intended. */
+            /* NOBODY, ON PURPOSE, IS AN ANSWER (22.09). A student deliberately set to feed no
+               pool - an NPC-run character, a template - is watched as intended, and this row
+               showed them as a red cross forever. Despair Flow no longer names the Mastermind
+               as one (E05 C15, 27.09.2026; audit S03-03, S10-12): the division is a world
+               setting every player's browser reads, so the one student left out stands out.
+               The row below says so when it has been done anyway. */
             done: roster.every(a => feedsNobody(a) || monokumaFor(a)),
             missing: () => roster.filter(a => !feedsNobody(a) && !monokumaFor(a)).map(a => a.name),
             open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
         },
+        /* THE MASTERMIND OUT OF EVERY POOL (S03-03, S10-12). Only while it is true, and a
+           cross, not a dash: it is the module's old advice followed, and every console can
+           read it. No name under it - the window may be open while a screen is shared, and
+           the Mastermind window is the one place that names them. */
+        ...(mastermindUnpooled() ? [{
+            key: "nobodyPublic",
+            done: false,
+            missing: () => [],
+            open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
+        }] : []),
         {
             /*
              * EVENLY, AND THAT IS ALL IT SAYS (S-4, Dawid 17.09).
@@ -351,6 +365,16 @@ function steps() {
             // counts GM roles that have stopped broadcasting their pointer.
             fixedKey: "DRPG.Season.fixedCursor"
         },
+        /* A SELF-HOSTED VOICE SERVER'S SECRET IN THE WORLD (S11-59; voice.mjs
+           `liveKitSecretWarning`). Only while it is true; a cross with nothing to open,
+           because the setting is avclient-livekit's and the repair is choosing a server
+           that keeps its secret to itself. The sentence is the voice diagnosis's. */
+        ...(liveKitSecretWarning(liveKitConnectionSettings()) ? [{
+            key: "liveKitSecret",
+            hintKey: "DRPG.Voice.liveKitSecret",
+            done: false,
+            missing: () => []
+        }] : []),
         {
             key: "mastermind",
             // The one row that is allowed to stay unticked for ever.
@@ -377,7 +401,7 @@ function despairSplitCounts() {
     const counts = new Map();
     for (const user of monokumas()) counts.set(user.id, { name: user.name, n: 0 });
     for (const actor of studentActors()) {
-        if (isDeceasedForSplit(actor)) continue;
+        if (isDeadForGm(actor)) continue;          // the dead do not roll, so they are no weight on a pool
         const pool = monokumaFor(actor);
         if (!pool) continue;
         const row = counts.get(pool.id);
@@ -391,15 +415,6 @@ function despairSplitEven() {
     const counts = despairSplitCounts();
     if (counts.length < 2) return true;
     return counts[0].n - counts[counts.length - 1].n <= 1;
-}
-
-/**
- * The dead do not roll, so they are not weight on a pool. Read through a local
- * helper because chapter.mjs is imported lazily everywhere else in this file and
- * `steps()` is synchronous.
- */
-function isDeceasedForSplit(actor) {
-    return Boolean(actor?.getFlag?.(MODULE_ID, "deceased"));
 }
 
 /** Open the sheet of the first character a row is waiting on. */
@@ -467,7 +482,7 @@ function setupRows(list) {
             <span class="drpg-setup-mark">${mark}</span>
             <div class="drpg-setup-body">
                 <strong>${esc(game.i18n.localize(`DRPG.Season.step.${step.key}`))}</strong>
-                <div class="notes">${esc(game.i18n.localize(`DRPG.Season.hint.${step.key}`))}</div>
+                <div class="notes">${esc(game.i18n.localize(step.hintKey ?? `DRPG.Season.hint.${step.key}`))}</div>
                 ${detail}
                 ${step.extra ? step.extra() : ""}
             </div>
@@ -778,7 +793,7 @@ function resetTally() {
     const bullets = game.actors.reduce((n, a) =>
         n + a.items.filter(i => i.getFlag(MODULE_ID, "isTruthBullet")).length, 0);
 
-    const dead = studentActors().filter(a => a.getFlag(MODULE_ID, "deceased")).length;
+    const dead = studentActors().filter(isDeadForGm).length;
 
     let projects = 0;
     try {
@@ -794,7 +809,7 @@ function resetTally() {
     const advances = students.reduce((n, a) =>
         n + Number(a.getFlag(MODULE_ID, FLAGS.advances) ?? 0), 0);
     const notes = students.filter(a => Object.keys(writtenNotes(a)).length).length
-        + game.users.filter(u => u.getFlag(MODULE_ID, NOTE_FLAG)).length;
+        + game.users.filter(u => hasNote(u.id)).length;
 
     const cards = moduleMessages().length;
     const chat = game.messages.size;
@@ -1064,8 +1079,13 @@ async function wipeSeason(plan) {
         const { setMonocub } = await import("./monocub.mjs");
         for (const actor of studentActors()) {
             if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false);
-            if (actor.getFlag(MODULE_ID, "deceased")) await reviveCharacter(actor, { quiet: true });
+            if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true });
         }
+        /* The deaths nobody found (E05 C10): the group's cut, written above, takes the GMs'
+           rows on every GM and every player's copy; this drops what this browser holds. */
+        const { deathStore } = await import("./gm-stores.mjs");
+        if (isPrimaryGm()) await deathStore.clear();
+        else await deathStore.dropMany(Object.keys(deathStore.entries()));
     });
 
     await step("incident", "the incident", async () => {
@@ -1076,8 +1096,11 @@ async function wipeSeason(plan) {
         // The betrayal outlives the incident by design (D18); not the season.
         await clearBetrayalOffer();
         // A murder declared in the dark and never judged is an incident that
-        // has not happened yet. It would open on the first Eclipse of the new
-        // season, against a cast that has no idea what it is about.
+        // has not happened yet. The declarations are a GM store of this group
+        // since E05 (`pendingMurderStore`): the cut written above takes them on
+        // every GM, one away now included, and this drops what this browser
+        // holds. Each is named for its Eclipse, so no later lights would judge
+        // it - they drop it - but a reset is where it is gone for good.
         await clearParkedMurders();
     });
 
@@ -1112,10 +1135,14 @@ async function wipeSeason(plan) {
     // TWO KINDS OF NOTE, TWO GROUPS (R-1). A GM keeping their own pre-session
     // notes is not the same decision as keeping what the cast wrote on their
     // sheets, and one tick for both would have forced them together.
+    // The notes are a GM store since E05: the cut written first takes them on every
+    // GM and every player's copy. What is left is the flag that tells the roster a
+    // note is written - replaced whole, so an older world's text still in one goes too.
     await step("preNotes", "the GMs' pre-session notes", async () => {
         for (const user of game.users) {
-            if (user.getFlag(MODULE_ID, NOTE_FLAG)) {
-                await user.setFlag(MODULE_ID, NOTE_FLAG, "");
+            const flag = user.getFlag(MODULE_ID, NOTE_FLAG);
+            if (flag && typeof flag === "object" && (flag.written || Object.hasOwn(flag, "text"))) {
+                await replaceFlag(user, NOTE_FLAG, { written: false });
             }
         }
     });
@@ -1224,8 +1251,6 @@ async function wipeSeason(plan) {
     for (const [group, label, key, value] of [
         ["trialFloor", "the trial floor", SETTINGS.trialQueue, {}],
         ["searchTokens", "search tokens", SETTINGS.searchTokens, {}],
-        ["eclipseMoves", "Eclipse placements", SETTINGS.eclipseMoves, {}],
-        ["keyPlan", "the Key Remnant plan", SETTINGS.keyRemnantPlan, {}],
         ["discovered", "discovered rooms", SETTINGS.discoveredRooms, {}],
         // Written directly rather than through `setMotive("")`, which announces
         // the withdrawal in chat. Nobody needs to be told a motive is over
@@ -1282,6 +1307,35 @@ async function wipeSeason(plan) {
     // still carry. Both are the `discovered` group - the same fact, stored in
     // two places - and the store's players are sent the cleared rows here.
     await step("discovered", "the fog ledger", () => import("./fog.mjs").then(m => m.resetLedger()));
+    // The Eclipse's crossings are a GM store since E05, not a row above: the cut written
+    // first takes them on every GM and every owner's copy, and this clears what this
+    // browser holds. Each is named for its Eclipse, so none would count in the new season.
+    await step("eclipseMoves", "Eclipse placements", () => import("./eclipse.mjs").then(m => m.clearEclipseMoves()));
+    // The Key Remnant plan is a GM store since E05 (a row per chapter and slot), not a row
+    // above: the cut written first takes every chapter's rows on every GM, one away now
+    // included, and this clears what this browser holds.
+    //
+    // KEPT IS NOT WHOLE (E05 fix r1-G5, M3). Ticked, `step` runs `clearKeyPlan` as any other
+    // group. Unticked, `step` on its own does nothing and every chapter's rows ride into the
+    // new season - which is not what 1.2.63's single stored plan ever did: it held one
+    // chapter's plan and showed it again only once the clock reached that number, so a
+    // season that never revisited it never had it "planned". Read before the "clock" step
+    // below sends the chapter back to 1, because after that every chapter is "other than
+    // the clock's".
+    if (plan.groups.has("keyPlan")) {
+        await step("keyPlan", "the Key Remnant plan", () => import("./investigation.mjs").then(m => m.clearKeyPlan()));
+    } else {
+        const keptChapter = getClock().chapter;
+        try {
+            const dropped = await import("./investigation.mjs").then(m => m.keepOnlyKeyPlanChapter(keptChapter));
+            kept.push(dropped
+                ? `the Key Remnant plan (chapter ${keptChapter} only, ${dropped} other row(s) dropped)`
+                : "the Key Remnant plan");
+        } catch (err) {
+            error(`Season reset: could not trim the kept Key Remnant plan to chapter ${keptChapter}`, err);
+            kept.push("the Key Remnant plan");
+        }
+    }
 
     await step("clock", "the clock", async () => {
         const clock = getClock();

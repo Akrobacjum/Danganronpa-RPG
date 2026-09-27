@@ -11,8 +11,8 @@
  * which tags the checks that do with `phase(name, { flow })` or a check's own
  * `flow` - or, where none does yet, the stage that is to write one.
  *
- * Read by R160 (tier 0, through the kit), which holds it to GM_HANDLERS and the
- * socket listeners in the source, and by `node tools/check.mjs registry`, which
+ * Read by R160 (tier 0, through the kit), which holds it to the bridge's tables
+ * (GM_HANDLERS until E31) and the socket listeners in the source, and by `node tools/check.mjs registry`, which
  * holds its scenarios and stages to audit/harness/README.md and tools/stages.json.
  * It imports nothing, so Node can read it as it is.
  *
@@ -45,7 +45,18 @@
  * E31 (25.09.2026) adds 33-bridge-paths to the nine flows its checks are tagged
  * with. eclipse-route-veto goes from planned to partial with it: 33 drives
  * `eclipse.move` only as far as a GM who is connected and does not answer (its
- * check B6), not a move allowed or refused, so the flow stays E39's to complete.
+ * check B6), not a move allowed or refused. E05 C4 (26.09.2026) adds B13 to the same
+ * scenario: a legal crossing counted and answered, and one beyond the allowance refused
+ * as `nothingLeft` - the move allowed or refused this paragraph once left to E39.
+ * E05 (26.09.2026) adds pre-session-note: the note a player writes for the GMs was a
+ * flag on their own User document until 1.2.64, written with no GM at all; it goes
+ * through the bridge's `note.save` now, and each player holds a copy of their own
+ * (pre-session-note.mjs). 72 and 11 save one, 33 drives the legal road, 30 a forged
+ * one, and 61 the road to a second GM and a note kept while no GM was connected.
+ * E05 C13 (27.09.2026) makes truth-bullets.mjs a socket file again: which trace a
+ * player's own bullets came from left the items' flags for the GMs' rows, and each
+ * player holds a copy of their own, sent by a GM and asked of the primary. 72 reads
+ * that copy on the finder and on a player who holds none.
  */
 
 export const FLOWS = Object.freeze([
@@ -70,7 +81,7 @@ export const FLOWS = Object.freeze([
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
         entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security", "61-gmstore-case"], status: "covered", stage: "<=1.2.50" },
     { id: "eclipse-route-veto", what: "A move during an Eclipse: asked of the GM, allowed or refused",
-        entry: { bridge: ["eclipse.move"] }, scenarios: ["33-bridge-paths"], status: "partial", stage: "E39" },
+        entry: { bridge: ["eclipse.move"], sockets: ["eclipse.mjs"] }, scenarios: ["33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",
         entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "vault.steal", "body.loot"] },
         scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
@@ -91,6 +102,9 @@ export const FLOWS = Object.freeze([
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["murder.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "30-security", "61-gmstore-case"], status: "partial", stage: "E32" },
+    { id: "pre-session-note", what: "A player's pre-session note: sent to the primary GM, or kept until one connects, and each player's copy of their own",
+        entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },
+        scenarios: ["72-canary", "11-killer-secrecy", "33-bridge-paths", "30-security", "61-gmstore-case"], status: "covered", stage: "1.2.64" },
     { id: "private-rolls", what: "A roll made in private: whispered, and hidden from the other players' chat",
         entry: { sockets: ["dice-sync.mjs"] }, scenarios: ["12-social", "20-crit-hope"], status: "covered", stage: "<=1.2.50" },
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
@@ -111,8 +125,8 @@ export const FLOWS = Object.freeze([
         scenarios: ["10-murder", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
     { id: "trap-fire", what: "A trap: a crossing reported to the GM, the trap sprung once",
         entry: { bridge: ["trap.event"], sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
-    { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, and a player's edit is put back",
-        entry: {}, scenarios: ["30-security", "61-gmstore-case"], status: "partial", stage: "E38" },
+    { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, a player's edit is put back, and each player's copy of which traces their own came from",
+        entry: { sockets: ["truth-bullets.mjs"] }, scenarios: ["30-security", "61-gmstore-case", "72-canary"], status: "partial", stage: "E38" },
     { id: "voice", what: "Voice rooms: who hears whom",
         entry: { sockets: ["voice.mjs", "voice-client.mjs"] }, scenarios: [], status: "planned", stage: "E58" }
 ]);

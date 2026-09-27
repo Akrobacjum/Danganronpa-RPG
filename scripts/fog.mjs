@@ -779,9 +779,14 @@ export async function resetLedger() {
  * NOTHING LEAVES WORLD DATA BEFORE THE STORE HOLDS IT. The rows go in weak and
  * fill-only - a cell any GM decided wins, an untick above all - and the world
  * setting is emptied only once every one of them reads back from storage; then it
- * is read back too. Idempotent: a world already through this has nothing in it.
+ * is read back too. A row that does not read back, or a world copy that does not read
+ * back empty, throws with the count, so the world is not stamped and the next load
+ * tries again (E05 fix r1-G1; migrate.mjs, above the lifts - since 1.2.64, so that a
+ * world 1.2.63 stamped over a ledger it kept runs this once more). Idempotent: a world
+ * already through this has nothing in it.
  *
- * @returns {Promise<null|{lifted: number, monokuma: number, emptied: boolean}>}
+ * @returns {Promise<null|{lifted: number, monokuma: number, emptied: boolean}>}  `emptied`
+ *   true: anything else throws.
  */
 export async function liftDiscoveryLedger() {
     if (!isPrimaryGm()) return null;
@@ -808,14 +813,14 @@ export async function liftDiscoveryLedger() {
             return Object.keys(row).some(room => !Object.hasOwn(held, room));
         });
         if (unheld.length) {
-            warn(`The fog ledger kept its world copy: ${unheld.length} row(s) did not read back from the store.`);
-            return { lifted: 0, monokuma, emptied: false };
+            throw new Error(`the fog ledger kept its world copy: ${unheld.length} row(s) did not read back from the GM store; the next load tries again`);
         }
     }
     await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, {});
     const emptied = !Object.keys(game.settings.get(MODULE_ID, SETTINGS.discoveredRooms) ?? {}).length;
     if (emptied) log(`Lifted the discovery ledger out of world data (D2): ${Object.keys(cells).length} row(s).`);
     shareLedger();
+    if (!emptied) throw new Error("the fog ledger's world copy did not read back empty; the next load tries again");
     return { lifted: Object.keys(cells).length, monokuma, emptied };
 }
 
@@ -3602,7 +3607,16 @@ function clearLayer(container) {
 }
 
 function hideLayer() {
-    document.body.classList.remove("drpg-fog-active");
+    /* `toggle(name, false)`, not `remove(name)`, for the reason `repaintFog` gives at its
+       `toggle(name, true)`: `remove` of a class the body does not carry still rewrites
+       `class` (DOMTokenList runs its update steps whatever it found - jsdom's code, and the
+       spec's). This runs on every repaint the fog stands down from, which is every repaint
+       on a scene it cannot draw, so each one woke the three body observers for nothing.
+       Found by scenario 14 (27.09.2026): "five identical clock redraws write nothing to the
+       body" read one record in 13 of 28 runs across 51e10c7 and c4cedda - a SYNC.fog
+       arriving inside its window, `repaintFog` -> `stand` -> here, writing `class` with the
+       value it already had. */
+    document.body.classList.toggle("drpg-fog-active", false);
     dropBackdrop();
     const container = findLayer();
     if (container) {

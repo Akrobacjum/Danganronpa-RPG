@@ -6,7 +6,7 @@
  * never clutters the settings window.
  */
 
-import { MODULE_ID, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
+import { MODULE_ID, FLAGS, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
 import { readMine, gmStoreByName, liveFields } from "./gm-store.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
@@ -38,14 +38,46 @@ export const SETTINGS = {
     lockPlayerResources: "lockPlayerResources",
     roomVisibility: "roomVisibility",
     lockRollDialog: "lockRollDialog",
-    eclipseMoves: "eclipseMoves",
     /**
-     * The live Despair Overflow: `{ count, active }` (Z10).
+     * THE ECLIPSE'S CROSSINGS (E05, 1.2.64; audit S10-39): a GM store
+     * (gm-stores.mjs `eclipseMoveStore`), a row per character `{ used, eclipse }`,
+     * and each owner's copy of their own characters' rows (`eclipseMoveCopy`),
+     * read for the running Eclipse only (`eclipseMovesUsed`). Until 1.2.64 they
+     * were the world setting `eclipseMoves`, which every browser holds: who had
+     * crossed how often, in the Eclipse before a murder was declared. That key
+     * stays registered as `legacyEclipseMoves`, read only by the clause
+     * `liftEclipseMoves` and held empty by world-secrets.mjs.
+     */
+    gmEclipseMoves: "gmEclipseMoves",
+    mineEclipseMoves: "mineEclipseMoves",
+    legacyEclipseMoves: "eclipseMoves",
+    /**
+     * THE DEATHS NOBODY HAS FOUND (E05 C10, 1.2.64; audit S06-11): a GM store
+     * (gm-stores.mjs `deathStore`), a row per body `{ chapter, day, timeOfDay, at,
+     * keepBullets, known, loot }` (`loot` since E05 fix r2-F0b: the Truth Bullets a
+     * loot of the body owes, given at the publication), and each player's copy of the
+     * bodies they may know (`deathCopy`: their own character, the incident they were
+     * in, a body they found alone). Until 1.2.64 a kill wrote the `deceased` flag, the
+     * `dead` status and the Truth Bullets' deletion at once, so every console knew who
+     * died from the moment of the killing. `isDeadForGm` reads these; the flag waits
+     * for the publication (chapter.mjs `publishDeath`).
+     */
+    gmDeaths: "gmDeaths",
+    mineDeaths: "mineDeaths",
+    /**
+     * The live Despair Overflow: `{ active }` (Z10), the stamp of the ONE time of
+     * day a darkening covers, or null - public, since the card that fires it is.
      *
-     * `count` is spilled Despair waiting to be spent; `active` is the stamp of
-     * the ONE time of day a darkening covers, or null. Both in one setting
-     * because they change together and a reader that saw one without the other
-     * would draw a HUD that contradicts itself.
+     * THE COUNT IS THE GMS' SINCE 1.2.64 (E05 C12, 27.09.2026; audit S01-60): the
+     * spilled Despair waiting to be spent is the record of the GM store `overflow`
+     * (`gmOverflow` below; overflow.mjs `state`). Both halves were one setting so a
+     * reader could not see one without the other, and every browser holds a world
+     * setting: a player's caption masked the count as "?" over a value their
+     * console read. A GM's HUD now reads the two from two places, and a firing
+     * writes the count before the stamp (`checkOverflow`), so what it can show for
+     * a moment is a count already paid beside no darkening yet - never a darkening
+     * the count did not pay for. The clause `liftOverflowCount` takes an older
+     * world's count out of this value.
      */
     overflow: "overflow",
     /**
@@ -188,6 +220,14 @@ export const SETTINGS = {
     truthBulletSecrets: "gmBullets",
     legacyTruthBulletSecrets: "truthBulletSecrets",
     /**
+     * WHICH TRACE EACH OF A PLAYER'S OWN BULLETS CAME FROM (E05 C13, 1.2.64; audit
+     * S05-39 (2)): the player's copy of their bullets' rows' keys (gm-stores.mjs
+     * `bulletRefCopy`, truth-bullets.mjs `bulletRefOf`), read to show them the traces
+     * they have found. Until 1.2.64 each bullet said so in its `remnantRef` flag,
+     * which every browser holds; the clause `liftBulletRefs` takes that off the items.
+     */
+    mineBulletRefs: "mineBulletRefs",
+    /**
      * `{ since, lastBackupAt, lastBackupBy }` (E04, 1.2.63): when this world's case
      * was first held in a GM store, and its last backup. WORLD-scoped because every
      * GM's browser needs the same answer - a browser that opens a world whose case
@@ -253,6 +293,32 @@ export const SETTINGS = {
     legacyAdvanceOffers: "advanceOffers",
     mineOffers: "mineOffers",
     /**
+     * THE REINFORCED LEVEL UPS WAITING FOR THE CLASS (E05 C11, 1.2.64; D4; audit S03-01,
+     * S06-01): a GM store (gm-stores.mjs `deferredOfferStore`), a row per surviving
+     * Blackened `{ kind, chapter, at, count }`. Until 1.2.64 a wrong verdict applied the
+     * Reinforced Level Up at once - new maxima and `advances` on the actor, a card spoken by
+     * it - so every console could name the Blackened the class had just missed. No player
+     * copy: the owner is told on a veiled card, and nothing on a player's browser reads it.
+     */
+    gmDeferredOffers: "gmDeferredOffers",
+    /**
+     * THE DESPAIR COUNTERS ON THE GMS' SIDE (E05 C12, 27.09.2026; audit S01-60, S09-28). Two GM
+     * stores, synced and backed up, with no player copy: `gmOverflow` (gm-stores.mjs
+     * `overflowStore`) is the overflow's count, a record `{ count }` - the world setting
+     * `overflow` keeps `{ active }`; `gmDespairOwed` (`despairOwedStore`) is a row per conversion
+     * to Hope `{ owed, since }`, keyed `<pool>:<gm>:<ms>` (E05 fix r2-G2), the Despair it took and
+     * its pool has not yet paid (despair.mjs `settleOwed`, at the next time of day).
+     */
+    gmOverflow: "gmOverflow",
+    gmDespairOwed: "gmDespairOwed",
+    /**
+     * WHAT HAS BEEN TAKEN OFF EACH BODY (E05 C14, 1.2.64; audit S05-39 (3)): a GM store
+     * (gm-stores.mjs `lootTraceStore`), a row per body `{ sceneId, tokenId, taken }` - its one
+     * loot trace and the items' names. The body's `lootTrace` flag until 1.2.64, which every
+     * browser holds. No player copy.
+     */
+    gmLootTraces: "gmLootTraces",
+    /**
      * The words of every private card this browser is a recipient of.
      *
      * CLIENT-SCOPED, and that is the entire point - see secret.mjs. A whisper
@@ -261,6 +327,21 @@ export const SETTINGS = {
      * written.
      */
     secretCards: "secretCards",
+    /**
+     * WHAT THIS BROWSER ROLLED LAST, PER CHARACTER - the Reroll bookmark (E05 C7,
+     * 26.09.2026; audit S02-01). `{ v: 1, worlds: { [worldId]: { [actorId]: bookmark } } }`.
+     *
+     * CLIENT-SCOPED, on the roller's own browser. Until 1.2.64 the bookmark was the
+     * actor flag `lastAction`, which every browser holds: a crisis roll's keys, Stage
+     * 6's token ids and the words of a reshaped trace, a palm's victim and item, an
+     * Observe's key - each readable from any console. A Reroll is made by the player
+     * who rolled, from the browser that rolled (call-effects.mjs), so that browser is
+     * the only one that needs it; the owner chose it over a GM store for now (plan Q6,
+     * 26.09), and E08 moves it to the GMs. Not synced, not backed up: a bookmark is the
+     * newest roll, and a roll made in another browser is Rerolled from there. Per world,
+     * because a client setting is one entry for every world this browser opens.
+     */
+    rollBookmarks: "rollBookmarks",
     /*
      * WHICH ITEM IS THE TRAP, AND WHAT IS WAITING IN WHICH ROOM.
      *
@@ -286,15 +367,42 @@ export const SETTINGS = {
     trapPlants: "gmTrapPlants",
     legacyTrapPlants: "trapPlants",
     /**
-     * The GM's plan for this murder's five Key Remnants.
-     *
-     * World-scoped and therefore readable by a curious player (see D6), which
-     * is fine: the plan is a list of what the GM INTENDS to make findable, and
-     * the players are meant to find all of it. The Key Remnants themselves are
-     * placed on the map and priced the cheapest of any type precisely so the
-     * case stays solvable.
+     * AN INDIRECT MURDER'S KILLER, BUILDER, CONDITION AND TRIGGER (E05, 1.2.64;
+     * audit S09-05, D3): a GM store (gm-stores.mjs `projectSecretStore`), a row per
+     * countdown id. They were fields of `projectMeta`, a world setting, which any
+     * player's console read. No old key: the first rows come out of projectMeta, by
+     * the migration clause `liftProjectSecrets`, which reads them back first.
      */
-    keyRemnantPlan: "keyRemnantPlan",
+    projectSecrets: "gmProjectSecrets",
+    /**
+     * THE KEY REMNANT PLAN (E05, 1.2.64; audit S01-01, S05-02): a GM store
+     * (gm-stores.mjs `keyPlanStore`), a row per chapter and slot,
+     * `${chapter}:${slot}` -> { scale, name, text, analysis, note, tokenId,
+     * sceneId } (investigation.mjs `keyPlan`, `setKeyPlan`).
+     *
+     * Until 1.2.64 it was the world setting `keyRemnantPlan`, and this comment
+     * called that fine: the plan is what the GM intends to make findable, and
+     * the players are meant to find all of it. Finding is the point, and the
+     * plan was the finding done in advance - each clue's name and what it says
+     * before anybody has come across it, what its analysis says before anybody
+     * has paid for one, the GM's own note, and the token on the map that is
+     * the Key Remnant. 72-canary found its four markers - name, text,
+     * analysis, note - on all three players' browsers (E30 C20, 24.09.2026).
+     * That key stays registered as `legacyKeyRemnantPlan`, read only by the
+     * clause `liftKeyPlan` and held empty by world-secrets.mjs.
+     */
+    gmKeyPlan: "gmKeyPlan",
+    legacyKeyRemnantPlan: "keyRemnantPlan",
+    /**
+     * THE PRE-SESSION NOTES (E05, 1.2.64; audit S11-03, S01-08): a GM store
+     * (gm-stores.mjs `noteStore`), a row per user -> { text, updatedAt, byGm },
+     * and each player's copy of their own (`noteCopy`). Until 1.2.64 the note was
+     * the flag `preSessionNote` on the player's User document, which every browser
+     * holds; the flag keeps `{ updatedAt, written }`, and the clause `liftNotes`
+     * takes an older world's text out of it (pre-session-note.mjs).
+     */
+    gmNotes: "gmNotes",
+    mineNote: "mineNote",
     /** Which groups the last season reset was told to leave alone (R-1). */
     seasonExceptions: "seasonExceptions",
     /** Monokuma's standing rules - see rules.mjs. Public by design. */
@@ -341,18 +449,21 @@ export const SETTINGS = {
      */
     bodyFound: "bodyFound",
     /**
-     * The murder currently in progress, or `{}`.
+     * The murder currently in progress - its WORLD HALF - or `{}`.
      *
-     * World-scoped, and that is a real exposure: a player reading the console
-     * could learn who the killer is (see D6 - nothing world-scoped is hidden).
-     * Accepted deliberately, because the alternative is worse. An incident is a
-     * turn-based exchange between two players who both have to see whose turn
-     * it is, how much the victim has left, and which of their actions are
-     * blocked this turn. Hiding that on the GM's browser would mean a socket
-     * round trip per turn per participant, and a table sitting in silence
-     * waiting for it. The state is only live during an incident, everyone at
-     * the table knows an incident is happening, and the identity is about to
-     * come out anyway.
+     * World-scoped, so every browser holds it (D6: nothing world-scoped is
+     * hidden), and it holds only what a bystander may know: the fields
+     * murder.mjs lists in `PUBLIC_INCIDENT`, each with its reason - that an
+     * incident runs and at which stage, whose side acts, and the mechanics both
+     * participants' trackers need live every turn, which a socket round trip per
+     * turn would leave the table waiting for. Nothing in it names anyone.
+     *
+     * It used to hold more. This comment said until 1.2.64 that the killer could
+     * be read from it, which LIVE-001 had already ended; and it held how the
+     * incident happened - a trap, a death by the victim's own hand, a reversal,
+     * when it opened, how it ended - until E05 C8 (audit S04-08) moved those into
+     * the cast below. `murderState()` merges the two halves; the world-secrets
+     * rule (`murderState`'s `only`) holds this key to the list.
      */
     murderState: "murderState",
     /**
@@ -388,7 +499,19 @@ export const SETTINGS = {
     incidentCast: "gmCast",
     legacyIncidentCast: "incidentCast",
     mineCast: "mineCast",
-    pendingMurders: "pendingMurders",
+    /**
+     * THE DIRECT MURDERS DECLARED IN THE DARK (E05, 1.2.64; audit S10-01, S01-02,
+     * S11-02): a GM store (gm-stores.mjs `pendingMurderStore`), a row per killer
+     * `{ room, note, at, approved, eclipse }`, read for the running Eclipse only
+     * (`eclipseId`). Until 1.2.64 they were the world setting `pendingMurders`,
+     * which every browser holds: any console named the killer, the room and the
+     * plan for the whole of the Eclipse, before anybody knew there was an
+     * incident. That key stays registered as `legacyPendingMurders`, read only by
+     * the migration clause `liftPendingMurders`, and held empty by
+     * world-secrets.mjs. No old browser key: the first rows come out of the world.
+     */
+    pendingMurders: "gmPendingMurders",
+    legacyPendingMurders: "pendingMurders",
     /**
      * Who has killed in THIS chapter, in the order they did it.
      *
@@ -409,10 +532,11 @@ export const SETTINGS = {
      * survived the first fix. See `openVerdictDialog`.
      *
      * A GM STORE SINCE E04 (1.2.63; audit S04-25): `gmBlackened` (gm-stores.mjs,
-     * `blackenedStore`), a row per killer `{ chapter, epoch, at }`, read for the
-     * clock's chapter and season (`blackenedIds`) rather than emptied at the
-     * chapter's end - so a copy from a GM who missed that end cannot bring last
-     * chapter's killers back. `legacyBlackenedLedger` is the key before it.
+     * `blackenedStore`), a row per killer `{ chapter, epoch, at }` (and, since
+     * 1.2.64, `victims`), read for the clock's chapter and season (`blackenedIds`)
+     * rather than emptied at the chapter's end - so a copy from a GM who missed that
+     * end cannot bring last chapter's killers back. `legacyBlackenedLedger` is the
+     * key before it.
      */
     blackenedLedger: "gmBlackened",
     legacyBlackenedLedger: "blackenedLedger",
@@ -576,6 +700,14 @@ export const DEFAULT_CLOCK = {
      * An Eclipse is not part of a day - the day counter does not move for it.
      */
     eclipse: false,
+    /**
+     * When the running Eclipse began, as `Date.now()` on the GM's client that
+     * opened it (E05, 1.2.64), or null - `setClock` clears it when an Eclipse
+     * ends. It names the Eclipse (`eclipseId`): the GMs' rows of what was
+     * declared in the dark carry that name, and are judged by the Eclipse that
+     * made them and by no other.
+     */
+    eclipseStartedAt: null,
     /** Free text shown at the top of the HUD, e.g. "Hope's Peak: Drowned Summer". */
     campaignName: "",
     season: 1,
@@ -1064,6 +1196,15 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // A player's copy of which trace each of their bullets came from (E05 C13): a change
+    // redraws which found traces they see, and what their screen calls them.
+    game.settings.register(MODULE_ID, SETTINGS.mineBulletRefs, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgBulletRefsChanged")
+    });
     game.settings.register(MODULE_ID, SETTINGS.caseMark, {
         scope: "world",
         config: false,
@@ -1115,8 +1256,55 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // The deferred Reinforced Level Ups (E05 C11): no `onChange`, as nothing on any screen
+    // shows them - read by the verdicts' batches and dropped by a kill, on a GM's client.
+    game.settings.register(MODULE_ID, SETTINGS.gmDeferredOffers, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    /* The Despair counters (E05 C12). A change - this GM's write or another GM's merged in -
+       redraws what the world setting's change redrew (the caption, the HUD row, the sheets;
+       the pools' bar and sheets), and tells the windows that show a count or what a pool
+       can spend: a client setting's write fires no `updateSetting` for their watches. */
+    game.settings.register(MODULE_ID, SETTINGS.gmOverflow, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => {
+            onStoreChange("overflow");
+            Hooks.callAll("drpgOverflowChanged");
+        }
+    });
+    game.settings.register(MODULE_ID, SETTINGS.gmDespairOwed, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => {
+            onStoreChange("despair");
+            Hooks.callAll("drpgDespairOwedChanged");
+        }
+    });
+    // What has been taken off each body (E05 C14): no `onChange`, as nothing on any screen
+    // shows it - read by the next loot of the same body, on the GM that serves it.
+    game.settings.register(MODULE_ID, SETTINGS.gmLootTraces, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
 
     game.settings.register(MODULE_ID, SETTINGS.secretCards, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.rollBookmarks, {
         scope: "client",
         config: false,
         type: Object,
@@ -1150,12 +1338,51 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // GM-side and client-scoped like the two above, for the reason beside its key.
+    game.settings.register(MODULE_ID, SETTINGS.projectSecrets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
 
-    game.settings.register(MODULE_ID, SETTINGS.keyRemnantPlan, {
+    // The Key Remnant plan: a GM store since E05 (`keyPlanStore`), a row per chapter
+    // and slot. No `onChange`, as the world key had none: the dashboard that shows the
+    // plan reads it at each redraw, and a redraw comes from the world's own changes
+    // (live.mjs `keepLive`) - so another GM's edit reaches an open dashboard at its next
+    // one, and not the moment it merges (read, not measured at a table).
+    game.settings.register(MODULE_ID, SETTINGS.gmKeyPlan, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The world key before 1.2.64: read once by `liftKeyPlan`, and empty after.
+    game.settings.register(MODULE_ID, SETTINGS.legacyKeyRemnantPlan, {
         scope: "world",
         config: false,
         type: Object,
         default: {}
+    });
+
+    // The pre-session notes: a GM store since E05 (`noteStore`), and each player's copy of
+    // their own (`noteCopy`). On a change the open Note tabs follow it without a redraw,
+    // which would throw away what is being typed (messenger-app.mjs `refreshNote`): until
+    // E05's fix round (r1-G4, review M5) there was no `onChange`, and a player's "Kept here
+    // until a GM connects." stood after the note had gone, a GM's tab kept older words.
+    game.settings.register(MODULE_ID, SETTINGS.gmNotes, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgNotesChanged")
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineNote, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgNotesChanged")
     });
 
     /*
@@ -1221,13 +1448,16 @@ export function registerSettings() {
         onChange: () => onWorldChange(SETTINGS.murderState)
     });
 
-    // Direct murders declared during an Eclipse and not yet judged.
+    // Direct murders declared during an Eclipse and not yet judged: a GM store
+    // since E05 (`pendingMurderStore`), a row per killer - one killer, one
+    // attempt per Eclipse. Deliberately carries no victim: who that is depends
+    // on where everybody ends up standing, which is the whole point. See
+    // `judgePendingMurders`.
     //
-    // World-scoped like the incident itself: the declaration outlives the
-    // client that made it, and the judgement runs on the GM's when the lights
-    // come up. Keyed by killer id - one killer, one attempt per Eclipse.
-    // Deliberately carries no victim: who that is depends on where everybody
-    // ends up standing, which is the whole point. See `judgePendingMurders`.
+    // It was world-scoped "like the incident itself", on the reasoning that the
+    // declaration outlives the client that made it. It does - on the GMs'
+    // browsers, which is where the judgement runs - and world data was also
+    // every player's console, for the whole Eclipse (S10-01).
     //
     // NO `onChange`, DELIBERATELY. Nothing on any screen shows this: it is read
     // once, inside `judgePendingMurders`, on the GM's client, at the moment the
@@ -1236,6 +1466,13 @@ export function registerSettings() {
     // lie in the source, which is the shape of defect the "every setting that
     // promises a redraw gets one" invariant exists to remove.
     game.settings.register(MODULE_ID, SETTINGS.pendingMurders, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The world key before 1.2.64: read once by `liftPendingMurders`, and empty after.
+    game.settings.register(MODULE_ID, SETTINGS.legacyPendingMurders, {
         scope: "world",
         config: false,
         type: Object,
@@ -1297,11 +1534,12 @@ export function registerSettings() {
      * and splitting a setting from its first reader buys nothing but the risk
      * that its shape goes stale before anybody uses it.
      */
+    // `{ active }` alone since E05 C12: the count is the GMs' record (`gmOverflow`).
     game.settings.register(MODULE_ID, SETTINGS.overflow, {
         scope: "world",
         config: false,
         type: Object,
-        default: { count: 0, active: null },
+        default: { active: null },
         onChange: () => onWorldChange(SETTINGS.overflow)
     });
 
@@ -1508,17 +1746,52 @@ export function registerSettings() {
         onChange: () => onWorldChange(SETTINGS.restrictions)
     });
 
-    // Eclipse crossings used, per actor. Cleared when the Eclipse ends.
-    game.settings.register(MODULE_ID, SETTINGS.eclipseMoves, {
-        scope: "world",
+    // Eclipse crossings used, per actor: the GMs' store and each owner's copy since
+    // E05, each row named for its Eclipse. A crossing redraws the sheet's budget line
+    // and the Move tile, on the GM that counted it and on the owner that was sent it.
+    game.settings.register(MODULE_ID, SETTINGS.gmEclipseMoves, {
+        scope: "client",
         config: false,
         type: Object,
         default: {},
-        onChange: () => onWorldChange(SETTINGS.eclipseMoves)
+        onChange: () => onStoreChange("visibility")
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineEclipseMoves, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onStoreChange("visibility")
+    });
+    // The deaths nobody has found (E05 C10): the GMs' store and a player's copy. A body
+    // kept secret redraws what a death redraws - the sheets, the HUD, the map - and is
+    // told to voice, the traps and the Players window by `drpgDeathsChanged`, which the
+    // flag's own `updateActor` does not reach while nothing is written to the actor.
+    game.settings.register(MODULE_ID, SETTINGS.gmDeaths, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onDeathsChange()
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineDeaths, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onDeathsChange()
+    });
+    // The world key before 1.2.64: read once by `liftEclipseMoves`, and empty after.
+    game.settings.register(MODULE_ID, SETTINGS.legacyEclipseMoves, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     // Per-project data Daggerheart's countdowns do not carry: which room the
     // project belongs to, whether it is an indirect murder, whether it is secret.
+    // Never who built it or what sets it off: those are `projectSecrets` (E05).
     game.settings.register(MODULE_ID, SETTINGS.projectMeta, {
         scope: "world",
         config: false,
@@ -1538,7 +1811,8 @@ export function registerSettings() {
         }
     });
 
-    // One Despair pool per full Gamemaster. Format: { "<userId>": 7 }
+    // One Despair pool per full Gamemaster. Format: { "<userId>": 7 }, and since E05 fix r2-G2
+    // `settled`, the time of day the owed Despair was last paid in (despair.mjs `SETTLED`).
     game.settings.register(MODULE_ID, SETTINGS.despairPools, {
         scope: "world",
         config: false,
@@ -1609,6 +1883,24 @@ export function registerSettings() {
  */
 function onWorldChange(key) {
     import("./sync.mjs").then(m => m.applyFor(key)).catch(() => {});
+}
+
+/**
+ * The same for what is no world setting - a GM store's key, or a player's copy of
+ * one (E05): it names the refresh's kind itself (`SYNC`, sync.mjs). Handing the
+ * store's key to `onWorldChange` would be a raw use of it outside the engine (R171),
+ * and the table there is keyed by world settings.
+ */
+function onStoreChange(kind) {
+    import("./sync.mjs").then(m => m.applyKind(m.SYNC[kind])).catch(() => {});
+}
+
+/* A death kept by the GMs changed on this browser: the sheets, the HUD and the map
+   (the "visibility" kind redraws all three), and the hook the death's own readers
+   listen on - voice, the traps' map, the Players window. */
+function onDeathsChange() {
+    onStoreChange("visibility");
+    Hooks.callAll("drpgDeathsChanged");
 }
 
 /**
@@ -1700,6 +1992,29 @@ export function incidentParticipants() {
 }
 
 /**
+ * WHETHER THE RUNNING INCIDENT IS A TRAP: THE CAST'S, AND THE WORLD HALF'S WHERE THE CAST
+ * HAS NONE (E05 fix r1-G1, 27.09.2026; the correctness review's M2). One rule for its three
+ * readers - `castOwners` in murder.mjs (who is sent the cast), `incidentWitness` below (the
+ * card's gate, the HUD's turn row, the edges, the music) and the opening Event card
+ * (events.mjs) - which the round-1 review found reading it two ways: `castOwners` fell back
+ * to the world half, the other two read the cast alone. The method is the cast's since E05
+ * C8 (audit S04-08), and an incident opened since then writes `indirect` into it, true or
+ * false. The world half still holds it only where `liftIncidentMethod` has not reached - an
+ * incident opened under 1.2.63, until the first load of 1.2.64 lifts it, or longer when
+ * the lift keeps failing and retries - and that incident's cast has no `indirect` at all.
+ * There the cast alone read "direct": a GM sitting in a trap's killer's chair held a seat
+ * in `incidentWitness` (measured, the tier-2 test "a trap a world half still holds..."),
+ * and by reading, the opening Event card skipped the trap's victim (a direct murder does
+ * not tell its victim; that filter runs on a player's browser, which the suite cannot
+ * seat). Reading the world half adds nothing a console there could not read already, and
+ * a value the cast holds always wins. `murderState()` spreads the two halves, which gives
+ * the same answer wherever the cast holds a boolean or nothing.
+ */
+export function incidentIndirect(cast, state) {
+    return Boolean(cast?.indirect ?? state?.indirect);
+}
+
+/**
  * DOES THIS BROWSER WITNESS THE INCIDENT THAT IS RUNNING - and which seat is it?
  *
  * Four things now turn on that one question: the Event card, the HUD's turn
@@ -1714,7 +2029,8 @@ export function incidentParticipants() {
  * rules it states are the whole of the rule:
  *
  *   · the names come from `incidentCast`, never from the world setting - a
- *     bystander's browser holds none of them and must go on holding none
+ *     bystander's browser holds none of them and must go on holding none; so
+ *     does whether it is a trap (E05 C8), by `incidentIndirect`'s rule
  *   · a seat is decided by OWNERSHIP, because `game.user.character` is a field
  *     nothing at this table ever sets (see hud.mjs's own note on that)
  *   · a GM witnesses every incident, but owns no seat in it - owning every
@@ -1743,7 +2059,11 @@ export function incidentWitness() {
     if (!state.active || (state.stage !== "incident" && state.stage !== "openingRoll")) return away;
 
     const cast = incidentCast();
-    const indirect = Boolean(state.indirect);
+    /* From the cast, as the names are (E05 C8; audit S04-08), and the world half only where
+       the cast has none (`incidentIndirect`). A trap's killer holds no cast while it runs, so
+       on their browser this reads the world half, which holds it only until the lift - and
+       their seat is empty anyway. */
+    const indirect = incidentIndirect(cast, state);
     const gm = Boolean(game.user?.isGM);
 
     const mine = new Set();
@@ -1778,6 +2098,87 @@ export function incidentWitness() {
 }
 
 /*
+ * ONE QUESTION PER DEATH (E05 C9, 26.09.2026; audit S17-11).
+ *
+ * Until 1.2.64 "is this student dead?" was asked in eighteen places: chapter.mjs's
+ * `isDeceased` and `deathRecord`, fifteen copies in ten other files reading the
+ * flag straight off the actor, and traps.mjs's read of the token's "dead" status -
+ * most with a note saying why they could not import chapter.mjs: a synchronous
+ * veto, a hot path, an import cycle (R192, run on the tree before E05 C9, listed
+ * exactly those). This file is the leaf every one of those can import, so the
+ * question lives here, asked two ways, and chapter.mjs re-exports it:
+ *
+ *   isDeceased    the table's fact - the flag, which every browser can read.
+ *                 Rule A: whatever writes world data or posts a document per
+ *                 student asks this one (an action budget refilled, an Eclipse
+ *                 card, the ballots); a write that skipped a body nobody has
+ *                 found would name it.
+ *   isDeadForGm   the truth this browser may hold: on a GM, every death; on a
+ *                 player, the table's fact and the bodies that player may know.
+ *                 Rule B: the GMs' judgements (the bridge's guards, the murder
+ *                 engine, traps, voice, the GMs' windows). Rule C: a player's
+ *                 browser about what it may know (the victim's own sheet, Calls,
+ *                 actions, the movement veto).
+ *
+ * E05 C9 moved every reader onto the one it needs while the two still answered
+ * the same (the suite and every ci scenario identical before and after, check by
+ * check, 26.09.2026). R192 holds that nothing else reads the flag. The status
+ * read in traps.mjs went: markDeceased writes the flag and the status together,
+ * and a status a GM toggles on the token by hand without the flag is not a death
+ * anywhere else in the module.
+ *
+ * TWO PHASES (E05 C10; audit S06-11). A killing in an incident writes only the
+ * GMs' store (`deaths`) and the copies of those who may know; the flag, the
+ * status and the Truth Bullets' deletion wait for the body to be found or for a
+ * GM's hand (chapter.mjs `publishDeath`; the owner's Q3, 26.09.2026). From then
+ * on the two differ: on a GM a row of the store is a death, on a player a row of
+ * their copy (`mineDeaths`) - never another player's secret.
+ */
+
+/** When they died as the world records it, or `null` - the flag, read here and in `isDeceased` only. */
+export function deathRecord(actor) {
+    return actor?.getFlag?.(MODULE_ID, FLAGS.deceased) ?? null;
+}
+
+/** Dead as the table knows it: the flag. */
+export function isDeceased(actor) {
+    return Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.deceased));
+}
+
+/**
+ * A death nobody has published that this browser holds, or `null`: the GMs' row on a GM,
+ * the row of this player's copy on a player. By the actor's id, so a token's synthetic
+ * actor reads its base actor's.
+ */
+export function pendingDeath(actor) {
+    const id = actor?.id;
+    if (!id) return null;
+    const row = game.user?.isGM ? gmStoreByName("deaths")?.get(id) : readMine("deaths")?.[id];
+    return row && typeof row === "object" ? row : null;
+}
+
+/** Dead as this browser may know it: the flag, or a death this browser holds (see above). */
+export function isDeadForGm(actor) {
+    return deadIn(actor, () => pendingDeath(actor));
+}
+
+/**
+ * The rule under `isDeadForGm`, with the reader of the held rows handed in (R193 drives it
+ * on fake stores): the table's fact first, and a row held here only for an actor with an id.
+ */
+export function deadIn(actor, held) {
+    return isDeceased(actor) || Boolean(actor?.id && held(actor.id));
+}
+
+/** The record of a death this browser may know: the flag's, else the pending row's chapter, day and time of day. */
+export function deathRecordFor(actor) {
+    const flag = deathRecord(actor);
+    if (flag) return flag;
+    const row = pendingDeath(actor);
+    return row ? { chapter: row.chapter ?? null, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null } : null;
+}
+
+/*
  * THE CLOCK'S THREE LEAF READERS (audit C3).
  *
  * `getClock`, `isEclipse` and `incomingTimeOfDay` each had two or three
@@ -1785,9 +2186,11 @@ export function incidentWitness() {
  * movement.mjs - every one with the same note beside it: clock.mjs and
  * eclipse.mjs import the file that needs the answer, so importing them back
  * would close a cycle. The copies were right about the cycle and wrong about
- * the cure. This file imports config.mjs and nothing else, so it is where a
- * reader lives when both ends of a cycle need it. clock.mjs and eclipse.mjs
- * re-export these under the names everything already imports from them.
+ * the cure. This file imports config.mjs and gm-store.mjs (E04, `readMine` and
+ * `gmStoreByName` for the fog, cast, deaths, Eclipse and door reads below) and
+ * nothing else, so it is where a reader lives when both ends of a cycle need it.
+ * clock.mjs and eclipse.mjs re-export these under the names everything already
+ * imports from them.
  */
 
 /** The clock, every field present. */
@@ -1804,6 +2207,46 @@ export function isEclipse() {
     }
 }
 
+/**
+ * WHICH ECLIPSE THIS IS (E05, 1.2.64; audit S10-01): the name the GMs' rows of a
+ * Direct Murder declared in the dark carry, so that the lights judge the
+ * Eclipse's own declarations and drop another's unjudged. Null when no Eclipse
+ * runs.
+ *
+ * The stamp `startEclipse` writes into the clock, not where the clock stands: the
+ * clock does not move during an Eclipse, but a GM who rewinds it and opens the
+ * same Eclipse again stands exactly where the first one stood, and the first
+ * one's rows would count as the second's. An Eclipse opened before 1.2.64, or by
+ * a write of the flag alone, has no stamp and is named by where the clock stands
+ * and the season it is in.
+ */
+export function eclipseId(clock = null) {
+    try {
+        const c = clock ?? getClock();
+        if (c?.eclipse !== true) return null;
+        return c.eclipseStartedAt ? `at${c.eclipseStartedAt}` : `${c.seasonStartedAt ?? 0}:${c.chapter}:${c.day}:${c.timeOfDay}`;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * The crossings a character has used in the running Eclipse: the GMs' store on a
+ * GM's browser, the owner's copy on a player's (E05, 1.2.64), and 0 for a row of
+ * another Eclipse. A leaf for movement.mjs's veto, which is synchronous and cannot
+ * import eclipse.mjs (the cycle is noted at `canCross`).
+ */
+export function eclipseMovesUsed(actorId, clock = null) {
+    try {
+        const id = eclipseId(clock);
+        if (!id || !actorId) return 0;
+        const row = game.user?.isGM ? gmStoreByName("eclipseMoves")?.get(actorId) : readMine("eclipseMoves")?.[actorId];
+        return row?.eclipse === id ? Math.max(0, Number(row.used) || 0) : 0;
+    } catch {
+        return 0;
+    }
+}
+
 /** The time of day a running (or about-to-run) Eclipse leads into. */
 export function incomingTimeOfDay(clock = getClock()) {
     const index = TIMES_OF_DAY.indexOf(clock?.timeOfDay);
@@ -1817,7 +2260,7 @@ export function incomingTimeOfDay(clock = getClock()) {
  * chapter.mjs, events.mjs, music.mjs, cleanup.mjs and hud.mjs all need the
  * answer, and every one of them is already downstream of somebody who would
  * close a cycle if the record lived anywhere else. This file imports config.mjs
- * and nothing else.
+ * and gm-store.mjs (see the three above) and nothing else.
  */
 
 /** The body found and not yet answered, or `null`. Never a throw before `ready`. */

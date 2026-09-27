@@ -29,9 +29,12 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, myMastermindLair } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
-import { isDeceased, killCharacter } from "./chapter.mjs";
+import { isDeadForGm, killCharacter, livingStudentsForGm } from "./chapter.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
+// No cycle: walked 27.09.2026, the 16 modules assignments.mjs reaches through its
+// static imports do not include this file.
+import { feedsNobody } from "./assignments.mjs";
 import { announce, dialogContent, whisperToGms, ownerOf, primaryGmId, isPrimaryGm, log, error } from "./utils.mjs";
 import { mastermindStore, doorCopy, mastermindUndecided } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
@@ -238,6 +241,18 @@ export function mastermindActor() {
     return id ? (game.actors.get(id) ?? null) : null;
 }
 
+/**
+ * The Mastermind, set in Despair Flow to feed no pool (NO_MONOKUMA): the one choice
+ * about them every player's browser can read, because the division is the world
+ * setting `gmAssignments` (E05 C15, 27.09.2026; audit S03-03, S10-12). Asked by the
+ * season checklist and the case health report, which warn the GM; `false` off a
+ * non-GM client, as the Mastermind is.
+ */
+export function mastermindUnpooled() {
+    const actor = mastermindActor();
+    return Boolean(actor && feedsNobody(actor));
+}
+
 /** Is this actor the Mastermind? Always `false` off a non-GM client. */
 export function isMastermind(actor) {
     return Boolean(game.user.isGM && actor && mastermindActor()?.id === actor.id);
@@ -437,9 +452,10 @@ export async function toggleFinalTrialFlag() {
  * fieldset is a live region now, so the two figures a donation moves - the
  * Mastermind's Hope and the pool it came out of - redraw where they stand.
  */
-function mastermindHopeBox({ monokumas, poolLabel, getDespair }) {
+function mastermindHopeBox({ monokumas, donorLabel }) {
+    // What each pool can spend, and what it owes (E05 C12; despair.mjs `donorLabel`).
     const buildDonors = () => monokumas().map(u =>
-        `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))} (${getDespair(u.id)})</option>`
+        `<option value="${u.id}">${foundry.utils.escapeHTML(donorLabel(u))}</option>`
     ).join("");
 
     /*
@@ -551,8 +567,8 @@ export async function openMastermindDialog() {
         `<option value="${a.id}"${a.id === current?.id ? " selected" : ""}>${
             foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
-    const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
-    const hopeBox = () => mastermindHopeBox({ monokumas, poolLabel, getDespair });
+    const { monokumas, donorLabel } = await import("./despair.mjs");
+    const hopeBox = () => mastermindHopeBox({ monokumas, donorLabel });
 
     const { allRooms } = await import("./movement.mjs");
 
@@ -627,7 +643,8 @@ export async function openMastermindDialog() {
             keepLive(dialog, {
                 region: ".drpg-mm-live",
                 build: hopeBox,
-                watch: { actors: true },
+                // A pool's debt changes with no actor's write (E05 C12): its store's hook.
+                watch: { actors: true, hooks: ["drpgDespairOwedChanged"] },
                 after: wireGive
             });
         },
@@ -789,7 +806,7 @@ export async function openFinalVerdictDialog() {
         return null;
     }
 
-    const alreadyDead = isDeceased(mastermind);
+    const alreadyDead = isDeadForGm(mastermind);
     const students = studentActors();
     const options = students
         .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
@@ -845,7 +862,7 @@ export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null
 
     const mastermind = mastermindActor();
     if (!mastermind) return null;
-    const dead = alreadyDead ?? isDeceased(mastermind);
+    const dead = alreadyDead ?? isDeadForGm(mastermind);
     const accused = accusedId ? game.actors.get(accusedId) : null;
 
     const executed = correct && !dead;
@@ -871,6 +888,21 @@ export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null
             outcome: game.i18n.localize(executed ? "DRPG.Mastermind.outcomeExecuted"
                 : dead ? "DRPG.Mastermind.outcomeAlreadyDead" : "DRPG.Mastermind.outcomeEscaped")
         })}</p>`);
+
+    /*
+     * THE LEVEL UPS THAT WAITED FOR THE CLASS ARE PICKED NOW (E05 C11, 27.09.2026; the
+     * owner's Q7, option b). A Reinforced Level Up left by a wrong verdict waits for the
+     * class's next correct one, and a season can end on the Final Trial before there is one:
+     * the season's secrets are out here anyway, and a table that keeps advancement across
+     * seasons would otherwise lose it. Only what waited - the Final Trial hands out nothing
+     * of its own - and after the kill, which takes an executed Mastermind's.
+     */
+    try {
+        const { runAdvancementBatch } = await import("./level-up.mjs");
+        await runAdvancementBatch(livingStudentsForGm(), null);
+    } catch (err) {
+        error("Could not open the Level Ups that waited for the Final Trial", err);
+    }
 
     // The season is over either way - a Final Trial is the guide's ending, not
     // a chapter like the others. Clearing the pick here rather than leaving it

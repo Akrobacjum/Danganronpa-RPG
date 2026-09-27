@@ -7,7 +7,7 @@
  *
  * The cap stays - it is the limiter that keeps a Monokuma from banking a
  * chapter's worth of Calls - but the spill stops vanishing. Every point that
- * does not fit feeds a shared world counter, and when that counter reaches X
+ * does not fit feeds a counter the GMs share, and when that counter reaches X
  * the world itself gets worse for one time of day: fewer crossings in the dark,
  * fewer search tokens in every room, one action less each.
  *
@@ -25,8 +25,10 @@
 
 import { MODULE_ID, OVERFLOW, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { announce, log, error, esc} from "./utils.mjs";
+import { announce, log, error, esc, isPrimaryGm } from "./utils.mjs";
 import { HOPE_REFUND } from "./resource-guard.mjs";
+import { overflowStore } from "./gm-stores.mjs";
+import { RECORD } from "./gm-store.mjs";
 
 /* ==========================================================================
  * THE RULES - config, then the GM's edits on top
@@ -117,16 +119,26 @@ export async function setOverflowRules({ threshold, effects } = {}) {
  * THE COUNTER
  * ========================================================================== */
 
+/*
+ * THE COUNT IS THE GMS', THE STAMP IS THE WORLD'S (E05 C12, 27.09.2026; audit S01-60).
+ * The count is the record of the GM store `overflow` and reads 0 on a player's client,
+ * which holds no GM store and never showed the number: its caption masks it. Until the
+ * clause `liftOverflowCount` has taken an older world's count out of the world value, a
+ * GM reads that count while the record has none - so a spill between the first load of
+ * 1.2.64 and the lift (a lift whose store timed out waits a whole session for the next
+ * load) is counted on top of it and written to the record, which the fill-only lift then
+ * keeps, rather than counted from zero and the world's count thrown away with it.
+ */
 function state() {
     const raw = game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {};
-    const count = Number(raw.count);
+    const count = Number(game.user?.isGM ? (overflowStore.record().count ?? raw.count) : 0);
     return {
         count: Number.isFinite(count) && count > 0 ? Math.round(count) : 0,
         active: raw.active ?? null
     };
 }
 
-/** Spilled Despair waiting to be spent. */
+/** Spilled Despair waiting to be spent: a GM's reading; 0 on a player's client (E05 C12). */
 export function overflowCount() {
     return state().count;
 }
@@ -150,9 +162,15 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
     const n = Math.round(Number(amount));
     if (!Number.isFinite(n) || n <= 0) return null;
 
+    /* The count is read once the store holds the other GMs' copies (E05 fix r2-G2; review
+       S2-m7), as the Eclipse's is (eclipse.mjs `applyRecordedMove`): read before, a GM back
+       from a reload added to its own browser's count, and the merge kept one of the two -
+       measured on the harness 27.09 by holding the store: 1 added to a peer's 2 read 2. The
+       same wait stands in `checkOverflow` and `resetOverflow`. */
+    await overflowStore.whenHydrated();
     const before = state();
     const after = before.count + n;
-    await game.settings.set(MODULE_ID, SETTINGS.overflow, { ...before, count: after });
+    await overflowStore.patch(RECORD, { count: after });
     log(`Despair overflow +${n} (${reason}) -> ${after}/${overflowThreshold()}.`);
 
     /*
@@ -230,9 +248,53 @@ async function armAhead() {
  */
 export async function resetOverflow({ reason = "the verdict" } = {}) {
     if (!game.user.isGM) return null;
-    await game.settings.set(MODULE_ID, SETTINGS.overflow, { count: 0, active: null });
+    // Both halves, in their two places since E05 C12: the GMs' count and the world's stamp. The
+    // zero after the other GMs' copies (fix r2-G2): the store's clock has then seen their stamps.
+    await overflowStore.whenHydrated();
+    await overflowStore.patch(RECORD, { count: 0 });
+    await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: null });
     log(`Despair overflow cleared by ${reason}.`);
     return true;
+}
+
+/**
+ * THE OVERFLOW'S COUNT OUT OF WORLD DATA (E05 C12, 27.09.2026; audit S01-60). Until 1.2.64 the
+ * world setting `overflow` held `{ count, active }`, and every browser holds a world setting.
+ * The clause `liftOverflowCount` (migrate.mjs) runs this once, on the primary, after the GM
+ * stores' copies arrived. A count above zero goes into the record weak and fill-only - a count a
+ * GM wrote since the update stands, and it was counted on top of the world's (`state`) - and the
+ * world value keeps `{ active }` only once the record reads back from storage holding a count; a
+ * count of zero simply leaves. The world value is written as it is after the store's save - read
+ * again then, so a darkening another GM armed during that await stands (the correctness review's
+ * M9) - and read back: a count still there throws, so the world is not stamped and the next load
+ * tries again (E05 fix r1-G1; migrate.mjs, above the lifts). Idempotent.
+ *
+ * @returns {Promise<null|{lifted: number, dropped: number, kept: number}>}  `kept` 0: anything
+ *   else throws.
+ */
+export async function liftOverflowCount() {
+    if (!isPrimaryGm()) return null;
+    if (await overflowStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the overflow's count did not arrive; the next load tries again");
+    }
+    const stored = game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {};
+    if (!Object.hasOwn(stored, "count")) return null;
+    const count = Math.round(Number(stored.count));
+    const lifting = Number.isFinite(count) && count > 0;
+    if (lifting) {
+        await overflowStore.patch(RECORD, { count }, { weak: true, fillOnly: true });
+        await overflowStore.idle();
+    }
+    const held = overflowStore.persisted(RECORD)?.count;
+    if (!lifting || (held !== null && held !== undefined)) {
+        const now = game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {};
+        await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: now.active ?? null });
+    }
+    if (Object.hasOwn(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {}, "count")) {
+        throw new Error("the overflow's count did not read back from the GM store and is still in world data; the next load tries again");
+    }
+    if (lifting) log(`Lifted the Despair overflow's count (${count}) out of world data (S01-60).`);
+    return { lifted: lifting ? 1 : 0, dropped: lifting ? 0 : 1, kept: 0 };
 }
 
 /* ==========================================================================
@@ -355,6 +417,7 @@ export async function checkOverflow({ ahead = false } = {}) {
         const target = ahead ? upcoming(clock) : stampOf(clock);
         if (!target) return null;
 
+        await overflowStore.whenHydrated();
         const now = state();
 
         // Already armed for exactly this time of day: the Eclipse got there
@@ -386,9 +449,14 @@ export async function checkOverflow({ ahead = false } = {}) {
 
         // PAYS X, KEEPS THE REST. A counter that zeroed itself would punish a
         // Monokuma for the timing of a boundary they do not control.
+        //
+        // Two writes since E05 C12 - the GMs' count, the world's stamp - and the
+        // count first: a failure between them leaves the counter paid and nothing
+        // armed, the side `runOverflowEvent` below also falls on, rather than a
+        // darkening armed on a count that would pay for it again next boundary.
         const left = now.count - threshold;
-        await game.settings.set(MODULE_ID, SETTINGS.overflow,
-            { count: left, active: { ...target, effect: drawn } });
+        await overflowStore.patch(RECORD, { count: left });
+        await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: { ...target, effect: drawn } });
 
         // The two that are events happen HERE and never again. Before the card,
         // so a GM reading "every project lost a point" can look at the projects

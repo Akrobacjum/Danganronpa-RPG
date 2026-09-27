@@ -16,7 +16,9 @@
 
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
     ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } from "./config.mjs";
-import { SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger } from "./settings.mjs";
+import {
+    SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger, eclipseMovesUsed, isDeadForGm
+} from "./settings.mjs";
 import { hasFreeMove, takeMove, actionsLeft, canPayFor, freeMovesLeft } from "./actions.mjs";
 // Statically imported, not lazily: the crossing veto runs inside a synchronous
 // `preUpdateToken` hook, where there is no opportunity to await an import.
@@ -252,14 +254,14 @@ function onPreUpdateToken(tokenDoc, changes, options) {
 /**
  * Dead, and not a Monocub - so this token is a body rather than a person.
  *
- * Read straight off the two flags rather than through `chapter.mjs` and
- * `monocub.mjs`: this runs inside the synchronous `preUpdateToken` veto, where
- * there is no chance to await an import, and the flag names come from
- * config.mjs so the readers here cannot drift from the writers there.
+ * Death is asked of settings.mjs (E05 C9) and the Monocub flag read directly
+ * rather than through `monocub.mjs`: this runs inside the synchronous
+ * `preUpdateToken` veto, where there is no chance to await an import. On the
+ * mover's own browser, so it asks what that browser may know (rule C).
  */
 function isCorpse(actor) {
     try {
-        if (!actor?.getFlag(MODULE_ID, FLAGS.deceased)) return false;
+        if (!isDeadForGm(actor)) return false;
         return !actor.getFlag(MODULE_ID, FLAGS.monocub);
     } catch {
         // A state we cannot read must not freeze a token nobody can move.
@@ -356,7 +358,10 @@ function canCross(actor, from, to) {
         // below and charge it a free Move or an action - and an Eclipse crossing
         // has never cost either.
         if (allowance !== null) {
-            const used = game.settings.get(MODULE_ID, SETTINGS.eclipseMoves)?.[actor.id] ?? 0;
+            // The GMs' count on a GM's browser, the owner's copy of it on theirs (E05; the
+            // settings.mjs leaf, for the cycle above). A stale copy can only let a crossing
+            // through that the GM's count then refuses and sends back (eclipse.mjs).
+            const used = eclipseMovesUsed(actor.id, clock);
             if (used >= allowance) return game.i18n.localize("DRPG.Eclipse.noMovesLeft");
 
             if (from && to) {
@@ -1265,7 +1270,7 @@ function countsAsPresent(token) {
     const actor = token?.actor;
     if (!actor || actor.type !== "character") return false;
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return false;
-    if (actor.getFlag(MODULE_ID, FLAGS.deceased)) return false;
+    if (isDeadForGm(actor)) return false;
     return !token.document.hidden;
 }
 

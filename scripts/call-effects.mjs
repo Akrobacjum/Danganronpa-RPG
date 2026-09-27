@@ -1044,10 +1044,12 @@ export async function runPendingGather() {
  */
 export async function gatherEveryone(room, onScene = null) {
     /* THE SCENE IS AN ARGUMENT NOW (CALL-18, 20.09), and it defaults to this
-       client's own. The two callers that pass nothing - the immediate branch of
-       Public Announcement, and a body discovery - both run on the client that has
-       just chosen the room or found the body, so their own view IS the right answer.
-       A DEFERRED assembly is the case that is not: see `runPendingGather`. */
+       client's own. The caller that passes nothing - the immediate branch of Public
+       Announcement - runs on the client that has just chosen the room, so its own
+       view IS the right answer. A DEFERRED assembly is the case that is not: see
+       `runPendingGather`; and so is a body discovery, whose watcher runs on the
+       primary GM whatever it is looking at - it passes the body's scene since E05
+       fix r2-G3 (chapter.mjs `runDiscovery`). */
     const scene = onScene ?? canvas?.scene ?? null;
     if (!game.user.isGM || !scene) return 0;
 
@@ -1058,7 +1060,7 @@ export async function gatherEveryone(room, onScene = null) {
     }
 
     const { isMonokuma } = await import("./monokuma.mjs");
-    const { isDeceased } = await import("./chapter.mjs");
+    const { isDeadForGm } = await import("./chapter.mjs");
     const { isMonocub } = await import("./monocub.mjs");
     // Not the dead (DESP-15): a body is evidence, and moving one moves the
     // crime scene. A Monocub is dead and does walk.
@@ -1067,7 +1069,7 @@ export async function gatherEveryone(room, onScene = null) {
        level up; `scene.tokens` is the same cast whether or not anybody is looking. */
     const tokens = [...scene.tokens]
         .filter(t => t.actor?.type === "character" && !isMonokuma(t.actor)
-            && !(isDeceased(t.actor) && !isMonocub(t.actor)));
+            && !(isDeadForGm(t.actor) && !isMonocub(t.actor)));
 
     if (!tokens.length) return 0;
 
@@ -1299,7 +1301,7 @@ async function pickMotive(call) {
 async function pickPlayer(actor, call, kind) {
     const { isMonokuma } = await import("./monokuma.mjs");
     const { othersInRoom } = await import("./movement.mjs");
-    const { isDeceased } = await import("./chapter.mjs");
+    const { isDeadForGm } = await import("./chapter.mjs");
 
     // Support explicitly requires the same room; Monokuma reaches anyone.
     const sameRoomOnly = kind === "hope";
@@ -1321,7 +1323,7 @@ async function pickPlayer(actor, call, kind) {
      * student who opted in as a Monocub is still reachable - through
      * `pickMonocub`, which is the Call written for them.
      */
-    const pool = reachable.filter(a => !isDeceased(a));
+    const pool = reachable.filter(a => !isDeadForGm(a));
 
     if (!pool.length) {
         ui.notifications.warn(game.i18n.localize(
@@ -1414,7 +1416,7 @@ async function pickItem() {
      */
     const { isMonokuma } = await import("./monokuma.mjs");
     const { isMonocub } = await import("./monocub.mjs");
-    const { isDeceased } = await import("./chapter.mjs");
+    const { isDeadForGm } = await import("./chapter.mjs");
 
     const entries = [];
     for (const actor of game.actors) {
@@ -1425,7 +1427,7 @@ async function pickItem() {
             if (!category || category === "truthBullet") continue;
             entries.push({
                 value: item.uuid,
-                label: isDeceased(actor)
+                label: isDeadForGm(actor)
                     ? game.i18n.format("DRPG.Calls.onTheBody", { name: actor.name, item: item.name })
                     : `${actor.name} - ${item.name}`
             });

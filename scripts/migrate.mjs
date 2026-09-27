@@ -69,10 +69,15 @@ const SEEDED_CHIME = "sounds/notify.wav";
  *          skipped when this world has already been stamped by a build at or
  *          after it. See the note below - this is what stops a clause that
  *          seeds a default from putting the default back every time the version
- *          moves, after a GM has deliberately removed it.
+ *          moves, after a GM has deliberately removed it. A clause that seeds
+ *          nothing and is idempotent may be given a later `since` to run once
+ *          more on worlds a build before it stamped (E04's two lifts, below).
  *   run    async ({ from, to, force, wasInPlay }) => object|null. Return what
  *          changed, or `null` for "nothing to do". NEVER throw for an absent
- *          world shape; a world that has no trials yet is not an error.
+ *          world shape; a world that has no trials yet is not an error. DO
+ *          throw when the clause could not finish what it is for (a lift that
+ *          left its secret in world data): the world is then not stamped, and
+ *          the next load runs it again.
  *          `wasInPlay` says whether the world was played before this load, read
  *          before anything ran (`worldWasInPlay`): an unstamped world is new, or
  *          one from a build before the stamp (v1.1.0).
@@ -546,14 +551,18 @@ const CLAUSES = [
     },
     {
         key: "faintIntoSecrets",
-        since: "1.2.63",
+        since: "1.2.64",
         /*
          * FAINT OFF THE PLAYER'S ITEM, INTO THE ANSWER KEY (E04; audit S05-01). The
          * live road of the one critical in the module's code: it ran on every GM at
          * every load and built a row from nothing for a bullet that GM lacked. Once
          * now, after `truthBulletShape` (it reads the rows that one fills), with the
          * rules written on `migrateFaintIntoSecrets`: only rows this GM holds, weak,
-         * and the item's flag cleared only where the row reads back from storage.
+         * and the item's flag cleared only where the row reads back from storage. A
+         * Faint left on its item with a row here throws since E05's second fix round
+         * (r2-F0b), as the lifts below do. Since 1.2.63; given 1.2.64 as E04's two lifts
+         * below were, and for their reason: a world stamped 1.2.63 over a Faint the pass
+         * kept runs it again.
          */
         run: async () => {
             const { migrateFaintIntoSecrets } = await import("./truth-bullets.mjs");
@@ -561,9 +570,31 @@ const CLAUSES = [
             return moved || kept ? { moved, kept } : null;
         }
     },
+    /*
+     * A LIFT THAT LEAVES ITS SECRET IN WORLD DATA THROWS (E05 fix r1-G1, 27.09.2026; the
+     * reviews' S1-M1 and M2). Every lift from here down takes a secret out of world data
+     * only once its store reads the rows back from storage. Until this fix a lift whose
+     * rows did not read back - the road to that is the store's save failing, a full
+     * origin, which the engine catches, keeps in memory and reports as "could not save" -
+     * returned a report of what it kept: the runner counted a clause that ran and wrote
+     * the stamp, every clause is gated on `since`, and no load tried again, so the secret
+     * stayed on every browser for good with a console warning as the only word of it
+     * (the security review's scratch scenario, 26.09, on `liftKeyPlan`: `kept: 5`,
+     * `failed: []`, the stamp written, and the next pass "nothing to do"). Now each lift
+     * finishes what did read back and then throws with what stayed, as the two drops
+     * below always did: the world is not stamped, the runner names the clause on the GM's
+     * screen, and the next load runs it again - safe, because every lift writes weak and
+     * fill-only and reads back before it removes anything.
+     *
+     * AND E04'S TWO RUN AGAIN UNDER 1.2.64. They shipped in 1.2.63 with the same gap, and
+     * a world stamped 1.2.63 whose lift kept its rows would never reach the fix above, so
+     * their `since` is 1.2.64: such a world runs them once more, and one they emptied
+     * finds nothing and says nothing. E04's Faint pass (`faintIntoSecrets`, above) had
+     * the gap too, and has had the throw and 1.2.64 since E05's second fix round (r2-F0b).
+     */
     {
         key: "liftIncidentSecrets",
-        since: "1.2.63",
+        since: "1.2.64",
         /*
          * THE INCIDENT'S NAMES OUT OF WORLD DATA (LIVE-001, CASE-04; E04). A world that
          * updated mid-incident may still hold names in `murderState`, and a betrayal
@@ -571,29 +602,264 @@ const CLAUSES = [
          * load of every GM (murder.mjs); once now, on the primary, after the GM
          * store's copies arrived, with the rules written on `liftIncidentSecrets`:
          * into the cast weak and fill-only, and out of world data only once the cast
-         * reads back from storage holding it.
+         * reads back from storage holding it. Since 1.2.63; given 1.2.64 above.
          */
         run: async () => {
             const { liftIncidentSecrets } = await import("./murder.mjs");
             const report = await liftIncidentSecrets();
-            return report && (report.lifted || report.offers || report.flags || report.kept) ? report : null;
+            return report && (report.lifted || report.offers || report.flags) ? report : null;
         }
     },
     {
         key: "liftDiscoveryLedger",
-        since: "1.2.63",
+        since: "1.2.64",
         /*
          * THE FOG LEDGER OUT OF WORLD DATA (D2, S07-01; E04). A world that updated
          * mid-season may still hold its ledger in the world setting, which any console
          * reads. fog.mjs lifted it on every load of the primary; once now, after the GM
          * store's copies arrived and after `forgetMonokumaWalks` above, with the rules
          * written on `liftDiscoveryLedger`: into the store weak and fill-only, and out of
-         * world data only once the store reads back from storage holding it.
+         * world data only once the store reads back from storage holding it. Since
+         * 1.2.63; given 1.2.64 above.
          */
         run: async () => {
             const { liftDiscoveryLedger } = await import("./fog.mjs");
             const report = await liftDiscoveryLedger();
-            return report && (report.lifted || report.monokuma || !report.emptied) ? report : null;
+            return report && (report.lifted || report.monokuma) ? report : null;
+        }
+    },
+    {
+        key: "liftProjectSecrets",
+        since: "1.2.64",
+        /*
+         * AN INDIRECT MURDER'S KILLER OUT OF WORLD DATA (E05 C1; audit S09-05, D3). Until
+         * 1.2.64 projectMeta, which every browser holds, carried each project's killer,
+         * builder, condition and trigger. Once, on the primary, after the GM store's copies
+         * arrived, with the rules written on `liftProjectSecrets`: into the store weak and
+         * fill-only, and out of projectMeta only the fields the store reads back from storage.
+         */
+        run: async () => {
+            const { liftProjectSecrets } = await import("./projects.mjs");
+            const report = await liftProjectSecrets();
+            return report?.lifted ? report : null;
+        }
+    },
+    {
+        key: "liftPendingMurders",
+        since: "1.2.64",
+        /*
+         * THE DECLARATIONS MADE IN THE DARK OUT OF WORLD DATA (E05 C3; audit S10-01,
+         * S01-02). Until 1.2.64 the world setting `pendingMurders`, which every browser
+         * holds, carried each Direct Murder declared in an Eclipse under the killer's
+         * id. Once, on the primary, after the GM store's copies arrived, with the rules
+         * written on `liftPendingMurders`: into the store weak and fill-only, and out of
+         * the world only the declarations the store reads back from storage.
+         */
+        run: async () => {
+            const { liftPendingMurders } = await import("./eclipse.mjs");
+            const report = await liftPendingMurders();
+            return report?.lifted ? report : null;
+        }
+    },
+    {
+        key: "liftEclipseMoves",
+        since: "1.2.64",
+        /*
+         * THE ECLIPSE'S CROSSINGS OUT OF WORLD DATA (E05 C4; audit S10-39). Until 1.2.64
+         * the world setting `eclipseMoves`, which every browser holds, counted each
+         * character's crossings in the running Eclipse. Once, on the primary, after the
+         * GM store's copies arrived, with the rules written on `liftEclipseMoves`: while
+         * an Eclipse runs, into the store weak and fill-only and out of the world once
+         * each reads back, and each owner sent their copy; outside one, the last
+         * Eclipse's counts go with no row.
+         */
+        run: async () => {
+            const { liftEclipseMoves } = await import("./eclipse.mjs");
+            const report = await liftEclipseMoves();
+            return report?.lifted ? report : null;
+        }
+    },
+    {
+        key: "liftKeyPlan",
+        since: "1.2.64",
+        /*
+         * THE KEY REMNANT PLAN OUT OF WORLD DATA (E05 C5; audit S01-01, S05-02). Until
+         * 1.2.64 the world setting `keyRemnantPlan`, which every browser holds, carried the
+         * chapter's five clues - name, text, analysis, the GM's note and the token - and
+         * the chapters before under `archive`. Once, on the primary, after the GM store's
+         * copies arrived, with the rules written on `liftKeyPlan`: a row per chapter and
+         * slot, weak and fill-only, and the key emptied only once every field reads back.
+         */
+        run: async () => {
+            const { liftKeyPlan } = await import("./investigation.mjs");
+            const report = await liftKeyPlan();
+            return report?.lifted ? report : null;
+        }
+    },
+    {
+        key: "liftNotes",
+        since: "1.2.64",
+        /*
+         * THE PRE-SESSION NOTES OUT OF WORLD DATA (E05 C6; audit S11-03, S01-08). Until
+         * 1.2.64 each note's text was a flag on its player's User document, which every
+         * browser holds. Once, on the primary, after the GM store's copies arrived, with the
+         * rules written on `liftNotes`: a row per user, weak and fill-only, the flag replaced
+         * by `{ updatedAt, written }` only once its row reads back, then each player's copy.
+         */
+        run: async () => {
+            const { liftNotes } = await import("./pre-session-note.mjs");
+            const report = await liftNotes();
+            return report?.lifted ? report : null;
+        }
+    },
+    {
+        key: "dropRollBookmarks",
+        since: "1.2.64",
+        /*
+         * THE REROLL BOOKMARKS OUT OF WORLD DATA (E05 C7; audit S02-01). Until 1.2.64 each
+         * character's newest roll and its context - a crisis roll's keys, Stage 6's token
+         * ids, a palm's victim - was the actor flag `lastAction`, which every browser holds.
+         * The bookmark is the roller's own client setting now; the old flags are deleted,
+         * with nothing lifted (a Reroll does not reach across an update), on `dropRollBookmarks` -
+         * a world actor's, and since E05's fix round (S1-m4) a token's own actor data's too.
+         */
+        run: async () => {
+            const { dropRollBookmarks } = await import("./action-rolls.mjs");
+            return dropRollBookmarks();
+        }
+    },
+    {
+        key: "dropCardSummaries",
+        since: "1.2.64",
+        /*
+         * THE CARDS' FACTS OUT OF WORLD DATA (E05 C7; audit S10-05, S02-11). Until 1.2.64 an
+         * action's result card carried what was found, where and whether a trace was left
+         * in its `summary` flag, on a document every browser holds. The facts travel with
+         * the words now; the old flags are deleted, with nothing lifted, on
+         * `dropCardSummaries` (secret.mjs).
+         */
+        run: async () => {
+            const { dropCardSummaries } = await import("./secret.mjs");
+            return dropCardSummaries();
+        }
+    },
+    {
+        key: "liftIncidentMethod",
+        since: "1.2.64",
+        /*
+         * THE INCIDENT'S METHOD OUT OF WORLD DATA (E05 C8; audit S04-08). Until 1.2.64 the
+         * world half of `murderState` held whether an incident was a trap or a death by the
+         * victim's own hand, whether a reversal left the plan stale, when it opened and how it
+         * ended. Once, on the primary, after the cast's copies arrived, with the rules written
+         * on `liftIncidentMethod`: while an incident runs, into the cast weak and fill-only and
+         * out of the world half only once the cast reads back holding them, then each
+         * participant's copy; with none running, out of the world half.
+         */
+        run: async () => {
+            const { liftIncidentMethod } = await import("./murder.mjs");
+            const report = await liftIncidentMethod();
+            return report && (report.lifted || report.dropped) ? report : null;
+        }
+    },
+    {
+        key: "liftOverflowCount",
+        since: "1.2.64",
+        /*
+         * THE OVERFLOW'S COUNT OUT OF WORLD DATA (E05 C12; audit S01-60). Until 1.2.64 the world
+         * setting `overflow` held the spilled Despair's count beside the darkening's stamp, and
+         * every browser holds it - the number a player's caption masks. Once, on the primary,
+         * after the GM stores' copies arrived, with the rules written on `liftOverflowCount`
+         * (overflow.mjs): the count into the GMs' record weak and fill-only, and the world value
+         * rewritten to `{ active }` only once the record reads back holding one.
+         */
+        run: async () => {
+            const { liftOverflowCount } = await import("./overflow.mjs");
+            const report = await liftOverflowCount();
+            return report && (report.lifted || report.dropped) ? report : null;
+        }
+    },
+    {
+        key: "liftBulletRefs",
+        since: "1.2.64",
+        /*
+         * WHICH TRACE A BULLET CAME FROM, OUT OF WORLD DATA (E05 C13; audit S05-39 (2)). Until
+         * 1.2.64 each Truth Bullet named its trace in its public `remnantRef` flag, and every
+         * browser holds every item: a console read which traces had been found, and by whom.
+         * Once, on the primary, after the GM stores' copies arrived, with the rules written on
+         * `liftBulletRefs` (truth-bullets.mjs): the key into the bullet's row weak and fill-only,
+         * off the item only once the row reads back holding one, then each owner's copy.
+         */
+        run: async () => {
+            const { liftBulletRefs } = await import("./truth-bullets.mjs");
+            const report = await liftBulletRefs();
+            return report && (report.lifted || report.dropped) ? report : null;
+        }
+    },
+    {
+        key: "neutralTraceNames",
+        since: "1.2.64",
+        /*
+         * A FOUND TRACE'S NAME OFF ITS TOKEN (E05 C13; audit S05-39 (1)). Until 1.2.64 a trace's
+         * public name and image went onto its token once somebody had found it, and every
+         * browser holds every token. The token keeps the neutral word and the question mark now,
+         * and the finder's and the GMs' screens draw the rest (remnant-icons.mjs). Nothing is
+         * lifted - the name is the row's `public` already - so this puts the word and the icon
+         * back, once, on the primary, with the rules written on `neutralTraceNames` (remnants.mjs).
+         */
+        run: async () => {
+            const { neutralTraceNames } = await import("./remnants.mjs");
+            return neutralTraceNames();
+        }
+    },
+    {
+        key: "liftLootTraces",
+        since: "1.2.64",
+        /*
+         * WHAT WAS TAKEN OFF A BODY, OUT OF WORLD DATA (E05 C14; audit S05-39 (3)). Until 1.2.64
+         * each looted body carried a `lootTrace` flag - its trace's token id and every item's
+         * name taken off it - and every browser holds every actor's flags. Once, on the primary,
+         * after the GM stores' copies arrived, with the rules written on `liftLootTraces`
+         * (handover.mjs): each record into the GMs' `lootTraces` store weak and fill-only, and
+         * off the body only once its row reads back holding the trace.
+         */
+        run: async () => {
+            const { liftLootTraces } = await import("./handover.mjs");
+            const report = await liftLootTraces();
+            return report && (report.lifted || report.dropped) ? report : null;
+        }
+    },
+    {
+        key: "migrateRemnantsOnce",
+        since: "1.2.64",
+        /*
+         * THE ANSWER KEYS STILL ON OLD TRACES' TOKENS (E05 C14; audit S05-06, S06-02; the
+         * owner's Q5). `migrateRemnants` - the answer key of a trace from before the ledger,
+         * and a Faint Prep promotion `promoteFaintPrep` wrote onto a token until E04, into the
+         * ledger and off the token - was a console call, and a world whose GM never typed it
+         * kept both on tokens every browser holds. Once, on the primary, after the traces'
+         * store has the other GMs' copies, its per-token routine over the tokens that still
+         * carry one (remnants.mjs `migrateRemnantsOnce`); after `neutralTraceNames`, which
+         * leaves such a token's old name for this to read as its label.
+         */
+        run: async () => {
+            const { migrateRemnantsOnce } = await import("./remnants.mjs");
+            return migrateRemnantsOnce();
+        }
+    },
+    {
+        key: "retireOldIncidentMarks",
+        since: "1.2.64",
+        /*
+         * THE MARKS OF THE INCIDENTS CLOSED BEFORE 1.2.64 (E05 fix r2-G4; review S2-m4). Since
+         * E05 C14 an incident's close hides the traces it left that nobody copied and takes the
+         * `fromIncident` mark off them all; every incident closed before left its marks, and the
+         * first one after the update drew their traces for its cast. Once, on the primary, after
+         * the traces' and the bullets' stores have the other GMs' copies, with the rules written
+         * on `retireOldIncidentMarks` (remnants.mjs): a running incident keeps its own.
+         */
+        run: async () => {
+            const { retireOldIncidentMarks } = await import("./remnants.mjs");
+            return retireOldIncidentMarks();
         }
     }
 ];
@@ -697,9 +963,15 @@ export async function keepOldSafeword({ from = "", wasInPlay = false } = {}) {
  *                                   pass before anything wrote. A call by hand
  *                                   comes after this session has written the
  *                                   world, so it goes by the stamp alone.
+ * @param {string[]} [options.only]  The suite's alone: the keys of the clauses this
+ *                                   pass considers, instead of every one, so a test
+ *                                   runs one clause through the runner over data it
+ *                                   planted - not every clause over a table's real
+ *                                   world (E05 fix r1-G1). The stamp is written, or
+ *                                   not, as for a whole pass; the test puts it back.
  * @returns {Promise<object|null>}   The report, or `null` if it did not run.
  */
-export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = null } = {}) {
+export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = null, only = null } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Migrate.gmOnly"));
         return null;
@@ -718,7 +990,8 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
         from, to, forced: force, wasInPlay: inPlay, clauses: {}, changed: 0, skipped: [], failed: []
     };
 
-    for (const clause of CLAUSES) {
+    const clauses = Array.isArray(only) ? CLAUSES.filter(clause => only.includes(clause.key)) : CLAUSES;
+    for (const clause of clauses) {
         // Already been through a build that carried this clause - see the note
         // on `since`. An unstamped world has been through nothing, so it runs
         // everything, which is also exactly what a brand-new world needs.
@@ -744,9 +1017,12 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
     }
 
     if (report.failed.length) {
+        // It stays up until the GM closes it (E05 fix r1-G1): a lift that keeps failing
+        // fails at every load, and this line is where the GM hears of it - the clause's
+        // own reason is in the console, with the count of what stayed in world data.
         ui.notifications.error(game.i18n.format("DRPG.Migrate.failed", {
             clauses: report.failed.join(", ")
-        }));
+        }), { permanent: true });
         log("Migration: stamp NOT written, because a clause failed.", report);
         return report;
     }
@@ -758,7 +1034,7 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
             n: report.changed, version: to
         }));
     }
-    const considered = CLAUSES.length - report.skipped.length;
+    const considered = clauses.length - report.skipped.length;
     log(`Migration: ${from || "an unstamped world"} → ${to}, `
         + `${report.changed} of ${considered} clause(s) considered had something `
         + `to do, ${report.skipped.length} already been through.`, report);

@@ -20,7 +20,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, isDeadForGm } from "./settings.mjs";
 // Statically imported: `poolUserFor` is synchronous and read at render time by
 // the sheet and by the voice reconciler. despair.mjs does not reach back into
 // this file, so there is no cycle.
@@ -49,7 +49,7 @@ export function studentActors() {
  */
 export function actingStudents() {
     return studentActors().filter(a =>
-        !a.getFlag(MODULE_ID, FLAGS.deceased) || a.getFlag(MODULE_ID, FLAGS.monocub));
+        !isDeadForGm(a) || a.getFlag(MODULE_ID, FLAGS.monocub));
 }
 
 /**

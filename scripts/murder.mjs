@@ -49,9 +49,9 @@ import {
     RESOLUTION_STRESS_COST, RESOLUTION_HEALTH_COST, TRAITS, callEffect, TIMING
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { SETTINGS, incidentCast, seasonEpoch } from "./settings.mjs";
-import { castStore, blackenedStore, castCopy, CAST_FIELDS, CAST_SEATS } from "./gm-stores.mjs";
-import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
+import { SETTINGS, incidentCast, incidentIndirect, seasonEpoch, isDeadForGm, isDeceased } from "./settings.mjs";
+import { castStore, blackenedStore, castCopy, deathStore, deathCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD } from "./gm-stores.mjs";
+import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax, marksOf } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
@@ -93,8 +93,7 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * `thirdSide` is here with the ids because it is only meaningful next to
  * `thirdId`: "the third party threw in with the killers" is a sentence about
  * somebody, and on a client that cannot see who the third party is it would be
- * a fact about nobody. Everything else an incident holds is a number, a stage
- * or a list of blocked action keys, and none of that names anyone.
+ * a fact about nobody.
  *
  * `lastCrisis` - the Reroll receipt - is here too. It carries `actorId`,
  * `victimId` and a snapshot of the MERGED state, so a receipt written to the
@@ -111,7 +110,57 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * swing memo (`{ [actorId]: itemId }`) among them. Both of those used to be actor
  * flags, which are world data every client receives - so for the whole of Stage
  * 6 anybody could read who the accomplice was and who swung what (CASE-04).
+ *
+ * "EVERYTHING ELSE NAMES NOBODY" WAS NOT ENOUGH (E05 C8; audit S04-08). This comment
+ * said the rest was a number, a stage or a list of action keys. The rest also held
+ * how the incident happened - a trap, a death by the victim's own hand, a reversal,
+ * the moment it opened, how it ended - and each of those is an answer the Class Trial
+ * exists to find. They are the cast's now (`INCIDENT_METHOD`), and the world half is
+ * turned round: it holds only the fields listed below, each with the reason a
+ * bystander may know it, and `splitIncident` sends a field that is neither listed
+ * here nor the cast's nowhere at all - fail closed, not the cast, so an unlisted write
+ * is dropped rather than guessed into secrecy the wrong way (R191 reads every literal
+ * write). The owner's answer of 26.09 (Q8, option a): the five leave now; shrinking this
+ * list further - to the stage alone - is E32's, once the cast has settled.
  */
+
+/**
+ * WHAT THE WORLD HALF OF AN INCIDENT MAY HOLD, AND WHY A BYSTANDER MAY KNOW IT
+ * (E05 C8). Every browser holds it; none of it names anyone. The world-secrets rule
+ * (`murderState`'s `only`) is this list written out, and R191 holds the two equal.
+ */
+export const PUBLIC_INCIDENT = Object.freeze({
+    active: "an incident is running: the table knows that much, and every browser's locks read it (movement, the rolls' audience, the traces' hiding)",
+    stage: "the opening, the fight or Stage 6: which of those locks holds, and the Event card and the music on a witness's browser",
+    turn: "the round, for both trackers without a round trip per turn; a count",
+    turnSide: "whose side acts - `victim` or `killer`, a chair and not a person",
+    keyRemnants: "how many Key Remnants the scene keeps, as the opening roll decided it; a number",
+    deniedToVictim: "the actions the opening took from the victim's chair; action keys",
+    hindered: "the actions hindered, by side, with the turns left; action keys and counts",
+    blocked: "the actions blocked, by side, with the turns left; action keys and counts",
+    unlocked: "the actions Self-defence opened; action keys",
+    spent: "the once-per-incident actions used; action keys",
+    drainStopped: "whether a critical Self-defence stopped the drain; a flag",
+    advantageNext: "which side's next roll has advantage, by side; two flags",
+    freeResolution: "a critical's free resolution: a side and the turn it was given on",
+    thirdActed: "whether the third party has used their action - that there is one, not who (E32 weighs it)"
+});
+
+/**
+ * One patch of an incident, split: `world` the fields `PUBLIC_INCIDENT` lists, `cast`
+ * the ones the cast's record holds, `neither` the names of any other - which go
+ * nowhere, and are said (R191 reads every literal write for them). A field nobody
+ * listed never reaches the world. Pure.
+ */
+export function splitIncident(patch) {
+    const world = {}, cast = {}, neither = [];
+    for (const [key, value] of Object.entries(patch ?? {})) {
+        if (Object.hasOwn(PUBLIC_INCIDENT, key)) world[key] = value;
+        else if (CAST_FIELDS.includes(key)) cast[key] = value;
+        else neither.push(key);
+    }
+    return { world, cast, neither };
+}
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 /** GM -> one participant, and nobody else. */
@@ -213,15 +262,11 @@ async function restoreState(state = {}, { keep = [] } = {}) {
 
     const previous = readCast();
     const publicBefore = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const cast = {};
-    const rest = {};
-    for (const [key, value] of Object.entries(state ?? {})) {
-        if (CAST_FIELDS.includes(key)) cast[key] = value;
-        else rest[key] = value;
-    }
+    const { world: rest, cast, neither } = splitIncident(state);
     // `updated` belonged to the cast entry until E04, not to the incident - a
-    // receipt taken before the upgrade still carries one.
-    delete rest.updated;
+    // receipt taken before the upgrade still carries one, and it goes nowhere.
+    const unknown = neither.filter(key => key !== "updated");
+    if (unknown.length) error(`An incident's state named field(s) neither its world half nor its cast holds, kept out of both: ${unknown.join(", ")}`);
 
     await ownCastWrite(() => castStore.resetRecord(cast, { keep }));
     // Who holds it before and after, by the state before and the one written next.
@@ -266,7 +311,9 @@ function castOwners(cast, state = null) {
     const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
 
     const seats = [
-        trapRunning(live) ? null : cast?.killerId,
+        // The stage from the world half, whether it is a trap from the cast in hand (E05 C8) - or
+        // from a world half the lift has not reached yet: `incidentIndirect`'s rule (settings.mjs).
+        trapRunning({ ...live, indirect: incidentIndirect(cast, live) }) ? null : cast?.killerId,
         cast?.victimId,
         cast?.thirdId,
         // The accomplice keeps their copy for as long as the betrayal is on
@@ -382,12 +429,8 @@ async function writeState(patch, { explicit = [] } = {}) {
     const castBefore = readCast();
     const before = { ...publicBefore, ...castBefore };
 
-    const publicPatch = {};
-    const castPatch = {};
-    for (const [key, value] of Object.entries(patch)) {
-        if (CAST_FIELDS.includes(key)) castPatch[key] = value;
-        else publicPatch[key] = value;
-    }
+    const { world: publicPatch, cast: castPatch, neither } = splitIncident(patch);
+    if (neither.length) error(`An incident's write named field(s) neither its world half nor its cast holds, kept out of both: ${neither.join(", ")}`);
 
     const publicNext = { ...publicBefore, ...publicPatch };
 
@@ -409,10 +452,14 @@ async function writeState(patch, { explicit = [] } = {}) {
      * the seats' stamps alone; the cast sent now holds the other parts as well,
      * so it is newer (gm-stores.mjs, `castCombine`; R176).
      */
-    const trapMoved = trapRunning(publicNext) !== trapRunning(publicBefore);
     const castNext = Object.keys(castPatch).length
         ? await writeCast({ ...castBefore, ...castPatch }, castBefore, { explicit, push: false })
         : castBefore;
+    /* Whether it is a trap is the cast's since E05 C8: the gate reads both halves. Every road
+       into Stage 6 writes `endedBy`, a cast field, so that write pushes the cast anyway (a mutant
+       reading the world halves alone passed 13-murder-signals, 26.09); this keeps a stage move
+       that names no cast field from leaving the killer out. */
+    const trapMoved = trapRunning({ ...publicNext, ...castNext }) !== trapRunning(before);
 
     /*
      * ONE PUSH, WITH THE STATE BEING WRITTEN (E04). The participants are worked out
@@ -814,7 +861,9 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
        side, the Reroll receipt and the swing memo of the last incident are written
        null here, and stamped whether or not this GM still holds them: a GM that
        missed the last close may, and its older copy must not reach this incident.
-       The betrayal offer is the one thing an incident's close keeps (D18). */
+       The betrayal offer is the one thing an incident's close keeps (D18). The method
+       (E05 C8, `INCIDENT_METHOD`) is decided here afresh the same way - a reversal and
+       an end are this incident's own, so both start null - and goes to the cast. */
     await writeState({
         active: true,
         stage: "openingRoll",
@@ -835,8 +884,11 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
         // A critical Self-defence stops the drain for the rest of the incident.
         drainStopped: false,
         advantageNext: { victim: false, killer: false },
-        openedAt: Date.now()
-    }, { explicit: ["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "swung"] });
+        // Read by the cast's claim alone (gm-stores.mjs `castStore`); kept in the cast with the rest.
+        openedAt: Date.now(),
+        keyRemnantsStale: null,
+        endedBy: null
+    }, { explicit: ["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "swung", ...INCIDENT_METHOD] });
 
     await whisperToGms(`
         <h3>${game.i18n.localize("DRPG.Murder.openedTitle")}</h3>
@@ -2154,8 +2206,8 @@ async function checkVictimSpent(done = null) {
     // happened. Failing it must not leave the incident half-ended, so the stage
     // has already moved by the time this runs.
     try {
-        const { killCharacter, isDeceased } = await import("./chapter.mjs");
-        if (!isDeceased(victim)) await killCharacter(victim);
+        const { killCharacter, isDeadForGm } = await import("./chapter.mjs");
+        if (!isDeadForGm(victim)) await killCharacter(victim);
     } catch (err) {
         error(`Could not record ${victim.name}'s death when they ran out`, err);
     }
@@ -2507,9 +2559,9 @@ async function finishIncident(state, key, band, done) {
         // After the stage write, deliberately: a death that fails must not
         // leave the incident half-ended, and Stage 6 needs the state either way.
         try {
-            const { killCharacter, isDeceased } = await import("./chapter.mjs");
+            const { killCharacter, isDeadForGm } = await import("./chapter.mjs");
             const victim = game.actors.get(state.victimId);
-            if (victim && !isDeceased(victim)) await killCharacter(victim);
+            if (victim && !isDeadForGm(victim)) await killCharacter(victim);
         } catch (err) {
             error("Could not record the victim's death after the Finishing Blow", err);
         }
@@ -2850,6 +2902,225 @@ function askForCast(primary = primaryGmId()) {
     }
 }
 
+/* ==========================================================================
+ * THE DEATHS A PLAYER MAY KNOW (E05 C10; audit S06-11)
+ * --------------------------------------------------------------------------
+ * A killing in an incident is the GMs' until the body is found or a GM makes
+ * it known (chapter.mjs `killCharacter`, `publishDeath`), and a player's
+ * browser reads the deaths it may know from a copy (gm-stores.mjs
+ * `deathCopy`): their own character's, and the incident's they were in. Sent
+ * by the GM that wrote the row, and on the player's ask - at load, and when a
+ * primary GM's world has loaded - answered by the primary alone, about
+ * Foundry's `senderId`. Taken only from a GM, addressed to this user.
+ * ========================================================================== */
+
+const DEATHS_MINE = "deaths.mine";
+const DEATHS_ASK = "deaths.ask";
+/** GM -> one player who walked in alone on a body nobody has found (the owner's Q1). */
+const DEATHS_FOUND = "deaths.found";
+
+/**
+ * GM: the players who may know that this actor died, besides its owners - those of the
+ * running incident's seats when this actor is its victim, as `castOwners` gives them now.
+ * Counted as at Stage 6, where a trap's killer is let back in: the engine's kill sites run
+ * after the stage has moved, and the GM's death dialog runs just before it is offered.
+ */
+export function incidentKnowers(actor) {
+    if (!game.user?.isGM || !actor) return [];
+    const state = murderState();
+    if (!state?.active || state.victimId !== actor.id) return [];
+    return [...castOwners(readCast(), { ...state, stage: "resolution" })];
+}
+
+/** Whether this user may know of this death kept by the GMs: a GM, a user named in its row, or an owner of the body. */
+export function knowsOfDeath(user, actorId, row = deathStore.get(actorId)) {
+    if (!user || !row) return false;
+    if (user.isGM) return true;
+    if (Array.isArray(row.known) && row.known.includes(user.id)) return true;
+    return Boolean(game.actors.get(actorId)?.testUserPermission?.(user, "OWNER"));
+}
+
+/**
+ * GM: the deaths kept by the GMs that this user may know, a stamp each - the row's newest
+ * decision - and, for each body in `also` (dropped here a moment ago), its tombstone's, so a
+ * copy that held it lets it go. Nothing of a death the user may not know, not even a stamp.
+ * `held`: the bodies the asker's copy holds (its ask's own claim) - each one not among the
+ * user's deaths is answered "none, as of now", with one fresh stamp for all of them.
+ *
+ * A DEATH TAKEN BACK WHILE ITS PLAYER WAS AWAY (E05 fix r2-G3, 27.09.2026; review S2-m5).
+ * The tombstone reached a copy only through `also`, sent to whoever was connected at the
+ * drop, and an ask named nothing of a body gone - so a copy that held it kept it: measured
+ * on the harness (61 R), a kept death revived while its owner's browser was closed was
+ * still read dead there after it came back. The ask names what its copy holds now. Every
+ * such body the user may not know is answered alike - a row live or dropped, a death
+ * published or taken back, a body that never died - at the same stamp: one read from the
+ * store's rows (a tombstone's stamp, or its absence for a live row) would tell a console
+ * that named any student which of them had died unseen. A copy lets go of a body that its
+ * answer names at a newer stamp without a death (gm-stores.mjs `offersCombine`).
+ */
+export function deathsFor(userId, { also = [], held = [] } = {}) {
+    const user = game.users.get(userId);
+    const deaths = {}, stamps = {};
+    if (!game.user?.isGM || !user || user.isGM) return { deaths, stamps };
+    for (const [actorId, row] of Object.entries(deathStore.entries())) {
+        if (!knowsOfDeath(user, actorId, row)) continue;
+        deaths[actorId] = { chapter: row.chapter ?? null, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null };
+        stamps[actorId] = deathStore.newest(actorId);
+    }
+    for (const actorId of also) if (!(actorId in stamps) && !deathStore.has(actorId)) stamps[actorId] = deathStore.newest(actorId);
+    const none = held.filter(actorId => !(actorId in stamps));
+    if (none.length) {
+        const now = gmStoreStamp();
+        for (const actorId of none) stamps[actorId] = now;
+    }
+    return { deaths, stamps };
+}
+
+/** The bodies an ask says its copy holds: this world's actor ids, each once. */
+function heldOf(ids) {
+    return Array.isArray(ids) ? [...new Set(ids.filter(id => typeof id === "string" && game.actors.has(id)))] : [];
+}
+
+/**
+ * GM: send one user their deaths (`deathsFor`). Addressed, and only while they are here;
+ * nothing while the suite holds the stores or stands in another world. Answers whether it
+ * sent: an answer that names nothing is not sent, since a copy takes none.
+ */
+export function sendDeathsTo(userId, { also = [], held = [] } = {}) {
+    const user = game.users.get(userId);
+    if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
+    const { deaths, stamps } = deathsFor(userId, { also, held });
+    if (!Object.keys(stamps).length) return false;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: DEATHS_MINE, userId, deaths, stamps }, { recipients: [userId] });
+    } catch (err) {
+        error("Could not tell a player the deaths they know", err);
+        return false;
+    }
+    return true;
+}
+
+/** GM: each of these users sent their deaths, `also` naming bodies just dropped. Answers how many were sent. */
+export function tellDeaths(userIds, also = []) {
+    let sent = 0;
+    for (const userId of new Set(userIds)) if (sendDeathsTo(userId, { also })) sent++;
+    return sent;
+}
+
+/** After a restore (gm-stores.mjs `restoreCase`): every connected player is sent their deaths again, at their stamps. */
+export async function retellDeaths() {
+    if (!game.user?.isGM || gmStoresQuiet()) return 0;
+    return tellDeaths((game.users ?? []).filter(u => u.active && !u.isGM).map(u => u.id));
+}
+
+/** Player: take a GM's answer where it is newer (`deathCopy`), for this world's actors only. */
+export async function receiveDeaths(deaths, stamps) {
+    const mine = {}, own = {};
+    for (const [actorId, s] of Object.entries(stamps ?? {})) {
+        if (!game.actors.has(actorId)) continue;
+        own[actorId] = Number(s) || 0;
+        const row = deaths?.[actorId];
+        if (!row || typeof row !== "object") continue;
+        mine[actorId] = {
+            chapter: Number.isFinite(row.chapter) ? row.chapter : null,
+            day: Number.isFinite(row.day) ? row.day : null,
+            timeOfDay: typeof row.timeOfDay === "string" ? row.timeOfDay : null
+        };
+    }
+    return deathCopy.receive(mine, own);
+}
+
+/** GM: tell one player, by an addressed packet and no document, that they found this body alone. */
+export function tellFinder(userId, token, room) {
+    const user = game.users.get(userId);
+    if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: DEATHS_FOUND, userId, bodyId: token.actor?.id ?? null, name: token.name ?? "", room },
+            { recipients: [userId] });
+        return true;
+    } catch (err) {
+        error("Could not tell a player they found a body", err);
+        return false;
+    }
+}
+
+/**
+ * ON THIS SCREEN ALONE (E05 C10; the owner's Q1). A body this player may know and the table
+ * does not is drawn dead here - Foundry's own "defeated" icon over the token, a child of the
+ * token's object, never a status or a flag, which every console would read. Not measured: the
+ * harness has no canvas (26.09.2026), so this is a check for a real table.
+ */
+function markLocalDeath(token) {
+    try {
+        const actor = token?.actor;
+        const show = Boolean(actor) && !game.user.isGM && isDeadForGm(actor) && !isDeceased(actor);
+        let icon = token?.children?.find?.(c => c?.name === "drpg-local-dead") ?? null;
+        if (!show) {
+            if (icon) { token.removeChild(icon); icon.destroy(); }
+            return;
+        }
+        const src = CONFIG.controlIcons?.defeated;
+        if (icon || !src || !globalThis.PIXI?.Sprite?.from) return;
+        icon = PIXI.Sprite.from(src);
+        icon.name = "drpg-local-dead";
+        icon.anchor?.set?.(0.5);
+        const w = token.w ?? 100, h = token.h ?? 100;
+        icon.width = icon.height = Math.min(w, h) * 0.8;
+        icon.position.set(w / 2, h / 2);
+        icon.alpha = 0.8;
+        token.addChild(icon);
+    } catch (err) {
+        debug("Could not draw a body this player knows of as dead", err);
+    }
+}
+
+/** Player: ask the primary for the deaths this user may know. */
+function askForDeaths(primary = primaryGmId()) {
+    if (!primary || game.user.isGM) return;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: DEATHS_ASK, held: Object.keys(deathCopy.read() ?? {}) }, { recipients: [primary] });
+    } catch (err) {
+        error("Could not ask the GM which deaths this client knows", err);
+    }
+}
+
+function onDeathsSocket(payload, senderId) {
+    if (payload?.action === DEATHS_ASK) {
+        if (!isPrimaryGm()) return;
+        const sender = game.users.get(senderId);
+        if (!sender?.active || sender.isGM) return;
+        // Asked while the suite holds the stores: answered once it lets them go.
+        whenGmStoresAudible().then(() => deathStore.whenHydrated()).then(() => sendDeathsTo(sender.id, { held: heldOf(payload.held) }))
+            .catch(err => error("Could not answer a player's deaths", err));
+        return;
+    }
+    if (payload?.action === DEATHS_FOUND) {
+        if (game.user.isGM || payload.userId !== game.user.id || !game.users.get(senderId)?.isGM) return;
+        const body = game.actors.get(payload.bodyId);
+        if (!body) return;
+        ui.notifications.info(game.i18n.format("DRPG.Chapter.youFoundBody", {
+            name: String(payload.name || body.name), room: String(payload.room ?? "")
+        }), { permanent: true });
+        return;
+    }
+    if (payload?.action !== DEATHS_MINE || game.user.isGM) return;
+    // A GM's, and addressed to this user: a player cannot hand another a death.
+    if (payload.userId !== game.user.id || !game.users.get(senderId)?.isGM) return;
+    receiveDeaths(payload.deaths, payload.stamps).catch(err => error("Could not keep the deaths this client knows", err));
+}
+
+/** At ready: the copy's listener on every client, and a player's first ask. */
+function registerDeathCopy() {
+    Hooks.once("ready", () => {
+        game.socket.on(SOCKET_EVENT, onDeathsSocket);
+        if (game.user.isGM) return;
+        askForDeaths();
+        Hooks.on("drpgPrimaryReady", primary => askForDeaths(primary));
+        Hooks.on("refreshToken", token => markLocalDeath(token));
+        Hooks.on("drpgDeathsChanged", () => { for (const t of canvas?.tokens?.placeables ?? []) markLocalDeath(t); });
+    });
+}
+
 /**
  * THE CAST ENTERED BY HAND (E04; the design's 6.3, the health check's "Enter the
  * cast by hand"). An incident is running and this browser holds nobody in it - its
@@ -2879,12 +3150,18 @@ export async function enterCast({ killerId = null, victimId = null, thirdId = nu
  * NOTHING LEAVES WORLD DATA BEFORE THE CAST HOLDS IT. The stray names go into the
  * cast at the store's weak stamp and fill-only - a value any GM decided wins - and
  * a name leaves `murderState` only once the cast reads back from storage holding
- * a value for it; `murderState` is read back too. A live betrayal offer goes in the
- * same way before its flag is unset, and every flag unset is read back: one that
- * will not go is counted, not assumed gone. Idempotent: a world already through
- * this has no names in `murderState` and no flags.
+ * a value for it, written into the world half as it is after the cast's save (read
+ * again then: a turn another GM passed during that await stands - the correctness
+ * review's M9, the same shape as `liftIncidentMethod`'s); `murderState` is read back
+ * too. A live betrayal offer goes in the same way before its flag is unset, and every
+ * flag unset is read back: one that will not go is counted, not assumed gone. Anything
+ * counted as kept throws at the end, so the world is not stamped and the next load
+ * tries again (E05 fix r1-G1; migrate.mjs, above the lifts - since 1.2.64, so that a
+ * world 1.2.63 stamped over names it kept runs this once more). Idempotent: a world
+ * already through this has no names in `murderState` and no flags.
  *
- * @returns {Promise<null|{lifted: number, offers: number, flags: number, kept: number}>}
+ * @returns {Promise<null|{lifted: number, offers: number, flags: number, kept: number}>}  `kept` 0:
+ *   anything else throws.
  */
 export async function liftIncidentSecrets() {
     if (!isPrimaryGm()) return null;
@@ -2894,14 +3171,15 @@ export async function liftIncidentSecrets() {
     const report = { lifted: 0, offers: 0, flags: 0, kept: 0 };
 
     const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const strays = CAST_FIELDS.filter(key => stored[key] != null);
+    // The names, as in 1.2.63: the method is `liftIncidentMethod`'s, which runs after this and tells the participants.
+    const strays = CAST_FIELDS.filter(key => !INCIDENT_METHOD.includes(key) && stored[key] != null);
     if (strays.length) {
         await castStore.patch(RECORD, Object.fromEntries(strays.map(key => [key, stored[key]])),
             { weak: true, fillOnly: true, whole: true });
         const held = castStore.persisted(RECORD) ?? {};
         const moved = strays.filter(key => held[key] !== null && held[key] !== undefined);
         if (moved.length) {
-            const rest = { ...stored };
+            const rest = { ...(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}) };
             for (const key of moved) delete rest[key];
             await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
             const back = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
@@ -2938,11 +3216,68 @@ export async function liftIncidentSecrets() {
         }
     }
     if (report.lifted || report.offers) pushCastToParticipants(readCast(), {});
+    if (report.kept) throw new Error(`${report.kept} of the incident's names, offers or old flags are still in world data; the next load tries again`);
+    return report;
+}
+
+/**
+ * THE INCIDENT'S METHOD OUT OF WORLD DATA (E05 C8; audit S04-08). Until 1.2.64 the world
+ * half of `murderState` held `indirect`, `selfInflicted`, `keyRemnantsStale`, `openedAt`
+ * and `endedBy` (`INCIDENT_METHOD`). The clause `liftIncidentMethod` (migrate.mjs) runs
+ * this once, on the primary, after the cast's copies arrived.
+ *
+ * WHILE AN INCIDENT RUNS the fields with a value go into the cast weak and fill-only - a
+ * value a GM wrote since the update stands - and a field leaves the world half only once
+ * the cast reads back from storage holding a value for it; a null there says "none" and
+ * leaves with them. Then the participants are sent the cast, so a trap's victim reads the
+ * trap from their copy. WITH NO INCIDENT RUNNING they leave outright: `murderState()` is
+ * null then, and nothing reads them. The world half is written as it is after the cast's
+ * save - read again then, so a turn another GM passed during that await stands (the
+ * correctness review's M9: the copy read before it put the turn back) - and read back; a
+ * field still there throws, with the count, so the world is not stamped and the next load
+ * tries again (E05 fix r1-G1; migrate.mjs, above the lifts). Idempotent.
+ *
+ * @returns {Promise<null|{lifted: number, dropped: number, kept: number}>}  `kept` 0: anything
+ *   else throws.
+ */
+export async function liftIncidentMethod() {
+    if (!isPrimaryGm()) return null;
+    if (await castStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the cast did not arrive; the next load tries again");
+    }
+    const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    const found = INCIDENT_METHOD.filter(key => Object.hasOwn(stored, key));
+    if (!found.length) return null;
+    const values = stored.active ? found.filter(key => stored[key] != null) : [];
+    if (values.length) {
+        await castStore.patch(RECORD, Object.fromEntries(values.map(key => [key, stored[key]])), { weak: true, fillOnly: true });
+        await castStore.idle();
+    }
+    const held = castStore.persisted(RECORD) ?? {};
+    const leave = found.filter(key => !values.includes(key) || (held[key] !== null && held[key] !== undefined));
+    if (leave.length) {
+        const rest = { ...(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}) };
+        for (const key of leave) delete rest[key];
+        await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
+    }
+    const back = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    const gone = leave.filter(key => !Object.hasOwn(back, key));
+    const report = {
+        lifted: gone.filter(key => values.includes(key)).length,
+        dropped: gone.filter(key => !values.includes(key)).length,
+        kept: found.length - gone.length
+    };
+    if (report.lifted) {
+        log(`Lifted ${report.lifted} field(s) of the incident's method out of world data (S04-08).`);
+        pushCastToParticipants(readCast(), {});
+    }
+    if (report.kept) throw new Error(`${report.kept} field(s) of the incident's method are still in the world half of murderState; the next load tries again`);
     return report;
 }
 
 export function registerMurder() {
     registerIncidentCastSync();
+    registerDeathCopy();
 
     // The betrayal's day-long window (D18). Swept rather than counted down -
     // see `sweepBetrayalWindows`.
@@ -3016,7 +3351,7 @@ async function maybeThirdParty(tokenDoc) {
     // everybody who came after them.
     if (participantIds(state).has(actor.id)) return;
     if (isMonokuma(actor)) return;       // the GM on the map is not a witness
-    if (actor.getFlag(MODULE_ID, FLAGS.deceased)) return;
+    if (isDeadForGm(actor)) return;
     // A token the GM has hidden is not in the scene as far as the fiction is
     // concerned - the same rule `othersInRoom` applies.
     if (tokenDoc.hidden) return;
@@ -3148,9 +3483,65 @@ export function blackenedIds() {
         .map(([id]) => id);
 }
 
-/** Their actors, skipping any that have since been deleted. */
-export function blackenedActors() {
-    return blackenedIds().map(id => game.actors.get(id)).filter(Boolean);
+/**
+ * THE BLACKENED THE TRIAL ASKS FOR (E05 fix r2-G1, 27.09.2026; review F1, the owner's Q3).
+ * The register takes a killer when the incident closes, and an incident usually closes
+ * before anybody finds the body. The trial read the register whole, so a death nobody had
+ * found was counted where the table could see it - measured 27.09.2026 on the harness, one
+ * death published and one not: every ballot asked for two names, one more than the table had
+ * bodies, which told each player there was another; a correct verdict executed the second
+ * killer and a wrong one kept them a Reinforced. The owner's rule is that such a death
+ * counts nowhere until the discovery or a GM's hand makes it known. So a row names its
+ * victims (`recordBlackened`), and the trial counts a killer for a death the table knows;
+ * the register itself stays whole for the discovery's rule of two witnesses
+ * (chapter.mjs `checkBodyFound`), which is the GMs' judgement of who stands in a room.
+ */
+export function trialBlackenedIds() {
+    return blackenedIds().filter(id => countsAtTrial(blackenedStore.get(id), untoldDeath));
+}
+
+/**
+ * A victim whose death the table does not know: one nobody has published (a row of the
+ * `deaths` store, no flag yet), and one taken back (E05 fix r2-G3, 27.09.2026; G1's note).
+ * This asked for a row alone, so a victim revived - the GM's undo of a death, which drops
+ * the row (plan section 2) - left their killer counted: measured in tier 2, a register row
+ * naming a revived victim was asked for at the trial. A victim whose actor is gone counts,
+ * as it did.
+ */
+function untoldDeath(victimId) {
+    const victim = game.actors.get(victimId);
+    return Boolean(victim) && !isDeceased(victim);
+}
+
+/**
+ * The rule under `trialBlackenedIds`, pure (R199): a row counts unless every victim it
+ * names is a death the table does not know (`untold(id)`: `untoldDeath`). A row that names
+ * none counts - every row written before 1.2.64 names none, and a death then was the
+ * table's at the kill.
+ */
+export function countsAtTrial(row, untold) {
+    const victims = Array.isArray(row?.victims) ? row.victims.filter(id => typeof id === "string" && id) : [];
+    return !victims.length || victims.some(id => !untold(id));
+}
+
+/**
+ * The trial reads the register and the deaths once the GM stores hold the other GMs' rows
+ * (E05 fix r2-G2, 27.09.2026; G1's note, read in code and measured on the harness by holding
+ * both stores' hydration): read before, a vote opened moments after a load counted from this
+ * browser's rows alone - a killer another GM recorded was missing from the ballot's count,
+ * and a death another GM still kept secret was not yet there to hold its killer back.
+ * `openVote` and `openVerdictDialog` wait on this before they count. (Since E05 fix r2-G3
+ * the killer is held back by the victim's flag, not by the row - `untoldDeath` - so only the
+ * register's wait still counts there; the deaths' wait stays for the verdict, which asks
+ * who is dead to the GMs - `isDeadForGm` - before it executes or rewards anybody.)
+ */
+export function whenTrialReadable() {
+    return Promise.all([blackenedStore.whenHydrated(), deathStore.whenHydrated()]);
+}
+
+/** The trial's Blackened as actors, skipping any that have since been deleted - the verdict's list. */
+export function trialBlackenedActors() {
+    return trialBlackenedIds().map(id => game.actors.get(id)).filter(Boolean);
 }
 
 /**
@@ -3173,7 +3564,13 @@ export function blackenedActors() {
  *
  * Appended, never replaced. Two incidents in a chapter - which the betrayal
  * rule makes an ordinary evening - put two (or more) names in here, and the
- * trial asks for all of them.
+ * trial asks for all of them whose deaths the table knows (`trialBlackenedIds`).
+ *
+ * WITH THE VICTIM (E05 fix r2-G1, 27.09.2026; review F1). A row carries `victims`,
+ * the bodies it answers for, so the trial can leave out a killer whose every
+ * victim is still a death nobody has found (the owner's Q3). A killer who kills
+ * again in the chapter has the new victim added to their row; a row written
+ * before 1.2.64 names none and is left so, since it counts at every trial anyway.
  */
 async function recordBlackened(state) {
     if (!game.user.isGM || !state?.killerId) return;
@@ -3182,16 +3579,34 @@ async function recordBlackened(state) {
     if (state.endedBy === "sharedEscape") return;
     if (state.stage !== "resolution") return;
 
-    const current = blackenedIds();
-    const additions = killerIds(state).filter(id => !current.includes(id));
-    if (!additions.length) return;
-    // A row per killer, stamped with the chapter and season it is for; `at` keeps
-    // their order after the rows this chapter already has.
-    const chapter = getClock()?.chapter ?? null;
-    const at = Date.now();
-    await blackenedStore.patchMany(Object.fromEntries(additions.map((id, i) =>
-        [id, { chapter, epoch: seasonEpoch(), at: at + i }])));
-    log(`Blackened recorded: ${additions.map(id => game.actors.get(id)?.name ?? id).join(", ")}.`);
+    const held = Object.fromEntries(blackenedIds().map(id => [id, blackenedStore.get(id)]));
+    const rows = blackenedWrites(held, killerIds(state), state.victimId,
+        { chapter: getClock()?.chapter ?? null, epoch: seasonEpoch(), at: Date.now() });
+    const written = Object.keys(rows);
+    if (!written.length) return;
+    await blackenedStore.patchMany(rows);
+    log(`Blackened recorded: ${written.map(id => game.actors.get(id)?.name ?? id).join(", ")}.`);
+}
+
+/**
+ * What one closed incident writes to the register, pure (R199). `held` is this chapter's
+ * rows by killer. A killer not in it gets a row stamped with the chapter and season it is
+ * for, `at` keeping their order after the rows the chapter already has, naming the victim;
+ * a killer already in it has the victim added to the victims their row names. A row that
+ * names none was written before 1.2.64 and counts at every trial, so it is left alone.
+ */
+export function blackenedWrites(held, killers, victimId, { chapter = null, epoch = 0, at = 0 } = {}) {
+    const victim = typeof victimId === "string" && victimId ? victimId : null;
+    const rows = {};
+    (killers ?? []).forEach((id, i) => {
+        if (!Object.hasOwn(held ?? {}, id)) {
+            rows[id] = { chapter, epoch, at: at + i, victims: victim ? [victim] : [] };
+            return;
+        }
+        const had = held[id]?.victims;
+        if (victim && Array.isArray(had) && !had.includes(victim)) rows[id] = { victims: [...had, victim] };
+    });
+    return rows;
 }
 
 /**
@@ -3229,9 +3644,9 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
      */
     if (state?.selfInflicted && state.stage === "resolution") {
         try {
-            const { killCharacter, isDeceased } = await import("./chapter.mjs");
+            const { killCharacter, isDeadForGm } = await import("./chapter.mjs");
             const actor = game.actors.get(state.victimId);
-            if (actor && !isDeceased(actor)) await killCharacter(actor);
+            if (actor && !isDeadForGm(actor)) await killCharacter(actor);
         } catch (err) {
             error("Could not record a self-inflicted death when the incident closed", err);
         }
@@ -3263,6 +3678,18 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
     // (E04) - untouched, rather than read here and written back.
     await restoreState({}, { keep: ["betrayal"] });
     log(`Murder closed (${reason}).`);
+
+    /* AND ITS TRACES LEAVE THE NEXT INCIDENT'S MAP (E05 C14, 27.09.2026; audit S05-42).
+       The ones nobody copied are hidden and none is marked as an incident's any more
+       (remnants.mjs `retireIncidentTraces`): the mark names no incident, so the cast of
+       every later one was drawn them. On the GM that closes it, the one GM that runs this
+       function; after the state is wiped, as the tracker below. */
+    try {
+        const { retireIncidentTraces } = await import("./remnants.mjs");
+        await retireIncidentTraces();
+    } catch (err) {
+        error("Could not take the closed incident's traces off the next one's map", err);
+    }
 
     /* AND THE TRACKER GOES WITH IT.
 
@@ -3470,8 +3897,8 @@ export function betrayalTarget(actor) {
 
     const killer = game.actors.get(open.killerId);
     if (!killer || killer.id === actor.id) return null;
-    if (killer.getFlag(MODULE_ID, FLAGS.deceased)) return null;
-    if (actor.getFlag(MODULE_ID, FLAGS.deceased)) return null;
+    if (isDeadForGm(killer)) return null;
+    if (isDeadForGm(actor)) return null;
 
     /*
      * NOT IN THE MIDDLE OF SOMEBODY ELSE'S FIGHT.
@@ -3781,8 +4208,8 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
         return null;
     }
 
-    const { livingStudents } = await import("./chapter.mjs");
-    const alive = livingStudents();
+    const { livingStudentsForGm } = await import("./chapter.mjs");
+    const alive = livingStudentsForGm();
     // One is enough, now that a student can be both sides of it. The old floor
     // of two was the last place the engine still assumed a murder needs two
     // people - and the case it locked out, a single survivor with nothing left

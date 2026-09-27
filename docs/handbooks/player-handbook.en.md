@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.63, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.64, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -82,7 +82,7 @@ The three phases:
 
 Before each time of day the lights go out. That placement window is the **Eclipse**:
 
-- Nobody sees anybody else's token, in any room. Every player is in a voice channel of their own.
+- Nobody's screen shows anybody else's token, in any room. Every player is in a voice channel of their own. (The dark is the screens': where every token stands still reaches every browser, as Foundry sends it.)
 - You place your token: up to **2 connected room crossings**, doors and gaps still apply. The **Night Eclipse** is the exception - pick **any room on the map**.
 - Your actions are already refilled when the Eclipse opens, but nothing spends them except a **Direct Murder**. No Calls until the lights come up.
 - A summary card of what you did during the previous time of day opens for you - what you found, what you left behind.
@@ -335,7 +335,7 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 | **Ultimate** | 1 | Advantage on a roll your Ultimate genuinely applies to. Waits for the GM the same way. |
 | **Contribution** | 2 | +1 progress to a project being worked on in the room you are in. |
 | **Sprint** | 2 | One more room crossing this time of day without paying an action for it. |
-| **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. Some things stand: a hand already in a pocket, a trail already planted. |
+| **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. Some things stand: a hand already in a pocket, a trail already planted. The browser you rolled on remembers the action; from another one the Reroll throws the dice again and takes nothing back. |
 | **Resolve** | 3 | For one roll, choose which statistic to add yourself. |
 | **Burst** | 4 | Your next action costs nothing - the whole action, however many it would have cost. |
 | **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. |
@@ -441,7 +441,7 @@ An item can also serve as another category (a screwdriver under Tools that is al
 
 A **Remnant** is a trace on the map. Most of what you do in a room leaves one: taking a weapon, a Dynamic action, sabotaging, working on a murder project, throwing something away, going through a body's pockets, a fight, a clean-up. How hard it is to see is its **visibility**: Obvious, Evident, Subtle, Hidden. Some are **Reinforced** - nobody can remove them.
 
-A trace appears on your map <ins>only once you hold a Truth Bullet copied from it</ins> (the traces of a fight you are in show as they are made). It wears a question mark until your copy is analysed, and then the icon of what left it - a Search, a Dynamic action, a project, a sabotage, the fight itself, a clean-up, a thing thrown away, a body gone through, the GM's own hand. Its frame takes the colour of what your copy says it is.
+A trace appears on your map <ins>only once you hold a Truth Bullet copied from it</ins> (the traces of a fight you are in show as they are made). On your screen it carries your copy's name and picture - nobody else's screen does: the trace itself keeps one neutral name. It wears a question mark until your copy is analysed, and then the icon of what left it - a Search, a Dynamic action, a project, a sabotage, the fight itself, a clean-up, a thing thrown away, a body gone through, the GM's own hand. Its frame takes the colour of what your copy says it is.
 
 | Remnant | What it means |
 |---|---|
@@ -612,6 +612,8 @@ Having thrown in and survived, you may afterwards **turn on your partner** - the
 
 Somebody finds the body. The moment <ins>two students stand in the room with it</ins>, and at least one of them is not among its killers, it is discovered - never during an Eclipse. The killers themselves, still cleaning up, can stand over it without finding it. The GM can also announce it by hand. Everyone is called to the scene, and the game holds there until the Investigation starts. A killing by one's own hand is a killing like any other - the class has only the scene to go on.
 
+Until somebody finds the body, the death is the GMs' to keep: the table is not told, and nothing on the body says so. Those who were in the incident know. If you come upon a body alone, with nobody else in the room, you are told privately what you found, and your screen alone shows it as a body - nobody else is told, and one witness is not a discovery. You may go through its pockets then, as those who were in the incident may; what you take moves between two sheets, which every player's browser can read. The Truth Bullet of it, which says whose body it was, comes when the death is made known.
+
 ---
 
 ## 11. Investigation
@@ -654,7 +656,7 @@ Each living player receives a **ballot**. Vote for whoever you believe is the **
 | Outcome | What happens |
 |---|---|
 | **Right** | The Blackened is executed. Every survivor takes a **Level Up** (pick 1). |
-| **Wrong** | The accused is executed. The Blackened stays anonymous and in play with a **Reinforced Level Up** (pick 3) and one new rule of their choosing, and every Monokuma fills their Despair pool. |
+| **Wrong** | The accused is executed. The Blackened stays anonymous and in play with a **Reinforced Level Up** (pick 3) and one new rule of their choosing, and every Monokuma fills their Despair pool. The Reinforced Level Up waits for the class's next one: its owner is told privately, and picks it together with the class's own when a vote names the Blackened correctly, or at the Final Trial's verdict. It lapses if they die first. |
 
 A chapter can produce two Blackened (a betrayal leaves two bodies); the vote has to name <ins>all of them</ins>.
 
@@ -679,7 +681,8 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 ## 13. Death, and after
 
 - The dead take no actions and spend no Hope. You keep your sheet and your voice at the table.
-- Your **Truth Bullets die with you**, carried and stashed alike, unless the GM keeps them. Everything else stays on the body to be found.
+- Your **Truth Bullets die with you**, carried and stashed alike, unless the GM keeps them - once your death is known. Everything else stays on the body to be found.
+- If you die in an incident, nobody else is told until your body is found or a GM makes it known: your sheet shows you dead, with "Nobody has found your body yet.", and your Truth Bullets stay on it until then. Until then the trial counts you among the living: you are sent a ballot, and a correct verdict's Level Up is yours too.
 - The body stays where it fell and can be moved by the killer. The dead do not count as being in a room: no witnessing, no handovers.
 - The GM can end a chapter by revealing what every Truth Bullet really was, collecting them (Faint and Final Truth stay), and clearing the Faint traces.
 
@@ -707,7 +710,7 @@ The button in the bottom-right corner opens **GM Chat**: one thread between you 
 
 Everything that needs a human lands in the same thread: an Observe aimed at a point of interest, an Analyze hint, a Dynamic action, a project proposal, a Search for something specific, the Experience and Ultimate Calls, a Tier 0 item you want to use creatively. You see your roll, your own words, and the ruling when it comes. If no GM answers, nothing is spent.
 
-The messenger also has a **Note** tab: your plans for the session, for the GMs to read before it. The template asks seven questions:
+The messenger also has a **Note** tab: your plans for the session, for the GMs to read before it. It is for the GMs only: its words go to their browsers and stay on yours, and no other player's browser holds them. Saved while no GM is online, it says "Kept here until a GM connects." and goes when one does. If a GM changed it after you opened it, Save keeps your text and tells you; Save again to put yours in place of theirs. A note kept here waits as you wrote it: when a GM connects, it goes in place of whatever a GM changed meanwhile. The template asks seven questions:
 
 - whether you plan to kill and how,
 - whether you are open to dying,

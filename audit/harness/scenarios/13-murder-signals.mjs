@@ -111,6 +111,50 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         direct.bystander?.roomVolume === 0.8 && direct.bystander?.parked === -1,
         JSON.stringify(direct.bystander));
 
+    /* ---- 1a. the clock moves in private (E05 C15, S01-11) --------------------
+       The GM moves the time of day while the incident runs. The bystander's HUD keeps
+       the hour the incident began at (hud.mjs `clockForDisplay`); the explainer a click
+       on the HUD opens ("Where things stand") read the clock itself and marked the new
+       hour. Its window is caught by a queued answer, which reads what it would show.
+       The clock is put back afterwards, stamp and all. */
+    const moved = await gm.eval(`
+        const C = await import("${repoUrl}/scripts/clock.mjs");
+        const { TIMES_OF_DAY } = await import("${repoUrl}/scripts/config.mjs");
+        const before = C.getClock();
+        const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(before.timeOfDay) + 1) % TIMES_OF_DAY.length];
+        await C.setClock({ timeOfDay: next });
+        return { before: before.timeOfDay, startedAt: before.timeOfDayStartedAt ?? null, next };
+    `, { timeout: 60000 });
+    await settle(900);
+    const shown = await p2.eval(`
+        const hud = await import("${repoUrl}/scripts/hud.mjs");
+        const E = await import("${repoUrl}/scripts/explain.mjs");
+        const C = await import("${repoUrl}/scripts/clock.mjs");
+        const { TIMES_OF_DAY, TIME_OF_DAY_LABELS } = await import("${repoUrl}/scripts/config.mjs");
+        hud.renderHud();
+        await new Promise(r => setTimeout(r, 120));
+        const onHud = document.querySelector(".drpg-hud-time[data-drpg-time]:not(.drpg-hud-time-ghost)")?.dataset.drpgTime ?? null;
+        let content = null;
+        globalThis.__dialogAnswers.push(config => {
+            content = typeof config.content === "string" ? config.content : (config.content?.outerHTML ?? "");
+            return null;
+        });
+        await E.openStateExplainer();
+        const marked = /class="drpg-explain-now">([^<]*)</.exec(content ?? "")?.[1] ?? null;
+        return { onHud, explainer: TIMES_OF_DAY.find(k => (TIME_OF_DAY_LABELS[k] ?? k) === marked) ?? marked,
+                 truth: C.getClock().timeOfDay };
+    `, { timeout: 60000 });
+    await gm.eval(`
+        const C = await import("${repoUrl}/scripts/clock.mjs");
+        await C.setClock({ timeOfDay: "${moved.before}", timeOfDayStartedAt: ${JSON.stringify(moved.startedAt)} });
+        return true;
+    `, { timeout: 60000 });
+    await settle(900);
+    check("direct: the bystander's explainer shows the time their HUD does, not the one the incident moved to (S01-11)",
+        moved.next !== moved.before && shown?.truth === moved.next
+            && shown?.onHud === moved.before && shown?.explainer === moved.before,
+        JSON.stringify({ moved, shown }));
+
     /* ---- 1b. somebody walks in on it ---------------------------------------
        The guide gives the scene one third party, and from the moment they are
        in it they are in it: `thirdPartyEnters` writes `thirdId`, which is a
@@ -149,6 +193,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     `, { timeout: 60000 });
     await settle(700);
 
+    /* The victim's opening roll is thrown on p1 as the trap opens, and a miss starts the incident
+       at once - which took the opening stage, and its Event card, away before the read below in
+       one run of two (27.09). Forced to a critical, which the victim survives noticing, so the
+       opening stays open until the GM rules it; deleted once the card is read. */
+    await p1.eval(`globalThis.__forceRoll = { hope: 10, fear: 10 }; return true;`);
     await gm.eval(`
         await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}", indirect: true });
         return true;
@@ -169,6 +218,65 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     check("trap: the killer is indistinguishable from a bystander",
         JSON.stringify(trap.killer) === JSON.stringify(trap.bystander),
         `killer ${JSON.stringify(trap.killer)} vs bystander ${JSON.stringify(trap.bystander)}`);
+
+    /* THE OPENING EVENT CARD (E05's fix round, M7, 27.09.2026). While the trap's opening runs,
+       the Event panel's "A murder is under way" card is the victim's and the GM's, and not the
+       killer's - events.mjs `openingCard`, which asks `incidentIndirect(cast, state)` whether it
+       is a trap. Nothing read it on a browser until now: with the card asking the world half
+       alone (which holds no method since C8), the victim lost it and every check stayed green
+       (the C8 session's finding). Read from the panel each browser draws. */
+    const OPENING = `const E = await import("${repoUrl}/scripts/events.mjs");
+        E.renderEvents();
+        const sig = JSON.parse(document.getElementById("drpg-events")?.dataset.signature ?? "[]");
+        return { stage: game.settings.get("${MOD}", "murderState")?.stage ?? null,
+            card: sig.some(c => c[0] === "incident" && c[1] === game.i18n.localize("DRPG.Events.openingTitle")) };`;
+    const opening = { gm: await gm.eval(OPENING), victim: await p1.eval(OPENING), bystander: await p2.eval(OPENING), killer: await p3.eval(OPENING) };
+    await p1.eval(`delete globalThis.__forceRoll; return true;`);
+    check("trap: the opening Event card is the victim's and the GM's, not the killer's or a bystander's",
+        Object.values(opening).every(o => o.stage === "openingRoll")
+        && opening.gm.card && opening.victim.card && !opening.bystander.card && !opening.killer.card, JSON.stringify(opening));
+
+    /* HOW IT HAPPENED IS NOT IN THE WORLD (E05 C8; audit S04-08). The world half of
+       `murderState` said `indirect: true` on every browser - the killer's too, who is told
+       nothing else. Each player's world half holds only the public list (world-secrets.mjs,
+       `murderState`'s `only`), and the victim reads the trap from their own copy of the cast.
+       Red on the C7 tree: p1, p2 and p3 each read indirect, selfInflicted and openedAt there. */
+    const METHOD = `const W = await import("${repoUrl}/scripts/world-secrets.mjs");
+        const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        const world = game.settings.get("${MOD}", "murderState") ?? {};
+        return { unlisted: Object.keys(world).filter(k => !W.WORLD_SECRET_RULES.settings.murderState?.only?.includes(k)),
+            active: Boolean(world.active), copy: incidentCast().indirect ?? null };`;
+    const method = { victim: await p1.eval(METHOD), bystander: await p2.eval(METHOD), killer: await p3.eval(METHOD) };
+    check("trap: no player's world half says how it happened",
+        Object.values(method).every(m => m.active && !m.unlisted.length), JSON.stringify(method));
+    check("trap: the victim reads the trap from their copy of the cast, and nobody else holds it",
+        method.victim.copy === true && method.bystander.copy === null && method.killer.copy === null, JSON.stringify(method));
+
+    /* AND THE KILLER IS LET BACK IN AT STAGE 6 (`castOwners`, murder.mjs), the trap in their
+       copy. The GM rules the victim's roll a failure - the trap closes - and moves the incident
+       on. Red on the C7 tree: the killer was sent the cast, without `indirect`, which was the
+       world half's. The gate compares both halves since E05 C8; a mutant comparing the world
+       halves alone still passes here (26.09), because every road into Stage 6 writes `endedBy`,
+       a cast field now, and a write of the cast is pushed anyway - this guards the outcome,
+       not that line.
+       THAT MUTANT IS EQUIVALENT TODAY, AND WHY (E05's fix round, 27.09.2026). The gate
+       (`trapMoved` in murder.mjs `writeState`) only decides anything on a write that names no
+       cast field, and read on 27.09 no such write moves `trapRunning`: the incident opens with
+       the cast (`openMurder`), openingRoll -> incident keeps it running, every road into
+       Stage 6 writes `endedBy`, and an incident ends through `restoreState`, not `writeState`.
+       `writeState` is not exported, so no test can make the write that would tell the two
+       apart; the gate is kept for the next road that moves the stage alone. Re-measured with
+       the opening card above: the mutant still passes every check in this file. */
+    await gm.eval(`
+        await game.drpg.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await game.drpg.beginResolution("victimKilled");
+        return true;
+    `, { timeout: 60000 });
+    await settle(900);
+    const stage6 = await p3.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs"); const c = incidentCast();
+        return { stage: game.settings.get("${MOD}", "murderState")?.stage ?? null, killer: c.killerId ?? null, indirect: c.indirect ?? null };`);
+    check("trap: at Stage 6 the killer is sent the cast, the trap with it",
+        stage6.stage === "resolution" && stage6.killer === ids.chie && stage6.indirect === true, JSON.stringify(stage6));
 
     /* ---- 3. and it all goes back ------------------------------------------- */
     phase("after", { flow: "murder-incident" });

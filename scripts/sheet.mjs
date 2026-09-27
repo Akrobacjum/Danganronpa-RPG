@@ -22,7 +22,7 @@ import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
 import { resourceMax, resourceValue, initCharacter, needsStartingResources } from "./character.mjs";
 import { pendingAdvance as pendingAdvanceFor } from "./level-up.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
-import { getDespair } from "./despair.mjs";
+import { spendableDespair } from "./despair.mjs";
 import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
 import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
 import {
@@ -39,7 +39,8 @@ import { murderState, sideOf, betrayalTarget } from "./murder.mjs";
 // a player silenced by a Despair Call may not spend Hope.
 import { isMonocub, isSilenced, isSilenced as cubSilenced } from "./monocub.mjs";
 import { isSilenced as callSilenced, isChained, pendingGather } from "./call-effects.mjs";
-import { isDeceased } from "./chapter.mjs";
+import { isDeceased, isDeadForGm } from "./chapter.mjs";
+
 import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
     durabilityLeft } from "./inventory.mjs";
 // `equippedFor` went with the clean-up panel's "what you have readied" note -
@@ -61,6 +62,16 @@ import { rules } from "./rules.mjs";
 import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural } from "./utils.mjs";
+
+/*
+ * Dead, as the person looking at this sheet may know it (E05 C9, rule C): on a
+ * sheet the viewer owns - their own, or any sheet on a GM - what their browser
+ * holds; on anybody else's, the table's fact - so the victim's own player sees the dead
+ * panel before anybody has found the body, and nobody else does (E05 C10).
+ */
+function deadToViewer(actor) {
+    return actor?.isOwner ? isDeadForGm(actor) : isDeceased(actor);
+}
 
 export function registerSheetTweaks() {
     // ApplicationV2 fires a render hook per class in the inheritance chain,
@@ -1207,7 +1218,7 @@ function markHopeChange(actor, element, fresh = false) {
 // Always draw the full base budget. A wounded character keeps both circles,
 // but the one they have lost shows as a locked red slot - clearer than
 // silently rendering "1 / 1", which reads like an action already spent.
-function actionPips(actor, { left, max, spentActions, fresh }) {
+function actionPips(actor, { left, max, spentActions, fresh, viewer = false }) {
     const pips = [];
     const budget = Math.max(max, 1);
     for (let i = 1; i <= Math.max(STARTING.actions, budget); i++) {
@@ -1224,7 +1235,8 @@ function actionPips(actor, { left, max, spentActions, fresh }) {
         pip.innerHTML = `<i class="fa-${filled ? "solid" : "regular"} fa-circle" inert></i>`;
 
         if (locked) {
-            pip.dataset.tooltip = game.i18n.localize("DRPG.Actions.lockedTooltip");
+            // A viewer's pips say nothing (S03-06, `viewerOf`); the redaction marks them.
+            if (!viewer) pip.dataset.tooltip = game.i18n.localize("DRPG.Actions.lockedTooltip");
         } else if (game.user.isGM) {
             // GM only: players spend actions by taking actions, not by clicking.
             pip.classList.add("gm-editable");
@@ -1241,7 +1253,7 @@ function actionPips(actor, { left, max, spentActions, fresh }) {
                 event.preventDefault();
                 set();
             });
-        } else {
+        } else if (!viewer) {
             pip.dataset.tooltip = game.i18n.format("DRPG.Actions.pipReadOnly", { left, max: budget });
         }
         pips.push(pip);
@@ -1250,14 +1262,16 @@ function actionPips(actor, { left, max, spentActions, fresh }) {
 }
 
 /* ---- free move ---- */
-function freeMovePip(actor, { spentMove, fresh }) {
+function freeMovePip(actor, { spentMove, fresh, viewer = false }) {
     const move = document.createElement("span");
     const freeMove = hasFreeMove(actor);
     move.className = `drpg-free-move${freeMove ? " available" : " spent"}`;
     markSpent(move, fresh ? null : spentMove);
-    move.dataset.tooltip = game.i18n.localize(
-        freeMove ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent"
-    );
+    if (!viewer) {
+        move.dataset.tooltip = game.i18n.localize(
+            freeMove ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent"
+        );
+    }
     // Solid while it is there, OUTLINED once it is gone - the same pair the
     // action pips use (`fa-solid fa-circle` / `fa-regular fa-circle`), so a
     // spent Move and a spent action say the same thing in the same way. Foundry
@@ -1332,11 +1346,28 @@ function pendingStack(actor) {
     return stack;
 }
 
+/**
+ * Somebody looking at a sheet that is not theirs: neither a GM nor an owner.
+ *
+ * A VIEWER IS DRAWN NOTHING THE REDACTION WOULD HAVE TO TAKE BACK (E05 C15,
+ * 27.09.2026; audit S03-06). anonymity.mjs turns a viewer's pips and free Move
+ * into question marks, and their tooltips stayed - "1 of 2 actions this time of
+ * day", "Free Move used" - a hover away; and the stack beside them showed the
+ * Calls armed on the owner's next roll, whispered to the owner and the GM
+ * everywhere else, with nothing on the sheet taking it off. So the three are not
+ * drawn for a viewer at all, whether or not the table enforces anonymity, and the
+ * redaction strips them too (`redactValues`) for anything a later hand adds.
+ */
+function viewerOf(actor) {
+    return !game.user.isGM && !actor?.testUserPermission?.(game.user, "OWNER");
+}
+
 function injectActionBar(app, element, fresh = false) {
     const row = element.querySelector(".character-header-sheet .character-row");
     if (!row || row.querySelector(".drpg-actions-section")) return;
 
     const actor = app.document;
+    const viewer = viewerOf(actor);
     const left = actionsLeft(actor);
     const max = actionsMax(actor);
     const { wounded } = actionBudget(actor);
@@ -1362,14 +1393,14 @@ function injectActionBar(app, element, fresh = false) {
     }
     actions.append(label);
 
-    for (const pip of actionPips(actor, { left, max, spentActions, fresh })) actions.append(pip);
+    for (const pip of actionPips(actor, { left, max, spentActions, fresh, viewer })) actions.append(pip);
 
-    actions.append(freeMovePip(actor, { spentMove, fresh }));
+    actions.append(freeMovePip(actor, { spentMove, fresh, viewer }));
 
     section.append(actions);
 
-    const stack = pendingStack(actor);
-    if (stack.children.length) section.append(stack);
+    const stack = viewer ? null : pendingStack(actor);
+    if (stack?.children.length) section.append(stack);
 
     // Sit right after Hope, before the domains/downtime buttons.
     const hope = row.querySelector(".resource-section");
@@ -2384,7 +2415,7 @@ function groupInventory(app, element) {
  */
 function buildOpenStashSection(box, actor, app) {
     if (!app.isEditable || isMonokuma(actor)) return;
-    if (isDeceased(actor) && !isMonocub(actor)) return;
+    if (deadToViewer(actor) && !isMonocub(actor)) return;
 
     /*
      * ONE HEADING PER STASH, ONE BUTTON FOR THE ROOM.
@@ -2512,7 +2543,7 @@ function buildOneStashSection(box, actor, app, room) {
 function addUseButton(li, item, app) {
     if (!app.isEditable || isMonokuma(app.document)) return;
     if (!isUsable(item)) return;
-    if (isDeceased(app.document) && !isMonocub(app.document)) return;
+    if (deadToViewer(app.document) && !isMonocub(app.document)) return;
 
     // SHOWN, AND DEAD. An opened kit keeps its button so the row does not
     // quietly change shape when it is spent - the player looks at the same
@@ -2632,7 +2663,7 @@ function addDiscardButton(li, item, app) {
     if (!isBroken(item)) return;
     // A corpse throws nothing away. Same gate as the Use button, and a Monocub
     // is on the other side of it for the same reason.
-    if (isDeceased(app.document) && !isMonocub(app.document)) return;
+    if (deadToViewer(app.document) && !isMonocub(app.document)) return;
     // The stash is the OTHER answer, not a place to act from: something already
     // put away has to be taken back out before it can be thrown away.
     if (isStashed(item)) return;
@@ -3325,7 +3356,7 @@ function injectActionPanel(app, element) {
     // budget every time of day because it only ever skipped Monokumas. Becoming
     // a Monocub is a separate GM step that may come a whole trial later, or
     // never, and that gap is exactly where a corpse could keep taking turns.
-    if (isDeceased(actor)) {
+    if (deadToViewer(actor)) {
         const note = document.createElement("div");
         note.className = "drpg-action-panel drpg-dead-panel";
         const heading = document.createElement("h3");
@@ -3335,6 +3366,13 @@ function injectActionPanel(app, element) {
         body.className = "notes";
         body.textContent = game.i18n.localize("DRPG.Chapter.deadPanelNote");
         note.append(heading, body);
+        // Dead, and nobody has found them yet (E05 C10): the victim's own player, and a GM.
+        if (!isDeceased(actor)) {
+            const unfound = document.createElement("p");
+            unfound.className = "notes";
+            unfound.textContent = game.i18n.localize(game.user.isGM ? "DRPG.Chapter.deadUnfound" : "DRPG.Chapter.nobodyFoundYou");
+            note.append(unfound);
+        }
         tab.prepend(note);
         return;
     }
@@ -3683,11 +3721,11 @@ function callButton(call, monokuma, lockNote = null) {
     return button;
 }
 
-/** The Despair pool backing a Monokuma actor. */
+/** What the Despair pool backing a Monokuma actor can spend: less what it owes (E05 C12). */
 function monokumaPool(actor) {
     try {
         const user = poolUserFor(actor);
-        return user ? getDespair(user.id) : 0;
+        return user ? spendableDespair(user.id) : 0;
     } catch {
         return 0;
     }

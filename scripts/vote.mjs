@@ -22,7 +22,8 @@
  * about them: getting it right executes the Blackened and levels everybody up.
  * Getting it wrong executes an innocent, leaves the Blackened anonymous and in
  * play with a Reinforced Level Up and a new rule of their choosing, and fills
- * every Monokuma's Despair to maximum.
+ * every Monokuma's Despair to maximum. The Reinforced Level Up waits for the class's
+ * next one since E05 (level-up.mjs `deferAdvancement`): applied at once, it named them.
  */
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
@@ -30,8 +31,8 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
-import { isDeceased, livingStudents, killCharacter } from "./chapter.mjs";
-import { blackenedIds, blackenedActors } from "./murder.mjs";
+import { isDeceased, isDeadForGm, livingStudents, killCharacter } from "./chapter.mjs";
+import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./murder.mjs";
 import { announce, dialogContent, whisperToGms, log, warn, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -260,7 +261,15 @@ export async function openVote({ picks = null } = {}) {
     // below - which was written, tested and complete - could not be reached
     // from the interface at all. Now the incidents themselves decide: two
     // murders in a chapter, two names on the ballot.
-    const recorded = blackenedIds().length;
+    //
+    // TWO MURDERS THE TABLE KNOWS OF (E05 fix r2-G1, 27.09.2026; review F1). Read whole,
+    // the register also counted a killer whose victim nobody had found yet: with one body
+    // published and one not, every ballot asked for two names (measured on the harness),
+    // which is how each player learnt of the second. A death counts nowhere until it is
+    // made known (the owner's Q3) - see `trialBlackenedIds`. Counted once the stores hold the
+    // other GMs' rows (fix r2-G2, `whenTrialReadable`).
+    await whenTrialReadable();
+    const recorded = trialBlackenedIds().length;
     picksRequired = Math.max(1, Math.trunc(picks ?? recorded) || 1);
     ballots = new Map();
 
@@ -672,7 +681,11 @@ export async function openVerdictDialog() {
         return null;
     }
 
-    const known = blackenedActors();
+    // The trial's Blackened, not the register whole (E05 fix r2-G1): a killer whose every
+    // victim is still a death nobody has found is neither executed nor rewarded here. Read once
+    // the stores hold the other GMs' rows (fix r2-G2).
+    await whenTrialReadable();
+    const known = trialBlackenedActors();
     const students = studentActors();
     // Recorded by `closeVote`, because by the time this window opens the tally
     // has scrolled away and the GM is being asked to remember it.
@@ -855,7 +868,7 @@ export async function applyVerdict({
     const done = [];
 
     for (const actor of executed) {
-        if (isDeceased(actor)) continue;
+        if (isDeadForGm(actor)) continue;
         await killCharacter(actor);
         done.push(game.i18n.format("DRPG.Vote.wasExecuted", {
             name: foundry.utils.escapeHTML(actor.name)
@@ -867,7 +880,19 @@ export async function applyVerdict({
         // answer levels the table up. The Blackened have just been executed, so
         // they are not in this list, which is what keeps that honest even when
         // there were two of them.
-        const survivors = livingStudents();
+        //
+        // ALIVE AS THE TABLE KNOWS IT (E05 fix r2-G1, 27.09.2026; review S2-m6, the plan's
+        // rule A). The list was the GMs' (`livingStudentsForGm`), so a student whose body
+        // nobody had found was passed over - no Level Up window for them, measured on the
+        // harness - and every console saw the class advance and one student not. A Level
+        // Up is a write every console reads: the table's list, less
+        // whoever this verdict named for execution - one already dead to the GMs is not
+        // killed twice (the loop above passes over them), and does not advance either.
+        //
+        // A Reinforced Level Up a wrong verdict left waiting (E05 C11) is picked here, with
+        // its owner's Standard, in the same window - see `runAdvancementBatch`.
+        const sentenced = new Set(executed.map(a => a.id));
+        const survivors = livingStudents().filter(a => !sentenced.has(a.id));
         done.push(plural("DRPG.Vote.levelUp", {
             n: survivors.length,
             kind: TRIAL.correct.levelUp
@@ -875,13 +900,27 @@ export async function applyVerdict({
         await promptAdvancements(survivors, TRIAL.correct.levelUp);
     } else {
         // EVERY killer who is still breathing, not just the first one named.
-        const survivingKillers = blackened.filter(a => !isDeceased(a));
+        //
+        // THEIR LEVEL UP WAITS FOR THE CLASS (E05 C11, 27.09.2026; D4; audit S03-01,
+        // S06-01). Applied here it wrote new maxima and `advances` on the Blackened and a
+        // card spoken by them, which every console receives - the student the class had
+        // just failed to name. It is a row of the GMs' store now, picked with the class's
+        // next Standard or at the Final Trial's verdict (level-up.mjs `deferAdvancement`).
+        const survivingKillers = blackened.filter(a => !isDeadForGm(a));
         if (survivingKillers.length) {
+            const { deferAdvancement } = await import("./level-up.mjs");
+            let waiting = 0;
+            for (const actor of survivingKillers) {
+                try {
+                    if (await deferAdvancement(actor, TRIAL.wrong.blackenedLevelUp, getClock().chapter ?? null)) waiting++;
+                } catch (err) {
+                    error(`Could not keep ${actor.name}'s Level Up for the class`, err);
+                }
+            }
             done.push(plural("DRPG.Vote.blackenedRewarded", {
-                n: survivingKillers.length,
+                n: waiting,
                 kind: TRIAL.wrong.blackenedLevelUp
             }));
-            await promptAdvancements(survivingKillers, TRIAL.wrong.blackenedLevelUp);
         }
         if (TRIAL.wrong.fillDespair) {
             await fillAllDespair();
@@ -937,15 +976,16 @@ export async function applyVerdict({
  *
  * Opened on the GM's client rather than pushed at the players: a level-up is a
  * conversation about what the character became, and the module already puts the
- * same dialog behind a button on every sheet.
+ * same dialog behind a button on every sheet. A survivor holding a Reinforced
+ * that waited for the class picks both in one window (level-up.mjs
+ * `runAdvancementBatch`, E05 C11).
  */
 async function promptAdvancements(actors, kind) {
-    const { openAdvancement } = await import("./level-up.mjs");
-    for (const actor of actors) {
-        try {
-            await openAdvancement(actor, kind);
-        } catch (err) {
-            error(`Could not open the advancement for ${actor.name}`, err);
-        }
+    try {
+        const { runAdvancementBatch } = await import("./level-up.mjs");
+        return await runAdvancementBatch(actors, kind);
+    } catch (err) {
+        error("Could not open the verdict's Level Ups", err);
+        return null;
     }
 }

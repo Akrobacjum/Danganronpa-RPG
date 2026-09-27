@@ -415,6 +415,22 @@ const REGRESSIONS = [
         ok(!blind.length,
             `these files open a socket and act on an id from the packet without `
             + `senderOf/ownsActor, and are not on the exemption list: ${blind.join(", ")}`);
+
+        /*
+         * AND A PLAYER'S COPY IS TAKEN FROM A GM ALONE (E05 C13, 27.09.2026). A copy's
+         * listener reads no id out of the packet - Foundry addresses it, and what it
+         * carries is the answer - so the reading above passes it without looking. Which
+         * traces a player's own bullets came from is such a copy (truth-bullets.mjs,
+         * `bulletRefCopy`), and a player able to hand another one would show them traces
+         * they never found: its handler takes an answer only through `replyForMe`
+         * (addressed to this user, sent by a GM), or asks Foundry's sender itself.
+         */
+        const FROM_GM = /\breplyForMe\(payload, senderId\)|\bgame\.users\.get\(senderId\)\?\.isGM\b/;
+        const COPY_LISTENERS = [["truth-bullets.mjs", "onBulletRefsSocket"]];
+        const served = new Map(await otherSources());
+        const trusting = COPY_LISTENERS.filter(([file, fn]) => !FROM_GM.test(fnSource(stripComments(served.get(file) ?? ""), fn)))
+            .map(([file, fn]) => `${file} ${fn}`);
+        ok(!trusting.length, `these take a player's copy from whoever sent it, not from a GM: ${trusting.join(", ")}`);
     }],
 
     ["R2 - no styling rule in the sheet has lost its emitter", async () => {
@@ -784,34 +800,57 @@ const REGRESSIONS = [
          * to read never leaves the GM's own browser.
          *
          * There is an invariant for Remnant TOKENS already. This is the same
-         * question asked of every store the module registers, which is where the
-         * next one will be added.
+         * question asked of every store the module registers, and of every
+         * actor's, user's, token's and chat message's flags.
          *
-         * KNOWN AND DELIBERATE: `projectMeta` is world-scoped and carries
-         * `killerId` and the trap's `condition`, so an indirect murder's owner
-         * is legible from a player's console today. That is Dawid's call, not a
-         * slip - `secret` was specified as hiding the UI - and it is written
-         * down here so the next reader does not think it got past this test.
+         * THE RULE IS ITS OWN FILE SINCE E05 (C2, 26.09.2026; the stage's
+         * verify). scripts/world-secrets.mjs says what world data may never
+         * hold - this test's own five answer-key names were its first line, and
+         * projectMeta's killer, builder, condition and trigger its second (C1,
+         * S09-05: this test called them "known and deliberate" until then; E05's
+         * fix round added who sabotaged a project, S1-m1) -
+         * and R190 shows it finding each on a fixture. Since C5 the answer-key
+         * names are nine - the Key Remnant plan's analysis, analyzedText, note
+         * and tokenId joined them - and projectMeta's own map token is the one
+         * tokenId a setting may hold (its reason is in the rule). Here it reads
+         * this world: every module world setting, and the module's flags on
+         * every actor, user, token and chat message, and on every token's own actor
+         * data (its delta). A rule comes in with the commit that takes its secret
+         * out of world data; E05's later commits add theirs. The messages and the
+         * deltas since E05's fix round (S1-m3, S1-m4, 27.09.2026): measured first by a
+         * probe that planted a card with a `summary` flag and an unlinked token whose
+         * delta held a `lastAction`, R9 passed over both before and named both after.
+         * The items - the sidebar's and every actor's - since E05 C13, with the rule's
+         * first Item flag (a bullet's `remnantRef`).
          */
-        const FORBIDDEN = ["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime"];
-        const found = [];
+        const { findWorldSecrets, WORLD_SECRET_RULES } = await import("./world-secrets.mjs");
+        const { PROJECT_SECRET_FIELDS } = await import("./projects.mjs");
+        equal(JSON.stringify([...(WORLD_SECRET_RULES.settings.projectMeta?.fields ?? [])].sort()), JSON.stringify([...PROJECT_SECRET_FIELDS].sort()),
+            "the world-secrets rule for projectMeta is not the fields projects.mjs keeps on the GMs' side (PROJECT_SECRET_FIELDS)");
+        const settings = {};
         for (const [full, def] of game.settings.settings) {
-            if (!full.startsWith(`${MODULE_ID}.`)) continue;
-            if (def.scope !== "world") continue;
-            let value = null;
-            try { value = game.settings.get(MODULE_ID, full.slice(MODULE_ID.length + 1)); } catch { continue; }
-            const seen = new Set();
-            const walk = (node, path) => {
-                if (!node || typeof node !== "object" || seen.has(node)) return;
-                seen.add(node);
-                for (const [k, v] of Object.entries(node)) {
-                    if (FORBIDDEN.includes(k)) found.push(`${full} :: ${path}${k}`);
-                    walk(v, `${path}${k}.`);
-                }
-            };
-            walk(value, "");
+            if (!full.startsWith(`${MODULE_ID}.`) || def.scope !== "world") continue;
+            const key = full.slice(MODULE_ID.length + 1);
+            try { settings[key] = game.settings.get(MODULE_ID, key); } catch { continue; }
         }
-        ok(!found.length, `these are on every player's machine right now: ${found.join(", ")}`);
+        ok(Object.keys(settings).length > 0, "no module world setting was read - this measured nothing");
+        const flagsOf = doc => ({ id: doc.id, flags: doc.flags ?? {} });
+        const found = findWorldSecrets({
+            settings,
+            actors: game.actors.contents.map(flagsOf),
+            users: game.users.contents.map(flagsOf),
+            // `toObject()` for the delta: a token's own actor data is a document of its own in
+            // Foundry, and its source is what every browser was sent.
+            tokens: game.scenes.contents.flatMap(scene => scene.tokens.contents.map(t => {
+                const delta = t.toObject()?.delta;
+                return { id: `${scene.id}.${t.id}`, flags: t.flags ?? {}, delta: delta ? { flags: delta.flags ?? {} } : null };
+            })),
+            messages: (game.messages?.contents ?? []).map(flagsOf),
+            // An item by its uuid, which says whose sheet it is on.
+            items: [...(game.items?.contents ?? []), ...game.actors.contents.flatMap(actor => actor.items?.contents ?? [])]
+                .map(item => ({ id: item.uuid, flags: item.flags ?? {} }))
+        });
+        ok(!found.length, `these are on every player's machine right now: ${found.map(h => `${h.doc} ${h.id} :: ${h.path} - ${h.rule}`).join("; ")}`);
     }],
 
     ["R10 - the hot lookups stay under their ceiling", async () => {
@@ -1760,13 +1799,13 @@ const REGRESSIONS = [
         const check = bodyOf(chapter, "async function checkBodyFound", { until: "export async function openBodyDiscoveryDialog" });
         ok(check.length > 200, "checkBodyFound is gone or has moved past openBodyDiscoveryDialog");
         ok(/FLAGS\.monocub/.test(check), "a Monocub counts as a body again");
-        ok(/deathRecord\(/.test(check), "a body from an earlier chapter counts as a body again");
+        ok(/deathRecord(?:For)?\(/.test(check), "a body from an earlier chapter counts as a body again");
         ok(/export function discoverBody[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
             "the GM's own announcement no longer waits in the discovery queue");
         ok(/export function maybeBodyFound[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
             "the automatic discovery check no longer waits in the discovery queue");
         const gather = bodyOf(effects, "export async function gatherEveryone", { until: "async function fallbackGather" });
-        ok(/isDeceased\(/.test(gather), "gatherEveryone moves the dead again");
+        ok(/(?:isDeceased|isDeadForGm)\(/.test(gather), "gatherEveryone moves the dead again");
     }],
 
     ["R30 - a verdict is locked before it does anything", async () => {
@@ -3166,7 +3205,9 @@ const REGRESSIONS = [
             "the donation controls are built from a string read once");
         ok(/const donors = buildDonors\(\);/.test(window),
             "buildDonors exists but the rows do not call it, so nothing changed");
-        ok(/watch: \{ actors: true \}/.test(window),
+        /* E05 C10 adds the deaths store's hook: a death nobody has found writes no actor, and a
+           hook more widens the net - a `settings` filter is what would narrow it. */
+        ok(/watch: \{ actors: true(?:, hooks: \[[^\]]*\])? \}/.test(window),
             "this window's live watch was narrowed - an omitted settings filter is the wide "
             + "net, and the table is built out of several settings");
     }],
@@ -3204,7 +3245,9 @@ const REGRESSIONS = [
         ok(/await markDeceased\(actor\)/.test(kill),
             "killCharacter writes the deceased flag itself again, so there are two answers "
             + "to what deceased means");
-        const order = ["bulletsOf(", "markDeceased(", "whisperToGms(", "tieChapterTraces("];
+        /* E05 C10: the bullets' deletion is `destroyBullets`, which the publication of a death kept
+           by the GMs (`publishDeath`) runs too - still before the flag, the card and the traces. */
+        const order = ["destroyBullets(", "markDeceased(", "whisperToGms(", "tieChapterTraces("];
         for (let i = 1; i < order.length; i++) {
             const before = kill.indexOf(order[i - 1]);
             const after = kill.indexOf(order[i]);
@@ -3799,7 +3842,7 @@ const REGRESSIONS = [
         ok(/if \(despair\)[\s\S]{0,200}classTrial/.test(barred),
             "the Class Trial rule is not the despair side's alone - that asymmetry is T-1's "
             + "decision");
-        ok(/isDeceased\(actor\)/.test(barred), "the dead can still spend");
+        ok(/(?:isDeceased|isDeadForGm)\(actor\)/.test(barred), "the dead can still spend");
 
         const sheet = stripComments(sources.get("sheet.mjs") ?? "");
         // To the next top-level function, not a fixed number of characters: the
@@ -3954,7 +3997,7 @@ const REGRESSIONS = [
         ok(gate > perform.indexOf("inFight && actionKey"),
             "the gate moved above the in-fight branch, where it answers a question nobody "
             + "asked it");
-        ok(perform.indexOf("MONOCUB.dispatchable") < perform.indexOf("isDeceased(actor) && !isMonocub"),
+        ok(perform.indexOf("MONOCUB.dispatchable") < perform.search(/(?:isDeceased|isDeadForGm)\(actor\) && !isMonocub/),
             "the gate is below the dead test, which is where it could not do its job");
         ok(!/dispatchable\.includes\("meddle"\)/.test(rolls),
             "Confusion was added to a list of ACTIONS keys, and it is not one");
@@ -5215,7 +5258,7 @@ const REGRESSIONS = [
          * on the GM's, shown on a third - so the suite, in one browser, cannot drive one
          * end to end; the harness can, and FLOWS (tests-flows.mjs) says which scenario
          * does, or which stage will write one. That list is only worth anything if
-         * nothing reaches the GM outside it: every GM_HANDLERS action and every file
+         * nothing reaches the GM outside it: every bridge action and every file
          * that listens on the module's socket belongs to exactly one flow (or is exempt
          * with a reason), and no flow names an action, a file, a game.drpg call or a
          * function that is gone. Read off the bridge's tables (E31: the declarations the
@@ -5224,8 +5267,9 @@ const REGRESSIONS = [
          * means the source moved and this measured nothing, and fails as such.
          */
         const sources = new Map(await otherSources());
-        // The bridge's tables, read live since E31 (25.09.2026): 33 actions in gm-bridge.mjs, the trap relay's one
-        // and the search tokens' three.
+        // The bridge's tables, read live since E31 (25.09.2026): gm-bridge.mjs's, the trap relay's and the search
+        // tokens'. No count here: a stage that adds an action (E05's note.save) would make one stale, and the
+        // floor below is what says the tables were read at all.
         const actions = (await bridgeTables()).flatMap(t => Object.keys(t.table));
         const listeners = [...sources].filter(([, text]) => /game\.socket\.on\(/.test(stripComments(text))).map(([file]) => file);
         ok(actions.length >= 37, `read ${actions.length} bridge actions, and there were 37 - the tables have moved, and this measured nothing`);
@@ -5434,7 +5478,7 @@ const REGRESSIONS = [
             rerollReceiptRefusal: "returns", crisisRefusal: "why", crisisUndoRefusal: "returns", unsabotageRefusal: "returns",
             sendBackRefusal: "returns", playerArmRefusal: "returns", observeResolveRefusal: "returns", removalRefusal: "returns",
             searchSpendRefusal: "returns", narrowPlayerRemnant: "refused", resolveAnalyze: "refused", resolveStageSix: "refused",
-            answerKeysRefusal: "returns", shareBullet: "refused",
+            answerKeysRefusal: "returns", shareBullet: "refused", applyRecordedMove: "refused",
             resolveObserve: "passes", spendRerollReceipt: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -5624,7 +5668,21 @@ const REGRESSIONS = [
             // The fog (C9): a character standing in a room, a player's rows in the rebuild, the world's old ledger.
             ["fog.mjs", "seedDiscovery", ["weak", "fillOnly"], false],
             ["fog.mjs", "registerLedgerRoad", ["weak", "fillOnly"], false],
-            ["fog.mjs", "liftDiscoveryLedger", ["weak", "fillOnly"], true]
+            ["fog.mjs", "liftDiscoveryLedger", ["weak", "fillOnly"], true],
+            // An indirect murder's killer, builder, condition and trigger out of projectMeta (E05 C1).
+            ["projects.mjs", "liftProjectSecrets", ["weak", "fillOnly"], true],
+            // The declarations made in the dark out of the world's pendingMurders (E05 C3).
+            ["eclipse.mjs", "liftPendingMurders", ["weak", "fillOnly"], true],
+            // The Eclipse's crossings out of the world's eclipseMoves (E05 C4).
+            ["eclipse.mjs", "liftEclipseMoves", ["weak", "fillOnly"], true],
+            // The Key Remnant plan out of the world's keyRemnantPlan (E05 C5).
+            ["investigation.mjs", "liftKeyPlan", ["weak", "fillOnly"], true],
+            // The pre-session notes out of their users' flags (E05 C6).
+            ["pre-session-note.mjs", "liftNotes", ["weak", "fillOnly"], true],
+            // The incident's method out of the world half of murderState (E05 C8).
+            ["murder.mjs", "liftIncidentMethod", ["weak", "fillOnly"], true],
+            // Which trace each bullet came from, out of its `remnantRef` flag into its row (E05 C13).
+            ["truth-bullets.mjs", "liftBulletRefs", ["weak", "fillOnly"], true]
         ];
         // The migrations that read a store through a function they call: they wait themselves.
         const WAITERS = [["remnants.mjs", "migrateRemnants"], ["remnants.mjs", "migrateRemnantToken"]];
@@ -5696,16 +5754,47 @@ const REGRESSIONS = [
          * each clause stands after that one, since 1.2.63, and runs its lift; and no
          * file calls a lift except its clause - the restore, which runs the Faint pass
          * again when a GM asks, and diagnostics' line telling the GM what to type. The
-         * reader is shown a planted ready hook first.
+         * reader is shown a planted ready hook first. E05's lifts join the list, each
+         * with its own `since` (1.2.64), and so do its two drops (C7) and the traces'
+         * neutral names (C13), which lift nothing, and C14's two: the bodies' loot records,
+         * and the per-token routine of `migrateRemnants` that was a console call (Q5).
+         * E05's fix round (r1-G1) gave E04's names and fog lifts 1.2.64 too, so that a world
+         * 1.2.63 stamped over rows they kept runs them once more, and its second (r2-F0b) the
+         * Faint's pass, for the same reason. Its fourth (r2-G4) adds the old incidents' marks,
+         * and narrows the one allowance inside a lift's own file: `neutralTraceNames` was allowed
+         * anywhere in remnants.mjs (reviews S2-m11 = F8), so a ready hook there calling it passed;
+         * now only inside `migrateRemnantsOnce`'s body, shown a planted hook beside it first.
          */
-        const LIFTS = [["truthBulletShape", "migrateTruthBullets"], ["faintIntoSecrets", "migrateFaintIntoSecrets"],
-            ["liftIncidentSecrets", "liftIncidentSecrets"], ["liftDiscoveryLedger", "liftDiscoveryLedger"]];
+        const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"],
+            // E04's three, given 1.2.64 by E05's fix rounds (r1-G1; the Faint's pass r2-F0b): a world 1.2.63
+            // stamped over rows they kept runs them again.
+            ["faintIntoSecrets", "migrateFaintIntoSecrets", "1.2.64"],
+            ["liftIncidentSecrets", "liftIncidentSecrets", "1.2.64"], ["liftDiscoveryLedger", "liftDiscoveryLedger", "1.2.64"],
+            ["liftProjectSecrets", "liftProjectSecrets", "1.2.64"], ["liftPendingMurders", "liftPendingMurders", "1.2.64"],
+            ["liftEclipseMoves", "liftEclipseMoves", "1.2.64"], ["liftKeyPlan", "liftKeyPlan", "1.2.64"], ["liftNotes", "liftNotes", "1.2.64"],
+            ["dropRollBookmarks", "dropRollBookmarks", "1.2.64"], ["dropCardSummaries", "dropCardSummaries", "1.2.64"],
+            ["liftIncidentMethod", "liftIncidentMethod", "1.2.64"], ["liftOverflowCount", "liftOverflowCount", "1.2.64"],
+            // E05 C13: a bullet's trace key into its row, and a found trace's token back to the neutral word.
+            ["liftBulletRefs", "liftBulletRefs", "1.2.64"], ["neutralTraceNames", "neutralTraceNames", "1.2.64"],
+            // E05 C14: a body's loot record into its row, and an old trace's answer key off its token.
+            ["liftLootTraces", "liftLootTraces", "1.2.64"], ["migrateRemnantsOnce", "migrateRemnantsOnce", "1.2.64"],
+            // E05 fix r2-G4: the marks of the incidents closed before 1.2.64 off their traces.
+            ["retireOldIncidentMarks", "retireOldIncidentMarks", "1.2.64"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.
             "gm-stores.mjs": ["migrateFaintIntoSecrets"],
+            // E05 C14: `migrateRemnantsOnce`, itself run only by its clause, gives what it stripped the
+            // neutral word - there and nowhere else in the file: [the lift, the function it may be called in].
+            "remnants.mjs": [["neutralTraceNames", "migrateRemnantsOnce"]],
             // Not a call: the line diagnostics prints, telling a GM the console command.
             "diagnostics.mjs": ["migrateTruthBullets"]
+        };
+        // A top-level function's body, from its declaration to its closing brace at the line's start.
+        const within = (src, at, name) => {
+            const from = src.search(new RegExp(`^(?:export )?(?:async )?function ${name}\\(`, "m"));
+            const to = from < 0 ? -1 : src.indexOf("\n}", from);
+            return from >= 0 && to > from && at > from && at < to;
         };
         const callers = files => {
             const out = [];
@@ -5714,7 +5803,8 @@ const REGRESSIONS = [
                 for (const [, fn] of LIFTS) {
                     for (const m of src.matchAll(new RegExp(`\\b${fn}\\s*\\(`, "g"))) {
                         if (/function\s+$/.test(src.slice(Math.max(0, m.index - 20), m.index))) continue;
-                        if (!(ALLOWED[file] ?? []).includes(fn)) out.push(`${file}: ${fn}`);
+                        const allowed = (ALLOWED[file] ?? []).some(a => (Array.isArray(a) ? a[0] === fn && within(src, m.index, a[1]) : a === fn));
+                        if (!allowed) out.push(`${file}: ${fn}`);
                     }
                 }
             }
@@ -5722,21 +5812,273 @@ const REGRESSIONS = [
         };
         equal(JSON.stringify(callers([["planted.mjs", "Hooks.once(\"ready\", async () => {\n    await liftIncidentSecrets();\n});\nexport async function liftIncidentSecrets() {}\n"]])),
             JSON.stringify(["planted.mjs: liftIncidentSecrets"]), "the reader does not find the lift a planted ready hook calls, or finds its declaration");
+        equal(JSON.stringify(callers([["remnants.mjs", "export async function migrateRemnantsOnce() {\n    await neutralTraceNames({ tokens });\n}\n"
+            + "Hooks.once(\"ready\", async () => {\n    await neutralTraceNames();\n});\n"]])),
+            JSON.stringify(["remnants.mjs: neutralTraceNames"]),
+            "the reader does not find the neutral names a planted ready hook in remnants.mjs calls, or finds the call inside migrateRemnantsOnce");
 
         const sources = new Map(await otherSources());
         const migrate = stripComments(sources.get("migrate.mjs") ?? "");
         const keyAt = key => migrate.indexOf(`key: "${key}"`);
         const monokuma = keyAt("forgetMonokumaWalks");
         ok(monokuma >= 0, "migrate.mjs has no forgetMonokumaWalks clause - this test reads nothing until it is pointed at it again");
-        for (const [key, fn] of LIFTS) {
+        for (const [key, fn, since] of LIFTS) {
             ok(keyAt(key) > monokuma, `the lift ${key} is not a migration clause after forgetMonokumaWalks`);
             // One clause: from its key to the brace that closes it, four spaces in.
             const clause = bodyOf(migrate, `key: "${key}"`, { until: "\n    }" });
-            ok(/since: "1\.2\.63"/.test(clause) && new RegExp(`\\b${fn}\\(`).test(clause), `the clause ${key} does not run ${fn} since 1.2.63`);
+            ok(clause.includes(`since: "${since}"`) && new RegExp(`\\b${fn}\\(`).test(clause), `the clause ${key} does not run ${fn} since ${since}`);
         }
         const found = callers(sources);
         log(`R178: ${LIFTS.length} lifts, read in ${sources.size} files`);
         ok(!found.length, `a lift runs outside its migration clause: ${found.join(", ")}`);
+    }],
+
+    ["R191 - the world half of an incident holds only the listed public fields", async () => {
+        /*
+         * E05 C8, 26.09.2026; audit S04-08. The world half of `murderState` is on every
+         * browser, and until 1.2.64 it held whatever an incident's write named that was not
+         * a cast field: a trap, a death by the victim's own hand, a reversal, when it opened,
+         * how it ended. It is turned round now: murder.mjs lists what it may hold
+         * (`PUBLIC_INCIDENT`, a reason each), `splitIncident` sends everything else to the
+         * cast or nowhere, and the world-secrets rule is the same list written out. Read here:
+         * the list has its reasons, shares no field with the cast and equals the rule; the
+         * split puts a field nobody listed anywhere but the world; only `writeState`,
+         * `restoreState` (both through the split) and the two lifts (which only take fields
+         * out; their tier-2 pairs measure that) write the key; and every field a write in
+         * murder.mjs names - a `writeState({ ... })` literal, a `patch` built for one - is
+         * listed on one side. A computed key (`[store]`, "hindered" or "blocked") is not read.
+         * The season reset writes `{}` through its table (season-setup.mjs). The reader is
+         * shown a planted write of each kind first. E32 builds on it to shrink the list.
+         */
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const W = await import("./world-secrets.mjs");
+        const listed = Object.keys(M.PUBLIC_INCIDENT);
+        const sorted = list => JSON.stringify([...list].sort());
+        const noReason = Object.entries(M.PUBLIC_INCIDENT).filter(([, why]) => typeof why !== "string" || why.length < 12).map(([key]) => key);
+        ok(!noReason.length, `a public field of an incident has no reason written beside it: ${noReason.join(", ")}`);
+        const both = listed.filter(key => S.CAST_FIELDS.includes(key));
+        ok(!both.length, `a field is both public and the cast's: ${both.join(", ")}`);
+        equal(sorted(W.WORLD_SECRET_RULES.settings.murderState?.only ?? []), sorted(listed),
+            "the world-secrets rule for murderState and murder.mjs's PUBLIC_INCIDENT are not the same list");
+        const method = S.INCIDENT_METHOD.filter(key => !S.CAST_FIELDS.includes(key) || listed.includes(key));
+        ok(S.INCIDENT_METHOD.length === 5 && !method.length, `the incident's method is not the cast's alone: ${method.join(", ")}`);
+
+        const split = M.splitIncident({ ...Object.fromEntries(listed.map(key => [key, 1])), ...Object.fromEntries(S.CAST_FIELDS.map(key => [key, 2])), R191planted: 3 });
+        equal(JSON.stringify([sorted(Object.keys(split.world)), sorted(Object.keys(split.cast)), split.neither]),
+            JSON.stringify([sorted(listed), sorted(S.CAST_FIELDS), ["R191planted"]]),
+            "the split does not put each listed field in the world half, each cast field in the cast, and a field nobody listed in neither");
+
+        const SET = /(?:\.set\(\s*[\w.]+\s*,\s*(?:SETTINGS\.murderState\b|"murderState")|\bsetSetting\(\s*SETTINGS\.murderState\b)/g;
+        const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
+        const ALLOWED = ["murder.mjs writeState", "murder.mjs restoreState", "murder.mjs liftIncidentSecrets", "murder.mjs liftIncidentMethod"];
+        const writers = files => {
+            const out = [];
+            for (const [file, text] of files) {
+                const src = stripComments(text);
+                const decls = [...src.matchAll(DECL)];
+                for (const m of src.matchAll(SET)) {
+                    const fn = decls.filter(d => d.index < m.index).pop()?.[1] ?? "(top level)";
+                    out.push(`${file} ${fn}`);
+                }
+            }
+            return out;
+        };
+        const topKeys = (text, open) => {
+            const keys = [];
+            let depth = 0, entry = false;
+            for (let i = open; i < text.length; i++) {
+                const c = text[i];
+                if ("([{".includes(c)) { if (++depth === 1) entry = true; continue; }
+                if (")]}".includes(c)) { if (--depth === 0) break; continue; }
+                if (depth !== 1) continue;
+                if (c === ",") { entry = true; continue; }
+                if (!entry || /\s/.test(c)) continue;
+                entry = false;
+                const m = /^([A-Za-z_$][\w$]*)\s*[:,}]/.exec(text.slice(i));
+                if (m) keys.push(m[1]);
+            }
+            return keys;
+        };
+        const named = text => {
+            const src = stripStrings(stripComments(text));
+            const keys = [];
+            for (const m of src.matchAll(/\bwriteState\(\s*\{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
+            for (const m of src.matchAll(/\bconst patch = \{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
+            for (const m of src.matchAll(/\bpatch\.(\w+)\s*=(?!=)/g)) keys.push(m[1]);
+            return keys;
+        };
+        const unlisted = keys => [...new Set(keys)].filter(key => !listed.includes(key) && !S.CAST_FIELDS.includes(key));
+        const planted = "function planted(state) {\n    return game.settings.set(MODULE_ID, SETTINGS.murderState, { ...state, indirect: true });\n}\n"
+            + "async function writeState(patch) {\n    await game.settings.set(MODULE_ID, SETTINGS.murderState, publicNext);\n}\n"
+            + "async function other(store) {\n    await writeState({ stage: \"incident\", R191planted: { deep: 1 }, [store]: 1, ...more });\n"
+            + "    const patch = { turn: 1, R191alsoPlanted: \"a, b: c\" };\n    patch.R191thirdPlanted = 2;\n}\n";
+        equal(JSON.stringify([writers([["planted.mjs", planted]]), unlisted(named(planted))]),
+            JSON.stringify([["planted.mjs planted", "planted.mjs writeState"], ["R191planted", "R191alsoPlanted", "R191thirdPlanted"]]),
+            "the reader does not find exactly the writer and the three unlisted fields planted for it");
+
+        const sources = await otherSources();
+        const stray = writers(sources).filter(w => !ALLOWED.includes(w));
+        ok(!stray.length, `the world half of an incident is written outside writeState, restoreState and the lifts: ${stray.join(", ")}`);
+        const murderSrc = stripComments(new Map(sources).get("murder.mjs") ?? "");
+        for (const fn of ["writeState", "restoreState"]) ok(/\bsplitIncident\(/.test(fnSource(murderSrc, fn)), `${fn} writes the world half without splitting it by the public list`);
+        const keys = named(new Map(sources).get("murder.mjs") ?? "");
+        // Not a reading of nothing: murder.mjs's writes name the stage, the turn and the method (measured 26.09: 74 names, 26 of them distinct).
+        ok(keys.length > 50 && ["stage", "turn", "indirect", "endedBy", "keyRemnantsStale"].every(key => keys.includes(key)), `the census read ${keys.length} field names in murder.mjs's writes - too few to trust`);
+        log(`R191: ${listed.length} public fields, ${S.INCIDENT_METHOD.length} of the method in the cast, ${keys.length} field names read in murder.mjs's writes`);
+        const bad = unlisted(keys);
+        ok(!bad.length, `a write of an incident names a field neither the public list nor the cast holds: ${bad.join(", ")}`);
+    }],
+
+    ["R192 - the deceased flag is read only by the death predicates and written only by chapter.mjs", async () => {
+        /*
+         * E05 C9, 26.09.2026; audit S17-11. "Is this student dead?" was asked in eighteen
+         * places - chapter.mjs's two readers, fifteen copies in ten other files reading
+         * the flag straight off the actor, and traps.mjs's read of the token's "dead"
+         * status - measured by this test on the tree before C9, which it failed with
+         * exactly those eighteen. E05 C10 makes a death secret until its body is found, and then
+         * every one of those reads has to pick an answer: the table's fact (`isDeceased`)
+         * or what this browser may know (`isDeadForGm`), both in settings.mjs. A copy left
+         * reading the flag would keep answering with the public fact wherever it sat, so
+         * this census of the module's sources (the suite's files are not read: their
+         * fixtures write the flag as a table's world might) holds that the flag is read
+         * only by settings.mjs's `deathRecord` and `isDeceased`, named only where config.mjs
+         * defines it, written only by chapter.mjs's `markDeceased` and `reviveCharacter`
+         * (the "dead" status likewise), and read as a change's key only by voice.mjs's
+         * updateActor hook, which reconciles on the change and asks the predicates after.
+         * Attribution is by the top-level function or constant the mention sits in. A
+         * planted read of each kind is found first.
+         */
+        const TOKEN = /\bFLAGS\.deceased\b|["'`]deceased["'`]|\?*\.deceased\b|\bdeceased\s*:/g;
+        const STATUS = /\bstatuses\??\.has\??\.?\(\s*["'`]dead["'`]|\b(?:has|toggle)StatusEffect\??\.?\(\s*["'`]dead["'`]/g;
+        const DECL = /^(?:export )?(?:(?:async )?function|const|let)\s+(\w+)/gm;
+        const ALLOWED = {
+            "config.mjs FLAGS flag": "the flag's name, defined",
+            "settings.mjs deathRecord flag": "the record, read",
+            "settings.mjs isDeceased flag": "the table's fact, read",
+            "chapter.mjs markDeceased flag": "the one write",
+            "chapter.mjs markDeceased status": "the token's marker, written with the flag",
+            "chapter.mjs reviveCharacter flag": "the one unwrite",
+            "chapter.mjs reviveCharacter status": "the marker, taken off with it",
+            "voice.mjs registerVoice flag": "the updateActor hook reads the change's key, not the actor"
+        };
+        const census = files => {
+            const out = [];
+            for (const [file, text] of files) {
+                const src = stripComments(text);
+                const decls = [...src.matchAll(DECL)];
+                const at = (m, kind) => {
+                    const fn = decls.filter(d => d.index < m.index).pop()?.[1] ?? "(top level)";
+                    out.push(`${file} ${fn} ${kind}`);
+                };
+                for (const m of src.matchAll(TOKEN)) at(m, "flag");
+                for (const m of src.matchAll(STATUS)) at(m, "status");
+            }
+            return out;
+        };
+        const planted = "function plantedA(actor) {\n    return actor.getFlag(MODULE_ID, FLAGS.deceased);\n}\n"
+            + "function plantedB(actor) {\n    return actor.flags?.[MODULE_ID]?.deceased || actor.statuses?.has?.(\"dead\");\n}\n"
+            + "async function plantedC(actor) {\n    await actor.update({ flags: { [MODULE_ID]: { deceased: null } } });\n}\n";
+        equal(JSON.stringify(census([["planted.mjs", planted]])),
+            JSON.stringify(["planted.mjs plantedA flag", "planted.mjs plantedB flag", "planted.mjs plantedC flag", "planted.mjs plantedB status"]),
+            "the census does not find exactly the four planted mentions");
+
+        const found = census(await otherSources());
+        const allowed = Object.keys(ALLOWED);
+        log(`R192: ${found.length} mentions of the flag or the status in the module's sources, ${found.filter(key => allowed.includes(key)).length} of them allowed`);
+        const stray = found.filter(key => !allowed.includes(key));
+        ok(!stray.length, `the deceased flag or the dead status is read or written outside the predicates and chapter.mjs (${stray.length}): ${stray.join(", ")}`);
+        // Not a reading of nothing: the readers and the writers themselves are seen.
+        const missing = allowed.filter(key => !found.includes(key));
+        ok(!missing.length, `the census did not see the predicates and the writers it allows: missing ${missing.join(", ")}`);
+    }],
+
+    ["R194 - whether an incident is a trap is asked of one rule, the cast's and the world half's where the cast has none", async () => {
+        /*
+         * E05 fix r1-G1, 27.09.2026; the correctness review's M2. Three places ask whether the
+         * running incident is a trap - `castOwners` (murder.mjs: who is sent the cast), the
+         * leaf's `incidentWitness` (the card's gate, the HUD's turn row, the edges, the music)
+         * and the opening Event card (events.mjs `openingCard`) - and the review found them
+         * answering two ways while a world half the lift has not reached still holds
+         * `indirect`: the first falling back to the world half, the other two reading the cast
+         * alone. settings.mjs `incidentIndirect` is the rule, and held here: each of the three
+         * asks it, and none reads a cast's `indirect` itself. The reader is shown a planted body
+         * first. The rule's own cases are the tier-2 test "a trap a world half still holds is a
+         * trap to every reader until the lift reaches it".
+         */
+        const READERS = [["murder.mjs", "castOwners"], ["settings.mjs", "incidentWitness"], ["events.mjs", "openingCard"]];
+        const problems = (label, body) => {
+            if (!body) return [`${label} was not found - this test reads nothing until it is pointed at it again`];
+            const out = [];
+            if (!/\bincidentIndirect\(/.test(body)) out.push(`${label} does not ask incidentIndirect whether it is a trap`);
+            if (/\bcast\??\.indirect\b/.test(body)) out.push(`${label} reads the cast's indirect itself`);
+            return out;
+        };
+        equal(JSON.stringify(problems("planted", "function planted(cast) {\n    return cast.indirect ? 1 : 2;\n}\n")),
+            JSON.stringify(["planted does not ask incidentIndirect whether it is a trap", "planted reads the cast's indirect itself"]),
+            "the reader does not find the two faults planted for it");
+        const sources = new Map(await otherSources());
+        const found = [];
+        for (const [file, fn] of READERS) found.push(...problems(`${file} ${fn}`, fnSource(stripComments(sources.get(file) ?? ""), fn)));
+        log(`R194: ${READERS.length} readers of whether an incident is a trap, read in ${new Set(READERS.map(r => r[0])).size} files`);
+        ok(!found.length, `whether an incident is a trap is not asked of one rule: ${found.join("; ")}`);
+    }],
+
+    ["R197 - no text of the Despair Flow window or the season checklist names the Mastermind beside \"- nobody -\"", async () => {
+        /*
+         * E05 C15, 27.09.2026; audit S03-03, S10-12. Despair Flow's footnote and the season
+         * checklist's hint named the Mastermind as the student to set to "- nobody -", and the
+         * division is the world setting `gmAssignments`, which every player's browser receives:
+         * a GM who followed the advice made the Mastermind the one student a console could see
+         * left out of every pool. The advice is gone (the season checklist and the case health
+         * report now warn when it has been followed - mastermind.mjs `mastermindUnpooled`), and
+         * this holds it gone, in both languages: no string the window's source names, and no
+         * DRPG.Season string, mentions the Mastermind together with the "- nobody -" choice - its
+         * label, or the word (en "nobody", pl "nikt", "nikogo", "nikomu"). The reader is shown a
+         * planted string first. What it cannot see: a sentence that gives the same advice in
+         * other words.
+         */
+        const NOBODY = { en: /\bnobody\b/i, pl: /\bnik(?:t|ogo|omu)\b/i };
+        const offenders = (strings, inScope, lang) => Object.keys(strings).filter(key => inScope(key)
+            && /mastermind/i.test(strings[key])
+            && (NOBODY[lang].test(strings[key]) || strings[key].includes(strings["DRPG.Assign.nobody"] ?? "\u0000")));
+        const PLANTED = {
+            "DRPG.Assign.nobody": "- nobody -",
+            "DRPG.Assign.planted": "Choose “- nobody -” for a Mastermind.",
+            "DRPG.Season.hint.plantedWord": "Set the Mastermind to nobody.",
+            "DRPG.Season.hint.plantedFine": "A season without a Mastermind is a legal season.",
+            "DRPG.Other.plantedOutOfScope": "Set the Mastermind to nobody."
+        };
+        equal(JSON.stringify(offenders(PLANTED, key => key !== "DRPG.Other.plantedOutOfScope", "en")),
+            JSON.stringify(["DRPG.Assign.planted", "DRPG.Season.hint.plantedWord"]),
+            "the reader does not find the two strings planted for it, or finds the one that is fine");
+
+        const flat = (o, p = "") => Object.entries(o ?? {}).flatMap(([k, v]) =>
+            typeof v === "object" && v !== null ? flat(v, p ? `${p}.${k}` : k) : [[p ? `${p}.${k}` : k, String(v)]]);
+        const language = async lang => {
+            const res = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`);
+            must(res.ok, `${lang}.json: HTTP ${res.status}`);
+            return Object.fromEntries(flat(foundry.utils.expandObject(await res.json())));
+        };
+        // The keys the two windows' sources name, the checklist's own rows (`DRPG.Season.step.<key>`,
+        // `.hint.<key>`) being every DRPG.Season string.
+        const named = new Set();
+        for (const file of ["gm-team-dialog.mjs", "season-setup.mjs"]) {
+            const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text());
+            for (const m of src.matchAll(/["`](DRPG\.[A-Za-z0-9_.]*[A-Za-z0-9_])["`]/g)) named.add(m[1]);
+        }
+        const inScope = key => named.has(key) || key.startsWith("DRPG.Season.");
+        const found = [];
+        let read = 0;
+        for (const lang of ["en", "pl"]) {
+            const strings = await language(lang);
+            must(strings["DRPG.Assign.nobody"], `${lang}.json has no DRPG.Assign.nobody - this test reads nothing until it is pointed at it again`);
+            read += Object.keys(strings).filter(inScope).length;
+            found.push(...offenders(strings, inScope, lang).map(key => `${lang} ${key}`));
+        }
+        log(`R197: ${named.size} keys named by the two windows' sources, ${read} strings read in en and pl`);
+        ok(read >= 100, `only ${read} strings were read - the scope is not what this test thinks it is`);
+        ok(!found.length, `a text of Despair Flow or the season checklist still names the Mastermind beside "- nobody -": ${found.join(", ")}`);
     }]
 ];
 

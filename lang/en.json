@@ -466,7 +466,7 @@
       "noMonokumas": "Assistant GMs do not get a Despair pool.",
       "nobody": "- nobody -",
       "implicitHint": "Never assigned - falling back to the first Monokuma.",
-      "footnote": "* = unassigned, using the fallback. Choose “- nobody -” to keep a student out of every pool: a Mastermind, an NPC, a template."
+      "footnote": "* = unassigned, using the fallback. “- nobody -” keeps a student out of every pool - an NPC, a template - and every player's browser can read who is set to it."
     },
     "Despair": {
       "label": "Despair",
@@ -478,6 +478,10 @@
       "notEnoughPool": "That pool holds {held} Despair; {needed} was asked for.",
       "hopeAlreadyFull": "Their Hope is already at maximum.",
       "hopeConverted": "{who} converts some of their Despair - you gain {n} Hope.",
+      "owed": {
+        "one": "{n} owed",
+        "other": "{n} owed"
+      },
       "poolsTitle": "Despair Pools",
       "poolsIntro": "Name each pool. It need not match the account.",
       "poolName": "Pool name",
@@ -672,6 +676,7 @@
       "murderApprovedGm": "{name}'s direct murder is allowed. It resolves when the Eclipse ends.",
       "murderRefusedGm": "{name}'s direct murder is refused. Their action is spent.",
       "murderNotParked": "That declaration is no longer waiting - the Eclipse has ended, or it has already been ruled on.",
+      "murderRulingTitle": "A ruling to make",
       "murderAsk": "{killer} declared a direct murder in the dark and has ended up alone with {victim} in {room}. Open the incident?",
       "murderAskNote": "You were asked this when it was declared and it is still unanswered. Refusing opens nothing; the action stays spent either way."
     },
@@ -1081,8 +1086,8 @@
         "other": "{n} survivors take a {kind} Level Up."
       },
       "blackenedRewarded": {
-        "one": "The Blackened stays anonymous and in play, and takes a {kind} Level Up.",
-        "other": "{n} Blackened stay anonymous and in play, and each takes a {kind} Level Up."
+        "one": "The Blackened stays anonymous and in play; their {kind} Level Up waits for the class's next Level Up.",
+        "other": "{n} Blackened stay anonymous and in play; each one's {kind} Level Up waits for the class's next Level Up."
       },
       "despairFilled": "Despair filled to maximum for: {who}.",
       "newRule": "The Blackened introduces one new rule of their choosing, with Monokuma's consent.",
@@ -1628,6 +1633,15 @@
       "deadPanelTitle": "You are dead",
       "deadPanelNote": "The dead take no actions and spend no Hope. You keep your sheet and your voice at the table. Brought back as a Monocub, this panel becomes Move and Confusion.",
       "deadCannotAct": "{name} is dead and cannot take actions.",
+      "deadUnfound": "Dead, not found",
+      "keepSecretUntilFound": "Keep it the GMs' until the body is found: no flag, no marker, and their Truth Bullets stay until then",
+      "keptUntilFound": "Kept by the GMs until the body is found or you make it known in the Players window. The table sees nothing yet: no flag, no marker, and their Truth Bullets are still on the sheet.",
+      "nobodyFoundYou": "Nobody has found your body yet.",
+      "youFoundBody": "In {room} you find the body of {name}. Nobody else has seen it yet, and nothing is announced.",
+      "deathsStillSecret": {
+        "one": "{n} death nobody has found is still the GMs' alone. Until you make it known in the Players window, this trial treats that student as living - they vote and level up with the class - and does not ask for their killer, who counts as a Blackened only for a death the table knows.",
+        "other": "{n} deaths nobody has found are still the GMs' alone. Until you make them known in the Players window, this trial treats those students as living - they vote and level up with the class - and does not ask for their killers, who count as Blackened only for a death the table knows."
+      },
       "bodyTitle": "A body is discovered",
       "whereBody": "Which room?",
       "whoseBody": "Whose body? (optional)",
@@ -1908,6 +1922,7 @@
       "cardUnanalyzed": "You have not worked out what this is yet. Analyze it to find out.",
       "cardUnread": "Not analysed yet. Analyze it to read the rest.",
       "tokenName": "Trace",
+      "keptOnTokens": {"one": "{n} trace keeps flags of its answer key on its token, which every browser holds: the migration had no row to carry them into, or a later correction stood against them. game.drpg.migrateRemnants() in the console names it.", "other": "{n} traces keep flags of their answer keys on their tokens, which every browser holds: the migration had no row to carry them into, or a later correction stood against them. game.drpg.migrateRemnants() in the console names each."},
       "finalSubject": "Final Truth",
       "cardEditNote": "Saved when you leave the field, and copied onto the token and every Truth Bullet taken from this trace.",
       "cardSaveFailed": "That did not save. See the console.",
@@ -2315,7 +2330,9 @@
       "completeTag": "Complete",
       "alreadyComplete": "{name} is finished. There is no work left in it.",
       "allComplete": "Every project in {room} is already finished.",
-      "frozenNoProgress": "{name} has been sabotaged and cannot move forward until its repair is finished."
+      "frozenNoProgress": "{name} has been sabotaged and cannot move forward until its repair is finished.",
+      "everyone": "Public: everyone can see it. Ticked: who knew before it was revealed - they and whoever builds it are who will know if it is sealed again.",
+      "builderStays": "{name} is building “{project}”: a builder cannot be taken off their own project."
     },
     "RollDialog": {
       "locked": "Not yours to choose. Advantage and experiences are Hope Calls - ask the GM.",
@@ -2355,6 +2372,7 @@
         "project.unsabotage": "Repair",
         "token.sendBack": "Send back",
         "eclipse.move": "Eclipse move",
+        "note.save": "Pre-session note",
         "despair.adjust": "Despair",
         "observe.resolve": "Observe",
         "analyze.resolve": "Analyze",
@@ -2413,7 +2431,7 @@
         "actionLocked": "That action is locked for now.",
         "actionSpent": "You have already taken that one this incident.",
         "actionBlocked": "They have shut this one down for now.",
-        "nothingLeft": "There is nothing left to spend. Sanity and Health are both gone.",
+        "nothingLeft": "There is nothing left to spend.",
         "movedOn": "The incident has moved on since that action.",
         "notThatRepair": "That is not the repair your sabotage made.",
         "notWhereItStood": "The token did not stand there a moment ago.",
@@ -2641,7 +2659,8 @@
       "introMany": "{reason} Choose {picks} improvements. You may take the same one more than once.",
       "reason": {
         "standard": "You named the Blackened.",
-        "reinforced": "The Blackened walked out of a wrong vote."
+        "reinforced": "The Blackened walked out of a wrong vote.",
+        "withClass": "The Reinforced Level Up earned by walking out of a wrong vote waited for this one, and comes with it."
       },
       "buttonTooltip": "Level Up",
       "whoPicks": "Who chooses what {actor} takes?",
@@ -2653,6 +2672,7 @@
       },
       "offerTitle": "A Level Up is yours to spend",
       "offered": "{kind}. Press the button beside your name on your sheet and choose - you have {n} pick(s).",
+      "deferred": "After a wrong vote, your Reinforced Level Up waits for the class's next Level Up: you choose it, {n} picks, together with the class's own when a vote names the Blackened correctly, or at the Final Trial's verdict. It lapses if you die first.",
       "offerSent": "{name} has been told; the choice is theirs now.",
       "offerFailed": "The offer could not be written to that character.",
       "notOfferedHere": "{player} asked to spend a Level Up on {name}, and this GM's browser holds no offer for them - it has not heard from the other GMs yet, or holds no offers at all. If one was made, offer it again, or restore the case from a backup (GM panel).",
@@ -2684,7 +2704,8 @@
       "bulletText": "Taken from {who}'s body.",
       "traceNote": "Somebody has been through this body. Gone: {items}.",
       "noCharacter": "You are not playing a character the module knows about, so there is nowhere for this to go.",
-      "took": "You take “{item}”. Where you found it is worth remembering - it is in your evidence now."
+      "took": "You take “{item}”. Where you found it is worth remembering - it is in your evidence now.",
+      "tookUnfound": "You take “{item}”. Nobody has found this body yet: its Truth Bullet joins your evidence once the death is known."
     },
     "Redacted": {
       "tabLocked": "Theirs to tell you, not yours to read.",
@@ -2741,6 +2762,7 @@
       "frame": "Misleading trail",
       "frameHint": "Leave something that points at somebody else. Needs {n} or more. A miss with Hope still plants a Faint, Hidden trace; a miss with Despair leaves nothing behind.",
       "whichTrace": "Which trace",
+      "yourCopy": "{name} (your copy)",
       "coverAction": "Cover your tracks",
       "trailAction": "Misleading trail",
       "notFound": "You have not found that trace.",
@@ -2847,7 +2869,8 @@
         "one": "{n} player sent back to the main voice room.",
         "other": "{n} players sent back to the main voice room."
       },
-      "resetRefused": "Nothing to reset: regional voice is off, LiveKit is inactive, or another GM's client is running it."
+      "resetRefused": "Nothing to reset: regional voice is off, LiveKit is inactive, or another GM's client is running it.",
+      "liveKitSecret": "LiveKit AVClient is set to a self-hosted server, and its API secret is kept in a world setting, which reaches every player's browser. Anyone holding it can connect to any voice room. This module cannot move another module's setting; a server that issues its own access tokens, such as the Tavern, keeps the secret off every browser."
     },
     "States": {
       "drpgBreakdown": {
@@ -2931,6 +2954,10 @@
       "save": "Save",
       "saved": "Saved.",
       "saveFailed": "The note could not be saved. Tell the GM.",
+      "sentToGms": "Sent to the GMs.",
+      "keptUntilGm": "Kept here until a GM connects.",
+      "changedElsewhere": "This note changed after you opened it. Your text is still here: Save again to put it in place of the newer one.",
+      "tooLong": "The note is too long to send to the GMs - over {kb} KB.",
       "statusEmpty": "Nothing written yet",
       "statusWritten": "Written",
       "statusToday": "Written today",
@@ -3022,7 +3049,10 @@
       "step.despairSplit": "The students are split evenly between the pools",
       "hint.despairSplit": "Whatever the number of Monokumas, the living cast should be shared out evenly - at most one student apart. Advisory: a cast that will not divide, or a Monokuma who is meant to watch the dangerous half, is a decision, not a mistake.",
       "step.assignments": "Every student has a Monokuma watching",
-      "hint.assignments": "Despair from a student's rolls goes to their Monokuma's pool. A student set to nobody on purpose, such as the Mastermind, feeds no pool, and that is fine.",
+      "hint.assignments": "Despair from a student's rolls goes to their Monokuma's pool. A student set to nobody on purpose - an NPC, a template - feeds no pool, and that is fine; every player's browser can read who is.",
+      "step.nobodyPublic": "The Mastermind feeds a Despair pool",
+      "hint.nobodyPublic": "The Mastermind is set in Despair Flow to feed no pool. The division is world data every player's browser can read, and the one student left out stands out - give them a Monokuma like any other student.",
+      "step.liveKitSecret": "The voice server's secret is not in the world",
       "step.sound": "Sound files",
       "hint.sound": "This module ships no audio and assigns none - the files are yours, the same bargain the playlists make. Map what you want in the Sound panel; anything left blank stays silent by choice, not by fault.",
       "step.rooms": "The map has rooms",
@@ -3219,7 +3249,7 @@
         "one": "Danganronpa RPG: one thing in this world was brought up to date for {version}.",
         "other": "Danganronpa RPG: {n} things in this world were brought up to date for {version}."
       },
-      "failed": "Danganronpa RPG: the data migration stopped short - {clauses}. Nothing was marked as migrated; the console has the details."
+      "failed": "Danganronpa RPG: the data migration stopped short - {clauses}. Nothing was marked as migrated, and the next load of this world tries again; the console has the details."
     },
     "Popup": {
       "moreTip": {
@@ -3338,7 +3368,17 @@
         "trapPlants": "The plants waiting in rooms",
         "observe": "The Observe declarations waiting for their roll",
         "offers": "The Level Ups on offer",
-        "discovery": "The rooms each character has found"
+        "discovery": "The rooms each character has found",
+        "projectSecrets": "Who builds each trap, and what sets it off",
+        "pendingMurders": "The Direct Murders declared in the dark",
+        "eclipseMoves": "Who has crossed how often in the Eclipse",
+        "keyPlan": "The Key Remnant plan, chapter by chapter",
+        "notes": "The players' pre-session notes",
+        "deaths": "The deaths nobody has found yet",
+        "deferredOffers": "The Reinforced Level Ups waiting for the class",
+        "overflow": "The Despair overflow's count",
+        "despairOwed": "The Despair each pool owes for its conversions to Hope",
+        "lootTraces": "What has been taken off each body, and its trace"
       },
       "row": {
         "traces": {
@@ -3379,7 +3419,16 @@
           "one": "{n} armed item trap has no planted object on this browser: it cannot fire.",
           "other": "{n} armed item traps have no planted object on this browser: they cannot fire."
         },
+        "projectSecrets": {
+          "one": "{n} indirect murder (of {of}) has no killer, condition or trigger on this browser: its trap cannot arm or fire.",
+          "other": "{n} indirect murders (of {of}) have no killer, condition or trigger on this browser: their traps cannot arm or fire."
+        },
+        "notes": {
+          "one": "{n} pre-session note is marked written, and this browser does not hold it, or holds an older one.",
+          "other": "{n} pre-session notes are marked written, and this browser does not hold them, or holds older ones."
+        },
         "tracesOnToken": {"one": "{n} trace on the map (of {of}) still carries its answer key on its token: it is moved into the ledger, not restored.", "other": "{n} traces on the map (of {of}) still carry their answer keys on their tokens: they are moved into the ledger, not restored."},
+        "tracesKept": {"one": "{n} trace on the map (of {of}) keeps flags of its answer key on its token, which every browser holds - a Faint Prep promotion a later correction stood against, or flags with no ledger row to carry them into: a GM decides it, and game.drpg.migrateRemnants() names it.", "other": "{n} traces on the map (of {of}) keep flags of their answer keys on their tokens, which every browser holds - a Faint Prep promotion a later correction stood against, or flags with no ledger row to carry them into: a GM decides each, and game.drpg.migrateRemnants() names them."},
         "leftNotPrimary": {"one": "{n} of this world's old offers or fog rows stays in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes it (the diagnostics name the store).", "other": "{n} of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store)."}
       },
       "healthTitle": "The case on this browser",

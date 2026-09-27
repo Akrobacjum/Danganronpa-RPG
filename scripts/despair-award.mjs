@@ -14,7 +14,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { adjustDespair, getDespair, despairMax } from "./despair.mjs";
+import { adjustDespair, getDespair, despairMax, spillFrom } from "./despair.mjs";
 import { monokumaFor } from "./assignments.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, debug, error } from "./utils.mjs";
@@ -106,10 +106,12 @@ async function onChatMessage(message) {
              * line. They now feed the Despair Overflow instead: the cap still
              * stops a Monokuma banking a chapter's worth of Calls, but the
              * Despair itself stops evaporating.
+             *
+             * What the pool owes for a conversion is paid first (E05 C12,
+             * despair.mjs `spillFrom`): a full pool that owes two stood at ten.
              */
-            const { addOverflow } = await import("./overflow.mjs");
-            await addOverflow(1, { reason: `roll spill from ${monokuma.name}` });
-            debug(`${monokuma.name} is at maximum Despair; the roll fed the overflow.`);
+            const next = await spillFrom(monokuma.id, before, 1, `roll spill from ${monokuma.name}`);
+            debug(`${monokuma.name} is at maximum Despair; the roll ${next?.spill ? "fed the overflow" : "paid what the pool owes"}.`);
             return;
         }
 

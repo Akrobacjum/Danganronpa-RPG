@@ -3925,12 +3925,43 @@ const INVARIANTS = [
         equal(offersCombine(offersHeld, { value: { A: { kind: "standard" } }, stamps: { A: 140 } }, { cut: 160 }), null,
             "an answer under a reset's cut was taken");
 
+        /* THE NOTE'S COPY (E05 C6): one stamp, and a draft - a player's own note written in their
+           browser and marked unsent, which no GM's copy carries (pre-session-note.mjs). On the same
+           engine: the draft is taken under an older stamp than the copy held; a GM's copy with other
+           words is not taken while it stands, however new - the answer to an ask at load can reach
+           the player before the draft reaches the GM; the GMs' copy holding the draft's words is
+           taken under any stamp, and the draft is sent; then the newer stamp decides, and a reset's
+           cut above the copy reads as nothing. */
+        const { noteCombine, noteCopy } = await import("./gm-stores.mjs");
+        ok(G.gmCopySpec(noteCopy.name)?.combine === noteCombine, "the note's copy is not weighed by its own rule");
+        const note = eng.defineCopy({ name: "r176note", key: "r176Note", resetGroup: "preNotes", fallback: {}, combine: noteCombine });
+        const n0 = t + 1000;
+        equal(await note.receive({ text: "R176 the GMs' words" }, n0 + 100), true, "a first copy of the note was not taken");
+        equal(await note.receive({ text: "R176 typed here", unsent: true }, n0 + 10), true, "the player's own draft was refused under an older stamp");
+        equal(await note.receive({ text: "R176 older words" }, n0 + 500), false, "a GM's copy with other words replaced a draft not yet sent");
+        equal(await note.receive({ text: "R176 typed here" }, n0 + 5), true, "the GMs' copy holding the draft's words was refused");
+        equal(JSON.stringify([note.read(), note.stamp()]), JSON.stringify([{ text: "R176 typed here" }, n0 + 5]),
+            "the draft was not marked sent at the GMs' stamp");
+        equal(await note.receive({ text: "R176 a GM's older write" }, n0 + 4), false, "an older copy of a sent note was taken");
+        equal(await note.receive({ text: "R176 a GM's transcription" }, n0 + 600), true, "a newer copy of a sent note was refused");
+        cuts = { ...cuts, preNotes: n0 + 700 };
+        equal(JSON.stringify(note.read()), "{}", "a note under its group's reset cut does not read as nothing");
+
         /* The senders: the function that emits a copy to a player, and the file that calls it.
            "own": the sender reads the stamps itself - the offers', from the store's rows for the
-           user's characters (C8), and the fog's, a section of the store (C9) - so a call of it
-           passes none. */
+           user's characters (C8), the fog's, a section of the store (C9), and since E05 the
+           crossings' and the note's (C4, C6) - so a call of it passes none. */
         const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"],
-            ["fog.mjs", "sendStoreTo", "own"]];
+            ["fog.mjs", "sendStoreTo", "own"], ["eclipse.mjs", "sendMovesTo", "own"], ["pre-session-note.mjs", "sendNoteTo", "own"],
+            // E05 C10: the deaths a player may know, a stamp per body read off the store's rows.
+            ["murder.mjs", "sendDeathsTo", "own"],
+            // E05 C13: which trace each of a player's bullets came from, a stamp per bullet read off the rows.
+            ["truth-bullets.mjs", "sendBulletRefsTo", "own"]];
+        // The crossings' copy (E05 C4) is an owner's whole set, a stamp per character, as the offers are;
+        // and so is the bullets' keys' (E05 C13), a stamp per bullet.
+        const { eclipseMoveCopy, bulletRefCopy } = await import("./gm-stores.mjs");
+        ok(G.gmCopySpec(eclipseMoveCopy.name)?.combine === offersCombine, "the crossings' copy is not weighed by the offers' rule");
+        ok(G.gmCopySpec(bulletRefCopy.name)?.combine === offersCombine, "the bullets' keys' copy is not weighed by the offers' rule");
         const sources = new Map(await otherSources());
         const found = [];
         for (const [file, fn, own] of SENDERS) {
@@ -4481,7 +4512,10 @@ const INVARIANTS = [
             else if (!store.spec.backup || typeof store.spec.afterRestore !== "function") wrong.push(`${name}: its store ${from} does not send it again after a restore`);
         }
         ok(!wrong.length, `a player's copy is not sent again after a restore: ${wrong.join("; ")}`);
-        const RETELLS = [["mastermind.mjs", "retellDoor"], ["murder.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"]];
+        const RETELLS = [["mastermind.mjs", "retellDoor"], ["murder.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"],
+            ["eclipse.mjs", "retellMoves"], ["pre-session-note.mjs", "retellNotes"], ["murder.mjs", "retellDeaths"],
+            // E05 C13: the bullets' store, which each player's copy of their bullets' traces is made of.
+            ["truth-bullets.mjs", "retellBulletRefs"]];
         const hooks = E.gmStoreHandles().map(h => String(h.spec.afterRestore ?? ""));
         const uncalled = RETELLS.filter(([, fn]) => !hooks.some(src => src.includes(`.${fn}(`))).map(([, fn]) => fn);
         ok(!uncalled.length, `no store's afterRestore calls ${uncalled.join(", ")}`);
@@ -4489,6 +4523,550 @@ const INVARIANTS = [
         const loud = RETELLS.filter(([file, fn]) => !/\bgmStoresQuiet\(\)/.test(fnSource(stripComments(sources.get(file) ?? ""), fn)))
             .map(([file, fn]) => `${file} ${fn}`);
         ok(!loud.length, `these tell the players after a restore while the suite holds the stores: ${loud.join(", ")}`);
+    }],
+
+    ["R190 - the world-secrets rule finds every secret planted in a world snapshot and nothing in a clean one", async () => {
+        /*
+         * E05 C2, 26.09.2026; the stage's verify (R9 extended). scripts/world-secrets.mjs says
+         * what world data may never hold, and `findWorldSecrets` reads a snapshot against it:
+         * R9 on the suite's world, 72-canary on a player's browser after every phase of a
+         * chapter. Each fixture below plants one secret in a clean snapshot. They are written
+         * out here, not derived from the rule, so a rule taken out fails its fixture - and a
+         * rule with no fixture fails too. Then the killer's id planted as a setting's key and
+         * deep in an actor's flag, found at each and nowhere else; and a clean snapshot, with
+         * that id only where world data may hold it (another module's flags, the document's
+         * own id), which reads clean. An exemption (`everySetting.except`) is fixtured too
+         * (E05 C5): planted where the rule lets it stand it reads clean, and the same field in
+         * another setting beside it is still found - and an exemption with no fixture fails.
+         * E05's fix round (S1-m3, S1-m4, 27.09.2026): a chat message's flags are read, and a
+         * token's own actor data (its delta) under the Actor rule - each Actor flag is fixtured
+         * on a delta as well, so a rule that reads world actors alone fails here. E05 C13: an
+         * item's flags too (the rule's Item half), with the killer's id planted in one. E05 C14:
+         * a body's loot record, and a token's answer key - each flag of remnants.mjs's
+         * `ANSWER_KEY_FLAGS`, which the rule writes out and must equal, while the clean token
+         * keeps `fromIncident` beside `isRemnant`.
+         */
+        const W = await import("./world-secrets.mjs");
+        const MOD = W.WORLD_SECRET_MODULE;
+        const KILLER = "R190KILLERACTOR1";
+        const clean = () => ({
+            settings: {
+                projectMeta: { R190PROJECT00001: { room: "Gym", indirectMurder: true, secret: true, trait: null, countsUp: true } },
+                clock: { chapter: 2, day: 3 },
+                murderState: { active: true, stage: "incident", turn: 2, turnSide: "killer", blocked: { victim: { survive: 1 }, killer: {} } },
+                overflow: { active: { session: 1, day: 2, timeOfDay: "noon", effect: "fog" } }
+            },
+            actors: [{ id: KILLER, flags: { [MOD]: { advances: 1 }, "r190-other-module": { memo: KILLER } } },
+                { id: "R190BYSTANDER001", flags: { [MOD]: { deceased: false } } }],
+            users: [{ id: "R190USER00000001", flags: { [MOD]: { preSessionNote: { updatedAt: 1, written: true } } } }],
+            tokens: [{ id: "R190SCENE0000001.R190TOKEN0000001", flags: { [MOD]: { isRemnant: true, fromIncident: true } },
+                delta: { flags: { [MOD]: { advances: 2 } } } }],
+            messages: [{ id: "R190MESSAGE00001", flags: { [MOD]: { callCard: true, popupTitle: "A ruling to make" } } }],
+            items: [{ id: "R190BYSTANDER001.items.R190ITEM00000001", flags: { [MOD]: {
+                category: "truthBullet", isTruthBullet: true, shownType: "neutral", room: "Gym" } } }]
+        });
+        // One secret each: what it is, how it is planted in a clean snapshot, and the hit it must give.
+        const FIXTURES = [
+            // E05's fix round (r1-G1, S1-m1) added `saboteur`, the user who asked for a sabotage.
+            ...["killerId", "by", "condition", "trigger", "saboteur"].map(f => [`projectMeta.${f}`,
+                s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "trigger" ? { kind: "enters" } : "R190"; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
+            // E05 C5 added the last four: the Key Remnant plan held all of them.
+            ...["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime", "analysis", "analyzedText", "note", "tokenId"].map(f => [`every setting: ${f}`,
+                s => { s.settings.clock.deep = { [f]: 1 }; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "clock" && h.path === `deep.${f}`]),
+            // E05 C3: the declarations' old world key holds nothing - an entry under any key is found.
+            ["pendingMurders: empty",
+                s => { s.settings.pendingMurders = { R190OTHERACTOR01: { room: "Gym" } }; },
+                h => h.kind === "empty" && h.doc === "setting" && h.id === "pendingMurders"],
+            // E05 C4: nor the crossings' - a bystander's count is found as well as the killer's.
+            ["eclipseMoves: empty",
+                s => { s.settings.eclipseMoves = { R190BYSTANDER001: 2 }; },
+                h => h.kind === "empty" && h.doc === "setting" && h.id === "eclipseMoves"],
+            // E05 C5: nor the Key Remnant plan's - a chapter with nothing but its number is found.
+            ["keyRemnantPlan: empty",
+                s => { s.settings.keyRemnantPlan = { chapter: 2 }; },
+                h => h.kind === "empty" && h.doc === "setting" && h.id === "keyRemnantPlan"],
+            // E05 C6: a user's pre-session note holds no text - the flag says when, and whether.
+            ["User flag preSessionNote.text",
+                s => { s.users[0].flags[MOD].preSessionNote.text = "R190 a plan to kill"; },
+                h => h.kind === "flag" && h.doc === "User" && h.id === "R190USER00000001" && h.path === `flags.${MOD}.preSessionNote.text`],
+            // E05 C7: an actor carries no Reroll bookmark - even one with nothing in it is found.
+            ["Actor flag lastAction",
+                s => { s.actors[1].flags[MOD].lastAction = {}; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.lastAction`],
+            // E05's fix round (S1-m4): the same bookmark on an unlinked token's own actor data, where
+            // 1.2.63 wrote it from a sheet opened from the token.
+            ["unlinked token's Actor flag lastAction",
+                s => { s.tokens[0].delta.flags[MOD].lastAction = {}; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `delta.flags.${MOD}.lastAction`],
+            // E05 C7, read since the fix round (S1-m3): a card carries no facts in its `summary` flag.
+            ["ChatMessage flag summary",
+                s => { s.messages[0].flags[MOD].summary = { action: "Search", item: "R190 a find" }; },
+                h => h.kind === "flag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00001" && h.path === `flags.${MOD}.summary`],
+            // E05 C14: a body carries no loot record - on a world actor, and on an unlinked token's own actor data.
+            ["Actor flag lootTrace",
+                s => { s.actors[1].flags[MOD].lootTrace = { sceneId: "R190SCENE0000001", tokenId: "R190TOKEN0000009", taken: ["R190 a knife"] }; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.lootTrace`],
+            ["unlinked token's Actor flag lootTrace",
+                s => { s.tokens[0].delta.flags[MOD].lootTrace = { taken: [] }; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `delta.flags.${MOD}.lootTrace`],
+            // E05 C14: a trace's token carries none of its answer key - a promotion's `false` is found as well.
+            ...["remnantType", "visibility", "reinforced", "faint", "tiedToCrime", "note", "action", "subject", "sourceActor", "sourceName",
+                "room", "chapter", "day", "timeOfDay", "pointsAt"].map(f => [`Token flag ${f}`,
+                s => { s.tokens[0].flags[MOD][f] = f === "faint" ? false : "R190"; },
+                h => h.kind === "flag" && h.doc === "Token" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `flags.${MOD}.${f}`]),
+            // E05 C13: a bullet names no trace in its flags - a `null` one, which every bullet no trace made carried, is found as well.
+            ["Item flag remnantRef",
+                s => { s.items[0].flags[MOD].remnantRef = null; },
+                h => h.kind === "flag" && h.doc === "Item" && h.id === "R190BYSTANDER001.items.R190ITEM00000001" && h.path === `flags.${MOD}.remnantRef`],
+            // E05 C12: the overflow keeps its darkening's stamp, and the count behind it is the GMs' - a 0 is found as well.
+            ["overflow.count",
+                s => { s.settings.overflow.count = 0; },
+                h => h.kind === "field" && h.doc === "setting" && h.id === "overflow" && h.path === "count"],
+            // E05 C8: the world half of an incident holds the public list alone - a trap's `false` is found as well.
+            ["murderState: only active, stage, turn, turnSide, keyRemnants, deniedToVictim, hindered, blocked, unlocked, spent, drainStopped, advantageNext, freeResolution, thirdActed",
+                s => { s.settings.murderState = { active: true, stage: "incident", turn: 1, turnSide: "victim", indirect: false }; },
+                h => h.kind === "only" && h.doc === "setting" && h.id === "murderState" && h.path === "indirect"]
+        ];
+        /* The exemptions: [what, plant, whether the hits are right]. projectMeta's own map token, as
+           projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock
+           beside it is found - an exemption is one setting's, not the field's. */
+        const EXEMPT = [
+            ["projectMeta may hold tokenId",
+                s => {
+                    Object.assign(s.settings.projectMeta.R190PROJECT00001, { tokenId: "R190TOKEN0000002", tokenScene: "R190SCENE0000001" });
+                    s.settings.clock.deep = { tokenId: "R190TOKEN0000003" };
+                },
+                hits => !hits.some(h => h.id === "projectMeta") && hits.some(h => h.kind === "field" && h.id === "clock" && h.path === "deep.tokenId")]
+        ];
+        const R = W.WORLD_SECRET_RULES;
+        // E05 C14: the Token rule is remnants.mjs's list of what a trace's token may not carry, written out.
+        const { ANSWER_KEY_FLAGS } = await import("./remnants.mjs");
+        equal(JSON.stringify(R.flags?.Token ?? []), JSON.stringify(ANSWER_KEY_FLAGS),
+            "the world-secrets rule's Token half is not remnants.mjs's ANSWER_KEY_FLAGS");
+        const named = new Set([...FIXTURES, ...EXEMPT].map(([what]) => what));
+        const unfixtured = [
+            ...Object.entries(R.settings).flatMap(([key, rule]) => [...(rule.fields ?? []).map(f => `${key}.${f}`),
+                ...(rule.empty ? [`${key}: empty`] : []), ...(rule.only ? [`${key}: only ${rule.only.join(", ")}`] : [])]),
+            ...(R.everySetting?.fields ?? []).map(f => `every setting: ${f}`),
+            ...Object.entries(R.everySetting?.except ?? {}).flatMap(([key, fields]) => fields.map(f => `${key} may hold ${f}`)),
+            ...Object.entries(R.flags ?? {}).flatMap(([doc, paths]) => paths.map(p => `${doc} flag ${p}`)),
+            ...(R.flags?.Actor ?? []).map(p => `unlinked token's Actor flag ${p}`)
+        ].filter(what => !named.has(what));
+        ok(!unfixtured.length, `a rule of world-secrets.mjs has no fixture here: ${unfixtured.join(", ")}`);
+        const missed = [];
+        for (const [what, plant, expected] of FIXTURES) {
+            const snapshot = clean();
+            plant(snapshot);
+            const hits = W.findWorldSecrets(snapshot, { ids: [KILLER] });
+            if (!hits.some(expected)) missed.push(`${what} (found ${JSON.stringify(hits)})`);
+        }
+        ok(!missed.length, `the rule did not find a secret planted for it: ${missed.join("; ")}`);
+        const wrong = [];
+        for (const [what, plant, right] of EXEMPT) {
+            const snapshot = clean();
+            plant(snapshot);
+            const hits = W.findWorldSecrets(snapshot, { ids: [KILLER] });
+            if (!right(hits)) wrong.push(`${what} (found ${JSON.stringify(hits)})`);
+        }
+        ok(!wrong.length, `an exemption flagged the setting it exempts, or let the field stand elsewhere: ${wrong.join("; ")}`);
+
+        const planted = clean();
+        planted.settings.pendingMurders = { [KILLER]: { room: "Gym" } };
+        planted.actors[1].flags[MOD].memo = { met: ["nobody", `Actor.${KILLER}.Item.R190ITEM00000001`] };
+        planted.tokens[0].delta.flags[MOD].memo = KILLER;
+        planted.messages[0].flags[MOD].actorId = KILLER;
+        planted.items[0].flags[MOD].from = KILLER;
+        const ids = W.findWorldSecrets(planted, { ids: [KILLER] }).filter(h => h.kind === "id");
+        equal(JSON.stringify(ids.map(h => [h.doc, h.id, h.path, Boolean(h.key)])),
+            JSON.stringify([["setting", "pendingMurders", KILLER, true], ["Actor", "R190BYSTANDER001", `flags.${MOD}.memo.met.1`, false],
+                ["Actor", "R190SCENE0000001.R190TOKEN0000001", `delta.flags.${MOD}.memo`, false],
+                ["ChatMessage", "R190MESSAGE00001", `flags.${MOD}.actorId`, false],
+                ["Item", "R190BYSTANDER001.items.R190ITEM00000001", `flags.${MOD}.from`, false]]),
+            "the killer's id planted as a setting's key, deep in an actor's flag, in an unlinked token's own actor data, in a card's flag and in an item's was not found at each, or was found somewhere else");
+        equal(JSON.stringify(W.findWorldSecrets(clean(), { ids: [KILLER] })), "[]",
+            "a clean snapshot reads as holding a secret - the killer's id in another module's flags, or as the document's own id");
+    }],
+
+    ["R193 - a death is the table's only once it is published", async () => {
+        /*
+         * E05 C10, 26.09.2026; audit S06-11. A killing in an incident writes a row of the
+         * GMs' `deaths` store and a copy for those who may know; the flag waits for the
+         * body's discovery or a GM's hand (chapter.mjs `publishDeath`). Driven on engines
+         * built with fakes - storage in a Map - so nothing in this browser is written:
+         * `deadIn`, the rule under `isDeadForGm`, by role - a GM holding the row, the
+         * victim's player holding a copy, a bystander holding none - and a flag, dead to
+         * each of them; `knowsOfDeath`, where `known` is the only way in for a player who
+         * neither owns the body nor is a GM (a finder's part, Q1); and the copy, weighed by
+         * the offers' rule, which a later answer naming the body gone empties.
+         */
+        const G = await import("./gm-store.mjs");
+        const { deadIn } = await import("./settings.mjs");
+        const { deathCopy, offersCombine } = await import("./gm-stores.mjs");
+        const { knowsOfDeath } = await import("./murder.mjs");
+        const quiet = { warn: () => {}, error: () => {}, debug: () => {} };
+        const engineOf = (self, gm) => {
+            const store = new Map(), flushes = [];
+            const eng = G.createGmStoreEngine({
+                selfId: () => self, isGM: () => gm, isPrimary: () => gm, worldId: () => "R193WORLD",
+                activeGmIds: () => ["R193GM"], primaryGmId: () => "R193GM", senderIsGM: () => true, userName: u => u, send: () => {},
+                storage: { read: k => store.get(k) ?? null, write: async (k, v) => { store.set(k, JSON.stringify(v)); } },
+                readLegacy: () => undefined, now: () => 9_000_000,
+                timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+                clock: () => ({ resetCuts: {} }), log: quiet, notify: () => {}, text: key => key
+            });
+            return { eng, settle: async () => { for (let i = 0; i < 4; i++) await Promise.all(flushes); } };
+        };
+        const actor = (id, flag = null) => ({ id, getFlag: (scope, key) => (key === "deceased" ? flag : null) });
+        const VICTIM = "R193VICTIM000001", PUBLIC = "R193PUBLIC000001";
+        const victim = actor(VICTIM), published = actor(PUBLIC, { chapter: 1, day: 2, timeOfDay: "night" });
+
+        const gm = engineOf("R193GM", true);
+        const rows = gm.eng.define({ name: "r193deaths", key: "r193Deaths", kind: "ledger", resetGroup: "deaths", sync: true, backup: true });
+        await rows.patch(VICTIM, { chapter: 1, day: 2, timeOfDay: "night", at: 1, keepBullets: false, known: ["R193KILLER"] });
+        await gm.settle();
+        const row = rows.get(VICTIM);
+
+        const owner = engineOf("R193OWNER", false), bystander = engineOf("R193BYSTANDER", false);
+        const copyOf = e => e.eng.defineCopy({ name: "r193deaths", key: "r193MineDeaths", resetGroup: "deaths", fallback: {}, combine: offersCombine });
+        const ownerCopy = copyOf(owner), bystanderCopy = copyOf(bystander);
+        equal(await ownerCopy.receive({ [VICTIM]: { chapter: 1, day: 2, timeOfDay: "night" } }, { [VICTIM]: rows.newest(VICTIM) }), true,
+            "the victim's player did not take the copy of their own death");
+        const held = { gm: id => rows.get(id), owner: id => ownerCopy.read()?.[id], bystander: id => bystanderCopy.read()?.[id] };
+        equal(JSON.stringify(Object.fromEntries(Object.entries(held).map(([who, h]) => [who, [deadIn(victim, h), deadIn(published, h)]]))),
+            JSON.stringify({ gm: [true, true], owner: [true, true], bystander: [false, true] }),
+            "a death kept by the GMs read wrong by role - dead to the GM and to the victim's player, alive to a bystander - or a published one was not dead to all");
+        ok(!deadIn({ getFlag: () => null }, () => row), "an actor with no id read as dead through a held row");
+
+        const users = { gm: { id: "R193GM", isGM: true }, killer: { id: "R193KILLER", isGM: false }, finder: { id: "R193FINDER", isGM: false } };
+        equal(JSON.stringify([knowsOfDeath(users.gm, VICTIM, row), knowsOfDeath(users.killer, VICTIM, row), knowsOfDeath(users.finder, VICTIM, row),
+            knowsOfDeath(users.finder, VICTIM, { ...row, known: [...row.known, users.finder.id] }), knowsOfDeath(users.gm, VICTIM, null)]),
+            JSON.stringify([true, true, false, true, false]),
+            "who may know of a death kept by the GMs is not a GM, the row's known and nobody else (a finder only once named, nobody for no row)");
+
+        await rows.drop(VICTIM);
+        await gm.settle();
+        equal(await ownerCopy.receive({}, { [VICTIM]: rows.newest(VICTIM) }), true, "an answer naming the published body gone was refused");
+        equal(JSON.stringify(ownerCopy.read()), "{}", "the copy still holds a death the GMs published");
+        ok(G.gmCopySpec(deathCopy.name)?.combine === offersCombine, "the deaths' copy is not weighed by the offers' rule");
+    }],
+
+    ["R195 - a deferred Reinforced joins its owner's Standard in one write", async () => {
+        /*
+         * E05 C11, 27.09.2026; D4; audit S03-01, S06-01. A wrong verdict used to apply the
+         * surviving Blackened's Reinforced Level Up at once, on the actor and on a card spoken
+         * by it; it waits in the GMs' `deferredOffers` store now and is picked with the class's
+         * next Standard or at the Final Trial's verdict (the owner's Q7). `advancementPlan` is
+         * the batch's whole decision, pure: one entry per survivor - one picker, which is one
+         * write and one step of `advances` (`applyAdvancement`, measured in tier 2) - with 1
+         * or 1 + 3 picks, 1 + 6 for two wrong verdicts survived; at the Final Trial only what
+         * waited; and the rows of the dead, or of no kind there is, dropped.
+         */
+        const { advancementPlan } = await import("./level-up.mjs");
+        const { deferredOfferStore } = await import("./gm-stores.mjs");
+        const { stableJson } = await import("./gm-store.mjs");
+        const row = (count = 1) => ({ kind: "reinforced", chapter: 1, at: 1, count });
+        const rows = { R195HOLDER000001: row(), R195TWICE0000001: row(2), R195DEAD00000001: row(), R195BOGUS0000001: { kind: "R195NOKIND", at: 1 } };
+        const survivors = ["R195PLAIN0000001", "R195HOLDER000001", "R195TWICE0000001", "R195BOGUS0000001"];
+        const shape = plan => plan.entries.map(e => [e.actorId, e.kind, e.picks, e.extraPicks, e.deferred, e.reasons.join("+")]);
+
+        const verdict = advancementPlan(survivors, rows, "standard");
+        equal(stableJson(shape(verdict)), stableJson([
+            ["R195PLAIN0000001", "standard", 1, 0, false, "DRPG.Advance.reason.standard"],
+            ["R195HOLDER000001", "standard", 4, 3, true, "DRPG.Advance.reason.standard+DRPG.Advance.reason.withClass"],
+            ["R195TWICE0000001", "standard", 7, 6, true, "DRPG.Advance.reason.standard+DRPG.Advance.reason.withClass"],
+            ["R195BOGUS0000001", "standard", 1, 0, false, "DRPG.Advance.reason.standard"]
+        ]), "a correct verdict's batch is not one picker per survivor with its Standard and whatever waited, in the survivors' order");
+        equal(stableJson(verdict.drop.sort()), stableJson(["R195BOGUS0000001", "R195DEAD00000001"]),
+            "the dead's row, or a row of no kind, outlives the batch - or a survivor's is dropped with them");
+
+        const final = advancementPlan(survivors, rows, null);
+        equal(stableJson(shape(final)), stableJson([
+            ["R195HOLDER000001", "reinforced", 3, 0, true, "DRPG.Advance.reason.reinforced"],
+            ["R195TWICE0000001", "reinforced", 6, 3, true, "DRPG.Advance.reason.reinforced"]
+        ]), "the Final Trial's batch hands out something besides what waited, or not all of that");
+        equal(stableJson(advancementPlan([], {}, "standard")), stableJson({ entries: [], drop: [] }), "an empty class plans something");
+        equal(stableJson(advancementPlan(["R195PLAIN0000001", "R195PLAIN0000001"], {}, "standard").entries.length), "1",
+            "a survivor named twice is two pickers, two writes and two advances");
+
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            ok(typeof foundry.utils.getProperty(text, "DRPG.Advance.reason.withClass") === "string",
+                `the reason a waiting Reinforced gives has no ${lang} text`);
+        }
+        // The Final Trial's verdict is not driven here or in tier 2 (a Mastermind, a public banner,
+        // the pick cleared): its call is read, after the kill that takes an executed Mastermind's.
+        const finalVerdict = bodyOf(stripComments(new Map(await otherSources()).get("mastermind.mjs") ?? ""), "export async function applyFinalVerdict");
+        const kill = finalVerdict.indexOf("killCharacter("), batch = finalVerdict.indexOf("runAdvancementBatch(livingStudentsForGm(), null)");
+        ok(kill > 0 && batch > kill, "the Final Trial's verdict does not hand out what waited for the class (Q7), or does so before its kill");
+        equal(stableJson([deferredOfferStore.spec?.resetGroup, deferredOfferStore.spec?.backup, deferredOfferStore.spec?.sync]),
+            stableJson(["advancement", true, true]), "the waiting Level Ups are not cut by the reset's advancement group, backed up and synced");
+    }],
+
+    ["R196 - owed Despair is paid at the time of day's change and never spent twice", async () => {
+        /*
+         * E05 C12, 27.09.2026; audit S09-28. A conversion of a Monokuma's Despair to somebody's Hope
+         * took the pool down as the Hope went up, and the pools are on every bar (D3): every console
+         * could pair the two. The drop is owed now, in the GMs' `despairOwed` store, and paid at the
+         * next time of day. `owedAfter` is its arithmetic, pure, and driven here: a conversion owes
+         * and leaves the pool; income that will not fit pays what is owed before it spills; the
+         * settlement pays, never below zero. NEVER SPENT TWICE: over every pool and debt, what can be
+         * spent is the same after the settlement as before it, and income lands - in the pool and in
+         * the overflow - as it would have on the pool an immediate drop left. Then read from the
+         * source, as the rest needs a world (tier 2 drives it): every spending path asks what the pool
+         * can spend, both roads into a full pool pay the debt first, a fill and a zero drop the rows,
+         * the primary settles at every write of the clock after waiting for the other GMs' copies; the two
+         * stores' reset groups, backup and sync; and the words the pickers show.
+         */
+        const D = await import("./despair.mjs");
+        const { despairOwedStore, overflowStore } = await import("./gm-stores.mjs");
+        const { stableJson } = await import("./gm-store.mjs");
+        const MAX = 12;
+        const step = (pool, owed, event) => { const r = D.owedAfter({ pool, owed }, event, MAX); return [r.pool, r.owed, r.spill]; };
+        const TABLE = [
+            ["a conversion owes, and the pool stands", [5, 0, { kind: "convert", n: 2 }], [5, 2, 0]],
+            ["a second conversion owes more", [5, 2, { kind: "convert", n: 1 }], [5, 3, 0]],
+            ["income below the cap goes into the pool", [8, 2, { kind: "income", n: 1 }], [9, 2, 0]],
+            ["income into a full pool pays what it owes", [12, 2, { kind: "income", n: 1 }], [12, 1, 0]],
+            ["income past what is owed spills the rest", [11, 2, { kind: "income", n: 5 }], [12, 0, 2]],
+            ["owing nothing, what will not fit spills", [12, 0, { kind: "income", n: 3 }], [12, 0, 3]],
+            ["a spend takes from the pool and leaves the debt", [5, 2, { kind: "income", n: -3 }], [2, 2, 0]],
+            ["the settlement pays", [5, 2, { kind: "settle" }], [3, 0, 0]],
+            ["the settlement stops at zero", [1, 3, { kind: "settle" }], [0, 0, 0]]
+        ];
+        const wrong = TABLE.filter(([, [pool, owed, event], want]) => stableJson(step(pool, owed, event)) !== stableJson(want))
+            .map(([what, [pool, owed, event]]) => `${what}: ${stableJson(step(pool, owed, event))}`);
+        ok(!wrong.length, `the owed Despair's arithmetic is wrong: ${wrong.join("; ")}`);
+
+        const twice = [];
+        for (let pool = 0; pool <= MAX; pool++) for (let owed = 0; owed <= pool; owed++) {
+            const spendable = pool - owed;
+            const settled = D.owedAfter({ pool, owed }, { kind: "settle" }, MAX);
+            if (settled.pool - settled.owed !== spendable) twice.push(`settle ${pool}/${owed}`);
+            for (const n of [1, 2, 5, MAX]) {
+                const got = D.owedAfter({ pool, owed }, { kind: "income", n }, MAX);
+                if (got.pool - got.owed !== Math.min(spendable + n, MAX) || got.spill !== Math.max(spendable + n - MAX, 0)) twice.push(`income ${n} at ${pool}/${owed}`);
+            }
+        }
+        ok(!twice.length, `a settlement or an income spends what is owed twice, or loses it (pool/owed): ${twice.slice(0, 6).join(", ")}`);
+
+        const sources = new Map(await otherSources());
+        const despair = stripComments(sources.get("despair.mjs") ?? "");
+        const body = head => bodyOf(despair, head, { until: "\n}\n" });
+        for (const name of ["spendDespairCall", "convertDespairToHope"]) {
+            const fn = body(`export async function ${name}(`);
+            ok(/const held = spendableDespair\(/.test(fn) && !/getDespair\(/.test(fn), `${name} asks what the pool shows, not what it can spend`);
+        }
+        ok(/spillFrom\(userId, before, delta,/.test(body("export async function adjustDespair(")),
+            "income into a full pool through adjustDespair spills before it pays what is owed");
+        const award = stripComments(sources.get("despair-award.mjs") ?? "");
+        ok(/spillFrom\(monokuma\.id, before, 1,/.test(award) && !/addOverflow\(/.test(award),
+            "a roll's point into a full pool spills before it pays what is owed");
+        for (const name of ["fillAllDespair", "zeroAllDespair"]) {
+            ok(/await clearOwed\(\);/.test(body(`export async function ${name}(`)), `${name} leaves the pools owing what they covered`);
+        }
+        // Both writes found before their order is read (fix r2-G2; review F8): renamed, either was -1 and passed.
+        const settling = body("async function settleOnce(");
+        const pays = settling.indexOf("SETTINGS.despairPools"), drops = settling.indexOf("dropMany(");
+        ok(/if \(!isPrimaryGm\(\)\) return 0;/.test(settling) && /await despairOwedStore\.whenHydrated\(\);/.test(settling)
+            && pays >= 0 && drops >= 0 && pays < drops,
+            "the settlement runs off the primary, without waiting for the other GMs' copies, or drops the rows before the pools pay");
+        ok(/Hooks\.on\("drpgTimeOfDayChanged", \(\) => \{\s*settleOwed\(\)/.test(body("export function registerDespair(")),
+            "nothing settles what is owed when the time of day moves on");
+        equal(stableJson([[despairOwedStore.spec?.resetGroup, despairOwedStore.spec?.backup, despairOwedStore.spec?.sync],
+            [overflowStore.spec?.kind, overflowStore.spec?.resetGroup, overflowStore.spec?.backup, overflowStore.spec?.sync]]),
+            stableJson([["despair", true, true], ["record", "overflow", true, true]]),
+            "the owed Despair or the overflow's count is not cut by its reset group, backed up and synced");
+        for (const [lang, forms] of [["en", ["one", "other"]], ["pl", ["one", "few", "many", "other"]]]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const missing = forms.filter(f => typeof foundry.utils.getProperty(text, `DRPG.Despair.owed.${f}`) !== "string");
+            ok(!missing.length, `the pickers' "owed" has no ${lang} text for ${missing.join(", ")}`);
+        }
+    }],
+
+    ["R198 - a self-hosted LiveKit secret in the world is told to the GM, and nothing else is", async () => {
+        /*
+         * E05 C15, 27.09.2026; audit S11-59. avclient-livekit keeps a self-hosted server's API
+         * key and secret in its world setting `liveKitConnectionSettings`, which every browser
+         * receives; this module cannot move it and warns the GM instead. voice.mjs
+         * `liveKitSecretWarning` is the rule, pure, driven here over settings shaped as
+         * avclient-livekit 0.6.8's source writes them ({ serverType, url, room, username,
+         * password }; "custom" and "tavern", read 27.09.2026 - not measured against a live
+         * install, AUDIT §9 LIVE-E05-11). Then read from the source: the season checklist and
+         * the voice diagnosis ask it (the diagnosis on a GM only), and both texts exist.
+         */
+        const { liveKitSecretWarning, liveKitConnectionSettings } = await import("./voice.mjs");
+        const KEY = "DRPG.Voice.liveKitSecret";
+        const TABLE = [
+            ["no setting at all", undefined, null],
+            ["an empty setting (A/V never configured)", {}, null],
+            ["not an object", "custom", null],
+            ["the Tavern", { serverType: "tavern", room: "R198ROOM" }, null],
+            ["the Tavern, a secret left behind", { serverType: "tavern", password: "R198SECRET" }, null],
+            ["a self-hosted server with its secret", { serverType: "custom", url: "wss://r198", username: "R198KEY", password: "R198SECRET" }, KEY],
+            ["a self-hosted server, the secret not filled in", { serverType: "custom", username: "R198KEY", password: "" }, null],
+            ["a self-hosted server, a blank secret", { serverType: "custom", password: "   " }, null],
+            ["no type yet (a GM's first connect makes it custom), the secret filled in", { password: "R198SECRET" }, KEY],
+            ["a type this module does not know, the secret filled in", { serverType: "R198TYPE", password: "R198SECRET" }, KEY]
+        ];
+        const wrong = TABLE.filter(([, settings, want]) => liveKitSecretWarning(settings) !== want)
+            .map(([label, settings]) => `${label}: ${liveKitSecretWarning(settings)}`);
+        ok(!wrong.length, `the LiveKit warning is wrong: ${wrong.join("; ")}`);
+        if (!game.modules.get("avclient-livekit")?.active) {
+            equal(String(liveKitConnectionSettings()), "null", "with avclient-livekit inactive there is still a setting to read");
+        }
+
+        const sources = new Map(await otherSources());
+        const season = stripComments(sources.get("season-setup.mjs") ?? "");
+        const diagnostics = stripComments(sources.get("diagnostics.mjs") ?? "");
+        ok(/liveKitSecretWarning\(liveKitConnectionSettings\(\)\)[\s\S]{0,80}key: "liveKitSecret",\s*hintKey: "DRPG\.Voice\.liveKitSecret"/
+            .test(bodyOf(season, "function steps(", { until: "\n}\n" })),
+            "the season checklist does not ask the rule, or its row does not carry the warning's sentence");
+        ok(/game\.user\.isGM \? liveKitSecretWarning\(liveKitConnectionSettings\(\)\) : null/
+            .test(bodyOf(diagnostics, "export function diagnoseVoice(", { until: "\n}\n" })),
+            "the voice diagnosis does not ask the rule, or asks it on a player's browser as well");
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            const flat = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+            const missing = [KEY, "DRPG.Season.step.liveKitSecret"].filter(k => typeof flat[k] !== "string");
+            ok(!missing.length, `${lang}.json has no ${missing.join(", ")}`);
+        }
+    }],
+
+    ["R199 - a killer counts at the trial only for a death the table knows", async () => {
+        /*
+         * E05 fix r2-G1, 27.09.2026; review F1, the owner's Q3. The register takes a killer when the
+         * incident closes, which is usually before anybody finds the body, and the trial read the
+         * register whole: a death nobody had found was counted by the ballot and the verdict.
+         * murder.mjs `countsAtTrial`, the rule under `trialBlackenedIds`, pure, driven over rows
+         * shaped as `recordBlackened` writes them: a row counts unless every victim it names is a
+         * death nobody has published, and a row that names none - every row written before 1.2.64,
+         * when a death was the table's at the kill - counts as it always did. Then read from the
+         * source: the ballot and the verdict ask the trial's list, never the register whole.
+         */
+        const { countsAtTrial } = await import("./murder.mjs");
+        const HIDDEN = new Set(["R199HIDDEN000001", "R199HIDDEN000002"]);
+        const TABLE = [
+            ["a row from before 1.2.64, naming no victim", { chapter: 1, epoch: 0, at: 1 }, true],
+            ["an empty list of victims", { chapter: 1, epoch: 0, at: 1, victims: [] }, true],
+            ["its one victim published", { victims: ["R199KNOWN0000001"] }, true],
+            ["its one victim nobody has found", { victims: ["R199HIDDEN000001"] }, false],
+            ["two victims, one of them published", { victims: ["R199HIDDEN000001", "R199KNOWN0000001"] }, true],
+            ["two victims, neither found", { victims: ["R199HIDDEN000001", "R199HIDDEN000002"] }, false],
+            ["victims that are not ids", { victims: [null, 7, ""] }, true]
+        ];
+        const wrong = TABLE.filter(([, row, want]) => countsAtTrial(row, id => HIDDEN.has(id)) !== want).map(([label]) => label);
+        ok(!wrong.length, `the trial counts a killer wrongly for: ${wrong.join("; ")}`);
+
+        // What a closed incident writes: a new killer's row names the victim; a killer already in
+        // the chapter's register gains the new one; a row from before 1.2.64 and a victim already
+        // named are left alone; an incident with no victim id names none.
+        const { blackenedWrites } = await import("./murder.mjs");
+        const { stableJson } = await import("./gm-store.mjs");
+        const STAMP = { chapter: 3, epoch: 2, at: 100 };
+        const held = { R199AGAIN0000001: { chapter: 3, epoch: 2, at: 1, victims: ["R199HIDDEN000001"] },
+            R199OLDROW000001: { chapter: 3, epoch: 0, at: 2 } };
+        equal(stableJson([
+            blackenedWrites(held, ["R199NEW000000001", "R199AGAIN0000001", "R199OLDROW000001"], "R199KNOWN0000001", STAMP),
+            blackenedWrites(held, ["R199AGAIN0000001"], "R199HIDDEN000001", STAMP),
+            blackenedWrites({}, ["R199NEW000000001"], null, STAMP)
+        ]), stableJson([
+            { R199NEW000000001: { chapter: 3, epoch: 2, at: 100, victims: ["R199KNOWN0000001"] },
+                R199AGAIN0000001: { victims: ["R199HIDDEN000001", "R199KNOWN0000001"] } },
+            {},
+            { R199NEW000000001: { chapter: 3, epoch: 2, at: 100, victims: [] } }
+        ]), "a closed incident's writes to the register do not name its victim on a new row, add it to a killer's row, "
+            + "or leave a row from before 1.2.64 and a victim already named alone");
+
+        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        ok(!/\bblackened(Ids|Actors)\(/.test(vote) && /\btrialBlackenedIds\(\)/.test(vote) && /\btrialBlackenedActors\(\)/.test(vote),
+            "vote.mjs reads the register whole, or the ballot and the verdict no longer ask the trial's list");
+    }],
+
+    ["R200 - a settlement pays each conversion once, and the Despair counters read what the other GMs hold", async () => {
+        /*
+         * E05 fix r2-G2, 27.09.2026; review F5, S2-m7. The owed Despair is a row per conversion in
+         * each GM's store, and the pools it is paid from are world data, which carries the time of
+         * day the last settlement ran in. `settlementOf` is the rule, pure, and driven here: a row
+         * of this time of day waits, a row of the marked one pays, a row of an older one was due at
+         * a settlement that has run and goes unpaid, two GMs' rows of one pool both pay, and the
+         * mark is written whenever it moves once anything has been paid. NEVER TWICE: whatever a
+         * settlement paid, the same rows settled again against what it wrote - a GM's browser that
+         * left before the removal reached it, opened later at the same or a later time of day -
+         * pay nothing. Then read from the source, as the rest needs other GMs (tier 2 and 61 Q
+         * drive it): a conversion's row has a key of its own, and each of the counters' writers,
+         * and the trial's two counts, waits for its store's hydration before it reads.
+         */
+        const D = await import("./despair.mjs");
+        const { stableJson } = await import("./gm-store.mjs");
+        const NOW = "1.2.evening", LAST = "1.2.afternoon", OLDER = "1.2.noon", LATER = "1.3.morning";
+        const P = "R200POOL00000001", Q = "R200POOL00000002";
+        const row = (owed, since) => ({ owed, since });
+        const settle = (rows, held, now = NOW) => {
+            const r = D.settlementOf(Object.entries(rows), held, now);
+            return [r.pools, [...r.drop].sort(), r.paid, r.write];
+        };
+        const TABLE = [
+            ["with no settlement that paid, every row of an earlier time of day pays",
+                [{ [`${P}:a:1`]: row(2, LAST), [`${P}:b:2`]: row(1, OLDER) }, { [P]: 5 }],
+                [{ [P]: 2, settled: NOW }, [`${P}:a:1`, `${P}:b:2`], 2, true]],
+            ["a row of this time of day waits, and the mark moves",
+                [{ [`${P}:a:1`]: row(2, NOW) }, { [P]: 5, settled: LAST }],
+                [{ [P]: 5, settled: NOW }, [], 0, true]],
+            ["a row of the marked time of day pays; an older one was paid and goes",
+                [{ [`${P}:a:1`]: row(2, LAST), [`${P}:b:2`]: row(3, OLDER) }, { [P]: 6, settled: LAST }],
+                [{ [P]: 4, settled: NOW }, [`${P}:a:1`, `${P}:b:2`], 1, true]],
+            ["rows the primary settled, held by a GM that was away, pay nothing",
+                [{ [`${P}:a:1`]: row(2, LAST) }, { [P]: 4, settled: NOW }],
+                [{ [P]: 4, settled: NOW }, [`${P}:a:1`], 0, false]],
+            ["two GMs' rows of one pool both pay, and another pool's",
+                [{ [`${P}:a:1`]: row(1, LAST), [`${P}:b:2`]: row(2, LAST), [`${Q}:a:3`]: row(1, LAST) }, { [P]: 10, [Q]: 0, settled: LAST }],
+                [{ [P]: 7, [Q]: 0, settled: NOW }, [`${P}:a:1`, `${P}:b:2`, `${Q}:a:3`], 3, true]],
+            ["a row of a pool no longer in the world goes unpaid",
+                [{ [`${Q}:a:1`]: row(1, LAST) }, { [P]: 5, settled: LAST }],
+                [{ [P]: 5, settled: NOW }, [`${Q}:a:1`], 0, true]],
+            ["nothing owed at the time of day already marked writes nothing",
+                [{}, { [P]: 5, settled: NOW }], [{ [P]: 5, settled: NOW }, [], 0, false]],
+            ["a world that never paid anything writes no mark",
+                [{}, { [P]: 5 }], [{ [P]: 5, settled: NOW }, [], 0, false]]
+        ];
+        const wrong = TABLE.filter(([, [rows, held], want]) => stableJson(settle(rows, held)) !== stableJson(want))
+            .map(([what, [rows, held]]) => `${what}: ${stableJson(settle(rows, held))}`);
+        ok(!wrong.length, `a settlement pays the wrong rows: ${wrong.join("; ")}`);
+
+        const twice = [];
+        for (const [what, [rows, held]] of TABLE) {
+            const first = D.settlementOf(Object.entries(rows), held, NOW);
+            const written = first.write ? first.pools : held;
+            const settledRows = Object.fromEntries(Object.entries(rows).filter(([key]) => first.drop.includes(key)));
+            for (const now of [NOW, LATER]) {
+                if (D.settlementOf(Object.entries(settledRows), written, now).paid) twice.push(`${what} (again at ${now})`);
+            }
+        }
+        ok(!twice.length, `rows a settlement took are paid again by a browser that still holds them: ${twice.join("; ")}`);
+
+        const sources = new Map(await otherSources());
+        const src = name => stripComments(sources.get(name) ?? "");
+        const recording = fnSource(src("despair.mjs"), "recordOwed");
+        ok(/despairOwedStore\.patch\(`\$\{userId\}:\$\{game\.user\.id\}:\$\{Date\.now\(\)\}`/.test(recording),
+            "a conversion's debt is not a row of its own: two GMs converting from one pool at once keep one");
+        const WAITS = [
+            ["despair.mjs", "convertDespairToHope", "await despairOwedStore.whenHydrated();", "spendableDespair("],
+            ["despair.mjs", "spendDespairCall", "await despairOwedStore.whenHydrated();", "spendableDespair("],
+            ["despair.mjs", "spillFrom", "await despairOwedStore.whenHydrated();", "owedOf("],
+            ["overflow.mjs", "addOverflow", "await overflowStore.whenHydrated();", "state()"],
+            ["overflow.mjs", "checkOverflow", "await overflowStore.whenHydrated();", "state()"],
+            ["overflow.mjs", "resetOverflow", "await overflowStore.whenHydrated();", "overflowStore.patch("],
+            ["vote.mjs", "openVote", "await whenTrialReadable();", "trialBlackenedIds("],
+            ["vote.mjs", "openVerdictDialog", "await whenTrialReadable();", "trialBlackenedActors("]
+        ];
+        const early = WAITS.filter(([file, name, wait, read]) => {
+            const fn = fnSource(src(file), name);
+            const at = fn.indexOf(wait), reads = fn.indexOf(read);
+            return !(at >= 0 && reads > at);
+        }).map(([file, name]) => `${file} ${name}`);
+        ok(!early.length, `these read their store before it holds the other GMs' rows: ${early.join(", ")}`);
     }]
 ];
 

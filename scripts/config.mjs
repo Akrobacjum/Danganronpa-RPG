@@ -75,6 +75,12 @@ export const FLAGS = {
      * things leave it, because you cannot count hands from a turned-out pocket,
      * and because three traces would mean three clean-up actions and nobody
      * would ever loot anything. The list grows; the trace does not.
+     *
+     * NOT WRITTEN SINCE 1.2.64 (E05 C14; audit S05-39 (3)): the record is a row of the
+     * GMs' `lootTraces` store, and every browser holds this flag. The name stays for
+     * what reads an older world's - its lift (handover.mjs `liftLootTraces`), and a
+     * loot in the moment before the lift has run (`markBodyDisturbed`) - and for the
+     * world-secrets rule.
      */
     lootTrace: "lootTrace",
     /**
@@ -188,10 +194,12 @@ export const FLAGS = {
      */
     pendingCall: "pendingCall",
     /**
-     * Character: what the last action rolled, so Reroll has something to undo.
-     * Shape: { messageId, actionKey, trait, total, withFear, isCritical,
-     * projectId, progress }. Overwritten by every action; only the newest one
-     * can ever be taken back.
+     * Character, until 1.2.64: the Reroll bookmark. Every browser holds an actor's
+     * flags, and the bookmark carried a crisis roll's keys, Stage 6's token ids and a
+     * palm's victim (audit S02-01), so since E05 C7 it is the roller's own client
+     * setting `rollBookmarks` (settings.mjs, action-rolls.mjs `rollBookmark`). The
+     * name stays for the `dropRollBookmarks` clause, which takes the old flag out, and
+     * for world-secrets.mjs, which holds every actor to carrying none.
      */
     lastAction: "lastAction",
     /**

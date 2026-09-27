@@ -36,9 +36,13 @@ import {
 } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { grantItem, itemsInCategory } from "./inventory.mjs";
-import { whisperToOwner, whisperToGms, isPrimaryGm, log, warn, error, plural } from "./utils.mjs";
+import {
+    whisperToOwner, whisperToGms, isPrimaryGm, primaryGmId, ownerIdsOf, forcedDeletion, log, warn, error, plural
+} from "./utils.mjs";
 import { playSfxFor } from "./sfx.mjs";
-import { bulletStore, backupCase, restoreCase } from "./gm-stores.mjs";
+import { bulletStore, bulletRefCopy, backupCase, restoreCase, lootTraceStore, deathStore } from "./gm-stores.mjs";
+import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
+import { replyForMe } from "./bridge-guards.mjs";
 
 /** The one inventory category a Truth Bullet ever has. */
 export const BULLET_CATEGORY = "truthBullet";
@@ -109,13 +113,19 @@ export const TRUTH_BULLET_FLAGS = {
      */
     analyzedText: "analyzedText",
     /**
-     * `${sceneId}.${tokenId}` of the Remnant this bullet was copied from -
-     * PUBLIC, unlike `remnantId` in the secret ledger (see `secretOf`). It
-     * says only "this is the same object as one of your other bullets, or as
-     * that token on the map" - never what the trace actually is - which is
-     * exactly the fact visibility.mjs needs to decide whether a REVEALED
-     * Remnant token belongs on THIS player's screen, on a client that cannot
-     * read the ledger at all.
+     * WHICH TRACE THIS BULLET WAS COPIED FROM - NO LONGER ON THE ITEM (E05 C13,
+     * 1.2.64; audit S05-39 (2)). It was `${sceneId}.${tokenId}` here, public,
+     * because visibility.mjs needs it to show a revealed trace to its finder on a
+     * client that cannot read the ledger. But an item is world data, so every
+     * console read it as well: which of the killer's traces had been found, and by
+     * whom. The same key is the bullet's row in the GMs' store (`sceneId` and
+     * `remnantId`, written with the bullet) and, on a player's browser, the copy of
+     * their own bullets' keys (`mineBulletRefs`, gm-stores.mjs `bulletRefCopy`);
+     * `bulletRefOf` reads whichever this client holds. The flag's name stays for
+     * two readers: the clause `liftBulletRefs`, which takes an older world's off its
+     * items, and the guards that put a player's write of it back
+     * (`GUARDED_BULLET_FLAGS` below, resource-guard.mjs) - a flag the lift reads
+     * while a world is unstamped is not one a player may plant.
      */
     remnantRef: "remnantRef",
     /**
@@ -246,6 +256,49 @@ export function isIdentified(item) {
     if (!isTruthBullet(item)) return false;
     if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) return true;
     return (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral") !== "neutral";
+}
+
+/**
+ * A LOOT NAMES A DEATH, SO ITS TRACE'S COPIES SAY "LOOT" ONLY ONCE THE DEATH IS THE TABLE'S
+ * (E05 fix r2-G4, 27.09.2026; F0b's note, the plan's rule A). A body nobody has found may be
+ * looted by one who knows of the death (the owner's Q2), and its loot trace, placed hidden at
+ * the body, can be found by one who knows before the discovery. The copy's `sourceAction`
+ * "loot" is published on the item - an Item every console reads - at a critical find, at an
+ * Analyze, and on a copy of an identified bullet; nothing but a body is looted, so a
+ * bystander's console read of a death nobody had been told of (measured: tier 2, red on
+ * 40ac88d, both copies' items said "loot" before the publication). What is published is the
+ * row's value unless the trace is the loot trace of a death still the GMs' alone - then
+ * nothing, as for a bullet not yet identified; the row keeps "loot", and the publication
+ * puts it on the identified copies (`publishLootSource`). Whether a trace is a loot's is the
+ * GMs' `lootTraces` row, so both stores are waited for.
+ */
+export async function shownSourceAction({ sourceAction = null, sceneId = null, remnantId = null } = {}) {
+    if (sourceAction !== "loot" || !remnantId) return sourceAction ?? null;
+    await Promise.all([lootTraceStore.whenHydrated(), deathStore.whenHydrated()]);
+    const held = Object.entries(lootTraceStore.entries()).some(([bodyId, row]) =>
+        row?.tokenId === remnantId && row?.sceneId === sceneId && deathStore.has(bodyId));
+    return held ? null : sourceAction;
+}
+
+/**
+ * The published half of `shownSourceAction`, at `publishDeath` (chapter.mjs): every copy of
+ * the body's loot trace that is identified and says no source is given "loot". `trace` is the
+ * body's `lootTraces` row. Answers how many items were written.
+ */
+export async function publishLootSource(trace) {
+    if (!game.user.isGM || !trace?.tokenId) return 0;
+    let n = 0;
+    for (const actor of game.actors ?? []) {
+        if (actor.type !== "character") continue;
+        for (const item of bulletsOf(actor)) {
+            const secret = secretOf(item.uuid);
+            if (secret.sourceAction !== "loot" || secret.remnantId !== trace.tokenId || secret.sceneId !== trace.sceneId) continue;
+            if (!isIdentified(item) || item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.sourceAction) === "loot") continue;
+            await item.update({ [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: "loot" });
+            n++;
+        }
+    }
+    return n;
 }
 
 /**
@@ -533,8 +586,9 @@ export async function createTruthBullet(actor, {
             [TRUTH_BULLET_FLAGS.timeOfDay]: stamp?.timeOfDay ?? clock.timeOfDay,
             [TRUTH_BULLET_FLAGS.playerText]: playerText,
             [TRUTH_BULLET_FLAGS.analyzedText]: read ? analyzedText : "",
-            [TRUTH_BULLET_FLAGS.remnantRef]: remnantId && sceneId ? `${sceneId}.${remnantId}` : null,
-            [TRUTH_BULLET_FLAGS.sourceAction]: identified ? sourceAction : null,
+            // No `remnantRef` since E05 C13: which trace this is lives in the row below
+            // and in its owners' copy (`tellBulletRefs`), not on an item every browser holds.
+            [TRUTH_BULLET_FLAGS.sourceAction]: identified ? await shownSourceAction({ sourceAction, sceneId, remnantId }) : null,
             [TRUTH_BULLET_FLAGS.tiedToCrime]: identified ? tiedToCrime : null,
             // Never inherited. A failed analysis is a fact about the person who
             // failed, not about the evidence - guide, Stage 3.
@@ -551,6 +605,10 @@ export async function createTruthBullet(actor, {
         realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime, analyzedText,
         faint: !!faint
     });
+
+    // Its owners' copy of which trace it came from (E05 C13), before the trace is
+    // revealed below: the reveal redraws their map, and the copy is what shows it.
+    tellBulletRefs(ownerIdsOf(actor));
 
     /*
      * AFTER THE SECRET IS FILED, so the sound cannot arrive before the thing it
@@ -612,7 +670,8 @@ export function truthBulletData(item) {
         playerText: flag(TRUTH_BULLET_FLAGS.playerText) ?? "",
         /* Empty until this holder has analysed it - see TRUTH_BULLET_FLAGS. */
         analyzedText: flag(TRUTH_BULLET_FLAGS.analyzedText) ?? "",
-        remnantRef: flag(TRUTH_BULLET_FLAGS.remnantRef) ?? null,
+        /* The trace it came from: a GM's from the row, a player's from their own copy (E05 C13). */
+        remnantRef: bulletRefOf(item),
         /* Null until the bullet is identified - see TRUTH_BULLET_FLAGS. */
         sourceAction: flag(TRUTH_BULLET_FLAGS.sourceAction) ?? null,
         tiedToCrime: flag(TRUTH_BULLET_FLAGS.tiedToCrime) ?? null,
@@ -898,11 +957,26 @@ export async function issueAutopsy(actors, { name, playerText = "", gmNote = "" 
  * item's flag comes off only where the row, read back from storage and not from
  * memory, holds a Faint.
  *
+ * WHAT DID NOT READ BACK STOPS THE MIGRATION (E05 fix r2-F0b, 27.09.2026; the
+ * reviews' S1-M1, as r1-G1 gave the other lifts). Until this fix a row whose save
+ * failed left the Faint on its item, the pass counted the bullet as moved, and
+ * the world was stamped: nothing tried again, and a row that already held its
+ * Faint (an earlier pass whose item write did not go through) was passed over for
+ * good. Now every bullet whose row is here has its item's flag taken off once the
+ * row reads back holding a Faint - the item and its flag read again after the
+ * store's save, so a bullet identified or deleted during that await is left as it
+ * is - and one still carrying it at the end, unidentified, with a row here, is
+ * counted, and the count is thrown: the runner does not stamp the world, names
+ * the clause on the GM's screen, and the next load runs this again. A bullet with
+ * no row on this GM is kept and not counted, by design: no pass can read back a
+ * row nobody has, and counting it would stop the migration at every load.
+ *
  * IDEMPOTENT: a second run finds `typeof secret.faint === "boolean"` wherever it
- * wrote, and nothing else to do.
+ * wrote, and no flag left to take off.
  *
  * @returns {Promise<{moved: number, kept: number}>} rows given a Faint, and
- *   bullets with no row whose item still carries it.
+ *   bullets with no row whose item still carries it. Anything else left on an
+ *   item throws.
  */
 export async function migrateFaintIntoSecrets() {
     if (!game.user.isGM) return { moved: 0, kept: 0 };
@@ -910,33 +984,42 @@ export async function migrateFaintIntoSecrets() {
         throw new Error("the other GMs' copies of the answer key did not arrive; the next load tries again");
     }
 
+    const onItem = item => !!item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint);
+    // A Faint on an item nobody has identified, where a row here could hold it instead.
+    const leftOn = item => isTruthBullet(item) && onItem(item) && !isIdentified(item) && bulletStore.has(item.uuid);
     let moved = 0, kept = 0;
     for (const actor of game.actors ?? []) {
         for (const item of actor.items ?? []) {
             if (!isTruthBullet(item)) continue;
-            const secret = secretOf(item.uuid);
-            if (typeof secret.faint === "boolean") continue;
-
-            const onItem = !!item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint);
-            if (!bulletStore.has(item.uuid)) {
-                if (onItem) kept++;
-                continue;
-            }
-            try {
-                await setSecret(item.uuid, { faint: onItem }, { ifLive: true, weak: true });
-                if (onItem && !isIdentified(item) && typeof bulletStore.persisted(item.uuid)?.faint === "boolean") {
-                    await item.update({
-                        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: false
-                    });
+            if (typeof secretOf(item.uuid).faint !== "boolean") {
+                if (!bulletStore.has(item.uuid)) {
+                    if (onItem(item)) kept++;
+                    continue;
                 }
-                moved++;
+                try {
+                    await setSecret(item.uuid, { faint: onItem(item) }, { ifLive: true, weak: true });
+                    moved++;
+                } catch (err) {
+                    error(`Could not move Faint into the ledger for "${item.name}"`, err);
+                    continue;
+                }
+            }
+            const now = actor.items.get(item.id);
+            if (!now || !leftOn(now) || typeof bulletStore.persisted(now.uuid)?.faint !== "boolean") continue;
+            try {
+                await now.update({ [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: false });
             } catch (err) {
-                error(`Could not move Faint into the ledger for "${item.name}"`, err);
+                error(`Could not take Faint off "${now.name}"`, err);
             }
         }
     }
 
     if (moved || kept) log(`Moved Faint into the ledger for ${moved} Truth Bullet(s); ${kept} with no row here keep it on the item.`);
+    let left = 0;
+    for (const actor of game.actors ?? []) for (const item of actor.items ?? []) if (leftOn(item)) left++;
+    if (left) {
+        throw new Error(`${left} Truth Bullet(s) still carry their Faint on the item, with a row here to hold it; the next load tries again`);
+    }
     return { moved, kept };
 }
 
@@ -1092,6 +1175,8 @@ export const NOT_AN_EDIT = "drpgNotAnEdit";
  * travelling with the answer key.
  * ========================================================================== */
 
+// `remnantRef` is written by nothing since E05 C13, and stays here: `liftBulletRefs` reads
+// it on a world not yet stamped 1.2.64, so a player's own write of it is put back as well.
 const GUARDED_BULLET_FLAGS = [
     "playerText", "analyzedText", "shownType", "analyzed", "lockedChapter", "faint",
     "tiedToCrime", "sourceAction", "visibility", "remnantRef", "isBullet"
@@ -1230,7 +1315,8 @@ function watchBulletEdits() {
             if (options?.[NOT_AN_EDIT]) return;               // the module keeping books
             if (!isTruthBullet(item)) return;
 
-            const ref = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.remnantRef);
+            // The row's since E05 C13: this runs on the primary GM, which holds it.
+            const ref = bulletRefOf(item);
             if (!ref) return;                                  // not copied from a trace
             const [sceneId, tokenId] = String(ref).split(".");
             if (!sceneId || !tokenId) return;
@@ -1281,15 +1367,269 @@ function watchBulletEdits() {
     });
 }
 
+/* ==========================================================================
+ * WHICH TRACE A BULLET CAME FROM (E05 C13, 27.09.2026; audit S05-39 (2))
+ * --------------------------------------------------------------------------
+ * Until 1.2.64 the bullet said so itself, in its public `remnantRef` flag, and
+ * every browser holds every item: a console listed which traces had been found
+ * and by whom. A GM reads it now off the bullet's row in the GMs' store -
+ * `sceneId` and `remnantId`, written with the bullet - and a player off their
+ * own copy (gm-stores.mjs `bulletRefCopy`): `{ [itemUuid]: "sceneId.tokenId" }`
+ * for the bullets on the characters they own, a stamp per bullet. The copy is
+ * sent by the GM that makes a bullet, to its owners, and by the primary when
+ * an owner asks - at load, and when a primary GM's world has loaded (gm-bridge's
+ * "a GM is listening", `drpgPrimaryReady`). Asking is the owner's; answering is
+ * the primary's alone, about the asker's own bullets, found from Foundry's
+ * `senderId`; the copy is taken only from a GM, addressed to this user
+ * (`replyForMe`), and only for a bullet on a character this user owns.
+ * ========================================================================== */
+
+const SOCKET_EVENT = `module.${MODULE_ID}`;
+const ACTION_REFS = "bullets.refs";
+const ACTION_REFS_ASK = "bullets.refsAsk";
+
+/** An embedded item's uuid, which names its actor; and a trace's key, `sceneId.tokenId`. */
+const OWN_BULLET = /^Actor\.([A-Za-z0-9]+)\.Item\.[A-Za-z0-9]+$/;
+const TRACE_KEY = /^[A-Za-z0-9]+\.[A-Za-z0-9]+$/;
+
+/** `sceneId.tokenId` from a row's two fields, or null when either is missing. */
+function refOf(row) {
+    const sceneId = row?.sceneId, remnantId = row?.remnantId;
+    return typeof sceneId === "string" && sceneId && typeof remnantId === "string" && remnantId
+        ? `${sceneId}.${remnantId}` : null;
+}
+
+/**
+ * The key of the trace this bullet was copied from - remnants.mjs `keyOf`'s shape -
+ * or null: a GM's from the bullet's row, a player's from their own copy. The copy is
+ * weighed against the clock's reset cut, which the engine is handed at `ready`
+ * (gm-stores.mjs `openGmStores`), and a token may be refreshed before that - Foundry
+ * draws the scene while it sets the game up, an order the harness, with no canvas,
+ * does not show: a read then answers null, and the traces are drawn again once the
+ * copy can be read (`registerBulletRefsCopy`).
+ */
+export function bulletRefOf(item) {
+    if (!item?.uuid) return null;
+    try {
+        if (game.user?.isGM) return refOf(bulletStore.get(item.uuid));
+        const ref = (bulletRefCopy.read() ?? {})[item.uuid];
+        return typeof ref === "string" && ref ? ref : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * This client's own bullets that came from a trace, each with the trace's key:
+ * `[{ item, ref }]`, every copy of a trace included. A GM owns every character,
+ * so a GM's are all of them, keyed from the rows; a player's are their own
+ * characters', keyed from their copy.
+ */
+export function ownBulletRefs() {
+    const out = [];
+    for (const actor of game.actors ?? []) {
+        if (actor.type !== "character" || !actor.isOwner) continue;
+        for (const item of bulletsOf(actor)) {
+            const ref = bulletRefOf(item);
+            if (ref) out.push({ item, ref });
+        }
+    }
+    return out;
+}
+
+/**
+ * GM: one user's own bullets, and only those, with a stamp each - the row's newest
+ * decision, 0 for a bullet this browser holds no row for, which takes nothing away
+ * on the owner's side (`offersCombine`) - and the trace's key where the row names one.
+ */
+export function bulletRefsFor(userId) {
+    const user = game.users.get(userId);
+    const refs = {}, stamps = {};
+    if (!game.user?.isGM || !user || user.isGM) return { refs, stamps };
+    for (const actor of game.actors ?? []) {
+        if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
+        for (const item of bulletsOf(actor)) {
+            stamps[item.uuid] = bulletStore.newest(item.uuid);
+            const ref = refOf(bulletStore.get(item.uuid));
+            if (ref) refs[item.uuid] = ref;
+        }
+    }
+    return { refs, stamps };
+}
+
+/**
+ * GM: send one user their bullets' keys (`bulletRefsFor`). Addressed, and only while
+ * they are here; nothing while the suite holds the stores or stands in another world
+ * (`gmStoresQuiet`), and nothing for a user who holds no bullet. Answers whether it sent.
+ */
+export function sendBulletRefsTo(userId) {
+    const user = game.users.get(userId);
+    if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
+    const { refs, stamps } = bulletRefsFor(userId);
+    if (!Object.keys(stamps).length) return false;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: ACTION_REFS, userId, refs, stamps }, { recipients: [userId] });
+    } catch (err) {
+        error("Could not tell a player which traces their Truth Bullets came from", err);
+        return false;
+    }
+    return true;
+}
+
+/** GM: each of these users sent their bullets' keys. Answers how many were sent. */
+export function tellBulletRefs(userIds) {
+    let sent = 0;
+    for (const userId of new Set(userIds ?? [])) if (sendBulletRefsTo(userId)) sent++;
+    return sent;
+}
+
+/** After a restore (gm-stores.mjs `restoreCase`): every connected player is sent their keys again, at their stamps. */
+export async function retellBulletRefs() {
+    if (!game.user?.isGM || gmStoresQuiet()) return 0;
+    return tellBulletRefs((game.users ?? []).filter(u => u.active && !u.isGM).map(u => u.id));
+}
+
+/** Owner: take a GM's answer where it is newer (`bulletRefCopy`), for bullets on this user's own characters only. */
+export async function receiveBulletRefs(refs, stamps) {
+    const mine = {}, own = {};
+    for (const [uuid, s] of Object.entries(stamps ?? {})) {
+        const actorId = OWN_BULLET.exec(uuid)?.[1];
+        if (!actorId || !game.actors.get(actorId)?.isOwner) continue;
+        own[uuid] = Number(s) || 0;
+        const ref = refs?.[uuid];
+        if (typeof ref === "string" && TRACE_KEY.test(ref)) mine[uuid] = ref;
+    }
+    return bulletRefCopy.receive(mine, own);
+}
+
+/** Owner: ask the primary which traces this user's bullets came from. */
+function askForBulletRefs(primary = primaryGmId()) {
+    if (!primary || game.user.isGM) return;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: ACTION_REFS_ASK }, { recipients: [primary] });
+    } catch (err) {
+        error("Could not ask the GM which traces this player's Truth Bullets came from", err);
+    }
+}
+
+function onBulletRefsSocket(payload, senderId) {
+    if (payload?.action === ACTION_REFS_ASK) {
+        if (!isPrimaryGm()) return;
+        const sender = game.users.get(senderId);
+        if (!sender?.active || sender.isGM) return;
+        // Asked at the owner's load, which may come before the other GMs' rows have: answered once they have.
+        whenGmStoresAudible().then(() => bulletStore.whenHydrated()).then(() => sendBulletRefsTo(sender.id))
+            .catch(err => error("Could not answer which traces a player's Truth Bullets came from", err));
+        return;
+    }
+    if (payload?.action !== ACTION_REFS || game.user.isGM) return;
+    // A GM's, and addressed to this user: a player cannot hand another the traces their bullets came from.
+    if (!replyForMe(payload, senderId)) return;
+    receiveBulletRefs(payload.refs, payload.stamps)
+        .catch(err => error("Could not keep which traces this player's Truth Bullets came from", err));
+}
+
+/**
+ * At ready (the caller runs there, after the GM stores are wired): the copy's listener
+ * on every client, and an owner's first ask - and the traces drawn once more, since
+ * what the canvas drew before `ready` could not read the copy yet (`bulletRefOf`).
+ */
+function registerBulletRefsCopy() {
+    game.socket.on(SOCKET_EVENT, onBulletRefsSocket);
+    if (game.user.isGM) return;
+    Hooks.callAll("drpgBulletRefsChanged");
+    askForBulletRefs();
+    Hooks.on("drpgPrimaryReady", primary => askForBulletRefs(primary));
+}
+
+/** Every item that carries this module flag at all - a `null` counts - in the sidebar and on every actor's sheet. */
+function itemsWithFlag(flag) {
+    const holds = item => Object.hasOwn(item?.flags?.[MODULE_ID] ?? {}, flag);
+    return [...(game.items?.contents ?? []), ...(game.actors?.contents ?? []).flatMap(actor => actor.items?.contents ?? [])]
+        .filter(holds);
+}
+
+/**
+ * A world from before 1.2.64 names each Truth Bullet's trace in the bullet's own
+ * `remnantRef` flag, which every browser reads (audit S05-39 (2)). The clause
+ * `liftBulletRefs` (migrate.mjs, since 1.2.64) runs this once, on the primary, after
+ * the store holds the other GMs' copies (E05 C13).
+ *
+ * Each key goes into its bullet's row as `sceneId` and `remnantId`, weak and
+ * fill-only - a row that has them keeps its own - and the flag leaves the item only
+ * once the row reads back from storage holding a `remnantId`. A flag that names no
+ * trace (`null`: a bullet no trace made, an autopsy, a GM's own) has nothing to lift
+ * and is deleted. Then the owners of the bullets lifted are sent their keys. A flag
+ * still on an item after that throws, with the count, so the world is not stamped and
+ * the next load tries again (E05 fix r1-G1; migrate.mjs, above the lifts). Idempotent:
+ * a world already through this holds no such flag. A bullet whose row this browser
+ * lost whole comes out of this with a row of its trace's key alone, which is what lets
+ * gm-stores.mjs `fillBulletsFromTraces` give it its type back.
+ *
+ * @returns {Promise<null|{lifted: number, dropped: number, kept: number}>}  `kept` 0:
+ *   anything else throws.
+ */
+export async function liftBulletRefs() {
+    if (!isPrimaryGm()) return null;
+    if (await bulletStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the Truth Bullets' answer keys did not arrive; the next load tries again");
+    }
+    const flag = TRUTH_BULLET_FLAGS.remnantRef;
+    const found = itemsWithFlag(flag);
+    if (!found.length) return null;
+    const rows = {};
+    for (const item of found) {
+        const ref = item.flags[MODULE_ID][flag];
+        if (typeof ref !== "string" || !TRACE_KEY.test(ref)) continue;
+        const [sceneId, remnantId] = ref.split(".");
+        rows[item.uuid] = { sceneId, remnantId };
+    }
+    if (Object.keys(rows).length) {
+        await bulletStore.patchMany(rows, { weak: true, fillOnly: true });
+        await bulletStore.idle();
+    }
+    const deletion = forcedDeletion();
+    const owners = new Set();
+    let lifted = 0, dropped = 0, kept = 0;
+    for (const item of found) {
+        if (rows[item.uuid]) {
+            const row = bulletStore.persisted(item.uuid);
+            if (!row || !Object.hasOwn(row, "remnantId")) {
+                kept++;
+                continue;
+            }
+            lifted++;
+            for (const userId of ownerIdsOf(item.parent)) owners.add(userId);
+        } else {
+            dropped++;
+        }
+        // The module keeping books, not a GM describing the object (`watchBulletEdits`).
+        if (deletion) await item.update({ [`flags.${MODULE_ID}.${flag}`]: deletion }, { [NOT_AN_EDIT]: true });
+        else await item.unsetFlag(MODULE_ID, flag);
+    }
+    const left = itemsWithFlag(flag).length;
+    if (lifted || dropped) {
+        log(`Took ${lifted + dropped} Truth Bullet trace key(s) out of world data (${lifted} held by the GM store, ${dropped} naming no trace); ${left} left.`);
+    }
+    tellBulletRefs(owners);
+    if (left) {
+        throw new Error(`${left} Truth Bullet(s) still name their trace in a flag (${kept} whose row the GM store did not read back); the next load tries again`);
+    }
+    return { lifted, dropped, kept };
+}
+
 export function registerTruthBullets() {
     watchBulletEdits();
     /*
-     * NO SOCKET OF ITS OWN SINCE E04 (1.2.63). The answer key travelled between GMs
-     * here - a push per write, a request at load, a whole ledger in answer - merged
-     * by whole entries, which is how a GM who joined erased it (S05-01). It is a GM
-     * store now (gm-stores.mjs), and the engine carries it. Nor does it migrate at
-     * load any more: the two passes that ran on every GM's every load are clauses
-     * of the migration (migrate.mjs, `truthBulletShape` and `faintIntoSecrets`),
-     * run once, by the primary, after the other GMs' copies have arrived.
+     * NO GM-TO-GM SOCKET OF ITS OWN SINCE E04 (1.2.63). The answer key travelled
+     * between GMs here - a push per write, a request at load, a whole ledger in
+     * answer - merged by whole entries, which is how a GM who joined erased it
+     * (S05-01). It is a GM store now (gm-stores.mjs), and the engine carries it. Nor
+     * does it migrate at load any more: the two passes that ran on every GM's every
+     * load are clauses of the migration (migrate.mjs, `truthBulletShape` and
+     * `faintIntoSecrets`), run once, by the primary, after the other GMs' copies have
+     * arrived. What listens here again since E05 C13 is the copy a player holds of
+     * their own bullets' traces (above).
      */
+    registerBulletRefsCopy();
 }

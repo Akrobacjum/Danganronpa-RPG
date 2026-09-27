@@ -26,6 +26,9 @@ import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, STARTING, OVERFLOW
 import { getClock, campaignName, phaseLabel, timeOfDayLabel } from "./clock.mjs";
 import { dialogContent, error, workingScene, esc} from "./utils.mjs";
 import { isMonokuma } from "./monokuma.mjs";
+// Static, and walked before adding (27.09.2026): the 44 modules hud.mjs reaches through
+// its static imports do not include this file - api.mjs and module.mjs are its importers.
+import { clockForDisplay } from "./hud.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -144,10 +147,14 @@ async function roomBlock() {
     return section(t("DRPG.Explain.room.title"), lines);
 }
 
-/** The clock panel, explained. Anyone may open it. */
+/**
+ * The clock panel, explained. Anyone may open it - and it shows the clock the HUD
+ * beside it shows: while an incident runs, an outsider's is the one it began at
+ * (hud.mjs `clockForDisplay`; S01-11).
+ */
 export async function openStateExplainer() {
     try {
-        const clock = getClock();
+        const clock = clockForDisplay(getClock());
         const body = [
             section(t("DRPG.Explain.state.title"), [
                 `<strong>${esc(campaignName(clock))}</strong>`,

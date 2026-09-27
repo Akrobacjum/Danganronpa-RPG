@@ -31,7 +31,7 @@
 
 import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
-import { isDeceased } from "./chapter.mjs";
+import { isDeceased, isDeadForGm } from "./chapter.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
@@ -159,7 +159,7 @@ export function isSilenced(actor) {
  */
 export async function meddleTargets(actor) {
     const { othersInRoom } = await import("./movement.mjs");
-    return othersInRoom(actor).filter(a => !isMonocub(a) && !isDeceased(a));
+    return othersInRoom(actor).filter(a => !isMonocub(a) && !isDeadForGm(a));
 }
 
 /**
@@ -260,7 +260,7 @@ export async function performMeddle(actor, targetId, help) {
      * the same questions are asked here first, where saying no costs nothing.
      */
     const { sameRoom } = await import("./movement.mjs");
-    if (isMonocub(target) || isMonokuma(target) || isDeceased(target) || !sameRoom(actor, target)) {
+    if (isMonocub(target) || isMonokuma(target) || isDeadForGm(target) || !sameRoom(actor, target)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Monocub.nobodyHere"));
         return null;
     }
@@ -399,7 +399,7 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
     if (target.type !== "character") return refuse("the target is not a character");
     if (isMonocub(target)) return refuse("Monocubs do not Meddle with each other");
     if (isMonokuma(target)) return refuse("a Monokuma is not a student");
-    if (isDeceased(target)) return refuse("the target is dead");
+    if (isDeadForGm(target)) return refuse("the target is dead");
 
     const { sameRoom } = await import("./movement.mjs");
     if (!sameRoom(actor, target)) return refuse("they are not in the same room");
@@ -492,7 +492,7 @@ export async function openMonocubDialog() {
         return null;
     }
 
-    const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
+    const { monokumas, donorLabel } = await import("./despair.mjs");
     const gms = monokumas();
 
     /*
@@ -509,8 +509,9 @@ export async function openMonocubDialog() {
         const cub = isMonocub(a);
         const hope = cub ? resourceValue(a, "hope") : null;
         const silenced = cub && isSilenced(a);
+        // What each pool can spend, and what it owes (E05 C12; despair.mjs `donorLabel`).
         const donors = gms.map(u =>
-            `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))} (${getDespair(u.id)})</option>`
+            `<option value="${u.id}">${foundry.utils.escapeHTML(donorLabel(u))}</option>`
         ).join("");
 
         return `<tr>
@@ -587,7 +588,8 @@ export async function openMonocubDialog() {
             keepLive(dialog, {
                 region: ".drpg-cub-live",
                 build: buildRows,
-                watch: { actors: true },
+                // A pool's debt changes with no actor's write (E05 C12): its store's hook.
+                watch: { actors: true, hooks: ["drpgDespairOwedChanged"] },
                 after: wireGive
             });
         },

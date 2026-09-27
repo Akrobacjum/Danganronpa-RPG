@@ -26,7 +26,7 @@ import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
 // the whole trial floor into the action pipeline.
-import { getClock } from "./settings.mjs";
+import { getClock, getSetting, SETTINGS } from "./settings.mjs";
 // The chains, and the one payer (T-1). Static, and safe to be: price.mjs imports
 // nothing but leaves and never reaches back into the action pipeline.
 import { quotePrice, payPrice, refundPrice, priceLine } from "./price.mjs";
@@ -39,7 +39,7 @@ import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, error, plural, cardHead, esc, easedBy, gmIds, ownerOf } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, ownerOf } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll } from "./private-rolls.mjs";
 // One reader, for the Tamper menu's "what you have readied" line. use-items.mjs
@@ -234,8 +234,8 @@ export async function performAction(actor, actionKey, options = {}) {
         // panel offers exactly Move and Meddle, and Move is dispatched from
         // here like any other action.
         const { isMonocub } = await import("./monocub.mjs");
-        const { isDeceased } = await import("./chapter.mjs");
-        if (isDeceased(actor) && !isMonocub(actor)) {
+        const { isDeadForGm } = await import("./chapter.mjs");
+        if (isDeadForGm(actor) && !isMonocub(actor)) {
             ui.notifications.warn(game.i18n.format("DRPG.Chapter.deadCannotAct", {
                 name: actor.name
             }));
@@ -770,6 +770,51 @@ function traitRolled(result, fallback) {
     return (dh && TRAIT_BY_DH[dh]) || fallback;
 }
 
+/* ==========================================================================
+ * THE REROLL BOOKMARK, IN THE ROLLER'S OWN BROWSER
+ * ==========================================================================
+ *
+ * E05 C7, 26.09.2026; audit S02-01. The bookmark was the actor flag `lastAction`
+ * until 1.2.64, and an actor's flags are on every browser: 72-canary read Chie's
+ * crisis context off p1's copy of her actor. It is the client setting
+ * `rollBookmarks` now (settings.mjs), one entry per world and character, on the
+ * browser that rolled - the browser a Reroll is made from (the owner's answer Q6;
+ * E08 moves it to the GMs). A roll made in another browser, or before the update
+ * (the `dropRollBookmarks` clause), has no bookmark here, and Reroll falls back to
+ * the recent-chat scan in reroll.mjs as it always did for a sheet roll.
+ *
+ * Read and written whole, with no await between the read and the `set`: two
+ * characters rolled from one browser at once cannot take each other's entry out.
+ */
+const EMPTY_BOOKMARKS = () => ({ v: 1, worlds: {} });
+
+function allBookmarks() {
+    try {
+        const all = getSetting(SETTINGS.rollBookmarks);
+        return all && all.v === 1 && all.worlds && typeof all.worlds === "object" ? all : EMPTY_BOOKMARKS();
+    } catch {
+        return EMPTY_BOOKMARKS();
+    }
+}
+
+/** This browser's bookmark for this character in this world, or null. */
+export function rollBookmark(actor) {
+    const world = game.world?.id ?? null;
+    if (!actor?.id || !world) return null;
+    return allBookmarks().worlds[world]?.[actor.id] ?? null;
+}
+
+/** Replace this character's bookmark in this browser - whole, never merged; null takes it out. */
+export async function keepRollBookmark(actor, bookmark) {
+    const world = game.world?.id ?? null;
+    if (!actor?.id || !world) return;
+    const all = allBookmarks();
+    const here = { ...(all.worlds[world] ?? {}) };
+    if (bookmark) here[actor.id] = bookmark;
+    else delete here[actor.id];
+    await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, { v: 1, worlds: { ...all.worlds, [world]: here } });
+}
+
 /**
  * Record what was just rolled, so the Reroll Hope Call has something to take
  * back. Only the newest roll is kept - the guide's Reroll undoes an action, not
@@ -780,18 +825,17 @@ function traitRolled(result, fallback) {
  * attributed to this one. Each action then attaches its own context with
  * `noteRollContext` once it knows what it did.
  *
- * "Fresh" has to be spelled out, via `replaceFlag`. This used `setFlag`, which
- * merges, so the sentence above was an intention rather than a description: the
+ * "Fresh" had to be spelled out while this was a flag: `setFlag` merges, and the
  * flag accumulated every field every action had ever written. The one that hurt
  * was `gmRuled` - `replayAction` tests it before it looks at the action key, so
  * a single Observe earlier in the session sent every subsequent Reroll down the
  * "ask the GM again" path instead of replaying the Search or the project that
- * was actually rerolled.
+ * was actually rerolled. `keepRollBookmark` writes the entry whole.
  */
 async function rememberRoll(actor, outcome, result, actionKey = null, context = null) {
     try {
         const messageId = result?.message?.id ?? result?.message?._id ?? null;
-        await replaceFlag(actor, FLAGS.lastAction, {
+        await keepRollBookmark(actor, {
             ...(context ?? {}),
             messageId,
             actionKey,
@@ -823,16 +867,63 @@ function remnantRef(placed) {
  *
  * Replacement rather than merge, like `rememberRoll` - the spread of `current`
  * is what carries the rest forward, so a caller passing `{itemId: null}` here
- * genuinely clears the field instead of being ignored by a recursive update.
+ * genuinely clears the field.
  */
 async function noteRollContext(actor, data) {
     try {
-        const current = actor.getFlag(MODULE_ID, FLAGS.lastAction);
+        const current = rollBookmark(actor);
         if (!current) return;
-        await replaceFlag(actor, FLAGS.lastAction, { ...current, ...data });
+        await keepRollBookmark(actor, { ...current, ...data });
     } catch {
         // Same again: informational only.
     }
+}
+
+/**
+ * THE OLD BOOKMARKS OUT OF WORLD DATA (E05 C7; audit S02-01) - the `dropRollBookmarks`
+ * clause. Once, on the primary. Nothing is lifted: a bookmark is the newest roll, a
+ * Reroll does not reach across an update, and a roll made before it is still found by
+ * reroll.mjs's recent-chat scan. Every actor's `lastAction` flag is deleted in one
+ * write (`forcedDeletion()`, `unsetFlag` in a Foundry without it) and read back; one
+ * still there throws, so the world is not stamped and the next load tries again.
+ * Idempotent: a world already through it holds none.
+ *
+ * AND EVERY TOKEN'S OWN ACTOR DATA (E05's fix round, S1-m4, 27.09.2026). 1.2.63 wrote the
+ * flag on whatever actor rolled, and a sheet opened from an unlinked token is that
+ * token's synthetic actor, whose flags are kept in the token's delta on its scene -
+ * world data too. Those are deleted on the delta's path through the token, and read
+ * back from the token's source. Whether any table rolled from an unlinked character
+ * token is not known; the suite plants one (the tier-2 bookmarks' drop), in a harness
+ * whose tokens keep their delta as plain data - how a real Foundry applies a deletion
+ * on that path is not measured here.
+ *
+ * @returns {Promise<null|{dropped: number}>}
+ */
+export async function dropRollBookmarks() {
+    if (!isPrimaryGm()) return null;
+    const held = flags => Object.hasOwn(flags?.[MODULE_ID] ?? {}, FLAGS.lastAction);
+    const holding = () => [
+        ...(game.actors?.contents ?? []).filter(actor => held(actor.flags)),
+        ...(game.scenes?.contents ?? []).flatMap(scene => scene.tokens?.contents ?? [])
+            .filter(token => held(token.toObject()?.delta?.flags))
+    ];
+    const found = holding();
+    if (!found.length) return null;
+    const deletion = forcedDeletion();
+    for (const doc of found) {
+        const onToken = doc.documentName === "Token";
+        const path = `${onToken ? "delta." : ""}flags.${MODULE_ID}`;
+        if (deletion) await doc.update({ [`${path}.${FLAGS.lastAction}`]: deletion });
+        // A token's synthetic actor writes its flags into the token's delta.
+        else await (onToken ? doc.actor : doc)?.unsetFlag(MODULE_ID, FLAGS.lastAction);
+    }
+    const left = holding().length;
+    if (left) {
+        warn(`Reroll bookmarks: ${left} actor(s) or token(s) still carry one in world data after the deletion.`);
+        throw new Error(`${left} Reroll bookmark(s) stayed in world data; the next load tries again`);
+    }
+    log(`Took ${found.length} Reroll bookmark(s) out of world data.`);
+    return { dropped: found.length };
 }
 
 /**
@@ -4904,32 +4995,35 @@ async function report(actor, def, roll, outcome) {
     // One whisper to everyone entitled to it, and popup.mjs's catch-all raises
     // the card on each of their screens, is both fixes at once. `popupTitle`
     // carries the header the explicit call used to supply.
-    // The same facts the header prints, kept as data on the message.
+    // The same facts the header prints, kept as data beside the card's words.
     //
     // The time-of-day summary is assembled by reading these back, and reading
     // them back is only reliable if they were written down: parsing the
     // rendered HTML would tie the summary to the exact wording of the card and
     // break the first time either is reworded. Nothing new is recorded here -
-    // every field is one the card already shows.
+    // every field is one the card already shows. NOT ON THE DOCUMENT (E05 C7,
+    // 26.09.2026; audit S10-05, S02-11): they were `flags.summary`, which every
+    // browser holds, and 40-flow read p1's find off p2's copy of this card. They
+    // travel with the words to the card's readers (secret.mjs `plainSummary`).
     await whisperToOwner(actor, html, {
         flags: {
             [MODULE_ID]: {
                 popupTitle: def.label,
                 // See `rollTone`, which the five cards that go through
                 // `rollHead` share with this one.
-                popupTone: rollTone(roll),
-                summary: {
-                    actorId: actor?.id ?? null,
-                    action: def.label,
-                    room: room ?? null,
-                    total: roll?.total ?? null,
-                    critical: Boolean(roll?.isCritical),
-                    item: outcome.item ?? null,
-                    tier: outcome.tier ?? null,
-                    leftTrace: outcome.leftTrace ?? false,
-                    at: Date.now()
-                }
+                popupTone: rollTone(roll)
             }
+        },
+        summary: {
+            actorId: actor?.id ?? null,
+            action: def.label,
+            room: room ?? null,
+            total: roll?.total ?? null,
+            critical: Boolean(roll?.isCritical),
+            item: outcome.item ?? null,
+            tier: outcome.tier ?? null,
+            leftTrace: outcome.leftTrace ?? false,
+            at: Date.now()
         }
     });
 

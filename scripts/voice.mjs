@@ -37,14 +37,14 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS, getSetting } from "./settings.mjs";
+import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
 // `allRooms` only - the per-actor lookup is `locateActor`, imported lazily in
 // `reconcileNow`, because it is the one that does not depend on which scene
 // this GM happens to be looking at.
 import { allRooms } from "./movement.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive } from "./voice-client.mjs";
-import { isPrimaryGm, primaryGmId, debug, warn, error, plural } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, debug, warn, error, plural, whisperToGms } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 
 const AV_MODULE = "avclient-livekit";
@@ -104,6 +104,11 @@ export function registerVoice() {
         if (!flags) return;
         if (!(FLAGS.deceased in flags) && !(FLAGS.monocub in flags)) return;
         scheduleReconcile({ immediate: true });
+    });
+    // A death kept by the GMs writes nothing on the actor (E05 C10): its store's change
+    // is the one sign of it, on the GM that wrote it and on each that merged it.
+    Hooks.on("drpgDeathsChanged", () => {
+        if (game.user?.isGM) scheduleReconcile({ immediate: true });
     });
     // Both edges, and both immediate. Starting an Eclipse takes every voice off
     // the rooms at once - a placement window that begins with the table still
@@ -802,12 +807,13 @@ function activeOwnerOf(actor) {
 /**
  * Dead, and not yet back as a Monocub.
  *
- * Read straight off the two flags rather than through `chapter.mjs`/`monocub.mjs`
- * - this runs inside the reconcile loop on every token move, and a dynamic
- * import per actor per pass is a lot of churn for two boolean reads.
+ * Death is asked of settings.mjs, the leaf (E05 C9), and the Monocub flag read
+ * directly rather than through `monocub.mjs` - this runs inside the reconcile loop
+ * on every token move, and a dynamic import per actor per pass is a lot of churn
+ * for two boolean reads.
  */
 function silencedByDeath(actor) {
-    const dead = Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.deceased));
+    const dead = isDeadForGm(actor);
     if (!dead) return false;
     return !actor.getFlag(MODULE_ID, FLAGS.monocub);
 }
@@ -892,6 +898,38 @@ export function competingModuleWarnings() {
     }
 
     return lines;
+}
+
+/**
+ * A self-hosted LiveKit server's API secret, kept in a world setting (E05 C15,
+ * 27.09.2026; audit S11-59). Pure: the value of avclient-livekit's
+ * `liveKitConnectionSettings` in, the warning's lang key or `null` out.
+ *
+ * WHAT WAS READ, AND WHAT WAS NOT. avclient-livekit 0.6.8's source (its main branch,
+ * read 27.09.2026; its manifest says verified on Foundry 14) registers the setting at
+ * world scope - so every browser receives it - as `{ serverType, url, room, username,
+ * password }`, with two server types: "custom", which needs the API key and secret
+ * (`username`, `password`) and signs its own access tokens with them, and "tavern",
+ * which needs neither. A world with no `serverType` is given the default, "custom", by
+ * the first GM to connect. So: a secret filled in and any type but "tavern". Not
+ * measured against a live install here (no Foundry, no LiveKit): AUDIT §9's
+ * LIVE-E05-11. This module cannot move another module's setting; it tells the GM.
+ */
+export function liveKitSecretWarning(settings) {
+    if (!settings || typeof settings !== "object") return null;
+    const secret = typeof settings.password === "string" && settings.password.trim() !== "";
+    return secret && settings.serverType !== "tavern" ? "DRPG.Voice.liveKitSecret" : null;
+}
+
+/** avclient-livekit's connection setting on this browser, or `null` when it is not there to read. */
+export function liveKitConnectionSettings() {
+    if (!game.modules.get(AV_MODULE)?.active) return null;
+    try {
+        return game.settings.get(AV_MODULE, "liveKitConnectionSettings") ?? null;
+    } catch {
+        // Not registered on this client - nothing to warn about.
+        return null;
+    }
 }
 
 /**
@@ -988,12 +1026,12 @@ export async function voicePlan({ toChat = false } = {}) {
 
     const text = lines.join("\n");
     console.log(`${MODULE_ID} | Voice plan\n${text}`);
+    /* To the GMs' words store, not a message's (E05 C10): the plan names who is silenced by
+       death, a death nobody has found among them, and a whispered message is received by
+       every console (utils.mjs `privately`). */
     if (toChat) {
-        ChatMessage.create({
-            content: `<h3>Voice plan</h3><pre style="white-space:pre-wrap;font-size:.85em">${
-                foundry.utils.escapeHTML(text)}</pre>`,
-            whisper: [game.user.id]
-        });
+        await whisperToGms(`<h3>Voice plan</h3><pre style="white-space:pre-wrap;font-size:.85em">${
+            foundry.utils.escapeHTML(text)}</pre>`);
     }
     return text;
 }

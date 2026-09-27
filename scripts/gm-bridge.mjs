@@ -22,7 +22,7 @@ import {
     guardCrisisReceipt, guardCleanupReceipt, guardProgressOwner, guardProgressReceipt, guardShareSecret,
     guardShareGuest, guardTieTraceHolder, guardRemnantEditReceipt, guardUnsabotagePair, guardUnsabotageOwner,
     guardUnsabotageReceipt, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
-    guardArmCallGrants, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
+    guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
     guardArmBuyerHope, guardDespairOwner, guardDespairMonokuma, guardDespairDelta, guardDespairPool,
     guardDespairReceipt, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
     playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady
@@ -82,6 +82,7 @@ const ACTION_DONE = "bridge.done";
 /** A GM's world has finished loading - see `registerGmBridge`. */
 const ACTION_GM_READY = "bridge.gmReady";
 const ACTION_LOOT = "body.loot";
+const ACTION_NOTE_SAVE = "note.save";
 
 /**
  * A primary GM has finished loading and can answer questions again.
@@ -580,15 +581,21 @@ async function handleCrisis(payload, sender, ctx, prepared) {
     if (!result) return { refused: "nothing was carried out: resolveCrisisAction resolved nothing" };
 }
 
-    // A direct murder declared in the dark. The declaration is a world write and
-    // the killer has no permission for one, so it travels; the judgement happens
-    // when the Eclipse ends, on this side, off the final placement.
+    // A direct murder declared in the dark. The declaration is written in the GMs'
+    // store (eclipse.mjs, since E05 - until then a world setting every browser
+    // held, so the parking itself was the leak), and a player's client holds no
+    // GM store, so it travels; the judgement happens when the Eclipse ends, on a
+    // GM's side, off the final placement.
     //
     // Nothing about the outcome is decided here or sent back - that is the whole
     // point of parking it, and a bridge that answered "recorded" with anything
-    // more would be the leak this change exists to close.
+    // more would tell the asker what only the GMs know.
+    //
+    // Only while an Eclipse runs (E05 fix r1-G3; review S1-m8), as `eclipse.move` is: outside
+    // one nothing is written and nobody is asked, and the asker is told.
 async function handleParkMurder(payload, sender, ctx) {
     const eclipse = await import("./eclipse.mjs");
+    if (!eclipse.eclipseId()) return { refused: "no Eclipse is running" };
     await eclipse.writeParkedMurder({
         killerId: payload.killerId,
         room: payload.room,
@@ -874,7 +881,7 @@ async function handleLoot(payload, sender, ctx) {
     // with its reason on the GM's console; the asker is told only that nothing
     // was carried out, whichever reason it was (E31 review).
     const taken = await lootBody({
-        takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId
+        takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId, askedBy: sender.isGM ? null : sender.id
     });
     if (!taken) return { refused: "nothing was carried out: lootBody took nothing" };
 }
@@ -957,7 +964,9 @@ async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
 
     // `hopeHeld` came before the guards (`prepare`), so the Hope read below follows
     // the guard's own read with nothing awaited in between but the guards themselves.
-    const why = await firstRefusal(sender, payload, ctx, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope);
+    // `guardArmLiving` is asked after every refusal a living beneficiary would get as
+    // well (E05 fix r2-G3): see its note.
+    const why = await firstRefusal(sender, payload, ctx, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope, guardArmLiving);
     if (why) return { refused: why };
     const held = hopeHeld(buyer);
 
@@ -987,9 +996,31 @@ async function handleDespair(payload, sender, ctx) {
     debug(`Adjusted Despair for ${target.name} by ${delta} on behalf of ${sender.name}.`);
 }
 
+    // An Eclipse crossing. Counted on this side, where the allowance is judged since E05
+    // (a crossing beyond it is refused, and counts nothing); the answer's `used`/`left` are
+    // not read by the mover's own sheet, which redraws off its copy of the store, but by 33's
+    // B13 and 30 - the two places that check what the count came back as (E05 fix r1-G5, M10).
 async function handleEclipseMove(payload, sender, ctx) {
     const { applyRecordedMove } = await import("./eclipse.mjs");
-    await applyRecordedMove(payload.actorId);
+    const out = await applyRecordedMove(payload.actorId, { to: payload.to });
+    if (!out) return { refused: "nothing was carried out: no Eclipse is running, or no such character" };
+    if (out.refused) return { refused: out.refused };
+    return { reply: { used: out.used, left: out.left } };
+}
+
+/**
+ * A player's own pre-session note (E05 C6; audit S11-03, S01-08), into the GMs' store
+ * under the sender's id: the user Foundry names, since the packet names nobody - one
+ * that carries another user's id writes only its sender's own note. Past the player
+ * text cap it is refused, as a private card is (secret.mjs). The answer is when the
+ * store wrote it and the row's stamp, which the player's copy takes as the GMs' own.
+ */
+async function handleNoteSave(payload, sender) {
+    const { writeNote, noteTooLong } = await import("./pre-session-note.mjs");
+    if (noteTooLong(payload.text)) return { refused: "the note is longer than a player's words may be" };
+    const out = await writeNote(sender.id, payload.text, { byGm: false });
+    if (!out) return { refused: "nothing was carried out: the note's writer is not a user of this world" };
+    return { reply: { updatedAt: out.updatedAt, stamp: out.stamp } };
 }
 
 /**
@@ -1378,8 +1409,8 @@ export const BRIDGE_ACTIONS = table({
             guardArmPlayerCall, guardArmCallGrants
         ],
         // The player's road asks these itself, around a replayed purchase that is
-        // answered rather than refused (`armPaidByPlayer`).
-        runGuards: [guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope],
+        // answered rather than refused (`armPaidByPlayer`); `guardArmLiving` last of all.
+        runGuards: [guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope, guardArmLiving],
         // The beneficiary read once, and every import the two roads make, before
         // the guards - never later than the handler made them.
         prepare: async payload => {
@@ -1409,8 +1440,17 @@ export const BRIDGE_ACTIONS = table({
         label: "DRPG.Bridge.what.eclipse.move",
         // `knownSender` is new here (E31), as for token.sendBack.
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id }),
+        sanitize: pick({ actorId: as.id, to: as.maybeText }),
         run: handleEclipseMove,
+        answer: "reply",
+        claims: { to: "named on the owner's card only when applyRecordedMove (eclipse.mjs) finds it a room of a scene the character stands on; it counts nothing" }
+    },
+    [ACTION_NOTE_SAVE]: {
+        label: "DRPG.Bridge.what.note.save",
+        // No id travels: the run writes the sender's own note (E05 C6).
+        guards: [knownSender],
+        sanitize: pick({ text: as.text }),
+        run: handleNoteSave,
         answer: "reply"
     }
 });
@@ -1582,9 +1622,23 @@ export function requestSendBack(sceneId, tokenId, position) {
     return ask(ACTION_SENDBACK, { sceneId, tokenId, position });
 }
 
-/** Count an Eclipse crossing on the GM's copy of the world setting. */
-export function requestEclipseMove(actorId) {
-    return ask(ACTION_ECLIPSE_MOVE, { actorId });
+/** Count an Eclipse crossing in the GMs' store; `to` is the room crossed into, for its card. */
+export function requestEclipseMove(actorId, to = null) {
+    return ask(ACTION_ECLIPSE_MOVE, { actorId, to });
+}
+
+/**
+ * This player's own pre-session note, for the GMs (E05 C6): written by the primary into
+ * the GMs' store under the sender's id (`handleNoteSave`), and by a GM into its own store
+ * here. Its value is `{ updatedAt, stamp }`, which pre-session-note.mjs `sendDraft` takes
+ * as the GMs' copy; `quiet` for the note sent again when a GM arrives, which nobody is
+ * waiting on.
+ */
+export function requestNoteSave(text, { quiet = false } = {}) {
+    return ask(ACTION_NOTE_SAVE, { text }, {
+        quiet,
+        local: () => import("./pre-session-note.mjs").then(m => m.writeNote(game.user.id, text, { byGm: false }))
+    });
 }
 
 /**
@@ -2163,11 +2217,24 @@ export async function callGm(actor, {
          * unless the poster insists), no sound, and two buttons nothing wired,
          * because the only wiring lived in the messenger's bubbles. `callCard`
          * is what the render hook in `registerGmBridge` keys on.
+         *
+         * THE TITLE IN THE WORDS, A NEUTRAL ONE IN THE FLAGS (E05's fix round, S1-m2,
+         * 27.09.2026). The words of a whisper are the GMs'; its flags are on every
+         * browser. A trap's alert put "<project> - something set it off" in
+         * `popupTitle`, on every player's copy of the card, at the moment the trap
+         * went off - whatever the GM then ruled. A `gmOnly` card's popup is headed
+         * "A ruling to make", and the real title is the first line of the words it
+         * shows (the `<h3>` above). A card with no owner that is not `gmOnly` names
+         * an action somebody asked for, and keeps its title. What is left in the
+         * flags is that a card went to the GMs, and when - chat metadata, E06's.
+         * Measured in 30's trap phase: p2's copy of the alert held the project's
+         * name before this, and holds nothing of it after.
          */
         try {
             await whisperToGms(content, {
                 flags: { [MODULE_ID]: {
-                    callCard: true, gmPopup: true, popupTitle: title,
+                    callCard: true, gmPopup: true,
+                    popupTitle: gmOnly ? game.i18n.localize("DRPG.Action.murderRulingTitle") : title,
                     sfx: { key: "gmAsk", gm: true }
                 } }
             });

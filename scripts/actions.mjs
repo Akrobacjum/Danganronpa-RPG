@@ -11,6 +11,7 @@
  */
 
 import { MODULE_ID, FLAGS, ACTIONS_RESOURCE, STARTING } from "./config.mjs";
+import { isDeceased } from "./settings.mjs";
 import { isWounded } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { debug, plural } from "./utils.mjs";
@@ -333,10 +334,12 @@ export async function resetActionsFor(actor, { keepGrants = false } = {}) {
     // deliberate exception: the guide gives them "tyle akcji co gracze", and
     // they are spent on Move and Meddle.
     //
-    // Both flags are read directly rather than through `chapter.mjs` and
-    // `monocub.mjs`, because monocub.mjs already imports THIS file - going the
-    // other way would close an import cycle.
-    const dead = Boolean(actor.getFlag(MODULE_ID, FLAGS.deceased));
+    // The Monocub flag is read directly rather than through `monocub.mjs`,
+    // because monocub.mjs already imports THIS file - going the other way would
+    // close an import cycle. Death is asked of settings.mjs, the leaf (E05 C9),
+    // and as the table knows it (rule A): a refill is a world write every
+    // browser sees, and one that skipped a body nobody has found would name it.
+    const dead = isDeceased(actor);
     if (dead && !actor.getFlag(MODULE_ID, FLAGS.monocub)) return null;
 
     const { total, wounded } = actionBudget(actor);

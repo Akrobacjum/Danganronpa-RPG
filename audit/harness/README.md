@@ -106,7 +106,7 @@ release or stage the status belongs to.
 | 62 | scenarios/62-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56) |
 | 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
 | 71 | scenarios/71-sheet.mjs | local-gate | planned | E45 | the sheet on two accounts on a real v14 |
-| 72 | scenarios/72-canary.mjs | ci | exists | E30 | what a player's browser holds: the canary's self-test, and planted secrets at rest (E43 extends it to the season) |
+| 72 | scenarios/72-canary.mjs | ci | exists | E30 | what a player's browser holds: the canary's self-test, planted secrets at rest, and (E05) a chapter, scanned after every phase with the world-secrets rule; E43 takes it to the season |
 | 81 | scenarios/81-render-budget.mjs | local-gate | planned | E37 | render counts per event on real sheets (E53 compares) |
 | 82 | scenarios/82-two-gms.mjs | ci | planned | E38 | two GMs: sync both ways, a change of primary |
 | 83 | scenarios/83-roll-integrity.mjs | local-gate | planned | E33 | every forged roll write flagged, every legal path clean |
@@ -281,6 +281,20 @@ number is not reused for a scenario.
   once (LIVE-E04-11) are for a table. A client that joins is announced to the
   others only once it is ready; whether v14 fires their `userConnected` before
   its listeners exist is LIVE-E04-12.
+- **What E05 moved out of world data** (E05, 1.2.64). A player's console is
+  stood in for by 72-canary's world scan (`lib/canary.mjs` `worldScan`, against
+  `scripts/world-secrets.mjs`) on this Foundry shim's world: LIVE-E05-01. The
+  1.2.64 lifts run on world data the suite and the scenarios plant, not on a
+  table's world (LIVE-E05-02); v14's `ForcedReplacement` and `ForcedDeletion`
+  are `lib/operators.mjs`'s model (LIVE-E05-09). The crossing card's timing
+  (LIVE-E05-06), the owed Despair reaching every HUD (LIVE-E05-07), the verdict's
+  pickers with their sound (LIVE-E05-08; windows answered from a queue) and a
+  note that waits for a GM in either order of `connect` (LIVE-E05-10) are this
+  machine's. Not modelled at all: the dead marker at the publication and on a
+  lone finder's screen, and a found trace's drawn name and image (no canvas:
+  LIVE-E05-03, -05); the victim leaving the room's voice (no LiveKit:
+  LIVE-E05-04); avclient-livekit's own setting, whose shape was read from its
+  source (LIVE-E05-11).
 - **Versions** (E30, `lib/versions.mjs`). Foundry and Daggerheart are the
   versions `module.json` says the module is verified on; the companion modules
   it requires or recommends take theirs from an installed Foundry when

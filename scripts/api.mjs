@@ -108,7 +108,7 @@ import {
     presentBullet, presentDialog, presentedThisChapter, openObjectionLog, inClassTrial
 } from "./trial.mjs";
 import {
-    isDeceased, deathRecord, livingStudents, killCharacter, reviveCharacter,
+    isDeceased, isDeadForGm, deathRecord, livingStudents, killCharacter, reviveCharacter, publishDeath,
     discoverBody, revealAllBulletTypes, sweepTruthBullets,
     openDeathDialog, openBodyDiscoveryDialog, openChapterEndDialog
 } from "./chapter.mjs";
@@ -355,7 +355,8 @@ export const DrpgApi = {
     renderDespairBar,
 
     /* ---- despair overflow (Z10) ---------------------------------------- *
-     * The counter fed by Despair that would not fit in a full pool.
+     * The counter fed by Despair that would not fit in a full pool - the GMs'
+     * since E05 C12, so `overflowCount` answers 0 on a player's client.
      * `addOverflow` is here for a GM repairing a session by hand; the rest are
      * readers. There is deliberately no "fire it now": a darkening belongs to
      * a time-of-day boundary, and one conjured in the middle of an hour would
@@ -742,6 +743,10 @@ export const DrpgApi = {
 
     /** The dead stay on the map but stop counting as being in the room. */
     isDeceased,
+    /** Dead as this browser may know it: on a GM every death, the ones nobody has found included (E05 C10). */
+    isDeadForGm,
+    /** Make a death nobody has found the table's: the flag, the marker, the Truth Bullets gone (E05 C10). */
+    publishDeath,
     deathRecord,
     livingStudents,
 
@@ -781,7 +786,12 @@ export const DrpgApi = {
     /* ---- the GM's Investigation workshop -----------------------------------
      * Five clues, scaled trivial to desperate, and a read-out of who has
      * reached what. GM-only in the strongest sense: it reads the answer key in
-     * bulk, and the answer key only exists on a GM's browser. */
+     * bulk, and the answer key only exists on a GM's browser. The plan too,
+     * since E05 (1.2.64; audit S01-01): it was a world setting until then, and
+     * `keyPlan` - which asks nobody who is calling - read the whole of it on
+     * any player's console. It reads the GMs' store now, and on a player's
+     * browser it is the clock's chapter and five blank slots (72-canary asks
+     * it on p1). */
 
     keyPlan,
     setKeyPlan,

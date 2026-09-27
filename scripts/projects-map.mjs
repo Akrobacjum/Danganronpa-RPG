@@ -16,10 +16,13 @@
  * ownership - Foundry uses ownership for control, not for sight, and the
  * `hidden` flag says "GM only", which cannot express "these three players". So
  * the token carries a neutral name, a neutral image and one countdown id, and
- * nothing else. The id is not a leak: the projects setting it points into is
- * itself ownership-gated, so a client that may not see the project cannot
- * resolve the id into anything. The same contract Remnants have run on since
- * the crime-scene names were taken off the map.
+ * nothing else. The id adds nothing a console does not already hold: the
+ * Countdowns setting it points into - the name, the progress and the ownership
+ * map - is a world setting every browser holds, so a secret project is hidden
+ * from the interface, not from the console (audit S09-05; the killer and the
+ * trap's condition are the GMs' since E05, the name moves in E43). The same
+ * contract Remnants have run on since the crime-scene names were taken off the
+ * map.
  *
  * WHO SEES IT is `knowsProject` in projects.mjs, applied per client by
  * visibility.mjs - one predicate, no state of its own. A secret project's
@@ -60,8 +63,24 @@ export function projectIdOf(tokenDoc) {
    they are allowed to SEE is decided per client, not by this level. */
 const PROJECT_OWNERSHIP = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
 
+/**
+ * THE SHARED ACTOR, FOUND BY ITS FLAG (E05 C14, 27.09.2026; audit S05-41), as the
+ * Remnants' is (remnants.mjs `findRemnantActor`): it was looked up by its name, and a
+ * GM's own actor called "DRPG Project" was raised to OBSERVER for every player at the
+ * next scene draw. `PROJECT_TOKEN_FLAG` decides - the base actor carries it as `true`,
+ * the tokens as their countdown's id - and the name is asked only when no actor carries
+ * it, and only of one that holds nothing (no item, no effect). Pure over what it is
+ * handed, so the suite drives it with fakes.
+ */
+export function findProjectActor(actors = game.actors) {
+    const all = [...(actors ?? [])];
+    const count = c => c?.size ?? c?.length ?? 0;
+    return all.find(actor => actor?.getFlag?.(MODULE_ID, PROJECT_TOKEN_FLAG))
+        ?? all.find(actor => actor?.name === PROJECT_ACTOR && !count(actor.items) && !count(actor.effects)) ?? null;
+}
+
 async function ensureProjectActor() {
-    let actor = game.actors.getName(PROJECT_ACTOR);
+    let actor = findProjectActor();
     if (actor) {
         /* The base actor moves off the hazard sign with its tokens - only from the exact
            old default, since an image a GM chose on purpose is a choice (the Remnants'
@@ -191,9 +210,9 @@ export async function placeProjectToken(countdownId, { scene = null } = {}) {
     try {
         const [created] = await target.createEmbeddedDocuments("Token", [{
             /* NEUTRAL, because this reaches every browser. The project's real
-               name is in the countdown, which is ownership-gated; anybody
-               allowed to know reads it from there (`remnant-ring.mjs` does the
-               same for traces). */
+               name is in the countdown, hidden from the interface and not from
+               the console (S09-05); anybody allowed to know reads it from there
+               (`remnant-ring.mjs` does the same for traces). */
             name: game.i18n.localize("DRPG.Project.tokenName"),
             actorId: actor.id,
             actorLink: false,
@@ -345,7 +364,7 @@ export async function syncProjectTokens() {
     }
     if (!game.user.isGM || !canvas?.scene) return 0;
     // The base actor's own housekeeping (ownership, the hammer), when there is one to keep.
-    if (game.actors.getName(PROJECT_ACTOR)) await ensureProjectActor();
+    if (findProjectActor()) await ensureProjectActor();
 
     let touched = 0;
     for (const project of allProjects() ?? []) {

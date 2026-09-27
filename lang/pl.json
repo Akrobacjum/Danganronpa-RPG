@@ -445,7 +445,7 @@
       "noMonokumas": "Asystenci GM-a nie dostają puli Despair.",
       "nobody": "- nikt -",
       "implicitHint": "Nigdy nie przypisano - domyślnie pierwszy Monokuma.",
-      "footnote": "* = nieprzypisany, działa domyślny. Wybierz „- nikt -”, by trzymać ucznia poza wszystkimi pulami: Mastermind, BN, szablon."
+      "footnote": "* = nieprzypisany, działa domyślny. „- nikt -” trzyma ucznia poza wszystkimi pulami - BN, szablon - a przeglądarka każdego gracza może odczytać, kto jest tak ustawiony."
     },
     "Despair": {
       "label": "Despair",
@@ -457,6 +457,12 @@
       "notEnoughPool": "Ta pula ma {held} Despair; poproszono o {needed}.",
       "hopeAlreadyFull": "Ich Hope jest już na maksimum.",
       "hopeConverted": "{who} zamienia część swojego Despair - zyskujesz {n} Hope.",
+      "owed": {
+        "one": "{n} do spłaty",
+        "few": "{n} do spłaty",
+        "many": "{n} do spłaty",
+        "other": "{n} do spłaty"
+      },
       "poolsTitle": "Pule Despair",
       "poolsIntro": "Nazwij każdą pulę. Nie musi pasować do konta.",
       "poolName": "Nazwa puli",
@@ -656,6 +662,7 @@
       "murderApprovedGm": "Direct Murder ({name}) dozwolony. Rozstrzygnie się z końcem Eclipse.",
       "murderRefusedGm": "Direct Murder ({name}) odrzucony. Akcja przepada.",
       "murderNotParked": "To zgłoszenie już nie czeka - Eclipse się skończył albo już je rozstrzygnięto.",
+      "murderRulingTitle": "Decyzja do podjęcia",
       "murderAsk": "Direct Murder w ciemności: {killer} sam na sam z: {victim} w: {room}. Otworzyć incydent?",
       "murderAskNote": "Pytano o to przy zgłoszeniu i pytanie wciąż czeka. Odmowa niczego nie otwiera; akcja przepada tak czy inaczej.",
       "sabotageSeenOn": "Robisz to na oczach innych. Akcja jest już wydana, więc sabotaż idzie dalej."
@@ -1075,10 +1082,10 @@
         "other": "{n} ocalałych dostaje {kind} Level Up."
       },
       "blackenedRewarded": {
-        "one": "Blackened pozostaje anonimowy i w grze, i dostaje {kind} Level Up.",
-        "few": "{n} Blackened pozostaje anonimowych i w grze, każdy dostaje {kind} Level Up.",
-        "many": "{n} Blackened pozostaje anonimowych i w grze, każdy dostaje {kind} Level Up.",
-        "other": "{n} Blackened pozostaje anonimowych i w grze, każdy dostaje {kind} Level Up."
+        "one": "Blackened pozostaje anonimowy i w grze; jego {kind} Level Up czeka na następny Level Up klasy.",
+        "few": "{n} Blackened pozostaje anonimowych i w grze; {kind} Level Up każdego z nich czeka na następny Level Up klasy.",
+        "many": "{n} Blackened pozostaje anonimowych i w grze; {kind} Level Up każdego z nich czeka na następny Level Up klasy.",
+        "other": "{n} Blackened pozostaje anonimowych i w grze; {kind} Level Up każdego z nich czeka na następny Level Up klasy."
       },
       "despairFilled": "Despair napełniony do maksimum: {who}.",
       "newRule": "Blackened wprowadza jedną nową zasadę własnego wyboru, za zgodą Monokumy.",
@@ -1657,6 +1664,17 @@
       "deadPanelTitle": "Nie żyjesz",
       "deadPanelNote": "Zmarli nie wykonują akcji i nie wydają Hope. Zachowujesz kartę i głos przy stole. Przywrócony jako Monocub, ten panel staje się Move i Confusion.",
       "deadCannotAct": "{name} nie żyje i nie może wykonywać akcji.",
+      "deadUnfound": "Martwy, nieodnaleziony",
+      "keepSecretUntilFound": "Zachowaj to dla GM-ów, dopóki ciało nie zostanie znalezione: bez flagi, bez znacznika, a ich Truth Bullets zostają do tego czasu",
+      "keptUntilFound": "Zachowane dla GM-ów, dopóki ciało nie zostanie znalezione albo nie ujawnisz tego w oknie graczy. Stół jeszcze nic nie widzi: bez flagi, bez znacznika, a ich Truth Bullets są wciąż na arkuszu.",
+      "nobodyFoundYou": "Nikt jeszcze nie znalazł twojego ciała.",
+      "youFoundBody": "W {room} znajdujesz ciało: {name}. Nikt inny jeszcze go nie widział i nic nie zostaje ogłoszone.",
+      "deathsStillSecret": {
+        "one": "{n} śmierć, której nikt nie odkrył, jest wciąż znana tylko GM-om. Dopóki nie ujawnisz jej w oknie graczy, ten proces traktuje tego ucznia jak żywego - głosuje i dostaje Level Up razem z klasą - i nie pyta o jego zabójcę, który liczy się jako Blackened tylko za śmierć znaną stołowi.",
+        "few": "{n} śmierci, których nikt nie odkrył, są wciąż znane tylko GM-om. Dopóki nie ujawnisz ich w oknie graczy, ten proces traktuje tych uczniów jak żywych - głosują i dostają Level Up razem z klasą - i nie pyta o ich zabójców, którzy liczą się jako Blackened tylko za śmierć znaną stołowi.",
+        "many": "{n} śmierci, których nikt nie odkrył, jest wciąż znanych tylko GM-om. Dopóki nie ujawnisz ich w oknie graczy, ten proces traktuje tych uczniów jak żywych - głosują i dostają Level Up razem z klasą - i nie pyta o ich zabójców, którzy liczą się jako Blackened tylko za śmierć znaną stołowi.",
+        "other": "{n} śmierci, których nikt nie odkrył, jest wciąż znanych tylko GM-om. Dopóki nie ujawnisz ich w oknie graczy, ten proces traktuje tych uczniów jak żywych - głosują i dostają Level Up razem z klasą - i nie pyta o ich zabójców, którzy liczą się jako Blackened tylko za śmierć znaną stołowi."
+      },
       "bodyTitle": "Znaleziono ciało",
       "whereBody": "Który pokój?",
       "whoseBody": "Czyje ciało? (opcjonalne)",
@@ -1965,6 +1983,7 @@
       "cardPlayer": "Coś tu nie pasuje. Co to znaczy, nie widać na pierwszy rzut oka - użyj Observe w tym pokoju, by to ustalić.",
       "cardUnanalyzed": "Jeszcze nie wiesz, co to jest. Użyj Analyze, by się dowiedzieć.",
       "tokenName": "Ślad",
+      "keptOnTokens": {"one": "{n} ślad zachowuje na swoim żetonie, który ma każda przeglądarka, flagi klucza odpowiedzi: migracja nie miała wiersza, do którego by je przeniosła, albo stanęła przeciw nim późniejsza poprawka. game.drpg.migrateRemnants() w konsoli go wskazuje.", "few": "{n} ślady zachowują na swoich żetonach, które ma każda przeglądarka, flagi kluczy odpowiedzi: migracja nie miała wiersza, do którego by je przeniosła, albo stanęła przeciw nim późniejsza poprawka. game.drpg.migrateRemnants() w konsoli wskazuje każdy.", "many": "{n} śladów zachowuje na swoich żetonach, które ma każda przeglądarka, flagi kluczy odpowiedzi: migracja nie miała wiersza, do którego by je przeniosła, albo stanęła przeciw nim późniejsza poprawka. game.drpg.migrateRemnants() w konsoli wskazuje każdy.", "other": "{n} śladu zachowuje na swoich żetonach, które ma każda przeglądarka, flagi kluczy odpowiedzi: migracja nie miała wiersza, do którego by je przeniosła, albo stanęła przeciw nim późniejsza poprawka. game.drpg.migrateRemnants() w konsoli wskazuje każdy."},
       "finalSubject": "Final Truth",
       "cardEditNote": "Zapisywane, gdy opuścisz pole, i kopiowane na token oraz każdy Truth Bullet wzięty z tego śladu.",
       "cardSaveFailed": "Nie zapisało się. Zajrzyj do konsoli.",
@@ -2393,7 +2412,9 @@
       "cardOpenManager": "Otwórz okno Projekty",
       "cardShared": "Każdy żeton projektu jest kopią tego aktora. Otwórz projekt z jego żetonu na mapie.",
       "cardUnknown": "Nie wiesz, czym to jest.",
-      "frozenNoProgress": "{name} jest sabotowany i nie ruszy do przodu, dopóki nie skończy się naprawa."
+      "frozenNoProgress": "{name} jest sabotowany i nie ruszy do przodu, dopóki nie skończy się naprawa.",
+      "everyone": "Jawny: widzą go wszyscy. Zaznaczeni to ci, którzy wiedzieli przed ujawnieniem - oni i budujący będą wiedzieć, jeśli projekt znów zostanie utajniony.",
+      "builderStays": "{name} buduje „{project}”: budującego nie można odsunąć od jego własnego projektu."
     },
     "RollDialog": {
       "locked": "Nie ty o tym decydujesz. Przewaga i doświadczenia to Hope Calls - zapytaj GM-a.",
@@ -2433,6 +2454,7 @@
         "project.unsabotage": "Naprawa",
         "token.sendBack": "Cofnięcie tokena",
         "eclipse.move": "Ruch w Eclipse",
+        "note.save": "Notatka przed sesją",
         "despair.adjust": "Despair",
         "observe.resolve": "Observe",
         "analyze.resolve": "Analyze",
@@ -2493,7 +2515,7 @@
         "actionLocked": "Ta akcja jest na razie zablokowana.",
         "actionSpent": "Ta jest w tym incydencie już zużyta.",
         "actionBlocked": "Na razie masz to zablokowane.",
-        "nothingLeft": "Nie ma już czego wydawać. Sanity i Health wyczerpane.",
+        "nothingLeft": "Nie ma już czego wydawać.",
         "movedOn": "Od tej akcji incydent poszedł dalej.",
         "notThatRepair": "To nie jest naprawa, którą utworzył twój sabotaż.",
         "notWhereItStood": "Token nie stał tam przed chwilą.",
@@ -2738,7 +2760,8 @@
       "introMany": "{reason} Wybierz {picks} ulepszenia. To samo możesz wziąć więcej niż raz.",
       "reason": {
         "standard": "Wskazaliście Blackened.",
-        "reinforced": "Blackened wyszedł z błędnego głosowania."
+        "reinforced": "Blackened wyszedł z błędnego głosowania.",
+        "withClass": "Reinforced Level Up za wyjście z błędnego głosowania czekał na ten i przychodzi razem z nim."
       },
       "buttonTooltip": "Level Up",
       "whichKind": "Jaki Level Up zdobył(a) <strong>{actor}</strong>?",
@@ -2767,6 +2790,7 @@
       },
       "offerTitle": "Masz Level Up do wykorzystania",
       "offered": "{kind}. Naciśnij przycisk obok swojego imienia na arkuszu i wybierz - liczba wyborów: {n}.",
+      "deferred": "Po błędnym głosowaniu Twój Reinforced Level Up czeka na następny Level Up klasy: wybierzesz go (liczba wyborów: {n}) razem z Level Upem klasy, gdy głosowanie poprawnie wskaże Blackened, albo przy werdykcie Final Trial. Przepada, jeśli wcześniej zginiesz.",
       "offerSent": "{name} - powiadomienie wysłane; wybór należy teraz do gracza.",
       "offerFailed": "Nie udało się zapisać oferty na tej postaci.",
       "notOfferedHere": "{player} chce wykorzystać Level Up postaci {name}, a przeglądarka tego GM-a nie ma dla niej żadnej oferty - nie dostała jeszcze kopii od pozostałych GM-ów albo nie ma żadnych ofert. Jeśli oferta była, złóż ją ponownie albo przywróć sprawę z kopii (panel GM-a).",
@@ -2782,7 +2806,8 @@
       "bulletText": "Zabrane z ciała: {who}.",
       "traceNote": "Ktoś przeszukał to ciało. Brakuje: {items}.",
       "noCharacter": "Nie grasz postacią, którą moduł zna, więc nie ma gdzie tego umieścić.",
-      "took": "Bierzesz „{item}”. Warto pamiętać, skąd - to teraz twój dowód."
+      "took": "Bierzesz „{item}”. Warto pamiętać, skąd - to teraz twój dowód.",
+      "tookUnfound": "Bierzesz „{item}”. Nikt jeszcze nie znalazł tego ciała: Truth Bullet tej rzeczy trafi do twoich dowodów, gdy śmierć wyjdzie na jaw."
     },
     "Redacted": {
       "tabLocked": "To oni mają ci powiedzieć, nie ty przeczytać.",
@@ -2841,6 +2866,7 @@
       "frame": "Mylny trop",
       "frameHint": "Zostaw coś, co wskazuje na kogoś innego. Wymaga {n} lub więcej, a ślad podkłada tak czy inaczej.",
       "whichTrace": "Który ślad",
+      "yourCopy": "{name} (twoja kopia)",
       "coverAction": "Zatrzyj ślady",
       "trailAction": "Mylny trop",
       "notFound": "Nie ma takiego śladu.",
@@ -2953,7 +2979,8 @@
         "many": "{n} graczy odesłanych do głównego pokoju głosowego.",
         "other": "{n} graczy odesłanych do głównego pokoju głosowego."
       },
-      "resetRefused": "Nie ma czego resetować: głos per pokój jest wyłączony, LiveKit nieaktywny albo prowadzi go klient innego GM-a."
+      "resetRefused": "Nie ma czego resetować: głos per pokój jest wyłączony, LiveKit nieaktywny albo prowadzi go klient innego GM-a.",
+      "liveKitSecret": "LiveKit AVClient jest ustawiony na własny serwer, a jego sekret API leży w ustawieniu świata, które trafia do przeglądarki każdego gracza. Kto go ma, może połączyć się z każdym pokojem głosowym. Ten moduł nie przeniesie ustawienia innego modułu; serwer, który sam wydaje tokeny dostępu, na przykład Tavern, trzyma sekret z dala od przeglądarek."
     },
     "States": {
       "drpgBreakdown": {
@@ -3043,6 +3070,10 @@
       "save": "Zapisz",
       "saved": "Zapisano.",
       "saveFailed": "Nie udało się zapisać notatki. Powiedz GM-owi.",
+      "sentToGms": "Wysłana do GM-ów.",
+      "keptUntilGm": "Czeka tutaj, aż połączy się GM.",
+      "changedElsewhere": "Ta notatka zmieniła się, odkąd ją otwarto. Twój tekst nadal tu jest: zapisz ponownie, aby zastąpił nowszą.",
+      "tooLong": "Notatka jest za długa, żeby wysłać ją GM-om - ponad {kb} KB.",
       "statusEmpty": "Jeszcze nic nie napisano",
       "statusWritten": "Napisana",
       "statusToday": "Napisana dzisiaj",
@@ -3128,6 +3159,8 @@
         "experiences": "Każdy ma swoje doświadczenia",
         "items": "Każdy coś nosi",
         "assignments": "Każdego ucznia pilnuje Monokuma",
+        "nobodyPublic": "Mastermind zasila pulę Despair",
+        "liveKitSecret": "Sekretu serwera głosu nie ma w świecie",
         "sound": "Pliki dźwiękowe",
         "rooms": "Mapa ma pokoje",
         "cursor": "Kursor GM-a jest prywatny (zalecane)",
@@ -3143,7 +3176,8 @@
         "ultimate": "Tytuł to postać. To zdanie, które ktoś pisze, więc to otwiera arkusz zamiast wymyślać za niego.",
         "experiences": "Pierwszy rzut, który chce doświadczenia, to moment, w którym zauważa się jego brak - i to w środku sceny.",
         "items": "Przedmiot startowy. Uczeń z pustą torbą nie ma czym szukać, nie ma co oddać i nie ma czym zabić.",
-        "assignments": "Despair z rzutów ucznia idzie do puli jego Monokumy. Uczeń celowo ustawiony na nikogo, na przykład Mastermind, nie zasila żadnej puli i tak ma być.",
+        "assignments": "Despair z rzutów ucznia idzie do puli jego Monokumy. Uczeń celowo ustawiony na nikogo - BN, szablon - nie zasila żadnej puli i tak ma być; przeglądarka każdego gracza może odczytać, kto to jest.",
+        "nobodyPublic": "Mastermind jest w Despair Flow ustawiony tak, że nie zasila żadnej puli. Ten podział to dane świata, które odczyta przeglądarka każdego gracza, a jedyny uczeń poza pulami rzuca się w oczy - przypisz go do Monokumy jak każdego innego ucznia.",
         "sound": "Ten moduł nie zawiera dźwięków i żadnych nie przypisuje - pliki są twoje, ta sama umowa co przy playlistach. Przypisz, co chcesz, w panelu Dźwięk; puste pole gra ciszą z wyboru, nie z winy.",
         "rooms": "Pokoje to regiony sceny. Ruch, Search, Listen i każdy incydent są rozstrzygane w ich kategoriach.",
         "cursor": "Foundry pokazuje stołowi każdy kursor z nazwiskiem - transmisja na żywo z tego, na co patrzysz. To wyłącza ją dla dwóch ról GM-a i zostawia kursory graczy w spokoju.",
@@ -3369,7 +3403,7 @@
         "many": "Danganronpa RPG: {n} rzeczy w tym świecie zaktualizowano do {version}.",
         "other": "Danganronpa RPG: {n} rzeczy w tym świecie zaktualizowano do {version}."
       },
-      "failed": "Danganronpa RPG: migracja danych zatrzymała się w pół drogi - {clauses}. Nic nie oznaczono jako zmigrowane; szczegóły w konsoli."
+      "failed": "Danganronpa RPG: migracja danych zatrzymała się w pół drogi - {clauses}. Nic nie oznaczono jako zmigrowane, a przy następnym wczytaniu świata spróbuje ponownie; szczegóły w konsoli."
     },
     "Popup": {
       "moreTip": {
@@ -4567,7 +4601,17 @@
         "trapPlants": "Przedmioty czekające w pokojach",
         "observe": "Deklaracje Observe czekające na rzut",
         "offers": "Oferowane Level Upy",
-        "discovery": "Pokoje odkryte przez każdą postać"
+        "discovery": "Pokoje odkryte przez każdą postać",
+        "projectSecrets": "Kto buduje każdą pułapkę i co ją uruchamia",
+        "pendingMurders": "Zgłoszenia Direct Murder w ciemności",
+        "eclipseMoves": "Kto ile razy przeszedł w czasie Eclipse",
+        "keyPlan": "Plan Key Remnants, rozdział po rozdziale",
+        "notes": "Notatki graczy przed sesją",
+        "deaths": "Śmierci, których nikt jeszcze nie odkrył",
+        "deferredOffers": "Reinforced Level Upy czekające na klasę",
+        "overflow": "Licznik Despair overflow",
+        "despairOwed": "Despair, który każda pula jest winna za zamiany na Hope",
+        "lootTraces": "Co zabrano z każdego ciała, i jego ślad"
       },
       "row": {
         "traces": {
@@ -4622,7 +4666,20 @@
           "many": "{n} uzbrojonych pułapek na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać.",
           "other": "{n} uzbrojonej pułapki na przedmiot nie ma w tej przeglądarce podłożonego przedmiotu: nie mogą zadziałać."
         },
+        "projectSecrets": {
+          "one": "{n} morderstwo pośrednie (z {of}) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: jego pułapka nie może się uzbroić ani zadziałać.",
+          "few": "{n} morderstwa pośrednie (z {of}) nie mają w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.",
+          "many": "{n} morderstw pośrednich (z {of}) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać.",
+          "other": "{n} morderstwa pośredniego (z {of}) nie ma w tej przeglądarce zabójcy, warunku ani wyzwalacza: ich pułapki nie mogą się uzbroić ani zadziałać."
+        },
+        "notes": {
+          "one": "{n} notatka przed sesją jest oznaczona jako napisana, a ta przeglądarka jej nie ma albo ma starszą.",
+          "few": "{n} notatki przed sesją są oznaczone jako napisane, a ta przeglądarka ich nie ma albo ma starsze.",
+          "many": "{n} notatek przed sesją jest oznaczonych jako napisane, a ta przeglądarka ich nie ma albo ma starsze.",
+          "other": "{n} notatki przed sesją jest oznaczone jako napisane, a ta przeglądarka ich nie ma albo ma starsze."
+        },
         "tracesOnToken": {"one": "{n} ślad na mapie (z {of}) wciąż ma klucz odpowiedzi na swoim żetonie: przenosi się go do rejestru, a nie przywraca.", "few": "{n} ślady na mapie (z {of}) wciąż mają klucze odpowiedzi na swoich żetonach: przenosi się je do rejestru, a nie przywraca.", "many": "{n} śladów na mapie (z {of}) wciąż ma klucze odpowiedzi na swoich żetonach: przenosi się je do rejestru, a nie przywraca.", "other": "{n} śladu na mapie (z {of}) wciąż ma klucze odpowiedzi na swoich żetonach: przenosi się je do rejestru, a nie przywraca."},
+        "tracesKept": {"one": "{n} ślad na mapie (z {of}) zachowuje na swoim żetonie, który ma każda przeglądarka, flagi klucza odpowiedzi - awans Faint Prep, przeciw któremu stanęła późniejsza poprawka, albo flagi bez wiersza w rejestrze, do którego by je przeniesiono: rozstrzyga o nim GM, a game.drpg.migrateRemnants() go wskazuje.", "few": "{n} ślady na mapie (z {of}) zachowują na swoich żetonach, które ma każda przeglądarka, flagi kluczy odpowiedzi - awans Faint Prep, przeciw któremu stanęła późniejsza poprawka, albo flagi bez wiersza w rejestrze, do którego by je przeniesiono: rozstrzyga o każdym GM, a game.drpg.migrateRemnants() je wskazuje.", "many": "{n} śladów na mapie (z {of}) zachowuje na swoich żetonach, które ma każda przeglądarka, flagi kluczy odpowiedzi - awans Faint Prep, przeciw któremu stanęła późniejsza poprawka, albo flagi bez wiersza w rejestrze, do którego by je przeniesiono: rozstrzyga o każdym GM, a game.drpg.migrateRemnants() je wskazuje.", "other": "{n} śladu na mapie (z {of}) zachowuje na swoich żetonach, które ma każda przeglądarka, flagi kluczy odpowiedzi - awans Faint Prep, przeciw któremu stanęła późniejsza poprawka, albo flagi bez wiersza w rejestrze, do którego by je przeniesiono: rozstrzyga o każdym GM, a game.drpg.migrateRemnants() je wskazuje."},
         "leftNotPrimary": {"one": "{n} stary wiersz ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie go game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).", "few": "{n} stare wiersze ofert lub mgły tego świata zostają w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).", "many": "{n} starych wierszy ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn).", "other": "{n} starego wiersza ofert lub mgły tego świata zostaje w tej przeglądarce: przejmuje je tylko przeglądarka głównego GM-a. Gdy ten świat jest tu otwarty jako główny, przejmie je game.drpg.gmStoreReclaim (diagnostyka podaje magazyn)."}
       },
       "healthTitle": "Sprawa w tej przeglądarce",

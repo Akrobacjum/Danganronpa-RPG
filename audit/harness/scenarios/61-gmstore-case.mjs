@@ -41,6 +41,12 @@
  *   G  a trap's planted object (S08-19): a second GM plants it, the primary - who
  *      hands a player's Search its find - finds it and gives it to the searcher,
  *      and its use sets the trap off on the primary's chat.
+ *   P  the same trap's killer, condition and trigger (E05, S09-05): the second GM,
+ *      which joined G with an empty browser, holds them by the store's exchange,
+ *      and projectMeta none of them; its Rearm reaches the primary's armed map. And
+ *      a Direct Murder parked through the primary in an Eclipse (S10-01) is held by
+ *      the second GM, whose lights judge it. And the Key Remnant plan (S01-01): each
+ *      GM writes one slot from a plan read before either wrote, and both keep both.
  *   I  the fog ledger (S07-01): rooms found and one unticked while the second GM
  *      is away reach it when it comes back, the untick with them.
  *   H1 a Level Up offered on the primary (S03-11): its owner's copy is lit at the
@@ -80,6 +86,19 @@
  *      is scored or copied, and the GM is told once; a hydration three seconds late
  *      is waited for and the throw scored and paid for; and the missing key's refusal
  *      hands the price back too.
+ *   N  an owner's ask for their Eclipse crossings (E05 fix r1-G3): with the primary's
+ *      crossings store held unhydrated nothing is sent; the row another GM counted
+ *      arrives, the hold ends, and the owner's copy reads it.
+ *   O  the pre-session note (E05 fix r1-G4): a player's ask is answered only once the
+ *      primary's notes store holds the other GMs' rows; then every GM leaves, p1 keeps
+ *      a note, and a GM that p1 hears connect before its world has loaded gets it.
+ *   Q  the owed Despair (E05 fix r2-G2): two GMs convert from one pool, neither having heard
+ *      the other, and both hold both debts; the time of day pays the pool once, and a GM that
+ *      comes back alone with the rows its browser held does not pay them again.
+ *   R  a death taken back while its owner's browser was closed (E05 fix r2-G3): p4 holds a
+ *      kept death, leaves, the GM revives it, and p4 back reads its character alive.
+ *   S  two GMs' loots of one body nobody has found (E05 fix r2-G3): each serves one without
+ *      having heard of the other, both are owed, and the publication gives both takers theirs.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -89,14 +108,16 @@ export const accounts = [
     { who: "gma", id: "USERGMA000000000", name: "GM A", role: 4, character: null, color: "#aa66ff", late: true },
     { who: "gmb", id: "USERGMB000000000", name: "GM B", role: 4, character: null, color: "#ffaa66", late: true },
     // A browser that ran 1.2.62 and holds nothing but its old store's clear of the Mastermind (E7).
-    { who: "gmc", id: "USERGMC000000000", name: "GM C", role: 4, character: null, color: "#aaff66", late: true }
+    { who: "gmc", id: "USERGMC000000000", name: "GM C", role: 4, character: null, color: "#aaff66", late: true },
+    // A player whose browser closes and comes back (R, E05 fix r2-G3): the seeded three cannot.
+    { who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#66aa66", late: true }
 ];
 
 const PROBE_KEY = "drpg-harness.probe";
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
+export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
     const GM2 = "USERGM2000000000", GMA = "USERGMA000000000";
 
     /* ------------------------------ A. the harness ------------------------------ */
@@ -501,7 +522,8 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     await p1.eval(RECORD_CASTS);
     const castsNow = client => client.eval(`return globalThis.__casts.length;`);
     const castsSince = (client, n) => client.eval(`return globalThis.__casts.slice(${n});`);
-    const castStampsOn = client => client.eval(`${CAST} return Object.fromEntries(["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "betrayal"]
+    // Every field but the swing memo, as a copy is sent them - the method among them since E05 C8.
+    const castStampsOn = client => client.eval(`${CAST} return Object.fromEntries(S.CAST_FIELDS.filter(f => f !== "swung")
         .map(f => [f, S.castStore.stampOf("record", f)]));`);
     /* The killer's opening roll is thrown on p3's client with the harness's dice: forced to a
        critical, which always opens the incident. Left random, it failed once in six runs
@@ -536,6 +558,21 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         && answeredF.p3.length === 1 && answeredF.p3[0].cast?.killerId === IDS.chie && answeredF.p3[0].cast?.victimId === IDS.daichi
         && !("swung" in (answeredF.p3[0].cast ?? {})) && J(answeredF.p3[0].stamps) === J(stampsF)
         && J(answeredF.p1) === J([{ from: IDS.gm, cast: {}, stamps: seatsF }]), J({ answeredF, stampsF, p3AfterGm, onGmF, onGm2F }));
+
+    /* F7 (E05 C8; audit S04-08): the incident's method is the cast's now, and syncs with it -
+       gm2, which connected after the open, holds what the primary wrote; the killer's player's
+       copy holds it; and a bystander's world half holds none of it. */
+    const methodOn = client => client.eval(`${CAST} const r = S.castStore.record();
+        return { indirect: r.indirect ?? null, selfInflicted: r.selfInflicted ?? null, openedAt: r.openedAt ?? null, endedBy: r.endedBy ?? null };`);
+    const methodGm = await methodOn(gm), methodGm2 = await methodOn(gm2);
+    const methodP3 = await p3.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs"); const c = incidentCast();
+        return { indirect: c.indirect ?? null, openedAt: c.openedAt ?? null };`);
+    const worldP1 = await p1.eval(`return Object.keys(game.settings.get("${MOD}", "murderState") ?? {});`);
+    check("F7: the incident's method syncs with the cast - both GMs and the killer's player's copy hold it, a bystander's world half none of it",
+        Number.isFinite(methodGm.openedAt) && J(methodGm2) === J(methodGm) && methodGm.indirect === false && methodGm.selfInflicted === false
+        && methodP3.indirect === false && methodP3.openedAt === methodGm.openedAt
+        && !worldP1.some(k => ["indirect", "selfInflicted", "keyRemnantsStale", "openedAt", "endedBy"].includes(k)) && worldP1.includes("active"),
+        J({ methodGm, methodGm2, methodP3, worldP1 }));
 
     /* F5, the review's B1 for the cast (26.09): a GM that has not merged a newer write lets
        a third in. gm's store is held (it sends the other GMs nothing and, since the fix round,
@@ -634,12 +671,147 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         try { r = await game.drpg.useItem(actor, item); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
         return { r: r === null ? null : typeof r, err };`, { timeout: 60000 });
     await settle(1200);
-    const alert = await gm.eval(`const msgs = game.messages.contents.slice(${cardsBefore});
-        return msgs.filter(m => /E04 poisoned kit/.test(m.content ?? "") || /E04 poisoned kit/.test(JSON.stringify(m.flags ?? {}))).length;`);
+    /* The alert is found by its words, which a GM holds (secret.mjs `wordsOf`): the document's
+       content is a stub, and since E05's fix round (S1-m2, 27.09.2026) its flags no longer carry
+       the trap's name in `popupTitle` - which is where this read found it until then. */
+    const alert = await gm.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        let n = 0;
+        for (const m of game.messages.contents.slice(${cardsBefore})) if (/E04 poisoned kit/.test(await wordsOf(m) ?? "")) n++;
+        return n;`);
     check("G3: its use sets the trap off on the primary GM",
         !used.err && alert >= 1, J({ used, alert, cardsBefore }));
     // p1's dice go back to the harness's own (the round-2 review's m2): a later roll must not use G's.
     await p1.eval(`delete globalThis.__forceRoll; return true;`);
+
+    /* ------------------- P. the trap's secrets on a GM who joined empty, and its Rearm ------------------- */
+
+    /* P (E05 C1, 26.09.2026; audit S09-05, D3): gm2 joined G with an empty browser after the trap
+       was made, and its killer, condition and trigger are the GM store `projectSecrets` now, not
+       projectMeta - so gm2 holds them by the store's exchange alone. The primary's alert in G3
+       stamped the trap fired and took it off the armed map, which P1 reads (and so builds) on the
+       primary; gm2's Rearm is a write on gm2's browser, and reaches that map only as a merge of the
+       store (traps.mjs's clientSettingChanged listener). */
+    phase("P: an indirect murder's secrets reach a GM who joined empty, and its Rearm reaches the primary's armed map", { flow: "trap-fire" });
+    const secretsOn = client => client.eval(`${TRAP} const s = P.secretsOf("${trap.id}");
+        return { killerId: s.killerId ?? null, condition: s.condition ?? null, kind: s.trigger?.kind ?? null, armed: s.trigger?.armed ?? null,
+            firedAt: s.trigger?.firedAt ?? null, inMeta: P.PROJECT_SECRET_FIELDS.filter(f => Object.hasOwn(P.metaFor("${trap.id}"), f)),
+            mapped: T.armedIn("${trap.room}").some(t => t.id === "${trap.id}") };`);
+    const onGm2P = await secretsOn(gm2), onGmP = await secretsOn(gm);
+    check("P1: a GM who joined with an empty browser holds the trap's killer, condition and trigger, fired - and projectMeta holds none of the four",
+        onGm2P.killerId === IDS.botan && onGm2P.condition === "E04 61G" && onGm2P.kind === "item" && onGm2P.firedAt !== null
+        && onGm2P.inMeta.length === 0 && onGmP.firedAt !== null && onGmP.mapped === false, J({ onGm2P, onGmP }));
+    await gm2.eval(`${TRAP} await T.rearmTrap("${trap.id}"); return true;`);
+    await settle(1200);
+    const rearmedP = await secretsOn(gm);
+    check("P2: the second GM's Rearm reaches the primary's store and its armed map",
+        rearmedP.firedAt === null && rearmedP.armed === true && rearmedP.mapped === true, J({ rearmedP }));
+    /* P3 (E05 C3, 26.09.2026; audit S10-01): a Direct Murder declared in the dark is the GM store
+       `pendingMurders` now, not a world setting, so a declaration p3 parks through the primary -
+       and the primary allows - reaches gm2 by the store's exchange alone, and gm2 ends the Eclipse
+       and judges it. Chie is stood in Storage, where nobody is, so the lights cancel it: gm2 tells
+       the GMs, and the row is gone on both. Chie goes back where she stood. The Eclipse is the
+       clock's flag and its name, written as `startEclipse` writes them and without the rest of
+       the opening: its refill rewrites every action budget's maximum, and phase M counts a price
+       handed back against that maximum - on the first run of this (26.09) M1 and M5 read 2
+       actions where the refund gives 3. */
+    const ECL = `const X = await import("${repoUrl}/scripts/eclipse.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");`;
+    const chieWas = await gm.eval(`${ECL} const t = canvas.scene.tokens.get("TOKCHIE000000000");
+        const was = { x: t.x, y: t.y };
+        await t.update(M.positionIn("Storage", t), { teleport: true, movementAction: "displace", animate: false });
+        await game.drpg.setClock({ eclipse: true, eclipseStartedAt: Date.now() });
+        return { was, alone: M.othersInRoom(game.actors.get("${IDS.chie}")).length === 0 && M.roomOfActor(game.actors.get("${IDS.chie}")) === "Storage" };`, { timeout: 60000 });
+    await p3.eval(`const X = await import("${repoUrl}/scripts/eclipse.mjs");
+        await X.parkDirectMurder({ killerId: "${IDS.chie}", room: "Storage", note: "E05 61 P3" }); return true;`, { timeout: 60000 });
+    await settle(900);
+    await gm.eval(`await game.drpg.ruleOnParkedMurder("${IDS.chie}", true); return true;`, { timeout: 30000 });
+    await settle(1200);
+    const heldP3 = await gm2.eval(`${ECL} const r = S.pendingMurderStore.get("${IDS.chie}");
+        return r ? { approved: r.approved, named: r.eclipse === X.eclipseId() && Boolean(r.eclipse) } : null;`);
+    const beforeP3 = await gm2.eval(`return game.messages.size;`);
+    await gm2.eval(`${ECL} await X.endEclipse({ advance: false }); return true;`, { timeout: 60000 });
+    await settle(1200);
+    const judgedP3 = {
+        onGm2: await gm2.eval(`${ECL} return S.pendingMurderStore.has("${IDS.chie}");`),
+        onGm: await gm.eval(`${ECL} return S.pendingMurderStore.has("${IDS.chie}");`),
+        told: await gm2.eval(`const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+            return game.messages.contents.slice(${beforeP3}).filter(m => m.author?.id === game.user.id && m.whisper.length
+                && m.whisper.every(u => game.users.get(u)?.isGM) && contentOf(m).includes("Chie Mori")).length;`),
+        eclipse: await gm.eval(`return game.drpg.isEclipse();`), incident: await gm.eval(`return game.drpg.murderState()?.stage ?? null;`)
+    };
+    check("P3: a declaration parked through the primary and allowed there is held by the second GM, whose lights judge it, and it is gone from both GMs",
+        chieWas.alone === true && heldP3?.approved === true && heldP3?.named === true && judgedP3.onGm2 === false && judgedP3.onGm === false
+        && judgedP3.told >= 1 && judgedP3.eclipse === false && judgedP3.incident === null, J({ chieWas, heldP3, judgedP3 }));
+    await gm.eval(`await canvas.scene.tokens.get("TOKCHIE000000000").update(${J(chieWas.was)}, { teleport: true, movementAction: "displace", animate: false });
+        return true;`, { timeout: 30000 });
+    /* P4 (E05 C5, 26.09.2026; audit S01-01, S05-02): the Key Remnant plan is the GM store `keyPlan`
+       now, a row per chapter and slot, not a world setting. Each GM reads the plan first, as a
+       dashboard drawn before either wrote; the primary writes slot 0's name, and once that has
+       reached gm2, gm2 writes slot 1's note from the plan it read before - the plan it read as
+       its `base`, which is what the dashboard passes. Both GMs then hold both, and p1's plan is
+       blank. Written against the store alone, gm2's stale blank name would be a clear, and the
+       primary's name would go (setKeyPlan's comment). The two rows are taken away after. */
+    const planRead = client => client.eval(`return game.drpg.keyPlan();`);
+    const shownGm = await planRead(gm), shownGm2 = await planRead(gm2);
+    await gm.eval(`const base = ${J(shownGm)}; const plan = foundry.utils.deepClone(base);
+        plan.entries[0].name = "E05 61 P4 by the primary"; await game.drpg.setKeyPlan(plan, { base }); return true;`, { timeout: 30000 });
+    await settle(1200);
+    const arrived = await gm2.eval(`return game.drpg.keyPlan().entries[0].name;`);
+    await gm2.eval(`const base = ${J(shownGm2)}; const plan = foundry.utils.deepClone(base);
+        plan.entries[1].note = "E05 61 P4 by the second GM"; await game.drpg.setKeyPlan(plan, { base }); return true;`, { timeout: 30000 });
+    await settle(1200);
+    const slotsOn = client => client.eval(`const plan = game.drpg.keyPlan(); return [plan.chapter, plan.entries[0].name, plan.entries[1].note];`);
+    const planP4 = { arrived, gm: await slotsOn(gm), gm2: await slotsOn(gm2), p1: await slotsOn(p1) };
+    check("P4: two GMs each writing one slot of the Key Remnant plan from a plan read before either wrote both keep theirs, on both GMs - and p1's is blank",
+        arrived === "E05 61 P4 by the primary" && [planP4.gm, planP4.gm2].every(r => r[1] === "E05 61 P4 by the primary" && r[2] === "E05 61 P4 by the second GM")
+        && !planP4.p1[1] && !planP4.p1[2], J(planP4));
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await S.keyPlanStore.dropMany(["${shownGm.chapter}:0", "${shownGm.chapter}:1"]); return true;`);
+    /* P5 (E05 C6, 26.09.2026; audit S11-03, S01-08): a player's pre-session note is the GM store
+       `notes` now, not a flag on the player's User document, which every browser holds. p1 saves one
+       through the primary; gm2, which joined empty, holds it once it has merged, p1 holds its own
+       copy, p2 nothing of it, and p1's flag, read on p2, says a note is written and holds no text.
+       Taken away after: the row dropped, p1 sent its copy of the drop, and its flag put back. */
+    const NOTE61 = `const N = await import("${repoUrl}/scripts/pre-session-note.mjs");`;
+    const flagP5Was = await gm.eval(`return game.users.get("${IDS.p1}").getFlag("${MOD}", "preSessionNote") ?? null;`);
+    const savedP5 = await p1.eval(`${NOTE61} return await N.saveNote(game.user.id, "E05 61 P5 p1's note");`, { timeout: 30000 });
+    await settle(1200);
+    const noteP5 = { saved: savedP5, flag: await p2.eval(`return game.users.get("${IDS.p1}").getFlag("${MOD}", "preSessionNote") ?? null;`) };
+    for (const [who, client] of [["gm", gm], ["gm2", gm2], ["p1", p1], ["p2", p2]]) noteP5[who] = await client.eval(`${NOTE61} return N.noteFor("${IDS.p1}");`);
+    check("P5: a note p1 saves through the primary reaches the second GM, p1 holds its own copy, p2 nothing, and p1's flag holds no text",
+        noteP5.saved === "sent" && [noteP5.gm, noteP5.gm2, noteP5.p1].every(t => t === "E05 61 P5 p1's note") && noteP5.p2 === ""
+        && noteP5.flag?.written === true && !Object.hasOwn(noteP5.flag ?? {}, "text"), J(noteP5), { flow: "pre-session-note" });
+    /* P5b (E05 fix r2-G5, 27.09.2026; review S2-m9): p1's Note tab was drawn with P5's note; the
+       primary edits it; p1 saves what was typed there, with the text the tab was drawn from as its
+       base. The GM's edit stays and p1 is answered "changed"; a second Save, drawn from the note p1
+       now holds, puts p1's words in place. Red on ff588ab: the first Save answered "sent" and wrote
+       over the GM's edit. Taken away with P5's row below. */
+    await gm.eval(`${NOTE61} await N.writeNote("${IDS.p1}", "E05 61 P5b the GM's edit", { byGm: true }); return true;`, { timeout: 30000 });
+    await settle(1200);
+    const noteP5b = await p1.eval(`${NOTE61} const copy = N.noteFor(game.user.id);
+        return { copy, saved: await N.saveNote(game.user.id, "E05 61 P5b typed by p1", { base: "E05 61 P5 p1's note" }) };`, { timeout: 30000 });
+    await settle(1200);
+    noteP5b.gmAfterFirst = await gm.eval(`${NOTE61} return N.noteFor("${IDS.p1}");`);
+    noteP5b.again = await p1.eval(`${NOTE61} return await N.saveNote(game.user.id, "E05 61 P5b typed by p1", { base: N.noteFor(game.user.id) });`, { timeout: 30000 });
+    await settle(1200);
+    noteP5b.gmAfterAgain = await gm.eval(`${NOTE61} return N.noteFor("${IDS.p1}");`);
+    check("P5b: p1's Save of a note a GM edited after p1's tab was drawn leaves the GM's edit and says so; a second Save puts p1's words in place",
+        noteP5b.copy === "E05 61 P5b the GM's edit" && noteP5b.saved === "changed" && noteP5b.gmAfterFirst === "E05 61 P5b the GM's edit"
+        && noteP5b.again === "sent" && noteP5b.gmAfterAgain === "E05 61 P5b typed by p1", J(noteP5b), { flow: "pre-session-note" });
+    await gm.eval(`${NOTE61} const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");
+        // A tree before C6 has no store to take it from (its red run, 26.09): the flag alone is put back there.
+        if (S.noteStore) {
+            await S.noteStore.drop("${IDS.p1}");
+            N.sendNoteTo("${IDS.p1}");
+        }
+        const was = ${J(flagP5Was)}, user = game.users.get("${IDS.p1}");
+        if (was === null) await user.unsetFlag("${MOD}", "preSessionNote");
+        else await U.replaceFlag(user, "preSessionNote", was);
+        return true;`);
+
+    // Taken away again: no later phase is to meet an armed item trap with nothing planted for it.
+    await gm.eval(`${TRAP} await P.deleteProject("${trap.id}"); return true;`);
+    await settle(600);
     await disconnect("gm2");
     await settle(300);
 
@@ -691,6 +863,19 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     check("H1: a Standard Level Up offered on the primary reaches Aiko's player at its stamp, and the second GM holds it",
         offeredAt > 0 && J([litH1.offer, litH1.stamp]) === J(["standard", offeredAt]) && J([onGm2H1.offer, onGm2H1.stamp]) === J(["standard", offeredAt]),
         J({ offeredAt, litH1, onGm2H1 }));
+    /* H1b (E05 C11, 27.09.2026; D4): a Reinforced Level Up a wrong verdict left waiting for the
+       class is a row of the GMs' `deferredOffers` store, written on the primary and held by the
+       second GM, which may be the one that runs the next verdict. Written to the store directly:
+       the verdict itself, and its veiled card, are 72-canary's. K4 has the kill drop it. */
+    const deferredOn = client => client.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = S.deferredOfferStore?.get("${IDS.daichi}"); return row ? { kind: row.kind, count: row.count } : null;`);
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await S.deferredOfferStore?.patch("${IDS.daichi}", { kind: "reinforced", chapter: 1, at: Date.now(), count: 1 }, { whole: true });
+        return true;`);
+    await settle(800);
+    const waitingH1b = { gm: await deferredOn(gm), gm2: await deferredOn(gm2) };
+    check("H1b: a Reinforced Level Up waiting for the class, written on the primary, is held by the second GM",
+        [waitingH1b.gm, waitingH1b.gm2].every(r => r?.kind === "reinforced" && r?.count === 1), J(waitingH1b));
 
     /* ------------------- K. the upgrade day's claim of an old cast, one of them stale ------------------- */
 
@@ -708,7 +893,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
             claimed: S.castStore.census()?.claimed ?? null };`);
     const stateBeforeK = await gm.eval(`return foundry.utils.deepClone(game.settings.get("${MOD}", "murderState") ?? {});`);
     const clearedK = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await S.castStore.clear();
-        await game.settings.set("${MOD}", "murderState", { active: true, stage: "incident", turn: 2, turnSide: "killer", indirect: false });
+        await game.settings.set("${MOD}", "murderState", { active: true, stage: "incident", turn: 2, turnSide: "killer" });
         return S.castStore.cleared();`);
     await settle(1200);
     const runningK = { killerId: IDS.chie, victimId: IDS.daichi, killerTurnId: IDS.chie, thirdId: null, thirdSide: null, lastCrisis: null, updated: clearedK + 600 };
@@ -727,6 +912,31 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     check("K2: Aiko's player, in no part of the running incident, is sent no cast", castToP1.length === 0, J({ castToP1 }));
     await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await S.castStore.clear();
         await game.settings.set("${MOD}", "murderState", ${J(stateBeforeK)}); return true;`);
+    await settle(800);
+    /* K3 (E05 C10, 26.09.2026; audit S06-11): a death nobody has found reaches the second GM through
+       the deaths store, and its publication run there - `publishDeath`, the discovery's first step -
+       writes the flag and drops the row on both GMs. Not a whole discovery: it gathers every token
+       and asks about Faint Prep traces in the middle of this scenario; 72-canary runs one. */
+    const deathK = client => client.eval(`const ch = await import("${repoUrl}/scripts/chapter.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const a = game.actors.get("${IDS.daichi}"); return { held: ch.isDeadForGm(a), flag: ch.isDeceased(a), row: S.deathStore.has(a.id) };`);
+    await gm.eval(`const ch = await import("${repoUrl}/scripts/chapter.mjs");
+        return Boolean(await ch.killCharacter(game.actors.get("${IDS.daichi}"), { secret: true, keepBullets: true }));`, { timeout: 60000 });
+    await settle(1500);
+    const heldK3 = await deathK(gmb);
+    const publishedK3 = await gmb.eval(`const ch = await import("${repoUrl}/scripts/chapter.mjs");
+        return Boolean(await ch.publishDeath(game.actors.get("${IDS.daichi}")));`, { timeout: 60000 });
+    await settle(1500);
+    const afterK3 = { gm: await deathK(gm), gmb: await deathK(gmb) };
+    check("K3: a death nobody has found reaches the second GM, and its publication there writes the flag and drops the row on both GMs",
+        heldK3.held && heldK3.row && !heldK3.flag && publishedK3 && afterK3.gm.flag && !afterK3.gm.row && afterK3.gmb.flag && !afterK3.gmb.row,
+        J({ heldK3, publishedK3, afterK3 }));
+    /* K4 (E05 C11; the design's 2.3 step 5): the kill - a secret one, before any publication -
+       dropped the Reinforced Level Up H1b left waiting for Daichi, on every GM. */
+    const lapsedK4 = { gm: await deferredOn(gm), gm2: await deferredOn(gm2), gmb: await deferredOn(gmb) };
+    check("K4: a secret kill drops the dead's Reinforced Level Up waiting for the class, on every GM",
+        waitingH1b.gm !== null && Object.values(lapsedK4).every(r => r === null), J({ waitingH1b, lapsedK4 }));
+    await gm.eval(`const ch = await import("${repoUrl}/scripts/chapter.mjs");
+        await ch.reviveCharacter(game.actors.get("${IDS.daichi}"), { quiet: true }); return true;`, { timeout: 60000 });
     await settle(800);
     await disconnect("gmb");
     await disconnect("gmc");
@@ -789,6 +999,20 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     /* J2: the primary resets through the window, the answer queued as a GM gives it (the
        word and the ticks): the traces and the Mastermind, then the traces alone. */
     phase("J2: the primary resets twice: the traces and the Mastermind, then the traces alone", { flow: "gm-store" });
+    /* J2a's Key Remnant plan rows (E05 fix r1-G5, M3): "keyPlan" is never ticked in either
+       reset below - unticked is what a GM reads off this checklist most often, since ticking
+       it away is the exception the checkbox remembers - and rows carry no season stamp
+       (gm-stores.mjs's own comment on `keyPlanStore`). Before this fix every chapter planted
+       here rode into the new season whole; planted directly on the store (as P4's own cleanup
+       above dropped its rows directly), not through the clock, so nothing else in this run
+       moves with it. */
+    const chapterJ2 = await gm.eval(`return game.drpg.getClock().chapter;`);
+    const otherChaptersJ2 = [chapterJ2 + 1000, chapterJ2 + 1001];
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        for (const chapter of ${J([chapterJ2, ...otherChaptersJ2])}) {
+            await S.keyPlanStore.patch(chapter + ":0", { scale: "standard", name: "E05 61 J2 chapter " + chapter });
+        }
+        return true;`);
     const resetOnce = ticked => gm.eval(`${RESET} const E = await import("${repoUrl}/scripts/gm-store.mjs");
         const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const word = game.i18n.localize("DRPG.Season.resetWord");
@@ -805,8 +1029,15 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
             watermarks: { remnants: S.remnantStore.cleared(), mastermind: S.mastermindStore.cleared(), offers: S.offerStore.cleared() },
             traces: Object.keys(S.remnantStore.entries()).length,
             tokens: game.scenes.contents.reduce((n, scene) => n + scene.tokens.filter(t => t.getFlag("${MOD}", "isRemnant")).length, 0),
-            pick: S.mastermindStore.record().actorId ?? null, offer: S.offerStore.get("${IDS.aiko}")?.kind ?? null };`, { timeout: 60000 });
+            pick: S.mastermindStore.record().actorId ?? null, offer: S.offerStore.get("${IDS.aiko}")?.kind ?? null,
+            keyPlanRows: Object.keys(S.keyPlanStore.entries()) };`, { timeout: 60000 });
     const firstReset = await resetOnce(["remnants", "mastermind"]);
+    /* `1:0` is this run's own planted row; P4 above left `1:2`-`1:4` behind too (every Save of
+       the planner stamps a slot's scale, and P4 dropped only the two slots it named) - both
+       are the kept chapter's, so both survive. The measure is that no OTHER chapter's row does. */
+    check("J2m3: kept, the Key Remnant plan's rows are trimmed to the chapter the reset ran on - the other two planted chapters are gone",
+        firstReset.keyPlanRows.includes(`${chapterJ2}:0`) && firstReset.keyPlanRows.every(k => k.startsWith(`${chapterJ2}:`)),
+        J({ chapterJ2, otherChaptersJ2, keyPlanRows: firstReset.keyPlanRows }));
     await settle(600);
     const secondReset = await resetOnce(["remnants"]);
     await settle(600);
@@ -1006,6 +1237,9 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         J({ ...backup, text: backup.text ? `${backup.text.length} characters` : null }));
     await disconnect("gm2");
     await settle(300);
+    /* Z6's note (E05 C6): saved by p1 in the one moment of this run with no GM connected. */
+    const keptZ6 = await p1.eval(`${NOTE61} const U = await import("${repoUrl}/scripts/utils.mjs");
+        return { gms: U.activeGmIds().length, saved: await N.saveNote(game.user.id, "E05 61 Z6 kept note") };`, { timeout: 30000 });
     await connect("gm3");
     await settle(1500);
     const seenOnGm3 = await gm3.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
@@ -1017,6 +1251,14 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         seenOnGm3.primary && seenOnGm3.hydration === "alone" && seenOnGm3.dialogs.length === 1
         && /3 Truth Bullets \(of 3\) have no answer key/.test(seenOnGm3.dialogs[0]?.content ?? "")
         && /2 traces on the map \(of 2\) have no answer key/.test(seenOnGm3.dialogs[0]?.content ?? "") && seenOnGm3.warning, J(seenOnGm3));
+    /* Z6 (E05 C6, 26.09.2026; audit S11-03): a note p1 saved while no GM was connected was kept on
+       p1's browser, unsent, and answered "kept"; gm3, the next primary GM, with an empty browser, is
+       sent it once its world has loaded (`drpgPrimaryReady`) and holds it, and p1's copy is sent. */
+    const noteZ6 = { kept: keptZ6, gm3: await gm3.eval(`${NOTE61} return N.noteFor("${IDS.p1}");`),
+        p1: await p1.eval(`${NOTE61} return { unsent: N.noteUnsent?.() ?? null, text: N.noteFor(game.user.id) };`) };
+    check("Z6: a note p1 saved while no GM was connected was kept on p1's browser, and reached the primary GM who came next",
+        keptZ6.gms === 0 && keptZ6.saved === "kept" && noteZ6.gm3 === "E05 61 Z6 kept note" && noteZ6.p1.unsent === false
+        && noteZ6.p1.text === "E05 61 Z6 kept note", J(noteZ6), { flow: "pre-session-note" });
     /* Z3-Z4 (E04's fix round): the file is restored by ANOTHER GM with an empty browser, gma, whose
        id sorts after gm3's, so gm3 stays the primary with its warning up. Its rows arrive by merge:
        its check runs again on the change and the panel's line goes (the review's C-m15, until then
@@ -1161,5 +1403,217 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 300, y: 300 });
         return true;`, { timeout: 60000 });
 
-    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M"], gm: IDS.gm };
+    /* ------- N. an owner's ask for their crossings, answered from the other GMs' rows ------- */
+
+    /* E05 fix r1-G3, 27.09.2026; review M1. An owner asks the primary for their characters'
+       crossings at load and when a primary's world has loaded (`drpgPrimaryReady`, sent from the
+       ready hook that opens the stores without waiting for them); the primary answered once the
+       suite let the stores go, from its own browser's rows. gma, the primary, holds its crossings
+       store unhydrated as M holds its bullets, in an Eclipse opened by its clock flag; p1 asks,
+       and nothing is sent while held. The row another GM counted arrives, the hold ends, and p1's
+       copy reads it. Red on ced3cad: the answer went out at once, and the copy read no crossing. */
+    phase("N: an owner's ask for their crossings is answered from the rows the other GMs hold", { flow: "eclipse-route-veto" });
+    const XS = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const X = await import("${repoUrl}/scripts/eclipse.mjs");`;
+    const clockN = await gma.eval(`${XS} const c = game.drpg.getClock();
+        await game.drpg.setClock({ timeOfDay: "morning", eclipse: true, eclipseStartedAt: Date.now() });
+        globalThis.__nReal = S.eclipseMoveStore.whenHydrated;
+        S.eclipseMoveStore.whenHydrated = () => new Promise(r => { globalThis.__nRelease = r; });
+        return { was: { timeOfDay: c.timeOfDay, timeOfDayStartedAt: c.timeOfDayStartedAt }, id: X.eclipseId(), primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm() };`);
+    await settle(900);
+    const fromN = socketTraffic.length;
+    const sentN = () => socketTraffic.slice(fromN).filter(t => t.from === "gma" && t.action === "eclipse.moves" && Array.isArray(t.to) && t.to.includes(IDS.p1)).length;
+    await p1.eval(`game.socket.emit("module.${MOD}", { action: "eclipse.movesAsk" }, { recipients: ["${GMA}"] }); return true;`);
+    await settle(1500);
+    const heldN = sentN();
+    await gma.eval(`${XS} await S.eclipseMoveStore.patch("${IDS.aiko}", { used: 1, eclipse: ${J(clockN.id)} });
+        S.eclipseMoveStore.whenHydrated = globalThis.__nReal; globalThis.__nRelease?.("answered"); return true;`);
+    await settle(1500);
+    const copyN = await p1.eval(`${XS} return S.eclipseMoveCopy.read()?.["${IDS.aiko}"] ?? null;`);
+    check("N1: the primary answers an owner's ask for their crossings only once its store holds the other GMs' rows, and the owner's copy reads them",
+        clockN.primary === true && Boolean(clockN.id) && heldN === 0 && sentN() >= 1 && copyN?.used === 1 && copyN?.eclipse === clockN.id,
+        J({ clockN, heldN, sent: sentN(), copyN }));
+    await gma.eval(`${XS} if (globalThis.__nReal) S.eclipseMoveStore.whenHydrated = globalThis.__nReal; await S.eclipseMoveStore.drop("${IDS.aiko}");
+        await game.drpg.setClock({ eclipse: false, ...${J(clockN.was)} }); return true;`);
+
+    /* E05 fix r1-G4, 27.09.2026; review M1, the note half. A player asks the primary for their own
+       note at load and at `drpgPrimaryReady`, sent from the ready hook that opens the stores without
+       waiting for them; the primary answered once the suite let the stores go, from its own
+       browser's rows. gma, the primary, holds its notes store unhydrated as N holds its crossings;
+       p1 asks, and nothing is sent while held. gmb writes p1's note into its own store (no copy
+       sent: a patch, not a Save), the hold ends, and p1's copy reads gmb's words. Red on 7c846b2:
+       the answer went out at once. */
+    phase("O: a player's note is answered from the GMs' rows, and a note kept offline reaches a GM heard connecting before it loaded", { flow: "pre-session-note" });
+    const NS = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const N = await import("${repoUrl}/scripts/pre-session-note.mjs");`;
+    const primaryO = await gma.eval(`${NS} globalThis.__oReal = S.noteStore.whenHydrated;
+        S.noteStore.whenHydrated = () => new Promise(r => { globalThis.__oRelease = r; });
+        return (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm();`);
+    const fromO = socketTraffic.length;
+    const sentO = () => socketTraffic.slice(fromO).filter(t => t.from === "gma" && t.action === "note.copy" && Array.isArray(t.to) && t.to.includes(IDS.p1)).length;
+    await p1.eval(`game.socket.emit("module.${MOD}", { action: "note.ask" }, { recipients: ["${GMA}"] }); return true;`);
+    await settle(1500);
+    const heldO = sentO();
+    await gmb.eval(`${NS} await S.noteStore.patch("${IDS.p1}", { text: "E05 61 O1 gmb's note", updatedAt: Date.now(), byGm: true }); return true;`);
+    await settle(1500);
+    await gma.eval(`${NS} S.noteStore.whenHydrated = globalThis.__oReal; globalThis.__oRelease?.("answered"); return true;`);
+    await settle(1500);
+    const copyO = await p1.eval(`${NS} return { text: N.noteFor(game.user.id), unsent: N.noteUnsent() };`);
+    check("O1: the primary answers a player's ask for their note only once its store holds the other GMs' rows, and the copy reads them",
+        primaryO === true && heldO === 0 && sentO() >= 1 && copyO.text === "E05 61 O1 gmb's note" && copyO.unsent === false,
+        J({ primaryO, heldO, sent: sentO(), copyO }), { flow: "pre-session-note" });
+
+    /* O2 (E05 fix r1-G4; C6's open question): Z6 measured a note kept offline reaching a GM whose world
+       said it had loaded (`bridge.gmReady`) before p1 heard it connect - the harness's own order. Here
+       the other: every GM leaves, p1 keeps a note, and gma comes back announced first (cluster.mjs
+       `connect`'s `announceFirst`), so p1 hears `userConnected` while gma's world is still loading and
+       `drpgPrimaryReady` after. p1 records the order it heard them in; the note must reach gma. Which
+       order v14 takes is LIVE-E04-12. And p1's Note tab, open all along, says so without a redraw
+       (review M5: it said "Kept here until a GM connects." until the next one). */
+    await gma.eval(`if (globalThis.__oReal) (await import("${repoUrl}/scripts/gm-stores.mjs")).noteStore.whenHydrated = globalThis.__oReal; return true;`);
+    await disconnect("gmb");
+    await disconnect("gma");
+    await settle(300);
+    const keptO2 = await p1.eval(`${NS} const U = await import("${repoUrl}/scripts/utils.mjs");
+        globalThis.__o2heard = [];
+        Hooks.on("userConnected", (user, on) => { if (on && user?.id === "${GMA}") globalThis.__o2heard.push("connected"); });
+        Hooks.on("drpgPrimaryReady", id => { if (id === "${GMA}") globalThis.__o2heard.push("ready"); });
+        return { gms: U.activeGmIds().length, saved: await N.saveNote(game.user.id, "E05 61 O2 kept note") };`, { timeout: 30000 });
+    const TAB = `const M = await import("${repoUrl}/scripts/messenger-app.mjs");
+        const shown = () => globalThis.__o2tab?.element?.querySelector(".drpg-messenger-note-status")?.textContent ?? null;`;
+    const tabO2 = await p1.eval(`${TAB} const app = new M.DrpgMessengerApp(game.user.id);
+        M.DrpgMessengerApp.instances.set(game.user.id, app); app.tab = "note"; await app.render({ force: true });
+        globalThis.__o2tab = app; return { status: shown(), kept: game.i18n.localize("DRPG.Note.keptUntilGm") };`);
+    await connect("gma", { storage: await storageOf("gma"), announceFirst: true });
+    await settle(2500);
+    const noteO2 = { kept: keptO2, tab: tabO2, gma: await gma.eval(`${NS} return N.noteFor("${IDS.p1}");`),
+        p1: await p1.eval(`${NS} ${TAB} const out = { heard: globalThis.__o2heard, unsent: N.noteUnsent(), text: N.noteFor(game.user.id),
+            status: shown(), statusNow: N.noteStatus(game.user.id) };
+            await globalThis.__o2tab?.close(); return out;`) };
+    check("O2: a note p1 kept with no GM connected reaches the primary GM p1 heard connect before its world had loaded",
+        keptO2.gms === 0 && keptO2.saved === "kept" && J(noteO2.p1.heard) === J(["connected", "ready"])
+        && noteO2.gma === "E05 61 O2 kept note" && noteO2.p1.unsent === false && noteO2.p1.text === "E05 61 O2 kept note",
+        J(noteO2), { flow: "pre-session-note" });
+    check("O3: p1's open Note tab said the note was kept here, and once it reached the GM says what the note's status is, with no redraw",
+        noteO2.tab.status === noteO2.tab.kept && !noteO2.tab.kept.startsWith("DRPG.")
+        && noteO2.p1.status === noteO2.p1.statusNow && noteO2.p1.status !== noteO2.tab.kept, J(noteO2), { flow: "pre-session-note" });
+
+    /* E05 fix r2-G2, 27.09.2026; review F5. The owed Despair is a GM store - each GM's browser
+       holds its own rows - and the pools it is paid from are world data. Q1: gma converts from its
+       own pool and leaves; gmb, alone and so the primary, converts from the same pool without
+       having heard of it; gma comes back and both GMs hold both debts. Q2: gmb leaves holding both
+       rows; gma moves the time of day and the pool pays once; gma leaves, and gmb, back alone with
+       the rows its browser still holds, pays nothing again. Red on 1072bbb: Q1 read 2 owed on both
+       GMs (one row per pool, the newer write kept), Q2 paid on gmb's return a second time. */
+    phase("Q: two GMs' conversions from one pool are both owed, and a GM back alone does not pay them again", { flow: "gm-store" });
+    const DS = `const D = await import("${repoUrl}/scripts/despair.mjs");
+        const noHope = () => import("${repoUrl}/scripts/resource-guard.mjs").then(m => m.automatedUpdate(game.actors.get("${IDS.botan}"), { "system.resources.hope.value": 0 }));
+        const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
+    const readQ = `return { pool: D.getDespair("${GMA}"), owed: D.owedOf("${GMA}"), primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm() };`;
+    const q1a = await gma.eval(`${DS} await D.setDespair("${GMA}", 10); await noHope();
+        return { granted: await D.convertDespairToHope("${GMA}", game.actors.get("${IDS.botan}"), 1), owed: D.owedOf("${GMA}") };`);
+    await disconnect("gma");
+    await connect("gmb", { storage: await storageOf("gmb") });
+    await settle(1500);
+    const q1b = await gmb.eval(`${DS} await noHope();
+        return { heard: D.owedOf("${GMA}"), granted: await D.convertDespairToHope("${GMA}", game.actors.get("${IDS.botan}"), 2), owed: D.owedOf("${GMA}") };`);
+    await connect("gma", { storage: await storageOf("gma") });
+    await settle(2500);
+    const q1 = { q1a, q1b, gma: await gma.eval(`${DS} await until(() => D.owedOf("${GMA}") === 3); ${readQ}`),
+        gmb: await gmb.eval(`${DS} await until(() => D.owedOf("${GMA}") === 3); ${readQ}`) };
+    check("Q1: two GMs converting from one pool, neither having heard the other, both hold both debts",
+        q1a.granted === 1 && q1b.heard === 0 && q1b.granted === 2 && q1.gma.owed === 3 && q1.gmb.owed === 3 && q1.gma.pool === 10,
+        J(q1), { flow: "gm-store" });
+
+    await disconnect("gmb");
+    await settle(500);
+    const q2a = await gma.eval(`${DS} const { TIMES_OF_DAY } = await import("${repoUrl}/scripts/config.mjs"); const c = game.drpg.getClock();
+        await game.drpg.setClock({ timeOfDay: TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(c.timeOfDay) + 1) % TIMES_OF_DAY.length] });
+        await until(() => D.owedOf("${GMA}") === 0); ${readQ}`);
+    await disconnect("gma");
+    await connect("gmb", { storage: await storageOf("gmb") });
+    await settle(2500);
+    const q2b = await gmb.eval(`${DS} await until(() => D.owedOf("${GMA}") === 0); ${readQ}`);
+    check("Q2: the time of day's change pays the pool once, and a GM back alone with the rows its browser held pays nothing again",
+        q2a.primary === true && q2a.pool === 7 && q2a.owed === 0 && q2b.primary === true && q2b.pool === 7 && q2b.owed === 0,
+        J({ q2a, q2b }), { flow: "gm-store" });
+
+    /* E05 fix r2-G3, 27.09.2026; review S2-m5. A kept death reaches a player's copy when it is
+       made, and its tombstone only whoever is connected when it is dropped; the ask at load was
+       answered with the deaths the user may know, and nothing when there were none - so a death
+       revived while its owner's browser was closed stayed in that browser. p4 is given Daichi,
+       Daichi is killed and kept, p4 leaves, gmb (alone, the primary) revives him, and p4 comes
+       back with its browser. Red on 8c6dfd6: p4 read Daichi dead after its return. */
+    phase("R: a death taken back while its owner's browser was closed leaves that browser's copy", { flow: "gm-store" });
+    const P4 = "USERP4000000000A";
+    const CH = `const C = await import("${repoUrl}/scripts/chapter.mjs"); const d = game.actors.get("${IDS.daichi}");`;
+    const untilP = `const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
+    await connect("p4");
+    await settle(800);
+    const r1 = await gmb.eval(`${CH} await d.update({ "ownership.${P4}": 3 });
+        return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), kept: Boolean(await C.killCharacter(d, { secret: true, keepBullets: true })) };`);
+    const r1p = await p4.eval(`${untilP} const d = game.actors.get("${IDS.daichi}"); await until(() => game.drpg.isDeadForGm(d));
+        return { dead: game.drpg.isDeadForGm(d), flag: game.drpg.isDeceased(d) };`);
+    await disconnect("p4");
+    await settle(300);
+    await gmb.eval(`${CH} await C.reviveCharacter(d, { quiet: true }); return true;`);
+    // Heard connecting before its world has loaded, as a browser's socket is: an ask from a user
+    // the GM does not yet see active is not answered (murder.mjs `onDeathsSocket`).
+    await connect("p4", { storage: await storageOf("p4"), announceFirst: true });
+    await settle(1500);
+    const r2p = await p4.eval(`${untilP} const d = game.actors.get("${IDS.daichi}"); await until(() => !game.drpg.isDeadForGm(d));
+        return { dead: game.drpg.isDeadForGm(d), copy: Object.keys((await import("${repoUrl}/scripts/gm-store.mjs")).readMine("deaths") ?? {}) };`);
+    await gmb.eval(`${CH} await d.update({ "ownership.${P4}": 0 }); return true;`);
+    check("R1: a kept death revived while its owner's browser was closed is let go by that browser when it comes back",
+        r1.primary === true && r1.kept && r1p.dead === true && r1p.flag === false && r2p.dead === false && r2p.copy.length === 0,
+        J({ r1, r1p, r2p }), { flow: "gm-store" });
+
+    /* E05 fix r2-G3, 27.09.2026; F0b's note. A loot of a body nobody has found owes its taker a Truth
+       Bullet, kept in the death's row until the publication, and the row's `loot` was one list: each
+       loot rewrote it whole, and the store keeps the newer write of a field. gma kills Daichi and keeps
+       it, with two things on the body; gmb leaves and gma serves Aiko's loot; gma leaves and gmb, back
+       alone, serves Chie's without having heard of it; gma comes back. Both GMs must owe both loots, and
+       gmb's publication give each taker the bullet of what they took. Red on 8c6dfd6: both GMs held
+       one loot, and one taker got nothing. */
+    phase("S: two GMs' loots of one body nobody has found are both owed and both given", { flow: "give-take-stash" });
+    const LOOT = `${CH} const H = await import("${repoUrl}/scripts/handover.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const owed = () => { const l = S.deathStore.get(d.id)?.loot; return (Array.isArray(l) ? l : Object.values(l ?? {})).map(x => x.item).sort(); };`;
+    const ITEMS = ["E05 61 S a lamp", "E05 61 S a cord"];
+    await connect("gma", { storage: await storageOf("gma") });
+    await settle(2500);
+    const s0 = await gma.eval(`${LOOT} const { grantItem } = await import("${repoUrl}/scripts/inventory.mjs");
+        const kept = Boolean(await C.killCharacter(d, { secret: true, keepBullets: true }));
+        for (const name of ${J(ITEMS)}) await grantItem(d, { name, category: "tool", tier: 1, override: true, quiet: true });
+        return { kept, items: d.items.filter(i => i.name.startsWith("E05 61 S")).map(i => i.name).sort() };`);
+    await settle(1500);
+    await disconnect("gmb");
+    await settle(500);
+    const s1 = await gma.eval(`${LOOT} const item = d.items.find(i => i.name === "${ITEMS[0]}");
+        return { took: Boolean(await H.lootBody({ takerId: "${IDS.aiko}", bodyId: d.id, itemId: item?.id })), owed: owed() };`);
+    await disconnect("gma");
+    await connect("gmb", { storage: await storageOf("gmb") });
+    await settle(1500);
+    const s2 = await gmb.eval(`${LOOT} const heard = owed(); const item = d.items.find(i => i.name === "${ITEMS[1]}");
+        return { heard, took: Boolean(await H.lootBody({ takerId: "${IDS.chie}", bodyId: d.id, itemId: item?.id })), owed: owed() };`);
+    await connect("gma", { storage: await storageOf("gma") });
+    await settle(2500);
+    const lootBullets = `const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const minted = id => game.actors.get(id).items.filter(i => B.isTruthBullet(i) && ${J(ITEMS)}.some(n => i.name.includes(n))).map(i => i.name);`;
+    const s3 = { gma: await gma.eval(`${LOOT} ${untilP} await until(() => owed().length === 2); return owed();`),
+        gmb: await gmb.eval(`${LOOT} ${untilP} await until(() => owed().length === 2); return owed();`) };
+    const s4 = await gmb.eval(`${LOOT} ${lootBullets} const record = await C.publishDeath(d); await new Promise(r => setTimeout(r, 800));
+        const out = { published: Boolean(record) && C.isDeceased(d), aiko: minted("${IDS.aiko}"), chie: minted("${IDS.chie}") };
+        for (const id of ["${IDS.aiko}", "${IDS.chie}"]) for (const i of game.actors.get(id).items.filter(i => ${J(ITEMS)}.some(n => i.name.includes(n)))) await i.delete();
+        const row = S.lootTraceStore.get(d.id);
+        const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+        if (trace) { try { await (await import("${repoUrl}/scripts/remnants.mjs")).dropRemnantSecret(trace); } catch {} await trace.delete(); }
+        if (S.lootTraceStore.has(d.id)) await S.lootTraceStore.drop(d.id);
+        await C.reviveCharacter(d, { quiet: true });
+        return out;`, { timeout: 30000 });
+    check("S1: two GMs each serving a loot of one body nobody has found, neither having heard the other, both owe both",
+        s0.kept && s0.items.length === 2 && s1.took && s2.took && s2.heard.length === 0
+        && J(s3.gma) === J([...ITEMS].sort()) && J(s3.gmb) === J([...ITEMS].sort()), J({ s0, s1, s2, s3 }), { flow: "give-take-stash" });
+    check("S2: the publication gives each taker the Truth Bullet of what they took",
+        s4.published && s4.aiko.length === 1 && s4.aiko[0].includes(ITEMS[0]) && s4.chie.length === 1 && s4.chie[0].includes(ITEMS[1]),
+        J(s4), { flow: "give-take-stash" });
+
+    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S"], gm: IDS.gm };
 }

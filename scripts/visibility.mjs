@@ -22,7 +22,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, isEclipse, incidentParticipants, incidentCast } from "./settings.mjs";
 import { roomOfToken, roomAt } from "./movement.mjs";
 import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
-import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
+import { TRUTH_BULLET_FLAGS, ownBulletRefs } from "./truth-bullets.mjs";
 // Static, like movement.mjs's own import of the same file: `applyToToken`
 // runs on every token of every refresh, so its readers cannot be dynamic.
 // mastermind.mjs does not reach back into this file at load time - its one
@@ -64,6 +64,9 @@ export function registerVisibility() {
     // this scene moving at all, so nothing above would otherwise catch it.
     Hooks.on("createItem", item => { if (isMyTruthBullet(item)) applyAll(); });
     Hooks.on("deleteItem", item => { if (isMyTruthBullet(item)) applyAll(); });
+    // And since E05 C13 the other half of that pair: which trace a bullet came from is the
+    // owner's copy of the GMs' rows, and it can arrive after the bullet does.
+    Hooks.on("drpgBulletRefsChanged", () => applyAll());
 }
 
 /* THE VISION CLIP THAT USED TO LIVE HERE IS GONE, ON PURPOSE.
@@ -458,8 +461,11 @@ export function applyAll() {
  */
 let myRoomsCache = null;
 /**
- * Which Remnants this user has already copied, as `remnantRef` keys - see
- * `applyToRemnantToken`. Memoised for the same reason `myRoomsCache` is:
+ * Which Remnants this user has already copied, as trace keys (`sceneId.tokenId`) -
+ * see `applyToRemnantToken`. Read through truth-bullets.mjs `ownBulletRefs` since
+ * E05 C13: a GM's from the store's rows, a player's from their own copy of them -
+ * the bullet's public `remnantRef` flag, which every browser read, is gone. The
+ * copy changing (`drpgBulletRefsChanged`) redraws. Memoised for the same reason `myRoomsCache` is:
  * every revealed Remnant on the scene would otherwise re-scan every character
  * this user owns and every Truth Bullet on each of them, per token, per
  * `refreshToken`. Bullet ownership does not actually change on every token
@@ -492,12 +498,8 @@ function myRemnantRefs() {
     if (myRemnantRefsCache) return myRemnantRefsCache;
 
     const refs = new Map();
-    for (const actor of game.actors) {
-        if (actor.type !== "character" || !actor.isOwner) continue;
-        for (const item of bulletsOf(actor)) {
-            const ref = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.remnantRef);
-            if (ref && !refs.has(ref)) refs.set(ref, item);
-        }
+    for (const { item, ref } of ownBulletRefs()) {
+        if (!refs.has(ref)) refs.set(ref, item);
     }
 
     myRemnantRefsCache = refs;

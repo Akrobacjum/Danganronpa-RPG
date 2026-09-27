@@ -197,6 +197,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^target holds no Despair pool$/],
     ["badRequest", /^a GM asks for nothing here$/],
     ["badRequest", /^that plant was handed to somebody else$/],
+    // E05: a pre-session note past the player text cap (gm-bridge.mjs handleNoteSave).
+    ["badRequest", /^the note is longer than a player's words may be$/],
     // Two patterns, not one with an optional group: R22 reads `range(` in a regex literal as a call.
     ["outOfRange", /^(?:amount|difficulty|delta) .+ is out of range$/],
     ["outOfRange", /^difficulty .+ is out of range \(.*\)$/],
@@ -226,6 +228,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["actionSpent", /^that action is spent$/],
     ["actionBlocked", /^that action is blocked$/],
     ["nothingLeft", /^nothing left to spend on a resolution$/],
+    // E05: the GM's count of the Eclipse's crossings (eclipse.mjs applyRecordedMove).
+    ["nothingLeft", /^no crossings left this Eclipse$/],
     ["movedOn", /^the incident has moved on since that action$/],
     ["movedOn", /^the last crisis action is not that character's$/],
     ["notThatRepair", /^there is no repair to take back$/],
@@ -241,6 +245,10 @@ export const REASON_PATTERNS = Object.freeze([
     ["nothingToUndo", /^that Observe has no result to take back$/],
     ["nothingToUndo", /^no Analyze of that bullet this chapter to take back$/],
     ["cannotNow", /^that bullet cannot be analysed now$/],
+    // E05 C10: rule D - a refusal caused by a death, a body nobody has found among them (guardArmLiving).
+    ["cannotNow", /^that cannot be done now$/],
+    // E05 fix r1-G3: a Direct Murder parked with no Eclipse running (gm-bridge.mjs handleParkMurder).
+    ["cannotNow", /^no Eclipse is running$/],
     ["cannotFrame", /^that student cannot be framed$/],
     ["notThere", /^the body is not in the killer's room$/],
     ["notThere", /^the character has no token on a scene$/],
@@ -618,6 +626,28 @@ export async function guardArmPlayerCall(sender, payload, ctx) {
     if (sender.isGM) return null;
     const { playerArmRefusal } = await import("./call-effects.mjs");
     return playerArmRefusal(payload.call);
+}
+
+/*
+ * RULE D (E05 C10, 26.09.2026; audit S06-11). A player's Call armed on a student the GMs know
+ * is dead is refused: the buyer's browser offers the living it knows of (call-effects.mjs
+ * `pickPlayer`), and a body nobody has found is one of those. Told as "cannot now", which
+ * names nobody; why is in this GM's log. A Monocub is dead and still a target.
+ * ASKED LAST (E05 fix r2-G3, 27.09.2026; review S2-m1). It stood among the declaration's
+ * guards, before the price: measured by the review, a player with no Hope who sent one
+ * Support for a body nobody had found and one for a living student was told "cannot now"
+ * for the first and "not enough Hope" for the second, free, as often as asked. The
+ * player's road asks it after every refusal a living beneficiary gets too
+ * (gm-bridge.mjs `armPaidByPlayer`), so the two answers differ only where the living
+ * one is armed and paid for. The judgement is this GM's, as before.
+ */
+export async function guardArmLiving(sender, payload, ctx) {
+    if (sender.isGM) return null;
+    const actor = game.actors.get(payload.actorId);
+    const { isDeadForGm, isDeceased } = await import("./settings.mjs");
+    if (!actor || !isDeadForGm(actor) || actor.getFlag?.(MODULE_ID, "monocub")) return null;
+    warn(`A Call on ${actor.name} was refused: they are dead${isDeceased(actor) ? "" : ", and nobody has found the body"}.`);
+    return "that cannot be done now";
 }
 
 /*

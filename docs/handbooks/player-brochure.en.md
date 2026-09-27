@@ -1,6 +1,6 @@
 # Danganronpa RPG - Student Brochure
 
-*One page. Module 1.2.63 on Daggerheart. The names stay English: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
+*One page. Module 1.2.64 on Daggerheart. The names stay English: Hope, Despair, Sanity, Truth Bullet, Remnant, Blackened, Class Trial, Daily Life, Eclipse, Monokuma.*
 
 **You are:** an Ultimate. Leg, Body, Hand, Eye, Shadow, Head. **Health 4, Sanity 6, Hope 2 (max 6)**. Sanity at zero = **Breakdown** (disadvantage on every roll). Health at zero = **Wounded** (one action fewer). Rolls with Hope give you 1 Hope; rolls with Despair feed Monokuma; a critical gives 2 Hope.
 
@@ -68,8 +68,8 @@ Bottom-left of your sheet: your table's word, shown on the button (**Safe Word**
 
 - **Murder.** A trap asks you to roll (Eye vs 20) - being asked is the warning. A direct attack begins with your turn: Leave a clue (12), Secure a trace (15), Self-defence (18, unlocks Survive and Role reversal), use an item (15). Every turn after your first costs Sanity, then Health. Walking in on one gives you one free choice: escape together, take a side, or look away.
 - **Investigation.** Everyone gets the Autopsy Truth Bullet. Observe, Analyze, share. Three to five Key Remnants exist; together they narrow the suspects to 2-4. Take what the body carries from its sheet: you also get a Truth Bullet of what you took, and the body keeps one trace of the looting. What you do not find, you will not have.
-- **Class Trial.** It opens with a fresh set of actions, and nobody leaves the room; only Analyze stays open, plus Hope Calls and items. Open discussion; Present Truth Bullets from your inventory, free. When the GM opens the Nonstop Debate, presenting is an **OBJECTION**: 60 s only you, then a 120 s rebuttal with the person you named. An Objection, like Analyze in a trial, costs 1 action, else 1 Hope, else 1 Sanity. Then the secret vote - <ins>more than half of the ballots</ins> convicts, a tie counts as wrong. Right: the Blackened is executed, survivors Level Up. Wrong: the accused dies, the Blackened stays with a Reinforced Level Up.
-- **Death.** Your Truth Bullets die with you, the rest stays on the body. After your trial you may join the GMs as a Monocub: Move and Confusion.
+- **Class Trial.** It opens with a fresh set of actions, and nobody leaves the room; only Analyze stays open, plus Hope Calls and items. Open discussion; Present Truth Bullets from your inventory, free. When the GM opens the Nonstop Debate, presenting is an **OBJECTION**: 60 s only you, then a 120 s rebuttal with the person you named. An Objection, like Analyze in a trial, costs 1 action, else 1 Hope, else 1 Sanity. Then the secret vote - <ins>more than half of the ballots</ins> convicts, a tie counts as wrong. Right: the Blackened is executed, survivors Level Up. Wrong: the accused dies, the Blackened stays with a Reinforced Level Up, which waits for the class's next Level Up.
+- **Death.** Your Truth Bullets die with you once your death is known, the rest stays on the body. Until somebody finds you, only the GMs and whoever was there know. After your trial you may join the GMs as a Monocub: Move and Confusion.
 
 **Settings gear**, bottom-right: Language (English / Polski, this browser only), theme, scale, sounds, reduced motion, high contrast.
 

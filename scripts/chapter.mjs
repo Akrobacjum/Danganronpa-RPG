@@ -31,13 +31,15 @@
 
 import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { bodyDiscovery, setBodyDiscovery, clearBodyDiscovery } from "./settings.mjs";
+import {
+    bodyDiscovery, setBodyDiscovery, clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFor, pendingDeath
+} from "./settings.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret, faintOf } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, error, plural, esc }
+import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc }
     from "./utils.mjs";
-import { caseMark } from "./gm-stores.mjs";
+import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -45,19 +47,19 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * DEATH
  * ========================================================================== */
 
-/** Is this student dead? */
-export function isDeceased(actor) {
-    return Boolean(actor?.getFlag(MODULE_ID, FLAGS.deceased));
-}
+// The predicates live in settings.mjs (E05 C9), with the rules A-C that say which
+// one a caller asks, and are re-exported here for api.mjs and every caller that
+// already imports them from this file.
+export { isDeceased, isDeadForGm, deathRecord, deathRecordFor, pendingDeath };
 
-/** When they died, or `null`. */
-export function deathRecord(actor) {
-    return actor?.getFlag(MODULE_ID, FLAGS.deceased) ?? null;
-}
-
-/** Every student still alive. */
+/** Every student still alive, as the table knows it (rule A). */
 export function livingStudents() {
     return studentActors().filter(a => !isDeceased(a));
+}
+
+/** Every student still alive as this browser may know it - the GMs' lists (rule B). */
+export function livingStudentsForGm() {
+    return studentActors().filter(a => !isDeadForGm(a));
 }
 
 /**
@@ -65,16 +67,24 @@ export function livingStudents() {
  *
  * What perishes is the Truth Bullets - carried and stashed alike - and the
  * answer-key entries go with them, so the ledger does not fill up with rows
- * nothing can ever reach again. Everything else they owned stays on the sheet
+ * nothing can ever reach again: here, or for a death the GMs keep, at its
+ * publication (`publishDeath`). Everything else they owned stays on the sheet
  * to be found on the body; decision D1 used to take that too, and no longer
  * does (see the long note inside).
  *
  * Quiet on purpose. A murder is a secret until somebody finds the body - the
- * announcement belongs to `discoverBody`, not here. Only the GMs are told.
+ * announcement belongs to `discoverBody`, not here. The card goes to the GMs
+ * and, inside a running incident, to its participants' owners (WHO IS TOLD, below).
+ * This comment said "only the GMs are told" after the card was widened (28.08) and
+ * until the E05 comment sweep (C16, 27.09.2026). Since E05 C10 the running
+ * incident's victim is not even the table's fact yet: no flag, no status, no
+ * bullets deleted until the discovery or a GM's hand (TWO PHASES, below).
  *
  * The token stays where it is. A body is usually the thing the cast will be
  * standing around looking at; what changes is that the rules stop counting them
- * as a person in the room (see `FLAGS.deceased` and `othersInRoom`).
+ * as a person in the room - on the GMs' side and for those who know from the
+ * kill, for everybody else from the publication (`isDeadForGm`, `isDeceased`,
+ * movement.mjs `countsAsPresent`).
  *
  * @param {Actor} actor
  * @param {object} [options]
@@ -101,11 +111,13 @@ export function livingStudents() {
  * Returns the record it wrote, or null if the flag would not take - which is what
  * `killCharacter` reads to decide whether the rest of the procedure should run.
  */
-export async function markDeceased(actor) {
+export async function markDeceased(actor, { record: when = null } = {}) {
     if (!game.user.isGM || !actor) return null;
 
+    // A death published after the kill carries the kill's chapter, day and time of day
+    // (`publishDeath`), not the moment somebody found the body.
     const clock = getClock();
-    const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay };
+    const record = when ?? { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay };
 
     try {
         await actor.setFlag(MODULE_ID, FLAGS.deceased, record);
@@ -126,12 +138,25 @@ export async function markDeceased(actor) {
     return record;
 }
 
-export async function killCharacter(actor, { keepBullets = false } = {}) {
+export async function killCharacter(actor, { keepBullets = false, secret = null } = {}) {
     if (!game.user.isGM || !actor) return null;
-    if (isDeceased(actor)) {
+    if (isDeadForGm(actor)) {
         ui.notifications.warn(game.i18n.format("DRPG.Chapter.alreadyDead", { name: actor.name }));
         return null;
     }
+
+    /*
+     * TWO PHASES (E05 C10, 26.09.2026; audit S06-11). A killing in an incident was
+     * published at the kill: the flag, the "dead" status and the Truth Bullets' deletion
+     * reached every console at once, so a bystander's browser knew who had died and when
+     * long before anybody walked in on the body. The running incident's victim is kept by
+     * the GMs now - a row of the `deaths` store and a copy for those who may know - and the
+     * table learns of it when the body is found or a GM says so (`publishDeath`; the
+     * owner's Q3, 26.09.2026: no trial and no chapter's end makes it public on its own).
+     * Any other death - an execution, a ruling, the GM's dialog with the box unticked - is
+     * the table's at once, as before.
+     */
+    let secretly = secret ?? await isIncidentVictim(actor);
 
     /*
      * WHAT DIES WITH THEM, AND WHAT DOES NOT (Dawid, 27.08).
@@ -141,41 +166,52 @@ export async function killCharacter(actor, { keepBullets = false } = {}) {
      * stay now: they are on the sheet, other students can take them, and taking
      * one is evidence (see `lootBody`).
      *
-     * TRUTH BULLETS STILL PERISH, and that half is unchanged. What somebody
-     * worked out is not an object in their pocket; it died with them, and a
-     * murder that handed the killer their victim's conclusions would be a murder
-     * that pays.
+     * TRUTH BULLETS STILL PERISH, and that half is unchanged - at the publication
+     * for a death kept secret, since an item deleted from a sheet is a death told to
+     * every console. What somebody worked out is not an object in their pocket; it
+     * died with them, and a murder that handed the killer their victim's conclusions
+     * would be a murder that pays.
      */
     let removed = 0;
-    if (!keepBullets) {
-        // The ledger entries first, while the items still exist to be read.
-        for (const bullet of bulletsOf(actor)) await dropSecret(bullet.uuid);
-
-        const doomed = bulletsOf(actor).map(i => i.id);
-
-        if (doomed.length) {
-            try {
-                await actor.deleteEmbeddedDocuments("Item", doomed);
-                removed = doomed.length;
-            } catch (err) {
-                error(`Could not clear ${actor.name}'s inventory on death`, err);
-            }
+    let record;
+    if (secretly) {
+        record = await recordSecretDeath(actor, { keepBullets });
+        if (!record) {
+            warn(`${actor.name}'s death could not be kept by the GMs, so it is the table's at once.`);
+            secretly = false;
         }
     }
-
-    // The record and the token marker, which the Players window's repair
-    // dropdown writes on its own (F16) - one place decides what deceased means.
-    const record = await markDeceased(actor);
+    if (!secretly) {
+        if (!keepBullets) removed = await destroyBullets(actor);
+        // The record and the token marker, which the Players window's repair
+        // dropdown writes on its own (F16) - one place decides what deceased means.
+        record = await markDeceased(actor);
+    }
     if (!record) return null;
+
+    /*
+     * A REINFORCED LEVEL UP WAITING FOR THE CLASS LAPSES AT THE KILL (E05 C11, 27.09.2026;
+     * the design's 2.3 step 5, the owner's Q7). At the kill and not at the publication: the
+     * row is the GMs' alone, so dropping it tells nobody anything. A verdict's batch drops
+     * a dead student's row too (level-up.mjs `advancementPlan` keeps the living), but left
+     * to it the row would outlive the death until the next verdict, in the store and in
+     * every backup taken meanwhile.
+     */
+    if (deferredOfferStore.has(actor.id)) {
+        try {
+            await deferredOfferStore.drop(actor.id);
+        } catch (err) {
+            error(`Could not drop ${actor.name}'s deferred Level Up at the death`, err);
+        }
+    }
 
     /*
      * WHO IS TOLD A STUDENT DIED (Dawid, 28.08 - widen it).
      *
      * The card used to reach the GMs alone. It now also reaches the owners of
      * everyone inside a running incident, which is the audience the sound is
-     * for and therefore the audience the card has to have: the flag rides the
-     * message, so the two cannot drift apart. Nobody learns anything they did
-     * not already know - they were in the room.
+     * for and therefore the audience the card has to have. Nobody learns anything
+     * they did not already know - they were in the room.
      *
      * Outside an incident there are no participants and this is exactly what
      * it always was, a whisper to the GMs.
@@ -183,6 +219,11 @@ export async function killCharacter(actor, { keepBullets = false } = {}) {
      * The list is built the way `announceTimeOfDay` builds it in clock.mjs,
      * from `gmIds()` plus the participants' owners - same function, same
      * shape, no second idea of who counts as "inside this".
+     *
+     * A SECRET DEATH'S SOUND IS ADDRESSED (E05 C10). On the card it is a flag of the
+     * message, which every console receives whoever the card is whispered to - a death
+     * sound at that moment would say that somebody died. It goes to the same audience by
+     * `playSfxForUsers` instead, and the card carries none.
      */
     const deathAudience = await (async () => {
         try {
@@ -207,15 +248,23 @@ export async function killCharacter(actor, { keepBullets = false } = {}) {
             name: foundry.utils.escapeHTML(actor.name),
             chapter: record.chapter
         })}</p>
-        ${keepBullets ? "" : `<p>${plural("DRPG.Chapter.bulletsGone", { n: removed })}</p>`}
+        ${secretly
+            ? `<p>${game.i18n.localize("DRPG.Chapter.keptUntilFound")}</p>`
+            : keepBullets ? "" : `<p>${plural("DRPG.Chapter.bulletsGone", { n: removed })}</p>`}
         <p><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`, {
         whisper: deathAudience ?? gmIds(),
         // The audience of a death card mid-incident is the incident's cast.
         veiled: true,
-        flags: { [MODULE_ID]: { sfx: { key: "death", gm: true } } }
+        ...(secretly ? {} : { flags: { [MODULE_ID]: { sfx: { key: "death", gm: true } } } })
     });
+    if (secretly) {
+        await import("./sfx.mjs").then(m => m.playSfxForUsers(deathAudience ?? gmIds(), "death"))
+            .catch(err => error("Could not play the death's sound to the incident", err));
+    }
 
-    log(`${actor.name} is dead (chapter ${record.chapter}); ${removed} Truth Bullet(s) destroyed.`);
+    log(secretly
+        ? `${actor.name} is dead (chapter ${record.chapter}), kept by the GMs until the body is found.`
+        : `${actor.name} is dead (chapter ${record.chapter}); ${removed} Truth Bullet(s) destroyed.`);
 
     // The VICTIM of the running incident died - and only then (Dawid, 26.08):
     // the chapter's traces are the case now, so they arrive in the
@@ -241,6 +290,137 @@ export async function killCharacter(actor, { keepBullets = false } = {}) {
     }
 
     return record;
+}
+
+/** Whether this actor is the running incident's victim: a death kept secret by default (E05 C10). */
+async function isIncidentVictim(actor) {
+    try {
+        const { murderState } = await import("./murder.mjs");
+        const state = murderState();
+        return Boolean(state?.active) && state.victimId === actor.id;
+    } catch (err) {
+        error("Could not tell whether a death is the running incident's", err);
+        return false;
+    }
+}
+
+/** Every Truth Bullet of theirs deleted, its answer-key entry first; answers how many went. */
+async function destroyBullets(actor) {
+    // The ledger entries first, while the items still exist to be read.
+    for (const bullet of bulletsOf(actor)) await dropSecret(bullet.uuid);
+    const doomed = bulletsOf(actor).map(i => i.id);
+    if (!doomed.length) return 0;
+    try {
+        await actor.deleteEmbeddedDocuments("Item", doomed);
+        return doomed.length;
+    } catch (err) {
+        error(`Could not clear ${actor.name}'s inventory on death`, err);
+        return 0;
+    }
+}
+
+/**
+ * Phase one of a death kept secret (E05 C10): the GMs' row and the copies of those who may
+ * know, and nothing written on the actor. `known` is the players of the incident's seats as
+ * they are now - every kill site runs after the stage has moved, so a trap's killer is back
+ * in (murder.mjs `incidentKnowers`); the victim's own player knows by ownership. Answers the
+ * record, or null when the row did not take - and the caller then publishes the death as
+ * before, since a death lost is worse than one told early.
+ */
+async function recordSecretDeath(actor, { keepBullets = false } = {}) {
+    const clock = getClock();
+    const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay };
+    let known = [];
+    try {
+        const { incidentKnowers } = await import("./murder.mjs");
+        known = incidentKnowers(actor);
+    } catch (err) {
+        error("Could not work out who was in the incident of a death kept secret", err);
+    }
+    try {
+        await deathStore.patch(actor.id, { ...record, at: Date.now(), keepBullets: Boolean(keepBullets), known });
+    } catch (err) {
+        error(`Could not record ${actor.name}'s death for the GMs`, err);
+        return null;
+    }
+    /* WHAT WAS STORED, NOT WHAT IS HELD (E05 fix r2-G3, 27.09.2026; review S2-m8). This read
+       `has`, and the engine keeps a write it could not save in memory (a full origin: its
+       notice asks for a backup), so the check passed whenever the save failed and the death
+       lived in this tab alone - a reload without the backup lost it, no flag and no row. The
+       patch has awaited its save, so the row is read back from storage (`persisted`), as the
+       lifts read theirs; measured in tier 2 with the store's save swallowed. The row held in
+       memory is dropped with it, here and on the GMs its write reached, or the death would be
+       both the table's and a row nobody has found. */
+    if (!deathStore.persisted(actor.id)) {
+        if (deathStore.has(actor.id)) await deathStore.drop(actor.id);
+        return null;
+    }
+    await tellDeathKnowers(actor, known);
+    return record;
+}
+
+/** Every player who may know of this body - its row's `known` and its owners - sent their deaths; `dropped` names it gone. */
+async function tellDeathKnowers(actor, known = [], { dropped = false } = {}) {
+    try {
+        const { tellDeaths } = await import("./murder.mjs");
+        const owners = (game.users ?? []).filter(u => !u.isGM && actor.testUserPermission?.(u, "OWNER")).map(u => u.id);
+        tellDeaths([...(Array.isArray(known) ? known : []), ...owners], dropped ? [actor.id] : []);
+    } catch (err) {
+        error("Could not tell the players who know of a death", err);
+    }
+}
+
+/**
+ * PHASE TWO: THE TABLE LEARNS OF IT (E05 C10; audit S06-11). The Truth Bullets go unless
+ * the kill kept them, the flag is written with the kill's own record (its chapter, day and
+ * time of day, not the finding's) and the "dead" status with it, the row is dropped - its
+ * tombstone is what a copy weighs its loss against - and whoever held a copy is told.
+ * Idempotent: a death already public answers its record, a body nobody killed null. Run
+ * by the body's discovery (`runDiscovery`) and by a GM's hand - the Players window's
+ * "dead" (gm-panel.mjs) - and by nothing else: no trial and no chapter's end publishes a
+ * death on its own (the owner's Q3, 26.09.2026). Last, each loot of the body before this
+ * is given its Truth Bullet, which names the body and so waited in the row (handover.mjs
+ * `payOwedLoot`; E05 fix r2-F0b), and each identified copy of the body's loot trace found
+ * before this the source it held back (truth-bullets.mjs `publishLootSource`; E05 fix r2-G4).
+ */
+export async function publishDeath(actor) {
+    if (!game.user.isGM || !actor) return null;
+    const row = deathStore.get(actor.id);
+    if (!row) return isDeceased(actor) ? deathRecord(actor) : null;
+    const removed = row.keepBullets ? 0 : await destroyBullets(actor);
+    const record = await markDeceased(actor, {
+        record: { chapter: row.chapter ?? getClock().chapter, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null }
+    });
+    if (!record) return null;
+    // Read again after the awaits above: a loot served meanwhile joined the row (handover.mjs `oweLootBullet`).
+    const { owedLoot, payOwedLoot } = await import("./handover.mjs");
+    const owed = owedLoot(deathStore.get(actor.id) ?? row);
+    await deathStore.drop(actor.id);
+    await tellDeathKnowers(actor, row.known, { dropped: true });
+    const paid = owed.length ? await payOwedLoot(actor, owed) : 0;
+    const { publishLootSource } = await import("./truth-bullets.mjs");
+    await publishLootSource(lootTraceStore.get(actor.id));
+    log(`${actor.name}'s death is the table's now (chapter ${record.chapter}); ${removed} Truth Bullet(s) destroyed, ${paid} owed for a loot given.`);
+    return record;
+}
+
+/**
+ * THE DEATHS NOBODY HAS FOUND, AT THE TRIAL'S START (E05 C10; the owner's Q3, 26.09.2026).
+ * The design published them here; the owner's answer is that only the discovery and a GM's
+ * hand do, and that until then such a death is counted nowhere - so the GM who opened the
+ * trial is told how many there are, on their screen and in no document, and the Players
+ * window is where one is made known. Answers how many.
+ * What "nowhere" means at the trial (E05 fix r2-G1, 27.09.2026; review F1, S2-m6): the
+ * student is living to the table (rule A) - a ballot, a Level Up with the class - and the
+ * trial asks for no killer of theirs (murder.mjs `trialBlackenedIds`). The notice said
+ * "no ballot, no count" while the victim's player was sent a ballot and the killer was
+ * counted (review F1): the ballot stays, the count goes, and the notice says so.
+ */
+export function tellUnfoundDeaths() {
+    if (!game.user?.isGM) return 0;
+    const n = Object.keys(deathStore.entries()).filter(id => game.actors?.has(id)).length;
+    if (n) ui.notifications.warn(plural("DRPG.Chapter.deathsStillSecret", { n }), { permanent: true });
+    return n;
 }
 
 /**
@@ -293,12 +473,22 @@ async function offerStageSix(victim) {
 export async function reviveCharacter(actor, { quiet = false } = {}) {
     if (!game.user.isGM || !actor) return false;
 
-    try {
-        await actor.unsetFlag(MODULE_ID, FLAGS.deceased);
-        await actor.toggleStatusEffect("dead", { active: false });
-    } catch (err) {
-        error(`Could not un-mark ${actor.name}`, err);
-        return false;
+    // A death nobody has found is a row of the GMs' store and nothing on the actor (E05
+    // C10): dropped, and its copies told, with no write to the actor - an unset flag on
+    // a living student would tell every console that something about a death moved.
+    const row = deathStore.get(actor.id);
+    if (row) {
+        await deathStore.drop(actor.id);
+        await tellDeathKnowers(actor, row.known, { dropped: true });
+    }
+    if (!row || isDeceased(actor)) {
+        try {
+            await actor.unsetFlag(MODULE_ID, FLAGS.deceased);
+            await actor.toggleStatusEffect("dead", { active: false });
+        } catch (err) {
+            error(`Could not un-mark ${actor.name}`, err);
+            return false;
+        }
     }
 
     // `quiet`: the season reset revives every corpse in a row and deletes every
@@ -314,7 +504,7 @@ export async function openDeathDialog({ actor = null } = {}) {
         return false;
     }
 
-    const alive = livingStudents();
+    const alive = livingStudentsForGm();
     if (!actor && !alive.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Chapter.nobodyLeft"));
         return false;
@@ -328,10 +518,17 @@ export async function openDeathDialog({ actor = null } = {}) {
     // Everything else about the procedure - the warning, the choice about the
     // inventory, `killCharacter` itself - has to stay exactly the same, which
     // is why that button opens this rather than reimplementing it.
+    // Kept by the GMs until the body is found (E05 C10): ticked for the running incident's
+    // victim, the kill's own default - named here, or first in the picker when it is there.
+    const { murderState } = await import("./murder.mjs");
+    const state = murderState();
+    const victimId = state?.active ? state.victimId ?? null : null;
+    const secretByDefault = actor ? actor.id === victimId : alive.some(a => a.id === victimId);
+    const listed = victimId ? [...alive.filter(a => a.id === victimId), ...alive.filter(a => a.id !== victimId)] : alive;
     const picker = actor
         ? `<p><strong>${foundry.utils.escapeHTML(actor.name)}</strong></p>`
         : `<label>${game.i18n.localize("DRPG.Chapter.whoDied")}
-                <select name="actor">${alive
+                <select name="actor">${listed
                     .map(a => `<option value="${a.id}">${
                         foundry.utils.escapeHTML(a.name)}</option>`).join("")}</select></label>`;
 
@@ -343,6 +540,9 @@ export async function openDeathDialog({ actor = null } = {}) {
             <label class="drpg-checkbox">
                 <input type="checkbox" name="keepBullets" />
                 ${game.i18n.localize("DRPG.Chapter.keepBullets")}</label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="secret"${secretByDefault ? " checked" : ""} />
+                ${game.i18n.localize("DRPG.Chapter.keepSecretUntilFound")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Chapter.deathNote")}</p>
         </form>`),
         buttons: [
@@ -350,7 +550,7 @@ export async function openDeathDialog({ actor = null } = {}) {
                 action: "ok", label: game.i18n.localize("DRPG.Chapter.confirmDeath"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
-                    return { id: actor?.id ?? f.actor.value, keepBullets: f.keepBullets.checked };
+                    return { id: actor?.id ?? f.actor.value, keepBullets: f.keepBullets.checked, secret: f.secret.checked };
                 }
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
@@ -362,7 +562,7 @@ export async function openDeathDialog({ actor = null } = {}) {
 
     const dying = game.actors.get(result.id);
     if (!dying) return false;
-    return Boolean(await killCharacter(dying, { keepBullets: result.keepBullets }));
+    return Boolean(await killCharacter(dying, { keepBullets: result.keepBullets, secret: Boolean(result.secret) }));
 }
 
 /* ==========================================================================
@@ -376,14 +576,21 @@ export async function openDeathDialog({ actor = null } = {}) {
  * left by anyone gathering tools, and most of them mean nothing. So this offers
  * the list and the GM ticks. Ticking sets `tiedToCrime` as well as clearing
  * `faint`, which is what actually exempts a trace from the chapter-end sweep.
+ *
+ * NOT ONE ALREADY TIED TO THE CRIME (E05 C14, 27.09.2026; audit S05-06). A Faint
+ * Prep trace a GM had tied by hand, or that delivered the weapon (remnants.mjs
+ * `tieTraceForItem`), was offered at every discovery as though it were still a
+ * question - and it survives the sweep already. Exported for the suite, which
+ * answers the window itself.
  */
-async function promoteFaintPrep() {
+export async function promoteFaintPrep() {
     const candidates = [];
     for (const scene of game.scenes) {
         for (const token of remnantsOn(scene)) {
             const data = remnantData(token);
             if (!data?.faint) continue;
             if (data.type !== "prep") continue;
+            if (data.tiedToCrime) continue;
             candidates.push({ token, data, scene });
         }
     }
@@ -471,14 +678,25 @@ function enqueueBodyWork(work) {
  * @param {object} options
  * @param {string} options.room     Where the body is.
  * @param {Actor} [options.victim]  Named in the announcement when given.
+ * @param {Scene} [options.scene]   The scene the room is on; this client's own when not given.
  */
 export function discoverBody(options = {}) {
     if (!game.user.isGM || !options?.room) return Promise.resolve(null);
     return enqueueBodyWork(() => runDiscovery(options));
 }
 
-async function runDiscovery({ room, victim = null } = {}) {
+async function runDiscovery({ room, victim = null, scene = null } = {}) {
     if (!game.user.isGM || !room) return null;
+
+    /* THE BODY'S SCENE, NOT THE ONE IN VIEW (E05 fix r2-G3, 27.09.2026; review F6). The
+       watcher runs on the primary GM, whatever scene that GM is looking at, and this read the
+       one in view: the bodies to publish and the gather both went to a same-named room there
+       (or nowhere), and a second body in the real room stayed unpublished with the discovery
+       marked done - measured on the harness (10-murder): with the GM looking at another scene,
+       two witnesses walked in on two kept bodies and the one the watcher did not name stayed
+       a death nobody had found. `checkBodyFound` passes the scene the walk happened on and the
+       GM's form the one it chose its room from. */
+    const where = scene ?? canvas?.scene ?? game.scenes?.active ?? null;
 
     // The Eclipse is a placement window nobody has finished crossing yet - see
     // the note on `maybeBodyFound`. Two things refuse before this now:
@@ -493,6 +711,12 @@ async function runDiscovery({ room, victim = null } = {}) {
         return null;
     }
 
+    /* THE TABLE LEARNS OF THE DEATH HERE (E05 C10; audit S06-11): the named victim and every
+       body kept by the GMs lying in this room are published before anything else - before the
+       gather moves the cast in, before the card names them - so every screen reads them dead
+       by the time it is told a body was found. */
+    await publishFoundBodies(room, victim, where);
+
     const promoted = await promoteFaintPrep();
 
     // Stage 7 takes the gloves. The guide puts the cleaning tool's destruction
@@ -502,7 +726,7 @@ async function runDiscovery({ room, victim = null } = {}) {
         .catch(err => error("Could not destroy the cleaning tools at body discovery", err));
 
     const { gatherEveryone } = await import("./call-effects.mjs");
-    const moved = await gatherEveryone(room);
+    const moved = await gatherEveryone(room, where);
 
     // The moment the chapter changes genre, on every screen at once. The card
     // is already public, so the flag needs nothing else from anybody.
@@ -538,6 +762,25 @@ async function runDiscovery({ room, victim = null } = {}) {
     ui.notifications.info(plural("DRPG.Chapter.bodyDone", { moved, promoted }, "promoted"));
     log(`Body discovered in ${room}: ${promoted} trace(s) promoted, ${moved} token(s) gathered.`);
     return { promoted, moved };
+}
+
+/** The named victim, and every body kept by the GMs standing in `room` on `scene`, published (`publishDeath`). */
+async function publishFoundBodies(room, victim, scene) {
+    const ids = new Set(victim && deathStore.has(victim.id) ? [victim.id] : []);
+    try {
+        const { roomOfToken } = await import("./movement.mjs");
+        for (const t of scene?.tokens ?? []) {
+            const id = t.actor?.id;
+            if (id && deathStore.has(id) && roomOfToken(t) === room) ids.add(id);
+        }
+    } catch (err) {
+        error("Could not read which bodies lie in the room of the discovery", err);
+    }
+    for (const id of ids) {
+        const body = game.actors.get(id);
+        if (body) await publishDeath(body);
+    }
+    return ids.size;
 }
 
 /**
@@ -598,8 +841,8 @@ async function checkBodyFound(tokenDoc) {
     // chapter it happened in; a record without one is treated as this chapter's.
     const chapter = getClock().chapter;
     const bodies = new Set(studentActors()
-        .filter(a => isDeceased(a) && !a.getFlag(MODULE_ID, FLAGS.monocub)
-            && (deathRecord(a)?.chapter ?? chapter) === chapter)
+        .filter(a => isDeadForGm(a) && !a.getFlag(MODULE_ID, FLAGS.monocub)
+            && (deathRecordFor(a)?.chapter ?? chapter) === chapter)
         .map(a => a.id));
     if (!bodies.size) return null;
 
@@ -629,6 +872,21 @@ async function checkBodyFound(tokenDoc) {
         return roomOfToken(t) === room;
     });
 
+    /* ONE, ALONE, AND NOT IN IT (E05 C10; the owner's Q1, 26.09.2026). A student who walks in
+       on a body nobody has found with nobody else there sees it - told privately by the GMs,
+       their copy naming it, the dead marker drawn on their screen alone - and nothing is
+       announced: the rule of two witnesses stays.
+       NOT IN THAT DEATH, WHATEVER ELSE THEY DID (E05 fix r2-G1, 27.09.2026; review F10). This
+       branch was closed to `involved` - every Blackened of the chapter, all of its incidents -
+       so a killer of the chapter's first incident who walked alone onto the second's body was
+       told nothing (measured on the harness: the row's `known` did not gain their player).
+       Who already knows of that death is `tellLoneFinder`'s to pass over (the
+       row's `known`, the body's owners); `involved` stays the rule of two witnesses'. */
+    if (witnesses.length === 1) {
+        await tellLoneFinder(witnesses[0].actor, scene, room);
+        return null;
+    }
+
     // Two in the room, and at least one of them did not do this. A killer is
     // part of the pool, never the whole of it.
     if (witnesses.length < 2) return null;
@@ -637,7 +895,33 @@ async function checkBodyFound(tokenDoc) {
     log(`Body found in ${room}: ${witnesses.map(t => t.actor.name).join(", ")} walked in.`);
     // Already inside the queue: straight to the work, not back through `discoverBody`,
     // which would wait behind this very call.
-    return await runDiscovery({ room, victim: bodyHere.actor });
+    return await runDiscovery({ room, victim: bodyHere.actor, scene });
+}
+
+/**
+ * THE LONE FINDER (E05 C10; the owner's Q1, 26.09.2026). The finder's player is added to the
+ * `known` of every body nobody has found lying in `room`, sent their copy, and told by an
+ * addressed packet - no chat message, which every console would receive. Once per body: a
+ * player who already knows is told nothing again. Answers how many bodies they learnt of.
+ */
+async function tellLoneFinder(finder, scene, room) {
+    const user = ownerOf(finder);
+    if (!user || user.isGM) return 0;
+    const { roomOfToken } = await import("./movement.mjs");
+    const { knowsOfDeath, tellDeaths, tellFinder } = await import("./murder.mjs");
+    const found = [];
+    for (const t of scene?.tokens ?? []) {
+        const id = t.actor?.id;
+        const row = id ? deathStore.get(id) : null;
+        if (!row || t.hidden || roomOfToken(t) !== room || knowsOfDeath(user, id, row)) continue;
+        await deathStore.patch(id, { known: [...(Array.isArray(row.known) ? row.known : []), user.id] });
+        found.push(t);
+    }
+    if (!found.length) return 0;
+    tellDeaths([user.id]);
+    for (const t of found) tellFinder(user.id, t, room);
+    log(`${finder.name} found ${found.map(t => t.name).join(", ")} alone in ${room}; their player was told privately.`);
+    return found.length;
 }
 
 /** The body-discovery announcement, from the case dashboard's footer. */
@@ -677,7 +961,7 @@ export async function openBodyDiscoveryDialog() {
 
     // The dead are the candidates here - the victim is normally already marked
     // by the time anybody trips over them.
-    const dead = studentActors().filter(isDeceased);
+    const dead = studentActors().filter(isDeadForGm);
     const victims = dead
         .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
@@ -713,7 +997,8 @@ export async function openBodyDiscoveryDialog() {
 
     return discoverBody({
         room: result.room,
-        victim: result.victimId ? game.actors.get(result.victimId) : null
+        victim: result.victimId ? game.actors.get(result.victimId) : null,
+        scene: canvas?.scene ?? null
     });
 }
 
@@ -1084,17 +1369,12 @@ export async function applyChapterEnd(choices = {}) {
             { n: await clearChapterKeyRemnants(endingChapter) }));
     }
 
-    /* AND THE PLAN IS FILED BEFORE THE CLOCK MOVES. `keyPlan()` returns a fresh set of rows
-       the moment the chapter changes, so whatever the GM wrote about this case is only
-       reachable until the line below runs. Silent, and unconditional: it costs nothing, it
-       cannot fail in a way worth reporting, and the alternative is a GM who ends a chapter
-       and finds their five clues gone. */
-    try {
-        const { archiveKeyPlan } = await import("./investigation.mjs");
-        await archiveKeyPlan(endingChapter);
-    } catch (err) {
-        error("Could not file the chapter's Key Remnant plan", err);
-    }
+    /* THE PLAN STAYS WITH ITS CHAPTER, AND NOTHING IS FILED HERE (E05 C5, 1.2.64). Until then
+       `keyPlan()` read one chapter's plan off a world setting and gave any other chapter blanks,
+       so the ending chapter's plan was filed under `archive` here, before the clock moved - the
+       only way what a GM wrote about a case outlived it. The plan is a GM store since, a row per
+       chapter and slot (gm-stores.mjs `keyPlanStore`): the ending chapter's rows stay where they
+       are, and the next chapter's are its own. */
 
     // The register of who killed belongs to the chapter that is ending, and is
     // no longer emptied here (E04): `blackenedIds` reads the rows of the clock's

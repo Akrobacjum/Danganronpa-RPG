@@ -23,8 +23,8 @@
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { grantItem, canCarry, preservedFlags, capacityLabel, isStashed } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet } from "./truth-bullets.mjs";
-import { dialogContent, whisperToOwner, log, warn, error } from "./utils.mjs";
-import { answerKeysRefusal } from "./gm-stores.mjs";
+import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion } from "./utils.mjs";
+import { answerKeysRefusal, lootTraceStore, deathStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -190,12 +190,14 @@ async function verify(fromId, toId, itemId) {
     // directly, and the ordinary race where the recipient dies between the
     // giver choosing them and this running. Either way the item would land on
     // an actor whose inventory has already been destroyed, and stay there.
-    const { isDeceased } = await import("./chapter.mjs");
-    if (isDeceased(to)) {
-        warn(`Handover refused: ${to.name} is dead.`);
-        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.recipientDead", {
-            name: foundry.utils.escapeHTML(to.name)
-        })}</p>`);
+    const { isDeadForGm, isDeceased } = await import("./chapter.mjs");
+    if (isDeadForGm(to)) {
+        warn(`Handover refused: ${to.name} is dead${isDeceased(to) ? "" : " (nobody has found the body)"}.`);
+        /* Rule D (E05 C10): a body nobody has found is not named to the giver, who may not
+           know of it - they are told it cannot be done now, and the reason stays here. */
+        await whisperToOwner(from, `<p>${isDeceased(to)
+            ? game.i18n.format("DRPG.Handover.recipientDead", { name: foundry.utils.escapeHTML(to.name) })
+            : game.i18n.localize("DRPG.Bridge.why.cannotNow")}</p>`);
         return null;
     }
 
@@ -206,7 +208,7 @@ async function verify(fromId, toId, itemId) {
     // killing-game murder, and not for the window between a sheet being left
     // open and the body being found. A corpse quietly passing its Truth Bullets
     // around the room is the same leak as one that can still be heard on voice.
-    if (isDeceased(from)) {
+    if (isDeadForGm(from)) {
         warn(`Handover refused: ${from.name} is dead.`);
         return null;
     }
@@ -368,7 +370,7 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
  * bypassed all of it. The trace does not take the suppression away - it prices
  * it, in the machinery that already exists.
  */
-export async function lootBody({ takerId, bodyId, itemId } = {}) {
+export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {}) {
     if (!game.user.isGM) return null;
 
     const taker = game.actors.get(takerId);
@@ -376,10 +378,20 @@ export async function lootBody({ takerId, bodyId, itemId } = {}) {
     const item = body?.items?.get(itemId);
     if (!taker || !body || !item) return null;
 
-    const { isDeceased } = await import("./chapter.mjs");
+    /* BEFORE THE DISCOVERY, BY THOSE WHO KNOW (E05 C10; the owner's Q2, 26.09.2026). A body
+       nobody has found may be searched by whoever knows of the death - the incident's
+       players, the victim's own, a GM - asked of the GMs' record by the user who sent the
+       request (`askedBy`, Foundry's sender; a GM's own button sends none), never of the
+       public fact. The item moving between two sheets is world data every console reads,
+       which the owner chose knowing it. */
+    const { isDeceased, isDeadForGm } = await import("./chapter.mjs");
     if (!isDeceased(body)) {
-        warn(`Refused to loot ${body.name}: they are not dead.`);
-        return null;
+        const { knowsOfDeath } = await import("./murder.mjs");
+        const asker = askedBy ? game.users.get(askedBy) : game.user;
+        if (!isDeadForGm(body) || !knowsOfDeath(asker, body.id)) {
+            warn(`Refused to loot ${body.name}: ${isDeadForGm(body) ? "the asker does not know of the death" : "they are not dead"}.`);
+            return null;
+        }
     }
     if (isTruthBullet(item)) {
         // They perish at death and should never be here to take.
@@ -423,16 +435,93 @@ export async function lootBody({ takerId, bodyId, itemId } = {}) {
     }
 
     const trace = await markBodyDisturbed(body, name);
-    await mintLootBullet(taker, body, item, name, category, trace);
+    /* THE BULLET WAITS FOR THE TABLE (E05 fix r2-F0b, 27.09.2026; the owner's Q1-Q3, the plan's
+       section 2). The Truth Bullet of a loot names the body it came off, and it is an item on the
+       taker's sheet, which every console reads: minted here before the discovery, it told a death
+       nobody had been told of - measured on e47a5d5: in 72-canary its creation reached p1, who knew
+       nothing, carrying "Taken from Botan Kage's body.", and in tier 2 a body's second loot kept
+       those words at rest (the first's were covered by its trace's reveal, below). A body the
+       table does not know is dead gets the item's move alone, which the owner chose (Q2); the
+       bullet is owed by the death's row in the GMs' store and given by the publication
+       (chapter.mjs `publishDeath`), dated when and where the item was taken. The taker knows
+       what they took; the GMs have the row. */
+    const loot = await lootRecord(taker, item, name, trace);
+    if (isDeceased(body)) await mintLootBullet(taker, body, loot);
+    else await oweLootBullet(body, loot);
 
     log(`${taker.name} took "${name}" from ${body.name}'s body.`);
     return taken;
 }
 
 /**
+ * What a loot's Truth Bullet is made of, as plain data: minted at once for a body the table
+ * knows is dead, kept in the death's row until the publication for one it does not (E05 fix
+ * r2-F0b). The stamp and the room are the loot's own - the clock and the taker's room now.
+ */
+async function lootRecord(taker, item, name, trace) {
+    const { servesAs } = await import("./inventory.mjs");
+    const { roomOfActor } = await import("./movement.mjs");
+    const { getClock } = await import("./clock.mjs");
+    const clock = getClock();
+    return {
+        takerId: taker.id, item: name, img: item.img ?? null,
+        tied: ["crimeTool", "cleaningTool"].some(role => servesAs(item, role)),
+        sceneId: trace?.sceneId ?? null, tokenId: trace?.tokenId ?? null,
+        room: roomOfActor(taker) ?? null, chapter: clock.chapter ?? null, day: clock.day ?? null, timeOfDay: clock.timeOfDay ?? null
+    };
+}
+
+/**
+ * A loot of a body nobody has found (E05 fix r2-F0b): its bullet's record joins the death's row,
+ * which only a GM holds (`deathsFor` sends a player the kill's chapter, day and time of day, and
+ * nothing else of it). `ifLive`: a death revived in the meantime has no row, and a loot off it
+ * owes nothing.
+ * A RECORD OF ITS OWN (E05 fix r2-G3, 27.09.2026; F0b's note). `loot` was one list, rewritten
+ * whole by each loot, and the store keeps the newer of two writes of one field: measured on the
+ * harness (61 S), two GMs each serving a loot of one body without having heard of the other's
+ * ended holding one record, and the publication gave one taker nothing. It is a split field now
+ * (gm-stores.mjs `deathStore`), a record per loot under a key of its own - when, on which GM -
+ * so the merge keeps both, as the owed Despair keeps a row per conversion (despair.mjs). Not
+ * covered, read and not measured: a loot served on one GM in the moment another publishes the
+ * death - the publication drops the row, a record stamped before the drop goes with it, and the
+ * item has moved with no bullet given.
+ */
+function oweLootBullet(body, loot) {
+    const key = `${Date.now()}:${game.user.id}:${foundry.utils.randomID(4)}`;
+    return deathStore.patch(body.id, { loot: { [key]: loot } }, { ifLive: true });
+}
+
+/** The loots a death's row owes, oldest first (`oweLootBullet`'s keys start with the time). */
+export function owedLoot(row) {
+    const owed = row?.loot;
+    if (!owed || typeof owed !== "object" || Array.isArray(owed)) return [];
+    return Object.entries(owed).filter(([, loot]) => loot && typeof loot === "object")
+        .sort(([a], [b]) => (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0) || (a < b ? -1 : a > b ? 1 : 0))
+        .map(([, loot]) => loot);
+}
+
+/**
+ * THE PUBLICATION GIVES WHAT A LOOT BEFORE IT OWED (E05 fix r2-F0b): each taker the Truth Bullet
+ * of what they took, as a loot of a published body mints it, with the loot's own stamp and room.
+ * Run by chapter.mjs `publishDeath` with the row it drops; a taker no longer in the world is
+ * passed over. Answers how many were given.
+ */
+export async function payOwedLoot(body, owed = []) {
+    if (!game.user.isGM || !body) return 0;
+    let paid = 0;
+    for (const loot of Array.isArray(owed) ? owed : []) {
+        const taker = game.actors.get(loot?.takerId ?? "");
+        if (!taker) continue;
+        await mintLootBullet(taker, body, loot);
+        paid++;
+    }
+    return paid;
+}
+
+/**
  * One trace per body, and the list of what has left it grows inside it.
  *
- * The remnant is recorded on the CORPSE rather than looked up on the map,
+ * The remnant is recorded against the CORPSE rather than looked up on the map,
  * because "is there already a trace here" is a question the map answers badly:
  * a room can hold a dozen traces and none of them about this body.
  *
@@ -440,9 +529,22 @@ export async function lootBody({ takerId, bodyId, itemId } = {}) {
  * missing token - rightly, since a silent missing trace is the one failure an
  * investigation never recovers from - but a body with no token on the scene is
  * a situation rather than a fault, and it must not cost the player their loot.
+ *
+ * THE RECORD IS THE GMS' (E05 C14, 27.09.2026; audit S05-39 (3)). It was the body's
+ * own `lootTrace` flag - the trace's token id and every item's name - and every
+ * browser holds every actor's flags: a console read which trace on the map was the
+ * body's, and what had left it, before anybody had found either. It is a row of the
+ * GMs' `lootTraces` store now, read after the other GMs' copies have arrived, since
+ * a row this browser has not received yet would read as a body nobody has touched
+ * and a second trace would go down beside the first. The old flag is read while its
+ * clause has not taken it (`liftLootTraces`, which runs once, on the primary, a
+ * moment after the first load of 1.2.64): a loot in that moment adds to the trace
+ * the flag names, and the clause, fill-only, then finds the row written and only
+ * takes the flag off.
  */
 async function markBodyDisturbed(body, itemName) {
-    const record = body.getFlag(MODULE_ID, FLAGS.lootTrace) ?? null;
+    await lootTraceStore.whenHydrated();
+    const record = lootTraceStore.get(body.id) ?? body.getFlag(MODULE_ID, FLAGS.lootTrace) ?? null;
     const taken = [...(record?.taken ?? []), itemName];
 
     const { setRemnantSecretById } = await import("./remnants.mjs");
@@ -455,7 +557,7 @@ async function markBodyDisturbed(body, itemName) {
         await setRemnantSecretById(record.sceneId, record.tokenId, {
             note: game.i18n.format("DRPG.Loot.traceNote", { items: taken.join(", ") })
         });
-        await body.setFlag(MODULE_ID, FLAGS.lootTrace, { ...record, taken });
+        await lootTraceStore.patch(body.id, { sceneId: record.sceneId, tokenId: record.tokenId, taken });
         return record;
     }
 
@@ -475,8 +577,71 @@ async function markBodyDisturbed(body, itemName) {
     if (!token) return null;
 
     const next = { sceneId: token.parent?.id ?? null, tokenId: token.id, taken };
-    await body.setFlag(MODULE_ID, FLAGS.lootTrace, next);
+    await lootTraceStore.patch(body.id, next);
     return next;
+}
+
+/**
+ * A world from before 1.2.64 records each looted body's trace in the body's own
+ * `lootTrace` flag, which every browser reads (audit S05-39 (3)). The clause
+ * `liftLootTraces` (migrate.mjs, since 1.2.64) runs this once, on the primary, after
+ * the store holds the other GMs' copies (E05 C14).
+ *
+ * Each record goes into the body's row weak and fill-only - a row a loot wrote since
+ * keeps its own - and the flag leaves the actor only once the row reads back from
+ * storage holding a `tokenId`. A flag that names no trace (a record with no token id,
+ * a `null`) has nothing to lift and is deleted. A flag still on an actor after that
+ * throws, with the count, so the world is not stamped and the next load tries again
+ * (E05 fix r1-G1; migrate.mjs, above the lifts). Idempotent: a world already through
+ * this holds no such flag.
+ *
+ * @returns {Promise<null|{lifted: number, dropped: number, kept: number}>}  `kept` 0:
+ *   anything else throws.
+ */
+export async function liftLootTraces() {
+    if (!isPrimaryGm()) return null;
+    if (await lootTraceStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the bodies' loot traces did not arrive; the next load tries again");
+    }
+    const flag = FLAGS.lootTrace;
+    const flagged = () => (game.actors?.contents ?? []).filter(actor => Object.hasOwn(actor.flags?.[MODULE_ID] ?? {}, flag));
+    const found = flagged();
+    if (!found.length) return null;
+    const rows = {};
+    for (const actor of found) {
+        const record = actor.flags[MODULE_ID][flag];
+        if (typeof record?.tokenId !== "string" || !record.tokenId) continue;
+        rows[actor.id] = { sceneId: typeof record.sceneId === "string" ? record.sceneId : null, tokenId: record.tokenId,
+            taken: Array.isArray(record.taken) ? record.taken.map(String) : [] };
+    }
+    if (Object.keys(rows).length) {
+        await lootTraceStore.patchMany(rows, { weak: true, fillOnly: true });
+        await lootTraceStore.idle();
+    }
+    const deletion = forcedDeletion();
+    let lifted = 0, dropped = 0, kept = 0;
+    for (const actor of found) {
+        if (rows[actor.id]) {
+            const row = lootTraceStore.persisted(actor.id);
+            if (!row || !Object.hasOwn(row, "tokenId")) {
+                kept++;
+                continue;
+            }
+            lifted++;
+        } else {
+            dropped++;
+        }
+        if (deletion) await actor.update({ [`flags.${MODULE_ID}.${flag}`]: deletion });
+        else await actor.unsetFlag(MODULE_ID, flag);
+    }
+    const left = flagged().length;
+    if (lifted || dropped) {
+        log(`Took ${lifted + dropped} body loot record(s) out of world data (${lifted} held by the GM store, ${dropped} naming no trace); ${left} left.`);
+    }
+    if (left) {
+        throw new Error(`${left} bod(ies) still name their loot trace in a flag (${kept} whose row the GM store did not read back); the next load tries again`);
+    }
+    return { lifted, dropped, kept };
 }
 
 /**
@@ -491,38 +656,54 @@ async function markBodyDisturbed(body, itemName) {
  * answer key, published on analysis, so a cereal bar off a body does not arrive
  * pre-labelled as meaningless either.
  */
-async function mintLootBullet(taker, body, item, name, category, trace) {
+async function mintLootBullet(taker, body, loot) {
     try {
         const { createTruthBullet } = await import("./truth-bullets.mjs");
-        const { servesAs } = await import("./inventory.mjs");
-        const incriminating = ["crimeTool", "cleaningTool"].some(role => servesAs(item, role));
 
         /*
          * WHAT ANALYSING THE TRACE WILL SAY, off the trace's own `public` record.
          *
-         * `trace` is the bookmark on the body - a scene id, a token id and what has
-         * been taken - not a ledger entry, so it has no reading of its own. The
-         * second looter's trace already exists, a GM may have written its lab
-         * reading hours ago, and it is usually already revealed - so the
-         * `revealSourceOf` at the end of `createTruthBullet` returns before it
-         * reconciles this copy. Without this the copy would be the one bullet in
-         * the game whose analysis said nothing, however much the GM had written.
+         * The loot's trace is the bookmark on the body - a scene id and a token id
+         * - not a ledger entry, so it has no reading of its own. The second
+         * looter's trace already exists, a GM may have written its lab reading
+         * hours ago, and it is usually already revealed - so the `revealSourceOf`
+         * at the end of `createTruthBullet` returns before it reconciles this
+         * copy. Without this the copy would be the one bullet in the game whose
+         * analysis said nothing, however much the GM had written.
          */
-        const { remnantPublicById } = await import("./remnants.mjs");
-        const analyzedText = remnantPublicById(trace?.sceneId, trace?.tokenId)?.analyzedText ?? "";
+        const { remnantPublicById, revealRemnantToFinderById } = await import("./remnants.mjs");
+        const analyzedText = remnantPublicById(loot.sceneId, loot.tokenId)?.analyzedText ?? "";
+
+        /*
+         * THE TRACE IS REVEALED BEFORE THE BULLET IS MADE (E05 fix r2-F0b, 27.09.2026).
+         * A body's first loot finds its trace hidden, and `createTruthBullet` reveals a
+         * hidden trace at its end - which puts the trace's `public` record onto every
+         * copy of it, this one included: the neutral word and no words, for a trace no
+         * GM has described. Measured on e47a5d5: the first loot's bullet read "Trace" on
+         * the GM (tier 2) and on p1 (72-canary), and said nothing of what was taken or off
+         * whom; only a later loot's kept its words. Revealed here first, the record goes
+         * onto the copies there were before, and this one says what the loot says, as
+         * every later one does - once the death is the table's (`lootBody`). The owners'
+         * copy of the trace comes a moment after the reveal and redraws their map when it
+         * arrives (visibility.mjs, on `drpgBulletRefsChanged`); the drawing needs a canvas,
+         * which the harness has not, so that order is read in the code, not seen.
+         */
+        if (loot.sceneId && loot.tokenId) await revealRemnantToFinderById(loot.sceneId, loot.tokenId);
 
         await createTruthBullet(taker, {
-            name: game.i18n.format("DRPG.Loot.bulletName", { item: name }),
+            name: game.i18n.format("DRPG.Loot.bulletName", { item: loot.item }),
             realType: "neutral",
             visibility: "evident",
             playerText: game.i18n.format("DRPG.Loot.bulletText", {
-                item: name, who: body.name
+                item: loot.item, who: body.name
             }),
-            img: item.img,
+            img: loot.img,
             sourceAction: "loot",
-            tiedToCrime: incriminating ? true : null,
-            remnantId: trace?.tokenId ?? null,
-            sceneId: trace?.sceneId ?? null,
+            tiedToCrime: loot.tied ? true : null,
+            remnantId: loot.tokenId ?? null,
+            sceneId: loot.sceneId ?? null,
+            room: loot.room ?? null,
+            stamp: { chapter: loot.chapter, day: loot.day, timeOfDay: loot.timeOfDay },
             analyzedText
         });
     } catch (err) {

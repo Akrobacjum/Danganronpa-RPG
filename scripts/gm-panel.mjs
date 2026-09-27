@@ -664,9 +664,9 @@ function aliveTableHtml({ roster, stateOf, donors, isSilenced, resourceValue, re
         return `<tr data-actor="${a.id}">
             <td>${esc(a.name)}</td>
             <td><select name="state.${a.id}">
-                ${["alive", "dead", "monocub"].map(sKey =>
+                ${(state === "unfound" ? ["alive", "unfound", "dead", "monocub"] : ["alive", "dead", "monocub"]).map(sKey =>
                     `<option value="${sKey}"${sKey === state ? " selected" : ""}>${
-                        game.i18n.localize(`DRPG.Panel.state.${sKey}`)}</option>`).join("")}
+                        game.i18n.localize(sKey === "unfound" ? "DRPG.Chapter.deadUnfound" : `DRPG.Panel.state.${sKey}`)}</option>`).join("")}
             </select></td>${cubCells}
             <td>
                 ${state === "alive"
@@ -810,9 +810,9 @@ async function openWhoIsAliveDialog() {
 
     // `killCharacter`, `reviveCharacter` and `setSilenced` went with the apply loop
     // (F15): `applyAliveStates` below imports what it writes.
-    const { isDeceased, openDeathDialog } = await import("./chapter.mjs");
+    const { isDeceased, isDeadForGm, openDeathDialog } = await import("./chapter.mjs");
     const { isMonocub, setMonocub, isSilenced } = await import("./monocub.mjs");
-    const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
+    const { monokumas, donorLabel } = await import("./despair.mjs");
     const { resourceValue, resourceMax } = await import("./character.mjs");
 
     /*
@@ -832,7 +832,9 @@ async function openWhoIsAliveDialog() {
         return;
     }
 
-    const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : "alive";
+    /* "Dead, not found" (E05 C10): a death kept by the GMs, which only this window and the
+       body's discovery make known - choosing "dead" here publishes it (`applyAliveStates`). */
+    const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : isDeadForGm(a) ? "unfound" : "alive";
     /*
      * CALLED, NOT READ ONCE (F15, 20.09). This was a string, built when the
      * window opened, and the table rebuilds itself on every actor change - so
@@ -840,9 +842,12 @@ async function openWhoIsAliveDialog() {
      * donation went on offering the Despair it no longer had, and a Monokuma who
      * opted in while the window stood open never appeared in the list at all. The
      * row above it made exactly this mistake with `anyCub` and says so.
+     *
+     * What each pool can spend, and what it owes (E05 C12): a conversion's Despair is
+     * taken from the pool at the next time of day (despair.mjs `donorLabel`).
      */
     const buildDonors = () => monokumas().map(u =>
-        `<option value="${u.id}">${esc(poolLabel(u))} (${getDespair(u.id)})</option>`).join("");
+        `<option value="${u.id}">${esc(donorLabel(u))}</option>`).join("");
 
     const table = () => {
         const donors = buildDonors();
@@ -894,7 +899,8 @@ async function openWhoIsAliveDialog() {
             keepLive(dialog, {
                 region: ".drpg-alive-live",
                 build: table,
-                watch: { actors: true },
+                // A death kept by the GMs writes no actor (E05 C10): its store's change is the sign.
+                watch: { actors: true, hooks: ["drpgDeathsChanged", "drpgDespairOwedChanged"] },
                 after: wireAll
             });
         },
@@ -945,10 +951,14 @@ async function openWhoIsAliveDialog() {
 export async function applyAliveStates(chosen = {}) {
     if (!game.user.isGM) return 0;
 
-    const { isDeceased, reviveCharacter, markDeceased } = await import("./chapter.mjs");
+    const { isDeceased, isDeadForGm, reviveCharacter, markDeceased, publishDeath, pendingDeath } = await import("./chapter.mjs");
     const { isMonocub, setMonocub, isSilenced, setSilenced } = await import("./monocub.mjs");
     const { isMonokuma } = await import("./monokuma.mjs");
-    const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : "alive";
+    const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : isDeadForGm(a) ? "unfound" : "alive";
+    /* A death kept by the GMs is published by the GM's hand here (E05 C10; the owner's Q3):
+       its record, its Truth Bullets and its row go as the discovery takes them. A student
+       with no such death is marked as the repair always marked them. */
+    const makeKnown = a => (pendingDeath(a) ? publishDeath(a) : markDeceased(a));
 
     let changed = 0;
     for (const [id, want] of Object.entries(chosen)) {
@@ -968,9 +978,12 @@ export async function applyAliveStates(chosen = {}) {
                 await reviveCharacter(actor);
             } else if (want.state === "dead") {
                 await setMonocub(actor, false);
-                if (!isDeceased(actor)) await markDeceased(actor);
+                if (!isDeceased(actor)) await makeKnown(actor);
+            } else if (want.state === "unfound") {
+                // Only a killing keeps a death secret; a row that was published meanwhile stays so.
+                continue;
             } else {
-                if (!isDeceased(actor)) await markDeceased(actor);
+                if (!isDeceased(actor)) await makeKnown(actor);
                 await setMonocub(actor, true);
             }
             changed++;

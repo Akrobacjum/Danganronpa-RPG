@@ -47,7 +47,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isDeceased } from "./chapter.mjs";
+import { isDeadForGm, isDeceased } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToGms, isPrimaryGm, debug, error } from "./utils.mjs";
@@ -193,7 +193,9 @@ function redactTabs(root) {
  * standing over a body.
  */
 function buildBodyLoot(root, actor) {
-    if (!isDeceased(actor)) return;
+    // A body this browser knows of (E05 C10, the owner's Q2): the table's, or one nobody has
+    // found that this player was in the incident of - the GMs judge the taking again.
+    if (!isDeadForGm(actor)) return;
 
     const pane = root.querySelector('section.tab[data-tab="inventory"]');
     const tab = root.querySelector('a[data-tab="inventory"]');
@@ -261,7 +263,8 @@ async function takeFromBody(body, item) {
     const { requestBodyLoot } = await import("./gm-bridge.mjs");
     const res = await requestBodyLoot({ takerId: taker.id, bodyId: body.id, itemId: item.id });
     // Only what the GM has: a refusal has been said, and "you took it" beside it would be two answers.
-    if (res.ok) ui.notifications.info(game.i18n.format("DRPG.Loot.took", { item: item.name }));
+    // Off a body nobody has found, the Truth Bullet waits for the death to be known (E05 fix r2-F0b).
+    if (res.ok) ui.notifications.info(game.i18n.format(isDeceased(body) ? "DRPG.Loot.took" : "DRPG.Loot.tookUnfound", { item: item.name }));
 }
 
 /**
@@ -310,10 +313,15 @@ function lockedPlaceholder() {
  * tell you.
  */
 function redactValues(root) {
+    // A question mark that still carries its tooltip is not a question mark (S03-06, E05
+    // C15, 27.09.2026): "1 of 2 actions this time of day" and "Free Move used" were a
+    // hover away on every pip this made "?". The label a screen reader reads goes with it.
     const mark = (el, text, cls) => {
         el.textContent = text;
         el.classList.add("drpg-redacted-value");
         if (cls) el.classList.add(cls);
+        el.removeAttribute("data-tooltip");
+        el.removeAttribute("aria-label");
     };
 
     for (const value of root.querySelectorAll(".trait-value")) mark(value, "?");
@@ -342,6 +350,13 @@ function redactValues(root) {
         row.querySelector(".controls")?.remove();
         row.removeAttribute("data-tooltip-text");
     }
+
+    // The Calls armed on the owner's next roll and what is standing on them: whispered
+    // to the owner and the GM everywhere else. sheet.mjs draws none for a viewer
+    // (`viewerOf`); removed here as well, so a stack drawn by anything else goes too -
+    // EMPTIED, NOT HIDDEN, as the tabs are.
+    for (const badge of root.querySelectorAll(".drpg-pending-call")) badge.remove();
+    for (const stack of root.querySelectorAll(".drpg-pending-stack")) stack.remove();
 }
 
 /**

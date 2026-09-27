@@ -10,7 +10,7 @@ import { MODULE_ID, PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_
 import { SETTINGS } from "./settings.mjs";
 import {
     allProjects, setProjectMeta, metaFor, roomOf, isIndirectMurder, isSecret,
-    makeSecret, shareWith, unshareWith, revealProject, viewersOf, sealAudience, builderIds,
+    makeSecret, shareWith, unshareWith, revealProject, viewersOf, sealAudience, builderIds, secretsOf, withoutLeak,
     createProject, deleteProject, setProjectImage, updateProject, knowsProject
 } from "./projects.mjs";
 import { allRooms } from "./movement.mjs";
@@ -397,7 +397,7 @@ function projectManagerRows(projects, rooms) {
     const players = playerList();
     return projects.map(p => {
         const secret = isSecret(p.id);
-        const knows = viewersOf(p.id).map(u => u.id);
+        const knows = knownBy(p.id);
         return `<tr data-project="${p.id}">
             <td>
                 <img src="${foundry.utils.escapeHTML(p.img ?? "")}" alt="" class="drpg-project-portrait"
@@ -417,7 +417,7 @@ function projectManagerRows(projects, rooms) {
                        ${secret ? "checked" : ""} />
             </td>
             ${players.length
-                ? viewerTicks(players, knows, p)
+                ? viewerTicks(players, knows, p, { locked: !secret })
                 : `<td><small class="notes">${game.i18n.localize("DRPG.Project.noPlayers")}</small></td>`}
             <td style="text-align:center">
                 <button type="button" class="drpg-mini-button" data-drpg-edit="${p.id}"
@@ -502,7 +502,7 @@ async function applyProjectManager(result, projects) {
         // "Indirect" box is refused, with a reason, until the project has a
         // killer - the edit dialog is where one is named.
         if (newlyMurder) {
-            const meta = metaFor(entry.id);
+            const meta = secretsOf(entry.id);
             if (!meta.killerId && !meta.by) {
                 ui.notifications.warn(game.i18n.format("DRPG.Project.needsKillerNamed", { name: before?.name ?? "?" }));
                 await setProjectMeta(entry.id, { room: entry.room || null });
@@ -735,11 +735,12 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
      * it beside the eight the module watches is what makes "I will keep an eye
      * on this myself" a decision rather than the only thing available.
      */
-    // Off the META, not off `start`: `allProjects()` returns the countdown plus
-    // the handful of fields the tray needs, and the trigger is not one of them.
-    // Reading it from the wrong place would silently reset every trap's trigger
-    // to "manual" the first time a GM opened its project to change the name.
-    const startTrigger = (editing ? metaFor(project.id)?.trigger : start?.trigger) ?? null;
+    // Off the GMs' store, not off `start`: `allProjects()` returns the countdown
+    // plus the handful of fields the tray needs, and the trigger is not one of
+    // them. Reading it from the wrong place would silently reset every trap's
+    // trigger to "manual" the first time a GM opened its project to change the
+    // name. The store's since E05 (projectMeta's before: audit S09-05).
+    const startTrigger = (editing ? secretsOf(project.id).trigger : start?.trigger) ?? null;
     const currentTrigger = startTrigger?.kind ?? "manual";
     const triggerOptions = Object.entries(TRAP_TRIGGERS).map(([key, def]) =>
         `<option value="${key}"${key === currentTrigger ? " selected" : ""}>${
@@ -802,8 +803,9 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                     game.i18n.localize("DRPG.Project.secret")}</label>
             ${players.length ? `<fieldset class="drpg-viewer-list">
                 <legend>${game.i18n.localize("DRPG.Project.visibleTo")}</legend>
-                ${viewerBoxes(players, editing ? viewersOf(project.id).map(u => u.id) : [])}
-                <small class="notes">${game.i18n.localize("DRPG.Project.visibleToNote")}</small>
+                ${viewerBoxes(players, editing ? knownBy(project.id) : [], null, { locked: editing && !isSecret(project.id) })}
+                <small class="notes">${game.i18n.localize(editing && !isSecret(project.id)
+                    ? "DRPG.Project.everyone" : "DRPG.Project.visibleToNote")}</small>
             </fieldset>` : ""}
             ${editing ? `<p class="notes">${game.i18n.format("DRPG.Project.editProgressNote", {
                 current: project.current, target: project.start
@@ -987,7 +989,9 @@ async function applySecrecy(id, wanted, viewers = null) {
      * takes them off. The builder is added either way, because a seal that shuts
      * the person building it out is F3 coming back.
      */
-    const audience = viewers ? [...new Set([...viewers, ...builderIds(id)])] : sealAudience(id);
+    // Through `withoutLeak` as `sealAudience` is (E05; audit S09-09): a ticked list that is every
+    // player at once was the F4 leak again, re-sealed under the Secret box's name.
+    const audience = viewers ? [...new Set([...withoutLeak(id, viewers), ...builderIds(id)])] : sealAudience(id);
     if (wanted) {
         // Re-sealed when the list moved even if the checkbox did not - and not
         // written when neither did: a Save that changes nothing must not rewrite
@@ -1041,20 +1045,33 @@ function playerList() {
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
 }
 
+/**
+ * WHO A ROW'S TICKS NAME (E05 C1; audit S09-09). A secret project's viewers; a public one's
+ * `sealedViewers` - who knew before it was revealed, and will again if it is sealed - never
+ * `viewersOf`, which on a public project is the whole table (Daggerheart reads
+ * `ownership[user.id]`, so a reveal names every player): the manager and the project window
+ * showed that list as ticks, and a Save re-sealed with it - the F4 leak under the Secret box's
+ * name. A public project's ticks are drawn locked (`locked`), with `DRPG.Project.everyone`.
+ */
+function knownBy(id) {
+    return isSecret(id) ? viewersOf(id).map(u => u.id) : (metaFor(id).sealedViewers ?? []);
+}
+
 /** One cell per player for the manager's matrix - see `openProjectManager`. The checkbox
     keeps the name `viewerBoxes` gives it, so `readManager` reads both the same way. */
-function viewerTicks(players, checked, project) {
+function viewerTicks(players, checked, project, { locked = false } = {}) {
     const known = new Set(checked);
+    const lock = locked ? ` disabled data-tooltip="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Project.everyone"))}"` : "";
     return players.map(user => `<td class="drpg-viewer-tick">
-        <input type="checkbox" name="viewers.${project.id}" value="${user.id}"${known.has(user.id) ? " checked" : ""}
+        <input type="checkbox" name="viewers.${project.id}" value="${user.id}"${known.has(user.id) ? " checked" : ""}${lock}
                aria-label="${foundry.utils.escapeHTML(`${user.name}: ${project.name}`)}" /></td>`).join("");
 }
 
-function viewerBoxes(players, checked, projectId = null) {
+function viewerBoxes(players, checked, projectId = null, { locked = false } = {}) {
     const name = projectId ? `viewers.${projectId}` : "viewers";
     const known = new Set(checked);
     return players.map(user => `<label class="drpg-inline-check">
-        <input type="checkbox" name="${name}" value="${user.id}"${known.has(user.id) ? " checked" : ""} />
+        <input type="checkbox" name="${name}" value="${user.id}"${known.has(user.id) ? " checked" : ""}${locked ? " disabled" : ""} />
         ${foundry.utils.escapeHTML(user.name)}</label>`).join(" ");
 }
 
@@ -1120,7 +1137,10 @@ export async function openShareDialog(preselectId = null) {
 
     if (!result || result === "cancel") return;
 
-    if (result.revoke) await unshareWith(result.project, result.player);
+    // "Revoked." only when it was (E05): a builder is never taken off their own project, and that was said.
+    if (result.revoke) {
+        if (!await unshareWith(result.project, result.player)) return;
+    }
     // "Project shared." only when it was (E31): a refusal has been said, and a public project is not shared.
     else if (!await shareWith(result.project, result.player)) return;
 

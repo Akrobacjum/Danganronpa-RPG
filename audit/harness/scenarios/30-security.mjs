@@ -176,13 +176,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
         B.requestCrisisResult({ actorId: "${ids.botan}", key: "finishingBlow", total: 99, isCritical: false, withHope: true }); return true;`);
     await settle(1700);
-    const early = await gm.eval(`return { dead: game.drpg.isDeceased(game.actors.get("${ids.daichi}")),
+    // Dead as the GMs know it (E05 C10): a killing is the GMs' own until the body is found, so the flag would read "alive" either way.
+    const early = await gm.eval(`return { dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")),
         reasons: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "murder.crisis"')).map(e => e.message) };`);
     check("SECURITY: a finishing blow thrown out of turn by the killer's own player kills nobody and is refused",
         victimTurn === "victim" && early.dead === false && early.reasons.some(r => /not their turn/.test(r)), JSON.stringify({ victimTurn, ...early }));
     await toSide("killer");
     await settle(500);
-    const readCrisis = `return { stage: game.drpg.murderState()?.stage ?? null, dead: game.drpg.isDeceased(game.actors.get("${ids.daichi}")) };`;
+    const readCrisis = `return { stage: game.drpg.murderState()?.stage ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")) };`;
     const blow = await forge("murder.crisis", { actorId: ids.botan, key: "finishingBlow", total: 99, isCritical: false, withHope: true }, readCrisis);
     await settle(1200); // a killing lands after a beat (10-murder waits 1.7 s); wait it out before calling it unchanged
     const blowLater = await gm.eval(readCrisis);
@@ -217,6 +218,35 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         !(aikoWhole ?? []).some(t => t.id === planted6.id) && JSON.stringify(aikoWhole) === JSON.stringify(aikoMine),
         JSON.stringify({ aikoWhole, aikoMine }));
     await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false }); return true;`, { timeout: 60000 });
+
+    /*
+     * 4d. A CALL ON A BODY NOBODY HAS FOUND (E05 fix r2-G3, 27.09.2026; review S2-m1). Daichi is
+     * the blow's kept death now. The GM refused a Call on him as "cannot now" before it asked
+     * for the price, so p1 with no Hope was told "cannotNow" for Daichi and "notEnoughHope" for
+     * Chie - which of the class had died unseen, free. It is asked last now: with no Hope both
+     * are refused for the Hope, and with the Hope for it Daichi's is still refused, paid for by
+     * nobody. Red on 8c6dfd6: Daichi's came back cannotNow with no Hope held.
+     */
+    phase("a Call on a body nobody has found", { flow: "call-arm" });
+    const aikoHope = await gm.eval(`const a = game.actors.get("${ids.aiko}"); const was = a.system.resources.hope.value;
+        await a.update({ "system.resources.hope.value": 0 }); return was;`);
+    const support = (target, nonce) => p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestArmCall("${target}", ${JSON.stringify({ key: "support", grants: "advantage", kind: "hope", from: ids.aiko, nonce })});`,
+        { timeout: 30000 });
+    const poor = { kept: await support(ids.daichi, "sec-kept-poor"), living: await support(ids.chie, "sec-living-poor") };
+    await gm.eval(`await game.actors.get("${ids.aiko}").update({ "system.resources.hope.value": 4 }); return true;`);
+    const rich = await support(ids.daichi, "sec-kept-paid");
+    await settle(600);
+    const readSupport = await gm.eval(`const d = game.actors.get("${ids.daichi}");
+        return { kept: game.drpg.isDeadForGm(d) && !game.drpg.isDeceased(d), hope: game.actors.get("${ids.aiko}").system.resources.hope.value,
+            armed: JSON.stringify([d.getFlag("${MOD}", "pendingCall") ?? null, game.actors.get("${ids.chie}").getFlag("${MOD}", "pendingCall") ?? null]) };`);
+    await gm.eval(`await game.actors.get("${ids.aiko}").update({ "system.resources.hope.value": ${Number(aikoHope) || 0} }); return true;`);
+    check("SECURITY: with no Hope, a Support for a body nobody has found and one for a living student are refused alike (notEnoughHope)",
+        readSupport.kept && poor.kept?.ok === false && poor.living?.ok === false && poor.kept.reason === "notEnoughHope"
+        && poor.living.reason === "notEnoughHope", JSON.stringify({ poor, readSupport }));
+    check("control: with the Hope for it, the Support for the body nobody has found is still refused as cannotNow - nothing paid, nothing armed",
+        rich?.ok === false && rich.reason === "cannotNow" && readSupport.hope === 4 && !readSupport.armed.includes("sec-"),
+        JSON.stringify({ rich, readSupport }));
 
     /*
      * 5. A player calling a GM-side pool write through the API.
@@ -281,6 +311,31 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("XSS: the card's button and data attributes survive the cleaning",
         seen.button === "r1", JSON.stringify(seen));
     check("XSS: a player's packet cannot pin its card in the GM's store", seen.pinned === false, JSON.stringify(seen));
+
+    /* A CARD'S FACTS FROM A PLAYER (E05 C7, 26.09.2026). They travel with the words now and
+       the GM's day summary reads them, so what a player sends is kept as plain fields only,
+       and not at all when they name a character the player does not own: p1 plays Aiko,
+       not Botan. Two cards of p1's own, each with a packet as a console would write it. */
+    const facts = await p1.eval(`
+        const post = async summary => {
+            const msg = await ChatMessage.create({ content: '<p class="notes" data-drpg-secret>-</p>',
+                whisper: ["${gm.userId}"], flags: { "${MOD}": { secret: true } } });
+            game.socket.emit("${SOCKET}", { action: "secret.card", id: msg.id, html: "<p>SEC facts</p>", at: Date.now(), summary });
+            return msg.id;
+        };
+        return { other: await post({ actorId: "${ids.botan}", action: "Search", item: "SEC not yours" }),
+            own: await post({ actorId: "${ids.aiko}", action: "Search", item: "SEC yours", extra: "SEC extra", total: { v: 1 } }) };
+    `, { timeout: 30000 });
+    await settle(1200);
+    const factsKept = await gm.eval(`
+        const store = game.settings.get("${MOD}", "secretCards") ?? {};
+        return { other: store[${JSON.stringify(facts.other)}]?.summary ?? null, own: store[${JSON.stringify(facts.own)}]?.summary ?? null,
+            words: Boolean(store[${JSON.stringify(facts.other)}]?.html) };
+    `);
+    check("SECURITY: a player's card cannot put facts about another player's character in the GM's day summary",
+        factsKept.words && factsKept.other === null, JSON.stringify(factsKept));
+    check("SECURITY: a player's facts about their own character are kept as plain fields only",
+        factsKept.own?.item === "SEC yours" && !("extra" in (factsKept.own ?? {})) && factsKept.own?.total === null, JSON.stringify(factsKept));
 
     /* The same words, stored before this was fixed: an entry with no trust mark is
        cleaned when it is read, whoever wrote it. */
@@ -416,6 +471,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: an unsabotage naming a project that is not the repair deletes nothing and thaws nothing",
         Boolean(sabotaged.repair) && mismatched.after.secret && mismatched.after.repair && mismatched.after.frozen
         && mismatched.reasons.some(r => /not what froze|does not repair/.test(r)), JSON.stringify({ sabotaged, mismatched }));
+    /* WHO SABOTAGED IS THE GMS' (E05 fix r1-G1, 27.09.2026; the security review's S1-m1). p2's user
+       id sat on the repair's projectMeta row, `saboteur`, which every browser holds, until the
+       repair was finished; it is a field of the GMs' store now. p1 reads the repair's row, the GM
+       its store; and p1 asking to take back p2's sabotage is refused for not being who asked,
+       which the GM reads from the store. */
+    const whoAsked = {
+        p1: await p1.eval(`return (game.settings.get("${MOD}", "projectMeta") ?? {})["${sabotaged.repair}"] ?? null;`),
+        gm: await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            return S.projectSecretStore.get("${sabotaged.repair}")?.saboteur ?? null;`)
+    };
+    check("SECURITY: who sabotaged a project is not in projectMeta on p1 - the GMs' store holds p2's user id",
+        Boolean(whoAsked.p1?.repairs) && !Object.hasOwn(whoAsked.p1, "saboteur") && whoAsked.gm === p2.userId, JSON.stringify(whoAsked));
+    const notTheirs = await forge("project.unsabotage", { targetId: projects.pub, repairId: sabotaged.repair, actorId: ids.aiko }, readPair);
+    check("SECURITY: p1 taking back p2's sabotage is refused - the GM reads who asked from its store - and nothing is thawed",
+        notTheirs.unchanged && notTheirs.after.frozen && notTheirs.reasons.some(r => /did not ask for that sabotage/.test(r)), JSON.stringify(notTheirs));
     await clearFailures();
     await p2.eval(`game.socket.emit("${SOCKET}", { action: "project.unsabotage", userId: game.user.id, requestId: "noreceipt",
         targetId: "${projects.pub}", repairId: "${sabotaged.repair}", actorId: "${ids.botan}" }, ${toGms}); return true;`);
@@ -687,8 +757,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         }
         return { away: away.id, here: here.id };`, { timeout: 60000 });
     await settle(600);
+    // The trigger is the GMs' store's since E05 (C1; audit S09-05): `setProjectMeta` above routes it there.
     const readTraps = `const P = await import("${repoUrl}/scripts/projects.mjs");
-        return { away: P.metaFor("${traps.away}").trigger?.firedAt ?? null, here: P.metaFor("${traps.here}").trigger?.firedAt ?? null };`;
+        return { away: P.secretsOf("${traps.away}").trigger?.firedAt ?? null, here: P.secretsOf("${traps.here}").trigger?.firedAt ?? null };`;
     const relayTo = room => p1.eval(`game.socket.emit("${SOCKET}", { action: "trap.event", kind: "crossing",
         actorId: "${ids.aiko}", to: "${room}" }, ${toGms}); return true;`);
     await relayTo("Storage");
@@ -701,6 +772,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     const trapHere = await gm.eval(readTraps);
     check("control: a crossing into the room the character stands in sets off the trap there",
         trapHere.here !== null && trapHere.away === null, JSON.stringify(trapHere));
+    /* 7l2. The alert that trap sent the GMs names it in its words alone (E05's fix round, S1-m2,
+       27.09.2026). The card is whispered to the GMs, and its flags are on every browser: its
+       popup's title said "SEC trap here - something set it off" on p2's copy. The GM finds the
+       card by its words; p2's copy of it - the whole document - holds no name of the trap.
+       Red on the fix's parent: p2's popupTitle named it. */
+    const alertId = await gm.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        for (const m of game.messages.contents.filter(m => m.getFlag("${MOD}", "callCard") && m.getFlag("${MOD}", "gmPopup")).reverse()) {
+            if ((await wordsOf(m) ?? "").includes("SEC trap here")) return m.id;
+        }
+        return null;`);
+    const alertOnP2 = await p2.eval(`const m = game.messages.get(${JSON.stringify(alertId)});
+        return m ? { held: true, named: JSON.stringify(m.toObject()).includes("SEC trap here"), title: m.getFlag("${MOD}", "popupTitle") ?? null } : { held: false };`);
+    check("SECURITY: a trap's alert card names the trap in the GMs' words, and nowhere in p2's copy of the card",
+        Boolean(alertId) && alertOnP2.held && !alertOnP2.named, JSON.stringify({ alertId, alertOnP2 }));
 
 
     // 7g. search tokens in a room the character is not in, and in the one she is.
@@ -728,6 +813,122 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         return F.discoveredFor(canvas.scene.id, "${ids.aiko}");`);
     check("SECURITY: a fog ledger nobody asked for adds no rooms to a character's record",
         !JSON.stringify(fogAfter ?? []).includes("Storage"), JSON.stringify(fogAfter));
+
+    /*
+     * 7h2. A Direct Murder parked in another's name (E05 C3, 26.09.2026; audit S10-01). The
+     * declaration is the GMs' store's since E05, not the world setting every browser held: p1
+     * forges one for Chie (p3's), and nothing reaches the store; Chie's own player parks one, and
+     * the store holds it while the world's old key, read on p1, holds nothing.
+     *
+     * Only in an Eclipse (E05 fix r1-G3, 27.09.2026; review S1-m8): with none running, Chie's own
+     * player's murder.park is refused on the GM as cannotNow and told to p3, and nothing is written
+     * or put to the GMs - red on ced3cad, where the row was filed named for no Eclipse and the GMs
+     * were asked to rule on it. The control then parks in an Eclipse opened by its clock flag.
+     */
+    phase("a Direct Murder parked", { flow: "murder-incident" });
+    const readPark = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return { row: S.pendingMurderStore.get("${ids.chie}") ?? null };`;
+    const park = await forge("murder.park", { killerId: ids.chie, room: "Gym", note: "SEC forged declaration" }, readPark);
+    check("SECURITY: a forged murder.park for Chie changed nothing in the GMs' store",
+        park.unchanged && park.after.row === null, JSON.stringify(park));
+    check("SECURITY: the GM refused the forged murder.park for ownership, and told p1",
+        park.forOwnership && park.told.some(t => t.what === "murder.park"), JSON.stringify({ reasons: park.reasons, told: park.told }));
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    const shutFrom = await gm.eval(`return game.messages.size;`);
+    const parkShut = await p3.eval(`return await (await import("${repoUrl}/scripts/gm-bridge.mjs")).requestParkMurder({ killerId: "${ids.chie}", room: "Gym", note: "SEC declared in daylight" });`, { timeout: 30000 });
+    await settle(900);
+    const shutAfter = { ...(await gm.eval(readPark)), posted: (await gm.eval(`return game.messages.size;`)) - shutFrom,
+        logged: await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "murder.park"') && e.message.includes("no Eclipse is running")).length;`) };
+    check("SECURITY: with no Eclipse running, Chie's own player's murder.park is refused and told as cannotNow - nothing filed, no GM asked",
+        parkShut?.ok === false && parkShut?.reason === "cannotNow" && shutAfter.row === null && shutAfter.posted === 0 && shutAfter.logged === 1,
+        JSON.stringify({ parkShut, shutAfter }));
+    const parkClock = await gm.eval(`const c = game.drpg.getClock(); await game.drpg.setClock({ timeOfDay: "morning", eclipse: true, eclipseStartedAt: Date.now() });
+        return { timeOfDay: c.timeOfDay, timeOfDayStartedAt: c.timeOfDayStartedAt };`);
+    await settle(300);
+    await p3.eval(`const { parkDirectMurder } = await import("${repoUrl}/scripts/eclipse.mjs");
+        await parkDirectMurder({ killerId: "${ids.chie}", room: "Gym", note: "SEC Chie's own declaration" }); return true;`, { timeout: 30000 });
+    await settle(900);
+    const parkOk = await gm.eval(readPark);
+    const parkWorld = await p1.eval(`return game.settings.get("${MOD}", "pendingMurders") ?? null;`);
+    check("control: Chie's own player parks a declaration: the GMs' store holds it, and the world's old key on p1 holds nothing",
+        parkOk.row?.note === "SEC Chie's own declaration" && JSON.stringify(parkWorld) === "{}", JSON.stringify({ parkOk, parkWorld }));
+    await gm.eval(`await (await import("${repoUrl}/scripts/eclipse.mjs")).clearParkedMurders();
+        await game.drpg.setClock({ eclipse: false, ...${JSON.stringify(parkClock)} }); return true;`);
+
+    /*
+     * 7h3. An Eclipse crossing for another's character (E05 C4, 26.09.2026; audit S10-39). The
+     * crossings are counted in the GMs' store since E05, the allowance judged there: p1 forges a
+     * crossing for Botan (p2's), and nothing is counted; Botan's own player crosses, and the store
+     * counts it, answered with the count. In an Eclipse opened by its clock flag and name alone,
+     * leading into noon, and closed again.
+     *
+     * The card names the room crossed into (E05 fix r1-G3, 27.09.2026; review M8): on a route
+     * through two rooms the bridge carried no room and each card named the room the token ended
+     * in - red on ced3cad, the card of a crossing into another room named Botan's. The room is a
+     * claim: one that is no room of Botan's scene is not put in the card, which names where the
+     * GM stands the token, and the crossing is counted all the same.
+     */
+    phase("an Eclipse crossing", { flow: "eclipse-route-veto" });
+    const clockWas = await gm.eval(`const c = game.drpg.getClock(); await game.drpg.setClock({ timeOfDay: "morning", eclipse: true, eclipseStartedAt: Date.now() });
+        return { timeOfDay: c.timeOfDay, timeOfDayStartedAt: c.timeOfDayStartedAt };`);
+    const readMoves = `const X = await import("${repoUrl}/scripts/eclipse.mjs"); return { used: X.movesUsed(game.actors.get("${ids.botan}")) };`;
+    const cross = await forge("eclipse.move", { actorId: ids.botan }, readMoves);
+    check("SECURITY: a forged eclipse.move for Botan counted no crossing",
+        cross.unchanged && cross.after.used === 0, JSON.stringify(cross));
+    check("SECURITY: the GM refused the forged eclipse.move for ownership, and told p1",
+        cross.forOwnership && cross.told.some(t => t.what === "eclipse.move"), JSON.stringify({ reasons: cross.reasons, told: cross.told }));
+    const where = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const X = await import("${repoUrl}/scripts/eclipse.mjs");
+        const here = M.roomOfActor(game.actors.get("${ids.botan}"));
+        return { here, into: M.allRooms().find(r => here && !r.includes(here) && !here.includes(r)) ?? null, allowance: X.eclipseAllowance() };`);
+    const cardsFrom = await p2.eval(`return game.messages.size;`);
+    const crossOk = await p2.eval(`return await (await import("${repoUrl}/scripts/gm-bridge.mjs")).requestEclipseMove("${ids.botan}", ${JSON.stringify(where.into)});`, { timeout: 30000 });
+    await settle(600);
+    const crossAfter = await gm.eval(readMoves);
+    check("control: Botan's own player crosses, and the GMs' store counts it, answered with the count",
+        crossOk?.ok === true && crossOk?.value?.used === 1 && crossAfter.used === 1, JSON.stringify({ crossOk, crossAfter }));
+    const crossLie = await p2.eval(`return await (await import("${repoUrl}/scripts/gm-bridge.mjs")).requestEclipseMove("${ids.botan}", "SEC no such room");`, { timeout: 30000 });
+    await settle(600);
+    const crossCards = await p2.eval(`const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        return game.messages.contents.slice(${cardsFrom}).map(m => contentOf(m));`);
+    check("control: the card of Botan's crossing names the room crossed into, not the one the token stands in",
+        Boolean(where.here && where.into) && crossCards.length === 2 && crossCards[0].includes(where.into) && !crossCards[0].includes(where.here),
+        JSON.stringify({ where, crossCards }));
+    check("SECURITY: a crossing that names no room of Botan's scene is counted, and its card names where the GM stands the token",
+        where.allowance >= 2 && crossLie?.ok === true && crossLie?.value?.used === 2 && crossCards.length === 2
+        && crossCards[1].includes(where.here) && !crossCards[1].includes("SEC no such room"), JSON.stringify({ where, crossLie, crossCards }));
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await S.eclipseMoveStore.drop("${ids.botan}");
+        await game.drpg.setClock({ eclipse: false, ...${JSON.stringify(clockWas)} }); return true;`);
+
+    /*
+     * 7h4. A pre-session note for another user (E05 C6, 26.09.2026; audit S11-03, S01-08). A player's
+     * note is written through the primary GM since E05, under the user Foundry names as the sender:
+     * p2 saves one of their own, then p1 sends `note.save` carrying p2's id - as the address, and as
+     * a field of its own. p2's note is unchanged, in the GMs' store and in p2's flag; p1's own note
+     * is what p1 sent, since the packet names nobody and the only note it can write is its sender's.
+     * Nothing is refused. Put back: both rows dropped and both flags as they were.
+     */
+    phase("a pre-session note", { flow: "pre-session-note" });
+    const NOTE = `const N = await import("${repoUrl}/scripts/pre-session-note.mjs");`;
+    const noteUsers = [p1.userId, p2.userId];
+    const noteFlagsWas = await gm.eval(`return ${JSON.stringify(noteUsers)}.map(id => game.users.get(id).getFlag("${MOD}", "preSessionNote") ?? null);`);
+    const p2Saved = await p2.eval(`${NOTE} return await N.saveNote(game.user.id, "SEC p2's own note");`, { timeout: 30000 });
+    await settle(600);
+    const readNotes = `${NOTE} return { p1: N.noteFor("${p1.userId}"), p2: N.noteFor("${p2.userId}"),
+        p2Flag: game.users.get("${p2.userId}").getFlag("${MOD}", "preSessionNote") ?? null };`;
+    const forgedNote = await forge("note.save", { text: "SEC p1's words for p2", noteUserId: p2.userId }, readNotes);
+    check("SECURITY: a note.save carrying p2's id changes only its sender's own note - p2's stays, p1's is what p1 sent",
+        p2Saved === "sent" && forgedNote.before.p2 === "SEC p2's own note" && forgedNote.after.p2 === "SEC p2's own note"
+        && JSON.stringify(forgedNote.after.p2Flag) === JSON.stringify(forgedNote.before.p2Flag) && forgedNote.after.p1 === "SEC p1's words for p2"
+        && !forgedNote.reasons.length, JSON.stringify({ p2Saved, forgedNote }));
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const { replaceFlag } = await import("${repoUrl}/scripts/utils.mjs");
+        // A tree before C6 has no store to take them from (its red run, 26.09): the flags alone are put back there.
+        if (S.noteStore) await S.noteStore.dropMany(${JSON.stringify(noteUsers)});
+        const was = ${JSON.stringify(noteFlagsWas)};
+        for (const [i, id] of ${JSON.stringify(noteUsers)}.entries()) {
+            const user = game.users.get(id);
+            if (was[i] === null) await user.unsetFlag("${MOD}", "preSessionNote");
+            else await replaceFlag(user, "preSessionNote", was[i]);
+        }
+        return true;`);
 
     /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.

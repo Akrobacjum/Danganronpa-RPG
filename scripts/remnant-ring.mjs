@@ -592,8 +592,8 @@ function colourInputsFor(tokenDoc) {
  * frame off it means the map cannot disagree with itself: a project whose
  * countdown finished gets the green frame at the same moment its icon turns
  * green, from the same number, with no second lookup that could be stale and no
- * read of the countdown itself, which is ownership-gated and may not be this
- * client's to see at all.
+ * read of the countdown itself, which is hidden from the interface - not from
+ * the console (S09-05) - and may not be this client's to show at all.
  *
  * ONE WEIGHT FOR A PROJECT, and that is a decision rather than an omission. The
  * heavy frame means "reinforced" on a trace - the one thing a GM acts on without

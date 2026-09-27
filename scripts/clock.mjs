@@ -101,6 +101,9 @@ export async function setClock(patch = {}) {
         && patch.timeOfDayStartedAt === undefined) {
         next.timeOfDayStartedAt = Date.now();
     }
+    // An Eclipse's name ends with it (E05, `eclipseId`), whichever route ends it: a
+    // flag set again later by hand must not inherit the last Eclipse's name.
+    if (before.eclipse && next.eclipse !== true) next.eclipseStartedAt = null;
 
     await game.settings.set(MODULE_ID, SETTINGS.clock, next);
 
@@ -124,10 +127,11 @@ export async function setClock(patch = {}) {
     /*
      * AND THE ECLIPSE, for the same reason and by the same rule.
      *
-     * `endEclipse` clears the crossing ledger and tells the other clients. The
-     * flag is also one field of the season reset's clock write, which ran
-     * neither - so a season wiped during an Eclipse left last season's crossings
-     * in the ledger and every other browser still dimmed.
+     * `endEclipse` tells the other clients. The flag is also one field of the
+     * season reset's clock write, which did not - so a season wiped during an
+     * Eclipse left every other browser still dimmed. (It also left last season's
+     * crossings in the ledger; since E05 each crossing is named for its Eclipse,
+     * and counts nothing in another.)
      */
     if (patch.eclipse !== undefined && before.eclipse && !next.eclipse) {
         await reconcileEclipseEnded();
@@ -520,6 +524,14 @@ async function reconcilePhase(from, to) {
         } catch (err) {
             error("Could not charge for the Key Remnants nobody found", err);
         }
+        try {
+            /* A death nobody has found stays the GMs' through the trial (E05 C10; the owner's
+               Q3, 26.09.2026): the GM opening it is told how many, and publishes by hand. */
+            const { tellUnfoundDeaths } = await import("./chapter.mjs");
+            tellUnfoundDeaths();
+        } catch (err) {
+            error("Could not count the deaths nobody has found at the trial's start", err);
+        }
     }
 }
 
@@ -528,14 +540,11 @@ async function reconcilePhase(from, to) {
  *
  * Judging the murders declared under the Eclipse stays in `endEclipse`: the one
  * route that comes through here without it is the season reset, and a season
- * being wiped has no murders left to rule on.
+ * being wiped has no murders left to rule on. The crossings are not cleared here
+ * any more (E05): each is named for its Eclipse (`eclipseId`), and counts nothing
+ * once another runs.
  */
 async function reconcileEclipseEnded() {
-    try {
-        await game.settings.set(MODULE_ID, SETTINGS.eclipseMoves, {});
-    } catch (err) {
-        error("Could not clear the Eclipse's crossing ledger", err);
-    }
     try {
         const { broadcast, SYNC } = await import("./sync.mjs");
         broadcast(SYNC.eclipse, { active: false });

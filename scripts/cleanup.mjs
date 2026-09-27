@@ -62,7 +62,7 @@ import { PRICE_CHAINS, ACTIONS } from "./config.mjs";
 // The chain, and the one payer (T-1). Tamper's price is an action, or a Sanity
 // mark when there is no action - never both, which is what this file used to do.
 import { quotePrice, payPrice, refundPrice, paidLine } from "./price.mjs";
-import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY }
+import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, REMNANT_TYPES }
     from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery } from "./settings.mjs";
@@ -75,7 +75,7 @@ import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 // What this character has copied into their inventory as a Truth Bullet, which
 // is this module's only record of "they know this trace is there".
-import { copiedRemnants } from "./truth-bullets.mjs";
+import { copiedRemnants, bulletsOf, secretOf } from "./truth-bullets.mjs";
 import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
@@ -189,9 +189,10 @@ export function cleanableRemnants(actor, where = null) {
  *
  * The DC (`cleanupDc`) and `tiedToCrime` never leave this function - that is
  * the answer key `openCleanupDialog` used to have no business rendering
- * client-side and now has no way to, because it never receives them. Only the
- * label is built from `visibilityLabel`/`typeLabel`, which the guide already
- * gives the killer at Stage 6 - see the note on `openCleanupDialog`.
+ * client-side and now has no way to, because it never receives them. The label
+ * is built from `visibilityLabel`/`typeLabel` for the killer at Stage 6, which
+ * the guide already gives them - see the note on `openCleanupDialog` - and off
+ * it from the character's own copy (E05 C14, below).
  */
 export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
     const actor = game.actors.get(actorId);
@@ -283,14 +284,44 @@ export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
               known.has(t.token.id) || (t.data.type === "incident" && watched))
         : cleanableRemnants(actor);
 
-    return wanted.map(t => ({
-        id: t.token.id,
-        label: [
-            `${t.data.visibilityLabel} ${t.data.typeLabel}`,
-            t.data.reinforced ? game.i18n.localize("DRPG.Cleanup.reinforcedFlag") : null
-        ].filter(Boolean).join(" · "),
-        reinforced: Boolean(t.data.reinforced)
-    }));
+    /*
+     * A TRACE OF YOUR OWN IS NAMED BY YOUR OWN COPY (E05 C14, 27.09.2026; audit S05-14).
+     * Every row was labelled with the trace's band and its real category off the ledger -
+     * "Subtle Incident Remnant": an investigator holding an unanalysed copy opened Tamper,
+     * which costs nothing until a road is picked, and read the category an Analyze exists to
+     * price; and a reshaped trace's category said that somebody had reworked it. Off Stage 6
+     * a trace this character holds a copy of is labelled by that copy's name, which is theirs
+     * already, and by nothing of the ledger (`DRPG.Tamper.yourCopy`). One they watched being
+     * made keeps its label: only the running incident's own traces reach this list that way,
+     * and its category is the incident they stood in. Stage 6's whole room keeps the whole
+     * label - the guide opens the killer's eyes to their own scene.
+     */
+    const copies = unfiltered ? null : copyNamesOf(actor);
+    return wanted.map(t => {
+        const copy = copies?.get(t.token.id);
+        return {
+            id: t.token.id,
+            label: [
+                copy !== undefined ? game.i18n.format("DRPG.Tamper.yourCopy", { name: copy }) : `${t.data.visibilityLabel} ${t.data.typeLabel}`,
+                t.data.reinforced ? game.i18n.localize("DRPG.Cleanup.reinforcedFlag") : null
+            ].filter(Boolean).join(" · "),
+            reinforced: Boolean(t.data.reinforced)
+        };
+    });
+}
+
+/**
+ * The name of this character's own copy of each trace they hold one of, by the trace's
+ * token id - the id `copiedRemnants` answers by, so every trace that list lets through
+ * has a name here. The first copy's, if they hold two. GM-side, like the rows it reads.
+ */
+function copyNamesOf(actor) {
+    const names = new Map();
+    for (const item of bulletsOf(actor)) {
+        const id = secretOf(item.uuid).remnantId;
+        if (id && !names.has(id)) names.set(id, item.name);
+    }
+    return names;
 }
 
 /**
@@ -761,6 +792,34 @@ async function reshapeTrace(token, data, {
  * ========================================================================== */
 
 /**
+ * The reshape card's two halves (E05 C14, 27.09.2026; audit S05-14). What the player
+ * reads: the name and the words they asked for, and whether the dice made the trace
+ * quieter. What only the GMs read: what the trace was and would become - its band and
+ * category off the ledger ("was/now") - and, for the killer, that approving ties it to
+ * the murder. The card goes to the player's own thread (`proposeReshape`, `callGm`), and
+ * both lines were in its body: the player read the category an Analyze exists to price,
+ * and a line about them in the third person meant for the GM. They are `gmBody` now,
+ * which the card on a player's screen leaves out (COMM-06). The words still travel in
+ * the card's document to that player's browser, as every `gmBody` does - the card is
+ * E06's (S05-15). Pure, for the suite.
+ */
+export function reshapeCardParts(data, { name = "", text = "", softer = null, tie = false } = {}) {
+    const esc = foundry.utils.escapeHTML;
+    const becomes = CLEANUP.transformAction?.becomes ?? "resolution";
+    const was = `${data.visibilityLabel} ${data.typeLabel}`;
+    const now = `${REMNANT_VISIBILITY_LABELS[softer ?? data.visibility]
+        ?? data.visibilityLabel} ${REMNANT_TYPES[becomes]?.label ?? becomes}`;
+    const body = [
+        `<strong>${esc(name || game.i18n.localize("DRPG.Cleanup.reshapeUnnamed"))}</strong>`,
+        text ? `<br><em>${esc(text)}</em>` : "",
+        softer ? `<br>${esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingQuieter"))}` : ""
+    ].join("");
+    const gmBody = `<p>${esc(game.i18n.format("DRPG.Cleanup.reshapeRulingWas", { was, now }))}${
+        tie ? `<br><span class="drpg-warning">${esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingTies"))}</span>` : ""}</p>`;
+    return { body, gmBody };
+}
+
+/**
  * Ask the GM to rule on a lie, instead of writing it into their evidence.
  *
  * WHAT WAS WRONG. A Tamper that succeeded applied the player's words the moment
@@ -787,27 +846,14 @@ async function reshapeTrace(token, data, {
 async function proposeReshape(actor, token, data, {
     name = "", text = "", softer = null, tie = false, done = [], erases = false, attempt = ""
 } = {}) {
-    const { REMNANT_VISIBILITY_LABELS, REMNANT_TYPES } = await import("./config.mjs");
-    const esc = foundry.utils.escapeHTML;
-    const becomes = CLEANUP.transformAction?.becomes ?? "resolution";
-
-    const was = `${data.visibilityLabel} ${data.typeLabel}`;
-    const now = `${REMNANT_VISIBILITY_LABELS[softer ?? data.visibility]
-        ?? data.visibilityLabel} ${REMNANT_TYPES[becomes]?.label ?? becomes}`;
-    const body = [
-        `<strong>${esc(name || game.i18n.localize("DRPG.Cleanup.reshapeUnnamed"))}</strong>`,
-        text ? `<br><em>${esc(text)}</em>` : "",
-        `<br>${esc(game.i18n.format("DRPG.Cleanup.reshapeRulingWas", { was, now }))}`,
-        softer ? `<br>${esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingQuieter"))}` : "",
-        tie ? `<br><span class="drpg-warning">${
-            esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingTies"))}</span>` : ""
-    ].join("");
+    const { body, gmBody } = reshapeCardParts(data, { name, text, softer, tie });
 
     const { callGm } = await import("./gm-bridge.mjs");
     const sent = await callGm(actor, {
         title: game.i18n.localize("DRPG.Cleanup.reshapeRulingTitle"),
         room: data.room ?? null,
         body,
+        gmBody,
         actions: [
             {
                 action: "approveReshape",

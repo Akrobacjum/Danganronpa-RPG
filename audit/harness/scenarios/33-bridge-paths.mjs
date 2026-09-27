@@ -16,7 +16,8 @@
  *      refusal the player hears; a GM who is connected and silent is reported when the
  *      acknowledgement does not come; the trap relay reaches the GMs only; a refused search is told
  *      once.
- *   C  with no GM connected, three requests settle at once, send nothing and say the same thing.
+ *   C  with no GM connected, three requests settle at once, send nothing and say the same thing; and
+ *      a pre-session note, which is kept on the player's browser until a GM connects (E05).
  *   D  no exception escaped into Foundry on any client (until E31's runner, the two B injects were excused).
  * The two exceptions are injected through world objects the handlers write - Aiko's token's
  * `update` for the send-back, `game.settings.set` for the sabotage - so the same injection works
@@ -460,16 +461,39 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         spent === false && b8.left === left0 && b8.said.length === 1 && !b8.why.startsWith("DRPG.") && b8.said[0].includes(b8.why)
         && !b8.said.includes(b8.timeout), JSON.stringify(b8));
 
+    /* B13 (E05 C4, 26.09.2026; audit S10-39): the GM counts an Eclipse's crossings and judges the
+       allowance - until E05 only the mover's client judged it. In an Eclipse opened by its clock flag
+       and name alone (the opening's refill and cards are not what is measured), leading into noon:
+       each legal crossing p1 asks for is answered with its count, and one beyond the allowance is
+       refused as nothingLeft, counts nothing, and is said once. B9 runs in the same Eclipse; it is
+       closed after it. */
+    phase("an exception in a request its asker counts", { flow: "eclipse-route-veto" });
+    const ECL = `const X = await import("${repoUrl}/scripts/eclipse.mjs");`;
+    const clock13 = await gm.eval(`${ECL} const was = game.drpg.getClock();
+        await game.drpg.setClock({ timeOfDay: "morning", eclipse: true, eclipseStartedAt: Date.now() });
+        return { was: { timeOfDay: was.timeOfDay, timeOfDayStartedAt: was.timeOfDayStartedAt }, allowance: X.eclipseAllowance() };`);
+    const allowance13 = Number.isInteger(clock13.allowance) ? clock13.allowance : 0;
+    const legal13 = [];
+    for (let i = 0; i < allowance13; i++) legal13.push(await p1.eval(`return await ${bridge}.requestEclipseMove("${IDS.aiko}");`, { timeout: 30000 }));
+    const n13 = await noticeCount(p1);
+    const beyond13 = await p1.eval(`return await ${bridge}.requestEclipseMove("${IDS.aiko}");`, { timeout: 30000 });
+    await settle(1200);
+    const b13 = { allowance: clock13.allowance, legal: legal13.map(r => [r?.ok ?? null, r?.value?.used ?? null]), beyond: beyond13,
+        used: await gm.eval(`${ECL} return X.movesUsed(game.actors.get("${IDS.aiko}"));`), said: (await noticesSince(p1, n13)).map(x => x.msg) };
+    check("B13: in an Eclipse the GM answers each legal crossing with its count, and refuses one beyond the allowance as nothingLeft, counting nothing, said once",
+        allowance13 >= 1 && JSON.stringify(b13.legal) === JSON.stringify(legal13.map((r, i) => [true, i + 1])) && beyond13?.ok === false && beyond13?.refused === true
+        && beyond13?.reason === "nothingLeft" && b13.used === allowance13 && b13.said.length === 1, JSON.stringify(b13));
+
     // B9: a request whose asker counts it as done (an Eclipse crossing) is answered once the GM's client has
     // carried it out (E31 review): its write throws, and p1 is answered failed, not accepted, with one message.
-    phase("an exception in a request its asker counts", { flow: "eclipse-route-veto" });
-    await gm.eval(`globalThis.__e31RealSet9 = game.settings.set;
-        game.settings.set = function (namespace, key, ...rest) {
-            if (namespace === "${MOD}" && key === "eclipseMoves") {
-                globalThis.__e31Thrown.eclipse = (globalThis.__e31Thrown.eclipse ?? 0) + 1;
-                throw new Error("E31 injected: the crossing's write failed");
-            }
-            return globalThis.__e31RealSet9.call(this, namespace, key, ...rest);
+    // The write is the GMs' store's since E05 (C4), whose save does not throw into its caller - so the store's
+    // own write is what fails here, in the Eclipse B13 opened, with Aiko's count taken back first (B13 spent it).
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await S.eclipseMoveStore.drop("${IDS.aiko}");
+        globalThis.__e31RealPatch9 = S.eclipseMoveStore.patch;
+        S.eclipseMoveStore.patch = function () {
+            globalThis.__e31Thrown.eclipse = (globalThis.__e31Thrown.eclipse ?? 0) + 1;
+            throw new Error("E31 injected: the crossing's write failed");
         };
         return true;`);
     try {
@@ -482,7 +506,8 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
             b9.thrown >= 1 && b9.counted?.ok === false && b9.counted?.refused === true && b9.counted?.reason === "failed"
             && b9.said.length === 1, JSON.stringify(b9));
     } finally {
-        await gm.eval(`game.settings.set = globalThis.__e31RealSet9; return true;`);
+        await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); S.eclipseMoveStore.patch = globalThis.__e31RealPatch9;
+            await game.drpg.setClock({ eclipse: false, ...${JSON.stringify(clock13.was)} }); return true;`);
     }
 
     // B10: a trace the GM's client fails to place is answered as a failure, not as placed (E31 review), so the
@@ -555,6 +580,24 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         Boolean(wrench) && looted?.ok === false && looted?.refused === true && looted?.reason === "refused" && b12.said.length === 1
         && !b12.why.startsWith("DRPG.") && b12.said[0].includes(b12.why) && b12.held.botan === true && b12.held.aiko === false,
         JSON.stringify(b12));
+
+    /* B14 (E05 C6, 26.09.2026; audit S11-03, S01-08): a player's pre-session note goes to the primary
+       GM (`note.save`) and into the GMs' store under the sender's own id - until E05 p1 wrote it as a
+       flag on its own User document, which every browser holds. p1 saves one: it is answered as sent,
+       nothing is said, the GM reads it from its store and p1 from its own copy, p2 reads nothing of it,
+       and p1's flag, read on p2, says that a note is written and holds no text. */
+    phase("a player's pre-session note", { flow: "pre-session-note" });
+    const NOTE = `const N = await import("${repoUrl}/scripts/pre-session-note.mjs");`;
+    const n14 = await noticeCount(p1);
+    const saved14 = await p1.eval(`${NOTE} return await N.saveNote(game.user.id, "E05 33 B14 p1's note");`, { timeout: 30000 });
+    await settle(1200);
+    const noteOf = c => c.eval(`${NOTE} return N.noteFor("${p1.userId}");`);
+    const b14 = { saved: saved14, gm: await noteOf(gm), p1: await noteOf(p1), p2: await noteOf(p2),
+        flag: await p2.eval(`return game.users.get("${p1.userId}").getFlag("${MOD}", "preSessionNote") ?? null;`),
+        said: (await noticesSince(p1, n14)).map(x => x.msg) };
+    check("B14: p1's pre-session note is answered as sent and kept in the GM's store; p1 reads its own copy, p2 nothing, and p1's flag holds no text",
+        b14.saved === "sent" && b14.gm === "E05 33 B14 p1's note" && b14.p1 === b14.gm && b14.p2 === "" && b14.said.length === 0
+        && b14.flag?.written === true && !Object.hasOwn(b14.flag ?? {}, "text"), JSON.stringify(b14));
 
     /* ------------------------------------------- A. the Assistant as the primary */
 
@@ -629,6 +672,15 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     const c3 = await offline("action.plant", `${bridge}.requestPlant({ plannerId: "${IDS.aiko}", victimId: "${IDS.botan}", itemId: "${gift}", total: 12 })`);
     check("C: with no GM connected, p1's Palm settles at once, sends nothing, and says so once", settledAtOnce(c3), JSON.stringify(c3),
         { flow: "give-take-stash" });
+    /* E05 C6: a pre-session note saved with no GM connected is kept in p1's browser, unsent, and the
+       Note tab says so; it goes to the next primary GM whose world loads (61-gmstore-case, Z6). */
+    const c4 = await offline("note.save", `(await import("${repoUrl}/scripts/pre-session-note.mjs")).saveNote(game.user.id, "E05 33 C kept note")`);
+    const keptC = await p1.eval(`const N = await import("${repoUrl}/scripts/pre-session-note.mjs");
+        return { unsent: N.noteUnsent?.() ?? null, text: N.noteFor(game.user.id), status: N.noteStatus(game.user.id),
+            kept: game.i18n.localize("DRPG.Note.keptUntilGm") };`);
+    check("C: with no GM connected, p1's pre-session note settles at once as kept in p1's browser, sends nothing, and says so once",
+        settledAtOnce(c4) && c4.answer === "kept" && keptC.unsent === true && keptC.text === "E05 33 C kept note"
+        && keptC.status === keptC.kept && !keptC.kept.startsWith("DRPG."), JSON.stringify({ c4, keptC }), { flow: "pre-session-note" });
     const sentence = [c1, c2, c3].map(c => (c.said[0] ?? "").split(c.label).join("{what}"));
     check("C: the three say the same sentence apart from what they name", sentence.every(s => s && s === sentence[0]), JSON.stringify(sentence));
 

@@ -275,8 +275,14 @@ let lastPublicClock = null;
  * every client - nothing world-scoped can be hidden from a console (see the
  * settings notes) - this hides the answer from the SCREEN, which is where the
  * table actually reads it.
+ *
+ * EVERY SCREEN THAT SHOWS THE CLOCK ASKS THIS (E05 C15, 27.09.2026; audit S01-11).
+ * The explainer a click on the HUD opens ("Where things stand", explain.mjs
+ * `openStateExplainer`) read `getClock()` itself, so a bystander one click away
+ * from a frozen HUD was shown the hour the incident had moved to. Exported for it;
+ * the frozen copy is this client's, kept by whichever of the two asked last.
  */
-function clockForDisplay(clock) {
+export function clockForDisplay(clock) {
     try {
         const state = murderState();
         const hide = state

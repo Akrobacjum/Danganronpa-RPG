@@ -23,8 +23,16 @@ import { log, warn } from "./utils.mjs";
  *
  * Distinct from simply being absent from the map: absent means "never divided
  * up yet", which still falls back to a Monokuma so no Despair is lost. This
- * value is a deliberate choice - useful for the Mastermind, for a retired or
- * NPC-run character, or for a template actor that should never move a pool.
+ * value is a deliberate choice - for a retired or NPC-run character, or for a
+ * template actor that should never move a pool.
+ *
+ * NOT FOR THE MASTERMIND (E05 C15, 27.09.2026; audit S03-03, S10-12). This map is
+ * the world setting `gmAssignments`, which every player's browser receives, and
+ * Despair Flow used to name the Mastermind as the example: a GM who followed it
+ * made the Mastermind the one student a console could see left out of every pool.
+ * The Mastermind is assigned like any student; the season checklist and the case
+ * health report warn a GM when the Mastermind is set to this
+ * (mastermind.mjs `mastermindUnpooled`).
  */
 export const NO_MONOKUMA = "none";
 
@@ -103,7 +111,7 @@ export async function setAssignments(map) {
  * eight students that is four each; a remainder goes to the earlier GM.
  *
  * Students explicitly set to NO_MONOKUMA keep that choice - an even split
- * should not quietly drag the Mastermind back into a pool.
+ * should not quietly drag an NPC-run character or a template into a pool.
  */
 export async function autoAssign() {
     if (!game.user.isGM) return null;

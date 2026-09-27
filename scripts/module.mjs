@@ -59,6 +59,7 @@ import { registerDaySummary } from "./day-summary.mjs";
 import { registerRollDialog } from "./roll-dialog.mjs";
 import { registerForcedRolls } from "./forced-roll.mjs";
 import { registerEclipse } from "./eclipse.mjs";
+import { registerPreSessionNote } from "./pre-session-note.mjs";
 import { registerMonokuma } from "./monokuma.mjs";
 import { registerMessenger } from "./messenger.mjs";
 import { registerMessengerUi } from "./messenger-app.mjs";
@@ -187,6 +188,8 @@ Hooks.once("init", () => {
     safely("the roll dialog lock", registerRollDialog);
     safely("forced rolls", registerForcedRolls);
     safely("the Eclipse", registerEclipse);
+    // A player's copy of their own pre-session note, and the note kept for a GM who is not here (E05).
+    safely("the pre-session note", registerPreSessionNote);
     safely("Monokumas", registerMonokuma);
     // Before the messenger, whose arrival chime is now a mapped event. Only a
     // hook goes up here - `playSfx` is a plain function and works whether or
