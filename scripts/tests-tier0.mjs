@@ -424,10 +424,13 @@ const REGRESSIONS = [
          * traces a player's own bullets came from is such a copy (truth-bullets.mjs,
          * `bulletRefCopy`), and a player able to hand another one would show them traces
          * they never found: its handler takes an answer only through `replyForMe`
-         * (addressed to this user, sent by a GM), or asks Foundry's sender itself.
+         * (addressed to this user, sent by a GM), or asks Foundry's sender itself. The
+         * incident's dice are another (E06 C6): `dice.show` plays a roll on this screen, and
+         * only the primary GM knows whose roll it is and who is in the incident, so
+         * private-rolls.mjs's `showRelayedDice` takes it from a GM alone.
          */
         const FROM_GM = /\breplyForMe\(payload, senderId\)|\bgame\.users\.get\(senderId\)\?\.isGM\b/;
-        const COPY_LISTENERS = [["truth-bullets.mjs", "onBulletRefsSocket"]];
+        const COPY_LISTENERS = [["truth-bullets.mjs", "onBulletRefsSocket"], ["private-rolls.mjs", "showRelayedDice"]];
         const served = new Map(await otherSources());
         const trusting = COPY_LISTENERS.filter(([file, fn]) => !FROM_GM.test(fnSource(stripComments(served.get(file) ?? ""), fn)))
             .map(([file, fn]) => `${file} ${fn}`);

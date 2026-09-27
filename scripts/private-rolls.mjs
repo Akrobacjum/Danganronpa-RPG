@@ -25,15 +25,19 @@
  * roller's report (`rollSubject`, below). The rules above are for the rolls the
  * module did not throw: a statistic clicked on a sheet, a Monocub's Meddle, a
  * GM's /roll. The incident's participants no longer read each other's rolls
- * off the whisper list - that list named them all to every console.
+ * off the whisper list - that list named them all to every console; the primary
+ * GM sends them each other's dice instead (`relayIncidentDice`, E06 C6).
  */
 
 import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";
-import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
+import { SETTINGS, getSetting, isDeadForGm, incidentSeats } from "./settings.mjs";
 import { roomOfActor, occupantsOf } from "./movement.mjs";
 import { gmIds, ownerOf, error, debug, isPrimaryGm, MESSAGE_FLAG } from "./utils.mjs";
 import { judge, table, pick, as, knownSender, owns, guardRollAuthor, bridgeRequest } from "./bridge-guards.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
+// Who is in the incident, read on the primary GM for the incident's dice (E06 C6). Static
+// and safe: nothing in murder.mjs's own import closure leads back to this file (R161).
+import { murderState, incidentAudienceIds } from "./murder.mjs";
 
 // The module's one reader of "what did these two d12s say" - see `rollOutcomeOf`.
 // Static and safe: nothing in despair-award.mjs's own import closure leads back
@@ -70,8 +74,18 @@ export function registerPrivateRolls() {
     Hooks.once("ready", rememberExistingMessages);
 
     // Which character a roll is about, reported by the roller to the primary GM,
-    // who judges it by the declaration below (`ROLL_ACTIONS`, E06 C5a).
-    game.socket.on(SOCKET_EVENT, (payload, senderId) => isPrimaryGm() ? judge(ROLL_ACTIONS, payload, senderId) : null);
+    // who judges it by the declaration below (`ROLL_ACTIONS`, E06 C5a) - and the
+    // incident's dice, which only a GM sends (`showRelayedDice`, E06 C6).
+    game.socket.on(SOCKET_EVENT, (payload, senderId) => {
+        if (payload?.action === DICE_SHOW) return void showRelayedDice(payload, senderId);
+        return isPrimaryGm() ? judge(ROLL_ACTIONS, payload, senderId) : null;
+    });
+
+    // Dice So Nice asks every client whether to animate a message (E06 C6).
+    Hooks.on("diceSoNiceMessagePreProcess", keepDiceToReaders);
+
+    // A Reroll rewrites a roll's dice, and the incident's audience sees it too.
+    Hooks.on("updateChatMessage", onRollsRewritten);
 }
 
 /**
@@ -803,6 +817,7 @@ export const ROLL_ACTIONS = table({
 /** The run of `roll.subject`: its guards tied the message to the sender and the character to them. */
 function keepRollSubject(payload, sender, ctx) {
     keepSubject(payload.messageId, payload.actorId, sender.id);
+    relayIncidentDice(game.messages.get(payload.messageId));
 }
 
 /**
@@ -815,7 +830,7 @@ export function reportRollSubject(message, actor) {
     const messageId = message?.id ?? message?._id ?? null;
     if (!messageId || !actor?.id) return;
     keepSubject(messageId, actor.id, game.user?.id ?? null);
-    if (isPrimaryGm()) return;
+    if (isPrimaryGm()) return relayIncidentDice(message);
     const decl = ROLL_ACTIONS["roll.subject"];
     void bridgeRequest("roll.subject", { messageId, actorId: actor.id }, { settle: decl.answer, quiet: decl.quiet });
 }
@@ -889,4 +904,119 @@ function subjectReported(messageId, ms) {
         }, ms);
         subjectWaiters.set(messageId, [...(subjectWaiters.get(messageId) ?? []), wake]);
     });
+}
+
+/* ==========================================================================
+ * THE DICE, ONLY WHERE THE RULE SAYS (E06 C6, 27.09.2026; audit S02-13, S02-40, S04-01)
+ * --------------------------------------------------------------------------
+ * Who watches a roll's dice fall is decided in three places, and before E06 none
+ * of them asked this module. Dice So Nice decides on every client whether a new
+ * roll message animates there; with its world setting "Hide 3D dice on secret
+ * rolls" off it animated a whisper, with its real faces, on every screen
+ * (main.js `shouldInterceptMessage`, :458-516, read in 6.3.1). A Reroll threw its
+ * new dice to every screen (reroll.mjs). And the incident's participants saw each
+ * other's dice by being on the roll's whisper list, which named them all to every
+ * console until C5b emptied it - so from C5b on they saw none.
+ *
+ * - `keepDiceToReaders`: with rolls forced private, a client that cannot read a
+ *   message never animates it, whatever Dice So Nice's own settings say - no real
+ *   dice, no ghost dice.
+ * - `diceAudienceIds`: who sees a roll's dice - the GMs, its author, and, for a
+ *   roll the module threw for a character seated in the incident while the fight
+ *   runs, the incident's audience at that stage (`incidentAudienceIds`). The one
+ *   rule; E28, which throws the players' dice on the GM, asks it too.
+ * - `relayIncidentDice`: the primary GM, once it keeps a roll's subject (or sees
+ *   a Reroll rewrite its rolls), sends `dice.show { id }` to that audience less
+ *   the GMs, the author and whoever rewrote it, by addressed socket. The packet
+ *   carries the message's id and nothing else; each receiver plays the rolls of
+ *   its own copy of the message (`showRelayedDice`), which every browser holds.
+ *
+ * Only while the stage is `incident`: at the opening the seats are the roller's
+ * own side, and Stage 6 is the clean-up, whose rolls are the killer's alone. What
+ * each roll came to and which action it was reach the same people on the crisis
+ * card (murder.mjs `announceCrisis`, veiled, E06 C4) - with or without Dice So
+ * Nice. What a relayed roll looks like on a real table, and whether Dice So Nice
+ * queues it behind the roller's own, has not been measured (LIVE-E06-03).
+ * ========================================================================== */
+
+/** The socket action of the incident's dice, GM to player. */
+const DICE_SHOW = "dice.show";
+
+/**
+ * `diceSoNiceMessagePreProcess` (Dice So Nice 6.0 and later): the decision is the
+ * hook's `interception.willTrigger3DRoll`, and a listener may turn it off. Only
+ * off, and only when rolls are forced private - a table that shows its rolls
+ * keeps Dice So Nice's own choice.
+ */
+function keepDiceToReaders(messageId, interception) {
+    if (!interception || !game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls)) return;
+    const message = game.messages.get(messageId ?? "");
+    if (message && !message.isContentVisible) interception.willTrigger3DRoll = false;
+}
+
+/**
+ * The incident's audience for this roll's dice, as user ids: `incidentAudienceIds`
+ * at `state`, when the stage is `incident` and the character the roll is about -
+ * as this client was told it (`keptRollSubject`), so a roll the module threw - holds
+ * a seat of `incidentSeats`. Empty otherwise. A trap's builder holds no seat while
+ * the trap runs, so no roll of the fight reaches them.
+ */
+function incidentDiceAudience(message, state) {
+    if (state?.stage !== "incident") return [];
+    const subject = keptRollSubject(message);
+    if (!subject || !incidentSeats(state, state).includes(subject)) return [];
+    return incidentAudienceIds(state);
+}
+
+/**
+ * WHO SEES A ROLL'S DICE, as user ids: every GM, the message's author, and the
+ * incident's audience of `incidentDiceAudience`. Read on the primary GM, which is
+ * told every roll's subject; another client knows the subjects of its own rolls
+ * alone. Exported for E28.
+ */
+export function diceAudienceIds(message, state = murderState()) {
+    const authorId = message?.author?.id ?? message?.user?.id ?? null;
+    return [...new Set([...gmIds(), ...(authorId ? [authorId] : []), ...incidentDiceAudience(message, state)])];
+}
+
+/**
+ * Send the incident's audience a roll's dice (the primary GM alone): those of
+ * `diceAudienceIds` who are not GMs, not its author and not in `except` - the GMs
+ * and the author read the message and Dice So Nice shows it to them itself.
+ */
+function relayIncidentDice(message, { except = [] } = {}) {
+    if (!message?.id || !isPrimaryGm()) return;
+    const skip = new Set([...gmIds(), message.author?.id ?? message.user?.id ?? null, ...except]);
+    const recipients = diceAudienceIds(message).filter(id => !skip.has(id));
+    if (!recipients.length) return;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id }, { recipients });
+    } catch (err) {
+        error("Could not send the incident's dice", err);
+    }
+}
+
+/** `updateChatMessage`, on the primary GM: a roll the module threw was given new dice - a Reroll. */
+function onRollsRewritten(message, changes, options, userId) {
+    if (!changes || !Object.hasOwn(changes, "rolls") || !isPrimaryGm() || !isClaimedRoll(message)) return;
+    relayIncidentDice(message, { except: [userId] });
+}
+
+/**
+ * `dice.show`, as a player receives it: taken from a GM alone, and played from
+ * this client's own copy of the message - once it arrives, as `secret.card`'s
+ * words wait for theirs - with no message id, so Dice So Nice draws the dice as
+ * they fell instead of veiling a roll this client cannot read, and only here.
+ */
+async function showRelayedDice(payload, senderId) {
+    if (!game.users.get(senderId)?.isGM) return;
+    const id = typeof payload?.id === "string" ? payload.id : null;
+    if (!id || typeof game.dice3d?.showForRoll !== "function") return;
+    try {
+        const { messageArrives } = await import("./secret.mjs");
+        const message = game.messages.get(id) ?? await messageArrives(id);
+        for (const roll of message?.rolls ?? []) await game.dice3d.showForRoll(roll, message.author, false);
+    } catch (err) {
+        error("Could not show the incident's dice", err);
+    }
 }

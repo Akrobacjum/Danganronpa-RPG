@@ -528,7 +528,12 @@ const game = {
         render() {}
     },
     dice3d: {
-        showForRoll: async () => true,
+        // Every call kept, drawn nowhere (E06 C6): see "DICE SO NICE'S DECISION" below.
+        showForRoll: async (roll, user = game.user, synchronize = false, users = null, blind = false, messageID = null) => {
+            globalThis.__dsnShown.push({ user: user?.id ?? user ?? null, synchronize: Boolean(synchronize),
+                users: users ? [...users].map(u => u?.id ?? u) : null, blind: Boolean(blind), messageID, total: roll?.total ?? null });
+            return true;
+        },
         addSystem() {}, addColorset() {}, addDicePreset() {},
         waitFor3DAnimationByMessageID: async () => true
     },
@@ -540,6 +545,30 @@ const game = {
     data: { version: versions.foundry.version }
 };
 globalThis.game = game;
+
+/*
+ * DICE SO NICE'S DECISION, AS 6.3.1 MAKES IT ON EVERY CLIENT (E06 C6, 27.09.2026). main.js
+ * `shouldInterceptMessage` (:458-516, read in 6.3.1's source): a new message with dice animates
+ * where its content is visible, or on every client when the world's "Hide 3D dice on secret
+ * rolls" is off (`hide3dDiceOnSecretRolls`, registered with `default: true`, main.js:199-206;
+ * here `globalThis.__dsnHideSecret`) - ghost dice stay at their default, off. Then it calls
+ * `diceSoNiceMessagePreProcess` with the message's id and `{ willTrigger3DRoll }`, which a
+ * listener may turn off, and what is left decides. Kept here in `__dsnAnimated` (the ids this
+ * client would animate); `__dsnShown` keeps every `showForRoll` call. Nothing is drawn. With
+ * `game.dice3d` gone (a scenario deletes it to play a table without the module) nothing is
+ * decided, as Dice So Nice's own `game.dice3d &&` has it. Rolls added by an update and the
+ * inline rolls in a card's text are not modelled.
+ */
+globalThis.__dsnShown = [];
+globalThis.__dsnAnimated = [];
+globalThis.__dsnHideSecret = true;
+hooks.on("createChatMessage", message => {
+    if (!game.dice3d || !message?.isRoll) return;
+    if (!(message.rolls ?? []).some(roll => (roll?.dice?.length ?? 0) > 0)) return;
+    const interception = { willTrigger3DRoll: message.isContentVisible || globalThis.__dsnHideSecret === false };
+    hooks.callAll("diceSoNiceMessagePreProcess", message.id, interception);
+    if (interception.willTrigger3DRoll) globalThis.__dsnAnimated.push(message.id);
+});
 
 /*
  * THE HARNESS'S OWN READING OF THIS CLIENT'S WORLD (E30, 24.09.2026). The suite's
@@ -724,11 +753,20 @@ function record(level) {
         return globalThis.__notifications.length;
     };
 }
+/*
+ * THE CHAT LOG'S CLASS, as far as its notifier (E06 C6): the class `ui.chat` is made from, with a
+ * `notify` that keeps the ids it was handed in `__chatNotified`. secret.mjs wraps it for veiled
+ * cards (`quietVeiledPip`). Foundry's own path to it - which method lights the pip, and from where
+ * it is called - is not modelled: no Foundry source is on this machine (LIVE-E06-04).
+ */
+class HarnessChatLog {
+    notify(message) { (globalThis.__chatNotified ??= []).push(message?.id ?? null); }
+}
 globalThis.ui = {
     notifications: { info: record("info"), warn: record("warn"), error: record("error"), notify: record("notify"), remove() {}, clear() {} },
     // Daggerheart's Fear tracker, as far as modifyResource uses it (lib/daggerheart.mjs).
     resources: { updateFear },
-    chat: { element: document.querySelector("#chat"), scrollBottom() {}, render() {}, postOne() {}, collapsed: false },
+    chat: Object.assign(new HarnessChatLog(), { element: document.querySelector("#chat"), scrollBottom() {}, render() {}, postOne() {}, collapsed: false }),
     sidebar: { element: document.querySelector("#sidebar"), tabs: {}, render() {}, expand() {}, collapse() {}, activateTab() {} },
     windows: {},
     players: { render() {}, element: document.querySelector("#players") },
@@ -825,7 +863,7 @@ globalThis.foundry = {
             TextEditor: { implementation: { enrichHTML: async s => s } },
             ContextMenu: class { constructor() {} render() {} }
         },
-        sidebar: { tabs: {} },
+        sidebar: { tabs: { ChatLog: HarnessChatLog } },
         sheets: {
             TokenConfig: class TokenConfig {},
             PrototypeTokenConfig: class PrototypeTokenConfig {},

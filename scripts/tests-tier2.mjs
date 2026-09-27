@@ -346,6 +346,28 @@ async function wordsSent(run) {
 }
 
 /**
+ * The incident's dice this client relayed while `run` ran (E06 C6): each `dice.show`
+ * packet (private-rolls.mjs `relayIncidentDice`) as { id, to } - the message's id and
+ * the users it was addressed to. Shaped as `wordsSent`, above.
+ */
+async function relayedDice(run) {
+    const socket = game.socket;
+    const own = Object.getOwnPropertyDescriptor(socket, "emit");
+    const send = socket.emit;
+    const sent = [];
+    socket.emit = function (event, packet, options, ...rest) {
+        if (packet?.action === "dice.show") sent.push({ id: packet.id ?? null, to: options?.recipients ?? [] });
+        return send.call(this, event, packet, options, ...rest);
+    };
+    try {
+        await run();
+    } finally {
+        if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+    }
+    return sent;
+}
+
+/**
  * A roll the module throws, whose document names nobody (E06 C5a; since C5b the module's own
  * doing, private-rolls.mjs `neutralRollSource` - C5a's tests emptied it here with a hook of
  * their own). Thrown through `rollTrait` as the suite throws every roll. `faces` sets the dice
@@ -1021,6 +1043,174 @@ const SCENARIOS = [
         }).filter(r => r.named.length || r.whisper || r.titled);
         equal(stableJson([made.some(m => P.isClaimedRoll(m)), wrong]), stableJson([true, []]),
             `the victim's roll was not among the action's messages, or a message names a participant or the action (${made.length} read)`);
+    }],
+
+    ["Dice So Nice animates a forced-private roll only where it can be read", async () => {
+        /*
+         * E06 C6, 27.09.2026; audit S02-40. Dice So Nice decides on every client whether a new
+         * roll animates there, and with its "Hide 3D dice on secret rolls" off it animated a
+         * whisper with its real faces on every screen. It asks `diceSoNiceMessagePreProcess`
+         * first (main.js :458-516, read in 6.3.1), and private-rolls.mjs answers: with rolls
+         * forced private, a client that cannot read the message does not animate it. Asked here
+         * as Dice So Nice asks it, on this GM, of one roll three times: whispered to the GMs
+         * (readable), then turned into a blind whisper to a player (unreadable here), then the
+         * same with rolls no longer forced private (Dice So Nice's own choice stands).
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player a roll can be whispered to past the GM");
+        const [who] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+        const { message } = await neutralRoll(who);
+        must(message, "the roll made no message");
+        const decide = () => {
+            const interception = { willTrigger3DRoll: true };
+            Hooks.callAll("diceSoNiceMessagePreProcess", message.id, interception);
+            return interception.willTrigger3DRoll;
+        };
+        try {
+            const readable = [message.isContentVisible, decide()];
+            await message.update({ whisper: [player.id], blind: true });
+            const unreadable = [message.isContentVisible, decide()];
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, false);
+            const unforced = decide();
+            equal(stableJson([readable, unreadable, unforced]), stableJson([[true, true], [false, false], true]),
+                "a roll this client cannot read still animates here, a readable one does not, or an unforced table lost Dice So Nice's own choice");
+        } finally {
+            await message.delete();
+        }
+    }],
+
+    ["a Reroll's dice are thrown to the roll's readers alone", async () => {
+        /*
+         * E06 C6, 27.09.2026; audit S02-13. A Reroll threw its new dice with
+         * `showForRoll(rerolled, game.user, true)` - to every screen. It names the readers now
+         * (reroll.mjs `showRerolledDice`): the message's whisper list and its author, or
+         * everybody (no list) when the roll was not whispered, with the message's id. Dice So
+         * Nice is swapped for a recorder for the two calls, so a table's real one draws nothing.
+         */
+        needs(world.moduleActive("dice-so-nice"), "a Reroll shows its dice through Dice So Nice");
+        const [who] = cast(1);
+        const R = await import("./reroll.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+        const { message } = await neutralRoll(who);
+        must(message?.rolls?.length, "the roll made no message");
+        const real = game.dice3d;
+        const calls = [];
+        game.dice3d = { showForRoll: async (...args) => { calls.push(args); return true; } };
+        try {
+            await R.showRerolledDice(message.rolls[0], message);
+            await message.update({ whisper: [] });
+            await R.showRerolledDice(message.rolls[0], message);
+        } finally {
+            game.dice3d = real;
+            await message.delete();
+        }
+        const read = args => ({ sync: args[2] === true, users: args[3] ? [...args[3]].map(u => u?.id ?? u).sort() : null, id: args[5] ?? null });
+        equal(stableJson(calls.map(read)), stableJson([
+            { sync: true, users: [...new Set([...gmIds(), game.user.id])].sort(), id: message.id },
+            { sync: true, users: null, id: message.id }
+        ]), "a Reroll's dice go to somebody who does not read the roll, or a whispered roll's to everybody");
+    }],
+
+    ["an incident roll's dice reach the incident's audience, from the fight on, and nobody else", async () => {
+        /*
+         * E06 C6, 27.09.2026; audit S04-01, L05. Since C5b a roll the module throws is whispered to
+         * the GMs alone, so the incident's participants no longer read each other's dice off the
+         * list. `diceAudienceIds` says who sees them - the GMs, the author and, while the fight
+         * runs, the incident's audience when the roll's character holds a seat - and the primary
+         * GM sends the rest `dice.show { id }` (private-rolls.mjs `relayIncidentDice`): as it
+         * keeps the roll's subject, and again when a Reroll rewrites the roll's dice. A direct
+         * murder between two students with players; this GM throws the killer's roll, so both
+         * players are sent it. The audience at the opening is read off the same state, its stage
+         * set back: the GMs and the author alone. Only this roll's packets are compared: the
+         * killer's player may throw the opening roll too (the race the test above names).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player to be sent the dice");
+        const M = await import("./murder.mjs");
+        const P = await import("./private-rolls.mjs");
+        const { gmIds, isPrimaryGm } = await import("./utils.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        must(isPrimaryGm(), "the relay is the primary GM's, and this GM is not it");
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "incident", `the incident did not start: ${stableJson(M.murderState())}`);
+        let message = null;
+        const sent = await relayedDice(async () => {
+            message = (await neutralRoll(killer)).message;
+            must(message?.rolls?.length, "the killer's roll made no message");
+            const roll = message.toObject().rolls[0];
+            const changed = typeof roll === "string" ? JSON.parse(roll) : foundry.utils.deepClone(roll);
+            changed.total = Number(changed.total ?? 0) + 1;
+            await message.update({ rolls: [typeof roll === "string" ? JSON.stringify(changed) : changed] });
+            await settle();
+        });
+        try {
+            const state = M.murderState();
+            const sorted = ids => [...new Set(ids)].sort();
+            const players = sorted([player(killer).id, player(victim).id]);
+            equal(stableJson([
+                sorted(P.diceAudienceIds(message, { ...state, stage: "openingRoll" })),
+                sorted(P.diceAudienceIds(message, state)),
+                sent.filter(p => p.id === message.id).map(p => ({ id: p.id, to: sorted(p.to) }))
+            ]), stableJson([
+                sorted(gmIds()),
+                sorted([...gmIds(), ...players]),
+                [{ id: message.id, to: players }, { id: message.id, to: players }]
+            ]), "the dice's audience at the opening or in the fight, or what the relay sent as the roll was kept and rerolled, is not the rule's");
+        } finally {
+            await message?.delete();
+        }
+    }],
+
+    ["a veiled card lights the Chat tab only where its words are", async () => {
+        /*
+         * E06 C6, 27.09.2026; audit S11-30 (not seen at a table). A veiled card is addressed to
+         * everybody, so the chat log's notifier was told of it on every client and lit the Chat
+         * tab's pip at the moment something secret happened. secret.mjs wraps it: a veiled card
+         * this client holds no words for notifies once they arrive and never when none come
+         * (four seconds, `wordsOf`'s ceiling). Two veiled cards, one to this GM (words held at
+         * once) and one to a player alone (none here); Foundry's notifier is swapped for a
+         * recorder behind the wrapper. Which method lights the pip in Foundry v14 is LIVE-E06-04:
+         * where the chat log's class has no `notify`, nothing is installed, and the patch table
+         * says so - which is all this measures there.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player a veiled card can be meant for, past the GM");
+        const S = await import("./secret.mjs");
+        const { PATCHES } = await import("./patches.mjs");
+        const probe = PATCHES.find(row => row.file === "secret.mjs")?.probe?.() ?? null;
+        must(probe, "the patch table has no row for the chat log's notifier");
+        const notify = S.chatLogClass()?.prototype?.notify;
+        if (!probe.present) {
+            equal(stableJson([probe.ours, typeof notify]), stableJson([false, "undefined"]), "a notifier that is not there was wrapped anyway");
+            return;
+        }
+        const player = game.users.find(u => !u.isGM);
+        const theirs = await S.postSecret({ content: "<p>a veiled card for a player</p>", whisper: [player.id], veiled: true });
+        const ours = await S.postSecret({ content: "<p>a veiled card for this GM</p>", whisper: [game.user.id], veiled: true });
+        must(theirs && ours, "a veiled card was not posted");
+        const told = [];
+        const original = notify.wrapped;
+        notify.wrapped = function (message) { told.push(message?.id ?? null); };
+        let atOnce, lights;
+        try {
+            lights = [S.lightsChatPip(theirs), S.lightsChatPip(ours)];
+            ui.chat.notify(theirs);
+            ui.chat.notify(ours);
+            atOnce = [...told];
+            await wait(4300);
+        } finally {
+            notify.wrapped = original;
+            await theirs.delete();
+            await ours.delete();
+        }
+        equal(stableJson([probe.ours, ...lights, atOnce, told]),
+            stableJson([true, false, true, [ours.id], [ours.id]]),
+            "the notifier is not wrapped, or a veiled card with no words here reached Foundry's notifier, or one with words did not");
     }],
 
     ["two killers act back to back, not alternating with the victim", async () => {

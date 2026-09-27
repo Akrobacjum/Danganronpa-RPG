@@ -34,6 +34,12 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
      * document on every client, a curtain and not a wall. What p2's console can read
      * is printed below, so that nobody mistakes this check for more than it is.
      */
+    /* DICE SO NICE WITH "HIDE 3D DICE ON SECRET ROLLS" OFF (E06 C6, 27.09.2026; audit S02-40).
+       Each client's model of Dice So Nice (client-entry.mjs, "DICE SO NICE'S DECISION") animates
+       a roll wherever the setting is off, readable or not, unless the module's
+       `diceSoNiceMessagePreProcess` says no - which it does where the roll cannot be read. */
+    const DSN_OFF = `globalThis.__dsnHideSecret = false; globalThis.__dsnAnimated = []; return true;`;
+    for (const c of [gm, p1, p2]) await c.eval(DSN_OFF);
     const rollRes = await p1.eval(`
         const actor = game.actors.get("${ids.aiko}");
         globalThis.__forceRoll = { hope: 7, fear: 4 };
@@ -56,6 +62,10 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
         onP2.held === true && onP2.whisper.length > 0 && !onP2.whisper.includes(p2.userId) && onP2.contentVisible === false,
         JSON.stringify(onP2));
     console.log("[qa] what p2's console can still read of Aiko's private roll (documented, README 'Privacy'):", JSON.stringify(onP2.readable));
+    const DSN_READ = `const shown = globalThis.__dsnAnimated.includes("${rollRes.id}"); globalThis.__dsnHideSecret = true; return shown;`;
+    const animated = { gm: await gm.eval(DSN_READ), p1: await p1.eval(DSN_READ), p2: await p2.eval(DSN_READ) };
+    check("DICE: with Dice So Nice's secret-roll hiding off, Aiko's roll animates for Aiko and the GM and not on p2's screen",
+        Boolean(rollRes.id) && animated.gm === true && animated.p1 === true && animated.p2 === false, JSON.stringify(animated));
 
     // --- inventory carry limit (Gear = 2 shared slots) ---
     phase("inventory");

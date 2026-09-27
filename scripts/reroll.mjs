@@ -65,11 +65,11 @@ import { keptRollSubject } from "./private-rolls.mjs";
  * game's critical never does, and compensating after its unawaited, clamped
  * write could not know what it had really moved.
  */
-async function rerollKeepingDice(original, actor) {
+async function rerollKeepingDice(original, actor, message) {
     const wanted = advantageDice(original);
     if (wanted <= 1) {
         const rerolled = await original.reroll();
-        await settleDualityReroll(original, rerolled, actor);
+        await settleDualityReroll(original, rerolled, actor, message);
         return rerolled;
     }
 
@@ -77,26 +77,23 @@ async function rerollKeepingDice(original, actor) {
     clone.advantageNumber = wanted;
     clone.constructFormula(clone.options);
     const rerolled = await clone.evaluate();
-    await settleDualityReroll(original, rerolled, actor);
+    await settleDualityReroll(original, rerolled, actor, message);
     return rerolled;
 }
 
 /**
- * What `DualityRoll#reroll` does after the dice, for every reroll.
- *
- * CALL-08, 17.09. `liveRoll` is read by `DualityRoll#reroll` and by nothing
- * else - `Roll#evaluate` ignores it - so the multi-dice branch above showed no
- * dice and settled no resources: a Hope result rerolled into a Fear result kept
- * the Hope, the reverse gave none, and a critical's cleared Sanity mark was
- * never put back or taken. `settleCritHope` below assumes the system paid its
- * one point on a reroll, so it was short as well.
- *
- * A port of `updateResourcesForDualityReroll` (daggerheart.js, 2.6.5), which
- * the system does not export, ending in the same `modifyResource` the system's
- * own resource map calls. Dice So Nice gets the system's Hope and Fear colours
- * from `CONFIG.DH.GENERAL.getDiceSoNicePresets`, as a fresh roll does.
+ * The rerolled dice, on the screens of the people who read the roll (E06 C6,
+ * 27.09.2026; audit S02-13). `showForRoll(rerolled, game.user, true)` threw them
+ * to every screen, whoever the roll was whispered to. Dice So Nice shows them to
+ * `users` now: the message's whisper list and its author, or everybody when the
+ * roll was not whispered. The incident's other participants are sent them by the
+ * primary GM when the message's rolls change (private-rolls.mjs
+ * `relayIncidentDice`). Dice So Nice still sends a synchronised throw to every
+ * client and filters it as it arrives (Dice3D.js `_installSocket`, read in
+ * 6.3.1); the dice leave the roller's browser only when E28 throws them on the
+ * GM. Exported for the suite.
  */
-async function settleDualityReroll(original, rerolled, actor) {
+export async function showRerolledDice(rerolled, message) {
     try {
         if (game.modules.get("dice-so-nice")?.active) {
             // Their own try: a missing dice system makes the preset lookup throw,
@@ -114,13 +111,37 @@ async function settleDualityReroll(original, rerolled, actor) {
             } catch (err) {
                 error("Could not colour the rerolled Hope and Fear dice", err);
             }
-            await game.dice3d?.showForRoll(rerolled, game.user, true);
+            const whisper = [...(message?.whisper ?? [])];
+            const author = message?.author?.id ?? message?.user?.id ?? game.user.id;
+            const readers = whisper.length ? [...new Set([...whisper, author])] : null;
+            await game.dice3d?.showForRoll(rerolled, game.user, true, readers, false,
+                message?.id ?? null, message?.speaker ?? null);
         } else {
             foundry.audio.AudioHelper.play({ src: CONFIG.sounds.dice });
         }
     } catch (err) {
         error("Could not show the rerolled dice", err);
     }
+}
+
+/**
+ * What `DualityRoll#reroll` does after the dice, for every reroll.
+ *
+ * CALL-08, 17.09. `liveRoll` is read by `DualityRoll#reroll` and by nothing
+ * else - `Roll#evaluate` ignores it - so the multi-dice branch above showed no
+ * dice and settled no resources: a Hope result rerolled into a Fear result kept
+ * the Hope, the reverse gave none, and a critical's cleared Sanity mark was
+ * never put back or taken. `settleCritHope` below assumes the system paid its
+ * one point on a reroll, so it was short as well.
+ *
+ * A port of `updateResourcesForDualityReroll` (daggerheart.js, 2.6.5), which
+ * the system does not export, ending in the same `modifyResource` the system's
+ * own resource map calls. The dice are shown first (`showRerolledDice`), in the
+ * system's Hope and Fear colours from `CONFIG.DH.GENERAL.getDiceSoNicePresets`,
+ * as a fresh roll's are.
+ */
+async function settleDualityReroll(original, rerolled, actor, message) {
+    await showRerolledDice(rerolled, message);
 
     if (original.options?.actionType === "reaction") return;
 
@@ -230,7 +251,7 @@ export async function rerollLastAction(actor) {
     // result granted - see `settleDualityReroll`.
     let rerolled;
     try {
-        rerolled = await rerollKeepingDice(original, actor);
+        rerolled = await rerollKeepingDice(original, actor, message);
         await message.update({ rolls: [rerolled] });
     } catch (err) {
         error("Could not reroll the last action", err);

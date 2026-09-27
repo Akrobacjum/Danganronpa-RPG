@@ -264,7 +264,10 @@ export function secretHtml(message) {
  * dash. See the R15 criterion, which exists to keep that true.
  */
 /**
- * Anyone waiting for a card's words to arrive, by message id.
+ * Anyone waiting for a card's words to arrive, by message id - a list: a popup, a
+ * sound and the Chat pip wait for the same card's words (E06 C6), and a single
+ * waiter per card let the last one to ask push the others out, to be answered
+ * only by the ceiling below.
  *
  * THE STUB LANDS FIRST AND IT ALWAYS WILL. `postSecret` has to create the
  * message before it can address the socket, because the id it keys the words
@@ -300,7 +303,9 @@ export function wordsOf(message, ms = 4000) {
     return new Promise(resolve => {
         const done = html => {
             clearTimeout(timer);
-            waiting.delete(message.id);
+            const rest = (waiting.get(message.id) ?? []).filter(wake => wake !== done);
+            if (rest.length) waiting.set(message.id, rest);
+            else waiting.delete(message.id);
             resolve(html ?? message.content ?? "");
         };
         const timer = setTimeout(() => {
@@ -308,7 +313,7 @@ export function wordsOf(message, ms = 4000) {
                 + "drawing what the card itself says.");
             done(null);
         }, ms);
-        waiting.set(message.id, done);
+        waiting.set(message.id, [...(waiting.get(message.id) ?? []), done]);
     });
 }
 
@@ -323,8 +328,7 @@ export function contentOf(message) {
 async function remember(id, html, at, pin = false, trusted = false, summary = undefined) {
     const words = trusted ? html : sanitize(html);
     // Anything holding a notice open for these words gets them now.
-    const pending = waiting.get(id);
-    if (pending) pending(words);
+    for (const wake of waiting.get(id) ?? []) wake(words);
 
     cleaned.delete(id);
     // New words for a card keep the facts it was posted with (`updateSecret` sends none).
@@ -603,7 +607,61 @@ export function registerSecrets() {
         if (key === `${MODULE_ID}.${SETTINGS.secretCards}`) forgetSecrets();
     });
 
+    quietVeiledPip();
+
     pruneOrphans().catch(err => debug("Could not tidy the private-card store", err));
+}
+
+/*
+ * THE CHAT TAB'S PIP (E06 C6, 27.09.2026; audit S11-30, not seen at a table). A veiled
+ * card is addressed to everybody, so the chat log is told of it on every client, and
+ * a client that holds no words for it lit its Chat pip at the very moment something
+ * secret happened - on every bystander's screen. The notifier of the chat log's class
+ * is wrapped: a veiled card this client holds no words for notifies once its words
+ * arrive (`wordsOf`, as sfx.mjs waits for them to play its sound) and never when none
+ * come. Everything else reaches Foundry's notifier as it came.
+ *
+ * WHICH METHOD, NEITHER READ NOR SEEN. The chat log's `notify(message, ...)` is the
+ * method the E06 plan names; no Foundry source is on the machine this was written on,
+ * so which method lights the pip in v14, and whether a sound plays with it, is
+ * LIVE-E06-04.
+ * The class is `CONFIG.ui.chat` (the one `ui.chat` is made from, a system's subclass
+ * included), else core's `ChatLog`. When it has no `notify`, nothing is installed and
+ * `diagnosePatches` (patches.mjs) says so.
+ */
+const VEILED_NOTIFY = Symbol.for("drpgVeiledNotify");
+
+/** The class the chat log is made from, or null. Read by `diagnosePatches` as well. */
+export function chatLogClass() {
+    return CONFIG.ui?.chat ?? foundry.applications?.sidebar?.tabs?.ChatLog ?? null;
+}
+
+/** Does the chat log tell this client of this card now? Not while it is a veiled card this client holds no words for. */
+export function lightsChatPip(message) {
+    return !isVeiled(message) || Boolean(secretHtml(message));
+}
+
+/** Wrap the chat log's notifier once; say so and install nothing where it is missing. */
+function quietVeiledPip() {
+    const proto = chatLogClass()?.prototype;
+    const notify = proto?.notify;
+    if (typeof notify !== "function") {
+        warn("The chat log has no notify method here, so a veiled card may still light the Chat tab on every screen - see diagnosePatches().");
+        return false;
+    }
+    if (notify[VEILED_NOTIFY]) return true;
+    // Foundry's notifier is called through `wrapped`, which the suite swaps for a recorder.
+    const drpgVeiledNotify = function (message, ...rest) {
+        if (lightsChatPip(message)) return drpgVeiledNotify.wrapped.call(this, message, ...rest);
+        void wordsOf(message).then(html => {
+            if (!isStub(html)) drpgVeiledNotify.wrapped.call(this, message, ...rest);
+        }).catch(err => debug("Could not notify of a veiled card", err));
+        return undefined;
+    };
+    drpgVeiledNotify.wrapped = notify;
+    drpgVeiledNotify[VEILED_NOTIFY] = true;
+    proto.notify = drpgVeiledNotify;
+    return true;
 }
 
 /**

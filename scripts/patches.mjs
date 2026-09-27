@@ -1,7 +1,7 @@
 /**
  * Danganronpa RPG - the register of every method this module overrides.
  * ---------------------------------------------------------------------------
- * Eight places reach into Foundry's or Daggerheart's objects and put a
+ * Nine places reach into Foundry's or Daggerheart's objects and put a
  * function of ours where theirs was. Each has its reasons written beside it in
  * its own file; what none of them had was a list (audit A18), so a system
  * update that moved one of the targets was found by whichever feature stopped
@@ -19,6 +19,7 @@
  */
 
 import { refreshStateParked } from "./iso-shield.mjs";
+import { chatLogClass } from "./secret.mjs";
 
 const AV_MODULE = "avclient-livekit";
 
@@ -139,6 +140,17 @@ export const PATCHES = [
                 proto = Object.getPrototypeOf(proto);
             }
             return { present, ours: refreshStateParked() };
+        }
+    },
+    {
+        target: "the chat log's notify",
+        owner: "foundry",
+        file: "secret.mjs",
+        why: "A veiled card this client holds no words for does not light the Chat tab (E06 C6).",
+        when: "always, when the chat log's class has the method (LIVE-E06-04)",
+        probe: () => {
+            const fn = chatLogClass()?.prototype?.notify;
+            return { present: typeof fn === "function", ours: Boolean(fn?.[Symbol.for("drpgVeiledNotify")]) };
         }
     },
     {

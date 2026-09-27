@@ -107,7 +107,7 @@ export const FLOWS = Object.freeze([
         scenarios: ["72-canary", "11-killer-secrecy", "33-bridge-paths", "30-security", "61-gmstore-case"], status: "covered", stage: "1.2.64" },
     { id: "private-rolls", what: "A roll made in private: whispered, and hidden from the other players' chat",
         entry: { bridge: ["roll.subject"], sockets: ["dice-sync.mjs", "private-rolls.mjs"] },
-        scenarios: ["12-social", "20-crit-hope", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
+        scenarios: ["12-social", "13-murder-signals", "20-crit-hope", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
         entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage"] },
         scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
