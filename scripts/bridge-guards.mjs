@@ -247,6 +247,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["cannotNow", /^that bullet cannot be analysed now$/],
     // E05 C10: rule D - a refusal caused by a death, a body nobody has found among them (guardArmLiving).
     ["cannotNow", /^that cannot be done now$/],
+    // E05 fix r1-G3: a Direct Murder parked with no Eclipse running (gm-bridge.mjs handleParkMurder).
+    ["cannotNow", /^no Eclipse is running$/],
     ["cannotFrame", /^that student cannot be framed$/],
     ["notThere", /^the body is not in the killer's room$/],
     ["notThere", /^the character has no token on a scene$/],

@@ -23,7 +23,7 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, is
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
-import { roomOfActor, neighbouringRooms } from "./movement.mjs";
+import { roomOfActor, neighbouringRooms, placesOf, allRooms } from "./movement.mjs";
 import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
@@ -379,7 +379,10 @@ export async function parkDirectMurder({ killerId, room = null, note = "" } = {}
 
 /** GM-side. The write itself, reached from the bridge or directly by a GM. */
 export async function writeParkedMurder({ killerId, room = null, note = "" } = {}) {
-    if (!game.user.isGM || !killerId) return null;
+    // Only in an Eclipse (E05 fix r1-G3; review S1-m8): outside one the row would be named
+    // for no Eclipse, nothing could rule on it and the GMs were asked all the same. The
+    // bridge refuses a player's with its reason first (gm-bridge.mjs `handleParkMurder`).
+    if (!game.user.isGM || !killerId || !eclipseId()) return null;
     // `approved: null` is undecided, and it is written explicitly: every field is
     // named, so a second declaration by the same killer replaces the first whole.
     // `eclipse` is the name of the Eclipse it was made in; the lights of another
@@ -461,6 +464,9 @@ async function askGmToAllow(killerId, parked) {
 export async function ruleOnParkedMurder(killerId, allow) {
     if (!game.user.isGM || !killerId) return null;
 
+    // The rows the other GMs hold first (E05 fix r1-G3; review M1), as E04's readers wait:
+    // a primary that came back reads a declaration made while it was away as not waiting.
+    await pendingMurderStore.whenHydrated();
     const parked = pendingMurders()[killerId];
     const killer = game.actors.get(killerId);
     if (!parked) {
@@ -810,7 +816,7 @@ export async function judgeEclipseCrossing(actor, from, to) {
 async function recordMove(actor, to = null) {
     if (!game.user.isGM) {
         const { requestEclipseMove } = await import("./gm-bridge.mjs");
-        const res = await requestEclipseMove(actor.id);
+        const res = await requestEclipseMove(actor.id, to);
         if (res.ok) return true;
         return res.refused && res.reason === "nothingLeft" ? false : null;
     }
@@ -829,13 +835,20 @@ async function recordMove(actor, to = null) {
  * exactly the thing the phase hides; the GM who wants the answer opens the placement
  * table. Then the owner is sent their copy of the count.
  *
- * `to` is the room walked into, as the mover's client saw it; a request through the
- * bridge carries no room, and the card names where the GM's client stands the token.
+ * `to` is the room walked into, as the mover's client saw it - on a route through two
+ * rooms, not the one the token ends in. From a player it is a claim: the card names it only
+ * when it is a room of a scene the character has a token on (`crossedInto`), else where
+ * this client stands the token; it moves no count (E05 fix r1-G3; review M8).
+ *
+ * The count is read once the store holds the other GMs' rows (review M1): read before, a
+ * primary that came back after another GM counted crossings judged the allowance on its
+ * own browser's rows and wrote a lower count over the peer's at a newer stamp.
  *
  * @returns {Promise<null|{refused: string}|{used: number, left: number|null}>}
  */
 export async function applyRecordedMove(actorId, { to = null } = {}) {
     if (!game.user.isGM) return null;
+    await eclipseMoveStore.whenHydrated();
     const actor = game.actors.get(actorId);
     const id = eclipseId();
     if (!actor || !id) return null;
@@ -850,8 +863,9 @@ export async function applyRecordedMove(actorId, { to = null } = {}) {
     // the two crossings are worth one, and this card was the one place still counting
     // down from two - so a player was told "1 left" by the same window that had just
     // refused them.
-    const room = foundry.utils.escapeHTML(to ?? roomOfActor(actor) ?? "-");
-    await whisperToOwnerOnly(actor, `${cardHead({ action: eclipseLabel(), room: to ?? roomOfActor(actor) })}<p>${
+    const into = crossedInto(actor, to) ?? roomOfActor(actor);
+    const room = foundry.utils.escapeHTML(into ?? "-");
+    await whisperToOwnerOnly(actor, `${cardHead({ action: eclipseLabel(), room: into })}<p>${
         allowance === null
             ? game.i18n.format("DRPG.Eclipse.movedFree", { room })
             : plural("DRPG.Eclipse.moved", { room, left: Math.max(0, allowance - used) }, "left")
@@ -859,6 +873,17 @@ export async function applyRecordedMove(actorId, { to = null } = {}) {
 
     for (const userId of ownerIdsOf(actor)) sendMovesTo(userId);
     return { used, left: allowance === null ? null : Math.max(0, allowance - used) };
+}
+
+/**
+ * The room a crossing names, when it is a room of a scene this character has a token on;
+ * else null. Judged against the scene's rooms, not the route: the primary's record of a
+ * token's route (movement.mjs `roomsVisited`) holds a position per update, and whether a
+ * drag through two rooms reaches it as one update or two has not been measured at a table.
+ */
+function crossedInto(actor, to) {
+    if (typeof to !== "string" || !to) return null;
+    return placesOf(actor).some(({ scene }) => allRooms(scene).includes(to)) ? to : null;
 }
 
 /* ==========================================================================
@@ -952,8 +977,10 @@ function onMovesSocket(payload, senderId) {
         if (!isPrimaryGm()) return;
         const sender = game.users.get(senderId);
         if (!sender?.active || sender.isGM) return;
-        // Asked while the suite holds the stores: answered once it lets them go (as the offers are).
-        whenGmStoresAudible().then(() => sendMovesTo(sender.id)).catch(err => error("Could not answer an owner's crossings", err));
+        // Asked while the suite holds the stores: answered once it lets them go (as the offers are),
+        // and from the other GMs' rows too (E05 fix r1-G3; review M1): the ask comes at
+        // `drpgPrimaryReady`, in the ready hook that opens the stores without waiting for them.
+        whenGmStoresAudible().then(() => eclipseMoveStore.whenHydrated()).then(() => sendMovesTo(sender.id)).catch(err => error("Could not answer an owner's crossings", err));
         return;
     }
     if (payload?.action !== ACTION_MOVES || game.user.isGM) return;

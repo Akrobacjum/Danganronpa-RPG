@@ -672,6 +672,74 @@ const SCENARIOS = [
         }
     }],
 
+    ["a crossing and a ruling wait for the rows the other GMs hold", async () => {
+        /*
+         * E05 fix r1-G3, 27.09.2026; review M1. E04 made every primary's answer wait for the
+         * store to hold the other GMs' copies; the Eclipse's count and ruling did not: a primary
+         * that came back after another GM counted a character's crossings judged the allowance
+         * on its own browser's rows and wrote a lower count over the peer's at a newer stamp,
+         * and a declaration another GM held read as not waiting. Each store's hydration is held
+         * here by replacing its handle's answer (as 61 M holds the bullets'); nothing is counted
+         * or ruled while held; the rows another GM holds arrive, the hold ends, and the crossing
+         * is refused against the peer's count, the declaration allowed. Red on ced3cad: the
+         * crossing was counted at once (1 over the peer's spent allowance), the ruling answered
+         * that nothing was waiting.
+         */
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const murder = await import("./murder.mjs");
+        const [killer, student] = cast(2);
+        const clock = getClock();
+        const real = [[S.eclipseMoveStore, S.eclipseMoveStore.whenHydrated], [S.pendingMurderStore, S.pendingMurderStore.whenHydrated]];
+        const hold = store => {
+            const gate = {};
+            gate.promise = new Promise(resolve => { gate.open = () => resolve("answered"); });
+            store.whenHydrated = () => gate.promise;
+            return gate;
+        };
+        try {
+            await setClock({ timeOfDay: "morning" });
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId(), allowance = E.eclipseAllowance();
+            ok(id && Number.isInteger(allowance) && allowance >= 1, `the Eclipse has no name, or no allowance to count against (${id}, ${allowance})`);
+            const from = game.messages.size;
+
+            const moves = hold(S.eclipseMoveStore);
+            let counted = "waiting";
+            const crossing = E.applyRecordedMove(student.id).then(out => { counted = out; });
+            await settle();
+            equal(stableJson([counted, S.eclipseMoveStore.get(student.id) ?? null]), stableJson(["waiting", null]),
+                "the crossing was counted before the store held the other GMs' rows");
+            await S.eclipseMoveStore.patch(student.id, { used: allowance, eclipse: id });
+            moves.open();
+            await crossing;
+            equal(G.reasonOf(counted?.refused), "nothingLeft", `the crossing was not judged against the other GM's count: ${stableJson(counted)}`);
+            equal(stableJson([S.eclipseMoveStore.get(student.id)?.used, game.messages.size - from]), stableJson([allowance, 0]),
+                "the crossing wrote over the other GM's count, or posted a card");
+
+            const murders = hold(S.pendingMurderStore);
+            let ruled = "waiting";
+            const ruling = E.ruleOnParkedMurder(killer.id, true).then(out => { ruled = out; });
+            await settle();
+            equal(ruled, "waiting", "the ruling was made before the store held the other GMs' rows");
+            await S.pendingMurderStore.patch(killer.id, { room: null, note: "SUITE r1-G3 declared on another GM", at: Date.now(), approved: null, eclipse: id });
+            murders.open();
+            await ruling;
+            equal(stableJson([ruled, S.pendingMurderStore.get(killer.id)?.approved ?? null]), stableJson([true, true]),
+                "a declaration another GM held was not found waiting, or the ruling did not reach the store");
+        } finally {
+            for (const [store, whenHydrated] of real) store.whenHydrated = whenHydrated;
+            await S.pendingMurderStore.drop(killer.id);
+            await S.eclipseMoveStore.drop(student.id);
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (murder.murderState()) await murder.endMurder({ reason: "test", followUp: false });
+            await setClock(clock);
+            await settle();
+        }
+    }],
+
     ["the owner's copy counts the crossing, and an empty answer takes nothing away", async () => {
         /*
          * E05 C4, 26.09.2026. A player's sheet, status panel and veto read the crossings from a

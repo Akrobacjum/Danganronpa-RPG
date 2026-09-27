@@ -590,8 +590,12 @@ async function handleCrisis(payload, sender, ctx, prepared) {
     // Nothing about the outcome is decided here or sent back - that is the whole
     // point of parking it, and a bridge that answered "recorded" with anything
     // more would tell the asker what only the GMs know.
+    //
+    // Only while an Eclipse runs (E05 fix r1-G3; review S1-m8), as `eclipse.move` is: outside
+    // one nothing is written and nobody is asked, and the asker is told.
 async function handleParkMurder(payload, sender, ctx) {
     const eclipse = await import("./eclipse.mjs");
+    if (!eclipse.eclipseId()) return { refused: "no Eclipse is running" };
     await eclipse.writeParkedMurder({
         killerId: payload.killerId,
         room: payload.room,
@@ -995,7 +999,7 @@ async function handleDespair(payload, sender, ctx) {
     // which the mover's sheet reads before its copy arrives.
 async function handleEclipseMove(payload, sender, ctx) {
     const { applyRecordedMove } = await import("./eclipse.mjs");
-    const out = await applyRecordedMove(payload.actorId);
+    const out = await applyRecordedMove(payload.actorId, { to: payload.to });
     if (!out) return { refused: "nothing was carried out: no Eclipse is running, or no such character" };
     if (out.refused) return { refused: out.refused };
     return { reply: { used: out.used, left: out.left } };
@@ -1433,9 +1437,10 @@ export const BRIDGE_ACTIONS = table({
         label: "DRPG.Bridge.what.eclipse.move",
         // `knownSender` is new here (E31), as for token.sendBack.
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id }),
+        sanitize: pick({ actorId: as.id, to: as.maybeText }),
         run: handleEclipseMove,
-        answer: "reply"
+        answer: "reply",
+        claims: { to: "named on the owner's card only when applyRecordedMove (eclipse.mjs) finds it a room of a scene the character stands on; it counts nothing" }
     },
     [ACTION_NOTE_SAVE]: {
         label: "DRPG.Bridge.what.note.save",
@@ -1614,9 +1619,9 @@ export function requestSendBack(sceneId, tokenId, position) {
     return ask(ACTION_SENDBACK, { sceneId, tokenId, position });
 }
 
-/** Count an Eclipse crossing on the GM's copy of the world setting. */
-export function requestEclipseMove(actorId) {
-    return ask(ACTION_ECLIPSE_MOVE, { actorId });
+/** Count an Eclipse crossing in the GMs' store; `to` is the room crossed into, for its card. */
+export function requestEclipseMove(actorId, to = null) {
+    return ask(ACTION_ECLIPSE_MOVE, { actorId, to });
 }
 
 /**

@@ -86,6 +86,9 @@
  *      is scored or copied, and the GM is told once; a hydration three seconds late
  *      is waited for and the throw scored and paid for; and the missing key's refusal
  *      hands the price back too.
+ *   N  an owner's ask for their Eclipse crossings (E05 fix r1-G3): with the primary's
+ *      crossings store held unhydrated nothing is sent; the row another GM counted
+ *      arrives, the hold ends, and the owner's copy reads it.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -1332,5 +1335,37 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 300, y: 300 });
         return true;`, { timeout: 60000 });
 
-    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M"], gm: IDS.gm };
+    /* ------- N. an owner's ask for their crossings, answered from the other GMs' rows ------- */
+
+    /* E05 fix r1-G3, 27.09.2026; review M1. An owner asks the primary for their characters'
+       crossings at load and when a primary's world has loaded (`drpgPrimaryReady`, sent from the
+       ready hook that opens the stores without waiting for them); the primary answered once the
+       suite let the stores go, from its own browser's rows. gma, the primary, holds its crossings
+       store unhydrated as M holds its bullets, in an Eclipse opened by its clock flag; p1 asks,
+       and nothing is sent while held. The row another GM counted arrives, the hold ends, and p1's
+       copy reads it. Red on ced3cad: the answer went out at once, and the copy read no crossing. */
+    phase("N: an owner's ask for their crossings is answered from the rows the other GMs hold", { flow: "eclipse-route-veto" });
+    const XS = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const X = await import("${repoUrl}/scripts/eclipse.mjs");`;
+    const clockN = await gma.eval(`${XS} const c = game.drpg.getClock();
+        await game.drpg.setClock({ timeOfDay: "morning", eclipse: true, eclipseStartedAt: Date.now() });
+        globalThis.__nReal = S.eclipseMoveStore.whenHydrated;
+        S.eclipseMoveStore.whenHydrated = () => new Promise(r => { globalThis.__nRelease = r; });
+        return { was: { timeOfDay: c.timeOfDay, timeOfDayStartedAt: c.timeOfDayStartedAt }, id: X.eclipseId(), primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm() };`);
+    await settle(900);
+    const fromN = socketTraffic.length;
+    const sentN = () => socketTraffic.slice(fromN).filter(t => t.from === "gma" && t.action === "eclipse.moves" && Array.isArray(t.to) && t.to.includes(IDS.p1)).length;
+    await p1.eval(`game.socket.emit("module.${MOD}", { action: "eclipse.movesAsk" }, { recipients: ["${GMA}"] }); return true;`);
+    await settle(1500);
+    const heldN = sentN();
+    await gma.eval(`${XS} await S.eclipseMoveStore.patch("${IDS.aiko}", { used: 1, eclipse: ${J(clockN.id)} });
+        S.eclipseMoveStore.whenHydrated = globalThis.__nReal; globalThis.__nRelease?.("answered"); return true;`);
+    await settle(1500);
+    const copyN = await p1.eval(`${XS} return S.eclipseMoveCopy.read()?.["${IDS.aiko}"] ?? null;`);
+    check("N1: the primary answers an owner's ask for their crossings only once its store holds the other GMs' rows, and the owner's copy reads them",
+        clockN.primary === true && Boolean(clockN.id) && heldN === 0 && sentN() >= 1 && copyN?.used === 1 && copyN?.eclipse === clockN.id,
+        J({ clockN, heldN, sent: sentN(), copyN }));
+    await gma.eval(`${XS} if (globalThis.__nReal) S.eclipseMoveStore.whenHydrated = globalThis.__nReal; await S.eclipseMoveStore.drop("${IDS.aiko}");
+        await game.drpg.setClock({ eclipse: false, ...${J(clockN.was)} }); return true;`);
+
+    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N"], gm: IDS.gm };
 }

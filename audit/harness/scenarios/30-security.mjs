@@ -790,6 +790,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
      * declaration is the GMs' store's since E05, not the world setting every browser held: p1
      * forges one for Chie (p3's), and nothing reaches the store; Chie's own player parks one, and
      * the store holds it while the world's old key, read on p1, holds nothing.
+     *
+     * Only in an Eclipse (E05 fix r1-G3, 27.09.2026; review S1-m8): with none running, Chie's own
+     * player's murder.park is refused on the GM as cannotNow and told to p3, and nothing is written
+     * or put to the GMs - red on ced3cad, where the row was filed named for no Eclipse and the GMs
+     * were asked to rule on it. The control then parks in an Eclipse opened by its clock flag.
      */
     phase("a Direct Murder parked", { flow: "murder-incident" });
     const readPark = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); return { row: S.pendingMurderStore.get("${ids.chie}") ?? null };`;
@@ -798,6 +803,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         park.unchanged && park.after.row === null, JSON.stringify(park));
     check("SECURITY: the GM refused the forged murder.park for ownership, and told p1",
         park.forOwnership && park.told.some(t => t.what === "murder.park"), JSON.stringify({ reasons: park.reasons, told: park.told }));
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    const shutFrom = await gm.eval(`return game.messages.size;`);
+    const parkShut = await p3.eval(`return await (await import("${repoUrl}/scripts/gm-bridge.mjs")).requestParkMurder({ killerId: "${ids.chie}", room: "Gym", note: "SEC declared in daylight" });`, { timeout: 30000 });
+    await settle(900);
+    const shutAfter = { ...(await gm.eval(readPark)), posted: (await gm.eval(`return game.messages.size;`)) - shutFrom,
+        logged: await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "murder.park"') && e.message.includes("no Eclipse is running")).length;`) };
+    check("SECURITY: with no Eclipse running, Chie's own player's murder.park is refused and told as cannotNow - nothing filed, no GM asked",
+        parkShut?.ok === false && parkShut?.reason === "cannotNow" && shutAfter.row === null && shutAfter.posted === 0 && shutAfter.logged === 1,
+        JSON.stringify({ parkShut, shutAfter }));
+    const parkClock = await gm.eval(`const c = game.drpg.getClock(); await game.drpg.setClock({ timeOfDay: "morning", eclipse: true, eclipseStartedAt: Date.now() });
+        return { timeOfDay: c.timeOfDay, timeOfDayStartedAt: c.timeOfDayStartedAt };`);
+    await settle(300);
     await p3.eval(`const { parkDirectMurder } = await import("${repoUrl}/scripts/eclipse.mjs");
         await parkDirectMurder({ killerId: "${ids.chie}", room: "Gym", note: "SEC Chie's own declaration" }); return true;`, { timeout: 30000 });
     await settle(900);
@@ -805,7 +822,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     const parkWorld = await p1.eval(`return game.settings.get("${MOD}", "pendingMurders") ?? null;`);
     check("control: Chie's own player parks a declaration: the GMs' store holds it, and the world's old key on p1 holds nothing",
         parkOk.row?.note === "SEC Chie's own declaration" && JSON.stringify(parkWorld) === "{}", JSON.stringify({ parkOk, parkWorld }));
-    await gm.eval(`await (await import("${repoUrl}/scripts/eclipse.mjs")).clearParkedMurders(); return true;`);
+    await gm.eval(`await (await import("${repoUrl}/scripts/eclipse.mjs")).clearParkedMurders();
+        await game.drpg.setClock({ eclipse: false, ...${JSON.stringify(parkClock)} }); return true;`);
 
     /*
      * 7h3. An Eclipse crossing for another's character (E05 C4, 26.09.2026; audit S10-39). The
@@ -813,6 +831,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
      * crossing for Botan (p2's), and nothing is counted; Botan's own player crosses, and the store
      * counts it, answered with the count. In an Eclipse opened by its clock flag and name alone,
      * leading into noon, and closed again.
+     *
+     * The card names the room crossed into (E05 fix r1-G3, 27.09.2026; review M8): on a route
+     * through two rooms the bridge carried no room and each card named the room the token ended
+     * in - red on ced3cad, the card of a crossing into another room named Botan's. The room is a
+     * claim: one that is no room of Botan's scene is not put in the card, which names where the
+     * GM stands the token, and the crossing is counted all the same.
      */
     phase("an Eclipse crossing", { flow: "eclipse-route-veto" });
     const clockWas = await gm.eval(`const c = game.drpg.getClock(); await game.drpg.setClock({ timeOfDay: "morning", eclipse: true, eclipseStartedAt: Date.now() });
@@ -823,11 +847,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         cross.unchanged && cross.after.used === 0, JSON.stringify(cross));
     check("SECURITY: the GM refused the forged eclipse.move for ownership, and told p1",
         cross.forOwnership && cross.told.some(t => t.what === "eclipse.move"), JSON.stringify({ reasons: cross.reasons, told: cross.told }));
-    const crossOk = await p2.eval(`return await (await import("${repoUrl}/scripts/gm-bridge.mjs")).requestEclipseMove("${ids.botan}");`, { timeout: 30000 });
+    const where = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs"); const X = await import("${repoUrl}/scripts/eclipse.mjs");
+        const here = M.roomOfActor(game.actors.get("${ids.botan}"));
+        return { here, into: M.allRooms().find(r => here && !r.includes(here) && !here.includes(r)) ?? null, allowance: X.eclipseAllowance() };`);
+    const cardsFrom = await p2.eval(`return game.messages.size;`);
+    const crossOk = await p2.eval(`return await (await import("${repoUrl}/scripts/gm-bridge.mjs")).requestEclipseMove("${ids.botan}", ${JSON.stringify(where.into)});`, { timeout: 30000 });
     await settle(600);
     const crossAfter = await gm.eval(readMoves);
     check("control: Botan's own player crosses, and the GMs' store counts it, answered with the count",
         crossOk?.ok === true && crossOk?.value?.used === 1 && crossAfter.used === 1, JSON.stringify({ crossOk, crossAfter }));
+    const crossLie = await p2.eval(`return await (await import("${repoUrl}/scripts/gm-bridge.mjs")).requestEclipseMove("${ids.botan}", "SEC no such room");`, { timeout: 30000 });
+    await settle(600);
+    const crossCards = await p2.eval(`const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        return game.messages.contents.slice(${cardsFrom}).map(m => contentOf(m));`);
+    check("control: the card of Botan's crossing names the room crossed into, not the one the token stands in",
+        Boolean(where.here && where.into) && crossCards.length === 2 && crossCards[0].includes(where.into) && !crossCards[0].includes(where.here),
+        JSON.stringify({ where, crossCards }));
+    check("SECURITY: a crossing that names no room of Botan's scene is counted, and its card names where the GM stands the token",
+        where.allowance >= 2 && crossLie?.ok === true && crossLie?.value?.used === 2 && crossCards.length === 2
+        && crossCards[1].includes(where.here) && !crossCards[1].includes("SEC no such room"), JSON.stringify({ where, crossLie, crossCards }));
     await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await S.eclipseMoveStore.drop("${ids.botan}");
         await game.drpg.setClock({ eclipse: false, ...${JSON.stringify(clockWas)} }); return true;`);
 
