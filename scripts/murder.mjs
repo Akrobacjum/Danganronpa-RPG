@@ -3460,9 +3460,37 @@ export function blackenedIds() {
         .map(([id]) => id);
 }
 
-/** Their actors, skipping any that have since been deleted. */
-export function blackenedActors() {
-    return blackenedIds().map(id => game.actors.get(id)).filter(Boolean);
+/**
+ * THE BLACKENED THE TRIAL ASKS FOR (E05 fix r2-G1, 27.09.2026; review F1, the owner's Q3).
+ * The register takes a killer when the incident closes, and an incident usually closes
+ * before anybody finds the body. The trial read the register whole, so a death nobody had
+ * found was counted where the table could see it - measured 27.09.2026 on the harness, one
+ * death published and one not: every ballot asked for two names, one more than the table had
+ * bodies, which told each player there was another; a correct verdict executed the second
+ * killer and a wrong one kept them a Reinforced. The owner's rule is that such a death
+ * counts nowhere until the discovery or a GM's hand makes it known. So a row names its
+ * victims (`recordBlackened`), and the trial counts a killer for a death the table knows;
+ * the register itself stays whole for the discovery's rule of two witnesses
+ * (chapter.mjs `checkBodyFound`), which is the GMs' judgement of who stands in a room.
+ */
+export function trialBlackenedIds() {
+    return blackenedIds().filter(id => countsAtTrial(blackenedStore.get(id), victim => deathStore.has(victim)));
+}
+
+/**
+ * The rule under `trialBlackenedIds`, pure (R199): a row counts unless every victim it
+ * names is a death nobody has published (`pending(id)`, a row of the `deaths` store). A
+ * row that names none counts - every row written before 1.2.64 names none, and a death
+ * then was the table's at the kill.
+ */
+export function countsAtTrial(row, pending) {
+    const victims = Array.isArray(row?.victims) ? row.victims.filter(id => typeof id === "string" && id) : [];
+    return !victims.length || victims.some(id => !pending(id));
+}
+
+/** The trial's Blackened as actors, skipping any that have since been deleted - the verdict's list. */
+export function trialBlackenedActors() {
+    return trialBlackenedIds().map(id => game.actors.get(id)).filter(Boolean);
 }
 
 /**
@@ -3485,7 +3513,13 @@ export function blackenedActors() {
  *
  * Appended, never replaced. Two incidents in a chapter - which the betrayal
  * rule makes an ordinary evening - put two (or more) names in here, and the
- * trial asks for all of them.
+ * trial asks for all of them whose deaths the table knows (`trialBlackenedIds`).
+ *
+ * WITH THE VICTIM (E05 fix r2-G1, 27.09.2026; review F1). A row carries `victims`,
+ * the bodies it answers for, so the trial can leave out a killer whose every
+ * victim is still a death nobody has found (the owner's Q3). A killer who kills
+ * again in the chapter has the new victim added to their row; a row written
+ * before 1.2.64 names none and is left so, since it counts at every trial anyway.
  */
 async function recordBlackened(state) {
     if (!game.user.isGM || !state?.killerId) return;
@@ -3494,16 +3528,34 @@ async function recordBlackened(state) {
     if (state.endedBy === "sharedEscape") return;
     if (state.stage !== "resolution") return;
 
-    const current = blackenedIds();
-    const additions = killerIds(state).filter(id => !current.includes(id));
-    if (!additions.length) return;
-    // A row per killer, stamped with the chapter and season it is for; `at` keeps
-    // their order after the rows this chapter already has.
-    const chapter = getClock()?.chapter ?? null;
-    const at = Date.now();
-    await blackenedStore.patchMany(Object.fromEntries(additions.map((id, i) =>
-        [id, { chapter, epoch: seasonEpoch(), at: at + i }])));
-    log(`Blackened recorded: ${additions.map(id => game.actors.get(id)?.name ?? id).join(", ")}.`);
+    const held = Object.fromEntries(blackenedIds().map(id => [id, blackenedStore.get(id)]));
+    const rows = blackenedWrites(held, killerIds(state), state.victimId,
+        { chapter: getClock()?.chapter ?? null, epoch: seasonEpoch(), at: Date.now() });
+    const written = Object.keys(rows);
+    if (!written.length) return;
+    await blackenedStore.patchMany(rows);
+    log(`Blackened recorded: ${written.map(id => game.actors.get(id)?.name ?? id).join(", ")}.`);
+}
+
+/**
+ * What one closed incident writes to the register, pure (R199). `held` is this chapter's
+ * rows by killer. A killer not in it gets a row stamped with the chapter and season it is
+ * for, `at` keeping their order after the rows the chapter already has, naming the victim;
+ * a killer already in it has the victim added to the victims their row names. A row that
+ * names none was written before 1.2.64 and counts at every trial, so it is left alone.
+ */
+export function blackenedWrites(held, killers, victimId, { chapter = null, epoch = 0, at = 0 } = {}) {
+    const victim = typeof victimId === "string" && victimId ? victimId : null;
+    const rows = {};
+    (killers ?? []).forEach((id, i) => {
+        if (!Object.hasOwn(held ?? {}, id)) {
+            rows[id] = { chapter, epoch, at: at + i, victims: victim ? [victim] : [] };
+            return;
+        }
+        const had = held[id]?.victims;
+        if (victim && Array.isArray(had) && !had.includes(victim)) rows[id] = { victims: [...had, victim] };
+    });
+    return rows;
 }
 
 /**

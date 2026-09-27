@@ -506,6 +506,175 @@ const SCENARIOS = [
             "the GM's hand did not make the death known");
     }],
 
+    ["the trial asks only for the killers of deaths the table knows, and a victim nobody has found votes and levels up with the class", async () => {
+        /*
+         * E05 fix r2-G1, 27.09.2026; review F1 (major) and S2-m6, the owner's Q3 and the plan's rule A.
+         * The register takes a killer when the incident closes, found body or not, and the trial read
+         * it whole: with one death published and one nobody had found, every ballot asked for two
+         * names - which told each player of a second body - a correct verdict executed the hidden
+         * killer and a wrong one kept them a Reinforced; and the correct verdict's Level Up took the
+         * GMs' list of the living, so the victim nobody had found was the one student every console
+         * saw not advance. Driven end to end: this chapter's register emptied, two incidents closed as
+         * the engine closes them, the first body published and the second not; the ballots as
+         * `openVote` sends them, caught here and never sent; the verdict's own window answered by its
+         * buttons, wrong and then right; last, a right verdict that names the hidden victim for
+         * execution. Every Level Up window is closed unanswered, which writes nothing.
+         * Both killers are players' who are connected: an opening roll with nobody to ask is
+         * thrown on the GM's client (murder.mjs `rollOpening`), and with the unowned student as a
+         * killer that real roll raced `resolveKillerOpening` - measured 27.09 on the harness, four
+         * runs: two incidents closed as "openingFailed" and one roll gave the GM a Fear. So the
+         * three are picked from every living student, not from the first four (`cast`), and a
+         * world without three such students is a skip.
+         */
+        needs(world.atLeast("livingStudents", 4), "two incidents, each with a killer and a victim");
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "the two killers and the victim nobody found, each with a connected player");
+        const { isDeceased, isDeadForGm, publishDeath, livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const living = livingStudents();
+        const [knownKiller, hiddenKiller, hiddenVictim] = living.filter(player);
+        const knownVictim = living.find(a => ![knownKiller, hiddenKiller, hiddenVictim].includes(a));
+        const people = [knownKiller, hiddenKiller, hiddenVictim, knownVictim];
+        const drpg = game.drpg;
+        const M = await import("./murder.mjs");
+        const V = await import("./vote.mjs");
+        const { blackenedStore, deathStore, deferredOfferStore } = await import("./gm-stores.mjs");
+        const title = a => game.i18n.format("DRPG.Advance.title", { actor: a.name });
+        const D = foundry.applications.api.DialogV2;
+        const socket = game.socket;
+        const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const putBack = () => {
+            if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+        };
+        /* The verdict's window answered by the button `action`, over a form whose dropdowns name
+           nobody (a wrong verdict then executes nobody); every other window closed. */
+        const FORM = { executed: { value: "" }, blackened: { value: "" } };
+        const verdict = async action => {
+            const seen = { read: null, levelUps: [] };
+            D.wait = async cfg => {
+                const button = (cfg?.buttons ?? []).find(b => b.action === action);
+                if (cfg?.window?.title === game.i18n.localize("DRPG.Vote.verdictTitle") && button) {
+                    seen.read = button.callback(new Event("click"), button, { element: { querySelector: () => FORM } });
+                    return seen.read;
+                }
+                if ((cfg?.classes ?? []).includes("drpg-advance")) seen.levelUps.push(cfg?.window?.title ?? "");
+                return null;
+            };
+            try {
+                await withVerdictOpen(() => V.openVerdictDialog());
+            } finally {
+                putBack();
+            }
+            await settle();
+            return seen;
+        };
+        const kill = async (killer, victim) => {
+            await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+            await settle();
+            await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            await drpg.passTurn();
+            await settle();
+            await drpg.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await wait(1600);
+            equal(drpg.murderState()?.stage, "resolution", `${killer.name}'s incident on ${victim.name} did not reach the resolution`);
+            await drpg.endMurder({ followUp: false });
+            await settle();
+            ok(deathStore.has(victim.id) && !isDeceased(victim), `${victim.name}'s death was not kept by the GMs until found`);
+        };
+
+        try {
+            await blackenedStore.dropMany(M.blackenedIds());
+            await deferredOfferStore.dropMany(people.map(a => a.id).filter(id => deferredOfferStore.has(id)));
+            await kill(knownKiller, knownVictim);
+            ok(await publishDeath(knownVictim), "the first body's death was not made the table's");
+            await kill(hiddenKiller, hiddenVictim);
+            equal(stableJson(M.blackenedIds()), stableJson([knownKiller.id, hiddenKiller.id]),
+                "the register does not hold both killers in the order they killed - the rule of two witnesses reads it whole");
+
+            const ballots = [];
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") {
+                    ballots.push({ picks: packet.picks, candidates: packet.candidates ?? [], to: options?.recipients ?? [] });
+                    return true;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            try {
+                await V.openVote();
+            } finally {
+                putBack();
+                await V.closeVote();
+            }
+            ok(ballots.length > 0, "the vote sent no ballot");
+            const marked = id => ballots.flatMap(b => b.candidates).find(c => c.id === id)?.dead ?? null;
+            equal(stableJson([[...new Set(ballots.map(b => b.picks))], marked(knownVictim.id), marked(hiddenVictim.id),
+                ballots.some(b => b.to.includes(player(hiddenVictim).id))]), stableJson([[1], true, false, true]),
+                "the ballots do not ask for the one Blackened of a death the table knows (picks), or do not mark the found body dead and "
+                + "leave the one nobody found unmarked, or the victim nobody found holds no ballot");
+
+            const wrong = await verdict("wrong");
+            equal(stableJson([wrong.read?.blackenedIds ?? null, deferredOfferStore.has(knownKiller.id), deferredOfferStore.has(hiddenKiller.id)]),
+                stableJson([[knownKiller.id], true, false]),
+                "a wrong verdict does not name only the Blackened of the death the table knows, or keeps a Reinforced for the other killer, or none for them");
+            await deferredOfferStore.dropMany([knownKiller.id, hiddenKiller.id].filter(id => deferredOfferStore.has(id)));
+
+            const right = await verdict("correct");
+            equal(stableJson([right.read?.executedIds ?? null, isDeceased(knownKiller), isDeadForGm(hiddenKiller), deathStore.has(hiddenVictim.id), isDeceased(hiddenVictim)]),
+                stableJson([[knownKiller.id], true, false, true, false]),
+                "a correct verdict does not execute only the Blackened of the death the table knows, or killed the other killer, or made the hidden death known");
+            equal(stableJson([title(hiddenVictim), title(hiddenKiller), title(knownKiller)].map(t => right.levelUps.includes(t))),
+                stableJson([true, true, false]),
+                "the correct verdict's Level Up passes over the victim nobody has found or their killer, or offers one to the executed");
+
+            const named = await withVerdictOpen(() => withAdvanceWindows(() => null,
+                () => V.applyVerdict({ correct: true, executedIds: [hiddenVictim.id], blackenedIds: [hiddenVictim.id] })));
+            equal(stableJson([named.some(e => e.title === title(hiddenVictim)), named.some(e => e.title === title(hiddenKiller)), deathStore.has(hiddenVictim.id)]),
+                stableJson([false, true, true]),
+                "a verdict that names a victim nobody has found for execution offers them a Level Up, or offers the class none, or publishes the death");
+        } finally {
+            putBack();
+            await deferredOfferStore.dropMany(people.map(a => a.id).filter(id => deferredOfferStore.has(id)));
+        }
+    }],
+
+    ["a killer of the chapter's other incident who walks alone onto a body nobody has found is its lone finder", async () => {
+        /*
+         * E05 fix r2-G1, 27.09.2026; review F10, the owner's Q1. The lone finder is a student in no
+         * part of that death; the watcher closed the branch to every Blackened of the chapter
+         * (`blackenedIds`, all of its incidents), so a killer of the first incident who walked alone
+         * onto the second's body was told nothing. Who knows is the row's to say (`knowsOfDeath` in
+         * `tellLoneFinder`); the chapter's killers stay "involved" for the rule of two witnesses.
+         * The two are stood alone in a room while both live, the death is kept by the GMs after,
+         * and the watcher (chapter.mjs `maybeBodyFound`) is asked about the finder's token.
+         */
+        const [finder, victim] = cast(2);
+        needs(world.ownedByPlayer(finder), "a lone finder is told through their player");
+        const S = await import("./gm-stores.mjs");
+        const C = await import("./chapter.mjs");
+        const M = await import("./murder.mjs");
+        const { bodyDiscovery } = await import("./settings.mjs");
+        const user = game.users.find(u => !u.isGM && u.active && finder.testUserPermission(u, "OWNER"))
+            ?? game.users.find(u => !u.isGM && finder.testUserPermission(u, "OWNER"));
+        const stood = await aloneTogether(finder, victim);
+        try {
+            await S.blackenedStore.patch(finder.id, { chapter: getClock()?.chapter ?? null, epoch: seasonEpoch(), at: 1 });
+            ok(M.blackenedIds().includes(finder.id), "the fixture could not make the finder a Blackened of this chapter");
+            ok(await C.killCharacter(victim, { secret: true, keepBullets: true }), "the death was not kept by the GMs");
+            const known = () => S.deathStore.get(victim.id)?.known ?? [];
+            ok(!known().includes(user.id), "the finder's player knew of the death before walking in");
+            await C.maybeBodyFound(canvas.scene.tokens.find(t => t.actorId === finder.id));
+            await settle();
+            equal(stableJson([known().includes(user.id), bodyDiscovery()?.room ?? null, C.isDeceased(victim)]), stableJson([true, null, false]),
+                `a Blackened of the chapter alone with a body nobody found was not told of it as its lone finder, or it was announced (phase ${getClock()?.phase})`);
+        } finally {
+            await C.reviveCharacter(victim, { quiet: true });
+            await stood.back();
+        }
+    }],
+
     ["revive drops a pending death, and writes nothing on the living student", async () => {
         /* E05 C10. A death kept by the GMs is a row and nothing on the actor, so taking it back
            is a stamped drop - an unset flag on a student nobody saw die would tell every console

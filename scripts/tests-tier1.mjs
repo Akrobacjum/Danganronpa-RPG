@@ -4930,6 +4930,56 @@ const INVARIANTS = [
             const missing = [KEY, "DRPG.Season.step.liveKitSecret"].filter(k => typeof flat[k] !== "string");
             ok(!missing.length, `${lang}.json has no ${missing.join(", ")}`);
         }
+    }],
+
+    ["R199 - a killer counts at the trial only for a death the table knows", async () => {
+        /*
+         * E05 fix r2-G1, 27.09.2026; review F1, the owner's Q3. The register takes a killer when the
+         * incident closes, which is usually before anybody finds the body, and the trial read the
+         * register whole: a death nobody had found was counted by the ballot and the verdict.
+         * murder.mjs `countsAtTrial`, the rule under `trialBlackenedIds`, pure, driven over rows
+         * shaped as `recordBlackened` writes them: a row counts unless every victim it names is a
+         * death nobody has published, and a row that names none - every row written before 1.2.64,
+         * when a death was the table's at the kill - counts as it always did. Then read from the
+         * source: the ballot and the verdict ask the trial's list, never the register whole.
+         */
+        const { countsAtTrial } = await import("./murder.mjs");
+        const HIDDEN = new Set(["R199HIDDEN000001", "R199HIDDEN000002"]);
+        const TABLE = [
+            ["a row from before 1.2.64, naming no victim", { chapter: 1, epoch: 0, at: 1 }, true],
+            ["an empty list of victims", { chapter: 1, epoch: 0, at: 1, victims: [] }, true],
+            ["its one victim published", { victims: ["R199KNOWN0000001"] }, true],
+            ["its one victim nobody has found", { victims: ["R199HIDDEN000001"] }, false],
+            ["two victims, one of them published", { victims: ["R199HIDDEN000001", "R199KNOWN0000001"] }, true],
+            ["two victims, neither found", { victims: ["R199HIDDEN000001", "R199HIDDEN000002"] }, false],
+            ["victims that are not ids", { victims: [null, 7, ""] }, true]
+        ];
+        const wrong = TABLE.filter(([, row, want]) => countsAtTrial(row, id => HIDDEN.has(id)) !== want).map(([label]) => label);
+        ok(!wrong.length, `the trial counts a killer wrongly for: ${wrong.join("; ")}`);
+
+        // What a closed incident writes: a new killer's row names the victim; a killer already in
+        // the chapter's register gains the new one; a row from before 1.2.64 and a victim already
+        // named are left alone; an incident with no victim id names none.
+        const { blackenedWrites } = await import("./murder.mjs");
+        const { stableJson } = await import("./gm-store.mjs");
+        const STAMP = { chapter: 3, epoch: 2, at: 100 };
+        const held = { R199AGAIN0000001: { chapter: 3, epoch: 2, at: 1, victims: ["R199HIDDEN000001"] },
+            R199OLDROW000001: { chapter: 3, epoch: 0, at: 2 } };
+        equal(stableJson([
+            blackenedWrites(held, ["R199NEW000000001", "R199AGAIN0000001", "R199OLDROW000001"], "R199KNOWN0000001", STAMP),
+            blackenedWrites(held, ["R199AGAIN0000001"], "R199HIDDEN000001", STAMP),
+            blackenedWrites({}, ["R199NEW000000001"], null, STAMP)
+        ]), stableJson([
+            { R199NEW000000001: { chapter: 3, epoch: 2, at: 100, victims: ["R199KNOWN0000001"] },
+                R199AGAIN0000001: { victims: ["R199HIDDEN000001", "R199KNOWN0000001"] } },
+            {},
+            { R199NEW000000001: { chapter: 3, epoch: 2, at: 100, victims: [] } }
+        ]), "a closed incident's writes to the register do not name its victim on a new row, add it to a killer's row, "
+            + "or leave a row from before 1.2.64 and a victim already named alone");
+
+        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        ok(!/\bblackened(Ids|Actors)\(/.test(vote) && /\btrialBlackenedIds\(\)/.test(vote) && /\btrialBlackenedActors\(\)/.test(vote),
+            "vote.mjs reads the register whole, or the ballot and the verdict no longer ask the trial's list");
     }]
 ];
 

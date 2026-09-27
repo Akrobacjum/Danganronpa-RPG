@@ -516,6 +516,12 @@ const WORLD = {
        no voice room to be sent to (E30 review, 25.09.2026). */
     connectedPlayersWithCharacter: ["connected player accounts that own a character", () => game.users.filter(u => !u.isGM
         && u.active && game.actors.some(a => a.type === "character" && a.testUserPermission(u, "OWNER"))).length],
+    /* Living students, not accounts: the trial's two-incident test (E05 fix r2-G1, 27.09.2026)
+       needs three students whose players are here - an opening roll with nobody to ask is
+       thrown on the GM's client, and a ballot goes to a connected player - and an account
+       counted above may own a Monokuma or a dead student instead. */
+    studentsWithConnectedPlayer: ["living students owned by a connected player account", () => living()
+        .filter(a => game.users.some(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"))).length],
     fullGms: ["full Gamemaster accounts", () => game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER).length],
     stashes: ["stashes", () => allVaults().length],
     /* Read off the item's own flag, not through vaultContents: the invariant this

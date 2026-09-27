@@ -682,7 +682,7 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 
 - The dead take no actions and spend no Hope. You keep your sheet and your voice at the table.
 - Your **Truth Bullets die with you**, carried and stashed alike, unless the GM keeps them - once your death is known. Everything else stays on the body to be found.
-- If you die in an incident, nobody else is told until your body is found or a GM makes it known: your sheet shows you dead, with "Nobody has found your body yet.", and your Truth Bullets stay on it until then.
+- If you die in an incident, nobody else is told until your body is found or a GM makes it known: your sheet shows you dead, with "Nobody has found your body yet.", and your Truth Bullets stay on it until then. Until then the trial counts you among the living: you are sent a ballot, and a correct verdict's Level Up is yours too.
 - The body stays where it fell and can be moved by the killer. The dead do not count as being in a room: no witnessing, no handovers.
 - The GM can end a chapter by revealing what every Truth Bullet really was, collecting them (Faint and Final Truth stay), and clearing the Faint traces.
 

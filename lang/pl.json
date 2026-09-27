@@ -1670,10 +1670,10 @@
       "nobodyFoundYou": "Nikt jeszcze nie znalazł twojego ciała.",
       "youFoundBody": "W {room} znajdujesz ciało: {name}. Nikt inny jeszcze go nie widział i nic nie zostaje ogłoszone.",
       "deathsStillSecret": {
-        "one": "{n} śmierć, której nikt nie odkrył, jest wciąż znana tylko GM-om. Nie liczy się nigdzie w tym procesie - ani w głosowaniu, ani w liczeniu - dopóki nie ujawnisz jej w oknie graczy.",
-        "few": "{n} śmierci, których nikt nie odkrył, są wciąż znane tylko GM-om. Nie liczą się nigdzie w tym procesie - ani w głosowaniu, ani w liczeniu - dopóki nie ujawnisz ich w oknie graczy.",
-        "many": "{n} śmierci, których nikt nie odkrył, jest wciąż znanych tylko GM-om. Nie liczą się nigdzie w tym procesie - ani w głosowaniu, ani w liczeniu - dopóki nie ujawnisz ich w oknie graczy.",
-        "other": "{n} śmierci, których nikt nie odkrył, jest wciąż znanych tylko GM-om. Nie liczą się nigdzie w tym procesie - ani w głosowaniu, ani w liczeniu - dopóki nie ujawnisz ich w oknie graczy."
+        "one": "{n} śmierć, której nikt nie odkrył, jest wciąż znana tylko GM-om. Dopóki nie ujawnisz jej w oknie graczy, ten proces traktuje tego ucznia jak żywego - głosuje i dostaje Level Up razem z klasą - i nie pyta o jego zabójcę, który liczy się jako Blackened tylko za śmierć znaną stołowi.",
+        "few": "{n} śmierci, których nikt nie odkrył, są wciąż znane tylko GM-om. Dopóki nie ujawnisz ich w oknie graczy, ten proces traktuje tych uczniów jak żywych - głosują i dostają Level Up razem z klasą - i nie pyta o ich zabójców, którzy liczą się jako Blackened tylko za śmierć znaną stołowi.",
+        "many": "{n} śmierci, których nikt nie odkrył, jest wciąż znanych tylko GM-om. Dopóki nie ujawnisz ich w oknie graczy, ten proces traktuje tych uczniów jak żywych - głosują i dostają Level Up razem z klasą - i nie pyta o ich zabójców, którzy liczą się jako Blackened tylko za śmierć znaną stołowi.",
+        "other": "{n} śmierci, których nikt nie odkrył, jest wciąż znanych tylko GM-om. Dopóki nie ujawnisz ich w oknie graczy, ten proces traktuje tych uczniów jak żywych - głosują i dostają Level Up razem z klasą - i nie pyta o ich zabójców, którzy liczą się jako Blackened tylko za śmierć znaną stołowi."
       },
       "bodyTitle": "Znaleziono ciało",
       "whereBody": "Który pokój?",

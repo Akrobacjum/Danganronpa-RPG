@@ -532,10 +532,11 @@ export const SETTINGS = {
      * survived the first fix. See `openVerdictDialog`.
      *
      * A GM STORE SINCE E04 (1.2.63; audit S04-25): `gmBlackened` (gm-stores.mjs,
-     * `blackenedStore`), a row per killer `{ chapter, epoch, at }`, read for the
-     * clock's chapter and season (`blackenedIds`) rather than emptied at the
-     * chapter's end - so a copy from a GM who missed that end cannot bring last
-     * chapter's killers back. `legacyBlackenedLedger` is the key before it.
+     * `blackenedStore`), a row per killer `{ chapter, epoch, at }` (and, since
+     * 1.2.64, `victims`), read for the clock's chapter and season (`blackenedIds`)
+     * rather than emptied at the chapter's end - so a copy from a GM who missed that
+     * end cannot bring last chapter's killers back. `legacyBlackenedLedger` is the
+     * key before it.
      */
     blackenedLedger: "gmBlackened",
     legacyBlackenedLedger: "blackenedLedger",

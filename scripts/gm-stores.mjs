@@ -301,6 +301,8 @@ export const castStore = defineGmStore({
  * `{ chapter, epoch, at }` (`at` orders them); murder.mjs's `blackenedIds` reads the
  * rows of the clock's chapter and season, so the register is never emptied at a
  * chapter's end and a GM's stale copy cannot bring last chapter's killers back.
+ * Since 1.2.64 a row also names its `victims`, and the trial counts a killer only for
+ * a death the table knows (murder.mjs `trialBlackenedIds`; E05 fix r2-G1).
  * The old ids are claimed only with world evidence of a verdict still to come in
  * this chapter - a death recorded in the clock's chapter, and no verdict applied
  * (the design's H4) - weak, in their order; otherwise they stay behind.

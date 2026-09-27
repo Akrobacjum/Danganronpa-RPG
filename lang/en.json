@@ -1639,8 +1639,8 @@
       "nobodyFoundYou": "Nobody has found your body yet.",
       "youFoundBody": "In {room} you find the body of {name}. Nobody else has seen it yet, and nothing is announced.",
       "deathsStillSecret": {
-        "one": "{n} death nobody has found is still the GMs' alone. It counts nowhere in this trial - no ballot, no count - until you make it known in the Players window.",
-        "other": "{n} deaths nobody has found are still the GMs' alone. They count nowhere in this trial - no ballot, no count - until you make them known in the Players window."
+        "one": "{n} death nobody has found is still the GMs' alone. Until you make it known in the Players window, this trial treats that student as living - they vote and level up with the class - and does not ask for their killer, who counts as a Blackened only for a death the table knows.",
+        "other": "{n} deaths nobody has found are still the GMs' alone. Until you make them known in the Players window, this trial treats those students as living - they vote and level up with the class - and does not ask for their killers, who count as Blackened only for a death the table knows."
       },
       "bodyTitle": "A body is discovered",
       "whereBody": "Which room?",

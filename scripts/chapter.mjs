@@ -399,6 +399,11 @@ export async function publishDeath(actor) {
  * hand do, and that until then such a death is counted nowhere - so the GM who opened the
  * trial is told how many there are, on their screen and in no document, and the Players
  * window is where one is made known. Answers how many.
+ * What "nowhere" means at the trial (E05 fix r2-G1, 27.09.2026; review F1, S2-m6): the
+ * student is living to the table (rule A) - a ballot, a Level Up with the class - and the
+ * trial asks for no killer of theirs (murder.mjs `trialBlackenedIds`). The notice said
+ * "no ballot, no count" while the victim's player was sent a ballot and the killer was
+ * counted (review F1): the ballot stays, the count goes, and the notice says so.
  */
 export function tellUnfoundDeaths() {
     if (!game.user?.isGM) return 0;
@@ -849,8 +854,14 @@ async function checkBodyFound(tokenDoc) {
     /* ONE, ALONE, AND NOT IN IT (E05 C10; the owner's Q1, 26.09.2026). A student who walks in
        on a body nobody has found with nobody else there sees it - told privately by the GMs,
        their copy naming it, the dead marker drawn on their screen alone - and nothing is
-       announced: the rule of two witnesses stays. */
-    if (witnesses.length === 1 && !involved.has(witnesses[0].actor.id)) {
+       announced: the rule of two witnesses stays.
+       NOT IN THAT DEATH, WHATEVER ELSE THEY DID (E05 fix r2-G1, 27.09.2026; review F10). This
+       branch was closed to `involved` - every Blackened of the chapter, all of its incidents -
+       so a killer of the chapter's first incident who walked alone onto the second's body was
+       told nothing (measured on the harness: the row's `known` did not gain their player).
+       Who already knows of that death is `tellLoneFinder`'s to pass over (the
+       row's `known`, the body's owners); `involved` stays the rule of two witnesses'. */
+    if (witnesses.length === 1) {
         await tellLoneFinder(witnesses[0].actor, scene, room);
         return null;
     }
