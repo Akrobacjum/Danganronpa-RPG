@@ -45,8 +45,9 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
  * an array - that must be absent or empty on such a message, and `flagsOnly` the module
  * flags it may carry at all. An ordinary card's speaker is its actor by design, so actor
  * ids are read in a message's speaker, `system` and rolls only where one of these rules
- * holds; its module flags are read for them always. The list is empty until the commit
- * that takes a kind of card's names off its documents brings the kind's rule.
+ * holds; its module flags are read for them always. Each commit that takes a kind of
+ * card's names off its documents brings the kind's rule: a roll the module threw since
+ * E06 C5b.
  */
 export const WORLD_SECRET_RULES = Object.freeze({
     settings: Object.freeze({
@@ -129,7 +130,18 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // (truth-bullets.mjs `liftBulletRefs`; S05-39 (2)). An item on a sheet or in the sidebar.
         Item: Object.freeze(["remnantRef"])
     }),
-    messages: Object.freeze([])
+    messages: Object.freeze([
+        /* E06 C5b: a roll the module threw (`supersedingRoll` stamps the flag) is emptied as it
+           is created (private-rolls.mjs `neutralRollSource`) - its speaker, Daggerheart's title
+           and actor, and each roll's title, actor and the actor's id and name in its data. */
+        Object.freeze({
+            when: "supersededRoll",
+            fields: Object.freeze(["speaker.actor", "speaker.token", "system.title", "system.source.actor",
+                "rolls.*.options.title", "rolls.*.options.headerTitle", "rolls.*.options.source.actor",
+                "rolls.*.options.data.id", "rolls.*.options.data.name"]),
+            since: "E06 C5b", why: "a roll the module threw names its character and its action to every browser (S02-02, S04-02)"
+        })
+    ])
 });
 
 const isObject = v => v !== null && typeof v === "object";

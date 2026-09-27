@@ -483,9 +483,10 @@ export const SETTINGS = {
      * incident receives nothing at all, not an empty envelope.
      *
      * Participants get the WHOLE cast rather than only their own role, which is
-     * exactly what they could see before this change - they already read each
-     * other's rolls through `incidentAudience`. Narrowing it further is a rules
-     * question about what the victim may know and when, not a leak.
+     * exactly what they could see before this change - they read each other's
+     * rolls then, through a whisper list that named them all (private-rolls.mjs
+     * dropped it in E06 C5b: every console read the list). Narrowing it further
+     * is a rules question about what the victim may know and when, not a leak.
      *
      * A GM STORE AND A PLAYER COPY SINCE E04 (1.2.63; audit S04-24, S06-19). The
      * GMs hold `gmCast` (gm-stores.mjs, `castStore`): one record of this world,

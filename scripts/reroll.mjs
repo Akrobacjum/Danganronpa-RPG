@@ -176,9 +176,10 @@ function dhAutomation() {
 /**
  * The actor a roll's resources land on - the system's own choice of it (a
  * companion's partner), made from the character the Reroll was asked for
- * (`rerollLastAction`). The roll's own `source.actor` names it too, for now:
- * E06's next commit empties it on every roll the module throws, so it is read
- * only when no character is handed down (E06 C5a). Exported for the suite.
+ * (`rerollLastAction`). The roll's own `source.actor` is empty on every roll
+ * the module throws since E06 C5b (private-rolls.mjs `neutralRollSource`), so
+ * it is read only when no character is handed down (E06 C5a). Exported for
+ * the suite.
  */
 export async function rollTarget(original, actor = null) {
     const subject = actor ?? await foundry.utils.fromUuid(original?.options?.source?.actor ?? "");

@@ -4546,6 +4546,10 @@ const INVARIANTS = [
          * `ANSWER_KEY_FLAGS`, which the rule writes out and must equal, while the clean token
          * keeps `fromIncident` beside `isRemnant`. E06 C1: each field of a `messages` rule, and its
          * `flagsOnly`, needs a fixture as well (the list is empty at C1; R202 reads the kinds).
+         * E06 C5b: the first rule, a roll the module threw - the clean snapshot holds one as
+         * private-rolls.mjs `neutralRollSource` leaves it (its roll as JSON text, the dice's data
+         * kept, whispered to a GM, written by a player), which reads clean, and each field is
+         * planted in it once, the roll's options inside that text.
          */
         const W = await import("./world-secrets.mjs");
         const MOD = W.WORLD_SECRET_MODULE;
@@ -4562,7 +4566,11 @@ const INVARIANTS = [
             users: [{ id: "R190USER00000001", flags: { [MOD]: { preSessionNote: { updatedAt: 1, written: true } } } }],
             tokens: [{ id: "R190SCENE0000001.R190TOKEN0000001", flags: { [MOD]: { isRemnant: true, fromIncident: true } },
                 delta: { flags: { [MOD]: { advances: 2 } } } }],
-            messages: [{ id: "R190MESSAGE00001", flags: { [MOD]: { callCard: true, popupTitle: "A ruling to make" } } }],
+            messages: [{ id: "R190MESSAGE00001", flags: { [MOD]: { callCard: true, popupTitle: "A ruling to make" } } },
+                { id: "R190MESSAGE00002", flags: { [MOD]: { supersededRoll: true } }, author: "R190USER00000001", whisper: ["R190GAMEMASTER001"],
+                    speaker: { alias: "Monokuma", actor: null, token: null, scene: null }, system: { title: "", source: { actor: "" }, targets: [] },
+                    rolls: [JSON.stringify({ class: "DualityRoll", total: 14, options: { title: "", headerTitle: "", source: { actor: "" },
+                        data: { traits: { eye: { value: 1 } } }, actionType: "action" } })] }],
             items: [{ id: "R190BYSTANDER001.items.R190ITEM00000001", flags: { [MOD]: {
                 category: "truthBullet", isTruthBullet: true, shownType: "neutral", room: "Gym" } } }]
         });
@@ -4605,6 +4613,20 @@ const INVARIANTS = [
             ["ChatMessage flag summary",
                 s => { s.messages[0].flags[MOD].summary = { action: "Search", item: "R190 a find" }; },
                 h => h.kind === "flag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00001" && h.path === `flags.${MOD}.summary`],
+            // E06 C5b: a roll the module threw names nobody - each field planted in the neutral one, a roll's inside its JSON text.
+            ...[["speaker.actor", KILLER], ["speaker.token", "R190TOKEN0000001"], ["system.title", "R190 Strike"], ["system.source.actor", `Actor.${KILLER}`],
+                ["rolls.*.options.title", "R190 Strike"], ["rolls.*.options.headerTitle", "R190 Strike"], ["rolls.*.options.source.actor", `Actor.${KILLER}`],
+                ["rolls.*.options.data.id", KILLER], ["rolls.*.options.data.name", "R190 Killer"]].map(([f, value]) => [`message supersededRoll: ${f}`,
+                s => {
+                    const message = s.messages[1];
+                    const inRoll = f.startsWith("rolls.*.");
+                    const roll = inRoll ? JSON.parse(message.rolls[0]) : null;
+                    const parts = (inRoll ? f.slice("rolls.*.".length) : f).split(".");
+                    const node = parts.slice(0, -1).reduce((at, key) => at[key], inRoll ? roll : message);
+                    node[parts.at(-1)] = value;
+                    if (inRoll) message.rolls[0] = JSON.stringify(roll);
+                },
+                h => h.kind === "messageField" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00002" && h.path === f.replace("*", "0")]),
             // E05 C14: a body carries no loot record - on a world actor, and on an unlinked token's own actor data.
             ["Actor flag lootTrace",
                 s => { s.actors[1].flags[MOD].lootTrace = { sceneId: "R190SCENE0000001", tokenId: "R190TOKEN0000009", taken: ["R190 a knife"] }; },

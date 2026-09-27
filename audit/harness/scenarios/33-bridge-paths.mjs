@@ -291,31 +291,21 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
 
     /* --------------------------------------------- A. a neutral roll's subject (E06 C5a) */
 
-    /* The next commit of E06 empties a module roll's speaker and `system.source.actor` as the
-       roll is created; this one has the roller report its subject to the primary GM first
-       (`roll.subject`, private-rolls.mjs). Here a player's hook does the emptying, as that commit
-       will: p1 throws Aiko's roll and p2 Botan's, each a Hope. The GM keeps each subject from its
+    /* A module roll's speaker and `system.source.actor` are emptied as the roll is created (E06
+       C5b, private-rolls.mjs `neutralRollSource`), so the roller reports its subject to the
+       primary GM (`roll.subject`, E06 C5a). Until C5b a player's hook here did the emptying, as
+       that commit was to: p1 throws Aiko's roll and p2 Botan's, each a Hope. The GM keeps each subject from its
        report - not from a fallback, which for p1 would also say Aiko - p1's reports of Botan on
        its own roll and of Aiko on p2's roll are refused and logged, quietly, and p1 rewriting its
        roll's rolls, as a Reroll does, leaves the receipt for Aiko. At 70dd497 nothing reports a subject. */
     phase("a neutral roll's subject", { flow: "private-rolls" });
     const neutralThrow = (client, actorId) => client.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
-        const scrub = Hooks.on("preCreateChatMessage", (message, data) => {
-            if (!message.getFlag?.("${MOD}", "supersededRoll")) return;
-            const rolls = (data.rolls ?? []).map(r => {
-                const roll = typeof r === "string" ? JSON.parse(r) : foundry.utils.deepClone(r);
-                if (roll.options?.source) roll.options.source.actor = "";
-                if (roll.options?.data) { delete roll.options.data.id; delete roll.options.data.name; }
-                return JSON.stringify(roll);
-            });
-            message.updateSource({ speaker: { alias: "?", actor: null, token: null, scene: null }, "system.source.actor": "", rolls });
-        });
         globalThis.__forceRoll = { hope: 9, fear: 4 };
         try {
             const out = await A.rollTrait(game.actors.get("${actorId}"), "eye", { remember: false });
             const m = out?.raw?.message;
             return { id: m?.id ?? null, speaker: m?.speaker?.actor ?? null, source: m?.system?.source?.actor ?? null };
-        } finally { Hooks.off("preCreateChatMessage", scrub); delete globalThis.__forceRoll; }`, { timeout: 60000 });
+        } finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
     await clearFailures(gm);
     mark = await refusedCount(p1);
     const mine = await neutralThrow(p1, IDS.aiko);

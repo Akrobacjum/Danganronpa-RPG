@@ -3,41 +3,16 @@
   "schema": 1,
   "leaks": [
     {
-      "id": "S04-02",
+      "id": "roll-author",
       "findings": ["S04-02", "S02-02"],
       "class": "killer-identity",
       "severity": "high",
-      "what": "During an incident a bystander's browser holds the killer's opening roll: the chat document's speaker names the killer's actor and its whisper list names the killer's player.",
-      "closes": "E06",
+      "what": "A roll a player's browser throws is written by that player: Foundry records the author on the chat document, which every browser holds, so during an incident a bystander's browser holds the killer's opening roll with the killer's player as its author. Since E06 C5b the document names nothing else of whose roll it is; E28 throws a player's dice on the GM (the owner's answer Q2 (a), 27.09.2026).",
+      "closes": "E28",
       "detectedBy": [
-        {"scenario": "11-killer-secrecy", "check": "SECRECY p1 during incident: the killer's opening roll names neither the killer nor the killer's player"}
+        {"scenario": "11-killer-secrecy", "check": "SECRECY p1 during incident: the killer's opening roll does not name the killer's player as its author"}
       ],
-      "measuredAt": "E30 C19 on 46133ec, 24.09.2026: p1 held a card by p3, speaker ACTORCHIE0000000 / Chie Mori, whisper [GM, p3], content \"Duality: 3\" - the killer's opening roll"
-    },
-    {
-      "id": "S02-02",
-      "findings": ["S02-02", "S04-02"],
-      "class": "killer-identity",
-      "severity": "high",
-      "what": "During an incident a bystander's browser holds the killer's roll cards (claimed rolls, flagged supersededRoll): the speaker, system.source.actor and each roll's options (source.actor, data.id, data.name, headerTitle) name the killer's actor, the whisper list names the killer's player, and a Stage 6 roll's system.title and options' title name the action. E06 C5 closes it (L01, L02).",
-      "closes": "E06",
-      "match": [
-        {"seed": "chat.id", "surface": "document", "where": "ChatMessage#roll", "path": "*.speaker.actor"},
-        {"seed": "chat.name", "surface": "document", "where": "ChatMessage#roll", "path": "*.speaker.alias"},
-        {"seed": "chat.id", "surface": "document", "where": "ChatMessage#roll", "path": "*.system.source.actor"},
-        {"seed": "chat.id", "surface": "document", "where": "ChatMessage#roll", "path": "*.rolls.*.options.source.actor"},
-        {"seed": "chat.id", "surface": "document", "where": "ChatMessage#roll", "path": "*.rolls.*.options.data.id"},
-        {"seed": "chat.name", "surface": "document", "where": "ChatMessage#roll", "path": "*.rolls.*.options.data.name"},
-        {"seed": "chat.name", "surface": "document", "where": "ChatMessage#roll", "path": "*.rolls.*.options.headerTitle"},
-        {"seed": "chat.whisper", "surface": "document", "where": "ChatMessage#roll", "path": "*.whisper"},
-        {"seed": "chat.title", "surface": "document", "where": "ChatMessage#roll", "path": "*.system.title"},
-        {"seed": "chat.title", "surface": "document", "where": "ChatMessage#roll", "path": "*.rolls.*.options.title"},
-        {"seed": "chat.title", "surface": "document", "where": "ChatMessage#roll", "path": "*.rolls.*.options.headerTitle"}
-      ],
-      "detectedBy": [
-        {"scenario": "72-canary", "seed": "chat.id", "phase": "incident"}
-      ],
-      "measuredAt": "E06 C1 on the C1 tree over d666a2a, 27.09.2026 (72-canary, e06run/c1c): p1 held three claimed roll cards by p3 in phase incident - Chie's opening, her crisis roll and her Stage 6 cleanup - each with speaker ACTORCHIE0000000 / Chie Mori, system.source.actor and the options' source.actor Actor.ACTORCHIE0000000, the options' data.id and data.name, whisper [GM, p3]; the cleanup's system.title, options' title and headerTitle \"Clean up a trace\". The harness's roll message models Daggerheart 2.6.5's source (client-entry.mjs diceRoll); a real one is LIVE-E06-02"
+      "measuredAt": "E06 C5b on the C5b tree over f00840a, 27.09.2026 (11-killer-secrecy, e06run/c5ba1/11b.json): p1 held the killer's opening roll, a roll the module threw, with author USERP30000000000 (p3, Chie's player), speaker actor null and whisper [GM] - the author is all it says of whose roll it was"
     },
     {
       "id": "S05-15",

@@ -346,37 +346,23 @@ async function wordsSent(run) {
 }
 
 /**
- * A roll the module throws, whose document names nobody (E06 C5a). Thrown through `rollTrait`
- * as the suite throws every roll, with the speaker, Daggerheart's `system.source.actor`, each
- * roll's `source.actor` and the actor's id and name in its data emptied as the message is
- * created - what E06's next commit does in private-rolls.mjs, done here by a hook taken off
- * again, after the module's own hook has claimed the roll. `faces` sets the dice where the
- * harness reads them (`__forceRoll`); a real table throws its own, so a Fear there moves
- * Daggerheart's Fear, which restore() does not put back and this does. The caller deletes the
- * message.
+ * A roll the module throws, whose document names nobody (E06 C5a; since C5b the module's own
+ * doing, private-rolls.mjs `neutralRollSource` - C5a's tests emptied it here with a hook of
+ * their own). Thrown through `rollTrait` as the suite throws every roll. `faces` sets the dice
+ * where the harness reads them (`__forceRoll`); a real table throws its own, so a Fear there
+ * moves Daggerheart's Fear, which restore() does not put back and this does. `title` is the
+ * action's, as `rollTrait` is given one. The caller deletes the message.
  */
-async function neutralRoll(who, { remember = false, faces = null } = {}) {
+async function neutralRoll(who, { remember = false, faces = null, title = null } = {}) {
     const rolls = await import("./action-rolls.mjs");
-    // The claim's flag by name, not `isClaimedRoll`: the tree before C5a has no such export, and its red run needs the scrub.
-    const scrub = Hooks.on("preCreateChatMessage", (message, data) => {
-        if (!message.getFlag?.(MODULE_ID, "supersededRoll")) return;
-        const neutral = (data?.rolls ?? []).map(r => {
-            const roll = typeof r === "string" ? JSON.parse(r) : foundry.utils.deepClone(r);
-            if (roll.options?.source) roll.options.source.actor = "";
-            if (roll.options?.data) { delete roll.options.data.id; delete roll.options.data.name; }
-            return JSON.stringify(roll);
-        });
-        message.updateSource({ speaker: { alias: "?", actor: null, token: null, scene: null }, "system.source.actor": "", rolls: neutral });
-    });
     const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
     const { gameSettings } = CONFIG.DH.SETTINGS;
     const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
     try {
         if (faces) globalThis.__forceRoll = faces;
-        const outcome = await rolls.rollTrait(who, "eye", { remember });
+        const outcome = await rolls.rollTrait(who, "eye", { remember, ...(title ? { title } : {}) });
         return { outcome, message: outcome?.raw?.message ?? null };
     } finally {
-        Hooks.off("preCreateChatMessage", scrub);
         if (hadForce) globalThis.__forceRoll = force;
         else delete globalThis.__forceRoll;
         await settle();
@@ -923,6 +909,118 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, kept ?? {});
             await message?.delete();
         }
+    }],
+
+    ["a module roll's document names nobody", async () => {
+        /*
+         * E06 C5b, 27.09.2026; audit S02-02, S04-02 (the plan's 2.3). Every browser holds a roll's
+         * document whoever it is whispered to, and a roll the module threw named its character in
+         * its speaker, in Daggerheart's `system.source.actor` and in each roll's options (the
+         * actor's uuid, its id and name in `data`), its action in `system.title` and the options'
+         * title and headerTitle, and its player in the whisper list. A student's roll with an
+         * action's title is thrown twice by this GM, with rolls forced private and without: each
+         * document holds none of it - the whole source is searched for the character's id and
+         * name and for the title - and reads clean against the world-secrets rule, the first is
+         * whispered to the GMs alone (not to the student's player, whom a GM's roll for them
+         * used to add), the second to nobody, as the table chose; and the GM still knows whose
+         * roll each was (`rollSubjectNow`, from what it kept as it threw).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the student's player is who the old whisper list named");
+        const P = await import("./private-rolls.mjs");
+        const { findWorldSecrets } = await import("./world-secrets.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const who = livingStudents().find(player);
+        const TITLE = "E06 C5b - a secret action";
+        const forced = getSetting(SETTINGS.forcePrivateRolls);
+        const made = [];
+        const read = async () => {
+            const { message } = await neutralRoll(who, { faces: { hope: 9, fear: 5 }, title: TITLE });
+            made.push(message?.id);
+            must(message && P.isClaimedRoll(message) && message.rolls?.length, "no roll the module threw was made - this would measure nothing");
+            const source = message.toObject();
+            const roll = typeof source.rolls[0] === "string" ? JSON.parse(source.rolls[0]) : source.rolls[0];
+            const text = JSON.stringify(source);
+            return {
+                fields: [source.speaker?.actor ?? null, source.speaker?.token ?? null, source.system?.title ?? null, source.system?.source?.actor ?? null,
+                    roll?.options?.title ?? null, roll?.options?.headerTitle ?? null, roll?.options?.source?.actor ?? null,
+                    roll?.options?.data?.id ?? null, roll?.options?.data?.name ?? null],
+                named: [who.id, who.name, TITLE].filter(x => text.includes(x)),
+                rule: findWorldSecrets({ messages: [{ id: source._id, flags: source.flags, speaker: source.speaker, system: source.system,
+                    rolls: source.rolls, whisper: source.whisper, author: source.author }] }, { ids: [who.id] }).map(h => h.path),
+                whisper: [...(source.whisper ?? [])].sort(),
+                subject: P.rollSubjectNow(message)?.id ?? null
+            };
+        };
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+            const privately = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, false);
+            const openly = await read();
+            const empty = [null, null, "", "", "", "", "", null, null];
+            equal(stableJson([privately, openly]), stableJson([
+                { fields: empty, named: [], rule: [], whisper: [...gmIds()].sort(), subject: who.id },
+                { fields: empty, named: [], rule: [], whisper: [], subject: who.id }]),
+                `a roll the module threw still names its character, its action or its player, or the GM lost whose it was (${player(who).name} plays ${who.name})`);
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forced);
+            for (const id of made) await game.messages.get(id ?? "")?.delete();
+        }
+    }],
+
+    ["after a crisis action no message names a participant", async () => {
+        /*
+         * E06 C5b, 27.09.2026; the stage's doneWhen. A direct murder is opened between two students
+         * who each have a player, its opening is ruled, and the victim takes a crisis action - Leave
+         * a clue, thrown by this GM as the suite throws every roll, with Hope. Every message that
+         * appeared meanwhile - the roll, the crisis card, whatever the clue left - is read as every
+         * console holds it: no participant's actor id or name in its speaker, `system` or rolls, no
+         * whisper list naming a participant's player without naming everybody, and the action's
+         * title nowhere but in its words (the content, which a veiled card does not carry). The roll
+         * must be among them, or this would measure the cards alone. Until C5b the roll named the
+         * victim in all three places, and its whisper list named both players.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player a whisper list could name");
+        const M = await import("./murder.mjs");
+        const P = await import("./private-rolls.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const label = CRISIS_ACTIONS.leaveClue.label;
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "incident" && M.isTheirTurn(victim), `the incident did not reach the victim's turn: ${stableJson(M.murderState())}`);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        try {
+            globalThis.__forceRoll = { hope: 9, fear: 5 };
+            await M.takeCrisisAction(victim, "leaveClue");
+            await settle();
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+        }
+        const made = game.messages.contents.filter(m => !had.has(m.id));
+        const names = [killer, victim].flatMap(a => [a.id, a.name]);
+        const players = [killer, victim].map(a => player(a).id);
+        const everybody = game.users.map(u => u.id);
+        const wrong = made.map(m => {
+            const source = m.toObject();
+            const whisper = source.whisper ?? [];
+            const said = JSON.stringify([source.speaker, source.system, source.rolls]);
+            return {
+                id: m.id, roll: P.isClaimedRoll(m),
+                named: names.filter(x => said.includes(x)),
+                whisper: whisper.some(u => players.includes(u)) && !everybody.every(u => whisper.includes(u)),
+                titled: JSON.stringify({ ...source, content: "" }).includes(label)
+            };
+        }).filter(r => r.named.length || r.whisper || r.titled);
+        equal(stableJson([made.some(m => P.isClaimedRoll(m)), wrong]), stableJson([true, []]),
+            `the victim's roll was not among the action's messages, or a message names a participant or the action (${made.length} read)`);
     }],
 
     ["two killers act back to back, not alternating with the victim", async () => {
