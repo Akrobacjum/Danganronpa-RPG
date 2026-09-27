@@ -62,6 +62,8 @@ export function uuidInThisWorld(uuid) {
 export const bulletStore = defineGmStore({
     name: "bullets", key: SETTINGS.truthBulletSecrets, legacyKey: SETTINGS.legacyTruthBulletSecrets,
     kind: "ledger", resetGroup: "bullets", backup: true, sync: true,
+    // Its owners' copy of which trace each bullet came from is made of it since E05 C13 (R182).
+    afterRestore: () => import("./truth-bullets.mjs").then(m => m.retellBulletRefs()),
     claim: legacy => {
         const rows = [], left = [];
         for (const [uuid, entry] of Object.entries(isPlain(legacy) ? legacy : {})) {
@@ -75,6 +77,20 @@ export const bulletStore = defineGmStore({
     exists: uuid => {
         try { return Boolean(fromUuidSync(uuid)); } catch { return false; }
     }
+});
+
+/**
+ * AN OWNER'S BULLETS' TRACES (E05 C13; audit S05-39 (2)): `{ itemUuid: "sceneId.tokenId" }`
+ * for the bullets on the characters this user owns, as a GM sent them - the trace each came
+ * from, the key the bullet's public `remnantRef` flag held until 1.2.64 - a stamp per bullet,
+ * taken by the offers' rule (`offersCombine`, below): an answer is the owner's whole set, at
+ * least as new for every bullet it names and newer for one, and a bullet it no longer names
+ * goes with it. Read by visibility.mjs and remnant-icons.mjs through truth-bullets.mjs
+ * `bulletRefOf`. No old key: the flag is lifted into the rows (`liftBulletRefs`).
+ */
+export const bulletRefCopy = defineGmCopy({
+    name: "bulletRefs", key: SETTINGS.mineBulletRefs, from: "bullets", resetGroup: "bullets", fallback: {},
+    combine: offersCombine
 });
 
 /**
@@ -1291,30 +1307,36 @@ export function bulletsWithoutAnswer() {
 }
 
 /**
- * What a bullet with no real type here can take from its trace: a bullet copied
- * from a trace carries the trace's key in its `remnantRef` flag (public, the one
- * a player's own trace icon reads), and the trace's row says what it really is
- * - the type the copy was made with (observe.mjs, gm-items.mjs). `{ uuid:
- * { realType, remnantId } }`, for the bullets whose trace's row is here.
+ * What a bullet with no real type here can take from its trace: the bullet's row names
+ * the trace it was copied from (`sceneId` and `remnantId`), and the trace's row says what
+ * it really is - the type the copy was made with (observe.mjs, gm-items.mjs). `{ uuid:
+ * { realType } }`, for the bullets whose trace's row is here.
+ *
+ * THE ROW'S KEY, NOT THE ITEM'S FLAG (E05 C13, 27.09.2026). Until 1.2.64 the bullet's
+ * public `remnantRef` flag named the trace, on every browser; the clause `liftBulletRefs`
+ * moves an older world's into the rows - a row this browser had lost whole comes back as
+ * the key alone, which this then fills. A bullet made since whose row is lost whole names
+ * no trace here any more: a backup, or another GM's copy, brings it back.
  */
 function fillsFromTraces() {
     const fills = {};
     for (const item of allBullets()) {
-        if (bulletStore.get(item.uuid)?.realType) continue;
-        const ref = item.getFlag(MODULE_ID, "remnantRef");
+        const row = bulletStore.get(item.uuid);
+        if (row?.realType) continue;
+        const ref = row?.sceneId && row?.remnantId ? `${row.sceneId}.${row.remnantId}` : null;
         const type = ref ? remnantStore.get(ref)?.type : null;
-        if (type) fills[item.uuid] = { realType: type, remnantId: String(ref).split(".")[1] || null };
+        if (type) fills[item.uuid] = { realType: type };
     }
     return fills;
 }
 
 /**
  * FILL FROM THEIR TRACES (the design's 6.3; E04 C4). The bullets whose answer key
- * this browser lost, or whose key lost its real type (S05-01's damage), and whose
- * trace's row is here, take `realType` and `remnantId` from it - weak and fill-only,
- * so a value any GM holds for either wins, and nothing else of the key is made up:
- * a GM's note, the analysed reading and the rest come back only from a backup.
- * Answers how many bullets were filled.
+ * this browser holds with no real type (S05-01's damage, or a lost row whose trace's
+ * key the lift of E05 C13 brought back), and whose trace's row is here, take `realType`
+ * from it - weak and fill-only, so a value any GM holds wins, and nothing else of the
+ * key is made up: a GM's note, the analysed reading and the rest come back only from a
+ * backup. Answers how many bullets were filled.
  */
 export async function fillBulletsFromTraces() {
     if (!game.user?.isGM) return 0;

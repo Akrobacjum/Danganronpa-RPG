@@ -219,6 +219,14 @@ export const SETTINGS = {
     truthBulletSecrets: "gmBullets",
     legacyTruthBulletSecrets: "truthBulletSecrets",
     /**
+     * WHICH TRACE EACH OF A PLAYER'S OWN BULLETS CAME FROM (E05 C13, 1.2.64; audit
+     * S05-39 (2)): the player's copy of their bullets' rows' keys (gm-stores.mjs
+     * `bulletRefCopy`, truth-bullets.mjs `bulletRefOf`), read to show them the traces
+     * they have found. Until 1.2.64 each bullet said so in its `remnantRef` flag,
+     * which every browser holds; the clause `liftBulletRefs` takes that off the items.
+     */
+    mineBulletRefs: "mineBulletRefs",
+    /**
      * `{ since, lastBackupAt, lastBackupBy }` (E04, 1.2.63): when this world's case
      * was first held in a GM store, and its last backup. WORLD-scoped because every
      * GM's browser needs the same answer - a browser that opens a world whose case
@@ -1178,6 +1186,15 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+    // A player's copy of which trace each of their bullets came from (E05 C13): a change
+    // redraws which found traces they see, and what their screen calls them.
+    game.settings.register(MODULE_ID, SETTINGS.mineBulletRefs, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgBulletRefsChanged")
     });
     game.settings.register(MODULE_ID, SETTINGS.caseMark, {
         scope: "world",

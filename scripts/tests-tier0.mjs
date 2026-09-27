@@ -415,6 +415,22 @@ const REGRESSIONS = [
         ok(!blind.length,
             `these files open a socket and act on an id from the packet without `
             + `senderOf/ownsActor, and are not on the exemption list: ${blind.join(", ")}`);
+
+        /*
+         * AND A PLAYER'S COPY IS TAKEN FROM A GM ALONE (E05 C13, 27.09.2026). A copy's
+         * listener reads no id out of the packet - Foundry addresses it, and what it
+         * carries is the answer - so the reading above passes it without looking. Which
+         * traces a player's own bullets came from is such a copy (truth-bullets.mjs,
+         * `bulletRefCopy`), and a player able to hand another one would show them traces
+         * they never found: its handler takes an answer only through `replyForMe`
+         * (addressed to this user, sent by a GM), or asks Foundry's sender itself.
+         */
+        const FROM_GM = /\breplyForMe\(payload, senderId\)|\bgame\.users\.get\(senderId\)\?\.isGM\b/;
+        const COPY_LISTENERS = [["truth-bullets.mjs", "onBulletRefsSocket"]];
+        const served = new Map(await otherSources());
+        const trusting = COPY_LISTENERS.filter(([file, fn]) => !FROM_GM.test(fnSource(stripComments(served.get(file) ?? ""), fn)))
+            .map(([file, fn]) => `${file} ${fn}`);
+        ok(!trusting.length, `these take a player's copy from whoever sent it, not from a GM: ${trusting.join(", ")}`);
     }],
 
     ["R2 - no styling rule in the sheet has lost its emitter", async () => {
@@ -804,6 +820,8 @@ const REGRESSIONS = [
          * deltas since E05's fix round (S1-m3, S1-m4, 27.09.2026): measured first by a
          * probe that planted a card with a `summary` flag and an unlinked token whose
          * delta held a `lastAction`, R9 passed over both before and named both after.
+         * The items - the sidebar's and every actor's - since E05 C13, with the rule's
+         * first Item flag (a bullet's `remnantRef`).
          */
         const { findWorldSecrets, WORLD_SECRET_RULES } = await import("./world-secrets.mjs");
         const { PROJECT_SECRET_FIELDS } = await import("./projects.mjs");
@@ -827,7 +845,10 @@ const REGRESSIONS = [
                 const delta = t.toObject()?.delta;
                 return { id: `${scene.id}.${t.id}`, flags: t.flags ?? {}, delta: delta ? { flags: delta.flags ?? {} } : null };
             })),
-            messages: (game.messages?.contents ?? []).map(flagsOf)
+            messages: (game.messages?.contents ?? []).map(flagsOf),
+            // An item by its uuid, which says whose sheet it is on.
+            items: [...(game.items?.contents ?? []), ...game.actors.contents.flatMap(actor => actor.items?.contents ?? [])]
+                .map(item => ({ id: item.uuid, flags: item.flags ?? {} }))
         });
         ok(!found.length, `these are on every player's machine right now: ${found.map(h => `${h.doc} ${h.id} :: ${h.path} - ${h.rule}`).join("; ")}`);
     }],
@@ -5658,7 +5679,9 @@ const REGRESSIONS = [
             // The pre-session notes out of their users' flags (E05 C6).
             ["pre-session-note.mjs", "liftNotes", ["weak", "fillOnly"], true],
             // The incident's method out of the world half of murderState (E05 C8).
-            ["murder.mjs", "liftIncidentMethod", ["weak", "fillOnly"], true]
+            ["murder.mjs", "liftIncidentMethod", ["weak", "fillOnly"], true],
+            // Which trace each bullet came from, out of its `remnantRef` flag into its row (E05 C13).
+            ["truth-bullets.mjs", "liftBulletRefs", ["weak", "fillOnly"], true]
         ];
         // The migrations that read a store through a function they call: they wait themselves.
         const WAITERS = [["remnants.mjs", "migrateRemnants"], ["remnants.mjs", "migrateRemnantToken"]];
@@ -5731,7 +5754,8 @@ const REGRESSIONS = [
          * file calls a lift except its clause - the restore, which runs the Faint pass
          * again when a GM asks, and diagnostics' line telling the GM what to type. The
          * reader is shown a planted ready hook first. E05's lifts join the list, each
-         * with its own `since` (1.2.64), and so do its two drops (C7), which lift nothing.
+         * with its own `since` (1.2.64), and so do its two drops (C7) and the traces'
+         * neutral names (C13), which lift nothing.
          * E05's fix round (r1-G1) gave E04's names and fog lifts 1.2.64 too, so that a world
          * 1.2.63 stamped over rows they kept runs them once more.
          */
@@ -5741,7 +5765,9 @@ const REGRESSIONS = [
             ["liftProjectSecrets", "liftProjectSecrets", "1.2.64"], ["liftPendingMurders", "liftPendingMurders", "1.2.64"],
             ["liftEclipseMoves", "liftEclipseMoves", "1.2.64"], ["liftKeyPlan", "liftKeyPlan", "1.2.64"], ["liftNotes", "liftNotes", "1.2.64"],
             ["dropRollBookmarks", "dropRollBookmarks", "1.2.64"], ["dropCardSummaries", "dropCardSummaries", "1.2.64"],
-            ["liftIncidentMethod", "liftIncidentMethod", "1.2.64"], ["liftOverflowCount", "liftOverflowCount", "1.2.64"]];
+            ["liftIncidentMethod", "liftIncidentMethod", "1.2.64"], ["liftOverflowCount", "liftOverflowCount", "1.2.64"],
+            // E05 C13: a bullet's trace key into its row, and a found trace's token back to the neutral word.
+            ["liftBulletRefs", "liftBulletRefs", "1.2.64"], ["neutralTraceNames", "neutralTraceNames", "1.2.64"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.

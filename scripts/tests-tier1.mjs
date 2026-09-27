@@ -3954,10 +3954,14 @@ const INVARIANTS = [
         const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"],
             ["fog.mjs", "sendStoreTo", "own"], ["eclipse.mjs", "sendMovesTo", "own"], ["pre-session-note.mjs", "sendNoteTo", "own"],
             // E05 C10: the deaths a player may know, a stamp per body read off the store's rows.
-            ["murder.mjs", "sendDeathsTo", "own"]];
-        // The crossings' copy (E05 C4) is an owner's whole set, a stamp per character, as the offers are.
-        const { eclipseMoveCopy } = await import("./gm-stores.mjs");
+            ["murder.mjs", "sendDeathsTo", "own"],
+            // E05 C13: which trace each of a player's bullets came from, a stamp per bullet read off the rows.
+            ["truth-bullets.mjs", "sendBulletRefsTo", "own"]];
+        // The crossings' copy (E05 C4) is an owner's whole set, a stamp per character, as the offers are;
+        // and so is the bullets' keys' (E05 C13), a stamp per bullet.
+        const { eclipseMoveCopy, bulletRefCopy } = await import("./gm-stores.mjs");
         ok(G.gmCopySpec(eclipseMoveCopy.name)?.combine === offersCombine, "the crossings' copy is not weighed by the offers' rule");
+        ok(G.gmCopySpec(bulletRefCopy.name)?.combine === offersCombine, "the bullets' keys' copy is not weighed by the offers' rule");
         const sources = new Map(await otherSources());
         const found = [];
         for (const [file, fn, own] of SENDERS) {
@@ -4509,7 +4513,9 @@ const INVARIANTS = [
         }
         ok(!wrong.length, `a player's copy is not sent again after a restore: ${wrong.join("; ")}`);
         const RETELLS = [["mastermind.mjs", "retellDoor"], ["murder.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"],
-            ["eclipse.mjs", "retellMoves"], ["pre-session-note.mjs", "retellNotes"], ["murder.mjs", "retellDeaths"]];
+            ["eclipse.mjs", "retellMoves"], ["pre-session-note.mjs", "retellNotes"], ["murder.mjs", "retellDeaths"],
+            // E05 C13: the bullets' store, which each player's copy of their bullets' traces is made of.
+            ["truth-bullets.mjs", "retellBulletRefs"]];
         const hooks = E.gmStoreHandles().map(h => String(h.spec.afterRestore ?? ""));
         const uncalled = RETELLS.filter(([, fn]) => !hooks.some(src => src.includes(`.${fn}(`))).map(([, fn]) => fn);
         ok(!uncalled.length, `no store's afterRestore calls ${uncalled.join(", ")}`);
@@ -4534,7 +4540,8 @@ const INVARIANTS = [
          * another setting beside it is still found - and an exemption with no fixture fails.
          * E05's fix round (S1-m3, S1-m4, 27.09.2026): a chat message's flags are read, and a
          * token's own actor data (its delta) under the Actor rule - each Actor flag is fixtured
-         * on a delta as well, so a rule that reads world actors alone fails here.
+         * on a delta as well, so a rule that reads world actors alone fails here. E05 C13: an
+         * item's flags too (the rule's Item half), with the killer's id planted in one.
          */
         const W = await import("./world-secrets.mjs");
         const MOD = W.WORLD_SECRET_MODULE;
@@ -4551,7 +4558,9 @@ const INVARIANTS = [
             users: [{ id: "R190USER00000001", flags: { [MOD]: { preSessionNote: { updatedAt: 1, written: true } } } }],
             tokens: [{ id: "R190SCENE0000001.R190TOKEN0000001", flags: { [MOD]: { isRemnant: true } },
                 delta: { flags: { [MOD]: { advances: 2 } } } }],
-            messages: [{ id: "R190MESSAGE00001", flags: { [MOD]: { callCard: true, popupTitle: "A ruling to make" } } }]
+            messages: [{ id: "R190MESSAGE00001", flags: { [MOD]: { callCard: true, popupTitle: "A ruling to make" } } }],
+            items: [{ id: "R190BYSTANDER001.items.R190ITEM00000001", flags: { [MOD]: {
+                category: "truthBullet", isTruthBullet: true, shownType: "neutral", room: "Gym" } } }]
         });
         // One secret each: what it is, how it is planted in a clean snapshot, and the hit it must give.
         const FIXTURES = [
@@ -4592,6 +4601,10 @@ const INVARIANTS = [
             ["ChatMessage flag summary",
                 s => { s.messages[0].flags[MOD].summary = { action: "Search", item: "R190 a find" }; },
                 h => h.kind === "flag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00001" && h.path === `flags.${MOD}.summary`],
+            // E05 C13: a bullet names no trace in its flags - a `null` one, which every bullet no trace made carried, is found as well.
+            ["Item flag remnantRef",
+                s => { s.items[0].flags[MOD].remnantRef = null; },
+                h => h.kind === "flag" && h.doc === "Item" && h.id === "R190BYSTANDER001.items.R190ITEM00000001" && h.path === `flags.${MOD}.remnantRef`],
             // E05 C12: the overflow keeps its darkening's stamp, and the count behind it is the GMs' - a 0 is found as well.
             ["overflow.count",
                 s => { s.settings.overflow.count = 0; },
@@ -4645,12 +4658,14 @@ const INVARIANTS = [
         planted.actors[1].flags[MOD].memo = { met: ["nobody", `Actor.${KILLER}.Item.R190ITEM00000001`] };
         planted.tokens[0].delta.flags[MOD].memo = KILLER;
         planted.messages[0].flags[MOD].actorId = KILLER;
+        planted.items[0].flags[MOD].from = KILLER;
         const ids = W.findWorldSecrets(planted, { ids: [KILLER] }).filter(h => h.kind === "id");
         equal(JSON.stringify(ids.map(h => [h.doc, h.id, h.path, Boolean(h.key)])),
             JSON.stringify([["setting", "pendingMurders", KILLER, true], ["Actor", "R190BYSTANDER001", `flags.${MOD}.memo.met.1`, false],
                 ["Actor", "R190SCENE0000001.R190TOKEN0000001", `delta.flags.${MOD}.memo`, false],
-                ["ChatMessage", "R190MESSAGE00001", `flags.${MOD}.actorId`, false]]),
-            "the killer's id planted as a setting's key, deep in an actor's flag, in an unlinked token's own actor data and in a card's flag was not found at each, or was found somewhere else");
+                ["ChatMessage", "R190MESSAGE00001", `flags.${MOD}.actorId`, false],
+                ["Item", "R190BYSTANDER001.items.R190ITEM00000001", `flags.${MOD}.from`, false]]),
+            "the killer's id planted as a setting's key, deep in an actor's flag, in an unlinked token's own actor data, in a card's flag and in an item's was not found at each, or was found somewhere else");
         equal(JSON.stringify(W.findWorldSecrets(clean(), { ids: [KILLER] })), "[]",
             "a clean snapshot reads as holding a secret - the killer's id in another module's flags, or as the document's own id");
     }],

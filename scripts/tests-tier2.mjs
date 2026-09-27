@@ -2833,6 +2833,9 @@ const SCENARIOS = [
          * draw them, and every client reads a token's name. Writing a trace's public
          * name onto that token the moment it was set published it before anybody had
          * looked - reached from the case panel's "New trace" (N-4), review of stage D.
+         * And once somebody has found it the token still says the word (E05 C13,
+         * 27.09.2026; audit S05-39 (1)): until then it took the name at the first
+         * copy, where every console read it. The next test holds an ordinary trace.
          */
         const [one] = cast(1);
         const remnants = await import("./remnants.mjs");
@@ -2861,9 +2864,137 @@ const SCENARIOS = [
             });
             await remnants.setRemnantPublic(token, { name: said });
             await settle();
-            equal(scene.tokens.get(token.id)?.name, said, "a found incident trace never shows its name");
+            equal(scene.tokens.get(token.id)?.name, word, "a found incident trace carries its public name on the token every client reads");
+            equal(one.items.get(copy?.id)?.name, said, "the finder's copy did not keep the trace's name - the name went nowhere");
         } finally {
             try { await copy?.delete(); } catch { /* already gone */ }
+            if (token) {
+                try { await remnants.dropRemnantSecret(token); } catch { /* nothing filed */ }
+                try { await token.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["a found trace's token keeps the neutral name", async () => {
+        /*
+         * E05 C13, 27.09.2026; audit S05-39 (1). A found trace's token took its public name and
+         * image, and every browser holds every token: a player who had found nothing read what
+         * somebody else had found, and where it lay, from the console. The token keeps the
+         * neutral word and the question mark now, and each screen that may know draws the rest
+         * itself (remnant-icons.mjs `shownOnTrace`) - a GM's from the row, as asked here, a
+         * finder's from their own copy, which 72-canary asks on a player's browser. An ordinary
+         * trace, hidden, named with an image of its own, then copied onto a student's sheet -
+         * which reveals it - and renamed: the token is revealed, and says the word and wears the
+         * question mark throughout; the copy carries the name; this GM's screen names the trace
+         * from its row. The drawing itself - the nameplate - is PIXI's, and read last: the
+         * harness has no canvas, so there the test stands down at that line (LIVE-E05-05).
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen, where a canvas draws it");
+        const [one] = cast(1);
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const icons = await import("./remnant-icons.mjs");
+        const scene = canvas.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const word = game.i18n.localize("DRPG.Remnant.tokenName");
+        const said = `SUITE a cracked mug ${foundry.utils.randomID(6)}`;
+        const renamed = `${said}, chipped`;
+        const IMG = "icons/svg/item-bag.svg";
+        let token = null, copy = null;
+        const face = () => {
+            const t = scene.tokens.get(token?.id);
+            return [t?.hidden ?? null, t?.name ?? null, t?.texture?.src ?? null];
+        };
+        try {
+            token = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "test fixture - a found trace's name" });
+            ok(token, "could not place the fixture trace");
+            equal(token.hidden, true, "an ordinary trace is not created hidden - the find below reveals nothing");
+            await remnants.setRemnantPublic(token, { name: said, img: IMG });
+            copy = await bullets.createTruthBullet(one, { name: said, img: IMG, realType: "prep", visibility: "evident",
+                remnantId: token.id, sceneId: scene.id });
+            ok(copy, "no copy was made");
+            await settle();
+            equal(stableJson(face()), stableJson([false, word, remnants.ICON]),
+                "a found trace's token is not revealed, or carries its public name or image, which every browser reads");
+            await remnants.setRemnantPublic(token, { name: renamed });
+            await settle();
+            equal(stableJson([...face(), one.items.get(copy.id)?.name ?? null]), stableJson([false, word, remnants.ICON, renamed]),
+                "a rename reached the found trace's token, or did not reach the finder's copy");
+            equal(stableJson(icons.shownOnTrace(scene.tokens.get(token.id))), stableJson({ name: renamed, img: IMG }),
+                "this GM's screen does not name the trace, or dress it, from its row");
+
+            needs(env.canvas(), "the nameplate is PIXI's (LIVE-E05-05)");
+            icons.repaintRemnants();
+            await settle();
+            const drawn = canvas.tokens?.get(token.id);
+            ok(drawn?.nameplate, "the trace's token has no nameplate on this canvas - its name is drawn somewhere this test does not read");
+            equal(drawn.nameplate.text, renamed, "this GM's canvas does not draw the trace's name from its row");
+        } finally {
+            if (copy) {
+                await bullets.dropSecret(copy.uuid);
+                try { await copy.delete(); } catch { /* already gone */ }
+            }
+            if (token) {
+                try { await remnants.dropRemnantSecret(token); } catch { /* nothing filed */ }
+                try { await token.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["a bullet carries no remnantRef, and its owner's copy maps it", async () => {
+        /*
+         * E05 C13, 27.09.2026; audit S05-39 (2). A bullet copied from a trace named the trace
+         * in its public `remnantRef` flag, and every browser holds every item: a console listed
+         * which traces had been found, and by whom. The key is the bullet's row's now (`sceneId`,
+         * `remnantId`), and each player holds a copy of their own bullets' keys (gm-stores.mjs
+         * `bulletRefCopy`). A copy made on a player's character: the item carries no
+         * `remnantRef` at all; this GM reads the key off the row; the answer a GM sends the
+         * owner names the bullet, with the key and a stamp, and the answer to another player
+         * names nothing of it; that answer, received here as the owner's browser receives it,
+         * maps the bullet to its trace, and an older one is refused. Nothing is sent while tier
+         * 2 holds the stores (`gmStoresQuiet`), so 72-canary reads the copy on the owner's
+         * browser and on another player's; this browser's own copy is emptied after.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        needs(world.atLeast("playersWithCharacter", 1), "the copy is made on a character a player owns");
+        needs(world.atLeast("playerAccounts", 2), "the owner's answer and another player's are compared");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const S = await import("./gm-stores.mjs");
+        const scene = canvas.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const owns = (user, actor) => actor.type === "character" && actor.testUserPermission(user, "OWNER");
+        const owner = game.users.find(u => !u.isGM && game.actors.some(a => owns(u, a)));
+        const holder = game.actors.find(a => owns(owner, a));
+        const other = game.users.find(u => !u.isGM && !owns(u, holder));
+        ok(other, `every player account owns ${holder.name} - there is nobody the answer must leave out`);
+        let token = null, copy = null;
+        try {
+            token = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "test fixture - a bullet's trace key" });
+            ok(token, "could not place the fixture trace");
+            copy = await bullets.createTruthBullet(holder, { name: "SUITE a bent key", realType: "prep", visibility: "evident",
+                remnantId: token.id, sceneId: scene.id });
+            ok(copy, "no copy was made");
+            const key = remnants.keyOf(token);
+            equal(stableJson([Object.hasOwn(copy.flags?.[MODULE_ID] ?? {}, "remnantRef"), bullets.bulletRefOf(copy), bullets.truthBulletData(copy)?.remnantRef]),
+                stableJson([false, key, key]), "the bullet names its trace in its flags, which every browser reads - or this GM does not read the key off its row");
+            const toOwner = bullets.bulletRefsFor(owner.id), toOther = bullets.bulletRefsFor(other.id);
+            equal(stableJson([toOwner.refs[copy.uuid] ?? null, toOwner.stamps[copy.uuid] > 0, copy.uuid in toOther.stamps, copy.uuid in toOther.refs]),
+                stableJson([key, true, false, false]), "the owner's answer does not name the bullet with its key and a stamp, or another player's names it");
+            equal(await bullets.receiveBulletRefs(toOwner.refs, toOwner.stamps), true, "the owner's answer was not taken");
+            equal(S.bulletRefCopy.read()?.[copy.uuid] ?? null, key, "the copy does not map the bullet to its trace");
+            equal(await bullets.receiveBulletRefs({ [copy.uuid]: "SUITESCENE000001.SUITETOKEN000001" }, { [copy.uuid]: toOwner.stamps[copy.uuid] - 1 }),
+                false, "an older answer was taken over the copy");
+        } finally {
+            try { await S.bulletRefCopy.forget(); } catch { /* nothing kept */ }
+            if (copy) {
+                await bullets.dropSecret(copy.uuid);
+                try { await copy.delete(); } catch { /* already gone */ }
+            }
             if (token) {
                 try { await remnants.dropRemnantSecret(token); } catch { /* nothing filed */ }
                 try { await token.delete(); } catch { /* already gone */ }
@@ -8914,6 +9045,161 @@ const SCENARIOS = [
         }
     }],
 
+    ["the bullets' lift moves each bullet's trace key out of its flag into its row, and takes the flag off once it reads back", async () => {
+        /*
+         * E05 C13, 27.09.2026; audit S05-39 (2). A world from before 1.2.64 names each bullet's
+         * trace in the bullet's own `remnantRef` flag, which every browser reads; the clause
+         * `liftBulletRefs` moves the key into the bullet's row, weak and fill-only, and takes the
+         * flag off the item only once the row reads back from storage. Three fixture bullets on
+         * one sheet, in a world the stores have never opened (`withGmStoreWorld`): one whose row
+         * this browser lost whole, one whose row a GM wrote since with a trace of its own, and one
+         * whose flag names no trace (`null`, as every bullet no trace made carried). The first's
+         * row reads back from disk holding the flag's key, weak; the second's keeps the GM's; the
+         * third is given no row; no item carries the flag after; the report counts two lifted and
+         * one dropped; a second run has nothing to do. The items are deleted after.
+         */
+        needs(world.atLeast("livingStudents", 1), "the fixture bullets are on a student's sheet");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const B = await import("./truth-bullets.mjs");
+        const [holder] = cast(1);
+        const made = [];
+        const bullet = async (name, ref) => {
+            const [item] = await holder.createEmbeddedDocuments("Item", [{ name, type: "loot", flags: { [MODULE_ID]: {
+                category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "subtle", analyzed: false, remnantRef: ref } } }]);
+            ok(item, `could not make the fixture bullet "${name}"`);
+            made.push(item);
+            return item;
+        };
+        const flagged = () => made.map(item => Object.hasOwn(holder.items.get(item.id)?.flags?.[MODULE_ID] ?? {}, "remnantRef"));
+        try {
+            await E.withGmStoreWorld(`suite-refslift-${foundry.utils.randomID(8)}`, async () => {
+                const lost = await bullet("SUITE its row lost", "SUITESCENE000001.SUITETOKEN000001");
+                const decided = await bullet("SUITE a GM's own trace", "SUITESCENE000001.SUITETOKEN000002");
+                const none = await bullet("SUITE made by no trace", null);
+                await S.bulletStore.patch(decided.uuid, { realType: "key", sceneId: "SUITESCENE000001", remnantId: "SUITETOKEN000003" });
+                equal(stableJson(flagged()), stableJson([true, true, true]), "a fixture bullet does not carry its flag - this measured nothing");
+                const report = await B.liftBulletRefs();
+                const disk = uuid => {
+                    const row = S.bulletStore.persisted(uuid);
+                    return row ? [row.sceneId ?? null, row.remnantId ?? null] : null;
+                };
+                equal(stableJson([disk(lost.uuid), disk(decided.uuid), disk(none.uuid)]),
+                    stableJson([["SUITESCENE000001", "SUITETOKEN000001"], ["SUITESCENE000001", "SUITETOKEN000003"], null]),
+                    "a key did not read back from the store's storage, the world's overwrote the one a GM wrote since, or a bullet no trace made was given a row");
+                equal(S.bulletStore.stampOf(lost.uuid, "remnantId"), S.bulletStore.weak(), "the lifted key was not written weak");
+                equal(stableJson(flagged()), stableJson([false, false, false]), "a bullet still names its trace, or a null, in its flags");
+                equal(stableJson([report?.lifted, report?.dropped, report?.kept]), stableJson([2, 1, 0]), `the lift's report: ${stableJson(report)}`);
+                equal(await B.liftBulletRefs(), null, "a second run of the lift found something to do");
+            });
+        } finally {
+            for (const item of made) {
+                try { await holder.items.get(item.id)?.delete(); } catch { /* already gone */ }
+            }
+        }
+    }],
+
+    ["the bullets' lift leaves a bullet's trace key in its flag when the row does not read back", async () => {
+        /*
+         * E05 C13, 27.09.2026: the other half of the pair above, as the notes' and the overflow's
+         * pairs do it. The store's save is swallowed - the row stands in memory and not on disk -
+         * and the flag keeps its key: nothing leaves world data that the store cannot read back,
+         * and the lift throws with the count (E05 fix r1-G1), so the migration does not stamp the
+         * world and the next load tries again. In a world the stores have never opened; the item
+         * is deleted after.
+         */
+        needs(world.atLeast("livingStudents", 1), "the fixture bullet is on a student's sheet");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const B = await import("./truth-bullets.mjs");
+        const [holder] = cast(1);
+        const ref = "SUITESCENE000001.SUITETOKEN000009";
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        let item = null;
+        try {
+            await E.withGmStoreWorld(`suite-refskept-${foundry.utils.randomID(8)}`, async () => {
+                [item] = await holder.createEmbeddedDocuments("Item", [{ name: "SUITE a kept key", type: "loot", flags: { [MODULE_ID]: {
+                    category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "subtle", analyzed: false, remnantRef: ref } } }]);
+                ok(item, "could not make the fixture bullet");
+                settings.set = async function (namespace, key, value) {
+                    if (namespace === MODULE_ID && key === S.bulletStore.spec.key) return value;
+                    return realSet.call(this, namespace, key, value);
+                };
+                const threw = await thrown(() => B.liftBulletRefs());
+                putBack();
+                ok(S.bulletStore.has(item.uuid), "the swallowed save left no row in memory either - this measured nothing");
+                equal(stableJson([/^1 Truth Bullet\(s\) still name their trace in a flag \(1 /.test(threw ?? ""), holder.items.get(item.id)?.getFlag(MODULE_ID, "remnantRef") ?? null]),
+                    stableJson([true, ref]), `the world lost a key whose row is not on disk, or the lift did not throw with the count: ${threw}`);
+            });
+        } finally {
+            putBack();
+            try { await holder.items.get(item?.id)?.delete(); } catch { /* already gone */ }
+        }
+    }],
+
+    ["the traces' clause gives a found trace's token back the neutral word and the question mark", async () => {
+        /*
+         * E05 C13, 27.09.2026; audit S05-39 (1). A world from before 1.2.64 holds found traces
+         * whose tokens carry their public name and image, which every browser reads; the clause
+         * `neutralTraceNames` gives every trace token the neutral word and the question mark back,
+         * and a second run has nothing to do. A token that still carries its answer key is the
+         * migration's - `migrateRemnantToken` reads its old name as the label - and is left as it
+         * is. And when the write does not take, the clause throws with the count, so the world is
+         * not stamped. Three fixture tokens, deleted after: a found one, named and dressed; one
+         * still carrying its answer key under its old label; and one already neutral.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture tokens stand on the scene on screen");
+        const R = await import("./remnants.mjs");
+        const scene = canvas.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const word = game.i18n.localize("DRPG.Remnant.tokenName");
+        const label = "SUITE Obvious Prep Remnant - Player B";
+        const made = [];
+        const trace = async (name, src, flags = {}) => {
+            const [t] = await scene.createEmbeddedDocuments("Token", [{ name, actorId: game.actors.getName("Remnant")?.id ?? null, actorLink: false,
+                x: anchor?.x ?? 0, y: anchor?.y ?? 0, hidden: false, texture: { src }, flags: { [MODULE_ID]: { isRemnant: true, ...flags } } }]);
+            ok(t, `could not place the fixture token "${name}"`);
+            made.push(t);
+            return t;
+        };
+        const face = t => { const d = scene.tokens.get(t.id); return [d?.name ?? null, d?.texture?.src ?? null]; };
+        const ownUpdate = Object.hasOwn(scene, "updateEmbeddedDocuments"), realUpdate = scene.updateEmbeddedDocuments;
+        const putBack = () => {
+            if (scene.updateEmbeddedDocuments === realUpdate && Object.hasOwn(scene, "updateEmbeddedDocuments") === ownUpdate) return;
+            if (ownUpdate) scene.updateEmbeddedDocuments = realUpdate;
+            else delete scene.updateEmbeddedDocuments;
+        };
+        try {
+            const found = await trace("SUITE a kettle, still warm", "icons/svg/item-bag.svg");
+            const labelled = await trace(label, R.ICON, { [R.REMNANT_FLAGS.type]: "prep" });
+            ok(R.answerKeyOnToken(labelled), "the fixture is not a token still carrying its answer key");
+            const quiet = await trace(word, R.ICON);
+            const report = await R.neutralTraceNames();
+            equal(stableJson([face(found), face(labelled), face(quiet)]), stableJson([[word, R.ICON], [label, R.ICON], [word, R.ICON]]),
+                "a found trace's token still says its name or wears its image, or a token carrying its answer key lost its label before the migration read it");
+            equal(report?.neutralised, 1, `the clause's report: ${stableJson(report)}`);
+            equal(await R.neutralTraceNames(), null, "a second run of the clause found something to do");
+
+            await scene.updateEmbeddedDocuments("Token", [{ _id: found.id, name: "SUITE a kettle again" }]);
+            scene.updateEmbeddedDocuments = async () => [];
+            const threw = await thrown(() => R.neutralTraceNames());
+            putBack();
+            equal(stableJson([/^1 trace token\(s\) still show /.test(threw ?? ""), face(found)[0]]), stableJson([true, "SUITE a kettle again"]),
+                `the clause did not throw with the count when its write did not take: ${threw}`);
+        } finally {
+            putBack();
+            const left = made.map(t => t.id).filter(id => scene.tokens.has(id));
+            if (left.length) await scene.deleteEmbeddedDocuments("Token", left);
+            await settle();
+        }
+    }],
+
     ["a lift that leaves its secret in world data stops the migration short on the GM's screen, and the next pass lifts it - on a world stamped 1.2.63 too", async () => {
         /*
          * E05 fix r1-G1, 27.09.2026; the reviews' S1-M1 and M2, and the orchestrator's note on
@@ -9280,11 +9566,15 @@ const SCENARIOS = [
         /*
          * E04, 26.09.2026; the design's 6.3. A browser that lost a bullet's answer key
          * (or holds one S05-01 reduced to its Faint) can take the real type back from
-         * the trace the bullet was copied from: the bullet's public `remnantRef` names
-         * the trace, and the trace's row says what it is. Weak and fill-only: a type a
-         * GM holds for a bullet stays, and nothing but `realType` and `remnantId` is
-         * made up. Three bullets on one trace: one with no row, one with a row and no
-         * type, one whose GM wrote a type of its own.
+         * the trace the bullet was copied from: the bullet's row names the trace, and
+         * the trace's row says what it is. Weak and fill-only: a type a GM holds for a
+         * bullet stays, and nothing but `realType` is made up. Until E05 C13 the trace
+         * was named by the bullet's public `remnantRef` flag, which every browser read;
+         * the clause `liftBulletRefs` puts an older world's key into the row - a row
+         * lost whole comes back as the key alone - and the fixtures stand as it leaves
+         * them. Four bullets on one trace: one whose row is the key alone, one with the
+         * key and a Faint and no type, one whose GM wrote a type of its own, and one with
+         * no row at all, which names no trace here any more and is not filled.
          */
         const S = await import("./gm-stores.mjs");
         const remnants = await import("./remnants.mjs");
@@ -9299,10 +9589,10 @@ const SCENARIOS = [
             token = await remnants.placeRemnant({ type: "incident", visibility: "subtle", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
                 tiedToCrime: false, note: "test fixture - a trace to fill from" });
             ok(token, "could not place the fixture trace");
-            const ref = remnants.keyOf(token);
+            const trace = { sceneId: scene.id, remnantId: token.id };
             const bullet = async name => {
                 const [item] = await holder.createEmbeddedDocuments("Item", [{ name, type: "loot", flags: { [MODULE_ID]: {
-                    category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "subtle", analyzed: false, remnantRef: ref } } }]);
+                    category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "subtle", analyzed: false } } }]);
                 ok(item, `could not make the fixture bullet "${name}"`);
                 made.push(item);
                 return item;
@@ -9310,18 +9600,23 @@ const SCENARIOS = [
             const lost = await bullet("Suite fixture: its answer key lost");
             const faintOnly = await bullet("Suite fixture: its answer key reduced to a Faint");
             const decided = await bullet("Suite fixture: its GM's own type");
+            const gone = await bullet("Suite fixture: its row lost whole, since 1.2.64");
+            // The key alone, as the lift leaves a row it had to start: weak and fill-only.
+            await bullets.setSecret(lost.uuid, trace, { weak: true, fillOnly: true });
             await bullets.setSecret(faintOnly.uuid, { faint: true });
-            await bullets.setSecret(decided.uuid, { realType: "key", gmNote: "the GM's own" });
+            await bullets.setSecret(faintOnly.uuid, trace, { weak: true, fillOnly: true });
+            await bullets.setSecret(decided.uuid, { realType: "key", gmNote: "the GM's own", ...trace });
             const report = await S.gmStoreHealth();
             ok(report.counts.bullets.fillable >= 2, `the health report counts ${report.counts.bullets.fillable} bullet(s) to fill, of the two made`);
             const filled = await S.fillBulletsFromTraces();
             ok(filled >= 2, `${filled} bullet(s) filled, of the two made`);
             equal(stableJson([bullets.secretOf(lost.uuid).realType, bullets.secretOf(lost.uuid).remnantId]), stableJson(["incident", token.id]),
-                "a bullet with no row did not take its trace's type and id");
+                "a bullet whose row is its trace's key alone did not take its trace's type, or lost the key");
             equal(stableJson([bullets.secretOf(faintOnly.uuid).realType, bullets.secretOf(faintOnly.uuid).faint]), stableJson(["incident", true]),
                 "a bullet with a row and no type did not take its trace's type, or lost what its row held");
             equal(stableJson([bullets.secretOf(decided.uuid).realType, bullets.secretOf(decided.uuid).gmNote]), stableJson(["key", "the GM's own"]),
                 "a type a GM wrote was filled over");
+            equal(bullets.secretOf(gone.uuid).realType ?? null, null, "a bullet with no row was given a type - from what, with no key to its trace");
             equal(S.bulletStore.stampOf(lost.uuid, "realType"), S.bulletStore.weak(), "the filled type was not written weak");
         } finally {
             for (const item of made) {

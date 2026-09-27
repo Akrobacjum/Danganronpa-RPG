@@ -7,12 +7,15 @@
  * marker in each secret field the module writes from the GM's side or a killer's -
  * the Key Remnant plan, a trace's note and subject, a Truth Bullet's GM note, a
  * secret project and an indirect murder's condition, a player's pre-session note,
- * a Direct Murder parked in an Eclipse, a hidden token - and one scan of every
- * player's browser once the table is at rest. A marker found where it may not be
+ * a Direct Murder parked in an Eclipse, a hidden token, the name the GM gives a
+ * found trace - and one scan of every player's browser once the table is at rest.
+ * A marker found where it may not be
  * is a hit: one known-leaks.json describes is that leak, reproduced, and red until
  * its stage; any other fails this run. At rest p1's `game.drpg.keyPlan()` is asked
  * too: the plan is the GMs' store since E05 C5; and a spill is planted and the
- * Despair overflow's count read on the GM and on p1: the GMs' record since E05 C12.
+ * Despair overflow's count read on the GM and on p1: the GMs' record since E05 C12;
+ * and the found trace's token and Aiko's copy of it are read on the GM, p1 and p2:
+ * what it is called, and where it came from, are its finder's and the GMs' since E05 C13.
  *
  * THROUGH A CHAPTER (E05 C2, 26.09.2026). After "rest" the chapter those secrets
  * belong to is played on, and after each phase the markers are scanned again and
@@ -101,6 +104,26 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         const [t] = await scene.createEmbeddedDocuments("Token", [{ name: "${hidden}", hidden: true, x: 3000, y: 2500 }]);
         return t?.id ?? null;`);
 
+    /* A FOUND TRACE, NAMED BY THE GM (E05 C13, 27.09.2026; audit S05-39 (1), (2)). The GM reveals a
+       trace in the Gym, names it with a marker, and copies it onto Aiko's sheet (p1's). The copy is
+       named apart from the trace: a bullet is an item on its holder's sheet, and Foundry sends every
+       browser every actor with its items - which the GM handbook writes down as Foundry's (S05-39 (4)),
+       and which would find the marker on p2 whatever the token said. So the marker measures the token
+       alone: until 1.2.64 the public name went onto it, where every browser reads it. The trace was
+       revealed before the copy, so the copy's own reveal writes nothing - the name reaches the token
+       only as the GM names it. */
+    const publicName = canary.marker("remnant.publicName", { allowed: ["gm", "p1"] });
+    const foundTrace = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const t = await game.drpg.placeRemnant({ room: "Gym", type: "prep", visibility: "obvious" });
+        if (!t) return null;
+        await game.drpg.revealRemnant(t);
+        await R.setRemnantPublic(t, { name: "${publicName}" });
+        const item = await game.drpg.createTruthBullet(game.actors.get("${IDS.aiko}"), { name: "A scrap of ribbon", playerText: "Red, frayed at one end.",
+            realType: "prep", visibility: "obvious", remnantId: t.id, sceneId: t.parent.id });
+        return { id: t.id, scene: t.parent.id, uuid: item?.uuid ?? null, hidden: t.hidden, named: R.remnantPublic(t)?.name === "${publicName}" };`, { timeout: 60000 });
+    check("gm: a trace is revealed, named by the GM and copied onto Aiko's sheet under a name of its own",
+        Boolean(foundTrace?.uuid) && foundTrace.hidden === false && foundTrace.named === true, JSON.stringify(foundTrace), { flow: "truth-bullets" });
+
     phase("rest");
     await settle(1500);
     await canary.scan({ phase: "rest" });
@@ -167,6 +190,36 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     check("a spill counts on the GM, and p1's world value holds no overflow count",
         spillGm.count === beforeSpill.count + 2 && spillP1.count === 0 && !Object.hasOwn(spillP1.world ?? {}, "count"),
         JSON.stringify({ beforeSpill, spillGm, spillP1 }));
+
+    /* A FOUND TRACE'S NAME IS ITS FINDER'S AND THE GMS' (E05 C13, 27.09.2026; audit S05-39 (1), (2)).
+       The scan above reads the GM's name for the trace everywhere on every player; here the found
+       trace is read where each reads it. Its token says the neutral word and wears the question mark
+       on the GM, p1 and p2 alike. What each screen calls it (remnant-icons.mjs `shownOnTrace`, which a
+       canvas would draw): the GM the row's name - compared on the GM, so no player is handed the
+       marker - p1 its own copy's, p2 nothing. And which trace Aiko's bullet came from: no flag of the
+       item says so on any of them; the GM reads it off the row, p1 off its copy of its own bullets'
+       keys (`mineBulletRefs`), p2 not at all. The world scans of the chapter below read the rule's
+       Item half - no `remnantRef` on any item - on p1 and p2 after every phase. */
+    // The marker goes into the GM's code alone: a player is never handed one it may not hold.
+    const foundOn = (c, mark = null) => c.eval(`const icons = await import("${repoUrl}/scripts/remnant-icons.mjs");
+        const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const t = game.scenes.get("${foundTrace?.scene ?? "none"}")?.tokens?.get("${foundTrace?.id ?? "none"}") ?? null;
+        const item = fromUuidSync("${foundTrace?.uuid ?? "none"}");
+        const shown = t && typeof icons.shownOnTrace === "function" ? icons.shownOnTrace(t) : null;
+        return { token: t ? [t.hidden, t.name === game.i18n.localize("DRPG.Remnant.tokenName"), t.texture?.src ?? null] : null,
+            shown: ${mark ? `shown?.name === ${JSON.stringify(mark)} ? "the row's" : (shown?.name ?? null)` : "shown?.name ?? null"},
+            ref: !item ? "no item" : typeof B.bulletRefOf === "function" ? B.bulletRefOf(item) : "no bulletRefOf",
+            flag: item ? Object.hasOwn(item.flags?.["${MOD}"] ?? {}, "remnantRef") : null };`);
+    const foundGm = await foundOn(gm, publicName), foundP1 = await foundOn(p1), foundP2 = await foundOn(p2);
+    const traceKey = foundTrace ? `${foundTrace.scene}.${foundTrace.id}` : "none";
+    const questionMark = `modules/${MOD}/icons/remnant-unknown.svg`;
+    check("a found trace's token says the neutral word and wears the question mark on every browser; the GM calls it by the row, p1 by its copy, p2 nothing",
+        [foundGm, foundP1, foundP2].every(f => f.token?.[0] === false && f.token[1] === true && f.token[2] === questionMark)
+        && foundGm.shown === "the row's" && foundP1.shown === "A scrap of ribbon" && foundP2.shown === null,
+        JSON.stringify({ foundGm, foundP1, foundP2 }), { flow: "truth-bullets" });
+    check("Aiko's bullet names its trace in no flag; the GM reads the key off the row, p1 off its own copy, and p2 holds none",
+        [foundGm, foundP1, foundP2].every(f => f.flag === false) && foundGm.ref === traceKey && foundP1.ref === traceKey && foundP2.ref === null,
+        JSON.stringify({ key: traceKey, gm: foundGm.ref, p1: foundP1.ref, p2: foundP2.ref, flags: [foundGm.flag, foundP1.flag, foundP2.flag] }), { flow: "truth-bullets" });
 
     /* An unfound trace is a token, and a token reaches every browser (S17-64): not a
        marker in a field, so it is asked of the scene itself. */

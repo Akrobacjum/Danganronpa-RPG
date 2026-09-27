@@ -772,6 +772,39 @@ const CLAUSES = [
             const report = await liftOverflowCount();
             return report && (report.lifted || report.dropped) ? report : null;
         }
+    },
+    {
+        key: "liftBulletRefs",
+        since: "1.2.64",
+        /*
+         * WHICH TRACE A BULLET CAME FROM, OUT OF WORLD DATA (E05 C13; audit S05-39 (2)). Until
+         * 1.2.64 each Truth Bullet named its trace in its public `remnantRef` flag, and every
+         * browser holds every item: a console read which traces had been found, and by whom.
+         * Once, on the primary, after the GM stores' copies arrived, with the rules written on
+         * `liftBulletRefs` (truth-bullets.mjs): the key into the bullet's row weak and fill-only,
+         * off the item only once the row reads back holding one, then each owner's copy.
+         */
+        run: async () => {
+            const { liftBulletRefs } = await import("./truth-bullets.mjs");
+            const report = await liftBulletRefs();
+            return report && (report.lifted || report.dropped) ? report : null;
+        }
+    },
+    {
+        key: "neutralTraceNames",
+        since: "1.2.64",
+        /*
+         * A FOUND TRACE'S NAME OFF ITS TOKEN (E05 C13; audit S05-39 (1)). Until 1.2.64 a trace's
+         * public name and image went onto its token once somebody had found it, and every
+         * browser holds every token. The token keeps the neutral word and the question mark now,
+         * and the finder's and the GMs' screens draw the rest (remnant-icons.mjs). Nothing is
+         * lifted - the name is the row's `public` already - so this puts the word and the icon
+         * back, once, on the primary, with the rules written on `neutralTraceNames` (remnants.mjs).
+         */
+        run: async () => {
+            const { neutralTraceNames } = await import("./remnants.mjs");
+            return neutralTraceNames();
+        }
     }
 ];
 

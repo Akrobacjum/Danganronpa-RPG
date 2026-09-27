@@ -62,8 +62,8 @@ export const SEEDS = Object.freeze({
     "note.player": { cls: "plan", field: "a player's pre-session note", plantedBy: "72-canary, 11-killer-secrecy" },
     "park.note": { cls: "plan", field: "a Direct Murder parked during an Eclipse: its note", plantedBy: "72-canary" },
     "token.hidden": { cls: "metadata", field: "a hidden token's name", plantedBy: "72-canary" },
-    // A found trace's public name as the GM names it: the GM's and its finder's (E05 C13 plants it).
-    "remnant.publicName": { cls: "answer-key", field: "a found trace's public name, as the GM names it", plantedBy: "72-canary (from E05 C13)" },
+    // A found trace's public name as the GM names it: the GM's and its finder's (planted since E05 C13).
+    "remnant.publicName": { cls: "answer-key", field: "a found trace's public name, as the GM names it", plantedBy: "72-canary" },
     // No marker: what `worldScan` finds (E05 C2).
     "world.id": { cls: "killer-identity", field: "an actor id world data may not name (72: the killer's), in a module world setting or a document's module flags", plantedBy: "72-canary (worldScan)" },
     "world.field": { cls: "answer-key", field: "a field scripts/world-secrets.mjs keeps out of world data", plantedBy: "72-canary (worldScan)" }
@@ -195,6 +195,8 @@ export function scanDump(dump, markers) {
  * unlinked token's own actor data "<sceneId>.tokens.<id>.delta.flags..." under Scene).
  * Chat messages and token deltas are read since E05's fix round (S1-m3, S1-m4): the
  * rule's ChatMessage and delta halves had no scan on a player's browser until then.
+ * Items since E05 C13, with the rule's Item half: the sidebar's at "<id>.flags..."
+ * under Item, one on a sheet at "<actorId>.items.<id>.flags..." under Actor.
  */
 export function worldScan(dump, { ids = [] } = {}) {
     const prefix = `${WORLD_SECRET_MODULE}.`;
@@ -207,13 +209,17 @@ export function worldScan(dump, { ids = [] } = {}) {
         users: docs("User").map(d => ({ id: d?._id, flags: d?.flags })),
         tokens: docs("Scene").flatMap(scene => (scene?.tokens ?? []).map(t => ({ id: `${scene?._id}.tokens.${t?._id}`, flags: t?.flags,
             delta: t?.delta ? { flags: t.delta.flags } : null }))),
-        messages: docs("ChatMessage").map(d => ({ id: d?._id, flags: d?.flags }))
+        messages: docs("ChatMessage").map(d => ({ id: d?._id, flags: d?.flags })),
+        // E05 C13: the items, in the sidebar and on every sheet - one on a sheet at its place in the actor.
+        items: [...docs("Item").map(d => ({ id: d?._id, flags: d?.flags })),
+            ...docs("Actor").flatMap(actor => (actor?.items ?? []).map(i => ({ id: `${actor?._id}.items.${i?._id}`, flags: i?.flags })))]
     };
     return findWorldSecrets(snapshot, { ids }).map(h => {
         const setting = h.doc === "setting";
         const full = setting ? h.path : `${h.id}${h.path ? `.${h.path}` : ""}`;
         return { seed: h.kind === "id" ? "world.id" : "world.field", surface: setting ? "setting" : "document",
-            where: setting ? `${prefix}${h.id}` : (h.doc === "Token" || /^delta\./.test(h.path) ? "Scene" : h.doc),
+            where: setting ? `${prefix}${h.id}` : (h.doc === "Token" || /^delta\./.test(h.path) ? "Scene"
+                : (h.doc === "Item" && h.id.includes(".items.") ? "Actor" : h.doc)),
             path: `${norm(full)}${h.key ? "#key" : ""}`, phase: dump?.phase ?? null, via: ["rest"], n: null, sample: h.rule };
     });
 }

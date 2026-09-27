@@ -82,7 +82,10 @@ const ITEM_GUARDED = ["name", "img", "system.description"];
  * what it shows, whether it is analysed, its reading, its lock. This is the
  * courtesy half - a console skips it - and the primary GM puts back anything
  * that gets past it (`watchBulletEdits` in truth-bullets.mjs). Named here by
- * value to keep this file out of that one's imports.
+ * value to keep this file out of that one's imports. `remnantRef` is written by
+ * nothing since E05 C13 - which trace a bullet came from is the GMs' row and its
+ * owner's copy - and stays: the clause `liftBulletRefs` reads it on a world not
+ * yet stamped 1.2.64.
  */
 const BULLET_GUARDED = [
     "playerText", "analyzedText", "shownType", "analyzed", "lockedChapter", "faint",

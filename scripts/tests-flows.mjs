@@ -53,6 +53,10 @@
  * through the bridge's `note.save` now, and each player holds a copy of their own
  * (pre-session-note.mjs). 72 and 11 save one, 33 drives the legal road, 30 a forged
  * one, and 61 the road to a second GM and a note kept while no GM was connected.
+ * E05 C13 (27.09.2026) makes truth-bullets.mjs a socket file again: which trace a
+ * player's own bullets came from left the items' flags for the GMs' rows, and each
+ * player holds a copy of their own, sent by a GM and asked of the primary. 72 reads
+ * that copy on the finder and on a player who holds none.
  */
 
 export const FLOWS = Object.freeze([
@@ -121,8 +125,8 @@ export const FLOWS = Object.freeze([
         scenarios: ["10-murder", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
     { id: "trap-fire", what: "A trap: a crossing reported to the GM, the trap sprung once",
         entry: { bridge: ["trap.event"], sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
-    { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, and a player's edit is put back",
-        entry: {}, scenarios: ["30-security", "61-gmstore-case"], status: "partial", stage: "E38" },
+    { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, a player's edit is put back, and each player's copy of which traces their own came from",
+        entry: { sockets: ["truth-bullets.mjs"] }, scenarios: ["30-security", "61-gmstore-case", "72-canary"], status: "partial", stage: "E38" },
     { id: "voice", what: "Voice rooms: who hears whom",
         entry: { sockets: ["voice.mjs", "voice-client.mjs"] }, scenarios: [], status: "planned", stage: "E58" }
 ]);

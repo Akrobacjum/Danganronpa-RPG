@@ -842,8 +842,10 @@ export async function adoptQuestionMark(actor = game.actors.getName(REMNANT_ACTO
 
 /**
  * Ledger key. Token ids are only unique inside their own scene.
- * Exported for visibility.mjs, which needs the SAME shape to match a Truth
- * Bullet's public `remnantRef` flag against a token - see `applyToRemnantToken`.
+ * Exported for visibility.mjs and remnant-icons.mjs, which need the SAME shape
+ * to match the trace a Truth Bullet came from against a token - the bullet's
+ * row's key, or its owner's copy of it, since E05 C13 (truth-bullets.mjs
+ * `bulletRefOf`); the bullet's public `remnantRef` flag until then.
  */
 export function keyOf(tokenDoc) {
     const scene = tokenDoc?.parent?.id ?? tokenDoc?.parent ?? null;
@@ -1039,48 +1041,81 @@ export async function setRemnantPublic(tokenDoc, patch = {}) {
 }
 
 /**
- * Token and Truth Bullets, brought into line with `public`.
+ * The Truth Bullets brought into line with `public`, and the token kept out of it.
  *
- * The token only moves once it is actually revealed - see the note on
- * `revealRemnantToFinder` - because writing a player-facing name onto a
- * token that is still `hidden: true` would be the answer key leaking through
- * a field nobody thought to check.
- *
- * The token gets a COPY, never a reference: it is a world document a scene
- * exports and imports independently of the ledger, so anything short of a
- * copy would desync the moment either one changed without the other.
+ * THE TOKEN SAYS NOTHING OF THE TRACE, FOUND OR NOT (E05 C13, 27.09.2026; audit
+ * S05-39 (1)). It used to take a COPY of the public name and image once the trace
+ * was revealed - never while it was hidden, and since the review of stage D (D11)
+ * never on an incident's own traces, created un-hidden, until a bullet had been
+ * copied from one. But a token is a world document every browser holds, hidden or
+ * not: once one student had found a trace, every console read what it was called
+ * and where it lay, and a GM naming an incident trace "Kettle, still warm - matches
+ * the burn" after the first find published the sentence to the whole table. The
+ * token keeps the neutral word and the question mark now, and the screens that may
+ * know the rest draw it on their own copy of the canvas - a finder's from their
+ * bullet, a GM's from the row (remnant-icons.mjs `shownOnTrace`). A name or an image
+ * an earlier build left on the token is put back, here and once for the whole world
+ * by the clause `neutralTraceNames` - but for a token that still carries its answer
+ * key (`saysMore`).
  */
 async function propagatePublic(tokenDoc, pub) {
-    // The copies first: how many there are is the answer to "has anybody found it".
-    let copies = 0;
     try {
         const { propagateRemnantPublic } = await import("./truth-bullets.mjs");
-        copies = await propagateRemnantPublic(tokenDoc.id, pub);
+        await propagateRemnantPublic(tokenDoc.id, pub);
     } catch (err) {
         error("Could not propagate `public` to the Truth Bullets copied from this trace", err);
     }
 
-    if (tokenDoc && !tokenDoc.hidden) {
-        /*
-         * UN-HIDDEN IS NOT FOUND, for an incident's own traces (D11). `placeRemnant`
-         * creates them un-hidden so a participant's client can draw them - and this
-         * wrote the public name onto that token the moment one was set, where every
-         * client reads it. A GM placing an Incident Remnant by hand from the case
-         * panel (N-4) and naming it "Kettle, still warm - matches the burn" published
-         * that sentence to the table before anybody had looked (review of stage D).
-         * Until a bullet has been copied from one, the token keeps the public word
-         * and the plain icon; a name an earlier write left there is put back.
-         */
-        const unfound = Boolean(tokenDoc.getFlag(MODULE_ID, REMNANT_FLAGS.fromIncident)) && !copies;
-        try {
-            await tokenDoc.update({
-                name: (!unfound && pub.name) || game.i18n.localize("DRPG.Remnant.tokenName"),
-                "texture.src": (!unfound && pub.img) || ICON
-            });
-        } catch (err) {
-            error("Could not copy `public` onto the Remnant token", err);
-        }
+    if (!saysMore(tokenDoc)) return;
+    try {
+        await tokenDoc.update({ name: game.i18n.localize("DRPG.Remnant.tokenName"), "texture.src": ICON });
+    } catch (err) {
+        error("Could not put the neutral name back on the Remnant token", err);
     }
+}
+
+/**
+ * Whether a trace's token says more than the neutral word and the question mark,
+ * and is `propagatePublic`'s and `neutralTraceNames`' to quiet. Not a token that
+ * still carries its answer key (`answerKeyOnToken`): its old name is the label the
+ * migration moves into the ledger (`migrateRemnantToken`, which then strips the
+ * name itself), and a write here would lose it first. The word is this client's
+ * language's, as `leftOnToken` reads it.
+ */
+function saysMore(token) {
+    if (!token || answerKeyOnToken(token)) return false;
+    return token.name !== game.i18n.localize("DRPG.Remnant.tokenName") || (token.texture?.src ?? ICON) !== ICON;
+}
+
+/**
+ * A world from before 1.2.64 may hold found traces whose tokens say what they are:
+ * the public name and the image `propagatePublic` wrote there until E05 C13 (audit
+ * S05-39 (1)). The clause `neutralTraceNames` (migrate.mjs, since 1.2.64) runs this
+ * once, on the primary: every trace token whose name is not the neutral word, or whose
+ * image is not the question mark (`saysMore`), is given both back, a write per scene.
+ * Nothing is lifted - what a trace is called is its row's `public` already, which the
+ * screens that may know it draw from. A token still saying more after the write
+ * throws, with the count, so the world is not stamped and the next load tries again
+ * (the lifts' rule, E05 fix r1-G1). Idempotent: a world already through this has
+ * nothing to write.
+ *
+ * @returns {Promise<null|{neutralised: number}>}
+ */
+export async function neutralTraceNames() {
+    if (!isPrimaryGm()) return null;
+    const word = game.i18n.localize("DRPG.Remnant.tokenName");
+    const telling = () => (game.scenes?.contents ?? []).flatMap(scene => remnantsOn(scene)).filter(saysMore);
+    const found = telling();
+    if (!found.length) return null;
+    const byScene = new Map();
+    for (const token of found) byScene.set(token.parent, [...(byScene.get(token.parent) ?? []), token]);
+    for (const [scene, tokens] of byScene) {
+        await scene.updateEmbeddedDocuments("Token", tokens.map(token => ({ _id: token.id, name: word, "texture.src": ICON })));
+    }
+    const left = telling().length;
+    if (left) throw new Error(`${left} trace token(s) still show a name or an image of their own; the next load tries again`);
+    log(`Gave ${found.length} trace token(s) back the neutral name and the question mark.`);
+    return { neutralised: found.length };
 }
 
 /**
