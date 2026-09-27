@@ -47,7 +47,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isDeceased } from "./chapter.mjs";
+import { isDeadForGm } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToGms, isPrimaryGm, debug, error } from "./utils.mjs";
@@ -193,7 +193,9 @@ function redactTabs(root) {
  * standing over a body.
  */
 function buildBodyLoot(root, actor) {
-    if (!isDeceased(actor)) return;
+    // A body this browser knows of (E05 C10, the owner's Q2): the table's, or one nobody has
+    // found that this player was in the incident of - the GMs judge the taking again.
+    if (!isDeadForGm(actor)) return;
 
     const pane = root.querySelector('section.tab[data-tab="inventory"]');
     const tab = root.querySelector('a[data-tab="inventory"]');

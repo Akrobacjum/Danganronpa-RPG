@@ -275,11 +275,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         finally { delete globalThis.__forceRoll; }
         return A.rollBookmark?.(game.actors.get("${IDS.chie}"))?.crisis ?? null;`, { timeout: 60000 });
     check("p3: Chie's crisis roll is bookmarked, with its key, in p3's own browser", crisisMark === "finishingBlow", JSON.stringify({ crisisMark }));
+    /* A DEATH IN TWO PHASES (E05 C10, 26.09.2026; audit S06-11). Botan carries a Truth Bullet
+       into the incident; the blow kills him for the GMs and for his own player (p2), and p1's
+       browser reads him alive - no flag, no marker, his bullet still on the sheet - until the
+       discovery. Red on 3377e7d: the flag and the status reached p1 with the blow. */
+    const hunch = await gm.eval(`const b = await game.drpg.createTruthBullet(game.actors.get("${IDS.botan}"), { name: "72: Botan's hunch", playerText: "72" });
+        return b?.id ?? null;`, { timeout: 60000 });
     const killed = await gm.eval(`await game.drpg.resolveCrisisAction({ actorId: "${IDS.chie}", key: "finishingBlow", total: 99, isCritical: false, withHope: true });
         await new Promise(r => setTimeout(r, 1500));
-        return { stage: game.drpg.murderState()?.stage ?? null, dead: game.drpg.isDeceased(game.actors.get("${IDS.botan}")) };`, { timeout: 60000 });
+        return { stage: game.drpg.murderState()?.stage ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${IDS.botan}")) };`, { timeout: 60000 });
     check("gm: at the lights Chie's declaration opens the incident, and her Finishing Blow kills Botan",
         opened === "incident" && killed.dead === true && killed.stage === "resolution", JSON.stringify({ opened, killed }));
+    await settle(800);
+    const botanOn = c => c.eval(`const a = game.actors.get("${IDS.botan}");
+        return { flag: a.getFlag("${MOD}", "deceased") ?? null, status: a.statuses?.has?.("dead") ?? false, known: game.drpg.isDeadForGm(a),
+            bullet: Boolean(a.items.get("${hunch ?? "none"}")) };`);
+    const [onP1, onP2] = [await botanOn(p1), await botanOn(p2)];
+    check("p1: Botan dead in no world data on p1's browser before the discovery - no flag, no status, his bullet still there",
+        Boolean(hunch) && onP1.flag === null && onP1.status === false && onP1.known === false && onP1.bullet === true, JSON.stringify({ hunch, onP1 }));
+    check("p2: Botan's own player knows he is dead (isDeadForGm) while the table does not", onP2.known === true && onP2.flag === null, JSON.stringify(onP2));
     await scanned("incident");
 
     /* undiscovered: the incident is closed with nobody having found Botan. */
@@ -287,6 +301,19 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const closed = await gm.eval(`await game.drpg.endMurder({ reason: "closed", followUp: false });
         return { stage: game.drpg.murderState()?.stage ?? null, found: game.settings.get("${MOD}", "bodyFound") ?? null };`, { timeout: 60000 });
     check("gm: the incident closes with the body not yet found", !closed.stage || closed.stage === "idle", JSON.stringify(closed));
+    /* THE LONE FINDER (E05 C10; the owner's Q1, 26.09.2026). Chie leaves Dorm B for the Hall, and
+       Aiko (p1's), in no part of the incident, walks in alone: p1 is told privately and knows
+       Botan is dead, the table reads no flag, and nothing is announced - two witnesses stay the
+       rule, so the discovery below is Aiko's and Daichi's. */
+    const told = await p1.eval(`return globalThis.__notifications?.length ?? 0;`);
+    await gm.eval(`await canvas.scene.tokens.get("TOKCHIE000000000").update({ x: 2400, y: 400 });
+        await canvas.scene.tokens.get("TOKAIKO000000000").update({ x: 600, y: 1300 }); return true;`, { timeout: 60000 });
+    const alone = await settled("undiscovered", () => p1.eval(`const a = game.actors.get("${IDS.botan}");
+        const told = (globalThis.__notifications ?? []).slice(${told}).map(n => n.msg);
+        return game.drpg.isDeadForGm(a) && told.length ? { flag: a.getFlag("${MOD}", "deceased") ?? null, told } : null;`));
+    const announced = await gm.eval(`return game.settings.get("${MOD}", "bodyFound")?.room ?? null;`);
+    check("p1: Aiko alone with Botan's body is told privately and knows he is dead - no flag on p1, and no body announcement",
+        Boolean(alone) && alone.flag === null && announced === null, JSON.stringify({ alone, announced }));
     await scanned("undiscovered");
 
     /* discovery: a Faint Prep trace is left in Dorm B; Aiko and Daichi walk in, the second
@@ -310,6 +337,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const found = await settled("discovery", () => gm.eval(`const b = game.settings.get("${MOD}", "bodyFound"); return b?.room ? { room: b.room, promoted: globalThis.__promoted } : null;`));
     check("gm: Aiko and Daichi find Botan in Dorm B, and the promotion dialog lists the Faint Prep trace",
         Boolean(prep) && found?.room === "Dorm B" && found?.promoted >= 1, JSON.stringify({ prep, found }));
+    await settle(800);
+    const afterP1 = await botanOn(p1);
+    check("p1: the discovery made Botan's death the table's - the flag and the status on p1, his bullet gone",
+        Boolean(afterP1.flag) && afterP1.status === true && afterP1.bullet === false, JSON.stringify(afterP1));
     await scanned("discovery");
 
     /* verdict: the trial names Daichi, which is wrong - Chie survives, and is the Blackened

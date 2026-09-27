@@ -49,8 +49,8 @@ import {
     RESOLUTION_STRESS_COST, RESOLUTION_HEALTH_COST, TRAITS, callEffect, TIMING
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { SETTINGS, incidentCast, seasonEpoch, isDeadForGm } from "./settings.mjs";
-import { castStore, blackenedStore, castCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD } from "./gm-stores.mjs";
+import { SETTINGS, incidentCast, seasonEpoch, isDeadForGm, isDeceased } from "./settings.mjs";
+import { castStore, blackenedStore, castCopy, deathStore, deathCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax, marksOf } from "./character.mjs";
@@ -2900,6 +2900,202 @@ function askForCast(primary = primaryGmId()) {
     }
 }
 
+/* ==========================================================================
+ * THE DEATHS A PLAYER MAY KNOW (E05 C10; audit S06-11)
+ * --------------------------------------------------------------------------
+ * A killing in an incident is the GMs' until the body is found or a GM makes
+ * it known (chapter.mjs `killCharacter`, `publishDeath`), and a player's
+ * browser reads the deaths it may know from a copy (gm-stores.mjs
+ * `deathCopy`): their own character's, and the incident's they were in. Sent
+ * by the GM that wrote the row, and on the player's ask - at load, and when a
+ * primary GM's world has loaded - answered by the primary alone, about
+ * Foundry's `senderId`. Taken only from a GM, addressed to this user.
+ * ========================================================================== */
+
+const DEATHS_MINE = "deaths.mine";
+const DEATHS_ASK = "deaths.ask";
+/** GM -> one player who walked in alone on a body nobody has found (the owner's Q1). */
+const DEATHS_FOUND = "deaths.found";
+
+/**
+ * GM: the players who may know that this actor died, besides its owners - those of the
+ * running incident's seats when this actor is its victim, as `castOwners` gives them now.
+ * Counted as at Stage 6, where a trap's killer is let back in: the engine's kill sites run
+ * after the stage has moved, and the GM's death dialog runs just before it is offered.
+ */
+export function incidentKnowers(actor) {
+    if (!game.user?.isGM || !actor) return [];
+    const state = murderState();
+    if (!state?.active || state.victimId !== actor.id) return [];
+    return [...castOwners(readCast(), { ...state, stage: "resolution" })];
+}
+
+/** Whether this user may know of this death kept by the GMs: a GM, a user named in its row, or an owner of the body. */
+export function knowsOfDeath(user, actorId, row = deathStore.get(actorId)) {
+    if (!user || !row) return false;
+    if (user.isGM) return true;
+    if (Array.isArray(row.known) && row.known.includes(user.id)) return true;
+    return Boolean(game.actors.get(actorId)?.testUserPermission?.(user, "OWNER"));
+}
+
+/**
+ * GM: the deaths kept by the GMs that this user may know, a stamp each - the row's newest
+ * decision - and, for each body in `also` (dropped here a moment ago), its tombstone's, so a
+ * copy that held it lets it go. Nothing of a death the user may not know, not even a stamp.
+ */
+export function deathsFor(userId, { also = [] } = {}) {
+    const user = game.users.get(userId);
+    const deaths = {}, stamps = {};
+    if (!game.user?.isGM || !user || user.isGM) return { deaths, stamps };
+    for (const [actorId, row] of Object.entries(deathStore.entries())) {
+        if (!knowsOfDeath(user, actorId, row)) continue;
+        deaths[actorId] = { chapter: row.chapter ?? null, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null };
+        stamps[actorId] = deathStore.newest(actorId);
+    }
+    for (const actorId of also) if (!(actorId in stamps) && !deathStore.has(actorId)) stamps[actorId] = deathStore.newest(actorId);
+    return { deaths, stamps };
+}
+
+/**
+ * GM: send one user their deaths (`deathsFor`). Addressed, and only while they are here;
+ * nothing while the suite holds the stores or stands in another world. Answers whether it
+ * sent: an answer that names nothing is not sent, since a copy takes none.
+ */
+export function sendDeathsTo(userId, { also = [] } = {}) {
+    const user = game.users.get(userId);
+    if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
+    const { deaths, stamps } = deathsFor(userId, { also });
+    if (!Object.keys(stamps).length) return false;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: DEATHS_MINE, userId, deaths, stamps }, { recipients: [userId] });
+    } catch (err) {
+        error("Could not tell a player the deaths they know", err);
+        return false;
+    }
+    return true;
+}
+
+/** GM: each of these users sent their deaths, `also` naming bodies just dropped. Answers how many were sent. */
+export function tellDeaths(userIds, also = []) {
+    let sent = 0;
+    for (const userId of new Set(userIds)) if (sendDeathsTo(userId, { also })) sent++;
+    return sent;
+}
+
+/** After a restore (gm-stores.mjs `restoreCase`): every connected player is sent their deaths again, at their stamps. */
+export async function retellDeaths() {
+    if (!game.user?.isGM || gmStoresQuiet()) return 0;
+    return tellDeaths((game.users ?? []).filter(u => u.active && !u.isGM).map(u => u.id));
+}
+
+/** Player: take a GM's answer where it is newer (`deathCopy`), for this world's actors only. */
+export async function receiveDeaths(deaths, stamps) {
+    const mine = {}, own = {};
+    for (const [actorId, s] of Object.entries(stamps ?? {})) {
+        if (!game.actors.has(actorId)) continue;
+        own[actorId] = Number(s) || 0;
+        const row = deaths?.[actorId];
+        if (!row || typeof row !== "object") continue;
+        mine[actorId] = {
+            chapter: Number.isFinite(row.chapter) ? row.chapter : null,
+            day: Number.isFinite(row.day) ? row.day : null,
+            timeOfDay: typeof row.timeOfDay === "string" ? row.timeOfDay : null
+        };
+    }
+    return deathCopy.receive(mine, own);
+}
+
+/** GM: tell one player, by an addressed packet and no document, that they found this body alone. */
+export function tellFinder(userId, token, room) {
+    const user = game.users.get(userId);
+    if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: DEATHS_FOUND, userId, bodyId: token.actor?.id ?? null, name: token.name ?? "", room },
+            { recipients: [userId] });
+        return true;
+    } catch (err) {
+        error("Could not tell a player they found a body", err);
+        return false;
+    }
+}
+
+/**
+ * ON THIS SCREEN ALONE (E05 C10; the owner's Q1). A body this player may know and the table
+ * does not is drawn dead here - Foundry's own "defeated" icon over the token, a child of the
+ * token's object, never a status or a flag, which every console would read. Not measured: the
+ * harness has no canvas (26.09.2026), so this is a check for a real table.
+ */
+function markLocalDeath(token) {
+    try {
+        const actor = token?.actor;
+        const show = Boolean(actor) && !game.user.isGM && isDeadForGm(actor) && !isDeceased(actor);
+        let icon = token?.children?.find?.(c => c?.name === "drpg-local-dead") ?? null;
+        if (!show) {
+            if (icon) { token.removeChild(icon); icon.destroy(); }
+            return;
+        }
+        const src = CONFIG.controlIcons?.defeated;
+        if (icon || !src || !globalThis.PIXI?.Sprite?.from) return;
+        icon = PIXI.Sprite.from(src);
+        icon.name = "drpg-local-dead";
+        icon.anchor?.set?.(0.5);
+        const w = token.w ?? 100, h = token.h ?? 100;
+        icon.width = icon.height = Math.min(w, h) * 0.8;
+        icon.position.set(w / 2, h / 2);
+        icon.alpha = 0.8;
+        token.addChild(icon);
+    } catch (err) {
+        debug("Could not draw a body this player knows of as dead", err);
+    }
+}
+
+/** Player: ask the primary for the deaths this user may know. */
+function askForDeaths(primary = primaryGmId()) {
+    if (!primary || game.user.isGM) return;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: DEATHS_ASK }, { recipients: [primary] });
+    } catch (err) {
+        error("Could not ask the GM which deaths this client knows", err);
+    }
+}
+
+function onDeathsSocket(payload, senderId) {
+    if (payload?.action === DEATHS_ASK) {
+        if (!isPrimaryGm()) return;
+        const sender = game.users.get(senderId);
+        if (!sender?.active || sender.isGM) return;
+        // Asked while the suite holds the stores: answered once it lets them go.
+        whenGmStoresAudible().then(() => deathStore.whenHydrated()).then(() => sendDeathsTo(sender.id))
+            .catch(err => error("Could not answer a player's deaths", err));
+        return;
+    }
+    if (payload?.action === DEATHS_FOUND) {
+        if (game.user.isGM || payload.userId !== game.user.id || !game.users.get(senderId)?.isGM) return;
+        const body = game.actors.get(payload.bodyId);
+        if (!body) return;
+        ui.notifications.info(game.i18n.format("DRPG.Chapter.youFoundBody", {
+            name: String(payload.name || body.name), room: String(payload.room ?? "")
+        }), { permanent: true });
+        return;
+    }
+    if (payload?.action !== DEATHS_MINE || game.user.isGM) return;
+    // A GM's, and addressed to this user: a player cannot hand another a death.
+    if (payload.userId !== game.user.id || !game.users.get(senderId)?.isGM) return;
+    receiveDeaths(payload.deaths, payload.stamps).catch(err => error("Could not keep the deaths this client knows", err));
+}
+
+/** At ready: the copy's listener on every client, and a player's first ask. */
+function registerDeathCopy() {
+    Hooks.once("ready", () => {
+        game.socket.on(SOCKET_EVENT, onDeathsSocket);
+        if (game.user.isGM) return;
+        askForDeaths();
+        Hooks.on("drpgPrimaryReady", primary => askForDeaths(primary));
+        Hooks.on("refreshToken", token => markLocalDeath(token));
+        Hooks.on("drpgDeathsChanged", () => { for (const t of canvas?.tokens?.placeables ?? []) markLocalDeath(t); });
+    });
+}
+
 /**
  * THE CAST ENTERED BY HAND (E04; the design's 6.3, the health check's "Enter the
  * cast by hand"). An incident is running and this browser holds nobody in it - its
@@ -3044,6 +3240,7 @@ export async function liftIncidentMethod() {
 
 export function registerMurder() {
     registerIncidentCastSync();
+    registerDeathCopy();
 
     // The betrayal's day-long window (D18). Swept rather than counted down -
     // see `sweepBetrayalWindows`.

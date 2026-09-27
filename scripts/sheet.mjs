@@ -66,8 +66,8 @@ import { debug, error, plural } from "./utils.mjs";
 /*
  * Dead, as the person looking at this sheet may know it (E05 C9, rule C): on a
  * sheet the viewer owns - their own, or any sheet on a GM - what their browser
- * holds; on anybody else's, the table's fact. The same answer as `isDeceased`
- * until E05 C10 makes a death secret until its discovery.
+ * holds; on anybody else's, the table's fact - so the victim's own player sees the dead
+ * panel before anybody has found the body, and nobody else does (E05 C10).
  */
 function deadToViewer(actor) {
     return actor?.isOwner ? isDeadForGm(actor) : isDeceased(actor);
@@ -3346,6 +3346,13 @@ function injectActionPanel(app, element) {
         body.className = "notes";
         body.textContent = game.i18n.localize("DRPG.Chapter.deadPanelNote");
         note.append(heading, body);
+        // Dead, and nobody has found them yet (E05 C10): the victim's own player, and a GM.
+        if (!isDeceased(actor)) {
+            const unfound = document.createElement("p");
+            unfound.className = "notes";
+            unfound.textContent = game.i18n.localize(game.user.isGM ? "DRPG.Chapter.deadUnfound" : "DRPG.Chapter.nobodyFoundYou");
+            note.append(unfound);
+        }
         tab.prepend(note);
         return;
     }

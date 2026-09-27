@@ -1057,6 +1057,11 @@ async function wipeSeason(plan) {
             if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false);
             if (isDeceased(actor)) await reviveCharacter(actor, { quiet: true });
         }
+        /* The deaths nobody found (E05 C10): the group's cut, written above, takes the GMs'
+           rows on every GM and every player's copy; this drops what this browser holds. */
+        const { deathStore } = await import("./gm-stores.mjs");
+        if (isPrimaryGm()) await deathStore.clear();
+        else await deathStore.dropMany(Object.keys(deathStore.entries()));
     });
 
     await step("incident", "the incident", async () => {

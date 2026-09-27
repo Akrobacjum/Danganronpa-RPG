@@ -863,6 +863,26 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await S.castStore.clear();
         await game.settings.set("${MOD}", "murderState", ${J(stateBeforeK)}); return true;`);
     await settle(800);
+    /* K3 (E05 C10, 26.09.2026; audit S06-11): a death nobody has found reaches the second GM through
+       the deaths store, and its publication run there - `publishDeath`, the discovery's first step -
+       writes the flag and drops the row on both GMs. Not a whole discovery: it gathers every token
+       and asks about Faint Prep traces in the middle of this scenario; 72-canary runs one. */
+    const deathK = client => client.eval(`const ch = await import("${repoUrl}/scripts/chapter.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const a = game.actors.get("${IDS.daichi}"); return { held: ch.isDeadForGm(a), flag: ch.isDeceased(a), row: S.deathStore.has(a.id) };`);
+    await gm.eval(`const ch = await import("${repoUrl}/scripts/chapter.mjs");
+        return Boolean(await ch.killCharacter(game.actors.get("${IDS.daichi}"), { secret: true, keepBullets: true }));`, { timeout: 60000 });
+    await settle(1500);
+    const heldK3 = await deathK(gmb);
+    const publishedK3 = await gmb.eval(`const ch = await import("${repoUrl}/scripts/chapter.mjs");
+        return Boolean(await ch.publishDeath(game.actors.get("${IDS.daichi}")));`, { timeout: 60000 });
+    await settle(1500);
+    const afterK3 = { gm: await deathK(gm), gmb: await deathK(gmb) };
+    check("K3: a death nobody has found reaches the second GM, and its publication there writes the flag and drops the row on both GMs",
+        heldK3.held && heldK3.row && !heldK3.flag && publishedK3 && afterK3.gm.flag && !afterK3.gm.row && afterK3.gmb.flag && !afterK3.gmb.row,
+        J({ heldK3, publishedK3, afterK3 }));
+    await gm.eval(`const ch = await import("${repoUrl}/scripts/chapter.mjs");
+        await ch.reviveCharacter(game.actors.get("${IDS.daichi}"), { quiet: true }); return true;`, { timeout: 60000 });
+    await settle(800);
     await disconnect("gmb");
     await disconnect("gmc");
     await settle(300);

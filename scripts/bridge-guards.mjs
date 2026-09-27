@@ -245,6 +245,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["nothingToUndo", /^that Observe has no result to take back$/],
     ["nothingToUndo", /^no Analyze of that bullet this chapter to take back$/],
     ["cannotNow", /^that bullet cannot be analysed now$/],
+    // E05 C10: rule D - a refusal caused by a death, a body nobody has found among them (guardArmLiving).
+    ["cannotNow", /^that cannot be done now$/],
     ["cannotFrame", /^that student cannot be framed$/],
     ["notThere", /^the body is not in the killer's room$/],
     ["notThere", /^the character has no token on a scene$/],
@@ -622,6 +624,21 @@ export async function guardArmPlayerCall(sender, payload, ctx) {
     if (sender.isGM) return null;
     const { playerArmRefusal } = await import("./call-effects.mjs");
     return playerArmRefusal(payload.call);
+}
+
+/*
+ * RULE D (E05 C10, 26.09.2026; audit S06-11). A player's Call armed on a student the GMs know
+ * is dead is refused: the buyer's browser offers the living it knows of (call-effects.mjs
+ * `pickPlayer`), and a body nobody has found is one of those. Told as "cannot now", which
+ * names nobody; why is in this GM's log. A Monocub is dead and still a target.
+ */
+export async function guardArmLiving(sender, payload, ctx) {
+    if (sender.isGM) return null;
+    const actor = game.actors.get(payload.actorId);
+    const { isDeadForGm, isDeceased } = await import("./settings.mjs");
+    if (!actor || !isDeadForGm(actor) || actor.getFlag?.(MODULE_ID, "monocub")) return null;
+    warn(`A Call on ${actor.name} was refused: they are dead${isDeceased(actor) ? "" : ", and nobody has found the body"}.`);
+    return "that cannot be done now";
 }
 
 /*

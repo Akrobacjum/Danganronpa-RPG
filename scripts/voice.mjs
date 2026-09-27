@@ -44,7 +44,7 @@ import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
 import { allRooms } from "./movement.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive } from "./voice-client.mjs";
-import { isPrimaryGm, primaryGmId, debug, warn, error, plural } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, debug, warn, error, plural, whisperToGms } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 
 const AV_MODULE = "avclient-livekit";
@@ -104,6 +104,11 @@ export function registerVoice() {
         if (!flags) return;
         if (!(FLAGS.deceased in flags) && !(FLAGS.monocub in flags)) return;
         scheduleReconcile({ immediate: true });
+    });
+    // A death kept by the GMs writes nothing on the actor (E05 C10): its store's change
+    // is the one sign of it, on the GM that wrote it and on each that merged it.
+    Hooks.on("drpgDeathsChanged", () => {
+        if (game.user?.isGM) scheduleReconcile({ immediate: true });
     });
     // Both edges, and both immediate. Starting an Eclipse takes every voice off
     // the rooms at once - a placement window that begins with the table still
@@ -989,12 +994,12 @@ export async function voicePlan({ toChat = false } = {}) {
 
     const text = lines.join("\n");
     console.log(`${MODULE_ID} | Voice plan\n${text}`);
+    /* To the GMs' words store, not a message's (E05 C10): the plan names who is silenced by
+       death, a death nobody has found among them, and a whispered message is received by
+       every console (utils.mjs `privately`). */
     if (toChat) {
-        ChatMessage.create({
-            content: `<h3>Voice plan</h3><pre style="white-space:pre-wrap;font-size:.85em">${
-                foundry.utils.escapeHTML(text)}</pre>`,
-            whisper: [game.user.id]
-        });
+        await whisperToGms(`<h3>Voice plan</h3><pre style="white-space:pre-wrap;font-size:.85em">${
+            foundry.utils.escapeHTML(text)}</pre>`);
     }
     return text;
 }

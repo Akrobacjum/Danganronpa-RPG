@@ -52,6 +52,18 @@ export const SETTINGS = {
     mineEclipseMoves: "mineEclipseMoves",
     legacyEclipseMoves: "eclipseMoves",
     /**
+     * THE DEATHS NOBODY HAS FOUND (E05 C10, 1.2.64; audit S06-11): a GM store
+     * (gm-stores.mjs `deathStore`), a row per body `{ chapter, day, timeOfDay, at,
+     * keepBullets, known }`, and each player's copy of the bodies they may know
+     * (`deathCopy`: their own character, the incident they were in, a body they found
+     * alone). Until 1.2.64 a kill wrote the `deceased` flag, the `dead` status and the
+     * Truth Bullets' deletion at once, so every console knew who died from the moment
+     * of the killing. `isDeadForGm` reads these; the flag waits for the publication
+     * (chapter.mjs `publishDeath`).
+     */
+    gmDeaths: "gmDeaths",
+    mineDeaths: "mineDeaths",
+    /**
      * The live Despair Overflow: `{ count, active }` (Z10).
      *
      * `count` is spilled Despair waiting to be spent; `active` is the stamp of
@@ -1654,6 +1666,24 @@ export function registerSettings() {
         default: {},
         onChange: () => onStoreChange("visibility")
     });
+    // The deaths nobody has found (E05 C10): the GMs' store and a player's copy. A body
+    // kept secret redraws what a death redraws - the sheets, the HUD, the map - and is
+    // told to voice, the traps and the Players window by `drpgDeathsChanged`, which the
+    // flag's own `updateActor` does not reach while nothing is written to the actor.
+    game.settings.register(MODULE_ID, SETTINGS.gmDeaths, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onDeathsChange()
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineDeaths, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onDeathsChange()
+    });
     // The world key before 1.2.64: read once by `liftEclipseMoves`, and empty after.
     game.settings.register(MODULE_ID, SETTINGS.legacyEclipseMoves, {
         scope: "world",
@@ -1765,6 +1795,14 @@ function onWorldChange(key) {
  */
 function onStoreChange(kind) {
     import("./sync.mjs").then(m => m.applyKind(m.SYNC[kind])).catch(() => {});
+}
+
+/* A death kept by the GMs changed on this browser: the sheets, the HUD and the map
+   (the "visibility" kind redraws all three), and the hook the death's own readers
+   listen on - voice, the traps' map, the Players window. */
+function onDeathsChange() {
+    onStoreChange("visibility");
+    Hooks.callAll("drpgDeathsChanged");
 }
 
 /**
@@ -1960,13 +1998,19 @@ export function incidentWitness() {
  *                 browser about what it may know (the victim's own sheet, Calls,
  *                 actions, the movement veto).
  *
- * Until E05 C10 the two answer the same, because a death is published at the
- * kill; C9 only moved every reader onto the one it will need, and the suite and
- * every ci scenario came out identical before and after, check by check (twice
- * for the suite, 26.09.2026). R192 holds that nothing else reads the flag. The
- * status read in traps.mjs went: markDeceased writes the
- * flag and the status together, and a status a GM toggles on the token by hand
- * without the flag is not a death anywhere else in the module.
+ * E05 C9 moved every reader onto the one it needs while the two still answered
+ * the same (the suite and every ci scenario identical before and after, check by
+ * check, 26.09.2026). R192 holds that nothing else reads the flag. The status
+ * read in traps.mjs went: markDeceased writes the flag and the status together,
+ * and a status a GM toggles on the token by hand without the flag is not a death
+ * anywhere else in the module.
+ *
+ * TWO PHASES (E05 C10; audit S06-11). A killing in an incident writes only the
+ * GMs' store (`deaths`) and the copies of those who may know; the flag, the
+ * status and the Truth Bullets' deletion wait for the body to be found or for a
+ * GM's hand (chapter.mjs `publishDeath`; the owner's Q3, 26.09.2026). From then
+ * on the two differ: on a GM a row of the store is a death, on a player a row of
+ * their copy (`mineDeaths`) - never another player's secret.
  */
 
 /** When they died as the world records it, or `null` - the flag, read here and in `isDeceased` only. */
@@ -1979,14 +2023,37 @@ export function isDeceased(actor) {
     return Boolean(actor?.getFlag?.(MODULE_ID, FLAGS.deceased));
 }
 
-/** Dead as this browser may know it (see above; the same as `isDeceased` until E05 C10). */
-export function isDeadForGm(actor) {
-    return isDeceased(actor);
+/**
+ * A death nobody has published that this browser holds, or `null`: the GMs' row on a GM,
+ * the row of this player's copy on a player. By the actor's id, so a token's synthetic
+ * actor reads its base actor's.
+ */
+export function pendingDeath(actor) {
+    const id = actor?.id;
+    if (!id) return null;
+    const row = game.user?.isGM ? gmStoreByName("deaths")?.get(id) : readMine("deaths")?.[id];
+    return row && typeof row === "object" ? row : null;
 }
 
-/** The record of a death this browser may know: the flag's, and from E05 C10 else the pending row's. */
+/** Dead as this browser may know it: the flag, or a death this browser holds (see above). */
+export function isDeadForGm(actor) {
+    return deadIn(actor, () => pendingDeath(actor));
+}
+
+/**
+ * The rule under `isDeadForGm`, with the reader of the held rows handed in (R193 drives it
+ * on fake stores): the table's fact first, and a row held here only for an actor with an id.
+ */
+export function deadIn(actor, held) {
+    return isDeceased(actor) || Boolean(actor?.id && held(actor.id));
+}
+
+/** The record of a death this browser may know: the flag's, else the pending row's chapter, day and time of day. */
 export function deathRecordFor(actor) {
-    return deathRecord(actor);
+    const flag = deathRecord(actor);
+    if (flag) return flag;
+    const row = pendingDeath(actor);
+    return row ? { chapter: row.chapter ?? null, day: row.day ?? null, timeOfDay: row.timeOfDay ?? null } : null;
 }
 
 /*

@@ -539,6 +539,27 @@ export function playSfxFor(actor, key) {
  * and the one thing a horror game's sound design cannot survive is a stranger
  * with the button.
  */
+/**
+ * `playSfxFor` for a list of users (E05 C10). A death kept by the GMs has a card, and a
+ * sound on a card is a flag of the message, which every console receives whoever it is
+ * whispered to - a death sound at that moment would say somebody died. So the sound goes
+ * to the card's readers by address: played here when this browser is one of them.
+ */
+export function playSfxForUsers(userIds, key) {
+    for (const id of new Set(userIds ?? [])) {
+        if (id === game.user?.id) {
+            playSfx(key);
+            continue;
+        }
+        if (!game.users.get(id)?.active) continue;
+        try {
+            game.socket.emit(`module.${MODULE_ID}`, { action: SFX_ACTION, key, userId: id }, { recipients: [id] });
+        } catch (err) {
+            warn("Could not send a sound to the player it was for", err);
+        }
+    }
+}
+
 function onSfxSocket(data, senderId) {
     if (data?.action !== SFX_ACTION) return;
     if (!game.users.get(senderId)?.isGM) return;

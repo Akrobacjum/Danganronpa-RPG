@@ -615,6 +615,8 @@ export function registerTraps() {
        GM's Rearm reaches the primary's map by this listener alone (61 P2). */
     Hooks.on("clientSettingChanged", key => {
         if (key === `${MODULE_ID}.${SETTINGS.projectSecrets}`) forgetArmedTraps();
+        // A killer who died in secret (E05 C10): the GMs' store of deaths, which writes no actor.
+        if (key === `${MODULE_ID}.${SETTINGS.gmDeaths}`) forgetArmedTraps();
     });
     // A killer who dies stops hunting, and `trapProjects` reads that off the
     // actor - so the map has to be dropped when one changes.

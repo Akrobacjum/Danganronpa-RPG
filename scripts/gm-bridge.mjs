@@ -22,7 +22,7 @@ import {
     guardCrisisReceipt, guardCleanupReceipt, guardProgressOwner, guardProgressReceipt, guardShareSecret,
     guardShareGuest, guardTieTraceHolder, guardRemnantEditReceipt, guardUnsabotagePair, guardUnsabotageOwner,
     guardUnsabotageReceipt, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
-    guardArmCallGrants, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
+    guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
     guardArmBuyerHope, guardDespairOwner, guardDespairMonokuma, guardDespairDelta, guardDespairPool,
     guardDespairReceipt, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
     playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady
@@ -877,7 +877,7 @@ async function handleLoot(payload, sender, ctx) {
     // with its reason on the GM's console; the asker is told only that nothing
     // was carried out, whichever reason it was (E31 review).
     const taken = await lootBody({
-        takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId
+        takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId, askedBy: sender.isGM ? null : sender.id
     });
     if (!taken) return { refused: "nothing was carried out: lootBody took nothing" };
 }
@@ -1399,7 +1399,7 @@ export const BRIDGE_ACTIONS = table({
             // not, so "arm me a Free Critical" was a single socket emit away, paid
             // for with nothing.
             owns(armBuyerId, "sender does not own the character paying for it"),
-            guardArmPlayerCall, guardArmCallGrants
+            guardArmPlayerCall, guardArmCallGrants, guardArmLiving
         ],
         // The player's road asks these itself, around a replayed purchase that is
         // answered rather than refused (`armPaidByPlayer`).

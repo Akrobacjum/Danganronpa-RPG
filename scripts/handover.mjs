@@ -190,12 +190,14 @@ async function verify(fromId, toId, itemId) {
     // directly, and the ordinary race where the recipient dies between the
     // giver choosing them and this running. Either way the item would land on
     // an actor whose inventory has already been destroyed, and stay there.
-    const { isDeadForGm } = await import("./chapter.mjs");
+    const { isDeadForGm, isDeceased } = await import("./chapter.mjs");
     if (isDeadForGm(to)) {
-        warn(`Handover refused: ${to.name} is dead.`);
-        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.recipientDead", {
-            name: foundry.utils.escapeHTML(to.name)
-        })}</p>`);
+        warn(`Handover refused: ${to.name} is dead${isDeceased(to) ? "" : " (nobody has found the body)"}.`);
+        /* Rule D (E05 C10): a body nobody has found is not named to the giver, who may not
+           know of it - they are told it cannot be done now, and the reason stays here. */
+        await whisperToOwner(from, `<p>${isDeceased(to)
+            ? game.i18n.format("DRPG.Handover.recipientDead", { name: foundry.utils.escapeHTML(to.name) })
+            : game.i18n.localize("DRPG.Bridge.why.cannotNow")}</p>`);
         return null;
     }
 
@@ -368,7 +370,7 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
  * bypassed all of it. The trace does not take the suppression away - it prices
  * it, in the machinery that already exists.
  */
-export async function lootBody({ takerId, bodyId, itemId } = {}) {
+export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {}) {
     if (!game.user.isGM) return null;
 
     const taker = game.actors.get(takerId);
@@ -376,10 +378,20 @@ export async function lootBody({ takerId, bodyId, itemId } = {}) {
     const item = body?.items?.get(itemId);
     if (!taker || !body || !item) return null;
 
-    const { isDeceased } = await import("./chapter.mjs");
+    /* BEFORE THE DISCOVERY, BY THOSE WHO KNOW (E05 C10; the owner's Q2, 26.09.2026). A body
+       nobody has found may be searched by whoever knows of the death - the incident's
+       players, the victim's own, a GM - asked of the GMs' record by the user who sent the
+       request (`askedBy`, Foundry's sender; a GM's own button sends none), never of the
+       public fact. The item moving between two sheets is world data every console reads,
+       which the owner chose knowing it. */
+    const { isDeceased, isDeadForGm } = await import("./chapter.mjs");
     if (!isDeceased(body)) {
-        warn(`Refused to loot ${body.name}: they are not dead.`);
-        return null;
+        const { knowsOfDeath } = await import("./murder.mjs");
+        const asker = askedBy ? game.users.get(askedBy) : game.user;
+        if (!isDeadForGm(body) || !knowsOfDeath(asker, body.id)) {
+            warn(`Refused to loot ${body.name}: ${isDeadForGm(body) ? "the asker does not know of the death" : "they are not dead"}.`);
+            return null;
+        }
     }
     if (isTruthBullet(item)) {
         // They perish at death and should never be here to take.

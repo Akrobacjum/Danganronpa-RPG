@@ -1629,6 +1629,15 @@
       "deadPanelTitle": "You are dead",
       "deadPanelNote": "The dead take no actions and spend no Hope. You keep your sheet and your voice at the table. Brought back as a Monocub, this panel becomes Move and Confusion.",
       "deadCannotAct": "{name} is dead and cannot take actions.",
+      "deadUnfound": "Dead, not found",
+      "keepSecretUntilFound": "Keep it the GMs' until the body is found: no flag, no marker, and their Truth Bullets stay until then",
+      "keptUntilFound": "Kept by the GMs until the body is found or you make it known in the Players window. The table sees nothing yet: no flag, no marker, and their Truth Bullets are still on the sheet.",
+      "nobodyFoundYou": "Nobody has found your body yet.",
+      "youFoundBody": "In {room} you find the body of {name}. Nobody else has seen it yet, and nothing is announced.",
+      "deathsStillSecret": {
+        "one": "{n} death nobody has found is still the GMs' alone. It counts nowhere in this trial - no ballot, no count - until you make it known in the Players window.",
+        "other": "{n} deaths nobody has found are still the GMs' alone. They count nowhere in this trial - no ballot, no count - until you make them known in the Players window."
+      },
       "bodyTitle": "A body is discovered",
       "whereBody": "Which room?",
       "whoseBody": "Whose body? (optional)",
@@ -3350,7 +3359,8 @@
         "pendingMurders": "The Direct Murders declared in the dark",
         "eclipseMoves": "Who has crossed how often in the Eclipse",
         "keyPlan": "The Key Remnant plan, chapter by chapter",
-        "notes": "The players' pre-session notes"
+        "notes": "The players' pre-session notes",
+        "deaths": "The deaths nobody has found yet"
       },
       "row": {
         "traces": {

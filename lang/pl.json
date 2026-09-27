@@ -1658,6 +1658,17 @@
       "deadPanelTitle": "Nie żyjesz",
       "deadPanelNote": "Zmarli nie wykonują akcji i nie wydają Hope. Zachowujesz kartę i głos przy stole. Przywrócony jako Monocub, ten panel staje się Move i Confusion.",
       "deadCannotAct": "{name} nie żyje i nie może wykonywać akcji.",
+      "deadUnfound": "Martwy, nieodnaleziony",
+      "keepSecretUntilFound": "Zachowaj to dla GM-ów, dopóki ciało nie zostanie znalezione: bez flagi, bez znacznika, a ich Truth Bullets zostają do tego czasu",
+      "keptUntilFound": "Zachowane dla GM-ów, dopóki ciało nie zostanie znalezione albo nie ujawnisz tego w oknie graczy. Stół jeszcze nic nie widzi: bez flagi, bez znacznika, a ich Truth Bullets są wciąż na arkuszu.",
+      "nobodyFoundYou": "Nikt jeszcze nie znalazł twojego ciała.",
+      "youFoundBody": "W {room} znajdujesz ciało: {name}. Nikt inny jeszcze go nie widział i nic nie zostaje ogłoszone.",
+      "deathsStillSecret": {
+        "one": "{n} śmierć, której nikt nie odkrył, jest wciąż znana tylko GM-om. Nie liczy się nigdzie w tym procesie - ani w głosowaniu, ani w liczeniu - dopóki nie ujawnisz jej w oknie graczy.",
+        "few": "{n} śmierci, których nikt nie odkrył, są wciąż znane tylko GM-om. Nie liczą się nigdzie w tym procesie - ani w głosowaniu, ani w liczeniu - dopóki nie ujawnisz ich w oknie graczy.",
+        "many": "{n} śmierci, których nikt nie odkrył, jest wciąż znanych tylko GM-om. Nie liczą się nigdzie w tym procesie - ani w głosowaniu, ani w liczeniu - dopóki nie ujawnisz ich w oknie graczy.",
+        "other": "{n} śmierci, których nikt nie odkrył, jest wciąż znanych tylko GM-om. Nie liczą się nigdzie w tym procesie - ani w głosowaniu, ani w liczeniu - dopóki nie ujawnisz ich w oknie graczy."
+      },
       "bodyTitle": "Znaleziono ciało",
       "whereBody": "Który pokój?",
       "whoseBody": "Czyje ciało? (opcjonalne)",
@@ -4579,7 +4590,8 @@
         "pendingMurders": "Zgłoszenia Direct Murder w ciemności",
         "eclipseMoves": "Kto ile razy przeszedł w czasie Eclipse",
         "keyPlan": "Plan Key Remnants, rozdział po rozdziale",
-        "notes": "Notatki graczy przed sesją"
+        "notes": "Notatki graczy przed sesją",
+        "deaths": "Śmierci, których nikt jeszcze nie odkrył"
       },
       "row": {
         "traces": {

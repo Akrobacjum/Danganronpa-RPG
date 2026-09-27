@@ -399,11 +399,19 @@ const SCENARIOS = [
         equal(murder.murderState().killerTurnId, killer.id, "the next round opens on the first killer again");
     }],
 
-    ["a Finishing Blow actually kills", async () => {
+    ["a Finishing Blow leaves the victim unflagged, dead to the GMs, until the discovery publishes it", async () => {
+        /* E05 C10, 26.09.2026; audit S06-11. The blow used to write the flag, the "dead" status
+           and the Truth Bullets' deletion at once, which every console reads; the victim is a
+           row of the GMs' store until the body is found (runDiscovery, measured end to end by
+           72-canary) or a GM makes it known - both through `publishDeath`, driven here. */
         const [killer, victim] = cast(2);
         const drpg = game.drpg;
-        const { isDeceased } = await import("./chapter.mjs");
+        const { isDeceased, isDeadForGm, deathRecordFor, publishDeath } = await import("./chapter.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const { createTruthBullet, bulletsOf } = await import("./truth-bullets.mjs");
 
+        await createTruthBullet(victim, { name: "SUITE C10 a hunch", playerText: "SUITE C10" });
+        const bullets = bulletsOf(victim).length;
         await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
         await settle();
         await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
@@ -411,15 +419,80 @@ const SCENARIOS = [
         await drpg.passTurn();
         await settle();
 
-        ok(!isDeceased(victim), "the victim started the test dead");
+        ok(!isDeadForGm(victim), "the victim started the test dead");
         await drpg.resolveCrisisAction({
             actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true
         });
         await wait(1600);
 
         equal(drpg.murderState()?.stage, "resolution", "stage after the blow");
-        ok(isDeceased(victim), "the victim is not recorded dead");
-        ok(victim.effects.some(e => e.statuses?.has?.("dead")), "no dead marker on the token");
+        equal(JSON.stringify([isDeceased(victim), victim.statuses?.has?.("dead") ?? false, bulletsOf(victim).length >= bullets]),
+            JSON.stringify([false, false, true]), "the blow wrote the flag, the marker or the bullets' deletion, which every console reads");
+        ok(isDeadForGm(victim) && deathStore.has(victim.id), "the victim is not dead to the GMs");
+        const when = deathRecordFor(victim);
+
+        const record = await publishDeath(victim);
+        equal(JSON.stringify([isDeceased(victim), victim.statuses?.has?.("dead") ?? false, bulletsOf(victim).length, deathStore.has(victim.id)]),
+            JSON.stringify([true, true, 0, false]), "the publication did not write the flag and the marker, take the bullets and drop the row");
+        equal(JSON.stringify(record), JSON.stringify(when), "the published record is not the kill's own chapter, day and time of day");
+        equal(JSON.stringify(await publishDeath(victim)), JSON.stringify(record), "a second publication is not a no-op");
+    }],
+
+    ["a death nobody found stays the GMs' when the trial starts, and the GM's hand makes it known", async () => {
+        /* E05 C10; the owner's Q3, 26.09.2026: besides the discovery only a GM publishes a death,
+           and until then it counts nowhere. The trial's start tells the GM how many there are
+           (`tellUnfoundDeaths`, which clock.mjs runs on the phase's entry) and publishes none;
+           the Players window's "dead" (gm-panel.mjs `applyAliveStates`) is the GM's hand. */
+        const [victim] = cast(1);
+        const { isDeceased, isDeadForGm, killCharacter, tellUnfoundDeaths, livingStudents } = await import("./chapter.mjs");
+        const { applyAliveStates } = await import("./gm-panel.mjs");
+        ok(await killCharacter(victim, { secret: true }), "the secret death was not recorded");
+        equal(tellUnfoundDeaths(), 1, "the trial's start did not count the one death nobody found");
+        equal(JSON.stringify([isDeceased(victim), isDeadForGm(victim), livingStudents().some(a => a.id === victim.id)]),
+            JSON.stringify([false, true, true]), "the trial's start published the death, or it counts among the dead of the table");
+        equal(await applyAliveStates({ [victim.id]: { state: "dead" } }), 1, "the Players window's \"dead\" changed nothing");
+        equal(JSON.stringify([isDeceased(victim), tellUnfoundDeaths()]), JSON.stringify([true, 0]),
+            "the GM's hand did not make the death known");
+    }],
+
+    ["revive drops a pending death, and writes nothing on the living student", async () => {
+        /* E05 C10. A death kept by the GMs is a row and nothing on the actor, so taking it back
+           is a stamped drop - an unset flag on a student nobody saw die would tell every console
+           that something about a death moved. */
+        const [victim] = cast(1);
+        const { isDeadForGm, killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        ok(await killCharacter(victim, { secret: true, keepBullets: true }), "the secret death was not recorded");
+        let writes = 0;
+        const hook = Hooks.on("updateActor", a => { if (a.id === victim.id) writes++; });
+        try {
+            ok(await reviveCharacter(victim, { quiet: true }), "the revival failed");
+            await settle();
+        } finally {
+            Hooks.off("updateActor", hook);
+        }
+        equal(JSON.stringify([isDeadForGm(victim), deathStore.has(victim.id), deathStore.tombstone(victim.id) > 0, writes]),
+            JSON.stringify([false, false, true, 0]), "the revival left the row, dropped it unstamped, or wrote on the actor");
+    }],
+
+    ["a Call armed on a body nobody has found is refused as cannot now, naming nobody", async () => {
+        /* E05 C10, 26.09.2026; rule D. A player's browser offers the living it knows of, and a body
+           nobody has found is one of those; the GM's arm refuses it in words that name nobody
+           (bridge-guards.mjs `guardArmLiving`), passes the living, and leaves a GM's own road alone. */
+        const [victim] = cast(1);
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { guardArmLiving, reasonOf } = await import("./bridge-guards.mjs");
+        const player = { isGM: false, id: "SUITEE05PLAYER01" };
+        equal(await guardArmLiving(player, { actorId: victim.id }), null, "a Call on a living student was refused");
+        ok(await killCharacter(victim, { secret: true, keepBullets: true }), "the secret death was not recorded");
+        try {
+            const why = await guardArmLiving(player, { actorId: victim.id });
+            equal(JSON.stringify([why, reasonOf(why ?? ""), await guardArmLiving({ isGM: true }, { actorId: victim.id })]),
+                JSON.stringify(["that cannot be done now", "cannotNow", null]),
+                "a Call on a body nobody has found was not refused as cannot now, or a GM's own road was");
+        } finally {
+            await reviveCharacter(victim, { quiet: true });
+        }
     }],
 
     ["openMurder refuses during an Eclipse, but not once one has actually ended", async () => {
@@ -8926,6 +8999,15 @@ const SCENARIOS = [
                 },
                 gone: (report, id) => !S.eclipseMoveStore.has(id),
                 back: id => S.eclipseMoveStore.get(id)?.used === 1 && S.eclipseMoveStore.get(id)?.eclipse === "SUITE backed-up Eclipse"
+            },
+            // A death nobody has found, through its store (E05 C10): no player is sent it while the stores are held (R184).
+            deaths: {
+                seed: async () => {
+                    await S.deathStore.patch(holder.id, { chapter: 99, day: 1, timeOfDay: "night", at: 1, keepBullets: true, known: [] });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.deathStore.has(id),
+                back: id => S.deathStore.get(id)?.chapter === 99
             },
             // A pre-session note, through its store (E05 C6): the GM's own row, which no player is sent.
             notes: {

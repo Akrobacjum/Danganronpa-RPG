@@ -524,6 +524,14 @@ async function reconcilePhase(from, to) {
         } catch (err) {
             error("Could not charge for the Key Remnants nobody found", err);
         }
+        try {
+            /* A death nobody has found stays the GMs' through the trial (E05 C10; the owner's
+               Q3, 26.09.2026): the GM opening it is told how many, and publishes by hand. */
+            const { tellUnfoundDeaths } = await import("./chapter.mjs");
+            tellUnfoundDeaths();
+        } catch (err) {
+            error("Could not count the deaths nobody has found at the trial's start", err);
+        }
     }
 }
 

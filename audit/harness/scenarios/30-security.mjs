@@ -176,13 +176,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
         B.requestCrisisResult({ actorId: "${ids.botan}", key: "finishingBlow", total: 99, isCritical: false, withHope: true }); return true;`);
     await settle(1700);
-    const early = await gm.eval(`return { dead: game.drpg.isDeceased(game.actors.get("${ids.daichi}")),
+    // Dead as the GMs know it (E05 C10): a killing is the GMs' own until the body is found, so the flag would read "alive" either way.
+    const early = await gm.eval(`return { dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")),
         reasons: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "murder.crisis"')).map(e => e.message) };`);
     check("SECURITY: a finishing blow thrown out of turn by the killer's own player kills nobody and is refused",
         victimTurn === "victim" && early.dead === false && early.reasons.some(r => /not their turn/.test(r)), JSON.stringify({ victimTurn, ...early }));
     await toSide("killer");
     await settle(500);
-    const readCrisis = `return { stage: game.drpg.murderState()?.stage ?? null, dead: game.drpg.isDeceased(game.actors.get("${ids.daichi}")) };`;
+    const readCrisis = `return { stage: game.drpg.murderState()?.stage ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")) };`;
     const blow = await forge("murder.crisis", { actorId: ids.botan, key: "finishingBlow", total: 99, isCritical: false, withHope: true }, readCrisis);
     await settle(1200); // a killing lands after a beat (10-murder waits 1.7 s); wait it out before calling it unchanged
     const blowLater = await gm.eval(readCrisis);

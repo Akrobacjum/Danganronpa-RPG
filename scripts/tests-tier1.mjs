@@ -3952,7 +3952,9 @@ const INVARIANTS = [
            user's characters (C8), the fog's, a section of the store (C9), and since E05 the
            crossings' and the note's (C4, C6) - so a call of it passes none. */
         const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"],
-            ["fog.mjs", "sendStoreTo", "own"], ["eclipse.mjs", "sendMovesTo", "own"], ["pre-session-note.mjs", "sendNoteTo", "own"]];
+            ["fog.mjs", "sendStoreTo", "own"], ["eclipse.mjs", "sendMovesTo", "own"], ["pre-session-note.mjs", "sendNoteTo", "own"],
+            // E05 C10: the deaths a player may know, a stamp per body read off the store's rows.
+            ["murder.mjs", "sendDeathsTo", "own"]];
         // The crossings' copy (E05 C4) is an owner's whole set, a stamp per character, as the offers are.
         const { eclipseMoveCopy } = await import("./gm-stores.mjs");
         ok(G.gmCopySpec(eclipseMoveCopy.name)?.combine === offersCombine, "the crossings' copy is not weighed by the offers' rule");
@@ -4507,7 +4509,7 @@ const INVARIANTS = [
         }
         ok(!wrong.length, `a player's copy is not sent again after a restore: ${wrong.join("; ")}`);
         const RETELLS = [["mastermind.mjs", "retellDoor"], ["murder.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"],
-            ["eclipse.mjs", "retellMoves"], ["pre-session-note.mjs", "retellNotes"]];
+            ["eclipse.mjs", "retellMoves"], ["pre-session-note.mjs", "retellNotes"], ["murder.mjs", "retellDeaths"]];
         const hooks = E.gmStoreHandles().map(h => String(h.spec.afterRestore ?? ""));
         const uncalled = RETELLS.filter(([, fn]) => !hooks.some(src => src.includes(`.${fn}(`))).map(([, fn]) => fn);
         ok(!uncalled.length, `no store's afterRestore calls ${uncalled.join(", ")}`);
@@ -4626,6 +4628,69 @@ const INVARIANTS = [
             "the killer's id planted as a setting's key and deep in an actor's flag was not found at each, or was found somewhere else");
         equal(JSON.stringify(W.findWorldSecrets(clean(), { ids: [KILLER] })), "[]",
             "a clean snapshot reads as holding a secret - the killer's id in another module's flags, or as the document's own id");
+    }],
+
+    ["R193 - a death is the table's only once it is published", async () => {
+        /*
+         * E05 C10, 26.09.2026; audit S06-11. A killing in an incident writes a row of the
+         * GMs' `deaths` store and a copy for those who may know; the flag waits for the
+         * body's discovery or a GM's hand (chapter.mjs `publishDeath`). Driven on engines
+         * built with fakes - storage in a Map - so nothing in this browser is written:
+         * `deadIn`, the rule under `isDeadForGm`, by role - a GM holding the row, the
+         * victim's player holding a copy, a bystander holding none - and a flag, dead to
+         * each of them; `knowsOfDeath`, where `known` is the only way in for a player who
+         * neither owns the body nor is a GM (a finder's part, Q1); and the copy, weighed by
+         * the offers' rule, which a later answer naming the body gone empties.
+         */
+        const G = await import("./gm-store.mjs");
+        const { deadIn } = await import("./settings.mjs");
+        const { deathCopy, offersCombine } = await import("./gm-stores.mjs");
+        const { knowsOfDeath } = await import("./murder.mjs");
+        const quiet = { warn: () => {}, error: () => {}, debug: () => {} };
+        const engineOf = (self, gm) => {
+            const store = new Map(), flushes = [];
+            const eng = G.createGmStoreEngine({
+                selfId: () => self, isGM: () => gm, isPrimary: () => gm, worldId: () => "R193WORLD",
+                activeGmIds: () => ["R193GM"], primaryGmId: () => "R193GM", senderIsGM: () => true, userName: u => u, send: () => {},
+                storage: { read: k => store.get(k) ?? null, write: async (k, v) => { store.set(k, JSON.stringify(v)); } },
+                readLegacy: () => undefined, now: () => 9_000_000,
+                timers: { set: fn => { flushes.push(Promise.resolve().then(fn)); return flushes.length; }, clear: () => {} },
+                clock: () => ({ resetCuts: {} }), log: quiet, notify: () => {}, text: key => key
+            });
+            return { eng, settle: async () => { for (let i = 0; i < 4; i++) await Promise.all(flushes); } };
+        };
+        const actor = (id, flag = null) => ({ id, getFlag: (scope, key) => (key === "deceased" ? flag : null) });
+        const VICTIM = "R193VICTIM000001", PUBLIC = "R193PUBLIC000001";
+        const victim = actor(VICTIM), published = actor(PUBLIC, { chapter: 1, day: 2, timeOfDay: "night" });
+
+        const gm = engineOf("R193GM", true);
+        const rows = gm.eng.define({ name: "r193deaths", key: "r193Deaths", kind: "ledger", resetGroup: "deaths", sync: true, backup: true });
+        await rows.patch(VICTIM, { chapter: 1, day: 2, timeOfDay: "night", at: 1, keepBullets: false, known: ["R193KILLER"] });
+        await gm.settle();
+        const row = rows.get(VICTIM);
+
+        const owner = engineOf("R193OWNER", false), bystander = engineOf("R193BYSTANDER", false);
+        const copyOf = e => e.eng.defineCopy({ name: "r193deaths", key: "r193MineDeaths", resetGroup: "deaths", fallback: {}, combine: offersCombine });
+        const ownerCopy = copyOf(owner), bystanderCopy = copyOf(bystander);
+        equal(await ownerCopy.receive({ [VICTIM]: { chapter: 1, day: 2, timeOfDay: "night" } }, { [VICTIM]: rows.newest(VICTIM) }), true,
+            "the victim's player did not take the copy of their own death");
+        const held = { gm: id => rows.get(id), owner: id => ownerCopy.read()?.[id], bystander: id => bystanderCopy.read()?.[id] };
+        equal(JSON.stringify(Object.fromEntries(Object.entries(held).map(([who, h]) => [who, [deadIn(victim, h), deadIn(published, h)]]))),
+            JSON.stringify({ gm: [true, true], owner: [true, true], bystander: [false, true] }),
+            "a death kept by the GMs read wrong by role - dead to the GM and to the victim's player, alive to a bystander - or a published one was not dead to all");
+        ok(!deadIn({ getFlag: () => null }, () => row), "an actor with no id read as dead through a held row");
+
+        const users = { gm: { id: "R193GM", isGM: true }, killer: { id: "R193KILLER", isGM: false }, finder: { id: "R193FINDER", isGM: false } };
+        equal(JSON.stringify([knowsOfDeath(users.gm, VICTIM, row), knowsOfDeath(users.killer, VICTIM, row), knowsOfDeath(users.finder, VICTIM, row),
+            knowsOfDeath(users.finder, VICTIM, { ...row, known: [...row.known, users.finder.id] }), knowsOfDeath(users.gm, VICTIM, null)]),
+            JSON.stringify([true, true, false, true, false]),
+            "who may know of a death kept by the GMs is not a GM, the row's known and nobody else (a finder only once named, nobody for no row)");
+
+        await rows.drop(VICTIM);
+        await gm.settle();
+        equal(await ownerCopy.receive({}, { [VICTIM]: rows.newest(VICTIM) }), true, "an answer naming the published body gone was refused");
+        equal(JSON.stringify(ownerCopy.read()), "{}", "the copy still holds a death the GMs published");
+        ok(G.gmCopySpec(deathCopy.name)?.combine === offersCombine, "the deaths' copy is not weighed by the offers' rule");
     }]
 ];
 

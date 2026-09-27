@@ -3173,7 +3173,9 @@ const REGRESSIONS = [
             "the donation controls are built from a string read once");
         ok(/const donors = buildDonors\(\);/.test(window),
             "buildDonors exists but the rows do not call it, so nothing changed");
-        ok(/watch: \{ actors: true \}/.test(window),
+        /* E05 C10 adds the deaths store's hook: a death nobody has found writes no actor, and a
+           hook more widens the net - a `settings` filter is what would narrow it. */
+        ok(/watch: \{ actors: true(?:, hooks: \[[^\]]*\])? \}/.test(window),
             "this window's live watch was narrowed - an omitted settings filter is the wide "
             + "net, and the table is built out of several settings");
     }],
@@ -3211,7 +3213,9 @@ const REGRESSIONS = [
         ok(/await markDeceased\(actor\)/.test(kill),
             "killCharacter writes the deceased flag itself again, so there are two answers "
             + "to what deceased means");
-        const order = ["bulletsOf(", "markDeceased(", "whisperToGms(", "tieChapterTraces("];
+        /* E05 C10: the bullets' deletion is `destroyBullets`, which the publication of a death kept
+           by the GMs (`publishDeath`) runs too - still before the flag, the card and the traces. */
+        const order = ["destroyBullets(", "markDeceased(", "whisperToGms(", "tieChapterTraces("];
         for (let i = 1; i < order.length; i++) {
             const before = kill.indexOf(order[i - 1]);
             const after = kill.indexOf(order[i]);
