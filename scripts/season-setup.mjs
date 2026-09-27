@@ -1290,7 +1290,28 @@ async function wipeSeason(plan) {
     // The Key Remnant plan is a GM store since E05 (a row per chapter and slot), not a row
     // above: the cut written first takes every chapter's rows on every GM, one away now
     // included, and this clears what this browser holds.
-    await step("keyPlan", "the Key Remnant plan", () => import("./investigation.mjs").then(m => m.clearKeyPlan()));
+    //
+    // KEPT IS NOT WHOLE (E05 fix r1-G5, M3). Ticked, `step` runs `clearKeyPlan` as any other
+    // group. Unticked, `step` on its own does nothing and every chapter's rows ride into the
+    // new season - which is not what 1.2.63's single stored plan ever did: it held one
+    // chapter's plan and showed it again only once the clock reached that number, so a
+    // season that never revisited it never had it "planned". Read before the "clock" step
+    // below sends the chapter back to 1, because after that every chapter is "other than
+    // the clock's".
+    if (plan.groups.has("keyPlan")) {
+        await step("keyPlan", "the Key Remnant plan", () => import("./investigation.mjs").then(m => m.clearKeyPlan()));
+    } else {
+        const keptChapter = getClock().chapter;
+        try {
+            const dropped = await import("./investigation.mjs").then(m => m.keepOnlyKeyPlanChapter(keptChapter));
+            kept.push(dropped
+                ? `the Key Remnant plan (chapter ${keptChapter} only, ${dropped} other row(s) dropped)`
+                : "the Key Remnant plan");
+        } catch (err) {
+            error(`Season reset: could not trim the kept Key Remnant plan to chapter ${keptChapter}`, err);
+            kept.push("the Key Remnant plan");
+        }
+    }
 
     await step("clock", "the clock", async () => {
         const clock = getClock();

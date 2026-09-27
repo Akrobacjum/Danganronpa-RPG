@@ -995,8 +995,9 @@ async function handleDespair(payload, sender, ctx) {
 }
 
     // An Eclipse crossing. Counted on this side, where the allowance is judged since E05
-    // (a crossing beyond it is refused, and counts nothing); the answer is the new count,
-    // which the mover's sheet reads before its copy arrives.
+    // (a crossing beyond it is refused, and counts nothing); the answer's `used`/`left` are
+    // not read by the mover's own sheet, which redraws off its copy of the store, but by 33's
+    // B13 and 30 - the two places that check what the count came back as (E05 fix r1-G5, M10).
 async function handleEclipseMove(payload, sender, ctx) {
     const { applyRecordedMove } = await import("./eclipse.mjs");
     const out = await applyRecordedMove(payload.actorId, { to: payload.to });

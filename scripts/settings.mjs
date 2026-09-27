@@ -2092,9 +2092,11 @@ export function deathRecordFor(actor) {
  * movement.mjs - every one with the same note beside it: clock.mjs and
  * eclipse.mjs import the file that needs the answer, so importing them back
  * would close a cycle. The copies were right about the cycle and wrong about
- * the cure. This file imports config.mjs and nothing else, so it is where a
- * reader lives when both ends of a cycle need it. clock.mjs and eclipse.mjs
- * re-export these under the names everything already imports from them.
+ * the cure. This file imports config.mjs and gm-store.mjs (E04, `readMine` and
+ * `gmStoreByName` for the fog, cast, deaths, Eclipse and door reads below) and
+ * nothing else, so it is where a reader lives when both ends of a cycle need it.
+ * clock.mjs and eclipse.mjs re-export these under the names everything already
+ * imports from them.
  */
 
 /** The clock, every field present. */

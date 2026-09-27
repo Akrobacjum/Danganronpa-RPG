@@ -858,6 +858,110 @@ const SCENARIOS = [
         }
     }],
 
+    ["a season reset that keeps the Key Remnant plan keeps one chapter's rows and not every chapter's", async () => {
+        /*
+         * E05 fix r1-G5, M3. Rows carry no season stamp - `keyPlanStore`'s own comment in
+         * gm-stores.mjs says so - so a reset that kept the plan used to keep every chapter's
+         * rows whole: a fresh season's chapter N read as planned (`plannedChapters()`)
+         * before anybody opened the planner this season, and `chargeForUnfoundKeys` billed
+         * its unfound slots against a plan nobody made here. `keepOnlyKeyPlanChapter` is
+         * what `wipeSeason` (season-setup.mjs) calls instead of `clearKeyPlan` when the
+         * "keyPlan" group is unticked: the one chapter the clock was on when the reset ran
+         * survives, as 1.2.63's single stored plan did, and no other chapter's rows do.
+         * Measured directly against the store, not through the reset dialog (S1's DialogV2
+         * wait and the typed confirmation word are `season-setup.mjs`'s own, not this
+         * function's), the same way the Key Remnant plan test above measures `setKeyPlan`.
+         */
+        const S = await import("./gm-stores.mjs");
+        const I = await import("./investigation.mjs");
+        const E = await import("./gm-store.mjs");
+        const clock = getClock();
+        try {
+            await E.withGmStoreWorld(`suite-keyplan-keep-${foundry.utils.randomID(8)}`, async () => {
+                for (const chapter of [1, 2, 3]) {
+                    await setClock({ chapter });
+                    const plan = I.keyPlan();
+                    plan.entries[0].name = `SUITE chapter ${chapter} name`;
+                    await I.setKeyPlan(plan);
+                }
+                const before = Object.keys(S.keyPlanStore.entries());
+                ok(["1:0", "2:0", "3:0"].every(k => before.includes(k)), `the three chapters' rows were not all written: ${stableJson(before)}`);
+                const kept = before.filter(k => k.startsWith("2:")).length;
+
+                const dropped = await I.keepOnlyKeyPlanChapter(2);
+                equal(dropped, before.length - kept, `keepOnlyKeyPlanChapter(2) did not drop exactly the other chapters' rows: dropped ${dropped} of ${before.length}, chapter 2 had ${kept}`);
+                const after = Object.keys(S.keyPlanStore.entries());
+                ok(!after.some(k => !k.startsWith("2:")), `a row of a chapter other than the one kept survived: ${stableJson(after)}`);
+                await setClock({ chapter: 2 });
+                equal(I.keyPlan().entries[0].name, "SUITE chapter 2 name", "the kept chapter's own row did not survive being the one kept");
+            });
+        } finally {
+            await setClock(clock);
+        }
+    }],
+
+    ["the Traces tab saves against the trace it was drawn from and not the trace now", async () => {
+        /*
+         * E05 fix r1-G5, S1-m7 (pre-existing, found by the C5 session). `applyDashboardSave`
+         * used to measure a row's changes against `allTraces()` read fresh at Save - the
+         * world now, not the world the Traces tab drew - so a rename, an image, a reading
+         * or a verdict another GM wrote while this window stood open (a GM store merge
+         * redraws no open dashboard) differed from the stale form and was written back over
+         * it; and the three verdicts travelled together, so ticking one box sent the other
+         * two as the stale form still showed them. Fixed the same way `setKeyPlan`'s `base`
+         * fixed the plan: `shown`, the traces the tab was drawn from. `applyDashboardSave` is
+         * exported so this can be measured directly - every input it reads is an argument -
+         * with `shown` a snapshot taken before another GM's edit and `traces` the fresh read
+         * after it, exactly what the dashboard's own Save handler now passes.
+         */
+        const remnants = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        const scene = canvas.scene;
+        let token = null;
+        try {
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", x: 0, y: 0, scene,
+                note: "test fixture - S1-m7 stale window"
+            });
+            ok(token, "could not place the fixture trace");
+            await settle();
+
+            const key = `${scene.id}__${token.id}`;
+            const shownData = remnants.remnantData(token);
+            const shown = [{ token, data: shownData, scene }];
+
+            // Another GM's edit, while this GM's window is still open on the old data.
+            await remnants.setRemnantPublic(token, { name: "SUITE another GM's rename" });
+            await remnants.setRemnantFlags(token, { tiedToCrime: true });
+            await settle();
+
+            const traces = [{ token, data: remnants.remnantData(token), scene }];
+            // The stale form: what `shown` showed, with Faint the only box this GM ticked -
+            // Tied-to-crime and Reinforced ride along at whatever `shown` had, which is not
+            // what the store holds any more.
+            const result = {
+                keyRows: [],
+                traces: [{
+                    key, name: shownData.public?.name ?? "", img: shownData.public?.img ?? "",
+                    text: shownData.public?.playerText ?? "", analysis: shownData.public?.analyzedText ?? "",
+                    type: shownData.type, faint: true, tiedToCrime: shownData.tiedToCrime, reinforced: shownData.reinforced
+                }]
+            };
+            await I.applyDashboardSave(result, { traces, plan: I.keyPlan(), shown });
+            await settle();
+
+            const after = remnants.remnantData(token);
+            equal(after.public?.name, "SUITE another GM's rename",
+                "a stale Traces Save took back another GM's rename it never showed as changed");
+            ok(after.tiedToCrime === true,
+                "a stale Traces Save took back another GM's tied-to-crime verdict when only Faint was ticked on the form");
+            ok(after.faint === true, "a stale Traces Save's own ticked box (Faint) was not written");
+        } finally {
+            if (token) await token.delete().catch(() => {});
+        }
+    }],
+
     ["both killers may clean up, nobody else may", async () => {
         const [killer, victim, third] = cast();
         const drpg = game.drpg;

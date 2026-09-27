@@ -955,6 +955,20 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
     /* J2: the primary resets through the window, the answer queued as a GM gives it (the
        word and the ticks): the traces and the Mastermind, then the traces alone. */
     phase("J2: the primary resets twice: the traces and the Mastermind, then the traces alone", { flow: "gm-store" });
+    /* J2a's Key Remnant plan rows (E05 fix r1-G5, M3): "keyPlan" is never ticked in either
+       reset below - unticked is what a GM reads off this checklist most often, since ticking
+       it away is the exception the checkbox remembers - and rows carry no season stamp
+       (gm-stores.mjs's own comment on `keyPlanStore`). Before this fix every chapter planted
+       here rode into the new season whole; planted directly on the store (as P4's own cleanup
+       above dropped its rows directly), not through the clock, so nothing else in this run
+       moves with it. */
+    const chapterJ2 = await gm.eval(`return game.drpg.getClock().chapter;`);
+    const otherChaptersJ2 = [chapterJ2 + 1000, chapterJ2 + 1001];
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        for (const chapter of ${J([chapterJ2, ...otherChaptersJ2])}) {
+            await S.keyPlanStore.patch(chapter + ":0", { scale: "standard", name: "E05 61 J2 chapter " + chapter });
+        }
+        return true;`);
     const resetOnce = ticked => gm.eval(`${RESET} const E = await import("${repoUrl}/scripts/gm-store.mjs");
         const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const word = game.i18n.localize("DRPG.Season.resetWord");
@@ -971,8 +985,15 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
             watermarks: { remnants: S.remnantStore.cleared(), mastermind: S.mastermindStore.cleared(), offers: S.offerStore.cleared() },
             traces: Object.keys(S.remnantStore.entries()).length,
             tokens: game.scenes.contents.reduce((n, scene) => n + scene.tokens.filter(t => t.getFlag("${MOD}", "isRemnant")).length, 0),
-            pick: S.mastermindStore.record().actorId ?? null, offer: S.offerStore.get("${IDS.aiko}")?.kind ?? null };`, { timeout: 60000 });
+            pick: S.mastermindStore.record().actorId ?? null, offer: S.offerStore.get("${IDS.aiko}")?.kind ?? null,
+            keyPlanRows: Object.keys(S.keyPlanStore.entries()) };`, { timeout: 60000 });
     const firstReset = await resetOnce(["remnants", "mastermind"]);
+    /* `1:0` is this run's own planted row; P4 above left `1:2`-`1:4` behind too (every Save of
+       the planner stamps a slot's scale, and P4 dropped only the two slots it named) - both
+       are the kept chapter's, so both survive. The measure is that no OTHER chapter's row does. */
+    check("J2m3: kept, the Key Remnant plan's rows are trimmed to the chapter the reset ran on - the other two planted chapters are gone",
+        firstReset.keyPlanRows.includes(`${chapterJ2}:0`) && firstReset.keyPlanRows.every(k => k.startsWith(`${chapterJ2}:`)),
+        J({ chapterJ2, otherChaptersJ2, keyPlanRows: firstReset.keyPlanRows }));
     await settle(600);
     const secondReset = await resetOnce(["remnants"]);
     await settle(600);

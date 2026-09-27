@@ -134,10 +134,6 @@ export function registerSync() {
 }
 
 /**
- * Refresh in response to a world setting changing. Called from the settings'
- * own `onChange`, which Foundry runs on every client that receives the update.
- */
-/**
  * Run one kind's refresh on this client, for what changes without being a world
  * setting: a GM store's key, or a player's copy of one (E05) - a name of `SYNC`.
  */
@@ -145,6 +141,10 @@ export function applyKind(kind, data = {}) {
     if (Object.values(SYNC).includes(kind)) apply(kind, data);
 }
 
+/**
+ * Refresh in response to a world setting changing. Called from the settings'
+ * own `onChange`, which Foundry runs on every client that receives the update.
+ */
 export function applyFor(settingKey, data = {}) {
     const kind = SETTING_KINDS[settingKey];
     if (!kind) return;

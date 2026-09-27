@@ -252,6 +252,30 @@ export async function clearKeyPlan() {
     else await keyPlanStore.dropMany(Object.keys(keyPlanStore.entries()));
 }
 
+/**
+ * Every chapter's rows but one, taken away (E05 fix r1-G5, M3).
+ *
+ * `clearKeyPlan` runs when the season reset's "keyPlan" group is TICKED; this runs
+ * instead when a GM UNTICKS it to keep the plan. Kept meant kept whole until this fix - the
+ * rows have no season stamped on them (`keyPlanStore`'s own comment says so), so
+ * `plannedChapters()` read every chapter the old season had ever written a row for, and a
+ * fresh season's chapter with an old row was "planned" before anybody opened the planner
+ * this season: `chargeForUnfoundKeys` billed its unfound slots against a plan nobody made,
+ * and a chapter revisited later inherited fields (a `tokenId` among them) a GM here never
+ * saw and never wrote, because `setKeyPlan`'s diff reads them as this chapter's already-held
+ * row. 1.2.63's single world setting could only ever keep one chapter's plan, and this keeps
+ * the same one: `chapter`, read by the caller BEFORE the reset's own "clock" step sends the
+ * clock back to 1 - the chapter the season was ending on, shown again once a new season's
+ * clock reaches that number, exactly as 1.2.63's did. Called on the primary alone
+ * (`wipeSeason` is), so `dropMany` needs no `clearKeyPlan`-style branch for another GM.
+ */
+export async function keepOnlyKeyPlanChapter(chapter) {
+    if (!game.user.isGM) return 0;
+    const drop = Object.keys(keyPlanStore.entries()).filter(key => Number(key.split(":")[0]) !== Number(chapter));
+    if (drop.length) await keyPlanStore.dropMany(drop);
+    return drop.length;
+}
+
 /** Every Key Remnant currently on the map, across every scene. */
 function placedKeyRemnants() {
     const out = [];
@@ -1549,10 +1573,22 @@ function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlac
  */
 let shownKeyPlan = null;
 
+/**
+ * The traces the dashboard's Traces tab was last drawn from (E05 fix r1-G5, S1-m7,
+ * pre-existing). `applyDashboardSave` used to measure a row's changes against `allTraces()`
+ * read fresh at Save - the world now, not the world the tab showed - so a name, image, text
+ * or verdict another GM wrote while this window stood open (a GM store merge redraws no
+ * open dashboard) differed from the stale form and was written back over it. Same shape as
+ * `shownKeyPlan`, and the same fix: keep what was drawn, diff against that.
+ */
+let shownTraces = null;
+
 /** The whole dashboard as markup - a function of the world, so `keepLive` can call it again. */
 function caseHtml(reading, { allRooms, murderState, finalRemnants, finalTruthPlacedThisChapter }) {
     const students = evidenceByStudent();
     const traces = allTraces();
+    // What the Traces tab's inputs are drawn from, and so what a Save measures its changes against.
+    shownTraces = traces;
     const finders = findersByAnyRemnant();
     const plan = keyPlan();
     // What the plan's inputs are drawn from, and so what a Save measures its changes against.
@@ -1985,26 +2021,38 @@ export async function openInvestigationDashboard() {
 
     if (action.finalRoom) await placeFinalFromDashboard(action);
 
-    // Read fresh, for the same reason the callback above does: the window has
-    // been standing open and rebuilding itself, so what to write against is the
-    // world now, not the world when it opened.
-    await applyDashboardSave(action, { traces: allTraces(), plan: keyPlan() });
+    // `traces` and `plan` read fresh, for the same reason the callback above does: the window
+    // has been standing open and rebuilding itself, so what a row is APPLIED to (which token,
+    // which stored slot) is the world now. What each row is DIFFED against, to decide what a
+    // stale form may not write back, is `shownTraces`/`shownKeyPlan` - the world this window
+    // last drew (S1-m7; `setKeyPlan`'s `base` already worked this way for the plan).
+    await applyDashboardSave(action, { traces: allTraces(), plan: keyPlan(), shown: shownTraces });
     return openInvestigationDashboard();
 }
 
-/** Commit the dashboard's single Save across all three tabs. */
-async function applyDashboardSave(result, { traces, plan }) {
+/**
+ * Commit the dashboard's single Save across all three tabs.
+ *
+ * Exported for the suite (E05 fix r1-G5, S1-m7), which hands it a synthetic `shown` beside a
+ * trace changed as if by another GM: every input it reads is an argument, so the stale-window
+ * question - does a Save take back an edit this window never saw - can be measured directly.
+ */
+export async function applyDashboardSave(result, { traces, plan, shown = traces }) {
     let tracesChanged = 0;
     for (const row of result.traces) {
         const trace = traces.find(t => rowKey(t.scene.id, t.token.id) === row.key);
         if (!trace) continue;
-        const { token, data } = trace;
+        const { token } = trace;
+        // What this row is measured against: the trace as the tab drew it, not the trace now
+        // (S1-m7). A row `shown` holds no match for (created after the window opened) falls
+        // back to the fresh read - nothing was open to take back yet.
+        const was = shown.find(t => rowKey(t.scene.id, t.token.id) === row.key)?.data ?? trace.data;
 
         const publicPatch = {};
-        if (row.name !== (data.public?.name ?? "")) publicPatch.name = row.name;
-        if (row.img !== (data.public?.img ?? "")) publicPatch.img = row.img;
-        if (row.text !== (data.public?.playerText ?? "")) publicPatch.playerText = row.text;
-        if (row.analysis !== (data.public?.analyzedText ?? "")) publicPatch.analyzedText = row.analysis;
+        if (row.name !== (was.public?.name ?? "")) publicPatch.name = row.name;
+        if (row.img !== (was.public?.img ?? "")) publicPatch.img = row.img;
+        if (row.text !== (was.public?.playerText ?? "")) publicPatch.playerText = row.text;
+        if (row.analysis !== (was.public?.analyzedText ?? "")) publicPatch.analyzedText = row.analysis;
         if (Object.keys(publicPatch).length) {
             await setRemnantPublic(token, publicPatch);
             // A human GM has now decided what this trace says, so a player
@@ -2014,16 +2062,20 @@ async function applyDashboardSave(result, { traces, plan }) {
             tracesChanged++;
         }
 
-        /* The type rides with the three verdicts rather than with the public
-           text: all four live in the ledger, all four reach the copies, and none
-           of them is something a player reads off the trace directly. */
-        const typeChanged = row.type && row.type !== data.type;
-        if (typeChanged || row.faint !== data.faint
-            || row.tiedToCrime !== data.tiedToCrime || row.reinforced !== data.reinforced) {
-            await setRemnantFlags(token, {
-                faint: row.faint, tiedToCrime: row.tiedToCrime, reinforced: row.reinforced,
-                type: typeChanged ? row.type : null
-            });
+        /* THE FOUR VERDICTS, WRITTEN ONE AT A TIME NOW (S1-m7's second half). They used to
+           ride together: any one of them changing sent all three booleans as the form showed
+           them, so ticking Faint on a stale form wrote Tied-to-crime and Reinforced back to
+           whatever this window had on screen, taking back another GM's verdict of either.
+           `setRemnantFlags` already treats a field left at its default (`null`) as untouched
+           (see there), so a patch built from only what changed leaves the rest alone. */
+        const typeChanged = row.type && row.type !== was.type;
+        const flagPatch = {};
+        if (typeChanged) flagPatch.type = row.type;
+        if (row.faint !== was.faint) flagPatch.faint = row.faint;
+        if (row.tiedToCrime !== was.tiedToCrime) flagPatch.tiedToCrime = row.tiedToCrime;
+        if (row.reinforced !== was.reinforced) flagPatch.reinforced = row.reinforced;
+        if (Object.keys(flagPatch).length) {
+            await setRemnantFlags(token, flagPatch);
             tracesChanged++;
         }
     }

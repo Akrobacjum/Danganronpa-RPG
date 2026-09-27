@@ -117,9 +117,11 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * the moment it opened, how it ended - and each of those is an answer the Class Trial
  * exists to find. They are the cast's now (`INCIDENT_METHOD`), and the world half is
  * turned round: it holds only the fields listed below, each with the reason a
- * bystander may know it, and `splitIncident` sends anything else to the cast. The
- * owner's answer of 26.09 (Q8, option a): the five leave now; shrinking this list
- * further - to the stage alone - is E32's, once the cast has settled.
+ * bystander may know it, and `splitIncident` sends a field that is neither listed
+ * here nor the cast's nowhere at all - fail closed, not the cast, so an unlisted write
+ * is dropped rather than guessed into secrecy the wrong way (R191 reads every literal
+ * write). The owner's answer of 26.09 (Q8, option a): the five leave now; shrinking this
+ * list further - to the stage alone - is E32's, once the cast has settled.
  */
 
 /**

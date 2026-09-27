@@ -45,7 +45,9 @@
  * E31 (25.09.2026) adds 33-bridge-paths to the nine flows its checks are tagged
  * with. eclipse-route-veto goes from planned to partial with it: 33 drives
  * `eclipse.move` only as far as a GM who is connected and does not answer (its
- * check B6), not a move allowed or refused, so the flow stays E39's to complete.
+ * check B6), not a move allowed or refused. E05 C4 (26.09.2026) adds B13 to the same
+ * scenario: a legal crossing counted and answered, and one beyond the allowance refused
+ * as `nothingLeft` - the move allowed or refused this paragraph once left to E39.
  * E05 (26.09.2026) adds pre-session-note: the note a player writes for the GMs was a
  * flag on their own User document until 1.2.64, written with no GM at all; it goes
  * through the bridge's `note.save` now, and each player holds a copy of their own
