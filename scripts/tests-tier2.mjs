@@ -167,6 +167,18 @@ async function putNoteFlagsBack(before) {
     }
 }
 
+/* What a call threw, as its message, or null when it returned (E05 fix r1-G1: a lift that
+   leaves its secret in world data throws, so the world is not stamped - its kept halves read
+   the message, which carries the count). */
+async function thrown(fn) {
+    try {
+        await fn();
+        return null;
+    } catch (err) {
+        return String(err?.message ?? err);
+    }
+}
+
 async function restore(snap) {
     const { reviveCharacter } = await import("./chapter.mjs");
     const { setDespair, getDespair } = await import("./despair.mjs");
@@ -7572,7 +7584,10 @@ const SCENARIOS = [
          * unread would have passed the suite. Each is run here over a fixture of its old world
          * data, in a world the stores have never opened, with that store's save swallowed -
          * the rows stand in memory and not on disk, as after a failed save: the world data
-         * stays. The fourth clause, `truthBulletShape`, removes nothing it does not rewrite in
+         * stays, and since E05's fix round (r1-G1) the fog's and the names' lifts throw with
+         * the count, so the migration does not stamp the world and the next load tries again.
+         * The Faint's pass counts a bullet with no row here as kept, by design, and does not
+         * throw. The fourth clause, `truthBulletShape`, removes nothing it does not rewrite in
          * the same update. The world settings are put back by tier 2's restore; the item is
          * deleted here.
          */
@@ -7603,19 +7618,19 @@ const SCENARIOS = [
                 const oldFog = { [sceneId]: { [student.id]: ["SUITE lifted room"] } };
                 await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, oldFog);
                 swallow(S.discoveryStore.spec.key);
-                const fogDone = await fog.liftDiscoveryLedger();
+                const fogThrew = await thrown(() => fog.liftDiscoveryLedger());
                 putBack();
-                equal(stableJson([fogDone?.emptied ?? null, game.settings.get(MODULE_ID, SETTINGS.discoveredRooms)]), stableJson([false, oldFog]),
-                    "the fog's old ledger was emptied from the world with its rows not on disk");
+                equal(stableJson([/: 1 row\(s\) did not read back/.test(fogThrew ?? ""), game.settings.get(MODULE_ID, SETTINGS.discoveredRooms)]), stableJson([true, oldFog]),
+                    `the fog's old ledger was emptied from the world with its rows not on disk, or the lift did not throw with the count: ${fogThrew}`);
 
                 await game.settings.set(MODULE_ID, SETTINGS.murderState,
                     { active: true, stage: "incident", turn: 1, turnSide: "victim", killerId: student.id, victimId: other.id });
                 swallow(S.castStore.spec.key);
-                const castDone = await murder.liftIncidentSecrets();
+                const castThrew = await thrown(() => murder.liftIncidentSecrets());
                 putBack();
                 const state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-                equal(stableJson([castDone?.lifted ?? null, state.killerId ?? null, state.victimId ?? null]), stableJson([0, student.id, other.id]),
-                    "the incident's names were taken out of the world with their row not on disk");
+                equal(stableJson([/^2 of the incident's names/.test(castThrew ?? ""), state.killerId ?? null, state.victimId ?? null]), stableJson([true, student.id, other.id]),
+                    `the incident's names were taken out of the world with their row not on disk, or the lift did not throw with the count: ${castThrew}`);
 
                 [item] = await student.createEmbeddedDocuments("Item", [{ name: "Suite fixture: a Faint on its item", type: "loot",
                     flags: { [MODULE_ID]: { category: "truthBullet", isTruthBullet: true, shownType: "neutral", visibility: "evident", analyzed: false, faint: true } } }]);
@@ -7641,13 +7656,14 @@ const SCENARIOS = [
          * with one part of its trigger - `firedAt` - already stamped by a GM since the update:
          * the four read back from disk, that part the GM's; the row keeps its room and flags;
          * the world reads back holding none of the four; a second run has nothing to do.
-         * projectMeta is put back.
+         * Since E05's fix round (r1-G1, S1-m1) a repair's `saboteur`, a user id, is the fifth:
+         * a repair row's goes to the store and its `repairs` stays. projectMeta is put back.
          */
         const E = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
         const P = await import("./projects.mjs");
         const [killer] = cast(1);
-        const ID = "SUITEE05LIFTPRJ1";
+        const ID = "SUITEE05LIFTPRJ1", REPAIR = "SUITEE05LIFTPRJ3";
         const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
         const open = { room: "SUITE lifted room", indirectMurder: true, secret: true, countsUp: true };
         const old = { ...open, killerId: killer.id, by: killer.id, condition: "SUITE lifted condition",
@@ -7655,14 +7671,17 @@ const SCENARIOS = [
         try {
             await E.withGmStoreWorld(`suite-projectlift-${foundry.utils.randomID(8)}`, async () => {
                 await S.projectSecretStore.patch(ID, { trigger: { firedAt: 12345 } });
-                await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { ...before, [ID]: old });
+                await game.settings.set(MODULE_ID, SETTINGS.projectMeta,
+                    { ...before, [ID]: old, [REPAIR]: { repairs: ID, saboteur: "SUITESABOTEUR001" } });
                 const report = await P.liftProjectSecrets();
                 const row = S.projectSecretStore.persisted(ID) ?? {};
                 equal(stableJson([row.killerId, row.by, row.condition, row.trigger]),
                     stableJson([killer.id, killer.id, "SUITE lifted condition", { kind: "enters", armed: true, firedAt: 12345 }]),
                     "the four did not read back from the store's storage, or the world's trigger overwrote the part a GM stamped");
                 equal(stableJson(P.metaFor(ID)), stableJson(open), "projectMeta's row lost a field that is not a secret, or kept one of the four");
-                equal(stableJson([report?.lifted, report?.kept, report?.emptied]), stableJson([4, 0, true]), `the lift's report: ${stableJson(report)}`);
+                equal(stableJson([S.projectSecretStore.persisted(REPAIR)?.saboteur ?? null, P.metaFor(REPAIR)]), stableJson(["SUITESABOTEUR001", { repairs: ID }]),
+                    "a repair's saboteur did not read back from the store's storage, or stayed in projectMeta, or took the repair's pair with it");
+                equal(stableJson([report?.lifted, report?.kept, report?.emptied]), stableJson([5, 0, true]), `the lift's report: ${stableJson(report)}`);
                 equal(await P.liftProjectSecrets(), null, "a second run of the lift found something to do");
             });
         } finally {
@@ -7675,7 +7694,10 @@ const SCENARIOS = [
          * E05 C1, 26.09.2026: the other half of the pair above, as the E04 lifts' test below
          * does it. The store's save is swallowed - the rows stand in memory and not on disk,
          * as after a failed save - and the world keeps every field: nothing is taken out of
-         * projectMeta that the store cannot read back, and the report says what was kept.
+         * projectMeta that the store cannot read back.
+         * Since E05's fix round (r1-G1; the reviews' S1-M1, M2) the lift throws with the count,
+         * so the migration does not stamp the world and the next load tries again: it answered a
+         * report of what it kept, the runner stamped the world, and no load ever tried again.
          * In a world the stores have never opened; projectMeta is put back.
          */
         const E = await import("./gm-store.mjs");
@@ -7700,11 +7722,11 @@ const SCENARIOS = [
                     if (namespace === MODULE_ID && key === S.projectSecretStore.spec.key) return value;
                     return realSet.call(this, namespace, key, value);
                 };
-                const report = await P.liftProjectSecrets();
+                const threw = await thrown(() => P.liftProjectSecrets());
                 putBack();
                 ok(S.projectSecretStore.has(ID), "the swallowed save left no row in memory either - this measured nothing");
-                equal(stableJson([report?.lifted, report?.kept, report?.emptied, P.metaFor(ID)]), stableJson([0, 4, false, old]),
-                    "projectMeta lost a field whose row is not on disk, or the report does not say it was kept");
+                equal(stableJson([/^4 project secret field\(s\) are still in projectMeta \(4 /.test(threw ?? ""), P.metaFor(ID)]), stableJson([true, old]),
+                    `projectMeta lost a field whose row is not on disk, or the lift did not throw with the count: ${threw}`);
             });
         } finally {
             putBack();
@@ -7752,8 +7774,11 @@ const SCENARIOS = [
          * E05 C3, 26.09.2026: the other half of the pair above, as the project secrets' pair
          * does it. The store's save is swallowed - the row stands in memory and not on disk -
          * and the world keeps the declaration: nothing leaves world data that the store cannot
-         * read back, and the report says what was kept. In a world the stores have never
-         * opened; the key is put back.
+         * read back.
+         * Since E05's fix round (r1-G1; the reviews' S1-M1, M2) the lift throws with the count,
+         * so the migration does not stamp the world and the next load tries again: it answered a
+         * report of what it kept, the runner stamped the world, and no load ever tried again.
+         * In a world the stores have never opened; the key is put back.
          */
         const E = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -7775,11 +7800,11 @@ const SCENARIOS = [
                     if (namespace === MODULE_ID && key === S.pendingMurderStore.spec.key) return value;
                     return realSet.call(this, namespace, key, value);
                 };
-                const report = await X.liftPendingMurders();
+                const threw = await thrown(() => X.liftPendingMurders());
                 putBack();
                 ok(S.pendingMurderStore.has(killer.id), "the swallowed save left no row in memory either - this measured nothing");
-                equal(stableJson([report?.lifted, report?.kept, report?.emptied, getSetting(SETTINGS.legacyPendingMurders)]), stableJson([0, 1, false, old]),
-                    "the world lost a declaration whose row is not on disk, or the report does not say it was kept");
+                equal(stableJson([/^1 declaration\(s\) made in the dark are still in world data \(1 /.test(threw ?? ""), getSetting(SETTINGS.legacyPendingMurders)]), stableJson([true, old]),
+                    `the world lost a declaration whose row is not on disk, or the lift did not throw with the count: ${threw}`);
             });
         } finally {
             putBack();
@@ -7836,9 +7861,12 @@ const SCENARIOS = [
         /*
          * E05 C4, 26.09.2026: the other half of the pair above. The store's save is swallowed -
          * the row stands in memory and not on disk - and the world keeps the count: nothing
-         * leaves world data that the store cannot read back, and the report says what was
-         * kept. In a world the stores have never opened, in an Eclipse named by hand; the key
-         * and the clock are put back.
+         * leaves world data that the store cannot read back.
+         * Since E05's fix round (r1-G1; the reviews' S1-M1, M2) the lift throws with the count,
+         * so the migration does not stamp the world and the next load tries again: it answered a
+         * report of what it kept, the runner stamped the world, and no load ever tried again.
+         * In a world the stores have never opened, in an Eclipse named by hand; the key and
+         * the clock are put back.
          */
         const E = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -7861,11 +7889,11 @@ const SCENARIOS = [
                     if (namespace === MODULE_ID && key === S.eclipseMoveStore.spec.key) return value;
                     return realSet.call(this, namespace, key, value);
                 };
-                const report = await X.liftEclipseMoves();
+                const threw = await thrown(() => X.liftEclipseMoves());
                 putBack();
                 ok(S.eclipseMoveStore.has(one.id), "the swallowed save left no row in memory either - this measured nothing");
-                equal(stableJson([report?.lifted, report?.kept, report?.emptied, getSetting(SETTINGS.legacyEclipseMoves)]), stableJson([0, 1, false, { [one.id]: 1 }]),
-                    "the world lost a count whose row is not on disk, or the report does not say it was kept");
+                equal(stableJson([/^1 Eclipse crossing count\(s\) are still in world data \(1 /.test(threw ?? ""), getSetting(SETTINGS.legacyEclipseMoves)]), stableJson([true, { [one.id]: 1 }]),
+                    `the world lost a count whose row is not on disk, or the lift did not throw with the count: ${threw}`);
             });
         } finally {
             putBack();
@@ -7929,9 +7957,11 @@ const SCENARIOS = [
         /*
          * E05 C5, 26.09.2026: the other half of the pair above, as the declarations' pair does
          * it. The store's save is swallowed - the rows stand in memory and not on disk - and the
-         * world keeps the whole plan: nothing leaves world data that the store cannot read back,
-         * and the report says how much was kept. In a world the stores have never opened; the
-         * key is put back.
+         * world keeps the whole plan: nothing leaves world data that the store cannot read back.
+         * Since E05's fix round (r1-G1; the reviews' S1-M1, M2) the lift throws with the count,
+         * so the migration does not stamp the world and the next load tries again: it answered a
+         * report of what it kept, the runner stamped the world, and no load ever tried again.
+         * In a world the stores have never opened; the key is put back.
          */
         const E = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -7952,11 +7982,11 @@ const SCENARIOS = [
                     if (namespace === MODULE_ID && key === S.keyPlanStore.spec.key) return value;
                     return realSet.call(this, namespace, key, value);
                 };
-                const report = await I.liftKeyPlan();
+                const threw = await thrown(() => I.liftKeyPlan());
                 putBack();
                 ok(S.keyPlanStore.has("1:0"), "the swallowed save left no row in memory either - this measured nothing");
-                equal(stableJson([report?.lifted, report?.kept, report?.emptied, getSetting(SETTINGS.legacyKeyRemnantPlan)]), stableJson([0, 4, false, old]),
-                    "the world lost a plan whose rows are not on disk, or the report does not say what was kept");
+                equal(stableJson([/^4 field\(s\) of the Key Remnant plan did not read back/.test(threw ?? ""), getSetting(SETTINGS.legacyKeyRemnantPlan)]), stableJson([true, old]),
+                    `the world lost a plan whose rows are not on disk, or the lift did not throw with the count: ${threw}`);
             });
         } finally {
             putBack();
@@ -8008,9 +8038,11 @@ const SCENARIOS = [
         /*
          * E05 C6, 26.09.2026: the other half of the pair above, as the crossings' and the plan's
          * pairs do it. The store's save is swallowed - the row stands in memory and not on disk -
-         * and the flag keeps its text: nothing leaves world data that the store cannot read back,
-         * and the report says what was kept. In a world the stores have never opened; every
-         * user's flag is put back.
+         * and the flag keeps its text: nothing leaves world data that the store cannot read back.
+         * Since E05's fix round (r1-G1; the reviews' S1-M1, M2) the lift throws with the count,
+         * so the migration does not stamp the world and the next load tries again: it answered a
+         * report of what it kept, the runner stamped the world, and no load ever tried again.
+         * In a world the stores have never opened; every user's flag is put back.
          */
         needs(world.atLeast("playerAccounts", 1), "the lift is shown a player's note");
         const E = await import("./gm-store.mjs");
@@ -8033,11 +8065,11 @@ const SCENARIOS = [
                     if (namespace === MODULE_ID && key === S.noteStore.spec.key) return value;
                     return realSet.call(this, namespace, key, value);
                 };
-                const report = await N.liftNotes();
+                const threw = await thrown(() => N.liftNotes());
                 putBack();
                 ok(S.noteStore.has(one.id), "the swallowed save left no row in memory either - this measured nothing");
-                equal(stableJson([report?.lifted, report?.kept, report?.emptied, one.getFlag(MODULE_ID, N.NOTE_FLAG)]), stableJson([0, 1, false, old]),
-                    "the world lost a note whose row is not on disk, or the report does not say it was kept");
+                equal(stableJson([/^1 pre-session note\(s\) are still in their users' flags \(1 /.test(threw ?? ""), one.getFlag(MODULE_ID, N.NOTE_FLAG)]), stableJson([true, old]),
+                    `the world lost a note whose row is not on disk, or the lift did not throw with the count: ${threw}`);
             });
         } finally {
             putBack();
@@ -8245,9 +8277,12 @@ const SCENARIOS = [
         /*
          * E05 C8, 26.09.2026: the other half of the pair above. The cast's save is swallowed -
          * the fields stand in memory and not on disk - and the world half keeps the whole
-         * method: nothing leaves world data the cast cannot read back, and the report says how
-         * much was kept. In a world the stores have never opened; the world setting is put
-         * back by tier 2's restore.
+         * method: nothing leaves world data the cast cannot read back.
+         * Since E05's fix round (r1-G1; the reviews' S1-M1, M2) the lift throws with the count,
+         * so the migration does not stamp the world and the next load tries again: it answered a
+         * report of what it kept, the runner stamped the world, and no load ever tried again.
+         * In a world the stores have never opened; the world setting is put back by tier 2's
+         * restore.
          */
         const E = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -8267,14 +8302,223 @@ const SCENARIOS = [
                     if (namespace === MODULE_ID && key === S.castStore.spec.key) return value;
                     return realSet.call(this, namespace, key, value);
                 };
-                const report = await M.liftIncidentMethod();
+                const threw = await thrown(() => M.liftIncidentMethod());
                 putBack();
                 equal(S.castStore.record()?.selfInflicted, true, "the swallowed save left no field in memory either - this measured nothing");
-                equal(stableJson([report, game.settings.get(MODULE_ID, SETTINGS.murderState)]), stableJson([{ lifted: 0, dropped: 0, kept: 4 }, old]),
-                    "the world half lost a method whose fields are not on disk, or the report does not say what was kept");
+                equal(stableJson([/^4 field\(s\) of the incident's method are still in the world half/.test(threw ?? ""), game.settings.get(MODULE_ID, SETTINGS.murderState)]), stableJson([true, old]),
+                    `the world half lost a method whose fields are not on disk, or the lift did not throw with the count: ${threw}`);
             });
         } finally {
             putBack();
+        }
+    }],
+
+    ["a lift that leaves its secret in world data stops the migration short on the GM's screen, and the next pass lifts it - on a world stamped 1.2.63 too", async () => {
+        /*
+         * E05 fix r1-G1, 27.09.2026; the reviews' S1-M1 and M2, and the orchestrator's note on
+         * E04's lifts. A lift whose rows did not read back answered a report of what it kept,
+         * and the runner stamped the world: no load ran it again (the security review's scratch
+         * scenario measured it on liftKeyPlan, 26.09). The lift throws now: the runner writes no
+         * stamp and says so on the GM's screen in a notice that stays, naming the clause, and
+         * the next pass lifts. E04's fog lift is the one run here, because it is also the second
+         * chance: its `since` is 1.2.64, so a world 1.2.63 stamped over a ledger its lift kept
+         * runs it again.
+         *
+         * THE STAMP IS 1.2.63.5, AND WHY. The runner does nothing when the stamp is the
+         * installed version, and this tree is 1.2.63 until the release commit, so a stamp of
+         * 1.2.63 would measure nothing here. Every clause reads 1.2.63.5 as it reads 1.2.63 -
+         * checked first, through `migrationStatus`, which asks each `since` the runner's
+         * question - so the pass is the one a world stamped 1.2.63 gets under 1.2.64.
+         *
+         * Only this clause runs (`only`): the runner over a fixture's ledger, in a world the
+         * stores have never opened - not every clause over the world the suite is run in. The
+         * stamp and the ledger are put back.
+         */
+        const G = await import("./migrate.mjs");
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { moduleVersion } = await import("./config.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fog's old ledger is kept for a scene of this world");
+        const sceneId = (game.scenes.active ?? canvas?.scene)?.id;
+        const [student] = cast(1);
+        const stampBefore = getSetting(SETTINGS.migratedVersion);
+        const fogBefore = foundry.utils.deepClone(getSetting(SETTINGS.discoveredRooms) ?? {});
+        const owed = async stamp => {
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, stamp);
+            return G.migrationStatus().clauses.filter(c => c.pending).map(c => c.key);
+        };
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        const notices = ui.notifications, realError = notices.error;
+        const said = [];
+        try {
+            const at63 = await owed("1.2.63");
+            equal(stableJson(await owed("1.2.63.5")), stableJson(at63),
+                "a stamp of 1.2.63.5 does not owe what a stamp of 1.2.63 owes - the pass below does not stand for a world 1.2.63 stamped");
+            ok(at63.includes("liftDiscoveryLedger") && at63.includes("liftIncidentSecrets"),
+                `a world stamped 1.2.63 is not given E04's two lifts again: it owes ${at63.join(", ")}`);
+            const oldFog = { [sceneId]: { [student.id]: ["SUITE retried room"] } };
+            await E.withGmStoreWorld(`suite-liftretry-${foundry.utils.randomID(8)}`, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, oldFog);
+                settings.set = async function (namespace, key, value) {
+                    if (namespace === MODULE_ID && key === S.discoveryStore.spec.key) return value;
+                    return realSet.call(this, namespace, key, value);
+                };
+                notices.error = (text, options) => {
+                    said.push({ text: String(text), permanent: options?.permanent === true });
+                    return null;
+                };
+                const first = await G.migrate1_2_0({ quiet: true, only: ["liftDiscoveryLedger"] });
+                putBack();
+                notices.error = realError;
+                equal(stableJson([first?.failed ?? null, getSetting(SETTINGS.migratedVersion), getSetting(SETTINGS.discoveredRooms)]),
+                    stableJson([["liftDiscoveryLedger"], "1.2.63.5", oldFog]),
+                    `the pass whose lift kept its row stamped the world, did not name the clause, or emptied the ledger: ${stableJson(first)}`);
+                ok(said.some(n => n.text.includes("liftDiscoveryLedger") && n.permanent),
+                    `the GM was not told on screen, naming the clause, in a notice that stays: ${stableJson(said)}`);
+
+                // The next load: a new page reads the store from its storage, which holds no row. The
+                // engine drops what it holds in memory as a raw write of its key makes it (the suite's
+                // restore does the same); without this the row the swallowed save kept in memory
+                // stands, the fill-only lift writes nothing, and nothing is saved (measured, 27.09).
+                await game.settings.set(MODULE_ID, S.discoveryStore.spec.key, game.settings.get(MODULE_ID, S.discoveryStore.spec.key));
+                const second = await G.migrate1_2_0({ quiet: true, only: ["liftDiscoveryLedger"] });
+                // fog.mjs `cellKey`: the scene and the character.
+                const row = S.discoveryStore.persisted(`${sceneId}/${student.id}`) ?? {};
+                equal(stableJson([second?.failed ?? null, second?.clauses?.liftDiscoveryLedger?.lifted ?? null, getSetting(SETTINGS.migratedVersion),
+                    getSetting(SETTINGS.discoveredRooms), Object.hasOwn(row, "SUITE retried room")]),
+                stableJson([[], 1, moduleVersion(), {}, true]),
+                `the next pass did not lift the ledger into the store and stamp the world: ${stableJson(second)}`);
+            });
+        } finally {
+            putBack();
+            notices.error = realError;
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, stampBefore);
+            await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, fogBefore);
+        }
+    }],
+
+    ["a lift writes a world setting back as another GM left it during the store's save, not as it read it before", async () => {
+        /*
+         * E05 fix r1-G1, 27.09.2026; the correctness review's M9. Three lifts read a world
+         * setting, awaited their store's save and wrote the setting back from the copy read
+         * before it - liftProjectSecrets (projectMeta), liftIncidentMethod and E04's
+         * liftIncidentSecrets (murderState, the same shape): a write another GM made during
+         * that await, a project's room or a turn passed, was put back on every browser. Each
+         * runs here over a fixture in a world the stores have never opened, with the other GM's
+         * write made at the moment the store saves (its save goes through after it): the lift's
+         * own write comes after the other GM's, which stands, and the secret fields are gone.
+         * The old key nothing but its lift writes (`legacyPendingMurders`, `legacyEclipseMoves`)
+         * has no such race. projectMeta is put back here, murderState by tier 2's restore.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./projects.mjs");
+        const M = await import("./murder.mjs");
+        const [one, two] = cast(2);
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        // At the store's first save, the other GM writes the world setting; the lift's own writes of it are counted.
+        let order = [];
+        const race = (storeKey, worldKey, otherGm) => {
+            order = [];
+            settings.set = async function (namespace, key, value) {
+                if (namespace === MODULE_ID && key === storeKey && !order.includes("other GM")) {
+                    order.push("other GM");
+                    await otherGm();
+                } else if (namespace === MODULE_ID && key === worldKey) order.push("lift");
+                return realSet.call(this, namespace, key, value);
+            };
+        };
+        const murderNow = () => foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {});
+        try {
+            await E.withGmStoreWorld(`suite-liftrace-${foundry.utils.randomID(8)}`, async () => {
+                const ID = "SUITEE05LIFTRACE";
+                await game.settings.set(MODULE_ID, SETTINGS.projectMeta, { ...before, [ID]: { room: "SUITE room before", indirectMurder: true, secret: true,
+                    killerId: one.id, by: one.id, condition: "SUITE race condition", trigger: { kind: "enters", armed: true, firedAt: null } } });
+                race(S.projectSecretStore.spec.key, SETTINGS.projectMeta, () => {
+                    const now = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+                    now[ID] = { ...now[ID], room: "SUITE room another GM chose" };
+                    return realSet.call(settings, MODULE_ID, SETTINGS.projectMeta, now);
+                });
+                await P.liftProjectSecrets();
+                putBack();
+                equal(stableJson([order, P.metaFor(ID)]), stableJson([["other GM", "lift"], { room: "SUITE room another GM chose", indirectMurder: true, secret: true }]),
+                    "liftProjectSecrets put back a projectMeta another GM wrote during the store's save, or kept a secret field");
+
+                await game.settings.set(MODULE_ID, SETTINGS.murderState,
+                    { active: true, stage: "incident", turn: 2, turnSide: "killer", indirect: true, openedAt: 1700000000000 });
+                race(S.castStore.spec.key, SETTINGS.murderState,
+                    () => realSet.call(settings, MODULE_ID, SETTINGS.murderState, { ...murderNow(), turn: 3, turnSide: "victim" }));
+                await M.liftIncidentMethod();
+                putBack();
+                equal(stableJson([order, murderNow()]), stableJson([["other GM", "lift"], { active: true, stage: "incident", turn: 3, turnSide: "victim" }]),
+                    "liftIncidentMethod put back a turn another GM passed during the cast's save, or kept the method");
+
+                await game.settings.set(MODULE_ID, SETTINGS.murderState,
+                    { active: true, stage: "incident", turn: 1, turnSide: "victim", killerId: one.id, victimId: two.id });
+                race(S.castStore.spec.key, SETTINGS.murderState,
+                    () => realSet.call(settings, MODULE_ID, SETTINGS.murderState, { ...murderNow(), turn: 2, turnSide: "killer" }));
+                await M.liftIncidentSecrets();
+                putBack();
+                equal(stableJson([order, murderNow()]), stableJson([["other GM", "lift"], { active: true, stage: "incident", turn: 2, turnSide: "killer" }]),
+                    "liftIncidentSecrets put back a turn another GM passed during the cast's save, or kept a name");
+            });
+        } finally {
+            putBack();
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+        }
+    }],
+
+    ["a trap a world half still holds is a trap to every reader until the lift reaches it", async () => {
+        /*
+         * E05 fix r1-G1, 27.09.2026; the correctness review's M2. An incident opened under
+         * 1.2.63 holds `indirect` in the world half of murderState and none in its cast until
+         * `liftIncidentMethod` lifts it - the first load of 1.2.64, or later when the lift keeps
+         * failing and retries. `castOwners` read the world half there; `incidentWitness` and the
+         * opening Event card read the cast alone and took the trap for a direct murder. One
+         * rule now (settings.mjs `incidentIndirect`, R194): the cast's, and the world half's
+         * where the cast has none. With this GM in the trap's killer's chair, over a cast with
+         * no `indirect` in a world the stores have never opened: the incident reads as a trap
+         * and the killer holds no seat; a cast that says "direct" is believed over the world
+         * half; the rule on its four cases. The chair is put back; murderState by tier 2's
+         * restore.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { incidentWitness, incidentIndirect } = await import("./settings.mjs");
+        const [killer, victim] = cast(2);
+        const assignedBefore = game.user.character ?? null;
+        try {
+            await game.user.update({ character: killer.id });
+            await E.withGmStoreWorld(`suite-trapwindow-${foundry.utils.randomID(8)}`, async () => {
+                await S.castStore.patch("record", { killerId: killer.id, victimId: victim.id, thirdId: null });
+                await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident", turn: 1, turnSide: "victim", indirect: true });
+                ok(!Object.hasOwn(S.castStore.record() ?? {}, "indirect"), "the cast holds indirect - this measured nothing");
+                const lifting = incidentWitness();
+                equal(stableJson([lifting.running, lifting.indirect, lifting.seat]), stableJson([true, true, null]),
+                    `a trap still in the world half reads as a direct murder, or its killer holds a seat: ${stableJson(lifting)}`);
+                await S.castStore.patch("record", { indirect: false });
+                const told = incidentWitness();
+                equal(stableJson([told.indirect, told.seat]), stableJson([false, killer.id]), `the world half's trap beat the cast's "direct": ${stableJson(told)}`);
+            });
+            equal(stableJson([
+                incidentIndirect({ indirect: true }, {}), incidentIndirect({ indirect: false }, { indirect: true }),
+                incidentIndirect({}, { indirect: true }), incidentIndirect({}, {})
+            ]), stableJson([true, false, true, false]), "the rule is not the cast's, and the world half's where the cast has none");
+        } finally {
+            await game.user.update({ character: assignedBefore?.id ?? null });
         }
     }],
 

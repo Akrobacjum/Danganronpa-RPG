@@ -791,7 +791,8 @@ const REGRESSIONS = [
          * verify). scripts/world-secrets.mjs says what world data may never
          * hold - this test's own five answer-key names were its first line, and
          * projectMeta's killer, builder, condition and trigger its second (C1,
-         * S09-05: this test called them "known and deliberate" until then) -
+         * S09-05: this test called them "known and deliberate" until then; E05's
+         * fix round added who sabotaged a project, S1-m1) -
          * and R190 shows it finding each on a fixture. Since C5 the answer-key
          * names are nine - the Key Remnant plan's analysis, analyzedText, note
          * and tokenId joined them - and projectMeta's own map token is the one
@@ -803,7 +804,7 @@ const REGRESSIONS = [
         const { findWorldSecrets, WORLD_SECRET_RULES } = await import("./world-secrets.mjs");
         const { PROJECT_SECRET_FIELDS } = await import("./projects.mjs");
         equal(JSON.stringify([...(WORLD_SECRET_RULES.settings.projectMeta?.fields ?? [])].sort()), JSON.stringify([...PROJECT_SECRET_FIELDS].sort()),
-            "the world-secrets rule for projectMeta is not the four fields projects.mjs keeps on the GMs' side");
+            "the world-secrets rule for projectMeta is not the fields projects.mjs keeps on the GMs' side (PROJECT_SECRET_FIELDS)");
         const settings = {};
         for (const [full, def] of game.settings.settings) {
             if (!full.startsWith(`${MODULE_ID}.`) || def.scope !== "world") continue;
@@ -5721,9 +5722,12 @@ const REGRESSIONS = [
          * again when a GM asks, and diagnostics' line telling the GM what to type. The
          * reader is shown a planted ready hook first. E05's lifts join the list, each
          * with its own `since` (1.2.64), and so do its two drops (C7), which lift nothing.
+         * E05's fix round (r1-G1) gave E04's names and fog lifts 1.2.64 too, so that a world
+         * 1.2.63 stamped over rows they kept runs them once more.
          */
         const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"], ["faintIntoSecrets", "migrateFaintIntoSecrets", "1.2.63"],
-            ["liftIncidentSecrets", "liftIncidentSecrets", "1.2.63"], ["liftDiscoveryLedger", "liftDiscoveryLedger", "1.2.63"],
+            // E04's two, given 1.2.64 by E05's fix round (r1-G1): a world 1.2.63 stamped over rows they kept runs them again.
+            ["liftIncidentSecrets", "liftIncidentSecrets", "1.2.64"], ["liftDiscoveryLedger", "liftDiscoveryLedger", "1.2.64"],
             ["liftProjectSecrets", "liftProjectSecrets", "1.2.64"], ["liftPendingMurders", "liftPendingMurders", "1.2.64"],
             ["liftEclipseMoves", "liftEclipseMoves", "1.2.64"], ["liftKeyPlan", "liftKeyPlan", "1.2.64"], ["liftNotes", "liftNotes", "1.2.64"],
             ["dropRollBookmarks", "dropRollBookmarks", "1.2.64"], ["dropCardSummaries", "dropCardSummaries", "1.2.64"],
@@ -5925,6 +5929,37 @@ const REGRESSIONS = [
         // Not a reading of nothing: the readers and the writers themselves are seen.
         const missing = allowed.filter(key => !found.includes(key));
         ok(!missing.length, `the census did not see the predicates and the writers it allows: missing ${missing.join(", ")}`);
+    }],
+
+    ["R194 - whether an incident is a trap is asked of one rule, the cast's and the world half's where the cast has none", async () => {
+        /*
+         * E05 fix r1-G1, 27.09.2026; the correctness review's M2. Three places ask whether the
+         * running incident is a trap - `castOwners` (murder.mjs: who is sent the cast), the
+         * leaf's `incidentWitness` (the card's gate, the HUD's turn row, the edges, the music)
+         * and the opening Event card (events.mjs `openingCard`) - and the review found them
+         * answering two ways while a world half the lift has not reached still holds
+         * `indirect`: the first falling back to the world half, the other two reading the cast
+         * alone. settings.mjs `incidentIndirect` is the rule, and held here: each of the three
+         * asks it, and none reads a cast's `indirect` itself. The reader is shown a planted body
+         * first. The rule's own cases are the tier-2 test "a trap a world half still holds is a
+         * trap to every reader until the lift reaches it".
+         */
+        const READERS = [["murder.mjs", "castOwners"], ["settings.mjs", "incidentWitness"], ["events.mjs", "openingCard"]];
+        const problems = (label, body) => {
+            if (!body) return [`${label} was not found - this test reads nothing until it is pointed at it again`];
+            const out = [];
+            if (!/\bincidentIndirect\(/.test(body)) out.push(`${label} does not ask incidentIndirect whether it is a trap`);
+            if (/\bcast\??\.indirect\b/.test(body)) out.push(`${label} reads the cast's indirect itself`);
+            return out;
+        };
+        equal(JSON.stringify(problems("planted", "function planted(cast) {\n    return cast.indirect ? 1 : 2;\n}\n")),
+            JSON.stringify(["planted does not ask incidentIndirect whether it is a trap", "planted reads the cast's indirect itself"]),
+            "the reader does not find the two faults planted for it");
+        const sources = new Map(await otherSources());
+        const found = [];
+        for (const [file, fn] of READERS) found.push(...problems(`${file} ${fn}`, fnSource(stripComments(sources.get(file) ?? ""), fn)));
+        log(`R194: ${READERS.length} readers of whether an incident is a trap, read in ${new Set(READERS.map(r => r[0])).size} files`);
+        ok(!found.length, `whether an incident is a trap is not asked of one rule: ${found.join("; ")}`);
     }]
 ];
 

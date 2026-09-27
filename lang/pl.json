@@ -3387,7 +3387,7 @@
         "many": "Danganronpa RPG: {n} rzeczy w tym świecie zaktualizowano do {version}.",
         "other": "Danganronpa RPG: {n} rzeczy w tym świecie zaktualizowano do {version}."
       },
-      "failed": "Danganronpa RPG: migracja danych zatrzymała się w pół drogi - {clauses}. Nic nie oznaczono jako zmigrowane; szczegóły w konsoli."
+      "failed": "Danganronpa RPG: migracja danych zatrzymała się w pół drogi - {clauses}. Nic nie oznaczono jako zmigrowane, a przy następnym wczytaniu świata spróbuje ponownie; szczegóły w konsoli."
     },
     "Popup": {
       "moreTip": {

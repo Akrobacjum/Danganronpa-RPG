@@ -1894,6 +1894,29 @@ export function incidentParticipants() {
 }
 
 /**
+ * WHETHER THE RUNNING INCIDENT IS A TRAP: THE CAST'S, AND THE WORLD HALF'S WHERE THE CAST
+ * HAS NONE (E05 fix r1-G1, 27.09.2026; the correctness review's M2). One rule for its three
+ * readers - `castOwners` in murder.mjs (who is sent the cast), `incidentWitness` below (the
+ * card's gate, the HUD's turn row, the edges, the music) and the opening Event card
+ * (events.mjs) - which the round-1 review found reading it two ways: `castOwners` fell back
+ * to the world half, the other two read the cast alone. The method is the cast's since E05
+ * C8 (audit S04-08), and an incident opened since then writes `indirect` into it, true or
+ * false. The world half still holds it only where `liftIncidentMethod` has not reached - an
+ * incident opened under 1.2.63, until the first load of 1.2.64 lifts it, or longer when
+ * the lift keeps failing and retries - and that incident's cast has no `indirect` at all.
+ * There the cast alone read "direct": a GM sitting in a trap's killer's chair held a seat
+ * in `incidentWitness` (measured, the tier-2 test "a trap a world half still holds..."),
+ * and by reading, the opening Event card skipped the trap's victim (a direct murder does
+ * not tell its victim; that filter runs on a player's browser, which the suite cannot
+ * seat). Reading the world half adds nothing a console there could not read already, and
+ * a value the cast holds always wins. `murderState()` spreads the two halves, which gives
+ * the same answer wherever the cast holds a boolean or nothing.
+ */
+export function incidentIndirect(cast, state) {
+    return Boolean(cast?.indirect ?? state?.indirect);
+}
+
+/**
  * DOES THIS BROWSER WITNESS THE INCIDENT THAT IS RUNNING - and which seat is it?
  *
  * Four things now turn on that one question: the Event card, the HUD's turn
@@ -1909,7 +1932,7 @@ export function incidentParticipants() {
  *
  *   · the names come from `incidentCast`, never from the world setting - a
  *     bystander's browser holds none of them and must go on holding none; so
- *     does whether it is a trap (E05 C8)
+ *     does whether it is a trap (E05 C8), by `incidentIndirect`'s rule
  *   · a seat is decided by OWNERSHIP, because `game.user.character` is a field
  *     nothing at this table ever sets (see hud.mjs's own note on that)
  *   · a GM witnesses every incident, but owns no seat in it - owning every
@@ -1938,10 +1961,11 @@ export function incidentWitness() {
     if (!state.active || (state.stage !== "incident" && state.stage !== "openingRoll")) return away;
 
     const cast = incidentCast();
-    /* From the cast, as the names are (E05 C8; audit S04-08). A trap's killer holds no cast
-       while it runs, so this reads false on their browser - and their seat is empty anyway;
-       it read `true` off the world half, the one fact about the trap they were not to learn. */
-    const indirect = Boolean(cast.indirect);
+    /* From the cast, as the names are (E05 C8; audit S04-08), and the world half only where
+       the cast has none (`incidentIndirect`). A trap's killer holds no cast while it runs, so
+       on their browser this reads the world half, which holds it only until the lift - and
+       their seat is empty anyway. */
+    const indirect = incidentIndirect(cast, state);
     const gm = Boolean(game.user?.isGM);
 
     const mine = new Set();

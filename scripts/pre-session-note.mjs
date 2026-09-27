@@ -38,7 +38,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { getClock } from "./settings.mjs";
-import { log, warn, error, plural, isPrimaryGm, primaryGmId, activeGmIds, replaceFlag } from "./utils.mjs";
+import { log, error, plural, isPrimaryGm, primaryGmId, activeGmIds, replaceFlag } from "./utils.mjs";
 import { noteStore, noteCopy } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
@@ -336,9 +336,12 @@ export function registerPreSessionNote() {
  * storage: the flag is replaced whole by `{ updatedAt, written }` (`replaceFlag`, v14's
  * ForcedReplacement: a plain write would merge, and keep the text). A flag whose text is
  * empty has nothing to lift, and is replaced the same way. Then each player whose note
- * was lifted is sent their copy. Idempotent: a world already through this holds no text.
+ * was lifted is sent their copy. A text still in a flag after that throws, with the count,
+ * so the world is not stamped and the next load tries again (E05 fix r1-G1; migrate.mjs,
+ * above the lifts). Idempotent: a world already through this holds no text.
  *
- * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}
+ * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
+ *   `emptied` true: anything else throws.
  */
 export async function liftNotes() {
     if (!isPrimaryGm()) return null;
@@ -367,9 +370,9 @@ export async function liftNotes() {
         const at = row ? row.updatedAt : flagOf(user.id).updatedAt;
         await replaceFlag(user, NOTE_FLAG, { updatedAt: Number.isFinite(at) ? at : null, written: Boolean(String(row?.text ?? "").trim()) });
     }
-    if (kept) warn(`Pre-session notes: ${kept} stayed in world data, because the GM store did not read them back.`);
     const left = (game.users ?? []).filter(user => Object.hasOwn(flagOf(user.id), "text")).length;
     if (lifted) log(`Lifted ${lifted} pre-session note(s) out of world data; ${left} left.`);
     for (const userId of Object.keys(rows)) sendNoteTo(userId);
-    return { lifted, kept, emptied: left === 0 };
+    if (left) throw new Error(`${left} pre-session note(s) are still in their users' flags (${kept} the GM store did not read back); the next load tries again`);
+    return { lifted, kept, emptied: true };
 }

@@ -442,6 +442,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: an unsabotage naming a project that is not the repair deletes nothing and thaws nothing",
         Boolean(sabotaged.repair) && mismatched.after.secret && mismatched.after.repair && mismatched.after.frozen
         && mismatched.reasons.some(r => /not what froze|does not repair/.test(r)), JSON.stringify({ sabotaged, mismatched }));
+    /* WHO SABOTAGED IS THE GMS' (E05 fix r1-G1, 27.09.2026; the security review's S1-m1). p2's user
+       id sat on the repair's projectMeta row, `saboteur`, which every browser holds, until the
+       repair was finished; it is a field of the GMs' store now. p1 reads the repair's row, the GM
+       its store; and p1 asking to take back p2's sabotage is refused for not being who asked,
+       which the GM reads from the store. */
+    const whoAsked = {
+        p1: await p1.eval(`return (game.settings.get("${MOD}", "projectMeta") ?? {})["${sabotaged.repair}"] ?? null;`),
+        gm: await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            return S.projectSecretStore.get("${sabotaged.repair}")?.saboteur ?? null;`)
+    };
+    check("SECURITY: who sabotaged a project is not in projectMeta on p1 - the GMs' store holds p2's user id",
+        Boolean(whoAsked.p1?.repairs) && !Object.hasOwn(whoAsked.p1, "saboteur") && whoAsked.gm === p2.userId, JSON.stringify(whoAsked));
+    const notTheirs = await forge("project.unsabotage", { targetId: projects.pub, repairId: sabotaged.repair, actorId: ids.aiko }, readPair);
+    check("SECURITY: p1 taking back p2's sabotage is refused - the GM reads who asked from its store - and nothing is thawed",
+        notTheirs.unchanged && notTheirs.after.frozen && notTheirs.reasons.some(r => /did not ask for that sabotage/.test(r)), JSON.stringify(notTheirs));
     await clearFailures();
     await p2.eval(`game.socket.emit("${SOCKET}", { action: "project.unsabotage", userId: game.user.id, requestId: "noreceipt",
         targetId: "${projects.pub}", repairId: "${sabotaged.repair}", actorId: "${ids.botan}" }, ${toGms}); return true;`);

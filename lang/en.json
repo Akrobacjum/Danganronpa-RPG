@@ -3235,7 +3235,7 @@
         "one": "Danganronpa RPG: one thing in this world was brought up to date for {version}.",
         "other": "Danganronpa RPG: {n} things in this world were brought up to date for {version}."
       },
-      "failed": "Danganronpa RPG: the data migration stopped short - {clauses}. Nothing was marked as migrated; the console has the details."
+      "failed": "Danganronpa RPG: the data migration stopped short - {clauses}. Nothing was marked as migrated, and the next load of this world tries again; the console has the details."
     },
     "Popup": {
       "moreTip": {

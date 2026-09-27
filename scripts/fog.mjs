@@ -779,9 +779,14 @@ export async function resetLedger() {
  * NOTHING LEAVES WORLD DATA BEFORE THE STORE HOLDS IT. The rows go in weak and
  * fill-only - a cell any GM decided wins, an untick above all - and the world
  * setting is emptied only once every one of them reads back from storage; then it
- * is read back too. Idempotent: a world already through this has nothing in it.
+ * is read back too. A row that does not read back, or a world copy that does not read
+ * back empty, throws with the count, so the world is not stamped and the next load
+ * tries again (E05 fix r1-G1; migrate.mjs, above the lifts - since 1.2.64, so that a
+ * world 1.2.63 stamped over a ledger it kept runs this once more). Idempotent: a world
+ * already through this has nothing in it.
  *
- * @returns {Promise<null|{lifted: number, monokuma: number, emptied: boolean}>}
+ * @returns {Promise<null|{lifted: number, monokuma: number, emptied: boolean}>}  `emptied`
+ *   true: anything else throws.
  */
 export async function liftDiscoveryLedger() {
     if (!isPrimaryGm()) return null;
@@ -808,14 +813,14 @@ export async function liftDiscoveryLedger() {
             return Object.keys(row).some(room => !Object.hasOwn(held, room));
         });
         if (unheld.length) {
-            warn(`The fog ledger kept its world copy: ${unheld.length} row(s) did not read back from the store.`);
-            return { lifted: 0, monokuma, emptied: false };
+            throw new Error(`the fog ledger kept its world copy: ${unheld.length} row(s) did not read back from the GM store; the next load tries again`);
         }
     }
     await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, {});
     const emptied = !Object.keys(game.settings.get(MODULE_ID, SETTINGS.discoveredRooms) ?? {}).length;
     if (emptied) log(`Lifted the discovery ledger out of world data (D2): ${Object.keys(cells).length} row(s).`);
     shareLedger();
+    if (!emptied) throw new Error("the fog ledger's world copy did not read back empty; the next load tries again");
     return { lifted: Object.keys(cells).length, monokuma, emptied };
 }
 

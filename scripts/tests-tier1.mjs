@@ -4549,7 +4549,8 @@ const INVARIANTS = [
         });
         // One secret each: what it is, how it is planted in a clean snapshot, and the hit it must give.
         const FIXTURES = [
-            ...["killerId", "by", "condition", "trigger"].map(f => [`projectMeta.${f}`,
+            // E05's fix round (r1-G1, S1-m1) added `saboteur`, the user who asked for a sabotage.
+            ...["killerId", "by", "condition", "trigger", "saboteur"].map(f => [`projectMeta.${f}`,
                 s => { s.settings.projectMeta.R190PROJECT00001[f] = f === "trigger" ? { kind: "enters" } : "R190"; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "projectMeta" && h.path === `R190PROJECT00001.${f}`]),
             // E05 C5 added the last four: the Key Remnant plan held all of them.

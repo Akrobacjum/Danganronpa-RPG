@@ -13,7 +13,7 @@
 
 import { MODULE_ID, PROJECT_SCALE, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { announce, log, warn, error, whisperToOwner, gmIds, esc, ownerIdsOf, isPrimaryGm } from "./utils.mjs";
+import { announce, log, error, whisperToOwner, gmIds, esc, ownerIdsOf, isPrimaryGm } from "./utils.mjs";
 // Statically: gm-stores.mjs reaches this file only by dynamic import, so the edge closes no cycle (R161).
 import { projectSecretStore } from "./gm-stores.mjs";
 
@@ -43,13 +43,20 @@ export function metaFor(countdownId) {
  * condition before the crime (72-canary measured the killer's actor id at `projectMeta.<id>.killerId` on
  * both bystanders' browsers). They are the GM store `projectSecrets` now (gm-stores.mjs); projectMeta
  * keeps the room, the two flags, the trait, the glyph, the token and the sabotage pair.
+ *
+ * AND WHO SABOTAGED A PROJECT (E05 fix r1-G1, 27.09.2026; the security review's S1-m1). A player's
+ * sabotage recorded their user id on the repair's row, `saboteur`, so that only their own Reroll
+ * takes it back - in projectMeta, where any console read which player had sabotaged which project
+ * until the repair was finished (the review's scratch scenario, 26.09: p1 read p2's user id there).
+ * The secrecy is what a saboteur buys with their Shadow roll. Its one reader, `unsabotageRefusal`,
+ * runs on a GM, so it is the fifth field here, and `liftProjectSecrets` takes it out of an older world.
  */
-export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition", "trigger"]);
+export const PROJECT_SECRET_FIELDS = Object.freeze(["killerId", "by", "condition", "trigger", "saboteur"]);
 
 /**
- * The four fields of one project: the store's row on a GM, `{}` on anybody else. A player's browser
- * holds no GM store, and nothing that runs there needs the four: the tray, the pickers and the token
- * read projectMeta and the countdown, and every reader of the four runs on a GM (the trap's arming
+ * The secret fields of one project: the store's row on a GM, `{}` on anybody else. A player's browser
+ * holds no GM store, and nothing that runs there needs them: the tray, the pickers and the token
+ * read projectMeta and the countdown, and every reader of them runs on a GM (the trap's arming
  * and its alert, the finished project's card, the manager and the murder window).
  */
 export function secretsOf(countdownId) {
@@ -140,7 +147,7 @@ export function knowsProject(countdownId, user = game.user) {
 /**
  * Write metadata for a project. GM only.
  *
- * TWO HALVES SINCE E05 (C1; audit S09-05). The four fields of `PROJECT_SECRET_FIELDS` that `data`
+ * TWO HALVES SINCE E05 (C1; audit S09-05). The fields of `PROJECT_SECRET_FIELDS` that `data`
  * names go to the GM store, stamped as a GM's decision - `trigger` whole, because a caller here
  * states all of it (a trap's own three parts are `patchTrigger`'s); everything else is merged into
  * projectMeta, as before. Answers the project's row, both halves.
@@ -746,7 +753,9 @@ export async function sabotageProject(targetId, difficulty = 3, { saboteur = nul
  * repairing that target - and, when the sabotage recorded who asked for it,
  * the asker has to be them.
  *
- * Pure (the metadata is passed in) so the suite can hold it to that.
+ * Pure (the metadata is passed in) so the suite can hold it to that. The default reads both halves
+ * of a row: who asked is the GMs' store's since E05's fix round (`saboteur`, S1-m1), and every caller
+ * runs on a GM - the bridge's guard and `undoSabotage` there.
  *
  * @param {object} options
  * @param {string|null} options.targetId
@@ -755,7 +764,7 @@ export async function sabotageProject(targetId, difficulty = 3, { saboteur = nul
  * @param {(id: string) => object} [options.meta]
  * @returns {string|null}
  */
-export function unsabotageRefusal({ targetId, repairId, senderId = null, meta = metaFor } = {}) {
+export function unsabotageRefusal({ targetId, repairId, senderId = null, meta = id => ({ ...metaFor(id), ...secretsOf(id) }) } = {}) {
     if (!repairId) return "there is no repair to take back";
     if (!targetId) return "no frozen project was named";
     if (meta(targetId)?.frozenBy !== repairId) return "that repair is not what froze the project";
@@ -1199,27 +1208,29 @@ export async function clearAllProjects() {
 }
 
 /**
- * A world from before 1.2.64 holds the four fields in projectMeta, which every browser reads (audit
+ * A world from before 1.2.64 holds the secret fields in projectMeta, which every browser reads (audit
  * S09-05). The clause `liftProjectSecrets` (migrate.mjs, since 1.2.64) runs this once, on the primary,
  * after the store holds the other GMs' copies (E05 C1).
  *
  * NOTHING LEAVES WORLD DATA BEFORE THE STORE HOLDS IT. The fields go in weak and fill-only - whatever a
  * GM wrote to the store since the update wins, a trigger part by part - and a field is taken out of
  * projectMeta only once the store reads it back from storage; the setting is replaced whole, so every
- * other field of every row is written back as it was, and then it is read back too. Idempotent: a world
- * already through this has none of the four.
+ * other field of every row is written back as it is NOW - read again after the store's save, which is
+ * an await another GM's write can land in (a room, a freeze; the correctness review's M9: the copy read
+ * before it put that write back) - and then it is read back too. A field still in projectMeta after
+ * that throws, with the count, so the world is not stamped and the next load tries again (E05 fix
+ * r1-G1; migrate.mjs, above the lifts). Idempotent: a world already through this has none of them.
  *
  * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}  Fields moved, fields left
- *   in the world because the store did not read them back, and whether projectMeta now holds none.
+ *   in the world (0 - more throws), and whether projectMeta now holds none (true).
  */
 export async function liftProjectSecrets() {
     if (!isPrimaryGm()) return null;
     if (await projectSecretStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the project secrets did not arrive; the next load tries again");
     }
-    const meta = projectMeta();
     const rows = {};
-    for (const [id, entry] of Object.entries(meta)) {
+    for (const [id, entry] of Object.entries(projectMeta())) {
         if (!entry || typeof entry !== "object") continue;
         const fields = Object.fromEntries(PROJECT_SECRET_FIELDS.filter(f => Object.hasOwn(entry, f)).map(f => [f, entry[f]]));
         if (Object.keys(fields).length) rows[id] = fields;
@@ -1227,25 +1238,25 @@ export async function liftProjectSecrets() {
     if (!Object.keys(rows).length) return null;
     await projectSecretStore.patchMany(rows, { weak: true, fillOnly: true });
     await projectSecretStore.idle();
-    const next = foundry.utils.deepClone(meta);
+    const next = foundry.utils.deepClone(projectMeta());
     let lifted = 0, kept = 0;
     for (const [id, fields] of Object.entries(rows)) {
         const held = projectSecretStore.persisted(id) ?? {};
         for (const field of Object.keys(fields)) {
             if (Object.hasOwn(held, field)) {
-                delete next[id][field];
+                if (next[id] && typeof next[id] === "object") delete next[id][field];
                 lifted++;
             } else kept++;
         }
     }
-    if (kept) warn(`Project secrets: ${kept} field(s) stayed in projectMeta, because the GM store did not read them back.`);
     if (lifted) await game.settings.set(MODULE_ID, SETTINGS.projectMeta, next);
     const left = Object.values(projectMeta())
         .reduce((n, row) => n + PROJECT_SECRET_FIELDS.filter(f => row && typeof row === "object" && Object.hasOwn(row, f)).length, 0);
     if (lifted) log(`Lifted ${lifted} project secret field(s) out of world data (D3); ${left} left.`);
     // The armed map was built from the world's copy; the next event rebuilds it from the store.
     (await import("./traps.mjs")).forgetArmedTraps();
-    return { lifted, kept, emptied: left === 0 };
+    if (left) throw new Error(`${left} project secret field(s) are still in projectMeta (${kept} the GM store did not read back); the next load tries again`);
+    return { lifted, kept, emptied: true };
 }
 
 /** Human-readable scale label for a progress target. */

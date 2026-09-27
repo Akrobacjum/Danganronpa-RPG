@@ -69,10 +69,15 @@ const SEEDED_CHIME = "sounds/notify.wav";
  *          skipped when this world has already been stamped by a build at or
  *          after it. See the note below - this is what stops a clause that
  *          seeds a default from putting the default back every time the version
- *          moves, after a GM has deliberately removed it.
+ *          moves, after a GM has deliberately removed it. A clause that seeds
+ *          nothing and is idempotent may be given a later `since` to run once
+ *          more on worlds a build before it stamped (E04's two lifts, below).
  *   run    async ({ from, to, force, wasInPlay }) => object|null. Return what
  *          changed, or `null` for "nothing to do". NEVER throw for an absent
- *          world shape; a world that has no trials yet is not an error.
+ *          world shape; a world that has no trials yet is not an error. DO
+ *          throw when the clause could not finish what it is for (a lift that
+ *          left its secret in world data): the world is then not stamped, and
+ *          the next load runs it again.
  *          `wasInPlay` says whether the world was played before this load, read
  *          before anything ran (`worldWasInPlay`): an unstamped world is new, or
  *          one from a build before the stamp (v1.1.0).
@@ -561,9 +566,30 @@ const CLAUSES = [
             return moved || kept ? { moved, kept } : null;
         }
     },
+    /*
+     * A LIFT THAT LEAVES ITS SECRET IN WORLD DATA THROWS (E05 fix r1-G1, 27.09.2026; the
+     * reviews' S1-M1 and M2). Every lift from here down takes a secret out of world data
+     * only once its store reads the rows back from storage. Until this fix a lift whose
+     * rows did not read back - the road to that is the store's save failing, a full
+     * origin, which the engine catches, keeps in memory and reports as "could not save" -
+     * returned a report of what it kept: the runner counted a clause that ran and wrote
+     * the stamp, every clause is gated on `since`, and no load tried again, so the secret
+     * stayed on every browser for good with a console warning as the only word of it
+     * (the security review's scratch scenario, 26.09, on `liftKeyPlan`: `kept: 5`,
+     * `failed: []`, the stamp written, and the next pass "nothing to do"). Now each lift
+     * finishes what did read back and then throws with what stayed, as the two drops
+     * below always did: the world is not stamped, the runner names the clause on the GM's
+     * screen, and the next load runs it again - safe, because every lift writes weak and
+     * fill-only and reads back before it removes anything.
+     *
+     * AND E04'S TWO RUN AGAIN UNDER 1.2.64. They shipped in 1.2.63 with the same gap, and
+     * a world stamped 1.2.63 whose lift kept its rows would never reach the fix above, so
+     * their `since` is 1.2.64: such a world runs them once more, and one they emptied
+     * finds nothing and says nothing.
+     */
     {
         key: "liftIncidentSecrets",
-        since: "1.2.63",
+        since: "1.2.64",
         /*
          * THE INCIDENT'S NAMES OUT OF WORLD DATA (LIVE-001, CASE-04; E04). A world that
          * updated mid-incident may still hold names in `murderState`, and a betrayal
@@ -571,29 +597,30 @@ const CLAUSES = [
          * load of every GM (murder.mjs); once now, on the primary, after the GM
          * store's copies arrived, with the rules written on `liftIncidentSecrets`:
          * into the cast weak and fill-only, and out of world data only once the cast
-         * reads back from storage holding it.
+         * reads back from storage holding it. Since 1.2.63; given 1.2.64 above.
          */
         run: async () => {
             const { liftIncidentSecrets } = await import("./murder.mjs");
             const report = await liftIncidentSecrets();
-            return report && (report.lifted || report.offers || report.flags || report.kept) ? report : null;
+            return report && (report.lifted || report.offers || report.flags) ? report : null;
         }
     },
     {
         key: "liftDiscoveryLedger",
-        since: "1.2.63",
+        since: "1.2.64",
         /*
          * THE FOG LEDGER OUT OF WORLD DATA (D2, S07-01; E04). A world that updated
          * mid-season may still hold its ledger in the world setting, which any console
          * reads. fog.mjs lifted it on every load of the primary; once now, after the GM
          * store's copies arrived and after `forgetMonokumaWalks` above, with the rules
          * written on `liftDiscoveryLedger`: into the store weak and fill-only, and out of
-         * world data only once the store reads back from storage holding it.
+         * world data only once the store reads back from storage holding it. Since
+         * 1.2.63; given 1.2.64 above.
          */
         run: async () => {
             const { liftDiscoveryLedger } = await import("./fog.mjs");
             const report = await liftDiscoveryLedger();
-            return report && (report.lifted || report.monokuma || !report.emptied) ? report : null;
+            return report && (report.lifted || report.monokuma) ? report : null;
         }
     },
     {
@@ -609,7 +636,7 @@ const CLAUSES = [
         run: async () => {
             const { liftProjectSecrets } = await import("./projects.mjs");
             const report = await liftProjectSecrets();
-            return report && (report.lifted || report.kept) ? report : null;
+            return report?.lifted ? report : null;
         }
     },
     {
@@ -626,7 +653,7 @@ const CLAUSES = [
         run: async () => {
             const { liftPendingMurders } = await import("./eclipse.mjs");
             const report = await liftPendingMurders();
-            return report && (report.lifted || report.kept) ? report : null;
+            return report?.lifted ? report : null;
         }
     },
     {
@@ -644,7 +671,7 @@ const CLAUSES = [
         run: async () => {
             const { liftEclipseMoves } = await import("./eclipse.mjs");
             const report = await liftEclipseMoves();
-            return report && (report.lifted || report.kept) ? report : null;
+            return report?.lifted ? report : null;
         }
     },
     {
@@ -661,7 +688,7 @@ const CLAUSES = [
         run: async () => {
             const { liftKeyPlan } = await import("./investigation.mjs");
             const report = await liftKeyPlan();
-            return report && (report.lifted || report.kept) ? report : null;
+            return report?.lifted ? report : null;
         }
     },
     {
@@ -677,7 +704,7 @@ const CLAUSES = [
         run: async () => {
             const { liftNotes } = await import("./pre-session-note.mjs");
             const report = await liftNotes();
-            return report && (report.lifted || report.kept) ? report : null;
+            return report?.lifted ? report : null;
         }
     },
     {
@@ -725,7 +752,7 @@ const CLAUSES = [
         run: async () => {
             const { liftIncidentMethod } = await import("./murder.mjs");
             const report = await liftIncidentMethod();
-            return report && (report.lifted || report.dropped || report.kept) ? report : null;
+            return report && (report.lifted || report.dropped) ? report : null;
         }
     }
 ];
@@ -829,9 +856,15 @@ export async function keepOldSafeword({ from = "", wasInPlay = false } = {}) {
  *                                   pass before anything wrote. A call by hand
  *                                   comes after this session has written the
  *                                   world, so it goes by the stamp alone.
+ * @param {string[]} [options.only]  The suite's alone: the keys of the clauses this
+ *                                   pass considers, instead of every one, so a test
+ *                                   runs one clause through the runner over data it
+ *                                   planted - not every clause over a table's real
+ *                                   world (E05 fix r1-G1). The stamp is written, or
+ *                                   not, as for a whole pass; the test puts it back.
  * @returns {Promise<object|null>}   The report, or `null` if it did not run.
  */
-export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = null } = {}) {
+export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = null, only = null } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Migrate.gmOnly"));
         return null;
@@ -850,7 +883,8 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
         from, to, forced: force, wasInPlay: inPlay, clauses: {}, changed: 0, skipped: [], failed: []
     };
 
-    for (const clause of CLAUSES) {
+    const clauses = Array.isArray(only) ? CLAUSES.filter(clause => only.includes(clause.key)) : CLAUSES;
+    for (const clause of clauses) {
         // Already been through a build that carried this clause - see the note
         // on `since`. An unstamped world has been through nothing, so it runs
         // everything, which is also exactly what a brand-new world needs.
@@ -876,9 +910,12 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
     }
 
     if (report.failed.length) {
+        // It stays up until the GM closes it (E05 fix r1-G1): a lift that keeps failing
+        // fails at every load, and this line is where the GM hears of it - the clause's
+        // own reason is in the console, with the count of what stayed in world data.
         ui.notifications.error(game.i18n.format("DRPG.Migrate.failed", {
             clauses: report.failed.join(", ")
-        }));
+        }), { permanent: true });
         log("Migration: stamp NOT written, because a clause failed.", report);
         return report;
     }
@@ -890,7 +927,7 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
             n: report.changed, version: to
         }));
     }
-    const considered = CLAUSES.length - report.skipped.length;
+    const considered = clauses.length - report.skipped.length;
     log(`Migration: ${from || "an unstamped world"} → ${to}, `
         + `${report.changed} of ${considered} clause(s) considered had something `
         + `to do, ${report.skipped.length} already been through.`, report);

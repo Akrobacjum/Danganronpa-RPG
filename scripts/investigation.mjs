@@ -37,7 +37,7 @@ import { bulletsOf, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { isDeadForGm, sweepTruthBullets } from "./chapter.mjs";
 import {
-    dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, warn, isPrimaryGm,
+    dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, wireDashboardTabs } from "./utils.mjs";
 import { alreadyOpen, keepLive, keepFresh } from "./live.mjs";
 import { keyPlanStore } from "./gm-stores.mjs";
@@ -199,10 +199,13 @@ export async function archiveKeyPlan(chapter) {
  * the update keeps its value; a blank field carries nothing and is left out, and a slot
  * with nothing but its scale is still a row, because a chapter with rows is a planned one
  * (`chargeForUnfoundKeys`). The key is emptied only once every field reads back from
- * storage; otherwise it is left whole, and the report says what was kept. Idempotent: a
- * world already through this holds nothing.
+ * storage; otherwise it is left whole, and the lift throws with the count of what did not
+ * read back, so the world is not stamped and the next load tries again (E05 fix r1-G1;
+ * migrate.mjs, above the lifts) - as it does when the emptied key does not read back
+ * empty. Idempotent: a world already through this holds nothing.
  *
- * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}
+ * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
+ *   `emptied` true: anything else throws.
  */
 export async function liftKeyPlan() {
     if (!isPrimaryGm()) return null;
@@ -234,11 +237,12 @@ export async function liftKeyPlan() {
             else kept++;
         }
     }
-    if (kept) warn(`The Key Remnant plan: ${kept} field(s) did not read back from the GM store, so the world's key is left as it was.`);
-    else await game.settings.set(MODULE_ID, SETTINGS.legacyKeyRemnantPlan, {});
+    if (kept) throw new Error(`${kept} field(s) of the Key Remnant plan did not read back from the GM store, so the world's key is left as it was; the next load tries again`);
+    await game.settings.set(MODULE_ID, SETTINGS.legacyKeyRemnantPlan, {});
     const left = Object.keys(game.settings.get(MODULE_ID, SETTINGS.legacyKeyRemnantPlan) ?? {}).length;
-    if (lifted && !kept) log(`Lifted the Key Remnant plan out of world data: ${lifted} field(s) in ${Object.keys(rows).length} row(s).`);
-    return { lifted, kept, emptied: left === 0 };
+    if (left) throw new Error("the world's Key Remnant plan did not read back empty; the next load tries again");
+    if (lifted) log(`Lifted the Key Remnant plan out of world data: ${lifted} field(s) in ${Object.keys(rows).length} row(s).`);
+    return { lifted, kept, emptied: true };
 }
 
 /** Every chapter's plan this GM's browser holds, taken away (the season reset). */

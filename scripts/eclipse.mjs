@@ -24,7 +24,7 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, is
 export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
-import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, warn, error, plural, cardHead, esc, isPrimaryGm,
+import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
 import { pendingMurderStore, eclipseMoveStore, eclipseMoveCopy } from "./gm-stores.mjs";
@@ -503,10 +503,15 @@ export async function clearParkedMurders() {
  * and fill-only, named for the Eclipse running now (a world updated between two
  * Eclipses has none running, and the next lights drop what it held unjudged, as
  * 1.2.63's season reset left it); a key is taken out of the world only once its row
- * reads back from storage, and the setting is written back whole with the rest.
- * Idempotent: a world already through this holds nothing.
+ * reads back from storage, and the setting is written back whole with the rest - from
+ * the copy read before the store's save, because nothing but this lift writes the old
+ * key (settings.mjs `legacyPendingMurders`). A declaration still in the world after that
+ * throws, with the count, so the world is not stamped and the next load tries again
+ * (E05 fix r1-G1; migrate.mjs, above the lifts). Idempotent: a world already through
+ * this holds nothing.
  *
- * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}
+ * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
+ *   `emptied` true: anything else throws.
  */
 export async function liftPendingMurders() {
     if (!isPrimaryGm()) return null;
@@ -538,11 +543,11 @@ export async function liftPendingMurders() {
             lifted++;
         } else kept++;
     }
-    if (kept) warn(`Declarations in the dark: ${kept} stayed in world data, because the GM store did not read them back.`);
     if (Object.keys(next).length !== Object.keys(old).length) await game.settings.set(MODULE_ID, SETTINGS.legacyPendingMurders, next);
     const left = Object.keys(game.settings.get(MODULE_ID, SETTINGS.legacyPendingMurders) ?? {}).length;
     if (lifted) log(`Lifted ${lifted} declaration(s) made in the dark out of world data; ${left} left.`);
-    return { lifted, kept, emptied: left === 0 };
+    if (left) throw new Error(`${left} declaration(s) made in the dark are still in world data (${kept} the GM store did not read back); the next load tries again`);
+    return { lifted, kept, emptied: true };
 }
 
 /**
@@ -975,10 +980,14 @@ function registerMovesCopy() {
  * cleared at its end and nothing reads, so it is taken out with no row. During one, each
  * count goes in weak and fill-only, named for the running Eclipse - a crossing a GM has
  * counted since the update keeps its count - and leaves the world only once its row
- * reads back from storage; then each owner is sent their copy. Idempotent: a world
- * already through this holds nothing.
+ * reads back from storage (the setting written back from the copy read before the
+ * store's save: nothing but this lift writes the old key); then each owner is sent their
+ * copy. A count still in the world after that throws, with the count, so the world is
+ * not stamped and the next load tries again (E05 fix r1-G1; migrate.mjs, above the
+ * lifts). Idempotent: a world already through this holds nothing.
  *
- * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}
+ * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
+ *   `emptied` true: anything else throws.
  */
 export async function liftEclipseMoves() {
     if (!isPrimaryGm()) return null;
@@ -1011,14 +1020,14 @@ export async function liftEclipseMoves() {
             lifted++;
         } else kept++;
     }
-    if (kept) warn(`Eclipse crossings: ${kept} stayed in world data, because the GM store did not read them back.`);
     if (Object.keys(next).length !== Object.keys(old).length) await game.settings.set(MODULE_ID, SETTINGS.legacyEclipseMoves, next);
     const left = Object.keys(game.settings.get(MODULE_ID, SETTINGS.legacyEclipseMoves) ?? {}).length;
     if (lifted) log(`Lifted ${lifted} Eclipse crossing count(s) out of world data; ${left} left.`);
     for (const user of game.users ?? []) {
         if (user.active && !user.isGM && Object.keys(rows).some(actorId => game.actors.get(actorId)?.testUserPermission?.(user, "OWNER"))) sendMovesTo(user.id);
     }
-    return { lifted, kept, emptied: left === 0 };
+    if (left) throw new Error(`${left} Eclipse crossing count(s) are still in world data (${kept} the GM store did not read back); the next load tries again`);
+    return { lifted, kept, emptied: true };
 }
 
 /** Every crossing this GM's browser holds, of any Eclipse, taken away (the season reset). */
