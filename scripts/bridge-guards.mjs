@@ -633,6 +633,13 @@ export async function guardArmPlayerCall(sender, payload, ctx) {
  * is dead is refused: the buyer's browser offers the living it knows of (call-effects.mjs
  * `pickPlayer`), and a body nobody has found is one of those. Told as "cannot now", which
  * names nobody; why is in this GM's log. A Monocub is dead and still a target.
+ * ASKED LAST (E05 fix r2-G3, 27.09.2026; review S2-m1). It stood among the declaration's
+ * guards, before the price: measured by the review, a player with no Hope who sent one
+ * Support for a body nobody had found and one for a living student was told "cannot now"
+ * for the first and "not enough Hope" for the second, free, as often as asked. The
+ * player's road asks it after every refusal a living beneficiary gets too
+ * (gm-bridge.mjs `armPaidByPlayer`), so the two answers differ only where the living
+ * one is armed and paid for. The judgement is this GM's, as before.
  */
 export async function guardArmLiving(sender, payload, ctx) {
     if (sender.isGM) return null;

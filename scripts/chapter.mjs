@@ -343,7 +343,18 @@ async function recordSecretDeath(actor, { keepBullets = false } = {}) {
         error(`Could not record ${actor.name}'s death for the GMs`, err);
         return null;
     }
-    if (!deathStore.has(actor.id)) return null;
+    /* WHAT WAS STORED, NOT WHAT IS HELD (E05 fix r2-G3, 27.09.2026; review S2-m8). This read
+       `has`, and the engine keeps a write it could not save in memory (a full origin: its
+       notice asks for a backup), so the check passed whenever the save failed and the death
+       lived in this tab alone - a reload without the backup lost it, no flag and no row. The
+       patch has awaited its save, so the row is read back from storage (`persisted`), as the
+       lifts read theirs; measured in tier 2 with the store's save swallowed. The row held in
+       memory is dropped with it, here and on the GMs its write reached, or the death would be
+       both the table's and a row nobody has found. */
+    if (!deathStore.persisted(actor.id)) {
+        if (deathStore.has(actor.id)) await deathStore.drop(actor.id);
+        return null;
+    }
     await tellDeathKnowers(actor, known);
     return record;
 }
@@ -381,14 +392,11 @@ export async function publishDeath(actor) {
     });
     if (!record) return null;
     // Read again after the awaits above: a loot served meanwhile joined the row (handover.mjs `oweLootBullet`).
-    const owed = deathStore.get(actor.id)?.loot ?? row.loot;
+    const { owedLoot, payOwedLoot } = await import("./handover.mjs");
+    const owed = owedLoot(deathStore.get(actor.id) ?? row);
     await deathStore.drop(actor.id);
     await tellDeathKnowers(actor, row.known, { dropped: true });
-    let paid = 0;
-    if (Array.isArray(owed) && owed.length) {
-        const { payOwedLoot } = await import("./handover.mjs");
-        paid = await payOwedLoot(actor, owed);
-    }
+    const paid = owed.length ? await payOwedLoot(actor, owed) : 0;
     log(`${actor.name}'s death is the table's now (chapter ${record.chapter}); ${removed} Truth Bullet(s) destroyed, ${paid} owed for a loot given.`);
     return record;
 }
@@ -667,14 +675,25 @@ function enqueueBodyWork(work) {
  * @param {object} options
  * @param {string} options.room     Where the body is.
  * @param {Actor} [options.victim]  Named in the announcement when given.
+ * @param {Scene} [options.scene]   The scene the room is on; this client's own when not given.
  */
 export function discoverBody(options = {}) {
     if (!game.user.isGM || !options?.room) return Promise.resolve(null);
     return enqueueBodyWork(() => runDiscovery(options));
 }
 
-async function runDiscovery({ room, victim = null } = {}) {
+async function runDiscovery({ room, victim = null, scene = null } = {}) {
     if (!game.user.isGM || !room) return null;
+
+    /* THE BODY'S SCENE, NOT THE ONE IN VIEW (E05 fix r2-G3, 27.09.2026; review F6). The
+       watcher runs on the primary GM, whatever scene that GM is looking at, and this read the
+       one in view: the bodies to publish and the gather both went to a same-named room there
+       (or nowhere), and a second body in the real room stayed unpublished with the discovery
+       marked done - measured on the harness (10-murder): with the GM looking at another scene,
+       two witnesses walked in on two kept bodies and the one the watcher did not name stayed
+       a death nobody had found. `checkBodyFound` passes the scene the walk happened on and the
+       GM's form the one it chose its room from. */
+    const where = scene ?? canvas?.scene ?? game.scenes?.active ?? null;
 
     // The Eclipse is a placement window nobody has finished crossing yet - see
     // the note on `maybeBodyFound`. Two things refuse before this now:
@@ -693,7 +712,7 @@ async function runDiscovery({ room, victim = null } = {}) {
        body kept by the GMs lying in this room are published before anything else - before the
        gather moves the cast in, before the card names them - so every screen reads them dead
        by the time it is told a body was found. */
-    await publishFoundBodies(room, victim);
+    await publishFoundBodies(room, victim, where);
 
     const promoted = await promoteFaintPrep();
 
@@ -704,7 +723,7 @@ async function runDiscovery({ room, victim = null } = {}) {
         .catch(err => error("Could not destroy the cleaning tools at body discovery", err));
 
     const { gatherEveryone } = await import("./call-effects.mjs");
-    const moved = await gatherEveryone(room);
+    const moved = await gatherEveryone(room, where);
 
     // The moment the chapter changes genre, on every screen at once. The card
     // is already public, so the flag needs nothing else from anybody.
@@ -742,12 +761,11 @@ async function runDiscovery({ room, victim = null } = {}) {
     return { promoted, moved };
 }
 
-/** The named victim, and every body kept by the GMs standing in `room` on the scene in view, published (`publishDeath`). */
-async function publishFoundBodies(room, victim) {
+/** The named victim, and every body kept by the GMs standing in `room` on `scene`, published (`publishDeath`). */
+async function publishFoundBodies(room, victim, scene) {
     const ids = new Set(victim && deathStore.has(victim.id) ? [victim.id] : []);
     try {
         const { roomOfToken } = await import("./movement.mjs");
-        const scene = canvas?.scene ?? game.scenes?.active ?? null;
         for (const t of scene?.tokens ?? []) {
             const id = t.actor?.id;
             if (id && deathStore.has(id) && roomOfToken(t) === room) ids.add(id);
@@ -874,7 +892,7 @@ async function checkBodyFound(tokenDoc) {
     log(`Body found in ${room}: ${witnesses.map(t => t.actor.name).join(", ")} walked in.`);
     // Already inside the queue: straight to the work, not back through `discoverBody`,
     // which would wait behind this very call.
-    return await runDiscovery({ room, victim: bodyHere.actor });
+    return await runDiscovery({ room, victim: bodyHere.actor, scene });
 }
 
 /**
@@ -976,7 +994,8 @@ export async function openBodyDiscoveryDialog() {
 
     return discoverBody({
         room: result.room,
-        victim: result.victimId ? game.actors.get(result.victimId) : null
+        victim: result.victimId ? game.actors.get(result.victimId) : null,
+        scene: canvas?.scene ?? null
     });
 }
 

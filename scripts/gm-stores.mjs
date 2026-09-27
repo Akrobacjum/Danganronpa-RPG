@@ -333,14 +333,16 @@ export const blackenedStore = defineGmStore({
  * `keepBullets`, `known`, the users besides the GMs who may know of it - the victim's
  * player, the incident's, and later one who found the body alone - and `loot`, a record
  * per item taken off the body meanwhile, whose Truth Bullet names the body and waits for
- * the publication (handover.mjs `lootBody`, E05 fix r2-F0b). Written by the kill
+ * the publication (handover.mjs `lootBody`, E05 fix r2-F0b). `loot` is split, a stamp per
+ * record (E05 fix r2-G3): it was one list, and two GMs each adding a loot kept only the
+ * later write - see handover.mjs `oweLootBullet`. Written by the kill
  * (chapter.mjs `killCharacter`), dropped by the publication, a revival or the reset's
  * "deaths" group; a dropped row's tombstone is what a player's copy weighs its loss
  * against. No old key: a death before 1.2.64 was published at the kill.
  */
 export const deathStore = defineGmStore({
     name: "deaths", key: SETTINGS.gmDeaths,
-    kind: "ledger", resetGroup: "deaths", backup: true, sync: true,
+    kind: "ledger", split: ["loot"], resetGroup: "deaths", backup: true, sync: true,
     afterRestore: () => import("./murder.mjs").then(m => m.retellDeaths()),
     exists: actorId => Boolean(game.actors?.has(actorId))
 });

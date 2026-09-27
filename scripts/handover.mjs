@@ -476,10 +476,28 @@ async function lootRecord(taker, item, name, trace) {
  * which only a GM holds (`deathsFor` sends a player the kill's chapter, day and time of day, and
  * nothing else of it). `ifLive`: a death revived in the meantime has no row, and a loot off it
  * owes nothing.
+ * A RECORD OF ITS OWN (E05 fix r2-G3, 27.09.2026; F0b's note). `loot` was one list, rewritten
+ * whole by each loot, and the store keeps the newer of two writes of one field: measured on the
+ * harness (61 S), two GMs each serving a loot of one body without having heard of the other's
+ * ended holding one record, and the publication gave one taker nothing. It is a split field now
+ * (gm-stores.mjs `deathStore`), a record per loot under a key of its own - when, on which GM -
+ * so the merge keeps both, as the owed Despair keeps a row per conversion (despair.mjs). Not
+ * covered, read and not measured: a loot served on one GM in the moment another publishes the
+ * death - the publication drops the row, a record stamped before the drop goes with it, and the
+ * item has moved with no bullet given.
  */
 function oweLootBullet(body, loot) {
-    const owed = deathStore.get(body.id)?.loot;
-    return deathStore.patch(body.id, { loot: [...(Array.isArray(owed) ? owed : []), loot] }, { ifLive: true });
+    const key = `${Date.now()}:${game.user.id}:${foundry.utils.randomID(4)}`;
+    return deathStore.patch(body.id, { loot: { [key]: loot } }, { ifLive: true });
+}
+
+/** The loots a death's row owes, oldest first (`oweLootBullet`'s keys start with the time). */
+export function owedLoot(row) {
+    const owed = row?.loot;
+    if (!owed || typeof owed !== "object" || Array.isArray(owed)) return [];
+    return Object.entries(owed).filter(([, loot]) => loot && typeof loot === "object")
+        .sort(([a], [b]) => (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0) || (a < b ? -1 : a > b ? 1 : 0))
+        .map(([, loot]) => loot);
 }
 
 /**

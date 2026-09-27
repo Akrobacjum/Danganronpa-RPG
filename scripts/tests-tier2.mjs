@@ -681,6 +681,71 @@ const SCENARIOS = [
         }
     }],
 
+    ["a killer whose only victim was revived is not asked for at the trial", async () => {
+        /*
+         * E05 fix r2-G3, 27.09.2026; fix r2-G1's note. A register row names its victims, and the
+         * trial left out a killer only while each of them was a row of the deaths store - so a
+         * victim revived (the GM's undo of a death, which drops the row: the plan's section 2)
+         * left their killer counted at the trial, asked for on every ballot. The trial counts a
+         * killer for a death the table knows now (murder.mjs `untoldDeath`). A row naming one
+         * victim, published and then revived; the register keeps the row for the rule of two
+         * witnesses. Red on 8c6dfd6's runtime: the killer was still counted after the revival.
+         */
+        const M = await import("./murder.mjs");
+        const C = await import("./chapter.mjs");
+        const { blackenedStore } = await import("./gm-stores.mjs");
+        const [killer, victim] = cast(4).filter(a => !blackenedStore.has(a.id));
+        ok(killer && victim, "no two living students without a register row");
+        try {
+            await blackenedStore.patch(killer.id, { chapter: getClock()?.chapter ?? null, epoch: seasonEpoch(), at: 1, victims: [victim.id] });
+            const living = M.trialBlackenedIds().includes(killer.id);
+            ok(await C.killCharacter(victim, { secret: false, keepBullets: true }), "the fixture death was not recorded");
+            const published = M.trialBlackenedIds().includes(killer.id);
+            await C.reviveCharacter(victim, { quiet: true });
+            const revived = M.trialBlackenedIds().includes(killer.id);
+            equal(stableJson([living, published, revived, M.blackenedIds().includes(killer.id)]), stableJson([false, true, false, true]),
+                "the trial counted a killer for a living or revived victim, missed one for a published death, or the register lost the row");
+        } finally {
+            if (C.isDeadForGm(victim)) await C.reviveCharacter(victim, { quiet: true });
+            if (blackenedStore.has(killer.id)) await blackenedStore.drop(killer.id);
+        }
+    }],
+
+    ["a kept death whose row could not be saved is the table's at once", async () => {
+        /*
+         * E05 fix r2-G3, 27.09.2026; review S2-m8. `recordSecretDeath` asked the store's memory
+         * whether the row took, and the engine keeps a write it could not save in memory - so a
+         * full origin kept the death in one tab, and a reload without a backup lost it: no row,
+         * no flag, the victim alive. The row is read back from storage now (`persisted`), and a
+         * death it does not hold is published, as the kill's note promised. The store's save is
+         * swallowed here for the one key, as a write that never reached storage; nothing else
+         * is written to it meanwhile. Red on 8c6dfd6's runtime: the death stayed a row in memory.
+         */
+        const [victim] = cast(1);
+        const C = await import("./chapter.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        let record = null;
+        try {
+            settings.set = async function (namespace, key, value) {
+                if (namespace === MODULE_ID && key === deathStore.spec.key) return value;
+                return realSet.call(this, namespace, key, value);
+            };
+            try {
+                record = await C.killCharacter(victim, { secret: true, keepBullets: true });
+            } finally {
+                if (ownSet) settings.set = realSet;
+                else delete settings.set;
+            }
+            equal(stableJson([Boolean(record), C.isDeceased(victim), deathStore.has(victim.id), deathStore.persisted(victim.id)]),
+                stableJson([true, true, false, null]),
+                "a kept death whose row never reached storage stayed in memory alone, or was not made the table's");
+        } finally {
+            if (C.isDeadForGm(victim)) await C.reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
     ["a vote counts the Blackened once the stores hold the other GMs' rows", async () => {
         /*
          * E05 fix r2-G2, 27.09.2026; fix r2-G1's note. `openVote` counted the register and the
@@ -3316,7 +3381,7 @@ const SCENARIOS = [
         needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace and warns the GMs instead (trap 142)");
         const [taker, body] = cast(2);
         const { killCharacter, reviveCharacter, publishDeath, isDeceased } = await import("./chapter.mjs");
-        const { lootBody } = await import("./handover.mjs");
+        const { lootBody, owedLoot } = await import("./handover.mjs");
         const { lootTraceStore, deathStore } = await import("./gm-stores.mjs");
         const { grantItem } = await import("./inventory.mjs");
         const { isTruthBullet } = await import("./truth-bullets.mjs");
@@ -3345,11 +3410,12 @@ const SCENARIOS = [
             const items = ITEMS.map(name => [name, false, false]);
             equal(stableJson([arrived, fresh().map(read)]), stableJson([items, items]),
                 "before the death was published more than the items reached the taker, or something that did names the body");
-            const owed = deathStore.get(body.id)?.loot ?? [];
+            const owed = owedLoot(deathStore.get(body.id));
             equal(stableJson(owed.map(l => [l.takerId, l.item])), stableJson(ITEMS.map(name => [taker.id, name])),
                 "the death's row does not owe the taker each loot's bullet");
             const day = (Number(owed[0].day) || 0) + 7;
-            await deathStore.patch(body.id, { loot: owed.map(l => ({ ...l, day })) });
+            const loot = deathStore.get(body.id).loot;
+            await deathStore.patch(body.id, { loot: Object.fromEntries(Object.entries(loot).map(([key, l]) => [key, { ...l, day }])) });
 
             await publishDeath(body);
             await settle();

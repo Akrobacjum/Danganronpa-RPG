@@ -95,6 +95,10 @@
  *   Q  the owed Despair (E05 fix r2-G2): two GMs convert from one pool, neither having heard
  *      the other, and both hold both debts; the time of day pays the pool once, and a GM that
  *      comes back alone with the rows its browser held does not pay them again.
+ *   R  a death taken back while its owner's browser was closed (E05 fix r2-G3): p4 holds a
+ *      kept death, leaves, the GM revives it, and p4 back reads its character alive.
+ *   S  two GMs' loots of one body nobody has found (E05 fix r2-G3): each serves one without
+ *      having heard of the other, both are owed, and the publication gives both takers theirs.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -104,14 +108,16 @@ export const accounts = [
     { who: "gma", id: "USERGMA000000000", name: "GM A", role: 4, character: null, color: "#aa66ff", late: true },
     { who: "gmb", id: "USERGMB000000000", name: "GM B", role: 4, character: null, color: "#ffaa66", late: true },
     // A browser that ran 1.2.62 and holds nothing but its old store's clear of the Mastermind (E7).
-    { who: "gmc", id: "USERGMC000000000", name: "GM C", role: 4, character: null, color: "#aaff66", late: true }
+    { who: "gmc", id: "USERGMC000000000", name: "GM C", role: 4, character: null, color: "#aaff66", late: true },
+    // A player whose browser closes and comes back (R, E05 fix r2-G3): the seeded three cannot.
+    { who: "p4", id: "USERP4000000000A", name: "Player Four", role: 1, character: null, color: "#66aa66", late: true }
 ];
 
 const PROBE_KEY = "drpg-harness.probe";
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
+export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
     const GM2 = "USERGM2000000000", GMA = "USERGMA000000000";
 
     /* ------------------------------ A. the harness ------------------------------ */
@@ -1513,5 +1519,84 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         q2a.primary === true && q2a.pool === 7 && q2a.owed === 0 && q2b.primary === true && q2b.pool === 7 && q2b.owed === 0,
         J({ q2a, q2b }), { flow: "gm-store" });
 
-    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q"], gm: IDS.gm };
+    /* E05 fix r2-G3, 27.09.2026; review S2-m5. A kept death reaches a player's copy when it is
+       made, and its tombstone only whoever is connected when it is dropped; the ask at load was
+       answered with the deaths the user may know, and nothing when there were none - so a death
+       revived while its owner's browser was closed stayed in that browser. p4 is given Daichi,
+       Daichi is killed and kept, p4 leaves, gmb (alone, the primary) revives him, and p4 comes
+       back with its browser. Red on 8c6dfd6: p4 read Daichi dead after its return. */
+    phase("R: a death taken back while its owner's browser was closed leaves that browser's copy", { flow: "gm-store" });
+    const P4 = "USERP4000000000A";
+    const CH = `const C = await import("${repoUrl}/scripts/chapter.mjs"); const d = game.actors.get("${IDS.daichi}");`;
+    const untilP = `const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
+    await connect("p4");
+    await settle(800);
+    const r1 = await gmb.eval(`${CH} await d.update({ "ownership.${P4}": 3 });
+        return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), kept: Boolean(await C.killCharacter(d, { secret: true, keepBullets: true })) };`);
+    const r1p = await p4.eval(`${untilP} const d = game.actors.get("${IDS.daichi}"); await until(() => game.drpg.isDeadForGm(d));
+        return { dead: game.drpg.isDeadForGm(d), flag: game.drpg.isDeceased(d) };`);
+    await disconnect("p4");
+    await settle(300);
+    await gmb.eval(`${CH} await C.reviveCharacter(d, { quiet: true }); return true;`);
+    // Heard connecting before its world has loaded, as a browser's socket is: an ask from a user
+    // the GM does not yet see active is not answered (murder.mjs `onDeathsSocket`).
+    await connect("p4", { storage: await storageOf("p4"), announceFirst: true });
+    await settle(1500);
+    const r2p = await p4.eval(`${untilP} const d = game.actors.get("${IDS.daichi}"); await until(() => !game.drpg.isDeadForGm(d));
+        return { dead: game.drpg.isDeadForGm(d), copy: Object.keys((await import("${repoUrl}/scripts/gm-store.mjs")).readMine("deaths") ?? {}) };`);
+    await gmb.eval(`${CH} await d.update({ "ownership.${P4}": 0 }); return true;`);
+    check("R1: a kept death revived while its owner's browser was closed is let go by that browser when it comes back",
+        r1.primary === true && r1.kept && r1p.dead === true && r1p.flag === false && r2p.dead === false && r2p.copy.length === 0,
+        J({ r1, r1p, r2p }), { flow: "gm-store" });
+
+    /* E05 fix r2-G3, 27.09.2026; F0b's note. A loot of a body nobody has found owes its taker a Truth
+       Bullet, kept in the death's row until the publication, and the row's `loot` was one list: each
+       loot rewrote it whole, and the store keeps the newer write of a field. gma kills Daichi and keeps
+       it, with two things on the body; gmb leaves and gma serves Aiko's loot; gma leaves and gmb, back
+       alone, serves Chie's without having heard of it; gma comes back. Both GMs must owe both loots, and
+       gmb's publication give each taker the bullet of what they took. Red on 8c6dfd6: both GMs held
+       one loot, and one taker got nothing. */
+    phase("S: two GMs' loots of one body nobody has found are both owed and both given", { flow: "give-take-stash" });
+    const LOOT = `${CH} const H = await import("${repoUrl}/scripts/handover.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const owed = () => { const l = S.deathStore.get(d.id)?.loot; return (Array.isArray(l) ? l : Object.values(l ?? {})).map(x => x.item).sort(); };`;
+    const ITEMS = ["E05 61 S a lamp", "E05 61 S a cord"];
+    await connect("gma", { storage: await storageOf("gma") });
+    await settle(2500);
+    const s0 = await gma.eval(`${LOOT} const { grantItem } = await import("${repoUrl}/scripts/inventory.mjs");
+        const kept = Boolean(await C.killCharacter(d, { secret: true, keepBullets: true }));
+        for (const name of ${J(ITEMS)}) await grantItem(d, { name, category: "tool", tier: 1, override: true, quiet: true });
+        return { kept, items: d.items.filter(i => i.name.startsWith("E05 61 S")).map(i => i.name).sort() };`);
+    await settle(1500);
+    await disconnect("gmb");
+    await settle(500);
+    const s1 = await gma.eval(`${LOOT} const item = d.items.find(i => i.name === "${ITEMS[0]}");
+        return { took: Boolean(await H.lootBody({ takerId: "${IDS.aiko}", bodyId: d.id, itemId: item?.id })), owed: owed() };`);
+    await disconnect("gma");
+    await connect("gmb", { storage: await storageOf("gmb") });
+    await settle(1500);
+    const s2 = await gmb.eval(`${LOOT} const heard = owed(); const item = d.items.find(i => i.name === "${ITEMS[1]}");
+        return { heard, took: Boolean(await H.lootBody({ takerId: "${IDS.chie}", bodyId: d.id, itemId: item?.id })), owed: owed() };`);
+    await connect("gma", { storage: await storageOf("gma") });
+    await settle(2500);
+    const lootBullets = `const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const minted = id => game.actors.get(id).items.filter(i => B.isTruthBullet(i) && ${J(ITEMS)}.some(n => i.name.includes(n))).map(i => i.name);`;
+    const s3 = { gma: await gma.eval(`${LOOT} ${untilP} await until(() => owed().length === 2); return owed();`),
+        gmb: await gmb.eval(`${LOOT} ${untilP} await until(() => owed().length === 2); return owed();`) };
+    const s4 = await gmb.eval(`${LOOT} ${lootBullets} const record = await C.publishDeath(d); await new Promise(r => setTimeout(r, 800));
+        const out = { published: Boolean(record) && C.isDeceased(d), aiko: minted("${IDS.aiko}"), chie: minted("${IDS.chie}") };
+        for (const id of ["${IDS.aiko}", "${IDS.chie}"]) for (const i of game.actors.get(id).items.filter(i => ${J(ITEMS)}.some(n => i.name.includes(n)))) await i.delete();
+        const row = S.lootTraceStore.get(d.id);
+        const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+        if (trace) { try { await (await import("${repoUrl}/scripts/remnants.mjs")).dropRemnantSecret(trace); } catch {} await trace.delete(); }
+        if (S.lootTraceStore.has(d.id)) await S.lootTraceStore.drop(d.id);
+        await C.reviveCharacter(d, { quiet: true });
+        return out;`, { timeout: 30000 });
+    check("S1: two GMs each serving a loot of one body nobody has found, neither having heard the other, both owe both",
+        s0.kept && s0.items.length === 2 && s1.took && s2.took && s2.heard.length === 0
+        && J(s3.gma) === J([...ITEMS].sort()) && J(s3.gmb) === J([...ITEMS].sort()), J({ s0, s1, s2, s3 }), { flow: "give-take-stash" });
+    check("S2: the publication gives each taker the Truth Bullet of what they took",
+        s4.published && s4.aiko.length === 1 && s4.aiko[0].includes(ITEMS[0]) && s4.chie.length === 1 && s4.chie[0].includes(ITEMS[1]),
+        J(s4), { flow: "give-take-stash" });
+
+    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S"], gm: IDS.gm };
 }

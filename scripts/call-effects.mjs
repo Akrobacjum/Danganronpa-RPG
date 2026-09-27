@@ -1044,10 +1044,12 @@ export async function runPendingGather() {
  */
 export async function gatherEveryone(room, onScene = null) {
     /* THE SCENE IS AN ARGUMENT NOW (CALL-18, 20.09), and it defaults to this
-       client's own. The two callers that pass nothing - the immediate branch of
-       Public Announcement, and a body discovery - both run on the client that has
-       just chosen the room or found the body, so their own view IS the right answer.
-       A DEFERRED assembly is the case that is not: see `runPendingGather`. */
+       client's own. The caller that passes nothing - the immediate branch of Public
+       Announcement - runs on the client that has just chosen the room, so its own
+       view IS the right answer. A DEFERRED assembly is the case that is not: see
+       `runPendingGather`; and so is a body discovery, whose watcher runs on the
+       primary GM whatever it is looking at - it passes the body's scene since E05
+       fix r2-G3 (chapter.mjs `runDiscovery`). */
     const scene = onScene ?? canvas?.scene ?? null;
     if (!game.user.isGM || !scene) return 0;
 

@@ -220,6 +220,35 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false }); return true;`, { timeout: 60000 });
 
     /*
+     * 4d. A CALL ON A BODY NOBODY HAS FOUND (E05 fix r2-G3, 27.09.2026; review S2-m1). Daichi is
+     * the blow's kept death now. The GM refused a Call on him as "cannot now" before it asked
+     * for the price, so p1 with no Hope was told "cannotNow" for Daichi and "notEnoughHope" for
+     * Chie - which of the class had died unseen, free. It is asked last now: with no Hope both
+     * are refused for the Hope, and with the Hope for it Daichi's is still refused, paid for by
+     * nobody. Red on 8c6dfd6: Daichi's came back cannotNow with no Hope held.
+     */
+    phase("a Call on a body nobody has found", { flow: "call-arm" });
+    const aikoHope = await gm.eval(`const a = game.actors.get("${ids.aiko}"); const was = a.system.resources.hope.value;
+        await a.update({ "system.resources.hope.value": 0 }); return was;`);
+    const support = (target, nonce) => p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestArmCall("${target}", ${JSON.stringify({ key: "support", grants: "advantage", kind: "hope", from: ids.aiko, nonce })});`,
+        { timeout: 30000 });
+    const poor = { kept: await support(ids.daichi, "sec-kept-poor"), living: await support(ids.chie, "sec-living-poor") };
+    await gm.eval(`await game.actors.get("${ids.aiko}").update({ "system.resources.hope.value": 4 }); return true;`);
+    const rich = await support(ids.daichi, "sec-kept-paid");
+    await settle(600);
+    const readSupport = await gm.eval(`const d = game.actors.get("${ids.daichi}");
+        return { kept: game.drpg.isDeadForGm(d) && !game.drpg.isDeceased(d), hope: game.actors.get("${ids.aiko}").system.resources.hope.value,
+            armed: JSON.stringify([d.getFlag("${MOD}", "pendingCall") ?? null, game.actors.get("${ids.chie}").getFlag("${MOD}", "pendingCall") ?? null]) };`);
+    await gm.eval(`await game.actors.get("${ids.aiko}").update({ "system.resources.hope.value": ${Number(aikoHope) || 0} }); return true;`);
+    check("SECURITY: with no Hope, a Support for a body nobody has found and one for a living student are refused alike (notEnoughHope)",
+        readSupport.kept && poor.kept?.ok === false && poor.living?.ok === false && poor.kept.reason === "notEnoughHope"
+        && poor.living.reason === "notEnoughHope", JSON.stringify({ poor, readSupport }));
+    check("control: with the Hope for it, the Support for the body nobody has found is still refused as cannotNow - nothing paid, nothing armed",
+        rich?.ok === false && rich.reason === "cannotNow" && readSupport.hope === 4 && !readSupport.armed.includes("sec-"),
+        JSON.stringify({ rich, readSupport }));
+
+    /*
      * 5. A player calling a GM-side pool write through the API.
      *
      * This was `check(..., true)` - "does not throw uncaught" - and passed whatever

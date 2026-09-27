@@ -964,7 +964,9 @@ async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
 
     // `hopeHeld` came before the guards (`prepare`), so the Hope read below follows
     // the guard's own read with nothing awaited in between but the guards themselves.
-    const why = await firstRefusal(sender, payload, ctx, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope);
+    // `guardArmLiving` is asked after every refusal a living beneficiary would get as
+    // well (E05 fix r2-G3): see its note.
+    const why = await firstRefusal(sender, payload, ctx, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope, guardArmLiving);
     if (why) return { refused: why };
     const held = hopeHeld(buyer);
 
@@ -1404,11 +1406,11 @@ export const BRIDGE_ACTIONS = table({
             // not, so "arm me a Free Critical" was a single socket emit away, paid
             // for with nothing.
             owns(armBuyerId, "sender does not own the character paying for it"),
-            guardArmPlayerCall, guardArmCallGrants, guardArmLiving
+            guardArmPlayerCall, guardArmCallGrants
         ],
         // The player's road asks these itself, around a replayed purchase that is
-        // answered rather than refused (`armPaidByPlayer`).
-        runGuards: [guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope],
+        // answered rather than refused (`armPaidByPlayer`); `guardArmLiving` last of all.
+        runGuards: [guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope, guardArmLiving],
         // The beneficiary read once, and every import the two roads make, before
         // the guards - never later than the handler made them.
         prepare: async payload => {

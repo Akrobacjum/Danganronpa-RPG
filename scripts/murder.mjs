@@ -51,7 +51,7 @@ import {
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS, incidentCast, incidentIndirect, seasonEpoch, isDeadForGm, isDeceased } from "./settings.mjs";
 import { castStore, blackenedStore, castCopy, deathStore, deathCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD } from "./gm-stores.mjs";
-import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible } from "./gm-store.mjs";
+import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax, marksOf } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
@@ -2944,8 +2944,21 @@ export function knowsOfDeath(user, actorId, row = deathStore.get(actorId)) {
  * GM: the deaths kept by the GMs that this user may know, a stamp each - the row's newest
  * decision - and, for each body in `also` (dropped here a moment ago), its tombstone's, so a
  * copy that held it lets it go. Nothing of a death the user may not know, not even a stamp.
+ * `held`: the bodies the asker's copy holds (its ask's own claim) - each one not among the
+ * user's deaths is answered "none, as of now", with one fresh stamp for all of them.
+ *
+ * A DEATH TAKEN BACK WHILE ITS PLAYER WAS AWAY (E05 fix r2-G3, 27.09.2026; review S2-m5).
+ * The tombstone reached a copy only through `also`, sent to whoever was connected at the
+ * drop, and an ask named nothing of a body gone - so a copy that held it kept it: measured
+ * on the harness (61 R), a kept death revived while its owner's browser was closed was
+ * still read dead there after it came back. The ask names what its copy holds now. Every
+ * such body the user may not know is answered alike - a row live or dropped, a death
+ * published or taken back, a body that never died - at the same stamp: one read from the
+ * store's rows (a tombstone's stamp, or its absence for a live row) would tell a console
+ * that named any student which of them had died unseen. A copy lets go of a body that its
+ * answer names at a newer stamp without a death (gm-stores.mjs `offersCombine`).
  */
-export function deathsFor(userId, { also = [] } = {}) {
+export function deathsFor(userId, { also = [], held = [] } = {}) {
     const user = game.users.get(userId);
     const deaths = {}, stamps = {};
     if (!game.user?.isGM || !user || user.isGM) return { deaths, stamps };
@@ -2955,7 +2968,17 @@ export function deathsFor(userId, { also = [] } = {}) {
         stamps[actorId] = deathStore.newest(actorId);
     }
     for (const actorId of also) if (!(actorId in stamps) && !deathStore.has(actorId)) stamps[actorId] = deathStore.newest(actorId);
+    const none = held.filter(actorId => !(actorId in stamps));
+    if (none.length) {
+        const now = gmStoreStamp();
+        for (const actorId of none) stamps[actorId] = now;
+    }
     return { deaths, stamps };
+}
+
+/** The bodies an ask says its copy holds: this world's actor ids, each once. */
+function heldOf(ids) {
+    return Array.isArray(ids) ? [...new Set(ids.filter(id => typeof id === "string" && game.actors.has(id)))] : [];
 }
 
 /**
@@ -2963,10 +2986,10 @@ export function deathsFor(userId, { also = [] } = {}) {
  * nothing while the suite holds the stores or stands in another world. Answers whether it
  * sent: an answer that names nothing is not sent, since a copy takes none.
  */
-export function sendDeathsTo(userId, { also = [] } = {}) {
+export function sendDeathsTo(userId, { also = [], held = [] } = {}) {
     const user = game.users.get(userId);
     if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
-    const { deaths, stamps } = deathsFor(userId, { also });
+    const { deaths, stamps } = deathsFor(userId, { also, held });
     if (!Object.keys(stamps).length) return false;
     try {
         game.socket.emit(SOCKET_EVENT, { action: DEATHS_MINE, userId, deaths, stamps }, { recipients: [userId] });
@@ -3055,7 +3078,7 @@ function markLocalDeath(token) {
 function askForDeaths(primary = primaryGmId()) {
     if (!primary || game.user.isGM) return;
     try {
-        game.socket.emit(SOCKET_EVENT, { action: DEATHS_ASK }, { recipients: [primary] });
+        game.socket.emit(SOCKET_EVENT, { action: DEATHS_ASK, held: Object.keys(deathCopy.read() ?? {}) }, { recipients: [primary] });
     } catch (err) {
         error("Could not ask the GM which deaths this client knows", err);
     }
@@ -3067,7 +3090,7 @@ function onDeathsSocket(payload, senderId) {
         const sender = game.users.get(senderId);
         if (!sender?.active || sender.isGM) return;
         // Asked while the suite holds the stores: answered once it lets them go.
-        whenGmStoresAudible().then(() => deathStore.whenHydrated()).then(() => sendDeathsTo(sender.id))
+        whenGmStoresAudible().then(() => deathStore.whenHydrated()).then(() => sendDeathsTo(sender.id, { held: heldOf(payload.held) }))
             .catch(err => error("Could not answer a player's deaths", err));
         return;
     }
@@ -3474,18 +3497,31 @@ export function blackenedIds() {
  * (chapter.mjs `checkBodyFound`), which is the GMs' judgement of who stands in a room.
  */
 export function trialBlackenedIds() {
-    return blackenedIds().filter(id => countsAtTrial(blackenedStore.get(id), victim => deathStore.has(victim)));
+    return blackenedIds().filter(id => countsAtTrial(blackenedStore.get(id), untoldDeath));
+}
+
+/**
+ * A victim whose death the table does not know: one nobody has published (a row of the
+ * `deaths` store, no flag yet), and one taken back (E05 fix r2-G3, 27.09.2026; G1's note).
+ * This asked for a row alone, so a victim revived - the GM's undo of a death, which drops
+ * the row (plan section 2) - left their killer counted: measured in tier 2, a register row
+ * naming a revived victim was asked for at the trial. A victim whose actor is gone counts,
+ * as it did.
+ */
+function untoldDeath(victimId) {
+    const victim = game.actors.get(victimId);
+    return Boolean(victim) && !isDeceased(victim);
 }
 
 /**
  * The rule under `trialBlackenedIds`, pure (R199): a row counts unless every victim it
- * names is a death nobody has published (`pending(id)`, a row of the `deaths` store). A
- * row that names none counts - every row written before 1.2.64 names none, and a death
- * then was the table's at the kill.
+ * names is a death the table does not know (`untold(id)`: `untoldDeath`). A row that names
+ * none counts - every row written before 1.2.64 names none, and a death then was the
+ * table's at the kill.
  */
-export function countsAtTrial(row, pending) {
+export function countsAtTrial(row, untold) {
     const victims = Array.isArray(row?.victims) ? row.victims.filter(id => typeof id === "string" && id) : [];
-    return !victims.length || victims.some(id => !pending(id));
+    return !victims.length || victims.some(id => !untold(id));
 }
 
 /**
@@ -3494,7 +3530,10 @@ export function countsAtTrial(row, pending) {
  * both stores' hydration): read before, a vote opened moments after a load counted from this
  * browser's rows alone - a killer another GM recorded was missing from the ballot's count,
  * and a death another GM still kept secret was not yet there to hold its killer back.
- * `openVote` and `openVerdictDialog` wait on this before they count.
+ * `openVote` and `openVerdictDialog` wait on this before they count. (Since E05 fix r2-G3
+ * the killer is held back by the victim's flag, not by the row - `untoldDeath` - so only the
+ * register's wait still counts there; the deaths' wait stays for the verdict, which asks
+ * who is dead to the GMs - `isDeadForGm` - before it executes or rewards anybody.)
  */
 export function whenTrialReadable() {
     return Promise.all([blackenedStore.whenHydrated(), deathStore.whenHydrated()]);
