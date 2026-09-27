@@ -32,7 +32,7 @@ import { getClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
 import { isDeceased, isDeadForGm, livingStudents, killCharacter } from "./chapter.mjs";
-import { trialBlackenedIds, trialBlackenedActors } from "./murder.mjs";
+import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./murder.mjs";
 import { announce, dialogContent, whisperToGms, log, warn, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -266,7 +266,9 @@ export async function openVote({ picks = null } = {}) {
     // the register also counted a killer whose victim nobody had found yet: with one body
     // published and one not, every ballot asked for two names (measured on the harness),
     // which is how each player learnt of the second. A death counts nowhere until it is
-    // made known (the owner's Q3) - see `trialBlackenedIds`.
+    // made known (the owner's Q3) - see `trialBlackenedIds`. Counted once the stores hold the
+    // other GMs' rows (fix r2-G2, `whenTrialReadable`).
+    await whenTrialReadable();
     const recorded = trialBlackenedIds().length;
     picksRequired = Math.max(1, Math.trunc(picks ?? recorded) || 1);
     ballots = new Map();
@@ -680,7 +682,9 @@ export async function openVerdictDialog() {
     }
 
     // The trial's Blackened, not the register whole (E05 fix r2-G1): a killer whose every
-    // victim is still a death nobody has found is neither executed nor rewarded here.
+    // victim is still a death nobody has found is neither executed nor rewarded here. Read once
+    // the stores hold the other GMs' rows (fix r2-G2).
+    await whenTrialReadable();
     const known = trialBlackenedActors();
     const students = studentActors();
     // Recorded by `closeVote`, because by the time this window opens the tally

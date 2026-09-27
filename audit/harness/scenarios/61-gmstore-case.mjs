@@ -92,6 +92,9 @@
  *   O  the pre-session note (E05 fix r1-G4): a player's ask is answered only once the
  *      primary's notes store holds the other GMs' rows; then every GM leaves, p1 keeps
  *      a note, and a GM that p1 hears connect before its world has loaded gets it.
+ *   Q  the owed Despair (E05 fix r2-G2): two GMs convert from one pool, neither having heard
+ *      the other, and both hold both debts; the time of day pays the pool once, and a GM that
+ *      comes back alone with the rows its browser held does not pay them again.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -1470,5 +1473,45 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, check, phas
         noteO2.tab.status === noteO2.tab.kept && !noteO2.tab.kept.startsWith("DRPG.")
         && noteO2.p1.status === noteO2.p1.statusNow && noteO2.p1.status !== noteO2.tab.kept, J(noteO2), { flow: "pre-session-note" });
 
-    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O"], gm: IDS.gm };
+    /* E05 fix r2-G2, 27.09.2026; review F5. The owed Despair is a GM store - each GM's browser
+       holds its own rows - and the pools it is paid from are world data. Q1: gma converts from its
+       own pool and leaves; gmb, alone and so the primary, converts from the same pool without
+       having heard of it; gma comes back and both GMs hold both debts. Q2: gmb leaves holding both
+       rows; gma moves the time of day and the pool pays once; gma leaves, and gmb, back alone with
+       the rows its browser still holds, pays nothing again. Red on 1072bbb: Q1 read 2 owed on both
+       GMs (one row per pool, the newer write kept), Q2 paid on gmb's return a second time. */
+    phase("Q: two GMs' conversions from one pool are both owed, and a GM back alone does not pay them again", { flow: "gm-store" });
+    const DS = `const D = await import("${repoUrl}/scripts/despair.mjs");
+        const noHope = () => import("${repoUrl}/scripts/resource-guard.mjs").then(m => m.automatedUpdate(game.actors.get("${IDS.botan}"), { "system.resources.hope.value": 0 }));
+        const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
+    const readQ = `return { pool: D.getDespair("${GMA}"), owed: D.owedOf("${GMA}"), primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm() };`;
+    const q1a = await gma.eval(`${DS} await D.setDespair("${GMA}", 10); await noHope();
+        return { granted: await D.convertDespairToHope("${GMA}", game.actors.get("${IDS.botan}"), 1), owed: D.owedOf("${GMA}") };`);
+    await disconnect("gma");
+    await connect("gmb", { storage: await storageOf("gmb") });
+    await settle(1500);
+    const q1b = await gmb.eval(`${DS} await noHope();
+        return { heard: D.owedOf("${GMA}"), granted: await D.convertDespairToHope("${GMA}", game.actors.get("${IDS.botan}"), 2), owed: D.owedOf("${GMA}") };`);
+    await connect("gma", { storage: await storageOf("gma") });
+    await settle(2500);
+    const q1 = { q1a, q1b, gma: await gma.eval(`${DS} await until(() => D.owedOf("${GMA}") === 3); ${readQ}`),
+        gmb: await gmb.eval(`${DS} await until(() => D.owedOf("${GMA}") === 3); ${readQ}`) };
+    check("Q1: two GMs converting from one pool, neither having heard the other, both hold both debts",
+        q1a.granted === 1 && q1b.heard === 0 && q1b.granted === 2 && q1.gma.owed === 3 && q1.gmb.owed === 3 && q1.gma.pool === 10,
+        J(q1), { flow: "gm-store" });
+
+    await disconnect("gmb");
+    await settle(500);
+    const q2a = await gma.eval(`${DS} const { TIMES_OF_DAY } = await import("${repoUrl}/scripts/config.mjs"); const c = game.drpg.getClock();
+        await game.drpg.setClock({ timeOfDay: TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(c.timeOfDay) + 1) % TIMES_OF_DAY.length] });
+        await until(() => D.owedOf("${GMA}") === 0); ${readQ}`);
+    await disconnect("gma");
+    await connect("gmb", { storage: await storageOf("gmb") });
+    await settle(2500);
+    const q2b = await gmb.eval(`${DS} await until(() => D.owedOf("${GMA}") === 0); ${readQ}`);
+    check("Q2: the time of day's change pays the pool once, and a GM back alone with the rows its browser held pays nothing again",
+        q2a.primary === true && q2a.pool === 7 && q2a.owed === 0 && q2b.primary === true && q2b.pool === 7 && q2b.owed === 0,
+        J({ q2a, q2b }), { flow: "gm-store" });
+
+    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q"], gm: IDS.gm };
 }

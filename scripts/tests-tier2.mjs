@@ -193,6 +193,12 @@ async function restore(snap) {
      * recorded values below - which is what "put back" means.
      */
     if (stableJson(getClock()) !== stableJson(snap.clock)) await setClock(snap.clock);
+    /* The settlement a change of the time of day asks for writes the pools' world value, the
+       mark with it (E05 fix r2-G2). Asked by the hook some milliseconds after the clock's write,
+       it landed on the pools put back below - measured on the harness 27.09: "restore left
+       despairPools.settled" after the conversion's test. Asked here and waited for, it runs now,
+       and one asked later finds the mark where it is and writes nothing. */
+    await (await import("./despair.mjs")).settleOwed();
 
     /*
      * THE TRACES THAT APPEARED, REMOVED BEFORE THE SETTINGS GO BACK (E04, 1.2.63).
@@ -672,6 +678,67 @@ const SCENARIOS = [
         } finally {
             await C.reviveCharacter(victim, { quiet: true });
             await stood.back();
+        }
+    }],
+
+    ["a vote counts the Blackened once the stores hold the other GMs' rows", async () => {
+        /*
+         * E05 fix r2-G2, 27.09.2026; fix r2-G1's note. `openVote` counted the register and the
+         * deaths the moment it was asked, whether or not the GM stores held the other GMs' rows yet:
+         * a vote opened moments after a load counted from this browser's rows alone. Both stores'
+         * hydration is held here; the vote is opened and no ballot goes out while held; a killer
+         * another GM recorded arrives (written into this client's register), the hold ends, and
+         * every ballot asks for one name more than it would have. The ballots are caught and never
+         * sent; the two rows are dropped after. Red on 1072bbb's runtime: the ballots went out at
+         * once, asking for one name where the register came to hold two.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a player with a ballot");
+        needs(world.atLeast("livingStudents", 4), "two killers to record beside the two a chapter may hold");
+        const M = await import("./murder.mjs");
+        const V = await import("./vote.mjs");
+        const { blackenedStore, deathStore } = await import("./gm-stores.mjs");
+        const [first, second] = cast(4).filter(a => !blackenedStore.has(a.id));
+        ok(Boolean(second), "fewer than two of four living students are out of the register - this measures nothing");
+        const row = at => ({ chapter: getClock()?.chapter ?? null, epoch: seasonEpoch(), at: Date.now() + at, victims: [] });
+        const before = M.trialBlackenedIds().length;
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const real = [[blackenedStore, blackenedStore.whenHydrated], [deathStore, deathStore.whenHydrated]];
+        const gates = [];
+        const picks = [];
+        try {
+            await blackenedStore.patch(first.id, row(0));
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") {
+                    picks.push(packet.picks);
+                    return true;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            for (const [store] of real) {
+                const gate = {};
+                gate.promise = new Promise(resolve => { gate.open = () => resolve("answered"); });
+                store.whenHydrated = () => gate.promise;
+                gates.push(gate);
+            }
+            let opened = "waiting";
+            const opening = V.openVote().then(n => { opened = n; });
+            await settle();
+            const early = [opened, picks.length];
+            await blackenedStore.patch(second.id, row(1));
+            for (const gate of gates) gate.open();
+            await opening;
+            equal(stableJson(early), stableJson(["waiting", 0]), "the vote went out before the stores held the other GMs' rows");
+            ok(picks.length > 0, "the vote sent no ballot");
+            equal(stableJson([...new Set(picks)]), stableJson([Math.max(1, before + 2)]),
+                "the ballots do not count the killer another GM recorded while the vote waited for its rows");
+        } finally {
+            for (const [store, whenHydrated] of real) store.whenHydrated = whenHydrated;
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            await V.closeVote();
+            await blackenedStore.dropMany([first?.id, second?.id].filter(Boolean));
+            await settle();
         }
     }],
 
@@ -5977,6 +6044,110 @@ const SCENARIOS = [
             }
         } finally {
             await despairOwedStore.drop(donor.id);
+            await settle();
+        }
+    }],
+
+    ["the Despair counters wait for the rows the other GMs hold", async () => {
+        /*
+         * E05 fix r2-G2, 27.09.2026; review F5, S2-m7. The owed Despair and the overflow's count
+         * are GM stores, and their writers read them and wrote at a new stamp without waiting for
+         * the other GMs' copies - the shape fix r1-G3 closed for the Eclipse's count. Each store's
+         * hydration is held here by replacing its handle's answer, as the crossing's test does;
+         * nothing is decided while held; what another GM holds arrives (written into this client's
+         * store: a debt keyed as a pool's own row, which the reading before the fix and the one
+         * after both sum), the hold ends, and the decision reads it. A conversion and a Call are
+         * refused what the pool owes there; income into a full pool pays that debt rather than
+         * spilling it; the overflow adds to the other GM's count, and its zero and its check wait.
+         * The rows and the count are put back here; the pools and the Hope by tier 2's restore.
+         * Red on 1072bbb's runtime, every check made soft for the run: the conversion granted 2
+         * from a pool that owed 2 elsewhere, the Call was bought, the income spilled 1 and left
+         * the debt at 2, the overflow read 2 where 3 were counted, and the check and the zero
+         * answered at once.
+         */
+        const D = await import("./despair.mjs");
+        const o = await import("./overflow.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { DESPAIR_CALLS } = await import("./config.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { resourceValue } = await import("./character.mjs");
+        const donor = D.monokumas().find(u => u.id === game.user.id) ?? D.monokumas()[0];
+        ok(Boolean(donor), "no Monokuma's pool - this measures nothing");
+        const [who] = cast(1);
+        const c = getClock();
+        const since = `${c.session ?? 0}.${c.day ?? 1}.${c.timeOfDay ?? ""}`;
+        const cost = DESPAIR_CALLS.silence.cost;
+        const real = [[S.despairOwedStore, S.despairOwedStore.whenHydrated], [S.overflowStore, S.overflowStore.whenHydrated]];
+        const hold = store => {
+            const gate = {};
+            gate.promise = new Promise(resolve => { gate.open = () => resolve("answered"); });
+            store.whenHydrated = () => gate.promise;
+            return gate;
+        };
+        /* `fn` asked while `store` is held; `peer` writes the other GM's row; answers what `fn` had
+           answered before the hold ended ("waiting" while it waited) and after. */
+        const heldAcross = async (store, fn, peer) => {
+            const gate = hold(store);
+            let answer = "waiting";
+            const run = fn().then(value => { answer = value; });
+            await settle();
+            const early = answer;
+            await peer();
+            gate.open();
+            await run;
+            for (const [s, whenHydrated] of real) s.whenHydrated = whenHydrated;
+            return [early, answer];
+        };
+        const count0 = S.overflowStore.record().count;
+        // Counted to three under a threshold of twenty, so nothing here sets off a darkening; the table's rules are put back.
+        const rules0 = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {});
+        const active0 = game.settings.get(MODULE_ID, SETTINGS.overflow)?.active ?? null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, { ...rules0, threshold: 20 });
+            await S.despairOwedStore.drop(donor.id);
+            await D.setDespair(donor.id, 3);
+            await automatedUpdate(who, { "system.resources.hope.value": 0 });
+            const converted = await heldAcross(S.despairOwedStore, () => D.convertDespairToHope(donor.id, who, 2),
+                () => S.despairOwedStore.patch(donor.id, { owed: 2, since }));
+            equal(stableJson([...converted, resourceValue(who, "hope")]), stableJson(["waiting", 0, 0]),
+                "a conversion was decided before the store held the other GMs' rows, or spent what the pool owes there (before, granted, Hope)");
+
+            await S.despairOwedStore.drop(donor.id);
+            await D.setDespair(donor.id, cost);
+            const called = await heldAcross(S.despairOwedStore, () => D.spendDespairCall(donor.id, "silence", { announce: false }),
+                () => S.despairOwedStore.patch(donor.id, { owed: 1, since }));
+            equal(stableJson([...called, D.getDespair(donor.id)]), stableJson(["waiting", false, cost]),
+                "a Call was bought before the store held the other GMs' rows, or with what the pool owes there (before, bought, pool)");
+
+            await S.despairOwedStore.drop(donor.id);
+            await D.setDespair(donor.id, D.despairMax());
+            const spilled = o.overflowCount();
+            const income = await heldAcross(S.despairOwedStore, () => D.spillFrom(donor.id, D.despairMax(), 1, "SUITE r2-G2").then(next => next?.spill ?? null),
+                () => S.despairOwedStore.patch(donor.id, { owed: 2, since }));
+            equal(stableJson([...income, D.owedOf(donor.id), o.overflowCount() - spilled]), stableJson(["waiting", 0, 1, 0]),
+                "income into a full pool spilled before the store held the other GMs' rows, or spilled what pays their debt (before, spill, owed, overflow)");
+
+            await S.overflowStore.patch("record", { count: 0 });
+            const added = await heldAcross(S.overflowStore, () => o.addOverflow(1, { reason: "SUITE r2-G2" }).then(() => o.overflowCount()),
+                () => S.overflowStore.patch("record", { count: 2 }));
+            equal(stableJson([...added, o.overflowCount()]), stableJson(["waiting", 3, 3]),
+                "the overflow added to its own count before the store held the other GMs', or wrote over theirs (before, after, count)");
+
+            const checked = await heldAcross(S.overflowStore, () => o.checkOverflow(), async () => {});
+            equal(stableJson(checked), stableJson(["waiting", null]), "the overflow was judged before the store held the other GMs' count");
+
+            const reset = await heldAcross(S.overflowStore, () => o.resetOverflow({ reason: "SUITE r2-G2" }), async () => {});
+            equal(stableJson([...reset, o.overflowCount()]), stableJson(["waiting", true, 0]),
+                "the overflow was zeroed before the store held the other GMs' count, or not zeroed");
+        } finally {
+            for (const [s, whenHydrated] of real) s.whenHydrated = whenHydrated;
+            await S.despairOwedStore.drop(donor.id);
+            if (count0 === undefined) await S.overflowStore.drop("record");
+            else await S.overflowStore.patch("record", { count: count0 });
+            if ((game.settings.get(MODULE_ID, SETTINGS.overflow)?.active ?? null) !== active0) {
+                await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: active0 });
+            }
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, rules0);
             await settle();
         }
     }],

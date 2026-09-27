@@ -578,9 +578,10 @@ export const deferredOfferStore = defineGmStore({
  * stamp, stays in the world (it is announced when it fires). Written by `addOverflow`,
  * `checkOverflow` and `resetOverflow` on whichever GM runs them; two GMs adding within one
  * exchange's latency keep the newer write - the race the world setting had, which the pools'
- * one writer (DESP-12) could be extended to. Cut by the reset's "overflow" group beside
- * `resetOverflow`. No old key: an older world's count
- * comes out of the world by `liftOverflowCount`.
+ * one writer (DESP-12) could be extended to. Each of the three reads the count once the store
+ * holds the other GMs' copies (E05 fix r2-G2; review S2-m7). Cut by the reset's "overflow"
+ * group beside `resetOverflow`. No old key: an older world's count comes out of the world by
+ * `liftOverflowCount`.
  */
 export const overflowStore = defineGmStore({
     name: "overflow", key: SETTINGS.gmOverflow,
@@ -588,19 +589,20 @@ export const overflowStore = defineGmStore({
 });
 
 /**
- * THE DESPAIR A POOL OWES (E05 C12, 27.09.2026; audit S09-28). A row per Monokuma's user: `owed`,
- * what their conversions to Hope took and the pool has not paid yet, and `since`, the time of day
- * the newest was made in (despair.mjs `timeOfDayMark`). A conversion took the pool down at the
- * moment the recipient's Hope rose, which every console could pair; the pool now pays at the next
- * time of day (`settleOwed`, on the primary), and until then what it can spend is the pool less
- * this (`spendableDespair`). Dropped by a fill and a zero, cut by the reset's "despair" group. No
- * player copy - nothing a player's client reads - and nothing to lift: a 1.2.63 world's pool
- * already paid.
+ * THE DESPAIR A POOL OWES (E05 C12, 27.09.2026; audit S09-28). A row per conversion to Hope,
+ * keyed `<pool's user>:<converting GM>:<ms>` since E05 fix r2-G2 (one row per pool lost a debt
+ * when two GMs converted at once): `owed`, what it took and the pool has not paid yet, and
+ * `since`, the time of day it was made in (despair.mjs `timeOfDayMark`). A conversion took the
+ * pool down at the moment the recipient's Hope rose, which every console could pair; the pool now
+ * pays at the next time of day (`settleOwed`, on the primary), and until then what it can spend
+ * is the pool less this (`spendableDespair`). Dropped by a fill and a zero, cut by the reset's
+ * "despair" group. No player copy - nothing a player's client reads - and nothing to lift: a
+ * 1.2.63 world's pool already paid.
  */
 export const despairOwedStore = defineGmStore({
     name: "despairOwed", key: SETTINGS.gmDespairOwed,
     kind: "ledger", resetGroup: "despair", backup: true, sync: true,
-    exists: userId => Boolean(game.users?.has(userId))
+    exists: key => Boolean(game.users?.has(String(key).split(":")[0]))
 });
 
 /**

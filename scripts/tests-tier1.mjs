@@ -4866,9 +4866,11 @@ const INVARIANTS = [
         for (const name of ["fillAllDespair", "zeroAllDespair"]) {
             ok(/await clearOwed\(\);/.test(body(`export async function ${name}(`)), `${name} leaves the pools owing what they covered`);
         }
-        const settling = body("export async function settleOwed(");
+        // Both writes found before their order is read (fix r2-G2; review F8): renamed, either was -1 and passed.
+        const settling = body("async function settleOnce(");
+        const pays = settling.indexOf("SETTINGS.despairPools"), drops = settling.indexOf("dropMany(");
         ok(/if \(!isPrimaryGm\(\)\) return 0;/.test(settling) && /await despairOwedStore\.whenHydrated\(\);/.test(settling)
-            && settling.indexOf("SETTINGS.despairPools") < settling.indexOf("dropMany("),
+            && pays >= 0 && drops >= 0 && pays < drops,
             "the settlement runs off the primary, without waiting for the other GMs' copies, or drops the rows before the pools pay");
         ok(/Hooks\.on\("drpgTimeOfDayChanged", \(\) => \{\s*settleOwed\(\)/.test(body("export function registerDespair(")),
             "nothing settles what is owed when the time of day moves on");
@@ -4980,6 +4982,91 @@ const INVARIANTS = [
         const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
         ok(!/\bblackened(Ids|Actors)\(/.test(vote) && /\btrialBlackenedIds\(\)/.test(vote) && /\btrialBlackenedActors\(\)/.test(vote),
             "vote.mjs reads the register whole, or the ballot and the verdict no longer ask the trial's list");
+    }],
+
+    ["R200 - a settlement pays each conversion once, and the Despair counters read what the other GMs hold", async () => {
+        /*
+         * E05 fix r2-G2, 27.09.2026; review F5, S2-m7. The owed Despair is a row per conversion in
+         * each GM's store, and the pools it is paid from are world data, which carries the time of
+         * day the last settlement ran in. `settlementOf` is the rule, pure, and driven here: a row
+         * of this time of day waits, a row of the marked one pays, a row of an older one was due at
+         * a settlement that has run and goes unpaid, two GMs' rows of one pool both pay, and the
+         * mark is written whenever it moves once anything has been paid. NEVER TWICE: whatever a
+         * settlement paid, the same rows settled again against what it wrote - a GM's browser that
+         * left before the removal reached it, opened later at the same or a later time of day -
+         * pay nothing. Then read from the source, as the rest needs other GMs (tier 2 and 61 Q
+         * drive it): a conversion's row has a key of its own, and each of the counters' writers,
+         * and the trial's two counts, waits for its store's hydration before it reads.
+         */
+        const D = await import("./despair.mjs");
+        const { stableJson } = await import("./gm-store.mjs");
+        const NOW = "1.2.evening", LAST = "1.2.afternoon", OLDER = "1.2.noon", LATER = "1.3.morning";
+        const P = "R200POOL00000001", Q = "R200POOL00000002";
+        const row = (owed, since) => ({ owed, since });
+        const settle = (rows, held, now = NOW) => {
+            const r = D.settlementOf(Object.entries(rows), held, now);
+            return [r.pools, [...r.drop].sort(), r.paid, r.write];
+        };
+        const TABLE = [
+            ["with no settlement that paid, every row of an earlier time of day pays",
+                [{ [`${P}:a:1`]: row(2, LAST), [`${P}:b:2`]: row(1, OLDER) }, { [P]: 5 }],
+                [{ [P]: 2, settled: NOW }, [`${P}:a:1`, `${P}:b:2`], 2, true]],
+            ["a row of this time of day waits, and the mark moves",
+                [{ [`${P}:a:1`]: row(2, NOW) }, { [P]: 5, settled: LAST }],
+                [{ [P]: 5, settled: NOW }, [], 0, true]],
+            ["a row of the marked time of day pays; an older one was paid and goes",
+                [{ [`${P}:a:1`]: row(2, LAST), [`${P}:b:2`]: row(3, OLDER) }, { [P]: 6, settled: LAST }],
+                [{ [P]: 4, settled: NOW }, [`${P}:a:1`, `${P}:b:2`], 1, true]],
+            ["rows the primary settled, held by a GM that was away, pay nothing",
+                [{ [`${P}:a:1`]: row(2, LAST) }, { [P]: 4, settled: NOW }],
+                [{ [P]: 4, settled: NOW }, [`${P}:a:1`], 0, false]],
+            ["two GMs' rows of one pool both pay, and another pool's",
+                [{ [`${P}:a:1`]: row(1, LAST), [`${P}:b:2`]: row(2, LAST), [`${Q}:a:3`]: row(1, LAST) }, { [P]: 10, [Q]: 0, settled: LAST }],
+                [{ [P]: 7, [Q]: 0, settled: NOW }, [`${P}:a:1`, `${P}:b:2`, `${Q}:a:3`], 3, true]],
+            ["a row of a pool no longer in the world goes unpaid",
+                [{ [`${Q}:a:1`]: row(1, LAST) }, { [P]: 5, settled: LAST }],
+                [{ [P]: 5, settled: NOW }, [`${Q}:a:1`], 0, true]],
+            ["nothing owed at the time of day already marked writes nothing",
+                [{}, { [P]: 5, settled: NOW }], [{ [P]: 5, settled: NOW }, [], 0, false]],
+            ["a world that never paid anything writes no mark",
+                [{}, { [P]: 5 }], [{ [P]: 5, settled: NOW }, [], 0, false]]
+        ];
+        const wrong = TABLE.filter(([, [rows, held], want]) => stableJson(settle(rows, held)) !== stableJson(want))
+            .map(([what, [rows, held]]) => `${what}: ${stableJson(settle(rows, held))}`);
+        ok(!wrong.length, `a settlement pays the wrong rows: ${wrong.join("; ")}`);
+
+        const twice = [];
+        for (const [what, [rows, held]] of TABLE) {
+            const first = D.settlementOf(Object.entries(rows), held, NOW);
+            const written = first.write ? first.pools : held;
+            const settledRows = Object.fromEntries(Object.entries(rows).filter(([key]) => first.drop.includes(key)));
+            for (const now of [NOW, LATER]) {
+                if (D.settlementOf(Object.entries(settledRows), written, now).paid) twice.push(`${what} (again at ${now})`);
+            }
+        }
+        ok(!twice.length, `rows a settlement took are paid again by a browser that still holds them: ${twice.join("; ")}`);
+
+        const sources = new Map(await otherSources());
+        const src = name => stripComments(sources.get(name) ?? "");
+        const recording = fnSource(src("despair.mjs"), "recordOwed");
+        ok(/despairOwedStore\.patch\(`\$\{userId\}:\$\{game\.user\.id\}:\$\{Date\.now\(\)\}`/.test(recording),
+            "a conversion's debt is not a row of its own: two GMs converting from one pool at once keep one");
+        const WAITS = [
+            ["despair.mjs", "convertDespairToHope", "await despairOwedStore.whenHydrated();", "spendableDespair("],
+            ["despair.mjs", "spendDespairCall", "await despairOwedStore.whenHydrated();", "spendableDespair("],
+            ["despair.mjs", "spillFrom", "await despairOwedStore.whenHydrated();", "owedOf("],
+            ["overflow.mjs", "addOverflow", "await overflowStore.whenHydrated();", "state()"],
+            ["overflow.mjs", "checkOverflow", "await overflowStore.whenHydrated();", "state()"],
+            ["overflow.mjs", "resetOverflow", "await overflowStore.whenHydrated();", "overflowStore.patch("],
+            ["vote.mjs", "openVote", "await whenTrialReadable();", "trialBlackenedIds("],
+            ["vote.mjs", "openVerdictDialog", "await whenTrialReadable();", "trialBlackenedActors("]
+        ];
+        const early = WAITS.filter(([file, name, wait, read]) => {
+            const fn = fnSource(src(file), name);
+            const at = fn.indexOf(wait), reads = fn.indexOf(read);
+            return !(at >= 0 && reads > at);
+        }).map(([file, name]) => `${file} ${name}`);
+        ok(!early.length, `these read their store before it holds the other GMs' rows: ${early.join(", ")}`);
     }]
 ];
 

@@ -305,9 +305,9 @@ export const SETTINGS = {
      * THE DESPAIR COUNTERS ON THE GMS' SIDE (E05 C12, 27.09.2026; audit S01-60, S09-28). Two GM
      * stores, synced and backed up, with no player copy: `gmOverflow` (gm-stores.mjs
      * `overflowStore`) is the overflow's count, a record `{ count }` - the world setting
-     * `overflow` keeps `{ active }`; `gmDespairOwed` (`despairOwedStore`) is a row per Monokuma
-     * `{ owed, since }`, the Despair its conversions to Hope took and its pool has not yet paid
-     * (despair.mjs `settleOwed`, at the next time of day).
+     * `overflow` keeps `{ active }`; `gmDespairOwed` (`despairOwedStore`) is a row per conversion
+     * to Hope `{ owed, since }`, keyed `<pool>:<gm>:<ms>` (E05 fix r2-G2), the Despair it took and
+     * its pool has not yet paid (despair.mjs `settleOwed`, at the next time of day).
      */
     gmOverflow: "gmOverflow",
     gmDespairOwed: "gmDespairOwed",
@@ -1811,7 +1811,8 @@ export function registerSettings() {
         }
     });
 
-    // One Despair pool per full Gamemaster. Format: { "<userId>": 7 }
+    // One Despair pool per full Gamemaster. Format: { "<userId>": 7 }, and since E05 fix r2-G2
+    // `settled`, the time of day the owed Despair was last paid in (despair.mjs `SETTLED`).
     game.settings.register(MODULE_ID, SETTINGS.despairPools, {
         scope: "world",
         config: false,

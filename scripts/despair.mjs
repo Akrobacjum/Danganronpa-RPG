@@ -69,6 +69,10 @@ export async function prunePools(removedId = null) {
     const store = pools();
     const cleaned = {};
     for (const [userId, value] of Object.entries(store)) {
+        if (userId === SETTLED) {
+            cleaned[userId] = value;
+            continue;
+        }
         if (userId === removedId) continue;
         if (!game.users.get(userId)) continue;
         cleaned[userId] = value;
@@ -216,6 +220,16 @@ function pools() {
     return game.settings.get(MODULE_ID, SETTINGS.despairPools) ?? {};
 }
 
+/*
+ * THE SETTLEMENT'S MARK (E05 fix r2-G2, 27.09.2026; review F5). Beside the pools, their world
+ * value holds the time of day the owed Despair was last settled in (`settleOwed`), under a key
+ * no user id can be (an id is sixteen characters). It is the clock's own reading, written at
+ * every change of the time of day whether anything was owed or not, so it tells a console
+ * nothing the clock does not; and it travels in the one write that pays, so a pool cannot be
+ * paid without the mark saying so. `prunePools` and `zeroAllDespair` pass it through.
+ */
+const SETTLED = "settled";
+
 /** Despair currently held by one Monokuma. */
 export function getDespair(userId) {
     const raw = Number(pools()[userId] ?? 0);
@@ -333,7 +347,7 @@ export async function zeroAllDespair() {
     if (!game.user.isGM) return null;
 
     const store = { ...pools() };
-    for (const id of Object.keys(store)) store[id] = 0;
+    for (const id of Object.keys(store)) if (id !== SETTLED) store[id] = 0;
     for (const user of monokumas()) store[user.id] = 0;
     await game.settings.set(MODULE_ID, SETTINGS.despairPools, store);
     // An empty pool has nothing left to pay (E05 C12).
@@ -391,11 +405,31 @@ export function owedAfter(held, event, max = despairMax()) {
     }
 }
 
+/*
+ * A ROW PER CONVERSION (E05 fix r2-G2, 27.09.2026; review F5). A row's key is the pool's user
+ * id, the converting GM's and the moment, `<pool>:<gm>:<ms>`. Until this fix a pool had one
+ * row whose absolute `owed` every conversion rewrote from its own GM's reading, so two GMs
+ * converting from one pool before either had heard the other kept the newer row, and the
+ * other conversion's Hope was never paid for; two rows merge as two. What a pool owes is the
+ * sum of its rows. A key without a colon is read as the pool's own.
+ */
+function poolOfRow(key) {
+    return String(key).split(":")[0];
+}
+
+function owedRows(userId) {
+    return Object.entries(despairOwedStore.entries()).filter(([key]) => poolOfRow(key) === userId);
+}
+
 /** What a pool owes and has not paid: a GM's reading; 0 on a player's client, which holds no GM store. */
 export function owedOf(userId) {
-    if (!game.user?.isGM) return 0;
-    const owed = Number(despairOwedStore.get(userId)?.owed);
-    return Number.isFinite(owed) && owed > 0 ? Math.round(owed) : 0;
+    if (!game.user?.isGM || !userId) return 0;
+    let owed = 0;
+    for (const [, row] of owedRows(userId)) {
+        const n = Number(row?.owed);
+        if (Number.isFinite(n) && n > 0) owed += Math.round(n);
+    }
+    return owed;
 }
 
 /** What a Monokuma can spend now: the pool less what it owes. */
@@ -413,33 +447,38 @@ function timeOfDayMark(clock = getClock()) {
 }
 
 /*
- * A conversion's debt, in this GM's store and so every GM's. `since` moves to this time of
- * day: an older part not yet paid - its time of day passed and no settlement ran for it, a
- * primary's ready that failed - waits one more time of day with the new one, because paid
- * now it would drop the pool
- * beside the new conversion and date it. Two GMs converting from one pool within an
- * exchange's latency keep the newer row, the overflow count's race (gm-stores.mjs
- * `overflowStore`).
+ * A conversion's debt, a row of its own in this GM's store and so every GM's, dated this time
+ * of day. The read that allowed the conversion waited for the other GMs' rows
+ * (`convertDespairToHope`); the write reads nothing.
  */
 async function recordOwed(userId, n) {
-    const next = owedAfter({ pool: getDespair(userId), owed: owedOf(userId) }, { kind: "convert", n });
-    await despairOwedStore.patch(userId, { owed: next.owed, since: timeOfDayMark() });
+    await despairOwedStore.patch(`${userId}:${game.user.id}:${Date.now()}`, { owed: n, since: timeOfDayMark() });
 }
 
 /*
  * INCOME INTO A FULL POOL PAYS WHAT IT OWES FIRST. `before` is the pool before the income
  * and `n` the income; what is left over after the debt goes to the overflow. Both roads that
  * find a pool full take it: `adjustDespair` and a roll's point (despair-award.mjs), on the
- * primary. Answers `owedAfter`'s result.
+ * primary. The debt is read once the store holds the other GMs' rows (E05 fix r2-G2; review
+ * F5, S2-m7): read before, a debt another GM recorded was not paid and its Despair spilled.
+ * What is paid comes off the oldest rows first - a row paid whole goes, a row paid in part
+ * keeps the rest. Answers `owedAfter`'s result.
  */
 export async function spillFrom(userId, before, n, reason) {
     if (!game.user?.isGM) return null;
+    await despairOwedStore.whenHydrated();
     const owed = owedOf(userId);
     const next = owedAfter({ pool: before, owed }, { kind: "income", n });
-    if (next.owed !== owed) {
-        if (next.owed > 0) await despairOwedStore.patch(userId, { owed: next.owed });
-        else await despairOwedStore.drop(userId);
+    let left = owed - next.owed;
+    const paid = [];
+    for (const [key, row] of owedRows(userId).sort(([a], [b]) => despairOwedStore.stampOf(a) - despairOwedStore.stampOf(b))) {
+        if (left <= 0) break;
+        const has = Math.max(Math.round(Number(row?.owed) || 0), 0);
+        if (has <= left) paid.push(key);
+        else await despairOwedStore.patch(key, { owed: has - left });
+        left -= Math.min(has, left);
     }
+    if (paid.length) await despairOwedStore.dropMany(paid);
     if (next.spill > 0) {
         const { addOverflow } = await import("./overflow.mjs");
         await addOverflow(next.spill, { reason });
@@ -454,36 +493,73 @@ async function clearOwed() {
 }
 
 /**
- * THE OWED DESPAIR IS PAID AT THE TIME OF DAY'S CHANGE, on the primary GM - the pools'
- * one writer (DESP-12). Every row recorded in a time of day the clock has left comes out
- * of its pool (`owedAfter`'s "settle") in one write of the pools, and then the rows go:
- * in that order, so a moment between the two shows a pool that still owes what it has
- * paid - less to spend, never Despair spent twice. Asked at every write of the clock
- * (`drpgTimeOfDayChanged`, registerDespair) and at the primary's ready, each time once the
- * other GMs' copies arrived or stopped being waited for: a row another GM already settled
- * reaches this one's store as a removal first. A wait that timed out is not a reason to
- * stop - the state stays "timedOut" for the session, and a settlement refused on it would
- * leave every debt standing until the next load; what it risks instead is paying twice a
- * row settled by a primary this browser has not heard since, which has not been measured.
- * A row of a pool no longer in the store just goes. Answers how many rows were paid.
+ * WHAT A SETTLEMENT PAYS (E05 fix r2-G2, 27.09.2026; review F5), pure (R200). `rows` are the
+ * store's entries, `held` the pools' world value with its mark (`SETTLED`), `now` the time of
+ * day's mark. A row of this time of day waits. A row of an earlier one is paid when it was
+ * recorded in the time of day the last settlement wrote as its mark, or when no settlement
+ * has paid anything yet; a row of any other time of day was due at a settlement that has
+ * already run, and goes unpaid. That is the row a GM's browser still held because it left
+ * before the primary's removal reached it: opened later with nobody to hear from, that GM
+ * was the primary, and until this fix paid it a second time - the pools are world data, the
+ * rows each GM's own. Every row due goes.
+ *
+ * What it costs: a conversion recorded on another GM's client in the moment the time of day
+ * moves, which the primary had not received when it settled, is dropped unpaid by the next
+ * settlement - the pool keeps that Despair rather than paying twice. Not measured at a table.
+ * The mark is written with every payment and at every change of the time of day after the
+ * first one (`write`); a world that has never paid holds none and needs none.
+ *
+ * Answers `{ pools, drop, paid, write }`: the world value to write, the rows to drop, how many
+ * rows paid, and whether the value is to be written.
  */
-export async function settleOwed() {
-    if (!isPrimaryGm()) return 0;
-    await despairOwedStore.whenHydrated();
-    const now = timeOfDayMark();
-    const due = Object.entries(despairOwedStore.entries()).filter(([, row]) => row?.since !== now);
-    if (!due.length) return 0;
-    const store = { ...pools() };
+export function settlementOf(rows, held, now) {
+    const mark = typeof held?.[SETTLED] === "string" ? held[SETTLED] : null;
+    const pools = { ...(held ?? {}), [SETTLED]: now };
+    const drop = [];
     let paid = 0;
-    for (const [userId, row] of due) {
-        if (!Object.hasOwn(store, userId)) continue;
-        store[userId] = owedAfter({ pool: store[userId], owed: row?.owed }, { kind: "settle" }).pool;
+    for (const [key, row] of rows ?? []) {
+        if (row?.since === now) continue;
+        drop.push(key);
+        const userId = poolOfRow(key);
+        if (mark !== null && row?.since !== mark) continue;
+        if (userId === SETTLED || !Object.hasOwn(pools, userId)) continue;
+        pools[userId] = owedAfter({ pool: pools[userId], owed: row?.owed }, { kind: "settle" }).pool;
         paid++;
     }
-    if (paid) await game.settings.set(MODULE_ID, SETTINGS.despairPools, store);
-    await despairOwedStore.dropMany(due.map(([userId]) => userId));
-    if (paid) log(`Paid the Despair ${paid} pool(s) owed for conversions to Hope.`);
-    return paid;
+    return { pools, drop, paid, write: paid > 0 || (mark !== null && mark !== now) };
+}
+
+/**
+ * THE OWED DESPAIR IS PAID AT THE TIME OF DAY'S CHANGE, on the primary GM - the pools'
+ * one writer (DESP-12). What `settlementOf` finds due comes out of its pools in one write of
+ * the pools' world value, the mark with it, and then the rows go: in that order, so a moment
+ * between the two shows a pool that still owes what it has paid - less to spend - and a
+ * settlement run again then finds the mark moved and pays nothing twice. Asked at every write
+ * of the clock (`drpgTimeOfDayChanged`, registerDespair) and at the primary's ready, each time
+ * once the other GMs' copies arrived or stopped being waited for: a row another GM already
+ * settled reaches this one's store as a removal first, and one that does not (a timed-out
+ * wait, a browser that was away) is known by the mark. A row of a pool no longer in the store
+ * just goes. One settlement at a time, in the order asked (fix r2-G2): the one a write of the
+ * clock asks for arrives through `sync.mjs`, whose events are merged over a short window, so
+ * whoever writes the clock and then the pools - tier 2's restore - waits on `settleOwed()`
+ * itself, which runs after any asked before it. Answers how many rows were paid.
+ */
+let settling = Promise.resolve(0);
+
+export function settleOwed() {
+    const turn = settling.then(settleOnce, settleOnce);
+    settling = turn.catch(() => 0);
+    return turn;
+}
+
+async function settleOnce() {
+    if (!isPrimaryGm()) return 0;
+    await despairOwedStore.whenHydrated();
+    const plan = settlementOf(Object.entries(despairOwedStore.entries()), pools(), timeOfDayMark());
+    if (plan.write) await game.settings.set(MODULE_ID, SETTINGS.despairPools, plan.pools);
+    if (plan.drop.length) await despairOwedStore.dropMany(plan.drop);
+    if (plan.paid) log(`Paid the Despair ${plan.paid} row(s) owed for conversions to Hope.`);
+    return plan.paid;
 }
 
 /**
@@ -515,7 +591,9 @@ export function donorLabel(user) {
 export async function convertDespairToHope(monokumaUserId, actor, amount) {
     if (!game.user.isGM || !actor || amount <= 0) return 0;
 
-    // What the pool can spend, not what it shows: an earlier conversion may still be owed (E05 C12).
+    // What the pool can spend, not what it shows: an earlier conversion may still be owed (E05 C12),
+    // on this GM's client or another's - read once the store holds the other GMs' rows (fix r2-G2).
+    await despairOwedStore.whenHydrated();
     const held = spendableDespair(monokumaUserId);
     if (held < amount) {
         ui.notifications.warn(game.i18n.format("DRPG.Despair.notEnoughPool", {
@@ -582,7 +660,9 @@ export async function spendDespairCall(userId, callKey, { announce: post = true 
         return false;
     }
 
-    // Less what the pool owes for its conversions (E05 C12): that Despair is spent already.
+    // Less what the pool owes for its conversions (E05 C12): that Despair is spent already, and
+    // another GM's rows count once they have arrived (fix r2-G2).
+    await despairOwedStore.whenHydrated();
     const held = spendableDespair(userId);
     if (held < call.cost) {
         ui.notifications.warn(game.i18n.format("DRPG.Despair.notEnough", {

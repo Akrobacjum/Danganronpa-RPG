@@ -162,6 +162,12 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
     const n = Math.round(Number(amount));
     if (!Number.isFinite(n) || n <= 0) return null;
 
+    /* The count is read once the store holds the other GMs' copies (E05 fix r2-G2; review
+       S2-m7), as the Eclipse's is (eclipse.mjs `applyRecordedMove`): read before, a GM back
+       from a reload added to its own browser's count, and the merge kept one of the two -
+       measured on the harness 27.09 by holding the store: 1 added to a peer's 2 read 2. The
+       same wait stands in `checkOverflow` and `resetOverflow`. */
+    await overflowStore.whenHydrated();
     const before = state();
     const after = before.count + n;
     await overflowStore.patch(RECORD, { count: after });
@@ -242,7 +248,9 @@ async function armAhead() {
  */
 export async function resetOverflow({ reason = "the verdict" } = {}) {
     if (!game.user.isGM) return null;
-    // Both halves, in their two places since E05 C12: the GMs' count and the world's stamp.
+    // Both halves, in their two places since E05 C12: the GMs' count and the world's stamp. The
+    // zero after the other GMs' copies (fix r2-G2): the store's clock has then seen their stamps.
+    await overflowStore.whenHydrated();
     await overflowStore.patch(RECORD, { count: 0 });
     await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: null });
     log(`Despair overflow cleared by ${reason}.`);
@@ -409,6 +417,7 @@ export async function checkOverflow({ ahead = false } = {}) {
         const target = ahead ? upcoming(clock) : stampOf(clock);
         if (!target) return null;
 
+        await overflowStore.whenHydrated();
         const now = state();
 
         // Already armed for exactly this time of day: the Eclipse got there

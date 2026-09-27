@@ -3488,6 +3488,18 @@ export function countsAtTrial(row, pending) {
     return !victims.length || victims.some(id => !pending(id));
 }
 
+/**
+ * The trial reads the register and the deaths once the GM stores hold the other GMs' rows
+ * (E05 fix r2-G2, 27.09.2026; G1's note, read in code and measured on the harness by holding
+ * both stores' hydration): read before, a vote opened moments after a load counted from this
+ * browser's rows alone - a killer another GM recorded was missing from the ballot's count,
+ * and a death another GM still kept secret was not yet there to hold its killer back.
+ * `openVote` and `openVerdictDialog` wait on this before they count.
+ */
+export function whenTrialReadable() {
+    return Promise.all([blackenedStore.whenHydrated(), deathStore.whenHydrated()]);
+}
+
 /** The trial's Blackened as actors, skipping any that have since been deleted - the verdict's list. */
 export function trialBlackenedActors() {
     return trialBlackenedIds().map(id => game.actors.get(id)).filter(Boolean);
