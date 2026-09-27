@@ -31,7 +31,7 @@ import { isSyncedSetting } from "./sync.mjs";
 // be a private copy here "for the cycle" (audit C3) - the cycle was real, the
 // copy was the wrong cure. character.mjs was the other such reader, and it went
 // with the incident row when that moved to the Event panel (1.2.47).
-import { incomingTimeOfDay, incidentWitness } from "./settings.mjs";
+import { incomingTimeOfDay, incidentWitness, incidentCast, incidentSeats } from "./settings.mjs";
 // Static, and checked before adding: this file avoids static imports because it
 // sits on the render path the clock itself calls back into, so a cycle here
 // would be a load-order problem rather than a lint complaint. None of these
@@ -42,7 +42,7 @@ import { projectsAvailableIn } from "./projects.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { isMonokuma, poolUserFor, ownStudent } from "./monokuma.mjs";
 // Static, and safe: nothing imports hud.mjs, so no path leads back here.
-import { murderState, participantIds } from "./murder.mjs";
+import { murderState } from "./murder.mjs";
 import { nowPlayingHere } from "./music.mjs";
 import { renderEvents } from "./events.mjs";
 // The fifth, added when the trial's own bar was folded into this widget. Walked
@@ -284,10 +284,16 @@ let lastPublicClock = null;
  */
 export function clockForDisplay(clock) {
     try {
+        /* WHO IS AN OUTSIDER IS THE INCIDENT'S TABLE (E06 C2, 27.09.2026; D6): the seats of
+           `incidentSeats` (settings.mjs) at the stage running, of this browser's own cast -
+           so a direct murder's victim keeps the frozen clock through the opening, as they
+           are told nothing else of it until the killer's roll succeeds. Not `incidentWitness`,
+           which reads the opening and the fight alone: at Stage 6 a trap's builder is seated
+           again, and sees the live clock as every other participant does. */
         const state = murderState();
         const hide = state
             && !game.user.isGM
-            && ![...participantIds(state)].some(id =>
+            && !incidentSeats(incidentCast(), state).some(id =>
                 game.actors.get(id)?.testUserPermission(game.user, "OWNER"));
 
         if (!hide) {

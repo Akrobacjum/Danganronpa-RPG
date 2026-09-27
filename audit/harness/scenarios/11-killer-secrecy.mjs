@@ -26,14 +26,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
 
     // set an accomplice (thirdId) too, if the API supports it
     const cards0 = await p1.eval(`return game.messages.contents.length;`);
-    await gm.eval(`
-        await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.daichi}", thirdId: "${ids.botan}" });
-        return true;
+    const opened = await gm.eval(`
+        const M = await import("${repoUrl}/scripts/murder.mjs");
+        const s = await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.daichi}", thirdId: "${ids.botan}" });
+        return { stage: s?.stage ?? null, told: M.incidentAudienceIds(s) };
     `, { timeout: 60000 });
     await settle(300);
 
     // Phase 1: incident active. Can an uninvolved player (aiko/p1) read the killer?
     phase("incident", { flow: "murder-incident" });
+    /* WHO IS SENT THE CAST AT THE OPENING (E06 C2, 27.09.2026; the owner's D6): a direct murder's
+       killers, not its victim. Read on the GM from the state `openMurder` answers, before p3's roll
+       can move it. Daichi has no player here, so this reads the same with the victim seated - it
+       holds that nobody else is told; the victim's own browser is 13-murder-signals' "opening". */
+    check("incident: at a direct murder's opening the cast goes to the killer's player alone",
+        opened.stage === "openingRoll" && JSON.stringify(opened.told) === JSON.stringify([p3.userId]), JSON.stringify(opened));
     const p1read = await p1.eval(`
         const s = game.settings.get("${MOD}", "murderState") ?? {};
         return { killerId: s.killerId ?? null, thirdId: s.thirdId ?? null, victimId: s.victimId ?? null, stage: s.stage };

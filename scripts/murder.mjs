@@ -49,7 +49,7 @@ import {
     RESOLUTION_STRESS_COST, RESOLUTION_HEALTH_COST, TRAITS, callEffect, TIMING
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { SETTINGS, incidentCast, incidentIndirect, seasonEpoch, isDeadForGm, isDeceased } from "./settings.mjs";
+import { SETTINGS, incidentCast, incidentIndirect, incidentSeats, seasonEpoch, isDeadForGm, isDeceased } from "./settings.mjs";
 import { castStore, blackenedStore, castCopy, deathStore, deathCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
@@ -275,7 +275,30 @@ async function restoreState(state = {}, { keep = [] } = {}) {
     return { ...rest, ...readCast() };
 }
 
-/** Every non-GM user who owns somebody named in a cast. */
+/**
+ * WHO IS TOLD ABOUT THE INCIDENT, AS USER IDS (E06 C2, 27.09.2026; audit S04-01, D6): the
+ * players who own a seat of `incidentSeats` (settings.mjs) at `stage` - the stage the state
+ * holds unless the caller names the one a message belongs to - and, when asked, the
+ * betrayal offer's third and each actor in `also` (actors or ids), whom a card is about
+ * although they hold no seat. GMs are not in it; they are told as GMs. Every GM-side reader
+ * that decides who is sent something about the incident asks this - `castOwners` below
+ * first - so that none of them keeps a copy of the seats' table. Exported: E32 reads the
+ * cast's addressees from it.
+ */
+export function incidentAudienceIds(state = murderState(), { stage = state?.stage, also = [], betrayal = false } = {}) {
+    const ids = [
+        ...incidentSeats(state, state, { stage }),
+        ...(betrayal ? [state?.betrayal?.thirdId] : []),
+        ...also.map(a => (typeof a === "string" ? a : a?.id))
+    ];
+    const out = new Set();
+    for (const id of ids) {
+        const owner = ownerOf(game.actors.get(id ?? ""));
+        if (owner && !owner.isGM) out.add(owner.id);
+    }
+    return [...out];
+}
+
 /**
  * Whose browsers hold the cast.
  *
@@ -300,31 +323,25 @@ async function restoreState(state = {}, { keep = [] } = {}) {
  * actor may work on the body, and that answer lives in the cast. So the gate is
  * the STAGE, not the murder: closed while `openingRoll` or `incident` is
  * running, open the moment it is not.
+ *
+ * AND A DIRECT MURDER'S VICTIM IS NOT ON IT AT THE OPENING (E06 C2; the owner's D6).
+ * Nobody has asked them anything yet, and a killer's roll that fails ends the
+ * attempt as if it never happened - so until 1.2.65 the cast they were sent at
+ * the opening was the one trace of it their browser kept, with the killer's name
+ * in it. They are sent it when the roll succeeds and the stage moves to
+ * `incident` (`writeState` pushes on a change of holders), and a failed opening
+ * sends them nothing, not even an empty cast.
+ *
+ * Both gates are rows of one table now, `incidentSeats`, with the stage and the
+ * cast in hand. Whether it is a trap is the cast's (E05 C8) - or a world half's
+ * the lift has not reached yet: `incidentIndirect`'s rule (settings.mjs), passed
+ * in so a cast that holds nothing there does not hide it. The accomplice keeps
+ * their copy for as long as the betrayal is on offer, which is longer than the
+ * incident (D18).
  */
-function trapRunning(state) {
-    return Boolean(state?.active) && Boolean(state?.indirect)
-        && (state.stage === "openingRoll" || state.stage === "incident");
-}
-
 function castOwners(cast, state = null) {
-    const out = new Set();
     const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-
-    const seats = [
-        // The stage from the world half, whether it is a trap from the cast in hand (E05 C8) - or
-        // from a world half the lift has not reached yet: `incidentIndirect`'s rule (settings.mjs).
-        trapRunning({ ...live, indirect: incidentIndirect(cast, live) }) ? null : cast?.killerId,
-        cast?.victimId,
-        cast?.thirdId,
-        // The accomplice keeps their copy for as long as the betrayal is on
-        // offer, which is longer than the incident (D18).
-        cast?.betrayal?.thirdId
-    ];
-    for (const id of seats) {
-        const owner = ownerOf(game.actors.get(id ?? ""));
-        if (owner && !owner.isGM) out.add(owner.id);
-    }
-    return out;
+    return new Set(incidentAudienceIds({ ...live, ...cast, indirect: incidentIndirect(cast, live) }, { betrayal: true }));
 }
 
 /**
@@ -437,29 +454,31 @@ async function writeState(patch, { explicit = [] } = {}) {
     /*
      * THE STAGE IS ALSO A RECIPIENT LIST, and nothing above notices that.
      *
-     * `castOwners` withholds the cast from a trap's killer while the trap is
-     * running, so the moment the incident ENDS they have to be sent it - that
-     * is how Stage 6 knows the body is theirs to arrange. But a stage change is
-     * a public-half patch: it touches no cast field, so no cast would be
-     * written and nobody pushed anything. The killer would have waited for the
-     * next write that happened to move a name.
+     * `castOwners` seats people by the stage (`incidentSeats`): a trap's killer
+     * is left out while the trap runs and let back in at Stage 6, which is how
+     * Stage 6 knows the body is theirs to arrange; a direct murder's victim is
+     * left out of the opening and seated when the killer's roll succeeds (D6,
+     * E06 C2). But a stage change is a public-half patch: it touches no cast
+     * field, so no cast would be written and nobody pushed anything. The victim
+     * of a direct murder would have fought the whole incident without a cast -
+     * the opening's success moves the stage alone (read off `resolveKillerOpening`,
+     * whose patch names world fields only; 13-murder-signals' "direct" reads it).
      *
-     * So the gate is compared across this write, and the participants pushed to
-     * when it moves. Cheap - a packet per participant on two transitions in a
-     * whole murder - and it is the only thing standing between "the trap is finished"
-     * and a killer whose cleanup screen does not believe they are the killer. A
-     * killer who asked while the trap ran was answered "not in it", which holds
-     * the seats' stamps alone; the cast sent now holds the other parts as well,
-     * so it is newer (gm-stores.mjs, `castCombine`; R176).
+     * So the holders are compared across this write, and the participants
+     * pushed to when they change. Cheap - a packet per participant on a few
+     * transitions in a whole murder. A participant who asked while they held no
+     * seat was answered "not in it", which holds the seats' stamps alone; the
+     * cast sent now holds the other parts as well, so it is newer (gm-stores.mjs,
+     * `castCombine`; R176).
      */
     const castNext = Object.keys(castPatch).length
         ? await writeCast({ ...castBefore, ...castPatch }, castBefore, { explicit, push: false })
         : castBefore;
-    /* Whether it is a trap is the cast's since E05 C8: the gate reads both halves. Every road
-       into Stage 6 writes `endedBy`, a cast field, so that write pushes the cast anyway (a mutant
-       reading the world halves alone passed 13-murder-signals, 26.09); this keeps a stage move
-       that names no cast field from leaving the killer out. */
-    const trapMoved = trapRunning({ ...publicNext, ...castNext }) !== trapRunning(before);
+    /* Until E06 this compared whether a trap was running before and after (`trapRunning`), the
+       one gate that moved with the stage; the table has two now, and comparing the holders
+       covers both and any row added later. Read as sorted user ids. */
+    const holders = (cast, state) => [...castOwners(cast, state)].sort().join();
+    const holdersMoved = holders(castNext, publicNext) !== holders(castBefore, publicBefore);
 
     /*
      * ONE PUSH, WITH THE STATE BEING WRITTEN (E04). The participants are worked out
@@ -471,7 +490,7 @@ async function writeState(patch, { explicit = [] } = {}) {
      * measured is 13's "trap: the killer holds no cast", red on the first C6 tree
      * (26.09).
      */
-    if (castNext !== castBefore || trapMoved) pushCastToParticipants(castNext, castBefore, publicNext, publicBefore);
+    if (castNext !== castBefore || holdersMoved) pushCastToParticipants(castNext, castBefore, publicNext, publicBefore);
     await game.settings.set(MODULE_ID, SETTINGS.murderState, publicNext);
 
     const next = { ...publicNext, ...castNext };
@@ -4484,23 +4503,23 @@ export function closeOpeningRoll() {
 /**
  * Tell whoever was invited that the invitation is off.
  *
- * Both people are told, not only the side that rolls: the module picks the side
- * when the murder opens, a GM can have re-sent the invitation from the tracker,
- * and a message to somebody with nothing in flight costs nothing. The GM's own
- * client is closed directly, because a roll with no active owner is thrown here.
+ * The players seated at the opening are told (`incidentAudienceIds` at `openingRoll`):
+ * the side that rolls - a direct murder's killers, a trap's victim - and nobody
+ * else. Until E06 both the killer and the victim were, on the reading that a
+ * message to somebody with nothing in flight costs nothing; it costs a direct
+ * murder's victim the one fact D6 keeps from them - measured 27.09 by the tier-2
+ * test "a failed opening tells the victim nothing", which caught the cancel
+ * addressed to the victim's player as the killer's roll failed. The side is the
+ * murder's kind, fixed as it opens, and every re-sent invitation goes to it
+ * (`rollOpening`). The GM's own client is closed directly, because a roll with no
+ * active owner is thrown here.
  */
 async function revokeOpeningInvitation(state) {
     closeOpeningRoll();
     if (!state?.killerId && !state?.victimId) return;
 
     const { cancelOpeningRoll } = await import("./gm-bridge.mjs");
-    const told = new Set();
-    for (const id of [state.killerId, state.victimId]) {
-        const owner = ownerOf(game.actors.get(id ?? ""));
-        if (!owner || told.has(owner.id)) continue;
-        told.add(owner.id);
-        cancelOpeningRoll({ userId: owner.id });
-    }
+    for (const userId of incidentAudienceIds(state, { stage: "openingRoll" })) cancelOpeningRoll({ userId });
 }
 
 export async function throwOpeningRoll(side, actorId) {

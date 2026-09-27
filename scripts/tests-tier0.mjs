@@ -6010,11 +6010,17 @@ const REGRESSIONS = [
          * first. The rule's own cases are the tier-2 test "a trap a world half still holds is a
          * trap to every reader until the lift reaches it".
          */
-        const READERS = [["murder.mjs", "castOwners"], ["settings.mjs", "incidentWitness"], ["events.mjs", "openingCard"]];
-        const problems = (label, body) => {
+        /* E06 C2 (27.09.2026): the seats are one table, settings.mjs `incidentSeats`, which asks
+           the rule; the opening card reads its seats there and asks nothing else, so for a reader
+           asking the table counts as asking the rule - and the table itself, read here as a
+           fourth reader, must ask the rule by name. */
+        const ASKS = /\bincident(?:Indirect|Seats)\(/, RULE = /\bincidentIndirect\(/;
+        const READERS = [["murder.mjs", "castOwners", ASKS], ["settings.mjs", "incidentWitness", ASKS], ["events.mjs", "openingCard", ASKS],
+            ["settings.mjs", "incidentSeats", RULE]];
+        const problems = (label, body, asks = ASKS) => {
             if (!body) return [`${label} was not found - this test reads nothing until it is pointed at it again`];
             const out = [];
-            if (!/\bincidentIndirect\(/.test(body)) out.push(`${label} does not ask incidentIndirect whether it is a trap`);
+            if (!asks.test(body)) out.push(`${label} does not ask incidentIndirect whether it is a trap`);
             if (/\bcast\??\.indirect\b/.test(body)) out.push(`${label} reads the cast's indirect itself`);
             return out;
         };
@@ -6023,7 +6029,7 @@ const REGRESSIONS = [
             "the reader does not find the two faults planted for it");
         const sources = new Map(await otherSources());
         const found = [];
-        for (const [file, fn] of READERS) found.push(...problems(`${file} ${fn}`, fnSource(stripComments(sources.get(file) ?? ""), fn)));
+        for (const [file, fn, asks] of READERS) found.push(...problems(`${file} ${fn}`, fnSource(stripComments(sources.get(file) ?? ""), fn), asks));
         log(`R194: ${READERS.length} readers of whether an incident is a trap, read in ${new Set(READERS.map(r => r[0])).size} files`);
         ok(!found.length, `whether an incident is a trap is not asked of one rule: ${found.join("; ")}`);
     }],

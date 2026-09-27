@@ -394,6 +394,101 @@ const SCENARIOS = [
             + toVictim.map(m => contentOf(m).replace(/<[^>]+>/g, "").slice(0, 60)).join(" | "));
     }],
 
+    ["a direct murder's victim holds nothing until the opening succeeds", async () => {
+        /*
+         * E06 C2, 27.09.2026; audit S04-01, the owner's D6. A direct murder asks its victim
+         * nothing at the opening, and a killer's roll that fails ends it as if it never
+         * happened - but the victim's player was sent the cast as it opened, and with it the
+         * curtain, the music and the killer's name. The audience the GM sends to
+         * (`incidentAudienceIds`) and the seat this browser reads (`incidentWitness`, this GM
+         * sitting in the victim's chair) are read at once after the open and after the roll's
+         * success: the victim is in neither at the opening and in both once the fight starts;
+         * the killer's player is told from the start. Both students have a connected player:
+         * an opening roll with nobody to ask is thrown on this client and races the one below
+         * (E05, "the trial asks only for the killers of deaths the table knows..."). What
+         * reaches the victim's browser is 13-murder-signals' "opening" phase: tier 2 holds the
+         * stores, so no cast is sent here.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim with a player to tell");
+        const M = await import("./murder.mjs");
+        const { incidentWitness } = await import("./settings.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const read = state => {
+            const told = M.incidentAudienceIds(state);
+            return { stage: state?.stage ?? null, killer: told.includes(player(killer).id), victim: told.includes(player(victim).id),
+                seat: incidentWitness().seat };
+        };
+        const assignedBefore = game.user.character ?? null;
+        try {
+            await game.user.update({ character: victim.id });
+            const atOpening = read(await M.openMurder({ killerId: killer.id, victimId: victim.id }));
+            await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            const atIncident = read(M.murderState());
+            equal(stableJson([atOpening, atIncident]), stableJson([
+                { stage: "openingRoll", killer: true, victim: false, seat: null },
+                { stage: "incident", killer: true, victim: true, seat: victim.id }
+            ]), "a direct murder's victim is told at the opening, or not once it succeeds, or the killer is not told from the start");
+        } finally {
+            await game.user.update({ character: assignedBefore?.id ?? null });
+        }
+    }],
+
+    ["a failed opening tells the victim nothing", async () => {
+        /*
+         * E06 C2, 27.09.2026; the owner's D6. A direct murder whose killer's roll fails never
+         * happened as far as its victim is concerned (`resolveVictimOpening`'s note): nothing
+         * addressed to their player from the open to the close - no packet this client sends
+         * (every `game.socket.emit` caught for the test's length, and let through) and no chat
+         * card whispered to them. The net is shown to catch: the opening roll is asked of the
+         * killer's connected player (gm-bridge.mjs `askOpeningRoll`), addressed, and it sees
+         * that. Tier 2 holds the stores, so a cast would not be sent here even to a
+         * participant; 13-murder-signals reads the victim's browser for it. Red on the first
+         * C2 tree (27.09): the invitation's withdrawal, `murder.openingCancel`, was addressed
+         * to the victim's player as well (murder.mjs `revokeOpeningInvitation`).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim with a player to tell");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const before = game.messages.size;
+        const sent = [];
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            sent.push({ action: packet?.action ?? null, to: options?.recipients ?? [] });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        let opened = null, failed = null, after = null;
+        try {
+            opened = await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            failed = await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+            after = M.murderState();
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+        }
+        const to = user => sent.filter(p => p.to.includes(user.id)).map(p => p.action);
+        /* A veiled card is whispered to every player alike and its words travel by an addressed
+           packet (secret.mjs `VEILED_FLAG`), which the net above reads: measured 27.09, one such
+           card - from the GM, no speaker - named the victim's player in its whisper as it names
+           everybody's. The cards that count are the ones addressed. */
+        const { VEILED_FLAG } = await import("./secret.mjs");
+        const whisperedTo = [...game.messages].slice(before)
+            .filter(m => m.whisper.includes(player(victim).id) && !m.getFlag(MODULE_ID, VEILED_FLAG));
+        const whispered = whisperedTo.length;
+        equal(stableJson([opened?.stage ?? null, failed?.success ?? null, after, to(player(killer)).includes("murder.openingAsk")]),
+            stableJson(["openingRoll", false, null, true]),
+            `the opening did not fail and close, or the net did not see the roll asked of the killer's player: ${stableJson(sent)}`);
+        equal(stableJson([to(player(victim)), whispered]), stableJson([[], 0]),
+            "the victim's player was sent a packet or a chat card by an opening that failed: "
+            + stableJson(whisperedTo.map(m => ({ author: m.author?.id ?? null, speaker: m.speaker?.actor ?? null, rolls: m.rolls?.length ?? 0,
+                flags: Object.keys(m.flags?.[MODULE_ID] ?? {}), text: String(m.content ?? "").replace(/<[^>]+>/g, "").slice(0, 80) }))));
+    }],
+
     ["two killers act back to back, not alternating with the victim", async () => {
         const [killer, victim, third] = cast();
         const drpg = game.drpg;

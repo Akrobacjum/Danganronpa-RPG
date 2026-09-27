@@ -5106,6 +5106,51 @@ const INVARIANTS = [
             ["messageFlag", "R202MESSAGE00001", `flags.${MOD}.popupTitle`],
             ["id", "R202MESSAGE00001", "speaker.actor"], ["id", "R202MESSAGE00001", "rolls.0.options.data.id"]
         ]), "a message rule did not find what a card of its kind held, found something where it is empty, or read a card of another kind");
+    }],
+
+    ["R203 - who is in an incident is one table, by the stage: every cell of incidentSeats", async () => {
+        /*
+         * E06 C2, 27.09.2026; audit S04-01, the owner's D6. settings.mjs `incidentSeats` is the
+         * table every reader of "who is told" asks - the cast's sender, the witness, the opening
+         * card, the frozen clock. Every cell, on made-up ids: a direct murder, a trap and a
+         * self-inflicted death (one id in both chairs, direct), each with no third, a third on the
+         * killer's side and one who is not (a side not yet chosen reads as not the killer's), at
+         * the opening, the fight, Stage 6 and a state that names no stage. Then the two readings
+         * the table leans on: a `stage` named by the caller wins over the state's, and a cast that
+         * holds no `indirect` reads the world half's (`incidentIndirect`).
+         */
+        const { incidentSeats } = await import("./settings.mjs");
+        const KINDS = { direct: { killerId: "K", victimId: "V", indirect: false }, trap: { killerId: "K", victimId: "V", indirect: true },
+            self: { killerId: "S", victimId: "S", indirect: false } };
+        const THIRDS = { none: {}, killers: { thirdId: "T", thirdSide: "killer" }, other: { thirdId: "T", thirdSide: null } };
+        const STAGES = ["openingRoll", "incident", "resolution", undefined];
+        const read = {};
+        for (const [kind, cast] of Object.entries(KINDS)) {
+            for (const [third, extra] of Object.entries(THIRDS)) {
+                for (const stage of STAGES) {
+                    read[`${kind} ${third} ${stage ?? "-"}`] = incidentSeats({ ...cast, ...extra }, { active: true, stage }).join("");
+                }
+            }
+        }
+        const EXPECTED = {
+            "direct none openingRoll": "K", "direct none incident": "KV", "direct none resolution": "KV", "direct none -": "KV",
+            "direct killers openingRoll": "KT", "direct killers incident": "KVT", "direct killers resolution": "KVT", "direct killers -": "KVT",
+            "direct other openingRoll": "K", "direct other incident": "KVT", "direct other resolution": "KVT", "direct other -": "KVT",
+            "trap none openingRoll": "V", "trap none incident": "V", "trap none resolution": "KV", "trap none -": "KV",
+            "trap killers openingRoll": "V", "trap killers incident": "V", "trap killers resolution": "KVT", "trap killers -": "KVT",
+            "trap other openingRoll": "V", "trap other incident": "VT", "trap other resolution": "KVT", "trap other -": "KVT",
+            "self none openingRoll": "S", "self none incident": "S", "self none resolution": "S", "self none -": "S",
+            "self killers openingRoll": "ST", "self killers incident": "ST", "self killers resolution": "ST", "self killers -": "ST",
+            "self other openingRoll": "S", "self other incident": "ST", "self other resolution": "ST", "self other -": "ST"
+        };
+        // Built in the order EXPECTED is written in, so the two read as one text.
+        equal(JSON.stringify(read), JSON.stringify(EXPECTED), "a cell of the incident's seats is not the table's");
+        const named = incidentSeats(KINDS.direct, { active: true, stage: "incident" }, { stage: "openingRoll" }).join("");
+        const fromWorld = incidentSeats({ killerId: "K", victimId: "V" }, { active: true, stage: "incident", indirect: true }).join("");
+        const castWins = incidentSeats(KINDS.direct, { active: true, stage: "incident", indirect: true }).join("");
+        equal(JSON.stringify([named, fromWorld, castWins]), JSON.stringify(["K", "V", "KV"]),
+            "the stage a caller names does not win over the state's, or a cast without the method does not read the world half's, "
+            + "or the world half's overrides a cast that holds it");
     }]
 ];
 

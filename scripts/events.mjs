@@ -28,7 +28,7 @@ import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
-import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentCast, incidentIndirect, incidentParticipants,
+import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentCast, incidentSeats,
     incidentWitness } from "./settings.mjs";
 import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
 import { SAFEWORD_FLAG } from "./safeword.mjs";
@@ -148,18 +148,15 @@ function openingCard() {
      * the one who rolls. Stated as one line because it is one rule seen from
      * two ends.
      *
-     * The killer's half is belt and braces - `castOwners` in murder.mjs no
-     * longer sends them a cast at all while the trap is running, so
-     * `incidentParticipants()` is already empty on their browser. It is written
-     * here too because this card is also built on a GM's client, where the cast
-     * is complete, and because a rule that lives in one place is a rule that
-     * travels when somebody moves the other place.
+     * Both halves are belt and braces here - `castOwners` in murder.mjs sends
+     * neither of them a cast while the opening runs (E06 C2 for the victim), so
+     * their browser holds no names to find a seat among. They are read here
+     * too because this card is also built on a GM's client, where the cast is
+     * complete, and they are read from the one table every other reader asks,
+     * `incidentSeats` (settings.mjs), at the opening's row: until E06 this card
+     * kept its own copy of the rule, which the cast's sender did not share.
      */
-    // Whether it is a trap is the cast's since E05 C8 (audit S04-08), as the names are - and the
-    // world half's only where the cast has none: `incidentIndirect`'s rule (settings.mjs).
-    const trap = incidentIndirect(cast, state);
-    const seats = incidentParticipants().filter(id =>
-        trap ? id !== cast.killerId : id !== cast.victimId);
+    const seats = incidentSeats(cast, state, { stage: "openingRoll" });
     if (!game.user.isGM && !seats.some(id => ids.has(id))) return null;
     const victim = game.actors.get(cast.victimId), killer = game.actors.get(cast.killerId);
     let room = null;

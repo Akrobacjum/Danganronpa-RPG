@@ -2015,6 +2015,42 @@ export function incidentIndirect(cast, state) {
 }
 
 /**
+ * WHO IS IN THE INCIDENT AT THIS STAGE (E06 C2, 27.09.2026; audit S04-01, the owner's D6).
+ * One table for every reader that decides who is told: `incidentAudienceIds` in murder.mjs
+ * (the GM's side - who is sent the cast, and from C4 on the cards) and, on each browser,
+ * `incidentWitness` below, the opening Event card (events.mjs) and the HUD's frozen clock.
+ * Until E06 each held its own copy, and two rules sat in them as exceptions: a trap's killer
+ * dropped while the trap runs, and a direct murder's victim dropped by the opening card
+ * alone - `castOwners` sent that victim the cast at the opening, so their curtain, their
+ * music and their console knew of the attempt before the killer's roll had decided there
+ * was one (read off the code; 13-murder-signals' "opening" phase reads it on four browsers).
+ *
+ *     stage          direct                              indirect (a trap)
+ *     openingRoll    the killers                         the victim
+ *     incident       the killers, the victim, the third  the victim, a third not on the killer's side
+ *     anything else  everyone named                      everyone named
+ *
+ * The killers are `killerId` and a `thirdId` whose `thirdSide` is "killer". "Anything else"
+ * is Stage 6 until `endMurder`, where a trap's builder comes back to arrange the scene - and
+ * a cast with no stage at all, which is how the readers before this one counted it too. A
+ * self-inflicted death is direct (`openMurder`), so its one name is seated from the opening
+ * as the killer. Actor ids, in the order the cast names them (killer, victim, third): a
+ * player owning two of them is seated as the first, as `incidentWitness` always did. Pure.
+ */
+export function incidentSeats(cast, state, { stage = state?.stage } = {}) {
+    const killer = cast?.killerId ?? null;
+    const victim = cast?.victimId ?? null;
+    const third = cast?.thirdId ?? null;
+    const thirdKills = cast?.thirdSide === "killer";
+    const indirect = incidentIndirect(cast, state);
+    let seats;
+    if (stage === "openingRoll") seats = indirect ? [victim] : [killer, thirdKills ? third : null];
+    else if (stage === "incident") seats = indirect ? [victim, thirdKills ? null : third] : [killer, victim, third];
+    else seats = [killer, victim, third];
+    return [...new Set(seats.filter(Boolean))];
+}
+
+/**
  * DOES THIS BROWSER WITNESS THE INCIDENT THAT IS RUNNING - and which seat is it?
  *
  * Four things now turn on that one question: the Event card, the HUD's turn
@@ -2028,6 +2064,9 @@ export function incidentIndirect(cast, state) {
  * So it is one function, in the leaf every caller can already reach, and the
  * rules it states are the whole of the rule:
  *
+ *   · the seats are `incidentSeats`' table, by the stage (E06 C2): a direct
+ *     murder's victim is seated from `incident`, not at the opening - which
+ *     their browser does not hold the cast for anyway (`castOwners`)
  *   · the names come from `incidentCast`, never from the world setting - a
  *     bystander's browser holds none of them and must go on holding none; so
  *     does whether it is a trap (E05 C8), by `incidentIndirect`'s rule
@@ -2054,8 +2093,9 @@ export function incidentWitness() {
     } catch {
         return away;
     }
-    // `openingRoll` counts: the trap's roll and the killer's are both part of
-    // the same held breath, and the Event card has always covered both.
+    // `openingRoll` counts for whoever the table seats there: the trap's victim,
+    // and a direct murder's killers - not its victim, who is not asked anything
+    // until the killer's roll has decided there is an incident (D6).
     if (!state.active || (state.stage !== "incident" && state.stage !== "openingRoll")) return away;
 
     const cast = incidentCast();
@@ -2079,12 +2119,9 @@ export function incidentWitness() {
     const assigned = game.user?.character?.id ?? null;
     if (assigned) mine.add(assigned);
 
-    // The killer's seat is simply not on the board during their own trap.
-    const seats = [
-        indirect ? null : cast.killerId,
-        cast.victimId,
-        cast.thirdId
-    ].filter(Boolean);
+    // The killer's seat is simply not on the board during their own trap, nor the
+    // victim's at a direct murder's opening: `incidentSeats`, by the stage.
+    const seats = incidentSeats(cast, state);
 
     const owned = (assigned && seats.includes(assigned))
         ? assigned
