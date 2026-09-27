@@ -5760,7 +5760,10 @@ const REGRESSIONS = [
          * and the per-token routine of `migrateRemnants` that was a console call (Q5).
          * E05's fix round (r1-G1) gave E04's names and fog lifts 1.2.64 too, so that a world
          * 1.2.63 stamped over rows they kept runs them once more, and its second (r2-F0b) the
-         * Faint's pass, for the same reason.
+         * Faint's pass, for the same reason. Its fourth (r2-G4) adds the old incidents' marks,
+         * and narrows the one allowance inside a lift's own file: `neutralTraceNames` was allowed
+         * anywhere in remnants.mjs (reviews S2-m11 = F8), so a ready hook there calling it passed;
+         * now only inside `migrateRemnantsOnce`'s body, shown a planted hook beside it first.
          */
         const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"],
             // E04's three, given 1.2.64 by E05's fix rounds (r1-G1; the Faint's pass r2-F0b): a world 1.2.63
@@ -5774,15 +5777,24 @@ const REGRESSIONS = [
             // E05 C13: a bullet's trace key into its row, and a found trace's token back to the neutral word.
             ["liftBulletRefs", "liftBulletRefs", "1.2.64"], ["neutralTraceNames", "neutralTraceNames", "1.2.64"],
             // E05 C14: a body's loot record into its row, and an old trace's answer key off its token.
-            ["liftLootTraces", "liftLootTraces", "1.2.64"], ["migrateRemnantsOnce", "migrateRemnantsOnce", "1.2.64"]];
+            ["liftLootTraces", "liftLootTraces", "1.2.64"], ["migrateRemnantsOnce", "migrateRemnantsOnce", "1.2.64"],
+            // E05 fix r2-G4: the marks of the incidents closed before 1.2.64 off their traces.
+            ["retireOldIncidentMarks", "retireOldIncidentMarks", "1.2.64"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.
             "gm-stores.mjs": ["migrateFaintIntoSecrets"],
-            // E05 C14: `migrateRemnantsOnce`, itself run only by its clause, gives what it stripped the neutral word.
-            "remnants.mjs": ["neutralTraceNames"],
+            // E05 C14: `migrateRemnantsOnce`, itself run only by its clause, gives what it stripped the
+            // neutral word - there and nowhere else in the file: [the lift, the function it may be called in].
+            "remnants.mjs": [["neutralTraceNames", "migrateRemnantsOnce"]],
             // Not a call: the line diagnostics prints, telling a GM the console command.
             "diagnostics.mjs": ["migrateTruthBullets"]
+        };
+        // A top-level function's body, from its declaration to its closing brace at the line's start.
+        const within = (src, at, name) => {
+            const from = src.search(new RegExp(`^(?:export )?(?:async )?function ${name}\\(`, "m"));
+            const to = from < 0 ? -1 : src.indexOf("\n}", from);
+            return from >= 0 && to > from && at > from && at < to;
         };
         const callers = files => {
             const out = [];
@@ -5791,7 +5803,8 @@ const REGRESSIONS = [
                 for (const [, fn] of LIFTS) {
                     for (const m of src.matchAll(new RegExp(`\\b${fn}\\s*\\(`, "g"))) {
                         if (/function\s+$/.test(src.slice(Math.max(0, m.index - 20), m.index))) continue;
-                        if (!(ALLOWED[file] ?? []).includes(fn)) out.push(`${file}: ${fn}`);
+                        const allowed = (ALLOWED[file] ?? []).some(a => (Array.isArray(a) ? a[0] === fn && within(src, m.index, a[1]) : a === fn));
+                        if (!allowed) out.push(`${file}: ${fn}`);
                     }
                 }
             }
@@ -5799,6 +5812,10 @@ const REGRESSIONS = [
         };
         equal(JSON.stringify(callers([["planted.mjs", "Hooks.once(\"ready\", async () => {\n    await liftIncidentSecrets();\n});\nexport async function liftIncidentSecrets() {}\n"]])),
             JSON.stringify(["planted.mjs: liftIncidentSecrets"]), "the reader does not find the lift a planted ready hook calls, or finds its declaration");
+        equal(JSON.stringify(callers([["remnants.mjs", "export async function migrateRemnantsOnce() {\n    await neutralTraceNames({ tokens });\n}\n"
+            + "Hooks.once(\"ready\", async () => {\n    await neutralTraceNames();\n});\n"]])),
+            JSON.stringify(["remnants.mjs: neutralTraceNames"]),
+            "the reader does not find the neutral names a planted ready hook in remnants.mjs calls, or finds the call inside migrateRemnantsOnce");
 
         const sources = new Map(await otherSources());
         const migrate = stripComments(sources.get("migrate.mjs") ?? "");

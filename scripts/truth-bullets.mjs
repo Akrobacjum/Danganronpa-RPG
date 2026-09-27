@@ -40,7 +40,7 @@ import {
     whisperToOwner, whisperToGms, isPrimaryGm, primaryGmId, ownerIdsOf, forcedDeletion, log, warn, error, plural
 } from "./utils.mjs";
 import { playSfxFor } from "./sfx.mjs";
-import { bulletStore, bulletRefCopy, backupCase, restoreCase } from "./gm-stores.mjs";
+import { bulletStore, bulletRefCopy, backupCase, restoreCase, lootTraceStore, deathStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
 
@@ -256,6 +256,49 @@ export function isIdentified(item) {
     if (!isTruthBullet(item)) return false;
     if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) return true;
     return (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral") !== "neutral";
+}
+
+/**
+ * A LOOT NAMES A DEATH, SO ITS TRACE'S COPIES SAY "LOOT" ONLY ONCE THE DEATH IS THE TABLE'S
+ * (E05 fix r2-G4, 27.09.2026; F0b's note, the plan's rule A). A body nobody has found may be
+ * looted by one who knows of the death (the owner's Q2), and its loot trace, placed hidden at
+ * the body, can be found by one who knows before the discovery. The copy's `sourceAction`
+ * "loot" is published on the item - an Item every console reads - at a critical find, at an
+ * Analyze, and on a copy of an identified bullet; nothing but a body is looted, so a
+ * bystander's console read of a death nobody had been told of (measured: tier 2, red on
+ * 40ac88d, both copies' items said "loot" before the publication). What is published is the
+ * row's value unless the trace is the loot trace of a death still the GMs' alone - then
+ * nothing, as for a bullet not yet identified; the row keeps "loot", and the publication
+ * puts it on the identified copies (`publishLootSource`). Whether a trace is a loot's is the
+ * GMs' `lootTraces` row, so both stores are waited for.
+ */
+export async function shownSourceAction({ sourceAction = null, sceneId = null, remnantId = null } = {}) {
+    if (sourceAction !== "loot" || !remnantId) return sourceAction ?? null;
+    await Promise.all([lootTraceStore.whenHydrated(), deathStore.whenHydrated()]);
+    const held = Object.entries(lootTraceStore.entries()).some(([bodyId, row]) =>
+        row?.tokenId === remnantId && row?.sceneId === sceneId && deathStore.has(bodyId));
+    return held ? null : sourceAction;
+}
+
+/**
+ * The published half of `shownSourceAction`, at `publishDeath` (chapter.mjs): every copy of
+ * the body's loot trace that is identified and says no source is given "loot". `trace` is the
+ * body's `lootTraces` row. Answers how many items were written.
+ */
+export async function publishLootSource(trace) {
+    if (!game.user.isGM || !trace?.tokenId) return 0;
+    let n = 0;
+    for (const actor of game.actors ?? []) {
+        if (actor.type !== "character") continue;
+        for (const item of bulletsOf(actor)) {
+            const secret = secretOf(item.uuid);
+            if (secret.sourceAction !== "loot" || secret.remnantId !== trace.tokenId || secret.sceneId !== trace.sceneId) continue;
+            if (!isIdentified(item) || item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.sourceAction) === "loot") continue;
+            await item.update({ [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: "loot" });
+            n++;
+        }
+    }
+    return n;
 }
 
 /**
@@ -545,7 +588,7 @@ export async function createTruthBullet(actor, {
             [TRUTH_BULLET_FLAGS.analyzedText]: read ? analyzedText : "",
             // No `remnantRef` since E05 C13: which trace this is lives in the row below
             // and in its owners' copy (`tellBulletRefs`), not on an item every browser holds.
-            [TRUTH_BULLET_FLAGS.sourceAction]: identified ? sourceAction : null,
+            [TRUTH_BULLET_FLAGS.sourceAction]: identified ? await shownSourceAction({ sourceAction, sceneId, remnantId }) : null,
             [TRUTH_BULLET_FLAGS.tiedToCrime]: identified ? tiedToCrime : null,
             // Never inherited. A failed analysis is a fact about the person who
             // failed, not about the evidence - guide, Stage 3.

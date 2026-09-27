@@ -14,7 +14,7 @@
  */
 
 import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_DAY_LABELS,
-    BROKEN_ITEMS, observeDc } from "./config.mjs";
+    BROKEN_ITEMS, observeDc, TIMING } from "./config.mjs";
 // Statically imported: `remnantsInRoom` is synchronous, and movement.mjs does
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken } from "./movement.mjs";
@@ -1154,12 +1154,17 @@ function saysMore(token) {
  * (the lifts' rule, E05 fix r1-G1). Idempotent: a world already through this has
  * nothing to write.
  *
+ * `tokens` is the suite's, as `migrateRemnantsOnce`'s is (E05 fix r2-G4, 27.09.2026;
+ * reviews S2-m12 = F7): its own fixtures. The routine read the whole world whatever it
+ * was handed, so a tier-2 run at a table renamed and re-iconed every trace token there
+ * that a GM had named by hand. The clause hands none, and every trace in the world is read.
+ *
  * @returns {Promise<null|{neutralised: number}>}
  */
-export async function neutralTraceNames() {
+export async function neutralTraceNames({ tokens = null } = {}) {
     if (!isPrimaryGm()) return null;
     const word = game.i18n.localize("DRPG.Remnant.tokenName");
-    const telling = () => (game.scenes?.contents ?? []).flatMap(scene => remnantsOn(scene)).filter(saysMore);
+    const telling = () => (tokens ?? (game.scenes?.contents ?? []).flatMap(scene => remnantsOn(scene))).filter(saysMore);
     const found = telling();
     if (!found.length) return null;
     const byScene = new Map();
@@ -1266,13 +1271,19 @@ export async function revealRemnantToFinderById(sceneId, tokenId) {
  * bullets.mjs `ownBulletRefs`), so only once the GM stores have heard from the other
  * GMs: until then nothing is hidden, and the mark alone comes off - which already keeps
  * a trace off the next cast's screens. One write per scene; with nothing marked, none.
+ * `before` (a stamp) keeps the mark on every trace whose row was written from then on -
+ * the running incident's, for `retireOldIncidentMarks` below; a trace with no row here
+ * has no date and is retired with the old ones. `tokens` is the suite's fixtures, as
+ * `neutralTraceNames`' is; with none, every trace in the world is read.
  *
  * @returns {Promise<null|{retired: number, hidden: number}>}
  */
-export async function retireIncidentTraces() {
+export async function retireIncidentTraces({ before = null, tokens = null } = {}) {
     if (!game.user.isGM) return null;
     const flag = REMNANT_FLAGS.fromIncident;
-    const marked = scene => remnantsOn(scene).filter(token => token.getFlag(MODULE_ID, flag));
+    const old = token => before === null || remnantStore.stampOf(keyOf(token), "type") < before;
+    const marked = scene => (tokens ? tokens.filter(token => token.parent === scene) : remnantsOn(scene))
+        .filter(token => token.getFlag(MODULE_ID, flag) && old(token));
     const scenes = (game.scenes?.contents ?? []).filter(scene => marked(scene).length);
     if (!scenes.length) return null;
     const { ownBulletRefs } = await import("./truth-bullets.mjs");
@@ -1292,6 +1303,37 @@ export async function retireIncidentTraces() {
     }
     log(`The incident's ${retired} trace(s) are no longer marked as its own; ${hidden} nobody had copied are hidden.`);
     return { retired, hidden };
+}
+
+/**
+ * THE MARKS AN UPDATED WORLD STILL CARRIES, AT ITS FIRST LOAD OF 1.2.64 (E05 fix r2-G4,
+ * 27.09.2026; review S2-m4). `retireIncidentTraces` runs at `endMurder` since E05 C14,
+ * and every incident closed before that left its traces marked: the first incident run
+ * after the update drew them all for its cast. The clause `retireOldIncidentMarks`
+ * (migrate.mjs, since 1.2.64) runs this once, on the primary, once the traces' and the
+ * bullets' stores hold the other GMs' copies (the hiding reads who holds a copy). With no
+ * incident running, every mark is retired. With one running - a world updated in the
+ * middle of it - its own traces keep theirs: a trace is the running incident's when its
+ * row's `type` was written after the incident opened, less the clocks' bound (the cast's
+ * claim reads `openedAt` the same way, gm-stores.mjs `castStore`), so an older trace
+ * placed in the ten minutes before that opening keeps its mark until the close. A
+ * running incident whose opening this browser does not know throws, so the world is not
+ * stamped and the next load tries again. Idempotent: a world through this holds no old
+ * mark. `tokens` is the suite's fixtures (`retireIncidentTraces`).
+ *
+ * @returns {Promise<null|{retired: number, hidden: number}>}
+ */
+export async function retireOldIncidentMarks({ tokens = null } = {}) {
+    if (!isPrimaryGm()) return null;
+    const waited = await Promise.all([remnantStore.whenHydrated(), bulletStore.whenHydrated()]);
+    if (waited.includes("timedOut")) throw new Error("the other GMs' copies of the traces and the bullets did not arrive; the next load tries again");
+    const { murderState } = await import("./murder.mjs");
+    const state = murderState();
+    if (!state) return retireIncidentTraces({ tokens });
+    if (!Number.isFinite(state.openedAt)) {
+        throw new Error("an incident is running and this browser does not know when it opened; the next load tries again");
+    }
+    return retireIncidentTraces({ before: state.openedAt - TIMING.gmStoreSkewMs, tokens });
 }
 
 /**
@@ -1987,8 +2029,18 @@ export async function migrateRemnants() {
  * so they are counted, named in a warning, and left to the console's `migrateRemnants`
  * once a GM has decided. R9 and 72-canary name any of them that stays.
  *
+ * AND THE GM IS TOLD, NOT ONLY THE CONSOLE (E05 fix r2-G4, 27.09.2026; review S2-m3).
+ * Both keeps are secrets on tokens every browser holds - a promotion says which trace a
+ * GM judged the murder's - and the world is stamped over them, so the next load does not
+ * look again: the warning went to the console alone, and the health check counted
+ * neither (it read only a token's type). So a kept one is also a notification that stays,
+ * with the count and the console call that names each, and a row of the case health
+ * check (gm-stores.mjs `gmStoreHealth`, `tracesKept`) for as long as one is on its token.
+ *
  * `tokens` is the suite's: its own fixtures, so that a run at a table migrates none of
- * the table's traces; the clause hands none, and every trace in the world is read.
+ * the table's traces - and gives none of them the neutral word (`neutralTraceNames`,
+ * handed the same list; review S2-m12); the clause hands none, and every trace in the
+ * world is read.
  *
  * @returns {Promise<null|{moved: number, filled: number, kept: number, already: number, noRow: number,
  *   carried: number, notCarried: number, stripped: number, deltaCleaned: number}>}
@@ -2031,13 +2083,14 @@ export async function migrateRemnantsOnce({ tokens = null } = {}) {
         const left = done.left.filter(what => (ANSWER_KEY_FLAGS.includes(what) && !kept.has(what)) || what === "delta name");
         if (left.length) stuck.push(`${where}: ${left.join(", ")}`);
     }
-    await neutralTraceNames();
+    await neutralTraceNames({ tokens });
     log(`Traces' tokens migrated: ${counts.moved} moved into the ledger, ${counts.filled} filled in, ${counts.kept} kept, `
         + `${carried} Faint Prep promotion(s) carried, ${stripped} stripped, ${deltaCleaned} delta name(s) neutralised; `
         + `${stays.length} left as they were, ${stuck.length} still carrying their answer key.`);
     if (stays.length) {
         warn(`Traces left carrying flags on their tokens, each its only record (game.drpg.migrateRemnants() takes them `
             + `once a GM has set the trace in the Investigation dashboard): ${stays.join("; ")}`);
+        ui.notifications.warn(plural("DRPG.Remnant.keptOnTokens", { n: stays.length }), { permanent: true });
     }
     if (stuck.length) {
         throw new Error(`${stuck.length} trace token(s) still carry their answer key (${stuck.join("; ")}); the next load tries again`);

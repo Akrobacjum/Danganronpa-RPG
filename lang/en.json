@@ -1922,6 +1922,7 @@
       "cardUnanalyzed": "You have not worked out what this is yet. Analyze it to find out.",
       "cardUnread": "Not analysed yet. Analyze it to read the rest.",
       "tokenName": "Trace",
+      "keptOnTokens": {"one": "{n} trace keeps flags of its answer key on its token, which every browser holds: the migration had no row to carry them into, or a later correction stood against them. game.drpg.migrateRemnants() in the console names it.", "other": "{n} traces keep flags of their answer keys on their tokens, which every browser holds: the migration had no row to carry them into, or a later correction stood against them. game.drpg.migrateRemnants() in the console names each."},
       "finalSubject": "Final Truth",
       "cardEditNote": "Saved when you leave the field, and copied onto the token and every Truth Bullet taken from this trace.",
       "cardSaveFailed": "That did not save. See the console.",
@@ -3427,6 +3428,7 @@
           "other": "{n} pre-session notes are marked written, and this browser does not hold them, or holds older ones."
         },
         "tracesOnToken": {"one": "{n} trace on the map (of {of}) still carries its answer key on its token: it is moved into the ledger, not restored.", "other": "{n} traces on the map (of {of}) still carry their answer keys on their tokens: they are moved into the ledger, not restored."},
+        "tracesKept": {"one": "{n} trace on the map (of {of}) keeps flags of its answer key on its token, which every browser holds - a Faint Prep promotion a later correction stood against, or flags with no ledger row to carry them into: a GM decides it, and game.drpg.migrateRemnants() names it.", "other": "{n} traces on the map (of {of}) keep flags of their answer keys on their tokens, which every browser holds - a Faint Prep promotion a later correction stood against, or flags with no ledger row to carry them into: a GM decides each, and game.drpg.migrateRemnants() names them."},
         "leftNotPrimary": {"one": "{n} of this world's old offers or fog rows stays in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes it (the diagnostics name the store).", "other": "{n} of this world's old offers or fog rows stay in this browser: only the primary GM's browser takes them. With this world open here as the primary, game.drpg.gmStoreReclaim takes them (the diagnostics name the store)."}
       },
       "healthTitle": "The case on this browser",

@@ -845,6 +845,22 @@ const CLAUSES = [
             const { migrateRemnantsOnce } = await import("./remnants.mjs");
             return migrateRemnantsOnce();
         }
+    },
+    {
+        key: "retireOldIncidentMarks",
+        since: "1.2.64",
+        /*
+         * THE MARKS OF THE INCIDENTS CLOSED BEFORE 1.2.64 (E05 fix r2-G4; review S2-m4). Since
+         * E05 C14 an incident's close hides the traces it left that nobody copied and takes the
+         * `fromIncident` mark off them all; every incident closed before left its marks, and the
+         * first one after the update drew their traces for its cast. Once, on the primary, after
+         * the traces' and the bullets' stores have the other GMs' copies, with the rules written
+         * on `retireOldIncidentMarks` (remnants.mjs): a running incident keeps its own.
+         */
+        run: async () => {
+            const { retireOldIncidentMarks } = await import("./remnants.mjs");
+            return retireOldIncidentMarks();
+        }
     }
 ];
 

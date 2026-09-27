@@ -1387,12 +1387,22 @@ export async function gmStoreHealth() {
     for (const scene of game.scenes ?? []) for (const token of scene.tokens ?? []) if (token.getFlag(MODULE_ID, "isRemnant")) traces.push(token);
     const traceKey = token => `${token.parent?.id}.${token.id}`;
     // A trace whose answer key is still on its token is moved, not restored: counted apart (C-m14).
-    const { answerKeyOnToken } = await import("./remnants.mjs");
+    const { answerKeyOnToken, ANSWER_KEY_FLAGS } = await import("./remnants.mjs");
     const noRow = traces.filter(token => !remnantStore.has(traceKey(token)));
     const onToken = noRow.filter(answerKeyOnToken);
     const traceGaps = noRow.filter(token => !answerKeyOnToken(token));
     if (traceGaps.length) add("traces", "missing", "DRPG.Case.row.traces", { n: traceGaps.length, of: traces.length });
     if (onToken.length) add("tracesOnToken", "missing", "DRPG.Case.row.tracesOnToken", { n: onToken.length, of: traces.length });
+    /* Any other trace token still holding a flag of its answer key (E05 fix r2-G4, 27.09.2026;
+       review S2-m3): the two the migration keeps on purpose - a Faint Prep promotion a later
+       correction stood against, flags with no type and no row to carry them into - and one
+       whose strip did not take. Read by `remnantType` alone, the check named none of them as
+       flags on a token - flags with no row read as a missing row, to restore - and a token every
+       browser holds kept saying which trace a GM had judged the murder's (tier 2, red on 40ac88d).
+       A GM decides each (remnants.mjs `migrateRemnantsOnce`), so it is a conflict, not missing. */
+    const flagged = traces.filter(token => !onToken.includes(token)
+        && ANSWER_KEY_FLAGS.some(flag => flag in (token._source?.flags?.[MODULE_ID] ?? token.flags?.[MODULE_ID] ?? {})));
+    if (flagged.length) add("tracesKept", "conflict", "DRPG.Case.row.tracesKept", { n: flagged.length, of: traces.length });
     // A row whose token is gone: unreachable (every read goes through a token), counted, never removed on its own.
     const onMap = new Set(traces.map(traceKey));
     const orphans = Object.keys(remnantStore.entries()).filter(key => !onMap.has(key)).length;
@@ -1476,7 +1486,7 @@ export async function gmStoreHealth() {
         { when: mark.lastBackupAt ? new Date(mark.lastBackupAt).toLocaleString() : "", who: mark.lastBackupBy ?? "" });
 
     const counts = {
-        traces: { of: traces.length, missing: traceGaps.length, onToken: onToken.length, orphans },
+        traces: { of: traces.length, missing: traceGaps.length, onToken: onToken.length, kept: flagged.length, orphans },
         bullets: { of: bullets.length, missing: unkeyed.length, noAnswer: noAnswer.length, fillable: Object.keys(fillsFromTraces()).length },
         projectSecrets: { of: murders.length, missing: noSecrets.length },
         notes: { missing: lostNotes.length }

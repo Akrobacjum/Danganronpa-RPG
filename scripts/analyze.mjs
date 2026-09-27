@@ -21,7 +21,7 @@
 
 import { MODULE_ID, analyzeDc, TRUTH_BULLET_TYPES } from "./config.mjs";
 import {
-    TRUTH_BULLET_FLAGS, secretOf, setSecret, isTruthBullet, isAnalysable, bulletDescription, faintOf, NOT_AN_EDIT
+    TRUTH_BULLET_FLAGS, secretOf, setSecret, isTruthBullet, isAnalysable, bulletDescription, faintOf, NOT_AN_EDIT, shownSourceAction
 } from "./truth-bullets.mjs";
 // The trace's own `public` record, for a reading a bullet's secret was minted
 // without (T-2). Static: remnants.mjs does not import this file.
@@ -130,7 +130,7 @@ export async function resolveAnalyze({
             // the rest of the truth - an un-analysed bullet knows nothing. Unless
             // its kind was showing: then they were public from pickup, exactly as
             // `createTruthBullet` wrote them for an identified bullet.
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: kindShown ? (secret.sourceAction ?? null) : null,
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: kindShown ? await shownSourceAction(secret) : null,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: kindShown ? (secret.tiedToCrime ?? null) : null,
             // And Faint, which `identify` joined to this list in 1.2.47 and this
             // undo was never told about: a rerolled Analyze that lost left the
@@ -249,7 +249,8 @@ async function identify(item, actor, realType, isCritical, dc, total) {
         await item.update({
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true,
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: secret.sourceAction ?? null,
+            // A loot's, not while its death is the GMs' alone (truth-bullets.mjs `shownSourceAction`).
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: await shownSourceAction(secret),
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: secret.tiedToCrime ?? null,
             /* Faint joined this list in 1.2.47. It used to sit on the item from
                creation, so the badge announced a doubtful trace to somebody who

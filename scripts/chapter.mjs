@@ -39,7 +39,7 @@ import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc }
     from "./utils.mjs";
-import { caseMark, deathStore, deferredOfferStore } from "./gm-stores.mjs";
+import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -380,7 +380,8 @@ async function tellDeathKnowers(actor, known = [], { dropped = false } = {}) {
  * "dead" (gm-panel.mjs) - and by nothing else: no trial and no chapter's end publishes a
  * death on its own (the owner's Q3, 26.09.2026). Last, each loot of the body before this
  * is given its Truth Bullet, which names the body and so waited in the row (handover.mjs
- * `payOwedLoot`; E05 fix r2-F0b).
+ * `payOwedLoot`; E05 fix r2-F0b), and each identified copy of the body's loot trace found
+ * before this the source it held back (truth-bullets.mjs `publishLootSource`; E05 fix r2-G4).
  */
 export async function publishDeath(actor) {
     if (!game.user.isGM || !actor) return null;
@@ -397,6 +398,8 @@ export async function publishDeath(actor) {
     await deathStore.drop(actor.id);
     await tellDeathKnowers(actor, row.known, { dropped: true });
     const paid = owed.length ? await payOwedLoot(actor, owed) : 0;
+    const { publishLootSource } = await import("./truth-bullets.mjs");
+    await publishLootSource(lootTraceStore.get(actor.id));
     log(`${actor.name}'s death is the table's now (chapter ${record.chapter}); ${removed} Truth Bullet(s) destroyed, ${paid} owed for a loot given.`);
     return record;
 }

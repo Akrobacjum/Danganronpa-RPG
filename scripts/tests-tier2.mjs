@@ -3445,6 +3445,71 @@ const SCENARIOS = [
         }
     }],
 
+    ["a copy of a looted body's trace found before the death is published says no loot until it is", async () => {
+        /*
+         * E05 fix r2-G4, 27.09.2026; F0b's note, the plan's rule A. One who knows of a death
+         * nobody has found may loot the body (Q2), and its loot trace, placed hidden at the body,
+         * may be found by one who knows before the discovery. The copy is an item every console
+         * reads, and its `sourceAction` "loot" - which nothing but a body leaves - went onto it at
+         * a critical find and at an Analyze: a death the table had not been told of. Two copies of
+         * the trace, made as Observe's `createFind` makes them (a critical, and an ordinary find
+         * then analysed): neither item names the loot while the death is the GMs' alone, the rows
+         * keep it, and the publication puts it on both (red on 40ac88d: both items said "loot"
+         * before it). Put back after: the taker's new items, the trace, the rows, the body alive.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace and warns the GMs instead (trap 142)");
+        const [taker, body] = cast(2);
+        const { killCharacter, reviveCharacter, publishDeath } = await import("./chapter.mjs");
+        const { lootBody } = await import("./handover.mjs");
+        const { lootTraceStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const remnants = await import("./remnants.mjs");
+        const had = new Set(taker.items.map(i => i.id));
+        const fresh = () => taker.items.filter(i => !had.has(i.id));
+        const shown = i => taker.items.get(i?.id)?.getFlag(MODULE_ID, "sourceAction") ?? null;
+        try {
+            ok(await killCharacter(body, { secret: true, keepBullets: true }), "the secret death was not recorded");
+            const put = await grantItem(body, { name: "SUITE G4 a lighter", category: "tool", tier: 1, override: true, quiet: true });
+            ok(put && await lootBody({ takerId: taker.id, bodyId: body.id, itemId: put.id }), "the loot before the publication took nothing");
+            await settle();
+            const trace = lootTraceStore.get(body.id);
+            ok(trace?.tokenId, "the loot left no trace - this measures nothing");
+            const copy = { realType: "neutral", visibility: "subtle", remnantId: trace.tokenId, sceneId: trace.sceneId, sourceAction: "loot", tiedToCrime: true };
+            const critical = await bullets.createTruthBullet(taker, { ...copy, name: "SUITE G4 a critical find", shownType: "neutral", analyzed: true });
+            const plain = await bullets.createTruthBullet(taker, { ...copy, name: "SUITE G4 an ordinary find" });
+            ok(critical && plain && !bullets.isIdentified(plain), "the two copies were not made as a critical and an ordinary find");
+            await resolveAnalyze({ actorId: taker.id, itemId: plain.id, total: 40 });
+            await settle();
+            ok(bullets.isIdentified(taker.items.get(plain.id)), "the Analyze did not identify the ordinary find - this measures nothing");
+            equal(stableJson([shown(critical), shown(plain), bullets.secretOf(critical.uuid).sourceAction, bullets.secretOf(plain.uuid).sourceAction]),
+                stableJson([null, null, "loot", "loot"]),
+                "before the death was published a copy's item named the loot, or its row lost it");
+
+            await publishDeath(body);
+            await settle();
+            equal(stableJson([shown(critical), shown(plain)]), stableJson(["loot", "loot"]), "the publication did not put the loot on the identified copies");
+        } finally {
+            for (const i of fresh()) {
+                try { await bullets.dropSecret?.(i.uuid); } catch { /* nothing filed */ }
+                try { await i.delete(); } catch { /* already gone */ }
+            }
+            const row = lootTraceStore.get(body.id);
+            const token = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+            if (token) {
+                try { await remnants.dropRemnantSecret(token); } catch { /* nothing filed */ }
+                try { await token.delete(); } catch { /* already gone */ }
+            }
+            if (lootTraceStore.has(body.id)) await lootTraceStore.drop(body.id);
+            for (const i of body.items.filter(i => i.name.startsWith("SUITE G4"))) {
+                try { await i.delete(); } catch { /* already gone */ }
+            }
+            await reviveCharacter(body, { quiet: true });
+            await settle();
+        }
+    }],
+
     ["a closed incident's traces nobody copied are hidden, none stays marked, and one placed with none running is hidden", async () => {
         /*
          * E05 C14, 27.09.2026; audit S05-42. D11 creates an incident's traces un-hidden and marked
@@ -3500,6 +3565,69 @@ const SCENARIOS = [
             }
             for (const t of placed.filter(Boolean)) {
                 try { await remnants.dropRemnantSecret(t); } catch { /* nothing filed */ }
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["the clause takes an older incident's marks off its traces at the update, and a running incident keeps its own", async () => {
+        /*
+         * E05 fix r2-G4, 27.09.2026; review S2-m4. Since C14 an incident's close retires its
+         * traces' `fromIncident` marks; every incident closed before 1.2.64 left them, and the
+         * first incident run after the update drew those traces for its cast (visibility.mjs
+         * `myIncidentTrace` asks only whether an incident runs). The clause `retireOldIncidentMarks`
+         * retires them at the first load. Fixtures, handed to it (the clause reads the world; the
+         * suite touches none of a table's traces): two marked, un-hidden incident traces from
+         * before - one with a row from before the upgrade, one with no row. With no incident
+         * running both are hidden and unmarked (red on 40ac88d: the routine did not exist). Then an
+         * incident opens and places its own trace, and a third old one is marked: the clause
+         * retires the old one and the running incident's keeps its mark and stays in view. Drawing
+         * is not measured - no canvas - only what every browser's copy of the token says.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces stand on the scene on screen");
+        const [killer, victim] = cast(2);
+        const murder = await import("./murder.mjs");
+        const R = await import("./remnants.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const now = t => {
+            const d = scene.tokens.get(t?.id);
+            return [d?.hidden ?? null, d?.getFlag(MODULE_ID, "fromIncident") ?? null];
+        };
+        const placed = [];
+        const oldTrace = async (row = true) => {
+            const [t] = await scene.createEmbeddedDocuments("Token", [{ name: game.i18n.localize("DRPG.Remnant.tokenName"),
+                actorId: R.findRemnantActor()?.id ?? null, actorLink: false, x: anchor?.x ?? 0, y: anchor?.y ?? 0, hidden: false,
+                flags: { [MODULE_ID]: { isRemnant: true, fromIncident: true } } }]);
+            ok(t, "could not place a fixture trace");
+            placed.push(t);
+            if (row) await remnantStore.patch(R.keyOf(t), { type: "incident", visibility: "evident", note: "SUITE G4 an old incident's trace" }, { weak: true });
+            return t;
+        };
+        equal(murder.murderState(), null, "an incident was already running when this test started");
+        try {
+            const [filed, unfiled] = [await oldTrace(), await oldTrace(false)];
+            const done = await R.retireOldIncidentMarks({ tokens: [filed, unfiled] });
+            equal(stableJson([now(filed), now(unfiled), done?.retired ?? null]), stableJson([[true, null], [true, null], 2]),
+                "with no incident running, an older incident's trace nobody copied is still in view or still marked");
+
+            await game.drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+            await settle();
+            ok(murder.murderState(), "no incident opened");
+            const own = await R.placeRemnant({ type: "incident", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "SUITE G4 the running incident's trace" });
+            if (own) placed.push(own);
+            const older = await oldTrace();
+            equal(stableJson(now(own)), stableJson([false, true]), "the running incident's trace is not un-hidden and marked - this measures nothing");
+            await R.retireOldIncidentMarks({ tokens: [own, older] });
+            equal(stableJson([now(own), now(older)]), stableJson([[false, true], [true, null]]),
+                "with an incident running, its own trace lost its mark or an older one kept its own");
+        } finally {
+            if (murder.murderState()) await murder.endMurder({ reason: "test", followUp: false });
+            for (const t of placed.filter(Boolean)) {
+                try { await R.dropRemnantSecret(t); } catch { /* nothing filed */ }
                 try { await t.delete(); } catch { /* already gone */ }
             }
             await settle();
@@ -9940,7 +10068,10 @@ const SCENARIOS = [
          * migration's - `migrateRemnantToken` reads its old name as the label - and is left as it
          * is. And when the write does not take, the clause throws with the count, so the world is
          * not stamped. Three fixture tokens, deleted after: a found one, named and dressed; one
-         * still carrying its answer key under its old label; and one already neutral.
+         * still carrying its answer key under its old label; and one already neutral. And a fourth,
+         * named and dressed as a table's own trace, not handed to the routine: the suite neutralises
+         * its fixtures and nothing of the table's (E05 fix r2-G4; reviews S2-m12 = F7 - it was
+         * renamed, as every such token of a real table was).
          */
         needs(world.atLeast("sceneOnScreen"), "the fixture tokens stand on the scene on screen");
         const R = await import("./remnants.mjs");
@@ -9968,15 +10099,19 @@ const SCENARIOS = [
             const labelled = await trace(label, R.ICON, { [R.REMNANT_FLAGS.type]: "prep" });
             ok(R.answerKeyOnToken(labelled), "the fixture is not a token still carrying its answer key");
             const quiet = await trace(word, R.ICON);
-            const report = await R.neutralTraceNames();
+            const tables = await trace("SUITE the table's own kettle", "icons/svg/item-bag.svg");
+            const tokens = [found, labelled, quiet];
+            const report = await R.neutralTraceNames({ tokens });
             equal(stableJson([face(found), face(labelled), face(quiet)]), stableJson([[word, R.ICON], [label, R.ICON], [word, R.ICON]]),
                 "a found trace's token still says its name or wears its image, or a token carrying its answer key lost its label before the migration read it");
+            equal(stableJson(face(tables)), stableJson(["SUITE the table's own kettle", "icons/svg/item-bag.svg"]),
+                "the suite's run of the clause gave a trace it was not handed - a table's - the neutral word");
             equal(report?.neutralised, 1, `the clause's report: ${stableJson(report)}`);
-            equal(await R.neutralTraceNames(), null, "a second run of the clause found something to do");
+            equal(await R.neutralTraceNames({ tokens }), null, "a second run of the clause found something to do");
 
             await scene.updateEmbeddedDocuments("Token", [{ _id: found.id, name: "SUITE a kettle again" }]);
             scene.updateEmbeddedDocuments = async () => [];
-            const threw = await thrown(() => R.neutralTraceNames());
+            const threw = await thrown(() => R.neutralTraceNames({ tokens }));
             putBack();
             equal(stableJson([/^1 trace token\(s\) still show /.test(threw ?? ""), face(found)[0]]), stableJson([true, "SUITE a kettle again"]),
                 `the clause did not throw with the count when its write did not take: ${threw}`);
@@ -10084,7 +10219,9 @@ const SCENARIOS = [
          * The first gets a row with its type and its label, the second's row reads the promotion, both
          * tokens keep `isRemnant` alone under the neutral word, the quiet one is not touched, and a
          * second run has nothing to do. Then the kept half: the store's save swallowed, a typed token
-         * keeps its flags, and the clause throws with the count. The tokens are deleted after.
+         * keeps its flags, and the clause throws with the count. The tokens are deleted after. A
+         * trace named as a GM names one, not handed, keeps its name: the neutral word the clause
+         * gives is its fixtures' alone (E05 fix r2-G4; reviews S2-m12 = F7).
          */
         needs(world.atLeast("sceneOnScreen"), "the fixture traces stand on the scene on screen");
         const R = await import("./remnants.mjs");
@@ -10118,8 +10255,10 @@ const SCENARIOS = [
             await remnantStore.patch(R.keyOf(promoted), { type: "prep", visibility: "subtle", faint: true, tiedToCrime: false,
                 note: "test fixture - a promoted trace" }, { weak: true });
             const quiet = await trace(word, {});
+            const tables = await trace("SUITE C14 the table's own trace", {});
             ok(R.answerKeyOnToken(old) && R.remnantData(old) === null, "the first fixture is not a trace from before the ledger - this measures nothing");
             const report = await R.migrateRemnantsOnce({ tokens: [old, promoted, quiet] });
+            equal(face(tables)[0], "SUITE C14 the table's own trace", "the suite's run of the clause gave a trace it was not handed - a table's - the neutral word");
             const oldRow = remnantStore.get(R.keyOf(old)), promotedRow = R.remnantData(promoted);
             equal(stableJson([oldRow?.type ?? null, oldRow?.label ?? null, oldRow?.note ?? null, promotedRow?.faint ?? null, promotedRow?.tiedToCrime ?? null]),
                 stableJson(["prep", label, "SUITE C14 old note", false, true]),
@@ -10138,6 +10277,77 @@ const SCENARIOS = [
             putBack();
             equal(stableJson([/^1 trace token\(s\) still carry their answer key /.test(threw ?? ""), R.answerKeyOnToken(scene.tokens.get(kept.id))]),
                 stableJson([true, true]), `a token lost its answer key with no row on disk, or the clause did not throw with the count: ${threw}`);
+        } finally {
+            putBack();
+            for (const t of made) {
+                try { await R.dropRemnantSecret(t); } catch { /* nothing filed */ }
+            }
+            const left = made.map(t => t.id).filter(id => scene.tokens.has(id));
+            if (left.length) await scene.deleteEmbeddedDocuments("Token", left);
+            await settle();
+        }
+    }],
+
+    ["the answer-key clause's two keeps stay on their tokens, and the GM is told - a notification that stays and a row of the health check", async () => {
+        /*
+         * E05 fix r2-G4, 27.09.2026; review S2-m3. `migrateRemnantsOnce` keeps two things on
+         * their tokens on purpose - a Faint Prep promotion a later correction stood against, and
+         * flags with no type and no row to carry them into - and stamps the world over them. Both
+         * say which trace a GM judged the murder's, on tokens every browser holds; they were named
+         * in the console alone, and the health check, which read only `remnantType`, counted
+         * neither. One fixture of each, handed to the clause: it does not throw, and the GM gets a
+         * notification that stays and a health row with both (red on 40ac88d: no notification, no
+         * row). The promotion is made as the E04 test makes it: a row from before the upgrade, and
+         * another GM's correction of `faint` arriving as a sync does. Deleted after.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces stand on the scene on screen");
+        const R = await import("./remnants.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const { plural } = await import("./utils.mjs");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const made = [];
+        const trace = async flags => {
+            const [t] = await scene.createEmbeddedDocuments("Token", [{ name: game.i18n.localize("DRPG.Remnant.tokenName"),
+                actorId: R.findRemnantActor()?.id ?? null, actorLink: false, x: anchor?.x ?? 0, y: anchor?.y ?? 0, hidden: true,
+                flags: { [MODULE_ID]: { isRemnant: true, ...flags } } }]);
+            ok(t, "could not place a fixture trace");
+            made.push(t);
+            return t;
+        };
+        const notes = ui.notifications;
+        const ownWarn = Object.hasOwn(notes, "warn"), realWarn = notes.warn;
+        const putBack = () => {
+            if (ownWarn) notes.warn = realWarn;
+            else delete notes.warn;
+        };
+        const seen = [];
+        try {
+            const before = (await S.gmStoreHealth()).counts.traces;
+            const promoted = await trace({});
+            const key = R.keyOf(promoted);
+            await S.remnantStore.patch(key, { type: "prep", visibility: "subtle", faint: true, tiedToCrime: false,
+                note: "test fixture - a promotion and a later correction" }, { weak: true });
+            const theirs = E.emptySection();
+            E.writeFields(theirs, key, { faint: true }, E.gmStoreStamp(), S.remnantStore.spec);
+            await S.remnantStore.mergeIn(theirs, { source: "sync" });
+            await promoted.update({ [`flags.${MODULE_ID}.faint`]: false, [`flags.${MODULE_ID}.tiedToCrime`]: true });
+            const bare = await trace({ faint: false });
+            ok(!R.answerKeyOnToken(bare) && R.remnantData(bare) === null, "the second fixture is not flags with no type and no row - this measures nothing");
+
+            notes.warn = (text, options) => { seen.push([String(text), options?.permanent === true]); return null; };
+            const report = await R.migrateRemnantsOnce({ tokens: [promoted, bare] });
+            putBack();
+            equal(stableJson([report?.notCarried, report?.noRow]), stableJson([1, 1]), `the clause's report: ${stableJson(report)}`);
+            const onToken = t => Object.keys(scene.tokens.get(t.id)?._source?.flags?.[MODULE_ID] ?? {}).sort();
+            equal(stableJson([onToken(promoted), onToken(bare)]), stableJson([["faint", "isRemnant"], ["faint", "isRemnant"]]),
+                "a keep did not stay on its token as the promotion's or the flags' only record - this measures nothing");
+            equal(stableJson(seen), stableJson([[plural("DRPG.Remnant.keptOnTokens", { n: 2 }), true]]),
+                "the GM was not told of the two keeps by a notification that stays, with their count");
+            const health = await S.gmStoreHealth();
+            equal((health.counts.traces.kept ?? 0) - (before.kept ?? 0), 2, `the health check does not count both keeps: ${stableJson({ before, after: health.counts.traces })}`);
+            ok(health.rows.some(r => r.id === "tracesKept" && r.level === "conflict"), "no row of the health check says a trace keeps flags of its answer key");
         } finally {
             putBack();
             for (const t of made) {
