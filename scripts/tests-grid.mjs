@@ -273,7 +273,6 @@ const GRID_RED = {
     TR07: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "I11" }),
     TR08: expectedRed("E07", "S04-14: after the victim's action a trap's builder holds the turn (C9)", { failing: "I9" }),
     TR09: expectedRed("E07", "S10-77: a trap's victim's death from the Students list offers no Stage 6 (C13)", { failing: "I10" }),
-    XI02: expectedRed("E07", "S02-24, S04-13: a betrayal in an Eclipse is refused - it costs no action and is not opened at the lights (C5b)", { failing: "I6" }),
     XI05: expectedRed("E07", "AUDIT-1.2.42 section 9: a Reroll that takes back a Finishing blow leaves the victim dead (C8b)", { failing: "I8" })
 };
 
@@ -499,14 +498,17 @@ const STEPS = {
      * THE BETRAYAL FROM THE TILE: the GM's half of `murder.betrayal` (`betrayAsPlayer`).
      * The rules: the offer is spent; the incident still at Stage 6 closes first; the new
      * one opens, its killer the third - or, in an Eclipse, is parked until the lights, at
-     * the cost of an action (Q3).
+     * the cost of an action (Q3). In an Eclipse the tile itself is pressed (action-rolls.mjs
+     * `performBetrayal`, E32 C5b): the action is paid there, on the asking client, and its
+     * confirmation and note are answered by `answerDialogs`.
      */
     async betray(run) {
         const offer = run.offer;
         must(offer, "the case holds no offer to turn on");
         const third = game.actors.get(offer.thirdId), killer = game.actors.get(offer.killerId);
         const actionsBefore = run.actionsLeft(third);
-        await run.M.betrayAsPlayer(third.id);
+        if (run.eclipse) await (await import("./action-rolls.mjs")).performAction(third, "directMurder");
+        else await run.M.betrayAsPlayer(third.id);
         run.offer = null;
         if (run.eclipse) {
             run.parked = { third, killer };
@@ -827,7 +829,9 @@ const label = pair => pair ? pair.split(">").map(nameOf).join(" against ") : "no
 /**
  * The windows a case opens, answered as a GM would, and put back in `finally` (the
  * plan's `answerDialogs`): two killers' ran-out ("end now"), Stage 6 after the victim's
- * death (yes), the checklist (the case's `checklist`, else Close), the escape's (Close). Anything else is closed unanswered and its title kept.
+ * death (yes), the checklist (the case's `checklist`, else Close), the escape's (Close), and the
+ * third's own two in an Eclipse - the betrayal's confirmation (yes) and its note (E32 C5b). Anything
+ * else is closed unanswered and its title kept.
  */
 async function answerDialogs(run, fn) {
     const D = foundry.applications.api.DialogV2;
@@ -836,12 +840,14 @@ async function answerDialogs(run, fn) {
     D.confirm = async cfg => {
         const title = cfg?.window?.title ?? "";
         if (title === t("DRPG.Murder.ranOutTitle") || title === t("DRPG.Chapter.stageSixTitle")) return true;
+        if (title === t("DRPG.Murder.betrayalTitle")) return true;
         run.dialogs.push(title);
         return false;
     };
     D.wait = async cfg => {
         const title = cfg?.window?.title ?? "";
         if (title === t("DRPG.Murder.afterTitle")) return run.checklist ?? "close";
+        if (title === t("DRPG.Murder.betrayalTitle")) return "SUITE grid betrayal declared in the dark";
         if (title === t("DRPG.Murder.escapeTitle")) return "close";
         run.dialogs.push(title);
         return null;

@@ -1021,6 +1021,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     const parkWorld = await p1.eval(`return game.settings.get("${MOD}", "pendingMurders") ?? null;`);
     check("control: Chie's own player parks a declaration: the GMs' store holds it, and the world's old key on p1 holds nothing",
         parkOk.row?.note === "SEC Chie's own declaration" && JSON.stringify(parkWorld) === "{}", JSON.stringify({ parkOk, parkWorld }));
+
+    /*
+     * 7h2b. A betrayal declared in the dark with no offer (E32 C5b, 28.09.2026; the owner's Q3).
+     * In an Eclipse a betrayal is a declaration the GM's client parks with the direct murders,
+     * and the offer is the world's to say: p1 sends murder.betrayal for their own Aiko, who has
+     * no betrayal on offer, in the Eclipse still open above. Ownership passes; the GM refuses it
+     * as cannotNow and tells p1, and nothing is parked or offered.
+     */
+    const readBetrayal = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        return { row: S.pendingMurderStore.get("${ids.aiko}") ?? null, offer: incidentCast().betrayal ?? null };`;
+    const betray = await forge("murder.betrayal", { actorId: ids.aiko, note: "SEC a betrayal nobody offered" }, readBetrayal);
+    check("SECURITY: in an Eclipse, a murder.betrayal for Aiko, who has no betrayal on offer, is refused as cannotNow and told to p1 - nothing parked",
+        betray.unchanged && betray.after.row === null && betray.after.offer === null && !betray.forOwnership
+            && betray.reasons.some(r => r.includes("that cannot be done now")) && betray.told.some(t => t.what === "murder.betrayal"),
+        JSON.stringify(betray));
     await gm.eval(`await (await import("${repoUrl}/scripts/eclipse.mjs")).clearParkedMurders();
         await game.drpg.setClock({ eclipse: false, ...${JSON.stringify(parkClock)} }); return true;`);
 

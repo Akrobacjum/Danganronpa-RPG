@@ -608,9 +608,22 @@ async function handleParkMurder(payload, sender, ctx) {
     // world write and a second death, so the request travels and the decision
     // is re-derived from the incident on this side - `betrayAsPlayer` refuses
     // anyone the state does not put in that position.
+    //
+    // In an Eclipse it is a declaration (E32 C5b, 28.09.2026; the owner's Q3): the
+    // asking client has paid an action for it, so it is answered - parked, or refused
+    // and told, and the client gives the action back. Refused here unless the betrayal
+    // is on offer to that character now; `betrayAsPlayer` takes the offer and parks it.
 async function handleBetrayal(payload, sender, ctx) {
     const murder = await import("./murder.mjs");
-    await murder.betrayAsPlayer(payload.actorId);
+    const { isEclipse } = await import("./eclipse.mjs");
+    if (!isEclipse()) {
+        await murder.betrayAsPlayer(payload.actorId);
+        return;
+    }
+    if (!murder.betrayalTarget(game.actors.get(payload.actorId))) return { refused: "that cannot be done now" };
+    const parked = await murder.betrayAsPlayer(payload.actorId, { note: payload.note });
+    if (!parked) return { refused: "nothing was carried out: betrayAsPlayer parked nothing" };
+    return { reply: true };
 }
 
     // Stage 6. Deleting a Remnant token, placing the new one a botched wipe
@@ -1199,9 +1212,11 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_BETRAYAL]: {
         label: "DRPG.Bridge.what.murder.betrayal",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id }),
+        sanitize: pick({ actorId: as.id, note: as.text }),
         run: handleBetrayal,
-        answer: "ack"
+        // Answered once carried out (E32 C5b): in an Eclipse the asker has paid an action
+        // and needs to know whether the declaration was parked.
+        answer: "reply"
     },
     [ACTION_CLEANUP]: {
         label: "DRPG.Bridge.what.murder.cleanup",
@@ -2003,14 +2018,15 @@ export function requestParkMurder({ killerId, room = null, note = "" }) {
 }
 
 /**
- * Ask a GM to open the betrayal: the newcomer kills the killer they helped.
+ * Ask a GM to open the betrayal: the newcomer kills the killer they helped - or, in an
+ * Eclipse, to park it with `note` until the lights (E32 C5b).
  *
- * No dice and no numbers travel - this is a declaration, and the GM's own
- * confirmation is what turns it into a second incident.
+ * No dice and no numbers travel - this is a declaration, and whether it opens is
+ * re-derived from the incident on the GM's side (`betrayAsPlayer`).
  */
-export function requestBetrayal({ actorId }) {
-    return ask(ACTION_BETRAYAL, { actorId }, {
-        local: () => import("./murder.mjs").then(m => m.betrayAsPlayer(actorId))
+export function requestBetrayal({ actorId, note = "" }) {
+    return ask(ACTION_BETRAYAL, { actorId, note }, {
+        local: () => import("./murder.mjs").then(m => m.betrayAsPlayer(actorId, { note }))
     });
 }
 

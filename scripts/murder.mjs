@@ -4235,13 +4235,34 @@ export function betrayalTarget(actor) {
  * re-derived here rather than trusted: the packet says who is turning on whom,
  * and the only thing that decides that is the incident state.
  */
-export async function betrayAsPlayer(actorId) {
+export async function betrayAsPlayer(actorId, { note = "" } = {}) {
     if (!game.user.isGM) return null;
     const actor = game.actors.get(actorId ?? "");
     const target = betrayalTarget(actor);
     if (!actor || !target) {
         warn(`Refused a betrayal: ${actorId} is not in a position to turn on anyone.`);
         return null;
+    }
+
+    /*
+     * IN AN ECLIPSE IT IS DECLARED, AND OPENS AT THE LIGHTS (E32 C5b, 28.09.2026; audit
+     * S02-24, S04-13, the owner's Q3). The tile is asked before the Eclipse's refusal, and until
+     * 1.2.66 its click cleared the offer and `openMurder` then refused in the Eclipse: the offer
+     * was lost and nothing declared (read at 1.2.65); since C5a `openBetrayal` refused it before
+     * taking the offer, so the click did nothing at all. The owner's rule: declared in
+     * an Eclipse it costs an action and starts after the Eclipse, like any action declared
+     * there. The offer is taken now (single-use: a second declaration finds none) and parked
+     * with the GMs' declarations (eclipse.mjs `parkBetrayal`), which `judgePendingMurders`
+     * opens when the lights come up. The action was paid on the asking client
+     * (action-rolls.mjs `performBetrayal`), which gets it back on a null here.
+     */
+    const { isEclipse, parkBetrayal } = await import("./eclipse.mjs");
+    if (isEclipse()) {
+        const offer = await takeBetrayalOffer(actor, target);
+        if (!offer) return null;
+        const parked = await parkBetrayal({ thirdId: actor.id, killerId: target.id, note, offer });
+        if (!parked) await giveBetrayalOfferBack(offer);
+        return parked;
     }
 
     /*
@@ -4305,19 +4326,26 @@ function betrayalCandidate(state, killer) {
  * So the GM is TOLD. The announcement below already whispers them the whole
  * thing, and `endMurder` is one press away if it was a misclick.
  */
-async function openBetrayal(third, killer, { asked = false } = {}) {
+async function openBetrayal(third, killer, { asked = false, taken = null, note = "" } = {}) {
     /*
      * NOT ON TOP OF A RUNNING FIGHT, AND NOT IN AN ECLIPSE - asked before anything is
      * taken or closed. The first is the tile's own rule (`betrayalTarget`), asked again
      * here for the checklist and for a fight opened since the tile lit. The second is
      * `openMurder`'s, asked here too so that a Stage 6 is not closed below for a betrayal
-     * `openMurder` would then refuse. (C5b makes a betrayal in an Eclipse a declaration,
-     * opened when the lights come up.)
+     * `openMurder` would then refuse. A betrayal declared in an Eclipse comes here at its
+     * lights (`openParkedBetrayal`), its offer `taken` at the declaration: that offer goes
+     * back on a refusal, and what the tile would have asked - the day, and both of them
+     * alive - is asked of it here, since it has not stood in the cast since.
      */
     const { isEclipse } = await import("./eclipse.mjs");
     const running = murderState();
-    if (isEclipse()) return refuseBetrayal(third, "eclipse", { asked, offer: null });
-    if (running?.active && running.stage !== "resolution") return refuseBetrayal(third, "fight", { asked, offer: null });
+    if (isEclipse()) return refuseBetrayal(third, "eclipse", { asked, offer: taken });
+    if (running?.active && running.stage !== "resolution") return refuseBetrayal(third, "fight", { asked, offer: taken });
+    if (taken) {
+        const clock = getClock();
+        if (taken.chapter !== clock?.chapter || taken.day !== clock?.day) return refuseBetrayal(third, "day", { asked, offer: taken });
+        if (isDeadForGm(third) || isDeadForGm(killer)) return refuseBetrayal(third, "dead", { asked, offer: taken });
+    }
 
     /*
      * THE ONE PATH, AND IT TAKES THE OFFER FIRST (E32 C5a, 28.09.2026; audit S04-03,
@@ -4327,7 +4355,7 @@ async function openBetrayal(third, killer, { asked = false } = {}) {
      * and this killer - in the incident's queue, where two requests in flight run one after
      * the other: a second click, or the checklist after the tile, finds none.
      */
-    const offer = await takeBetrayalOffer(third, killer);
+    const offer = taken ?? await takeBetrayalOffer(third, killer);
     if (!offer) return refuseBetrayal(third, "spent", { asked, offer: null });
 
     /*
@@ -4350,10 +4378,23 @@ async function openBetrayal(third, killer, { asked = false } = {}) {
     await announce({
         content: `<p>${game.i18n.format("DRPG.Murder.betrayalAnnounce", {
             killer: foundry.utils.escapeHTML(killer.name)
-        })}</p>`,
+        })}</p>${note ? `<p class="notes">${foundry.utils.escapeHTML(note)}</p>` : ""}`,
         whisper: gmIds()
     });
     return opened;
+}
+
+/**
+ * A betrayal declared in an Eclipse, opened at its lights (eclipse.mjs `judgePendingMurders`,
+ * E32 C5b): `offer` is the one its declaration took, parked with it. The incident it opened,
+ * or null - the offer then back while its chapter and day hold, and the GM told why; the
+ * betrayer is told by the lights. GM-side.
+ */
+export async function openParkedBetrayal(thirdId, offer, note = "") {
+    if (!game.user.isGM) return null;
+    const third = game.actors.get(thirdId ?? ""), killer = game.actors.get(offer?.killerId ?? "");
+    if (!third || !killer || offer.thirdId !== third.id) return null;
+    return openBetrayal(third, killer, { taken: offer, note });
 }
 
 /** Why a betrayal did not open, in words: literal keys, so R1 reads each. */
@@ -4361,7 +4402,9 @@ const BETRAYAL_WHY = Object.freeze({
     eclipse: "DRPG.Murder.betrayalWhy.eclipse",
     fight: "DRPG.Murder.betrayalWhy.fight",
     spent: "DRPG.Murder.betrayalWhy.spent",
-    failed: "DRPG.Murder.betrayalWhy.failed"
+    failed: "DRPG.Murder.betrayalWhy.failed",
+    day: "DRPG.Murder.betrayalWhy.day",
+    dead: "DRPG.Murder.betrayalWhy.dead"
 });
 
 /**
@@ -4380,21 +4423,31 @@ async function takeBetrayalOffer(third, killer) {
 }
 
 /**
- * A BETRAYAL THAT DID NOT OPEN (E32 C5a, 28.09.2026; audit S04-13). The offer it took goes
- * back - while no other offer stands and its chapter and day are still the clock's, as
- * `betrayalTarget` would read it - and whoever asked is told why: the third's player
- * (a veiled whisper, as eclipse.mjs tells a refused murder) when the tile asked - but
- * not a second request that found the offer already taken - and the GM when the
- * checklist did. Answers null, as the refused open does.
+ * Put a taken offer back, in the incident's queue, while no other offer stands and its
+ * chapter and day are still the clock's - as `betrayalTarget` would read it: whether it went
+ * back. GM-side.
  */
-async function refuseBetrayal(third, why, { asked, offer }) {
-    const back = offer ? await incidentWrite(async () => {
+async function giveBetrayalOfferBack(offer) {
+    return incidentWrite(async () => {
         const cast = readCast();
         const clock = getClock();
         if (cast.betrayal || offer.chapter !== clock?.chapter || offer.day !== clock?.day) return false;
         await writeCast({ ...cast, betrayal: offer }, cast);
         return true;
-    }) : why !== "spent";
+    });
+}
+
+/**
+ * A BETRAYAL THAT DID NOT OPEN (E32 C5a, 28.09.2026; audit S04-13). The offer it took goes
+ * back - while no other offer stands and its chapter and day are still the clock's, as
+ * `betrayalTarget` would read it - and whoever asked is told why: the third's player
+ * (a veiled whisper, as eclipse.mjs tells a refused murder) when the tile asked - but
+ * not a second request that found the offer already taken - and the GM when the
+ * checklist or an Eclipse's lights did (the lights tell the betrayer themselves). Answers
+ * null, as the refused open does.
+ */
+async function refuseBetrayal(third, why, { asked, offer }) {
+    const back = offer ? await giveBetrayalOfferBack(offer) : why !== "spent";
     warn(`Refused a betrayal by ${third?.name ?? "somebody"}: ${why}${offer ? (back ? "; the offer is back" : "; the offer is gone") : ""}.`);
     const line = game.i18n.format(back ? "DRPG.Murder.betrayalRefused" : "DRPG.Murder.betrayalRefusedGone",
         { why: game.i18n.localize(BETRAYAL_WHY[why]) });

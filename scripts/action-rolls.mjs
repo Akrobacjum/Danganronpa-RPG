@@ -195,7 +195,7 @@ export async function performAction(actor, actionKey, options = {}) {
         if (actionKey === "directMurder") {
             const { betrayalTarget } = await import("./murder.mjs");
             const partner = betrayalTarget(actor);
-            if (partner) return performBetrayal(actor, partner);
+            if (partner) return performBetrayal(actor, partner, ACTIONS.directMurder, options);
         }
 
         if (actionKey === "directMurder" && !isEclipse()) {
@@ -4549,23 +4549,61 @@ async function performRest(actor) {
  *
  * The decision still belongs to the player - the GM is not asked. What goes to
  * the GM is the WRITE, like every other world change in this module.
+ *
+ * IN AN ECLIPSE IT IS A DECLARATION (E32 C5b, 28.09.2026; audit S02-24, S04-13, the
+ * owner's Q3): it costs an action and opens when the Eclipse ends, like any action
+ * declared there - so it goes the way `performDirectMurder` goes below: the confirmation
+ * says so, no GM connected spends nothing, the action is paid, a note is asked, and a
+ * declaration the GM's client did not park gives the action back. Until 1.2.66 the click
+ * spent the offer and the GM's side then refused to open a murder in an Eclipse, so the offer
+ * was lost with nothing declared (read at 1.2.65); since C5a it was refused with the offer
+ * kept, and still nothing declared.
  */
-async function performBetrayal(actor, partner) {
+async function performBetrayal(actor, partner, def, options = {}) {
+    const dark = isEclipse();
+    const cost = dark && !options.free ? def.cost : 0;
+    if (cost > 0 && !canAfford(actor, cost)) return null;
     const confirmed = await DialogV2.confirm({
         classes: ["drpg-panel"],
         window: { title: game.i18n.localize("DRPG.Murder.betrayalTitle") },
         content: `<p>${game.i18n.format("DRPG.Murder.betrayalIntro", {
                 third: esc(actor.name), killer: esc(partner.name)
             })}</p>
-            <p class="notes">${game.i18n.localize("DRPG.Murder.betrayalRule")}</p>`,
+            <p class="notes">${game.i18n.localize("DRPG.Murder.betrayalRule")}</p>${
+            dark ? `<p>${game.i18n.localize("DRPG.Murder.betrayalConfirmEclipse")}</p>` : ""}`,
         rejectClose: false
     });
     if (!confirmed) return null;
 
     const { requestBetrayal } = await import("./gm-bridge.mjs");
-    const res = await requestBetrayal({ actorId: actor.id });
-    if (!res.ok) return null;
-    return game.user.isGM ? res.value : { pending: true };
+    if (!dark) {
+        const res = await requestBetrayal({ actorId: actor.id });
+        if (!res.ok) return null;
+        return game.user.isGM ? res.value : { pending: true };
+    }
+
+    const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
+    if (!game.user.isGM && !gmOnline()) {
+        sayNotDone("murder.betrayal", "noGm", { nothingSpent: true });
+        return null;
+    }
+    const paid = cost > 0 ? await spendAction(actor, cost) : null;
+    if (cost > 0 && !paid) return null;
+
+    const note = await promptForNote(actor, {
+        title: game.i18n.localize("DRPG.Murder.betrayalTitle"),
+        prompt: game.i18n.localize("DRPG.Action.murderPromptParked"),
+        placeholder: game.i18n.localize("DRPG.Action.placeholder.directMurder")
+    });
+
+    // A player's client is answered `true` once the GM's has parked it; a GM's own, the row.
+    const res = await requestBetrayal({ actorId: actor.id, note });
+    if (!res.ok || !res.value) return abort(actor, paid);
+
+    await whisperToOwner(actor,
+        `${cardHead({ action: def.label })}<p>${game.i18n.localize("DRPG.Murder.betrayalParked")}</p>`);
+    ui.notifications.info(game.i18n.localize("DRPG.Action.murderParkedToast"));
+    return { parked: true };
 }
 
 /** Direct Murder: never automatic, always a conversation. */

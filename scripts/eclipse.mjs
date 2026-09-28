@@ -386,12 +386,31 @@ export async function writeParkedMurder({ killerId, room = null, note = "" } = {
     // `approved: null` is undecided, and it is written explicitly: every field is
     // named, so a second declaration by the same killer replaces the first whole.
     // `eclipse` is the name of the Eclipse it was made in; the lights of another
-    // Eclipse drop it unjudged.
-    const entry = { room, note, at: Date.now(), approved: null, eclipse: eclipseId() };
+    // Eclipse drop it unjudged. `betrayal` is named null for the same reason as the
+    // rest: a murder declared after a betrayal by the same student replaces it whole.
+    const entry = { room, note, at: Date.now(), approved: null, eclipse: eclipseId(), betrayal: null };
     await pendingMurderStore.patch(killerId, entry);
     log(`Direct murder declared in the dark by ${game.actors.get(killerId)?.name ?? killerId}.`);
 
     await askGmToAllow(killerId, entry);
+    return entry;
+}
+
+/**
+ * A BETRAYAL DECLARED IN THE DARK (E32 C5b, 28.09.2026; audit S02-24, the owner's Q3). The
+ * one killing that needs no declaration outside an Eclipse is, in one, declared like any
+ * other action there, and starts after it: a row among the direct murders, keyed by the
+ * betrayer - one row per student, and while an offer stands their tile offers the betrayal
+ * instead of a murder - holding `betrayal`, the offer `betrayAsPlayer` (murder.mjs) took for
+ * it. No GM is asked to allow it and no card goes to the GMs now: the guide gives the betrayal
+ * to the newcomer, and the GMs are told when it opens. GM-side.
+ */
+export async function parkBetrayal({ thirdId, killerId, note = "", offer = null } = {}) {
+    if (!game.user.isGM || !thirdId || !killerId || !eclipseId()) return null;
+    const entry = { room: null, note, at: Date.now(), approved: null, eclipse: eclipseId(),
+        betrayal: { thirdId, killerId, chapter: offer?.chapter ?? null, day: offer?.day ?? null } };
+    await pendingMurderStore.patch(thirdId, entry);
+    log(`Betrayal declared in the dark by ${game.actors.get(thirdId)?.name ?? thirdId}.`);
     return entry;
 }
 
@@ -621,6 +640,23 @@ async function judgePendingMurders(id) {
                 `${cardHead({ action: game.i18n.localize("DRPG.Action.directMurder") })}<p>${
                     cls ? `<span class="${cls}">${line}</span>` : line}</p>`, { veiled: true });
         };
+
+        /*
+         * A BETRAYAL (E32 C5b, 28.09.2026; audit S02-24, the owner's Q3), in the rows' order
+         * like the rest. No room test - a betrayal outside an Eclipse has none either, its
+         * victim is the partner the offer names - and no GM's leave (`parkBetrayal`).
+         * `openParkedBetrayal` closes a Stage 6 still open, as the tile's betrayal does; refused
+         * - another declaration opened first, the partner or the betrayer dead, the day moved -
+         * the offer goes back while its chapter and day hold, the GM ending the Eclipse is
+         * told why, and the betrayer is told what a refused murder is told.
+         */
+        if (parked.betrayal) {
+            const { openParkedBetrayal } = await import("./murder.mjs");
+            if (!await openParkedBetrayal(killerId, parked.betrayal, parked.note ?? "")) {
+                await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");
+            }
+            continue;
+        }
 
         if (murderState()) {
             await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");

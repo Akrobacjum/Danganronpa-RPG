@@ -1409,6 +1409,8 @@
       "betrayalIntro": "{third} kills {killer}. This closes as a second murder, with {third} as the killer and {killer} as the victim - a fresh incident from the opening roll, not a continuation of the one that just ended.",
       "betrayalRule": "Two bodies this evening, so the Class Trial has two killings to untangle. Whoever is Blackened for the first is not automatically Blackened for the second. You have until the end of the day to decide.",
       "betrayalConfirm": "Open the second murder",
+      "betrayalConfirmEclipse": "An Eclipse is running, so the betrayal is declared now and opens when the Eclipse ends, like any action declared in one. It costs an action, and the action stays spent even if the betrayal cannot open then.",
+      "betrayalParked": "Your betrayal is declared. It opens when the Eclipse ends.",
       "betrayalAnnounce": "A second incident opens on {killer} - the betrayal.",
       "betrayalRefused": "The betrayal could not open: {why}. It stays on offer until the day ends.",
       "betrayalRefusedGone": "The betrayal could not open: {why}.",
@@ -1416,7 +1418,9 @@
         "eclipse": "an Eclipse is running",
         "fight": "another incident is being fought",
         "spent": "it is no longer on offer",
-        "failed": "the GM's client could not open it"
+        "failed": "the GM's client could not open it",
+        "day": "the day it was offered on is over",
+        "dead": "one of the two is no longer alive"
       },
       "victimUnderAttackBy": "<strong>{killer} is moving on you.</strong> The incident has begun and the first turn is yours. Your crisis actions are on your character sheet, under Actions.",
       "victimTrapSprung": "<strong>The trap closes.</strong> You did not see it in time. The incident has begun and the first turn is yours - your crisis actions are on your character sheet, under Actions.",
