@@ -17,7 +17,7 @@ import { studentActors } from "./monokuma.mjs";
 import { listExperiences } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
-import { isPrimaryGm, log, debug } from "./utils.mjs";
+import { isPrimaryGm, log, debug, gmReport } from "./utils.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
 import { rollSubjectNow } from "./private-rolls.mjs";
 
@@ -1327,7 +1327,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
     roll("Everybody is assigned to a Despair pool", unwatched,
         "Without one, Despair from their rolls has nowhere to go. Fix it in the GM panel, under Despair Flow.");
 
-    return report("Season setup", lines, { toChat });
+    return report(game.i18n.localize("DRPG.Diagnostics.title.season"), lines, { toChat });
 }
 
 /**
@@ -1341,12 +1341,10 @@ function report(title, lines, { toChat = true } = {}) {
     const text = lines.join("\n");
     console.log(`${MODULE_ID} | ${title}\n${text}`);
 
-    if (toChat) {
-        ChatMessage.create({
-            content: `<h3>${title}</h3><pre style="white-space:pre-wrap;font-size:0.85em">${foundry.utils.escapeHTML(text)}</pre>`,
-            whisper: [game.user.id]
-        });
-    }
+    // Through `gmReport` (E06 C11, audit S17-32): the season checklist names every
+    // student who is missing something, and a whispered message is a document every
+    // connected browser receives.
+    if (toChat) gmReport(title, `<pre style="white-space:pre-wrap;font-size:0.85em">${foundry.utils.escapeHTML(text)}</pre>`);
 
     return text;
 }

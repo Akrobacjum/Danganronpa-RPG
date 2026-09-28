@@ -650,7 +650,7 @@ function stateGrant(actor) {
  * beyond the first was silently free: a Hope Call spent in a room that favours
  * exactly what you are looking for bought nothing the room had not already
  * given. And the arithmetic being thrown away was real - `performSearch` sums a
- * favouring room, a hindering room and a concealed stash; a crisis roll sums a
+ * favouring room, a hindering room and (until E06 C11, `searchOdds`) a concealed stash; a crisis roll sums a
  * weapon in hand, a second try after a miss and the guide's compensation for
  * dying alone to a trap. All of it computed, then rounded to a sign.
  *

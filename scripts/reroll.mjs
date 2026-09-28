@@ -30,7 +30,7 @@
 
 import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING } from "./config.mjs";
 import { resolveThreshold, easedBy, log, error, plural } from "./utils.mjs";
-import { rollBookmark, keepRollBookmark } from "./action-rolls.mjs";
+import { rollBookmark, keepRollBookmark, searchTier } from "./action-rolls.mjs";
 import { leavesTraceFor } from "./inventory.mjs";
 import { keptRollSubject } from "./private-rolls.mjs";
 
@@ -563,14 +563,14 @@ async function settleSearch(actor, bookmark, after, done) {
         return {};
     }
 
+    // A hidden stash's -1 on the new total too: it was taken off the first roll's total,
+    // not thrown with its dice (E06 C11, `searchOdds`), so rerolling the dice keeps it.
+    // A bookmark written before 1.2.65 has none, and is scored on the dice alone.
     const def = ACTIONS.search;
-    const hit = resolveThreshold(after.total, def.thresholds);
+    const penalty = bookmark.penalty ?? 0;
+    const { hit, tier } = searchTier(after, penalty, def);
     const found = Boolean(hit) || after.isCritical;
-
-    const baseTier = hit?.tier ?? 0;
-    const tier = after.isCritical
-        ? Math.min(3, baseTier + (def.critical?.tierBonus ?? 1))
-        : baseTier;
+    if (penalty) done.push(game.i18n.format("DRPG.Action.situationAfterRoll", { n: String(penalty), total: after.total + penalty }));
 
     // 1. The thing the first roll put in the inventory goes back on the shelf.
     let itemId = null;

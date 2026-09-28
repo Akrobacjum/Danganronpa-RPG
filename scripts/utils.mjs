@@ -351,6 +351,25 @@ export async function whisperToGms(content, extra = {}) {
 }
 
 /**
+ * A report asked for at this console - a diagnosis, a plan, an audit - to this user alone.
+ *
+ * THE WORDS GO WHERE THE OTHER PRIVATE CARDS' GO (E06 C11, audit S17-32). `diagnoseMusic`
+ * and diagnostics.mjs's `report` whispered their text with `ChatMessage.create`, and a
+ * whispered message is a document every connected browser receives: the music report
+ * names the state that wins, the season checklist every student who is missing
+ * something. Through `privately` the document is secret.mjs's stub and the words reach
+ * this user's own store. To the user who asked, not every GM, as the two old reports
+ * were; the voice plan and the anonymity audit, which went to every GM, come here too
+ * so the four behave alike. `title` is already localised; `html` is the body.
+ */
+export async function gmReport(title, html) {
+    return privately(stamped({
+        content: `<h3>${esc(title)}</h3>${html}`,
+        whisper: [game.user.id]
+    }));
+}
+
+/**
  * THE ONE PLACE THIS MODULE'S PRIVATE NARRATION IS POSTED.
  *
  * A whisper is a courtesy, not a secret: Foundry delivers every chat message to

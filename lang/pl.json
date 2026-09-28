@@ -639,6 +639,7 @@
       "costCrossings": "{left} / {max} przejść",
       "costAnyRoom": "dowolny pokój",
       "tierShort": "Tier {tier}",
+      "situationAfterRoll": "{n} przez sytuację: liczy się wynik {total}.",
       "waitsForGm": "GM",
       "murderSpendsAnyway": "Potwierdzenie wydaje akcję niezależnie od tego, czy się uda - a czy się udało, dowiesz się dopiero, gdy Eclipse się skończy.",
       "murderPromptParked": "Co robisz i jak? GM przeczyta to, gdy zapali się światło.",
@@ -2015,6 +2016,7 @@
       "allowedIn": "Nie tutaj. Dozwolony w: {rooms}",
       "wrongRoom": "{kind} nie w: {room}. Pokoje, które na to pozwalają: {rooms}",
       "noRooms": "Żaden pokój na tej mapie nie jest jeszcze oznaczony pod {kind}. GM ustawia to per scena.",
+      "noKnownRooms": "Żaden znany ci pokój na to nie pozwala.",
       "manageIntro": "Zaznacz, które pokoje pozwalają na Short Rest, a które na Long Rest. Per scena, więc mapa każdego sezonu może się różnić.",
       "shortColumn": "Short Rest",
       "longColumn": "Long Rest",
@@ -2246,6 +2248,7 @@
     },
     "Move": {
       "notConnectedShort": "{to} nie łączy się z {from}.",
+      "cannotReach": "Stąd ({from}) nie da się tam dojść.",
       "title": "Move",
       "freeAvailable": "Twój Free Move na tę porę dnia wciąż jest.",
       "freeSpent": "Free Move zużyty - następny pokój kosztuje akcję. Masz {left}.",
@@ -3115,7 +3118,12 @@
     "Diagnostics": {
       "pageTinted": "{name} przemalowuje tę stronę na kolory, które nie są kolorami tego modułu. Foundry jest już ciemne - wyłącz to rozszerzenie dla tej strony.",
       "cssMissing": "Arkusz stylów tego modułu nie załadował się na tej stronie, więc interfejs jest bez stylu. Przeładuj; jeśli to się powtarza, uruchom game.drpg.diagnoseStyles().",
-      "tracing": "Obserwuję kliknięcia przez {seconds} sekund. Kliknij kontrolkę, która działa źle."
+      "tracing": "Obserwuję kliknięcia przez {seconds} sekund. Kliknij kontrolkę, która działa źle.",
+      "title": {
+        "music": "Diagnostyka muzyki",
+        "voice": "Plan głosu",
+        "season": "Przygotowanie sezonu"
+      }
     },
     "Tests": {
       "alreadyRunning": "Pakiet testów już działa na tym kliencie. Poczekaj, aż skończy - drugi przebieg zrobiłby zrzut świata, w którym pierwszy ma jeszcze rozstawione fikstury, i ustawiłby go jako bazę.",

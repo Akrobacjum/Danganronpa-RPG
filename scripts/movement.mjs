@@ -430,9 +430,17 @@ function crossingRefused(from, to) {
  * only rooms this viewer has been in (MAP-03). The full list undid the fog's
  * whole contract: dragging at a black patch printed every neighbour of the
  * room you stand in, unvisited ones included.
+ *
+ * AND NOT `{to}` EITHER, when this viewer has never been there (E06 C11, audit
+ * S07-19). The list was filtered and the sentence's own subject was not: a token
+ * dragged onto a black patch came back with the name of the room under it, so the
+ * fog could be read one refused crossing at a time. An unknown destination gets a
+ * sentence that names only where you stand. Exported for the Eclipse's refusal
+ * (eclipse.mjs), which is the same question, and `known` is a parameter for the
+ * suite, which runs on a GM's browser, where it is `null`.
  */
-function notConnectedText(from, to, connected) {
-    const known = roomsKnownToMe();
+export function notConnectedText(from, to, connected, known = roomsKnownToMe()) {
+    if (known && !known.has(to)) return game.i18n.format("DRPG.Move.cannotReach", { from });
     const shown = known ? connected.filter(r => known.has(r)) : connected;
     return shown.length
         ? game.i18n.format("DRPG.Move.notConnected", { from, to, rooms: shown.join(", ") })

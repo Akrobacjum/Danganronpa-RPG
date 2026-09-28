@@ -50,7 +50,7 @@ import { SETTINGS } from "./settings.mjs";
 import { isDeadForGm, isDeceased } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
-import { whisperToGms, isPrimaryGm, debug, error } from "./utils.mjs";
+import { whisperToGms, gmReport, isPrimaryGm, debug, error } from "./utils.mjs";
 
 const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
 const OBSERVER = 2; // …OBSERVER - enough to render the sheet, never to edit it.
@@ -514,7 +514,7 @@ export function explainOwnership(actor) {
 
 /**
  * Inspect every character and report anything that leaks. Returns the findings
- * and, unless told otherwise, whispers a report to the GMs.
+ * and, unless told otherwise, whispers a report to the GM who asked (`gmReport`, E06 C11).
  */
 export async function auditAnonymity({ toChat = true } = {}) {
     const exposed = [];
@@ -576,7 +576,7 @@ export async function auditAnonymity({ toChat = true } = {}) {
 
     if (!toChat) return findings;
 
-    await whisperToGms(`<h3>${game.i18n.localize("DRPG.Anonymity.audit.title")}</h3>${body}`);
+    await gmReport(game.i18n.localize("DRPG.Anonymity.audit.title"), body);
     return findings;
 }
 

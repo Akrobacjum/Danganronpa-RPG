@@ -13151,6 +13151,170 @@ const SCENARIOS = [
         } finally {
             if (item) await actor.items.get(item.id)?.delete();
         }
+    }],
+
+    ["a refused crossing names no unknown room", async () => {
+        /*
+         * E06 C11, 28.09.2026; audit S07-19. The list of where you can go was filtered by
+         * the rooms this viewer has found (MAP-03) and the sentence's own `{to}` was not,
+         * so a token dragged onto a black patch came back with the name of the room under
+         * it. `known` is what `roomsKnownToMe` answers on a player's browser; the suite runs
+         * on a GM's, where it answers null and every name may be said. The Eclipse's
+         * refusal asks the same question and must use the same sentence.
+         */
+        const M = await import("./movement.mjs");
+        const eclipse = stripComments((await moduleSources()).get("eclipse.mjs") ?? "");
+        const [here, there, next] = M.allRooms();
+        must(here && there && next, "the scene has fewer than three rooms - there is no crossing to refuse");
+        const text = known => typeof M.notConnectedText === "function" ? M.notConnectedText(here, there, [next], known) : null;
+        const listed = game.i18n.format("DRPG.Move.notConnected", { from: here, to: there, rooms: next });
+        equal(stableJson([text(new Set([here, next])), text(new Set([here, there, next])), text(null)]),
+            stableJson([game.i18n.format("DRPG.Move.cannotReach", { from: here }), listed, listed]),
+            "a refusal named a destination the viewer has not found, or no longer names one they have");
+        ok(/notConnectedText\(from, to, connected\)/.test(eclipse) && !/DRPG\.Move\.notConnectedShort/.test(eclipse),
+            "the Eclipse's refusal does not go through notConnectedText, so it can still name an unknown room");
+    }],
+
+    ["the Rest window names no rest room the viewer has not found", async () => {
+        /*
+         * E06 C11, 28.09.2026; audit S07-19. The Rest window's hints and the refusal listed
+         * every rest room on the map. Two rooms are marked for a Short Rest here and the list
+         * is read for a viewer who has found one of them, none of them, and a GM's null.
+         */
+        const R = await import("./rest.mjs");
+        const V = await import("./vault.mjs");
+        const M = await import("./movement.mjs");
+        const rooms = M.allRooms().slice(0, 2);
+        must(rooms.length === 2, "the scene has fewer than two rooms - there is no list to filter");
+        const regions = rooms.map(room => V.regionsByName().get(room));
+        must(regions.every(Boolean), "a room has no region to mark");
+        const key = `flags.${MODULE_ID}.${R.REST_FLAGS.short}`;
+        const before = regions.map(region => region.getFlag(MODULE_ID, R.REST_FLAGS.short));
+        try {
+            for (const region of regions) await region.update({ [key]: true });
+            await settle();
+            const say = known => typeof R.restRoomsSentence === "function"
+                ? R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, known) : null;
+            const all = R.restRooms("short");
+            must(rooms.every(room => all.includes(room)), "the two rooms were not marked");
+            equal(stableJson([say(new Set([rooms[0]])), say(new Set()), say(null)]), stableJson([
+                game.i18n.format("DRPG.Rest.allowedIn", { rooms: rooms[0] }),
+                game.i18n.localize("DRPG.Rest.noKnownRooms"),
+                game.i18n.format("DRPG.Rest.allowedIn", { rooms: all.join(", ") })
+            ]), "the Rest list named a room the viewer has not found, or hid one from a GM");
+        } finally {
+            for (const [i, region] of regions.entries()) {
+                await region.update({ [key]: before[i] === undefined ? forcedDeletion() : before[i] });
+            }
+            await settle();
+        }
+    }],
+
+    ["the Search window's modifier holds no stash", async () => {
+        /*
+         * E06 C11, 28.09.2026; audit S02-40. A hidden stash with something in it was the
+         * third term of the count the roll window shows, and the window can be closed for
+         * the action back - so opening a Search said whether somebody had hidden something
+         * in the room, for nothing. Built here: the searcher's room a poor place for
+         * usable things, and somebody else's hidden stash in it with one thing inside. The
+         * window's part is the room's -1 alone; the stash's -1 comes after the roll. At
+         * 1.2.64 the armed count was -2 and there was no second part.
+         */
+        const rolls = await import("./action-rolls.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { roomOfActor } = await import("./movement.mjs");
+        const [who, owner] = cast(2);
+        const room = roomOfActor(who);
+        must(room, `${who.name} is not standing in a room`);
+        const region = V.regionsByName().get(room);
+        must(region, `${room} has no region`);
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
+        const path = k => `flags.${MODULE_ID}.${k}`;
+        let item = null;
+        try {
+            await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: owner.id, concealed: true }],
+                [path(V.VAULT_FLAGS.hinders)]: ["usable"], [path(V.VAULT_FLAGS.favours)]: [] });
+            item = await INV.grantItem(owner, { name: "SUITE C11 hidden", category: "usable", tier: 1, override: true, quiet: true });
+            must(item, "the stash's thing was not made");
+            await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: room });
+            await settle();
+            must(V.stashItemsIn(owner, room).length === 1, "the thing is not in the hidden stash");
+            const odds = typeof rolls.searchOdds === "function" ? rolls.searchOdds(who, room, "usable", V) : null;
+            equal(stableJson(odds && [odds.situational, odds.penalty, odds.stashOwner?.id, odds.stashLoot.map(i => i.id)]),
+                stableJson([-1, -1, owner.id, [item.id]]), "the window's count holds the stash, or the stash lost its -1");
+            const search = fnSource(stripComments((await moduleSources()).get("action-rolls.mjs") ?? ""), "performSearch");
+            ok(/\{ situational, penalty\b[^}]*\} = searchOdds\(/.test(search)
+                && [...search.matchAll(/armSituational\(([^)]*)\)/g)].map(m => m[1]).join() === "situational",
+                "performSearch arms something other than searchOdds' situational part");
+        } finally {
+            if (item) await owner.items.get(item.id)?.delete();
+            await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
+            await settle();
+        }
+    }],
+
+    ["a hidden stash's -1 lands on the total after the roll, and the card says so", async () => {
+        /*
+         * E06 C11, 28.09.2026; audit S02-40. The stash's -1 is taken off the total the tiers
+         * read (`searchTier`), so at each band's lowest total it drops the Search a band;
+         * the card carries a line saying so (`situationLine`), which every Search outcome
+         * hands to `report`; and a Reroll scores the new dice with the same -1, which the
+         * bookmark carries. The dice's own total, and the roll message, are left alone.
+         */
+        const rolls = await import("./action-rolls.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const bands = [...ACTIONS.search.thresholds].sort((a, b) => a.min - b.min);
+        must(bands.length >= 2, "Search has fewer than two bands");
+        const tier = (total, penalty) => {
+            const out = typeof rolls.searchTier === "function" ? rolls.searchTier({ total, isCritical: false }, penalty) : null;
+            return out?.hit ? out.tier : null;
+        };
+        equal(stableJson(bands.map(b => [tier(b.min, 0), tier(b.min, -1)])),
+            stableJson(bands.map((b, i) => [b.tier, i ? bands[i - 1].tier : null])),
+            "the -1 did not move a Search down a band at the band's edge");
+        const line = typeof rolls.situationLine === "function" ? [rolls.situationLine(-1, 11), rolls.situationLine(0, 12)] : null;
+        equal(stableJson(line), stableJson([`<p><em>${game.i18n.format("DRPG.Action.situationAfterRoll", { n: "-1", total: 11 })}</em></p>`, ""]),
+            "the card's line does not say the -1 and the total that counts, or says something with no penalty");
+        const src = await moduleSources();
+        const actions = stripComments(src.get("action-rolls.mjs") ?? "");
+        const search = fnSource(actions, "performSearch");
+        const reports = ["searchNothing", "searchStash", "searchSpecific"].map(name =>
+            /report\(actor, def, roll, \{[^}]*\bextra\b/.test(fnSource(actions, name)));
+        const reroll = fnSource(stripComments(src.get("reroll.mjs") ?? ""), "settleSearch");
+        equal(stableJson([/context: \{[^}]*\bpenalty\b/.test(search), /situationLine\(penalty, score\)/.test(search),
+            /\bextra,/.test(search), reports, /searchTier\(after, penalty\b/.test(reroll)]),
+            stableJson([true, true, true, [true, true, true], true]),
+            "the bookmark, a Search card or the Reroll does not carry the -1");
+    }],
+
+    ["a GM report's document holds no words", async () => {
+        /*
+         * E06 C11, 28.09.2026; audit S17-32. `diagnoseMusic` and the season checklist
+         * whispered their text with ChatMessage.create, and a whispered message is a
+         * document every connected browser receives. Through `gmReport` the document is a
+         * stub whispered to this GM and the words are in this GM's store - read back, so
+         * the check is shown able to find them.
+         */
+        const { diagnoseMusic } = await import("./music.mjs");
+        const { diagnoseCharacters } = await import("./diagnostics.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const probe = async (make, title, phrase) => {
+            const had = new Set(game.messages.contents.map(m => m.id));
+            make();
+            await until(() => game.messages.contents.some(m => !had.has(m.id)));
+            await settle();
+            const made = game.messages.contents.filter(m => !had.has(m.id));
+            const doc = JSON.stringify(made.map(m => m.toObject()));
+            const words = made.length === 1 ? String(await wordsOf(made[0], 2000) ?? "") : "";
+            return [made.length, doc.includes(title), doc.includes(phrase), made[0]?.whisper ?? null, words.includes(title), words.includes(phrase)];
+        };
+        const music = await probe(() => diagnoseMusic(), game.i18n.localize("DRPG.Diagnostics.title.music"), "music follows the game state");
+        const season = await probe(() => diagnoseCharacters({ toChat: true }), game.i18n.localize("DRPG.Diagnostics.title.season"), "Monokumas excluded");
+        const want = [1, false, false, [game.user.id], true, true];
+        equal(stableJson([music, season]), stableJson([want, want]),
+            "a report's words are in its document, or not in this GM's store");
     }]
 ];
 

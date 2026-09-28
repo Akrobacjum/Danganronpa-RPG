@@ -44,7 +44,7 @@ import { SETTINGS, getSetting, isDeadForGm } from "./settings.mjs";
 import { allRooms } from "./movement.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive } from "./voice-client.mjs";
-import { isPrimaryGm, primaryGmId, debug, warn, error, plural, whisperToGms } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, debug, warn, error, plural, gmReport } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 
 const AV_MODULE = "avclient-livekit";
@@ -1026,12 +1026,13 @@ export async function voicePlan({ toChat = false } = {}) {
 
     const text = lines.join("\n");
     console.log(`${MODULE_ID} | Voice plan\n${text}`);
-    /* To the GMs' words store, not a message's (E05 C10): the plan names who is silenced by
+    /* To a words store, not a message's (E05 C10): the plan names who is silenced by
        death, a death nobody has found among them, and a whispered message is received by
-       every console (utils.mjs `privately`). */
+       every console (utils.mjs `privately`). Since E06 C11 to the GM who asked alone, as
+       every report asked for at a console (`gmReport`). */
     if (toChat) {
-        await whisperToGms(`<h3>Voice plan</h3><pre style="white-space:pre-wrap;font-size:.85em">${
-            foundry.utils.escapeHTML(text)}</pre>`);
+        await gmReport(game.i18n.localize("DRPG.Diagnostics.title.voice"),
+            `<pre style="white-space:pre-wrap;font-size:.85em">${foundry.utils.escapeHTML(text)}</pre>`);
     }
     return text;
 }

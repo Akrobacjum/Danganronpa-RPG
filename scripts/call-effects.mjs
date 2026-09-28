@@ -74,7 +74,8 @@ export function unshieldCalls() { shielded = Math.max(0, shielded - 1); }
  *
  * IT IS A COUNT, NOT A SIGN (E7). This used to store `Math.sign(value)`, and
  * the arithmetic it flattened was already being done: `performSearch` adds a
- * favouring room, a hindering room and somebody's concealed stash; a crisis
+ * favouring room, a hindering room and (until E06 C11 moved it after the roll,
+ * `searchOdds`) somebody's concealed stash; a crisis
  * roll adds a weapon in hand, a second try after a miss and the guide's
  * "the victim gets advantage on every roll" for dying alone to a trap. All of
  * that was summed, carefully, and then thrown away at this line. A victim with

@@ -653,6 +653,7 @@
       "costCrossings": "{left} / {max} crossings",
       "costAnyRoom": "any room",
       "tierShort": "Tier {tier}",
+      "situationAfterRoll": "{n} from the situation: the total that counts is {total}.",
       "waitsForGm": "GM",
       "murderSpendsAnyway": "Confirming spends the action whether or not it comes off - and you will not find out which until the Eclipse ends.",
       "murderPromptParked": "What are you doing, and how? The GM reads this when the lights come up.",
@@ -1953,6 +1954,7 @@
       "allowedIn": "Not here. Allowed in: {rooms}",
       "wrongRoom": "No {kind} in {room}. Rooms that allow it: {rooms}",
       "noRooms": "No room on this map is marked for a {kind} yet. The GM sets that up per scene.",
+      "noKnownRooms": "No room you know of allows it.",
       "manageIntro": "Mark which rooms allow a Short Rest and which allow a Long Rest. Per scene, so every season's map can differ.",
       "shortColumn": "Short Rest",
       "longColumn": "Long Rest",
@@ -2170,6 +2172,7 @@
     },
     "Move": {
       "notConnectedShort": "{to} is not connected to {from}.",
+      "cannotReach": "You cannot get there from {from}.",
       "title": "Move",
       "freeAvailable": "Your Free Move for this time of day is still there.",
       "freeSpent": "Free Move used - the next room costs an action. You have {left}.",
@@ -2997,7 +3000,12 @@
     "Diagnostics": {
       "pageTinted": "{name} is repainting this page in colours that are not this module's. Foundry is already dark - turn the extension off for this site.",
       "cssMissing": "This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().",
-      "tracing": "Watching clicks for {seconds} seconds. Click the control that misbehaves."
+      "tracing": "Watching clicks for {seconds} seconds. Click the control that misbehaves.",
+      "title": {
+        "music": "Music diagnostics",
+        "voice": "Voice plan",
+        "season": "Season setup"
+      }
     },
     "Tests": {
       "alreadyRunning": "The regression suite is already running on this client. Wait for it to finish - a second run would take its snapshot of a world the first one has fixtures standing in, and put that back as the baseline.",
