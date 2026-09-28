@@ -559,7 +559,9 @@ async function handleCrisis(payload, sender, ctx, prepared) {
         // ever becomes a receipt line, but a receipt naming somebody else's
         // item would give a Reroll the run of another sheet.
         usedItemId: actor?.items?.has(payload.usedItemId) ? payload.usedItemId : null,
-        // Same test: the swing memo names an item, and only one the sender holds.
+        // Same test: the swing names an item, and only one the sender holds. The
+        // damage is read off it since E32+E07 C8, and murder.mjs `swungWeapon`
+        // narrows it further, to a readied Crime Tool on an action that swings.
         swungId: actor?.items?.has(payload.swungId) ? payload.swungId : null,
         /*
          * G-18, AND THIS IS THE ONE FIELD ON THIS SOCKET THAT COULD BUY

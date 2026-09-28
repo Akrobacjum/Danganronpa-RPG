@@ -480,6 +480,43 @@ async function neutralRoll(who, { remember = false, faces = null, title = null, 
 }
 
 /**
+ * A swing to measure (E32+E07 C8): a direct murder between two students with players, its
+ * opening ruled a success and the killer's turn come, the victim with no marks, and the killer
+ * holding a Tier 1 knife readied - one point of durability, so the first Despair breaks it.
+ * `identity` is the knife's `drpgItemId`, as a Search hands one over. `putBack` deletes the
+ * knife and whatever the killer was handed since, and puts Daggerheart's Fear back as found: a
+ * Despair the suite throws moves it, and restore() does not (`neutralRoll`, above). Ask the
+ * world's rows before calling it - it writes.
+ */
+async function swingFixture(identity = null) {
+    const M = await import("./murder.mjs");
+    const { livingStudents } = await import("./chapter.mjs");
+    const { equippedFor } = await import("./use-items.mjs");
+    const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+    const [killer, victim] = livingStudents().filter(player);
+    const { gameSettings } = CONFIG.DH.SETTINGS;
+    const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+    await M.openMurder({ killerId: killer.id, victimId: victim.id });
+    if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+    await settle();
+    if (M.murderState()?.stage === "incident" && !M.isTheirTurn(killer)) await M.passTurn();
+    await victim.update({ "system.resources.hitPoints.value": 0, "system.resources.stress.value": 0 });
+    const [knife] = await killer.createEmbeddedDocuments("Item", [{ name: "SUITE knife swung in the fight", type: "loot",
+        flags: { [MODULE_ID]: { category: "crimeTool", equipped: true, tier: 1, ...(identity ? { drpgItemId: identity } : {}) } } }]);
+    const had = new Set(killer.items.map(i => i.id));
+    const putBack = async () => {
+        for (const item of killer.items.filter(i => !had.has(i.id) || i.id === knife?.id)) await item.delete();
+        if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+    };
+    const ready = M.murderState()?.stage === "incident" && M.isTheirTurn(killer) && Boolean(knife) && equippedFor(killer, "crimeTool")?.id === knife.id;
+    if (!ready) await putBack();
+    must(ready, `the fixture's fight is not at the killer's turn with the knife in hand: ${stableJson(M.murderState())}`);
+    return { M, killer, victim, knife, putBack,
+        health: () => victim.system.resources.hitPoints.value,
+        handed: () => killer.items.filter(i => !had.has(i.id)).length };
+}
+
+/**
  * A verdict run with its windows answered (E05 C11): every `DialogV2.wait` for the length
  * of `run` is recorded - its classes, title and how many picks a Level Up window offers -
  * and a Level Up window is answered by `answer(entry)`, any other closed. The GM's Level Up
@@ -1178,6 +1215,154 @@ const SCENARIOS = [
         await M.endMurder({ reason: "closed", followUp: false });
         equal(stableJson([killer.system.resources.stress.value, marks(victim), told]), stableJson([1, victimBefore, true]),
             "the killer's failed Use an item with Despair did not cost the killer one Sanity, cost the victim, or its card does not say so (killer's Sanity marks, victim's marks, told)");
+    }],
+
+    ["a Tier 1 knife that breaks on Despair deals tier 1 and grants nothing improvised", async () => {
+        /*
+         * E32+E07 C8, 28.09.2026; audit S04-04. The player's browser wore the swung weapon
+         * before it told the GM, so a Tier 1 knife that broke on a Despair hit was out of the
+         * hand the damage was read from: the hit counted as unarmed - 1 Health, not 2 - and
+         * handed the killer an improvised weapon. The GM wears it now, after the damage
+         * (murder.mjs `wearSwing`), and reads the damage off the knife the roll swung. At the
+         * killer's turn (`swingFixture`) the killer attacks with a weapon from this browser,
+         * as the suite throws every roll, and hits with a Despair. Read: the victim's Health
+         * marks (the pass after it drains Sanity, which the victim has all of), the knife
+         * broken, and what the killer was handed.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isBroken } = await import("./inventory.mjs");
+        const { M, killer, knife, putBack, health, handed } = await swingFixture();
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        try {
+            globalThis.__forceRoll = { hope: 8, fear: 11 };
+            const taken = await M.takeCrisisAction(killer, "weaponAttack");
+            await settle();
+            must(taken?.roll?.total >= 15 && !taken.roll.withHope && !taken.roll.isCritical,
+                `the fixture's swing was not a hit with Despair: ${stableJson(taken?.roll ?? null)}`);
+            equal(stableJson([health(), isBroken(killer.items.get(knife.id)), handed()]), stableJson([2, true, 0]),
+                "the knife's hit was not scored as a Tier 1 weapon, the knife did not break, or the killer was handed a weapon (Health marks, broken, items handed)");
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await putBack();
+        }
+    }],
+
+    ["a cancelled weapon roll ties no trace", async () => {
+        /*
+         * E32+E07 C8, 28.09.2026; audit S04-34. The trace of the Search that handed the
+         * killer their weapon is tied to the murder when the weapon is swung, and it was tied
+         * before the dice: a killer who closed the roll window had made the knife evidence of
+         * a swing that never happened. At the killer's turn (`swingFixture`), with a Search's
+         * trace holding the knife placed beside a token in a room, the killer attacks with a
+         * weapon and the roll is cancelled (the character's `rollTrait` answers nothing, as a
+         * closed window does); then attacks again and the dice are thrown. Read: what the
+         * cancelled attack answered, the trace after it, and the trace after the thrown one -
+         * the tie still happens, once there is a roll.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("sceneOnScreen"), "the trace stands on the scene on screen");
+        needs(world.atLeast("occupiedRooms"), "the trace is placed beside a token standing in a room");
+        const remnants = await import("./remnants.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const identity = `suite-swing-${Date.now().toString(36)}`;
+        const { M, killer, putBack } = await swingFixture(identity);
+        const scene = canvas.scene;
+        const anchor = Array.from(scene.tokens).find(t => roomOfToken(t));
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        let trace = null;
+        try {
+            trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", scene, x: anchor.x, y: anchor.y,
+                note: "test fixture - the Search that handed over the knife", action: "search", itemIdentity: identity });
+            const tied = () => Boolean(remnants.remnantData(trace)?.tiedToCrime);
+            must(trace && !tied(), "could not place the knife's untied trace");
+            killer.rollTrait = async () => null;
+            const cancelled = await M.takeCrisisAction(killer, "weaponAttack");
+            await settle();
+            const afterCancel = tied();
+            delete killer.rollTrait;
+            globalThis.__forceRoll = { hope: 12, fear: 3 };
+            await M.takeCrisisAction(killer, "weaponAttack");
+            await until(tied);
+            equal(stableJson([cancelled, afterCancel, tied()]), stableJson([null, false, true]),
+                "a cancelled swing tied the knife's trace, or a thrown one did not (cancelled answer, tied after it, tied after the thrown one)");
+        } finally {
+            delete killer.rollTrait;
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            if (trace) {
+                await remnants.dropRemnantSecret(trace);
+                if (scene.tokens.has(trace.id)) await scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+            await putBack();
+        }
+    }],
+
+    ["a Reroll gives the wear back", async () => {
+        /*
+         * E32+E07 C8, 28.09.2026; audit S04-04. The wear a swing takes is the GM's now, and
+         * the action's receipt records it with the weapon swung, so a Reroll that takes the
+         * action back gives the wear back, and the replay - whose packet names no weapon
+         * (reroll.mjs `settleCrisis`) - swings the knife the receipt recorded. At the killer's
+         * turn (`swingFixture`) a Tier 1 knife breaks on a Despair hit thrown from this
+         * browser; the Reroll's replay then arrives as the bridge hands it on, a hit with Hope.
+         * Read: the knife broken, its wear, whether it is back in the hand, the victim's Health
+         * marks, and what the killer was handed.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isBroken, wearOf } = await import("./inventory.mjs");
+        const { isEquipped } = await import("./use-items.mjs");
+        const { M, killer, knife, putBack, health, handed } = await swingFixture();
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        try {
+            globalThis.__forceRoll = { hope: 8, fear: 11 };
+            const taken = await M.takeCrisisAction(killer, "weaponAttack");
+            await settle();
+            must(taken?.roll?.total >= 15 && !taken.roll.withHope && isBroken(killer.items.get(knife.id)),
+                `the fixture's swing did not break the knife on a hit with Despair: ${stableJson(taken?.roll ?? null)}`);
+            await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true, undo: true });
+            await settle();
+            const now = killer.items.get(knife.id);
+            equal(stableJson([isBroken(now), wearOf(now), isEquipped(now), health(), handed()]), stableJson([false, 0, true, 2, 0]),
+                "the Reroll did not give the knife's wear back, or its replay did not swing the knife (broken, wear, in hand, Health marks, items handed)");
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await putBack();
+        }
+    }],
+
+    ["a Reroll of a wear that broke nothing leaves the knife in hand", async () => {
+        /*
+         * E32+E07 C8, 28.09.2026 (A2). The give-back above puts the knife in the hand only
+         * when the hand is empty, and the first reading of that counted the knife itself: a
+         * wear that broke nothing had left it readied, so the Reroll took it out of the hand.
+         * The same swing as above with a Tier 2 knife (two points, `ITEM_DURABILITY`), which a
+         * Despair hit wears and does not break. Read: broken, its wear after the Despair, then
+         * after the Reroll its wear, whether it is in the hand, and what the killer was handed.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isBroken, wearOf } = await import("./inventory.mjs");
+        const { isEquipped } = await import("./use-items.mjs");
+        const { M, killer, knife, putBack, handed } = await swingFixture();
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        try {
+            await knife.update({ [`flags.${MODULE_ID}.tier`]: 2 });
+            globalThis.__forceRoll = { hope: 8, fear: 11 };
+            const taken = await M.takeCrisisAction(killer, "weaponAttack");
+            await settle();
+            must(taken?.roll?.total >= 15 && !taken.roll.withHope, `the fixture's swing was not a hit with Despair: ${stableJson(taken?.roll ?? null)}`);
+            const worn = [isBroken(killer.items.get(knife.id)), wearOf(killer.items.get(knife.id))];
+            await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true, undo: true });
+            await settle();
+            const now = killer.items.get(knife.id);
+            equal(stableJson([...worn, wearOf(now), isEquipped(now), handed()]), stableJson([false, 1, 0, true, 0]),
+                "a Reroll of a Despair that wore the knife without breaking it did not leave it in the hand (broken, wear after the Despair, wear after the Reroll, in hand, items handed)");
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await putBack();
+        }
     }],
 
     ["two closes of one incident close it once", async () => {

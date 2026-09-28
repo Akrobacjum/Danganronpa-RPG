@@ -58,8 +58,8 @@ import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax, marksOf, reserveOf, reserveChange, reserveNote } from "./character.mjs";
 import { youOrThem } from "./secret.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
-import { carriedFor, ITEM_FLAGS, isBroken } from "./inventory.mjs";
-import { equippedFor, breakOnDespair } from "./use-items.mjs";
+import { carriedFor, ITEM_FLAGS, isBroken, isStashed, servesAs, wearOf } from "./inventory.mjs";
+import { equippedFor, breakOnDespair, isEquipped, readiedItems, EQUIPPED_FLAG } from "./use-items.mjs";
 import { dropRemnant, traceFeedback } from "./remnants.mjs";
 import { keepLive, closeOpen } from "./live.mjs";
 import {
@@ -1595,7 +1595,9 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      * Captured here rather than after the roll for the two reasons in
      * `breakOnDespair`: the incident moves items around, and an unarmed attack
      * that succeeds HANDS the killer an improvised weapon - looking it up
-     * afterwards would break a tool the same roll had just created.
+     * afterwards would break a tool the same roll had just created. Only the id
+     * leaves this browser (`swungId`): the GM scores the damage off it and wears
+     * it afterwards (E32+E07 C8, `applyCrisisAction`).
      *
      * TWO MARKERS, NOT ONE, AND THE MISSING ONE WAS THE ATTACK ITSELF (Dawid,
      * 29.08: "Attack with a weapon does not always work properly").
@@ -1625,6 +1627,17 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
     const swings = Boolean(def.weaponAdvantage || def.weaponDamage);
     const swung = swings ? equippedWeapon(actor) : null;
 
+    let roll;
+    try {
+        roll = await rollTrait(actor, trait, {
+            actionKey: "crisis", context: { crisis: key },
+            title: def?.label ?? game.i18n.localize("DRPG.Roll.crisis")
+        });
+    } finally {
+        calls.clearSituational();
+    }
+    if (!roll) return null;
+
     /*
      * WRITTEN DOWN, BECAUSE ONE HAND MADE STAGE 6 FORGETFUL (E9).
      *
@@ -1647,7 +1660,10 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
          *
          * The Search that turned this thing up could not know it would be used
          * for this - nobody could - so it recorded which object it gave out and
-         * left the question open. This is the moment that answers it.
+         * left the question open. This is the moment that answers it - once the
+         * dice are thrown (E32+E07 C8; audit S04-34): asked before them, a
+         * killer who closed the roll window had made the knife evidence of a
+         * swing that never happened.
          *
          * Through the GM, because the ledger holding the answer key is the GM's
          * and a player's client has neither the record nor the right to write
@@ -1670,22 +1686,6 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
             })();
         }
     }
-
-    let roll;
-    try {
-        roll = await rollTrait(actor, trait, {
-            actionKey: "crisis", context: { crisis: key },
-            title: def?.label ?? game.i18n.localize("DRPG.Roll.crisis")
-        });
-    } finally {
-        calls.clearSituational();
-    }
-    if (!roll) return null;
-
-    // A knife that snaps halfway through a fight changes the next turn - the
-    // one place this rule is genuinely interesting. `bestWeaponTier` stops
-    // seeing it, so the next swing is an unarmed one.
-    await breakOnDespair(actor, swung, roll);
 
     // Asked here, while the person who threw the dice is still looking at them.
     const choice = roll.isCritical ? await askCriticalTarget(def) : null;
@@ -1807,12 +1807,12 @@ function carriesWeapon(actor) {
  *
  *   There is no "best one you own" any more - the weapon is whichever object the
  *      killer readied, because that is the one they said was in their hand. See
- *      `equippedWeapon`.
+ *      `equippedWeapon`; since E32+E07 C8 the one readied as the dice were
+ *      thrown, `swungWeapon`.
  *
  * @returns {Promise<{item: Item|null, tier: number}>}
  */
-async function chooseWeapon(actor) {
-    const weapon = equippedWeapon(actor);
+async function chooseWeapon(actor, weapon) {
     if (!weapon) return { item: null, tier: 0 };
 
     const tier = weapon.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? 0;
@@ -1822,6 +1822,39 @@ async function chooseWeapon(actor) {
 
     const rated = await rateTierZero(actor, weapon, rule);
     return { item: weapon, tier: rated };
+}
+
+/**
+ * The weapon a crisis roll swung, on the GM (E32+E07 C8; audit S04-04).
+ *
+ * The player's browser names it (`swungId`, taken before the dice by `takeCrisisAction`),
+ * and the name is a claim: it counts only on an action that swings (the same two markers)
+ * and for a Crime Tool the actor carries and holds ready - as the bridge's own check
+ * (gm-bridge.mjs `handleCrisis`) it cannot name somebody else's. A Reroll's replay swings
+ * what its receipt recorded (`recorded`), whatever became of it since.
+ */
+function swungWeapon(actor, def, id, recorded = false) {
+    if (!id || !(def.weaponAdvantage || def.weaponDamage)) return null;
+    const item = actor.items?.get(id);
+    if (!item || !servesAs(item, "crimeTool") || isStashed(item)) return null;
+    return recorded || isEquipped(item) ? item : null;
+}
+
+/**
+ * The Despair's wear on the weapon a roll swung, on the GM after the damage it dealt
+ * (E32+E07 C8; audit S04-04). Until 1.2.66 the player's browser wore it before telling
+ * the GM, so a knife that broke on the blow was no longer in the hand the damage was read
+ * from. `breakOnDespair` posts its notice as before; while the incident runs the card is
+ * veiled whoever posts it (secret.mjs `incidentVeils`), its words to the actor's player.
+ * A roll-less take (a free one, the third's choices) wears nothing. Answers what a Reroll
+ * needs to give the wear back (`undoLastCrisis`), or null when nothing wore.
+ */
+async function wearSwing(actor, weapon, { withHope, isCritical, rolled }) {
+    if (!weapon || !rolled || isBroken(weapon)) return null;
+    const was = { itemId: weapon.id, wear: wearOf(weapon), equipped: isEquipped(weapon) };
+    await breakOnDespair(actor, weapon, { withFear: !withHope && !isCritical, isCritical });
+    const now = actor.items?.get(weapon.id) ?? weapon;
+    return wearOf(now) !== was.wear || isBroken(now) ? was : null;
 }
 
 /** The GM prices one Tier 0 object for this particular swing. */
@@ -1938,7 +1971,8 @@ let resolving = 0;
 
 async function applyCrisisAction({
     actorId, key, total, isCritical, withHope, undo = false, choice = null, usedItemId = null,
-    // The weapon the roll was thrown with, remembered for Stage 6 (E9, CASE-04).
+    // The weapon the roll was thrown with: its damage and its wear (E32+E07 C8), and
+    // remembered for Stage 6 (E9, CASE-04). A claim, narrowed by `swungWeapon`.
     swungId = null,
     // G-18. Not derived here from the state, because by the time this runs the
     // grant may have been consumed by the undo half of a Reroll - the client
@@ -1946,6 +1980,10 @@ async function applyCrisisAction({
     free = false
 } = {}) {
     if (!game.user.isGM) return null;
+
+    // A Reroll's packet names no weapon (reroll.mjs `settleCrisis`): the replay swings
+    // what the action it takes back swung, as its receipt recorded it (E32+E07 C8).
+    const replayed = undo ? murderState()?.lastCrisis?.swungId ?? null : null;
 
     // Before `murderState()` is read, not after: the undo rewinds that state,
     // and the replay has to be scored against the incident as it stood when the
@@ -1969,11 +2007,14 @@ async function applyCrisisAction({
     // The stage the action was taken at, for its card's audience (`announceCrisis`).
     const stage = state.stage;
 
-    // The swing memo, in the cast. Only an item the actor actually holds: the
-    // packet is a claim, and a stranger's id would have Stage 6 ruin nothing. Its
-    // own sub-key only (E04): two actors swinging on two GMs' clients both stay.
-    if (swungId && actor.items?.has(swungId)) {
-        await incidentWrite(() => castStore.patch(RECORD, { swung: { [actorId]: swungId } }));
+    // What this roll swung (`swungWeapon`): the damage is read off it, the Despair
+    // wears it, and Stage 6 ruins it.
+    const weapon = swungWeapon(actor, def, replayed ?? swungId, Boolean(replayed));
+
+    // The swing memo, in the cast. Its own sub-key only (E04): two actors swinging
+    // on two GMs' clients both stay.
+    if (weapon) {
+        await incidentWrite(() => castStore.patch(RECORD, { swung: { [actorId]: weapon.id } }));
     }
 
     // WHOSE SIDE, not the entry's. One action is written `side: "both"` - using
@@ -1997,6 +2038,7 @@ async function applyCrisisAction({
     // What it would take to put all of this back. Captured before anything is
     // applied, because half of it is "the value this resource had a moment ago".
     const receipt = openReceipt(actorId, key, state);
+    receipt.swungId = weapon?.id ?? null;
 
     /*
      * SPENT BEFORE IT IS APPLIED, not after.
@@ -2034,12 +2076,16 @@ async function applyCrisisAction({
     //
     // `carriesWeapon`, not `hasWeapon`: improvising is for a killer with nothing
     // at all, not for one who simply never readied what they had. See
-    // `carriesWeapon`.
-    const wasUnarmed = def.unarmedImprovises ? !carriesWeapon(actor) : false;
+    // `carriesWeapon`. And never after a swing (E32+E07 C8; audit S04-04): until
+    // 1.2.66 the player's browser wore the knife before this ran, a Tier 1 knife
+    // broke on a Despair hit, and the hit counted as unarmed - 1 Health, not 2,
+    // and an improvised weapon for the killer holding the knife.
+    const wasUnarmed = def.unarmedImprovises ? !weapon && !carriesWeapon(actor) : false;
 
     if (success) {
         receipt.remnant = refOf(await applyRemnant(actor, def.remnant?.[band], def, band, done, false, side));
-        await applyDamage(actor, state, def, band, done, false, choice);
+        await applyDamage(actor, state, def, band, done, false, choice, weapon);
+        receipt.wore = await wearSwing(actor, weapon, { withHope, isCritical, rolled: !def.noRoll && !free });
         if (wasUnarmed) receipt.itemId = await grantImprovisedWeapon(actor, def, band, done);
         // Spent on the player's client; recorded here so a Reroll can undo it.
         if (def.usesItem) {
@@ -2074,6 +2120,7 @@ async function applyCrisisAction({
         receipt.remnant = refOf(await applyRemnant(actor, def.failureRemnant?.[band], def, band, done,
             Boolean(def.failureRemnantReinforced?.[band]), side));
         await applyDamage(actor, state, def, band, done, true, choice);
+        receipt.wore = await wearSwing(actor, weapon, { withHope, isCritical, rolled: !def.noRoll && !free });
         // A flat number drains on any failure; an object drains only on the
         // bands it names. Survive costs a point however it fails; Self-defence
         // and Role reversal only on Despair, which is what their own text has
@@ -2199,6 +2246,9 @@ function openReceipt(actorId, key, state) {
         victimStress: victim ? resourceValue(victim, "stress") : null,
         remnant: null,
         itemId: null,
+        // The weapon swung (`swungWeapon`) and the wear its Despair left (`wearSwing`).
+        swungId: null,
+        wore: null,
         messageId: null
     };
 }
@@ -2282,6 +2332,25 @@ async function undoLastCrisis({ actorId, key }) {
             await game.actors.get(actorId)?.items?.get(receipt.itemId)?.delete();
         } catch (err) {
             error("Could not take back the improvised weapon a rerolled attack granted", err);
+        }
+    }
+
+    // The wear the swing took (E32+E07 C8). Back in the hand only when the hand is
+    // empty: the break put it down, and with one hand (E9) the character may have
+    // readied something else since - see the thing a use spent, above. A wear that
+    // did not break it left it in the hand, and the hand is not empty of it: the
+    // first reading of this counted the knife itself and put it down (A2, 28.09).
+    if (receipt.wore?.itemId) {
+        try {
+            const item = game.actors.get(actorId)?.items?.get(receipt.wore.itemId);
+            const other = item ? readiedItems(item.parent).some(i => i.id !== item.id) : true;
+            await item?.update({
+                [`flags.${MODULE_ID}.${ITEM_FLAGS.wear}`]: receipt.wore.wear,
+                [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: false,
+                [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: receipt.wore.equipped && !other
+            });
+        } catch (err) {
+            error("Could not give back the wear a rerolled swing took", err);
         }
     }
 
@@ -2483,7 +2552,7 @@ async function applyRemnant(actor, visibility, def, band, done, reinforced = fal
 }
 
 /** Damage the killer deals. Health and Sanity are reverse resources. */
-async function applyDamage(actor, state, def, band, done, failed = false, choice = null) {
+async function applyDamage(actor, state, def, band, done, failed = false, choice = null, weapon = null) {
     const table = failed ? def.failureDamage : def.damage;
     let hit = table?.[band];
 
@@ -2493,8 +2562,11 @@ async function applyDamage(actor, state, def, band, done, failed = false, choice
     // the attack is made at disadvantage and, on a success, produces a weapon
     // rather than using one. So an unarmed hit deals the bare 1, and the tool
     // it improvises is handed over by `grantImprovisedWeapon`.
+    //
+    // The weapon is the one the roll swung, read as it was swung (E32+E07 C8): its
+    // tier even if it is broken by now.
     if (!failed && def.weaponDamage) {
-        const { tier } = await chooseWeapon(actor);
+        const { tier } = await chooseWeapon(actor, weapon);
         const amount = band === "critical"
             ? def.weaponDamage.critical(tier)
             : def.weaponDamage.normal(tier);

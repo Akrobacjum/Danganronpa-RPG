@@ -20,7 +20,8 @@
  * result and its action reach the participants, and nothing of it a bystander
  * or a trap's builder (1c, and the trap's last part). What a hit leaves is said to its
  * victim's player as "you" and to the others by name, each sent only their own line
- * (E32+E07 C7, 1d).
+ * (E32+E07 C7, 1d). A weapon a swing wears is worn by the GM after the blow, and its
+ * notice reaches the killer's player alone (E32+E07 C8, 1e).
  *
  * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it. In part 4
  * (E32 C5a) Botan is her accomplice, and turns on her at Stage 6.
@@ -550,6 +551,56 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         && hitSeen.killer.cards === 1 && hitSeen.killer.them && !hitSeen.killer.you && !hitSeen.killer.marker
         && hitSeen.bystander.cards === 0,
         JSON.stringify({ hit, hitSeen }));
+
+    /* ---- 1e. a swing's wear, taken by the GM after the blow ------------------
+       E32+E07 C8, 28.09.2026; audit S04-04, and E06 fix r1-G3's routing (the stage's A1). Chie
+       swings a Tier 2 knife from p3's browser and misses with a Despair. Until C8 p3's browser
+       wore the knife before it told the GM, so a knife that broke on a hit was out of the hand
+       the damage was read from; the GM wears it now, after the damage (murder.mjs `wearSwing`),
+       and posts the notice itself: veiled while the incident runs (secret.mjs `incidentVeils`),
+       its words sent to Chie's player alone. Read: the knife's wear on the GM, who wrote the
+       notice, and on each player's browser the words it was sent and its copy of the card.
+       Aiko's marks and Daggerheart's Fear are put back afterwards: the pass drains her, and
+       the Despair gives the GM a Fear. */
+    phase("swing", { flow: "murder-incident" });
+    const swing = await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        const U = await import("${repoUrl}/scripts/use-items.mjs");
+        const chie = game.actors.get("${ids.chie}"), r = game.actors.get("${ids.aiko}").system.resources;
+        if (!M.isTheirTurn(chie)) await M.passTurn();
+        const [knife] = await chie.createEmbeddedDocuments("Item", [{ name: "Suite knife worn in the fight", type: "loot",
+            flags: { "${MOD}": { category: "crimeTool", equipped: true, tier: 2 } } }]);
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        return { knife: knife?.id ?? null, held: U.equippedFor(chie, "crimeTool")?.id === knife?.id, turn: M.isTheirTurn(chie), gm: game.user.id,
+            fear: game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear), aiko: { hp: r.hitPoints.value, stress: r.stress.value },
+            text: game.i18n.format("DRPG.Items.woreOnDespair", { item: "Suite knife worn in the fight", left: 1, total: 2 }) };`, { timeout: 60000 });
+    await settle(600);
+    for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
+    const swung = await p3.eval(ACT(ids.chie, "weaponAttack", { hope: 2, fear: 6 }), { timeout: 60000 });
+    await settle(900);
+    const worn = await gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        const I = await import("${repoUrl}/scripts/inventory.mjs");
+        const knife = game.actors.get("${ids.chie}").items.get("${swing.knife}");
+        const cards = game.messages.contents.filter(m => String(S.contentOf(m) ?? "").includes(${JSON.stringify(swing.text)}));
+        return { wear: I.wearOf(knife), broken: I.isBroken(knife), ids: cards.map(m => m.id), authors: cards.map(m => m.toObject().author ?? null) };`);
+    const WORN_READ = `const S = await import("${repoUrl}/scripts/secret.mjs");
+        const text = ${JSON.stringify(swing.text)};
+        const docs = ${JSON.stringify(worn.ids)}.map(id => game.messages.get(id)).filter(Boolean);
+        return { words: globalThis.__diceNet.words.filter(h => h.includes(text)).length, docs: docs.length,
+            held: docs.some(m => String(S.contentOf(m) ?? "").includes(text)),
+            veiled: docs.every(m => m.toObject().flags?.["${MOD}"]?.veiled === true),
+            named: docs.some(m => { const d = m.toObject(); return JSON.stringify([d.speaker, d.system, d.rolls, d.flags]).match(/${ids.chie}|Chie Mori|${p3.userId}/) !== null; }) };`;
+    const wornSeen = { killer: await p3.eval(WORN_READ), victim: await p1.eval(WORN_READ), bystander: await p2.eval(WORN_READ) };
+    await gm.eval(`const { gameSettings } = CONFIG.DH.SETTINGS;
+        await game.actors.get("${ids.chie}").items.get("${swing.knife}")?.delete();
+        await game.actors.get("${ids.aiko}").update({ "system.resources.hitPoints.value": ${swing.aiko.hp}, "system.resources.stress.value": ${swing.aiko.stress} });
+        if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== ${swing.fear}) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, ${swing.fear});
+        return true;`, { timeout: 60000 });
+    check("swing: a knife a Despair swing wears is worn by the GM after the blow, and the GM's notice is veiled - its words to the killer's player alone, no browser's copy naming her",
+        Boolean(swing.knife) && swing.held && swing.turn && Boolean(swung.id) && swung.stage === "incident"
+        && worn.wear === 1 && !worn.broken && worn.ids.length === 1 && worn.authors.every(a => a === swing.gm)
+        && wornSeen.killer.words > 0 && wornSeen.killer.held && [wornSeen.victim, wornSeen.bystander].every(r => r.words === 0 && !r.held)
+        && [wornSeen.killer, wornSeen.victim, wornSeen.bystander].every(r => r.docs === 1 && r.veiled && !r.named),
+        JSON.stringify({ swing, swung, worn, wornSeen }));
 
     /* ---- 1b. somebody walks in on it ---------------------------------------
        The guide gives the scene one third party, and from the moment they are
