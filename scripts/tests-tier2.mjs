@@ -345,6 +345,33 @@ async function accompliceAtStageSix(M, killer, victim, third) {
 }
 
 /**
+ * A BODY THE GM MADE, WITH STAGE 6 TAKEN (E32 C6): the running incident's victim killed as
+ * the GM's "A character dies" kills them (chapter.mjs `killCharacter`, kept by the GMs),
+ * and its "the victim died - Stage 6?" (`offerStageSix`) answered yes, which is
+ * `beginResolution("victimKilled")` over a death. For a trap, whose builder deals no blow.
+ * Any other window is answered no and its title returned. The caller revives the victim.
+ */
+async function killedIntoStageSix(victim) {
+    const { killCharacter } = await import("./chapter.mjs");
+    const D = foundry.applications.api.DialogV2;
+    const own = Object.getOwnPropertyDescriptor(D, "confirm");
+    const title = game.i18n.localize("DRPG.Chapter.stageSixTitle");
+    const unanswered = [];
+    D.confirm = async cfg => {
+        if (cfg?.window?.title === title) return true;
+        unanswered.push(cfg?.window?.title ?? "");
+        return false;
+    };
+    try {
+        must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+    } finally {
+        if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+    }
+    await settle();
+    return unanswered;
+}
+
+/**
  * THE THIRD'S TWO WINDOWS FOR A BETRAYAL IN AN ECLIPSE (E32 C5b), answered as their player
  * would: the confirmation (yes) and the note (`note`). Any other window is closed unanswered
  * and its title kept in `unanswered`. Put back in `finally`.
@@ -663,7 +690,9 @@ const SCENARIOS = [
          * then Stage 6, where the builder is let back in and the third - on the victim's side,
          * who never met the builder - is offered no betrayal (fix r1-G4, 28.09.2026; the round-1
          * review's M3: until then this test asserted the offer, and the builder's name with it,
-         * in the third's copy - red at d9d6ee2 once it expects none). Read, not sent: tier 2 holds the stores and `sendCast` sends nothing while it does
+         * in the third's copy - red at d9d6ee2 once it expects none; since E32 C6 the GM's Stage 6
+         * with the victim alive arms no offer for anybody, and the trap's rule after a body is
+         * "after a body a direct murder's silent third is offered the betrayal, ..."). Read, not sent: tier 2 holds the stores and `sendCast` sends nothing while it does
          * (the packet a browser receives is 13-murder-signals' "trap" phase). Red on 699b29d:
          * `castFor` did not exist.
          */
@@ -705,7 +734,9 @@ const SCENARIOS = [
          * betrayal only to a third on the killer's side (the test above: a third on the victim's
          * side is offered none), and `castFor` keeps the offer out of every copy but its third's.
          * The same fixture as above, but the third throws in with the builder (Partners in crime).
-         * Green at d9d6ee2 but for the builder's copy, which held the offer too.
+         * Green at d9d6ee2 but for the builder's copy, which held the offer too. Stage 6 by a
+         * body since E32 C6 - the victim killed by the GM, Stage 6 taken (`killedIntoStageSix`):
+         * the offer is a body's, and the GM's Stage 6 with the victim alive arms none.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a builder, a victim and a third, each with a player to be sent a copy");
         const M = await import("./murder.mjs");
@@ -723,32 +754,186 @@ const SCENARIOS = [
         await M.thirdPartyEnters(third);
         await game.drpg.resolveCrisisAction({ actorId: third.id, key: "crimePartners", total: 20, isCritical: false, withHope: true });
         await settle();
-        await M.beginResolution("test");
-        await settle();
-        equal(stableJson([M.murderState()?.thirdSide ?? null, M.betrayalTarget(third)?.id ?? null, copies(third, builder, victim)]),
-            stableJson(["killer", builder.id, [{ killer: builder.id, offer: builder.id }, { killer: builder.id, offer: null }, { killer: null, offer: null }]]),
-            "the accomplice of a trap is not offered the betrayal, their copy does not hold it, or another copy holds it");
+        const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        try {
+            const unanswered = await killedIntoStageSix(victim);
+            must(M.murderState()?.stage === "resolution" && !unanswered.length,
+                `the fixture's body did not take the trap to Stage 6: ${stableJson({ stage: M.murderState()?.stage ?? null, unanswered })}`);
+            equal(stableJson([M.murderState()?.thirdSide ?? null, M.betrayalTarget(third)?.id ?? null, copies(third, builder, victim)]),
+                stableJson(["killer", builder.id, [{ killer: builder.id, offer: builder.id }, { killer: builder.id, offer: null }, { killer: null, offer: null }]]),
+                "the accomplice of a trap is not offered the betrayal, their copy does not hold it, or another copy holds it");
+        } finally {
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
     }],
 
-    ["a direct murder's third on the victim's side is still offered the betrayal", async () => {
+    ["after a body a direct murder's silent third is offered the betrayal, a trap's victim-side third is not", async () => {
         /*
-         * E06 fix r1-G4, 28.09.2026. The trap's rule (the tests above) is not a direct murder's:
-         * a third who walked in on its victim's side met the killer, and is still offered the
-         * betrayal - whether they should be is a question put to the owner (the fix list of
-         * 28.09), and this pins today's answer so a change to it is a decision, not a side effect.
+         * E32 C6, 28.09.2026; audit S04-11, S04-12, the owner's Q2 (b). It replaces E06 fix
+         * r1-G4's "a direct murder's third on the victim's side is still offered the betrayal",
+         * which pinned the answer by the GM's Stage 6 with the victim alive and left the rule
+         * to the owner. The offer is a body's now (`leftABody`), and the owner ruled: a direct
+         * murder's third who stayed and chose nothing keeps it; one who tried Escape together
+         * does not; a trap's third on the victim's side never met the builder and is offered
+         * none (E06 fix G4). Three incidents, one victim revived between them: a direct murder
+         * to the killer's Finishing blow with its third silent; the same with its third's
+         * Escape together failed first; a trap sprung on the victim with the third on their
+         * side, the victim killed by the GM and Stage 6 taken (`killedIntoStageSix`). Read each
+         * time: the stage, the body, the offer on record and the tile's answer. Red at 35bba6b:
+         * <measured by A2>.
          */
-        const [killer, victim, third] = cast();
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
         const M = await import("./murder.mjs");
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
-        await settle();
-        await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
-        await settle();
-        await M.thirdPartyEnters(third);
-        await settle();
-        await M.beginResolution("test");
-        await settle();
-        equal(stableJson([M.murderState()?.thirdSide ?? null, M.betrayalTarget(third)?.id ?? null]), stableJson([null, killer.id]),
-            "a direct murder's third on the victim's side is not offered the betrayal");
+        const { incidentCast } = await import("./settings.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const read = () => [M.murderState()?.stage ?? null, isDeadForGm(victim), incidentCast().betrayal?.thirdId ?? null, M.betrayalTarget(third)?.id ?? null];
+        const direct = async (escape) => {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            await M.thirdPartyEnters(third);
+            if (escape) await M.resolveCrisisAction({ actorId: third.id, key: "sharedEscape", total: 0, isCritical: false, withHope: true });
+            for (let i = 0; i < 4 && M.crisisRefusal(killer, "finishingBlow")?.why === "not their turn"; i++) await M.passTurn();
+            must(!M.crisisRefusal(killer, "finishingBlow"), `the killer's Finishing blow is refused: ${M.crisisRefusal(killer, "finishingBlow")?.why}`);
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            const seen = read();
+            await M.endMurder({ reason: "test", followUp: false });
+            await M.clearBetrayalOffer();
+            await reviveCharacter(victim, { quiet: true });
+            await settle();
+            return seen;
+        };
+        try {
+            const silent = await direct(false);
+            const escaped = await direct(true);
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, indirect: true });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+            await M.thirdPartyEnters(third);
+            const unanswered = await killedIntoStageSix(victim);
+            const trap = [...read(), unanswered];
+            equal(stableJson([silent, escaped, trap]),
+                stableJson([["resolution", true, third.id, killer.id], ["resolution", true, null, null], ["resolution", true, null, null, []]]),
+                "after the blow a direct murder's silent third is not offered the betrayal, or one who tried to escape is, "
+                + "or after a body a trap's third on the victim's side is (stage, body, offer on record, the tile's answer)");
+        } finally {
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["closing without a body records nobody and offers nothing", async () => {
+        /*
+         * E32 C6, 28.09.2026; audit S04-11. The Blackened were recorded on any close from Stage
+         * 6 but an escape's, the betrayal was offered on any move to it, and the GM's checklist
+         * was the body's for every close but an escape's - so a Stage 6 whose victim lived made
+         * its killer a Blackened, offered their third the betrayal and told the GM where the
+         * body was. `leftABody` decides all three now. Two direct murders with a third who
+         * chose nothing: the GM takes the first to Stage 6 with the victim alive and closes it;
+         * the second is closed in the fight. Read: the offer at Stage 6, each close's checklist
+         * (its title, its buttons, and its one sentence - the victim survived, or the incident
+         * was interrupted) and the Blackened grown. Red at 35bba6b: <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
+        const M = await import("./murder.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const esc = foundry.utils.escapeHTML;
+        const before = M.blackenedIds();
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const shown = [];
+        D.wait = async cfg => {
+            const html = typeof cfg?.content === "string" ? cfg.content : cfg?.content?.outerHTML ?? "";
+            shown.push({ title: cfg?.window?.title ?? "", buttons: (cfg?.buttons ?? []).map(b => b.action), html });
+            return "close";
+        };
+        const fight = async () => {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            await M.thirdPartyEnters(third);
+            await settle();
+        };
+        try {
+            await fight();
+            must(await M.beginResolution("test"), "the GM could not take the fixture to Stage 6");
+            await settle();
+            const stageSix = [M.murderState()?.stage ?? null, incidentCast().betrayal ?? null, M.betrayalTarget(third)?.id ?? null];
+            await M.endMurder({ reason: "test" });
+            await fight();
+            await M.endMurder({ reason: "test" });
+            await settle();
+            const says = [
+                game.i18n.format("DRPG.Murder.afterSurvived", { victim: esc(victim.name), killer: esc(killer.name) }),
+                game.i18n.localize("DRPG.Murder.afterInterrupted")
+            ];
+            const read = shown.map((s, i) => [s.title, s.buttons, s.html.includes(says[i])]);
+            const title = game.i18n.localize("DRPG.Murder.afterTitle");
+            equal(stableJson([stageSix, read, M.blackenedIds().filter(id => !before.includes(id))]),
+                stableJson([["resolution", null, null], [[title, ["remnants", "close"], true], [title, ["close"], true]], []]),
+                "a Stage 6 with the victim alive armed the betrayal, a close without a body showed the body's checklist, or recorded a Blackened");
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+    }],
+
+    ["each participant is told the incident is over, a bystander nothing, a direct victim before the opening nothing", async () => {
+        /*
+         * E32 C6, 28.09.2026; audit S13-03. The close told the GMs and nobody else. Each seat's
+         * player at the stage it closed on is told now (`tellIncidentClosed`), in one veiled
+         * card whose words name nobody: "The incident is over.", and to a victim still alive
+         * "... You can act again." - the victim's words as the same card's, to them alone. A
+         * direct murder closed by the GM three times, a bystander with a player beside it: at
+         * the opening roll, where its victim holds no seat (D6); in the fight; and after the
+         * killer's Finishing blow, whose victim is dead. Read off the `secret.card` packets the
+         * GM sent (`wordsSent`): who was sent which words, and how many cards, each veiled.
+         * Red at 35bba6b: <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a bystander, each with a player");
+        const M = await import("./murder.mjs");
+        const { isVeiled } = await import("./secret.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, bystander] = livingStudents().filter(player);
+        const who = { [player(killer).id]: "killer", [player(victim).id]: "victim", [player(bystander).id]: "bystander" };
+        const words = { [`<p>${game.i18n.localize("DRPG.Murder.closedYou")}</p>`]: "over",
+            [`<p>${game.i18n.localize("DRPG.Murder.closedVictimYou")}</p>`]: "free" };
+        const told = sent => {
+            const notices = sent.filter(p => words[p.html]);
+            const ids = [...new Set(notices.map(p => p.id))];
+            return [notices.flatMap(p => p.to.map(id => `${who[id] ?? id}:${words[p.html]}`)).sort(), ids.length,
+                ids.every(id => isVeiled(game.messages.get(id)))];
+        };
+        const open = async () => {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+        };
+        const close = async () => told(await wordsSent(() => M.endMurder({ reason: "test", followUp: false })));
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            must(M.murderState()?.stage === "openingRoll", "the opening had been answered before the GM closed it");
+            const atOpening = await close();
+            await open();
+            const inFight = await close();
+            await open();
+            for (let i = 0; i < 4 && M.crisisRefusal(killer, "finishingBlow")?.why === "not their turn"; i++) await M.passTurn();
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(isDeadForGm(victim), "the fixture's Finishing blow left the victim alive");
+            const afterBody = await close();
+            equal(stableJson([atOpening, inFight, afterBody]),
+                stableJson([[["killer:over"], 1, true], [["killer:over", "victim:free"], 1, true], [["killer:over", "victim:over"], 1, true]]),
+                "a close told a participant nothing or the wrong words, told the bystander or a direct victim at the opening, "
+                + "or posted more than one card or an unveiled one (who:words, cards, veiled)");
+        } finally {
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
     }],
 
     ["a standing betrayal offer sends its third nothing of the next incident, and the next incident nothing of it", async () => {
@@ -3665,12 +3850,20 @@ const SCENARIOS = [
 
         ok(!murder.betrayalTarget(third), "the betrayal was offered during the incident");
 
-        await murder.beginResolution("test");
-        await settle();
+        // To a body (E32 C6): the offer is a body's, and the GM's Stage 6 with the victim
+        // alive, which this test used to take, arms none.
+        const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        try {
+            for (let i = 0; i < 4 && murder.crisisRefusal(killer, "finishingBlow")?.why === "not their turn"; i++) await murder.passTurn();
+            await drpg.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
 
-        equal(murder.betrayalTarget(third)?.id, killer.id, "the accomplice turns on the killer");
-        ok(!murder.betrayalTarget(killer), "the killer was offered a betrayal");
-        ok(!murder.betrayalTarget(victim), "the victim was offered a betrayal");
+            equal(murder.betrayalTarget(third)?.id, killer.id, "the accomplice turns on the killer");
+            ok(!murder.betrayalTarget(killer), "the killer was offered a betrayal");
+            ok(!murder.betrayalTarget(victim), "the victim was offered a betrayal");
+        } finally {
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
     }],
 
     ["Observe ranks crime-tied traces first, then by difficulty", async () => {

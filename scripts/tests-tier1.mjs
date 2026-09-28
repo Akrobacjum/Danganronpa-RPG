@@ -5305,6 +5305,39 @@ const INVARIANTS = [
         fresh.hindered.victim.strike = 1;
         equal(JSON.stringify([same, again.spent, again.hindered]), JSON.stringify([true, [], { victim: {}, killer: {} }]),
             "two new incidents with the same answers differ, or share a list or a table, so one changed the other");
+    }],
+
+    ["R207 - a closed incident left a body by the ending that kills or by its victim dead, and Escape together's trace is an incident's", async () => {
+        /*
+         * E32 C6, 28.09.2026; audit S04-11, S02-43. murder.mjs `leftABody` is the one question
+         * the Blackened, the betrayal's offer, the GM's checklist and the participants' notice
+         * ask at a close. Every ending the module writes (and none), each with the victim alive
+         * and dead, on made-up states and a made-up reader of a death: a Finishing blow, running
+         * out and a self-inflicted death are a body before their death is recorded; a Survive,
+         * an escape, the GM's Stage 6 and a fight closed half way only with the victim dead; a
+         * state that names no victim never. The reader it is not handed - `isDeadForGm` - finds
+         * no body for an actor that does not exist. Then the trace an escape leaves, which was a
+         * Prep Remnant: an Incident Remnant, as the other crisis actions'.
+         */
+        const M = await import("./murder.mjs");
+        const ENDINGS = ["finishingBlow", "ranOut", "selfInflicted", "survive", "sharedEscape", "victimKilled", "test", null];
+        const read = {};
+        for (const endedBy of ENDINGS) {
+            for (const dead of [false, true]) {
+                read[`${endedBy} ${dead ? "dead" : "alive"}`] = M.leftABody({ victimId: "R207VICTIM000001", endedBy }, id => dead && id === "R207VICTIM000001");
+            }
+        }
+        const EXPECTED = {
+            "finishingBlow alive": true, "finishingBlow dead": true, "ranOut alive": true, "ranOut dead": true,
+            "selfInflicted alive": true, "selfInflicted dead": true, "survive alive": false, "survive dead": true,
+            "sharedEscape alive": false, "sharedEscape dead": true, "victimKilled alive": false, "victimKilled dead": true,
+            "test alive": false, "test dead": true, "null alive": false, "null dead": true
+        };
+        equal(JSON.stringify(read), JSON.stringify(EXPECTED), "an ending's body is not the rule's");
+        equal(JSON.stringify([M.leftABody({ endedBy: "finishingBlow" }, () => true), M.leftABody(null, () => true),
+            M.leftABody({ victimId: "R207NOBODY000001", endedBy: "survive" })]), JSON.stringify([false, false, false]),
+            "a state that names no victim left a body, or an actor that does not exist is dead");
+        equal(CRISIS_ACTIONS.sharedEscape?.remnantType, "incident", "Escape together's trace is not an Incident Remnant");
     }]
 ];
 

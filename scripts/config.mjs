@@ -3313,7 +3313,10 @@ export const CRISIS_ACTIONS = {
         // `remnant.failure`, which nothing ever read: the failure branch looks up
         // `failureRemnant[band]`, and `band` is only ever hope/despair/critical.
         failureRemnant: { hope: "subtle", despair: "subtle", critical: "subtle" },
-        remnantType: "prep",
+        // An Incident Remnant, as every other crisis action's (murder.mjs `applyRemnant`'s
+        // default). It said "prep" - a trace of the planning, left by the fight (E32 C6,
+        // 28.09.2026; audit S02-43).
+        remnantType: "incident",
         endsIncident: true
     },
 

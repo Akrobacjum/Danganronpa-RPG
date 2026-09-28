@@ -27,7 +27,7 @@ export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canary }) {
     for (const c of [p1, p2, p3].filter(Boolean)) {
         await c.eval(`globalThis.__dialogAuto = false; return true;`);
     }
@@ -733,12 +733,39 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
 
     /* ---- 3. and it all goes back ------------------------------------------- */
     phase("after", { flow: "murder-incident" });
+    /* WHO IS TOLD IT IS OVER (E32 C6, 28.09.2026; audit S13-03). The close told the GMs alone;
+       each seat's player at the stage it closed on is told now, in one veiled card whose words
+       name nobody (murder.mjs `tellIncidentClosed`). The trap closes at Stage 6 with its victim
+       alive - `beginResolution` above killed nobody - so Aiko's player is told she can act
+       again, Chie's, the builder seated at Stage 6, that it is over, and Botan's, a bystander,
+       nothing: counted as each browser receives the words, the `secret.card` packets. What
+       p1's chat holds since is read for the builder, p2's for both (`chatScan`). */
+    const CLOSE_NET = `globalThis.__closeWords = [];
+        if (!globalThis.__closeNetOn) {
+            globalThis.__closeNetOn = true;
+            game.socket.on("module.${MOD}", p => { if (p?.action === "secret.card") globalThis.__closeWords.push({ id: p.id, html: String(p.html ?? "") }); });
+        }
+        return true;`;
+    for (const c of [p1, p2, p3]) await c.eval(CLOSE_NET);
+    await canary.chatMark({ who: ["p1", "p2"] });
     /* Through `endMurder` again, for the reason given at the top of part 2. */
     await gm.eval(`
         await game.drpg.endMurder({ reason: "suite", followUp: false });
         return true;
     `, { timeout: 60000 });
     await settle(900);
+    const CLOSE_READ = `const over = "<p>" + game.i18n.localize("DRPG.Murder.closedYou") + "</p>";
+        const free = "<p>" + game.i18n.localize("DRPG.Murder.closedVictimYou") + "</p>";
+        const w = (globalThis.__closeWords ?? []).filter(x => x.html === over || x.html === free);
+        return { words: w.map(x => x.html === over ? "over" : "free"), ids: [...new Set(w.map(x => x.id))] };`;
+    const closed = { victim: await p1.eval(CLOSE_READ), bystander: await p2.eval(CLOSE_READ), killer: await p3.eval(CLOSE_READ) };
+    check("after: the trap's close tells its living victim they can act again and its builder it is over, in one card, and the bystander nothing",
+        JSON.stringify(closed.victim.words) === '["free"]' && JSON.stringify(closed.killer.words) === '["over"]'
+        && closed.bystander.words.length === 0 && closed.victim.ids[0] === closed.killer.ids[0],
+        JSON.stringify(closed));
+    // The builder is the victim's secret; both of them are the bystander's.
+    await canary.chatScan({ who: ["p1"], actorIds: [ids.chie], names: ["Chie Mori"], userIds: [p3.userId] });
+    await canary.chatScan({ who: ["p2"], actorIds: [ids.chie, ids.aiko], names: ["Chie Mori", "Aiko Hoshino"], userIds: [p1.userId, p3.userId] });
 
     const after = await readAll();
     const volumes = Object.fromEntries(Object.entries(after).map(([k, v]) => [k, v.roomVolume]));

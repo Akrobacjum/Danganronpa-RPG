@@ -253,27 +253,23 @@ const CASES = {
 
 const GRID_RED = {
     DM02: expectedRed("E07", "S04-20: the gloves in the killer's hand are not broken by a discovery after the close (C12)", { failing: "I12" }),
-    DM04: expectedRed("E07", "S04-11: a Survive leaves no body and still records its attacker Blackened (C6)", { failing: "I5" }),
-    DM09: expectedRed("E07", "S04-11: the free Survive after a critical Self-defence records the attacker Blackened (C6)", { failing: "I5" }),
     DM11: expectedRed("E07", "S04-42: a killer who died in the fight still holds the killers' turn (C9)", { failing: "I9" }),
     DM12: expectedRed("E07", "S10-77: the victim's death from the Students list in the fight offers no Stage 6 (C13)", { failing: "I10" }),
     DM13: expectedRed("E07", "S04-17: a failed opening breaks the weapon in the killer's hand (C12)", { failing: "I12" }),
-    TP04: expectedRed("E07", "S04-06: Role reversal is offered against an accomplice (C11a); S04-11: Survive's Blackened and offer (C6)", { failing: "I11" }),
+    TP04: expectedRed("E07", "S04-06: Role reversal is offered against an accomplice (C11a)", { failing: "I11" }),
     TP05: expectedRed("E07", "S05-23: the close breaks the first killer's tools only, not the accomplice's swung weapon (C12)", { failing: "I12" }),
     TP08: expectedRed("E07", "S04-21: a third who averted their eyes walks back in by their token (C10)", { failing: "I13" }),
-    TP09: expectedRed("E07", "S04-11, S04-12: Escape together arms the betrayal offer (C6)", { failing: "I6" }),
     TP10: expectedRed("E07", "S04-21: a failed escape's third still counts, and a fourth walking in crowds the incident out (C10)", { failing: "I13" }),
     TP13: expectedRed("E07", "S04-33: a third is let take Use an item, an action of the two sides (C10)", { failing: "I10" }),
     TP14: expectedRed("E07", "S04-42: an accomplice who died in the fight holds the killers' turn (C9)", { failing: "I9" }),
     TR02: expectedRed("E07", "S04-14: after the victim's action a trap's builder holds the turn (C9)", { failing: "I9" }),
-    TR03: expectedRed("E07", "S04-06: Role reversal is offered in a trap (C11a); S04-14: the builder's turn (C9); S04-11: Survive's Blackened (C6)", { failing: "I11" }),
-    TR04: expectedRed("E07", "S04-11: a trap moved to Stage 6 with nobody dead records its builder Blackened (C6)", { failing: "I5" }),
+    TR03: expectedRed("E07", "S04-06: Role reversal is offered in a trap (C11a); S04-14: the builder's turn (C9)", { failing: "I11" }),
     TR05: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "I11" }),
     TR06: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a); S04-14: the builder's turn (C9)", { failing: "I11" }),
     TR07: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "I11" }),
     TR08: expectedRed("E07", "S04-14: after the victim's action a trap's builder holds the turn (C9)", { failing: "I9" }),
     TR09: expectedRed("E07", "S10-77: a trap's victim's death from the Students list offers no Stage 6 (C13)", { failing: "I10" }),
-    XI05: expectedRed("E07", "AUDIT-1.2.42 section 9: a Reroll that takes back a Finishing blow leaves the victim dead (C8b)", { failing: "I8" })
+    XI05: expectedRed("E07", "AUDIT-1.2.42 section 9: a Reroll that takes back a Finishing blow leaves the victim dead, a body whose killer the close records Blackened since C6 (I5) (C8b)", { failing: "I8" })
 };
 
 /* ==========================================================================

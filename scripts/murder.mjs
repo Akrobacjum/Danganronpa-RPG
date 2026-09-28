@@ -601,9 +601,10 @@ async function writeState(patch, { explicit = [], expect = null } = {}) {
          *
          * Six different branches move an incident to its resolution stage - a
          * finishing blow, running out, a self-inflicted death, an escape, and two
-         * more - and every one of them is a moment the accomplice may now turn on
-         * the killer. Arming from each would be six copies of one rule, which is
-         * the shape this file has already been bitten by twice.
+         * more - and every one that left a body is a moment the accomplice may now
+         * turn on the killer (`betrayalCandidate` asks `leftABody`, E32 C6: a Survive
+         * or an escape arms nothing). Arming from each would be six copies of one
+         * rule, which is the shape this file has already been bitten by twice.
          *
          * `writeState` is the single writer, so it is the single place that can see
          * the transition. Guarded on the CHANGE rather than the state, so the many
@@ -3668,7 +3669,7 @@ export async function thirdPartyEnters(actor) {
  * background.
  *
  * NOBODY DIES. The incident is cancelled where it stands: no body, no Blackened
- * (`recordBlackened` only fires from the resolution stage), no post-incident
+ * (`recordBlackened` asks `leftABody`, and the victim is alive), no post-incident
  * checklist. What has already happened stays happened - the damage taken, the
  * Sanity spent, the Remnants the fight has already put on the floor.
  *
@@ -3830,13 +3831,17 @@ export function trialBlackenedActors() {
  * victim is still a death nobody has found (the owner's Q3). A killer who kills
  * again in the chapter has the new victim added to their row; a row written
  * before 1.2.64 names none and is left so, since it counts at every trial anyway.
+ *
+ * "ONLY WHEN IT LEFT A BODY" IS `leftABody` (E32 C6, 28.09.2026; audit S04-11). It used
+ * to be the stage, `resolution`, with an escape taken out: a proxy for a body that held
+ * for a Finishing blow and nothing else. A Survive moves the incident to Stage 6 with its
+ * victim on their feet, and made their attacker a Blackened for a death nobody died (the
+ * grid's DM04, DM09 and TP04, red at 0642f1a); a victim who died from the Students list
+ * while the GM declined Stage 6 closes from the fight, and is a body all the same.
  */
 async function recordBlackened(state) {
     if (!game.user.isGM || !state?.killerId) return;
-    // Nobody died: no Blackened. An escape closes an incident and leaves the
-    // chapter exactly as it found it.
-    if (state.endedBy === "sharedEscape") return;
-    if (state.stage !== "resolution") return;
+    if (!leftABody(state)) return;
 
     const held = Object.fromEntries(blackenedIds().map(id => [id, blackenedStore.get(id)]));
     const rows = blackenedWrites(held, killerIds(state), state.victimId,
@@ -3845,6 +3850,32 @@ async function recordBlackened(state) {
     if (!written.length) return;
     await blackenedStore.patchMany(rows);
     log(`Blackened recorded: ${written.map(id => game.actors.get(id)?.name ?? id).join(", ")}.`);
+}
+
+/** How an incident ends with its victim dead - the endings that kill them themselves (`finishIncident`, `checkVictimSpent`, the close of a self-inflicted death). */
+const BODY_ENDINGS = Object.freeze(["finishingBlow", "ranOut", "selfInflicted"]);
+
+/**
+ * DID THIS INCIDENT LEAVE A BODY (E32 C6, 28.09.2026; audit S04-11, S04-12)? By how it
+ * ended, or by its victim dead for the GMs now. The Blackened (`recordBlackened`), the
+ * betrayal's offer (`betrayalCandidate`), the GM's checklist (`afterIncident`) and the
+ * participants' notice at the close all ask this one question.
+ *
+ * The endings are there because each kills its victim AFTER the stage moves - the
+ * Finishing blow's death follows its stage write, a self-inflicted death is recorded
+ * at the close - and the betrayal's window is armed on that write. Everything else is
+ * the death: a victim who died from the Students list is a body whether the GM took
+ * Stage 6 (`beginResolution("victimKilled")`, `offerStageSix`) or not. The plan put
+ * `victimKilled` among the endings; it is left out, because its one caller asks after
+ * the death is recorded, and a Stage 6 with the victim revived before the close - the
+ * grid's TR04, which moves a trap to Stage 6 with nobody dead - is no body.
+ *
+ * `deadNow` is the reader of a death, handed in so R207 can read the rule on made-up
+ * states; every caller here leaves it to `isDeadForGm`.
+ */
+export function leftABody(state, deadNow = id => isDeadForGm(game.actors.get(id ?? ""))) {
+    if (!state?.victimId) return false;
+    return BODY_ENDINGS.includes(state.endedBy) || Boolean(deadNow(state.victimId));
 }
 
 /**
@@ -3920,8 +3951,9 @@ async function closeIncident(state, { reason, followUp }) {
      *
      * So the GM closing the incident is what makes it true, which is also the
      * beat they close it on. Before `recordBlackened`, so the register and the
-     * death cannot disagree, and guarded on stage the same way it is: a Stage 4
-     * that failed closes through here too, and nobody died in that one.
+     * death cannot disagree, and guarded on the stage: a Stage 4 that failed
+     * closes through here too, and nobody died in that one. (`leftABody` reads
+     * `endedBy`, which only the Stage 4 that went through writes.)
      */
     if (state?.selfInflicted && state.stage === "resolution") {
         try {
@@ -3974,6 +4006,15 @@ async function closeIncident(state, { reason, followUp }) {
        is wiped; a call with nothing running fires nothing. Local only - nothing listens to
        it at the table. */
     if (state?.active) Hooks.callAll("drpgIncidentClosed", { reason });
+
+    // Before the checklist below, which waits on the GM's answer.
+    if (state?.active) {
+        try {
+            await tellIncidentClosed(state);
+        } catch (err) {
+            error("Could not tell the incident's participants that it is over", err);
+        }
+    }
 
     /* AND ITS TRACES LEAVE THE NEXT INCIDENT'S MAP (E05 C14, 27.09.2026; audit S05-42).
        The ones nobody copied are hidden and none is marked as an incident's any more
@@ -4041,6 +4082,41 @@ async function closeIncident(state, { reason, followUp }) {
 }
 
 /**
+ * THE PEOPLE IN IT ARE TOLD IT IS OVER (E32 C6, 28.09.2026; audit S13-03). The close
+ * told the GMs and nobody else: a participant's panel went quiet, and whether the
+ * incident had ended or was waiting on somebody was theirs to guess. Each seat's
+ * player at the stage it closed on (`incidentAudienceIds`) is told now - so a direct
+ * murder's victim closed at the opening roll, whom nobody had asked anything (D6), and
+ * a trap's builder closed before Stage 6, who is in no room, are told nothing, as a
+ * bystander is. The words name nobody and are in the second person; a victim who is
+ * still alive is also told they can act again.
+ *
+ * ONE DOCUMENT, WHOEVER READS IT. The card is veiled (the file's `announce`): the
+ * document every browser receives speaks as nobody and is addressed to everybody,
+ * and the words go only to the players named. The victim's words differ from the
+ * others', and a second card for them would put one more document on every browser
+ * exactly when the victim of the close lived - so the victim's words are sent as the
+ * same card's (`updateSecret`), to them alone.
+ */
+async function tellIncidentClosed(state) {
+    const audience = incidentAudienceIds(state);
+    if (!audience.length) return null;
+    const victim = leftABody(state) ? null : ownerOf(game.actors.get(state.victimId ?? ""))?.id ?? null;
+    const freed = audience.includes(victim) ? victim : null;
+    const others = audience.filter(id => id !== freed);
+    const words = key => `<p>${game.i18n.localize(key)}</p>`;
+    const message = await announce({
+        content: words(others.length ? "DRPG.Murder.closedYou" : "DRPG.Murder.closedVictimYou"),
+        whisper: others.length ? others : [freed]
+    });
+    if (message && freed && others.length) {
+        const { updateSecret } = await import("./secret.mjs");
+        await updateSecret(message, words("DRPG.Murder.closedVictimYou"), [freed]);
+    }
+    return message;
+}
+
+/**
  * The post-murder checklist.
  *
  * Everything on it is derived, nothing is asked: the room comes from the
@@ -4052,16 +4128,25 @@ async function closeIncident(state, { reason, followUp }) {
  * NOT every incident leaves a body. Escape together ends one with the victim
  * and the newcomer both walking out, and this screen used to answer that with
  * "the body is in the Library, issue the autopsy, move to Investigation" - a
- * checklist for a murder that did not happen. `endedBy` is what tells them
- * apart; everything else that ends an incident does leave somebody dead, so an
- * escape is the only case that branches.
+ * checklist for a murder that did not happen.
+ *
+ * NOR DOES ANYTHING BUT A BODY (E32 C6, 28.09.2026; audit S04-11). The escape was
+ * the one close that branched, and the body's screen answered every other - a
+ * Survive, whose victim walked away, and a GM closing a fight half way or an
+ * opening that never resolved. `leftABody` decides it now: a body gets this screen;
+ * no body at Stage 6 gets the escape's or, for a victim who survived, its short
+ * sibling (`afterNoBody`); a close before Stage 6 is an interruption, and says only
+ * that nobody died.
  */
 async function afterIncident(state) {
     const victim = game.actors.get(state.victimId);
     const killer = game.actors.get(state.killerId);
     if (!victim) return null;
 
-    if (state.endedBy === "sharedEscape") return afterEscape(state, victim, killer);
+    if (!leftABody(state)) {
+        if (state.endedBy === "sharedEscape") return afterEscape(state, victim, killer);
+        return afterNoBody(state, victim, killer);
+    }
 
     const { roomOfActor } = await import("./movement.mjs");
     const room = roomOfActor(victim);
@@ -4292,13 +4377,24 @@ export async function betrayAsPlayer(actorId, { note = "" } = {}) {
  * Direct murder tile lit and its dialog named the person who set the trap (read
  * off the code, not run), to a player who then sits in the trial. An accomplice holds the builder's name in the
  * whole of their copy anyway. The suite's C3 test asserted the offer; expecting none,
- * it is red at d9d6ee2. A direct murder's third on the victim's side is
- * still offered it - they met the killer - and whether they should be is a rules
- * question put to the owner (the fix list of 28.09), not decided here.
+ * it is red at d9d6ee2.
+ *
+ * AFTER A BODY, AND FOR A THIRD WHO STAYED ON ITS SIDE OR CHOSE NOTHING (E32 C6,
+ * 28.09.2026; audit S04-11, S04-12, the owner's Q2 (b)). The guide's betrayal comes
+ * "po zabiciu pierwszego oryginalnego uczestnika", and it was offered on every move to
+ * Stage 6: after a Survive, and to the third who had just walked the victim out of the
+ * room (the grid's TP04 and TP09, red at 0642f1a). A body now (`leftABody`), and a third
+ * who threw in with the killer or - in a direct murder - stayed and chose nothing: they
+ * met the killer, and the owner ruled they keep it (S04-12's premise rejected). Chose
+ * nothing is `thirdActed` unset: Averted eyes leaves, Partners and Double role reversal
+ * are the killer's side, so a third still there on no side who acted tried Escape
+ * together and failed - an escape tried loses the offer - or took an action that is
+ * not a third's (Use an item, let through until C10 refuses it; audit S04-33).
  */
 function betrayalCandidate(state, killer) {
     if (!state?.thirdId || !killer) return null;
-    if (incidentIndirect(state) && state.thirdSide !== "killer") return null;
+    if (!leftABody(state)) return null;
+    if (state.thirdSide !== "killer" && (incidentIndirect(state) || state.thirdActed)) return null;
     const third = game.actors.get(state.thirdId);
     if (!third || third.id === killer.id) return null;
     if (isMonokuma(third)) return null;
@@ -4513,6 +4609,35 @@ async function afterEscape(state, victim, killer) {
         rejectClose: false
     });
 
+    if (action === "remnants") {
+        const { openInvestigationDashboard } = await import("./investigation.mjs");
+        return openInvestigationDashboard();
+    }
+    return null;
+}
+
+/**
+ * The checklist of a close that left no body and was no escape (E32 C6, 28.09.2026;
+ * audit S04-11). At Stage 6 the victim survived - a Survive, or a Stage 6 the GM took
+ * with them alive - and what the fight left on the floor is still there, so the
+ * Remnant table is offered as the escape's screen offers it. Before Stage 6 the
+ * incident was interrupted: nothing was decided, and there is nothing to do but close.
+ */
+async function afterNoBody(state, victim, killer) {
+    const survived = state.stage === "resolution";
+    const name = actor => foundry.utils.escapeHTML(actor?.name ?? "?");
+    const action = await DialogV2.wait({
+        classes: ["drpg-panel"],
+        window: { title: game.i18n.localize("DRPG.Murder.afterTitle") },
+        content: dialogContent(`<div><p>${survived
+            ? game.i18n.format("DRPG.Murder.afterSurvived", { victim: name(victim), killer: name(killer) })
+            : game.i18n.localize("DRPG.Murder.afterInterrupted")}</p></div>`),
+        buttons: [
+            ...(survived ? [{ action: "remnants", default: true, label: game.i18n.localize("DRPG.Murder.escapeRemnants") }] : []),
+            { action: "close", label: game.i18n.localize("DRPG.Panel.close"), ...(survived ? {} : { default: true }) }
+        ],
+        rejectClose: false
+    });
     if (action === "remnants") {
         const { openInvestigationDashboard } = await import("./investigation.mjs");
         return openInvestigationDashboard();
