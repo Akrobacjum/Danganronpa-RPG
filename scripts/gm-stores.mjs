@@ -238,16 +238,16 @@ export const INCIDENT_METHOD = Object.freeze(["indirect", "selfInflicted", "keyR
  * THE FIGHT (E32 C2, 28.09.2026; E05's Q8, the owner's Q1 (a) of 28.09): the round and
  * whose side acts, what the opening took from the victim and how many Key Remnants it
  * left, the hindrances and blocks with their turns, what Self-defence opened, what is
- * spent, the drain, the advantages, a critical's free resolution and the third's one
- * action. Until 1.2.66 these twelve sat in the world half of `murderState`, on every
- * browser, though every reader of them runs where the cast is held: the participants'
- * panels and trackers, a witness's Event card (events.mjs), the GM's Key Remnant count
- * (investigation.mjs `keyRemnants`) - read by grep on 28.09, each classified in C2's
- * commit. A bystander's browser reads `active` and `stage` alone - the locks, and
- * `incidentWitness`, which tells it the music and the red edges are not its own - and a
- * list of which actions a victim had left, turn by turn, is
- * the shape of a fight nobody outside it saw. They are the cast's now, sent to every
- * holder in their copy (murder.mjs `castFor`).
+ * spent, the drain, the second try a Hope miss earned (the action it is for, since
+ * E32+E07 C9), a critical's free resolution and the third's one action. Until 1.2.66
+ * these twelve sat in the world half of `murderState`, on every browser, though every
+ * reader of them runs where the cast is held: the participants' panels and trackers, a
+ * witness's Event card (events.mjs), the GM's Key Remnant count (investigation.mjs
+ * `keyRemnants`) - read by grep on 28.09, each classified in C2's commit. A bystander's
+ * browser reads `active` and `stage` alone - the locks, and `incidentWitness`, which
+ * tells it the music and the red edges are not its own - and a list of which actions a
+ * victim had left, turn by turn, is the shape of a fight nobody outside it saw. They
+ * are the cast's now, sent to every holder in their copy (murder.mjs `castFor`).
  */
 export const INCIDENT_FIGHT = Object.freeze([
     "turn", "turnSide", "keyRemnants", "deniedToVictim", "hindered", "blocked",

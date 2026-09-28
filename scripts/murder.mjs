@@ -804,6 +804,35 @@ export function freeResolutionFor(side, state = murderState()) {
     return grant.turn === state.turn ? grant : null;
 }
 
+/**
+ * Advantage and disadvantage that belong to the situation rather than to a Call, as
+ * dice (+1 each advantage, -1 each disadvantage): a hindered action, a weapon in hand,
+ * a second try after a miss, a trap's victim. Pure; the roll arms what this returns.
+ *
+ * THE SECOND TRY IS THE ACTION'S, NOT THE SIDE'S (E32+E07 C9, 28.09.2026; audit S04-32).
+ * "Advantage on the next attempt" was a flag per side, so a Leave a clue missed with Hope
+ * paid for the victim's next action whatever it was - a Self-defence at 18 as well as the
+ * clue at 12. `advantageNext[side]` names the action it was earned on now, and only that
+ * action is helped. A `true` from an incident running since 1.2.65 still reads as before,
+ * for any action, once.
+ */
+export function crisisSituational(actor, key, state = murderState()) {
+    const side = sideOf(actor, state);
+    const def = CRISIS_ACTIONS[key];
+    if (!state || !def) return 0;
+    let situational = 0;
+    if ((state.hindered?.[side]?.[key] ?? 0) > 0) situational -= 1;
+    const earned = state.advantageNext?.[side];
+    if (earned === key || earned === true) situational += 1;
+    if (def.weaponAdvantage && hasWeapon(actor)) situational += 1;
+    if (def.unarmedDisadvantage && !hasWeapon(actor)) situational -= 1;
+    // Guide, p. 20: "Ofiara otrzymuje advantage na kazdy rzut." Dying alone to a
+    // trap is the one situation the guide compensates outright, and it applies
+    // to every crisis roll they make rather than to a particular action.
+    if (side === "victim" && state.indirect) situational += 1;
+    return situational;
+}
+
 /** Whether THIS action is the one that free take can be spent on. */
 function isFreeTake(def, side, state) {
     return Boolean(def?.kind === "resolution" && !def.noRoll && freeResolutionFor(side, state));
@@ -924,7 +953,8 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         unlocked: [],
         // A critical Self-defence stops the drain for the rest of the incident.
         drainStopped: false,
-        advantageNext: { victim: false, killer: false },
+        // The action a Hope miss earned a second try at, per side (S04-32).
+        advantageNext: { victim: null, killer: null },
         spent: [],
         freeResolution: null,
         thirdActed: null,
@@ -1575,17 +1605,7 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
     const { rollTrait } = await import("./action-rolls.mjs");
     const calls = await import("./call-effects.mjs");
 
-    // Advantage and disadvantage that belong to the situation rather than to a
-    // Call: a hindered action, a weapon in hand, a second try after a miss.
-    let situational = 0;
-    if ((state.hindered?.[side]?.[key] ?? 0) > 0) situational -= 1;
-    if (state.advantageNext?.[side]) situational += 1;
-    if (def.weaponAdvantage && hasWeapon(actor)) situational += 1;
-    if (def.unarmedDisadvantage && !hasWeapon(actor)) situational -= 1;
-    // Guide, p. 20: "Ofiara otrzymuje advantage na kazdy rzut." Dying alone to a
-    // trap is the one situation the guide compensates outright, and it applies
-    // to every crisis roll they make rather than to a particular action.
-    if (side === "victim" && state.indirect) situational += 1;
+    const situational = crisisSituational(actor, key, state);
 
     // The indirect victim rolls their own table's stat - Body, not Shadow.
     const variant = def.indirectVictim && side === "victim" && state.indirect ? def.indirectVictim : null;
@@ -2071,8 +2091,9 @@ async function applyCrisisAction({
      */
     if (free && freeResolutionFor(side, state)) await writeState({ freeResolution: null });
 
-    // The advantage a missed attempt earned is spent whatever happens next.
-    await clearAdvantage(side);
+    // The advantage a missed attempt earned is spent by the next attempt at that
+    // action, whatever happens in it - and by no other action (S04-32).
+    await clearAdvantage(side, key);
 
     // The newcomer's one free choice is spent HERE, before anything it does can
     // move the incident out from under the write.
@@ -2133,7 +2154,7 @@ async function applyCrisisAction({
          * layout; none of them is reachable, and this line is not one of them.
          */
         if (def.failureGrantsAdvantage && band === "hope") {
-            await grantAdvantage(side);
+            await grantAdvantage(side, key);
             done.push(game.i18n.localize("DRPG.Murder.advantageNext"));
         }
         receipt.remnant = refOf(await applyRemnant(actor, def.failureRemnant?.[band], def, band, done,
@@ -2833,7 +2854,7 @@ async function swapRoles(state, band, done) {
         unlocked: [],
         spent: [],
         drainStopped: false,
-        advantageNext: { victim: false, killer: false },
+        advantageNext: { victim: null, killer: null },
         // The killer's Despair-success opener took Role reversal away from the
         // person who was the victim THEN. They are the killer now, and the
         // restriction is not a property of the chair they are sitting in.
@@ -2955,15 +2976,18 @@ async function drain(state, amount, done) {
     await takeReserves(victim, { stress: amount }, done);
 }
 
-async function grantAdvantage(side) {
+/* The second try a Hope miss earned, named by the action it was earned on (S04-32,
+   `crisisSituational`): one per side, so a later miss of another action takes its place. */
+async function grantAdvantage(side, key) {
     const state = murderState();
-    await writeState({ advantageNext: { ...(state?.advantageNext ?? {}), [side]: true } });
+    await writeState({ advantageNext: { ...(state?.advantageNext ?? {}), [side]: key } });
 }
 
-async function clearAdvantage(side) {
+async function clearAdvantage(side, key) {
     const state = murderState();
-    if (!state?.advantageNext?.[side]) return;
-    await writeState({ advantageNext: { ...state.advantageNext, [side]: false } });
+    const earned = state?.advantageNext?.[side];
+    if (earned !== key && earned !== true) return;
+    await writeState({ advantageNext: { ...state.advantageNext, [side]: null } });
 }
 
 async function spendStress(actor, done) {
@@ -3001,10 +3025,6 @@ async function spendStress(actor, done) {
 }
 
 /**
- * Hand the turn over. The victim always opens the incident, so a full round is
- * victim → killer, and the drain lands at the start of each of the victim's.
- */
-/**
  * Whether this GM's browser holds the running incident's cast (the round-2 review's
  * M1): a turn passed, or a third let in, from a browser that lost it wrote a rotation
  * worked out from nobody. Said to the GM, and pointed at what puts it back.
@@ -3019,65 +3039,78 @@ function castHeldHere(state) {
     return false;
 }
 
+/**
+ * WHO ACTS NEXT (`passTurn`). A ROUND IS: the victim, then EVERY killer in turn,
+ * then back to the victim. Not victim/killer strictly alternating - that gave a second
+ * killer the victim's own turn as breathing room, which is not what
+ * `killerTurnId` rotating between them was ever meant to buy them. With
+ * two killers the old rule read `turnSide` as "victim" or "killer" and
+ * flipped it every pass, so the sequence ran victim, killer(A), victim,
+ * killer(B), victim... - `killerTurnId` rotated correctly underneath, but
+ * the side switched back to the victim a turn too early every time.
+ *
+ * From the victim's turn, the round always restarts at the FIRST killer -
+ * not "whoever goes next in the rotation", which is `state.killerTurnId`
+ * left over from the round before. From a killer's turn, the round only
+ * returns to the victim once the LAST killer in `killerIds` has gone;
+ * otherwise it stays on the killers' side and steps to the next one.
+ *
+ * A TRAP HAS ONE SIDE (E32+E07 C9, 28.09.2026; audit S04-14). Its builder is not in the
+ * room, and a third who threw in with them holds no seat while the trap runs (settings.mjs
+ * `incidentSeats`), so nobody on the killers' side could ever act: every victim's action
+ * handed the turn to an empty chair until a GM pressed Pass, and the drain waited with it.
+ * In a trap the victim's turn passes to the victim - the round turns, the hindrances drop,
+ * the drain lands - which is the handbook's "alone with a trap".
+ *
+ * NOR DOES A DEAD KILLER TAKE A TURN (S04-42). The rotation skips every killer dead to the
+ * GMs (`isDeadForGm`); with none alive it runs as a trap's does, and the GMs are told and
+ * offered the close (`killerFell`).
+ */
+function nextTurn(state) {
+    const killers = killerIds(state);
+    const living = killers.filter(id => !isDeadForGm(game.actors.get(id)));
+    if (state.indirect || !living.length) return { next: "victim", killerTurnId: state.killerTurnId };
+    if (state.turnSide === "victim") return { next: "killer", killerTurnId: living[0] };
+    const at = killers.indexOf(state.killerTurnId ?? killers[0]);
+    const after = at >= 0 ? killers.slice(at + 1).find(id => living.includes(id)) : undefined;
+    return after ? { next: "killer", killerTurnId: after } : { next: "victim", killerTurnId: state.killerTurnId };
+}
+
 export async function passTurn() {
     if (!game.user.isGM) return null;
     const state = murderState();
     if (!state || state.stage !== "incident") return null;
     if (!castHeldHere(state)) return null;
 
-    /*
-     * A ROUND IS: the victim, then EVERY killer in turn, then back to the
-     * victim. Not victim/killer strictly alternating - that gave a second
-     * killer the victim's own turn as breathing room, which is not what
-     * `killerTurnId` rotating between them was ever meant to buy them. With
-     * two killers the old rule read `turnSide` as "victim" or "killer" and
-     * flipped it every pass, so the sequence ran victim, killer(A), victim,
-     * killer(B), victim... - `killerTurnId` rotated correctly underneath, but
-     * the side switched back to the victim a turn too early every time.
-     *
-     * From the victim's turn, the round always restarts at the FIRST killer -
-     * not "whoever goes next in the rotation", which is `state.killerTurnId`
-     * left over from the round before. From a killer's turn, the round only
-     * returns to the victim once the LAST killer in `killerIds` has gone;
-     * otherwise it stays on the killers' side and steps to the next one.
-     */
-    const killers = killerIds(state);
-    let next;
-    let killerTurnId = state.killerTurnId;
-
-    if (state.turnSide === "victim") {
-        next = "killer";
-        killerTurnId = killers[0] ?? null;
-    } else {
-        const current = state.killerTurnId ?? killers[0];
-        const at = killers.indexOf(current);
-        if (at >= 0 && at + 1 < killers.length) {
-            next = "killer";
-            killerTurnId = killers[at + 1];
-        } else {
-            next = "victim";
-        }
-    }
+    const { next, killerTurnId } = nextTurn(state);
 
     // The round completes once per full lap of the killers' side, not once
     // per killer - see the note above. Everything below that used to key off
     // "it is the victim's turn" still does, and now only fires that often.
     const turn = next === "victim" ? state.turn + 1 : state.turn;
 
-    // Tick down the two-turn hindrances at the top of each round.
+    /*
+     * A HINDRANCE COUNTS THE TURNS OF THE SIDE IT HINDERS (E32+E07 C9, 28.09.2026; audit
+     * S04-16). Pin them down and Keep your distance promise "two turns of disadvantage",
+     * and both hinder the victim. The counters used to drop at the top of each round
+     * (killer -> victim), so a Pin's 2 was 1 before the victim's first hindered turn and
+     * gone before their second: one turn, criticals (`blocked`) the same. They drop now
+     * when the hindered side's turn ends - the victim's as it passes, the killers' side's
+     * once its last killer has gone - and go at 0.
+     */
+    const ending = state.turnSide === "killer" && next === "killer" ? null : state.turnSide;
     const decay = store => {
-        const out = {};
-        for (const [side, actions] of Object.entries(state[store] ?? {})) {
-            out[side] = {};
-            for (const [key, turns] of Object.entries(actions)) {
-                if (turns > 1) out[side][key] = turns - 1;
-            }
+        const out = structuredClone(state[store] ?? {});
+        const counters = out[ending] ?? {};
+        for (const [key, turns] of Object.entries(counters)) {
+            if (turns > 1) counters[key] = turns - 1;
+            else delete counters[key];
         }
         return out;
     };
 
     const patch = { turnSide: next, turn, killerTurnId };
-    if (next === "victim") {
+    if (ending) {
         patch.hindered = decay("hindered");
         patch.blocked = decay("blocked");
     }
@@ -3092,6 +3125,40 @@ export async function passTurn() {
     }
 
     return murderState();
+}
+
+/**
+ * A KILLER DIED IN THE FIGHT (E32+E07 C9, 28.09.2026; audit S04-42) - a Despair Call, the
+ * Students list, anything but the fight's own ending. Until 1.2.66 the turn stayed with the
+ * dead killer until a GM pressed Pass, the next round handed it back to them, and with every
+ * killer dead nobody said the fight had no one left to fight it. Now the turn moves on
+ * past the dead (`nextTurn`), and once no killer is left alive the GMs are told and the
+ * primary GM is offered the close - once an incident: `drpgDeathsChanged` and the flag's
+ * `updateActor` can both report one death. A direct murder's alone; a trap's builder
+ * never holds a turn. `pass` false leaves the turn to an action being scored on this
+ * browser, which passes it itself once it is done.
+ */
+let noKillerTold = null;
+
+async function killerFell({ pass = true } = {}) {
+    const state = murderState();
+    if (!state || state.stage !== "incident" || state.indirect) return;
+    const killers = killerIds(state);
+    const dead = id => isDeadForGm(game.actors.get(id ?? ""));
+    if (!killers.some(dead)) return;
+    if (pass && state.turnSide === "killer" && dead(state.killerTurnId ?? killers[0])) await passTurn();
+    if (!killers.every(dead) || noKillerTold === state.openedAt) return;
+    noKillerTold = state.openedAt;
+    const words = game.i18n.localize("DRPG.Murder.noKillerLeft");
+    await whisperToGms(`<p>${words}</p>`);
+    const sure = await DialogV2.confirm({
+        classes: ["drpg-panel"],
+        window: { title: game.i18n.localize("DRPG.Murder.endMurder") },
+        content: `<p>${words}</p><p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`,
+        rejectClose: false
+    });
+    const now = murderState();
+    if (sure && now?.stage === "incident" && now.openedAt === state.openedAt) await endMurder();
 }
 
 /* ==========================================================================
@@ -3705,6 +3772,19 @@ export function registerMurder() {
             })
             .finally(() => { victimCheck = null; });
     });
+
+    // A killer dead in the fight, however it happened (`killerFell`): a death published on
+    // the actor, or one the GMs keep. One client decides, as above. The actor's half asks
+    // the predicate rather than the change's key: R192 keeps the flag's readers to
+    // settings.mjs, and `killerFell` does nothing twice for a killer already passed over.
+    const fell = () => {
+        if (!isPrimaryGm()) return;
+        killerFell({ pass: !resolving }).catch(err => error("Could not move the turn past a dead killer", err));
+    };
+    Hooks.on("updateActor", actor => {
+        if (killerIds().includes(actor.id) && isDeadForGm(actor)) fell();
+    });
+    Hooks.on("drpgDeathsChanged", fell);
 }
 
 /**

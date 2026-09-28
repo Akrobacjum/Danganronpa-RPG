@@ -21,7 +21,8 @@
  * or a trap's builder (1c, and the trap's last part). What a hit leaves is said to its
  * victim's player as "you" and to the others by name, each sent only their own line
  * (E32+E07 C7, 1d). A weapon a swing wears is worn by the GM after the blow, and its
- * notice reaches the killer's player alone (E32+E07 C8, 1e).
+ * notice reaches the killer's player alone (E32+E07 C8, 1e). In a trap the victim's action
+ * hands the turn back to the victim, with no Pass (E32+E07 C9, part 2).
  *
  * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it. In part 4
  * (E32 C5a) Botan is her accomplice, and turns on her at Stage 6.
@@ -757,6 +758,16 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         acted.stage === "incident" && acted.receipt === true && during.packets > 0 && during.builder === false
         && during.receipt === null && during.heldReceipt === false && during.card === during.victim && Boolean(during.victim),
         JSON.stringify({ acted, during }));
+
+    /* AND THE TURN IS THE VICTIM'S AGAIN, WITH NO PASS (E32+E07 C9, 28.09.2026; audit S04-14).
+       The builder is not in the room and holds no seat, so until 1.2.66 the victim's action
+       handed the turn to nobody - the victim's browser read "killer", round 1, not theirs -
+       and the fight waited for a GM to press Pass. Read on p1, from the victim's own copy. */
+    const again = await p1.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        const s = M.murderState();
+        return { side: s?.turnSide ?? null, turn: s?.turn ?? null, mine: M.isTheirTurn(game.actors.get("${ids.aiko}")) };`);
+    check("trap: after the victim's action the turn is theirs again on their own browser, a round on, with no Pass",
+        again.side === "victim" && again.turn === 2 && again.mine === true, JSON.stringify(again));
 
     /* NOTHING OF ANY CARD OF THE TRAP REACHES ITS BUILDER UNTIL STAGE 6 (E06 C4, 27.09.2026;
        audit S04-01, S10-04, L11 and L12). The GM moves the time of day while the trap runs (the

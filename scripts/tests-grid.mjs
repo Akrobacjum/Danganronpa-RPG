@@ -88,7 +88,8 @@ const FRESH = Object.freeze({
     unlocked: emptyList,
     spent: emptyList,
     drainStopped: v => !v,
-    advantageNext: v => none(v) || (!v.victim && !v.killer),
+    // Per side, the action a Hope miss earned a second try at (E32+E07 C9): none yet.
+    advantageNext: v => none(v) || (none(v.victim) && none(v.killer)),
     freeResolution: none,
     lastCrisis: none,
     swung: v => none(v) || !Object.keys(v).length,
@@ -161,7 +162,9 @@ const CASES = {
         steps: [["open"], ["opening", "hope"], ["act", "V", "selfDefence", "crit"], ["act", "V", "survive", "hit", { free: true }], ["close"]] },
     DM10: { title: "a blow that killed: its Reroll refused, the death stands",
         steps: [["open"], ["opening", "hope"], ["act", "K", "finishingBlow"], ["reroll", "K", "finishingBlow", "hit"], ["close"]] },
-    DM11: { title: "the killer dies in the fight", steps: [["open"], ["opening", "hope"], ["act", "V", "leaveClue"], ["listDeath", "K"], ["close"]] },
+    // E32+E07 C9 (S04-42): the victim acts on after the killer's death, and the turn skips the dead.
+    DM11: { title: "the killer dies in the fight",
+        steps: [["open"], ["opening", "hope"], ["act", "V", "leaveClue"], ["listDeath", "K"], ["act", "V", "leaveClue"], ["close"]] },
     DM12: { title: "the victim dies from the Students list in the fight", steps: [["open"], ["opening", "hope"], ["listDeath", "V"], ["close"]] },
     DM13: { title: "a Tier 1 knife in hand and a failed opening", steps: [["gear", "K", "knife"], ["open"], ["opening", "fail"]] },
     DM14: { title: "the victim runs out while the hook's check races the action's",
@@ -202,9 +205,10 @@ const CASES = {
     TP13: { title: "the third asks to use an item, then chooses Partners in crime", third: true,
         steps: [["open"], ["opening", "hope"], ["enter", "T"], ["act", "T", "useItem", "hit", { refused: true }], ["act", "T", "crimePartners"],
             ["act", "K", "finishingBlow"], ["close"]] },
+    // E32+E07 C9 (S04-42): after the accomplice's death the round runs on, and the killers' side skips them.
     TP14: { title: "the accomplice dies in the fight", third: true,
         steps: [["open"], ["opening", "hope"], ["enter", "T"], ["act", "T", "crimePartners"], ["act", "V", "leaveClue"], ["act", "K", "strike"],
-            ["listDeath", "T"], ["close"]] },
+            ["listDeath", "T"], ["act", "V", "leaveClue"], ["act", "K", "strike"], ["close"]] },
 
     // A trap: the victim rolls the opening, the builder is not in the room.
     TR01: { title: "a trap whose victim notices it, and the GM's close", kind: "trap", steps: [["open"], ["opening", "notice"], ["close"]] },
@@ -256,7 +260,6 @@ const CASES = {
 
 const GRID_RED = {
     DM02: expectedRed("E07", "S04-20: the gloves in the killer's hand are not broken by a discovery after the close (C12)", { failing: "I12" }),
-    DM11: expectedRed("E07", "S04-42: a killer who died in the fight still holds the killers' turn (C9)", { failing: "I9" }),
     DM12: expectedRed("E07", "S10-77: the victim's death from the Students list in the fight offers no Stage 6 (C13)", { failing: "I10" }),
     DM13: expectedRed("E07", "S04-17: a failed opening breaks the weapon in the killer's hand (C12)", { failing: "I12" }),
     TP04: expectedRed("E07", "S04-06: Role reversal is offered against an accomplice (C11a)", { failing: "I11" }),
@@ -264,13 +267,10 @@ const GRID_RED = {
     TP08: expectedRed("E07", "S04-21: a third who averted their eyes walks back in by their token (C10)", { failing: "I13" }),
     TP10: expectedRed("E07", "S04-21: a failed escape's third still counts, and a fourth walking in crowds the incident out (C10)", { failing: "I13" }),
     TP13: expectedRed("E07", "S04-33: a third is let take Use an item, an action of the two sides (C10)", { failing: "I10" }),
-    TP14: expectedRed("E07", "S04-42: an accomplice who died in the fight holds the killers' turn (C9)", { failing: "I9" }),
-    TR02: expectedRed("E07", "S04-14: after the victim's action a trap's builder holds the turn (C9)", { failing: "I9" }),
-    TR03: expectedRed("E07", "S04-06: Role reversal is offered in a trap (C11a); S04-14: the builder's turn (C9)", { failing: "I11" }),
+    TR03: expectedRed("E07", "S04-06: Role reversal is offered in a trap (C11a)", { failing: "I11" }),
     TR05: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "I11" }),
-    TR06: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a); S04-14: the builder's turn (C9)", { failing: "I11" }),
+    TR06: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "I11" }),
     TR07: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "I11" }),
-    TR08: expectedRed("E07", "S04-14: after the victim's action a trap's builder holds the turn (C9)", { failing: "I9" }),
     TR09: expectedRed("E07", "S10-77: a trap's victim's death from the Students list offers no Stage 6 (C13)", { failing: "I10" }),
 };
 
@@ -555,16 +555,29 @@ const STEPS = {
      * A DEATH FROM THE STUDENTS LIST: the GM panel's "dead" (gm-panel.mjs `applyAliveStates`),
      * which makes the death the table's at once - so a victim's body is found as it falls.
      * The rules (D13): the victim's death in the fight offers Stage 6, which the GM takes; a
-     * killer's leaves the fight standing.
+     * killer's leaves the fight standing, and moves the turn on past them (S04-42, E32+E07
+     * C9) - which the primary GM's hook does after the flag lands, so it is waited for, as
+     * `runOut` waits for the death. With no killer left alive the GMs are offered the close
+     * (`answerDialogs` declines it; the case's own close follows): not offered is I9's.
      */
     async listDeath(run, who) {
         const { applyAliveStates } = await import("./gm-panel.mjs");
+        const { isDeadForGm } = await import("./chapter.mjs");
         const actor = run.who[who], m = run.model;
+        const offers = run.closeOffers;
         must(await applyAliveStates({ [actor.id]: { state: "dead" } }), `${actor.name}'s death from the list was not recorded`);
         run.dead.add(actor.id);
         if (m?.stage === "incident" && m.victimId === actor.id) {
             stageSix(run, { body: true });
             run.bodies.get(actor.id).discovered = true;
+        }
+        if (m?.stage !== "incident" || m.kind === "trap" || !killersOf(m).includes(actor.id)) return;
+        await until(() => {
+            const state = run.M.murderState();
+            return state?.turnSide !== "killer" || !isDeadForGm(game.actors.get(state.killerTurnId ?? state.killerId ?? ""));
+        }, 3000);
+        if (killersOf(m).every(id => run.dead.has(id)) && !await until(() => run.closeOffers > offers, 3000)) {
+            run.violate("I9", "no killer is left alive and the GMs were not offered the close");
         }
     },
 
@@ -849,7 +862,7 @@ const label = pair => pair ? pair.split(">").map(nameOf).join(" against ") : "no
 /**
  * The windows a case opens, answered as a GM would, and put back in `finally` (the
  * plan's `answerDialogs`): two killers' ran-out ("end now"), Stage 6 after the victim's
- * death (yes), the checklist (the case's `checklist`, else Close), the escape's (Close), and the
+ * death (yes), the close offered once no killer is alive (no, counted), the checklist (the case's `checklist`, else Close), the escape's (Close), and the
  * third's own two in an Eclipse - the betrayal's confirmation (yes) and its note (E32 C5b). Anything
  * else is closed unanswered and its title kept.
  */
@@ -860,6 +873,10 @@ async function answerDialogs(run, fn) {
     D.confirm = async cfg => {
         const title = cfg?.window?.title ?? "";
         if (title === t("DRPG.Murder.ranOutTitle") || title === t("DRPG.Chapter.stageSixTitle")) return true;
+        if (title === t("DRPG.Murder.endMurder")) {
+            run.closeOffers++;
+            return false;
+        }
         if (title === t("DRPG.Murder.betrayalTitle")) return true;
         run.dialogs.push(title);
         return false;
@@ -941,6 +958,7 @@ async function runCase(id) {
         blackened: new Set(), blackenedBefore: M.blackenedIds(), bodies: new Map(), dead: new Set(), items: new Map(), broken: new Set(),
         swung: new Map(), places: new Map(), everIn: new Set(), packets: [], messages: [], dialogs: [], ranOuts: 0,
         turnFloor: 0, fresh: false, undone: false, at: 0, stepStarted: 0, stopped: false, beforeAct: null, room: null, checklist: null, brink: false,
+        closeOffers: 0,
         /* One line per distinct violation, at the first step it was seen, and how many steps after it still saw it. */
         violate(inv, what, at = run.at) {
             const seen = found.find(f => f.inv === inv && f.what === what);

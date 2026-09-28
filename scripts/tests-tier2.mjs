@@ -2820,6 +2820,105 @@ const SCENARIOS = [
         equal(murder.murderState().killerTurnId, killer.id, "the next round opens on the first killer again");
     }],
 
+    ["Pin hinders two victim turns, and a critical Pin blocks two", async () => {
+        /* E32+E07 C9, 28.09.2026; audit S04-16. Pin them down promises "two turns of
+           disadvantage" on Leave a clue and Survive; its counter dropped at the top of each round,
+           so the victim's second turn was free - [true, false, false] at C8's tree, a critical's
+           `blocked` the same. Each read is the victim's own turn; the victim's reserves are
+           cleared before each lap so the drain cannot run them out between reads. The killer
+           and the victim are connected players', as the grid picks them (E05 handoff: an
+           unowned killer's opening raced the GM's answer). */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const calm = () => victim.update({ "system.resources.stress.value": 0, "system.resources.hitPoints.value": 0 });
+        const clue = () => M.availableCrisisActions(victim).find(a => a.key === "leaveClue") ?? {};
+        const lap = async () => { await calm(); await M.passTurn(); await M.passTurn(); await settle(); };
+        await calm();
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "incident", "the fight did not start");
+        const read = [];
+        for (const isCritical of [false, true]) {
+            if (!M.isTheirTurn(killer)) await M.passTurn();
+            await M.resolveCrisisAction({ actorId: killer.id, key: "pin", total: 20, isCritical, withHope: true });
+            await settle();
+            must(M.isTheirTurn(victim), "the Pin did not hand the turn to the victim");
+            const store = isCritical ? "blocked" : "hindered";
+            for (let turn = 0; turn < 3; turn++) {
+                if (turn) await lap();
+                read.push(Boolean(clue()[store]));
+            }
+        }
+        equal(JSON.stringify(read), JSON.stringify([true, true, false, true, true, false]),
+            "Pin did not hinder the victim's next two turns and no third, or a critical Pin did not block them so");
+    }],
+
+    ["advantage on the next attempt goes to the same action only", async () => {
+        /* E32+E07 C9, 28.09.2026; audit S04-32. A Leave a clue missed with Hope earned
+           "advantage on the next attempt", written as a flag per side and spent by the side's next
+           action, whatever it was. It names the action now: another action is not helped and does
+           not spend it, and the next Leave a clue is and does. Read through `crisisSituational`,
+           the dice the roll arms, against the same action's before the miss. */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const toVictim = async () => { for (let i = 0; i < 3 && !M.isTheirTurn(victim); i++) await M.passTurn(); };
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "incident", "the fight did not start");
+        const base = { clue: M.crisisSituational(victim, "leaveClue"), trace: M.crisisSituational(victim, "secureTrace") };
+        await M.resolveCrisisAction({ actorId: victim.id, key: "leaveClue", total: 2, isCritical: false, withHope: true });
+        await settle();
+        await toVictim();
+        const earned = M.murderState()?.advantageNext?.victim ?? null;
+        const helps = { clue: M.crisisSituational(victim, "leaveClue") - base.clue, trace: M.crisisSituational(victim, "secureTrace") - base.trace };
+        await M.resolveCrisisAction({ actorId: victim.id, key: "secureTrace", total: 2, isCritical: false, withHope: false });
+        await settle();
+        const kept = M.murderState()?.advantageNext?.victim ?? null;
+        await toVictim();
+        await M.resolveCrisisAction({ actorId: victim.id, key: "leaveClue", total: 20, isCritical: false, withHope: true });
+        await settle();
+        equal(JSON.stringify([earned, helps, kept, M.murderState()?.advantageNext?.victim ?? null]),
+            JSON.stringify(["leaveClue", { clue: 1, trace: 0 }, "leaveClue", null]),
+            "the second try is not Leave a clue's, helps another action, is spent by it, or outlives the clue's next attempt");
+    }],
+
+    ["a trap's victim acts again without a Pass", async () => {
+        /* E32+E07 C9, 28.09.2026; audit S04-14. A trap's builder is not in the room and holds no
+           seat, so the killers' side can never act; every victim's action handed the turn to it
+           and the fight stood until a GM pressed Pass, the drain with it. The victim's action now
+           passes the turn to the victim: the round turns, the trap's drain (2) lands, and the
+           victim may act. At C8's tree: ["killer", 0, false, "not their turn", 0]. */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a builder, and a victim whose player is asked the opening roll");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { INCIDENT } = await import("./config.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim] = livingStudents().filter(player);
+        await victim.update({ "system.resources.stress.value": 0, "system.resources.hitPoints.value": 0 });
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        // The victim's player is asked the roll too; whichever lands first, a miss starts the incident.
+        if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await settle();
+        must(M.murderState()?.stage === "incident" && M.isTheirTurn(victim), "the trap did not spring on the victim's turn");
+        const turn = M.murderState().turn;
+        const stress = victim.system.resources.stress.value;
+        await M.resolveCrisisAction({ actorId: victim.id, key: "leaveClue", total: 20, isCritical: false, withHope: true });
+        await settle();
+        const now = M.murderState();
+        equal(JSON.stringify([now?.turnSide, now?.turn - turn, M.isTheirTurn(victim), M.crisisRefusal(victim, "secureTrace")?.why ?? null,
+            victim.system.resources.stress.value - stress]),
+        JSON.stringify(["victim", 1, true, null, INCIDENT.drain.indirect]),
+        "after the victim's action a trap's turn is not the victim's again, the round did not turn, or the drain did not land");
+    }],
+
     ["a Finishing Blow leaves the victim unflagged, dead to the GMs, until the discovery publishes it", async () => {
         /* E05 C10, 26.09.2026; audit S06-11. The blow used to write the flag, the "dead" status
            and the Truth Bullets' deletion at once, which every console reads; the victim is a
