@@ -33,6 +33,16 @@
  * directly, the same card. With no GM connected there is nobody to ask, and the caller
  * posts it as before: its header is hidden (`drpg-safeword-unsigned`), and the author
  * stays in the document.
+ *
+ * WHEN NO GM'S BROWSER ANSWERS (E06 fix r2-G3, 28.09.2026; the round-2 review's security mn6
+ * = correctness M1). A GM counts as connected many seconds before their module listens -
+ * measured on a live reload, gm-bridge.mjs `registerGmBridge` - and a packet that reaches no
+ * listener is gone: the review's probe pressed through such a GM and got no card on four
+ * screens and no pause, while the caller's own card said the scene was stopped. So a player's
+ * press waits `TIMING.safewordAnswerMs` for a card to land (`awaitCard`), and when none has,
+ * the caller posts it as with no GM connected - the header hidden, the caller the author in
+ * the document, the pause keyed off the card as ever - and the caller's card says that their
+ * browser posted it. A GM who answers inside the window still posts the only card.
  */
 
 import { MODULE_ID, TIMING } from "./config.mjs";
@@ -125,7 +135,8 @@ export function safewordCard() {
  *
  * A GM posts their own; a player asks the GMs, unless none is connected - a packet to
  * nobody would stop nothing, and stopping the scene outranks keeping the caller's name
- * off the document (the header is still hidden, `drpg-safeword-unsigned`).
+ * off the document (the header is still hidden, `drpg-safeword-unsigned`). A player who
+ * asked and got no card in time posts it after all (`awaitCard`), for the same reason.
  */
 export function safewordPoster(user = game.user, gmsOnline = activeGmIds()) {
     return user?.isGM || !gmsOnline.length ? "caller" : "gm";
@@ -141,17 +152,74 @@ export function safewordPoster(user = game.user, gmsOnline = activeGmIds()) {
  */
 export const safewordPosts = new Map();
 
-/** The caller's own card, raised at once; the GM's card arriving here is then not raised again. */
+/** The caller's own card, raised at once; the first card to land here after it - the GM's, or
+ *  this browser's own when no GM answered - is then not raised again. */
 let ownCallAt = 0;
 
+/**
+ * When a GM's card last answered a press from this browser (E06 fix r2-G3). The primary GM
+ * posts a player's card once per `TIMING.safewordRepeatMs` and swallows a press inside that
+ * window (`hearSafeword`), so a press inside it here waits for nothing and posts nothing: the
+ * card that answered the last one stands. Counted from the landing, which comes after the
+ * GM's own stamp, so this window never closes before the GM's does.
+ */
+let gmAnsweredAt = -Infinity;
+
+/** The presses on this browser waiting for a card; the create hook hands each the first to land. */
+const waiting = new Set();
+
+/** The first safeword card to land on this browser within `ms`, or null. */
+function nextCard(ms) {
+    return new Promise(resolve => {
+        const done = message => {
+            clearTimeout(timer);
+            waiting.delete(done);
+            resolve(message);
+        };
+        const timer = setTimeout(() => done(null), ms);
+        waiting.add(done);
+    });
+}
+
+/** Raise the card. Its paragraph is returned, for the caller's card to say more (`awaitCard`). */
 function raiseCard() {
-    showPopup(`<p>${game.i18n.localize("DRPG.Safeword.announced")}</p>`, {
+    const said = document.createElement("p");
+    said.textContent = game.i18n.localize("DRPG.Safeword.announced");
+    showPopup(said, {
         title: game.i18n.localize("DRPG.Safeword.banner"),
         kind: "error",
         // Stays until dismissed by hand. A scene that has been stopped does
         // not un-stop itself after twelve seconds.
         sticky: true
     });
+    return said;
+}
+
+/**
+ * A player's press with a GM connected, once the packet has gone (E06 fix r2-G3). The first
+ * card to land within `TIMING.safewordAnswerMs` answers it - the GM's, as C9 has it. When none
+ * lands, this browser posts the card itself, as it does with no GM connected, and `said` (the
+ * caller's card, raised at the press) says so; a card that could not be posted leaves `said`
+ * saying that instead. Another player's card landing first has told the table the same thing,
+ * and this browser posts nothing more.
+ */
+async function awaitCard(said) {
+    const card = await nextCard(TIMING.safewordAnswerMs);
+    if (card?.author?.isGM) {
+        gmAnsweredAt = Date.now();
+        return;
+    }
+    if (!card) {
+        try {
+            await announce(safewordCard());
+        } catch (err) {
+            said.textContent = game.i18n.localize("DRPG.Safeword.failed");
+            throw err;
+        }
+    } else if (card.author?.id !== game.user.id) return;
+    const note = document.createElement("p");
+    note.textContent = game.i18n.localize("DRPG.Safeword.selfPosted");
+    said.after(note);
 }
 
 /**
@@ -166,7 +234,8 @@ export async function callSafeword({ room = null } = {}) {
         // off - the pause and the card both hang from this one message rather
         // than from a socket, so a client that missed a packet still stops.
         // A player with a GM connected does not post it: the primary GM does,
-        // on the packet below (`hearSafeword`).
+        // on the packet below (`hearSafeword`) - or, when no card lands in
+        // time, this browser does after all (`awaitCard`).
         const poster = safewordPoster();
         if (poster === "caller") await announce(safewordCard());
 
@@ -184,7 +253,8 @@ export async function callSafeword({ room = null } = {}) {
         //
         // For a GM's own call this is best-effort: the GMs still know a
         // safeword was called, from the public message, and can ask. For a
-        // player's it is the call itself - the GM's card hangs from it.
+        // player's it is the call itself - the GM's card hangs from it, and
+        // when it reaches no listener the caller's own card does (`awaitCard`).
         game.socket.emit(`module.${MODULE_ID}`, {
             action: SAFEWORD_ACTION,
             room: room ?? null
@@ -195,10 +265,14 @@ export async function callSafeword({ room = null } = {}) {
         if (game.user.isGM) showGmDetail(game.user.name, room);
 
         // A player who asked the GMs sees the card at once, as everybody else
-        // does when the GM's card lands - here that landing is not raised twice.
+        // does when the GM's card lands - here that landing is not raised twice -
+        // and waits for that card, unless the GM would swallow this press as a
+        // repeat of one it answered (`gmAnsweredAt`).
         if (poster === "gm") {
+            const repeat = Date.now() - gmAnsweredAt < TIMING.safewordRepeatMs;
             ownCallAt = Date.now();
-            raiseCard();
+            const said = raiseCard();
+            if (!repeat) await awaitCard(said);
         }
 
         log(`Safeword called by ${game.user.name}.`);
@@ -297,9 +371,13 @@ export function registerSafeword() {
     Hooks.on("createChatMessage", message => {
         if (!message.getFlag(MODULE_ID, SAFEWORD_FLAG)) return;
 
+        // A press on this browser waiting for its card takes the first to land (`awaitCard`).
+        for (const done of [...waiting]) done(message);
+
         // Every client raises the card, including the caller's - seeing it land
         // is the confirmation that the table now knows. A player who asked the
-        // GMs raised it at the press; the GM's card is that one, arriving.
+        // GMs raised it at the press; the GM's card - or its own, when none
+        // came in time - is that one, arriving.
         if (ownCallAt && Date.now() - ownCallAt < TIMING.safewordRepeatMs) ownCallAt = 0;
         else raiseCard();
 

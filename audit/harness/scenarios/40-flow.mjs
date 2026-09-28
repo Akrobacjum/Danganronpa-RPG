@@ -253,6 +253,72 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     await canary.chatScan({ who: ["p1", "p2"], actorIds: [IDS.chie], names: ["Chie Mori", "PlayerThree"], userIds: [p3.userId] });
     await gm.eval(`if (game.paused) game.togglePause(false); return true;`);
 
+    /* NO GM'S BROWSER ANSWERS (E06 fix r2-G3, 28.09.2026; the round-2 review's security mn6 =
+       correctness M1). A GM counts as connected many seconds before their module listens (a reload,
+       gm-bridge.mjs), and the packet is dropped: at a202714 nothing was posted and nothing paused
+       while the caller's card said the scene was stopped (these checks at its runtime, 28.09: no new
+       card on any of the four clients, not paused, p1's card as ever). Here the GM's module listeners
+       pass the packet by, as a reloading GM's do, and p1 presses: after `TIMING.safewordAnswerMs`
+       p1's own browser posts the card, as with no GM connected - one new card on every client, p1
+       its author - the primary GM's browser pauses on it, and p1's card says its browser posted
+       it, where p3's (the GM answered) does not. Then p3 presses again inside the window of the
+       card the GM posted for it, the GM listening: the GM swallows that (C9), and so does p3. */
+    const swAuthors = c => c.eval(`const S = await import("${REPO}/scripts/safeword.mjs");
+        return game.messages.contents.filter(m => m.getFlag("${MOD}", S.SAFEWORD_FLAG)).map(m => m._source.author);`);
+    const swPopups = c => c.eval(`const banner = game.i18n.localize("DRPG.Safeword.banner");
+        return [...document.querySelectorAll(".drpg-popup-sticky")]
+            .filter(p => p.querySelector(".drpg-popup-title")?.firstChild?.textContent.trim() === banner)
+            .map(p => ({ seq: Number(p.dataset.drpgSeq), body: p.querySelector(".drpg-popup-body")?.textContent.trim() ?? "" }));`);
+    const quiet0 = {};
+    for (const c of [gm, p1, p2, p3]) quiet0[c.who] = (await swAuthors(c)).length;
+    const p1Seq0 = Math.max(0, ...(await swPopups(p1)).map(p => p.seq));
+    await gm.eval(`const S = await import("${REPO}/scripts/safeword.mjs");
+        const list = game.socket._handlers.get("module.${MOD}");
+        globalThis.__swListening = [...list];
+        list.splice(0, list.length, ...globalThis.__swListening.map(fn => (p, s) => p?.action === S.SAFEWORD_ACTION ? undefined : fn(p, s)));
+        return true;`);
+    let quiet;
+    try {
+        quiet = await p1.eval(`const S = await import("${REPO}/scripts/safeword.mjs");
+            const { TIMING } = await import("${REPO}/scripts/config.mjs");
+            const t = performance.now();
+            const ok = await S.callSafeword({});
+            return { ok, ms: Math.round(performance.now() - t), window: TIMING.safewordAnswerMs ?? null };`, { timeout: 30000 }).catch(e => String(e));
+        // As long as the review's probe gave 1.2.64's code: five seconds for a card to reach p2.
+        await p2.eval(`const S = await import("${REPO}/scripts/safeword.mjs");
+            for (let i = 0; i < 50 && game.messages.contents.filter(m => m.getFlag("${MOD}", S.SAFEWORD_FLAG)).length <= ${quiet0.p2}; i++)
+                await new Promise(r => setTimeout(r, 100));
+            return true;`, { timeout: 30000 });
+        await settle(800);
+    } finally {
+        await gm.eval(`const list = game.socket._handlers.get("module.${MOD}");
+            list.splice(0, list.length, ...globalThis.__swListening); delete globalThis.__swListening; return true;`);
+    }
+    const quietCards = {};
+    for (const c of [gm, p1, p2, p3]) quietCards[c.who] = (await swAuthors(c)).slice(quiet0[c.who]);
+    const quietPaused = await gm.eval(`return game.paused;`);
+    check("a press no GM's browser answers: after the wait the caller posts it, one card on every client, and the game pauses",
+        quiet?.ok === true && quiet.ms >= (quiet.window ?? Infinity) && quietPaused === true
+            && Object.values(quietCards).every(a => a.length === 1 && a[0] === p1.userId),
+        JSON.stringify({ quiet, cards: quietCards, paused: quietPaused, p1: p1.userId }));
+    const selfPosted = await p1.eval(`return game.i18n.localize("DRPG.Safeword.selfPosted");`);
+    const p1Said = (await swPopups(p1)).filter(p => p.seq > p1Seq0);
+    const p3Said = await swPopups(p3);
+    check("p1's card says its own browser posted it, and p3's, which the GM answered, does not",
+        p1Said.length === 1 && p1Said[0].body.includes(selfPosted) && p3Said.length > 0 && !p3Said.some(p => p.body.includes(selfPosted)),
+        JSON.stringify({ p1: p1Said, p3: p3Said.map(p => p.body.slice(-70)), selfPosted }));
+    const again0 = (await swAuthors(p2)).length;
+    const again = await p3.eval(`const S = await import("${REPO}/scripts/safeword.mjs");
+        const { TIMING } = await import("${REPO}/scripts/config.mjs");
+        const ok = await S.callSafeword({});
+        await new Promise(r => setTimeout(r, (TIMING.safewordAnswerMs ?? 3000) + 500));
+        return ok;`, { timeout: 30000 }).catch(e => String(e));
+    await settle(500);
+    const againCards = (await swAuthors(p2)).slice(again0);
+    check("p3 again inside the window of the GM's card: the GM posts nothing, and neither does p3's browser",
+        again === true && againCards.length === 0, JSON.stringify({ again, cards: againCards }));
+    await gm.eval(`if (game.paused) game.togglePause(false); return true;`);
+
     // ---- 6. a Despair Call aimed at p1 -----------------------------------------------------------
     phase("a Despair Call", { flow: "despair" });
     await clearLogs();

@@ -844,7 +844,7 @@ Clicking any standing panel - the clock, the Despair rail, the status strip, the
 2. everybody sees the same "THE SCENE IS STOPPED" card and hears the safeword sound at full volume;
 3. every GM gets a sticky note saying who called it and, when it was pressed on a sheet, from which room.
 
-Nobody else is told who: a player's press asks the primary GM's browser to post the card, so no player's name is on it. With no GM connected the caller's own browser posts it - its header shows no name, but the card's record names the caller as its author, as every card a player's browser posts does (section 1). The Event panel keeps a "The scene is stopped" card up, with no name on it, for as long as the game stays paused.
+Nobody else is told who: a player's press asks the primary GM's browser to post the card, so no player's name is on it. With no GM connected the caller's own browser posts it - its header shows no name, but the card's record names the caller as its author, as every card a player's browser posts does (section 1). The same goes for a press no GM's browser answers within three seconds (`TIMING.safewordAnswerMs`) - a GM connected but reloading, whose module is not listening yet: the caller's browser posts the card then, and the caller's own card says so, a GM whose browser was not listening is not told who called it, and the game pauses only if the primary GM's browser sees the card arrive - if yours was still loading, pause it by hand. The Event panel keeps a "The scene is stopped" card up, with no name on it, for as long as the game stays paused.
 
 > [!CAUTION]
 > There is no reason field and no target: the scene is being stopped, not an accusation filed. Sort it out with the person, then resume from a point everyone agrees on.

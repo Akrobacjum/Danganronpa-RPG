@@ -2947,6 +2947,7 @@
       "gmNote": "{who} used it, in {room}. Nobody else has been told who - the table only knows the scene stopped.",
       "roomUnknown": "no room recorded",
       "failed": "The safeword could not be sent. Say it out loud and tag a GM.",
+      "selfPosted": "No GM's browser answered in time, so yours posted the card. Tag a GM in the text channel.",
       "gmTitle": "Safeword - GM only",
       "kept": "This world already had a safeword, so it has been kept: “{word}”. Change it in Season setup."
     },

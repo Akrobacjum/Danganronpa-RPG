@@ -342,6 +342,14 @@ export const TIMING = {
      *  not a measurement: long enough to swallow a double press and a held key, short enough
      *  that a second stop a minute later is a new card. */
     safewordRepeatMs: 60000,
+    /** How long a player's safeword press waits for a card to land before that player's
+     *  browser posts it itself (safeword.mjs `awaitCard`, E06 fix r2-G3). Measured
+     *  28.09.2026 in the headless harness: the primary GM's card landed on the caller
+     *  10-29 ms after the press before this wait was written and 15-79 ms after (8 presses
+     *  each, medians 21 and 22) - the module's own work over the harness's in-process bus,
+     *  with no network in it. A real table's round trip is not measured here (LIVE-E06-05);
+     *  three seconds is the review's figure, some forty times the slowest of those. */
+    safewordAnswerMs: 3000,
     /** How long an Observe waits for its ruling before the bookmark is swept. */
     pendingObserveTtlMs: 60 * 60 * 1000,
     /** How many private cards' words a browser keeps; beyond this the oldest go. */

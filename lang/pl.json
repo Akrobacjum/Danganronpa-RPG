@@ -3063,6 +3063,7 @@
       "gmNote": "Użył: {who}, w: {room}. Nikomu innemu nie powiedziano kto - stół wie tylko, że scena stanęła.",
       "roomUnknown": "nie zapisano pokoju",
       "failed": "Nie udało się wysłać safeword. Powiedz to na głos i zawołaj GM-a.",
+      "selfPosted": "Przeglądarka żadnego GM-a nie odpowiedziała na czas, więc kartę wystawiła twoja. Zawołaj GM-a na kanale tekstowym.",
       "gmTitle": "Safeword - tylko GM",
       "kept": "Ten świat miał już safeword, więc zostało zachowane: „{word}”. Zmień je w Ustawieniach sezonu."
     },
