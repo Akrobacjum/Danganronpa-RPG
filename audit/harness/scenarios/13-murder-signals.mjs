@@ -368,9 +368,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     /* A CARD ANOTHER FILE POSTS FOR A ROLL OF THE FIGHT, FROM THE PLAYER'S OWN BROWSER (E06 fix
        r1-G3, 28.09.2026; review M2). A tool Chie holds breaks on a Despair on p3's browser
        (use-items.mjs `breakOnDespair`, driven with a Despair result as tier 2 drives it): the
-       card is veiled by the cast p3's copy holds (settings.mjs `incidentVeil`), so the
-       bystander's copy of it names neither Chie nor her player past its author (Q2 (a): the
-       author stays until E28), and its words go to p3 alone of the players. */
+       card is veiled while the incident runs (secret.mjs `incidentVeils`; until fix r2-G2 by the
+       cast p3's copy holds, settings.mjs `incidentVeil`), so the bystander's copy of it names
+       neither Chie nor her player past its author (Q2 (a): the author stays until E28), and its
+       words go to p3 alone of the players. */
     const toolId = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
         return (await INV.grantItem(game.actors.get("${ids.chie}"), { name: "Suite tool snapped in the fight", category: "tool", tier: 0 }))?.id ?? null;`, { timeout: 60000 });
     await settle(600);
@@ -395,6 +396,78 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         && brokeSeen.killer.held && [brokeSeen.victim, brokeSeen.bystander].every(r => r.words === 0 && !r.held)
         && brokeSeen.bystander.docs === 1 && brokeSeen.bystander.veiled && !brokeSeen.bystander.named && brokeSeen.bystander.everybody,
         JSON.stringify({ toolId, broke, brokeSeen }));
+
+    /* A USE IN THE FIGHT, AND A BYSTANDER'S, EACH FROM ITS PLAYER'S OWN BROWSER (E06 fix r2-G2,
+       28.09.2026; review round 2's MJ2 and m6). The victim takes "Use an item" with a tier 1 kit
+       on p1's browser, as the review measured it; the bystander, on p2's, drinks a kit of their
+       own, breaks a tool on a Despair, and buys the killer a Support, which the primary GM's bridge
+       tells Chie's player of. While the incident runs every one of those cards is veiled, whoever
+       posts it (secret.mjs `incidentVeils`): on every browser its document names no student and no
+       player past its author (Q2 (a)) and addresses everybody, and its words reach its reader
+       alone. Until this fix the victim's card spoke as Aiko to the GMs and p1 on p2's browser, and
+       the bystander's went plain where a participant's tool card went veiled. */
+    const texts = await gm.eval(`const esc = foundry.utils.escapeHTML;
+        return { used: game.i18n.format("DRPG.Items.used", { item: esc("Suite kit used in the fight") }),
+            drunk: game.i18n.format("DRPG.Items.used", { item: esc("Suite kit a bystander drinks") }),
+            broke: game.i18n.format("DRPG.Items.brokeOnDespair", { item: esc("Suite tool a bystander breaks") }),
+            support: game.i18n.format("DRPG.Calls.armedForYou", { what: game.i18n.localize("DRPG.Calls.grants.advantage") }) };`);
+    const handed = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const M = await import("${repoUrl}/scripts/murder.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        if (!M.isTheirTurn(game.actors.get("${ids.aiko}"))) await M.passTurn();
+        const aiko = game.actors.get("${ids.aiko}"), botan = game.actors.get("${ids.botan}");
+        const kit = (a, name) => INV.grantItem(a, { name, category: "usable", tier: 1, goal: "healing", quiet: true });
+        await automatedUpdate(botan, { "system.resources.hope.value": Math.max(1, botan.system?.resources?.hope?.value ?? 0) });
+        return { kit: (await kit(aiko, "Suite kit used in the fight"))?.id ?? null, drink: (await kit(botan, "Suite kit a bystander drinks"))?.id ?? null,
+            tool: (await INV.grantItem(botan, { name: "Suite tool a bystander breaks", category: "tool", tier: 1, quiet: true }))?.id ?? null,
+            turn: M.isTheirTurn(aiko) };`, { timeout: 60000 });
+    await settle(600);
+    for (const c of [p1, p2, p3]) await c.eval(`globalThis.__useMark = new Set(game.messages.contents.map(m => m.id)); return true;`);
+    const took = await p1.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        globalThis.__dialogAnswers.push(true, true);
+        globalThis.__forceRoll = { hope: 11, fear: 5 };
+        try { const r = await M.takeCrisisAction(game.actors.get("${ids.aiko}"), "useItem", { itemId: "${handed.kit}" }); return { total: r?.roll?.total ?? null }; }
+        finally { delete globalThis.__forceRoll; globalThis.__dialogAnswers.length = 0; }`, { timeout: 60000 });
+    const bought = await p2.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs");
+        const C = await import("${repoUrl}/scripts/call-effects.mjs");
+        const botan = game.actors.get("${ids.botan}");
+        globalThis.__dialogAnswers.push(true);
+        try { await U.useItem(botan, botan.items.get("${handed.drink}")); } finally { globalThis.__dialogAnswers.length = 0; }
+        const broke = await U.breakOnDespair(botan, botan.items.get("${handed.tool}"), { withFear: true, isCritical: false });
+        const armed = await C.armCall(game.actors.get("${ids.chie}"), { key: "support", kind: "hope", grants: "advantage", from: botan.id });
+        return { broke, armed };`, { timeout: 60000 });
+    await settle(1500);
+    /* Each reader finds its cards by the words it holds; then every browser reads those documents. */
+    const FOUND = keys => `const S = await import("${repoUrl}/scripts/secret.mjs");
+        const texts = ${JSON.stringify(texts)};
+        const fresh = game.messages.contents.filter(m => !globalThis.__useMark.has(m.id));
+        return Object.fromEntries(${JSON.stringify(keys)}.map(k => [k, fresh.find(m => String(S.contentOf(m) ?? "").includes(texts[k]))?.id ?? null]));`;
+    const cardIds = { ...await p1.eval(FOUND(["used"])), ...await p2.eval(FOUND(["drunk", "broke"])), ...await p3.eval(FOUND(["support"])) };
+    const USE_READ = `const S = await import("${repoUrl}/scripts/secret.mjs");
+        const texts = ${JSON.stringify(texts)}, ids = ${JSON.stringify(cardIds)};
+        const players = ${JSON.stringify([p1.userId, p2.userId, p3.userId])};
+        const look = d => ({ veiled: d.flags?.["${MOD}"]?.veiled === true,
+            named: JSON.stringify([d.speaker, d.system, d.rolls, d.flags]).match(/${ids.aiko}|${ids.botan}|${ids.chie}|Aiko Hoshino|Botan Kage|Chie Mori|${p1.userId}|${p2.userId}|${p3.userId}/) !== null,
+            names: (d.whisper ?? []).some(u => players.includes(u)) && (d.whisper ?? []).length !== game.users.size });
+        const docs = Object.fromEntries(Object.entries(ids).map(([k, id]) => { const d = id ? game.messages.get(id)?.toObject() : null; return [k, d ? look(d) : null]; }));
+        const held = Object.fromEntries(Object.entries(ids).map(([k, id]) => [k, Boolean(id) && String(S.contentOf(game.messages.get(id)) ?? "").includes(texts[k])]));
+        const theirs = new Set(Object.values(ids));
+        const others = game.messages.contents.filter(m => !globalThis.__useMark.has(m.id) && !theirs.has(m.id)).map(m => look(m.toObject())).filter(r => r.named || r.names).length;
+        return { docs, held, others };`;
+    const useSeen = { p1: await p1.eval(USE_READ), p2: await p2.eval(USE_READ), p3: await p3.eval(USE_READ) };
+    const clean = keys => [useSeen.p1, useSeen.p2, useSeen.p3].every(r => keys.every(k => r.docs[k] && r.docs[k].veiled && !r.docs[k].named && !r.docs[k].names));
+    await gm.eval(`for (const [a, i] of [["${ids.aiko}", "${handed.kit}"], ["${ids.botan}", "${handed.drink}"], ["${ids.botan}", "${handed.tool}"]]) await game.actors.get(a).items.get(i)?.delete();
+        await game.actors.get("${ids.chie}").unsetFlag("${MOD}", "pendingCall"); return true;`, { timeout: 60000 });
+    check("fight: the victim's Use an item and a Support bought for the killer are carded veiled - their words to their player alone, and no browser holds a document of theirs, or of the rest the action brought, naming a student or a player",
+        Boolean(handed.turn) && typeof took.total === "number" && bought.armed === true && clean(["used", "support"])
+        && useSeen.p1.held.used && !useSeen.p2.held.used && !useSeen.p3.held.used
+        && useSeen.p3.held.support && !useSeen.p1.held.support && !useSeen.p2.held.support
+        && [useSeen.p1, useSeen.p2, useSeen.p3].every(r => r.others === 0),
+        JSON.stringify({ handed, took, bought, cardIds, useSeen }));
+    check("fight: a bystander's cards in the fight are veiled as a participant's are - a kit drunk, a tool broken - so the veil says nothing of who is in it",
+        bought.broke === "Suite tool a bystander breaks" && clean(["drunk", "broke"])
+        && useSeen.p2.held.drunk && useSeen.p2.held.broke && [useSeen.p1, useSeen.p3].every(r => !r.held.drunk && !r.held.broke),
+        JSON.stringify({ bought, cardIds, useSeen }));
 
     const FORCED = on => `const { SETTINGS } = await import("${repoUrl}/scripts/settings.mjs"); await game.settings.set("${MOD}", SETTINGS.forcePrivateRolls, ${on}); return true;`;
     await gm.eval(FORCED(false));

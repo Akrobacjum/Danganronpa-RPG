@@ -522,6 +522,10 @@ const WORLD = {
        counted above may own a Monokuma or a dead student instead. */
     studentsWithConnectedPlayer: ["living students owned by a connected player account", () => living()
         .filter(a => game.users.some(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"))).length],
+    /* A student the GMs play: whisperToOwner's card for them goes to the GMs alone, and speaks as
+       them (E06 fix r2-G2, 28.09.2026 - the fight's veil is asked of the speaker as well). */
+    studentsWithoutPlayer: ["living students no player account owns", () => living()
+        .filter(a => !game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER"))).length],
     fullGms: ["full Gamemaster accounts", () => game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER).length],
     stashes: ["stashes", () => allVaults().length],
     /* Read off the item's own flag, not through vaultContents: the invariant this

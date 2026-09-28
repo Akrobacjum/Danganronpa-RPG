@@ -625,9 +625,13 @@ globalThis.__harnessWorldState = () => JSON.parse(JSON.stringify({
  * and `data` to `getRollData()`; the roll
  * is built with the config as its options (dhRoll.mjs:45), and `toMessage` (:118, :144-157) writes
  * the speaker by `getSpeaker`, `system` as the config through actorRoll.mjs's schema (a
- * `title`, `source.actor`, `targets`) and the roll. Here the roll's options are that config's
- * serialisable part - title, headerTitle, source.actor, data, effects, the experiences picked,
- * `roll` with its statistic, actionType.
+ * `title`, `source.actor`, `targets`) and the roll. Here the roll's options are that config: a
+ * JSON copy of every key but the roll, the actor and the message the harness hangs on it
+ * (`configKeys`), with title, headerTitle, source.actor, data, effects, the experiences picked,
+ * `roll` with its statistic and actionType written as below. Until E06 fix r2-G2 (28.09.2026;
+ * review round 2's mn1 = m1) the options were those keys alone, and a key the module passes on
+ * the config - the Loaded Die's mark, the nonce its Call keeps on the character - reached no
+ * check that reads a roll.
  * `data` AS IT IS WRITTEN (E06 fix r1-G1, 28.09.2026; review M1 = F1). Until this fix the
  * harness wrote `data` as `{ id, name }`, and C5b's neutral roll was measured against that
  * shape alone. `getRollData()` (actor.mjs:636-645) is a shallow proxy over the character's
@@ -648,6 +652,16 @@ classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, options =
 
 /* actor.mjs `modifyResource` (lib/daggerheart.mjs): a GM writes, a player asks the GM relay (E30, G9). */
 classes.Actor.prototype.modifyResource = function (resources) { return modifyResource(this, resources); };
+
+/* The config's keys as its roll's options carry them: a JSON copy, less what the harness hangs on it. */
+function configKeys(config) {
+    const out = {};
+    for (const [key, value] of Object.entries(config ?? {})) {
+        if (["roll", "actor", "message"].includes(key) || value === undefined || typeof value === "function") continue;
+        try { out[key] = JSON.parse(JSON.stringify(value)); } catch { /* not JSON, so not on a message either */ }
+    }
+    return out;
+}
 
 classes.Actor.prototype.diceRoll = async function diceRoll(config) {
     config.source = { ...(config.source ?? {}), actor: this.uuid };
@@ -695,7 +709,7 @@ classes.Actor.prototype.diceRoll = async function diceRoll(config) {
         dHope: { total: hope }, dFear: { total: fear },
         dice: [{ faces: 12, total: hope, results: [{ result: hope, active: true }] },
                { faces: 12, total: fear, results: [{ result: fear, active: true }] }],
-        options: { title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
+        options: { ...configKeys(config), title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
             data: config.data, effects: [...(this.effects?.contents ?? [])].map(e => e.toObject?.() ?? e),
             experiences: [...config.experiences],
             roll: { trait: traitKey, type: config.actionType,

@@ -55,6 +55,7 @@ import { murderState, incidentAudienceIds } from "./murder.mjs";
 // only to match words against a card's prose.
 import { readDuality } from "./despair-award.mjs";
 import { cardFlag } from "./secret.mjs";
+import { LOADED_DIE } from "./forced-roll.mjs";
 
 export function registerPrivateRolls() {
     Hooks.on("preCreateChatMessage", onPreCreateChatMessage);
@@ -652,8 +653,15 @@ export function neutralRollSource(data, { alias = game.i18n.localize("DRPG.Secre
  * JSON, which every browser holding the message does, stays: the dice, the
  * formula, `roll`'s type, advantage and numbers, `actionType`. So does the rest
  * of the config as Daggerheart wrote it - the dialog's settings, the module's
- * own marks - which was read, not measured, to say nothing more of the
- * character. `data` stays as an empty object, not absent - d20Roll.mjs
+ * own marks but one - which was read, not measured, to say nothing more of the
+ * character. The one is the Loaded Die's (`LOADED_DIE`; fix r2-G2, 28.09.2026,
+ * review round 2's mn1 = m1): the nonce its Call keeps in the character's
+ * `pendingCall` flag, which every browser holds until the roll has spent it, so
+ * a console that kept the nonces it saw named the roll's character exactly.
+ * forced-roll.mjs reads it off the config as the dice are thrown, before the
+ * message exists, and nothing reads it off a message (grep, 28.09.2026); the
+ * harness's roll carries the config's other keys since the same fix, so a mark
+ * like it shows. `data` stays as an empty object, not absent - d20Roll.mjs
  * `configureModifiers` (:103) reads `options.data.system` as the constructor
  * runs; `effects` and `experiences` are read with `?.` there and in
  * dhRoll.mjs `bonusEffectBuilder` (:344-360), which rebuilds `bonusEffects`
@@ -681,6 +689,7 @@ export function neutralRollOf(entry) {
         delete opts.effects;
         delete opts.bonusEffects;
         delete opts.experiences;
+        delete opts[LOADED_DIE];
         if (Object.hasOwn(opts, "targets")) opts.targets = [];
         if (opts.roll && typeof opts.roll === "object") {
             delete opts.roll.trait;

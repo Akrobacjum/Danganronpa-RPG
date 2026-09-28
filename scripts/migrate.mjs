@@ -943,9 +943,12 @@ const OLD_REPORT = /^<h3>[^<]*<\/h3><pre style="white-space: ?pre-wrap; ?font-si
  * not hold - posted while it was away, or aged out of its store (the newest 500, a thread's
  * 2000) - or holds in another language is not recognised, and keeps its list and speaker.
  *
- * The three a participant posts are veiled today only while the cast names its character
- * (settings.mjs `incidentVeil`); an old one does not say whether a fight was on, and every one
- * is veiled - its reader still holds its words, and it speaks as nobody.
+ * The three a participant posts are veiled today while an incident runs, as every private card
+ * that names somebody is (secret.mjs `incidentVeils`, fix r2-G2); an old one does not say
+ * whether a fight was on, and every one is veiled - its reader still holds its words, and it
+ * speaks as nobody. The other kinds that rule reaches are left as 1.2.64 wrote them: an old
+ * card of them does not say whether an incident was running either, and veiling every old
+ * private card would take the speaker off the whole log, not a fight's alone.
  */
 const VEILED_SOUNDS = Object.freeze(["meddle", "toolBroke", "hopeCall"]);
 const VEILED_ACTIONS = Object.freeze(["plantTrapItem", "fireTrap", "approveReshape", "declineReshape"]);

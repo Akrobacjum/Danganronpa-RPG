@@ -39,12 +39,15 @@
  * 21:03" is not a secret. For an incident's cards it is the whole secret, and
  * those are posted VEILED (see `VEILED_FLAG` below): a neutral speaker, the
  * whole table as the recipient list, the messenger's placement flags among the
- * words (C8), and a card that clients holding no words never draw. What a
- * veiled card still tells a reader of the database is that a private card was
- * posted at that moment by that user - the author is the one field Foundry
- * stamps server-side, and every incident card is posted by a GM's client. A
- * card a player's browser posts names that player the same way, veiled or not;
- * the owner's answer Q2 (a) of 27.09.2026 leaves the author as it is until
+ * words (C8), and a card that clients holding no words never draw - and while
+ * an incident runs, every private card that would name a character or a player
+ * is posted so, whoever posts it (`incidentVeils`). What a veiled card still
+ * tells a reader of the database is that a private card was posted at that
+ * moment by that user - the author is the one field Foundry stamps
+ * server-side. A card a player's browser posts - among an incident's, a Loaded
+ * Die's notice, a tool worn in the fight, an item used, a Call's receipt,
+ * Stage 6's reshape card - carries that player as its author, veiled or not,
+ * and the owner's answer Q2 (a) of 27.09.2026 leaves the author as it is until
  * E28. The GM handbook's section 1 lists what the chat still says.
  *
  * WHAT IT COSTS. A GM who was not connected when a secret was posted will never
@@ -549,6 +552,44 @@ async function forget(ids = []) {
  * ========================================================================== */
 
 /**
+ * WHILE AN INCIDENT RUNS, A PRIVATE CARD THAT WOULD NAME A CHARACTER OR A PLAYER IS VEILED,
+ * WHOEVER POSTS IT (E06 fix r2-G2, 28.09.2026; review round 2's MJ2 and m6).
+ *
+ * murder.mjs and cleanup.mjs veil every card they post, and fix r1-G3 veiled three more at
+ * their call sites (`incidentVeil`: a Loaded Die's notice, a tool worn or broken, a Hope
+ * Call's receipt). The round-2 review measured the next one that was missed: "Use an item" in
+ * a direct incident posted its "used" card from the killer's browser speaking as her, to the
+ * GMs and her player, and the bystander's browser held it so (this fix's red run measured the
+ * victim's the same way, 13-murder-signals). Read in the code, a card a use
+ * posts speaks as its character to the GMs and its player (`whisperToOwner`) or lands in its
+ * player's thread (`callGm`, `postToThread`), and nothing locks the rest of them in a fight:
+ * a tier 0 item's ruling card and its receipt, the GM's ruling on it, a Call armed on a
+ * participant (the bridge's notice to the beneficiary, `armCall`'s), an improvised weapon that
+ * lands in a stash, a broken item thrown away, a hand-over, a message in the messenger. So the
+ * rule is here, where every private card is posted, not at the call sites.
+ *
+ * And it is asked of what every browser holds - that an incident is running, the world
+ * half's `active` (murder.mjs `PUBLIC_INCIDENT`) - never of the cast. `incidentVeil` veiled a
+ * card only while the cast this browser holds named its character (review m6): the same card
+ * went plain from a bystander, so a veiled one from a player's browser in a fight told every
+ * console that player's character was in it. A bystander's cards are veiled now as a
+ * participant's are, and the flag says only that an incident was running, which the table
+ * knows. A card to the GMs alone that speaks as no character names nobody else and stays as
+ * it is - a ruling card with no thread among them, which `settleCall` rewrites for every GM
+ * (`readersOf`; a veiled one only on the browser that settles it). The author stays (Q2 (a)).
+ * Pure but for the setting and the users it reads.
+ */
+function incidentVeils({ speaker = null, whisper = [] } = {}) {
+    try {
+        if (!getSetting(SETTINGS.murderState)?.active) return false;
+    } catch {
+        return false;
+    }
+    if (speaker?.actor || speaker?.token) return true;
+    return (whisper ?? []).some(id => !game.users?.get(id)?.isGM);
+}
+
+/**
  * Post a card whose words only the recipients ever hold.
  *
  * @param {object}   data              Everything `ChatMessage.create` takes.
@@ -559,7 +600,9 @@ async function forget(ids = []) {
  *                                     the document is addressed to everybody
  *                                     and speaks as nobody in particular. For
  *                                     cards whose recipient list would itself
- *                                     be a secret - an incident's.
+ *                                     be a secret - an incident's. While an
+ *                                     incident runs it is decided here as well
+ *                                     (`incidentVeils`).
  * @param {object}   [data.summary]    The card's facts, for the day summary: kept
  *                                     with the words, never on the document.
  * @param {object}   [data.flags]      Split (`splitFlags`): the document keeps its
@@ -567,7 +610,8 @@ async function forget(ids = []) {
  * @returns {Promise<ChatMessage|null>}
  */
 export async function postSecret(data = {}) {
-    const { veiled = false, summary: rawSummary = null, ...rest } = data ?? {};
+    const { veiled: asked = false, summary: rawSummary = null, ...rest } = data ?? {};
+    const veiled = Boolean(asked) || incidentVeils(rest);
     const summary = plainSummary(rawSummary);
     const { flags, meta } = splitFlags(rest.flags, veiled);
     const recipients = [...new Set((rest.whisper ?? []).filter(Boolean))];

@@ -1999,22 +1999,6 @@ export function incidentParticipants() {
 }
 
 /**
- * `{ veiled: true }` for a card about an actor the incident's cast names, as this browser
- * holds it; `{}` otherwise (E06 fix r1-G3, 28.09.2026; review M2). murder.mjs and cleanup.mjs
- * veil every card they post, and three cards other files post on a roll's behalf were plain
- * whispers from the character to the GMs and its player: a Loaded Die's notice
- * (action-rolls.mjs `throwDice`), a tool worn or broken on a Despair (use-items.mjs
- * `breakOnDespair`) and a Hope Call's receipt (calls.mjs). In a fight each named a participant
- * to every browser beside the roll that names nobody - measured by the review on p2 for the
- * Loaded Die. Asked of the cast this browser holds: a participant's own copy names them, a
- * GM's names everyone, and a trap's builder holds none while the trap runs, so what they roll
- * elsewhere stays an ordinary card. The words go where they went; the author stays (Q2 (a)).
- */
-export function incidentVeil(actor) {
-    return actor?.id && incidentParticipants().includes(actor.id) ? { veiled: true } : {};
-}
-
-/**
  * WHETHER THE RUNNING INCIDENT IS A TRAP: THE CAST'S, AND THE WORLD HALF'S WHERE THE CAST
  * HAS NONE (E05 fix r1-G1, 27.09.2026; the correctness review's M2). One rule for its three
  * readers - `castOwners` in murder.mjs (who is sent the cast), `incidentWitness` below (the

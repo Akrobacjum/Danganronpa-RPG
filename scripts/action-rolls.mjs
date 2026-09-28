@@ -26,7 +26,7 @@ import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
 // the whole trial floor into the action pipeline.
-import { getClock, getSetting, SETTINGS, incidentVeil } from "./settings.mjs";
+import { getClock, getSetting, SETTINGS } from "./settings.mjs";
 // The chains, and the one payer (T-1). Static, and safe to be: price.mjs imports
 // nothing but leaves and never reaches back into the action pipeline.
 import { quotePrice, payPrice, refundPrice, priceLine } from "./price.mjs";
@@ -757,7 +757,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
             action: game.i18n.localize("DRPG.Calls.freeCritTitle")
         })}<p>${
             game.i18n.format("DRPG.Calls.freeCritUsed", { name: foundry.utils.escapeHTML(actor.name) })
-        }</p>`, incidentVeil(actor));
+        }</p>`);
     }
 
     if (remember) await rememberRoll(actor, outcome, result, actionKey, context);

@@ -4627,7 +4627,9 @@ const INVARIANTS = [
                 ["rolls.*.options.effects", [{ name: "R190 Blessed", origin: "Actor.R190COMPANION00001.Item.R190ITEM00000002" }]],
                 ["rolls.*.options.bonusEffects", { R190EFFECT000001: { name: "R190 Blessed" } }], ["rolls.*.options.experiences", ["R190EXPERIENCE01"]],
                 ["rolls.*.options.roll.trait", "agility"], ["rolls.*.options.roll.modifiers.*.label", "R190 Kendo Captain"],
-                ["rolls.*.options.roll.baseModifiers.*.label", "R190 Kendo Captain"]].map(([f, value]) => [`message supersededRoll: ${f}`,
+                ["rolls.*.options.roll.baseModifiers.*.label", "R190 Kendo Captain"],
+                // Fix r2-G2: the Loaded Die's mark - the nonce its Call keeps on the character, the bystander's here.
+                ["rolls.*.options.drpgLoadedDie", "R190NONCE"]].map(([f, value]) => [`message supersededRoll: ${f}`,
                 s => {
                     const message = s.messages[1];
                     const inRoll = f.startsWith("rolls.*.");
@@ -5224,7 +5226,8 @@ const INVARIANTS = [
          * untouched; a roll the module did not throw comes back as it was; one the bookmark does
          * not name is refused. Then what the Reroll writes into the message (`rerolledSource`),
          * from a rerolled roll that carries all of it and an experience's label: no sheet, no
-         * statistic, no experience, no label, and a clean read against the world-secrets rule -
+         * statistic, no experience, no label, no Loaded Die's mark (fix r2-G2, 28.09.2026: the
+         * nonce its Call keeps on the character), and a clean read against the world-secrets rule -
          * and a roll the module did not throw is written as it is.
          */
         const RR = await import("./reroll.mjs");
@@ -5251,6 +5254,7 @@ const INVARIANTS = [
 
         thrown.options.roll.modifiers = [{ label: "DAGGERHEART.CONFIG.Traits.instinct.name", value: 2 }, { label: "R204 Kendo Captain", value: 2 }];
         thrown.options.effects = [{ name: "R204 Blessed", origin: "Actor.R204ACTOR0000001.Item.R204ITEM00000001" }];
+        thrown.options.drpgLoadedDie = "R204NONCE0000001";
         const rerolled = { toJSON: () => ({ class: "DualityRoll", formula: FORMULA, total: 17, options: thrown.options }) };
         const written = RR.rerolledSource(rerolled, message("R204MESSAGE00001", true));
         const back = typeof written === "string" ? JSON.parse(written) : null;
@@ -5258,7 +5262,7 @@ const INVARIANTS = [
             speaker: { alias: "Monokuma", actor: null, token: null, scene: null }, system: { title: "", source: { actor: "" }, targets: [] },
             rolls: [written], whisper: [], author: "R204USER00000001" }] }, { ids: [actor.id] });
         equal(JSON.stringify([back?.total, back?.options?.data, back?.options?.roll?.modifiers, back?.options?.roll?.trait ?? null,
-            back?.options?.experiences ?? null, back?.options?.effects ?? null, ["R204 Kendo Captain", "R204COMPANION", "R204ACTOR"].filter(x => written.includes(x)),
+            back?.options?.experiences ?? null, back?.options?.effects ?? null, ["R204 Kendo Captain", "R204COMPANION", "R204ACTOR", "R204NONCE"].filter(x => written.includes(x)),
             hits.map(h => h.path), RR.rerolledSource(rerolled, message("R204MESSAGE00002", false)) === rerolled]),
             JSON.stringify([17, {}, [{ label: "", value: 2 }, { label: "", value: 2 }], null, null, null, [], [], true]),
             "a Reroll writes a rerolled roll the module threw back with its character in it, or rewrites one the module did not throw");

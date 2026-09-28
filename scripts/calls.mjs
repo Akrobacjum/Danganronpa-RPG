@@ -18,7 +18,7 @@ import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, callEffect } from "./co
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate, HOPE_REFUND } from "./resource-guard.mjs";
 import { isEclipse } from "./eclipse.mjs";
-import { getClock, incidentVeil } from "./settings.mjs";
+import { getClock } from "./settings.mjs";
 import { announce, whisperToOwner, log, error, esc} from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -282,7 +282,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
             <p><em>${game.i18n.format("DRPG.Calls.hopeSpent", {
                 cost: call.cost, left: held - call.cost
-            })}</em></p>`, { ...incidentVeil(actor), flags: { [MODULE_ID]: { popupTone: "hope", sfx: "hopeCall" } } });
+            })}</em></p>`, { flags: { [MODULE_ID]: { popupTone: "hope", sfx: "hopeCall" } } });
 
         log(`${actor.name} spent ${call.cost} Hope on ${call.label}.`);
         Hooks.callAll("drpgHopeCall", { actor, key, call, note, choice });

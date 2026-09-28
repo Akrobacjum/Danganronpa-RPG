@@ -1388,15 +1388,20 @@ const SCENARIOS = [
          * (use-items.mjs `breakOnDespair`, which a crisis action calls) and a Hope Call's receipt
          * (calls.mjs `spendHopeCall`) - were whispered from the character to the GMs and its
          * player, so in a fight each named a participant to every console beside the roll that
-         * names nobody. They are veiled while the cast names the actor (settings.mjs
-         * `incidentVeil`). A direct murder between two students with players, its opening ruled
+         * names nobody. They are veiled while an incident runs, whoever posts them (secret.mjs
+         * `incidentVeils`, fix r2-G2; until then `incidentVeil`, while the cast named the actor).
+         * A direct murder between two students with players, its opening ruled
          * a success; the victim rolls with a Loaded Die armed, a tier-2 tool of the killer's takes
          * two Despairs - driven through `breakOnDespair` with a Despair result, as the durability
          * test drives `wearItem`, so the dice do not decide whether this measures anything - and
          * the victim buys a Sprint. Every message that appeared is read as the C5b test above
          * reads an action's: no participant's id or name in its speaker, `system` or rolls, no
          * whisper list naming a participant's player without naming everybody. Each of the four
-         * cards must be among them, veiled, its words sent to the actor's player.
+         * cards must be among them, veiled, its words sent to the actor's player. Nor may any of
+         * them carry the Loaded Die's nonce (fix r2-G2, 28.09.2026; review round 2's mn1 = m1): it
+         * is in the victim's `pendingCall` flag, which every browser holds, and the roll's options
+         * kept it - hidden here until the same fix, because the harness wrote a roll's options as
+         * a list of keys rather than the config Daggerheart writes.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player a whisper list could name");
         const M = await import("./murder.mjs");
@@ -1418,10 +1423,11 @@ const SCENARIOS = [
         const had = new Set(game.messages.contents.map(m => m.id));
         const tool = await INV.grantItem(killer, { name: "Suite tool worn in a fight", category: "tool", tier: 2 });
         must(tool, "could not hand the killer a tool");
+        const LOADED = "SUITELOADEDDIE01";
         let words = [];
         try {
             words = await wordsSent(async () => {
-                await appendArmedCall(victim, { key: "freeCrit", kind: "hope", grants: "critical" });
+                await appendArmedCall(victim, { key: "freeCrit", kind: "hope", grants: "critical", nonce: LOADED });
                 await neutralRoll(victim, { remember: true, faces: { hope: 5, fear: 3 } });
                 await breakOnDespair(killer, tool, { withFear: true, isCritical: false });
                 await breakOnDespair(killer, tool, { withFear: true, isCritical: false });
@@ -1434,7 +1440,7 @@ const SCENARIOS = [
             await automatedUpdate(victim, { "system.resources.hope.value": hope });
         }
         const made = game.messages.contents.filter(m => !had.has(m.id));
-        const names = [killer, victim].flatMap(a => [a.id, a.name]);
+        const names = [...[killer, victim].flatMap(a => [a.id, a.name]), LOADED];
         const players = [killer, victim].map(a => player(a).id);
         const everybody = game.users.map(u => u.id);
         const wrong = made.map(m => {
@@ -1458,6 +1464,133 @@ const SCENARIOS = [
         }));
         equal(stableJson([found, wrong]), stableJson([{ loaded: true, wore: true, broke: true, receipt: true }, []]),
             `a card the fight's roll brought was not posted veiled with its words to its player, or a message names a participant (${made.length} read): ${
+                stableJson(words.map(w => ({ id: w.id, to: w.to, text: w.html.replace(/<[^>]+>/g, " ").trim().slice(0, 60) })))}`);
+    }],
+
+    ["a use in a fight is carded veiled whoever makes it, and names nobody", async () => {
+        /*
+         * E06 fix r2-G2, 28.09.2026; review round 2's MJ2 and m6. The crisis action "Use an item"
+         * whispered its "used" card from the character to the GMs and its player - the review
+         * measured a bystander's browser holding it so - and, read in the code, so did the rest
+         * of what a use in a fight posts: a tier 0 object's ruling card and its receipt, the GM's
+         * ruling on it, a Call armed on a participant. Fix r1-G3 veiled three such cards only
+         * while the cast named their character, so the same card of a bystander's went plain and
+         * a veiled one marked a participant. secret.mjs `incidentVeils` veils, while an incident
+         * runs, every private card that would name a character or a player, whoever it is about.
+         * A direct murder between two students with players, its opening ruled a success, a third
+         * student with a player standing by and one with none: the victim takes "Use an item"
+         * with a tier 1 kit, the killer with a tier 0 object (its window answered) and the GM
+         * rules it had no effect; the GM arms a Support on the victim and an Obstacle on the
+         * killer; the bystander drinks a kit, and a tool breaks on a Despair in the bystander's
+         * hands and in the hands of the student nobody plays, whose card goes to the GMs alone
+         * and speaks as him. Every message that appeared is read as the test above reads them,
+         * the two bystanders named too, and each card must be veiled, its words sent to its
+         * player - but a note to the GMs alone, which names nobody else, stays as it was, so a
+         * ruling card can still be rewritten for every GM. Once the incident has ended the
+         * bystander's next kit is carded as before, plain.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a bystander, each with a player a whisper list could name");
+        const M = await import("./murder.mjs");
+        const INV = await import("./inventory.mjs");
+        const S = await import("./secret.mjs");
+        const { useItem, breakOnDespair, grantItemEffect } = await import("./use-items.mjs");
+        const { armCall } = await import("./call-effects.mjs");
+        const { whisperToGms } = await import("./utils.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, bystander] = livingStudents().filter(player);
+        const nobody = livingStudents().find(a => !game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER")));
+        needs(world.atLeast("studentsWithoutPlayer", 1), "a student no player owns, whose cards go to the GMs alone");
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "incident" && M.isTheirTurn(victim), `the incident did not reach the victim's turn: ${stableJson(M.murderState())}`);
+        const kit = (actor, name) => INV.grantItem(actor, { name, category: "usable", tier: 1, goal: "healing", quiet: true });
+        const tool = (actor, name) => INV.grantItem(actor, { name, category: "tool", tier: 1, quiet: true });
+        const items = {
+            kit: await kit(victim, "Suite kit used in the fight"),
+            odd: await INV.grantItem(killer, { name: "Suite odd thing used in the fight", category: "usable", tier: 0, quiet: true }),
+            drink: await kit(bystander, "Suite kit a bystander drinks"),
+            snap: await tool(bystander, "Suite tool a bystander breaks"),
+            npc: await tool(nobody, "Suite tool nobody's student breaks"),
+            later: await kit(bystander, "Suite kit drunk after the fight")
+        };
+        must(Object.values(items).every(Boolean), `could not hand out ${stableJson(Object.keys(items).filter(k => !items[k]))}`);
+        const owners = { kit: victim, odd: killer, drink: bystander, snap: bystander, npc: nobody, later: bystander };
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        let words = [], after = [], fight = [];
+        try {
+            words = await wordsSent(async () => {
+                globalThis.__forceRoll = { hope: 11, fear: 5 };
+                await M.takeCrisisAction(victim, "useItem", { itemId: items.kit.id });
+                await settle();
+                if (!M.isTheirTurn(killer)) await M.passTurn();
+                globalThis.__dialogAnswers.push(true, "Suite: I wave it about");
+                try { await M.takeCrisisAction(killer, "useItem", { itemId: items.odd.id }); }
+                finally { globalThis.__dialogAnswers.length = 0; }
+                await settle();
+                await grantItemEffect(killer, items.odd, {}, { consumeItem: true });
+                await armCall(victim, { key: "support", kind: "hope", grants: "advantage", from: bystander.id });
+                await armCall(killer, { key: "obstacle", kind: "despair", grants: "disadvantage", from: "monokuma" });
+                await useItem(bystander, items.drink);
+                await breakOnDespair(bystander, items.snap, { withFear: true, isCritical: false });
+                await breakOnDespair(nobody, items.npc, { withFear: true, isCritical: false });
+                await whisperToGms("<p>Suite: a note to the GMs in the fight.</p>");
+                await settle();
+            });
+            fight = game.messages.contents.filter(m => !had.has(m.id));
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            after = await wordsSent(async () => {
+                await useItem(bystander, items.later);
+                await settle();
+            });
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const a of [victim, killer]) await a.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            for (const [key, item] of Object.entries(items)) await owners[key].items.get(item?.id)?.delete();
+        }
+        const names = [killer, victim, bystander, nobody].flatMap(a => [a.id, a.name]);
+        const players = [killer, victim, bystander].map(a => player(a).id);
+        const everybody = game.users.map(u => u.id);
+        const wrong = fight.map(m => {
+            const source = m.toObject();
+            const whisper = source.whisper ?? [];
+            const said = JSON.stringify([source.speaker, source.system, source.rolls, source.flags]);
+            return { id: m.id, named: names.filter(x => said.includes(x)),
+                whisper: whisper.some(u => players.includes(u)) && !everybody.every(u => whisper.includes(u)) };
+        }).filter(r => r.named.length || r.whisper);
+        const esc = foundry.utils.escapeHTML;
+        const used = item => game.i18n.format("DRPG.Items.used", { item: esc(item.name) });
+        const broke = item => game.i18n.format("DRPG.Items.brokeOnDespair", { item: esc(item.name) });
+        const grant = key => game.i18n.localize(`DRPG.Calls.grants.${key}`);
+        const cards = {
+            kit: [victim, used(items.kit)],
+            asked: [killer, `<h3>${esc(game.i18n.format("DRPG.Items.useTitle", { item: items.odd.name }))}</h3>`],
+            sent: [killer, game.i18n.localize("DRPG.Items.creativeSent")],
+            ruled: [killer, used(items.odd)],
+            support: [victim, game.i18n.format("DRPG.Calls.armedForYou", { what: grant("advantage") })],
+            obstacle: [killer, game.i18n.format("DRPG.Calls.armedByMonokuma", { what: grant("disadvantage") })],
+            drink: [bystander, used(items.drink)],
+            snap: [bystander, broke(items.snap)],
+            npc: [nobody, broke(items.npc)]
+        };
+        const found = Object.fromEntries(Object.entries(cards).map(([key, [actor, text]]) => {
+            const card = fight.find(m => String(S.contentOf(m)).includes(text));
+            const reader = player(actor);
+            const told = !reader || words.some(w => w.id === card?.id && w.to.includes(reader.id));
+            return [key, Boolean(card?.getFlag(MODULE_ID, "veiled")) && told];
+        }));
+        const later = game.messages.contents.find(m => after.some(w => w.id === m.id && w.html.includes(used(items.later))));
+        const note = fight.find(m => String(S.contentOf(m)).includes("Suite: a note to the GMs in the fight."));
+        const plain = Boolean(later) && !later.getFlag(MODULE_ID, "veiled") && (later.whisper ?? []).includes(player(bystander).id)
+            && Boolean(note) && !note.getFlag(MODULE_ID, "veiled");
+        equal(stableJson([found, wrong, plain]), stableJson([Object.fromEntries(Object.keys(cards).map(k => [k, true])), [], true]),
+            `a card a use in the fight brought was not posted veiled with its words to its player, a message names somebody, or the GMs' note or the card after the fight was veiled (${fight.length} read): ${
                 stableJson(words.map(w => ({ id: w.id, to: w.to, text: w.html.replace(/<[^>]+>/g, " ").trim().slice(0, 60) })))}`);
     }],
 

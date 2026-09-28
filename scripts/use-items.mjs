@@ -38,7 +38,7 @@ import { resourceValue, resourceMax } from "./character.mjs";
 // Only to answer "is there a murder to be tidying up after" - see
 // `discardRemnantType`. `murder.mjs` imports this file back, so it is reached
 // dynamically inside the function; `settings.mjs` does not and can be static.
-import { bodyDiscovery, incidentVeil } from "./settings.mjs";
+import { bodyDiscovery } from "./settings.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
 import { dialogContent, whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
@@ -230,7 +230,7 @@ export async function breakOnDespair(actor, tool, roll) {
             await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.woreOnDespair", {
                 item: foundry.utils.escapeHTML(tool.name),
                 left: outcome.left, total: durabilityOf(tool)
-            })}</p>`, { ...incidentVeil(actor), flags: { [MODULE_ID]: { sfx: "toolBroke" } } });
+            })}</p>`, { flags: { [MODULE_ID]: { sfx: "toolBroke" } } });
         } catch {
             // The wear is recorded; the sentence about it is a courtesy.
         }
@@ -247,7 +247,7 @@ export async function breakOnDespair(actor, tool, roll) {
         // three, which is the one audience that is right in all three.
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.brokeOnDespair", {
             item: foundry.utils.escapeHTML(tool.name)
-        })}</p>`, { ...incidentVeil(actor), flags: { [MODULE_ID]: { sfx: "toolBroke" } } });
+        })}</p>`, { flags: { [MODULE_ID]: { sfx: "toolBroke" } } });
     } catch {
         // The item is broken either way; the card is the courtesy.
     }

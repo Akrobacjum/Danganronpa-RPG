@@ -141,14 +141,16 @@ export const WORLD_SECRET_RULES = Object.freeze({
            and actor, and each roll's title and actor. Its fix r1-G1 (28.09.2026; review M1 = F1):
            and everything a roll's options held of the character - its data, whole, where C5b
            took only the id and the name; its effects, the experiences picked and the modifiers'
-           labels that name them; its statistic (`neutralRollOf`). */
+           labels that name them; its statistic (`neutralRollOf`). Its fix r2-G2 (28.09.2026; review
+           round 2's mn1 = m1): the Loaded Die's mark, the nonce its Call keeps on the character. */
         Object.freeze({
             when: "supersededRoll",
             fields: Object.freeze(["speaker.actor", "speaker.token", "system.title", "system.source.actor",
                 "rolls.*.options.title", "rolls.*.options.headerTitle", "rolls.*.options.source.actor",
                 "rolls.*.options.data", "rolls.*.options.effects", "rolls.*.options.bonusEffects",
                 "rolls.*.options.experiences", "rolls.*.options.roll.trait",
-                "rolls.*.options.roll.modifiers.*.label", "rolls.*.options.roll.baseModifiers.*.label"]),
+                "rolls.*.options.roll.modifiers.*.label", "rolls.*.options.roll.baseModifiers.*.label",
+                "rolls.*.options.drpgLoadedDie"]),
             since: "E06 C5b", why: "a roll the module threw names its character and its action to every browser (S02-02, S04-02)"
         }),
         /* E06 C7a: a private card's document keeps what places it (secret.mjs `splitFlags`); what
