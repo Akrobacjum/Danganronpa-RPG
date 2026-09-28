@@ -55,7 +55,8 @@ import { SETTINGS, incidentCast, incidentIndirect, incidentSeats, seasonEpoch, i
 import { castStore, blackenedStore, castCopy, deathStore, deathCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD, INCIDENT_FIGHT } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
-import { resourceValue, resourceMax, marksOf } from "./character.mjs";
+import { resourceValue, resourceMax, marksOf, reserveOf, reserveChange, reserveNote } from "./character.mjs";
+import { youOrThem } from "./secret.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { carriedFor, ITEM_FLAGS, isBroken } from "./inventory.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
@@ -63,7 +64,7 @@ import { dropRemnant, traceFeedback } from "./remnants.mjs";
 import { keepLive, closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, dialogContent, tableDialog, whisperToGms,
-    whisperToOwner as whisperToOwnerPlain, ownerOf, gmIds,
+    whisperToOwner as whisperToOwnerPlain, ownerOf, ownerIdsOf, gmIds,
     isPrimaryGm, primaryGmId, log, warn, error, plural, debug, esc} from "./utils.mjs";
 
 /*
@@ -2077,10 +2078,19 @@ async function applyCrisisAction({
         // bands it names. Survive costs a point however it fails; Self-defence
         // and Role reversal only on Despair, which is what their own text has
         // always said and what nothing was doing.
+        //
+        // IT COSTS WHOEVER FAILED (E32+E07 C7, 28.09.2026; audit S04-19). Use an item
+        // is both sides' action, and a killer's or an accomplice's failure with Despair
+        // drained the VICTIM: their miss cost the person they were killing. The
+        // victim's is the incident's drain (a critical Self-defence stops it); anybody
+        // else's is their own Sanity, then Health - the handbooks' "costs 1 extra" (the
+        // gm-handbook's crisis table, the player-handbook's Use an item row) is the
+        // taker's.
         const extra = typeof def.failureExtraDrain === "object"
             ? def.failureExtraDrain?.[band]
             : def.failureExtraDrain;
-        if (extra) await drain(state, extra, done);
+        if (extra && side === "victim") await drain(state, extra, done);
+        else if (extra) await takeReserves(actor, { stress: extra }, done);
     }
 
     // The third party's decisions are "automatyczny, darmowy wybór" - free in
@@ -2511,18 +2521,38 @@ async function applyDamage(actor, state, def, band, done, failed = false, choice
     const victim = game.actors.get(state.victimId);
     if (!victim) return;
 
-    const update = {};
-    for (const [resource, amount] of Object.entries(hit)) {
-        const field = resource === "hp" ? "hitPoints" : "stress";
-        const marks = resourceValue(victim, field);
-        update[`system.resources.${field}.value`] =
-            Math.min(resourceMax(victim, field), marks + amount);
-    }
-    await automatedUpdate(victim, update);
-    done.push(game.i18n.format("DRPG.Murder.damaged", {
-        name: foundry.utils.escapeHTML(victim.name),
-        what: Object.entries(hit).map(([r, n]) => `${n} ${r.toUpperCase()}`).join(", ")
-    }));
+    // Sanity past a full track lands on Health, as the drain's does (S04-05): the hit
+    // clamped each resource on its own, so a Sanity hit on a full Sanity marked nothing.
+    await takeReserves(victim, { hitPoints: hit.hp ?? 0, stress: hit.stress ?? 0 }, done);
+}
+
+/**
+ * Mark a loss on an actor's reserves - Sanity first, and what Sanity cannot take on
+ * Health (E32+E07 C7, 28.09.2026; audit S04-05) - and say in `done` what landed:
+ * `landedNote`. Health past its last point is lost; the incident reads a victim with
+ * both tracks full as spent (`isSpent`). Nothing landed is nothing written and nothing
+ * said. Returns whether anything landed.
+ */
+async function takeReserves(actor, { hitPoints = 0, stress = 0 }, done) {
+    const sanity = reserveChange(actor, "stress", -stress);
+    const health = reserveChange(actor, "hitPoints", -(hitPoints + sanity.overflow));
+    const update = { ...health.update, ...sanity.update };
+    if (!Object.keys(update).length) return false;
+    await automatedUpdate(actor, update);
+    const note = landedNote(actor, [health, sanity]);
+    if (note) done.push(note);
+    return true;
+}
+
+/**
+ * What a loss came to, as the card says it (S04-05): the actor's players read "You lose
+ * 1 Health." and everyone else - the GMs, the other side - "Aiko loses 1 Health.", each
+ * sent only their own line (secret.mjs `youOrThem`, `wordsFor`).
+ */
+function landedNote(actor, changes) {
+    const them = reserveNote({ name: foundry.utils.escapeHTML(actor.name), you: false }, changes);
+    if (!them) return "";
+    return youOrThem(ownerIdsOf(actor), { you: reserveNote({ you: true }, changes), them });
 }
 
 /**
@@ -2804,28 +2834,8 @@ async function drain(state, amount, done) {
 
     const victim = game.actors.get(state.victimId);
     if (!victim) return;
-
-    let left = amount;
-    const update = {};
-
-    const stressMarks = resourceValue(victim, "stress");
-    const stressMax = resourceMax(victim, "stress");
-    const stressRoom = stressMax - stressMarks;
-    const toStress = Math.min(stressRoom, left);
-    if (toStress > 0) {
-        update["system.resources.stress.value"] = stressMarks + toStress;
-        left -= toStress;
-    }
-    if (left > 0) {
-        const hpMarks = resourceValue(victim, "hitPoints");
-        update["system.resources.hitPoints.value"] =
-            Math.min(resourceMax(victim, "hitPoints"), hpMarks + left);
-    }
-
-    if (Object.keys(update).length) {
-        await automatedUpdate(victim, update);
-        done.push(game.i18n.format("DRPG.Murder.drained", { name: foundry.utils.escapeHTML(victim.name), n: amount }));
-    }
+    // The note says what was marked, not the turn's amount (S04-05).
+    await takeReserves(victim, { stress: amount }, done);
 }
 
 async function grantAdvantage(side) {
@@ -2842,9 +2852,12 @@ async function clearAdvantage(side) {
 async function spendStress(actor, done) {
     // The same write the clean-up makes (cleanup.mjs `markResolutionStress`);
     // `false` means the track was full, and the blood branch below pays instead.
+    // What it marked is read off the sheet before and after it (S04-05), not assumed.
     const { markResolutionStress } = await import("./cleanup.mjs");
+    const before = reserveOf(actor, "stress").left;
     if (await markResolutionStress(actor)) {
-        done.push(game.i18n.format("DRPG.Murder.spentStress", { n: RESOLUTION_STRESS_COST }));
+        const note = landedNote(actor, [{ key: "stress", landed: before - reserveOf(actor, "stress").left }]);
+        if (note) done.push(note);
         return;
     }
 
@@ -2863,14 +2876,11 @@ async function spendStress(actor, done) {
      * ends because both tracks are now full, which is `isSpent`, and the caller
      * asks `checkVictimSpent` two lines later.
      */
-    const hp = resourceValue(actor, "hitPoints");
-    const hpMax = resourceMax(actor, "hitPoints");
-    if (hp >= hpMax) return;
+    const health = reserveChange(actor, "hitPoints", -RESOLUTION_HEALTH_COST);
+    if (!health.landed) return;
 
-    await automatedUpdate(actor, {
-        "system.resources.hitPoints.value": Math.min(hpMax, hp + RESOLUTION_HEALTH_COST)
-    });
-    done.push(game.i18n.format("DRPG.Murder.spentHealth", { n: RESOLUTION_HEALTH_COST }));
+    await automatedUpdate(actor, health.update);
+    done.push(landedNote(actor, [health]));
 }
 
 /**

@@ -1272,6 +1272,20 @@
       "reshapeTakenBack": "Reroll cofnął tę próbę, więc ta karta już o niczym nie rozstrzyga.",
       "reshapeDeclinedErased": "{name} nie przyjmuje twojej wersji. Krytyczny sukces i tak zabiera ślad - zniknął."
     },
+    "Reserve": {
+      "health": {
+        "one": "{n} Health",
+        "few": "{n} Health",
+        "many": "{n} Health",
+        "other": "{n} Health"
+      },
+      "sanity": {
+        "one": "{n} Sanity",
+        "few": "{n} Sanity",
+        "many": "{n} Sanity",
+        "other": "{n} Sanity"
+      }
+    },
     "Murder": {
       "openingReask": "Poproś o rzut otwarcia ponownie",
       "openingReaskSent": "Zaproszenie do rzutu otwarcia wysłano ponownie.",
@@ -1345,13 +1359,12 @@
       "actionHindered": "To jest teraz trudniejsze - rzucasz z utrudnieniem.",
       "noStressLeft": "Akcje Stage 6 kosztują Sanity, a nie masz żadnego.",
       "nothingLeftToSpend": "Nie ma już czego wydawać. Sanity i Health wyczerpane.",
-      "spentHealth": "Brak Sanity - kosztuje {n} Health zamiast tego.",
       "yourTurn": "Incydent - twoja tura",
       "theirTurn": "Incydent - czekamy na drugą stronę",
       "advantageNext": "Przewaga przy następnej próbie.",
       "leftRemnant": "Zostawia ślad.",
-      "damaged": "{name} przyjmuje {what}.",
-      "drained": "{name} traci {n} przez incydent.",
+      "youLose": "Tracisz {what}.",
+      "theyLose": "{name} traci {what}.",
       "killerChooses": "Krytyk - zabójca wybiera: oba znaczniki z Health albo oba z Sanity.",
       "hinderedActions": {
         "one": "{n} akcja przeciwnika z utrudnieniem przez {turns} tur.",
@@ -1369,7 +1382,6 @@
       "incidentEnded": "Incydent zakończony.",
       "victimDead": "Ofiara nie żyje. Zabójca jest Blackened.",
       "resolutionNote": "Stage 6. Zabójca widzi teraz Remnants na mapie i może używać akcji Stage 6. Reinforced ślady zostają. Użyte narzędzie zbrodni zostaje zniszczone.",
-      "spentStress": "Kosztuje {n} Sanity.",
       "thirdTitle": "Wchodzisz na to",
       "thirdIntro": "Jeden darmowy wybór: wyprowadź ofiarę ze sobą, stań po którejś stronie albo odwróć wzrok.",
       "band": {

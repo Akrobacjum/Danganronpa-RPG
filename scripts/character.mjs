@@ -10,7 +10,8 @@
  */
 
 import { MODULE_ID, FLAGS, STARTING, TRAITS, TRAIT_ARRAY } from "./config.mjs";
-import { log } from "./utils.mjs";
+import { log, plural } from "./utils.mjs";
+import { moduleLanguage } from "./settings.mjs";
 
 /**
  * Does this character still need the starting maxima?
@@ -219,6 +220,88 @@ export function isBrokenDown(actor) {
 /** True when the character has taken every point of Health. */
 export function isWounded(actor) {
     return remaining(actor, "hitPoints") <= 0;
+}
+
+/* ==========================================================================
+ * RESERVE
+ * --------------------------------------------------------------------------
+ * What is LEFT of Health and Sanity, and what a change to it came to (E32+E07 C7,
+ * 28.09.2026; the owner's D5, design N5, audit S04-05). Daggerheart stores both as
+ * marks counted up; the table talks about what a character has left. The notes a hit
+ * wrote read the marks' side: "Aiko takes 1 STRESS" - the system's key in capitals -
+ * for a hit that landed nothing on a full Sanity, and the drain said the amount asked
+ * for, not the amount marked. Everything that moves a reserve and says so asks here
+ * now: what landed, what could not (`overflow`, which the incident puts on Health), and
+ * the sentence, with a label from the language file. This stage builds what the
+ * incident's notes need; the sheet, the Event panel and the tracker still show marks
+ * (`marksOf`) until E24/E25 move them onto it.
+ * ========================================================================== */
+
+/** The two reserves, by their resource key: the one place that knows `stress` means Sanity. */
+export const RESERVES = Object.freeze({
+    hitPoints: Object.freeze({ label: "DRPG.Reserve.health" }),
+    stress: Object.freeze({ label: "DRPG.Reserve.sanity" })
+});
+
+/**
+ * A reserve from marks and a maximum: `{ max, marks, left, pct, empty }`. `left` is
+ * held to 0..max, so a sheet edited past either end reads as empty or full rather than
+ * as a negative reserve; a missing maximum is 0.
+ */
+export function reserveFrom(marks, max) {
+    const top = Math.max(0, Number(max) || 0);
+    const marked = Number(marks) || 0;
+    const left = Math.min(top, Math.max(0, top - marked));
+    return { max: top, marks: marked, left, pct: top ? left / top * 100 : 0, empty: left <= 0 };
+}
+
+/** An actor's reserve of `key` (`hitPoints` or `stress`). */
+export function reserveOf(actor, key) {
+    return reserveFrom(resourceValue(actor, key), resourceMax(actor, key));
+}
+
+/**
+ * What changing a reserve by `delta` would come to, written nowhere: a negative delta
+ * is a loss, a positive one a recovery. `landed` is how much of it the reserve took
+ * (never more than is left to lose or missing to regain), `overflow` the rest, and
+ * `update` the actor update that makes it so - empty when nothing landed. `key` comes
+ * back with it, for `reserveNote`.
+ */
+export function reserveChange(actor, key, delta) {
+    const want = Math.trunc(Number(delta) || 0);
+    const { max, left } = reserveOf(actor, key);
+    const landed = want < 0 ? Math.min(left, -want) : Math.min(max - left, want);
+    const after = want < 0 ? left - landed : left + landed;
+    return {
+        key,
+        update: landed ? { [`system.resources.${key}.value`]: max - after } : {},
+        landed,
+        overflow: Math.abs(want) - landed
+    };
+}
+
+/**
+ * The sentence for what a loss came to: "You lose 1 Health and 1 Sanity." for the one
+ * it happened to (`you`), "{name} loses ..." for everyone else - `name` as it is to be
+ * printed, escaped by the caller. `changes` are `reserveChange` results (or `{ key,
+ * landed }`); one that landed nothing is left out, and nothing landed at all is "".
+ * Losses only: nothing in this stage says a recovery through it (E24 adds that).
+ */
+export function reserveNote({ name = "", you = false } = {}, changes = []) {
+    const parts = changes
+        .filter(change => RESERVES[change?.key] && change.landed > 0)
+        .map(change => plural(RESERVES[change.key].label, { n: change.landed }));
+    if (!parts.length) return "";
+    let what;
+    try {
+        what = new Intl.ListFormat(moduleLanguage(), { type: "conjunction" }).format(parts);
+    } catch {
+        // No ListFormat for the tag: the English list reads, and the amounts stay right.
+        what = parts.join(", ");
+    }
+    return you
+        ? game.i18n.format("DRPG.Murder.youLose", { what })
+        : game.i18n.format("DRPG.Murder.theyLose", { name, what });
 }
 
 /**

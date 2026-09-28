@@ -5338,6 +5338,82 @@ const INVARIANTS = [
             M.leftABody({ victimId: "R207NOBODY000001", endedBy: "survive" })]), JSON.stringify([false, false, false]),
             "a state that names no victim left a body, or an actor that does not exist is dead");
         equal(CRISIS_ACTIONS.sharedEscape?.remnantType, "incident", "Escape together's trace is not an Incident Remnant");
+    }],
+
+    ["R208 - a reserve is what is left, a change to it says what landed and what did not, and its note names no resource key", async () => {
+        /*
+         * E32+E07 C7, 28.09.2026; audit S04-05, the owner's D5 (design N5's unit cases).
+         * character.mjs's RESERVE section on made-up sheets - nothing is written: a reserve
+         * read from marks (and past either end of the track, and with no maximum); a loss
+         * on a full reserve, a loss on an empty one (nothing lands, all of it overflows - the
+         * incident puts that on Health), a recovery held to the maximum; and the note, which
+         * says the amounts that landed with the language file's labels, leaves out what
+         * landed nothing, and never prints `stress` or `hitPoints`.
+         */
+        const C = await import("./character.mjs");
+        const { plural } = await import("./utils.mjs");
+        const sheet = (key, value, max) => ({ system: { resources: { [key]: { value, max } } } });
+        equal(JSON.stringify([C.reserveFrom(0, 6), C.reserveFrom(8, 6), C.reserveFrom(-2, 4), C.reserveFrom(2, null)]),
+            JSON.stringify([{ max: 6, marks: 0, left: 6, pct: 100, empty: false }, { max: 6, marks: 8, left: 0, pct: 0, empty: true },
+                { max: 4, marks: -2, left: 4, pct: 100, empty: false }, { max: 0, marks: 2, left: 0, pct: 0, empty: true }]),
+            "a reserve is not the maximum less the marks, held to the track");
+        equal(JSON.stringify([C.reserveOf(sheet("stress", 2, 6), "stress").left, Object.keys(C.RESERVES).sort()]), JSON.stringify([4, ["hitPoints", "stress"]]),
+            "an actor's reserve is not read off its sheet, or the reserves are not Health and Sanity");
+        const changes = [
+            C.reserveChange(sheet("stress", 0, 6), "stress", -1),
+            C.reserveChange(sheet("stress", 6, 6), "stress", -1),
+            C.reserveChange(sheet("hitPoints", 3, 4), "hitPoints", 3),
+            C.reserveChange(sheet("hitPoints", 3, 4), "hitPoints", 5),
+            C.reserveChange(sheet("hitPoints", 1, 4), "hitPoints", -2)
+        ];
+        equal(JSON.stringify(changes), JSON.stringify([
+            { key: "stress", update: { "system.resources.stress.value": 1 }, landed: 1, overflow: 0 },
+            { key: "stress", update: {}, landed: 0, overflow: 1 },
+            { key: "hitPoints", update: { "system.resources.hitPoints.value": 0 }, landed: 3, overflow: 0 },
+            { key: "hitPoints", update: { "system.resources.hitPoints.value": 0 }, landed: 3, overflow: 2 },
+            { key: "hitPoints", update: { "system.resources.hitPoints.value": 3 }, landed: 2, overflow: 0 }
+        ]), "a change does not say what landed and what overflowed, or its update is not the reserve it leaves");
+        const health = n => plural("DRPG.Reserve.health", { n }), sanity = n => plural("DRPG.Reserve.sanity", { n });
+        const one = C.reserveNote({ you: true }, [{ key: "hitPoints", landed: 1 }, { key: "stress", landed: 0 }]);
+        const them = C.reserveNote({ name: "R208 Somebody" }, [{ key: "hitPoints", landed: 2 }]);
+        const both = C.reserveNote({ you: true }, [{ key: "hitPoints", landed: 1 }, { key: "stress", landed: 3 }]);
+        equal(JSON.stringify([one, them, C.reserveNote({ you: true }, [{ key: "stress", landed: 0 }, { key: "hope", landed: 2 }])]),
+            JSON.stringify([game.i18n.format("DRPG.Murder.youLose", { what: health(1) }),
+                game.i18n.format("DRPG.Murder.theyLose", { name: "R208 Somebody", what: health(2) }), ""]),
+            "the note does not say what landed in the second person or by name, or says something when nothing landed");
+        ok(both.includes(health(1)) && both.includes(sanity(3)) && both.indexOf(health(1)) < both.indexOf(sanity(3))
+            && ![one, them, both].some(note => /hitPoints|stress|STRESS|DRPG\./.test(note)),
+            `a two-reserve note lost an amount, or a note prints a resource key: ${JSON.stringify([one, them, both])}`);
+    }],
+
+    ["R209 - a card's words are cut for each reader: the line for them, never the other one, and no marker naming a user", async () => {
+        /*
+         * E32+E07 C7, 28.09.2026; audit S04-05. A hit's note is one card carrying two lines -
+         * "You lose ..." for the victim's players, the name for everyone else (secret.mjs
+         * `youOrThem`) - and `wordsFor` cuts every copy of the words before it leaves the
+         * poster: the victim's player holds their line, another player and a GM the other, a
+         * GM the GMs' prose besides, and no copy keeps a `data-drpg-` marker, which would
+         * name the victim's user to everyone else. A card with neither kind of part reaches
+         * a reader byte for byte. On a fixture card; nothing is posted.
+         */
+        const S = await import("./secret.mjs");
+        const gm = game.users.find(u => u.isGM);
+        must(gm, "no GM user to read the card as");
+        const VICTIM = "R209VICTIM000001", OTHER = "R209PLAYER000001";
+        const line = S.youOrThem([VICTIM], { you: "R209 you lose", them: "R209 they lose" });
+        const card = `<h3>R209</h3><ul><li>${line}</li></ul><div class="drpg-gm-only"><p>R209 GM prose</p></div>`;
+        const read = id => {
+            const words = S.wordsFor(id, card);
+            return ["R209 you lose", "R209 they lose", "R209 GM prose", "data-drpg-", "<h3>R209</h3>"].map(part => words.includes(part));
+        };
+        equal(JSON.stringify([read(VICTIM), read(OTHER), read(gm.id)]),
+            JSON.stringify([[true, false, false, false, true], [false, true, false, false, true], [false, true, true, false, true]]),
+            "a reader holds a line not written for them, lost their own or the card, keeps a marker, or the GMs' prose went to a player");
+        const plain = `<p>R209 plain words</p>`;
+        equal(JSON.stringify([S.wordsFor(gm.id, plain) === plain, S.wordsFor(OTHER, plain) === plain,
+            S.youOrThem([], { you: "a", them: "b" }), S.youOrThem(['R209" onclick="x'], { you: "a", them: "b" })]),
+            JSON.stringify([true, true, "b", "b"]),
+            "a card with no lines is not sent as written, or a line with nobody (or no id) to say \"you\" to is not the other line alone");
     }]
 ];
 

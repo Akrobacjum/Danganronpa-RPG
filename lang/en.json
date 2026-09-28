@@ -1263,6 +1263,16 @@
       "transformErase": "Erase it",
       "transformChange": "Leave something else"
     },
+    "Reserve": {
+      "health": {
+        "one": "{n} Health",
+        "other": "{n} Health"
+      },
+      "sanity": {
+        "one": "{n} Sanity",
+        "other": "{n} Sanity"
+      }
+    },
     "Murder": {
       "openingReask": "Ask for the opening roll again",
       "openingReaskSent": "The invitation to throw the opening roll was sent again.",
@@ -1336,13 +1346,12 @@
       "actionHindered": "They have made this harder - you roll at disadvantage.",
       "noStressLeft": "Resolution actions cost Sanity, and you have none.",
       "nothingLeftToSpend": "There is nothing left to spend. Sanity and Health are both gone.",
-      "spentHealth": "No Sanity left - costs {n} Health instead.",
       "yourTurn": "Incident - your turn",
       "theirTurn": "Incident - waiting for them",
       "advantageNext": "Advantage on the next attempt.",
       "leftRemnant": "Leaves a trace behind.",
-      "damaged": "{name} takes {what}.",
-      "drained": "{name} loses {n} to the incident.",
+      "youLose": "You lose {what}.",
+      "theyLose": "{name} loses {what}.",
       "killerChooses": "Critical - the killer chooses: both marks off Health, or both off Sanity.",
       "hinderedActions": {
         "one": "{n} of their action at disadvantage for {turns} turns.",
@@ -1356,7 +1365,6 @@
       "incidentEnded": "The incident is over.",
       "victimDead": "The victim is dead. The killer is Blackened.",
       "resolutionNote": "Stage 6. The killer now sees the Remnants on the map and can use resolution actions. Reinforced traces stay put. A crime tool that was used is destroyed.",
-      "spentStress": "Costs {n} Sanity.",
       "thirdTitle": "You walk in on it",
       "thirdIntro": "One free choice: get them out with you, take a side, or turn away.",
       "band": {

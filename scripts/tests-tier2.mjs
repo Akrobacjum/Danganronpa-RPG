@@ -1096,6 +1096,90 @@ const SCENARIOS = [
         }
     }],
 
+    ["a hit on a full Sanity lands on Health and the note says what landed", async () => {
+        /*
+         * E32+E07 C7, 28.09.2026; audit S04-05. A hit clamped each resource on its own, so a
+         * Sanity hit on a full Sanity marked nothing, and its note read "Aiko takes 2 STRESS".
+         * A direct murder is opened between two students with players; at the victim's turn
+         * (so the pass after the blow drains nobody) the victim has all of their Health and
+         * no Sanity left, and the killer's critical Strike takes both marks off Sanity. Read:
+         * the victim's Health and Sanity marks after it; the card's words as the GM keeps them
+         * and as each player is sent them (`wordsSent`) - the victim's player "You lose 2
+         * Health." and nothing else of the note, the killer's player the victim's name and
+         * no "You lose", nobody a resource key or a line marker.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { plural } = await import("./utils.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const { livingStudents } = await import("./chapter.mjs");
+        const [killer, victim] = livingStudents().filter(player);
+        const esc = foundry.utils.escapeHTML;
+        const you = game.i18n.format("DRPG.Murder.youLose", { what: plural("DRPG.Reserve.health", { n: 2 }) });
+        const them = game.i18n.format("DRPG.Murder.theyLose", { name: esc(victim.name), what: plural("DRPG.Reserve.health", { n: 2 }) });
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const card = `${esc(CRISIS_ACTIONS.strike.label)} - ${esc(killer.name)}`;
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "incident" && M.murderState()?.turnSide === "victim",
+            `the fixture's fight is not at the victim's turn: ${stableJson(M.murderState())}`);
+        const r = victim.system.resources;
+        await victim.update({ "system.resources.hitPoints.value": 0, "system.resources.stress.value": r.stress.max });
+        let message = null;
+        const sent = await wordsSent(async () => {
+            const had = new Set(game.messages.contents.map(m => m.id));
+            await M.resolveCrisisAction({ actorId: killer.id, key: "strike", total: 99, isCritical: true, withHope: true, choice: "stress" });
+            await settle();
+            message = game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(card)) ?? null;
+        });
+        await M.endMurder({ reason: "closed", followUp: false });
+        must(message, `the Strike's card was not found among the new cards (${card})`);
+        const kept = String(contentOf(message) ?? "");
+        const to = user => sent.filter(p => p.id === message.id && p.to.includes(user.id)).map(p => p.html);
+        const read = words => [words.some(w => w.includes(you)), words.some(w => w.includes(them)), words.some(w => /STRESS|hitPoints|data-drpg-/.test(w))];
+        equal(stableJson([victim.system.resources.hitPoints.value, victim.system.resources.stress.value === r.stress.max,
+            read([kept]), read(to(player(victim))), read(to(player(killer)))]),
+        stableJson([2, true, [false, true, false], [true, false, false], [false, true, false]]),
+            `the hit did not land on Health, or a reader holds the wrong line, both, a key or a marker (Health marks, Sanity full, GM / victim / killer: you, them, key): ${kept}`);
+    }],
+
+    ["a killer's failed Use an item with Despair costs the killer", async () => {
+        /*
+         * E32+E07 C7, 28.09.2026; audit S04-19. Use an item is both sides' action, and its
+         * extra point on a Despair failure was the incident's drain - the victim's - whoever
+         * failed: a killer's miss cost their victim. A direct murder is opened between two
+         * students with players; at the victim's turn (so the pass after it drains nobody)
+         * the killer, with all of their Sanity, fails Use an item with Despair. Read: the
+         * killer's Sanity marks, the victim's Health and Sanity marks, and the card's note as
+         * the GM keeps it - the killer's name and one Sanity.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { plural } = await import("./utils.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const { livingStudents } = await import("./chapter.mjs");
+        const [killer, victim] = livingStudents().filter(player);
+        const note = game.i18n.format("DRPG.Murder.theyLose", { name: foundry.utils.escapeHTML(killer.name), what: plural("DRPG.Reserve.sanity", { n: 1 }) });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "incident" && M.murderState()?.turnSide === "victim",
+            `the fixture's fight is not at the victim's turn: ${stableJson(M.murderState())}`);
+        await killer.update({ "system.resources.stress.value": 0 });
+        const marks = a => [a.system.resources.hitPoints.value, a.system.resources.stress.value];
+        const victimBefore = marks(victim);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        await M.resolveCrisisAction({ actorId: killer.id, key: "useItem", total: 1, isCritical: false, withHope: false });
+        await settle();
+        const told = game.messages.contents.filter(m => !had.has(m.id)).some(m => String(contentOf(m) ?? "").includes(note));
+        await M.endMurder({ reason: "closed", followUp: false });
+        equal(stableJson([killer.system.resources.stress.value, marks(victim), told]), stableJson([1, victimBefore, true]),
+            "the killer's failed Use an item with Despair did not cost the killer one Sanity, cost the victim, or its card does not say so (killer's Sanity marks, victim's marks, told)");
+    }],
+
     ["two closes of one incident close it once", async () => {
         /*
          * E32 C4, 28.09.2026; audit S04-26. `endMurder` awaits at every step between reading

@@ -18,7 +18,9 @@
  * them anything, and a roll that fails ends it as if it never happened.
  * The incident's rolls follow the same line (E06 C6): each one's dice, its
  * result and its action reach the participants, and nothing of it a bystander
- * or a trap's builder (1c, and the trap's last part).
+ * or a trap's builder (1c, and the trap's last part). What a hit leaves is said to its
+ * victim's player as "you" and to the others by name, each sent only their own line
+ * (E32+E07 C7, 1d).
  *
  * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it. In part 4
  * (E32 C5a) Botan is her accomplice, and turns on her at Stage 6.
@@ -504,6 +506,50 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     check("dice: with rolls not forced private the killer's own Dice So Nice animates the victim's roll, and the relay does not play it a second time",
         Boolean(open.id) && open.stage === "incident" && unforced.animated && !unforced.played.length,
         JSON.stringify({ open, unforced }), { flow: "private-rolls" });
+
+    /* ---- 1d. what a hit leaves, each reader told their own line ------------
+       E32+E07 C7, 28.09.2026; audit S04-05. With no Sanity left and all of her Health, Aiko
+       takes Chie's critical Strike on Sanity, which the GM scores: both marks land on Health
+       (until C7 none did, and the note read "Aiko Hoshino takes 2 STRESS"). The card carries
+       two lines and each browser is sent one (secret.mjs `wordsFor`): Aiko's player "You lose
+       2 Health.", Chie's her name, Botan's - a bystander - no card at all. Counted as each
+       browser receives the words, the `secret.card` packets, found by the card's heading.
+       Aiko's marks are put back afterwards; the pass the blow makes may drain her, which the
+       GMs alone are told. */
+    phase("hit", { flow: "murder-incident" });
+    const HIT_NET = `globalThis.__hitWords = [];
+        if (!globalThis.__hitNetOn) {
+            globalThis.__hitNetOn = true;
+            game.socket.on("module.${MOD}", p => { if (p?.action === "secret.card") globalThis.__hitWords.push(String(p.html ?? "")); });
+        }
+        return true;`;
+    for (const c of [p1, p2, p3]) await c.eval(HIT_NET);
+    const hit = await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        const aiko = game.actors.get("${ids.aiko}"); const r = aiko.system.resources;
+        const was = { hp: r.hitPoints.value, stress: r.stress.value };
+        await aiko.update({ "system.resources.hitPoints.value": 0, "system.resources.stress.value": r.stress.max });
+        await M.resolveCrisisAction({ actorId: "${ids.chie}", key: "strike", total: 99, isCritical: true, withHope: true, choice: "stress" });
+        return { was, stage: M.murderState()?.stage ?? null, sanityFull: aiko.system.resources.stress.value === r.stress.max, health: aiko.system.resources.hitPoints.value };`, { timeout: 60000 });
+    await settle(900);
+    const HIT_READ = `const { plural } = await import("${repoUrl}/scripts/utils.mjs");
+        const { CRISIS_ACTIONS } = await import("${repoUrl}/scripts/config.mjs");
+        const esc = foundry.utils.escapeHTML;
+        const two = plural("DRPG.Reserve.health", { n: 2 });
+        const heading = esc(CRISIS_ACTIONS.strike.label) + " - " + esc(game.actors.get("${ids.chie}").name);
+        const cards = (globalThis.__hitWords ?? []).filter(h => h.includes(heading));
+        return { cards: cards.length,
+            you: cards.some(h => h.includes(game.i18n.format("DRPG.Murder.youLose", { what: two }))),
+            them: cards.some(h => h.includes(game.i18n.format("DRPG.Murder.theyLose", { name: esc(game.actors.get("${ids.aiko}").name), what: two }))),
+            marker: cards.some(h => /data-drpg-|STRESS/.test(h)) };`;
+    const hitSeen = { victim: await p1.eval(HIT_READ), bystander: await p2.eval(HIT_READ), killer: await p3.eval(HIT_READ) };
+    await gm.eval(`await game.actors.get("${ids.aiko}").update({ "system.resources.hitPoints.value": ${hit.was.hp}, "system.resources.stress.value": ${hit.was.stress} });
+        return true;`, { timeout: 60000 });
+    check("hit: a Strike on a full Sanity lands on Health, and the victim's player reads \"You lose 2 Health.\", the killer's the victim's name, the bystander nothing",
+        hit.stage === "incident" && hit.sanityFull && [2, 3].includes(hit.health)
+        && hitSeen.victim.cards === 1 && hitSeen.victim.you && !hitSeen.victim.them && !hitSeen.victim.marker
+        && hitSeen.killer.cards === 1 && hitSeen.killer.them && !hitSeen.killer.you && !hitSeen.killer.marker
+        && hitSeen.bystander.cards === 0,
+        JSON.stringify({ hit, hitSeen }));
 
     /* ---- 1b. somebody walks in on it ---------------------------------------
        The guide gives the scene one third party, and from the moment they are
