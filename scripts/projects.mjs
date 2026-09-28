@@ -717,13 +717,25 @@ export async function sabotageProject(targetId, difficulty = 3, { saboteur = nul
     // no trait of its own and Work on Project fell through to asking the player
     // to pick one - letting them choose an easier stat than the people whose
     // project they are fixing had to use.
+    //
+    // A SECRET PROJECT'S REPAIR IS SECRET, AND NAMES NOTHING (E06 C10, 28.09.2026; audit S09-01).
+    // The repair was public and called "Repair: <the target's name>", so sabotaging a secret
+    // project put its name on every player's Projects tray. It is sealed now to whoever
+    // can see what it repairs - the target's viewers and its builder's owners, the GMs seeing
+    // everything - and named "Repair" alone: the countdowns setting that holds its name is read
+    // by every browser (known leak S17-31), so a name its viewers alone may know is not written
+    // there. A public project's repair is as it was.
+    const secret = isSecret(targetId);
     const repair = await createProject({
-        name: game.i18n.format("DRPG.Project.repairName", { name: target.name }),
+        name: secret
+            ? game.i18n.localize("DRPG.Project.repairNameSecret")
+            : game.i18n.format("DRPG.Project.repairName", { name: target.name }),
         target: difficulty,
         room: roomOf(targetId),
         trait: metaFor(targetId).trait ?? null,
         indirectMurder: false,
-        secret: false,
+        secret,
+        viewers: secret ? insidersOf(targetId) : [],
         // A repair is not the thing it repairs, and the tray is where a player
         // has to see that at a glance.
         glyph: "tamper"
@@ -844,10 +856,10 @@ export async function undoSabotage(targetId = null, repairId = null, { actorId =
  *
  * WHAT THIS IS NOT, and both exclusions are the point rather than laziness:
  *
- *   a repair    `checkRepairCompletion` already announces it publicly and then
- *               DELETES the countdown. A second card about a project that no
- *               longer exists is noise, and it would arrive after the thing it
- *               names is gone.
+ *   a repair    `checkRepairCompletion` already tells it - veiled, to whoever
+ *               can see it, when it is secret - and then DELETES the countdown.
+ *               A second card about a project that no longer exists is noise,
+ *               and it would arrive after the thing it names is gone.
  *   a trap      `announceTrapReady` runs on the same crossing and is strictly
  *               better - it carries the button that fires the thing. Two cards
  *               for one moment, one of which is worse, is not a notification.
@@ -1014,12 +1026,25 @@ async function checkRepairCompletion(countdownId) {
 
     const target = allProjects().find(p => p.id === targetId);
     const repairName = repair.name;
+    const content = `<p><strong>${foundry.utils.escapeHTML(repairName)}</strong> - ${
+        game.i18n.format("DRPG.Project.repaired", { name: foundry.utils.escapeHTML(target?.name ?? "?") })
+    }</p>`;
 
-    await announce({
-        content: `<p><strong>${foundry.utils.escapeHTML(repairName)}</strong> - ${
-            game.i18n.format("DRPG.Project.repaired", { name: foundry.utils.escapeHTML(target?.name ?? "?") })
-        }</p>`
-    });
+    // A secret project's end goes to whoever can see it, veiled (E06 C10; audit S09-01): announced,
+    // it told the table the name of a project the table may not know is there. Either half sealed
+    // is enough: a repair made before 1.2.65 is public while its target may be secret, and a target
+    // revealed after its sabotage leaves its repair sealed - whoever that repair was sealed to is
+    // told as well.
+    const repairSealed = isSecret(countdownId);
+    if (isSecret(targetId) || repairSealed) {
+        await announce({
+            content, veiled: true,
+            whisper: Array.from(new Set([...gmIds(), ...insidersOf(targetId),
+                ...(repairSealed ? viewersOf(countdownId).map(u => u.id) : [])]))
+        });
+    } else {
+        await announce({ content });
+    }
 
     // Read the name and announce before deleting: `deleteProject` takes the
     // countdown and its metadata with it, so nothing can be looked up afterwards.
@@ -1306,6 +1331,11 @@ function ownershipMap(viewerIds = []) {
         map[user.id] = viewers.has(user.id) ? OBSERVER : NONE;
     }
     return map;
+}
+
+/** The players a secret project is known to: its viewers and its builder's owners (F3). */
+function insidersOf(countdownId) {
+    return Array.from(new Set([...viewersOf(countdownId).map(u => u.id), ...builderIds(countdownId)]));
 }
 
 /** Users who can currently see a secret project (excluding GMs). */

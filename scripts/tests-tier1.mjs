@@ -4549,7 +4549,9 @@ const INVARIANTS = [
          * E06 C5b: the first rule, a roll the module threw - the clean snapshot holds one as
          * private-rolls.mjs `neutralRollSource` leaves it (its roll as JSON text, the dice's data
          * kept, whispered to a GM, written by a player), which reads clean, and each field is
-         * planted in it once, the roll's options inside that text.
+         * planted in it once, the roll's options inside that text. E06 C10: an armed Call's buyer,
+         * the first Actor path through an array - the clean bystander holds an armed Call without
+         * one, and the fixture's second entry, a `null` one, is found at its index.
          */
         const W = await import("./world-secrets.mjs");
         const MOD = W.WORLD_SECRET_MODULE;
@@ -4562,7 +4564,8 @@ const INVARIANTS = [
                 overflow: { active: { session: 1, day: 2, timeOfDay: "noon", effect: "fog" } }
             },
             actors: [{ id: KILLER, flags: { [MOD]: { advances: 1 }, "r190-other-module": { memo: KILLER } } },
-                { id: "R190BYSTANDER001", flags: { [MOD]: { deceased: false } } }],
+                { id: "R190BYSTANDER001", flags: { [MOD]: { deceased: false,
+                    pendingCall: [{ key: "support", kind: "hope", grants: "advantage", amount: null, nonce: "R190NONCE" }] } } }],
             users: [{ id: "R190USER00000001", flags: { [MOD]: { preSessionNote: { updatedAt: 1, written: true } } } }],
             tokens: [{ id: "R190SCENE0000001.R190TOKEN0000001", flags: { [MOD]: { isRemnant: true, fromIncident: true } },
                 delta: { flags: { [MOD]: { advances: 2 } } } }],
@@ -4642,6 +4645,13 @@ const INVARIANTS = [
             ["unlinked token's Actor flag lootTrace",
                 s => { s.tokens[0].delta.flags[MOD].lootTrace = { taken: [] }; },
                 h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `delta.flags.${MOD}.lootTrace`],
+            // E06 C10: an armed Call names nobody who bought it - on a world actor, and on an unlinked token's own actor data.
+            ["Actor flag pendingCall.*.from",
+                s => { s.actors[1].flags[MOD].pendingCall.push({ key: "meddle", grants: "bonus", amount: -1, from: null, nonce: "R190NONCE2" }); },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.pendingCall.1.from`],
+            ["unlinked token's Actor flag pendingCall.*.from",
+                s => { s.tokens[0].delta.flags[MOD].pendingCall = [{ key: "meddle", grants: "bonus", amount: 1, from: "R190" }]; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `delta.flags.${MOD}.pendingCall.0.from`],
             // E05 C14: a trace's token carries none of its answer key - a promotion's `false` is found as well.
             ...["remnantType", "visibility", "reinforced", "faint", "tiedToCrime", "note", "action", "subject", "sourceActor", "sourceName",
                 "room", "chapter", "day", "timeOfDay", "pointsAt"].map(f => [`Token flag ${f}`,

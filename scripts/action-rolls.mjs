@@ -37,7 +37,7 @@ import { tamperPriceSkip, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
-import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor, projectsListedIn } from "./projects.mjs";
+import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
 import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, ownerOf } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
@@ -2812,11 +2812,7 @@ async function concealSabotage(actor, { room, project, witnesses, paid, lines })
          */
         if (!hidden) {
             await announce({
-                content: `<p><em>${game.i18n.format("DRPG.Action.sabotageWatched", {
-                    actor: foundry.utils.escapeHTML(actor.name),
-                    room: foundry.utils.escapeHTML(room ?? "-"),
-                    project: foundry.utils.escapeHTML(project.name)
-                })}</em></p>`,
+                content: `<p><em>${sabotageWatchedLine(actor, room, project)}</em></p>`,
                 whisper: roomAudience(actor)
             });
             await whisperToOwner(actor, `<p>${SABOTAGE_CONCEAL.failure}</p>
@@ -2826,6 +2822,21 @@ async function concealSabotage(actor, { room, project, witnesses, paid, lines })
         lines.push(`<p><em>${SABOTAGE_CONCEAL.aloneNote}</em></p>`);
     }
     return { penalty, rolledAlready };
+}
+
+/**
+ * What the room is told of a sabotage it watched, escaped. A secret project, or an indirect
+ * murder, is not named (E06 C10, 28.09.2026; audit S02-12): the room is everybody standing
+ * there, whether or not they can see the project, and the line told them its name. They
+ * still see who did it, and roughly what.
+ */
+export function sabotageWatchedLine(actor, room, project) {
+    const unnamed = isSecret(project.id) || isIndirectMurder(project.id);
+    return game.i18n.format(unnamed ? "DRPG.Action.sabotageWatchedAnon" : "DRPG.Action.sabotageWatched", {
+        actor: foundry.utils.escapeHTML(actor.name),
+        room: foundry.utils.escapeHTML(room ?? "-"),
+        ...(unnamed ? {} : { project: foundry.utils.escapeHTML(project.name) })
+    });
 }
 
     // Guide's Sabotage table, by the repair project it demands:

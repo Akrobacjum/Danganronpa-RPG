@@ -186,9 +186,9 @@ export const FLAGS = {
     restsTaken: "restsTaken",
     /**
      * Character: the Calls that have been paid for and are waiting on the next
-     * roll. A LIST since CALL-02 (17.09) - `[{ key, kind, grants, amount, from,
-     * nonce }]` - so a second Call armed on the same roll stacks instead of
-     * replacing the first. A flag written before that holds one bare object, and
+     * roll. A LIST since CALL-02 (17.09) - `[{ key, kind, grants, amount, nonce }]`
+     * (and `from`, who bought it, until E06 C10) - so a second Call armed on the
+     * same roll stacks instead of replacing the first. A flag written before that holds one bare object, and
      * `pendingCalls` in call-effects.mjs reads both shapes. Consumed by the roll
      * dialog.
      */

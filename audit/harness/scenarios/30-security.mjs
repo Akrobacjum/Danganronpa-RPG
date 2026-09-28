@@ -625,6 +625,37 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: sharing a public project is refused and leaves it public",
         shared.unchanged && shared.reasons.some(r => /not secret/.test(r)), JSON.stringify(shared));
 
+    /* 7b'. A SECRET PROJECT'S SABOTAGE (E06 C10, 28.09.2026; audit S09-01, L20). Its repair was a
+       public countdown named "Repair: <the project>", and its end was announced to the table. p2
+       can see "SEC hidden work" and sabotages it; p1 cannot. p1's copy of Daggerheart's countdowns
+       holds the repair under a name that is not the project's and keeps p1 out of it; the GM
+       finishes the repair, and the cards that reach p1 since - documents and any words p1 holds -
+       name no project, while p2, who can see it, is told. Then the chat scan for the name. */
+    const SECRET_WORK = "SEC hidden work";
+    const hiddenWork = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        return (await P.createProject({ name: "${SECRET_WORK}", target: 6, room: "Cafeteria", secret: true, viewers: ["${p2.userId}"] }))?.id ?? null;`,
+    { timeout: 60000 });
+    const hiddenRepair = await p2.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const r = await P.sabotageProject("${hiddenWork}", 3); return r?.repair?.id ?? null;`, { timeout: 60000 });
+    await settle(1000);
+    const repairOnP1 = await p1.eval(`const c = game.settings.get("daggerheart", "Countdowns")?.countdowns?.["${hiddenRepair}"] ?? null;
+        return c ? { name: c.name, p1: c.ownership?.[game.user.id] ?? null } : null;`);
+    const countOn = c => c.eval(`return game.messages.size;`);
+    const heldBefore = { p1: await countOn(p1), p2: await countOn(p2) };
+    const thawed = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        await P.addProgress("${hiddenRepair}", 3); return !P.isFrozen("${hiddenWork}");`, { timeout: 60000 });
+    await settle(1500);
+    const endOn = (c, from) => c.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        const fresh = game.messages.contents.slice(${from});
+        const names = m => JSON.stringify(m.toObject()).includes("${SECRET_WORK}") || (S.secretHtml(m) ?? "").includes("${SECRET_WORK}");
+        return { cards: fresh.length, veiled: fresh.filter(m => S.isVeiled(m)).length, named: fresh.filter(names).length };`);
+    const repairEnd = { p1: await endOn(p1, heldBefore.p1), p2: await endOn(p2, heldBefore.p2) };
+    check("SECURITY: a secret project's repair reaches p1 under no name of the project, sealed, and its end is told to p2 alone",
+        Boolean(hiddenWork && hiddenRepair) && typeof repairOnP1?.name === "string" && !repairOnP1.name.includes(SECRET_WORK) && repairOnP1.p1 === 0
+        && thawed && repairEnd.p1.veiled >= 1 && repairEnd.p1.named === 0 && repairEnd.p2.named >= 1,
+        JSON.stringify({ hiddenWork, hiddenRepair, repairOnP1, thawed, repairEnd }));
+    await canary.chatScan({ who: ["p1"], titles: [SECRET_WORK], phase: "projects: a secret project's sabotage" });
+
     // 7c. observe.resolve with somebody else's key.
     phase("Observe keys", { flow: "search-observe" });
     const observed = await gm.eval(`

@@ -5407,6 +5407,43 @@ const SCENARIOS = [
         }
     }],
 
+    ["the plant reply carries no project", async () => {
+        /*
+         * E06 C10, 28.09.2026; audit S07-18 (L22). The GM hands a player who searched a room the
+         * plant waiting there, and the reply carried the store's row whole - the trap's project id
+         * beside the item - to the finder's console. The spend and the plant check are run as the
+         * bridge runs them (`SEARCH_ACTIONS`), with the token spend stubbed so no room's count
+         * moves: the reply's plant is the item and nothing of the trap, and the plant given back
+         * under the same request is the row whole again - a second take reads its project.
+         */
+        const T = await import("./traps.mjs");
+        const { SearchTokens, SEARCH_ACTIONS } = await import("./search-tokens.mjs");
+        const { allRooms } = await import("./movement.mjs");
+        needs(world.atLeast("namedRooms"), "the thing is planted in a room");
+        const room = allRooms()[0];
+        must(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        // The plants are a GM store since E04: tier 2's restore puts them back.
+        const spend = SearchTokens.spend;
+        SearchTokens.spend = async () => true;
+        let reply = null, again = null, identity = null;
+        try {
+            identity = await T.plantItem("SUITE-C10-project", room, { name: "SUITE C10 kit", description: "SUITE C10 a kit" });
+            must(identity, "nothing was planted");
+            const ctx = { requestId: "suite-c10-plant" };
+            await SEARCH_ACTIONS["searchTokens.spend"].run({ roomName: room }, game.user, {});
+            reply = (await SEARCH_ACTIONS["searchTokens.takePlant"].run({ roomName: room }, game.user, ctx))?.reply ?? null;
+            await SEARCH_ACTIONS["searchTokens.returnPlant"].run({ plantRequestId: ctx.requestId }, game.user, {});
+            again = await T.takePlant(room);
+        } finally {
+            SearchTokens.spend = spend;
+        }
+        const plant = reply?.plant ?? {};
+        equal(stableJson([reply?.ok ?? null, plant.name ?? null, plant.drpgItemId === identity, Object.hasOwn(plant, "projectId"),
+            JSON.stringify(plant).includes("SUITE-C10-project"), again?.projectId ?? null]),
+            stableJson([true, "SUITE C10 kit", true, false, false, "SUITE-C10-project"]),
+            `the plant reply named the trap's project, or missed the item, or the plant given back lost its row: ${stableJson({ reply, again })}`);
+    }],
+
     ["everything that can be held ready can also be broken", async () => {
         /*
          * FROM E17'S CLOSING LIST: "every EQUIPPABLE category has a breaking
@@ -7270,6 +7307,134 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
             await settle();
         }
+    }],
+
+    ["a secret project's repair keeps the secret", async () => {
+        /*
+         * E06 C10, 28.09.2026; audit S09-01 (L20). Sabotaging a secret project made a public repair
+         * named "Repair: <the project>", and finishing it announced both names to the table. A
+         * secret project one player can see is sabotaged: its repair is secret, seen by that player
+         * and not by another, and named "Repair" alone. Finished, its card is veiled - everybody on
+         * its list, no actor speaking - and its words, which name the project, go to the viewer and
+         * not to the other player (`wordsSent`; a GM's own copy travels no socket).
+         */
+        needs(world.atLeast("playerAccounts", 2), "a player who can see the project and one who cannot");
+        const P = await import("./projects.mjs");
+        const [viewer, outsider] = game.users.filter(u => !u.isGM);
+        const NAME = "SUITE C10 hidden work";
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const made = [];
+        let sealed = null, card = null, sent = [];
+        try {
+            const target = await P.createProject({ name: NAME, target: 6, secret: true, viewers: [viewer.id] });
+            must(target?.id, "could not create a secret project to sabotage");
+            made.push(target.id);
+            const repairId = (await P.sabotageProject(target.id, 3))?.repair?.id ?? null;
+            if (repairId) made.push(repairId);
+            const repair = P.allProjects().find(p => p.id === repairId) ?? null;
+            sealed = [Boolean(repair), P.isSecret(repairId), repair?.name ?? null, P.canSee(repairId, viewer), P.canSee(repairId, outsider)];
+            const from = game.messages.size;
+            const words = await wordsSent(async () => {
+                if (repairId) await P.addProgress(repairId, 3);
+                await settle();
+            });
+            card = game.messages.contents.slice(from).find(m => words.some(w => w.id === m.id && w.html.includes(NAME))) ?? null;
+            sent = words.filter(w => w.id === card?.id).flatMap(w => w.to);
+            ok(!game.messages.contents.slice(from).some(m => String(m.content ?? "").includes(NAME)),
+                "the repair's end was posted with the project's name in the document");
+        } finally {
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+        const everybody = game.users.map(u => u.id).sort();
+        equal(stableJson([...sealed, Boolean(card), Boolean(card?.getFlag(MODULE_ID, "veiled")),
+            stableJson([...(card?.whisper ?? [])].sort()) === stableJson(everybody), card?.speaker?.actor ?? null,
+            sent.includes(viewer.id), sent.includes(outsider.id)]),
+            stableJson([true, true, game.i18n.localize("DRPG.Project.repairNameSecret"), true, false, true, true, true, null, true, false]),
+            `the secret project's repair was public or named it, or its end was not one veiled card told to its viewer alone: ${
+                stableJson({ sealed, whisper: card?.whisper ?? null, speaker: card?.speaker ?? null, sent })}`);
+    }],
+
+    ["a watched sabotage of a secret project names no project", async () => {
+        /*
+         * E06 C10, 28.09.2026; audit S02-12 (L21). A sabotage the room saw was told to everybody
+         * standing there with the project's name, secret or not. The line is read as the watched
+         * branch posts it (action-rolls.mjs `sabotageWatchedLine`) for three projects: a public
+         * one is named; a secret one is not; nor is an indirect murder revealed to the table,
+         * which is not secret any more and is still somebody's trap.
+         */
+        const P = await import("./projects.mjs");
+        const { sabotageWatchedLine } = await import("./action-rolls.mjs");
+        const [who] = cast(1);
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const made = [];
+        const line = id => sabotageWatchedLine(who, "SUITE room", P.allProjects().find(p => p.id === id));
+        let lines = [];
+        try {
+            for (const [name, opts] of [["SUITE C10 open plan", {}], ["SUITE C10 secret plan", { secret: true }],
+                ["SUITE C10 revealed trap", { indirectMurder: true }]]) {
+                const made1 = await P.createProject({ name, target: 6, ...opts });
+                must(made1?.id, `could not create "${name}"`);
+                made.push(made1.id);
+            }
+            await P.revealProject(made[2]);
+            must(!P.isSecret(made[2]) && P.isIndirectMurder(made[2]), "the revealed trap is still secret, or not a trap");
+            lines = made.map(line);
+        } finally {
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+        const anon = game.i18n.format("DRPG.Action.sabotageWatchedAnon", { actor: foundry.utils.escapeHTML(who.name), room: "SUITE room" });
+        equal(stableJson([lines[0]?.includes("SUITE C10 open plan"), lines[1] === anon, lines[2] === anon]), stableJson([true, true, true]),
+            `a watched sabotage named a secret project or a trap, or no longer names a public one: ${stableJson(lines)}`);
+    }],
+
+    ["Confusion is seen by the room, and names nobody past it", async () => {
+        /*
+         * E06 C10, 28.09.2026; audit S09-10 (L23), the owner's answer Q3 (b) of 27.09: a Monocub's
+         * Confusion is rolled for the room to see, like every Monocub roll, and its window says so
+         * (`meddleIntro`). What the room does not see is whom it was aimed at, and three things
+         * told every console: the armed Call stored `from`, the Monocub's actor id, on the
+         * target's flag, and the Monocub's receipt, the target's notice and the Call's own notice
+         * were whispers whose lists named the two players. A Monocub and its target, each with a
+         * player, stand alone in a room; the GM resolves a Hinder of 13 (the +1/-1 tier): the
+         * target holds an armed Call with no `from`, and every card whose words went to either
+         * player is veiled - everybody on its list, no actor speaking - and the target's player
+         * is sent nothing that names the Monocub.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Monocub and its target, each with a player to be sent the words");
+        const { resolveMeddle } = await import("./monocub.mjs");
+        const { pendingCalls } = await import("./call-effects.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub, target] = livingStudents().filter(player);
+        const { back } = await aloneTogether(cub, target);
+        const from = game.messages.size;
+        let words = [], armed = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            words = await wordsSent(async () => {
+                ok((await resolveMeddle({ actorId: cub.id, targetId: target.id, help: false, total: 13, isCritical: false }))?.success,
+                    "the Meddle did not land");
+                await settle();
+            });
+            armed = pendingCalls(target).find(entry => entry.key === "meddle") ?? null;
+        } finally {
+            await back();
+        }
+        const everybody = stableJson(game.users.map(u => u.id).sort());
+        const cards = game.messages.contents.slice(from);
+        const told = words.filter(w => w.to.includes(player(cub).id) || w.to.includes(player(target).id));
+        const plain = told.map(w => cards.find(m => m.id === w.id))
+            .filter(m => !m?.getFlag(MODULE_ID, "veiled") || stableJson([...(m?.whisper ?? [])].sort()) !== everybody || m?.speaker?.actor);
+        equal(stableJson([Boolean(armed), armed ? Object.hasOwn(armed, "from") : null, told.length >= 3, plain.length,
+            words.some(w => w.to.includes(player(target).id) && w.html.includes(cub.name))]),
+            stableJson([true, false, true, 0, false]),
+            `Confusion stored its Monocub on the target, or a card to either player named them, or named the Monocub to the target: ${
+                stableJson({ armed, told: told.map(w => ({ id: w.id, to: w.to })), plain: plain.map(m => m?.id ?? null) })}`);
     }],
 
     ["a sealed project keeps its builder in and the rest of the table out", async () => {

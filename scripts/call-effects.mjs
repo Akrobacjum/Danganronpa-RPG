@@ -205,13 +205,16 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
         const voice = kind === "despair" ? "DRPG.Calls.armedByMonokuma"
             : kind === "hope" ? "DRPG.Calls.armedForYou"
             : "DRPG.Calls.armedByNobody";
+        // Veiled for that one (E06 C10, 28.09.2026; audit S09-10): its list named the target to
+        // every console at the moment a Monocub rolled Confusion in the room, and the roll does not
+        // say whom it was aimed at. Confusion's own two cards are veiled for the same reason.
         await whisperToOwner(actor, `${cardHead({
             action: game.i18n.localize("DRPG.Calls.armedTitle")
         })}<p>${
             game.i18n.format(voice, {
                 what: game.i18n.localize(`DRPG.Calls.grants.${grants}`)
             })
-        }</p>`);
+        }</p>`, voice === "DRPG.Calls.armedByNobody" ? { veiled: true } : {});
     }
 
     return true;
@@ -228,13 +231,31 @@ function pendingCallsRaw(actor) {
 }
 
 /**
+ * An armed entry as it is stored: without `from`, who bought it.
+ *
+ * THE ARMED LIST NAMES NO BUYER (E06 C10, 28.09.2026; audit S09-10). `from` was stored on the
+ * beneficiary's flag, which every browser holds, so a Monocub's Confusion named the Monocub to
+ * every console, and a Support its buyer, while the target's own card says only that somebody
+ * did something. The room sees a Monocub's dice (Confusion's too, the owner's answer of
+ * 27.09), not who they were aimed at; the flag told everybody else both. Nothing reads the
+ * stored `from`: the payer is read from the request as it arrives (bridge-guards.mjs
+ * `armBuyerId`), and the beneficiary's notice from `armCall`'s argument. An entry written
+ * before 1.2.65 loses it the next time its list is written.
+ */
+function unsigned(entry) {
+    const stored = { ...entry };
+    delete stored.from;
+    return stored;
+}
+
+/**
  * Add one ready payload to the armed list. GM-side, and the one writer: the
  * bridge arms Support and Approval on somebody else's sheet through here, so
  * stacking (CALL-02) holds on that road too.
  */
 export async function appendArmedCall(actor, payload) {
     if (!actor || !payload?.grants) return null;
-    await actor.setFlag(MODULE_ID, FLAGS.pendingCall, [...pendingCallsRaw(actor), payload]);
+    await actor.setFlag(MODULE_ID, FLAGS.pendingCall, [...pendingCallsRaw(actor), payload].map(unsigned));
     return true;
 }
 
@@ -267,7 +288,7 @@ export async function consumeCallsExcept(actor, keep = null) {
     const kept = keep ? pending.filter(entry => entry.grants === keep) : [];
     const spent = pending.filter(entry => !kept.includes(entry));
     if (!spent.length) return [];
-    if (kept.length) await actor.setFlag(MODULE_ID, FLAGS.pendingCall, kept);
+    if (kept.length) await actor.setFlag(MODULE_ID, FLAGS.pendingCall, kept.map(unsigned));
     else await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
     return spent;
 }

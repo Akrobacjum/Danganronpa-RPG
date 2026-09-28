@@ -909,11 +909,14 @@ async function handleArm(payload, sender, ctx, prepared) {
     return { reply: { ok: true, left: null } };
 }
 
-/** The armed entry as this side builds it: the table's `grants`, never the packet's extras. */
+/**
+ * The armed entry as this side builds it: the table's `grants`, never the packet's extras. Who
+ * paid is the request's (`armBuyerId`) and is not stored (E06 C10; call-effects.mjs `unsigned`).
+ */
 function armedEntry(asked, call, kind) {
     return {
         key: asked.key, kind, grants: call.grants,
-        amount: null, from: asked.from ?? null,
+        amount: null,
         nonce: String(asked.nonce ?? foundry.utils.randomID()).slice(0, 32)
     };
 }

@@ -35,7 +35,8 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
  * module world setting, but for the fields `except` lets one setting hold. `flags` is
  * keyed by document type (Actor, User, Token, ChatMessage, and since E05 C13 Item - one
  * in the sidebar or on an actor's sheet): a path under the module's flag scope that may
- * never be there - an unlinked token's own actor data (its delta) is read under `Actor`,
+ * never be there, a `*` standing for any index of an array (since E06 C10) - an unlinked
+ * token's own actor data (its delta) is read under `Actor`,
  * since that is where a sheet opened from the token writes. Each rule says what it keeps
  * out, and since when.
  *
@@ -110,7 +111,9 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // is the roller's own client setting `rollBookmarks` (action-rolls.mjs; S02-01).
         // E05 C14: what was taken off a body, and which trace on the map is its, is a row of the
         // GMs' `lootTraces` store (handover.mjs `liftLootTraces`; S05-39 (3)).
-        Actor: Object.freeze(["lastAction", "lootTrace"]),
+        // E06 C10: an armed Call names nobody who bought it - a Monocub's Confusion named the Monocub
+        // on its target (call-effects.mjs `unsigned`; S09-10). A `*` is any index of the armed list.
+        Actor: Object.freeze(["lastAction", "lootTrace", "pendingCall.*.from"]),
         // E05 C6: a player's pre-session note for the GMs - "Am I planning to kill? How?" - is a GM
         // store; the flag keeps only `{ updatedAt, written }` (pre-session-note.mjs; S11-03, S01-08).
         User: Object.freeze(["preSessionNote.text"]),
@@ -201,16 +204,6 @@ function parsedRoll(roll) {
     try { return JSON.parse(roll); } catch { return roll; }
 }
 
-/* The value at a dotted path, or undefined. */
-function at(value, path) {
-    let node = value;
-    for (const part of String(path).split(".")) {
-        if (!isObject(node) || !Object.hasOwn(node, part)) return undefined;
-        node = node[part];
-    }
-    return node;
-}
-
 /**
  * Every place `snapshot` breaks the rule, and every place it holds one of `ids`.
  * Pure.
@@ -275,7 +268,9 @@ export function findWorldSecrets(snapshot, { ids = [], rules = WORLD_SECRET_RULE
         const scope = flags?.[WORLD_SECRET_MODULE];
         if (!isObject(scope)) return;
         for (const path of rules.flags?.[doc] ?? []) {
-            if (at(scope, path) !== undefined) out.push({ kind: "flag", doc, id, path: `${base}${WORLD_SECRET_MODULE}.${path}`, rule: `a flag no ${doc} may carry` });
+            for (const [p, v] of valuesAt(scope, path)) {
+                if (v !== undefined) out.push({ kind: "flag", doc, id, path: `${base}${WORLD_SECRET_MODULE}.${p}`, rule: `a flag no ${doc} may carry` });
+            }
         }
         idsIn(doc, id, scope, `${base}${WORLD_SECRET_MODULE}`);
     };
