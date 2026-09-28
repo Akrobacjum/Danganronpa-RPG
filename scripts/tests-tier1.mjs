@@ -4515,7 +4515,9 @@ const INVARIANTS = [
         const RETELLS = [["mastermind.mjs", "retellDoor"], ["murder.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"],
             ["eclipse.mjs", "retellMoves"], ["pre-session-note.mjs", "retellNotes"], ["murder.mjs", "retellDeaths"],
             // E05 C13: the bullets' store, which each player's copy of their bullets' traces is made of.
-            ["truth-bullets.mjs", "retellBulletRefs"]];
+            ["truth-bullets.mjs", "retellBulletRefs"],
+            // E06 fix r2-G4: the Confusions' store, which each owner's copy of their characters' armed Confusions is made of.
+            ["call-effects.mjs", "retellConfusions"]];
         const hooks = E.gmStoreHandles().map(h => String(h.spec.afterRestore ?? ""));
         const uncalled = RETELLS.filter(([, fn]) => !hooks.some(src => src.includes(`.${fn}(`))).map(([, fn]) => fn);
         ok(!uncalled.length, `no store's afterRestore calls ${uncalled.join(", ")}`);
@@ -4544,7 +4546,15 @@ const INVARIANTS = [
          * item's flags too (the rule's Item half), with the killer's id planted in one. E05 C14:
          * a body's loot record, and a token's answer key - each flag of remnants.mjs's
          * `ANSWER_KEY_FLAGS`, which the rule writes out and must equal, while the clean token
-         * keeps `fromIncident` beside `isRemnant`.
+         * keeps `fromIncident` beside `isRemnant`. E06 C1: each field of a `messages` rule, and its
+         * `flagsOnly`, needs a fixture as well (the list is empty at C1; R202 reads the kinds).
+         * E06 C5b: the first rule, a roll the module threw - the clean snapshot holds one as
+         * private-rolls.mjs `neutralRollSource` leaves it (its roll as JSON text, whispered to a
+         * GM, written by a player), which reads clean, and each field is
+         * planted in it once, the roll's options inside that text; since its fix r1-G1 the clean
+         * roll holds the empty `data` and the unlabelled modifiers `neutralRollOf` leaves. E06 C10: an armed Call's buyer,
+         * the first Actor path through an array - the clean bystander holds an armed Call without
+         * one, and the fixture's second entry, a `null` one, is found at its index.
          */
         const W = await import("./world-secrets.mjs");
         const MOD = W.WORLD_SECRET_MODULE;
@@ -4557,11 +4567,17 @@ const INVARIANTS = [
                 overflow: { active: { session: 1, day: 2, timeOfDay: "noon", effect: "fog" } }
             },
             actors: [{ id: KILLER, flags: { [MOD]: { advances: 1 }, "r190-other-module": { memo: KILLER } } },
-                { id: "R190BYSTANDER001", flags: { [MOD]: { deceased: false } } }],
+                { id: "R190BYSTANDER001", flags: { [MOD]: { deceased: false,
+                    pendingCall: [{ key: "support", kind: "hope", grants: "advantage", amount: null, nonce: "R190NONCE" }] } } }],
             users: [{ id: "R190USER00000001", flags: { [MOD]: { preSessionNote: { updatedAt: 1, written: true } } } }],
             tokens: [{ id: "R190SCENE0000001.R190TOKEN0000001", flags: { [MOD]: { isRemnant: true, fromIncident: true } },
                 delta: { flags: { [MOD]: { advances: 2 } } } }],
-            messages: [{ id: "R190MESSAGE00001", flags: { [MOD]: { callCard: true, popupTitle: "A ruling to make" } } }],
+            messages: [{ id: "R190MESSAGE00001", flags: { [MOD]: { callCard: true, popupTitle: "A ruling to make" } } },
+                { id: "R190MESSAGE00002", flags: { [MOD]: { supersededRoll: true } }, author: "R190USER00000001", whisper: ["R190GAMEMASTER001"],
+                    speaker: { alias: "Monokuma", actor: null, token: null, scene: null }, system: { title: "", source: { actor: "" }, targets: [] },
+                    rolls: [JSON.stringify({ class: "DualityRoll", total: 14, options: { title: "", headerTitle: "", source: { actor: "" },
+                        data: {}, roll: { type: "action", modifiers: [{ label: "", value: 1 }], baseModifiers: [{ label: "", value: 0 }] },
+                        actionType: "action" } })] }],
             items: [{ id: "R190BYSTANDER001.items.R190ITEM00000001", flags: { [MOD]: {
                 category: "truthBullet", isTruthBullet: true, shownType: "neutral", room: "Gym" } } }]
         });
@@ -4604,6 +4620,36 @@ const INVARIANTS = [
             ["ChatMessage flag summary",
                 s => { s.messages[0].flags[MOD].summary = { action: "Search", item: "R190 a find" }; },
                 h => h.kind === "flag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00001" && h.path === `flags.${MOD}.summary`],
+            // E06 C5b: a roll the module threw names nobody - each field planted in the neutral one, a roll's inside its JSON text.
+            ...[["speaker.actor", KILLER], ["speaker.token", "R190TOKEN0000001"], ["system.title", "R190 Strike"], ["system.source.actor", `Actor.${KILLER}`],
+                ["rolls.*.options.title", "R190 Strike"], ["rolls.*.options.headerTitle", "R190 Strike"], ["rolls.*.options.source.actor", `Actor.${KILLER}`],
+                // Fix r1-G1: the character's system in `data` as Daggerheart writes it, its effects, the
+                // experiences picked and the labels naming them, its statistic.
+                ["rolls.*.options.data", { biography: { background: "R190 Killer, as their player wrote them." }, companion: "Actor.R190COMPANION00001" }],
+                ["rolls.*.options.effects", [{ name: "R190 Blessed", origin: "Actor.R190COMPANION00001.Item.R190ITEM00000002" }]],
+                ["rolls.*.options.bonusEffects", { R190EFFECT000001: { name: "R190 Blessed" } }], ["rolls.*.options.experiences", ["R190EXPERIENCE01"]],
+                ["rolls.*.options.roll.trait", "agility"], ["rolls.*.options.roll.modifiers.*.label", "R190 Kendo Captain"],
+                ["rolls.*.options.roll.baseModifiers.*.label", "R190 Kendo Captain"],
+                // Fix r2-G2: the Loaded Die's mark - the nonce its Call keeps on the character, the bystander's here.
+                ["rolls.*.options.drpgLoadedDie", "R190NONCE"]].map(([f, value]) => [`message supersededRoll: ${f}`,
+                s => {
+                    const message = s.messages[1];
+                    const inRoll = f.startsWith("rolls.*.");
+                    const roll = inRoll ? JSON.parse(message.rolls[0]) : null;
+                    const parts = (inRoll ? f.slice("rolls.*.".length) : f).replaceAll("*", "0").split(".");
+                    const node = parts.slice(0, -1).reduce((at, key) => at[key], inRoll ? roll : message);
+                    node[parts.at(-1)] = value;
+                    if (inRoll) message.rolls[0] = JSON.stringify(roll);
+                },
+                h => h.kind === "messageField" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00002" && h.path === f.replaceAll("*", "0")]),
+            // E06 C7a: a private card's document says nothing of itself - its action's title is found.
+            ["message secret: only secret, veiled, drpgMessage, thread, kind, gmAsk, settled",
+                s => { s.messages.push({ id: "R190MESSAGE00003", flags: { [MOD]: { secret: true, drpgMessage: true, popupTitle: "R190 Search" } } }); },
+                h => h.kind === "messageFlag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00003" && h.path === `flags.${MOD}.popupTitle`],
+            // E06 C8: a veiled card's document says nothing of whose thread it is - its thread is found.
+            ["message veiled: only secret, veiled, drpgMessage",
+                s => { s.messages.push({ id: "R190MESSAGE00006", flags: { [MOD]: { secret: true, veiled: true, thread: "R190USER00000001" } } }); },
+                h => h.kind === "messageFlag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00006" && h.path === `flags.${MOD}.thread`],
             // E05 C14: a body carries no loot record - on a world actor, and on an unlinked token's own actor data.
             ["Actor flag lootTrace",
                 s => { s.actors[1].flags[MOD].lootTrace = { sceneId: "R190SCENE0000001", tokenId: "R190TOKEN0000009", taken: ["R190 a knife"] }; },
@@ -4611,6 +4657,13 @@ const INVARIANTS = [
             ["unlinked token's Actor flag lootTrace",
                 s => { s.tokens[0].delta.flags[MOD].lootTrace = { taken: [] }; },
                 h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `delta.flags.${MOD}.lootTrace`],
+            // E06 C10: an armed Call names nobody who bought it - on a world actor, and on an unlinked token's own actor data.
+            ["Actor flag pendingCall.*.from",
+                s => { s.actors[1].flags[MOD].pendingCall.push({ key: "meddle", grants: "bonus", amount: -1, from: null, nonce: "R190NONCE2" }); },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190BYSTANDER001" && h.path === `flags.${MOD}.pendingCall.1.from`],
+            ["unlinked token's Actor flag pendingCall.*.from",
+                s => { s.tokens[0].delta.flags[MOD].pendingCall = [{ key: "meddle", grants: "bonus", amount: 1, from: "R190" }]; },
+                h => h.kind === "flag" && h.doc === "Actor" && h.id === "R190SCENE0000001.R190TOKEN0000001" && h.path === `delta.flags.${MOD}.pendingCall.0.from`],
             // E05 C14: a trace's token carries none of its answer key - a promotion's `false` is found as well.
             ...["remnantType", "visibility", "reinforced", "faint", "tiedToCrime", "note", "action", "subject", "sourceActor", "sourceName",
                 "room", "chapter", "day", "timeOfDay", "pointsAt"].map(f => [`Token flag ${f}`,
@@ -4638,7 +4691,18 @@ const INVARIANTS = [
                     Object.assign(s.settings.projectMeta.R190PROJECT00001, { tokenId: "R190TOKEN0000002", tokenScene: "R190SCENE0000001" });
                     s.settings.clock.deep = { tokenId: "R190TOKEN0000003" };
                 },
-                hits => !hits.some(h => h.id === "projectMeta") && hits.some(h => h.kind === "field" && h.id === "clock" && h.path === "deep.tokenId")]
+                hits => !hits.some(h => h.id === "projectMeta") && hits.some(h => h.kind === "field" && h.id === "clock" && h.path === "deep.tokenId")],
+            /* E06 C7a, both ways: a thread card keeps its placement, an old one its `settled`, and it
+               speaks as its actor (a rule of `flagsOnly` alone reads no speaker) - it reads clean; the
+               same card with its sound on the document is found. */
+            ["a private card may hold its placement and settled",
+                s => {
+                    const card = (id, more) => ({ id, flags: { [MOD]: { secret: true, drpgMessage: true, thread: "R190USER00000001", kind: "action",
+                        gmAsk: true, settled: true, ...more } }, speaker: { actor: KILLER, alias: "R190 Killer" }, whisper: ["R190USER00000001"] });
+                    s.messages.push(card("R190MESSAGE00004", {}), card("R190MESSAGE00005", { sfx: "gmAsk" }));
+                },
+                hits => !hits.some(h => h.id === "R190MESSAGE00004")
+                    && hits.some(h => h.kind === "messageFlag" && h.id === "R190MESSAGE00005" && h.path === `flags.${MOD}.sfx`)]
         ];
         const R = W.WORLD_SECRET_RULES;
         // E05 C14: the Token rule is remnants.mjs's list of what a trace's token may not carry, written out.
@@ -4652,7 +4716,10 @@ const INVARIANTS = [
             ...(R.everySetting?.fields ?? []).map(f => `every setting: ${f}`),
             ...Object.entries(R.everySetting?.except ?? {}).flatMap(([key, fields]) => fields.map(f => `${key} may hold ${f}`)),
             ...Object.entries(R.flags ?? {}).flatMap(([doc, paths]) => paths.map(p => `${doc} flag ${p}`)),
-            ...(R.flags?.Actor ?? []).map(p => `unlinked token's Actor flag ${p}`)
+            ...(R.flags?.Actor ?? []).map(p => `unlinked token's Actor flag ${p}`),
+            // E06 C1: a message rule's fields, and the flags it lets a card of its kind carry.
+            ...(R.messages ?? []).flatMap(rule => [...(rule.fields ?? []).map(f => `message ${rule.when}: ${f}`),
+                ...(rule.flagsOnly ? [`message ${rule.when}: only ${rule.flagsOnly.join(", ")}`] : [])])
         ].filter(what => !named.has(what));
         ok(!unfixtured.length, `a rule of world-secrets.mjs has no fixture here: ${unfixtured.join(", ")}`);
         const missed = [];
@@ -5067,6 +5134,140 @@ const INVARIANTS = [
             return !(at >= 0 && reads > at);
         }).map(([file, name]) => `${file} ${name}`);
         ok(!early.length, `these read their store before it holds the other GMs' rows: ${early.join(", ")}`);
+    }],
+
+    ["R202 - a message rule of the world-secrets rule reads a card of its kind, and an ordinary card's speaker stays its actor", async () => {
+        /*
+         * E06 C1, 27.09.2026. world-secrets.mjs gains `messages`: rules for chat messages of one kind
+         * (a module flag, `when`) - `fields` that must be absent or empty, `*` for an array index,
+         * and `flagsOnly`, the module flags such a card may carry. The list is empty at C1; each
+         * later rule brings its R190 fixture (R190 names every field and `flagsOnly` of every message
+         * rule it has none for). This reads the two new kinds on fabricated messages
+         * with a rule written here: a roll card of the kind, with its speaker, a roll's title (the
+         * JSON text Foundry keeps a roll as, beside one already parsed, whose title is empty) and a
+         * flag the rule does not allow, each found where it is and nowhere else - the killer's id
+         * found in its speaker and in a roll's `options.data`, which a rule of its kind lets the
+         * reader look at; the same card without the flag reads clean, its speaker being its actor
+         * by design; and one of the kind that holds nothing reads clean.
+         */
+        const W = await import("./world-secrets.mjs");
+        const MOD = W.WORLD_SECRET_MODULE;
+        const KILLER = "R202KILLERACTOR1";
+        const RULES = { settings: {}, flags: {}, messages: [{ when: "r202Card", fields: ["speaker.actor", "system.title", "rolls.*.options.title"],
+            flagsOnly: ["r202Card", "secret"], since: "R202", why: "a fixture" }] };
+        const roll = (title, id = null) => ({ class: "DualityRoll", options: { title, ...(id ? { data: { id, name: "R202" } } : {}) } });
+        const card = (id, flags) => ({ id, flags: { [MOD]: flags }, speaker: { actor: KILLER, alias: "R202" }, system: { title: "" },
+            rolls: [JSON.stringify(roll("R202 Strike", KILLER)), roll("")], whisper: [], author: "R202USER00000001" });
+        const hits = W.findWorldSecrets({ messages: [
+            card("R202MESSAGE00001", { r202Card: true, secret: true, popupTitle: "R202 Strike" }),
+            card("R202MESSAGE00002", { secret: true }),
+            { id: "R202MESSAGE00003", flags: { [MOD]: { r202Card: true } }, speaker: { actor: null, alias: "" }, system: { title: "" },
+                rolls: [roll("")], whisper: [], author: "R202USER00000001" }
+        ] }, { ids: [KILLER], rules: RULES });
+        equal(JSON.stringify(hits.map(h => [h.kind, h.id, h.path])), JSON.stringify([
+            ["messageField", "R202MESSAGE00001", "speaker.actor"], ["messageField", "R202MESSAGE00001", "rolls.0.options.title"],
+            ["messageFlag", "R202MESSAGE00001", `flags.${MOD}.popupTitle`],
+            ["id", "R202MESSAGE00001", "speaker.actor"], ["id", "R202MESSAGE00001", "rolls.0.options.data.id"]
+        ]), "a message rule did not find what a card of its kind held, found something where it is empty, or read a card of another kind");
+    }],
+
+    ["R203 - who is in an incident is one table, by the stage: every cell of incidentSeats", async () => {
+        /*
+         * E06 C2, 27.09.2026; audit S04-01, the owner's D6. settings.mjs `incidentSeats` is the
+         * table every reader of "who is told" asks - the cast's sender, the witness, the opening
+         * card, the frozen clock. Every cell, on made-up ids: a direct murder, a trap and a
+         * self-inflicted death (one id in both chairs, direct), each with no third, a third on the
+         * killer's side and one who is not (a side not yet chosen reads as not the killer's), at
+         * the opening, the fight, Stage 6 and a state that names no stage. Then the two readings
+         * the table leans on: a `stage` named by the caller wins over the state's, and a cast that
+         * holds no `indirect` reads the world half's (`incidentIndirect`).
+         */
+        const { incidentSeats } = await import("./settings.mjs");
+        const KINDS = { direct: { killerId: "K", victimId: "V", indirect: false }, trap: { killerId: "K", victimId: "V", indirect: true },
+            self: { killerId: "S", victimId: "S", indirect: false } };
+        const THIRDS = { none: {}, killers: { thirdId: "T", thirdSide: "killer" }, other: { thirdId: "T", thirdSide: null } };
+        const STAGES = ["openingRoll", "incident", "resolution", undefined];
+        const read = {};
+        for (const [kind, cast] of Object.entries(KINDS)) {
+            for (const [third, extra] of Object.entries(THIRDS)) {
+                for (const stage of STAGES) {
+                    read[`${kind} ${third} ${stage ?? "-"}`] = incidentSeats({ ...cast, ...extra }, { active: true, stage }).join("");
+                }
+            }
+        }
+        const EXPECTED = {
+            "direct none openingRoll": "K", "direct none incident": "KV", "direct none resolution": "KV", "direct none -": "KV",
+            "direct killers openingRoll": "KT", "direct killers incident": "KVT", "direct killers resolution": "KVT", "direct killers -": "KVT",
+            "direct other openingRoll": "K", "direct other incident": "KVT", "direct other resolution": "KVT", "direct other -": "KVT",
+            "trap none openingRoll": "V", "trap none incident": "V", "trap none resolution": "KV", "trap none -": "KV",
+            "trap killers openingRoll": "V", "trap killers incident": "V", "trap killers resolution": "KVT", "trap killers -": "KVT",
+            "trap other openingRoll": "V", "trap other incident": "VT", "trap other resolution": "KVT", "trap other -": "KVT",
+            "self none openingRoll": "S", "self none incident": "S", "self none resolution": "S", "self none -": "S",
+            "self killers openingRoll": "ST", "self killers incident": "ST", "self killers resolution": "ST", "self killers -": "ST",
+            "self other openingRoll": "S", "self other incident": "ST", "self other resolution": "ST", "self other -": "ST"
+        };
+        // Built in the order EXPECTED is written in, so the two read as one text.
+        equal(JSON.stringify(read), JSON.stringify(EXPECTED), "a cell of the incident's seats is not the table's");
+        const named = incidentSeats(KINDS.direct, { active: true, stage: "incident" }, { stage: "openingRoll" }).join("");
+        const fromWorld = incidentSeats({ killerId: "K", victimId: "V" }, { active: true, stage: "incident", indirect: true }).join("");
+        const castWins = incidentSeats(KINDS.direct, { active: true, stage: "incident", indirect: true }).join("");
+        equal(JSON.stringify([named, fromWorld, castWins]), JSON.stringify(["K", "V", "KV"]),
+            "the stage a caller names does not win over the state's, or a cast without the method does not read the world half's, "
+            + "or the world half's overrides a cast that holds it");
+    }],
+
+    ["R204 - a Reroll rebuilds a neutral roll from its character and its bookmark, and writes it back naming nobody", async () => {
+        /*
+         * E06 fix r1-G1, 28.09.2026; review M1 = F1. A roll the module threw keeps nothing of its
+         * character in its message (private-rolls.mjs `neutralRollOf`), and a Reroll rebuilds the
+         * formula from the roll's options - so reroll.mjs `rollAsThrown` puts back what the
+         * rebuild reads: the character's data from the actor, the statistic and the experiences
+         * from the bookmark of the roll's own browser. A made-up roll class stands in for
+         * Daggerheart's, which the harness does not have: a neutral roll comes back rebuilt with
+         * the sheet, the statistic in Daggerheart's key and the experiences, its own options
+         * untouched; a roll the module did not throw comes back as it was; one the bookmark does
+         * not name is refused. Then what the Reroll writes into the message (`rerolledSource`),
+         * from a rerolled roll that carries all of it and an experience's label: no sheet, no
+         * statistic, no experience, no label, no Loaded Die's mark (fix r2-G2, 28.09.2026: the
+         * nonce its Call keeps on the character), and a clean read against the world-secrets rule -
+         * and a roll the module did not throw is written as it is.
+         */
+        const RR = await import("./reroll.mjs");
+        const W = await import("./world-secrets.mjs");
+        const MOD = W.WORLD_SECRET_MODULE;
+        class Thrown { constructor(formula, data, options) { Object.assign(this, { formula, data, options }); } }
+        const sheet = { traits: { instinct: { value: 2 } }, experiences: { R204EXPERIENCE01: { name: "R204 Kendo Captain", value: 2 } },
+            companion: "Actor.R204COMPANION00001" };
+        const actor = { id: "R204ACTOR0000001", getRollData: () => sheet };
+        const message = (id, claimed) => ({ id, getFlag: (scope, key) => claimed && scope === MOD && key === "supersededRoll" });
+        const FORMULA = "1d12 + 1d12 + 2 + 2";
+        const stored = { title: "", data: {}, roll: { type: "action", modifiers: [{ label: "", value: 2 }, { label: "", value: 2 }] }, actionType: "action" };
+        const original = Object.assign(new Thrown(FORMULA, {}, structuredClone(stored)), { _formula: FORMULA });
+        const mark = { messageId: "R204MESSAGE00001", trait: "eye", experiences: ["R204EXPERIENCE01"] };
+
+        const thrown = await RR.rollAsThrown(original, actor, message("R204MESSAGE00001", true), mark);
+        const plain = await RR.rollAsThrown(original, actor, message("R204MESSAGE00002", false), null);
+        let refused = null;
+        try { await RR.rollAsThrown(original, actor, message("R204MESSAGE00003", true), mark); } catch (err) { refused = String(err?.message ?? err); }
+        equal(JSON.stringify([thrown instanceof Thrown, thrown.formula, thrown.options.data === sheet, thrown.options.roll.trait,
+            thrown.options.experiences, thrown.options.effects, JSON.stringify(original.options) === JSON.stringify(stored), plain === original, Boolean(refused)]),
+            JSON.stringify([true, FORMULA, true, "instinct", ["R204EXPERIENCE01"], [], true, true, true]),
+            `a Reroll does not rebuild a neutral roll from its character and bookmark, touches the message's roll, or rebuilds one it cannot (${refused})`);
+
+        thrown.options.roll.modifiers = [{ label: "DAGGERHEART.CONFIG.Traits.instinct.name", value: 2 }, { label: "R204 Kendo Captain", value: 2 }];
+        thrown.options.effects = [{ name: "R204 Blessed", origin: "Actor.R204ACTOR0000001.Item.R204ITEM00000001" }];
+        thrown.options.drpgLoadedDie = "R204NONCE0000001";
+        const rerolled = { toJSON: () => ({ class: "DualityRoll", formula: FORMULA, total: 17, options: thrown.options }) };
+        const written = RR.rerolledSource(rerolled, message("R204MESSAGE00001", true));
+        const back = typeof written === "string" ? JSON.parse(written) : null;
+        const hits = W.findWorldSecrets({ messages: [{ id: "R204MESSAGE00001", flags: { [MOD]: { supersededRoll: true } },
+            speaker: { alias: "Monokuma", actor: null, token: null, scene: null }, system: { title: "", source: { actor: "" }, targets: [] },
+            rolls: [written], whisper: [], author: "R204USER00000001" }] }, { ids: [actor.id] });
+        equal(JSON.stringify([back?.total, back?.options?.data, back?.options?.roll?.modifiers, back?.options?.roll?.trait ?? null,
+            back?.options?.experiences ?? null, back?.options?.effects ?? null, ["R204 Kendo Captain", "R204COMPANION", "R204ACTOR", "R204NONCE"].filter(x => written.includes(x)),
+            hits.map(h => h.path), RR.rerolledSource(rerolled, message("R204MESSAGE00002", false)) === rerolled]),
+            JSON.stringify([17, {}, [{ label: "", value: 2 }, { label: "", value: 2 }], null, null, null, [], [], true]),
+            "a Reroll writes a rerolled roll the module threw back with its character in it, or rewrites one the module did not throw");
     }]
 ];
 
@@ -5081,7 +5282,8 @@ const INVARIANTS = [
  * other nine, two (Murder.betrayTileLabel and betrayTileHint) were used by no
  * file and are gone; seven were built at run time. Four are left here:
  *
- *   murder.mjs         victimTrapSprung / victimUnderAttack, by `state.indirect`
+ *   murder.mjs         victimTrapSprung / victimUnderAttackBy, by `state.indirect`
+ *                      (victimUnderAttack until E06 C4, which names the killer)
  *   season-setup.mjs   `DRPG.Season.step.${key}` and `.hint.`, for the resources step
  *
  * The other three were `DRPG.Bridge.what.${action}` keys, and left in E31
@@ -5091,7 +5293,7 @@ const INVARIANTS = [
  * of the season steps is checked by no test.
  */
 const LITERAL_KEYS = [
-    "DRPG.Murder.victimUnderAttack", "DRPG.Murder.victimTrapSprung",
+    "DRPG.Murder.victimUnderAttackBy", "DRPG.Murder.victimTrapSprung",
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources"
 ];
 

@@ -15,7 +15,7 @@ import {
     markerProblem, runOne, stageLedger, suiteEntries, KIT_SELF_TESTS, SELF_LEDGER, MARKER_FIXTURE,
     scanSuite, bareCuts, vacuousAsserts, needsArgs, LINT_FIXTURES, UNTIL_FIXTURE, untilProblem, DUMP_RULES,
     DUMP_FOREIGN_SETTINGS, dumpOf, dumpDiff, dumpPathsOf, FLOWS, FLOW_EXEMPT, staticImports, importCycles,
-    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING
+    bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, storeKeyAccess, GM_STORE_PENDING, blankComments, blankLiterals, callArgs
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -250,7 +250,8 @@ const REGRESSIONS = [
          * Every request a player's client sends the primary GM is a declaration in
          * one of the bridge's tables (E31, 25.09.2026: BRIDGE_ACTIONS in
          * gm-bridge.mjs, TRAP_ACTIONS in traps.mjs, SEARCH_ACTIONS in
-         * search-tokens.mjs), judged by one runner: who really
+         * search-tokens.mjs; since E06 C5a ROLL_ACTIONS in private-rolls.mjs,
+         * whose one report names its message by a guard's claim), judged by one runner: who really
          * sent it (`senderOf(senderId)`, Foundry's own argument, which cannot be
          * forged), then the guards the declaration names, in order, and only then
          * the run, with a copy of the packet that holds only the fields the
@@ -376,7 +377,7 @@ const REGRESSIONS = [
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
             "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns, weak and fill-only",
             "sync.mjs": "world-state fan-out from a GM; carries no actor id",
-            "safeword.mjs": "deliberately trusts nothing from the packet - reads the sender's name",
+            "safeword.mjs": "trusts nothing from the packet but the room it shows the GMs as text; the name is the connected sender's, and the primary posts one public card per player per window, naming nobody",
             "dice-sync.mjs": "dice appearance only; no actor anywhere in it",
             "sfx.mjs": "plays a sound; no actor anywhere in it",
             "voice.mjs": "room membership, keyed by the sender",
@@ -423,10 +424,13 @@ const REGRESSIONS = [
          * traces a player's own bullets came from is such a copy (truth-bullets.mjs,
          * `bulletRefCopy`), and a player able to hand another one would show them traces
          * they never found: its handler takes an answer only through `replyForMe`
-         * (addressed to this user, sent by a GM), or asks Foundry's sender itself.
+         * (addressed to this user, sent by a GM), or asks Foundry's sender itself. The
+         * incident's dice are another (E06 C6): `dice.show` plays a roll on this screen, and
+         * only the primary GM knows whose roll it is and who is in the incident, so
+         * private-rolls.mjs's `showRelayedDice` takes it from a GM alone.
          */
         const FROM_GM = /\breplyForMe\(payload, senderId\)|\bgame\.users\.get\(senderId\)\?\.isGM\b/;
-        const COPY_LISTENERS = [["truth-bullets.mjs", "onBulletRefsSocket"]];
+        const COPY_LISTENERS = [["truth-bullets.mjs", "onBulletRefsSocket"], ["private-rolls.mjs", "showRelayedDice"]];
         const served = new Map(await otherSources());
         const trusting = COPY_LISTENERS.filter(([file, fn]) => !FROM_GM.test(fnSource(stripComments(served.get(file) ?? ""), fn)))
             .map(([file, fn]) => `${file} ${fn}`);
@@ -845,7 +849,11 @@ const REGRESSIONS = [
                 const delta = t.toObject()?.delta;
                 return { id: `${scene.id}.${t.id}`, flags: t.flags ?? {}, delta: delta ? { flags: delta.flags ?? {} } : null };
             })),
-            messages: (game.messages?.contents ?? []).map(flagsOf),
+            // E06 C1: with what a `messages` rule reads - the source's speaker, system, rolls, whisper and author.
+            messages: (game.messages?.contents ?? []).map(m => {
+                const { speaker, system, rolls, whisper, author } = m.toObject();
+                return { ...flagsOf(m), speaker, system, rolls, whisper, author };
+            }),
             // An item by its uuid, which says whose sheet it is on.
             items: [...(game.items?.contents ?? []), ...game.actors.contents.flatMap(actor => actor.items?.contents ?? [])]
                 .map(item => ({ id: item.uuid, flags: item.flags ?? {} }))
@@ -5764,6 +5772,9 @@ const REGRESSIONS = [
          * and narrows the one allowance inside a lift's own file: `neutralTraceNames` was allowed
          * anywhere in remnants.mjs (reviews S2-m11 = F8), so a ready hook there calling it passed;
          * now only inside `migrateRemnantsOnce`'s body, shown a planted hook beside it first.
+         * E06 C12 adds the rewrite of the chat log written before 1.2.65, since 1.2.65, and E06's
+         * fix r2-G1 two clauses for what C10 changed on data 1.2.64 wrote: the buyers of armed
+         * Calls, and a secret project's public repair.
          */
         const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"],
             // E04's three, given 1.2.64 by E05's fix rounds (r1-G1; the Faint's pass r2-F0b): a world 1.2.63
@@ -5779,7 +5790,11 @@ const REGRESSIONS = [
             // E05 C14: a body's loot record into its row, and an old trace's answer key off its token.
             ["liftLootTraces", "liftLootTraces", "1.2.64"], ["migrateRemnantsOnce", "migrateRemnantsOnce", "1.2.64"],
             // E05 fix r2-G4: the marks of the incidents closed before 1.2.64 off their traces.
-            ["retireOldIncidentMarks", "retireOldIncidentMarks", "1.2.64"]];
+            ["retireOldIncidentMarks", "retireOldIncidentMarks", "1.2.64"],
+            // E06 C12: the chat log written before 1.2.65 rewritten as it is written today; lifts nothing.
+            ["neutraliseOldCards", "neutraliseOldCards", "1.2.65"],
+            // E06 fix r2-G1: an armed Call's buyer off its actor, and a secret project's repair sealed and renamed.
+            ["unsignArmedCalls", "unsignArmedCalls", "1.2.65"], ["sealOldRepairs", "sealOldRepairs", "1.2.65"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.
@@ -6006,11 +6021,17 @@ const REGRESSIONS = [
          * first. The rule's own cases are the tier-2 test "a trap a world half still holds is a
          * trap to every reader until the lift reaches it".
          */
-        const READERS = [["murder.mjs", "castOwners"], ["settings.mjs", "incidentWitness"], ["events.mjs", "openingCard"]];
-        const problems = (label, body) => {
+        /* E06 C2 (27.09.2026): the seats are one table, settings.mjs `incidentSeats`, which asks
+           the rule; the opening card reads its seats there and asks nothing else, so for a reader
+           asking the table counts as asking the rule - and the table itself, read here as a
+           fourth reader, must ask the rule by name. */
+        const ASKS = /\bincident(?:Indirect|Seats)\(/, RULE = /\bincidentIndirect\(/;
+        const READERS = [["murder.mjs", "castOwners", ASKS], ["settings.mjs", "incidentWitness", ASKS], ["events.mjs", "openingCard", ASKS],
+            ["settings.mjs", "incidentSeats", RULE]];
+        const problems = (label, body, asks = ASKS) => {
             if (!body) return [`${label} was not found - this test reads nothing until it is pointed at it again`];
             const out = [];
-            if (!/\bincidentIndirect\(/.test(body)) out.push(`${label} does not ask incidentIndirect whether it is a trap`);
+            if (!asks.test(body)) out.push(`${label} does not ask incidentIndirect whether it is a trap`);
             if (/\bcast\??\.indirect\b/.test(body)) out.push(`${label} reads the cast's indirect itself`);
             return out;
         };
@@ -6019,7 +6040,7 @@ const REGRESSIONS = [
             "the reader does not find the two faults planted for it");
         const sources = new Map(await otherSources());
         const found = [];
-        for (const [file, fn] of READERS) found.push(...problems(`${file} ${fn}`, fnSource(stripComments(sources.get(file) ?? ""), fn)));
+        for (const [file, fn, asks] of READERS) found.push(...problems(`${file} ${fn}`, fnSource(stripComments(sources.get(file) ?? ""), fn), asks));
         log(`R194: ${READERS.length} readers of whether an incident is a trap, read in ${new Set(READERS.map(r => r[0])).size} files`);
         ok(!found.length, `whether an incident is a trap is not asked of one rule: ${found.join("; ")}`);
     }],
@@ -6079,6 +6100,87 @@ const REGRESSIONS = [
         log(`R197: ${named.size} keys named by the two windows' sources, ${read} strings read in en and pl`);
         ok(read >= 100, `only ${read} strings were read - the scope is not what this test thinks it is`);
         ok(!found.length, `a text of Despair Flow or the season checklist still names the Mastermind beside "- nobody -": ${found.join(", ")}`);
+    }],
+
+    ["R201 - every socket emit names its recipients but the four that carry nothing", async () => {
+        /*
+         * E06 C1, 27.09.2026; audit S08-07 (the net it asked for), L27. A `socket.emit` with no
+         * `recipients` reaches every connected browser, a player's among them, whatever the packet
+         * was meant for. S08-07's own case - the trap relay - goes to the primary through the bridge
+         * since E31. The E06 design read scripts/*.mjs without the suite's files at 51e10c7: 39
+         * emits, 35 addressed, and four that name nobody and carry no id - the same four at d666a2a,
+         * listed below with what they carry and why everybody gets them. A fifth un-addressed emit, a second one in a file
+         * that has one, or one of the four gaining a field fails; one of the four gone fails too, so
+         * the list does not outlive its reason. The reader is shown planted source first. What it
+         * cannot see: an emit through a name other than `socket`, and what a packet's own values
+         * hold - `data` of sync.mjs is whatever its caller hands `broadcast` (at d666a2a the clock,
+         * whether an Eclipse is on, and two empty packets: clock.mjs, eclipse.mjs, call-effects.mjs,
+         * observe.mjs).
+         */
+        const BROADCAST = {
+            "fog.mjs": { fields: ["action"], why: "the primary GM asking every player's browser for its copy of the fog ledger when its own store holds nothing (askForShares)" },
+            "gm-bridge.mjs": { fields: ["action"], why: "a GM saying they are listening, so a player whose request is still waiting sends it again" },
+            "relay-guard.mjs": { fields: ["action", "data"], why: "Daggerheart's countdown refresh after a countdown change, sent as Daggerheart's own handler sends it" },
+            "sync.mjs": { fields: ["action", "data", "kind"], why: "a public change every browser redraws: the clock, the Eclipse, the projects, the restrictions" }
+        };
+        /* The emits of one file: where, whether the third argument names `recipients`, and the
+           payload's top-level keys when it is an object literal ("..." a spread; null any other
+           payload, which no entry above matches). Comments and strings are blanked first. */
+        const keysOf = literal => {
+            const inner = literal.slice(1, -1);
+            const keys = [];
+            let depth = 0, start = 0;
+            for (let i = 0; i <= inner.length; i++) {
+                const c = inner[i];
+                if (c === "(" || c === "[" || c === "{") depth++;
+                else if (c === ")" || c === "]" || c === "}") depth--;
+                else if ((c === "," && depth === 0) || i === inner.length) {
+                    const part = inner.slice(start, i).trim();
+                    if (part) keys.push(part.startsWith("...") ? "..." : (part.match(/^[A-Za-z_$][\w$]*/)?.[0] ?? part));
+                    start = i + 1;
+                }
+            }
+            return keys.sort();
+        };
+        const emitsIn = text => {
+            const code = blankComments(text), blank = blankLiterals(code);
+            return [...blank.matchAll(/\bsocket\s*\??\.\s*emit\s*\(/g)].map(m => {
+                const { args } = callArgs(blank, m.index + m[0].length - 1);
+                const arg = i => (args[i] ? blank.slice(args[i].start, args[i].end).trim() : "");
+                return { line: lineAt(code, m.index), addressed: /\brecipients\b/.test(arg(2)),
+                    fields: /^\{[\s\S]*\}$/.test(arg(1)) ? keysOf(arg(1)) : null };
+            });
+        };
+        const PLANTED = [
+            "game.socket.emit(SOCKET_EVENT, { action: A, who }, { recipients: [id] });",
+            "game.socket.emit(SOCKET_EVENT, { action: B, note: \"recipients\", ...(x ? { x } : {}) }, { note: \"recipients\" });",
+            "game.socket?.emit(`module.${MODULE_ID}`, payload);",
+            "// game.socket.emit(SOCKET_EVENT, { action: C });"
+        ].join("\n");
+        equal(JSON.stringify(emitsIn(PLANTED)), JSON.stringify([{ line: 1, addressed: true, fields: ["action", "who"] },
+            { line: 2, addressed: false, fields: ["...", "action", "note"] }, { line: 3, addressed: false, fields: null }]),
+            "the reader does not see the planted emits as they are - an address, a word \"recipients\" in a string, a payload by name, a comment");
+
+        const found = [], broadcast = new Map();
+        let read = 0;
+        for (const [file, raw] of await otherSources()) {
+            for (const emit of emitsIn(raw)) {
+                read++;
+                if (emit.addressed) continue;
+                const listed = BROADCAST[file];
+                if (!listed) found.push(`${file}:${emit.line} sends to every browser and is not one of the four`);
+                else if (broadcast.has(file)) found.push(`${file}:${emit.line} is a second emit to every browser in ${file} (the listed one is at :${broadcast.get(file)})`);
+                else if (JSON.stringify(emit.fields) !== JSON.stringify(listed.fields)) {
+                    found.push(`${file}:${emit.line} carries ${JSON.stringify(emit.fields)} to every browser, and the list says ${JSON.stringify(listed.fields)} (${listed.why})`);
+                }
+                if (!broadcast.has(file)) broadcast.set(file, emit.line);
+            }
+        }
+        log(`R201: ${read} socket emits read in the served sources, ${[...broadcast.keys()].length} of them to every browser`);
+        ok(read >= 30, `only ${read} socket emits were read - the reader is not reading what this test thinks`);
+        const gone = Object.keys(BROADCAST).filter(file => !broadcast.has(file));
+        ok(!gone.length, `listed as an emit to every browser and no longer found - take it off the list: ${gone.join(", ")}`);
+        ok(!found.length, `an emit reaches every browser that the list does not describe: ${found.join("; ")}`);
     }]
 ];
 

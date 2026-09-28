@@ -37,11 +37,11 @@ import { tamperPriceSkip, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
-import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor, projectsListedIn } from "./projects.mjs";
+import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
 import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, ownerOf } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
-import { supersedingRoll } from "./private-rolls.mjs";
+import { supersedingRoll, reportRollSubject } from "./private-rolls.mjs";
 // One reader, for the Tamper menu's "what you have readied" line. use-items.mjs
 // does not import this file.
 import { equippedFor, tierOf } from "./use-items.mjs";
@@ -723,8 +723,13 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         // other, all called "Shadow Roll", and the player answers the same
         // question three times without being told which is which.
         ...(title ? { title, headerTitle: title } : {})
-    }));
+    }), { subject: actor });
     if (!result) return null;
+    // Which character the roll is about: told to the primary GM as the message
+    // was created (the claim's `subject`, E06 fix r1-G2), because the Despair
+    // award is waiting for it (`rollSubject`, private-rolls.mjs, E06 C5a). Asked
+    // again here for a roll the claim did not see created; a repeat says nothing.
+    reportRollSubject(result.message ?? result.raw?.message, actor);
 
     const roll = result.roll ?? result;
     const total = roll?.total ?? result?.total;
@@ -840,6 +845,10 @@ async function rememberRoll(actor, outcome, result, actionKey = null, context = 
             messageId,
             actionKey,
             trait: outcome.trait,
+            // The experiences the dialog picked, which the roll's message no longer
+            // holds and a Reroll's rebuilt formula needs (reroll.mjs `rollAsThrown`,
+            // E06 fix r1-G1): Daggerheart keeps them on the config it hands back.
+            experiences: Array.isArray(result?.experiences) ? [...result.experiences] : [],
             total: outcome.total,
             withFear: outcome.withFear,
             isCritical: outcome.isCritical,
@@ -1261,6 +1270,63 @@ function stashToSearch(actor, room, { stashesIn, stashItemsIn }) {
     return { stashOwner, stashLoot, stashConcealed };
 }
 
+/**
+ * What the room is worth to this particular search, in two parts: `situational`, the dice
+ * the roll window shows and arms, and `penalty`, what lands on the total after the roll.
+ *
+ *   +1  it is a sensible place to look for this - the medic's office for
+ *       bandages. Set per room by the GM when the map is built.
+ *   -1  it is a POOR place to look for this - bandages in the boiler
+ *       room. The favour's mirror, set on the same Room Setup screen.
+ *   -1  it is somebody else's stash and they have hidden it. Only bites
+ *       when there is actually something in there to find.
+ *
+ * THE STASH'S -1 IS NOT THE WINDOW'S (E06 C11, audit S02-40). It was the third term of the
+ * one count the roll window shows, as "where you are -1", and the window can be closed:
+ * `abort` gives the action back and no token is spent. So opening a Search and closing it
+ * again said whether somebody had hidden something in this room, for nothing. The window
+ * shows the room's own favour and hindrance, which Room Setup states and the player may
+ * know; the stash's -1 is taken off the total once the dice are on the table and the
+ * action is paid for, and the card says so (`situationLine`).
+ *
+ * It was a disadvantage die and is a flat -1 now: a die thrown after the window has
+ * closed would be a second roll nobody sees, and "-1" is what this list always said.
+ * The concealed stash's other half, finding it at all, is unchanged.
+ *
+ * `vault` is vault.mjs, which `performSearch` imports when a Search runs.
+ */
+export function searchOdds(actor, room, category, vault) {
+    const { favoursCategory, hindersCategory, stashesIn, stashItemsIn } = vault;
+    const { stashOwner, stashLoot, stashConcealed } = stashToSearch(actor, room, { stashesIn, stashItemsIn });
+
+    let situational = 0;
+    if (favoursCategory(room, category)) situational += 1;
+    if (hindersCategory(room, category)) situational -= 1;
+    const penalty = stashLoot.length && stashConcealed ? -1 : 0;
+    return { situational, penalty, stashOwner, stashLoot };
+}
+
+/**
+ * The tier a Search's roll reaches, with `penalty` on its total first - the one reading
+ * `performSearch` and a Reroll's `settleSearch` share, so a rerolled Search in a room with
+ * a hidden stash is scored as the first roll was. `score` is the total the tiers read; the
+ * roll itself, and the roll message, keep the dice's total (E28 compares the GM's copy of
+ * that message with what a player reports, and the -1 is this module's, not the dice's).
+ */
+export function searchTier(roll, penalty = 0, def = ACTIONS.search) {
+    const score = (Number(roll?.total) || 0) + (Number(penalty) || 0);
+    const hit = resolveThreshold(score, def.thresholds);
+    const baseTier = hit?.tier ?? 0;
+    const tier = roll?.isCritical ? Math.min(3, baseTier + (def.critical?.tierBonus ?? 1)) : baseTier;
+    return { score, hit, tier };
+}
+
+/** The card's line for a penalty the window did not show - empty when there was none. */
+export function situationLine(penalty, score) {
+    if (!penalty) return "";
+    return `<p><em>${game.i18n.format("DRPG.Action.situationAfterRoll", { n: String(penalty), total: score })}</em></p>`;
+}
+
 /** The token was refused: an empty room, or nobody there to answer. Which one decides what the player keeps. */
 async function searchUnclaimed(actor, def, roll, { room, category, goalKey, paid }) {
     // WHY the token was refused decides what the player is told and whether
@@ -1302,7 +1368,7 @@ async function searchUnclaimed(actor, def, roll, { room, category, goalKey, paid
 // happens - and the tier it reaches is exactly the information the GM needs
 // to decide what was really there - so the result goes to them with the
 // player's own description attached.
-async function searchSpecific(actor, def, roll, { room, category, request, tier, hit, paid }) {
+async function searchSpecific(actor, def, roll, { room, category, request, tier, hit, paid, extra = "" }) {
     await callGm(actor, {
         title: def.label,
         request,
@@ -1312,10 +1378,14 @@ async function searchSpecific(actor, def, roll, { room, category, request, tier,
         // answers stay reachable if the editor is cancelled - and the card
         // says so, because a button that does not close its card looks
         // broken to anyone who does not know that (audit E11).
+        //
+        // The tier is read off the total less a hidden stash's -1 (`searchTier`), and the dice
+        // beside it show their own total, so the GM's card carries the player's line saying so
+        // (E06 fix r2-G4, 28.09.2026; review round 2's m5): without it the two disagreed.
         gmBody: `<p>${hit || roll.isCritical
             ? game.i18n.format("DRPG.Action.specificFound", { tier })
             : game.i18n.localize("DRPG.Action.specificNothing")} <em>${
-            game.i18n.localize("DRPG.Bridge.createItemStays")}</em></p>`,
+            game.i18n.localize("DRPG.Bridge.createItemStays")}</em></p>${extra}`,
         // Three answers, because those are the three a GM actually gives to
         // "I am looking for X": it exists and I will make it, it exists
         // already and here it is, or there is none. Each opens the window
@@ -1351,13 +1421,14 @@ async function searchSpecific(actor, def, roll, { room, category, request, tier,
     await report(actor, def, roll, {
         success: Boolean(hit) || roll.isCritical,
         text: game.i18n.localize("DRPG.Action.specificSent"),
+        extra,
         room, tokensLeft: SearchTokens.left(room)
     });
     return { calledGm: true, roll, tier, request };
 }
 
 /** A miss: recorded for Reroll, sounded, and reported as the action's own failure line. */
-async function searchNothing(actor, def, roll, { room, category, goalKey }) {
+async function searchNothing(actor, def, roll, { room, category, goalKey, extra = "" }) {
     await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null });
 
     /*
@@ -1374,7 +1445,7 @@ async function searchNothing(actor, def, roll, { room, category, goalKey }) {
      */
     playSfx("searchNothing");
 
-    await report(actor, def, roll, { text: def.failure, room, tokensLeft: SearchTokens.left(room) });
+    await report(actor, def, roll, { text: def.failure, extra, room, tokensLeft: SearchTokens.left(room) });
     return { success: false };
 }
 
@@ -1385,7 +1456,7 @@ async function searchNothing(actor, def, roll, { room, category, goalKey }) {
 // room's own contents once the stash is empty. Nothing is drawn for a stash
 // - the loot is whatever its owner actually put in it, which is what makes
 // rifling through one worth the action.
-async function searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot }) {
+async function searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot, extra = "" }) {
     const { requestVaultSteal } = await import("./gm-bridge.mjs");
 
     // The declaration still counts. Somebody rummaging for a weapon who
@@ -1398,7 +1469,7 @@ async function searchStash(actor, def, roll, { room, category, goalKey, tier, st
     const taken = pool[Math.floor(Math.random() * pool.length)];
 
     // `viaSearch`: this is the route that PAYS for a concealed stash - an
-    // action, a search token, and the -1 applied above. Without it the GM
+    // action, a search token, and the -1 on the total (`searchOdds`). Without it the GM
     // side refuses every concealed stash outright, which made beating the
     // concealment worth nothing at all. See `stealFromVault`.
     const res = await requestVaultSteal({
@@ -1426,7 +1497,7 @@ async function searchStash(actor, def, roll, { room, category, goalKey, tier, st
             ? game.i18n.localize("DRPG.Vault.foundStashNothing")
             : game.i18n.localize("DRPG.Vault.foundStashPending");
     await report(actor, def, roll, {
-        success: true, text, room, tokensLeft: SearchTokens.left(room)
+        success: true, text, extra, room, tokensLeft: SearchTokens.left(room)
     });
     return { success: true, roll, tier, fromVault: true };
 }
@@ -1602,23 +1673,7 @@ async function performSearch(actor, def, options) {
         return null;
     }
 
-    // What the room is worth to this particular search.
-    //
-    //   +1  it is a sensible place to look for this - the medic's office for
-    //       bandages. Set per room by the GM when the map is built.
-    //   -1  it is a POOR place to look for this - bandages in the boiler
-    //       room. The favour's mirror, set on the same Room Setup screen.
-    //   -1  it is somebody else's stash and they have hidden it. Only bites
-    //       when there is actually something in there to find.
-    const { favoursCategory, hindersCategory, stashesIn, stashItemsIn } =
-        await import("./vault.mjs");
-
-    const { stashOwner, stashLoot, stashConcealed } = stashToSearch(actor, room, { stashesIn, stashItemsIn });
-
-    let situational = 0;
-    if (favoursCategory(room, category)) situational += 1;
-    if (hindersCategory(room, category)) situational -= 1;
-    if (stashLoot.length && stashConcealed) situational -= 1;
+    const { situational, penalty, stashOwner, stashLoot } = searchOdds(actor, room, category, await import("./vault.mjs"));
 
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
@@ -1641,7 +1696,7 @@ async function performSearch(actor, def, options) {
             dc: (def.thresholds ?? []).map(t => t.min).join(" / "),
             // Recorded before anything can bail out below, so a Reroll always
             // knows what was being looked for and where.
-            context: { room, category, goal: goalKey, request }
+            context: { room, category, goal: goalKey, request, penalty }
         });
     } finally {
         // Cleared whatever happened. A situational modifier that outlived its
@@ -1668,15 +1723,16 @@ async function performSearch(actor, def, options) {
 
     if (!claimed) return searchUnclaimed(actor, def, roll, { room, category, goalKey, paid });
 
-    const hit = resolveThreshold(roll.total, def.thresholds);
-    const baseTier = hit?.tier ?? 0;
-    const tier = roll.isCritical ? Math.min(3, baseTier + (def.critical?.tierBonus ?? 1)) : baseTier;
+    // The hidden stash's -1 lands here, on the total the tiers read, and the card
+    // says so (`situationLine`); the roll message keeps the dice's own total.
+    const { hit, tier, score } = searchTier(roll, penalty, def);
+    const extra = situationLine(penalty, score);
 
-    if (goalKey === "specific") return searchSpecific(actor, def, roll, { room, category, request, tier, hit, paid });
+    if (goalKey === "specific") return searchSpecific(actor, def, roll, { room, category, request, tier, hit, paid, extra });
 
-    if (!hit && !roll.isCritical) return searchNothing(actor, def, roll, { room, category, goalKey });
+    if (!hit && !roll.isCritical) return searchNothing(actor, def, roll, { room, category, goalKey, extra });
 
-    if (stashLoot.length) return searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot });
+    if (stashLoot.length) return searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot, extra });
 
     const drawn = await searchDraw(room, category, tier, goalKey, actor);
     const granted = await grantDrawn(actor, drawn, { category, tier, goalKey });
@@ -1692,6 +1748,7 @@ async function performSearch(actor, def, options) {
         // the module is broken.
         substitute: Boolean(drawn?.substitute),
         leftTrace,
+        extra,
         room, tokensLeft: SearchTokens.left(room)
     };
 
@@ -2808,11 +2865,7 @@ async function concealSabotage(actor, { room, project, witnesses, paid, lines })
          */
         if (!hidden) {
             await announce({
-                content: `<p><em>${game.i18n.format("DRPG.Action.sabotageWatched", {
-                    actor: foundry.utils.escapeHTML(actor.name),
-                    room: foundry.utils.escapeHTML(room ?? "-"),
-                    project: foundry.utils.escapeHTML(project.name)
-                })}</em></p>`,
+                content: `<p><em>${sabotageWatchedLine(actor, room, project)}</em></p>`,
                 whisper: roomAudience(actor)
             });
             await whisperToOwner(actor, `<p>${SABOTAGE_CONCEAL.failure}</p>
@@ -2822,6 +2875,21 @@ async function concealSabotage(actor, { room, project, witnesses, paid, lines })
         lines.push(`<p><em>${SABOTAGE_CONCEAL.aloneNote}</em></p>`);
     }
     return { penalty, rolledAlready };
+}
+
+/**
+ * What the room is told of a sabotage it watched, escaped. A secret project, or an indirect
+ * murder, is not named (E06 C10, 28.09.2026; audit S02-12): the room is everybody standing
+ * there, whether or not they can see the project, and the line told them its name. They
+ * still see who did it, and roughly what.
+ */
+export function sabotageWatchedLine(actor, room, project) {
+    const unnamed = isSecret(project.id) || isIndirectMurder(project.id);
+    return game.i18n.format(unnamed ? "DRPG.Action.sabotageWatchedAnon" : "DRPG.Action.sabotageWatched", {
+        actor: foundry.utils.escapeHTML(actor.name),
+        room: foundry.utils.escapeHTML(room ?? "-"),
+        ...(unnamed ? {} : { project: foundry.utils.escapeHTML(project.name) })
+    });
 }
 
     // Guide's Sabotage table, by the repair project it demands:
@@ -4424,7 +4492,7 @@ async function performListen(actor, def, options) {
  * you are standing in actually allows it, so the choice is informed.
  */
 async function performRest(actor) {
-    const { takeRest, roomAllows, restRooms, restSpent } = await import("./rest.mjs");
+    const { takeRest, roomAllows, restRoomsSentence, restSpent } = await import("./rest.mjs");
     const room = roomOfActor(actor);
 
     // One row per rest, each carrying its own price and its own reason for
@@ -4435,7 +4503,8 @@ async function performRest(actor) {
     const variant = kind => {
         const spent = restSpent(actor, kind);
         const allowed = roomAllows(room, kind);
-        const rooms = restRooms(kind);
+        // Only the rest rooms this viewer has found (E06 C11) - `restRoomsSentence`.
+        const elsewhere = restRoomsSentence(kind, "DRPG.Rest.allowedIn");
 
         return {
             value: kind,
@@ -4445,16 +4514,12 @@ async function performRest(actor) {
                 { n: kind === "long" ? 2 : 1, left: actionsLeft(actor) })} · ${
                 allowed
                     ? game.i18n.format("DRPG.Rest.allowedHere", { room: room ?? "" })
-                    : rooms.length
-                        ? game.i18n.format("DRPG.Rest.allowedIn", { rooms: rooms.join(", ") })
-                        : game.i18n.format("DRPG.Rest.noRooms", { kind: "" })}`,
+                    : elsewhere}`,
             disabled: spent || !allowed,
             why: spent
                 ? game.i18n.localize(kind === "long"
                     ? "DRPG.Rest.alreadyThisSessionShort" : "DRPG.Rest.alreadyThisTimeOfDayShort")
-                : rooms.length
-                    ? game.i18n.format("DRPG.Rest.allowedIn", { rooms: rooms.join(", ") })
-                    : game.i18n.format("DRPG.Rest.noRooms", { kind: "" })
+                : elsewhere
         };
     };
 

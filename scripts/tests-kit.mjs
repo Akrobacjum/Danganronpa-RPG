@@ -16,7 +16,7 @@ import { studentActors } from "./monokuma.mjs";
 import { narrowScreen } from "./settings.mjs";
 import { allVaults } from "./vault.mjs";
 import {
-    stripComments, lineAt, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    stripComments, lineAt, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     storeKeyAccess, GM_STORE_PENDING, FIXTURES as LINT_FIXTURES
 } from "./tests-lint.mjs";
 import { FLOWS, FLOW_EXEMPT } from "./tests-flows.mjs";
@@ -522,6 +522,10 @@ const WORLD = {
        counted above may own a Monokuma or a dead student instead. */
     studentsWithConnectedPlayer: ["living students owned by a connected player account", () => living()
         .filter(a => game.users.some(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"))).length],
+    /* A student the GMs play: whisperToOwner's card for them goes to the GMs alone, and speaks as
+       them (E06 fix r2-G2, 28.09.2026 - the fight's veil is asked of the speaker as well). */
+    studentsWithoutPlayer: ["living students no player account owns", () => living()
+        .filter(a => !game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER"))).length],
     fullGms: ["full Gamemaster accounts", () => game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER).length],
     stashes: ["stashes", () => allVaults().length],
     /* Read off the item's own flag, not through vaultContents: the invariant this
@@ -894,9 +898,10 @@ async function bridgeTables() {
     return out;
 }
 
-/** The tables and the files that hold them (E31: the bridge, the trap relay, the search tokens). */
+/** The tables and the files that hold them (E31: the bridge, the trap relay, the search tokens; E06 C5a: a roll's subject). */
 const BRIDGE_TABLE_FILES = Object.freeze([
-    ["gm-bridge.mjs", "BRIDGE_ACTIONS"], ["traps.mjs", "TRAP_ACTIONS"], ["search-tokens.mjs", "SEARCH_ACTIONS"]
+    ["gm-bridge.mjs", "BRIDGE_ACTIONS"], ["traps.mjs", "TRAP_ACTIONS"], ["search-tokens.mjs", "SEARCH_ACTIONS"],
+    ["private-rolls.mjs", "ROLL_ACTIONS"]
 ]);
 
 /**
@@ -1674,7 +1679,7 @@ export {
     wait, settle, until,
     layoutAvailable, cascadeAvailable, LIVE_PROBE, glassTheme, canvasAvailable, systemSheetsAvailable, dialogsDrawn,
     moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, bodyOf, topLevelFunction, fnSource, lineAround,
-    withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
+    withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
     stringLiterals, STANDING, stableJson, moduleSettingValues, watchWrites, cast,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS

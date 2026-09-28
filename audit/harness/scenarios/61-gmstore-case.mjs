@@ -13,6 +13,12 @@
  *   A  the harness's own preconditions: a late GM boots with the storage it was
  *      given, the others see it connect, its storage is read back after it left,
  *      and its clock can be off while the server's is not.
+ *   C  the chat cards 1.2.64 left (E06 C12): the primary's clause rewrites a roll naming its
+ *      character, a private card's facts and a report's words, and a GM that joins after with
+ *      an empty browser holds them rewritten, as a player does.
+ *   C2 the cards 1.2.64 posted about an incident's people (E06 fix r2-G1): a trap's receipt,
+ *      Confusion's card and a fight's roll name nobody on a bystander after the rewrite, and the
+ *      receipt keeps its thread on its player's browser and the primary's.
  *   B  the Truth Bullet answer key survives a second GM joining with an empty
  *      browser (S05-01, the brief's verify, headless): on 1.2.62 the joining GM
  *      rebuilt a row for every bullet from its item's Faint flag and the newer,
@@ -172,6 +178,98 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     check("A7: it comes back with the browser it left, in another world if told, and a clock off by five minutes moves Date.now alone",
         again.held === JSON.stringify({ visit: 2 }) && again.world === "drpg-world-b" && Math.abs(again.skew - 300000) < 2000,
         JSON.stringify(again));
+    await disconnect("gm2");
+    await settle(300);
+
+    /* ------------- C. the chat log 1.2.64 left, and a GM that joins after its rewrite ------------- */
+
+    /* E06 C12 (28.09.2026; the owner's Q1 (a)): three cards as 1.2.64 left them - a roll the module
+       threw naming Aiko, a private card whose flags say its action and tone beside its thread, a
+       music report with its words as the content - rewritten by the clause on the primary (the
+       runner, `only` the clause and forced, as this world is stamped already); then gm2 joins with
+       an empty browser and holds the three as the primary does, and so does p1. The pass reads
+       the whole log, which here holds no other card of the three kinds. The cards are deleted. */
+    phase("C: the chat cards 1.2.64 left are rewritten on the primary, and a GM that joins after holds them rewritten", { flow: "gm-store" });
+    const DIGEST_C = ids => `const ids = ${J(ids)};
+        return ids.map(id => game.messages.get(id)).map(m => m ? { alias: m.speaker?.alias ?? null, actor: m.speaker?.actor ?? null,
+            flavor: m.flavor ?? "", rolls: (m.rolls ?? []).map(r => { const o = r.options ?? {}; return [o.title ?? "", "id" in (o.data ?? {}), "name" in (o.data ?? {})]; }),
+            gmsOnly: m.whisper.length > 0 && m.whisper.every(u => game.users.get(u)?.isGM), flags: Object.keys(m.flags?.["${MOD}"] ?? {}).sort(),
+            words: String(m.content ?? "").includes("E06 C12"), stub: String(m.content ?? "").includes("data-drpg-secret") } : null);`;
+    const c1 = await gm.eval(`const G = await import("${repoUrl}/scripts/migrate.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const roll = await ChatMessage.create({ content: "7", speaker: { alias: aiko.name, actor: aiko.id }, flavor: "E06 C12 Strike",
+            whisper: [...U.gmIds(), "${IDS.p1}"], flags: { "${MOD}": { supersededRoll: true } },
+            rolls: [JSON.stringify({ formula: "1d12", total: 7, options: { title: "E06 C12 Strike", data: { id: aiko.id, name: aiko.name } } })] });
+        const card = await ChatMessage.create({ content: '<p class="notes" data-drpg-secret>-</p>', whisper: [game.user.id],
+            flags: { "${MOD}": { secret: true, drpgMessage: true, thread: "E06-C12", kind: "call", gmAsk: true, settled: true,
+                popupTitle: "E06 C12 Search", popupTone: "hope" } } });
+        const report = await ChatMessage.create({ whisper: [game.user.id],
+            content: '<h3>Music diagnostics</h3><pre style="white-space:pre-wrap;font-size:0.85em">E06 C12 the music report</pre>' });
+        const planted = [roll.speaker?.actor === aiko.id, Boolean(card.flags?.["${MOD}"]?.popupTitle), String(report.content).includes("E06 C12")];
+        const pass = await G.migrate1_2_0({ force: true, quiet: true, only: ["neutraliseOldCards"] });
+        return { ids: [roll.id, card.id, report.id], name: aiko.name, planted, primary: U.isPrimaryGm(), failed: pass?.failed ?? null,
+            done: pass?.clauses?.neutraliseOldCards ?? null };`);
+    const onGmC = await gm.eval(DIGEST_C(c1.ids));
+    await connect("gm2");
+    await settle(1500);
+    const onGm2C = await gm2.eval(DIGEST_C(c1.ids)), onP1C = await p1.eval(DIGEST_C(c1.ids));
+    const wantC = [
+        { alias: onGmC[0]?.alias, actor: null, flavor: "", rolls: [["", false, false]], gmsOnly: true, flags: ["supersededRoll"], words: false, stub: false },
+        { alias: onGmC[1]?.alias, actor: null, flavor: "", rolls: [], gmsOnly: true,
+            flags: ["drpgMessage", "gmAsk", "kind", "secret", "settled", "thread"], words: false, stub: true },
+        { alias: onGmC[2]?.alias, actor: null, flavor: "", rolls: [], gmsOnly: true, flags: ["drpgMessage", "secret"], words: false, stub: true }];
+    check("C1: the primary rewrites a roll naming its character, a private card's facts and a report's words, and a GM that joins after with an empty browser holds them rewritten, as p1 does",
+        c1.primary && c1.planted.every(Boolean) && J(c1.failed) === "[]" && c1.done?.rolls >= 1 && c1.done?.cards >= 1 && c1.done?.reports >= 1
+        && onGmC[0]?.alias !== c1.name && J(onGmC) === J(wantC) && J(onGm2C) === J(onGmC) && J(onP1C) === J(onGmC),
+        J({ c1, onGmC, onGm2C, onP1C }), { flow: "gm-store" });
+    await gm.eval(`for (const id of ${J(c1.ids)}) await game.messages.get(id)?.delete(); return true;`);
+    await disconnect("gm2");
+    await settle(300);
+
+    /* E06 fix r2-G1 (28.09.2026; review round 2's MJ1, whose D1 measured the receipt): three cards
+       1.2.64 posted about an incident's people - a trap's receipt in p3's thread as `callGm` posted
+       it then, its Plant button in the words the primary holds; Confusion's card to p2, known by its
+       sound; a statistic Chie threw at the GM's request in a fight, its list naming Botan's player as
+       well - rewritten by the clause on the primary. On p1, a bystander, the receipt and the card
+       name nobody and the roll's list no longer names p2; on p3 the receipt keeps its place in the
+       thread, from the meta its words were sent with, as on the primary; gm2, joining after with an
+       empty browser, holds the receipt veiled and places it nowhere - the cost the clause states. */
+    phase("C2: the cards 1.2.64 posted about an incident's people name nobody after the rewrite, and a receipt keeps its thread on its player's browser", { flow: "gm-store" });
+    const c2 = await gm.eval(`const G = await import("${repoUrl}/scripts/migrate.mjs"); const U = await import("${repoUrl}/scripts/utils.mjs");
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const gms = U.gmIds(), chie = game.actors.get("${IDS.chie}"), botan = game.actors.get("${IDS.botan}");
+        const receipt = await S.postSecret({ whisper: ["${IDS.p3}", ...gms], flags: { "${MOD}": { thread: "${IDS.p3}", kind: "action", gmAsk: true } },
+            content: "<h3>" + game.i18n.localize("DRPG.Trap.armedTitle") + "</h3><p>E06 r2-G1 receipt</p>"
+                + '<div class="drpg-call-actions"><button type="button" class="drpg-call-action" data-drpg-call="plantTrapItem" data-project="E06R2G1PROJECT01">Plant</button></div>' });
+        const meddle = await ChatMessage.create({ content: S.STUB, speaker: ChatMessage.getSpeaker({ actor: botan }), whisper: ["${IDS.p2}", ...gms],
+            flags: { "${MOD}": { secret: true, drpgMessage: true, sfx: "meddle" } } });
+        const asked = await ChatMessage.create({ content: "7", speaker: ChatMessage.getSpeaker({ actor: chie }), whisper: [...gms, "${IDS.p3}", "${IDS.p2}"],
+            rolls: [JSON.stringify({ formula: "1d12", total: 7, options: {} })] });
+        const planted = [receipt?.flags?.["${MOD}"]?.thread === "${IDS.p3}", Boolean(S.secretHtml(receipt)), Boolean(asked?.whisper?.includes("${IDS.p2}"))];
+        const pass = await G.migrate1_2_0({ force: true, quiet: true, only: ["neutraliseOldCards"] });
+        return { ids: [receipt.id, meddle.id, asked.id], gms, planted, failed: pass?.failed ?? null, done: pass?.clauses?.neutraliseOldCards ?? null };`);
+    await settle(800);
+    const DIGEST_C2 = `const S = await import("${repoUrl}/scripts/secret.mjs"); const M = await import("${repoUrl}/scripts/messenger.mjs");
+        const [receipt, meddle, asked] = ${J(c2.ids)}.map(id => game.messages.get(id));
+        const everybody = JSON.stringify(game.users.map(u => u.id).sort());
+        const named = m => ({ veiled: m?.flags?.["${MOD}"]?.veiled === true, all: JSON.stringify([...(m?.whisper ?? [])].sort()) === everybody,
+            actor: m?.speaker?.actor ?? null, thread: m?.flags?.["${MOD}"]?.thread ?? null });
+        return { receipt: named(receipt), meddle: named(meddle), asked: [...(asked?.whisper ?? [])].sort(),
+            placed: S.cardFlag(receipt, "thread") ?? null, inThread: M.threadMessages("${IDS.p3}").some(m => m.id === receipt?.id),
+            words: Boolean(S.secretHtml(receipt)) };`;
+    const onGmC2 = await gm.eval(DIGEST_C2), onP1C2 = await p1.eval(DIGEST_C2), onP3C2 = await p3.eval(DIGEST_C2);
+    await connect("gm2");
+    await settle(1500);
+    const onGm2C2 = await gm2.eval(DIGEST_C2);
+    const veilC2 = { veiled: true, all: true, actor: null, thread: null };
+    const askedC2 = [...c2.gms, IDS.p3].sort();
+    check("C2: after the rewrite a bystander's copy of a 1.2.64 receipt, Confusion's card and a fight's roll names nobody of the incident, and the receipt keeps its thread on p3 and the primary",
+        c2.planted.every(Boolean) && J(c2.failed) === "[]" && c2.done?.cards >= 2 && c2.done?.rolls >= 1
+        && [onGmC2, onP1C2, onP3C2, onGm2C2].every(d => J(d.receipt) === J(veilC2) && J(d.meddle) === J(veilC2) && J(d.asked) === J(askedC2))
+        && !onP1C2.placed && !onP1C2.inThread && !onP1C2.words && onP3C2.placed === IDS.p3 && onP3C2.inThread && onP3C2.words
+        && onGmC2.placed === IDS.p3 && onGmC2.inThread && !onGm2C2.placed && !onGm2C2.inThread,
+        J({ c2, onGmC2, onP1C2, onP3C2, onGm2C2 }), { flow: "gm-store" });
+    await gm.eval(`for (const id of ${J(c2.ids)}) await game.messages.get(id)?.delete(); return true;`);
     await disconnect("gm2");
     await settle(300);
 
@@ -1615,5 +1713,5 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         s4.published && s4.aiko.length === 1 && s4.aiko[0].includes(ITEMS[0]) && s4.chie.length === 1 && s4.chie[0].includes(ITEMS[1]),
         J(s4), { flow: "give-take-stash" });
 
-    return { phases: ["A", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S"], gm: IDS.gm };
+    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S"], gm: IDS.gm };
 }

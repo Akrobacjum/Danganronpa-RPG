@@ -13,7 +13,12 @@
  * that question is WHO IS NOT. A bystander must see, hear and be told nothing.
  * The killer of a TRAP is in the same position as a bystander and was not: the
  * cast, the card and a whisper all reached them at the moment it went off
- * (measured 15.09, before the fix).
+ * (measured 15.09, before the fix). Neither is a DIRECT murder's victim while
+ * the killer's roll is still to come (E06 C2, the owner's D6): nobody has asked
+ * them anything, and a roll that fails ends it as if it never happened.
+ * The incident's rolls follow the same line (E06 C6): each one's dice, its
+ * result and its action reach the participants, and nothing of it a bystander
+ * or a trap's builder (1c, and the trap's last part).
  *
  * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it.
  */
@@ -75,20 +80,143 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         return out;
     };
 
+    /* The Event panel's "A murder is under way" card, read from the panel each browser draws
+       (events.mjs `openingCard`); the trap's opening below says why it is read at all. */
+    const OPENING = `const E = await import("${repoUrl}/scripts/events.mjs");
+        E.renderEvents();
+        const sig = JSON.parse(document.getElementById("drpg-events")?.dataset.signature ?? "[]");
+        return { stage: game.settings.get("${MOD}", "murderState")?.stage ?? null,
+            card: sig.some(c => c[0] === "incident" && c[1] === game.i18n.localize("DRPG.Events.openingTitle")) };`;
+
+    /* ---- 0. a DIRECT murder's opening: its victim is not in it yet --------------
+       E06 C2, 27.09.2026; the owner's D6. Until 1.2.65 the victim's player was sent the cast
+       as the murder opened (murder.mjs `castOwners`), and with it the red edges, the murder
+       music and the killer's name, before the killer's roll had decided whether there was an
+       incident at all. Now their browser reads as a bystander's until the roll succeeds, and
+       a roll that fails sends them nothing - not even the empty cast a participant who leaves
+       is sent. Counted on p1 as it arrives: every `incident.myCast` packet (the cast's one
+       socket action, murder.mjs `CAST_MINE`).
+       p3's opening roll is held while the checks read: the killer's own client throws it
+       as the murder opens (murder.mjs `rollOpening`), and a result ends the opening - so p3's
+       `rollTrait` answers a promise that is let go, with no roll, once the GM has ruled; the
+       engine then drops the roll it no longer wants (`throwOpeningRoll`). The GM rules instead:
+       a failure for the first murder, a success for the second, which part 1 plays. */
+    phase("opening", { flow: "murder-incident" });
+    const CAST_NET = `if (!globalThis.__castNet) {
+            globalThis.__castNet = { n: 0 };
+            game.socket.on("module.${MOD}", p => { if (p?.action === "incident.myCast") globalThis.__castNet.n++; });
+        }
+        return globalThis.__castNet.n;`;
+    const HOLD = `const a = game.actors.get("${ids.chie}"); globalThis.__heldOpenings = [];
+        a.rollTrait = function () { return new Promise(r => globalThis.__heldOpenings.push(r)); }; return true;`;
+    const RELEASE = `const a = game.actors.get("${ids.chie}"); delete a.rollTrait;
+        const held = globalThis.__heldOpenings ?? []; delete globalThis.__heldOpenings; for (const r of held) r(null); return held.length;`;
+    const OPEN = `return (await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}" }))?.stage ?? null;`;
+
+    /* Each player asks the primary for its cast as it boots, and the primary answers once its
+       store holds the other GMs' copies: measured 27.09, the answers - an empty cast to p1 and p2
+       alike - reached them after this phase had opened the murder, so the count waits for them. */
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await S.castStore.whenHydrated(); return true;`, { timeout: 60000 });
+    await settle(900);
+    const castsAtStart = await p1.eval(CAST_NET);
+    /* WHAT THE OPENING CAME TO (E06 fix r1-G3, 28.09.2026; review M4, the owner's requirement
+       of 27.09: each incident roll's result reaches the incident's audience at the roll's
+       stage). Every card's words each player is sent from here are netted (`secret.card`);
+       the first opening is ruled on a table without Dice So Nice (`game.dice3d` gone on every
+       player, put back after), the second with it. The killer must be sent the opening's card
+       - its name, the killer's and the total - both times; the victim and the bystander
+       nothing of it. Until 1.2.65 the opening's result went to the GMs alone. */
+    const OPEN_NET = `globalThis.__openWords = [];
+        if (!globalThis.__openNetOn) {
+            globalThis.__openNetOn = true;
+            game.socket.on("module.${MOD}", p => { if (p?.action === "secret.card") globalThis.__openWords.push(String(p.html ?? "")); });
+        }
+        return true;`;
+    const OPEN_READ = total => `const { MURDER_OPENING } = await import("${repoUrl}/scripts/config.mjs");
+        const head = foundry.utils.escapeHTML(MURDER_OPENING.killer.label) + " - " + foundry.utils.escapeHTML(game.actors.get("${ids.chie}").name) + "</h3>";
+        const w = globalThis.__openWords;
+        return { card: w.some(h => h.includes(head) && h.includes("<p>${total} ")), cards: w.filter(h => h.includes(head)).length,
+            all: w.length, dice3d: Boolean(game.dice3d) };`;
+    for (const c of [p1, p2, p3]) await c.eval(OPEN_NET);
+    for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dice3dOff = game.dice3d; delete game.dice3d; return true;`);
+    await p3.eval(HOLD);
+    const firstOpened = await gm.eval(OPEN, { timeout: 60000 });
+    await settle(900);
+    const atOpening = await readAll();
+    const openingCard = { gm: await gm.eval(OPENING), victim: await p1.eval(OPENING), killer: await p3.eval(OPENING) };
+    const castsAtOpening = await p1.eval(CAST_NET);
+    check("opening: the killer is in it - the cast, the edges, the music and the opening card",
+        firstOpened === "openingRoll" && atOpening.killer?.witness === true && atOpening.killer?.knowsCast === true
+        && atOpening.killer?.redEdges === true && atOpening.killer?.roomVolume === 0 && openingCard.killer.card && openingCard.gm.card,
+        JSON.stringify({ firstOpened, killer: atOpening.killer, card: openingCard }));
+    check("opening: a direct murder's victim holds no cast, no seat, no red edges, no murder music and no opening card (D6)",
+        atOpening.victim?.witness === false && atOpening.victim?.seat === false && atOpening.victim?.knowsCast === false
+        && atOpening.victim?.redEdges === false && atOpening.victim?.roomVolume === 0.8 && atOpening.victim?.parked === -1
+        && openingCard.victim.stage === "openingRoll" && !openingCard.victim.card && castsAtOpening === castsAtStart,
+        JSON.stringify({ victim: atOpening.victim, card: openingCard.victim, casts: castsAtOpening - castsAtStart }));
+    check("opening: the victim is indistinguishable from a bystander",
+        JSON.stringify(atOpening.victim) === JSON.stringify(atOpening.bystander),
+        `victim ${JSON.stringify(atOpening.victim)} vs bystander ${JSON.stringify(atOpening.bystander)}`);
+
+    /* The first murder's roll fails: the incident closes, and the victim is sent nothing. */
+    const failed = await gm.eval(`
+        const r = await game.drpg.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+        return { success: r?.success ?? null, running: Boolean(game.drpg.murderState()) };
+    `, { timeout: 60000 });
+    await settle(900);
+    const heldFirst = await p3.eval(RELEASE);
+    const afterFail = await readAll();
+    const castsAfterFail = await p1.eval(CAST_NET);
+    check("opening: a failed opening leaves the victim holding nothing, and sends them no cast, not even an empty one",
+        heldFirst === 1 && failed.success === false && failed.running === false
+        && afterFail.victim?.witness === false && afterFail.victim?.knowsCast === false && afterFail.victim?.redEdges === false
+        && afterFail.victim?.roomVolume === 0.8 && castsAfterFail === castsAtStart,
+        JSON.stringify({ heldFirst, failed, victim: afterFail.victim, casts: castsAfterFail - castsAtStart }));
+    const failWords = { killer: await p3.eval(OPEN_READ(1)), victim: await p1.eval(OPEN_READ(1)), bystander: await p2.eval(OPEN_READ(1)) };
+    for (const c of [p1, p2, p3]) await c.eval(`game.dice3d = globalThis.__dice3dOff; delete globalThis.__dice3dOff; return true;`);
+    check("opening: without Dice So Nice the killer is sent what their failed opening came to, the victim and the bystander no card at all",
+        failWords.killer.card && failWords.killer.cards === 1 && failWords.killer.dice3d === false
+        && failWords.victim.all === 0 && failWords.bystander.all === 0,
+        JSON.stringify(failWords));
+
+    /* The second murder, whose opening part 1 lets succeed. */
+    for (const c of [p1, p2, p3]) await c.eval(OPEN_NET);
+    await p3.eval(HOLD);
+    const secondOpened = await gm.eval(OPEN, { timeout: 60000 });
+    await settle(300);
+    const castsAtSecond = await p1.eval(CAST_NET);
+
     /* ---- 1. a DIRECT murder: the killer is in the room ---------------------- */
     phase("direct", { flow: "murder-incident" });
     await gm.eval(`
-        await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}" });
         await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         return true;
     `, { timeout: 60000 });
     await settle(900);
+    const heldSecond = await p3.eval(RELEASE);
+    const castsAtIncident = await p1.eval(CAST_NET);
+    /* The success moves the stage alone - no cast field is written - so the victim is sent the
+       cast because the set of its holders changed across that write (`writeState`). Once. */
+    check("direct: the opening's success sends the victim the cast, once",
+        secondOpened === "openingRoll" && heldSecond === 1 && castsAtSecond === castsAtStart && castsAtIncident - castsAtSecond === 1,
+        JSON.stringify({ secondOpened, heldSecond, casts: [castsAtStart, castsAtSecond, castsAtIncident] }));
+    const openWords = { killer: await p3.eval(OPEN_READ(24)), victim: await p1.eval(OPEN_READ(24)), bystander: await p2.eval(OPEN_READ(24)) };
+    check("direct: with Dice So Nice the killer is sent what their opening came to, the victim and the bystander not (D6)",
+        openWords.killer.card && openWords.killer.cards === 1 && openWords.killer.dice3d === true
+        && openWords.victim.cards === 0 && openWords.bystander.all === 0,
+        JSON.stringify(openWords));
 
     const direct = await readAll();
     check("direct: the killer is in it", direct.killer?.witness === true && direct.killer?.seat === true,
         JSON.stringify(direct.killer));
     check("direct: the victim is in it", direct.victim?.witness === true && direct.victim?.seat === true,
         JSON.stringify(direct.victim));
+    /* A direct murder is fought face to face, so the victim's copy names the killer (the owner's D6);
+       only a trap's copy holds the builder null (E06 C3, murder.mjs `castFor`, and part 2 below). */
+    const directCopy = await p1.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs"); const c = incidentCast();
+        return { killer: c.killerId ?? null, turn: c.killerTurnId ?? null };`);
+    check("direct: the victim's copy names the killer, face to face",
+        directCopy.killer === ids.chie && directCopy.turn === ids.chie, JSON.stringify(directCopy));
     check("direct: the bystander is not", direct.bystander?.witness === false && direct.bystander?.knowsCast === false,
         JSON.stringify(direct.bystander));
 
@@ -155,6 +283,210 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
             && shown?.onHud === moved.before && shown?.explainer === moved.before,
         JSON.stringify({ moved, shown }));
 
+    /* ---- 1c. the incident's rolls reach its participants, and only them -----
+       E06 C6, 27.09.2026; audit S02-40, S04-01; the owner's requirement on incident rolls.
+       Each participant throws a crisis action on their own browser, the way a player does
+       (`takeCrisisAction`, its briefing answered): the victim a Leave a clue with Dice So
+       Nice's model on and its secret-roll hiding off, then the killer a Strike on a table
+       without the module (`game.dice3d` gone everywhere, put back after). Every browser nets
+       the `dice.show` packets (the primary's relay, private-rolls.mjs) and the words of every
+       card it is sent; the model keeps what it would animate and every `showForRoll`. The
+       other participant must be sent the roll's dice (and play them) and the crisis card
+       with the action and the total; the bystander nothing of either, and animate nothing.
+       Until C5b every participant read the dice off the roll's whisper list, which named them
+       to every console; from C5b to C6 nobody did.
+       E06 fix r1-G2 (28.09.2026; review F4, m2, F2): the victim's Dice So Nice holds its throw
+       for 1.5 s (`__dsnAnimation`), and the killer must be sent the dice before it ends - the
+       victim's browser says whose roll it is as the message is created, not once the dice have
+       landed; every browser's chat log calls its notifier as a message is created, and the
+       roll must light the pip and ring only where it is read; and with rolls not forced private
+       the killer's own Dice So Nice animates the victim's roll and the relay plays no copy. */
+    phase("dice", { flow: "murder-incident" });
+    const DICE_NET = `globalThis.__diceNet = { show: [], words: [], showAt: {} }; globalThis.__dsnShown = []; globalThis.__dsnAnimated = [];
+        globalThis.__dsnHideSecret = false; globalThis.__chatNotified = []; globalThis.__chatRung = []; globalThis.__dsnFell = {};
+        if (!globalThis.__diceNetOn) {
+            globalThis.__diceNetOn = true;
+            game.socket.on("module.${MOD}", p => {
+                if (p?.action === "dice.show") { globalThis.__diceNet.show.push(p.id ?? null); globalThis.__diceNet.showAt[p.id] ??= Date.now(); }
+                if (p?.action === "secret.card") globalThis.__diceNet.words.push(String(p.html ?? ""));
+            });
+        }
+        return true;`;
+    const ACT = (actorId, key, faces) => `const M = await import("${repoUrl}/scripts/murder.mjs");
+        const { CRISIS_ACTIONS } = await import("${repoUrl}/scripts/config.mjs");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        globalThis.__dialogAnswers.push(true);
+        globalThis.__forceRoll = ${JSON.stringify(faces)};
+        try { await M.takeCrisisAction(game.actors.get("${actorId}"), "${key}"); }
+        finally { delete globalThis.__forceRoll; globalThis.__dialogAnswers.length = 0; }
+        const roll = game.messages.contents.find(m => !had.has(m.id) && m.getFlag("${MOD}", "supersededRoll"));
+        return { id: roll?.id ?? null, total: roll?.rolls?.[0]?.total ?? null,
+            label: foundry.utils.escapeHTML(CRISIS_ACTIONS["${key}"].label), stage: game.drpg.murderState()?.stage ?? null };`;
+    const DICE_READ = act => `const n = globalThis.__diceNet;
+        const card = n.words.find(h => h.includes(${JSON.stringify(act.label)} + " - ")) ?? null;
+        return { relayed: n.show.includes("${act.id}"), played: globalThis.__dsnShown.filter(c => !c.synchronize && c.messageID === null).map(c => c.total),
+            animated: globalThis.__dsnAnimated.includes("${act.id}"), card: Boolean(card), total: Boolean(card?.includes("<p>${act.total} ")),
+            dice3d: Boolean(game.dice3d), notified: globalThis.__chatNotified.includes("${act.id}"), rung: globalThis.__chatRung.includes("${act.id}"),
+            shownAt: n.showAt["${act.id}"] ?? null, fell: globalThis.__dsnFell["${act.id}"] ?? null };`;
+    for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
+    await p1.eval(`globalThis.__dsnAnimation = async id => { await new Promise(r => setTimeout(r, 1500)); globalThis.__dsnFell[id] ??= Date.now(); }; return true;`);
+    const clue = await p1.eval(ACT(ids.aiko, "leaveClue", { hope: 9, fear: 5 }), { timeout: 60000 });
+    await p1.eval(`delete globalThis.__dsnAnimation; return true;`);
+    await settle(900);
+    const withDsn = { victim: await p1.eval(DICE_READ(clue)), bystander: await p2.eval(DICE_READ(clue)), killer: await p3.eval(DICE_READ(clue)) };
+    check("dice: the victim's crisis roll is played on the killer's screen by the GM's relay, and its card tells the killer the action and the total",
+        Boolean(clue.id) && clue.stage === "incident" && withDsn.killer.relayed && withDsn.killer.played.includes(clue.total)
+        && withDsn.killer.card && withDsn.killer.total && withDsn.victim.animated && !withDsn.victim.relayed,
+        JSON.stringify({ clue, withDsn }), { flow: "private-rolls" });
+    check("dice: the bystander is sent neither the roll's dice nor its card, and animates nothing though Dice So Nice's secret-roll hiding is off",
+        Boolean(clue.id) && !withDsn.bystander.relayed && !withDsn.bystander.played.length && !withDsn.bystander.animated && !withDsn.bystander.card,
+        JSON.stringify(withDsn.bystander), { flow: "private-rolls" });
+    check("dice: the victim's roll reaches the killer while the victim's own dice still fall",
+        Boolean(withDsn.killer.shownAt) && Boolean(withDsn.victim.fell) && withDsn.killer.shownAt < withDsn.victim.fell,
+        JSON.stringify({ killer: withDsn.killer.shownAt, fell: withDsn.victim.fell }), { flow: "private-rolls" });
+
+    await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        if (!M.isTheirTurn(game.actors.get("${ids.chie}"))) await M.passTurn();
+        return true;`, { timeout: 60000 });
+    const NO_DSN = `globalThis.__dice3dAway = game.dice3d; delete game.dice3d; return true;`;
+    for (const c of [p1, p2, p3]) { await c.eval(DICE_NET); await c.eval(NO_DSN); }
+    const strike = await p3.eval(ACT(ids.chie, "strike", { hope: 2, fear: 1 }), { timeout: 60000 });
+    await settle(900);
+    const noDsn = { victim: await p1.eval(DICE_READ(strike)), bystander: await p2.eval(DICE_READ(strike)), killer: await p3.eval(DICE_READ(strike)) };
+    for (const c of [p1, p2, p3]) await c.eval(`game.dice3d = globalThis.__dice3dAway; delete globalThis.__dice3dAway; globalThis.__dsnHideSecret = true; return true;`);
+    check("dice: without Dice So Nice the killer's Strike still tells the victim the action and the total, and the bystander nothing",
+        Boolean(strike.id) && strike.stage === "incident" && noDsn.victim.dice3d === false && noDsn.victim.card && noDsn.victim.total
+        && !noDsn.bystander.card && !noDsn.bystander.relayed,
+        JSON.stringify({ strike, noDsn }), { flow: "private-rolls" });
+    const pip = r => ({ notified: r.notified, rung: r.rung });
+    check("dice: a roll the module threw lights the Chat pip and rings only where it is read - never on the other participant's screen or the bystander's, with Dice So Nice or without",
+        withDsn.victim.notified && !withDsn.victim.rung && noDsn.killer.notified && noDsn.killer.rung
+        && [withDsn.killer, withDsn.bystander, noDsn.victim, noDsn.bystander].every(r => !r.notified && !r.rung),
+        JSON.stringify({ withDsn: [withDsn.victim, withDsn.killer, withDsn.bystander].map(pip), noDsn: [noDsn.killer, noDsn.victim, noDsn.bystander].map(pip) }),
+        { flow: "private-rolls" });
+
+    /* A CARD ANOTHER FILE POSTS FOR A ROLL OF THE FIGHT, FROM THE PLAYER'S OWN BROWSER (E06 fix
+       r1-G3, 28.09.2026; review M2). A tool Chie holds breaks on a Despair on p3's browser
+       (use-items.mjs `breakOnDespair`, driven with a Despair result as tier 2 drives it): the
+       card is veiled while the incident runs (secret.mjs `incidentVeils`; until fix r2-G2 by the
+       cast p3's copy holds, settings.mjs `incidentVeil`), so the bystander's copy of it names
+       neither Chie nor her player past its author (Q2 (a): the author stays until E28), and its
+       words go to p3 alone of the players. */
+    const toolId = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        return (await INV.grantItem(game.actors.get("${ids.chie}"), { name: "Suite tool snapped in the fight", category: "tool", tier: 0 }))?.id ?? null;`, { timeout: 60000 });
+    await settle(600);
+    for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
+    const broke = await p3.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs");
+        const a = game.actors.get("${ids.chie}"); const had = new Set(game.messages.contents.map(m => m.id));
+        const name = await U.breakOnDespair(a, a.items.get("${toolId}"), { withFear: true, isCritical: false });
+        return { name, ids: game.messages.contents.filter(m => !had.has(m.id)).map(m => m.id) };`, { timeout: 60000 });
+    await settle(900);
+    /* The words as each browser holds them: sent over the socket to a reader, kept where the card was posted. */
+    const BROKE_READ = `const S = await import("${repoUrl}/scripts/secret.mjs");
+        const text = game.i18n.format("DRPG.Items.brokeOnDespair", { item: "Suite tool snapped in the fight" });
+        const held = ${JSON.stringify(broke.ids)}.map(id => game.messages.get(id)).filter(Boolean).some(m => String(S.contentOf(m) ?? "").includes(text));
+        const docs = ${JSON.stringify(broke.ids)}.map(id => game.messages.get(id)?.toObject()).filter(Boolean);
+        return { words: globalThis.__diceNet.words.filter(h => h.includes(text)).length, held, docs: docs.length, veiled: docs.every(d => d.flags?.["${MOD}"]?.veiled === true),
+            named: docs.some(d => JSON.stringify([d.speaker, d.system, d.rolls, d.flags]).match(/${ids.chie}|Chie Mori|${p3.userId}/) !== null),
+            everybody: docs.every(d => (d.whisper ?? []).length === game.users.size) };`;
+    const brokeSeen = { killer: await p3.eval(BROKE_READ), victim: await p1.eval(BROKE_READ), bystander: await p2.eval(BROKE_READ) };
+    await gm.eval(`await game.actors.get("${ids.chie}").items.get("${toolId}")?.delete(); return true;`, { timeout: 60000 });
+    check("dice: a tool broken on a Despair in the fight is carded veiled from the player's browser - its words to that player alone, its document naming nobody on the bystander's",
+        Boolean(toolId) && broke.name === "Suite tool snapped in the fight" && broke.ids.length === 1
+        && brokeSeen.killer.held && [brokeSeen.victim, brokeSeen.bystander].every(r => r.words === 0 && !r.held)
+        && brokeSeen.bystander.docs === 1 && brokeSeen.bystander.veiled && !brokeSeen.bystander.named && brokeSeen.bystander.everybody,
+        JSON.stringify({ toolId, broke, brokeSeen }));
+
+    /* A USE IN THE FIGHT, AND A BYSTANDER'S, EACH FROM ITS PLAYER'S OWN BROWSER (E06 fix r2-G2,
+       28.09.2026; review round 2's MJ2 and m6). The victim takes "Use an item" with a tier 1 kit
+       on p1's browser, as the review measured it; the bystander, on p2's, drinks a kit of their
+       own, breaks a tool on a Despair, and buys the killer a Support, which the primary GM's bridge
+       tells Chie's player of. While the incident runs every one of those cards is veiled, whoever
+       posts it (secret.mjs `incidentVeils`): on every browser its document names no student and no
+       player past its author (Q2 (a)) and addresses everybody, and its words reach its reader
+       alone. Until this fix the victim's card spoke as Aiko to the GMs and p1 on p2's browser, and
+       the bystander's went plain where a participant's tool card went veiled. */
+    const texts = await gm.eval(`const esc = foundry.utils.escapeHTML;
+        return { used: game.i18n.format("DRPG.Items.used", { item: esc("Suite kit used in the fight") }),
+            drunk: game.i18n.format("DRPG.Items.used", { item: esc("Suite kit a bystander drinks") }),
+            broke: game.i18n.format("DRPG.Items.brokeOnDespair", { item: esc("Suite tool a bystander breaks") }),
+            support: game.i18n.format("DRPG.Calls.armedForYou", { what: game.i18n.localize("DRPG.Calls.grants.advantage") }) };`);
+    const handed = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const M = await import("${repoUrl}/scripts/murder.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        if (!M.isTheirTurn(game.actors.get("${ids.aiko}"))) await M.passTurn();
+        const aiko = game.actors.get("${ids.aiko}"), botan = game.actors.get("${ids.botan}");
+        const kit = (a, name) => INV.grantItem(a, { name, category: "usable", tier: 1, goal: "healing", quiet: true });
+        await automatedUpdate(botan, { "system.resources.hope.value": Math.max(1, botan.system?.resources?.hope?.value ?? 0) });
+        return { kit: (await kit(aiko, "Suite kit used in the fight"))?.id ?? null, drink: (await kit(botan, "Suite kit a bystander drinks"))?.id ?? null,
+            tool: (await INV.grantItem(botan, { name: "Suite tool a bystander breaks", category: "tool", tier: 1, quiet: true }))?.id ?? null,
+            turn: M.isTheirTurn(aiko) };`, { timeout: 60000 });
+    await settle(600);
+    for (const c of [p1, p2, p3]) await c.eval(`globalThis.__useMark = new Set(game.messages.contents.map(m => m.id)); return true;`);
+    const took = await p1.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        globalThis.__dialogAnswers.push(true, true);
+        globalThis.__forceRoll = { hope: 11, fear: 5 };
+        try { const r = await M.takeCrisisAction(game.actors.get("${ids.aiko}"), "useItem", { itemId: "${handed.kit}" }); return { total: r?.roll?.total ?? null }; }
+        finally { delete globalThis.__forceRoll; globalThis.__dialogAnswers.length = 0; }`, { timeout: 60000 });
+    const bought = await p2.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs");
+        const C = await import("${repoUrl}/scripts/call-effects.mjs");
+        const botan = game.actors.get("${ids.botan}");
+        globalThis.__dialogAnswers.push(true);
+        try { await U.useItem(botan, botan.items.get("${handed.drink}")); } finally { globalThis.__dialogAnswers.length = 0; }
+        const broke = await U.breakOnDespair(botan, botan.items.get("${handed.tool}"), { withFear: true, isCritical: false });
+        const armed = await C.armCall(game.actors.get("${ids.chie}"), { key: "support", kind: "hope", grants: "advantage", from: botan.id });
+        return { broke, armed };`, { timeout: 60000 });
+    await settle(1500);
+    /* Each reader finds its cards by the words it holds; then every browser reads those documents. */
+    const FOUND = keys => `const S = await import("${repoUrl}/scripts/secret.mjs");
+        const texts = ${JSON.stringify(texts)};
+        const fresh = game.messages.contents.filter(m => !globalThis.__useMark.has(m.id));
+        return Object.fromEntries(${JSON.stringify(keys)}.map(k => [k, fresh.find(m => String(S.contentOf(m) ?? "").includes(texts[k]))?.id ?? null]));`;
+    const cardIds = { ...await p1.eval(FOUND(["used"])), ...await p2.eval(FOUND(["drunk", "broke"])), ...await p3.eval(FOUND(["support"])) };
+    const USE_READ = `const S = await import("${repoUrl}/scripts/secret.mjs");
+        const texts = ${JSON.stringify(texts)}, ids = ${JSON.stringify(cardIds)};
+        const players = ${JSON.stringify([p1.userId, p2.userId, p3.userId])};
+        const look = d => ({ veiled: d.flags?.["${MOD}"]?.veiled === true,
+            named: JSON.stringify([d.speaker, d.system, d.rolls, d.flags]).match(/${ids.aiko}|${ids.botan}|${ids.chie}|Aiko Hoshino|Botan Kage|Chie Mori|${p1.userId}|${p2.userId}|${p3.userId}/) !== null,
+            names: (d.whisper ?? []).some(u => players.includes(u)) && (d.whisper ?? []).length !== game.users.size });
+        const docs = Object.fromEntries(Object.entries(ids).map(([k, id]) => { const d = id ? game.messages.get(id)?.toObject() : null; return [k, d ? look(d) : null]; }));
+        const held = Object.fromEntries(Object.entries(ids).map(([k, id]) => [k, Boolean(id) && String(S.contentOf(game.messages.get(id)) ?? "").includes(texts[k])]));
+        const theirs = new Set(Object.values(ids));
+        const others = game.messages.contents.filter(m => !globalThis.__useMark.has(m.id) && !theirs.has(m.id)).map(m => look(m.toObject())).filter(r => r.named || r.names).length;
+        return { docs, held, others };`;
+    const useSeen = { p1: await p1.eval(USE_READ), p2: await p2.eval(USE_READ), p3: await p3.eval(USE_READ) };
+    const clean = keys => [useSeen.p1, useSeen.p2, useSeen.p3].every(r => keys.every(k => r.docs[k] && r.docs[k].veiled && !r.docs[k].named && !r.docs[k].names));
+    await gm.eval(`for (const [a, i] of [["${ids.aiko}", "${handed.kit}"], ["${ids.botan}", "${handed.drink}"], ["${ids.botan}", "${handed.tool}"]]) await game.actors.get(a).items.get(i)?.delete();
+        await game.actors.get("${ids.chie}").unsetFlag("${MOD}", "pendingCall"); return true;`, { timeout: 60000 });
+    check("fight: the victim's Use an item and a Support bought for the killer are carded veiled - their words to their player alone, and no browser holds a document of theirs, or of the rest the action brought, naming a student or a player",
+        Boolean(handed.turn) && typeof took.total === "number" && bought.armed === true && clean(["used", "support"])
+        && useSeen.p1.held.used && !useSeen.p2.held.used && !useSeen.p3.held.used
+        && useSeen.p3.held.support && !useSeen.p1.held.support && !useSeen.p2.held.support
+        && [useSeen.p1, useSeen.p2, useSeen.p3].every(r => r.others === 0),
+        JSON.stringify({ handed, took, bought, cardIds, useSeen }));
+    check("fight: a bystander's cards in the fight are veiled as a participant's are - a kit drunk, a tool broken - so the veil says nothing of who is in it",
+        bought.broke === "Suite tool a bystander breaks" && clean(["drunk", "broke"])
+        && useSeen.p2.held.drunk && useSeen.p2.held.broke && [useSeen.p1, useSeen.p3].every(r => !r.held.drunk && !r.held.broke),
+        JSON.stringify({ bought, cardIds, useSeen }));
+
+    const FORCED = on => `const { SETTINGS } = await import("${repoUrl}/scripts/settings.mjs"); await game.settings.set("${MOD}", SETTINGS.forcePrivateRolls, ${on}); return true;`;
+    await gm.eval(FORCED(false));
+    for (const c of [p1, p3]) await c.eval(DICE_NET);
+    const open = await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__forceRoll = { hope: 7, fear: 3 };
+        let out;
+        try { out = await A.rollTrait(game.actors.get("${ids.aiko}"), "body", {}); }
+        finally { delete globalThis.__forceRoll; }
+        const m = out?.raw?.message ?? null;
+        return { id: m?.id ?? null, total: m?.rolls?.[0]?.total ?? null, label: "", stage: game.drpg.murderState()?.stage ?? null };`, { timeout: 60000 });
+    await settle(900);
+    const unforced = await p3.eval(DICE_READ(open));
+    await gm.eval(FORCED(true));
+    for (const c of [p1, p3]) await c.eval(`globalThis.__dsnHideSecret = true; return true;`);
+    check("dice: with rolls not forced private the killer's own Dice So Nice animates the victim's roll, and the relay does not play it a second time",
+        Boolean(open.id) && open.stage === "incident" && unforced.animated && !unforced.played.length,
+        JSON.stringify({ open, unforced }), { flow: "private-rolls" });
+
     /* ---- 1b. somebody walks in on it ---------------------------------------
        The guide gives the scene one third party, and from the moment they are
        in it they are in it: `thirdPartyEnters` writes `thirdId`, which is a
@@ -197,6 +529,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
        at once - which took the opening stage, and its Event card, away before the read below in
        one run of two (27.09). Forced to a critical, which the victim survives noticing, so the
        opening stays open until the GM rules it; deleted once the card is read. */
+    /* Every card's words the victim's and the builder's browsers are sent from here to Stage 6
+       (E06 C4, 27.09.2026; audit S04-01, S10-04): the `secret.card` packets (secret.mjs), read
+       below, before the incident moves on. */
+    const WORDS_NET = `globalThis.__trapWords = [];
+        game.socket.on("module.${MOD}", p => { if (p?.action === "secret.card") globalThis.__trapWords.push(String(p.html ?? "")); });
+        return true;`;
+    await p1.eval(WORDS_NET);
+    await p3.eval(WORDS_NET);
     await p1.eval(`globalThis.__forceRoll = { hope: 10, fear: 10 }; return true;`);
     await gm.eval(`
         await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}", indirect: true });
@@ -224,12 +564,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
        killer's - events.mjs `openingCard`, which asks `incidentIndirect(cast, state)` whether it
        is a trap. Nothing read it on a browser until now: with the card asking the world half
        alone (which holds no method since C8), the victim lost it and every check stayed green
-       (the C8 session's finding). Read from the panel each browser draws. */
-    const OPENING = `const E = await import("${repoUrl}/scripts/events.mjs");
-        E.renderEvents();
-        const sig = JSON.parse(document.getElementById("drpg-events")?.dataset.signature ?? "[]");
-        return { stage: game.settings.get("${MOD}", "murderState")?.stage ?? null,
-            card: sig.some(c => c[0] === "incident" && c[1] === game.i18n.localize("DRPG.Events.openingTitle")) };`;
+       (the C8 session's finding). Read from the panel each browser draws (`OPENING`, above). */
     const opening = { gm: await gm.eval(OPENING), victim: await p1.eval(OPENING), bystander: await p2.eval(OPENING), killer: await p3.eval(OPENING) };
     await p1.eval(`delete globalThis.__forceRoll; return true;`);
     check("trap: the opening Event card is the victim's and the GM's, not the killer's or a bystander's",
@@ -240,17 +575,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
        `murderState` said `indirect: true` on every browser - the killer's too, who is told
        nothing else. Each player's world half holds only the public list (world-secrets.mjs,
        `murderState`'s `only`), and the victim reads the trap from their own copy of the cast.
-       Red on the C7 tree: p1, p2 and p3 each read indirect, selfInflicted and openedAt there. */
+       Red on the C7 tree: p1, p2 and p3 each read indirect, selfInflicted and openedAt there.
+       AND THAT COPY DOES NOT NAME THE BUILDER (E06 C3, 27.09.2026; audit S04-01): the victim's
+       copy holds `killerId` and `killerTurnId` null (murder.mjs `castFor`), so no field of it
+       holds Chie's id - read as the copy's whole text. */
     const METHOD = `const W = await import("${repoUrl}/scripts/world-secrets.mjs");
         const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
         const world = game.settings.get("${MOD}", "murderState") ?? {};
         return { unlisted: Object.keys(world).filter(k => !W.WORLD_SECRET_RULES.settings.murderState?.only?.includes(k)),
-            active: Boolean(world.active), copy: incidentCast().indirect ?? null };`;
+            active: Boolean(world.active), copy: incidentCast().indirect ?? null, builder: JSON.stringify(incidentCast()).includes("${ids.chie}") };`;
     const method = { victim: await p1.eval(METHOD), bystander: await p2.eval(METHOD), killer: await p3.eval(METHOD) };
     check("trap: no player's world half says how it happened",
         Object.values(method).every(m => m.active && !m.unlisted.length), JSON.stringify(method));
-    check("trap: the victim reads the trap from their copy of the cast, and nobody else holds it",
-        method.victim.copy === true && method.bystander.copy === null && method.killer.copy === null, JSON.stringify(method));
+    check("trap: the victim reads the trap from their copy of the cast, and the builder's id is not in it, and nobody else holds it",
+        method.victim.copy === true && method.victim.builder === false && method.bystander.copy === null && method.killer.copy === null,
+        JSON.stringify(method));
 
     /* AND THE KILLER IS LET BACK IN AT STAGE 6 (`castOwners`, murder.mjs), the trap in their
        copy. The GM rules the victim's roll a failure - the trap closes - and moves the incident
@@ -259,16 +598,108 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
        halves alone still passes here (26.09), because every road into Stage 6 writes `endedBy`,
        a cast field now, and a write of the cast is pushed anyway - this guards the outcome,
        not that line.
-       THAT MUTANT IS EQUIVALENT TODAY, AND WHY (E05's fix round, 27.09.2026). The gate
-       (`trapMoved` in murder.mjs `writeState`) only decides anything on a write that names no
-       cast field, and read on 27.09 no such write moves `trapRunning`: the incident opens with
-       the cast (`openMurder`), openingRoll -> incident keeps it running, every road into
+       THAT MUTANT WAS EQUIVALENT UNTIL E06 (E05's fix round, 27.09.2026). The gate
+       (`trapMoved` in murder.mjs `writeState`) only decided anything on a write that names no
+       cast field, and read on 27.09 no such write moved `trapRunning`: the incident opens with
+       the cast (`openMurder`), openingRoll -> incident kept it running, every road into
        Stage 6 writes `endedBy`, and an incident ends through `restoreState`, not `writeState`.
-       `writeState` is not exported, so no test can make the write that would tell the two
-       apart; the gate is kept for the next road that moves the stage alone. Re-measured with
-       the opening card above: the mutant still passes every check in this file. */
+       E06 C2 made it the holders compared across the write (`castOwners`), and a direct
+       murder's opening success is such a write: it names no cast field and seats the victim.
+       So the gate is read now by "direct: the opening's success sends the victim the cast,
+       once" above; this part still guards only the trap's outcome. */
     await gm.eval(`
         await game.drpg.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        return true;
+    `, { timeout: 60000 });
+    await settle(600);
+
+    /* WHILE THE TRAP RUNS, THE VICTIM'S BROWSER HOLDS NEITHER THE BUILDER NOR THE REROLL RECEIPT
+       (E06 C3, 27.09.2026; audit S04-01, L09 and L10). The victim takes a crisis action - a missed
+       clue, which writes the receipt (`lastCrisis`) into the GMs' record - and p1 reads its copy,
+       the packets it was sent for the incident (`incident.myCast`, every one since the action) and
+       its Event card's line under the title. Until 1.2.65 every copy held the receipt, and the
+       victim's copy the builder, whose name the card set against the victim's ("Chie Mori against
+       Aiko Hoshino"): the card names the victim alone now. */
+    await p1.eval(`globalThis.__trapCasts = [];
+        game.socket.on("module.${MOD}", payload => { if (payload?.action === "incident.myCast") globalThis.__trapCasts.push(payload.cast ?? null); });
+        return true;`);
+    const acted = await gm.eval(`
+        await game.drpg.resolveCrisisAction({ actorId: "${ids.aiko}", key: "leaveClue", total: 2, isCritical: false, withHope: false });
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { stage: game.drpg.murderState()?.stage ?? null, receipt: Boolean(S.castStore.record().lastCrisis) };
+    `, { timeout: 60000 });
+    await settle(900);
+    const during = await p1.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        const E = await import("${repoUrl}/scripts/events.mjs");
+        E.renderEvents();
+        const sig = JSON.parse(document.getElementById("drpg-events")?.dataset.signature ?? "[]");
+        const card = sig.find(c => c[0] === "incident" && c[1] === game.i18n.localize("DRPG.Events.incidentTitle"));
+        const c = incidentCast();
+        return { packets: globalThis.__trapCasts.length, builder: JSON.stringify([c, globalThis.__trapCasts]).includes("${ids.chie}"),
+            receipt: c.lastCrisis ?? null, heldReceipt: globalThis.__trapCasts.some(p => p?.lastCrisis), card: card?.[2] ?? null,
+            victim: game.actors.get("${ids.aiko}")?.name ?? null };`);
+    check("trap: during the incident the victim's copy and its packets hold neither the builder nor the Reroll receipt, and their Event card names the victim alone",
+        acted.stage === "incident" && acted.receipt === true && during.packets > 0 && during.builder === false
+        && during.receipt === null && during.heldReceipt === false && during.card === during.victim && Boolean(during.victim),
+        JSON.stringify({ acted, during }));
+
+    /* NOTHING OF ANY CARD OF THE TRAP REACHES ITS BUILDER UNTIL STAGE 6 (E06 C4, 27.09.2026;
+       audit S04-01, S10-04, L11 and L12). The GM moves the time of day while the trap runs (the
+       card `announceTimeOfDay` narrows to the incident, veiled now) and puts the clock back,
+       stamp and all, as 1a does; then both nets are read. Until 1.2.65 the builder's browser was
+       sent the words of the victim's crisis card and of the time of day - every whisper of the
+       incident read its list off the participants, the builder among them. The victim's browser
+       is sent both, and the trap's closing, and no card of theirs names the builder. */
+    const hour = await gm.eval(`
+        const C = await import("${repoUrl}/scripts/clock.mjs");
+        const { TIMES_OF_DAY } = await import("${repoUrl}/scripts/config.mjs");
+        const before = C.getClock();
+        const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(before.timeOfDay) + 1) % TIMES_OF_DAY.length];
+        await C.setTimeOfDay(next, { resetSearchTokens: false });
+        await new Promise(r => setTimeout(r, 600));
+        await C.setClock({ timeOfDay: before.timeOfDay, timeOfDayStartedAt: before.timeOfDayStartedAt ?? null });
+        return { label: C.timeOfDayLabel(next), stage: game.drpg.murderState()?.stage ?? null };
+    `, { timeout: 60000 });
+    await settle(900);
+    const WORDS_READ = `const w = globalThis.__trapWords ?? [];
+        const { MURDER_OPENING } = await import("${repoUrl}/scripts/config.mjs");
+        return { n: w.length, hour: w.some(h => h.includes(${JSON.stringify(hour.label)})),
+            crisis: w.some(h => h.includes("- " + foundry.utils.escapeHTML(game.actors.get("${ids.aiko}").name) + "</h3>")),
+            sprung: w.some(h => h.includes(game.i18n.localize("DRPG.Murder.victimTrapSprung"))),
+            opening: w.some(h => h.includes(foundry.utils.escapeHTML(MURDER_OPENING.victim.label) + " - " + foundry.utils.escapeHTML(game.actors.get("${ids.aiko}").name) + "</h3>")),
+            builder: w.some(h => h.includes(foundry.utils.escapeHTML(game.actors.get("${ids.chie}").name))),
+            text: w.map(h => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 60)) };`;
+    const trapWords = { victim: await p1.eval(WORDS_READ), builder: await p3.eval(WORDS_READ) };
+    check("trap: until Stage 6 the builder's browser is sent the words of no card of the incident; the victim's is sent the trap's closing, the crisis card and the time of day, none naming the builder",
+        hour.stage === "incident" && trapWords.builder.n === 0 && trapWords.victim.hour && trapWords.victim.crisis
+        && trapWords.victim.sprung && trapWords.victim.builder === false,
+        JSON.stringify({ hour, trapWords }));
+    /* E06 fix r1-G3 (review M4): the trap's opening is the victim's roll, and its card is theirs. */
+    check("trap: the victim is sent what their opening roll came to, and the builder nothing of it",
+        trapWords.victim.opening && trapWords.builder.opening === false && trapWords.builder.n === 0,
+        JSON.stringify(trapWords));
+
+    /* NO DIE OF THE TRAP'S FIGHT REACHES ITS BUILDER (E06 C6, 27.09.2026; audit S04-01). The
+       victim throws a roll of the fight on p1, the way a crisis roll is thrown (as 72 throws
+       Chie's), with Dice So Nice's secret-roll hiding off everywhere: the builder's browser and
+       the bystander's are sent no `dice.show` and animate nothing - the incident's audience is
+       the victim alone, who threw it. */
+    for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
+    const trapRoll = await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__forceRoll = { hope: 8, fear: 3 };
+        let out;
+        try { out = await A.rollTrait(game.actors.get("${ids.aiko}"), "body", { actionKey: "crisis", context: { crisis: "leaveClue" } }); }
+        finally { delete globalThis.__forceRoll; }
+        return { id: out?.raw?.message?.id ?? null, stage: game.drpg.murderState()?.stage ?? null };`, { timeout: 60000 });
+    await settle(900);
+    const trapDice = { victim: await p1.eval(DICE_READ(trapRoll)), bystander: await p2.eval(DICE_READ(trapRoll)), builder: await p3.eval(DICE_READ(trapRoll)) };
+    for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dsnHideSecret = true; return true;`);
+    check("trap: the victim's roll of the fight reaches neither the builder's screen nor the bystander's, even with Dice So Nice's secret-roll hiding off",
+        Boolean(trapRoll.id) && trapRoll.stage === "incident" && trapDice.victim.animated
+        && [trapDice.builder, trapDice.bystander].every(r => !r.relayed && !r.played.length && !r.animated),
+        JSON.stringify({ trapRoll, trapDice }), { flow: "private-rolls" });
+
+    await gm.eval(`
         await game.drpg.beginResolution("victimKilled");
         return true;
     `, { timeout: 60000 });
@@ -277,6 +708,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         return { stage: game.settings.get("${MOD}", "murderState")?.stage ?? null, killer: c.killerId ?? null, indirect: c.indirect ?? null };`);
     check("trap: at Stage 6 the killer is sent the cast, the trap with it",
         stage6.stage === "resolution" && stage6.killer === ids.chie && stage6.indirect === true, JSON.stringify(stage6));
+    const victim6 = await p1.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs"); const c = incidentCast();
+        return { victim: c.victimId ?? null, builder: JSON.stringify(c).includes("${ids.chie}") };`);
+    check("trap: at Stage 6 the victim still holds their copy, and it does not name the builder",
+        victim6.victim === ids.aiko && victim6.builder === false, JSON.stringify(victim6));
 
     /* ---- 3. and it all goes back ------------------------------------------- */
     phase("after", { flow: "murder-incident" });

@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.64, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.65, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -172,7 +172,7 @@ What you can ask for:
 | *something to work with* | a Tool |
 | *something specific* | describe it and the GM rules on what was really there |
 
-Some rooms are good places to look for a category and some are bad; the roll window tells you when where you stand changes your roll. If somebody else keeps a stash with something in it in this room, a successful Search takes from that stash instead - an open one first, a hidden one at a penalty.
+Some rooms are good places to look for a category and some are bad; the roll window tells you when the room favours or hinders what you ask for. If somebody else keeps a stash with something in it in this room, a successful Search takes from that stash instead - an open one first, a hidden one at a penalty of 1 off your total. The window does not show that penalty, because it would tell you a hidden stash is here before you had spent anything: it is taken off once the dice have fallen, and your card says so.
 
 > [!WARNING]
 > Taking a Murder Weapon or a Cleaning Tool **leaves a Prep Remnant** in the room - a trace that you were here gathering tools. A Tool leaves nothing unless what turns up is also a weapon.
@@ -428,7 +428,7 @@ An item can also serve as another category (a screwdriver under Tools that is al
 - One student, one bedroom. The **door is locked** to everyone but the owner; anybody else needs a **key**. You hold your own key and can give a copy to somebody - the owner keeps theirs. A key opens its door whoever holds it: one Palmed off somebody, lifted from a stash or taken from a body works like one that was given.
 - Your bedroom comes with a **stash**. A stash holds **3** things, and you have to be standing in the room to put things in or take them out. Truth Bullets cannot be stashed.
 - An **open** stash is a drawer: anyone standing in the room can go through it for free and take one thing. Your bedroom's stash is open unless a hiding place has been built for it (a project the GM approves).
-- A **hidden** stash has to be found first: a Search in the room at a penalty, or Analyze's *Locate a hidden stash* at 16+, which opens it to you for good. If the GM removes a stash, whoever had found it forgets it.
+- A **hidden** stash has to be found first: a Search in the room, with 1 off its total (your card tells you after the roll), or Analyze's *Locate a hidden stash* at 16+, which opens it to you for good. If the GM removes a stash, whoever had found it forgets it.
 - Somebody helping themselves from a stash of yours is not announced. Only a thief whose Search came up with Despair leaves it disturbed enough to notice: you are told somebody has been in it - never who.
 - The GM may give you a stash in another room. It does not come with a key to that room.
 - Your hands were full when something reached you - found, stolen, taken off a body, or slipped into your pocket? It goes into your stash - your bedroom's, if you have one - wherever you are standing and however full that stash already is, and you are told. With no stash at all, it does not reach you. Something handed to you over the limit is simply refused.
@@ -525,7 +525,9 @@ There is exactly one, and the kind of murder decides whose it is.
 | Failure | nothing happens and the victim never learns anything was attempted |
 | Success | the incident begins |
 | With Despair | the victim loses all their Sanity on the spot and loses Role reversal for this incident |
-| Critical | the victim learns who is attacking them |
+| Critical | the incident begins, and leaves the fewest Key Remnants |
+
+The victim sees nothing while the killer rolls - no card, no music, nothing on the Event panel. When the roll succeeds they are told at once that the incident has begun, and who is moving on them: a direct murder is face to face. A failure leaves them nothing at all.
 
 **Indirect murder (a trap):** the **victim** rolls (Eye or Head, against **20**; disadvantage at Night). Being asked to roll is itself the warning.
 
@@ -691,7 +693,7 @@ Somebody among you may have built this place. The **Final Truth Remnants** - one
 Once your own Class Trial has ended, you may join the GMs as a **Monocub**. Same actor, same sheet; the action panel becomes **Move** and **Confusion**.
 
 - You have the same action budget as a living student and see only your own room. Your rolls are shown to everyone standing in it.
-- **Confusion** costs **1 action and 1 Hope**, and your Hope exists only because a Monokuma converted Despair into it (Fuel a Monocub). It is a flat 2d12 with no statistic. Pick somebody in your room and help or hinder their next roll (see the table below). They are told something steadied or rattled them, never who.
+- **Confusion** costs **1 action and 1 Hope**, and your Hope exists only because a Monokuma converted Despair into it (Fuel a Monocub). It is a flat 2d12 with no statistic. Pick somebody in your room and help or hinder their next roll (see the table below). They are told something steadied or rattled them, never who - but everyone in your room sees you roll, so they may work out it was you.
 - A Monocub who stumbles onto the crime scene is sworn to silence about it until the chapter ends. Confusion still works.
 
 | Confusion roll | Help | Hinder |
@@ -727,7 +729,7 @@ The messenger also has a **Note** tab: your plans for the session, for the GMs t
 
 ## 15. The safeword
 
-Bottom-left of your character sheet is a button with a word on it - **Safe Word** unless your table chose its own (a world already in play before the word became a setting keeps MISIUBOMBO). Press it and the scene stops. It also works without a sheet: through a key your table can bind in Foundry's Controls. The game pauses, every GM is told who pressed it (and from which room, when it was pressed on a sheet), and everybody sees the same card: the scene is stopped, a GM will pick this up, and play resumes from a point everyone agrees on. While the game stays paused, the Event panel says the scene is stopped.
+Bottom-left of your character sheet is a button with a word on it - **Safe Word** unless your table chose its own (a world already in play before the word became a setting keeps MISIUBOMBO). Press it and the scene stops. It also works without a sheet: through a key your table can bind in Foundry's Controls. The game pauses, every GM is told who pressed it (and from which room, when it was pressed on a sheet), and everybody sees the same card: the scene is stopped, a GM will pick this up, and play resumes from a point everyone agrees on. While the game stays paused, the Event panel says the scene is stopped. A GM's browser posts the card, so no player's name is on it. With no GM connected nothing can pause the game, and your own browser posts the card: it shows no name, but the card's record names you as its author, and a console can read that. The same happens when a GM is connected but no GM's browser answers within three seconds - a GM reloading the page, say: your browser posts the card after all, and your own card tells you so. Then tag a GM in the text channel: the GMs may not know it was you, and a GM whose browser was still loading has to pause the game by hand.
 
 > [!CAUTION]
 > You do not have to justify it, now or later. There is no reason field. Nobody else is told who pressed it - only that the scene stopped.
@@ -764,7 +766,7 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 - **Messenger sounds**, and the **Sound** and **Music** volumes.
 
 > [!NOTE]
-> **Rolls are private:** every roll you make is whispered to you and the GMs. Nobody sees anyone else's dice - except that a roll inside a murder is shown to the people in it, and a Monocub's to their room.
+> **Rolls are private:** every roll you make is seen by you and the GMs alone. Nobody sees anyone else's dice, with two exceptions. A roll in a murder's fight is shown to the people in it - its dice, what it came to and which action it was - from the moment the incident begins to its end. A trap's builder is not among them: they see none of its dice and none of its cards, the card of the action that ends it included. What the opening roll came to is told to the roller's side alone - the killers of a direct murder, a trap's victim - and the clean-up stays the roller's own. A Monocub's rolls, Confusion included, are seen by everyone in their room.
 
 ---
 

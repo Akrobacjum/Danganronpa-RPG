@@ -635,16 +635,17 @@
       "progressOn": "+{n} postępu: {project}",
       "sabotageSeen": "Widać, jak {actor} grzebie przy projekcie w: {room}.",
       "sabotageWatched": "{actor} robi coś przy projekcie {project} w: {room}, a wszyscy tu widzą mniej więcej co.",
+      "sabotageWatchedAnon": "{actor} robi coś przy jakimś projekcie w: {room}, a wszyscy tu widzą mniej więcej co.",
       "costCrossings": "{left} / {max} przejść",
       "costAnyRoom": "dowolny pokój",
       "tierShort": "Tier {tier}",
+      "situationAfterRoll": "{n} przez sytuację: liczy się wynik {total}.",
       "waitsForGm": "GM",
       "murderSpendsAnyway": "Potwierdzenie wydaje akcję niezależnie od tego, czy się uda - a czy się udało, dowiesz się dopiero, gdy Eclipse się skończy.",
       "murderPromptParked": "Co robisz i jak? GM przeczyta to, gdy zapali się światło.",
       "murderParkedConfirm": "Podejmij próbę",
       "murderParked": "Twój ruch wykonany. GM musi na niego pozwolić, a jak poszło, nie wie nikt - nawet ty - dopóki Eclipse się nie skończy i pokój się nie uspokoi.",
       "murderParkedToast": "Zgłoszono. Odpowiedź przyjdzie razem z końcem Eclipse.",
-      "murderAlreadyRunning": "Ktoś inny był pierwszy. Gdy zapaliło się światło, incydent już trwał, a akcja przepada.",
       "murderSecondDeclaration": "Także {killer}: Direct Murder w ciemności - ale incydent był już otwarty. Próba odrzucona, akcja przepada.",
       "murderCancelled": "Direct Murder ({killer}) spełzł na niczym w: {room} - {reason}",
       "murderOpensTitle": "Zabójstwo w ciemności",
@@ -814,7 +815,7 @@
       "silencedNote": "Zaznacz, jeśli ten Monocub natknął się na miejsce zbrodni. Nie może o nim mówić do końca rozdziału, ale Confusion wciąż działa.",
       "needHope": "Confusion kosztuje Hope, a nie masz żadnego. Poproś GM-a o zamianę Despair.",
       "nobodyHere": "Nie ma tu nikogo, na kim dałoby się użyć Confusion.",
-      "meddleIntro": "Podkręć czyjś następny rzut z boku. Nie dowiedzą się, że to ty.",
+      "meddleIntro": "Podkręć czyjś następny rzut z boku. Wszyscy w twoim pokoju widzą, że rzucasz, więc mogą się domyślić, że to ty.",
       "who": "Który Monocub",
       "target": "Kto",
       "help": "Pomóż",
@@ -1424,7 +1425,7 @@
       "betrayalRule": "Dwa ciała tego wieczoru, więc Class Trial ma do rozplątania dwa zabójstwa. Kto jest Blackened za pierwsze, nie jest automatycznie Blackened za drugie. Masz czas do końca dnia, by zdecydować.",
       "betrayalConfirm": "Otwórz drugie morderstwo",
       "betrayalAnnounce": "Otwiera się drugi incydent, przeciw: {killer} - zdrada.",
-      "victimUnderAttack": "<strong>Ktoś rusza na ciebie.</strong> Incydent się zaczął i pierwsza tura jest twoja. Twoje akcje kryzysowe są na karcie postaci, w zakładce Akcje.",
+      "victimUnderAttackBy": "<strong>{killer} rusza na ciebie.</strong> Incydent się zaczął i pierwsza tura jest twoja. Twoje akcje kryzysowe są na karcie postaci, w zakładce Akcje.",
       "victimTrapSprung": "<strong>Pułapka się zamyka.</strong> Za późno, by ją zauważyć. Incydent się zaczął i pierwsza tura jest twoja - akcje kryzysowe są na karcie postaci, w zakładce Akcje.",
       "betrayTileLabel": "Zwróć się przeciw partnerowi",
       "betrayTileHint": "Zabij osobę, której właśnie pomagasz. To otwiera drugi incydent - ty jako zabójca, oni jako ofiara - i zostawia dwa ciała z jednej nocy. GM potwierdza, zanim cokolwiek się stanie.",
@@ -2015,6 +2016,7 @@
       "allowedIn": "Nie tutaj. Dozwolony w: {rooms}",
       "wrongRoom": "{kind} nie w: {room}. Pokoje, które na to pozwalają: {rooms}",
       "noRooms": "Żaden pokój na tej mapie nie jest jeszcze oznaczony pod {kind}. GM ustawia to per scena.",
+      "noKnownRooms": "Żaden znany ci pokój na to nie pozwala.",
       "manageIntro": "Zaznacz, które pokoje pozwalają na Short Rest, a które na Long Rest. Per scena, więc mapa każdego sezonu może się różnić.",
       "shortColumn": "Short Rest",
       "longColumn": "Long Rest",
@@ -2246,6 +2248,7 @@
     },
     "Move": {
       "notConnectedShort": "{to} nie łączy się z {from}.",
+      "cannotReach": "Stąd ({from}) nie da się tam dojść.",
       "title": "Move",
       "freeAvailable": "Twój Free Move na tę porę dnia wciąż jest.",
       "freeSpent": "Free Move zużyty - następny pokój kosztuje akcję. Masz {left}.",
@@ -2279,6 +2282,7 @@
       "anyTrait": "- wybiera gracz -",
       "traitFixed": "Ten projekt wymaga: {trait}.",
       "repairName": "Naprawa: {name}",
+      "repairNameSecret": "Naprawa",
       "repaired": "naprawiony. Nad {name} znów można pracować.",
       "doneTitle": "Ukończony",
       "doneBody": "<strong>{name}</strong> jest ukończony - wszystkie {target} postępu zebrane. Zapytaj GM-a, co ci teraz daje.",
@@ -2484,6 +2488,7 @@
         "call.approve": "Zgoda na Hope Call",
         "dynamic.difficulty": "Trudność akcji Dynamic",
         "trap.event": "Zgłoszenie dla pułapek",
+        "roll.subject": "Zgłoszenie, czyj to był rzut",
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
         "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu"
@@ -3058,6 +3063,7 @@
       "gmNote": "Użył: {who}, w: {room}. Nikomu innemu nie powiedziano kto - stół wie tylko, że scena stanęła.",
       "roomUnknown": "nie zapisano pokoju",
       "failed": "Nie udało się wysłać safeword. Powiedz to na głos i zawołaj GM-a.",
+      "selfPosted": "Przeglądarka żadnego GM-a nie odpowiedziała na czas, więc kartę wystawiła twoja. Zawołaj GM-a na kanale tekstowym.",
       "gmTitle": "Safeword - tylko GM",
       "kept": "Ten świat miał już safeword, więc zostało zachowane: „{word}”. Zmień je w Ustawieniach sezonu."
     },
@@ -3113,7 +3119,12 @@
     "Diagnostics": {
       "pageTinted": "{name} przemalowuje tę stronę na kolory, które nie są kolorami tego modułu. Foundry jest już ciemne - wyłącz to rozszerzenie dla tej strony.",
       "cssMissing": "Arkusz stylów tego modułu nie załadował się na tej stronie, więc interfejs jest bez stylu. Przeładuj; jeśli to się powtarza, uruchom game.drpg.diagnoseStyles().",
-      "tracing": "Obserwuję kliknięcia przez {seconds} sekund. Kliknij kontrolkę, która działa źle."
+      "tracing": "Obserwuję kliknięcia przez {seconds} sekund. Kliknij kontrolkę, która działa źle.",
+      "title": {
+        "music": "Diagnostyka muzyki",
+        "voice": "Plan głosu",
+        "season": "Przygotowanie sezonu"
+      }
     },
     "Tests": {
       "alreadyRunning": "Pakiet testów już działa na tym kliencie. Poczekaj, aż skończy - drugi przebieg zrobiłby zrzut świata, w którym pierwszy ma jeszcze rozstawione fikstury, i ustawiłby go jako bazę.",
@@ -4129,7 +4140,7 @@
           "label": "Rzut otwarcia - zabójca",
           "hope": "Incydent się zaczyna.",
           "despair": "Incydent się zaczyna. Ofiara traci całe Sanity i dostęp do Role reversal na ten incydent.",
-          "critical": "Incydent się zaczyna, a ofiara dowiaduje się, kto ją atakuje.",
+          "critical": "Incydent się zaczyna.",
           "failure": "Bez incydentu, a ofiara nigdy się nie dowie, że cokolwiek próbowano. Akcja przepada; próbę można ponowić o innej porze dnia.",
           "selfInflicted": {
             "label": "Rzut otwarcia - z własnej ręki",
@@ -4611,7 +4622,8 @@
         "deferredOffers": "Reinforced Level Upy czekające na klasę",
         "overflow": "Licznik Despair overflow",
         "despairOwed": "Despair, który każda pula jest winna za zamiany na Hope",
-        "lootTraces": "Co zabrano z każdego ciała, i jego ślad"
+        "lootTraces": "Co zabrano z każdego ciała, i jego ślad",
+        "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone"
       },
       "row": {
         "traces": {

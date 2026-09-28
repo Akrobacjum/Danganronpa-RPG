@@ -799,9 +799,10 @@ async function reshapeTrace(token, data, {
  * the murder. The card goes to the player's own thread (`proposeReshape`, `callGm`), and
  * both lines were in its body: the player read the category an Analyze exists to price,
  * and a line about them in the third person meant for the GM. They are `gmBody` now,
- * which the card on a player's screen leaves out (COMM-06). The words still travel in
- * the card's document to that player's browser, as every `gmBody` does - the card is
- * E06's (S05-15). Pure, for the suite.
+ * which the card on a player's screen leaves out (COMM-06) - and since E06 C7b is not
+ * sent to that player's browser at all. Since E06 C8 the card is veiled (`callGm`'s
+ * `veiled`): its document names neither the thread nor the player (S05-15). Pure, for
+ * the suite.
  */
 export function reshapeCardParts(data, { name = "", text = "", softer = null, tie = false } = {}) {
     const esc = foundry.utils.escapeHTML;
@@ -854,6 +855,8 @@ async function proposeReshape(actor, token, data, {
         room: data.room ?? null,
         body,
         gmBody,
+        // Put to the GMs in its player's thread, which is nobody else's to know of (E06 C8).
+        veiled: true,
         actions: [
             {
                 action: "approveReshape",

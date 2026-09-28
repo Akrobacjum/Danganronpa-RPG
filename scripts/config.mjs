@@ -186,11 +186,13 @@ export const FLAGS = {
     restsTaken: "restsTaken",
     /**
      * Character: the Calls that have been paid for and are waiting on the next
-     * roll. A LIST since CALL-02 (17.09) - `[{ key, kind, grants, amount, from,
-     * nonce }]` - so a second Call armed on the same roll stacks instead of
-     * replacing the first. A flag written before that holds one bare object, and
+     * roll. A LIST since CALL-02 (17.09) - `[{ key, kind, grants, amount, nonce }]`
+     * (and `from`, who bought it, until E06 C10) - so a second Call armed on the
+     * same roll stacks instead of replacing the first. A flag written before that holds one bare object, and
      * `pendingCalls` in call-effects.mjs reads both shapes. Consumed by the roll
-     * dialog.
+     * dialog. A Confusion's Call is not here since E06 fix r2-G4: it is the GMs'
+     * store and its owner's copy (gm-stores.mjs `confusionStore`), which
+     * `pendingCalls` reads beside this list.
      */
     pendingCall: "pendingCall",
     /**
@@ -337,6 +339,19 @@ export const TIMING = {
      *  rewrite and the undo travel as two messages, and the order they are
      *  handled in on the GM's client has not been measured. */
     rerollReceiptRetryMs: 400,
+    /** How long after the primary GM posts a player's safeword card that player's next
+     *  press is logged and not posted again (safeword.mjs `hearSafeword`, E06 C9). A choice,
+     *  not a measurement: long enough to swallow a double press and a held key, short enough
+     *  that a second stop a minute later is a new card. */
+    safewordRepeatMs: 60000,
+    /** How long a player's safeword press waits for a card to land before that player's
+     *  browser posts it itself (safeword.mjs `awaitCard`, E06 fix r2-G3). Measured
+     *  28.09.2026 in the headless harness: the primary GM's card landed on the caller
+     *  10-29 ms after the press before this wait was written and 15-79 ms after (8 presses
+     *  each, medians 21 and 22) - the module's own work over the harness's in-process bus,
+     *  with no network in it. A real table's round trip is not measured here (LIVE-E06-05);
+     *  three seconds is the review's figure, some forty times the slowest of those. */
+    safewordAnswerMs: 3000,
     /** How long an Observe waits for its ruling before the bookmark is swept. */
     pendingObserveTtlMs: 60 * 60 * 1000,
     /** How many private cards' words a browser keeps; beyond this the oldest go. */
@@ -2863,7 +2878,7 @@ export const MURDER_OPENING = {
         hope: "The incident begins.",
         despair: "The incident begins. The victim loses all their Sanity and loses access to "
             + "Role reversal for this incident.",
-        critical: "The incident begins, and the victim learns who is attacking them.",
+        critical: "The incident begins.",
         failure: "No incident, and the victim never learns anything was attempted. The action is "
             + "spent; the attempt can be made again in another time of day.",
         /**
@@ -2873,10 +2888,13 @@ export const MURDER_OPENING = {
          * one of the oldest shapes this story has - and the roll they throw is
          * still the killer's: the numbers, the thresholds and the sliding scale
          * of Key Remnants are all unchanged. Only the prose is, because every
-         * line of the ordinary table speaks about a victim who is somebody else.
-         * "The victim learns who is attacking them" is not a critical success
-         * when the victim already knows; "the victim loses Role Reversal" is a
-         * Stage 5 penalty for an incident that has no Stage 5.
+         * line of the ordinary table speaks about a victim who is somebody else:
+         * "the incident begins" has nobody to begin against, and "the victim
+         * loses Role Reversal" is a Stage 5 penalty for an incident that has no
+         * Stage 5. (The ordinary critical also promised, until 1.2.65, that the
+         * victim would learn who was attacking them - which a direct murder's
+         * victim, face to face, always does, so the promise went; E06 C4, the
+         * owner's D6.)
          *
          * Read as `def.selfInflicted ?? def`, the same variant idiom
          * `indirectVictim` uses in CRISIS_ACTIONS.

@@ -22,12 +22,14 @@
  * p1's and p2's world data - neither is the killer's player's - is read against
  * scripts/world-secrets.mjs and for Chie's actor id (`canary.worldScan`):
  *   trap          the indirect murder's bar filled and its trap armed (it watches Storage);
+ *                 its receipt, a veiled card in Chie's player's thread, read on p3 and p1 (E06 C8);
  *   eclipse       p1 crosses twice, and no crossing's card names Aiko or p1 (E05 C4);
  *                 the GM allows Chie's parked Direct Murder, and neither the ask nor
  *                 the ruling names her player or her (E05 C3);
  *   incident      the lights: Chie kills Botan (p2's), her opening thrown on p3's
  *                 client with forced dice (deleted after use), then a Finishing Blow;
- *                 the GM leaves an incident's trace in Dorm B while it runs;
+ *                 the GM leaves an incident's trace in Dorm B while it runs, and in
+ *                 Stage 6 Chie erases another (E06 C1);
  *   undiscovered  the incident closed with the body not found; its trace, which nobody
  *                 copied, is read hidden and unmarked on p1 and p2 (E05 C14); Chie
  *                 takes a watch off Botan, and p1 reads no word of him on her sheet
@@ -39,6 +41,8 @@
  *   verdict       a trial naming Daichi, a wrong verdict: Chie survives, nothing is written on
  *                 her, and her Reinforced Level Up waits in the GMs' store (E05 C11).
  * Each later E05 commit adds its checks to the phase that shows its secret.
+ * From rest to the discovery the chat of each phase's bystanders is read too (E06 C1,
+ * `canary.chatScan`): what a card's document says of the cast beyond its words.
  *
  * E43 extends this to the season (the identity needles of lib/canary.mjs's path).
  */
@@ -85,8 +89,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
 
     /* A Direct Murder parked during an Eclipse, by the killer's player (eclipse.mjs). */
     const park = canary.marker("park.note", { allowed: ["gm", "p3"] });
+    const beforeEclipse = await gm.eval(`return game.messages.contents.map(m => m.id);`);
     const eclipse = await gm.eval(`await game.drpg.startEclipse(); return game.drpg.isEclipse();`, { timeout: 60000 });
     check("gm: an Eclipse is open", eclipse === true, String(eclipse));
+    /* The Eclipse's start tells each student's player where they stand and how far they may go
+       (eclipse.mjs `startEclipse`): one card to every player, Chie's among them, spoken as each
+       student - it says nothing of anybody that the others' cards do not. The chat read below
+       passes over them (E06 C1; measured 27.09: on the C1 tree the card to p3 was the rest
+       phase's only hit, as chat.id, chat.name and chat.whisper). */
+    const eclipseCards = await gm.eval(`const had = new Set(${JSON.stringify(beforeEclipse)});
+        return game.messages.contents.filter(m => !had.has(m.id)).map(m => m.id);`);
+    await canary.chatMark({ ids: eclipseCards });
     const beforePark = await gm.eval(`return game.messages.size;`);
     await p3.eval(`const { parkDirectMurder } = await import("${repoUrl}/scripts/eclipse.mjs");
         await parkDirectMurder({ killerId: "${IDS.chie}", room: "Gym", note: "${park}" });
@@ -133,6 +146,27 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     phase("rest");
     await settle(1500);
     await canary.scan({ phase: "rest" });
+
+    /* THE CHAT, READ FOR WHO AND WHAT (E06 C1, 27.09.2026; lib/canary.mjs `chatScan`). Here and
+       after each phase of the chapter below, the cards that reached the phase's bystanders since
+       the last read are read for the cast - its actors' ids and names, its players - and for the
+       titles of the secret actions: the crisis actions, the openings, Stage 6's, the murder
+       project's and Confusion. Until the lights the cast is Chie and p3, and p1 and p2 are read;
+       from the lights Botan and p2 are cast beside them, and Botan meets Chie face to face (D6),
+       so p1 alone is read, through the discovery, when the body is the table's and the killer is
+       not. The verdict is not read: a wrong verdict reveals the blackened by design (en.json
+       `outcomeEscaped`). Each hit a later E06 commit closes is a known-leaks.json entry. */
+    const TITLES = await gm.eval(`const C = await import("${repoUrl}/scripts/config.mjs"); const L = k => game.i18n.localize(k);
+        return [...Object.values(C.CRISIS_ACTIONS), ...Object.values(C.MURDER_OPENING), ...Object.values(C.CLEANUP.actions ?? {})].map(d => d?.label)
+            .concat([L("DRPG.Cleanup.action"), L("DRPG.Cleanup.transformAction"), L("DRPG.Tamper.coverAction"), L("DRPG.Roll.crisis"),
+                L("DRPG.Roll.murderProject"), L("DRPG.Roll.concealIntent"), L("DRPG.Roll.hideTraces"), C.MONOCUB?.meddle?.label])
+            .filter((t, i, all) => typeof t === "string" && t.trim() && !t.startsWith("DRPG.") && all.indexOf(t) === i);`);
+    const castNames = await gm.eval(`return ${JSON.stringify([IDS.chie, IDS.botan])}.map(id => game.actors.get(id)?.name ?? "");`);
+    const KILLER_CHAT = { who: ["p1", "p2"], actorIds: [IDS.chie], names: [castNames[0]], userIds: [p3.userId], titles: TITLES };
+    const INCIDENT_CHAT = { who: ["p1"], actorIds: [IDS.chie, IDS.botan], names: castNames, userIds: [p3.userId, p2.userId], titles: TITLES };
+    check("gm: the secret actions' titles are read for the chat scan - the crisis actions, the openings, Stage 6's, the murder project's and Confusion",
+        TITLES.length >= 20 && ["Finishing blow", "Confusion"].every(t => TITLES.includes(t)) && castNames.every(Boolean), JSON.stringify({ TITLES, castNames }));
+    await canary.chatScan({ phase: "rest", ...KILLER_CHAT });
 
     /* THE KEY REMNANT PLAN IS THE GMS' (E05 C5, 26.09.2026; audit S01-01, S05-02): a GM store since
        1.2.64, so on the GM the first slot holds the markers planted above, and on p1
@@ -249,10 +283,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         while (!v && Date.now() < until) { await settle(250); v = await what(); }
         return v;
     };
-    const scanned = async name => {
+    const scanned = async (name, chat = null) => {
         await settle(800);
         await canary.scan({ phase: name });
         await canary.worldScan({ phase: name, ids: [IDS.chie] });
+        if (chat) await canary.chatScan({ phase: name, ...chat });
     };
     const PROJ = `const P = await import("${repoUrl}/scripts/projects.mjs"); const T = await import("${repoUrl}/scripts/traps.mjs");`;
 
@@ -266,7 +301,24 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         await new Promise(r => setTimeout(r, 300));
         return { armed: T.diagnoseTraps().armed, complete: P.isComplete(P.allProjects().find(p => p.id === "${made ?? "none"}")) };`, { timeout: 60000 });
     check("gm: the indirect murder's bar is filled and its trap armed", armedTrap.complete === true && armedTrap.armed >= 1, JSON.stringify(armedTrap));
-    await scanned("trap");
+    await scanned("trap", KILLER_CHAT);
+    /* The trap's receipt (E06 C8): a veiled thread card. Found on the GM in Chie's player's
+       thread by its title, then read by id on p3 - listed in her own thread from the meta its
+       words brought - and on p1, where the document names no thread and no player, and lists
+       in no thread. */
+    const receiptId = await gm.eval(`const M = await import("${repoUrl}/scripts/messenger.mjs"); const S = await import("${repoUrl}/scripts/secret.mjs");
+        const title = foundry.utils.escapeHTML(game.i18n.localize("DRPG.Trap.armedTitle"));
+        return M.threadMessages("${p3.userId}").reverse().find(m => S.contentOf(m).includes(title))?.id ?? null;`);
+    const receiptOn = c => c.eval(`const M = await import("${repoUrl}/scripts/messenger.mjs"); const S = await import("${repoUrl}/scripts/secret.mjs");
+        const m = game.messages.get("${receiptId ?? "none"}");
+        return m ? { listed: M.threadMessages("${p3.userId}").some(x => x.id === m.id), placed: S.cardFlag(m, "thread") ?? null,
+            flags: Object.keys(m.toObject().flags?.["${MOD}"] ?? {}).sort(), unaddressed: game.users.filter(u => !m.whisper.includes(u.id)).length } : null;`);
+    const [receiptP3, receiptP1] = [await receiptOn(p3), await receiptOn(p1)];
+    check("trap: the trap's receipt is a veiled card in Chie's player's thread - listed there on p3's browser, and naming no thread on p1's (E06 C8)",
+        Boolean(receiptId) && receiptP3?.listed === true && receiptP3.placed === p3.userId
+        && receiptP1?.listed === false && receiptP1.placed === null && receiptP1.unaddressed === 0
+        && JSON.stringify(receiptP1.flags) === JSON.stringify(["secret", "veiled"]),
+        JSON.stringify({ receiptId, receiptP3, receiptP1 }));
 
     /* eclipse: p1 crosses twice - through `judgeEclipseCrossing` on p1's client, the road a token
        dragged across a border takes (movement.mjs `settleRoute`), so each crossing's card is the
@@ -331,7 +383,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     }
     check("p1 and p2: the GM's ask about Chie's declaration and its ruling name neither her player's thread, her player nor Chie",
         askCards.length >= 1 && ruling.length >= 1 && naming.length === 0, JSON.stringify({ askCards, ruling, naming }));
-    await scanned("eclipse");
+    await scanned("eclipse", KILLER_CHAT);
 
     /* incident: the lights. Botan (p2's) stands beside Chie in Dorm B and nobody else is there;
        the Eclipse ends and the allowed declaration opens the incident. Chie's opening is thrown on
@@ -379,7 +431,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     check("p1: Botan dead in no world data on p1's browser before the discovery - no flag, no status, his bullet still there",
         Boolean(hunch) && onP1.flag === null && onP1.status === false && onP1.known === false && onP1.bullet === true, JSON.stringify({ hunch, onP1 }));
     check("p2: Botan's own player knows he is dead (isDeadForGm) while the table does not", onP2.known === true && onP2.flag === null, JSON.stringify(onP2));
-    await scanned("incident");
+    /* STAGE 6 BY THE KILLER (E06 C1). The chat read wants the cards of every stage an incident
+       has, and 72 had no Stage 6 action: Chie, alone in Dorm B with the body, erases a trace the
+       GM leaves there for her, thrown on p3's client with forced dice - a success with Hope, which
+       asks no question. Read here: her roll came back, and the GM's ruling took the trace away. */
+    const sixTrace = await gm.eval(`const t = await game.drpg.placeRemnant({ room: "Dorm B", type: "incident", visibility: "subtle", note: "72: Stage 6's trace" });
+        return t ? { id: t.id, scene: t.parent?.id ?? null } : null;`, { timeout: 60000 });
+    const sixRoll = await p3.eval(`const Cl = await import("${repoUrl}/scripts/cleanup.mjs");
+        globalThis.__forceRoll = { hope: 11, fear: 2 };
+        try { const r = await Cl.attemptCleanup(game.actors.get("${IDS.chie}"), "${sixTrace?.id ?? "none"}"); return { rolled: Boolean(r?.roll), total: r?.roll?.total ?? null }; }
+        finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+    const sixErased = await settled("incident", () => gm.eval(`return game.scenes.get("${sixTrace?.scene ?? "none"}")?.tokens.get("${sixTrace?.id ?? "none"}") ? null : true;`));
+    check("p3: in Stage 6 Chie erases a trace in Dorm B, and the GM's ruling takes it away (E06 C1)",
+        Boolean(sixTrace?.scene) && sixRoll.rolled === true && sixErased === true, JSON.stringify({ sixTrace, sixRoll, sixErased }));
+    await scanned("incident", INCIDENT_CHAT);
 
     /* undiscovered: the incident is closed with nobody having found Botan. */
     phase("undiscovered");
@@ -447,7 +512,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const announced = await gm.eval(`return game.settings.get("${MOD}", "bodyFound")?.room ?? null;`);
     check("p1: Aiko alone with Botan's body is told privately and knows he is dead - no flag on p1, and no body announcement",
         Boolean(alone) && alone.flag === null && announced === null, JSON.stringify({ alone, announced }));
-    await scanned("undiscovered");
+    await scanned("undiscovered", INCIDENT_CHAT);
 
     /* discovery: a Faint Prep trace is left in Dorm B; Aiko and Daichi walk in, the second
        witness sets the discovery off, and the GM's promotion dialog ticks every trace it lists. */
@@ -512,7 +577,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     check("gm, p1 and p2: Aiko's loot of Botan's torch is the GMs' row, and Botan carries no loot record on p1 or p2 (E05 C14)",
         Boolean(torch) && (lootRow?.taken ?? []).includes("72: Botan's torch") && lootP1 === null && lootP2 === null,
         JSON.stringify({ torch, looted, lootRow, lootP1, lootP2 }));
-    await scanned("discovery");
+    await scanned("discovery", { ...KILLER_CHAT, who: ["p1"] });
 
     /* verdict: the trial names Daichi, which is wrong - Chie survives, and is the Blackened
        the verdict rewards. p1 votes; p3 (the killer's player) too; p2's student is dead. */

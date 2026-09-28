@@ -17,8 +17,9 @@ import { studentActors } from "./monokuma.mjs";
 import { listExperiences } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings, liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
-import { isPrimaryGm, log, debug } from "./utils.mjs";
+import { isPrimaryGm, log, debug, gmReport } from "./utils.mjs";
 import { gmOnline } from "./bridge-guards.mjs";
+import { rollSubjectNow } from "./private-rolls.mjs";
 
 /**
  * Why Dice So Nice might be rolling unskinned dice.
@@ -73,7 +74,8 @@ function rollAudienceLines() {
     }
 
     for (const message of rolls) {
-        const subject = game.actors.get(message.speaker?.actor ?? "");
+        // Who the roll is about as this browser can tell (E06 C5a): what its roller reported, then the speaker.
+        const subject = rollSubjectNow(message);
         const author = message.author?.name ?? "?";
         const whisper = message.whisper ?? [];
         const names = whisper.length
@@ -183,7 +185,8 @@ export function diagnoseDespair() {
     const last = [...game.messages].reverse().find(m => (m.rolls?.length ?? 0) > 0);
     if (last) {
         lines.push("");
-        lines.push(`Most recent roll message: type "${last.type}", speaker actor "${last.speaker?.actor ?? "(none)"}"`);
+        lines.push(`Most recent roll message: type "${last.type}", speaker actor "${last.speaker?.actor ?? "(none)"}", `
+            + `about "${rollSubjectNow(last)?.name ?? "(nobody this browser can tell)"}"`);
         import("./despair-award.mjs").then(m => {
             const outcome = m.readDuality(last);
             console.log(`${MODULE_ID} | last roll read as:`, outcome ?? "not a duality roll");
@@ -1324,7 +1327,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
     roll("Everybody is assigned to a Despair pool", unwatched,
         "Without one, Despair from their rolls has nowhere to go. Fix it in the GM panel, under Despair Flow.");
 
-    return report("Season setup", lines, { toChat });
+    return report(game.i18n.localize("DRPG.Diagnostics.title.season"), lines, { toChat });
 }
 
 /**
@@ -1338,12 +1341,10 @@ function report(title, lines, { toChat = true } = {}) {
     const text = lines.join("\n");
     console.log(`${MODULE_ID} | ${title}\n${text}`);
 
-    if (toChat) {
-        ChatMessage.create({
-            content: `<h3>${title}</h3><pre style="white-space:pre-wrap;font-size:0.85em">${foundry.utils.escapeHTML(text)}</pre>`,
-            whisper: [game.user.id]
-        });
-    }
+    // Through `gmReport` (E06 C11, audit S17-32): the season checklist names every
+    // student who is missing something, and a whispered message is a document every
+    // connected browser receives.
+    if (toChat) gmReport(title, `<pre style="white-space:pre-wrap;font-size:0.85em">${foundry.utils.escapeHTML(text)}</pre>`);
 
     return text;
 }

@@ -55,7 +55,7 @@ import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, SITUATIONAL_PLAYLIST } fro
 import { SETTINGS, getSetting, bodyDiscoveryFresh, incidentWitness } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { trialFloor, FLOOR_MODES } from "./trial-floor.mjs";
-import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
+import { isPrimaryGm, debug, log, warn, error, plural, gmReport } from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
 /**
@@ -1741,11 +1741,9 @@ export function diagnoseMusic() {
 
     const text = lines.join("\n");
     console.log(`${MODULE_ID} | Music diagnostics\n${text}`);
-    ChatMessage.create({
-        content: `<h3>Music diagnostics</h3><pre style="white-space:pre-wrap;font-size:0.85em">${
-            foundry.utils.escapeHTML(text)}</pre>`,
-        whisper: [game.user.id]
-    });
+    // The words to this console's own store, not a document every browser holds (E06 C11).
+    gmReport(game.i18n.localize("DRPG.Diagnostics.title.music"),
+        `<pre style="white-space:pre-wrap;font-size:0.85em">${foundry.utils.escapeHTML(text)}</pre>`);
     return text;
 }
 

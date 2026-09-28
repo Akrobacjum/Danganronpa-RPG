@@ -36,6 +36,16 @@
  * actor ids it is given. Its hits carry a pseudo-seed (`world.id`, `world.field`),
  * so known-leaks.json describes the open ones with the same match rules as a
  * marker's.
+ *
+ * THE CHAT, READ FOR WHO AND WHAT (E06 C1, 27.09.2026). A card's words are the markers'
+ * business; what else its document says is `chatScan`'s: a cast actor's id or name in the
+ * speaker, `system`, rolls or module flags (`chat.id`, `chat.name` - a cast player's user id
+ * counts as an id there, which a messenger thread's flag is), a whisper list that names a
+ * cast player and is not everybody (`chat.whisper`), a secret action's title anywhere in the
+ * document but its words (`chat.title`), and a veiled card whose author is a cast player
+ * (`chat.author`). `canary.chatScan` reads the cards that arrived on the named players since
+ * the last read, after a phase (72 after each, 30 after a sabotage, 40 after the safeword).
+ * What the cast is, and who are its bystanders, is the scenario's to say for each phase.
  */
 
 import { findWorldSecrets, WORLD_SECRET_MODULE } from "../../../scripts/world-secrets.mjs";
@@ -66,7 +76,13 @@ export const SEEDS = Object.freeze({
     "remnant.publicName": { cls: "answer-key", field: "a found trace's public name, as the GM names it", plantedBy: "72-canary" },
     // No marker: what `worldScan` finds (E05 C2).
     "world.id": { cls: "killer-identity", field: "an actor id world data may not name (72: the killer's), in a module world setting or a document's module flags", plantedBy: "72-canary (worldScan)" },
-    "world.field": { cls: "answer-key", field: "a field scripts/world-secrets.mjs keeps out of world data", plantedBy: "72-canary (worldScan)" }
+    "world.field": { cls: "answer-key", field: "a field scripts/world-secrets.mjs keeps out of world data", plantedBy: "72-canary (worldScan)" },
+    // No marker: what `chatScan` finds (E06 C1).
+    "chat.id": { cls: "killer-identity", field: "a cast actor's or cast player's id in a chat message's speaker, system, rolls or module flags", plantedBy: "72-canary, 30-security, 40-flow (chatScan)" },
+    "chat.name": { cls: "killer-identity", field: "a cast actor's name in a chat message's speaker, system, rolls or module flags", plantedBy: "72-canary, 30-security, 40-flow (chatScan)" },
+    "chat.whisper": { cls: "killer-identity", field: "a chat message's whisper list naming a cast player, and not everybody", plantedBy: "72-canary, 30-security, 40-flow (chatScan)" },
+    "chat.title": { cls: "plan", field: "a secret action's title in a chat message, anywhere but its words", plantedBy: "72-canary, 30-security, 40-flow (chatScan)" },
+    "chat.author": { cls: "killer-identity", field: "a veiled chat message authored by a cast player", plantedBy: "72-canary, 30-security, 40-flow (chatScan)" }
 });
 
 export const NOT_SCANNED = Object.freeze([
@@ -209,7 +225,9 @@ export function worldScan(dump, { ids = [] } = {}) {
         users: docs("User").map(d => ({ id: d?._id, flags: d?.flags })),
         tokens: docs("Scene").flatMap(scene => (scene?.tokens ?? []).map(t => ({ id: `${scene?._id}.tokens.${t?._id}`, flags: t?.flags,
             delta: t?.delta ? { flags: t.delta.flags } : null }))),
-        messages: docs("ChatMessage").map(d => ({ id: d?._id, flags: d?.flags })),
+        // E06 C1: with what a world-secrets `messages` rule reads.
+        messages: docs("ChatMessage").map(d => ({ id: d?._id, flags: d?.flags, speaker: d?.speaker, system: d?.system, rolls: d?.rolls,
+            whisper: d?.whisper, author: d?.author })),
         // E05 C13: the items, in the sidebar and on every sheet - one on a sheet at its place in the actor.
         items: [...docs("Item").map(d => ({ id: d?._id, flags: d?.flags })),
             ...docs("Actor").flatMap(actor => (actor?.items ?? []).map(i => ({ id: `${actor?._id}.items.${i?._id}`, flags: i?.flags })))]
@@ -222,6 +240,69 @@ export function worldScan(dump, { ids = [] } = {}) {
                 : (h.doc === "Item" && h.id.includes(".items.") ? "Actor" : h.doc)),
             path: `${norm(full)}${h.key ? "#key" : ""}`, phase: dump?.phase ?? null, via: ["rest"], n: null, sample: h.rule };
     });
+}
+
+/* A card's words - what its readers are shown - which the markers read and chatScan leaves. */
+const WORDS = new Set(["content", "flavor"]);
+
+/* A phrase as a whole: not inside a longer word, case as written. */
+const phrase = text => new RegExp(`(?:^|[^\\p{L}\\p{N}])${String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[^\\p{L}\\p{N}])`, "u");
+
+/**
+ * What a player's chat - in `dump`, that player's browser whole - says of a cast beyond its
+ * words (E06 C1), as canary hits `{ seed: "chat.*", surface: "document", where:
+ * "ChatMessage#<kind>", path, message, phase, via: ["rest"], n: null, sample }`: the kind is
+ * `roll` (a message with rolls), `veiled`, `thread` (a card in a messenger thread), `secret`
+ * (another private card) or `card`, so a
+ * known-leaks entry can name the cards one commit closes; the path is the field's, from the
+ * message's id; the sample is the value and, in braces, the card's module flags - which card
+ * it is. `actorIds` and `names` are the cast's actors, `userIds` its players (the
+ * reader's own id is never one - nothing names a player to themselves), `titles` the secret
+ * actions' titles, `only` the message ids to read (every held message when null). Pure.
+ */
+export function chatScan(dump, { actorIds = [], names = [], userIds = [], titles = [], only = null } = {}) {
+    const reader = dump?.userId ?? null;
+    const strings = list => (list ?? []).filter(v => typeof v === "string" && v.trim());
+    const users = strings(userIds).filter(id => id !== reader);
+    const ids = [...strings(actorIds), ...users];
+    const nameRes = strings(names).map(phrase), titleRes = strings(titles).map(t => [t, phrase(t)]);
+    const everyone = (Array.isArray(dump?.world?.User) ? dump.world.User : []).map(u => u?._id).filter(Boolean);
+    const hits = [];
+    for (const d of Array.isArray(dump?.world?.ChatMessage) ? dump.world.ChatMessage : []) {
+        const id = String(d?._id ?? "");
+        if (only && !only.has(id)) continue;
+        const scope = d?.flags?.[WORLD_SECRET_MODULE];
+        const rolls = Array.isArray(d?.rolls) ? d.rolls.map(tryJson) : [];
+        const veiled = Boolean(scope?.veiled);
+        const kind = rolls.length ? "roll" : veiled ? "veiled" : scope?.thread ? "thread" : scope?.secret ? "secret" : "card";
+        const seen = new Set();
+        const add = (seed, path, sample) => {
+            const p = norm(`${id}.${path}`);
+            if (seen.has(`${seed}|${p}`)) return;
+            seen.add(`${seed}|${p}`);
+            hits.push({ seed, surface: "document", where: `ChatMessage#${kind}`, path: p, message: id, phase: dump?.phase ?? null,
+                via: ["rest"], n: null, sample: `${String(sample).slice(0, 60)} {${Object.keys(scope ?? {}).join(",")}}` });
+        };
+        const parts = { speaker: d?.speaker, system: d?.system, rolls, [`flags.${WORLD_SECRET_MODULE}`]: scope };
+        for (const [base, value] of Object.entries(parts)) {
+            walk(value, base, (text, path) => {
+                if (ids.some(w => text.includes(w))) add("chat.id", path, text);
+                if (nameRes.some(re => re.test(text))) add("chat.name", path, text);
+            });
+        }
+        for (const [key, value] of Object.entries(d ?? {})) {
+            if (WORDS.has(key)) continue;
+            walk(key === "rolls" ? rolls : value, key, (text, path) => {
+                const title = titleRes.find(([, re]) => re.test(text));
+                if (title) add("chat.title", path, `${title[0]}: ${text}`);
+            });
+        }
+        const whisper = Array.isArray(d?.whisper) ? d.whisper : [];
+        if (whisper.length && users.some(u => whisper.includes(u)) && !everyone.every(u => whisper.includes(u))) add("chat.whisper", "whisper", whisper.join(","));
+        const author = d?.author ?? null;
+        if (veiled && users.includes(author)) add("chat.author", "author", author);
+    }
+    return hits;
 }
 
 /* A glob: "**" any run, "*" one dotted segment. */
@@ -321,7 +402,8 @@ const table = hits => hits.slice(0, 20).map(h => `${h.who} ${h.seed} ${h.surface
 export function createCanary(ctx) {
     const planted = new Map();            // MARKER -> { seed, allowed: Set }
     let counter = 0, sinceScan = 0;
-    const scans = [], hitsSeen = [], evaluated = new Set(), worldScans = [];
+    const scans = [], hitsSeen = [], evaluated = new Set(), worldScans = [], chatScans = [];
+    const chatRead = new Map();           // who -> the ids of the messages a chat read has passed
     let selftest = null;
 
     function marker(seed, { allowed = ["gm"] } = {}) {
@@ -357,6 +439,17 @@ export function createCanary(ctx) {
             await postSecret({ content: "<p>${ms.card}</p>", whisper: [game.user.id, "${p1.userId}"] });
             return true;`, { timeout: 60000 });
         await ctx.settle(1500);
+        /* THE CHAT SCAN, SEEN AT ALL (E06 C1). A public card spoken by p1's character, a title in
+           its words, and a veiled card from the GM: on p2 the first is found as chat.id and not as
+           chat.title - words are the markers' - and the second, addressed to everybody and
+           speaking as nobody, is not reported. Both have to be held on p2, or the silence about
+           the second measures nothing. */
+        const CHAT_TITLE = "Canary self-test action";
+        const chat = await ctx.gm.eval(`const actor = game.users.get("${p1.userId}")?.character ?? null;
+            const plain = await ChatMessage.create({ content: "<p>${CHAT_TITLE}</p>", speaker: ChatMessage.getSpeaker({ actor }) });
+            const { postSecret } = await import("${ctx.repoUrl}/scripts/secret.mjs");
+            const veiled = await postSecret({ content: "<p>canary self-test</p>", whisper: [game.user.id, "${p1.userId}"], veiled: true });
+            return { actorId: actor?.id ?? null, name: actor?.name ?? null, plain: plain?.id ?? null, veiled: veiled?.id ?? null };`, { timeout: 60000 });
         await ctx.gm.eval(`game.socket.emit("module.drpg-harness-selftest", { marker: "${ms.leak}" }); return true;`);
         await ctx.settle(800);
         const all = new Set(Object.values(ms));
@@ -378,7 +471,17 @@ export function createCanary(ctx) {
         const leak = (seen.p2 ?? []).find(h => h.marker === ms.leak && h.surface === "socket" && h.phase === "selftest");
         ctx.check("canary self-test: a leak planted on purpose is reported (p2, phase selftest, surface socket, with its path)",
             Boolean(leak && leak.path), JSON.stringify(leak ?? (seen.p2 ?? []).filter(h => h.marker === ms.leak)));
-        selftest = { markers: Object.keys(ms), leak: leak ? { who: "p2", surface: leak.surface, where: leak.where, path: leak.path, phase: leak.phase } : null };
+        const p2Dump = await ctx.dump("p2");
+        const heldOnP2 = new Set((p2Dump?.world?.ChatMessage ?? []).map(m => m?._id));
+        const chatHits = chatScan(p2Dump, { actorIds: [chat.actorId], names: [chat.name], userIds: [p1.userId], titles: [CHAT_TITLE],
+            only: new Set([chat.plain, chat.veiled]) });
+        ctx.check("canary self-test: the chat scan finds a card spoken by a cast actor (chat.id) but not the title in its words, and nothing on a veiled GM card (p2)",
+            Boolean(chat.actorId && chat.plain && chat.veiled) && heldOnP2.has(chat.plain) && heldOnP2.has(chat.veiled)
+            && chatHits.some(h => h.message === chat.plain && h.seed === "chat.id" && h.path === "*.speaker.actor")
+            && !chatHits.some(h => h.seed === "chat.title") && !chatHits.some(h => h.message === chat.veiled),
+            JSON.stringify({ chat, held: [heldOnP2.has(chat.plain), heldOnP2.has(chat.veiled)], chatHits: chatHits.map(h => `${h.seed} ${h.where} ${h.path}`) }));
+        selftest = { markers: Object.keys(ms), leak: leak ? { who: "p2", surface: leak.surface, where: leak.where, path: leak.path, phase: leak.phase } : null,
+            chat: chatHits.map(h => ({ seed: h.seed, where: h.where, path: h.path })) };
         await ctx.gm.eval(`const b = globalThis.__canaryRestore;
             await game.settings.set("danganronpa-rpg", "safeword", b.safeword);
             await game.drpg.setClock({ campaignName: b.campaign });
@@ -407,8 +510,8 @@ export function createCanary(ctx) {
         const unmatched = hits.filter(h => !ctx.knownLeaks.some(e => matchLeak(h, e)));
         ctx.check(`canary [${phase}]: no secret reached a player outside known-leaks.json`, unmatched.length === 0, table(unmatched));
         for (const e of ctx.knownLeaks) {
-            // A `world.*` seed is no marker: `worldCheck` below evaluates it.
-            const by = (e.detectedBy ?? []).filter(d => d.scenario === ctx.scenario && d.seed && !String(d.seed).startsWith("world.")
+            // A `world.*` or `chat.*` seed is no marker: `worldCheck` and `chatCheck` below evaluate them.
+            const by = (e.detectedBy ?? []).filter(d => d.scenario === ctx.scenario && d.seed && !/^(?:world|chat)\./.test(String(d.seed))
                 && (!d.phase || d.phase === phase));
             if (!by.length) continue;
             evaluated.add(e.id);
@@ -458,6 +561,59 @@ export function createCanary(ctx) {
         return { hits, unmatched };
     }
 
+    /**
+     * The messages `who` hold now count as read, so the next `chatCheck` reads what arrives
+     * after; or, given `ids`, those messages alone, on every player - cards the scenario says
+     * are no one's secret, and says why.
+     */
+    async function chatMark({ who = ["p1", "p2"], ids = null } = {}) {
+        for (const p of ctx.players.filter(p => ids || who.includes(p.who))) {
+            const read = chatRead.get(p.who) ?? new Set();
+            const marked = ids ?? ((await ctx.dump(p.who))?.world?.ChatMessage ?? []).map(m => m?._id);
+            for (const id of marked) if (id) read.add(id);
+            chatRead.set(p.who, read);
+        }
+    }
+
+    /**
+     * THE CHAT AFTER A PHASE (E06 C1): `chatScan` on each player named in `who` - the phase's
+     * bystanders - over the messages that arrived since their last chat read (or `chatMark`),
+     * for the cast the scenario names. The read is a check, so an empty chat cannot pass for a
+     * clean one; a hit no known-leaks.json entry describes fails; an entry that names a
+     * `chat.*` seed in this phase is the leak, reproduced, and red. A message changed after it
+     * was read is not read again.
+     */
+    async function chatCheck({ phase = ctx.phase(), who = ["p1", "p2"], actorIds = [], names = [], userIds = [], titles = [] } = {}) {
+        const players = ctx.players.filter(p => who.includes(p.who));
+        const hits = [], read = [];
+        for (const p of players) {
+            const d = await ctx.dump(p.who);
+            const held = (d?.world?.ChatMessage ?? []).map(m => m?._id).filter(Boolean);
+            const before = chatRead.get(p.who) ?? new Set();
+            const fresh = new Set(held.filter(id => !before.has(id)));
+            read.push({ who: p.who, held: held.length, fresh: fresh.size });
+            for (const h of chatScan(d, { actorIds, names, userIds, titles, only: fresh })) hits.push({ ...h, who: p.who, phase });
+            chatRead.set(p.who, new Set([...before, ...fresh]));
+        }
+        const asked = actorIds.length + userIds.length + titles.length;
+        const measured = asked > 0 && read.length === who.length && read.every(r => r.held > 0);
+        ctx.check(`chat [${phase}]: ${who.join(" and ")}'s chat was read, for ${actorIds.length} actor(s), ${userIds.length} player(s) and ${titles.length} title(s)`,
+            measured, JSON.stringify(read));
+        const unmatched = hits.filter(h => !ctx.knownLeaks.some(e => matchLeak(h, e)));
+        ctx.check(`chat [${phase}]: no card on ${who.join(" or ")} names the cast, a cast player or a secret action outside known-leaks.json`,
+            unmatched.length === 0, table(unmatched));
+        for (const e of ctx.knownLeaks) {
+            const by = (e.detectedBy ?? []).filter(d => d.scenario === ctx.scenario && String(d.seed ?? "").startsWith("chat.") && (!d.phase || d.phase === phase));
+            if (!by.length) continue;
+            evaluated.add(e.id);
+            const reproduced = hits.filter(h => matchLeak(h, e));
+            ctx.check(`known leak ${e.id} in the chat [${phase}]: ${e.what}`, reproduced.length === 0, table(reproduced), { knownLeak: e.id, measured });
+        }
+        chatScans.push({ phase, read, hits: hits.length, unmatched: unmatched.length });
+        hitsSeen.push(...hits.map(h => ({ ...h, scanPhase: phase })));
+        return { hits, unmatched };
+    }
+
     async function finish(results) {
         if (sinceScan > 0) await scan({ phase: "end" });
         for (const e of ctx.knownLeaks) {
@@ -472,10 +628,11 @@ export function createCanary(ctx) {
             }
         }
         const live = [...planted.values()].filter(p => !p.seed.startsWith("selftest."));
-        return { planted: live.length, scans, worldScans, hits: hitsSeen.map(h => ({ who: h.who, seed: h.seed, surface: h.surface, where: h.where,
-            path: h.path, phase: h.phase, scanPhase: h.scanPhase, via: h.via, leak: ctx.knownLeaks.find(e => matchLeak(h, e))?.id ?? null })),
+        return { planted: live.length, scans, worldScans, chatScans, hits: hitsSeen.map(h => ({ who: h.who, seed: h.seed, surface: h.surface, where: h.where,
+            path: h.path, phase: h.phase, scanPhase: h.scanPhase, via: h.via, leak: ctx.knownLeaks.find(e => matchLeak(h, e))?.id ?? null,
+            ...(String(h.seed).startsWith("chat.") ? { message: h.message, sample: h.sample } : {}) })),
             selftest, notScanned: NOT_SCANNED };
     }
 
-    return { marker, selfTest, scan, playerLeakScan: scan, worldScan: worldCheck, finish, forbiddenIn };
+    return { marker, selfTest, scan, playerLeakScan: scan, worldScan: worldCheck, chatScan: chatCheck, chatMark, finish, forbiddenIn };
 }

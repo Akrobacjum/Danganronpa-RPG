@@ -41,6 +41,18 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
  * and -14 (a canvas), -04 (LiveKit) and -11 (avclient-livekit's own setting)
  * are not modelled at all, so nothing here stands in for them: they stay in
  * AUDIT section 9.2 only.
+ *
+ * E06's (C14, 28.09.2026) are all eight, because each is a question the
+ * harness answers on its own model of Foundry, Daggerheart or Dice So Nice
+ * (read in the scenarios and the suite on the release tree): the victim's
+ * view of the opening (13-murder-signals, 01); a module roll's document on a
+ * bystander (the harness's roll written as Daggerheart's source, R190's
+ * fixtures, 02); Dice So Nice's dice (13's `game.dice3d`, 03); the chat pip
+ * (the suite's recorder behind the chat log's method, 04); the safeword card
+ * and its three seconds (40-flow, timed on this machine, 05); the trap's
+ * receipt in the killer's thread and its Plant button (a tier-2 test, 06);
+ * the old cards' clause on planted cards, not an owner's world (61, 07); and
+ * a ruling card on a player's Chat tab (a tier-2 test, 08).
  */
 export const UNCONFIRMED = [
     "LIVE-E30-01", "LIVE-E30-02", "LIVE-E30-03", "LIVE-E30-04",
@@ -50,7 +62,9 @@ export const UNCONFIRMED = [
     "LIVE-E04-01", "LIVE-E04-02", "LIVE-E04-03", "LIVE-E04-04", "LIVE-E04-05", "LIVE-E04-06",
     "LIVE-E04-07", "LIVE-E04-08", "LIVE-E04-09", "LIVE-E04-10", "LIVE-E04-11", "LIVE-E04-12",
     "LIVE-E05-01", "LIVE-E05-02", "LIVE-E05-06", "LIVE-E05-07", "LIVE-E05-08", "LIVE-E05-09",
-    "LIVE-E05-10", "LIVE-E05-12", "LIVE-E05-13"
+    "LIVE-E05-10", "LIVE-E05-12", "LIVE-E05-13",
+    "LIVE-E06-01", "LIVE-E06-02", "LIVE-E06-03", "LIVE-E06-04", "LIVE-E06-05", "LIVE-E06-06",
+    "LIVE-E06-07", "LIVE-E06-08"
 ];
 
 function readJson(file) {

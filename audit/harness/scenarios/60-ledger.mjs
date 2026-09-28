@@ -72,6 +72,37 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
             held.stores >= 10 && held.dirty.length === 0 && held.planted === null, JSON.stringify(held));
     }
 
+    /* 1b. WHAT A REFUSAL NAMES (E06 C11, 28.09.2026; audit S07-19), on the browser whose rows
+       were just recorded - the one place `roomsKnownToMe` is not a GM's null. A crossing refused
+       towards a room Aiko has not found names only where she stands; one towards a room she has
+       found still names it; and of two rooms the GM marks for a Short Rest, one found and one
+       not, the Rest list names the found one alone. The marks are put back. */
+    phase("what a refusal names", { flow: "discovery-ledger" });
+    const J = JSON.stringify;
+    const unknownRoom = await p1_.eval(`const M = await import("${REPO}/scripts/movement.mjs"); const k = M.roomsKnownToMe();
+        return k ? M.allRooms().find(r => !k.has(r)) ?? null : null;`);
+    const restRooms = [ids.rooms[0], unknownRoom];
+    const marks = await gm.eval(`const V = await import("${REPO}/scripts/vault.mjs");
+        const out = {}; for (const room of ${J(restRooms)}) { const g = V.regionsByName().get(room); if (!g) continue;
+            out[room] = g.getFlag("${MOD}", "restShort") ?? null; await g.update({ "flags.${MOD}.restShort": true }); }
+        return out;`);
+    await settle(800);
+    const refusal = await p1_.eval(`const M = await import("${REPO}/scripts/movement.mjs"); const R = await import("${REPO}/scripts/rest.mjs");
+        const k = M.roomsKnownToMe(), say = (from, to, next) => typeof M.notConnectedText === "function" ? M.notConnectedText(from, to, [next]) : "";
+        return { known: k ? [...k] : null, marked: R.restRooms("short"),
+            rest: typeof R.restRoomsSentence === "function" ? R.restRoomsSentence("short", "DRPG.Rest.allowedIn") : "",
+            unknown: say(${J(ids.rooms[0])}, ${J(unknownRoom)}, ${J(ids.rooms[1])}),
+            found: say(${J(ids.rooms[0])}, ${J(ids.rooms[1])}, ${J(ids.rooms[0])}),
+            cannot: game.i18n.format("DRPG.Move.cannotReach", { from: ${J(ids.rooms[0])} }) };`);
+    await gm.eval(`const V = await import("${REPO}/scripts/vault.mjs"); const { forcedDeletion } = await import("${REPO}/scripts/utils.mjs");
+        for (const [room, was] of Object.entries(${J(marks)})) await V.regionsByName().get(room)?.update({ "flags.${MOD}.restShort": was ?? forcedDeletion() });
+        return true;`);
+    check(`${p1_.who}: a refusal and the Rest list name no room Aiko has not found, and still name the ones she has`,
+        Boolean(unknownRoom) && Object.keys(marks).length === 2 && refusal.marked.includes(unknownRoom)
+            && refusal.unknown === refusal.cannot && !refusal.unknown.includes(unknownRoom) && refusal.found.includes(ids.rooms[1])
+            && refusal.rest.includes(ids.rooms[0]) && !refusal.rest.includes(unknownRoom),
+        J({ unknownRoom, marks, refusal }), { flow: "discovery-ledger" });
+
     // 2. the pull: p2 loses its rows and asks the primary GM for them
     phase("pull", { flow: "discovery-ledger" });
     await p2_.eval(`${stores} await S.fogCopy.forget(); return true;`);

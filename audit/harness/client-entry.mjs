@@ -317,6 +317,17 @@ const FOREIGN_SETTING_DEFAULTS = {
 };
 
 /*
+ * DAGGERHEART'S OWN SETTINGS, REGISTERED AS DAGGERHEART DOES, AT INIT (E06 C5a, 27.09.2026).
+ * They were registered here on their first read, and tier 2's world dump files a setting that
+ * was not registered when the world was first read as one that "appeared": C5a's by-name run
+ * failed "could not restore the world" after a test that only read Fear, to put it back after a
+ * roll. At a table the system has registered them before any module runs.
+ */
+for (const [full, def] of Object.entries(FOREIGN_SETTING_DEFAULTS)) {
+    if (full.startsWith("daggerheart.")) settingDefs.set(full, def);
+}
+
+/*
  * ANOTHER MODULE'S OWN SETTING, REGISTERED THE WAY THAT MODULE DOES (E27, 24.09.2026).
  * Isometric Perspective registers `showWelcome` in its `init` - client-scoped,
  * shown in Configure Settings, on by default - and reads it in its `ready`.
@@ -517,9 +528,20 @@ const game = {
         render() {}
     },
     dice3d: {
-        showForRoll: async () => true,
+        // Every call kept, drawn nowhere (E06 C6): see "DICE SO NICE'S DECISION" below.
+        showForRoll: async (roll, user = game.user, synchronize = false, users = null, blind = false, messageID = null) => {
+            globalThis.__dsnShown.push({ user: user?.id ?? user ?? null, synchronize: Boolean(synchronize),
+                users: users ? [...users].map(u => u?.id ?? u) : null, blind: Boolean(blind), messageID, total: roll?.total ?? null });
+            return true;
+        },
         addSystem() {}, addColorset() {}, addDicePreset() {},
-        waitFor3DAnimationByMessageID: async () => true
+        // The animation a roll's message waits for (Daggerheart's `toMessage`, below): over at
+        // once, unless a scenario or a test holds it with `__dsnAnimation`, an async function of
+        // the message's id - a long throw, or a tab in the background (E06 fix r1-G2).
+        waitFor3DAnimationByMessageID: async id => {
+            if (typeof globalThis.__dsnAnimation === "function") await globalThis.__dsnAnimation(id);
+            return true;
+        }
     },
     keybindings: { register() {}, get: () => [] },
     tooltip: { activate() {}, deactivate() {} },
@@ -529,6 +551,45 @@ const game = {
     data: { version: versions.foundry.version }
 };
 globalThis.game = game;
+
+/*
+ * DICE SO NICE'S DECISION, AS 6.3.1 MAKES IT ON EVERY CLIENT (E06 C6, 27.09.2026). main.js
+ * `shouldInterceptMessage` (:458-516, read in 6.3.1's source): a new message with dice animates
+ * where its content is visible, or on every client when the world's "Hide 3D dice on secret
+ * rolls" is off (`hide3dDiceOnSecretRolls`, registered with `default: true`, main.js:199-206;
+ * here `globalThis.__dsnHideSecret`) - ghost dice stay at their default, off. Then it calls
+ * `diceSoNiceMessagePreProcess` with the message's id and `{ willTrigger3DRoll }`, which a
+ * listener may turn off, and what is left decides. Kept here in `__dsnAnimated` (the ids this
+ * client would animate); `__dsnShown` keeps every `showForRoll` call. Nothing is drawn. With
+ * `game.dice3d` gone (a scenario deletes it to play a table without the module) nothing is
+ * decided, as Dice So Nice's own `game.dice3d &&` has it. Rolls added by an update and the
+ * inline rolls in a card's text are not modelled. Where it animates it takes the core dice
+ * sound off the message (main.js:573-576), so the chat log's notifier, below, plays none.
+ */
+globalThis.__dsnShown = [];
+globalThis.__dsnAnimated = [];
+globalThis.__dsnHideSecret = true;
+hooks.on("createChatMessage", message => {
+    if (!game.dice3d || !message?.isRoll) return;
+    if (!(message.rolls ?? []).some(roll => (roll?.dice?.length ?? 0) > 0)) return;
+    const interception = { willTrigger3DRoll: message.isContentVisible || globalThis.__dsnHideSecret === false };
+    hooks.callAll("diceSoNiceMessagePreProcess", message.id, interception);
+    if (!interception.willTrigger3DRoll) return;
+    globalThis.__dsnAnimated.push(message.id);
+    if (message.sound === "sounds/dice.wav") delete message.sound;
+});
+
+/*
+ * THE CHAT LOG TOLD OF A NEW MESSAGE (E06 fix r1-G2, 28.09.2026; review m2). Foundry posts a
+ * created message to the chat log where it is `visible` and calls the log's notifier, which
+ * lights the Chat tab's pip and plays the message's sound. That order is the review's reading
+ * and the E06 plan's, not a reading of v14's source, which is not on this machine (LIVE-E06-04);
+ * the call comes after every `createChatMessage` listener, as Foundry's comes after the card is
+ * rendered. The notifier is `HarnessChatLog#notify`, below, as secret.mjs wraps it.
+ */
+hooks.on("createChatMessage", message => {
+    if (message?.visible) setTimeout(() => globalThis.ui?.chat?.notify?.(message), 0);
+});
 
 /*
  * THE HARNESS'S OWN READING OF THIS CLIENT'S WORLD (E30, 24.09.2026). The suite's
@@ -554,18 +615,62 @@ globalThis.__harnessWorldState = () => JSON.parse(JSON.stringify({
  * that, as the sheet's trait button and this module's `commitResources` do. The
  * dice are the harness's: random, or the faces in globalThis.__forceRoll =
  * {hope, fear}. The dialog is not modelled; game.drpg.suiteRolling asks for none.
+ *
+ * THE MESSAGE AS 2.6.5 WRITES IT (E06 C1, 27.09.2026), read in its source, not measured on a
+ * real message (LIVE-E06-02 does that). actor.mjs `rollTrait` (:568-590) gives the config a
+ * `title` (the trait's check) and a `headerTitle` carrying the actor's name, which the
+ * caller's options override - written here in English with the trait's key, as the harness
+ * loads no Daggerheart language file and an unknown key would count as a missing one;
+ * `diceRoll` (:560-566) sets `source.actor` to the actor's uuid
+ * and `data` to `getRollData()`; the roll
+ * is built with the config as its options (dhRoll.mjs:45), and `toMessage` (:118, :144-157) writes
+ * the speaker by `getSpeaker`, `system` as the config through actorRoll.mjs's schema (a
+ * `title`, `source.actor`, `targets`) and the roll. Here the roll's options are that config: a
+ * JSON copy of every key but the roll, the actor and the message the harness hangs on it
+ * (`configKeys`), with title, headerTitle, source.actor, data, effects, the experiences picked,
+ * `roll` with its statistic and actionType written as below. Until E06 fix r2-G2 (28.09.2026;
+ * review round 2's mn1 = m1) the options were those keys alone, and a key the module passes on
+ * the config - the Loaded Die's mark, the nonce its Call keeps on the character - reached no
+ * check that reads a roll.
+ * `data` AS IT IS WRITTEN (E06 fix r1-G1, 28.09.2026; review M1 = F1). Until this fix the
+ * harness wrote `data` as `{ id, name }`, and C5b's neutral roll was measured against that
+ * shape alone. `getRollData()` (actor.mjs:636-645) is a shallow proxy over the character's
+ * system whose `set` keeps `id`, `name`, `system`, `prof` and `cast` in a table of its own
+ * (helpers/utils.mjs:792-814, no `ownKeys`), so a roll serialised to its message carries the
+ * system - named experiences, a biography, a companion's uuid - and not the id or the name.
+ * Written here as the shim's `getRollData()`, the system's source; read in the source, not
+ * measured on a real message (LIVE-E06-02). The seed gives every student such a system
+ * (lib/seed.mjs `studentActor`). And
+ * `system.roll` stays as E30 wrote it, the options its actionType alone: it stands in for
+ * actorRoll.mjs's `roll` getter (:64), which finds the roll among the message's rolls and is
+ * no field of the source - despair-award and private-rolls read it.
  */
 classes.Actor.prototype.rollTrait = async function rollTrait(traitKey, options = {}) {
-    return this.diceRoll({ roll: { trait: traitKey, type: "trait" }, hasRoll: true, actionType: "action", ...options });
+    return this.diceRoll({ title: `${traitKey} Check`, headerTitle: `Duality Roll: ${this.name}`,
+        roll: { trait: traitKey, type: "trait" }, hasRoll: true, actionType: "action", ...options });
 };
 
 /* actor.mjs `modifyResource` (lib/daggerheart.mjs): a GM writes, a player asks the GM relay (E30, G9). */
 classes.Actor.prototype.modifyResource = function (resources) { return modifyResource(this, resources); };
 
+/* The config's keys as its roll's options carry them: a JSON copy, less what the harness hangs on it. */
+function configKeys(config) {
+    const out = {};
+    for (const [key, value] of Object.entries(config ?? {})) {
+        if (["roll", "actor", "message"].includes(key) || value === undefined || typeof value === "function") continue;
+        try { out[key] = JSON.parse(JSON.stringify(value)); } catch { /* not JSON, so not on a message either */ }
+    }
+    return out;
+}
+
 classes.Actor.prototype.diceRoll = async function diceRoll(config) {
     config.source = { ...(config.source ?? {}), actor: this.uuid };
     config.data = this.getRollData();
     config.resourceUpdates = new ResourceUpdateMap(this);
+    // The experiences the roll dialog would have picked (d20RollDialog.mjs keeps them on the
+    // config): none, unless a test names them in globalThis.__forceExperiences, as __forceRoll
+    // names the dice (E06 fix r1-G1: the Reroll's bookmark keeps them).
+    config.experiences = [...(config.experiences ?? globalThis.__forceExperiences ?? [])];
 
     const traitKey = config.roll?.trait;
     const forced = globalThis.__forceRoll;
@@ -604,16 +709,25 @@ classes.Actor.prototype.diceRoll = async function diceRoll(config) {
         dHope: { total: hope }, dFear: { total: fear },
         dice: [{ faces: 12, total: hope, results: [{ result: hope, active: true }] },
                { faces: 12, total: fear, results: [{ result: fear, active: true }] }],
-        options: { actionType: config.actionType }
+        options: { ...configKeys(config), title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
+            data: config.data, effects: [...(this.effects?.contents ?? [])].map(e => e.toObject?.() ?? e),
+            experiences: [...config.experiences],
+            roll: { trait: traitKey, type: config.actionType,
+                modifiers: traitKey ? [{ label: `DAGGERHEART.CONFIG.Traits.${traitKey}.name`, value: mod }] : [] },
+            actionType: config.actionType }
     };
     config.message = await classes.ChatMessage.create({
         author: game.userId,
         speaker: classes.ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="dice-roll">Duality: ${total}</div>`,
+        sound: globalThis.CONFIG.sounds.dice,
         rolls: [rollJson],
-        system: { roll: rollJson },
+        system: { title: config.title ?? "", source: { actor: config.source.actor }, targets: [], roll: { ...rollJson, options: { actionType: config.actionType } } },
         flags: {}
     });
+    // dhRoll.mjs:162-165 (2.6.5): the message is created, then Dice So Nice's animation is
+    // waited for, and only then does the roll return (E06 fix r1-G2).
+    if (game.modules.get("dice-so-nice")?.active) await game.dice3d?.waitFor3DAnimationByMessageID(config.message.id);
     await game.system.api.dice.DualityRoll.addDualityResourceUpdates(config);
     return config;
 };
@@ -696,11 +810,23 @@ function record(level) {
         return globalThis.__notifications.length;
     };
 }
+/*
+ * THE CHAT LOG'S CLASS, as far as its notifier (E06 C6): the class `ui.chat` is made from, with a
+ * `notify` that keeps the ids it was handed in `__chatNotified`, and in `__chatRung` those whose
+ * message had a sound to play. secret.mjs wraps it (`quietVeiledPip`). It is called as a message
+ * is created (the hook above, E06 fix r1-G2); which method lights the pip in v14 is LIVE-E06-04.
+ */
+class HarnessChatLog {
+    notify(message) {
+        (globalThis.__chatNotified ??= []).push(message?.id ?? null);
+        if (message?.sound) (globalThis.__chatRung ??= []).push(message.id ?? null);
+    }
+}
 globalThis.ui = {
     notifications: { info: record("info"), warn: record("warn"), error: record("error"), notify: record("notify"), remove() {}, clear() {} },
     // Daggerheart's Fear tracker, as far as modifyResource uses it (lib/daggerheart.mjs).
     resources: { updateFear },
-    chat: { element: document.querySelector("#chat"), scrollBottom() {}, render() {}, postOne() {}, collapsed: false },
+    chat: Object.assign(new HarnessChatLog(), { element: document.querySelector("#chat"), scrollBottom() {}, render() {}, postOne() {}, collapsed: false }),
     sidebar: { element: document.querySelector("#sidebar"), tabs: {}, render() {}, expand() {}, collapse() {}, activateTab() {} },
     windows: {},
     players: { render() {}, element: document.querySelector("#players") },
@@ -753,7 +879,8 @@ globalThis.CONFIG = {
     queries: {},
     canvasTextStyle: {},
     fontDefinitions: {},
-    sounds: {},
+    // Foundry's core dice sound, which Daggerheart puts on a roll's message (dhRoll.mjs:150).
+    sounds: { dice: "sounds/dice.wav" },
     TextEditor: {}
 };
 
@@ -797,7 +924,7 @@ globalThis.foundry = {
             TextEditor: { implementation: { enrichHTML: async s => s } },
             ContextMenu: class { constructor() {} render() {} }
         },
-        sidebar: { tabs: {} },
+        sidebar: { tabs: { ChatLog: HarnessChatLog } },
         sheets: {
             TokenConfig: class TokenConfig {},
             PrototypeTokenConfig: class PrototypeTokenConfig {},

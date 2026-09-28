@@ -23,7 +23,7 @@ import { SETTINGS, isEclipse, incomingTimeOfDay, eclipseId, eclipseMovesUsed, is
 // know that.
 export { isEclipse, incomingTimeOfDay, eclipseId };
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
-import { roomOfActor, neighbouringRooms, placesOf, allRooms } from "./movement.mjs";
+import { roomOfActor, neighbouringRooms, placesOf, allRooms, notConnectedText } from "./movement.mjs";
 import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc, isPrimaryGm,
     primaryGmId, ownerIdsOf } from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
@@ -566,8 +566,11 @@ export async function liftPendingMurders() {
  *
  * Only the FIRST successful declaration opens an incident. Two killings at once
  * is not something this engine models - `murderState` is a single incident -
- * and the honest thing is to say so to the second killer rather than to drop
- * their attempt silently.
+ * and the second killer is told their attempt is refused rather than having it
+ * dropped silently. Told THAT, not WHY (E06 C4, 27.09.2026; audit S10-38, the
+ * owner's D6): "an incident was already running" told them somebody was being
+ * killed somewhere at that moment. The words are the ordinary refusal a GM's
+ * "no" sends (`murderRefused`); the GMs keep the reason (`murderSecondDeclaration`).
  *
  * AND NOTHING OPENS WITHOUT THE GM. The room condition is the guide's and the
  * module can read it; whether this killing happens at this table tonight is not
@@ -620,7 +623,7 @@ async function judgePendingMurders(id) {
         };
 
         if (murderState()) {
-            await say(game.i18n.localize("DRPG.Action.murderAlreadyRunning"), "drpg-warning");
+            await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");
             await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderSecondDeclaration", {
                 killer: foundry.utils.escapeHTML(killer.name)
             })}</p>`);
@@ -786,8 +789,9 @@ export async function judgeEclipseCrossing(actor, from, to) {
             const connected = neighbouringRooms(from);
             if (connected.length && !connected.includes(to)) {
                 // The same sentence the veto uses, and it names only rooms the
-                // viewer has been in - `crossingRefused` in movement.mjs.
-                ui.notifications.warn(game.i18n.format("DRPG.Move.notConnectedShort", { from, to }));
+                // viewer has been in, the destination included (E06 C11) -
+                // `notConnectedText` in movement.mjs.
+                ui.notifications.warn(notConnectedText(from, to, connected));
                 return false;
             }
         }

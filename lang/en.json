@@ -648,17 +648,18 @@
       "progressOn": "+{n} progress on {project}",
       "sabotageSeen": "{actor} is seen doing something to a project in {room}.",
       "sabotageWatched": "{actor} is doing something to {project} in {room}, and everyone here can see roughly what.",
+      "sabotageWatchedAnon": "{actor} is doing something to a project in {room}, and everyone here can see roughly what.",
       "sabotageSeenOn": "You are doing it in front of them. The action is already spent, so it goes ahead.",
       "costCrossings": "{left} / {max} crossings",
       "costAnyRoom": "any room",
       "tierShort": "Tier {tier}",
+      "situationAfterRoll": "{n} from the situation: the total that counts is {total}.",
       "waitsForGm": "GM",
       "murderSpendsAnyway": "Confirming spends the action whether or not it comes off - and you will not find out which until the Eclipse ends.",
       "murderPromptParked": "What are you doing, and how? The GM reads this when the lights come up.",
       "murderParkedConfirm": "Make the attempt",
       "murderParked": "Your move is made. The GM has to allow it, and nobody knows how it went - not even you - until the Eclipse ends and the room settles.",
       "murderParkedToast": "Declared. The answer comes when the Eclipse does.",
-      "murderAlreadyRunning": "Somebody else got there first. An incident was already running when the lights came up, and the action is spent.",
       "murderSecondDeclaration": "{killer} also declared a direct murder in the dark, but an incident was already open. Their attempt was refused and their action is spent.",
       "murderCancelled": "{killer}'s direct murder came to nothing in {room} - {reason}",
       "murderOpensTitle": "A killing in the dark",
@@ -826,7 +827,7 @@
       "silencedNote": "Tick if this Monocub stumbled onto the crime scene. They cannot discuss it until the chapter ends, but Confusion still works.",
       "needHope": "Confusion costs Hope and you have none. Ask a GM to convert some Despair.",
       "nobodyHere": "Nobody in this room to use Confusion on.",
-      "meddleIntro": "Nudge somebody's next roll from the sidelines. They will not know it was you.",
+      "meddleIntro": "Nudge somebody's next roll from the sidelines. Everyone in your room sees you roll, so they may work out it was you.",
       "who": "Which Monocub",
       "target": "Who",
       "help": "Help",
@@ -1409,7 +1410,7 @@
       "betrayalRule": "Two bodies this evening, so the Class Trial has two killings to untangle. Whoever is Blackened for the first is not automatically Blackened for the second. You have until the end of the day to decide.",
       "betrayalConfirm": "Open the second murder",
       "betrayalAnnounce": "A second incident opens on {killer} - the betrayal.",
-      "victimUnderAttack": "<strong>Someone is moving on you.</strong> The incident has begun and the first turn is yours. Your crisis actions are on your character sheet, under Actions.",
+      "victimUnderAttackBy": "<strong>{killer} is moving on you.</strong> The incident has begun and the first turn is yours. Your crisis actions are on your character sheet, under Actions.",
       "victimTrapSprung": "<strong>The trap closes.</strong> You did not see it in time. The incident has begun and the first turn is yours - your crisis actions are on your character sheet, under Actions.",
       "betrayTileLabel": "Turn on your partner",
       "betrayTileHint": "Kill the person you just helped. This opens a second incident with you as the killer and them as the victim, and leaves two bodies from one night. The GM confirms before anything happens.",
@@ -1953,6 +1954,7 @@
       "allowedIn": "Not here. Allowed in: {rooms}",
       "wrongRoom": "No {kind} in {room}. Rooms that allow it: {rooms}",
       "noRooms": "No room on this map is marked for a {kind} yet. The GM sets that up per scene.",
+      "noKnownRooms": "No room you know of allows it.",
       "manageIntro": "Mark which rooms allow a Short Rest and which allow a Long Rest. Per scene, so every season's map can differ.",
       "shortColumn": "Short Rest",
       "longColumn": "Long Rest",
@@ -2170,6 +2172,7 @@
     },
     "Move": {
       "notConnectedShort": "{to} is not connected to {from}.",
+      "cannotReach": "You cannot get there from {from}.",
       "title": "Move",
       "freeAvailable": "Your Free Move for this time of day is still there.",
       "freeSpent": "Free Move used - the next room costs an action. You have {left}.",
@@ -2201,6 +2204,7 @@
       "anyTrait": "- player chooses -",
       "traitFixed": "This project demands {trait}.",
       "repairName": "Repair: {name}",
+      "repairNameSecret": "Repair",
       "repaired": "repaired. {name} can be worked on again.",
       "doneTitle": "Finished",
       "doneBody": "<strong>{name}</strong> is complete - all {target} progress is in. Ask the GM what it does for you now.",
@@ -2400,6 +2404,7 @@
         "call.approve": "Hope Call approval",
         "dynamic.difficulty": "Dynamic action difficulty",
         "trap.event": "A report for the traps",
+        "roll.subject": "A report of whose roll it was",
         "searchTokens.spend": "Spend a search token",
         "searchTokens.takePlant": "Look for a planted item",
         "searchTokens.returnPlant": "Put a planted item back"
@@ -2942,6 +2947,7 @@
       "gmNote": "{who} used it, in {room}. Nobody else has been told who - the table only knows the scene stopped.",
       "roomUnknown": "no room recorded",
       "failed": "The safeword could not be sent. Say it out loud and tag a GM.",
+      "selfPosted": "No GM's browser answered in time, so yours posted the card. Tag a GM in the text channel.",
       "gmTitle": "Safeword - GM only",
       "kept": "This world already had a safeword, so it has been kept: “{word}”. Change it in Season setup."
     },
@@ -2995,7 +3001,12 @@
     "Diagnostics": {
       "pageTinted": "{name} is repainting this page in colours that are not this module's. Foundry is already dark - turn the extension off for this site.",
       "cssMissing": "This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().",
-      "tracing": "Watching clicks for {seconds} seconds. Click the control that misbehaves."
+      "tracing": "Watching clicks for {seconds} seconds. Click the control that misbehaves.",
+      "title": {
+        "music": "Music diagnostics",
+        "voice": "Voice plan",
+        "season": "Season setup"
+      }
     },
     "Tests": {
       "alreadyRunning": "The regression suite is already running on this client. Wait for it to finish - a second run would take its snapshot of a world the first one has fixtures standing in, and put that back as the baseline.",
@@ -3378,7 +3389,8 @@
         "deferredOffers": "The Reinforced Level Ups waiting for the class",
         "overflow": "The Despair overflow's count",
         "despairOwed": "The Despair each pool owes for its conversions to Hope",
-        "lootTraces": "What has been taken off each body, and its trace"
+        "lootTraces": "What has been taken off each body, and its trace",
+        "confusions": "The Confusions armed on a character and not rolled yet"
       },
       "row": {
         "traces": {

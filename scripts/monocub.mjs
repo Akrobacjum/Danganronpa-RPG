@@ -26,7 +26,9 @@
  * (`armCall` in call-effects.mjs) rather than inventing a second one. That
  * also means "help a crisis action" costs nothing extra: an incident roll
  * goes through the identical roll dialog, so an armed Meddle bonus applies to
- * it exactly as it would to an ordinary action roll.
+ * it exactly as it would to an ordinary action roll. Where it waits is not the
+ * target's flag but the GMs' store and the target's owner's copy (E06 fix r2-G4):
+ * `appendArmedCall` sends it there.
  */
 
 import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE } from "./config.mjs";
@@ -443,16 +445,26 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
      * IT CANNOT LEAK WHO. A sound has no sender, and both whispers play the
      * same one - the target learns that something reached them, which is what
      * their card already says, and nothing more.
+     *
+     * AND THE TWO CARDS ARE VEILED (E06 C10, 28.09.2026; audit S09-10). A
+     * whisper's list is a field every console reads: two cards with this sound,
+     * one to the Monocub's player and one to the target's, posted together, told
+     * every browser who used Confusion on whom. The room sees the Monocub's dice
+     * (the owner's answer of 27.09: Confusion is seen by the room, like every
+     * Monocub roll), and the roll does not say who it was aimed at. Veiled, each
+     * card's words and sound reach its own reader alone (secret.mjs), and its
+     * document names nobody.
      */
-    const meddleSfx = { flags: { [MODULE_ID]: { sfx: "meddle" } } };
+    const meddleSfx = { veiled: true, flags: { [MODULE_ID]: { sfx: "meddle" } } };
 
     await whisperToOwner(actor, `<p><strong>${game.i18n.format("DRPG.Monocub.meddledOn", {
         name: foundry.utils.escapeHTML(target.name)
     })}</strong></p><p>${foundry.utils.escapeHTML(text)}</p>`, meddleSfx);
 
     // The target is told SOMETHING happened without being told who - the guide
-    // has Monocubs act "z boku" (from the sidelines); knowing which dead
-    // classmate is pulling the strings is not part of that.
+    // has Monocubs act "z boku" (from the sidelines). Their card does not name
+    // the Monocub; the room's view of the dice may, and the Monocub's own
+    // window says so (`meddleIntro`, E06 C10).
     await whisperToOwner(target, `<p>${foundry.utils.escapeHTML(targetText)}</p>`, meddleSfx);
 
     log(`${actor.name} used Meddle on ${target.name}: ${text}`);

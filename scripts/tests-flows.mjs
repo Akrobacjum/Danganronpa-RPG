@@ -16,7 +16,7 @@
  * holds its scenarios and stages to audit/harness/README.md and tools/stages.json.
  * It imports nothing, so Node can read it as it is.
  *
- *   entry.bridge   the bridge's table actions (BRIDGE_ACTIONS, TRAP_ACTIONS, SEARCH_ACTIONS), by their wire name
+ *   entry.bridge   the bridge's table actions (BRIDGE_ACTIONS, TRAP_ACTIONS, SEARCH_ACTIONS, ROLL_ACTIONS), by their wire name
  *   entry.sockets  the files that listen on the module's socket for it
  *   entry.api      the game.drpg calls that start it (R160 asks that they exist)
  *   entry.calls    "file.mjs#function" for a start that is not on game.drpg
@@ -97,8 +97,11 @@ export const FLOWS = Object.freeze([
         entry: { sockets: ["mastermind.mjs"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E40" },
     { id: "messenger", what: "The messenger and every private card: the words travel only to the people on the card",
         entry: { sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
+    // E06 fix r2-G4 (28.09.2026): a Confusion's armed Call is the GMs' store and its owner's copy, whose socket
+    // is call-effects.mjs's; 40-flow drives the arming on the GM, the copy and a spend on the owner's browser,
+    // not the Monocub's own ask.
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
-        entry: { bridge: ["monocub.meddle"] }, scenarios: [], status: "planned", stage: "E45" },
+        entry: { bridge: ["monocub.meddle"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow"], status: "partial", stage: "E45" },
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["murder.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "30-security", "61-gmstore-case"], status: "partial", stage: "E32" },
@@ -106,11 +109,12 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },
         scenarios: ["72-canary", "11-killer-secrecy", "33-bridge-paths", "30-security", "61-gmstore-case"], status: "covered", stage: "1.2.64" },
     { id: "private-rolls", what: "A roll made in private: whispered, and hidden from the other players' chat",
-        entry: { sockets: ["dice-sync.mjs"] }, scenarios: ["12-social", "20-crit-hope"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["roll.subject"], sockets: ["dice-sync.mjs", "private-rolls.mjs"] },
+        scenarios: ["12-social", "13-murder-signals", "20-crit-hope", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
         entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage"] },
         scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
-    { id: "safeword", what: "The safeword: one press stops the table on every screen",
+    { id: "safeword", what: "The safeword: one press stops the table on every screen - the primary GM posts the card for a player (E06 C9), the caller only with no GM connected or when no card lands in time (fix r2-G3)",
         entry: { sockets: ["safeword.mjs"] }, scenarios: ["40-flow"], status: "covered", stage: "<=1.2.50" },
     { id: "search-observe", what: "A Search or an Observe: the GM judges it, spends the room's token, grants the find, and only the searcher reads the card",
         entry: { bridge: ["observe.target", "observe.resolve", "searchTokens.spend", "searchTokens.takePlant", "searchTokens.returnPlant"],

@@ -34,7 +34,17 @@ export const IDS = {
 const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const TRACE_NAME = JSON.parse(fs.readFileSync(path.join(HERE, "..", "..", "..", "lang", "en.json"), "utf8")).DRPG.Remnant.tokenName;
 
-function studentActor(id, name, ownerUserId) {
+/*
+ * A CHARACTER'S SYSTEM AS DAGGERHEART'S CHARACTER MODEL HOLDS ONE (E06 fix r1-G1, 28.09.2026;
+ * review M1 = F1): a named experience, a biography that says whom it is about, and a
+ * companion's uuid (character.mjs in 2.6.5: `experiences`, `biography`, `companion`). A roll's
+ * `data` is this system serialised (client-entry.mjs `diceRoll`), so what a roll the module
+ * threw keeps of it is measured against what a real sheet holds, not against an empty one. The
+ * companions are no actors of this world - a character's source keeps only the uuid - and one
+ * experience is under the two the season checklist asks for, as the empty list was.
+ */
+function studentActor(id, name, ownerUserId, experience = null) {
+    const key = id.slice(5);
     return {
         _id: id, name, type: "character", img: "icons/svg/mystery-man.svg",
         ownership: { default: 0, ...(ownerUserId ? { [ownerUserId]: 3 } : {}) },
@@ -49,8 +59,9 @@ function studentActor(id, name, ownerUserId) {
                 agility: { value: 1 }, strength: { value: 0 }, finesse: { value: 1 },
                 instinct: { value: 0 }, presence: { value: 1 }, knowledge: { value: 0 }
             },
-            experiences: {},
-            biography: { background: "", connections: "", notes: "" },
+            experiences: experience ? { [`EXP${key}00`]: { name: experience, value: 2 } } : {},
+            biography: { background: `${name}, as their player wrote them.`, connections: "", notes: "" },
+            companion: experience ? `Actor.${key}COMP1` : null,
             description: ""
         },
         items: [], effects: [], flags: {}, statuses: []
@@ -66,9 +77,9 @@ export const world = {
             { _id: IDS.p3, name: "PlayerThree", role: 1, active: true, character: IDS.chie, color: "#ffaa00", flags: {} }
         ],
         Actor: [
-            studentActor(IDS.aiko, "Aiko Hoshino", IDS.p1),
-            studentActor(IDS.botan, "Botan Kage", IDS.p2),
-            studentActor(IDS.chie, "Chie Mori", IDS.p3),
+            studentActor(IDS.aiko, "Aiko Hoshino", IDS.p1, "Star Pupil"),
+            studentActor(IDS.botan, "Botan Kage", IDS.p2, "Night Owl"),
+            studentActor(IDS.chie, "Chie Mori", IDS.p3, "Kendo Captain"),
             /* ONE STASH WITH ONE THING IN IT (E30, 24.09.2026; audit S17-03). The two
                stash invariants in tier 1 ("no stashed thing points at a stash that is
                not there", "every stash belongs to somebody who exists") loop over the
@@ -86,7 +97,7 @@ export const world = {
                under Tools is inventory.mjs's own example of the flag, written as
                addItem writes a table entry's roles. Stashed, so it arms nobody:
                carriedFor leaves out what is in a stash. */
-            { ...studentActor(IDS.daichi, "Daichi Sato", null), items: [{
+            { ...studentActor(IDS.daichi, "Daichi Sato", null, "Tinkerer"), items: [{
                 _id: IDS.stashedItem, name: "Spare Screwdriver", type: "loot",
                 img: "modules/danganronpa-rpg/icons/item-tool.svg",
                 system: { description: "", quantity: 1 },

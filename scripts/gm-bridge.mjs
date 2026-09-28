@@ -30,7 +30,7 @@ import {
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
 export { removalRefusal } from "./bridge-guards.mjs";
 
-import { contentOf } from "./secret.mjs";
+import { contentOf, cardFlag } from "./secret.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_PROGRESS = "project.progress";
@@ -137,7 +137,8 @@ export function registerGmBridge() {
     // this same hook dispatch.
     if (game.user.isGM) {
         Hooks.on("renderChatMessageHTML", (message, element) => {
-            if (!message.getFlag(MODULE_ID, "callCard")) return;
+            // From the words' meta (E06 C7a): the card is drawn again when they land.
+            if (!cardFlag(message, "callCard")) return;
             import("./messenger-app.mjs")
                 .then(m => m.wireCallActions(element.querySelector(".message-content") ?? element, message))
                 .catch(err => debug("Could not wire a ruling card in the log", err));
@@ -908,11 +909,14 @@ async function handleArm(payload, sender, ctx, prepared) {
     return { reply: { ok: true, left: null } };
 }
 
-/** The armed entry as this side builds it: the table's `grants`, never the packet's extras. */
+/**
+ * The armed entry as this side builds it: the table's `grants`, never the packet's extras. Who
+ * paid is the request's (`armBuyerId`) and is not stored (E06 C10; call-effects.mjs `unsigned`).
+ */
 function armedEntry(asked, call, kind) {
     return {
         key: asked.key, kind, grants: call.grants,
-        amount: null, from: asked.from ?? null,
+        amount: null,
         nonce: String(asked.nonce ?? foundry.utils.randomID()).slice(0, 32)
     };
 }
@@ -2123,7 +2127,8 @@ export async function callGm(actor, {
      * Prose for the GM alone: a threshold table, "score it against...", a
      * reminder of what is owed. The card lives in the player's thread, so
      * anything here is wrapped in `.drpg-gm-only` and taken off the card on a
-     * player's client, the same way the buttons are (COMM-06).
+     * player's client, the same way the buttons are (COMM-06) - and since E06
+     * C7b never sent to them: `postSecret` gives a player the words without it.
      */
     gmBody = "",
     /**
@@ -2135,8 +2140,9 @@ export async function callGm(actor, {
      * announces it can open the incident without a GM re-picking two names off
      * a list they are already reading.
      *
-     * Safe to render for everybody: the GM-only buttons are stripped from a
-     * player's copy (`wireCallActions`), and every action behind them is
+     * Safe to render for everybody: the GM-only buttons are not in a player's
+     * copy (`postSecret`, since E06 C7b; `wireCallActions` takes them off an
+     * older one), and every action behind them is
      * GM-gated again on arrival, so a player who forges a click into their own
      * DOM achieves nothing.
      */
@@ -2159,7 +2165,16 @@ export async function callGm(actor, {
      * the same road as every ruling card and that the road was the risk. It
      * cost one line to open and one line to close.
      */
-    gmOnly = false
+    gmOnly = false,
+    /**
+     * THE PLAYER READS IT, AND NOBODY ELSE MAY LEARN THAT THEY DO (E06 C8, 28.09.2026;
+     * audit L18, S05-15). The trap's receipt is the killer's to read and a reshape card
+     * (Stage 6's, a Tamper's) its player's, so each belongs in that player's thread - and
+     * an ordinary thread card's document names its thread's player to every browser.
+     * Posted veiled (messenger.mjs `postToThread`), the document names nobody and the
+     * card's placement travels with its words. Ignored with no thread to post into.
+     */
+    veiled = false
 } = {}) {
     const parts = [];
 
@@ -2228,7 +2243,8 @@ export async function callGm(actor, {
          * an action somebody asked for, and keeps its title. What is left in the
          * flags is that a card went to the GMs, and when - chat metadata, E06's.
          * Measured in 30's trap phase: p2's copy of the alert held the project's
-         * name before this, and holds nothing of it after.
+         * name before this, and holds nothing of it after. Since E06 C7a none of these
+         * flags is on the document at all: `postSecret` sends them with the words.
          */
         try {
             await whisperToGms(content, {
@@ -2250,7 +2266,7 @@ export async function callGm(actor, {
         // Every callGm card is, by definition, a call ON the GM - the flag is
         // what tells the messenger's notifier to interrupt them for it. See
         // MESSENGER_FLAGS.gmAsk for why this cannot be derived from the author.
-        return Boolean(await postToThread(owner.id, content, { gmAsk: true }));
+        return Boolean(await postToThread(owner.id, content, { gmAsk: true, veiled }));
     } catch (err) {
         error("Could not reach the GM", err);
         return false;
@@ -2300,10 +2316,11 @@ export async function settleCall(message, text) {
         if (message.getFlag(MODULE_ID, "secret")) {
             // The words live off the document (secret.mjs). Writing them into
             // `content` here would hand every client the private text in
-            // clear; the receipt travels the road the question did.
+            // clear; the receipt travels the road the question did - and so
+            // does `settled` since E06 C7a, into the meta its readers keep: on
+            // the document it told every browser that a ruling was made, and when.
             const { updateSecret } = await import("./secret.mjs");
-            await updateSecret(message, wrap.innerHTML);
-            return await message.update({ flags });
+            return await updateSecret(message, wrap.innerHTML, null, flags[MODULE_ID]);
         }
         return await message.update({ content: wrap.innerHTML, flags });
     } catch (err) {

@@ -38,7 +38,7 @@ import { murderState, sideOf, betrayalTarget } from "./murder.mjs";
 // them shadowing the other: a Monocub silenced for the chapter may not speak,
 // a player silenced by a Despair Call may not spend Hope.
 import { isMonocub, isSilenced, isSilenced as cubSilenced } from "./monocub.mjs";
-import { isSilenced as callSilenced, isChained, pendingGather } from "./call-effects.mjs";
+import { isSilenced as callSilenced, isChained, pendingGather, armedCallsShown } from "./call-effects.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 
 import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
@@ -1322,9 +1322,9 @@ function pendingStack(actor) {
     }
 
     // One badge per armed Call: they stack (CALL-02), and the sheet has drawn a
-    // list here since before they did.
-    const pending = actor.getFlag(MODULE_ID, FLAGS.pendingCall);
-    for (const entry of (Array.isArray(pending) ? pending : [pending]).filter(p => p?.grants)) {
+    // list here since before they did. A Confusion's from the GMs' store or the
+    // owner's copy, not the flag (E06 fix r2-G4).
+    for (const entry of armedCallsShown(actor)) {
         const despair = entry.kind === "despair";
         // The badge wears the CALL'S NAME - "Determination", "Obstacle" - not
         // the grant phrase behind it. The phrases were written for sentences

@@ -15,23 +15,52 @@
  * driving Stage 4 - produced a fully public roll that the whole table read. That
  * is the one leak reported from an actual session.
  *
- * Incident rolls widen the audience deliberately; see `incidentAudience`.
+ * A ROLL THE MODULE THROWS NAMES NOBODY (E06 C5b, 27.09.2026; audit S02-02,
+ * S04-02). Every roll of an action goes through `supersedingRoll`, and every
+ * browser holds its document whoever it is whispered to: its speaker, its
+ * title and the actor Daggerheart writes into it told a bystander who was
+ * rolling, and what for, in the middle of a murder. Such a roll is whispered to
+ * the GMs alone - the author reads their own - and its document is emptied as
+ * it is created (`neutralRollSource`); the GM learns whose roll it was from the
+ * roller's report (`rollSubject`, below). The rules above are for the rolls the
+ * module did not throw: a statistic clicked on a sheet, a Monocub's Meddle, a
+ * GM's /roll. The incident's participants no longer read each other's rolls
+ * off the whisper list - that list named them all to every console; the primary
+ * GM sends them each other's dice instead (`relayIncidentDice`, E06 C6).
+ *
+ * WHAT A ROLL STILL SAYS (E06 C13, 28.09.2026), written down so nobody has to find it
+ * again: its author and its moment, which Foundry stamps on the server - a roll a
+ * player's browser throws names that player, and only E28, which throws a player's
+ * dice on the GM, takes that away (the owner's answer Q2 (a); known-leaks.json
+ * `roll-author`, measured by 11-killer-secrecy); its formula, which carries the
+ * statistic's value; and, for a roll the module did not throw, Daggerheart's own card
+ * and speaker. Who watches its dice fall is the section on the dice below
+ * (`keepDiceToReaders`, `diceAudienceIds`). The GM handbook's section 1 tells the GM
+ * the same, with what of it was measured.
  */
 
-import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS, getSetting, incidentParticipants } from "./settings.mjs";
+import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";
+import { SETTINGS, getSetting, isDeadForGm, incidentSeats } from "./settings.mjs";
 import { roomOfActor, occupantsOf } from "./movement.mjs";
-import { gmIds, ownerOf, error, debug, MESSAGE_FLAG } from "./utils.mjs";
+import { gmIds, ownerOf, error, debug, isPrimaryGm, MESSAGE_FLAG } from "./utils.mjs";
+import { judge, table, pick, as, knownSender, owns, guardRollAuthor, bridgeRequest } from "./bridge-guards.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
+// Who is in the incident, read on the primary GM for the incident's dice (E06 C6). Static
+// and safe: nothing in murder.mjs's own import closure leads back to this file (R161).
+import { murderState, incidentAudienceIds } from "./murder.mjs";
 
 // The module's one reader of "what did these two d12s say" - see `rollOutcomeOf`.
 // Static and safe: nothing in despair-award.mjs's own import closure leads back
 // to this file. It replaced `contentOf` from secret.mjs, which this file needed
 // only to match words against a card's prose.
 import { readDuality } from "./despair-award.mjs";
+import { cardFlag } from "./secret.mjs";
+import { LOADED_DIE } from "./forced-roll.mjs";
 
 export function registerPrivateRolls() {
     Hooks.on("preCreateChatMessage", onPreCreateChatMessage);
+    // Whose roll it is, told to the primary GM as the message exists (E06 fix r1-G2).
+    Hooks.on("createChatMessage", reportClaimedRoll);
     // `renderChatMessageHTML` and nothing else.
     //
     // The deprecated `renderChatMessage` was registered alongside it as a
@@ -57,6 +86,20 @@ export function registerPrivateRolls() {
     // module scope because `game.messages` does not exist until the world is
     // ready, and `ready` fires before the chat log has rendered a single card.
     Hooks.once("ready", rememberExistingMessages);
+
+    // Which character a roll is about, reported by the roller to the primary GM,
+    // who judges it by the declaration below (`ROLL_ACTIONS`, E06 C5a) - and the
+    // incident's dice, which only a GM sends (`showRelayedDice`, E06 C6).
+    game.socket.on(SOCKET_EVENT, (payload, senderId) => {
+        if (payload?.action === DICE_SHOW) return void showRelayedDice(payload, senderId);
+        return isPrimaryGm() ? judge(ROLL_ACTIONS, payload, senderId) : null;
+    });
+
+    // Dice So Nice asks every client whether to animate a message (E06 C6).
+    Hooks.on("diceSoNiceMessagePreProcess", keepDiceToReaders);
+
+    // A Reroll rewrites a roll's dice, and the incident's audience sees it too.
+    Hooks.on("updateChatMessage", onRollsRewritten);
 }
 
 /**
@@ -231,7 +274,8 @@ function paintChatCard(message, element) {
              * better: not the composition, the CARD. Same treatment, same
              * tokens, applied to ours.
              */
-            const tone = message.getFlag(MODULE_ID, "popupTone");
+            // A private card's tone came with its words (E06 C7a): this hook runs again when they land.
+            const tone = cardFlag(message, "popupTone");
             if (tone && OUTCOME_TOKEN[tone]) {
                 html.classList.add("drpg-outcome", `drpg-outcome-${tone}`);
                 markOutcome(html, tone);
@@ -443,51 +487,6 @@ function enforceContentVisibility(message, element) {
 }
 
 /**
- * The other participants' owners, when this roll came from inside an incident.
- *
- * The incident state is read straight off the world setting rather than through
- * `murder.mjs`. `preCreateChatMessage` is synchronous - there is no chance to
- * await a dynamic import - and this is the same reason `lockedInIncident` in
- * movement.mjs reads it directly. The shape is `murderState()`'s own.
- *
- * The roller has to BE a participant. Working it out from the speaker first and
- * from ownership second covers both routes: a crisis action sets the speaker,
- * while a trait rolled straight off the sheet may not.
- *
- * @returns {string[]} user ids to add, empty when this is not an incident roll.
- */
-function incidentAudience(author, message) {
-    try {
-        const state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-        if (!state.active || state.stage !== "incident") return [];
-
-        // From the cast rather than the state: the names left world data with
-        // LIVE-001. A client that is not in this incident reads an empty list
-        // and falls out here, which is correct - its rolls are nobody's business.
-        const ids = incidentParticipants();
-        if (ids.length < 2) return [];
-
-        const speakerId = message.speaker?.actor ?? null;
-        const mine = ids.includes(speakerId)
-            ? speakerId
-            : ids.find(id => game.actors.get(id)?.testUserPermission(author, "OWNER")) ?? null;
-        if (!mine) return [];
-
-        const out = [];
-        for (const id of ids) {
-            if (id === mine) continue;
-            const owner = ownerOf(game.actors.get(id));
-            if (owner) out.push(owner.id);
-        }
-        return out;
-    } catch {
-        // Never let this stop a roll being whispered at all - the GM-only
-        // fallback above is the safe state.
-        return [];
-    }
-}
-
-/**
  * The actor a roll is ABOUT, which is not the same as who pressed the button.
  *
  * This distinction is the whole of the bug this function exists to close. The
@@ -554,9 +553,11 @@ let rollClaims = [];
  * which is the whole reason this is a claim and not a blanket rule.
  *
  * @param {() => Promise<any>} fn  the call that produces the roll.
+ * @param {object} [opts]
+ * @param {Actor|null} [opts.subject]  the character the roll is about, reported as its message is created (`reportClaimedRoll`).
  */
-export async function supersedingRoll(fn) {
-    const claim = { spent: false };
+export async function supersedingRoll(fn, { subject = null } = {}) {
+    const claim = { spent: false, subject, reported: false };
     rollClaims.push(claim);
     try {
         return await fn();
@@ -565,117 +566,589 @@ export async function supersedingRoll(fn) {
     }
 }
 
-/** Stamp a roll message created inside a claim. See `supersedingRoll`. */
+/** Stamp a roll message created inside a claim, and say whether it was. See `supersedingRoll`. */
 function claimRollMessage(message, data) {
     const claim = rollClaims.find(c => !c.spent);
-    if (!claim) return;
+    if (!claim) return false;
 
     const hasRoll = (message.rolls?.length ?? 0) > 0
         || !!data?.roll
         || (data?.rolls?.length ?? 0) > 0;
-    if (!hasRoll) return;
+    if (!hasRoll) return false;
 
     claim.spent = true;
     message.updateSource({ [`flags.${MODULE_ID}.${SUPERSEDED_FLAG}`]: true });
+    return true;
+}
+
+/*
+ * WHOSE ROLL IT IS, SAID AS THE ROLL IS CREATED (E06 fix r1-G2, 28.09.2026; review F4).
+ * Daggerheart's `toMessage` creates the message and then waits for Dice So Nice's animation
+ * (dhRoll.mjs:162-165), and its duality updates and triggers follow (dualityRoll.mjs:280-281,
+ * both read in 2.6.5) - so a report sent when `rollTrait` returned reached the primary GM
+ * after the dice had landed, and never while the roller's tab was in the background (the note
+ * on `rollClaims`). The Despair award waits four seconds for it and then falls back to the
+ * author's one living character, so a GM's roll for a student, or a player's who plays two,
+ * lost its award whenever the animation ran longer. The claim carries its character, and the
+ * roller reports it from its own `createChatMessage`, before Daggerheart waits for anything;
+ * the incident's dice (`relayIncidentDice`) leave with it. Claims are spent in the order their
+ * messages are created, one message each, so the first spent claim not yet reported is this
+ * message's. Measured with the harness's Dice So Nice holding the animation (`__dsnAnimation`):
+ * tier 2 "a roll's character is kept before its dice have landed", and 13's "the victim's roll
+ * reaches the killer while the victim's own dice still fall".
+ */
+function reportClaimedRoll(message, options, userId) {
+    if ((userId ?? message?.author?.id) !== game.user?.id || !isClaimedRoll(message)) return;
+    const claim = rollClaims.find(c => c.spent && !c.reported);
+    if (!claim) return;
+    claim.reported = true;
+    if (claim.subject) reportRollSubject(message, claim.subject);
+}
+
+/**
+ * What a roll the module threw keeps of whose it was: nothing. The changes to
+ * `data`, a message's source, that make it the same document whatever the
+ * action and whoever threw it - a Strike and a Search are not told apart by
+ * their shape (E06 C5b; the plan's 2.3). It writes nothing: the caller applies
+ * them, as the roll is created (`onPreCreateChatMessage`) or to a message
+ * written before.
+ *
+ * - the speaker is the one every private card speaks as, with no actor, token
+ *   or scene;
+ * - Daggerheart's `system.title`, `system.source.actor` and `system.targets`
+ *   are emptied where the source has them (actorRoll.mjs's schema, read in
+ *   2.6.5; a message of another shape is not given fields it lacks);
+ * - each roll is `neutralRollOf`, below, and keeps the form it came in
+ *   (Foundry holds them as JSON text);
+ * - the flavour goes.
+ */
+export function neutralRollSource(data, { alias = game.i18n.localize("DRPG.Secret.speaker") } = {}) {
+    const changes = { speaker: { alias, actor: null, token: null, scene: null }, flavor: "" };
+    const system = data?.system;
+    if (system && typeof system === "object") {
+        if (Object.hasOwn(system, "title")) changes["system.title"] = "";
+        if (system.source && typeof system.source === "object" && Object.hasOwn(system.source, "actor")) changes["system.source.actor"] = "";
+        if (Object.hasOwn(system, "targets")) changes["system.targets"] = [];
+    }
+    if (Array.isArray(data?.rolls)) changes.rolls = data.rolls.map(neutralRollOf);
+    return changes;
+}
+
+/**
+ * One roll of a roll the module threw, as its message keeps it: its options
+ * without what describes the character (E06 fix r1-G1, 28.09.2026; review M1 =
+ * F1). In Daggerheart a roll's options ARE the roll's whole config
+ * (dhRoll.mjs:45), and C5b emptied only its title, its actor's uuid and the
+ * actor's `id` and `name` in `data`. Read in 2.6.5's source, the rest said
+ * whose it was too: `data` is `getRollData()`, which serialises as the
+ * character's whole system - named experiences, a biography, a companion's
+ * uuid (actor.mjs:560-563, :636-645; character.mjs); `effects` are the
+ * character's ActiveEffects, with names and origins (actor.mjs:576), and
+ * `bonusEffects` are built from them; `experiences` are the ids of the
+ * character's own experiences the dialog picked, and the roll's modifiers are
+ * labelled with their names; `roll.trait` is the statistic, which tells one
+ * action from another where their statistics differ.
+ *
+ * What the roll classes read back when a browser rebuilds the roll from its
+ * JSON, which every browser holding the message does, stays: the dice, the
+ * formula, `roll`'s type, advantage and numbers, `actionType`. So does the rest
+ * of the config as Daggerheart wrote it - the dialog's settings, the module's
+ * own marks but one - which was read, not measured, to say nothing more of the
+ * character. The one is the Loaded Die's (`LOADED_DIE`; fix r2-G2, 28.09.2026,
+ * review round 2's mn1 = m1): the nonce its Call keeps in the character's
+ * `pendingCall` flag, which every browser holds until the roll has spent it, so
+ * a console that kept the nonces it saw named the roll's character exactly.
+ * forced-roll.mjs reads it off the config as the dice are thrown, before the
+ * message exists, and nothing reads it off a message (grep, 28.09.2026); the
+ * harness's roll carries the config's other keys since the same fix, so a mark
+ * like it shows. `data` stays as an empty object, not absent - d20Roll.mjs
+ * `configureModifiers` (:103) reads `options.data.system` as the constructor
+ * runs; `effects` and `experiences` are read with `?.` there and in
+ * dhRoll.mjs `bonusEffectBuilder` (:344-360), which rebuilds `bonusEffects`
+ * from them. Nothing of the character is needed again but by a Reroll, which
+ * rebuilds the formula: it takes the character's data from the actor and the
+ * statistic and experiences from the roller's bookmark (reroll.mjs
+ * `rollAsThrown`). A modifier keeps its value and loses its label - the
+ * formula is summed from the values (dhRoll.mjs `addModifiers`).
+ *
+ * Read in the source, not measured on a real message (LIVE-E06-02); the
+ * harness's roll is written in the shape read here (client-entry.mjs
+ * `diceRoll`). `entry` is JSON text or a plain object, and comes back in the
+ * same form; text that is not JSON comes back as it was. Exported for the
+ * Reroll, which writes a rerolled roll back into the same message.
+ */
+export function neutralRollOf(entry) {
+    let roll;
+    try { roll = typeof entry === "string" ? JSON.parse(entry) : foundry.utils.deepClone(entry); } catch { return entry; }
+    const opts = roll?.options;
+    if (opts && typeof opts === "object") {
+        if (Object.hasOwn(opts, "title")) opts.title = "";
+        if (Object.hasOwn(opts, "headerTitle")) opts.headerTitle = "";
+        if (opts.source && typeof opts.source === "object" && Object.hasOwn(opts.source, "actor")) opts.source.actor = "";
+        if (Object.hasOwn(opts, "data")) opts.data = {};
+        delete opts.effects;
+        delete opts.bonusEffects;
+        delete opts.experiences;
+        delete opts[LOADED_DIE];
+        if (Object.hasOwn(opts, "targets")) opts.targets = [];
+        if (opts.roll && typeof opts.roll === "object") {
+            delete opts.roll.trait;
+            for (const key of ["modifiers", "baseModifiers"]) {
+                if (!Array.isArray(opts.roll[key])) continue;
+                opts.roll[key] = opts.roll[key].map(m => m && typeof m === "object" && Object.hasOwn(m, "label") ? { ...m, label: "" } : m);
+            }
+        }
+    }
+    return typeof entry === "string" ? JSON.stringify(roll) : roll;
 }
 
 function onPreCreateChatMessage(message, data, options, userId) {
+    let claimed = false;
     try {
-        claimRollMessage(message, data);
+        claimed = claimRollMessage(message, data);
     } catch (err) {
         // A card we failed to claim is a duplicate card, not a broken one.
         error("Could not claim a superseded roll card", err);
     }
 
     try {
-        if (!game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls)) return;
-
-        // Foundry v12+ exposes the creating user as `author`.
-        const authorId = message.author?.id ?? message.user?.id ?? userId;
-        const author = game.users.get(authorId);
-        if (!author) return;
-
-        const hasRoll = (message.rolls?.length ?? 0) > 0
-            || !!data?.roll
-            || (data?.rolls?.length ?? 0) > 0;
-        if (!hasRoll) return;
-
-        // Already a whisper: respected when a GM aimed it (a blind roll on
-        // purpose). A PLAYER's whisper is widened, not respected (ROLL-14): the
-        // roll dialog's mode select is disabled but its value is the client's
-        // own core roll mode, which any player can set to "Self Roll" from the
-        // chat bar - and a self-whispered Despair result never reached the
-        // primary GM, so it never fed a Monokuma's pool.
-        const already = Array.from(message.whisper ?? []);
-        if (already.length && author.isGM) return;
-
-        const recipients = gmIds();
-        if (!recipients.length) return;
-        for (const id of already) recipients.push(id);
-
-        /* ---- who this roll belongs to, and therefore who may read it ------
-         *
-         *   a Monokuma   GMs only. Monokuma's dice are the other side of the
-         *                table and the handbook is explicit that players see the
-         *                effects, never the pool behind them.
-         *   a Monocub    GMs, their own player, and whoever is standing in the
-         *                room with them. A Monocub is back on the board and
-         *                visible to the room they are in; hiding their dice from
-         *                the people watching them would be hiding half a scene.
-         *   a student    GMs and their own player, as before.
-         *
-         * A roll with no actor behind it - a GM's bare /roll - is treated as the
-         * GM's own and goes to the GMs.
-         */
-        const subject = subjectActor(message, author);
-        const isMonokuma = Boolean(subject?.getFlag(MODULE_ID, FLAGS.monokuma));
-        const isMonocub = Boolean(subject?.getFlag(MODULE_ID, FLAGS.monocub));
-
-        if (isMonocub) {
-            for (const id of sameRoomAudience(subject)) recipients.push(id);
-        }
-
-        // The subject's own player, whoever authored the message. Skipped for a
-        // Monokuma: their "owner" is a GM already, and a Monokuma actor handed
-        // to a player must not turn Monokuma's dice public.
-        if (!isMonokuma) {
-            const owner = ownerOf(subject);
-            if (owner) recipients.push(owner.id);
-        }
-
-        // The people you are actually fighting see your dice.
-        //
-        // An incident is a turn-based exchange in one room, and both sides are
-        // told what the other just did - the crisis cards are whispered to every
-        // participant's owner. The DICE were not: they went through the ordinary
-        // private-roll rewrite above, which addresses the GMs and the roller and
-        // nobody else. So the victim read "Strike - 17 ≥ 15" as prose while the
-        // roll that produced it was hidden from them, which is the one place in
-        // this module where hiding a die serves nothing: the result is already
-        // public to exactly these people, and a killing game's incident is the
-        // one scene where both players need to watch the maths.
-        //
-        // Everyone else in the world still sees nothing.
-        for (const id of incidentAudience(author, message)) recipients.push(id);
-
-        // The author sees their own dice - EXCEPT when they are a GM rolling
-        // Monokuma, where they are already in `gmIds()` anyway. Adding the
-        // author unconditionally is what used to make a GM's roll for a student
-        // readable by that GM alone rather than by the student's player; both
-        // are now covered by the subject rules above.
-        if (!author.isGM) recipients.push(author.id);
-
-        // Set the roll mode flag as well as the recipients. Modules that style
-        // or animate rolls (Dice So Nice among them) read `core.rollMode`, and
-        // a message whose recipients say "private" while its flag still says
-        // "public" is an inconsistent state we should not create.
-        message.updateSource({
-            whisper: Array.from(new Set(recipients)),
-            blind: false,
-            "flags.core.rollMode": CONST.DICE_ROLL_MODES.PRIVATE
-        });
-        debug(`Rewrote a roll for ${subject?.name ?? author.name} into a private whisper.`);
+        whisperRoll(message, data, userId, claimed);
     } catch (err) {
         error("preCreateChatMessage failed", err);
+    }
+
+    // Emptied after the whisper was decided on the true speaker, and whether or
+    // not rolls are forced private: a table that shows its rolls still shows
+    // nobody's name on one the module threw. A roll this fails on is created as
+    // Daggerheart wrote it - a roll that cannot be created is a lost action.
+    if (!claimed) return;
+    try {
+        message.updateSource(neutralRollSource(message.toObject()));
+    } catch (err) {
+        error("Could not empty the document of a roll the module threw", err);
+    }
+}
+
+/**
+ * Who may read a roll, written into it as it is created; nothing is written
+ * when rolls are not forced private. `claimed`: the module threw it.
+ */
+function whisperRoll(message, data, userId, claimed) {
+    if (!game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls)) return;
+
+    // Foundry v12+ exposes the creating user as `author`.
+    const authorId = message.author?.id ?? message.user?.id ?? userId;
+    const author = game.users.get(authorId);
+    if (!author) return;
+
+    const hasRoll = (message.rolls?.length ?? 0) > 0
+        || !!data?.roll
+        || (data?.rolls?.length ?? 0) > 0;
+    if (!hasRoll) return;
+
+    const recipients = gmIds();
+    if (!recipients.length) return;
+
+    /*
+     * A ROLL THE MODULE THREW GOES TO THE GMs ALONE (E06 C5b, 27.09.2026). A
+     * whisper list is on every browser's copy of the document, so a list that
+     * named the roller's player - or, in an incident, every participant's -
+     * told each console whose roll it was. The author reads their own roll
+     * without being on it (Foundry's `isContentVisible`); a GM's roll for a
+     * student no longer adds the student's player (the plan's 2.3). The
+     * document is never drawn - the module posts its own card of the roll -
+     * so what the list decides is who holds its dice. Whatever whisper the
+     * roll arrived with, a GM's blind roll or a player's self roll, gives way
+     * to this one.
+     */
+    if (claimed) {
+        message.updateSource({ whisper: recipients, blind: false, "flags.core.rollMode": CONST.DICE_ROLL_MODES.PRIVATE });
+        debug("Rewrote a roll the module threw into a whisper to the GMs.");
+        return;
+    }
+
+    // Already a whisper: respected when a GM aimed it (a blind roll on
+    // purpose). A PLAYER's whisper is widened, not respected (ROLL-14): the
+    // roll dialog's mode select is disabled but its value is the client's
+    // own core roll mode, which any player can set to "Self Roll" from the
+    // chat bar - and a self-whispered Despair result never reached the
+    // primary GM, so it never fed a Monokuma's pool.
+    const already = Array.from(message.whisper ?? []);
+    if (already.length && author.isGM) return;
+    for (const id of already) recipients.push(id);
+
+    /* ---- who this roll belongs to, and therefore who may read it ------
+     *
+     *   a Monokuma   GMs only. Monokuma's dice are the other side of the
+     *                table and the handbook is explicit that players see the
+     *                effects, never the pool behind them.
+     *   a Monocub    GMs, their own player, and whoever is standing in the
+     *                room with them. A Monocub is back on the board and
+     *                visible to the room they are in; hiding their dice from
+     *                the people watching them would be hiding half a scene.
+     *                A Monocub's Meddle is rolled outside `supersedingRoll`
+     *                (monocub.mjs), so this rule still reaches it: the room
+     *                sees a Monocub's dice, Confusion's included (the owner's
+     *                answer Q3 (b), 27.09.2026).
+     *   a student    GMs and their own player, as before.
+     *
+     * A roll with no actor behind it - a GM's bare /roll - is treated as the
+     * GM's own and goes to the GMs. Until E06 C5b an incident's participants
+     * were added here as well, and every console read the cast off the list.
+     */
+    const subject = subjectActor(message, author);
+    const isMonokuma = Boolean(subject?.getFlag(MODULE_ID, FLAGS.monokuma));
+    const isMonocub = Boolean(subject?.getFlag(MODULE_ID, FLAGS.monocub));
+
+    if (isMonocub) {
+        for (const id of sameRoomAudience(subject)) recipients.push(id);
+    }
+
+    // The subject's own player, whoever authored the message. Skipped for a
+    // Monokuma: their "owner" is a GM already, and a Monokuma actor handed
+    // to a player must not turn Monokuma's dice public.
+    if (!isMonokuma) {
+        const owner = ownerOf(subject);
+        if (owner) recipients.push(owner.id);
+    }
+
+    // The author sees their own dice - EXCEPT when they are a GM rolling
+    // Monokuma, where they are already in `gmIds()` anyway. Adding the
+    // author unconditionally is what used to make a GM's roll for a student
+    // readable by that GM alone rather than by the student's player; both
+    // are now covered by the subject rules above.
+    if (!author.isGM) recipients.push(author.id);
+
+    // Set the roll mode flag as well as the recipients. Modules that style
+    // or animate rolls (Dice So Nice among them) read `core.rollMode`, and
+    // a message whose recipients say "private" while its flag still says
+    // "public" is an inconsistent state we should not create.
+    message.updateSource({
+        whisper: Array.from(new Set(recipients)),
+        blind: false,
+        "flags.core.rollMode": CONST.DICE_ROLL_MODES.PRIVATE
+    });
+    debug(`Rewrote a roll for ${subject?.name ?? author.name} into a private whisper.`);
+}
+
+/**
+ * Who an old roll the module did not throw may keep on its list at the rewrite of 1.2.65's
+ * first load (E06 fix r2-G1, 28.09.2026; review round 2's MJ1; migrate.mjs
+ * `neutraliseOldCards`): `whisperRoll`'s rule above, as far as a document can say it - the
+ * GMs, the subject's own player (not a Monokuma's) and a player who threw it. Until 1.2.65 an
+ * incident's participants were added to every roll one of them made, a statistic the GM asked
+ * for on a sheet included (d666a2a private-rolls.mjs `incidentAudience`), and such a list
+ * named the cast to every console for as long as the log kept it. What a player's own roll
+ * mode aimed it at is the GMs or that player, both kept. Null for a Monocub's roll, which is
+ * not judged: its room is on its list (the owner's Q3 (b)), and the room it rolled in then is
+ * not known now. A roll a GM or a macro whispered to some other player by hand - no roll mode
+ * does - loses that reader as well: the document cannot tell the two lists apart.
+ */
+export function oldRollReaders(message) {
+    const author = message?.author ?? message?.user ?? null;
+    const subject = subjectActor(message, author);
+    if (subject?.getFlag(MODULE_ID, FLAGS.monocub)) return null;
+    const readers = new Set(gmIds());
+    if (!subject?.getFlag(MODULE_ID, FLAGS.monokuma)) {
+        const owner = ownerOf(subject);
+        if (owner) readers.add(owner.id);
+    }
+    if (author?.id && !author.isGM) readers.add(author.id);
+    return readers;
+}
+
+/* ==========================================================================
+ * WHO A ROLL IS ABOUT, KEPT ON THE GM (E06 C5a, 27.09.2026)
+ * --------------------------------------------------------------------------
+ * Three readers on the primary GM find the character a roll is about on its
+ * message: the Despair award (despair-award.mjs `resolveActor`), the Reroll
+ * receipts (reroll-receipts.mjs `actorIdsOf`) and the diagnostics - by the
+ * speaker and by Daggerheart's `system.source.actor`. Both name the roller's
+ * character to every browser that holds the message, and since E06 C5b both
+ * are emptied on every roll the module throws (`neutralRollSource`), which
+ * would have left all three with nobody. So the subject reaches the GM another
+ * way: `throwDice` (action-rolls.mjs) reports `{ messageId, actorId }` in an
+ * addressed request, `roll.subject`, the primary GM keeps it in memory, and
+ * `rollSubject` answers from that before it reads the message. The speaker
+ * and the source are still read after it, for the rolls the module did not
+ * throw and for those written before 1.2.65.
+ *
+ * In memory, like the Reroll receipts: a GM who reloads forgets what was
+ * reported before, and such a message is read as an unclaimed one is - its
+ * speaker, its source, then its author's one living character. E28 moves the
+ * record into the GM's store behind the same function.
+ * ========================================================================== */
+
+const SOCKET_EVENT = `module.${MODULE_ID}`;
+
+/** message id -> { actorId, userId, at }: what this client was told, or threw itself. Oldest first. */
+const rollSubjects = new Map();
+
+/*
+ * HOW LONG, AND HOW MANY. A subject is read when the roll lands (the Despair
+ * award) and again whenever a Reroll rewrites the roll (the receipt), which
+ * the recent-chat scan allows up to `TIMING.rerollWindowMinutes` after it, so
+ * that is how long one is kept. The E06 plan said twice `rerollReceiptMs`, ten
+ * minutes: that would forget a roll a Reroll can still reach, and the receipt
+ * would fall back to the author's character. Five hundred bounds a table that
+ * rolls faster than that; it is a bound, not a measured session.
+ */
+const SUBJECTS_KEPT = 500;
+const SUBJECT_KEPT_MS = TIMING.rerollWindowMinutes * 60_000;
+
+/** message id -> the resolvers of `rollSubject` calls waiting for its report. */
+const subjectWaiters = new Map();
+
+/** Record a subject, forget what is too old or too many, and wake whoever waits for this one. */
+function keepSubject(messageId, actorId, userId) {
+    const now = Date.now();
+    rollSubjects.delete(messageId);
+    rollSubjects.set(messageId, { actorId, userId, at: now });
+    for (const [id, entry] of rollSubjects) {
+        if (rollSubjects.size <= SUBJECTS_KEPT && now - entry.at <= SUBJECT_KEPT_MS) break;
+        rollSubjects.delete(id);
+    }
+    const waiting = subjectWaiters.get(messageId) ?? [];
+    subjectWaiters.delete(messageId);
+    for (const wake of waiting) wake();
+}
+
+/**
+ * The report, as the primary GM judges it: who sent it, that they play the
+ * character it names, and that the message is a roll the module threw, written
+ * by the sender a moment ago (`guardRollAuthor`). A report nobody waits on, so
+ * a refusal is logged on the GM and told to nobody.
+ */
+export const ROLL_ACTIONS = table({
+    "roll.subject": {
+        label: "DRPG.Bridge.what.roll.subject",
+        guards: [knownSender, owns("actorId", "sender does not own that character"), guardRollAuthor],
+        sanitize: pick({ messageId: as.id, actorId: as.id }),
+        run: keepRollSubject,
+        answer: "none", quiet: true,
+        claims: { messageId: guardRollAuthor }
+    }
+});
+
+/** The run of `roll.subject`: its guards tied the message to the sender and the character to them. */
+function keepRollSubject(payload, sender, ctx) {
+    keepSubject(payload.messageId, payload.actorId, sender.id);
+    relayIncidentDice(game.messages.get(payload.messageId));
+}
+
+/**
+ * Tell the primary GM which character a roll the module threw is about - as
+ * its message is created (`reportClaimedRoll`), and again from `throwDice`
+ * (action-rolls.mjs) once the roll has returned, which says nothing when the
+ * first did. Kept on this client as well: the roller's own Reroll finds its
+ * roll by it (`belongsTo`, reroll.mjs). A primary GM's own roll is recorded
+ * without a packet.
+ */
+export function reportRollSubject(message, actor) {
+    const messageId = message?.id ?? message?._id ?? null;
+    if (!messageId || !actor?.id || keptRollSubject(message) === actor.id) return;
+    keepSubject(messageId, actor.id, game.user?.id ?? null);
+    if (isPrimaryGm()) return relayIncidentDice(message);
+    const decl = ROLL_ACTIONS["roll.subject"];
+    void bridgeRequest("roll.subject", { messageId, actorId: actor.id }, { settle: decl.answer, quiet: decl.quiet });
+}
+
+/** Is this a roll the module threw - a message `supersedingRoll` claimed as it was created? */
+export function isClaimedRoll(message) {
+    return Boolean(message?.getFlag?.(MODULE_ID, SUPERSEDED_FLAG));
+}
+
+/** The character this client was told (or knows, having thrown it) a roll is about, as an id, or null. */
+export function keptRollSubject(message) {
+    return rollSubjects.get(message?.id ?? "")?.actorId ?? null;
+}
+
+/**
+ * The character a roll is about, as this client can tell now: the subject kept
+ * for it, then the speaker (its actor, then its token), then Daggerheart's
+ * `system.source.actor`, then the author's one living character - a player who
+ * plays two is not guessed between, and a GM owns every one. Null when none.
+ */
+export function rollSubjectNow(message) {
+    if (!message) return null;
+    const kept = game.actors.get(keptRollSubject(message) ?? "");
+    if (kept) return kept;
+
+    const speaker = message.speaker;
+    const spoken = game.actors.get(speaker?.actor ?? "");
+    if (spoken) return spoken;
+    if (speaker?.token && speaker?.scene) {
+        const token = game.scenes.get(speaker.scene)?.tokens?.get(speaker.token);
+        if (token?.actor) return token.actor;
+    }
+
+    const source = message.system?.source?.actor;
+    if (typeof source === "string" && source) {
+        let doc = null;
+        try { doc = fromUuidSync(source); } catch { doc = null; }
+        const actor = doc?.documentName === "Actor" ? doc : doc?.actor ?? null;
+        if (actor) return actor;
+    }
+
+    const author = game.users.get(message.author?.id ?? message.user?.id ?? "");
+    if (!author || author.isGM) return null;
+    const living = game.actors.filter(a => a.type === "character"
+        && a.testUserPermission(author, "OWNER") && !isDeadForGm(a));
+    return living.length === 1 ? living[0] : null;
+}
+
+/**
+ * `rollSubjectNow`, after waiting up to `waitMs` for the report of a roll the
+ * module threw and nobody has reported yet. The Despair award asks as the
+ * message is created, and the roller's report leaves as the roller's browser
+ * sees it created (`reportClaimedRoll`), a round trip later, so on the primary
+ * GM the report usually comes second. An unclaimed roll is never reported and
+ * is not waited for.
+ */
+export async function rollSubject(message, { waitMs = 0 } = {}) {
+    if (!message) return null;
+    if (waitMs > 0 && !keptRollSubject(message) && isClaimedRoll(message)) await subjectReported(message.id, waitMs);
+    return rollSubjectNow(message);
+}
+
+/** Resolves when this message's subject is kept, or after `ms`. */
+function subjectReported(messageId, ms) {
+    return new Promise(resolve => {
+        const wake = () => { clearTimeout(timer); resolve(); };
+        const timer = setTimeout(() => {
+            const rest = (subjectWaiters.get(messageId) ?? []).filter(w => w !== wake);
+            if (rest.length) subjectWaiters.set(messageId, rest);
+            else subjectWaiters.delete(messageId);
+            resolve();
+        }, ms);
+        subjectWaiters.set(messageId, [...(subjectWaiters.get(messageId) ?? []), wake]);
+    });
+}
+
+/* ==========================================================================
+ * THE DICE, ONLY WHERE THE RULE SAYS (E06 C6, 27.09.2026; audit S02-13, S02-40, S04-01)
+ * --------------------------------------------------------------------------
+ * Who watches a roll's dice fall is decided in three places, and before E06 none
+ * of them asked this module. Dice So Nice decides on every client whether a new
+ * roll message animates there; with its world setting "Hide 3D dice on secret
+ * rolls" off it animated a whisper, with its real faces, on every screen
+ * (main.js `shouldInterceptMessage`, :458-516, read in 6.3.1). A Reroll threw its
+ * new dice to every screen (reroll.mjs). And the incident's participants saw each
+ * other's dice by being on the roll's whisper list, which named them all to every
+ * console until C5b emptied it - so from C5b on they saw none.
+ *
+ * - `keepDiceToReaders`: with rolls forced private, a client that cannot read a
+ *   message never animates it, whatever Dice So Nice's own settings say - no real
+ *   dice, no ghost dice.
+ * - `diceAudienceIds`: who sees a roll's dice - the GMs, its author, and, for a
+ *   roll the module threw for a character seated in the incident at the opening or
+ *   in the fight, the incident's audience at that stage (`incidentAudienceIds`). The one
+ *   rule; E28, which throws the players' dice on the GM, asks it too.
+ * - `relayIncidentDice`: the primary GM, once it keeps a roll's subject (or sees
+ *   a Reroll rewrite its rolls), sends `dice.show { id }` to that audience less
+ *   the GMs, the author and whoever rewrote it, by addressed socket. The packet
+ *   carries the message's id and nothing else; each receiver plays the rolls of
+ *   its own copy of the message (`showRelayedDice`), which every browser holds -
+ *   unless it can read the roll, as every client can when rolls are not forced
+ *   private: Dice So Nice has animated it there already (E06 fix r1-G2).
+ *
+ * At the stage the roll is reported at, `openingRoll` or `incident` (E06 fix r1-G3,
+ * 28.09.2026; review M4, the owner's rule read as written: each incident roll). At the
+ * opening the seats are the roller's own side, so the relay adds only an accomplice
+ * seated with a killer - and never a direct murder's victim (D6). Stage 6 is the
+ * clean-up, whose rolls are the killer's alone. What each roll came to and which roll
+ * it was reach the same people on the crisis card (murder.mjs `announceCrisis`, veiled,
+ * E06 C4) and on the opening's (`announceOpening`, E06 fix r1-G3) - with or without Dice
+ * So Nice. What a relayed roll looks like on a real table, and whether Dice So Nice
+ * queues it behind the roller's own, has not been measured (LIVE-E06-03).
+ * ========================================================================== */
+
+/** The socket action of the incident's dice, GM to player. */
+const DICE_SHOW = "dice.show";
+
+/**
+ * `diceSoNiceMessagePreProcess` (Dice So Nice 6.0 and later): the decision is the
+ * hook's `interception.willTrigger3DRoll`, and a listener may turn it off. Only
+ * off, and only when rolls are forced private - a table that shows its rolls
+ * keeps Dice So Nice's own choice.
+ */
+function keepDiceToReaders(messageId, interception) {
+    if (!interception || !game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls)) return;
+    const message = game.messages.get(messageId ?? "");
+    if (message && !message.isContentVisible) interception.willTrigger3DRoll = false;
+}
+
+/**
+ * The incident's audience for this roll's dice, as user ids: `incidentAudienceIds`
+ * at `state`, when the stage is `openingRoll` or `incident` and the character the
+ * roll is about - as this client was told it (`keptRollSubject`), so a roll the
+ * module threw - holds a seat of `incidentSeats`. Empty otherwise. A trap's builder
+ * holds no seat while the trap runs, so no roll of it reaches them.
+ */
+function incidentDiceAudience(message, state) {
+    if (state?.stage !== "incident" && state?.stage !== "openingRoll") return [];
+    const subject = keptRollSubject(message);
+    if (!subject || !incidentSeats(state, state).includes(subject)) return [];
+    return incidentAudienceIds(state);
+}
+
+/**
+ * WHO SEES A ROLL'S DICE, as user ids: every GM, the message's author, and the
+ * incident's audience of `incidentDiceAudience`. Read on the primary GM, which is
+ * told every roll's subject; another client knows the subjects of its own rolls
+ * alone. Exported for E28.
+ */
+export function diceAudienceIds(message, state = murderState()) {
+    const authorId = message?.author?.id ?? message?.user?.id ?? null;
+    return [...new Set([...gmIds(), ...(authorId ? [authorId] : []), ...incidentDiceAudience(message, state)])];
+}
+
+/**
+ * Send the incident's audience a roll's dice (the primary GM alone): those of
+ * `diceAudienceIds` who are not GMs, not its author and not in `except` - the GMs
+ * and the author read the message and Dice So Nice shows it to them itself.
+ */
+function relayIncidentDice(message, { except = [] } = {}) {
+    if (!message?.id || !isPrimaryGm()) return;
+    const skip = new Set([...gmIds(), message.author?.id ?? message.user?.id ?? null, ...except]);
+    const recipients = diceAudienceIds(message).filter(id => !skip.has(id));
+    if (!recipients.length) return;
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id }, { recipients });
+    } catch (err) {
+        error("Could not send the incident's dice", err);
+    }
+}
+
+/** `updateChatMessage`, on the primary GM: a roll the module threw was given new dice - a Reroll. */
+function onRollsRewritten(message, changes, options, userId) {
+    if (!changes || !Object.hasOwn(changes, "rolls") || !isPrimaryGm() || !isClaimedRoll(message)) return;
+    relayIncidentDice(message, { except: [userId] });
+}
+
+/**
+ * `dice.show`, as a player receives it: taken from a GM alone, and played from
+ * this client's own copy of the message - once it arrives, as `secret.card`'s
+ * words wait for theirs - with no message id, so Dice So Nice draws the dice as
+ * they fell instead of veiling a roll this client cannot read, and only here.
+ *
+ * NOT A ROLL THIS CLIENT READS (E06 fix r1-G2, 28.09.2026; review F2). With rolls
+ * not forced private a roll the module threw is public, Dice So Nice animates it on
+ * every client, and a Reroll's dice go to everybody (reroll.mjs `showRerolledDice`) -
+ * so the relay played each incident roll a second time on every other participant's
+ * screen. Asked of the message as it is here rather than of the setting on the GM:
+ * what decides is whether this client's Dice So Nice shows it itself.
+ */
+async function showRelayedDice(payload, senderId) {
+    if (!game.users.get(senderId)?.isGM) return;
+    const id = typeof payload?.id === "string" ? payload.id : null;
+    if (!id || typeof game.dice3d?.showForRoll !== "function") return;
+    try {
+        const { messageArrives } = await import("./secret.mjs");
+        const message = game.messages.get(id) ?? await messageArrives(id);
+        if (!message || message.isContentVisible) return;
+        for (const roll of message.rolls ?? []) await game.dice3d.showForRoll(roll, message.author, false);
+    } catch (err) {
+        error("Could not show the incident's dice", err);
     }
 }

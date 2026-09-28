@@ -47,6 +47,7 @@ import { mastermindActor, mastermindUnpooled } from "./mastermind.mjs";
 import { liveKitSecretWarning, liveKitConnectionSettings } from "./voice.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc, isPrimaryGm, primaryGmId, replaceFlag } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
+import { cardFlag } from "./secret.mjs";
 import { NOTE_FLAG, hasNote } from "./pre-session-note.mjs";
 import { alreadyOpen, handOff } from "./live.mjs";
 
@@ -760,7 +761,7 @@ function seasonItems(actor) {
 /** Chat this module wrote, and the messenger threads underneath it. */
 function moduleMessages() {
     return game.messages.filter(m =>
-        m.getFlag(MODULE_ID, MESSAGE_FLAG) || m.getFlag(MODULE_ID, MESSENGER_FLAGS.thread));
+        m.getFlag(MODULE_ID, MESSAGE_FLAG) || cardFlag(m, MESSENGER_FLAGS.thread));
 }
 
 /**

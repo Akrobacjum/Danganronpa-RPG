@@ -26,14 +26,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
 
     // set an accomplice (thirdId) too, if the API supports it
     const cards0 = await p1.eval(`return game.messages.contents.length;`);
-    await gm.eval(`
-        await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.daichi}", thirdId: "${ids.botan}" });
-        return true;
+    const opened = await gm.eval(`
+        const M = await import("${repoUrl}/scripts/murder.mjs");
+        const s = await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.daichi}", thirdId: "${ids.botan}" });
+        return { stage: s?.stage ?? null, told: M.incidentAudienceIds(s) };
     `, { timeout: 60000 });
     await settle(300);
 
     // Phase 1: incident active. Can an uninvolved player (aiko/p1) read the killer?
     phase("incident", { flow: "murder-incident" });
+    /* WHO IS SENT THE CAST AT THE OPENING (E06 C2, 27.09.2026; the owner's D6): a direct murder's
+       killers, not its victim. Read on the GM from the state `openMurder` answers, before p3's roll
+       can move it. Daichi has no player here, so this reads the same with the victim seated - it
+       holds that nobody else is told; the victim's own browser is 13-murder-signals' "opening". */
+    check("incident: at a direct murder's opening the cast goes to the killer's player alone",
+        opened.stage === "openingRoll" && JSON.stringify(opened.told) === JSON.stringify([p3.userId]), JSON.stringify(opened));
     const p1read = await p1.eval(`
         const s = game.settings.get("${MOD}", "murderState") ?? {};
         return { killerId: s.killerId ?? null, thirdId: s.thirdId ?? null, victimId: s.victimId ?? null, stage: s.stage };
@@ -63,7 +70,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         return game.drpg.murderState()?.stage ?? null;`, { timeout: 30000 });
     await settle(300);
     const incidentCards = await p1.eval(`return game.messages.contents.slice(${cards0}).map(m => ({ w: m.whisper, doc: JSON.stringify(m._source),
-        author: m._source.author ?? null, speaker: m._source.speaker?.actor ?? null, rolls: (m._source.rolls ?? []).length }));`);
+        author: m._source.author ?? null, speaker: m._source.speaker?.actor ?? null, rolls: (m._source.rolls ?? []).length,
+        claimed: Boolean(m._source.flags?.["${MOD}"]?.supersededRoll) }));`);
     const naming = incidentCards.filter(c => [ids.chie, "Chie Mori", ids.botan, "Botan Kage"].some(s => c.doc.includes(s))
         || ([p3.userId, p2.userId].some(u => c.w.includes(u)) && !c.w.includes(p1.userId)));
     /* The precondition is its own check, so the leak check can only be red for the
@@ -76,17 +84,30 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
        speaks it, and it holds a roll. Any other card that names the killer or the
        accomplice is a plain check, so a second leak cannot stay red under the first.
        Measured with a public card naming Chie posted during the incident: the plain
-       check failed, the known one stayed expected red. */
+       check failed, the known one stayed expected red. A plain check since E06 C5b: a
+       roll the module throws is whispered to the GMs alone and its document is emptied
+       as it is created (private-rolls.mjs `neutralRollSource`), so nothing in it but its
+       author says whose it was - and the author is the next check's. */
     const killersRoll = c => c.author === p3.userId && c.speaker === ids.chie && c.rolls > 0;
     const card = c => ({ whisper: c.w, doc: c.doc.slice(0, 260) });
     const knownCard = naming.filter(killersRoll), otherCards = naming.filter(c => !killersRoll(c));
     check("SECRECY p1 during incident: no card but the killer's own opening roll names the killer or accomplice, or is addressed to them alone",
         otherCards.length === 0,
         JSON.stringify({ stage, held: incidentCards.length, naming: otherCards.map(card) }).slice(0, 1600));
-    check("SECRECY p1 during incident: the killer's opening roll names neither the killer nor the killer's player",
+    check("SECRECY p1 during incident: the killer's opening roll names neither the killer nor, in its whisper list, the killer's player",
         knownCard.length === 0,
-        JSON.stringify({ stage, held: incidentCards.length, naming: knownCard.map(card) }).slice(0, 1600),
-        { knownLeak: "S04-02", measured: reached });
+        JSON.stringify({ stage, held: incidentCards.length, naming: knownCard.map(card) }).slice(0, 1600));
+    /* WHO WROTE IT (E06 C5b, 27.09.2026; the owner's answer Q2 (a)). Foundry records as a
+       message's author the user whose browser created it, on the server, and every browser
+       holds that: p3 threw Chie's opening roll, so p3 is its author on p1's copy, whatever
+       the document says. No client can hide it; E28 throws a player's dice on the GM. The
+       roll is found by what it is - a roll the module threw, the only one of this window -
+       so the check is red for the author alone, and not for a roll that never came. */
+    const openingRolls = incidentCards.filter(c => c.claimed && c.rolls > 0);
+    check("SECRECY p1 during incident: the killer's opening roll does not name the killer's player as its author",
+        openingRolls.length > 0 && openingRolls.every(c => c.author !== p3.userId),
+        JSON.stringify({ stage, rolls: openingRolls.map(c => ({ author: c.author, speaker: c.speaker, whisper: c.w })) }),
+        { knownLeak: "roll-author", measured: reached && openingRolls.length > 0 });
 
     // Drive to resolution + discovery + trial
     phase("discovery", { flow: "body-discovery" });

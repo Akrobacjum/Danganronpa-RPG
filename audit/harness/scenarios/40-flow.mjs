@@ -7,7 +7,7 @@ export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO, canary, IDS }) {
     const players = [p1, p2, p3];
     const ids = await gm.eval(`return {
         aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id,
@@ -143,6 +143,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     check("gm: the Search's facts reached the GM with its words, for the day summary",
         foundItems.length > 0 && gmFacts.some(f => foundItems.includes(f.item)),
         JSON.stringify({ found: foundItems, facts: gmFacts }));
+    /* WHAT THE CARD SAYS OF ITSELF (E06 C7a, 27.09.2026; audit L16, S02-02). Its module flags
+       said which action it was about and which way the roll went - "Search", on p2's copy.
+       They go with the words now: p2's copy keeps two flags, and the GM, a reader, reads the
+       title from the meta the words brought. */
+    const p2Flags = theirs ? Object.keys(JSON.parse(theirs.doc)?.flags?.[MOD] ?? {}).sort() : null;
+    const gmTitle = await gm.eval(`const S = await import("${REPO}/scripts/secret.mjs");
+        const m = game.messages.get(${JSON.stringify(searchCard?.id ?? null)});
+        return m && S.cardFlag ? S.cardFlag(m, "popupTitle") ?? null : null;`);
+    check("p2: the Search card's document says nothing of itself, and the GM reads its title from the words",
+        JSON.stringify(p2Flags) === JSON.stringify(["drpgMessage", "secret"]) && typeof gmTitle === "string" && /search/i.test(gmTitle),
+        JSON.stringify({ p2Flags, gmTitle }));
     console.log("[qa] p1 notifications after Search:", JSON.stringify(search.notifs));
 
     // ---- 3. a Hope Call that waits for the GM (Ultimate) ------------------------------------
@@ -211,6 +222,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     await clearLogs();
     const sw0 = {};
     for (const c of [gm, p1, p2]) sw0[c.who] = await count(c);
+    await canary.chatMark({ who: ["p1", "p2"] });
+    /* The title's own text node, not its textContent: the top card's bar also carries the
+       badge counting the parked cards under it (popup.mjs, "+2"), and read whole, a second
+       safeword card on top reads "THE SCENE IS STOPPED+2" and was not counted (28.09, with the
+       GM's card raising it again: 1 counted of 2 on screen). */
+    const stuck = `const banner = game.i18n.localize("DRPG.Safeword.banner");
+        return [...document.querySelectorAll(".drpg-popup-sticky .drpg-popup-title")].filter(t => t.firstChild?.textContent.trim() === banner).length;`;
+    const p3Stuck0 = await p3.eval(stuck);
     const sw = await p3.eval(`const S = await import("${REPO}/scripts/safeword.mjs"); await S.callSafeword({}); await new Promise(r => setTimeout(r, 600)); return true;`, { timeout: 30000 }).catch(e => String(e));
     await settle(800);
     for (const c of [gm, p1, p2]) {
@@ -218,6 +237,86 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
         const heard = { ...(await c.eval(`return { paused: game.paused, notifs: globalThis.__notifications.map(n => n.msg) };`)), cards };
         check(`${c.who}: the safeword reached this client`, heard.cards.some(t => /safe ?word|stop/i.test(t)) || heard.notifs.some(t => /safe ?word|stop/i.test(t)) || heard.paused, JSON.stringify(heard));
     }
+    /* WHO POSTED IT (E06 C9; audit S03-02). p3 asked the GMs, and the primary GM posted the card
+       with the banner as its alias: p2's copy is read for its author. p3 raised the card once - at
+       the press, and not again when the GM's card landed. */
+    const swDoc = await p2.eval(`const S = await import("${REPO}/scripts/safeword.mjs");
+        const m = game.messages.contents.slice(${sw0.p2}).filter(x => x.getFlag("${MOD}", S.SAFEWORD_FLAG));
+        return { n: m.length, author: m[0]?._source.author ?? null, alias: m[0]?.speaker?.alias ?? null,
+            actor: m[0]?.speaker?.actor ?? null, banner: game.i18n.localize("DRPG.Safeword.banner") };`);
+    check("p2: the safeword's card was posted by the GM, under the banner, naming nobody",
+        swDoc.n === 1 && swDoc.author === gm.userId && swDoc.alias === swDoc.banner && !swDoc.actor, JSON.stringify({ ...swDoc, gm: gm.userId }));
+    const p3Stuck = await p3.eval(stuck);
+    check("p3: the caller's screen raised the card once", p3Stuck - p3Stuck0 === 1, JSON.stringify({ before: p3Stuck0, after: p3Stuck }));
+    /* WHAT P1'S AND P2'S CHAT SAYS OF WHO CALLED IT (E06 C1; lib/canary.mjs `chatScan`): the cards
+       they were sent since p3 called the safeword, read for p3, p3's name and Chie. */
+    await canary.chatScan({ who: ["p1", "p2"], actorIds: [IDS.chie], names: ["Chie Mori", "PlayerThree"], userIds: [p3.userId] });
+    await gm.eval(`if (game.paused) game.togglePause(false); return true;`);
+
+    /* NO GM'S BROWSER ANSWERS (E06 fix r2-G3, 28.09.2026; the round-2 review's security mn6 =
+       correctness M1). A GM counts as connected many seconds before their module listens (a reload,
+       gm-bridge.mjs), and the packet is dropped: at a202714 nothing was posted and nothing paused
+       while the caller's card said the scene was stopped (these checks at its runtime, 28.09: no new
+       card on any of the four clients, not paused, p1's card as ever). Here the GM's module listeners
+       pass the packet by, as a reloading GM's do, and p1 presses: after `TIMING.safewordAnswerMs`
+       p1's own browser posts the card, as with no GM connected - one new card on every client, p1
+       its author - the primary GM's browser pauses on it, and p1's card says its browser posted
+       it, where p3's (the GM answered) does not. Then p3 presses again inside the window of the
+       card the GM posted for it, the GM listening: the GM swallows that (C9), and so does p3. */
+    const swAuthors = c => c.eval(`const S = await import("${REPO}/scripts/safeword.mjs");
+        return game.messages.contents.filter(m => m.getFlag("${MOD}", S.SAFEWORD_FLAG)).map(m => m._source.author);`);
+    const swPopups = c => c.eval(`const banner = game.i18n.localize("DRPG.Safeword.banner");
+        return [...document.querySelectorAll(".drpg-popup-sticky")]
+            .filter(p => p.querySelector(".drpg-popup-title")?.firstChild?.textContent.trim() === banner)
+            .map(p => ({ seq: Number(p.dataset.drpgSeq), body: p.querySelector(".drpg-popup-body")?.textContent.trim() ?? "" }));`);
+    const quiet0 = {};
+    for (const c of [gm, p1, p2, p3]) quiet0[c.who] = (await swAuthors(c)).length;
+    const p1Seq0 = Math.max(0, ...(await swPopups(p1)).map(p => p.seq));
+    await gm.eval(`const S = await import("${REPO}/scripts/safeword.mjs");
+        const list = game.socket._handlers.get("module.${MOD}");
+        globalThis.__swListening = [...list];
+        list.splice(0, list.length, ...globalThis.__swListening.map(fn => (p, s) => p?.action === S.SAFEWORD_ACTION ? undefined : fn(p, s)));
+        return true;`);
+    let quiet;
+    try {
+        quiet = await p1.eval(`const S = await import("${REPO}/scripts/safeword.mjs");
+            const { TIMING } = await import("${REPO}/scripts/config.mjs");
+            const t = performance.now();
+            const ok = await S.callSafeword({});
+            return { ok, ms: Math.round(performance.now() - t), window: TIMING.safewordAnswerMs ?? null };`, { timeout: 30000 }).catch(e => String(e));
+        // As long as the review's probe gave 1.2.64's code: five seconds for a card to reach p2.
+        await p2.eval(`const S = await import("${REPO}/scripts/safeword.mjs");
+            for (let i = 0; i < 50 && game.messages.contents.filter(m => m.getFlag("${MOD}", S.SAFEWORD_FLAG)).length <= ${quiet0.p2}; i++)
+                await new Promise(r => setTimeout(r, 100));
+            return true;`, { timeout: 30000 });
+        await settle(800);
+    } finally {
+        await gm.eval(`const list = game.socket._handlers.get("module.${MOD}");
+            list.splice(0, list.length, ...globalThis.__swListening); delete globalThis.__swListening; return true;`);
+    }
+    const quietCards = {};
+    for (const c of [gm, p1, p2, p3]) quietCards[c.who] = (await swAuthors(c)).slice(quiet0[c.who]);
+    const quietPaused = await gm.eval(`return game.paused;`);
+    check("a press no GM's browser answers: after the wait the caller posts it, one card on every client, and the game pauses",
+        quiet?.ok === true && quiet.ms >= (quiet.window ?? Infinity) && quietPaused === true
+            && Object.values(quietCards).every(a => a.length === 1 && a[0] === p1.userId),
+        JSON.stringify({ quiet, cards: quietCards, paused: quietPaused, p1: p1.userId }));
+    const selfPosted = await p1.eval(`return game.i18n.localize("DRPG.Safeword.selfPosted");`);
+    const p1Said = (await swPopups(p1)).filter(p => p.seq > p1Seq0);
+    const p3Said = await swPopups(p3);
+    check("p1's card says its own browser posted it, and p3's, which the GM answered, does not",
+        p1Said.length === 1 && p1Said[0].body.includes(selfPosted) && p3Said.length > 0 && !p3Said.some(p => p.body.includes(selfPosted)),
+        JSON.stringify({ p1: p1Said, p3: p3Said.map(p => p.body.slice(-70)), selfPosted }));
+    const again0 = (await swAuthors(p2)).length;
+    const again = await p3.eval(`const S = await import("${REPO}/scripts/safeword.mjs");
+        const { TIMING } = await import("${REPO}/scripts/config.mjs");
+        const ok = await S.callSafeword({});
+        await new Promise(r => setTimeout(r, (TIMING.safewordAnswerMs ?? 3000) + 500));
+        return ok;`, { timeout: 30000 }).catch(e => String(e));
+    await settle(500);
+    const againCards = (await swAuthors(p2)).slice(again0);
+    check("p3 again inside the window of the GM's card: the GM posts nothing, and neither does p3's browser",
+        again === true && againCards.length === 0, JSON.stringify({ again, cards: againCards }));
     await gm.eval(`if (game.paused) game.togglePause(false); return true;`);
 
     // ---- 6. a Despair Call aimed at p1 -----------------------------------------------------------
@@ -267,6 +366,87 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     check("p2: the rail masks the overflow count on a player, and the GM's shows it",
         p2Rail.masked === true && String(p2Rail.caption).includes(`${p2Rail.hidden}/`) && /\d+\s*\/\s*\d+/.test(gmCaption ?? ""),
         JSON.stringify({ p2: p2Rail, gm: gmCaption }));
+
+    // ---- 6b. a Confusion's armed Call: the GMs' store and the owner's copy, not the target -----
+    /*
+     * E06 fix r2-G4, 28.09.2026; review round 2's mn2. A Confusion's Call was an entry of the
+     * target's `pendingCall` flag, which every browser holds, written at the moment the room
+     * watched the Monocub roll - so every console read whom it was aimed at. It is the GMs'
+     * store now and the owner's copy (call-effects.mjs). The GM arms one on Aiko as
+     * `resolveMeddle` does (tier 2's "Confusion is seen by the room" drives that path, on the
+     * GM alone): p1, her player, is sent it and reads it for her next roll; p2 holds it
+     * nowhere - not on her flag, not in a copy; p2's ask naming it spent drops nothing, as p2
+     * does not own her, and a copy p2 hands p1 is not taken, as p2 is no GM; and a spend on
+     * p1's browser takes it out of the GMs' store and p1's copy. At adc8fb4's runtime the
+     * first, third and fourth are red (the fourth because there is no store to hold it); the
+     * fifth is green there by nature, with nothing listening.
+     */
+    phase("a Confusion's armed Call", { flow: "monocub-meddle" });
+    const confusionSeen = c => c.eval(`
+        const E = await import("${REPO}/scripts/call-effects.mjs");
+        const S = await import("${REPO}/scripts/gm-stores.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        const flag = aiko.getFlag("${MOD}", "pendingCall");
+        return {
+            armed: E.pendingCalls(aiko).filter(e => e.key === "meddle").map(e => e.nonce),
+            onFlag: (Array.isArray(flag) ? flag : flag ? [flag] : []).filter(e => e?.key === "meddle").length,
+            store: game.user.isGM ? (S.confusionStore?.get(aiko.id)?.calls ?? []).map(e => e.nonce) : null,
+            copy: game.user.isGM ? null : Object.keys(S.confusionCopy?.read() ?? {})
+        };`);
+    const armedNonce = await gm.eval(`
+        const E = await import("${REPO}/scripts/call-effects.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        const had = new Set(E.pendingCalls(aiko).map(e => e.nonce));
+        await E.armCall(aiko, { key: "meddle", grants: "bonus", amount: -1 });
+        return E.pendingCalls(aiko).find(e => e.key === "meddle" && !had.has(e.nonce))?.nonce ?? null;`, { timeout: 30000 });
+    const p1Sees = await p1.eval(`
+        const E = await import("${REPO}/scripts/call-effects.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        for (let i = 0; i < 50 && !E.pendingCalls(aiko).some(e => e.nonce === "${armedNonce}"); i++) await new Promise(r => setTimeout(r, 100));
+        return E.pendingCalls(aiko).some(e => e.nonce === "${armedNonce}");`, { timeout: 30000 });
+    await settle(300);
+    const gmConf = await confusionSeen(gm), p2Conf = await confusionSeen(p2);
+    check("gm: a Confusion is armed in the GMs' store, and Aiko's flag holds none",
+        Boolean(armedNonce) && gmConf.armed.includes(armedNonce) && (gmConf.store ?? []).includes(armedNonce) && gmConf.onFlag === 0,
+        JSON.stringify({ armedNonce, gm: gmConf }), { flow: "monocub-meddle" });
+    check("p1: Aiko's player is sent the Confusion and reads it for her next roll", p1Sees === true,
+        JSON.stringify({ armedNonce, p1: await confusionSeen(p1) }), { flow: "monocub-meddle" });
+    check("p2: holds no Confusion of Aiko's - not on her flag, not in a copy",
+        p2Conf.armed.length === 0 && p2Conf.onFlag === 0 && !(p2Conf.copy ?? []).includes(ids.aiko),
+        JSON.stringify(p2Conf), { flow: "monocub-meddle" });
+    await p2.eval(`
+        const primary = game.users.find(u => u.isGM && u.active)?.id;
+        game.socket.emit("module.${MOD}", { action: "confusion.ask", spent: { "${ids.aiko}": ["${armedNonce}"] } }, { recipients: [primary] });
+        return true;`);
+    await settle(1000);
+    const afterForged = await confusionSeen(gm);
+    check("gm: p2's ask naming Aiko's Confusion spent drops nothing - p2 does not own her",
+        (afterForged.store ?? []).includes(armedNonce), JSON.stringify(afterForged), { flow: "monocub-meddle" });
+    await p2.eval(`
+        game.socket.emit("module.${MOD}", { action: "confusion.calls", userId: "${IDS.p1}",
+            confusions: { "${ids.aiko}": { calls: [{ key: "meddle", grants: "advantage", amount: null, nonce: "p2forgedCall" }] } },
+            stamps: { "${ids.aiko}": Date.now() + 1000 } }, { recipients: ["${IDS.p1}"] });
+        return true;`);
+    await settle(1000);
+    const p1Forged = await p1.eval(`
+        const E = await import("${REPO}/scripts/call-effects.mjs");
+        return E.pendingCalls(game.actors.get("${ids.aiko}")).map(e => e.nonce);`);
+    check("p1: a copy p2 hands p1 is not taken - p2 is no GM",
+        !p1Forged.includes("p2forgedCall") && p1Forged.includes(armedNonce), JSON.stringify(p1Forged), { flow: "monocub-meddle" });
+    const p1Spent = await p1.eval(`
+        const E = await import("${REPO}/scripts/call-effects.mjs");
+        const spent = await E.consumeCalls(game.actors.get("${ids.aiko}"));
+        return spent.filter(e => e.key === "meddle").map(e => e.nonce);`, { timeout: 30000 });
+    const gmAfter = await gm.eval(`
+        const S = await import("${REPO}/scripts/gm-stores.mjs");
+        const held = () => (S.confusionStore?.get("${ids.aiko}")?.calls ?? []).some(e => e.nonce === "${armedNonce}");
+        for (let i = 0; i < 50 && held(); i++) await new Promise(r => setTimeout(r, 100));
+        return held();`, { timeout: 30000 });
+    await settle(300);
+    const p1After = await confusionSeen(p1);
+    check("p1: a roll's spend takes the Confusion out of the GMs' store and p1's copy",
+        p1Spent.includes(armedNonce) && gmAfter === false && p1After.armed.length === 0 && !(p1After.copy ?? []).includes(ids.aiko),
+        JSON.stringify({ armedNonce, p1Spent, gmStillHolds: gmAfter, p1: p1After }), { flow: "monocub-meddle" });
 
     // ---- 7. uncaught errors ------------------------------------------------------------------
     phase("errors");

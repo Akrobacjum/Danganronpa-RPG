@@ -2,7 +2,7 @@ export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
 const SOCKET = `module.${MOD}`;
-export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDenials, repoUrl }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDenials, repoUrl, canary }) {
     const ids = await gm.eval(`return { aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id, chie: game.actors.getName("Chie Mori").id, daichi: game.actors.getName("Daichi Sato").id };`);
 
     // 1. XSS via messenger free text (player writes hostile markup)
@@ -337,6 +337,132 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: a player's facts about their own character are kept as plain fields only",
         factsKept.own?.item === "SEC yours" && !("extra" in (factsKept.own ?? {})) && factsKept.own?.total === null, JSON.stringify(factsKept));
 
+    /* A CARD'S META FROM A PLAYER (E06 C7a, 27.09.2026). What a private card says of itself
+       travels with its words now, and the GM's popup and ruling wiring read it there - so a
+       player's meta is judged as a player's facts are: it cannot ask the GMs for a notice
+       (`gmPopup`, `popupForce`) or put a ruling's buttons on a card (`callCard`); what else
+       it says of the player's own card is kept. p1's own card, its packet as a console would
+       write it. */
+    const metaCard = await p1.eval(`
+        const msg = await ChatMessage.create({ content: '<p class="notes" data-drpg-secret>-</p>',
+            whisper: ["${gm.userId}"], flags: { "${MOD}": { secret: true } } });
+        game.socket.emit("${SOCKET}", { action: "secret.card", id: msg.id, html: "<p>SEC meta</p>", at: Date.now(),
+            meta: { gmPopup: true, popupForce: true, callCard: true, popupTitle: "SEC meta title" } });
+        return msg.id;
+    `, { timeout: 30000 });
+    await settle(1200);
+    const metaKept = await gm.eval(`
+        const store = game.settings.get("${MOD}", "secretCards") ?? {};
+        return { words: Boolean(store[${JSON.stringify(metaCard)}]?.html), meta: store[${JSON.stringify(metaCard)}]?.meta ?? null };
+    `);
+    check("SECURITY: a player's card cannot ask the GMs for a notice or carry a ruling's buttons, and keeps its own title",
+        metaKept.words && JSON.stringify(metaKept.meta) === JSON.stringify({ popupTitle: "SEC meta title" }), JSON.stringify(metaKept));
+
+    /* THE SAFEWORD'S SIREN FROM A PLAYER'S PRIVATE CARD (E06 fix r1-G5, 28.09.2026; the
+       round-1 review's m3). The siren ignores the volume slider, and a player rings it only
+       with the real safeword card, whose marker on the document pauses the game. p1's
+       private card to the GM carries the siren and the marker in its meta, as `postSecret`
+       sends them: on the GM the marker is not kept, the card asks for no sound, and the
+       game is not paused. */
+    const siren = await p1.eval(`
+        const { postSecret } = await import("${repoUrl}/scripts/secret.mjs");
+        const msg = await postSecret({ content: "<p>SEC siren</p>", whisper: ["${gm.userId}"],
+            flags: { "${MOD}": { sfx: { key: "safeword", gm: true }, safeword: true } } });
+        return msg?.id ?? null;
+    `, { timeout: 30000 });
+    await settle(1200);
+    const sirenOnGm = await gm.eval(`
+        const { soundFromMessage } = await import("${repoUrl}/scripts/sfx.mjs");
+        const m = game.messages.get(${JSON.stringify(siren)});
+        const kept = (game.settings.get("${MOD}", "secretCards") ?? {})[${JSON.stringify(siren)}];
+        return m ? { words: Boolean(kept?.html), marker: kept?.meta?.safeword ?? null,
+            sound: soundFromMessage(m), paused: game.paused } : null;
+    `);
+    check("SECURITY: a player's private card cannot ring the safeword's siren at the GMs without calling the safeword",
+        Boolean(sirenOnGm?.words) && sirenOnGm.marker === null && sirenOnGm.sound === null && !sirenOnGm.paused,
+        JSON.stringify(sirenOnGm));
+
+    /* A RULING CARD SETTLED (E06 C7a). `settleCall` wrote `settled` on the card's document,
+       which told every browser a ruling was made; it goes with the receipt's words now, and
+       the thread's player - one of the card's readers - reads it there. */
+    const ruled = await gm.eval(`
+        const { postToThread } = await import("${repoUrl}/scripts/messenger.mjs");
+        const { settleCall } = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const msg = await postToThread("${p1.userId}", '<p>SEC ruling</p><div class="drpg-call-actions"><button type="button" data-drpg-call="probe">x</button></div>');
+        await settleCall(msg, "SEC ruled");
+        return msg?.id ?? null;
+    `, { timeout: 30000 });
+    await settle(1200);
+    const ruledOnP1 = await p1.eval(`
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const m = game.messages.get(${JSON.stringify(ruled)});
+        // Through the document on a tree without cardFlag (red first), so the check reads it there.
+        const flag = S.cardFlag ?? ((doc, key) => doc.getFlag("${MOD}", key));
+        return m ? { settled: flag(m, "settled") ?? null, onDocument: m.toObject().flags?.["${MOD}"]?.settled ?? null,
+            receipt: S.contentOf(m).includes("SEC ruled") } : null;
+    `);
+    check("p1: a settled ruling card in p1's thread is settled from its words, and not on its document",
+        Boolean(ruled) && ruledOnP1?.settled === true && ruledOnP1.onDocument === null && ruledOnP1.receipt, JSON.stringify({ ruled, ruledOnP1 }));
+    await gm.eval(`await game.messages.get(${JSON.stringify(ruled)})?.delete(); return true;`);
+
+    /* THE GMS' PROSE STAYS THEIRS (E06 C7b, 27.09.2026; audit L17, S11-05). A ruling card's
+       GM half - the reference prose (`.drpg-gm-only`) and the ruling's buttons
+       (`.drpg-call-actions`) - went to the thread's player with the rest of its words, into
+       p1's store and p1's Chat tab. p1 is sent the words without both now, as posted and as
+       settled, and the GM keeps them. The Chat tab is read by running the swap's hook on an
+       element as a log would (the harness draws no log). Then the belt: words holding both
+       blocks put into p1's store by hand, as ones kept from before this was fixed, and drawn
+       the same way. */
+    const gmProse = await gm.eval(`
+        const { postToThread } = await import("${repoUrl}/scripts/messenger.mjs");
+        const { settleCall } = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const html = '<p>SEC ruling prose</p><div class="drpg-gm-only"><p>SEC GM table</p></div><div class="drpg-call-actions"><button type="button" data-drpg-call="probe">x</button></div>';
+        const posted = await postToThread("${p1.userId}", html);
+        const settled = await postToThread("${p1.userId}", html);
+        if (settled) await settleCall(settled, "SEC prose ruled");
+        const kept = [posted, settled].map(m => m ? S.contentOf(m) : "");
+        return { ids: [posted?.id ?? null, settled?.id ?? null], gmKeeps: kept.every(w => w.includes("SEC GM table")) };
+    `, { timeout: 30000 });
+    await settle(1200);
+    const proseOnP1 = await p1.eval(`
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const drawn = m => {
+            const el = document.createElement("li");
+            el.innerHTML = '<div class="message-content"><p class="notes" data-drpg-secret>-</p></div>';
+            Hooks.callAll("renderChatMessageHTML", m, el);
+            return el.innerHTML;
+        };
+        const leaks = w => ["drpg-gm-only", "drpg-call-actions", "SEC GM table"].filter(x => w.includes(x));
+        return ${JSON.stringify(gmProse.ids)}.map(id => {
+            const m = game.messages.get(id);
+            const words = m ? S.contentOf(m) : "";
+            return m ? { words: words.includes("SEC ruling prose"), stored: leaks(words), chat: leaks(drawn(m)) } : null;
+        });
+    `);
+    check("SECURITY: p1's copy of a ruling card, posted and settled, holds no GM-only prose or ruling button, in the store or the Chat tab",
+        gmProse.gmKeeps && proseOnP1.length === 2 && proseOnP1.every(c => c?.words && !c.stored.length && !c.chat.length),
+        JSON.stringify({ gmProse, proseOnP1 }));
+    const belt = await p1.eval(`
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const id = ${JSON.stringify(gmProse.ids[0])};
+        const m = game.messages.get(id);
+        if (!m) return null;
+        const store = foundry.utils.deepClone(game.settings.get("${MOD}", "secretCards") ?? {});
+        store[id] = { ...store[id], html: '<p>SEC old words</p><div class="drpg-gm-only"><p>SEC GM table</p></div><div class="drpg-call-actions"><button type="button" data-drpg-call="probe">x</button></div>', at: Date.now() };
+        await game.settings.set("${MOD}", "secretCards", store);
+        S.forgetSecrets();
+        const held = S.contentOf(m);
+        const el = document.createElement("li");
+        el.innerHTML = '<div class="message-content"><p class="notes" data-drpg-secret>-</p></div>';
+        Hooks.callAll("renderChatMessageHTML", m, el);
+        return { held: ["drpg-gm-only", "drpg-call-actions"].filter(x => held.includes(x)),
+            drawn: el.innerHTML.includes("SEC old words"), chat: ["drpg-gm-only", "drpg-call-actions", "SEC GM table"].filter(x => el.innerHTML.includes(x)) };
+    `);
+    check("SECURITY: p1's Chat tab takes the GM-only prose and the ruling's buttons off words kept from before",
+        belt?.held.length === 2 && belt.drawn && !belt.chat.length, JSON.stringify(belt));
+    await gm.eval(`for (const id of ${JSON.stringify(gmProse.ids)}) await game.messages.get(id)?.delete(); return true;`);
+
     /* The same words, stored before this was fixed: an entry with no trust mark is
        cleaned when it is read, whoever wrote it. */
     const legacy = await gm.eval(`
@@ -457,6 +583,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
 
     // 7a. project.unsabotage: a repair id that is not the one the sabotage made.
     phase("projects", { flow: "projects" });
+    await canary.chatMark({ who: ["p1"] });
     const projects = await gm.eval(`
         const P = await import("${repoUrl}/scripts/projects.mjs");
         const pub = await P.createProject({ name: "SEC public", target: 6, room: "Cafeteria", secret: false });
@@ -483,6 +610,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     };
     check("SECURITY: who sabotaged a project is not in projectMeta on p1 - the GMs' store holds p2's user id",
         Boolean(whoAsked.p1?.repairs) && !Object.hasOwn(whoAsked.p1, "saboteur") && whoAsked.gm === p2.userId, JSON.stringify(whoAsked));
+    /* WHAT P1'S CHAT SAYS OF THE SABOTAGE (E06 C1; lib/canary.mjs `chatScan`): the cards p1 was
+       sent since the phase began, read for Botan, p2 and the sabotage's titles. */
+    const sabotageTitles = await gm.eval(`const C = await import("${repoUrl}/scripts/config.mjs");
+        return [C.ACTIONS.sabotage?.label, game.i18n.localize("DRPG.Roll.concealIntent")].filter(t => typeof t === "string" && t.trim() && !t.startsWith("DRPG."));`);
+    await canary.chatScan({ who: ["p1"], actorIds: [ids.botan], names: ["Botan Kage"], userIds: [p2.userId], titles: sabotageTitles });
     const notTheirs = await forge("project.unsabotage", { targetId: projects.pub, repairId: sabotaged.repair, actorId: ids.aiko }, readPair);
     check("SECURITY: p1 taking back p2's sabotage is refused - the GM reads who asked from its store - and nothing is thawed",
         notTheirs.unchanged && notTheirs.after.frozen && notTheirs.reasons.some(r => /did not ask for that sabotage/.test(r)), JSON.stringify(notTheirs));
@@ -516,6 +648,37 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         `const P = await import("${repoUrl}/scripts/projects.mjs"); return { secret: P.isSecret("${projects.pub}") };`);
     check("SECURITY: sharing a public project is refused and leaves it public",
         shared.unchanged && shared.reasons.some(r => /not secret/.test(r)), JSON.stringify(shared));
+
+    /* 7b'. A SECRET PROJECT'S SABOTAGE (E06 C10, 28.09.2026; audit S09-01, L20). Its repair was a
+       public countdown named "Repair: <the project>", and its end was announced to the table. p2
+       can see "SEC hidden work" and sabotages it; p1 cannot. p1's copy of Daggerheart's countdowns
+       holds the repair under a name that is not the project's and keeps p1 out of it; the GM
+       finishes the repair, and the cards that reach p1 since - documents and any words p1 holds -
+       name no project, while p2, who can see it, is told. Then the chat scan for the name. */
+    const SECRET_WORK = "SEC hidden work";
+    const hiddenWork = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        return (await P.createProject({ name: "${SECRET_WORK}", target: 6, room: "Cafeteria", secret: true, viewers: ["${p2.userId}"] }))?.id ?? null;`,
+    { timeout: 60000 });
+    const hiddenRepair = await p2.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const r = await P.sabotageProject("${hiddenWork}", 3); return r?.repair?.id ?? null;`, { timeout: 60000 });
+    await settle(1000);
+    const repairOnP1 = await p1.eval(`const c = game.settings.get("daggerheart", "Countdowns")?.countdowns?.["${hiddenRepair}"] ?? null;
+        return c ? { name: c.name, p1: c.ownership?.[game.user.id] ?? null } : null;`);
+    const countOn = c => c.eval(`return game.messages.size;`);
+    const heldBefore = { p1: await countOn(p1), p2: await countOn(p2) };
+    const thawed = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        await P.addProgress("${hiddenRepair}", 3); return !P.isFrozen("${hiddenWork}");`, { timeout: 60000 });
+    await settle(1500);
+    const endOn = (c, from) => c.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+        const fresh = game.messages.contents.slice(${from});
+        const names = m => JSON.stringify(m.toObject()).includes("${SECRET_WORK}") || (S.secretHtml(m) ?? "").includes("${SECRET_WORK}");
+        return { cards: fresh.length, veiled: fresh.filter(m => S.isVeiled(m)).length, named: fresh.filter(names).length };`);
+    const repairEnd = { p1: await endOn(p1, heldBefore.p1), p2: await endOn(p2, heldBefore.p2) };
+    check("SECURITY: a secret project's repair reaches p1 under no name of the project, sealed, and its end is told to p2 alone",
+        Boolean(hiddenWork && hiddenRepair) && typeof repairOnP1?.name === "string" && !repairOnP1.name.includes(SECRET_WORK) && repairOnP1.p1 === 0
+        && thawed && repairEnd.p1.veiled >= 1 && repairEnd.p1.named === 0 && repairEnd.p2.named >= 1,
+        JSON.stringify({ hiddenWork, hiddenRepair, repairOnP1, thawed, repairEnd }));
+    await canary.chatScan({ who: ["p1"], titles: [SECRET_WORK], phase: "projects: a secret project's sabotage" });
 
     // 7c. observe.resolve with somebody else's key.
     phase("Observe keys", { flow: "search-observe" });
@@ -777,15 +940,22 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
        popup's title said "SEC trap here - something set it off" on p2's copy. The GM finds the
        card by its words; p2's copy of it - the whole document - holds no name of the trap.
        Red on the fix's parent: p2's popupTitle named it. */
-    const alertId = await gm.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
-        for (const m of game.messages.contents.filter(m => m.getFlag("${MOD}", "callCard") && m.getFlag("${MOD}", "gmPopup")).reverse()) {
-            if ((await wordsOf(m) ?? "").includes("SEC trap here")) return m.id;
+    const alertId = await gm.eval(`const { wordsOf, cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
+        for (const m of game.messages.contents.filter(m => m.getFlag("${MOD}", "secret")).reverse()) {
+            if (!(await wordsOf(m) ?? "").includes("SEC trap here")) continue;
+            const flag = cardFlag ?? ((doc, key) => doc.getFlag("${MOD}", key));
+            return flag(m, "callCard") && flag(m, "gmPopup") ? m.id : null;
         }
         return null;`);
     const alertOnP2 = await p2.eval(`const m = game.messages.get(${JSON.stringify(alertId)});
-        return m ? { held: true, named: JSON.stringify(m.toObject()).includes("SEC trap here"), title: m.getFlag("${MOD}", "popupTitle") ?? null } : { held: false };`);
+        return m ? { held: true, named: JSON.stringify(m.toObject()).includes("SEC trap here"), title: m.getFlag("${MOD}", "popupTitle") ?? null,
+            flags: Object.keys(m.toObject().flags?.["${MOD}"] ?? {}).sort() } : { held: false };`);
     check("SECURITY: a trap's alert card names the trap in the GMs' words, and nowhere in p2's copy of the card",
         Boolean(alertId) && alertOnP2.held && !alertOnP2.named, JSON.stringify({ alertId, alertOnP2 }));
+    /* E06 C7a: nor does p2's copy say what the card is - a ruling to make, its sound, its
+       popup: the GM found those in the words' meta above, and the document keeps two flags. */
+    check("SECURITY: p2's copy of the trap's alert holds no flag but secret and drpgMessage",
+        Boolean(alertId) && JSON.stringify(alertOnP2.flags) === JSON.stringify(["drpgMessage", "secret"]), JSON.stringify({ alertId, alertOnP2 }));
 
 
     // 7g. search tokens in a room the character is not in, and in the one she is.

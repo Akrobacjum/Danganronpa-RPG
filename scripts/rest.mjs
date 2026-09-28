@@ -15,7 +15,7 @@
 
 import { MODULE_ID, FLAGS, REST, STARTING } from "./config.mjs";
 import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
-import { roomOfActor } from "./movement.mjs";
+import { roomOfActor, roomsKnownToMe } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceMax, resourceValue } from "./character.mjs";
 import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
@@ -49,6 +49,26 @@ export function restRooms(kind) {
         .filter(([, region]) => region.getFlag(MODULE_ID, kind === "long" ? REST_FLAGS.long : REST_FLAGS.short))
         .map(([name]) => name)
         .sort();
+}
+
+/**
+ * "Allowed in: ..." with only the rooms this viewer has found (E06 C11, audit S07-19).
+ *
+ * The Rest window and the refusal listed every rest room on the map, so a player who had
+ * been in two rooms read the names of the rest off a warning - what the fog and the
+ * refused crossing are careful never to say. Filtered by `roomsKnownToMe` (`null`, a GM's
+ * or the Mastermind's, shows them all); a map whose rest rooms are all undiscovered says
+ * so without naming one, and a map with none says what it always said. `key` is the
+ * sentence the list goes into, `data` its other fields; `known` is a parameter for the
+ * suite, which runs on a GM's browser.
+ */
+export function restRoomsSentence(kind, key, data = {}, known = roomsKnownToMe()) {
+    const rooms = restRooms(kind);
+    const shown = known ? rooms.filter(room => known.has(room)) : rooms;
+    if (shown.length) return game.i18n.format(key, { ...data, rooms: shown.join(", ") });
+    return rooms.length
+        ? game.i18n.localize("DRPG.Rest.noKnownRooms")
+        : game.i18n.format("DRPG.Rest.noRooms", { kind: data.kind ?? "" });
 }
 
 /** Mark or unmark a room. GM only. */
@@ -159,14 +179,8 @@ export async function takeRest(actor, kind = "short", {
 
         const room = roomOfActor(actor);
         if (!ignoreRoom && !roomAllows(room, kind)) {
-            const allowed = restRooms(kind);
-            ui.notifications.warn(allowed.length
-                ? game.i18n.format("DRPG.Rest.wrongRoom", {
-                    kind: kindLabel(kind),
-                    room: room ?? "-",
-                    rooms: allowed.join(", ")
-                  })
-                : game.i18n.format("DRPG.Rest.noRooms", { kind: kindLabel(kind) }));
+            ui.notifications.warn(restRoomsSentence(kind, "DRPG.Rest.wrongRoom",
+                { kind: kindLabel(kind), room: room ?? "-" }));
             return null;
         }
 

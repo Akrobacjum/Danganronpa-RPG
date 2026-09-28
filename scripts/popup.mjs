@@ -35,7 +35,7 @@ import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { MESSAGE_FLAG, plural } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP } from "./motion.mjs";
 
-import { contentOf, wordsOf, secretHtml, isVeiled } from "./secret.mjs";
+import { contentOf, wordsOf, secretHtml, isVeiled, cardFlag, SECRET_FLAG } from "./secret.mjs";
 const CONTAINER_ID = "drpg-popups";
 const EVIDENCE_ID = "drpg-evidence";
 
@@ -529,16 +529,6 @@ export function registerPopups() {
 async function onCreateChatMessage(message) {
     if (!message.getFlag(MODULE_ID, MESSAGE_FLAG)) return;
 
-    // Surfaces that already present themselves, and must not be shown twice.
-    //
-    //   the messenger  raises its own card, or appends to an open window
-    //   `popupKind: "none"`  the poster is calling `showPopup` itself, with a
-    //                        richer card than this generic one - the Class
-    //                        Trial's sticky evidence card is the case in point
-    if (message.getFlag(MODULE_ID, MESSENGER_FLAGS.thread)) return;
-    const kind = message.getFlag(MODULE_ID, "popupKind") ?? "info";
-    if (kind === "none") return;
-
     // A genuine dice roll should animate and show in chat normally, not get
     // swallowed into a popup card.
     if ((message.rolls?.length ?? 0) > 0) return;
@@ -550,10 +540,22 @@ async function onCreateChatMessage(message) {
 
     // A veiled card is addressed to everybody and readable by its readers
     // alone: wait for the words, and if none came this is not our card.
-    if (isVeiled(message)) {
+    // Every private card waits for them since E06 C7a: what it says of itself
+    // (`cardFlag` below) came with them, not on the document.
+    if (message.getFlag(MODULE_ID, SECRET_FLAG)) {
         await wordsOf(message);
-        if (!secretHtml(message)) return;
+        if (isVeiled(message) && !secretHtml(message)) return;
     }
+
+    // Surfaces that already present themselves, and must not be shown twice.
+    //
+    //   the messenger  raises its own card, or appends to an open window
+    //   `popupKind: "none"`  the poster is calling `showPopup` itself, with a
+    //                        richer card than this generic one - the Class
+    //                        Trial's sticky evidence card is the case in point
+    if (cardFlag(message, MESSENGER_FLAGS.thread)) return;
+    const kind = cardFlag(message, "popupKind") ?? "info";
+    if (kind === "none") return;
 
     /* ---- a GM is not an audience for every receipt in the world ----------
      *
@@ -585,8 +587,8 @@ async function onCreateChatMessage(message) {
      */
     // `popupForce` only from a GM (E02, audit S11-27): from a player's console it
     // put a card that looks like the module's own in the middle of every screen.
-    const forGm = message.getFlag(MODULE_ID, "gmPopup")
-        || (message.author?.isGM && message.getFlag(MODULE_ID, "popupForce"));
+    const forGm = cardFlag(message, "gmPopup")
+        || (message.author?.isGM && cardFlag(message, "popupForce"));
     if (game.user.isGM && whisper.length && !forGm) return;
 
     // A header, when the poster gave one. An action's result card says which
@@ -607,10 +609,10 @@ async function onCreateChatMessage(message) {
      */
     showPopup(await wordsOf(message), {
         kind,
-        title: message.getFlag(MODULE_ID, "popupTitle") ?? null,
+        title: cardFlag(message, "popupTitle") ?? null,
         // Carried on the message rather than worked out here, for the same
         // reason the title is: the card appears on every screen the whisper
         // reached, and only the client that posted it knows what the roll did.
-        tone: message.getFlag(MODULE_ID, "popupTone") ?? null
+        tone: cardFlag(message, "popupTone") ?? null
     });
 }

@@ -75,6 +75,7 @@ import { registerCriticalRule } from "./critical.mjs";
 import { registerExplainers } from "./explain.mjs";
 import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
+import { registerConfusionCopy } from "./call-effects.mjs";
 import { registerDiceSync } from "./dice-sync.mjs";
 import { registerSync } from "./sync.mjs";
 import { registerTraps } from "./traps.mjs";
@@ -230,6 +231,7 @@ Hooks.once("init", () => {
     // After popups, because the safeword raises one. This is the safety tool -
     // it registers early and depends on nothing that can fail.
     safely("the safeword", registerSafeword);
+    safely("a Confusion's armed Calls", registerConfusionCopy);
     // After popups: a presented Truth Bullet becomes one, so the container has
     // to exist by the time the first card lands.
     safely("the Class Trial", registerTrial);

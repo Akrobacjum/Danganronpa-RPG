@@ -35,9 +35,22 @@ export const WORLD_SECRET_MODULE = "danganronpa-rpg";
  * module world setting, but for the fields `except` lets one setting hold. `flags` is
  * keyed by document type (Actor, User, Token, ChatMessage, and since E05 C13 Item - one
  * in the sidebar or on an actor's sheet): a path under the module's flag scope that may
- * never be there - an unlinked token's own actor data (its delta) is read under `Actor`,
+ * never be there, a `*` standing for any index of an array (since E06 C10) - an unlinked
+ * token's own actor data (its delta) is read under `Actor`,
  * since that is where a sheet opened from the token writes. Each rule says what it keeps
  * out, and since when.
+ *
+ * `messages` (E06 C1) is a list of rules for chat messages of one kind, the kind being a
+ * module flag the message carries (`when`): `fields` are paths from the message's root -
+ * `speaker.actor`, `system.title`, `rolls.*.options.title`, a `*` standing for any index of
+ * an array - that must be absent or empty on such a message, and `flagsOnly` the module
+ * flags it may carry at all. An ordinary card's speaker is its actor by design, so actor
+ * ids are read in a message's speaker, `system` and rolls only where one of these rules
+ * holds and names `fields` - a rule of `flagsOnly` alone says nothing of the speaker (E06
+ * C7a: every private card is of the kind `secret`, and most speak as their actor); its
+ * module flags are read for them always. Each commit that takes a kind of card's names
+ * off its documents brings the kind's rule: a roll the module threw since E06 C5b, a
+ * private card's facts of itself since E06 C7a.
  */
 export const WORLD_SECRET_RULES = Object.freeze({
     settings: Object.freeze({
@@ -98,7 +111,9 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // is the roller's own client setting `rollBookmarks` (action-rolls.mjs; S02-01).
         // E05 C14: what was taken off a body, and which trace on the map is its, is a row of the
         // GMs' `lootTraces` store (handover.mjs `liftLootTraces`; S05-39 (3)).
-        Actor: Object.freeze(["lastAction", "lootTrace"]),
+        // E06 C10: an armed Call names nobody who bought it - a Monocub's Confusion named the Monocub
+        // on its target (call-effects.mjs `unsigned`; S09-10). A `*` is any index of the armed list.
+        Actor: Object.freeze(["lastAction", "lootTrace", "pendingCall.*.from"]),
         // E05 C6: a player's pre-session note for the GMs - "Am I planning to kill? How?" - is a GM
         // store; the flag keeps only `{ updatedAt, written }` (pre-session-note.mjs; S11-03, S01-08).
         User: Object.freeze(["preSessionNote.text"]),
@@ -119,7 +134,45 @@ export const WORLD_SECRET_RULES = Object.freeze({
         // console which traces had been found and by whom, is gone - a `null` one as well
         // (truth-bullets.mjs `liftBulletRefs`; S05-39 (2)). An item on a sheet or in the sidebar.
         Item: Object.freeze(["remnantRef"])
-    })
+    }),
+    messages: Object.freeze([
+        /* E06 C5b: a roll the module threw (`supersedingRoll` stamps the flag) is emptied as it
+           is created (private-rolls.mjs `neutralRollSource`) - its speaker, Daggerheart's title
+           and actor, and each roll's title and actor. Its fix r1-G1 (28.09.2026; review M1 = F1):
+           and everything a roll's options held of the character - its data, whole, where C5b
+           took only the id and the name; its effects, the experiences picked and the modifiers'
+           labels that name them; its statistic (`neutralRollOf`). Its fix r2-G2 (28.09.2026; review
+           round 2's mn1 = m1): the Loaded Die's mark, the nonce its Call keeps on the character. */
+        Object.freeze({
+            when: "supersededRoll",
+            fields: Object.freeze(["speaker.actor", "speaker.token", "system.title", "system.source.actor",
+                "rolls.*.options.title", "rolls.*.options.headerTitle", "rolls.*.options.source.actor",
+                "rolls.*.options.data", "rolls.*.options.effects", "rolls.*.options.bonusEffects",
+                "rolls.*.options.experiences", "rolls.*.options.roll.trait",
+                "rolls.*.options.roll.modifiers.*.label", "rolls.*.options.roll.baseModifiers.*.label",
+                "rolls.*.options.drpgLoadedDie"]),
+            since: "E06 C5b", why: "a roll the module threw names its character and its action to every browser (S02-02, S04-02)"
+        }),
+        /* E06 C7a: a private card's document keeps what places it (secret.mjs `splitFlags`); what
+           it says of itself - its title, tone, sound, used item, that it asks for a ruling - goes
+           with its words. `settled` is allowed for the cards settled before 1.2.65, on which the
+           rewrite at 1.2.65's first load (E06 C12) keeps it; until that rewrite has run, or the
+           chat log is cleared, a world's older private cards break this rule. */
+        Object.freeze({
+            when: "secret",
+            flagsOnly: Object.freeze(["secret", "veiled", "drpgMessage", "thread", "kind", "gmAsk", "settled"]),
+            since: "E06 C7a", why: "a private card's document says what it is about - its action, its roll's way, its sound, its item, a ruling asked (L16, S02-02)"
+        }),
+        /* E06 C8: a veiled card's document is addressed to the whole table, and a veiled thread
+           card's placement - whose thread, its kind, that it asks the GM - goes with its words
+           (messenger.mjs `postToThread` with `veiled`). Read with the rule above: on a veiled card
+           this one is the narrower. */
+        Object.freeze({
+            when: "veiled",
+            flagsOnly: Object.freeze(["secret", "veiled", "drpgMessage"]),
+            since: "E06 C8", why: "a veiled card's document says whose thread it is in (L18, S05-15)"
+        })
+    ])
 });
 
 const isObject = v => v !== null && typeof v === "object";
@@ -135,14 +188,27 @@ function walk(value, path, visit, seen = new Set()) {
     }
 }
 
-/* The value at a dotted path, or undefined. */
-function at(value, path) {
-    let node = value;
+/* Every value at a dotted path whose "*" stands for any index of an array, with the path it
+   was found at: [[path, value]]. A segment that is not there answers nothing. */
+function valuesAt(value, path) {
+    let found = [["", value]];
     for (const part of String(path).split(".")) {
-        if (!isObject(node) || !Object.hasOwn(node, part)) return undefined;
-        node = node[part];
+        found = found.flatMap(([p, node]) => {
+            const join = key => (p ? `${p}.${key}` : String(key));
+            if (part === "*") return Array.isArray(node) ? node.map((v, i) => [join(i), v]) : [];
+            return isObject(node) && Object.hasOwn(node, part) ? [[join(part), node[part]]] : [];
+        });
     }
-    return node;
+    return found;
+}
+
+/* Nothing held: undefined, null, "", an empty array or an empty object. */
+const isEmpty = v => v === undefined || v === null || v === "" || (isObject(v) && !Object.keys(v).length);
+
+/* A roll as a message's source holds it - Foundry keeps each one as its JSON text. */
+function parsedRoll(roll) {
+    if (typeof roll !== "string") return roll;
+    try { return JSON.parse(roll); } catch { return roll; }
 }
 
 /**
@@ -153,17 +219,22 @@ function at(value, path) {
  * keyed without the namespace - and `actors`, `users`, `tokens`, `messages`, `items`:
  * arrays of `{ id, flags }` (a token's id may be written "sceneId.tokenId", an item's
  * as its caller names one on a sheet), where `flags` is the document's whole flags
- * object; `items` holds the sidebar's and every actor's (E05 C13). A token may carry `delta` too - its own
+ * object; `items` holds the sidebar's and every actor's (E05 C13). A message carries its
+ * `speaker`, `system`, `rolls`, `whisper` and `author` beside them, for the `messages`
+ * rules (E06 C1). A token may carry `delta` too - its own
  * actor data, `{ flags }` - which is read against the `Actor` rule and for `ids`,
  * with the hit's `doc` "Actor" and its `path` under `delta.` (E05's fix round,
  * S1-m4: a bookmark 1.2.63 wrote from an unlinked token's sheet is there).
  *
  * `ids`: actor ids no world data may name - a string that contains one, value or
  * key, anywhere under a module world setting or under an actor's, user's,
- * token's (and its delta's), message's or item's module flags. A document's own id, and the flags outside the module's
+ * token's (and its delta's), message's or item's module flags - and in a message's
+ * speaker, `system` and rolls where a `messages` rule with `fields` holds. A document's own id, and the flags outside the module's
  * scope, are not read.
  *
- * Answers `[{ kind: "field" | "empty" | "only" | "flag" | "id", doc, id, path, key?, rule }]`:
+ * Answers `[{ kind: "field" | "empty" | "only" | "flag" | "messageField" | "messageFlag" | "id", doc, id, path, key?, rule }]`
+ * (`messageField`: a path a `messages` rule wants empty, holding something; `messageFlag`: a
+ * module flag outside the rule's `flagsOnly`):
  * `doc` is "setting" or the document type, `id` the setting's key or the
  * document's id, `path` dotted from there; `key` when the id is the name of a key
  * at that path rather than a value.
@@ -204,7 +275,9 @@ export function findWorldSecrets(snapshot, { ids = [], rules = WORLD_SECRET_RULE
         const scope = flags?.[WORLD_SECRET_MODULE];
         if (!isObject(scope)) return;
         for (const path of rules.flags?.[doc] ?? []) {
-            if (at(scope, path) !== undefined) out.push({ kind: "flag", doc, id, path: `${base}${WORLD_SECRET_MODULE}.${path}`, rule: `a flag no ${doc} may carry` });
+            for (const [p, v] of valuesAt(scope, path)) {
+                if (v !== undefined) out.push({ kind: "flag", doc, id, path: `${base}${WORLD_SECRET_MODULE}.${p}`, rule: `a flag no ${doc} may carry` });
+            }
         }
         idsIn(doc, id, scope, `${base}${WORLD_SECRET_MODULE}`);
     };
@@ -213,6 +286,31 @@ export function findWorldSecrets(snapshot, { ids = [], rules = WORLD_SECRET_RULE
         for (const entry of Array.isArray(list) ? list : []) {
             flagsIn(doc, String(entry?.id ?? ""), entry?.flags, "flags.");
             if (doc === "Token" && isObject(entry?.delta)) flagsIn("Actor", String(entry.id ?? ""), entry.delta.flags, "delta.flags.");
+        }
+    }
+    for (const message of Array.isArray(snapshot?.messages) ? snapshot.messages : []) {
+        const scope = message?.flags?.[WORLD_SECRET_MODULE];
+        const held = (rules.messages ?? []).filter(rule => isObject(scope) && scope[rule.when]);
+        if (!held.length) continue;
+        const id = String(message?.id ?? "");
+        const source = { speaker: message?.speaker, system: message?.system, whisper: message?.whisper, author: message?.author,
+            rolls: Array.isArray(message?.rolls) ? message.rolls.map(parsedRoll) : message?.rolls };
+        for (const rule of held) {
+            const why = `${rule.why} (${rule.since})`;
+            for (const path of rule.fields ?? []) {
+                for (const [p, v] of valuesAt(source, path)) {
+                    if (!isEmpty(v)) out.push({ kind: "messageField", doc: "ChatMessage", id, path: p, rule: why });
+                }
+            }
+            if (Array.isArray(rule.flagsOnly)) {
+                for (const key of Object.keys(scope)) {
+                    if (!rule.flagsOnly.includes(key)) out.push({ kind: "messageFlag", doc: "ChatMessage", id, path: `flags.${WORLD_SECRET_MODULE}.${key}`, rule: why });
+                }
+            }
+        }
+        if (!held.some(rule => rule.fields?.length)) continue;
+        for (const part of ["speaker", "system", "rolls"]) {
+            if (isObject(source[part])) idsIn("ChatMessage", id, source[part], part);
         }
     }
     return out;

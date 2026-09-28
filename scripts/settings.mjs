@@ -52,6 +52,16 @@ export const SETTINGS = {
     mineEclipseMoves: "mineEclipseMoves",
     legacyEclipseMoves: "eclipseMoves",
     /**
+     * A CONFUSION'S ARMED CALLS (E06 fix r2-G4, 1.2.65; review round 2's mn2): a GM store
+     * (gm-stores.mjs `confusionStore`), a row per target `{ calls }`, and each owner's copy
+     * of their own characters' rows (`confusionCopy`), read beside the character's armed
+     * list by `pendingCalls` (call-effects.mjs). Until 1.2.65 they were entries of the
+     * target's `pendingCall` flag, which every browser holds; the clause
+     * `liftArmedConfusions` moves the ones a 1.2.64 world still has.
+     */
+    gmConfusions: "gmConfusions",
+    mineConfusions: "mineConfusions",
+    /**
      * THE DEATHS NOBODY HAS FOUND (E05 C10, 1.2.64; audit S06-11): a GM store
      * (gm-stores.mjs `deathStore`), a row per body `{ chapter, day, timeOfDay, at,
      * keepBullets, known, loot }` (`loot` since E05 fix r2-F0b: the Truth Bullets a
@@ -482,10 +492,17 @@ export const SETTINGS = {
      * copy over a recipient-addressed socket. A student who is not in the
      * incident receives nothing at all, not an empty envelope.
      *
-     * Participants get the WHOLE cast rather than only their own role, which is
-     * exactly what they could see before this change - they already read each
-     * other's rolls through `incidentAudience`. Narrowing it further is a rules
-     * question about what the victim may know and when, not a leak.
+     * Each participant is sent `castFor`'s copy (murder.mjs; E06 C3, and its fix
+     * r1-G4): nothing for a holder not yet in the incident's audience at its stage
+     * (`incidentAudienceIds` - a direct murder's victim before the opening roll
+     * succeeds), no Reroll receipt (`lastCrisis`, a GM's to judge), no builder's name
+     * in a trap for a holder not on the killers' side, and the betrayal offer only
+     * in the copy of the third it is offered to - who, seated for the offer alone,
+     * is sent that and nothing else. The rest is the cast whole: a direct murder is
+     * fought face to face (D6). Until E06 C3 every participant was sent it all, and
+     * what they read then of each other's rolls came through a whisper list that
+     * named them all (private-rolls.mjs dropped it in E06 C5b: every console read
+     * the list).
      *
      * A GM STORE AND A PLAYER COPY SINCE E04 (1.2.63; audit S04-24, S06-19). The
      * GMs hold `gmCast` (gm-stores.mjs, `castStore`): one record of this world,
@@ -1763,6 +1780,22 @@ export function registerSettings() {
         default: {},
         onChange: () => onStoreChange("visibility")
     });
+    // A Confusion's armed Calls (E06 fix r2-G4): the GMs' store and each owner's copy. The
+    // sheet's badges list what is armed, and a flag write used to redraw them by itself.
+    game.settings.register(MODULE_ID, SETTINGS.gmConfusions, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: onConfusionsChange
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineConfusions, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: onConfusionsChange
+    });
     // The deaths nobody has found (E05 C10): the GMs' store and a player's copy. A body
     // kept secret redraws what a death redraws - the sheets, the HUD, the map - and is
     // told to voice, the traps and the Players window by `drpgDeathsChanged`, which the
@@ -1895,6 +1928,11 @@ function onStoreChange(kind) {
     import("./sync.mjs").then(m => m.applyKind(m.SYNC[kind])).catch(() => {});
 }
 
+/* A Confusion armed or spent on this browser's store or copy: the sheets, whose badges list it. */
+function onConfusionsChange() {
+    import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
+}
+
 /* A death kept by the GMs changed on this browser: the sheets, the HUD and the map
    (the "visibility" kind redraws all three), and the hook the death's own readers
    listen on - voice, the traps' map, the Players window. */
@@ -2015,6 +2053,42 @@ export function incidentIndirect(cast, state) {
 }
 
 /**
+ * WHO IS IN THE INCIDENT AT THIS STAGE (E06 C2, 27.09.2026; audit S04-01, the owner's D6).
+ * One table for every reader that decides who is told: `incidentAudienceIds` in murder.mjs
+ * (the GM's side - who is sent the cast, and from C4 on the cards) and, on each browser,
+ * `incidentWitness` below, the opening Event card (events.mjs) and the HUD's frozen clock.
+ * Until E06 each held its own copy, and two rules sat in them as exceptions: a trap's killer
+ * dropped while the trap runs, and a direct murder's victim dropped by the opening card
+ * alone - `castOwners` sent that victim the cast at the opening, so their curtain, their
+ * music and their console knew of the attempt before the killer's roll had decided there
+ * was one (read off the code; 13-murder-signals' "opening" phase reads it on four browsers).
+ *
+ *     stage          direct                              indirect (a trap)
+ *     openingRoll    the killers                         the victim
+ *     incident       the killers, the victim, the third  the victim, a third not on the killer's side
+ *     anything else  everyone named                      everyone named
+ *
+ * The killers are `killerId` and a `thirdId` whose `thirdSide` is "killer". "Anything else"
+ * is Stage 6 until `endMurder`, where a trap's builder comes back to arrange the scene - and
+ * a cast with no stage at all, which is how the readers before this one counted it too. A
+ * self-inflicted death is direct (`openMurder`), so its one name is seated from the opening
+ * as the killer. Actor ids, in the order the cast names them (killer, victim, third): a
+ * player owning two of them is seated as the first, as `incidentWitness` always did. Pure.
+ */
+export function incidentSeats(cast, state, { stage = state?.stage } = {}) {
+    const killer = cast?.killerId ?? null;
+    const victim = cast?.victimId ?? null;
+    const third = cast?.thirdId ?? null;
+    const thirdKills = cast?.thirdSide === "killer";
+    const indirect = incidentIndirect(cast, state);
+    let seats;
+    if (stage === "openingRoll") seats = indirect ? [victim] : [killer, thirdKills ? third : null];
+    else if (stage === "incident") seats = indirect ? [victim, thirdKills ? null : third] : [killer, victim, third];
+    else seats = [killer, victim, third];
+    return [...new Set(seats.filter(Boolean))];
+}
+
+/**
  * DOES THIS BROWSER WITNESS THE INCIDENT THAT IS RUNNING - and which seat is it?
  *
  * Four things now turn on that one question: the Event card, the HUD's turn
@@ -2028,6 +2102,9 @@ export function incidentIndirect(cast, state) {
  * So it is one function, in the leaf every caller can already reach, and the
  * rules it states are the whole of the rule:
  *
+ *   · the seats are `incidentSeats`' table, by the stage (E06 C2): a direct
+ *     murder's victim is seated from `incident`, not at the opening - which
+ *     their browser does not hold the cast for anyway (`castOwners`)
  *   · the names come from `incidentCast`, never from the world setting - a
  *     bystander's browser holds none of them and must go on holding none; so
  *     does whether it is a trap (E05 C8), by `incidentIndirect`'s rule
@@ -2054,8 +2131,9 @@ export function incidentWitness() {
     } catch {
         return away;
     }
-    // `openingRoll` counts: the trap's roll and the killer's are both part of
-    // the same held breath, and the Event card has always covered both.
+    // `openingRoll` counts for whoever the table seats there: the trap's victim,
+    // and a direct murder's killers - not its victim, who is not asked anything
+    // until the killer's roll has decided there is an incident (D6).
     if (!state.active || (state.stage !== "incident" && state.stage !== "openingRoll")) return away;
 
     const cast = incidentCast();
@@ -2079,12 +2157,9 @@ export function incidentWitness() {
     const assigned = game.user?.character?.id ?? null;
     if (assigned) mine.add(assigned);
 
-    // The killer's seat is simply not on the board during their own trap.
-    const seats = [
-        indirect ? null : cast.killerId,
-        cast.victimId,
-        cast.thirdId
-    ].filter(Boolean);
+    // The killer's seat is simply not on the board during their own trap, nor the
+    // victim's at a direct murder's opening: `incidentSeats`, by the stage.
+    const seats = incidentSeats(cast, state);
 
     const owned = (assigned && seats.includes(assigned))
         ? assigned

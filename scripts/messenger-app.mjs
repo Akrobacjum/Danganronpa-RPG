@@ -32,7 +32,7 @@ import { noteFor, noteStatus, noteTemplate, saveNote, whenNotesHeld } from "./pr
 import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
-import { contentOf, wordsOf } from "./secret.mjs";
+import { contentOf, wordsOf, cardFlag } from "./secret.mjs";
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
 export function registerMessengerUi() {
@@ -444,7 +444,8 @@ Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
      * player's behalf, so even a self-authored card can be news to the GM
      * sitting at that screen. Ordinary chatter keeps the badge. */
     if (game.user.isGM) {
-        if (!message.getFlag(MODULE_ID, MESSENGER_FLAGS.gmAsk)) return;
+        // From the words' meta on a veiled card (E06 C8): `messenger.mjs` raised this once they landed.
+        if (!cardFlag(message, MESSENGER_FLAGS.gmAsk)) return;
         // The words, not the stub: a thread card is a private card now and
         // its text lands a moment after the document does.
         showPopup(cardPreview(await wordsOf(message)), {
@@ -505,7 +506,7 @@ function buildBubble(message) {
     const authorId = message.author?.id ?? message.user?.id;
     const author = game.users.get(authorId);
     const mine = authorId === game.user.id;
-    const kind = message.getFlag(MODULE_ID, MESSENGER_FLAGS.kind);
+    const kind = cardFlag(message, MESSENGER_FLAGS.kind);
     const isAction = kind === THREAD_KIND.action;
 
     const bubble = document.createElement("div");
@@ -529,7 +530,8 @@ function buildBubble(message) {
     body.innerHTML = contentOf(message);
     // The GM's half of a ruling card - the reference table, the "score it
     // against" line - is not the player's to read (COMM-06). Removed, like
-    // the buttons, rather than hidden.
+    // the buttons, rather than hidden. Since E06 C7b a player's words arrive
+    // without it (secret.mjs `playerWords`); this takes it off older ones.
     if (!game.user.isGM) body.querySelectorAll(".drpg-gm-only").forEach(el => el.remove());
     wireCallActions(body, message);
     bubble.append(body);
@@ -577,7 +579,7 @@ export function wireCallActions(body, message = null) {
 
     // Already answered. The card's own text says so - see `settleCall` - and a
     // card from before that existed still gets its buttons taken off here.
-    if (message?.getFlag(MODULE_ID, MESSENGER_FLAGS.settled)) {
+    if (message && cardFlag(message, MESSENGER_FLAGS.settled)) {
         for (const button of buttons) button.closest(".drpg-call-actions")?.remove();
         return;
     }

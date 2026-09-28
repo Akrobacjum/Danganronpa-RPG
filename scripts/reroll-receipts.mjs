@@ -36,6 +36,7 @@ import { TIMING } from "./config.mjs";
 import { isPrimaryGm, debug, pause } from "./utils.mjs";
 import { dualityOfRoll } from "./reroll.mjs";
 import { ownsActor } from "./bridge-guards.mjs";
+import { rollSubjectNow } from "./private-rolls.mjs";
 
 /** `${actorId}|${userId}` -> { messageId, at, wasFear, nowFear, used: Set<string> } */
 const receipts = new Map();
@@ -59,9 +60,16 @@ function rememberFear(messageId, withFear) {
     while (fearOf.size > FEAR_KEPT) fearOf.delete(fearOf.keys().next().value);
 }
 
-/** Every character a roll message speaks for - the reroll's own test (`belongsTo`). */
-function actorIdsOf(message) {
+/**
+ * Every character a roll message speaks for - the reroll's own test (`belongsTo`),
+ * after the character its roller reported to this GM (`rollSubjectNow`, E06 C5a),
+ * which is the one a roll whose speaker names nobody still has. Exported for the
+ * suite.
+ */
+export function actorIdsOf(message) {
     const ids = new Set();
+    const subject = rollSubjectNow(message)?.id;
+    if (subject) ids.add(subject);
     if (message.speaker?.actor) ids.add(message.speaker.actor);
     const source = message.system?.source?.actor;
     if (typeof source === "string" && source) {

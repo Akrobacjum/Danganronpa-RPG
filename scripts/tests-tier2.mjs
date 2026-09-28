@@ -15,7 +15,7 @@ import { voiceTargets } from "./voice.mjs";
 import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle } from "./gm-store.mjs";
 import {
-    ok, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf, fnSource,
+    ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, cast
 } from "./tests-kit.mjs";
 
@@ -292,12 +292,16 @@ async function restore(snap) {
  * Two students stood alone together in a room nobody else is in, for the lights of an
  * Eclipse to judge (E05 C3): both tokens teleported to its centre and read back - a
  * fixture that did not take would measure a refusal instead. `back()` puts them where
- * they were. A teleport, not a walk: see the handover test's note on walls.
+ * they were. A teleport, not a walk: see the handover test's note on walls. `asked`: the
+ * test has asked the world for a second pair already (E06 C4) - a probe asked after the
+ * first pair was stood is a write before the ask.
  */
-async function aloneTogether(killer, victim) {
+async function aloneTogether(killer, victim, { asked = false } = {}) {
     const { allRooms, othersInNamedRoom, othersInRoom, positionIn } = await import("./movement.mjs");
-    needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
-    needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+    if (!asked) {
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
+    }
     const scene = canvas?.scene;
     const tokens = [killer, victim].map(a => scene?.tokens?.find(t => t.actorId === a.id));
     ok(tokens.every(Boolean), "one of the two students has no token on the scene on screen");
@@ -315,6 +319,84 @@ async function aloneTogether(killer, victim) {
             await settle();
         }
     };
+}
+
+/**
+ * The words of every private card this client sent while `run` ran (E06 C4): each
+ * `secret.card` packet (secret.mjs `postSecret`) as { id, to, html } - the card's id, the
+ * users it was addressed to and its words - and every packet let through. A card's
+ * document names nobody when it is veiled, so who was told is read here, off the packets.
+ * The GM's own copy travels no socket and is not among them.
+ */
+async function wordsSent(run) {
+    const socket = game.socket;
+    const own = Object.getOwnPropertyDescriptor(socket, "emit");
+    const send = socket.emit;
+    const sent = [];
+    socket.emit = function (event, packet, options, ...rest) {
+        if (packet?.action === "secret.card") {
+            sent.push({ id: packet.id ?? null, to: options?.recipients ?? [], html: String(packet.html ?? ""), meta: packet.meta ?? null });
+        }
+        return send.call(this, event, packet, options, ...rest);
+    };
+    try {
+        await run();
+    } finally {
+        if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+    }
+    return sent;
+}
+
+/**
+ * The incident's dice this client relayed while `run` ran (E06 C6): each `dice.show`
+ * packet (private-rolls.mjs `relayIncidentDice`) as { id, to } - the message's id and
+ * the users it was addressed to. Shaped as `wordsSent`, above.
+ */
+async function relayedDice(run) {
+    const socket = game.socket;
+    const own = Object.getOwnPropertyDescriptor(socket, "emit");
+    const send = socket.emit;
+    const sent = [];
+    socket.emit = function (event, packet, options, ...rest) {
+        if (packet?.action === "dice.show") sent.push({ id: packet.id ?? null, to: options?.recipients ?? [] });
+        return send.call(this, event, packet, options, ...rest);
+    };
+    try {
+        await run();
+    } finally {
+        if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+    }
+    return sent;
+}
+
+/**
+ * A roll the module throws, whose document names nobody (E06 C5a; since C5b the module's own
+ * doing, private-rolls.mjs `neutralRollSource` - C5a's tests emptied it here with a hook of
+ * their own). Thrown through `rollTrait` as the suite throws every roll. `faces` sets the dice
+ * where the harness reads them (`__forceRoll`); a real table throws its own, so a Fear there
+ * moves Daggerheart's Fear, which restore() does not put back and this does. `title` is the
+ * action's, as `rollTrait` is given one; `experiences` the ids the roll dialog would have
+ * picked (`__forceExperiences`, E06 fix r1-G1). The caller deletes the message.
+ */
+async function neutralRoll(who, { remember = false, faces = null, title = null, experiences = null } = {}) {
+    const rolls = await import("./action-rolls.mjs");
+    const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+    const hadPicks = Object.hasOwn(globalThis, "__forceExperiences"), picks = globalThis.__forceExperiences;
+    const { gameSettings } = CONFIG.DH.SETTINGS;
+    const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+    try {
+        if (faces) globalThis.__forceRoll = faces;
+        if (experiences) globalThis.__forceExperiences = experiences;
+        const outcome = await rolls.rollTrait(who, "eye", { remember, ...(title ? { title } : {}) });
+        return { outcome, message: outcome?.raw?.message ?? null };
+    } finally {
+        if (hadForce) globalThis.__forceRoll = force;
+        else delete globalThis.__forceRoll;
+        if (hadPicks) globalThis.__forceExperiences = picks;
+        else delete globalThis.__forceExperiences;
+        await settle();
+        if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+    }
 }
 
 /**
@@ -356,6 +438,34 @@ async function withVerdictOpen(run) {
     }
 }
 
+/**
+ * A safeword press measured on this GM's browser, and put back (E06 C9). `act(fresh)` presses;
+ * `fresh()` is the safeword cards posted since; `read(cards)` turns them into plain readings
+ * before they are deleted. The pause, the popups the press raised and `player`'s entry in the
+ * repeat window (cleared first, so an earlier press does not swallow this one) are put back.
+ */
+async function safewordRun(S, player, act, read) {
+    const before = new Set(game.messages.map(m => m.id));
+    const fresh = () => game.messages.filter(m => !before.has(m.id) && m.getFlag(MODULE_ID, S.SAFEWORD_FLAG));
+    const popups = () => [...document.querySelectorAll(".drpg-popup")];
+    const up = new Set(popups());
+    const wasPaused = game.paused;
+    const held = S.safewordPosts.get(player.id);
+    S.safewordPosts.delete(player.id);
+    try {
+        await act(fresh);
+        await until(() => fresh().length > 0);
+        await settle();
+        return { ...(await read(fresh())), paused: game.paused, popups: popups().filter(p => !up.has(p)).map(p => p.textContent) };
+    } finally {
+        for (const m of fresh()) { try { await m.delete(); } catch { /* already gone */ } }
+        for (const p of popups()) if (!up.has(p)) p.remove();
+        if (held === undefined) S.safewordPosts.delete(player.id);
+        else S.safewordPosts.set(player.id, held);
+        if (game.paused !== wasPaused) await game.togglePause(wasPaused);
+    }
+}
+
 const SCENARIOS = [
     ["a direct murder opens on the killer and tells the victim", async () => {
         const [killer, victim] = cast(2);
@@ -392,6 +502,1145 @@ const SCENARIOS = [
         ok(toVictim.some(m => /moving on you/i.test(contentOf(m))),
             `${owner.name} was whispered to, but not told the incident began: `
             + toVictim.map(m => contentOf(m).replace(/<[^>]+>/g, "").slice(0, 60)).join(" | "));
+    }],
+
+    ["a direct murder's victim holds nothing until the opening succeeds", async () => {
+        /*
+         * E06 C2, 27.09.2026; audit S04-01, the owner's D6. A direct murder asks its victim
+         * nothing at the opening, and a killer's roll that fails ends it as if it never
+         * happened - but the victim's player was sent the cast as it opened, and with it the
+         * curtain, the music and the killer's name. The audience the GM sends to
+         * (`incidentAudienceIds`) and the seat this browser reads (`incidentWitness`, this GM
+         * sitting in the victim's chair) are read at once after the open and after the roll's
+         * success: the victim is in neither at the opening and in both once the fight starts;
+         * the killer's player is told from the start. Both students have a connected player:
+         * an opening roll with nobody to ask is thrown on this client and races the one below
+         * (E05, "the trial asks only for the killers of deaths the table knows..."). What
+         * reaches the victim's browser is 13-murder-signals' "opening" phase: tier 2 holds the
+         * stores, so no cast is sent here.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim with a player to tell");
+        const M = await import("./murder.mjs");
+        const { incidentWitness } = await import("./settings.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const read = state => {
+            const told = M.incidentAudienceIds(state);
+            return { stage: state?.stage ?? null, killer: told.includes(player(killer).id), victim: told.includes(player(victim).id),
+                seat: incidentWitness().seat };
+        };
+        const assignedBefore = game.user.character ?? null;
+        try {
+            await game.user.update({ character: victim.id });
+            const atOpening = read(await M.openMurder({ killerId: killer.id, victimId: victim.id }));
+            await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            const atIncident = read(M.murderState());
+            equal(stableJson([atOpening, atIncident]), stableJson([
+                { stage: "openingRoll", killer: true, victim: false, seat: null },
+                { stage: "incident", killer: true, victim: true, seat: victim.id }
+            ]), "a direct murder's victim is told at the opening, or not once it succeeds, or the killer is not told from the start");
+        } finally {
+            await game.user.update({ character: assignedBefore?.id ?? null });
+        }
+    }],
+
+    ["a failed opening tells the victim nothing", async () => {
+        /*
+         * E06 C2, 27.09.2026; the owner's D6. A direct murder whose killer's roll fails never
+         * happened as far as its victim is concerned (`resolveVictimOpening`'s note): nothing
+         * addressed to their player from the open to the close - no packet this client sends
+         * (every `game.socket.emit` caught for the test's length, and let through) and no chat
+         * card whispered to them. The net is shown to catch: the opening roll is asked of the
+         * killer's connected player (gm-bridge.mjs `askOpeningRoll`), addressed, and it sees
+         * that. Tier 2 holds the stores, so a cast would not be sent here even to a
+         * participant; 13-murder-signals reads the victim's browser for it. Red on the first
+         * C2 tree (27.09): the invitation's withdrawal, `murder.openingCancel`, was addressed
+         * to the victim's player as well (murder.mjs `revokeOpeningInvitation`).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim with a player to tell");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const before = game.messages.size;
+        const sent = [];
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        socket.emit = function (event, packet, options, ...rest) {
+            sent.push({ action: packet?.action ?? null, to: options?.recipients ?? [] });
+            return send.call(this, event, packet, options, ...rest);
+        };
+        let opened = null, failed = null, after = null;
+        try {
+            opened = await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            failed = await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+            after = M.murderState();
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+        }
+        const to = user => sent.filter(p => p.to.includes(user.id)).map(p => p.action);
+        /* A veiled card is whispered to every player alike and its words travel by an addressed
+           packet (secret.mjs `VEILED_FLAG`), which the net above reads: measured 27.09, one such
+           card - from the GM, no speaker - named the victim's player in its whisper as it names
+           everybody's. The cards that count are the ones addressed. */
+        const { VEILED_FLAG } = await import("./secret.mjs");
+        const whisperedTo = [...game.messages].slice(before)
+            .filter(m => m.whisper.includes(player(victim).id) && !m.getFlag(MODULE_ID, VEILED_FLAG));
+        const whispered = whisperedTo.length;
+        equal(stableJson([opened?.stage ?? null, failed?.success ?? null, after, to(player(killer)).includes("murder.openingAsk")]),
+            stableJson(["openingRoll", false, null, true]),
+            `the opening did not fail and close, or the net did not see the roll asked of the killer's player: ${stableJson(sent)}`);
+        equal(stableJson([to(player(victim)), whispered]), stableJson([[], 0]),
+            "the victim's player was sent a packet or a chat card by an opening that failed: "
+            + stableJson(whisperedTo.map(m => ({ author: m.author?.id ?? null, speaker: m.speaker?.actor ?? null, rolls: m.rolls?.length ?? 0,
+                flags: Object.keys(m.flags?.[MODULE_ID] ?? {}), text: String(m.content ?? "").replace(/<[^>]+>/g, "").slice(0, 80) }))));
+    }],
+
+    ["an indirect victim's copy does not name the builder, and no copy holds the Reroll receipt", async () => {
+        /*
+         * E06 C3, 27.09.2026; audit S04-01 (L09, L10). Every holder of the cast was sent the
+         * record whole but for the swing memo: a trap's victim read its builder in their copy
+         * (and on their Event card), and every participant held the Reroll receipt. What each
+         * holder is sent is `castFor` in murder.mjs, read here for three students with players:
+         * a trap is opened, its victim's roll misses (the incident starts), a third walks in on
+         * the victim's side and the victim takes a crisis action, which writes the receipt;
+         * then Stage 6, where the builder is let back in and the third - on the victim's side,
+         * who never met the builder - is offered no betrayal (fix r1-G4, 28.09.2026; the round-1
+         * review's M3: until then this test asserted the offer, and the builder's name with it,
+         * in the third's copy - red at d9d6ee2 once it expects none). Read, not sent: tier 2 holds the stores and `sendCast` sends nothing while it does
+         * (the packet a browser receives is 13-murder-signals' "trap" phase). Red on 699b29d:
+         * `castFor` did not exist.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a builder, a victim and a third, each with a player to be sent a copy");
+        const M = await import("./murder.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim, third] = livingStudents().filter(player);
+        const copies = (...whom) => whom.map(a => {
+            const c = M.castFor(player(a).id, incidentCast());
+            return { killer: c.killerId ?? null, turn: c.killerTurnId ?? null, receipt: c.lastCrisis ?? null, offer: c.betrayal?.killerId ?? null };
+        });
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        // The victim's player is asked the roll too; whichever lands first, a miss starts the incident.
+        if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await settle();
+        await M.thirdPartyEnters(third);
+        await game.drpg.resolveCrisisAction({ actorId: victim.id, key: "leaveClue", total: 2, isCritical: false, withHope: false });
+        await settle();
+        const record = incidentCast();
+        const atIncident = copies(victim, third);
+        await M.beginResolution("test");
+        await settle();
+        const atStage6 = copies(victim, third, builder);
+        const turn = incidentCast().killerTurnId ?? null;
+        const none = { killer: null, turn: null, receipt: null, offer: null };
+        equal(stableJson([record.killerId, record.thirdId, Boolean(record.lastCrisis), turn]), stableJson([builder.id, third.id, true, builder.id]),
+            `the fixture is not a trap with a third and a receipt, its killers' turn is not the builder's: ${stableJson(record)}`);
+        equal(stableJson(atIncident), stableJson([none, none]),
+            "during the trap the victim's or the third's copy names the builder, or a copy holds the Reroll receipt");
+        equal(stableJson([atStage6, M.betrayalTarget(third)?.id ?? null]), stableJson([[none, none, { ...none, killer: builder.id, turn: builder.id }], null]),
+            "at Stage 6 the victim's or the third's copy names the builder, the third on the victim's side is offered the betrayal, the builder's own copy lost its name, or a copy holds the receipt");
+    }],
+
+    ["in a trap only an accomplice is offered the betrayal, and only their copy holds it", async () => {
+        /*
+         * E06 fix r1-G4, 28.09.2026; the round-1 review's M3. `betrayalCandidate` offers a trap's
+         * betrayal only to a third on the killer's side (the test above: a third on the victim's
+         * side is offered none), and `castFor` keeps the offer out of every copy but its third's.
+         * The same fixture as above, but the third throws in with the builder (Partners in crime).
+         * Green at d9d6ee2 but for the builder's copy, which held the offer too.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a builder, a victim and a third, each with a player to be sent a copy");
+        const M = await import("./murder.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim, third] = livingStudents().filter(player);
+        const copies = (...whom) => whom.map(a => {
+            const c = M.castFor(player(a).id, incidentCast());
+            return { killer: c.killerId ?? null, offer: c.betrayal?.killerId ?? null };
+        });
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await settle();
+        await M.thirdPartyEnters(third);
+        await game.drpg.resolveCrisisAction({ actorId: third.id, key: "crimePartners", total: 20, isCritical: false, withHope: true });
+        await settle();
+        await M.beginResolution("test");
+        await settle();
+        equal(stableJson([M.murderState()?.thirdSide ?? null, M.betrayalTarget(third)?.id ?? null, copies(third, builder, victim)]),
+            stableJson(["killer", builder.id, [{ killer: builder.id, offer: builder.id }, { killer: builder.id, offer: null }, { killer: null, offer: null }]]),
+            "the accomplice of a trap is not offered the betrayal, their copy does not hold it, or another copy holds it");
+    }],
+
+    ["a direct murder's third on the victim's side is still offered the betrayal", async () => {
+        /*
+         * E06 fix r1-G4, 28.09.2026. The trap's rule (the tests above) is not a direct murder's:
+         * a third who walked in on its victim's side met the killer, and is still offered the
+         * betrayal - whether they should be is a question put to the owner (the fix list of
+         * 28.09), and this pins today's answer so a change to it is a decision, not a side effect.
+         */
+        const [killer, victim, third] = cast();
+        const M = await import("./murder.mjs");
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        await M.thirdPartyEnters(third);
+        await settle();
+        await M.beginResolution("test");
+        await settle();
+        equal(stableJson([M.murderState()?.thirdSide ?? null, M.betrayalTarget(third)?.id ?? null]), stableJson([null, killer.id]),
+            "a direct murder's third on the victim's side is not offered the betrayal");
+    }],
+
+    ["a standing betrayal offer sends its third nothing of the next incident, and the next incident nothing of it", async () => {
+        /*
+         * E06 fix r1-G4, 28.09.2026; the round-1 review's m4. The offer outlives its incident
+         * until the day turns (D18), and `castOwners` seats its third so it reaches their
+         * browser. An incident opened the same day then sent them its cast whole - a direct
+         * one's killer and victim from its opening roll on - and sent each of its own seats the
+         * offer, the earlier killer named. What each is sent is `castFor`, read here for a cast
+         * written as `openMurder` and `endMurder` leave it (the offer kept across the close):
+         * the new incident's killer and victim, and the earlier offer's third, who is neither.
+         * Red at d9d6ee2.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an earlier offer's third, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const clock = getClock() ?? {};
+        const offer = { thirdId: third.id, killerId: victim.id, chapter: clock.chapter, day: clock.day };
+        const next = { killerId: killer.id, victimId: victim.id, killerTurnId: killer.id, thirdId: null, thirdSide: null, lastCrisis: null, betrayal: offer };
+        const read = (a, cast, state) => {
+            const c = M.castFor(player(a).id, cast, state);
+            return { keys: Object.keys(c).sort().join(","), offer: c.betrayal?.killerId ?? null };
+        };
+        const at = state => [killer, victim, third].map(a => read(a, next, state));
+        const seat = { keys: "betrayal,killerId,killerTurnId,lastCrisis,thirdId,thirdSide,victimId", offer: null };
+        const theirs = { keys: "betrayal", offer: victim.id };
+        equal(stableJson(at({ active: true, stage: "openingRoll" })), stableJson([seat, { keys: "", offer: null }, theirs]),
+            "at the next incident's opening the offer's third is sent more than the offer, or a seat of it is sent the offer");
+        equal(stableJson(at({ active: true, stage: "incident" })), stableJson([seat, seat, theirs]),
+            "during the next incident the offer's third is sent more than the offer, or a seat of it is sent the offer");
+        equal(stableJson([killer, third].map(a => read(a, { betrayal: offer }, {}))), stableJson([{ keys: "", offer: null }, theirs]),
+            "after the close the offer's third is not sent it, or somebody else is");
+    }],
+
+    ["the incident's cards reach its audience and no one else", async () => {
+        /*
+         * E06 C4, 27.09.2026; audit S04-01 (L11). A crisis card was whispered to the owners of
+         * the killer, the victim and the third read off the state, so a trap's builder - in no
+         * room, holding no copy of the cast until Stage 6 - was sent the words of every card of
+         * the fight. The card's audience is `incidentAudienceIds` now and the actor who acted
+         * (murder.mjs `announceCrisis`). A trap is opened, its victim's roll misses and the
+         * victim takes a crisis action (C3's fixture); every card's words this GM sends for it
+         * are read off the packets (`wordsSent`): the victim's player is sent the card, the
+         * builder's player nothing.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a trap's builder and its victim, each with a player to be sent a card's words");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim] = livingStudents().filter(player);
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        // The victim's player is asked the roll too; whichever lands first, a miss starts the incident.
+        if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await settle();
+        const stage = M.murderState()?.stage ?? null;
+        const words = await wordsSent(async () => {
+            await game.drpg.resolveCrisisAction({ actorId: victim.id, key: "leaveClue", total: 2, isCritical: false, withHope: false });
+            await settle();
+        });
+        const to = user => words.filter(w => w.to.includes(user.id));
+        const card = to(player(victim)).some(w => w.html.includes(`- ${foundry.utils.escapeHTML(victim.name)}</h3>`));
+        equal(stableJson([stage, card, to(player(builder)).length]), stableJson(["incident", true, 0]),
+            `the trap's incident did not start, its victim's player was not sent the crisis card, or its builder's player was sent a card's words: ${
+                stableJson(words.map(w => ({ to: w.to, text: w.html.replace(/<[^>]+>/g, " ").trim().slice(0, 80) })))}`);
+    }],
+
+    ["a trap's last crisis card does not reach its builder", async () => {
+        /*
+         * E06 fix r1-G3, 28.09.2026; review m1 = F3. A crisis card's audience was read at the
+         * stage the card is written at, and an action that ends a trap moves it to `resolution`
+         * first, where the table seats the builder again - so they were sent the victim's last
+         * action, its total and its band. `announceCrisis` takes the stage the action was taken
+         * at now. A trap is opened, its victim's roll misses, and the victim Survives (which
+         * ends the incident); the card's words this GM sends are read off the packets
+         * (`wordsSent`): the victim's player is sent it, the builder's player not.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a trap's builder and its victim, each with a player to be sent a card's words");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim] = livingStudents().filter(player);
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await settle();
+        const stage = M.murderState()?.stage ?? null;
+        const words = await wordsSent(async () => {
+            await game.drpg.resolveCrisisAction({ actorId: victim.id, key: "survive", total: 30, isCritical: false, withHope: true });
+            await settle();
+        });
+        const card = user => words.some(w => w.to.includes(user.id) && w.html.includes(`- ${foundry.utils.escapeHTML(victim.name)}</h3>`));
+        equal(stableJson([stage, M.murderState()?.stage ?? null, card(player(victim)), card(player(builder))]),
+            stableJson(["incident", "resolution", true, false]),
+            `the trap's incident did not start and end on Survive, its victim's player was not sent the card, or its builder's player was: ${
+                stableJson(words.map(w => ({ to: w.to, text: w.html.replace(/<[^>]+>/g, " ").trim().slice(0, 80) })))}`);
+    }],
+
+    ["the third party who leaves is told", async () => {
+        /*
+         * E06 C4, 27.09.2026; audit S04-36 (L11). A third party who walks in and chooses Averted
+         * eyes leaves the incident before the card of that choice is written - `thirdId` is
+         * nulled on the way (murder.mjs `applyThirdPartyChoice`) - and the card's list was read
+         * off the state afterwards, so the one person the card is about was the one not sent it.
+         * `announceCrisis` adds the actor who acted (`also`). A direct murder, its opening ruled
+         * a success here (C2's fixture), a third walks in and averts their eyes; the packets
+         * this GM sends for the choice are read (`wordsSent`).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player to be sent the card");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await M.thirdPartyEnters(third);
+        await settle();
+        const joined = M.murderState()?.thirdId ?? null;
+        const words = await wordsSent(async () => {
+            await game.drpg.resolveCrisisAction({ actorId: third.id, key: "avertedEyes", total: 0, isCritical: false, withHope: true });
+            await settle();
+        });
+        const cardTo = user => words.some(w => w.to.includes(user.id) && w.html.includes(`- ${foundry.utils.escapeHTML(third.name)}</h3>`));
+        equal(stableJson([joined, M.murderState()?.thirdId ?? null, cardTo(player(third)), cardTo(player(killer)), cardTo(player(victim))]),
+            stableJson([third.id, null, true, true, true]),
+            `the third did not walk in and leave, or the card of their choice did not reach them, the killer or the victim: ${
+                stableJson(words.map(w => ({ to: w.to, text: w.html.replace(/<[^>]+>/g, " ").trim().slice(0, 80) })))}`);
+    }],
+
+    ["the time of day in an incident is veiled and names nobody", async () => {
+        /*
+         * E06 C4, 27.09.2026; audit S10-04 (L12). While an incident runs the time of day is told
+         * to the people in it alone (clock.mjs `announceTimeOfDay`, since 26.08), and it was a
+         * plain whisper: its list - the GMs and every participant's owner, a trap's builder
+         * among them - is a field every console reads. It is veiled now and its words go to
+         * the GMs and `incidentAudienceIds`. A trap is opened and its incident started; the GM
+         * moves the time of day; the card is read off the log (veiled, everybody on its list,
+         * no actor speaking) and its words off the packets (`wordsSent`): the victim's player
+         * is sent them, the builder's is not. The clock is put back.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a trap's builder and its victim, each with a player to be sent the words");
+        const M = await import("./murder.mjs");
+        const C = await import("./clock.mjs");
+        const { TIMES_OF_DAY } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim] = livingStudents().filter(player);
+        const clock = getClock();
+        const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1) % TIMES_OF_DAY.length];
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await settle();
+        const from = game.messages.size;
+        let words = [];
+        try {
+            words = await wordsSent(async () => {
+                await C.setTimeOfDay(next, { resetSearchTokens: false });
+                await settle();
+            });
+        } finally {
+            await setClock(clock);
+            await settle();
+        }
+        const label = C.timeOfDayLabel(next);
+        const card = game.messages.contents.slice(from).find(m => words.some(w => w.id === m.id && w.html.includes(label)))
+            ?? game.messages.contents.slice(from).find(m => String(m.content ?? "").includes(label)) ?? null;
+        const sent = words.find(w => w.id === card?.id) ?? { to: [] };
+        const everybody = game.users.map(u => u.id).sort();
+        equal(stableJson([M.murderState()?.stage ?? null, Boolean(card), Boolean(card?.getFlag(MODULE_ID, "veiled")),
+            stableJson([...(card?.whisper ?? [])].sort()) === stableJson(everybody), card?.speaker?.actor ?? null,
+            sent.to.includes(player(victim).id), sent.to.includes(player(builder).id)]),
+            stableJson(["incident", true, true, true, null, true, false]),
+            `the time of day in the trap was not one veiled card naming everybody, or its words missed the victim or reached the builder: ${
+                stableJson({ whisper: card?.whisper ?? null, speaker: card?.speaker ?? null, flags: Object.keys(card?.flags?.[MODULE_ID] ?? {}), to: sent.to })}`);
+    }],
+
+    ["a direct murder's victim is told who is moving on them, a trap's victim is not", async () => {
+        /*
+         * E06 C4, 27.09.2026; audit S04-31, the owner's D6. The victim of a direct murder was
+         * told "Someone is moving on you" while the Event card and their copy of the cast named
+         * the killer - face to face; the whisper names the killer now (`victimUnderAttackBy`,
+         * murder.mjs `tellVictimTheIncidentBegan`). A trap's victim is told the trap closed,
+         * and nothing of its builder. Each murder is opened and its incident started with the
+         * same two students; the words sent to the victim's player are read off the packets.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player to be told");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const name = foundry.utils.escapeHTML(killer.name);
+        const toVictim = words => words.filter(w => w.to.includes(player(victim).id)).map(w => w.html);
+        const direct = toVictim(await wordsSent(async () => {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+        }));
+        await M.endMurder({ reason: "test", followUp: false });
+        await settle();
+        const trap = toVictim(await wordsSent(async () => {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, indirect: true });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+            await settle();
+        }));
+        const attacked = game.i18n.format("DRPG.Murder.victimUnderAttackBy", { killer: name });
+        const sprung = game.i18n.localize("DRPG.Murder.victimTrapSprung");
+        equal(stableJson([direct.some(h => h.includes(attacked)), trap.some(h => h.includes(sprung)), trap.some(h => h.includes(name))]),
+            stableJson([true, true, false]),
+            `the direct victim was not told the killer's name, or the trap's victim was not told it closed, or was told its builder's name: ${
+                stableJson({ direct: direct.map(h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 80)), trap: trap.map(h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 80)) })}`);
+    }],
+
+    ["a second killer in the same Eclipse is told only that the attempt is refused", async () => {
+        /*
+         * E06 C4, 27.09.2026; audit S10-38, the owner's D6. Two direct murders declared in one
+         * Eclipse and both standing at the lights: the first opens the incident, the second is
+         * refused (eclipse.mjs `judgePendingMurders`). Its killer was told "an incident was
+         * already running" - that somebody was being killed somewhere at that moment. They are
+         * told the ordinary refusal now (`murderRefused`), and the GMs keep the reason
+         * (`murderSecondDeclaration`). Two pairs stood alone in two rooms, both declarations
+         * allowed and named for this Eclipse, the second declared after the first; the Eclipse
+         * ends and the words sent to the second killer's player are read off the packets, the
+         * GMs' card off this GM's own copy.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two killers whose players are sent the lights' answers");
+        needs(world.atLeast("livingStudents", 4), "two killers and two victims");
+        needs(world.atLeast("studentTokensOnScreen", 4), "each pair is stood in a room by their tokens");
+        needs(world.atLeast("namedRooms", 3), "a room is left to each pair");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [first, second] = livingStudents().filter(player);
+        const [firstVictim, secondVictim] = livingStudents().filter(a => a !== first && a !== second);
+        equal(M.murderState(), null, "an incident was already running when this scenario started");
+        const stood = [await aloneTogether(first, firstVictim, { asked: true })];
+        let words = [];
+        const from = game.messages.size;
+        try {
+            stood.push(await aloneTogether(second, secondVictim, { asked: true }));
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId();
+            ok(E.isEclipse() && id, `the Eclipse did not open, or has no name (${id})`);
+            for (const [at, killer, room] of [[1, first, stood[0].room], [2, second, stood[1].room]]) {
+                await S.pendingMurderStore.patch(killer.id, { room, note: "SUITE E06 C4 declared in the dark", at, approved: true, eclipse: id });
+            }
+            words = await wordsSent(async () => {
+                await E.endEclipse({ advance: false });
+                await settle();
+            });
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await S.pendingMurderStore.dropMany([first.id, second.id].filter(id => S.pendingMurderStore.has(id)));
+            for (const s of stood.reverse()) await s.back();
+        }
+        const refused = game.i18n.localize("DRPG.Action.murderRefused");
+        const toSecond = words.filter(w => w.to.includes(player(second).id)).map(w => w.html);
+        const reason = game.i18n.format("DRPG.Action.murderSecondDeclaration", { killer: foundry.utils.escapeHTML(second.name) });
+        const gmKept = game.messages.contents.slice(from).some(m => contentOf(m).includes(reason));
+        equal(stableJson([toSecond.length, toSecond.some(h => h.includes(refused)), gmKept]), stableJson([1, true, true]),
+            `the second killer was not sent one card, the ordinary refusal, or the GMs lost the reason: ${
+                stableJson(toSecond.map(h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 100)))}`);
+    }],
+
+    ["the GM finds a neutral roll's subject", async () => {
+        /*
+         * E06 C5a, 27.09.2026; audit S02-02, S04-02 (the plan's 2.3). A roll's document is to
+         * name nobody, so the character it is about reaches the primary GM by a report,
+         * `roll.subject`, and `rollSubject` answers from what was reported. A roll thrown here,
+         * its document emptied as it was created (`neutralRoll`): its subject is found - on the
+         * GM who threw it, kept without a packet. Then four reports, judged as the listener
+         * judges them: a connected player's of a roll the GM wrote, and of a character they do
+         * not play; a GM's of a message that is not a roll the module threw - each refused,
+         * logged and told to nobody (quiet); and a GM's of its own roll, which is taken and read
+         * back. The report crossing the socket from a player is 33-bridge-paths' A10.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a refused report is sent by a player, and Foundry names only a connected one");
+        const [who] = cast(1);
+        const P = await import("./private-rolls.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const U = await import("./utils.mjs");
+        const plays = (u, a) => a.type === "character" && a.testUserPermission(u, "OWNER");
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => plays(u, a)));
+        const theirs = game.actors.find(a => plays(player, a));
+        const other = game.actors.find(a => a.type === "character" && !plays(player, a));
+        must(other, `${player.name} plays every character - a report of somebody else's cannot be made here`);
+        const made = [];
+        const refusals = () => U.sessionFailures().filter(e => String(e.message).includes('Refused a "roll.subject"')).length;
+        try {
+            const { message } = await neutralRoll(who, { faces: { hope: 9, fear: 5 } });
+            made.push(message?.id);
+            must(message && !message.speaker?.actor && !message.system?.source?.actor,
+                "the roll's document still names its character, or there is none - this measured nothing");
+            const found = P.rollSubjectNow(message)?.id ?? null;
+            const plain = await ChatMessage.create({ content: "E06 C5a: not a roll the module threw" });
+            made.push(plain?.id);
+            const sent = [];
+            const ask = (from, messageId, actorId) => G.judge(P.ROLL_ACTIONS,
+                { action: "roll.subject", messageId, actorId }, from, { send: (to, packet) => sent.push(packet?.action ?? null) });
+            const before = refusals();
+            const verdicts = [
+                await ask(player.id, message.id, theirs.id),
+                await ask(player.id, message.id, other.id),
+                await ask(game.user.id, plain.id, who.id),
+                await ask(game.user.id, message.id, other.id)
+            ];
+            equal(stableJson([found, verdicts, refusals() - before, sent, P.rollSubjectNow(message)?.id ?? null]),
+                stableJson([who.id, [null, null, null, true], 3, [], other.id]),
+                "the subject was not found, a report that is not the sender's to make was taken or told, or a GM's own was not kept");
+        } finally {
+            for (const id of made) await game.messages.get(id ?? "")?.delete();
+        }
+    }],
+
+    ["a Fear on a neutral roll feeds the right Monokuma", async () => {
+        /*
+         * E06 C5a, 27.09.2026; the plan's section 0, fact 6. The Despair award found the roller's
+         * character on the message - its speaker, then `system.source.actor`, then the author's
+         * assigned character - and a roll whose document names nobody left it with the GM's, which
+         * is nobody's: the Fear fed no pool. It asks `rollSubject` now, which waits for the
+         * report. The student's Monokuma is set to 0 and a Fear thrown for the student; that pool
+         * gains one and no other moves. The harness sets the dice; at a real table they fall as
+         * they fall, and a Hope there measures only that nothing was fed.
+         */
+        const [who] = cast(1);
+        const D = await import("./despair.mjs");
+        const { monokumaFor } = await import("./assignments.mjs");
+        const { readDuality } = await import("./despair-award.mjs");
+        const mono = monokumaFor(who);
+        must(mono, `${who.name} feeds no Monokuma's pool - this would measure nothing`);
+        const pools = () => D.monokumas().map(u => [u.id, D.getDespair(u.id)]);
+        let message = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, true);
+            await D.setDespair(mono.id, 0);
+            const before = pools();
+            ({ message } = await neutralRoll(who, { faces: { hope: 3, fear: 9 } }));
+            must(message && !message.speaker?.actor && !message.system?.source?.actor,
+                "the roll's document still names its character, or there is none - this measured nothing");
+            const feared = Boolean(readDuality(message)?.withFear);
+            const expected = before.map(([id, n]) => [id, id === mono.id && feared ? n + 1 : n]);
+            await until(() => stableJson(pools()) === stableJson(expected), 6000);
+            await settle();
+            equal(stableJson(pools()), stableJson(expected),
+                `${feared ? "a Fear" : "a Hope"} on a roll that names nobody fed the wrong pools, or none`);
+        } finally {
+            await message?.delete();
+        }
+    }],
+
+    ["a Reroll of a neutral roll finds it, and its receipt and its settlement name its character", async () => {
+        /*
+         * E06 C5a, 27.09.2026; the plan's section 0, fact 6. Three readers of a Reroll found the
+         * character on the message: the roller's scan of recent chat (`belongsTo`), the GM's
+         * receipt (`actorIdsOf`) and the settlement of Hope and Sanity (`rollTarget`, from the
+         * roll's `source.actor`). A roll whose document names nobody, with its bookmark: the
+         * bookmark finds it, and so does the scan once the bookmark is gone - from what this
+         * browser kept when it threw it; the receipt's reader names the character; and the
+         * settlement lands on the character the Reroll was asked for, where the roll alone names
+         * nobody. The Reroll itself is not thrown: `Roll#reroll` is not in the harness, and a
+         * receipt is a player's, made on the GM's client from that player's rewrite -
+         * 33-bridge-paths' A10 makes one. The bookmark store and the message are put back.
+         * E06 fix r1-G1, 28.09.2026: the roll is thrown with the student's experience picked, and
+         * the bookmark keeps it - the roll's message no longer does, and the Reroll rebuilds the
+         * formula from the bookmark's (reroll.mjs `rollAsThrown`, R204).
+         */
+        const [who] = cast(1);
+        const picked = Object.keys(who.system?.experiences ?? {}).slice(0, 1);
+        must(picked.length, `${who.name} has no experience to pick - this would measure nothing`);
+        const R = await import("./reroll.mjs");
+        const { actorIdsOf } = await import("./reroll-receipts.mjs");
+        const kept = getSetting(SETTINGS.rollBookmarks);
+        let message = null;
+        try {
+            ({ message } = await neutralRoll(who, { remember: true, faces: { hope: 9, fear: 5 }, experiences: picked }));
+            must(message && !message.speaker?.actor && !message.system?.source?.actor && message.rolls?.[0],
+                "the roll's document still names its character, or holds no roll - this measured nothing");
+            const byMark = R.lastRollOf(who).message?.id ?? null;
+            const marked = R.lastRollOf(who).bookmark?.experiences ?? null;
+            const stored = typeof message.toObject().rolls[0] === "string" ? JSON.parse(message.toObject().rolls[0]) : message.toObject().rolls[0];
+            await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, {});
+            const byScan = R.lastRollOf(who).message?.id ?? null;
+            const original = message.rolls[0];
+            const [target, alone] = [await R.rollTarget(original, who), await R.rollTarget(original)];
+            equal(stableJson([byMark, byScan, actorIdsOf(message), target?.id ?? null, alone?.id ?? null, marked, stored?.options?.experiences ?? null]),
+                stableJson([message.id, message.id, [who.id], (who.system?.partner ?? who).id, null, picked, null]),
+                "a Reroll would not find the roll, its receipt or its settlement would not name the character, or its bookmark lost the experiences the roll no longer holds");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, kept ?? {});
+            await message?.delete();
+        }
+    }],
+
+    ["a module roll's document names nobody", async () => {
+        /*
+         * E06 C5b, 27.09.2026; audit S02-02, S04-02 (the plan's 2.3). Every browser holds a roll's
+         * document whoever it is whispered to, and a roll the module threw named its character in
+         * its speaker, in Daggerheart's `system.source.actor` and in each roll's options (the
+         * actor's uuid, its id and name in `data`), its action in `system.title` and the options'
+         * title and headerTitle, and its player in the whisper list. A student's roll with an
+         * action's title is thrown twice by this GM, with rolls forced private and without: each
+         * document holds none of it - the whole source is searched for the character's id and
+         * name and for the title - and reads clean against the world-secrets rule, the first is
+         * whispered to the GMs alone (not to the student's player, whom a GM's roll for them
+         * used to add), the second to nobody, as the table chose; and the GM still knows whose
+         * roll each was (`rollSubjectNow`, from what it kept as it threw).
+         * WHAT ITS OPTIONS KEPT OF THE SHEET (E06 fix r1-G1, 28.09.2026; review M1 = F1). C5b took
+         * the id and the name out of a roll's `data`, measured on a harness that wrote nothing
+         * else there; Daggerheart writes the character's whole system (client-entry.mjs
+         * `diceRoll`, now in that shape). The roll's data is read empty, its effects, the
+         * experiences picked and its statistic absent, and the source is searched for the
+         * student's experience names and companion's uuid as well as for the id and the name -
+         * the seed's biography names its student. With C5b's cut alone, the name was found.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the student's player is who the old whisper list named");
+        const P = await import("./private-rolls.mjs");
+        const { findWorldSecrets } = await import("./world-secrets.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const who = livingStudents().find(player);
+        const TITLE = "E06 C5b - a secret action";
+        const sheet = [...Object.values(who.system?.experiences ?? {}).map(e => e?.name), who.system?.companion].filter(Boolean);
+        must(sheet.length >= 2, "the student's sheet holds no named experience or companion - this would measure nothing");
+        const forced = getSetting(SETTINGS.forcePrivateRolls);
+        const made = [];
+        const read = async () => {
+            const { message } = await neutralRoll(who, { faces: { hope: 9, fear: 5 }, title: TITLE });
+            made.push(message?.id);
+            must(message && P.isClaimedRoll(message) && message.rolls?.length, "no roll the module threw was made - this would measure nothing");
+            const source = message.toObject();
+            const roll = typeof source.rolls[0] === "string" ? JSON.parse(source.rolls[0]) : source.rolls[0];
+            const text = JSON.stringify(source);
+            return {
+                fields: [source.speaker?.actor ?? null, source.speaker?.token ?? null, source.system?.title ?? null, source.system?.source?.actor ?? null,
+                    roll?.options?.title ?? null, roll?.options?.headerTitle ?? null, roll?.options?.source?.actor ?? null,
+                    roll?.options?.data ?? null, roll?.options?.effects ?? null, roll?.options?.experiences ?? null,
+                    roll?.options?.roll?.trait ?? null],
+                named: [who.id, who.name, TITLE, ...sheet].filter(x => text.includes(x)),
+                rule: findWorldSecrets({ messages: [{ id: source._id, flags: source.flags, speaker: source.speaker, system: source.system,
+                    rolls: source.rolls, whisper: source.whisper, author: source.author }] }, { ids: [who.id] }).map(h => h.path),
+                whisper: [...(source.whisper ?? [])].sort(),
+                subject: P.rollSubjectNow(message)?.id ?? null
+            };
+        };
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+            const privately = await read();
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, false);
+            const openly = await read();
+            const empty = [null, null, "", "", "", "", "", {}, null, null, null];
+            equal(stableJson([privately, openly]), stableJson([
+                { fields: empty, named: [], rule: [], whisper: [...gmIds()].sort(), subject: who.id },
+                { fields: empty, named: [], rule: [], whisper: [], subject: who.id }]),
+                `a roll the module threw still names its character, its action or its player, or the GM lost whose it was (${player(who).name} plays ${who.name})`);
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forced);
+            for (const id of made) await game.messages.get(id ?? "")?.delete();
+        }
+    }],
+
+    ["a roll's character is kept before its dice have landed", async () => {
+        /*
+         * E06 fix r1-G2, 28.09.2026; review F4. Daggerheart creates a roll's message and then waits
+         * for Dice So Nice's animation before the roll returns (dhRoll.mjs:162-165, read in 2.6.5),
+         * and until this fix the roller said whose roll it was only then - so the Despair award,
+         * which waits four seconds for it, lost a GM's roll for a student, or a player's who plays
+         * two, whenever the dice fell for longer. This GM, the primary, which keeps its own roll's
+         * character without a packet, throws a student's roll with the animation's wait wrapped
+         * by a probe that reads, as the wait begins, which character it keeps for the message.
+         * Without Dice So Nice nothing is waited for and there is nothing to measure.
+         */
+        needs(world.moduleActive("dice-so-nice"), "Dice So Nice, whose animation Daggerheart waits for once it has created the roll");
+        must(typeof game.dice3d?.waitFor3DAnimationByMessageID === "function", "Dice So Nice is on, and its animation cannot be waited for");
+        const P = await import("./private-rolls.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(isPrimaryGm(), "the primary GM keeps its own roll's character, and this GM is not it");
+        const who = livingStudents()[0];
+        must(who, "no living student to throw a roll for");
+        const dice3d = game.dice3d;
+        const own = Object.getOwnPropertyDescriptor(dice3d, "waitFor3DAnimationByMessageID");
+        const wait = dice3d.waitFor3DAnimationByMessageID;
+        const seen = [];
+        dice3d.waitFor3DAnimationByMessageID = function (id, ...rest) {
+            seen.push({ id, kept: P.keptRollSubject(game.messages.get(id)) });
+            return wait.call(this, id, ...rest);
+        };
+        let message = null;
+        try {
+            message = (await neutralRoll(who)).message;
+        } finally {
+            if (own) Object.defineProperty(dice3d, "waitFor3DAnimationByMessageID", own);
+            else delete dice3d.waitFor3DAnimationByMessageID;
+            await message?.delete();
+        }
+        must(message && P.isClaimedRoll(message), "no roll the module threw was made - this would measure nothing");
+        equal(stableJson(seen.find(s => s.id === message.id) ?? null), stableJson({ id: message.id, kept: who.id }),
+            "the roll's character was not kept as its dice began to fall - its report waited for the animation");
+    }],
+
+    ["after a crisis action no message names a participant", async () => {
+        /*
+         * E06 C5b, 27.09.2026; the stage's doneWhen. A direct murder is opened between two students
+         * who each have a player, its opening is ruled, and the victim takes a crisis action - Leave
+         * a clue, thrown by this GM as the suite throws every roll, with Hope. Every message that
+         * appeared meanwhile - the roll, the crisis card, whatever the clue left - is read as every
+         * console holds it: no participant's actor id or name in its speaker, `system` or rolls, no
+         * whisper list naming a participant's player without naming everybody, and the action's
+         * title nowhere but in its words (the content, which a veiled card does not carry). The roll
+         * must be among them, or this would measure the cards alone. Until C5b the roll named the
+         * victim in all three places, and its whisper list named both players.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player a whisper list could name");
+        const M = await import("./murder.mjs");
+        const P = await import("./private-rolls.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const label = CRISIS_ACTIONS.leaveClue.label;
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "incident" && M.isTheirTurn(victim), `the incident did not reach the victim's turn: ${stableJson(M.murderState())}`);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        try {
+            globalThis.__forceRoll = { hope: 9, fear: 5 };
+            await M.takeCrisisAction(victim, "leaveClue");
+            await settle();
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+        }
+        const made = game.messages.contents.filter(m => !had.has(m.id));
+        const names = [killer, victim].flatMap(a => [a.id, a.name]);
+        const players = [killer, victim].map(a => player(a).id);
+        const everybody = game.users.map(u => u.id);
+        const wrong = made.map(m => {
+            const source = m.toObject();
+            const whisper = source.whisper ?? [];
+            const said = JSON.stringify([source.speaker, source.system, source.rolls]);
+            return {
+                id: m.id, roll: P.isClaimedRoll(m),
+                named: names.filter(x => said.includes(x)),
+                whisper: whisper.some(u => players.includes(u)) && !everybody.every(u => whisper.includes(u)),
+                titled: JSON.stringify({ ...source, content: "" }).includes(label)
+            };
+        }).filter(r => r.named.length || r.whisper || r.titled);
+        equal(stableJson([made.some(m => P.isClaimedRoll(m)), wrong]), stableJson([true, []]),
+            `the victim's roll was not among the action's messages, or a message names a participant or the action (${made.length} read)`);
+    }],
+
+    ["Dice So Nice animates a forced-private roll only where it can be read", async () => {
+        /*
+         * E06 C6, 27.09.2026; audit S02-40. Dice So Nice decides on every client whether a new
+         * roll animates there, and with its "Hide 3D dice on secret rolls" off it animated a
+         * whisper with its real faces on every screen. It asks `diceSoNiceMessagePreProcess`
+         * first (main.js :458-516, read in 6.3.1), and private-rolls.mjs answers: with rolls
+         * forced private, a client that cannot read the message does not animate it. Asked here
+         * as Dice So Nice asks it, on this GM, of one roll three times: whispered to the GMs
+         * (readable), then turned into a blind whisper to a player (unreadable here), then the
+         * same with rolls no longer forced private (Dice So Nice's own choice stands).
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player a roll can be whispered to past the GM");
+        const [who] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+        const { message } = await neutralRoll(who);
+        must(message, "the roll made no message");
+        const decide = () => {
+            const interception = { willTrigger3DRoll: true };
+            Hooks.callAll("diceSoNiceMessagePreProcess", message.id, interception);
+            return interception.willTrigger3DRoll;
+        };
+        try {
+            const readable = [message.isContentVisible, decide()];
+            await message.update({ whisper: [player.id], blind: true });
+            const unreadable = [message.isContentVisible, decide()];
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, false);
+            const unforced = decide();
+            equal(stableJson([readable, unreadable, unforced]), stableJson([[true, true], [false, false], true]),
+                "a roll this client cannot read still animates here, a readable one does not, or an unforced table lost Dice So Nice's own choice");
+        } finally {
+            await message.delete();
+        }
+    }],
+
+    ["a Reroll's dice are thrown to the roll's readers alone", async () => {
+        /*
+         * E06 C6, 27.09.2026; audit S02-13. A Reroll threw its new dice with
+         * `showForRoll(rerolled, game.user, true)` - to every screen. It names the readers now
+         * (reroll.mjs `showRerolledDice`): the message's whisper list and its author, or
+         * everybody (no list) when the roll was not whispered, with the message's id. Dice So
+         * Nice is swapped for a recorder for the two calls, so a table's real one draws nothing.
+         */
+        needs(world.moduleActive("dice-so-nice"), "a Reroll shows its dice through Dice So Nice");
+        const [who] = cast(1);
+        const R = await import("./reroll.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+        const { message } = await neutralRoll(who);
+        must(message?.rolls?.length, "the roll made no message");
+        const real = game.dice3d;
+        const calls = [];
+        game.dice3d = { showForRoll: async (...args) => { calls.push(args); return true; } };
+        try {
+            await R.showRerolledDice(message.rolls[0], message);
+            await message.update({ whisper: [] });
+            await R.showRerolledDice(message.rolls[0], message);
+        } finally {
+            game.dice3d = real;
+            await message.delete();
+        }
+        const read = args => ({ sync: args[2] === true, users: args[3] ? [...args[3]].map(u => u?.id ?? u).sort() : null, id: args[5] ?? null });
+        equal(stableJson(calls.map(read)), stableJson([
+            { sync: true, users: [...new Set([...gmIds(), game.user.id])].sort(), id: message.id },
+            { sync: true, users: null, id: message.id }
+        ]), "a Reroll's dice go to somebody who does not read the roll, or a whispered roll's to everybody");
+    }],
+
+    ["an incident roll's dice reach the incident's audience at the roll's stage, and nobody else", async () => {
+        /*
+         * E06 C6, 27.09.2026; audit S04-01, L05. Since C5b a roll the module throws is whispered to
+         * the GMs alone, so the incident's participants no longer read each other's dice off the
+         * list. `diceAudienceIds` says who sees them - the GMs, the author and, while the fight
+         * runs, the incident's audience when the roll's character holds a seat - and the primary
+         * GM sends the rest `dice.show { id }` (private-rolls.mjs `relayIncidentDice`): as it
+         * keeps the roll's subject, and again when a Reroll rewrites the roll's dice. A direct
+         * murder between two students with players; this GM throws the killer's roll, so both
+         * players are sent it. The audience at the opening is read off the same state, its stage
+         * set back: the GMs, the author and the killer's side - the killer's player, never the
+         * victim's (D6); until E06 fix r1-G3 (review M4) the opening's was the GMs and the author
+         * alone. At Stage 6, the clean-up, it is still those two. Only this roll's packets are
+         * compared: the killer's player may throw the opening roll too (the race the test above names).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player to be sent the dice");
+        const M = await import("./murder.mjs");
+        const P = await import("./private-rolls.mjs");
+        const { gmIds, isPrimaryGm } = await import("./utils.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        must(isPrimaryGm(), "the relay is the primary GM's, and this GM is not it");
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "incident", `the incident did not start: ${stableJson(M.murderState())}`);
+        let message = null;
+        const sent = await relayedDice(async () => {
+            message = (await neutralRoll(killer)).message;
+            must(message?.rolls?.length, "the killer's roll made no message");
+            const roll = message.toObject().rolls[0];
+            const changed = typeof roll === "string" ? JSON.parse(roll) : foundry.utils.deepClone(roll);
+            changed.total = Number(changed.total ?? 0) + 1;
+            await message.update({ rolls: [typeof roll === "string" ? JSON.stringify(changed) : changed] });
+            await settle();
+        });
+        try {
+            const state = M.murderState();
+            const sorted = ids => [...new Set(ids)].sort();
+            const players = sorted([player(killer).id, player(victim).id]);
+            equal(stableJson([
+                sorted(P.diceAudienceIds(message, { ...state, stage: "openingRoll" })),
+                sorted(P.diceAudienceIds(message, state)),
+                sorted(P.diceAudienceIds(message, { ...state, stage: "resolution" })),
+                sent.filter(p => p.id === message.id).map(p => ({ id: p.id, to: sorted(p.to) }))
+            ]), stableJson([
+                sorted([...gmIds(), player(killer).id]),
+                sorted([...gmIds(), ...players]),
+                sorted(gmIds()),
+                [{ id: message.id, to: players }, { id: message.id, to: players }]
+            ]), "the dice's audience at the opening, in the fight or at Stage 6, or what the relay sent as the roll was kept and rerolled, is not the rule's");
+        } finally {
+            await message?.delete();
+        }
+    }],
+
+    ["the cards an incident's roll brings name no participant", async () => {
+        /*
+         * E06 fix r1-G3, 28.09.2026; review M2. Three cards other files post on a roll's behalf -
+         * a Loaded Die's notice (action-rolls.mjs `throwDice`), a tool worn or broken on a Despair
+         * (use-items.mjs `breakOnDespair`, which a crisis action calls) and a Hope Call's receipt
+         * (calls.mjs `spendHopeCall`) - were whispered from the character to the GMs and its
+         * player, so in a fight each named a participant to every console beside the roll that
+         * names nobody. They are veiled while an incident runs, whoever posts them (secret.mjs
+         * `incidentVeils`, fix r2-G2; until then `incidentVeil`, while the cast named the actor).
+         * A direct murder between two students with players, its opening ruled
+         * a success; the victim rolls with a Loaded Die armed, a tier-2 tool of the killer's takes
+         * two Despairs - driven through `breakOnDespair` with a Despair result, as the durability
+         * test drives `wearItem`, so the dice do not decide whether this measures anything - and
+         * the victim buys a Sprint. Every message that appeared is read as the C5b test above
+         * reads an action's: no participant's id or name in its speaker, `system` or rolls, no
+         * whisper list naming a participant's player without naming everybody. Each of the four
+         * cards must be among them, veiled, its words sent to the actor's player. Nor may any of
+         * them carry the Loaded Die's nonce (fix r2-G2, 28.09.2026; review round 2's mn1 = m1): it
+         * is in the victim's `pendingCall` flag, which every browser holds, and the roll's options
+         * kept it - hidden here until the same fix, because the harness wrote a roll's options as
+         * a list of keys rather than the config Daggerheart writes.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player a whisper list could name");
+        const M = await import("./murder.mjs");
+        const INV = await import("./inventory.mjs");
+        const { breakOnDespair } = await import("./use-items.mjs");
+        const { appendArmedCall } = await import("./call-effects.mjs");
+        const { spendHopeCall } = await import("./calls.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "incident", `the incident did not start: ${stableJson(M.murderState())}`);
+        const hope = victim.system?.resources?.hope?.value ?? 0;
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const tool = await INV.grantItem(killer, { name: "Suite tool worn in a fight", category: "tool", tier: 2 });
+        must(tool, "could not hand the killer a tool");
+        const LOADED = "SUITELOADEDDIE01";
+        let words = [];
+        try {
+            words = await wordsSent(async () => {
+                await appendArmedCall(victim, { key: "freeCrit", kind: "hope", grants: "critical", nonce: LOADED });
+                await neutralRoll(victim, { remember: true, faces: { hope: 5, fear: 3 } });
+                await breakOnDespair(killer, tool, { withFear: true, isCritical: false });
+                await breakOnDespair(killer, tool, { withFear: true, isCritical: false });
+                await automatedUpdate(victim, { "system.resources.hope.value": Math.max(hope, HOPE_CALLS.sprint.cost) });
+                await spendHopeCall(victim, "sprint");
+                await settle();
+            });
+        } finally {
+            await killer.items.get(tool.id)?.delete();
+            await automatedUpdate(victim, { "system.resources.hope.value": hope });
+        }
+        const made = game.messages.contents.filter(m => !had.has(m.id));
+        const names = [...[killer, victim].flatMap(a => [a.id, a.name]), LOADED];
+        const players = [killer, victim].map(a => player(a).id);
+        const everybody = game.users.map(u => u.id);
+        const wrong = made.map(m => {
+            const source = m.toObject();
+            const whisper = source.whisper ?? [];
+            const said = JSON.stringify([source.speaker, source.system, source.rolls]);
+            return { id: m.id, named: names.filter(x => said.includes(x)),
+                whisper: whisper.some(u => players.includes(u)) && !everybody.every(u => whisper.includes(u)) };
+        }).filter(r => r.named.length || r.whisper);
+        const esc = foundry.utils.escapeHTML;
+        const cards = {
+            loaded: [victim, game.i18n.format("DRPG.Calls.freeCritUsed", { name: esc(victim.name) })],
+            wore: [killer, game.i18n.format("DRPG.Items.woreOnDespair", { item: esc(tool.name), left: 1, total: 2 })],
+            broke: [killer, game.i18n.format("DRPG.Items.brokeOnDespair", { item: esc(tool.name) })],
+            receipt: [victim, `<h3>${esc(HOPE_CALLS.sprint.label)}</h3>`]
+        };
+        const found = Object.fromEntries(Object.entries(cards).map(([key, [actor, text]]) => {
+            const sent = words.find(w => w.html.includes(text));
+            const card = made.find(m => m.id === sent?.id);
+            return [key, Boolean(card?.getFlag(MODULE_ID, "veiled")) && sent.to.includes(player(actor).id)];
+        }));
+        equal(stableJson([found, wrong]), stableJson([{ loaded: true, wore: true, broke: true, receipt: true }, []]),
+            `a card the fight's roll brought was not posted veiled with its words to its player, or a message names a participant (${made.length} read): ${
+                stableJson(words.map(w => ({ id: w.id, to: w.to, text: w.html.replace(/<[^>]+>/g, " ").trim().slice(0, 60) })))}`);
+    }],
+
+    ["a use in a fight is carded veiled whoever makes it, and names nobody", async () => {
+        /*
+         * E06 fix r2-G2, 28.09.2026; review round 2's MJ2 and m6. The crisis action "Use an item"
+         * whispered its "used" card from the character to the GMs and its player - the review
+         * measured a bystander's browser holding it so - and, read in the code, so did the rest
+         * of what a use in a fight posts: a tier 0 object's ruling card and its receipt, the GM's
+         * ruling on it, a Call armed on a participant. Fix r1-G3 veiled three such cards only
+         * while the cast named their character, so the same card of a bystander's went plain and
+         * a veiled one marked a participant. secret.mjs `incidentVeils` veils, while an incident
+         * runs, every private card that would name a character or a player, whoever it is about.
+         * A direct murder between two students with players, its opening ruled a success, a third
+         * student with a player standing by and one with none: the victim takes "Use an item"
+         * with a tier 1 kit, the killer with a tier 0 object (its window answered) and the GM
+         * rules it had no effect; the GM arms a Support on the victim and an Obstacle on the
+         * killer; the bystander drinks a kit, and a tool breaks on a Despair in the bystander's
+         * hands and in the hands of the student nobody plays, whose card goes to the GMs alone
+         * and speaks as him. Every message that appeared is read as the test above reads them,
+         * the two bystanders named too, and each card must be veiled, its words sent to its
+         * player - but a note to the GMs alone, which names nobody else, stays as it was, so a
+         * ruling card can still be rewritten for every GM. Once the incident has ended the
+         * bystander's next kit is carded as before, plain.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a bystander, each with a player a whisper list could name");
+        const M = await import("./murder.mjs");
+        const INV = await import("./inventory.mjs");
+        const S = await import("./secret.mjs");
+        const { useItem, breakOnDespair, grantItemEffect } = await import("./use-items.mjs");
+        const { armCall } = await import("./call-effects.mjs");
+        const { whisperToGms } = await import("./utils.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, bystander] = livingStudents().filter(player);
+        const nobody = livingStudents().find(a => !game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER")));
+        needs(world.atLeast("studentsWithoutPlayer", 1), "a student no player owns, whose cards go to the GMs alone");
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(M.murderState()?.stage === "incident" && M.isTheirTurn(victim), `the incident did not reach the victim's turn: ${stableJson(M.murderState())}`);
+        const kit = (actor, name) => INV.grantItem(actor, { name, category: "usable", tier: 1, goal: "healing", quiet: true });
+        const tool = (actor, name) => INV.grantItem(actor, { name, category: "tool", tier: 1, quiet: true });
+        const items = {
+            kit: await kit(victim, "Suite kit used in the fight"),
+            odd: await INV.grantItem(killer, { name: "Suite odd thing used in the fight", category: "usable", tier: 0, quiet: true }),
+            drink: await kit(bystander, "Suite kit a bystander drinks"),
+            snap: await tool(bystander, "Suite tool a bystander breaks"),
+            npc: await tool(nobody, "Suite tool nobody's student breaks"),
+            later: await kit(bystander, "Suite kit drunk after the fight")
+        };
+        must(Object.values(items).every(Boolean), `could not hand out ${stableJson(Object.keys(items).filter(k => !items[k]))}`);
+        const owners = { kit: victim, odd: killer, drink: bystander, snap: bystander, npc: nobody, later: bystander };
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        let words = [], after = [], fight = [];
+        try {
+            words = await wordsSent(async () => {
+                globalThis.__forceRoll = { hope: 11, fear: 5 };
+                await M.takeCrisisAction(victim, "useItem", { itemId: items.kit.id });
+                await settle();
+                if (!M.isTheirTurn(killer)) await M.passTurn();
+                globalThis.__dialogAnswers.push(true, "Suite: I wave it about");
+                try { await M.takeCrisisAction(killer, "useItem", { itemId: items.odd.id }); }
+                finally { globalThis.__dialogAnswers.length = 0; }
+                await settle();
+                await grantItemEffect(killer, items.odd, {}, { consumeItem: true });
+                await armCall(victim, { key: "support", kind: "hope", grants: "advantage", from: bystander.id });
+                await armCall(killer, { key: "obstacle", kind: "despair", grants: "disadvantage", from: "monokuma" });
+                await useItem(bystander, items.drink);
+                await breakOnDespair(bystander, items.snap, { withFear: true, isCritical: false });
+                await breakOnDespair(nobody, items.npc, { withFear: true, isCritical: false });
+                await whisperToGms("<p>Suite: a note to the GMs in the fight.</p>");
+                await settle();
+            });
+            fight = game.messages.contents.filter(m => !had.has(m.id));
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            after = await wordsSent(async () => {
+                await useItem(bystander, items.later);
+                await settle();
+            });
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const a of [victim, killer]) await a.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            for (const [key, item] of Object.entries(items)) await owners[key].items.get(item?.id)?.delete();
+        }
+        const names = [killer, victim, bystander, nobody].flatMap(a => [a.id, a.name]);
+        const players = [killer, victim, bystander].map(a => player(a).id);
+        const everybody = game.users.map(u => u.id);
+        const wrong = fight.map(m => {
+            const source = m.toObject();
+            const whisper = source.whisper ?? [];
+            const said = JSON.stringify([source.speaker, source.system, source.rolls, source.flags]);
+            return { id: m.id, named: names.filter(x => said.includes(x)),
+                whisper: whisper.some(u => players.includes(u)) && !everybody.every(u => whisper.includes(u)) };
+        }).filter(r => r.named.length || r.whisper);
+        const esc = foundry.utils.escapeHTML;
+        const used = item => game.i18n.format("DRPG.Items.used", { item: esc(item.name) });
+        const broke = item => game.i18n.format("DRPG.Items.brokeOnDespair", { item: esc(item.name) });
+        const grant = key => game.i18n.localize(`DRPG.Calls.grants.${key}`);
+        const cards = {
+            kit: [victim, used(items.kit)],
+            asked: [killer, `<h3>${esc(game.i18n.format("DRPG.Items.useTitle", { item: items.odd.name }))}</h3>`],
+            sent: [killer, game.i18n.localize("DRPG.Items.creativeSent")],
+            ruled: [killer, used(items.odd)],
+            support: [victim, game.i18n.format("DRPG.Calls.armedForYou", { what: grant("advantage") })],
+            obstacle: [killer, game.i18n.format("DRPG.Calls.armedByMonokuma", { what: grant("disadvantage") })],
+            drink: [bystander, used(items.drink)],
+            snap: [bystander, broke(items.snap)],
+            npc: [nobody, broke(items.npc)]
+        };
+        const found = Object.fromEntries(Object.entries(cards).map(([key, [actor, text]]) => {
+            const card = fight.find(m => String(S.contentOf(m)).includes(text));
+            const reader = player(actor);
+            const told = !reader || words.some(w => w.id === card?.id && w.to.includes(reader.id));
+            return [key, Boolean(card?.getFlag(MODULE_ID, "veiled")) && told];
+        }));
+        const later = game.messages.contents.find(m => after.some(w => w.id === m.id && w.html.includes(used(items.later))));
+        const note = fight.find(m => String(S.contentOf(m)).includes("Suite: a note to the GMs in the fight."));
+        const plain = Boolean(later) && !later.getFlag(MODULE_ID, "veiled") && (later.whisper ?? []).includes(player(bystander).id)
+            && Boolean(note) && !note.getFlag(MODULE_ID, "veiled");
+        equal(stableJson([found, wrong, plain]), stableJson([Object.fromEntries(Object.keys(cards).map(k => [k, true])), [], true]),
+            `a card a use in the fight brought was not posted veiled with its words to its player, a message names somebody, or the GMs' note or the card after the fight was veiled (${fight.length} read): ${
+                stableJson(words.map(w => ({ id: w.id, to: w.to, text: w.html.replace(/<[^>]+>/g, " ").trim().slice(0, 60) })))}`);
+    }],
+
+    ["a veiled card lights the Chat tab only where its words are", async () => {
+        /*
+         * E06 C6, 27.09.2026; audit S11-30 (not seen at a table). A veiled card is addressed to
+         * everybody, so the chat log's notifier was told of it on every client and lit the Chat
+         * tab's pip at the moment something secret happened. secret.mjs wraps it: a veiled card
+         * this client holds no words for notifies once they arrive and never when none come
+         * (four seconds, `wordsOf`'s ceiling). Two veiled cards, one to this GM (words held at
+         * once) and one to a player alone (none here); Foundry's notifier is swapped for a
+         * recorder behind the wrapper. Which method lights the pip in Foundry v14 is LIVE-E06-04:
+         * where the chat log's class has no `notify`, nothing is installed, and the patch table
+         * says so - which is all this measures there.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player a veiled card can be meant for, past the GM");
+        const S = await import("./secret.mjs");
+        const { PATCHES } = await import("./patches.mjs");
+        const probe = PATCHES.find(row => row.file === "secret.mjs")?.probe?.() ?? null;
+        must(probe, "the patch table has no row for the chat log's notifier");
+        const notify = S.chatLogClass()?.prototype?.notify;
+        if (!probe.present) {
+            equal(stableJson([probe.ours, typeof notify]), stableJson([false, "undefined"]), "a notifier that is not there was wrapped anyway");
+            return;
+        }
+        const player = game.users.find(u => !u.isGM);
+        const theirs = await S.postSecret({ content: "<p>a veiled card for a player</p>", whisper: [player.id], veiled: true });
+        const ours = await S.postSecret({ content: "<p>a veiled card for this GM</p>", whisper: [game.user.id], veiled: true });
+        must(theirs && ours, "a veiled card was not posted");
+        // The chat log's own call as each card was created (the harness's since E06 fix r1-G2) is
+        // over before the recorder goes in, so only the two calls below reach it.
+        await settle();
+        const told = [];
+        const original = notify.wrapped;
+        notify.wrapped = function (message) { told.push(message?.id ?? null); };
+        let atOnce, lights;
+        try {
+            lights = [S.lightsChatPip(theirs), S.lightsChatPip(ours)];
+            ui.chat.notify(theirs);
+            ui.chat.notify(ours);
+            atOnce = [...told];
+            await wait(4300);
+        } finally {
+            notify.wrapped = original;
+            await theirs.delete();
+            await ours.delete();
+        }
+        equal(stableJson([probe.ours, ...lights, atOnce, told]),
+            stableJson([true, false, true, [ours.id], [ours.id]]),
+            "the notifier is not wrapped, or a veiled card with no words here reached Foundry's notifier, or one with words did not");
     }],
 
     ["two killers act back to back, not alternating with the victim", async () => {
@@ -856,6 +2105,8 @@ const SCENARIOS = [
         const [killer] = cast(1);
         const { applyVerdict } = await import("./vote.mjs");
         const { deferredOfferStore } = await import("./gm-stores.mjs");
+        // A private card's sound is in its words' meta since E06 C7a; the GM, a reader, holds it.
+        const { cardFlag } = await import("./secret.mjs");
         const hpMax = killer.system?.resources?.hitPoints?.max ?? null;
         const advances = killer.getFlag(MODULE_ID, FLAGS.advances) ?? 0;
         const from = new Set(game.messages.map(m => m.id));
@@ -869,7 +2120,7 @@ const SCENARIOS = [
             const cards = game.messages.filter(m => !from.has(m.id));
             equal(stableJson([writes, killer.system?.resources?.hitPoints?.max ?? null, killer.getFlag(MODULE_ID, FLAGS.advances) ?? 0]),
                 stableJson([0, hpMax, advances]), "the wrong verdict wrote on the surviving Blackened (writes, maximum Health, advances)");
-            equal(stableJson(cards.filter(m => m.speaker?.actor === killer.id || m.getFlag(MODULE_ID, "sfx") === "levelUp").length), "0",
+            equal(stableJson(cards.filter(m => m.speaker?.actor === killer.id || cardFlag(m, "sfx") === "levelUp").length), "0",
                 "a card of the wrong verdict is spoken by the Blackened or carries the Level Up's sound");
             ok(cards.some(m => m.getFlag(MODULE_ID, "veiled") === true), "the Blackened's owner was not told on a veiled card");
             ok(!asked.some(e => e.classes.includes("drpg-advance")), "a Level Up window opened at a wrong verdict");
@@ -892,6 +2143,8 @@ const SCENARIOS = [
         const [holder, other, dead] = cast(3);
         const { applyVerdict } = await import("./vote.mjs");
         const { deferredOfferStore } = await import("./gm-stores.mjs");
+        // A private card's sound is in its words' meta since E06 C7a; the GM, a reader, holds it.
+        const { cardFlag } = await import("./secret.mjs");
         const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
         const { deferAdvancement } = await import("./level-up.mjs");
         const { automatedUpdate } = await import("./resource-guard.mjs");
@@ -922,7 +2175,7 @@ const SCENARIOS = [
                 "a survivor's Level Up is not its picks in one write and one step of advances (rise, advances, writes)");
             ok(!deferredOfferStore.has(holder.id), "the Reinforced that was applied still waits");
             const cards = game.messages.filter(m => !from.has(m.id));
-            equal(stableJson(cards.filter(m => before.has(m.speaker?.actor) || m.getFlag(MODULE_ID, "sfx") === "levelUp").length), "0",
+            equal(stableJson(cards.filter(m => before.has(m.speaker?.actor) || cardFlag(m, "sfx") === "levelUp").length), "0",
                 "a Level Up's card is spoken by its owner or carries its sound, which every console receives");
             ok(cards.filter(m => m.getFlag(MODULE_ID, "veiled") === true).length >= 2, "the two Level Ups were not told on veiled cards");
         } finally {
@@ -982,7 +2235,7 @@ const SCENARIOS = [
         const E = await import("./eclipse.mjs");
         const S = await import("./gm-stores.mjs");
         const murder = await import("./murder.mjs");
-        const { contentOf } = await import("./secret.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
         const [killer, victim] = cast(2);
         equal(murder.murderState(), null, "an incident was already running when this scenario started");
         const stood = await aloneTogether(killer, victim);
@@ -1001,7 +2254,8 @@ const SCENARIOS = [
             equal(stableJson([row?.room, row?.note, row?.approved, row?.eclipse]), stableJson([stood.room, NOTE, null, id]),
                 "the GMs' store does not hold the declaration, named for this Eclipse");
             const asked = saying(NOTE);
-            ok(asked.length === 1 && asked[0].getFlag(MODULE_ID, "callCard") === true && !asked[0].getFlag(MODULE_ID, "thread")
+            // `callCard` is the words' meta since E06 C7a: the GM, a reader, holds it.
+            ok(asked.length === 1 && cardFlag(asked[0], "callCard") === true && !asked[0].getFlag(MODULE_ID, "thread")
                 && asked[0].whisper.every(u => game.users.get(u)?.isGM),
                 `the ask is not one card in the GMs' log: ${stableJson(asked.map(m => [m.whisper, m.flags?.[MODULE_ID]?.thread ?? null]))}`);
 
@@ -4555,6 +5809,43 @@ const SCENARIOS = [
         }
     }],
 
+    ["the plant reply carries no project", async () => {
+        /*
+         * E06 C10, 28.09.2026; audit S07-18 (L22). The GM hands a player who searched a room the
+         * plant waiting there, and the reply carried the store's row whole - the trap's project id
+         * beside the item - to the finder's console. The spend and the plant check are run as the
+         * bridge runs them (`SEARCH_ACTIONS`), with the token spend stubbed so no room's count
+         * moves: the reply's plant is the item and nothing of the trap, and the plant given back
+         * under the same request is the row whole again - a second take reads its project.
+         */
+        const T = await import("./traps.mjs");
+        const { SearchTokens, SEARCH_ACTIONS } = await import("./search-tokens.mjs");
+        const { allRooms } = await import("./movement.mjs");
+        needs(world.atLeast("namedRooms"), "the thing is planted in a room");
+        const room = allRooms()[0];
+        must(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        // The plants are a GM store since E04: tier 2's restore puts them back.
+        const spend = SearchTokens.spend;
+        SearchTokens.spend = async () => true;
+        let reply = null, again = null, identity = null;
+        try {
+            identity = await T.plantItem("SUITE-C10-project", room, { name: "SUITE C10 kit", description: "SUITE C10 a kit" });
+            must(identity, "nothing was planted");
+            const ctx = { requestId: "suite-c10-plant" };
+            await SEARCH_ACTIONS["searchTokens.spend"].run({ roomName: room }, game.user, {});
+            reply = (await SEARCH_ACTIONS["searchTokens.takePlant"].run({ roomName: room }, game.user, ctx))?.reply ?? null;
+            await SEARCH_ACTIONS["searchTokens.returnPlant"].run({ plantRequestId: ctx.requestId }, game.user, {});
+            again = await T.takePlant(room);
+        } finally {
+            SearchTokens.spend = spend;
+        }
+        const plant = reply?.plant ?? {};
+        equal(stableJson([reply?.ok ?? null, plant.name ?? null, plant.drpgItemId === identity, Object.hasOwn(plant, "projectId"),
+            JSON.stringify(plant).includes("SUITE-C10-project"), again?.projectId ?? null]),
+            stableJson([true, "SUITE C10 kit", true, false, false, "SUITE-C10-project"]),
+            `the plant reply named the trap's project, or missed the item, or the plant given back lost its row: ${stableJson({ reply, again })}`);
+    }],
+
     ["everything that can be held ready can also be broken", async () => {
         /*
          * FROM E17'S CLOSING LIST: "every EQUIPPABLE category has a breaking
@@ -5079,6 +6370,400 @@ const SCENARIOS = [
             if (message) await message.delete();
         }
     }],
+    ["a private card's document says nothing of itself", async () => {
+        /*
+         * E06 C7a, 27.09.2026; audit L16, S02-02. `report()` (action-rolls.mjs) posted an
+         * action's result card with its title and its roll's way as module flags, and
+         * `usedStamp` (use-items.mjs) the item a card used - on the document, which every
+         * browser holds: 40-flow read "Search" off p2's copy of p1's card. `postSecret` sends
+         * them with the words now. Posted here as those two post, through `whisperToOwner`:
+         * the document's module flags are `secret` and `drpgMessage` alone and none of the
+         * facts is anywhere in it, and the GM - one of the card's readers - reads each of them
+         * through `cardFlag`, from the words' meta.
+         */
+        const [actor] = cast(1);
+        const { whisperToOwner } = await import("./utils.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const TITLE = `Suite Search ${Date.now() % 100000}`;
+        const used = { id: "SUITEC7AITEM0001", name: "Suite C7a kit", actorId: actor.id };
+        let message = null;
+        try {
+            message = await whisperToOwner(actor, "<p>Suite: an action's result</p>", {
+                flags: { [MODULE_ID]: { popupTitle: TITLE, popupTone: "hope", usedItem: used } }
+            });
+            must(message, "the card was not posted - this would measure nothing");
+            const source = JSON.stringify(message.toObject());
+            equal(stableJson([Object.keys(message.toObject().flags?.[MODULE_ID] ?? {}).sort(),
+                [TITLE, used.name, used.id].filter(fact => source.includes(fact))]),
+            stableJson([["drpgMessage", "secret"], []]), "the card's document says what it is about (its module flags, then the facts found in it)");
+            equal(stableJson([cardFlag(message, "popupTitle"), cardFlag(message, "popupTone"), cardFlag(message, "usedItem")]),
+                stableJson([TITLE, "hope", used]), "the GM, a reader of the card, does not read its title, tone and item from the words");
+        } finally {
+            if (message) await message.delete();
+        }
+    }],
+
+    ["the popup's title and the card's sound reach its readers from the words", async () => {
+        /*
+         * E06 C7a, 27.09.2026. The other half of the test above: what left the document
+         * still reaches the card's readers. A notice is drawn once, as the document arrives
+         * and before the words and their meta do, so popup.mjs and sfx.mjs wait for the words
+         * of every private card now, where they waited only for a veiled one's. The notice is
+         * read in its DOM - the title bar and the tone's class; the sound where it leaves the
+         * module, `AudioHelper.play`, with a file mapped to it for the test (the one the
+         * unplayable-file test above plays; a GM whose sound slider is at zero hears
+         * nothing, and that reads as a failure here), and as the decision sfx.mjs plays from
+         * (`soundFromMessage`). The card is forced onto the GM's screen (`popupForce`, a
+         * GM's), which is itself read from the meta: without it the GM, copied on a player's
+         * card, is shown no notice.
+         */
+        const [actor] = cast(1);
+        const { whisperToOwner } = await import("./utils.mjs");
+        const { soundFromMessage } = await import("./sfx.mjs");
+        document.querySelectorAll(".drpg-popup").forEach(node => node.remove());
+        const TITLE = `Suite notice title ${Date.now() % 100000}`;
+        const FILE = "modules/dice-so-nice/sounds/dicehit.mp3";
+        const map = foundry.utils.deepClone(getSetting(SETTINGS.sfxMap) ?? {});
+        const helper = foundry.audio.AudioHelper;
+        const play = helper.play;
+        const heard = [];
+        let message = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, { ...map, gmAsk: FILE });
+            helper.play = function (data, ...rest) {
+                heard.push(data?.src ?? null);
+                return play.call(this, data, ...rest);
+            };
+            message = await whisperToOwner(actor, "<p>Suite: a notice with a title</p>", {
+                flags: { [MODULE_ID]: { popupTitle: TITLE, popupTone: "hope", popupForce: true, sfx: { key: "gmAsk", gm: true } } }
+            });
+            must(message, "the card was not posted - this would measure nothing");
+            const card = () => [...document.querySelectorAll(".drpg-popup")]
+                .find(c => c.querySelector(".drpg-popup-title")?.textContent?.includes(TITLE)) ?? null;
+            await until(() => card() && heard.includes(FILE), 4000);
+            const notice = card();
+            equal(stableJson([Boolean(notice), notice?.classList.contains("drpg-popup-tone-hope") ?? false, heard.includes(FILE),
+                soundFromMessage(message), message.toObject().flags?.[MODULE_ID]?.sfx ?? null]),
+            stableJson([true, true, true, { key: "gmAsk", forGm: true }, null]),
+                "the notice has no title or tone from the card, its sound did not play, or the sound is not read from its words (or is on its document)");
+        } finally {
+            helper.play = play;
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            if (message) await message.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, map);
+        }
+    }],
+
+    ["a player's card rings the safeword's siren only with the marker on its document", async () => {
+        /*
+         * E06 fix r1-G5, 28.09.2026; the round-1 review's m3. The safeword's siren is the
+         * one sound above the volume slider, and a player's card may ring it only as the
+         * real safeword card, which carries the marker on its document - the flag the
+         * pause reads. Since C7a a private card's flags go with its words, and
+         * `soundFromMessage` read the marker there too. A player's meta no longer carries
+         * it (secret.mjs `GM_META`; 30-security drives a player's own packet), so a GM's
+         * card puts it there, and `soundFromMessage` is asked about that card as a
+         * player's: the same document and words, an author who is not a GM.
+         */
+        const { postSecret } = await import("./secret.mjs");
+        const { soundFromMessage } = await import("./sfx.mjs");
+        let message = null;
+        try {
+            message = await postSecret({ content: "<p>Suite: a siren in the words</p>", whisper: [game.user.id],
+                flags: { [MODULE_ID]: { sfx: { key: "safeword", gm: true }, safeword: true } } });
+            must(message, "the card was not posted - this would measure nothing");
+            const asPlayer = { id: message.id, flags: message.flags, author: { isGM: false },
+                getFlag: (scope, key) => message.getFlag(scope, key) };
+            equal(stableJson([soundFromMessage(message)?.key ?? null, soundFromMessage(asPlayer),
+                message.getFlag(MODULE_ID, "safeword") ?? null]),
+            stableJson(["safeword", null, null]),
+                "the GM's card lost its siren, a player's card rings it from its words, or the marker is on the document");
+        } finally {
+            if (message) await message.delete();
+        }
+    }],
+
+    ["a thread card still lists in its thread", async () => {
+        /*
+         * E06 C7a, 27.09.2026. A thread card's placement - its thread, kind and whether it
+         * asks the GM - stays on an ordinary thread card's document, whose whisper list names
+         * the thread's player anyway, and a GM whose browser missed the words still places it.
+         * A veiled one (callGm's, from E06 C8) says nothing of whose thread it is, so its
+         * placement goes with the words: `threadMessages` reads it through `cardFlag` and
+         * lists the card for its readers. Both kinds are posted into one player's thread.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a thread is a player's");
+        const player = game.users.find(u => !u.isGM);
+        const { postSecret } = await import("./secret.mjs");
+        const { postToThread, threadMessages, MESSENGER_FLAGS } = await import("./messenger.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        const made = [];
+        try {
+            const plain = await postToThread(player.id, "<p>Suite: an ordinary thread card</p>");
+            made.push(plain);
+            const veiled = await postSecret({ content: "<p>Suite: a veiled thread card</p>", whisper: [player.id, ...gmIds()], veiled: true,
+                flags: { [MODULE_ID]: { [MESSENGER_FLAGS.thread]: player.id, [MESSENGER_FLAGS.kind]: "action" } } });
+            made.push(veiled);
+            must(plain && veiled, "a thread card was not posted - this would measure nothing");
+            const listed = threadMessages(player.id).map(m => m.id);
+            const own = m => Object.keys(m.toObject().flags?.[MODULE_ID] ?? {}).sort();
+            equal(stableJson([own(plain), own(veiled), listed.includes(plain.id), listed.includes(veiled.id)]),
+                stableJson([["kind", "secret", "thread"], ["secret", "veiled"], true, true]),
+                "a thread card's document lost its placement, a veiled one's names its thread, or either is not listed in the thread");
+        } finally {
+            for (const message of made) if (message) await message.delete();
+        }
+    }],
+
+    ["a settled ruling card is settled for its readers", async () => {
+        /*
+         * E06 C7a, 27.09.2026. `settleCall` (gm-bridge.mjs) wrote `settled` onto the card's
+         * document - and so told every browser that a ruling had been made, and when. It
+         * goes with the new words now, into the meta the card's readers keep, and the
+         * messenger's settled check (`wireCallActions`) reads it there: a GM shown the card
+         * again finds no ruling buttons on it. The same check on a card not yet settled keeps
+         * them, so the removal is the settlement's and not the check's.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a ruling card lives in a player's thread");
+        const player = game.users.find(u => !u.isGM);
+        const { postToThread } = await import("./messenger.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const { cardFlag, contentOf } = await import("./secret.mjs");
+        const html = `<p>Suite: a ruling card</p><div class="drpg-call-actions"><button type="button" class="drpg-call-action" data-drpg-call="suite">Suite</button></div>`;
+        const buttonsAfterWiring = message => {
+            const body = document.createElement("div");
+            body.innerHTML = html;
+            wireCallActions(body, message);
+            return body.querySelectorAll("[data-drpg-call]").length;
+        };
+        let message = null;
+        try {
+            message = await postToThread(player.id, html);
+            must(message, "the ruling card was not posted - this would measure nothing");
+            const before = buttonsAfterWiring(message);
+            await settleCall(message, "Suite: settled");
+            await settle();
+            equal(stableJson([before, buttonsAfterWiring(message), cardFlag(message, "settled") ?? null,
+                message.toObject().flags?.[MODULE_ID]?.settled ?? null, contentOf(message).includes("Suite: settled")]),
+            stableJson([1, 0, true, null, true]),
+                "the settled card keeps its buttons for the GM, its words are not the receipt, or `settled` is on its document");
+        } finally {
+            if (message) await message.delete();
+        }
+    }],
+
+    ["a player's copy of a ruling card holds no GM-only prose", async () => {
+        /*
+         * E06 C7b, 27.09.2026; audit L17, S11-05. A ruling card lives in the player's thread
+         * and carries the GMs' half of it - `callGm`'s reference prose (`.drpg-gm-only`) and
+         * the ruling's buttons (`.drpg-call-actions`) - and its words went to the player
+         * whole, into their browser's store and their Chat tab. Read off the packets the GM
+         * sends (`wordsSent`), as the card is posted and as `settleCall` rewrites it: each
+         * packet to the player holds the card's words without either block, and the GM's own
+         * copy keeps the prose, and the buttons until the settlement takes them off.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a ruling card lives in a player's thread");
+        const player = game.users.find(u => !u.isGM);
+        const { postToThread } = await import("./messenger.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const PROSE = `Suite GM-only prose ${Date.now() % 100000}`;
+        const html = `<p>Suite: a ruling card</p><div class="drpg-gm-only"><p>${PROSE}</p></div>`
+            + `<div class="drpg-call-actions"><button type="button" class="drpg-call-action" data-drpg-call="suite">Suite</button></div>`;
+        let message = null;
+        let posted = "";
+        try {
+            const sent = await wordsSent(async () => {
+                message = await postToThread(player.id, html);
+                must(message, "the ruling card was not posted - this would measure nothing");
+                posted = contentOf(message);
+                await settleCall(message, "Suite: settled");
+            });
+            const toPlayer = sent.filter(packet => packet.id === message.id && packet.to.includes(player.id));
+            const leaks = words => ["drpg-gm-only", "drpg-call-actions", PROSE].filter(part => words.includes(part));
+            equal(stableJson([toPlayer.length, toPlayer.map(packet => leaks(packet.html)), toPlayer.map(packet => packet.html.includes("Suite: a ruling card")),
+                toPlayer.flatMap(packet => packet.to).filter(id => game.users.get(id)?.isGM), leaks(posted), leaks(contentOf(message))]),
+            stableJson([2, [[], []], [true, true], [], ["drpg-gm-only", "drpg-call-actions", PROSE], ["drpg-gm-only", PROSE]]),
+                "a packet to the player holds GM-only prose or a ruling button (or lost the card's words, or went to a GM too), or the GM's copy lost them");
+        } finally {
+            if (message) await message.delete();
+        }
+    }],
+
+    ["a veiled thread card names no thread", async () => {
+        /*
+         * E06 C8, 28.09.2026; audit L18, S05-15. A Tamper's reshape card - Stage 6's, when the
+         * killer covers their tracks - goes to the GMs through its player's thread, and an
+         * ordinary thread card's document names that player to every browser: `thread` in its
+         * flags and in its whisper list. Posted veiled now (`callGm`'s `veiled`): the document
+         * keeps `secret` and `veiled` alone and is addressed to the whole table, the GM still
+         * lists it in the player's thread from the meta its words brought, and the words go to
+         * the player and the GMs alone - as it is posted and as `settleCall` rewrites it, whose
+         * readers are not the whisper list of a veiled card (secret.mjs `readersOf`).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a reshape card lives in its player's thread");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const cleanup = await import("./cleanup.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { threadMessages } = await import("./messenger.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { ownerOf, gmIds } = await import("./utils.mjs");
+        const who = livingStudents().find(a => ownerOf(a)?.active);
+        must(who, "no living student has a connected player - this would measure nothing");
+        const owner = ownerOf(who);
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        let trace = null, copy = null, card = null;
+        try {
+            trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "SUITE C8 a reshape's trace" });
+            must(trace, "could not place the fixture trace");
+            // A copy puts the trace on its Tamper register (see the N-3 reshape test).
+            copy = await bullets.createTruthBullet(who, { name: "SUITE C8 a copy", realType: "neutral", visibility: "obvious",
+                remnantId: trace.id, sceneId: scene.id });
+            must(copy, "could not copy the fixture trace onto a bullet");
+            await settle();
+            const before = new Set(game.messages.map(m => m.id));
+            const sent = await wordsSent(async () => {
+                await cleanup.resolveCleanup({ actorId: who.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true,
+                    viaAction: true, mode: "transform", price: "stress", change: { name: "SUITE C8 a kettle", text: "SUITE C8 it was always there" } });
+                await settle();
+                card = game.messages.find(m => !before.has(m.id) && contentOf(m).includes('data-drpg-call="approveReshape"')) ?? null;
+                must(card, "no reshape card was raised - this would measure nothing");
+                await settleCall(card, "Suite: settled");
+            });
+            const readers = [owner.id, ...gmIds()];
+            const toCard = sent.filter(packet => packet.id === card.id);
+            equal(stableJson([Object.keys(card.toObject().flags?.[MODULE_ID] ?? {}).sort(), game.users.filter(u => !card.whisper.includes(u.id)).map(u => u.id),
+                cardFlag(card, "thread") ?? null, threadMessages(owner.id).some(m => m.id === card.id),
+                toCard.filter(packet => packet.to.includes(owner.id)).length, toCard.flatMap(packet => packet.to).filter(id => !readers.includes(id)),
+                cardFlag(card, "settled") ?? null]),
+            stableJson([["secret", "veiled"], [], owner.id, true, 2, [], true]),
+                "the reshape card's document names its thread or its player, the GM does not list it in the thread, or its words (posted or settled) went beyond the player and the GMs");
+        } finally {
+            try { await copy?.delete(); } catch { /* already gone */ }
+            if (trace) {
+                try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["the killer's thread lists the receipt, with its Plant button working", async () => {
+        /*
+         * E06 C8, 28.09.2026; audit L18, S05-15. An item trap that arms posts its killer a
+         * receipt with the GMs' Plant button on it (projects.mjs `announceTrapReady`), into the
+         * killer's thread - veiled now, so the button's card is placed from its meta. Built and
+         * filled here: the receipt's document keeps `secret` and `veiled` alone, the GM lists it
+         * in the killer's player's thread, and its Plant button, wired as the messenger wires a
+         * bubble, opens the plant window (answered here) and plants the trap's object - the trap
+         * waits for its plant before the click and not after - and the card is settled.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the receipt lives in the killer's player's thread");
+        needs(world.atLeast("namedRooms"), "the trap is built in a room");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const { allRooms } = await import("./movement.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { threadMessages } = await import("./messenger.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const killer = livingStudents().find(a => ownerOf(a)?.active);
+        must(killer, "no living student has a connected player - this would measure nothing");
+        const owner = ownerOf(killer);
+        const room = allRooms()[0];
+        ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let made = null, asked = null;
+        try {
+            made = await P.createProject({ name: "SUITE C8 item trap", target: 1, room, indirectMurder: true, killerId: killer.id,
+                condition: "SUITE C8", trigger: { kind: "item", afterDark: false, notBuilder: true } });
+            must(made?.id, "could not create the trap project");
+            await settle();
+            const seen = new Set(game.messages.map(m => m.id));
+            const isReceipt = m => !seen.has(m.id) && contentOf(m).includes('data-drpg-call="plantTrapItem"');
+            await P.addProgress(made.id, 1, { by: killer.id });
+            await until(() => game.messages.some(isReceipt));
+            const receipt = game.messages.find(isReceipt) ?? null;
+            must(receipt, "the trap's receipt was not posted - this would measure nothing");
+            const waiting = T.itemTrapsWithoutPlant().some(t => t.id === made.id);
+            D.wait = async cfg => {
+                asked = cfg?.window?.title ?? null;
+                return { name: "SUITE C8 a teapot", room };
+            };
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(receipt);
+            wireCallActions(body, receipt);
+            body.querySelector('[data-drpg-call="plantTrapItem"]')?.click();
+            await until(() => cardFlag(receipt, "settled") === true);
+            equal(stableJson([Object.keys(receipt.toObject().flags?.[MODULE_ID] ?? {}).sort(), threadMessages(owner.id).some(m => m.id === receipt.id),
+                waiting, asked, T.itemTrapsWithoutPlant().some(t => t.id === made.id), cardFlag(receipt, "settled") ?? null]),
+            stableJson([["secret", "veiled"], true, true, game.i18n.localize("DRPG.Trap.plantTitle"), false, true]),
+                "the receipt's document names its thread, the killer's thread does not list it, or its Plant button did not plant the trap's object and settle the card");
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            if (made?.id) await P.deleteProject(made.id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await settle();
+        }
+    }],
+
+    ["the GM's popup for a veiled ask", async () => {
+        /*
+         * E06 C8, 28.09.2026. A thread card that asks the GMs (`gmAsk`) raises a notice and
+         * plays the ask's sound on a GM's screen (messenger.mjs, messenger-app.mjs) - read off
+         * the document, where a veiled card has neither its thread nor its `gmAsk`. They are
+         * read from the words' meta now, once the words are here: a veiled `callGm` ask
+         * posted on this GM raises the notice headed as a GM's ask, holding the card's
+         * title, and the sound plays.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "an ask lives in its player's thread");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const actor = livingStudents().find(a => ownerOf(a)?.active);
+        must(actor, "no living student has a connected player - this would measure nothing");
+        document.querySelectorAll(".drpg-popup").forEach(node => node.remove());
+        const TITLE = `Suite veiled ask ${Date.now() % 100000}`;
+        const HEAD = game.i18n.localize("DRPG.Messenger.gmActionTitle");
+        const FILE = "modules/dice-so-nice/sounds/dicehit.mp3";
+        const map = foundry.utils.deepClone(getSetting(SETTINGS.sfxMap) ?? {});
+        const helper = foundry.audio.AudioHelper;
+        const play = helper.play;
+        const heard = [];
+        const seen = new Set(game.messages.map(m => m.id));
+        let message = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, { ...map, gmAsk: FILE });
+            helper.play = function (data, ...rest) {
+                heard.push(data?.src ?? null);
+                return play.call(this, data, ...rest);
+            };
+            must(await callGm(actor, { title: TITLE, veiled: true }), "the veiled ask was not posted - this would measure nothing");
+            const notice = () => [...document.querySelectorAll(".drpg-popup")]
+                .find(c => c.querySelector(".drpg-popup-title")?.textContent?.includes(HEAD) && c.textContent.includes(TITLE)) ?? null;
+            await until(() => notice() && heard.includes(FILE), 5000);
+            message = game.messages.find(m => !seen.has(m.id)) ?? null;
+            equal(stableJson([Boolean(notice()), heard.includes(FILE), Object.keys(message?.toObject().flags?.[MODULE_ID] ?? {}).sort()]),
+                stableJson([true, true, ["secret", "veiled"]]),
+                "the veiled ask raised no GM's notice with its title, its sound did not play, or its document names its thread");
+        } finally {
+            helper.play = play;
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            if (message) await message.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, map);
+        }
+    }],
+
 
     ["every objection takes a different track from the objection playlist", async () => {
         /*
@@ -5349,6 +7034,104 @@ const SCENARIOS = [
             for (const m of made) { try { await m.delete(); } catch { /* already gone */ } }
             if (game.paused !== wasPaused) await game.togglePause(wasPaused);
         }
+    }],
+
+    ["the safeword's card names nobody", async () => {
+        /*
+         * E06 C9, 28.09.2026; audit S03-02 (L19). A player's press posted the public card from
+         * that player's browser, so its author - on every console, and in Daggerheart's header -
+         * was the caller the card calls "somebody". A player's press is a packet to the GMs now,
+         * and the primary GM posts the card. The packet is handed to this GM's handler with a
+         * connected player's id, as Foundry hands it, and a `who` naming somebody else: the card
+         * is this GM's under the banner, names neither the player nor the packet's name, stops
+         * the game, and the GMs' detail card names the sender and not the packet's claim. At
+         * 1.2.64 there is no handler to hand it to; 40-flow reads the card a real press posts.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a safeword packet comes from a player, and Foundry names only a connected one");
+        const S = await import("./safeword.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, whose card this is to post");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const run = await safewordRun(S, player,
+            () => S.hearSafeword({ action: S.SAFEWORD_ACTION, who: "Somebody Else", room: null }, player.id),
+            ([card]) => ({ author: card?.author?.id ?? null, alias: card?.speaker?.alias ?? null,
+                actor: card?.speaker?.actor ?? null, doc: JSON.stringify(card?._source ?? null) }));
+        const detail = run.popups.join(" | ");
+        equal(stableJson([run.author, run.alias, run.actor, run.doc.includes(player.id), run.doc.includes(player.name),
+            run.doc.includes("Somebody Else"), run.paused, detail.includes(player.name), detail.includes("Somebody Else")]),
+        stableJson([game.user.id, game.i18n.localize("DRPG.Safeword.banner"), null, false, false, false, true, true, false]),
+        "the card is not the GM's under the banner, names the caller, did not stop the game, or the detail took the packet's name");
+    }],
+
+    ["with no GM online the caller's card carries the alias and the class that hides its header", async () => {
+        /*
+         * E06 C9, 28.09.2026. With no GM connected a player's press has nobody to ask, and the
+         * caller posts the card: the one road where the author is the caller. This browser is a
+         * GM, so it cannot be that player; it asks who posts for each kind of press, posts the
+         * card a player would (a GM may write another user's author), and presses itself - a GM
+         * posts its own. Each card is drawn through the log's render hooks onto a bare card
+         * element: the player's is marked for the stylesheet, the GM's is not, and the
+         * stylesheet hides the marked card's header. Whether a real log then hides it is the
+         * cascade's, which needs a browser; the rule's presence is read from the file.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the caller's card is a player's, and the suite borrows a connected one");
+        const S = await import("./safeword.mjs");
+        const { announce } = await import("./utils.mjs");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const routes = [S.safewordPoster(player, []), S.safewordPoster(player, [game.user.id]), S.safewordPoster(game.user, [game.user.id])];
+        const marked = message => {
+            if (!message) return null;
+            const li = document.createElement("li");
+            li.className = "chat-message message";
+            li.innerHTML = `<header class="message-header"></header><div class="message-content"></div>`;
+            Hooks.callAll("renderChatMessageHTML", message, li);
+            return li.classList.contains("drpg-safeword-unsigned");
+        };
+        const run = await safewordRun(S, player, async () => {
+            await announce({ ...S.safewordCard(), author: player.id });
+            await S.callSafeword({});
+        }, cards => {
+            const by = id => cards.find(m => m.author?.id === id);
+            return { n: cards.length, alias: [by(player.id), by(game.user.id)].map(m => m?.speaker?.alias ?? null),
+                marked: [marked(by(player.id)), marked(by(game.user.id))] };
+        });
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text())).replace(/\/\*[\s\S]*?\*\//g, "");
+        const hides = /\.drpg-safeword-unsigned\s+\.message-header\s*\{[^}]*display:\s*none/.test(css);
+        const banner = game.i18n.localize("DRPG.Safeword.banner");
+        equal(stableJson([routes, run.n, run.alias, run.marked, hides]),
+            stableJson([["caller", "gm", "caller"], 2, [banner, banner], [true, false], true]),
+            "the wrong browser posts, a card lacks the banner, the caller's card is not marked (or the GM's is), or no rule hides the mark's header");
+    }],
+
+    ["a second press inside the window posts nothing", async () => {
+        /*
+         * E06 C9, 28.09.2026. A player's packet makes the primary GM post in public, so a
+         * player's presses are posted once per `TIMING.safewordRepeatMs`: two packets from the
+         * same player post one card, a GM's own packet posts none (that GM posted it), and once
+         * the window has gone by - the player's entry aged past it - the next press posts again.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a safeword packet comes from a player, and Foundry names only a connected one");
+        const S = await import("./safeword.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, whose card this is to post");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const packet = { action: S.SAFEWORD_ACTION, room: null };
+        const counts = [];
+        await safewordRun(S, player, async fresh => {
+            await S.hearSafeword(packet, player.id);
+            await S.hearSafeword(packet, player.id);
+            await S.hearSafeword(packet, game.user.id);
+            await until(() => fresh().length > 0);
+            await settle();
+            counts.push(fresh().length);
+            S.safewordPosts.set(player.id, Date.now() - TIMING.safewordRepeatMs - 1);
+            await S.hearSafeword(packet, player.id);
+            await until(() => fresh().length > 1);
+            counts.push(fresh().length);
+        }, () => ({}));
+        equal(stableJson(counts), stableJson([1, 2]),
+            "a repeat inside the window was posted, a GM's own packet was, or a press after the window was not");
     }],
 
     ["the curtain is recut when the tab comes back", async () => {
@@ -5954,6 +7737,194 @@ const SCENARIOS = [
             for (const id of made) await P.deleteProject(id).catch(() => {});
             await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
             await settle();
+        }
+    }],
+
+    ["a secret project's repair keeps the secret", async () => {
+        /*
+         * E06 C10, 28.09.2026; audit S09-01 (L20). Sabotaging a secret project made a public repair
+         * named "Repair: <the project>", and finishing it announced both names to the table. A
+         * secret project one player can see is sabotaged: its repair is secret, seen by that player
+         * and not by another, and named "Repair" alone. Finished, its card is veiled - everybody on
+         * its list, no actor speaking - and its words, which name the project, go to the viewer and
+         * not to the other player (`wordsSent`; a GM's own copy travels no socket).
+         */
+        needs(world.atLeast("playerAccounts", 2), "a player who can see the project and one who cannot");
+        const P = await import("./projects.mjs");
+        const [viewer, outsider] = game.users.filter(u => !u.isGM);
+        const NAME = "SUITE C10 hidden work";
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const made = [];
+        let sealed = null, card = null, sent = [];
+        try {
+            const target = await P.createProject({ name: NAME, target: 6, secret: true, viewers: [viewer.id] });
+            must(target?.id, "could not create a secret project to sabotage");
+            made.push(target.id);
+            const repairId = (await P.sabotageProject(target.id, 3))?.repair?.id ?? null;
+            if (repairId) made.push(repairId);
+            const repair = P.allProjects().find(p => p.id === repairId) ?? null;
+            sealed = [Boolean(repair), P.isSecret(repairId), repair?.name ?? null, P.canSee(repairId, viewer), P.canSee(repairId, outsider)];
+            const from = game.messages.size;
+            const words = await wordsSent(async () => {
+                if (repairId) await P.addProgress(repairId, 3);
+                await settle();
+            });
+            card = game.messages.contents.slice(from).find(m => words.some(w => w.id === m.id && w.html.includes(NAME))) ?? null;
+            sent = words.filter(w => w.id === card?.id).flatMap(w => w.to);
+            ok(!game.messages.contents.slice(from).some(m => String(m.content ?? "").includes(NAME)),
+                "the repair's end was posted with the project's name in the document");
+        } finally {
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+        const everybody = game.users.map(u => u.id).sort();
+        equal(stableJson([...sealed, Boolean(card), Boolean(card?.getFlag(MODULE_ID, "veiled")),
+            stableJson([...(card?.whisper ?? [])].sort()) === stableJson(everybody), card?.speaker?.actor ?? null,
+            sent.includes(viewer.id), sent.includes(outsider.id)]),
+            stableJson([true, true, game.i18n.localize("DRPG.Project.repairNameSecret"), true, false, true, true, true, null, true, false]),
+            `the secret project's repair was public or named it, or its end was not one veiled card told to its viewer alone: ${
+                stableJson({ sealed, whisper: card?.whisper ?? null, speaker: card?.speaker ?? null, sent })}`);
+    }],
+
+    ["a watched sabotage of a secret project names no project", async () => {
+        /*
+         * E06 C10, 28.09.2026; audit S02-12 (L21). A sabotage the room saw was told to everybody
+         * standing there with the project's name, secret or not. The line is read as the watched
+         * branch posts it (action-rolls.mjs `sabotageWatchedLine`) for three projects: a public
+         * one is named; a secret one is not; nor is an indirect murder revealed to the table,
+         * which is not secret any more and is still somebody's trap.
+         */
+        const P = await import("./projects.mjs");
+        const { sabotageWatchedLine } = await import("./action-rolls.mjs");
+        const [who] = cast(1);
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const made = [];
+        const line = id => sabotageWatchedLine(who, "SUITE room", P.allProjects().find(p => p.id === id));
+        let lines = [];
+        try {
+            for (const [name, opts] of [["SUITE C10 open plan", {}], ["SUITE C10 secret plan", { secret: true }],
+                ["SUITE C10 revealed trap", { indirectMurder: true }]]) {
+                const made1 = await P.createProject({ name, target: 6, ...opts });
+                must(made1?.id, `could not create "${name}"`);
+                made.push(made1.id);
+            }
+            await P.revealProject(made[2]);
+            must(!P.isSecret(made[2]) && P.isIndirectMurder(made[2]), "the revealed trap is still secret, or not a trap");
+            lines = made.map(line);
+        } finally {
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+        const anon = game.i18n.format("DRPG.Action.sabotageWatchedAnon", { actor: foundry.utils.escapeHTML(who.name), room: "SUITE room" });
+        equal(stableJson([lines[0]?.includes("SUITE C10 open plan"), lines[1] === anon, lines[2] === anon]), stableJson([true, true, true]),
+            `a watched sabotage named a secret project or a trap, or no longer names a public one: ${stableJson(lines)}`);
+    }],
+
+    ["Confusion is seen by the room, and names nobody past it", async () => {
+        /*
+         * E06 C10, 28.09.2026; audit S09-10 (L23), the owner's answer Q3 (b) of 27.09: a Monocub's
+         * Confusion is rolled for the room to see, like every Monocub roll, and its window says so
+         * (`meddleIntro`). What the room does not see is whom it was aimed at, and three things
+         * told every console: the armed Call stored `from`, the Monocub's actor id, on the
+         * target's flag, and the Monocub's receipt, the target's notice and the Call's own notice
+         * were whispers whose lists named the two players. A Monocub and its target, each with a
+         * player, stand alone in a room; the GM resolves a Hinder of 13 (the +1/-1 tier): the
+         * target holds an armed Call with no `from`, and every card whose words went to either
+         * player is veiled - everybody on its list, no actor speaking - and the target's player
+         * is sent nothing that names the Monocub.
+         *
+         * AND THE CALL IS NOT ON THE TARGET (E06 fix r2-G4, 28.09.2026; review round 2's mn2).
+         * C10 left the entry on the target's `pendingCall` flag, decided against D2 on the ground
+         * that the room sees the roll; the roll does not say whom it was aimed at, and the flag,
+         * which every browser holds, did - at the moment of the roll. The Call is read here from
+         * the GMs' store (gm-stores.mjs `confusionStore`), and the target's flag holds no
+         * Confusion. What the target's own player is sent of it is 40-flow's to measure.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Monocub and its target, each with a player to be sent the words");
+        const { resolveMeddle } = await import("./monocub.mjs");
+        const { pendingCalls } = await import("./call-effects.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { confusionStore } = await import("./gm-stores.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub, target] = livingStudents().filter(player);
+        const { back } = await aloneTogether(cub, target);
+        const from = game.messages.size;
+        const rowBefore = foundry.utils.deepClone(confusionStore?.get(target.id) ?? null);
+        let words = [], armed = null, onFlag = null, inStore = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            words = await wordsSent(async () => {
+                ok((await resolveMeddle({ actorId: cub.id, targetId: target.id, help: false, total: 13, isCritical: false }))?.success,
+                    "the Meddle did not land");
+                await settle();
+            });
+            armed = pendingCalls(target).find(entry => entry.key === "meddle") ?? null;
+            const flag = target.getFlag(MODULE_ID, FLAGS.pendingCall);
+            onFlag = (Array.isArray(flag) ? flag : flag ? [flag] : []).filter(entry => entry?.key === "meddle").length;
+            inStore = Boolean(armed) && (confusionStore?.get(target.id)?.calls ?? []).some(entry => entry?.nonce === armed.nonce);
+        } finally {
+            // The Confusion made here is taken back out of wherever it was armed.
+            if (confusionStore) {
+                if (rowBefore) await confusionStore.patch(target.id, { calls: rowBefore.calls ?? [] });
+                else if (confusionStore.has(target.id)) await confusionStore.drop(target.id);
+            }
+            if (onFlag) {
+                const flag = target.getFlag(MODULE_ID, FLAGS.pendingCall);
+                const rest = (Array.isArray(flag) ? flag : flag ? [flag] : []).filter(entry => entry?.key !== "meddle");
+                if (rest.length) await target.setFlag(MODULE_ID, FLAGS.pendingCall, rest);
+                else await target.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            }
+            await back();
+        }
+        const everybody = stableJson(game.users.map(u => u.id).sort());
+        const cards = game.messages.contents.slice(from);
+        const told = words.filter(w => w.to.includes(player(cub).id) || w.to.includes(player(target).id));
+        const plain = told.map(w => cards.find(m => m.id === w.id))
+            .filter(m => !m?.getFlag(MODULE_ID, "veiled") || stableJson([...(m?.whisper ?? [])].sort()) !== everybody || m?.speaker?.actor);
+        equal(stableJson([Boolean(armed), armed ? Object.hasOwn(armed, "from") : null, told.length >= 3, plain.length,
+            words.some(w => w.to.includes(player(target).id) && w.html.includes(cub.name)), onFlag, inStore]),
+            stableJson([true, false, true, 0, false, 0, true]),
+            `Confusion stored its Monocub on the target, or a card to either player named them, or named the Monocub to the target, or its Call sits on the target's flag and not in the GMs' store: ${
+                stableJson({ armed, onFlag, inStore, told: told.map(w => ({ id: w.id, to: w.to })), plain: plain.map(m => m?.id ?? null) })}`);
+    }],
+
+    ["a Confusion 1.2.64 armed on its target's flag moves into the GMs' store, and the flag keeps the other Calls", async () => {
+        /*
+         * E06 fix r2-G4, 28.09.2026; review round 2's mn2: the clause `liftArmedConfusions`.
+         * A character's flag as 1.2.64 left it - a Support and a Confusion, the Confusion still
+         * naming its Monocub - is handed to the clause: the Confusion reads back from the GMs'
+         * store without `from`, the flag keeps the Support alone, `pendingCalls` still reads
+         * both, and a second run finds nothing to do. Put back whatever happens.
+         */
+        const E = await import("./call-effects.mjs");
+        const { confusionStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [target] = livingStudents();
+        must(target, "no living student to hold the Confusion");
+        must(typeof E.liftArmedConfusions === "function" && confusionStore, "there is no clause that moves a Confusion off its target's flag");
+        const flagBefore = foundry.utils.deepClone(target.getFlag(MODULE_ID, FLAGS.pendingCall) ?? null);
+        const rowBefore = foundry.utils.deepClone(confusionStore.get(target.id) ?? null);
+        const ours = entry => /^SUITElift/.test(entry?.nonce ?? "");
+        try {
+            await target.setFlag(MODULE_ID, FLAGS.pendingCall, [
+                { key: "support", kind: "hope", grants: "advantage", amount: null, nonce: "SUITEliftSupport" },
+                { key: "meddle", grants: "bonus", amount: -1, from: "SUITEcub", nonce: "SUITEliftConfusion" }]);
+            const report = await E.liftArmedConfusions();
+            const flag = target.getFlag(MODULE_ID, FLAGS.pendingCall);
+            const row = (confusionStore.get(target.id)?.calls ?? []).filter(ours);
+            equal(stableJson([(report?.lifted ?? 0) >= 1, (Array.isArray(flag) ? flag : flag ? [flag] : []).map(e => e.nonce),
+                row.map(e => [e.key, e.amount, Object.hasOwn(e, "from")]), E.pendingCalls(target).filter(ours).map(e => e.nonce).sort(),
+                await E.liftArmedConfusions()]),
+                stableJson([true, ["SUITEliftSupport"], [["meddle", -1, false]], ["SUITEliftConfusion", "SUITEliftSupport"], null]),
+                "the Confusion stayed on the flag, took the Support with it, kept its Monocub, or the clause ran twice");
+        } finally {
+            if (flagBefore === null) await target.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            else await target.setFlag(MODULE_ID, FLAGS.pendingCall, flagBefore);
+            if (rowBefore) await confusionStore.patch(target.id, { calls: rowBefore.calls ?? [] });
+            else if (confusionStore.has(target.id)) await confusionStore.drop(target.id);
         }
     }],
 
@@ -11314,6 +13285,15 @@ const SCENARIOS = [
                 gone: (report, id) => !S.eclipseMoveStore.has(id),
                 back: id => S.eclipseMoveStore.get(id)?.used === 1 && S.eclipseMoveStore.get(id)?.eclipse === "SUITE backed-up Eclipse"
             },
+            // A Confusion armed and not rolled, through its store (E06 fix r2-G4): no player is sent it while the stores are held.
+            confusions: {
+                seed: async () => {
+                    await S.confusionStore.patch(holder.id, { calls: [{ key: "meddle", grants: "bonus", amount: -1, nonce: "SUITEbackedUpCall" }] });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.confusionStore.has(id),
+                back: id => S.confusionStore.get(id)?.calls?.[0]?.nonce === "SUITEbackedUpCall"
+            },
             // A death nobody has found, through its store (E05 C10): no player is sent it while the stores are held (R184).
             deaths: {
                 seed: async () => {
@@ -11671,6 +13651,514 @@ const SCENARIOS = [
         } finally {
             if (item) await actor.items.get(item.id)?.delete();
         }
+    }],
+
+    ["a refused crossing names no unknown room", async () => {
+        /*
+         * E06 C11, 28.09.2026; audit S07-19. The list of where you can go was filtered by
+         * the rooms this viewer has found (MAP-03) and the sentence's own `{to}` was not,
+         * so a token dragged onto a black patch came back with the name of the room under
+         * it. `known` is what `roomsKnownToMe` answers on a player's browser; the suite runs
+         * on a GM's, where it answers null and every name may be said. The Eclipse's
+         * refusal asks the same question and must use the same sentence.
+         */
+        const M = await import("./movement.mjs");
+        const eclipse = stripComments((await moduleSources()).get("eclipse.mjs") ?? "");
+        const [here, there, next] = M.allRooms();
+        must(here && there && next, "the scene has fewer than three rooms - there is no crossing to refuse");
+        const text = known => typeof M.notConnectedText === "function" ? M.notConnectedText(here, there, [next], known) : null;
+        const listed = game.i18n.format("DRPG.Move.notConnected", { from: here, to: there, rooms: next });
+        equal(stableJson([text(new Set([here, next])), text(new Set([here, there, next])), text(null)]),
+            stableJson([game.i18n.format("DRPG.Move.cannotReach", { from: here }), listed, listed]),
+            "a refusal named a destination the viewer has not found, or no longer names one they have");
+        ok(/notConnectedText\(from, to, connected\)/.test(eclipse) && !/DRPG\.Move\.notConnectedShort/.test(eclipse),
+            "the Eclipse's refusal does not go through notConnectedText, so it can still name an unknown room");
+    }],
+
+    ["the Rest window names no rest room the viewer has not found", async () => {
+        /*
+         * E06 C11, 28.09.2026; audit S07-19. The Rest window's hints and the refusal listed
+         * every rest room on the map. Two rooms are marked for a Short Rest here and the list
+         * is read for a viewer who has found one of them, none of them, and a GM's null.
+         */
+        const R = await import("./rest.mjs");
+        const V = await import("./vault.mjs");
+        const M = await import("./movement.mjs");
+        const rooms = M.allRooms().slice(0, 2);
+        must(rooms.length === 2, "the scene has fewer than two rooms - there is no list to filter");
+        const regions = rooms.map(room => V.regionsByName().get(room));
+        must(regions.every(Boolean), "a room has no region to mark");
+        const key = `flags.${MODULE_ID}.${R.REST_FLAGS.short}`;
+        const before = regions.map(region => region.getFlag(MODULE_ID, R.REST_FLAGS.short));
+        try {
+            for (const region of regions) await region.update({ [key]: true });
+            await settle();
+            const say = known => typeof R.restRoomsSentence === "function"
+                ? R.restRoomsSentence("short", "DRPG.Rest.allowedIn", {}, known) : null;
+            const all = R.restRooms("short");
+            must(rooms.every(room => all.includes(room)), "the two rooms were not marked");
+            equal(stableJson([say(new Set([rooms[0]])), say(new Set()), say(null)]), stableJson([
+                game.i18n.format("DRPG.Rest.allowedIn", { rooms: rooms[0] }),
+                game.i18n.localize("DRPG.Rest.noKnownRooms"),
+                game.i18n.format("DRPG.Rest.allowedIn", { rooms: all.join(", ") })
+            ]), "the Rest list named a room the viewer has not found, or hid one from a GM");
+        } finally {
+            for (const [i, region] of regions.entries()) {
+                await region.update({ [key]: before[i] === undefined ? forcedDeletion() : before[i] });
+            }
+            await settle();
+        }
+    }],
+
+    ["the Search window's modifier holds no stash", async () => {
+        /*
+         * E06 C11, 28.09.2026; audit S02-40. A hidden stash with something in it was the
+         * third term of the count the roll window shows, and the window can be closed for
+         * the action back - so opening a Search said whether somebody had hidden something
+         * in the room, for nothing. Built here: the searcher's room a poor place for
+         * usable things, and somebody else's hidden stash in it with one thing inside. The
+         * window's part is the room's -1 alone; the stash's -1 comes after the roll. At
+         * 1.2.64 the armed count was -2 and there was no second part.
+         */
+        const rolls = await import("./action-rolls.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { roomOfActor } = await import("./movement.mjs");
+        const [who, owner] = cast(2);
+        const room = roomOfActor(who);
+        must(room, `${who.name} is not standing in a room`);
+        const region = V.regionsByName().get(room);
+        must(region, `${room} has no region`);
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
+        const path = k => `flags.${MODULE_ID}.${k}`;
+        let item = null;
+        try {
+            await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: owner.id, concealed: true }],
+                [path(V.VAULT_FLAGS.hinders)]: ["usable"], [path(V.VAULT_FLAGS.favours)]: [] });
+            item = await INV.grantItem(owner, { name: "SUITE C11 hidden", category: "usable", tier: 1, override: true, quiet: true });
+            must(item, "the stash's thing was not made");
+            await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: room });
+            await settle();
+            must(V.stashItemsIn(owner, room).length === 1, "the thing is not in the hidden stash");
+            const odds = typeof rolls.searchOdds === "function" ? rolls.searchOdds(who, room, "usable", V) : null;
+            equal(stableJson(odds && [odds.situational, odds.penalty, odds.stashOwner?.id, odds.stashLoot.map(i => i.id)]),
+                stableJson([-1, -1, owner.id, [item.id]]), "the window's count holds the stash, or the stash lost its -1");
+            const search = fnSource(stripComments((await moduleSources()).get("action-rolls.mjs") ?? ""), "performSearch");
+            ok(/\{ situational, penalty\b[^}]*\} = searchOdds\(/.test(search)
+                && [...search.matchAll(/armSituational\(([^)]*)\)/g)].map(m => m[1]).join() === "situational",
+                "performSearch arms something other than searchOdds' situational part");
+        } finally {
+            if (item) await owner.items.get(item.id)?.delete();
+            await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
+            await settle();
+        }
+    }],
+
+    ["a hidden stash's -1 lands on the total after the roll, and the card says so", async () => {
+        /*
+         * E06 C11, 28.09.2026; audit S02-40. The stash's -1 is taken off the total the tiers
+         * read (`searchTier`), so at each band's lowest total it drops the Search a band;
+         * the card carries a line saying so (`situationLine`), which every Search outcome
+         * hands to `report`; and a Reroll scores the new dice with the same -1, which the
+         * bookmark carries. The dice's own total, and the roll message, are left alone.
+         */
+        const rolls = await import("./action-rolls.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const bands = [...ACTIONS.search.thresholds].sort((a, b) => a.min - b.min);
+        must(bands.length >= 2, "Search has fewer than two bands");
+        const tier = (total, penalty) => {
+            const out = typeof rolls.searchTier === "function" ? rolls.searchTier({ total, isCritical: false }, penalty) : null;
+            return out?.hit ? out.tier : null;
+        };
+        equal(stableJson(bands.map(b => [tier(b.min, 0), tier(b.min, -1)])),
+            stableJson(bands.map((b, i) => [b.tier, i ? bands[i - 1].tier : null])),
+            "the -1 did not move a Search down a band at the band's edge");
+        const line = typeof rolls.situationLine === "function" ? [rolls.situationLine(-1, 11), rolls.situationLine(0, 12)] : null;
+        equal(stableJson(line), stableJson([`<p><em>${game.i18n.format("DRPG.Action.situationAfterRoll", { n: "-1", total: 11 })}</em></p>`, ""]),
+            "the card's line does not say the -1 and the total that counts, or says something with no penalty");
+        const src = await moduleSources();
+        const actions = stripComments(src.get("action-rolls.mjs") ?? "");
+        const search = fnSource(actions, "performSearch");
+        // And the GM's card for "something specific", which shows the tier beside the dice (E06 fix r2-G4; m5).
+        const reports = ["searchNothing", "searchStash", "searchSpecific"].map(name =>
+            /report\(actor, def, roll, \{[^}]*\bextra\b/.test(fnSource(actions, name)))
+            .concat(/gmBody: `[\s\S]*?<\/p>\$\{extra\}`/.test(fnSource(actions, "searchSpecific")));
+        const reroll = fnSource(stripComments(src.get("reroll.mjs") ?? ""), "settleSearch");
+        equal(stableJson([/context: \{[^}]*\bpenalty\b/.test(search), /situationLine\(penalty, score\)/.test(search),
+            /\bextra,/.test(search), reports, /searchTier\(after, penalty\b/.test(reroll)]),
+            stableJson([true, true, true, [true, true, true, true], true]),
+            "the bookmark, a Search card or the Reroll does not carry the -1");
+    }],
+
+    ["a GM report's document holds no words", async () => {
+        /*
+         * E06 C11, 28.09.2026; audit S17-32. `diagnoseMusic` and the season checklist
+         * whispered their text with ChatMessage.create, and a whispered message is a
+         * document every connected browser receives. Through `gmReport` the document is a
+         * stub whispered to this GM and the words are in this GM's store - read back, so
+         * the check is shown able to find them.
+         */
+        const { diagnoseMusic } = await import("./music.mjs");
+        const { diagnoseCharacters } = await import("./diagnostics.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const probe = async (make, title, phrase) => {
+            const had = new Set(game.messages.contents.map(m => m.id));
+            make();
+            await until(() => game.messages.contents.some(m => !had.has(m.id)));
+            await settle();
+            const made = game.messages.contents.filter(m => !had.has(m.id));
+            const doc = JSON.stringify(made.map(m => m.toObject()));
+            const words = made.length === 1 ? String(await wordsOf(made[0], 2000) ?? "") : "";
+            return [made.length, doc.includes(title), doc.includes(phrase), made[0]?.whisper ?? null, words.includes(title), words.includes(phrase)];
+        };
+        const music = await probe(() => diagnoseMusic(), game.i18n.localize("DRPG.Diagnostics.title.music"), "music follows the game state");
+        const season = await probe(() => diagnoseCharacters({ toChat: true }), game.i18n.localize("DRPG.Diagnostics.title.season"), "Monokumas excluded");
+        const want = [1, false, false, [game.user.id], true, true];
+        equal(stableJson([music, season]), stableJson([want, want]),
+            "a report's words are in its document, or not in this GM's store");
+    }],
+
+    ["the old cards' rewrite empties a roll the module threw, a private card's facts and a report, and reads them back", async () => {
+        /*
+         * E06 C12, 28.09.2026; the plan's section 3, the owner's Q1 (a). Messages as 1.2.64 left
+         * them: a roll the module threw, aged back to naming its character - the speaker, the
+         * flavour, the roll's title and its data's id and name, Daggerheart's title where the
+         * message has one - and whispered to a player as well; a private card whose module flags
+         * say its action, its tone, its sound and that it asked for a ruling, beside its thread;
+         * a music report with its words as the content. `neutraliseOldCards` is handed them, not
+         * the world's log. Read back from game.messages: the roll names nobody and is whispered to
+         * the GMs alone; the card keeps what places it and `settled`, the report is the stub and a
+         * private card; the report counts each, and a second run has nothing to do.
+         *
+         * WITH ROLLS NOT FORCED PRIVATE, AND A RULING STILL OPEN (E06 fix r2-G1, 28.09.2026; review
+         * round 2's mn4 = m2 and mn3 = m3). The rewrite runs with `forcePrivateRolls` off, as a
+         * table that turned it off after an incident upgrades: the roll whose list names a player
+         * goes to the GMs alone all the same, and a second old roll the table saw (an empty list)
+         * stays public. A GM-only ruling card nobody has settled - a trap's alert as `callGm` posts
+         * one with no thread - keeps `callCard`, which a GM's log wires its buttons by, and loses
+         * the rest. The setting is put back and the messages deleted.
+         */
+        const { neutraliseOldCards } = await import("./migrate.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        const { STUB, cardFlag } = await import("./secret.mjs");
+        needs(world.atLeast("playerAccounts", 1), "the old roll's whisper names a player");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const TITLE = "SUITE C12 Strike";
+        const forcedBefore = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+        const made = [];
+        // A roll the module threw, aged back to what 1.2.64 left: whether its message has Daggerheart's title.
+        const age = async (roll, whisper) => {
+            const src = roll.toObject();
+            const entry = src.rolls[0];
+            const aged = typeof entry === "string" ? JSON.parse(entry) : foundry.utils.deepClone(entry);
+            aged.options = { ...(aged.options ?? {}), title: TITLE, headerTitle: TITLE,
+                data: { ...(aged.options?.data ?? {}), id: student.id, name: student.name } };
+            const hasSystem = Boolean(src.system && typeof src.system === "object");
+            await roll.update({ speaker: { alias: student.name, actor: student.id, token: null, scene: null }, flavor: TITLE,
+                whisper, rolls: [typeof entry === "string" ? JSON.stringify(aged) : aged], ...(hasSystem ? { "system.title": TITLE } : {}) });
+            return hasSystem;
+        };
+        try {
+            const roll = (await neutralRoll(student)).message;
+            must(roll?.rolls?.length, "the student's roll made no message");
+            made.push(roll);
+            const hasSystem = await age(roll, [...gmIds(), player.id]);
+            const shown = (await neutralRoll(student)).message;
+            must(shown?.rolls?.length, "the student's second roll made no message");
+            made.push(shown);
+            await age(shown, []);
+            const card = await ChatMessage.create({ content: STUB, whisper: [game.user.id], flags: { [MODULE_ID]: {
+                secret: true, drpgMessage: true, thread: "SUITE-C12-thread", kind: "call", gmAsk: true, settled: true,
+                popupTitle: "SUITE C12 Search", popupTone: "hope", sfx: "search", callCard: true } } });
+            made.push(card);
+            const ruling = await ChatMessage.create({ content: STUB, whisper: gmIds(), flags: { [MODULE_ID]: {
+                secret: true, drpgMessage: true, callCard: true, gmPopup: true, popupTitle: "SUITE r2-G1 A ruling to make",
+                sfx: { key: "gmAsk", gm: true } } } });
+            made.push(ruling);
+            const report = await ChatMessage.create({ whisper: [game.user.id],
+                content: '<h3>Music diagnostics</h3><pre style="white-space:pre-wrap;font-size:0.85em">SUITE C12 the music report</pre>' });
+            made.push(report);
+            must(game.messages.get(roll.id)?.speaker?.actor === student.id && game.messages.get(shown.id)?.speaker?.actor === student.id
+                && !game.messages.get(shown.id)?.whisper?.length && game.messages.get(card.id)?.flags?.[MODULE_ID]?.popupTitle
+                && game.messages.get(ruling.id)?.flags?.[MODULE_ID]?.callCard
+                && String(game.messages.get(report.id)?.content ?? "").includes("SUITE C12"), "the old cards were not planted as 1.2.64 left them");
+
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, false);
+            const done = await neutraliseOldCards({ messages: made.map(m => game.messages.get(m.id)) });
+            const r = game.messages.get(roll.id), s = game.messages.get(shown.id), c = game.messages.get(card.id);
+            const g = game.messages.get(ruling.id), p = game.messages.get(report.id);
+            const rolled = r.rolls[0]?.options ?? {};
+            const whisper = Array.from(r.whisper ?? []);
+            equal(stableJson([done, r.speaker?.actor ?? null, r.speaker?.alias, r.flavor ?? "", hasSystem ? r.system?.title ?? "" : "none",
+                rolled.title, rolled.headerTitle, "id" in (rolled.data ?? {}), "name" in (rolled.data ?? {}),
+                whisper.length > 0 && whisper.every(id => game.users.get(id)?.isGM), Array.from(s.whisper ?? []).length, s.speaker?.actor ?? null,
+                Object.keys(c.flags?.[MODULE_ID] ?? {}).sort(), Object.keys(g.flags?.[MODULE_ID] ?? {}).sort(), Boolean(cardFlag(g, "callCard")),
+                String(p.content).includes("SUITE C12"), String(p.content).includes("data-drpg-secret"), p.flags?.[MODULE_ID]?.secret === true]),
+            stableJson([{ rolls: 2, cards: 2, reports: 1 }, null, game.i18n.localize("DRPG.Secret.speaker"), "", hasSystem ? "" : "none",
+                "", "", false, false, true, 0, null, ["drpgMessage", "gmAsk", "kind", "secret", "settled", "thread"],
+                ["callCard", "drpgMessage", "secret"], true, false, true, true]),
+            "an old card still says what it said, lost what places it or wires it, or was not counted");
+            equal(await neutraliseOldCards({ messages: made.map(m => game.messages.get(m.id)) }), null, "a second run of the rewrite found something to do");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forcedBefore);
+            for (const message of made) await game.messages.get(message.id)?.delete();
+        }
+    }],
+
+    ["the old cards' rewrite that did not read back throws with the count, and the world is not stamped", async () => {
+        /*
+         * E06 C12, 28.09.2026; E05's lift pattern (fix r1-G1). With `ChatMessage.updateDocuments`
+         * swallowed - a write that says it went through and did not - the rewrite reads its two
+         * cards back unchanged and throws with the count; the runner, from a stamp of 1.2.63.5
+         * (the stamp the pass over `liftDiscoveryLedger` above explains), fails the clause, names
+         * it in a notice that stays, and leaves the stamp; the cards still say what they said.
+         * With the writes back, the next run rewrites both. The runner's pass reads the whole
+         * log but writes nothing, the writes being swallowed; the retry is handed the two cards.
+         * The stamp is put back and the cards deleted.
+         */
+        const G = await import("./migrate.mjs");
+        const { STUB } = await import("./secret.mjs");
+        const stampBefore = getSetting(SETTINGS.migratedVersion);
+        const ownUpdate = Object.hasOwn(ChatMessage, "updateDocuments"), realUpdate = ChatMessage.updateDocuments;
+        const putBack = () => {
+            if (ownUpdate) ChatMessage.updateDocuments = realUpdate;
+            else delete ChatMessage.updateDocuments;
+        };
+        const notices = ui.notifications, realError = notices.error;
+        const said = [];
+        const made = [];
+        const held = () => {
+            const [card, report] = made.map(m => game.messages.get(m.id));
+            return [Object.hasOwn(card?.flags?.[MODULE_ID] ?? {}, "popupTitle"), String(report?.content ?? "").includes("SUITE C12")];
+        };
+        try {
+            made.push(await ChatMessage.create({ content: STUB, whisper: [game.user.id],
+                flags: { [MODULE_ID]: { secret: true, drpgMessage: true, popupTitle: "SUITE C12 Search", popupTone: "fear" } } }));
+            made.push(await ChatMessage.create({ whisper: [game.user.id],
+                content: '<h3>Season setup</h3><pre style="white-space:pre-wrap;font-size:0.85em">SUITE C12 the season checklist</pre>' }));
+            must(made.every(Boolean) && held().every(Boolean), "the old cards were not planted as 1.2.64 left them");
+            ChatMessage.updateDocuments = async () => [];
+            const threw = await thrown(() => G.neutraliseOldCards({ messages: made }));
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, "1.2.63.5");
+            notices.error = (text, options) => {
+                said.push({ text: String(text), permanent: options?.permanent === true });
+                return null;
+            };
+            const pass = await G.migrate1_2_0({ quiet: true, only: ["neutraliseOldCards"] });
+            putBack();
+            notices.error = realError;
+            equal(stableJson([/^2 of 2 old chat card/.test(threw ?? ""), pass?.failed ?? null, getSetting(SETTINGS.migratedVersion), held(),
+                said.some(n => n.text.includes("neutraliseOldCards") && n.permanent)]),
+            stableJson([true, ["neutraliseOldCards"], "1.2.63.5", [true, true], true]),
+            `the rewrite that did not read back did not throw with its count, stamped the world, or was not named on screen: ${stableJson({ threw, pass, said })}`);
+
+            const retried = await G.neutraliseOldCards({ messages: made.map(m => game.messages.get(m.id)) });
+            equal(stableJson([retried, held()]), stableJson([{ rolls: 0, cards: 1, reports: 1 }, [false, false]]),
+                "the next run did not rewrite the two cards");
+        } finally {
+            putBack();
+            notices.error = realError;
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, stampBefore);
+            for (const message of made) await game.messages.get(message?.id ?? "")?.delete();
+        }
+    }],
+
+    ["the old cards' rewrite veils the cards posted veiled today and keeps a receipt's thread with its words", async () => {
+        /*
+         * E06 fix r2-G1, 28.09.2026; review round 2's MJ1. Messages as 1.2.64 left them, handed to
+         * `neutraliseOldCards`. Veiled today, and so to be veiled: a trap's receipt in a player's
+         * thread as `callGm` posted it then - an ordinary private card, its thread and the player
+         * on its document - with its Plant button in the words this GM holds; a watching trap's
+         * receipt, which has no button and is known by its heading; a reshape card under a heading
+         * in another language, known by its buttons; Confusion's card, known by its sound on the
+         * document; a Loaded Die notice, known by its sentence; and the time of day told to an
+         * incident's players. Not veiled today, and left: an Observe card in the same thread, and
+         * the time of day's heading on a card to the GMs alone. And two rolls the module did not
+         * throw, whose lists name another player beside the character's: a statistic the GM asked
+         * a participant for in a fight, whose list loses that player, and a Monocub's, whose room
+         * then is not known now, which keeps its list. Read back: the six are veiled - the whole
+         * table on the list, nobody speaking, none of their flags on the document - and the plant
+         * receipt's thread is still this GM's to read, from the meta its pinned words were given,
+         * and was sent with them to its player, whose copy has no button. A second run has
+         * nothing to do. The flag is put back and the messages deleted.
+         */
+        needs(world.atLeast("playerAccounts", 2), "a thread's player and another participant");
+        const { neutraliseOldCards } = await import("./migrate.mjs");
+        const { gmIds, cardHead, ownerOf } = await import("./utils.mjs");
+        const { timeOfDayLabel } = await import("./clock.mjs");
+        const S = await import("./secret.mjs");
+        const { threadMessages } = await import("./messenger.mjs");
+        const [student, cub] = cast(2);
+        const owner = ownerOf(student);
+        must(owner, "the cast's first student has no player of its own - this measures nothing");
+        const other = game.users.find(u => !u.isGM && u.id !== owner.id);
+        const gms = gmIds();
+        const speaker = ChatMessage.getSpeaker({ actor: student });
+        const wasCub = Boolean(cub.getFlag(MODULE_ID, FLAGS.monocub));
+        const made = [];
+        const button = action => `<button type="button" class="drpg-call-action" data-drpg-call="${action}" data-project="SUITEPROJECT0001">${action}</button>`;
+        const roll = async (actor, whisper) => ChatMessage.create({ content: "7", speaker: ChatMessage.getSpeaker({ actor }), whisper,
+            rolls: [JSON.stringify({ formula: "1d12", total: 7, options: {} })] });
+        try {
+            const thread = { thread: owner.id, kind: "action", gmAsk: true };
+            const inThread = content => S.postSecret({ whisper: [owner.id, ...gms], flags: { [MODULE_ID]: thread }, content });
+            const armed = `<h3>${game.i18n.localize("DRPG.Trap.armedTitle")}</h3><p><strong>${student.name}</strong></p>`;
+            made.push(await inThread(`${armed}<div class="drpg-call-actions">${button("plantTrapItem")}</div>`));
+            made.push(await inThread(armed));
+            made.push(await inThread(`<h3>SUITE a heading in another language</h3><p>SUITE a trace</p><div class="drpg-call-actions">${
+                button("approveReshape")}${button("declineReshape")}</div>`));
+            made.push(await ChatMessage.create({ content: S.STUB, speaker, whisper: [owner.id, ...gms],
+                flags: { [MODULE_ID]: { secret: true, drpgMessage: true, sfx: "meddle" } } }));
+            made.push(await S.postSecret({ whisper: [...gms, owner.id], speaker,
+                content: `${cardHead({ action: game.i18n.localize("DRPG.Calls.freeCritTitle") })}<p>${
+                    game.i18n.format("DRPG.Calls.freeCritUsed", { name: student.name })}</p>` }));
+            const hour = `<h3>${timeOfDayLabel("morning")}</h3><p>SUITE the clock</p>`;
+            made.push(await S.postSecret({ whisper: [...gms, owner.id, other.id], content: hour }));
+            made.push(await inThread("<h3>SUITE r2-G1 Observe</h3><p>SUITE what they asked</p>"));
+            made.push(await S.postSecret({ whisper: gms, content: hour }));
+            made.push(await roll(student, [...gms, owner.id, other.id]));
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            made.push(await roll(cub, [...gms, owner.id, other.id]));
+            const [receipt, watching, reshape, meddle, loaded, clock, observe, clockGm, asked, cubRoll] = made;
+            must(made.every(m => m?.id) && S.secretHtml(receipt)?.includes("plantTrapItem") && S.secretHtml(loaded) && S.secretHtml(clock)
+                && receipt.getFlag(MODULE_ID, "thread") === owner.id && game.messages.get(asked.id)?.whisper?.includes(other.id)
+                && game.messages.get(cubRoll.id)?.whisper?.includes(other.id), "the old cards were not planted as 1.2.64 left them - this measured nothing");
+            let done = null;
+            const sent = await wordsSent(async () => {
+                done = await neutraliseOldCards({ messages: made.map(m => game.messages.get(m.id)) });
+                await settle();
+            });
+            const everybody = stableJson(game.users.map(u => u.id).sort());
+            const shape = message => {
+                const m = game.messages.get(message.id);
+                const own = m?.flags?.[MODULE_ID] ?? {};
+                return [own.veiled === true, stableJson([...(m?.whisper ?? [])].sort()) === everybody, m?.speaker?.actor ?? null,
+                    ["thread", "kind", "gmAsk", "sfx"].filter(key => Object.hasOwn(own, key))];
+            };
+            const listOf = message => [...(game.messages.get(message.id)?.whisper ?? [])].sort();
+            const r = game.messages.get(receipt.id);
+            const toPlayer = sent.find(w => w.id === receipt.id && w.to.includes(owner.id));
+            equal(stableJson([done, [receipt, watching, reshape, meddle, loaded, clock].map(shape), shape(observe)[0], shape(observe)[3],
+                shape(clockGm)[0], S.cardFlag(r, "thread"), threadMessages(owner.id).some(m => m.id === receipt.id),
+                Boolean(S.secretHtml(r)?.includes("plantTrapItem")), Boolean(getSetting(SETTINGS.secretCards)?.[receipt.id]?.pin),
+                toPlayer?.meta?.thread ?? null, Boolean(toPlayer?.html.includes("plantTrapItem")), listOf(asked), listOf(cubRoll)]),
+            stableJson([{ rolls: 1, cards: 6, reports: 0 }, Array(6).fill([true, true, null, []]), false, ["thread", "kind", "gmAsk"],
+                false, owner.id, true, true, true, owner.id, false, [...gms, owner.id].sort(), [...gms, owner.id, other.id].sort()]),
+            `an old card today's code veils still names its people, one it does not was veiled, the receipt left its thread, or a roll's list is wrong: ${
+                stableJson({ done, sent: sent.map(w => ({ id: w.id, to: w.to, meta: w.meta })) })}`);
+            equal(await neutraliseOldCards({ messages: made.map(m => game.messages.get(m.id)) }), null, "a second run of the rewrite found something to do");
+        } finally {
+            if (Boolean(cub.getFlag(MODULE_ID, FLAGS.monocub)) !== wasCub) await cub.setFlag(MODULE_ID, FLAGS.monocub, wasCub);
+            for (const message of made) await game.messages.get(message?.id ?? "")?.delete();
+        }
+    }],
+
+    ["the armed Calls 1.2.64 wrote lose their buyer at the upgrade", async () => {
+        /*
+         * E06 fix r2-G1, 28.09.2026; review round 2's mn5 = m4: the `unsignArmedCalls` clause
+         * (call-effects.mjs). A character's list of armed Calls as 1.2.64 wrote it - a Support
+         * with its buyer in `from` - and an unlinked token of the same character whose delta
+         * holds a Confusion as a bare object from before CALL-02, its Monocub in `from`: the
+         * clause writes both back as lists without `from`, keeps everything else, says how many,
+         * and a second run has nothing to do. Planted again with the actor's write swallowed, the
+         * Call reads back still signed and the clause throws with the count. The flag is put
+         * back as it was and the token deleted.
+         */
+        needs(world.atLeast("playerAccounts", 2), "a buyer who is not the character's player");
+        const C = await import("./call-effects.mjs");
+        const [who] = cast(1);
+        const buyer = game.users.find(u => !u.isGM && !who.testUserPermission(u, "OWNER"));
+        const scene = canvas.scene ?? game.scenes.contents[0];
+        const before = foundry.utils.deepClone(who.getFlag(MODULE_ID, FLAGS.pendingCall) ?? null);
+        const support = { key: "support", kind: "hope", grants: "advantage", amount: 1, nonce: "SUITENONCE000001" };
+        const confusion = { key: "meddle", grants: "disadvantage", amount: -1 };
+        const actor = game.actors.get(who.id);
+        const ownUpdate = Object.getOwnPropertyDescriptor(actor, "update");
+        let token = null;
+        const listsNow = () => ({ actor: game.actors.get(who.id)?.flags?.[MODULE_ID]?.[FLAGS.pendingCall] ?? null,
+            token: scene.tokens.get(token?.id ?? "")?.toObject()?.delta?.flags?.[MODULE_ID]?.[FLAGS.pendingCall] ?? null });
+        try {
+            await who.setFlag(MODULE_ID, FLAGS.pendingCall, [{ ...support, from: buyer.id }]);
+            [token] = await scene.createEmbeddedDocuments("Token", [{ name: "SUITE unlinked", actorId: who.id, actorLink: false,
+                x: 100, y: 100, width: 1, height: 1, hidden: true,
+                delta: { flags: { [MODULE_ID]: { [FLAGS.pendingCall]: { ...confusion, from: "SUITEMONOCUB0001" } } } } }]);
+            const planted = listsNow();
+            must(planted.actor?.[0]?.from === buyer.id && planted.token?.from === "SUITEMONOCUB0001", "the signed Calls were not planted - this measured nothing");
+            const report = await C.unsignArmedCalls();
+            const after = listsNow();
+            equal(stableJson([report?.unsigned >= 2, after.actor, after.token]), stableJson([true, [support], [confusion]]),
+                `a Call written by 1.2.64 still names who bought it, or lost something else: ${stableJson({ report, after })}`);
+            equal(await C.unsignArmedCalls(), null, "a second run of the clause found something to do");
+
+            await who.setFlag(MODULE_ID, FLAGS.pendingCall, [{ ...support, from: buyer.id }]);
+            actor.update = async () => actor;
+            const threw = await thrown(() => C.unsignArmedCalls());
+            ok(/^1 of 1 actor/.test(threw ?? ""), `the clause whose write did not read back did not throw with its count: ${threw}`);
+        } finally {
+            if (ownUpdate) Object.defineProperty(actor, "update", ownUpdate);
+            else delete actor.update;
+            if (before) await who.setFlag(MODULE_ID, FLAGS.pendingCall, before);
+            else if (who.getFlag(MODULE_ID, FLAGS.pendingCall) !== undefined) await who.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            if (token) await scene.tokens.get(token.id)?.delete();
+        }
+    }],
+
+    ["a repair 1.2.64 made of a secret project is sealed and renamed at the upgrade", async () => {
+        /*
+         * E06 fix r2-G1, 28.09.2026; review round 2's mn5 = m4: the `sealOldRepairs` clause
+         * (projects.mjs). A secret project one player can see, sabotaged as 1.2.64 did it: a
+         * public repair named "Repair: <the project>", tied to it both ways. With the countdowns'
+         * and projectMeta's writes swallowed the clause reads its repair back unsealed and throws
+         * with the count; with them back the repair is secret, seen by that player and not by
+         * another, and named "Repair" alone, the report counts it, and a second run has nothing
+         * to do. Both projects are deleted and projectMeta put back.
+         */
+        needs(world.atLeast("playerAccounts", 2), "a player who can see the project and one who cannot");
+        const P = await import("./projects.mjs");
+        const [viewer, outsider] = game.users.filter(u => !u.isGM);
+        const NAME = "SUITE r2-G1 hidden work";
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const settings = game.settings;
+        const ownSet = Object.getOwnPropertyDescriptor(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (ownSet) Object.defineProperty(settings, "set", ownSet);
+            else delete settings.set;
+        };
+        const made = [];
+        let threw = null, report = null, again = null, sealed = null;
+        try {
+            const target = await P.createProject({ name: NAME, target: 6, secret: true, viewers: [viewer.id] });
+            must(target?.id, "could not create a secret project");
+            made.push(target.id);
+            const repair = await P.createProject({ name: game.i18n.format("DRPG.Project.repairName", { name: NAME }), target: 3, glyph: "tamper" });
+            must(repair?.id, "could not create the old repair");
+            made.push(repair.id);
+            await P.setProjectMeta(repair.id, { repairs: target.id });
+            await P.setProjectMeta(target.id, { frozenBy: repair.id });
+            must(P.isSecret(target.id) && !P.isSecret(repair.id) && P.canSee(repair.id, outsider), "the old repair was not planted public - this measured nothing");
+            settings.set = async function (namespace, key, value, ...rest) {
+                return namespace === MODULE_ID && key !== SETTINGS.projectMeta ? realSet.call(this, namespace, key, value, ...rest) : value;
+            };
+            try {
+                threw = await thrown(() => P.sealOldRepairs());
+            } finally {
+                putBack();
+            }
+            report = await P.sealOldRepairs();
+            sealed = [P.isSecret(repair.id), P.allProjects().find(p => p.id === repair.id)?.name ?? null, P.canSee(repair.id, viewer), P.canSee(repair.id, outsider)];
+            again = await P.sealOldRepairs();
+        } finally {
+            putBack();
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            await settle();
+        }
+        equal(stableJson([/^1 of 1 repair/.test(threw ?? ""), report?.sealed ?? null, sealed, again]),
+            stableJson([true, 1, [true, game.i18n.localize("DRPG.Project.repairNameSecret"), true, false], null]),
+            `a repair 1.2.64 made of a secret project is still public or named, or the clause that did not read back did not throw: ${
+                stableJson({ threw, report, sealed, again })}`);
     }]
 ];
 

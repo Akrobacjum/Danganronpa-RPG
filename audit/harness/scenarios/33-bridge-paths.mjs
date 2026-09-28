@@ -9,7 +9,9 @@
  *   A  legal paths: a Reroll's undos in the order reroll.mjs sends them, a player who plays two
  *      characters, an Assistant GM (beside the GM, and as the primary once the GM has gone), and
  *      the shapes Daggerheart's own relay sends for a player. Each lands once, the GM logs no
- *      refusal for it, and its asker is told none.
+ *      refusal for it, and its asker is told none. Since E06 C5a also a roll's subject, reported by
+ *      its roller for a roll whose document names nobody, and two reports that are not the
+ *      sender's to make (A10).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -286,6 +288,60 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         saves?.TOKAIKO000000000?.value === 13, JSON.stringify({ card, saves }));
     check("A8: a save for a token the player does not play is refused, logged and told, and not marked",
         !saves?.TOKBOTAN00000000 && relayLogged.length === 1 && relayTold.length === 1, JSON.stringify({ saves, relayLogged, relayTold }));
+
+    /* --------------------------------------------- A. a neutral roll's subject (E06 C5a) */
+
+    /* A module roll's speaker and `system.source.actor` are emptied as the roll is created (E06
+       C5b, private-rolls.mjs `neutralRollSource`), so the roller reports its subject to the
+       primary GM (`roll.subject`, E06 C5a). Until C5b a player's hook here did the emptying, as
+       that commit was to: p1 throws Aiko's roll and p2 Botan's, each a Hope. The GM keeps each subject from its
+       report - not from a fallback, which for p1 would also say Aiko - p1's reports of Botan on
+       its own roll and of Aiko on p2's roll are refused and logged, quietly, and p1 rewriting its
+       roll's rolls, as a Reroll does, leaves the receipt for Aiko. At 70dd497 nothing reports a subject. */
+    phase("a neutral roll's subject", { flow: "private-rolls" });
+    const neutralThrow = (client, actorId) => client.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__forceRoll = { hope: 9, fear: 4 };
+        try {
+            const out = await A.rollTrait(game.actors.get("${actorId}"), "eye", { remember: false });
+            const m = out?.raw?.message;
+            return { id: m?.id ?? null, speaker: m?.speaker?.actor ?? null, source: m?.system?.source?.actor ?? null };
+        } finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+    await clearFailures(gm);
+    mark = await refusedCount(p1);
+    const mine = await neutralThrow(p1, IDS.aiko);
+    const theirs = await neutralThrow(p2, IDS.botan);
+    const keptOn = (id, ms = 6000) => gm.eval(`const P = await import("${repoUrl}/scripts/private-rolls.mjs");
+        if (typeof P.keptRollSubject !== "function") return "no keptRollSubject";
+        const end = Date.now() + ${ms};
+        while (!P.keptRollSubject(game.messages.get("${id}")) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return P.keptRollSubject(game.messages.get("${id}"));`, { timeout: 30000 });
+    const reported = { mine: await keptOn(mine.id), theirs: await keptOn(theirs.id) };
+    const forge = (messageId, actorId) => p1.eval(`game.socket.emit("${SOCKET}", { action: "roll.subject", messageId: "${messageId}",
+        actorId: "${actorId}" }, ${toGms}); return true;`);
+    await forge(mine.id, IDS.botan);
+    await forge(theirs.id, IDS.aiko);
+    await settle(1500);
+    const a10 = { mine, theirs, reported, after: { mine: await keptOn(mine.id, 0), theirs: await keptOn(theirs.id, 0) },
+        logged: await refusalsLogged(gm, "roll.subject"), told: await refusedSince(p1, mark) };
+    check("A10: the GM keeps each neutral roll's subject from its roller's report",
+        Boolean(mine.id && theirs.id) && mine.speaker === null && theirs.speaker === null && !mine.source && !theirs.source
+        && reported.mine === IDS.aiko && reported.theirs === IDS.botan, JSON.stringify(a10));
+    check("A10: a report of another's character, or of another player's roll, is refused and logged, told to nobody, and changes nothing",
+        a10.logged.length === 2 && a10.logged.some(r => /sender does not own that character/.test(r))
+        && a10.logged.some(r => /sender did not write that roll message/.test(r)) && !a10.told.length
+        && a10.after.mine === IDS.aiko && a10.after.theirs === IDS.botan, JSON.stringify(a10));
+
+    await p1.eval(`const m = game.messages.get("${mine.id}");
+        await m.update({ rolls: [JSON.stringify({ class: "DualityRoll", formula: "1d12 + 1d12", total: 12,
+            dHope: { total: 8 }, dFear: { total: 4 } })] });
+        return true;`, { timeout: 30000 });
+    await settle(1000);
+    const receipt = await gm.eval(`const R = await import("${repoUrl}/scripts/reroll-receipts.mjs");
+        return R.rerollReceiptFor("${IDS.aiko}", "${IDS.p1}")?.messageId ?? null;`);
+    check("A10: p1 rewriting the rolls of its neutral roll leaves the GM a Reroll receipt for Aiko",
+        receipt === mine.id, JSON.stringify({ receipt, mine }));
+    await gm.eval(`for (const id of ${JSON.stringify([mine.id, theirs.id])}) await game.messages.get(id ?? "")?.delete(); return true;`);
+    await settle(400);
 
     /* ------------------------------------------------------ B. what E31 adds */
 

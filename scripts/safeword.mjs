@@ -23,11 +23,32 @@
  *              or as little as they want, afterwards, to a GM.
  *   name a target  It reports the room, never "who you were with". The scene is
  *              being stopped, not an accusation being filed.
+ *
+ * WHO POSTS THE CARD (E06 C9, 28.09.2026; audit S03-02). The caller did, until 1.2.65 -
+ * and a chat message carries its author, which every console reads off the document and
+ * Daggerheart's card header draws on every screen: for a card that names no actor its
+ * template prints the author's name and `renderHTML` the author's avatar (2.6.5 and 2.10.5
+ * alike, read 28.09.2026). So a player's press is a packet to the GMs, and the primary GM
+ * posts the card, with the banner as its `speaker.alias`; a GM who presses it posts it
+ * directly, the same card. With no GM connected there is nobody to ask, and the caller
+ * posts it as before: its header is hidden (`drpg-safeword-unsigned`), and the author
+ * stays in the document.
+ *
+ * WHEN NO GM'S BROWSER ANSWERS (E06 fix r2-G3, 28.09.2026; the round-2 review's security mn6
+ * = correctness M1). A GM counts as connected many seconds before their module listens -
+ * measured on a live reload, gm-bridge.mjs `registerGmBridge` - and a packet that reaches no
+ * listener is gone: the review's probe pressed through such a GM and got no card on four
+ * screens and no pause, while the caller's own card said the scene was stopped. So a player's
+ * press waits `TIMING.safewordAnswerMs` for a card to land (`awaitCard`), and when none has,
+ * the caller posts it as with no GM connected - the header hidden, the caller the author in
+ * the document, the pause keyed off the card as ever - and the caller's card says that their
+ * browser posted it. A GM who answers inside the window still posts the only card.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS, DEFAULT_SAFEWORD, getSetting } from "./settings.mjs";
-import { announce, gmIds, isPrimaryGm, log, error } from "./utils.mjs";
+import { announce, gmIds, activeGmIds, isPrimaryGm, log, error } from "./utils.mjs";
+import { senderOf } from "./bridge-guards.mjs";
 import { showPopup } from "./popup.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -53,8 +74,8 @@ export function safeword() {
     }
 }
 
-/** Socket action carrying the caller's name to the GMs, and nobody else. */
-const SAFEWORD_ACTION = "safewordDetail";
+/** Socket action telling the GMs who called it, and nobody else: Foundry's sender is the who. */
+export const SAFEWORD_ACTION = "safewordDetail";
 
 /** The GM-side card: who, and where. Never rendered on a player's client. */
 function showGmDetail(who, room) {
@@ -69,6 +90,139 @@ function showGmDetail(who, room) {
 }
 
 /**
+ * The public card, whoever posts it.
+ *
+ * `speaker.alias` is the banner: the name Foundry gives the card wherever it asks
+ * `message.alias`, which is the author's name when there is no alias. Daggerheart's own
+ * header does not ask it for a card with no actor - it prints the author, so a GM's card
+ * shows that GM, and a player's is why its header is hidden (`registerSafeword`).
+ */
+export function safewordCard() {
+    return {
+        content: `<h3 class="drpg-safeword-heading">${
+            game.i18n.localize("DRPG.Safeword.banner")}</h3>
+            <p>${game.i18n.localize("DRPG.Safeword.announced")}</p>`,
+        speaker: { alias: game.i18n.localize("DRPG.Safeword.banner") },
+        /*
+         * ONE `flags` KEY, AND IT USED TO BE TWO.
+         *
+         * This object literal carried `flags` twice - the sound first, the
+         * marker and the popup rule twelve lines later - and the second
+         * silently replaced the first, which is what an object literal
+         * does with a repeated key. So the one sound in this game that
+         * deliberately ignores the volume slider (`ignoresVolume` in the
+         * catalogue) has never played: `sfx` was deleted before the
+         * message was ever created. Nothing threw, nothing logged, and
+         * the safeword announced itself in silence.
+         */
+        flags: {
+            [MODULE_ID]: {
+                // `gm: true` because a GM is the person this is aimed at
+                // most of all.
+                sfx: { key: "safeword", gm: true },
+                [SAFEWORD_FLAG]: true,
+                // The generic popup path would raise an ordinary card that
+                // fades after twelve seconds. This one has to stay up until
+                // somebody deals with it, so it is raised by hand below.
+                popupKind: "none"
+            }
+        }
+    };
+}
+
+/**
+ * Who posts the card for a press by `user`: "caller" or "gm".
+ *
+ * A GM posts their own; a player asks the GMs, unless none is connected - a packet to
+ * nobody would stop nothing, and stopping the scene outranks keeping the caller's name
+ * off the document (the header is still hidden, `drpg-safeword-unsigned`). A player who
+ * asked and got no card in time posts it after all (`awaitCard`), for the same reason.
+ */
+export function safewordPoster(user = game.user, gmsOnline = activeGmIds()) {
+    return user?.isGM || !gmsOnline.length ? "caller" : "gm";
+}
+
+/**
+ * When the primary GM last posted a card for each player, by user id (E06 C9).
+ *
+ * A player's packet makes a GM post in public, so a player's presses are posted once per
+ * `TIMING.safewordRepeatMs`: the first press stops the table, and another inside the
+ * window would only post the same card again. Exported for the suite, which clears one
+ * player's entry and puts it back.
+ */
+export const safewordPosts = new Map();
+
+/** The caller's own card, raised at once; the first card to land here after it - the GM's, or
+ *  this browser's own when no GM answered - is then not raised again. */
+let ownCallAt = 0;
+
+/**
+ * When a GM's card last answered a press from this browser (E06 fix r2-G3). The primary GM
+ * posts a player's card once per `TIMING.safewordRepeatMs` and swallows a press inside that
+ * window (`hearSafeword`), so a press inside it here waits for nothing and posts nothing: the
+ * card that answered the last one stands. Counted from the landing, which comes after the
+ * GM's own stamp, so this window never closes before the GM's does.
+ */
+let gmAnsweredAt = -Infinity;
+
+/** The presses on this browser waiting for a card; the create hook hands each the first to land. */
+const waiting = new Set();
+
+/** The first safeword card to land on this browser within `ms`, or null. */
+function nextCard(ms) {
+    return new Promise(resolve => {
+        const done = message => {
+            clearTimeout(timer);
+            waiting.delete(done);
+            resolve(message);
+        };
+        const timer = setTimeout(() => done(null), ms);
+        waiting.add(done);
+    });
+}
+
+/** Raise the card. Its paragraph is returned, for the caller's card to say more (`awaitCard`). */
+function raiseCard() {
+    const said = document.createElement("p");
+    said.textContent = game.i18n.localize("DRPG.Safeword.announced");
+    showPopup(said, {
+        title: game.i18n.localize("DRPG.Safeword.banner"),
+        kind: "error",
+        // Stays until dismissed by hand. A scene that has been stopped does
+        // not un-stop itself after twelve seconds.
+        sticky: true
+    });
+    return said;
+}
+
+/**
+ * A player's press with a GM connected, once the packet has gone (E06 fix r2-G3). The first
+ * card to land within `TIMING.safewordAnswerMs` answers it - the GM's, as C9 has it. When none
+ * lands, this browser posts the card itself, as it does with no GM connected, and `said` (the
+ * caller's card, raised at the press) says so; a card that could not be posted leaves `said`
+ * saying that instead. Another player's card landing first has told the table the same thing,
+ * and this browser posts nothing more.
+ */
+async function awaitCard(said) {
+    const card = await nextCard(TIMING.safewordAnswerMs);
+    if (card?.author?.isGM) {
+        gmAnsweredAt = Date.now();
+        return;
+    }
+    if (!card) {
+        try {
+            await announce(safewordCard());
+        } catch (err) {
+            said.textContent = game.i18n.localize("DRPG.Safeword.failed");
+            throw err;
+        }
+    } else if (card.author?.id !== game.user.id) return;
+    const note = document.createElement("p");
+    note.textContent = game.i18n.localize("DRPG.Safeword.selfPosted");
+    said.after(note);
+}
+
+/**
  * Call the safeword. Anyone may: player, GM, dead, Monocub, spectator.
  *
  * Deliberately not gated on having a character. A player between characters, or
@@ -79,35 +233,11 @@ export async function callSafeword({ room = null } = {}) {
         // The announcement is public, and it is what every other client keys
         // off - the pause and the card both hang from this one message rather
         // than from a socket, so a client that missed a packet still stops.
-        await announce({
-            content: `<h3 class="drpg-safeword-heading">${
-                game.i18n.localize("DRPG.Safeword.banner")}</h3>
-                <p>${game.i18n.localize("DRPG.Safeword.announced")}</p>`,
-            /*
-             * ONE `flags` KEY, AND IT USED TO BE TWO.
-             *
-             * This object literal carried `flags` twice - the sound first, the
-             * marker and the popup rule twelve lines later - and the second
-             * silently replaced the first, which is what an object literal
-             * does with a repeated key. So the one sound in this game that
-             * deliberately ignores the volume slider (`ignoresVolume` in the
-             * catalogue) has never played: `sfx` was deleted before the
-             * message was ever created. Nothing threw, nothing logged, and
-             * the safeword announced itself in silence.
-             */
-            flags: {
-                [MODULE_ID]: {
-                    // `gm: true` because a GM is the person this is aimed at
-                    // most of all.
-                    sfx: { key: "safeword", gm: true },
-                    [SAFEWORD_FLAG]: true,
-                    // The generic popup path would raise an ordinary card that
-                    // fades after twelve seconds. This one has to stay up until
-                    // somebody deals with it, so it is raised by hand below.
-                    popupKind: "none"
-                }
-            }
-        });
+        // A player with a GM connected does not post it: the primary GM does,
+        // on the packet below (`hearSafeword`) - or, when no card lands in
+        // time, this browser does after all (`awaitCard`).
+        const poster = safewordPoster();
+        if (poster === "caller") await announce(safewordCard());
 
         // WHO called it goes over the socket, not into a whisper.
         //
@@ -118,19 +248,32 @@ export async function callSafeword({ room = null } = {}) {
         // ships every ChatMessage document to every client regardless of the
         // `whisper` array, so any player could read the caller's name out of
         // their own console. A recipient-addressed socket is the one channel
-        // that genuinely only reaches the people named on it.
+        // that genuinely only reaches the people named on it. The name is
+        // Foundry's sender on the GM's side; the packet carries only the room.
         //
-        // Best-effort: if this fails the GMs still know a safeword was called,
-        // from the public message, and can ask.
+        // For a GM's own call this is best-effort: the GMs still know a
+        // safeword was called, from the public message, and can ask. For a
+        // player's it is the call itself - the GM's card hangs from it, and
+        // when it reaches no listener the caller's own card does (`awaitCard`).
         game.socket.emit(`module.${MODULE_ID}`, {
             action: SAFEWORD_ACTION,
-            who: game.user.name,
             room: room ?? null
         }, { recipients: gmIds() });
 
         // The caller's own client is not a socket recipient, and a GM who calls
         // it should still see the detail card.
         if (game.user.isGM) showGmDetail(game.user.name, room);
+
+        // A player who asked the GMs sees the card at once, as everybody else
+        // does when the GM's card lands - here that landing is not raised twice -
+        // and waits for that card, unless the GM would swallow this press as a
+        // repeat of one it answered (`gmAnsweredAt`).
+        if (poster === "gm") {
+            const repeat = Date.now() - gmAnsweredAt < TIMING.safewordRepeatMs;
+            ownCallAt = Date.now();
+            const said = raiseCard();
+            if (!repeat) await awaitCard(said);
+        }
 
         log(`Safeword called by ${game.user.name}.`);
         return true;
@@ -139,6 +282,37 @@ export async function callSafeword({ room = null } = {}) {
         // Last resort: at least stop this client's own screen and say so.
         ui.notifications.error(game.i18n.localize("DRPG.Safeword.failed"), { permanent: true });
         return false;
+    }
+}
+
+/**
+ * The GM-side half of a press: the detail card, and on the primary GM the public card.
+ *
+ * The name is Foundry's sender (`senderOf`), never a field of the packet, and a packet
+ * from nobody connected is dropped. The room is the caller's own claim about where they
+ * stand, shown to the GMs as text and nothing else. A GM sender posted their own card.
+ * Exported for the suite, which hands it a player's id as Foundry would.
+ */
+export async function hearSafeword(payload, senderId) {
+    if (payload?.action !== SAFEWORD_ACTION) return;
+    if (!game.user?.isGM) return;
+    const sender = senderOf(senderId);
+    if (!sender) return;
+    showGmDetail(sender.name, typeof payload.room === "string" ? payload.room : null);
+    if (sender.isGM || !isPrimaryGm()) return;
+
+    const now = Date.now();
+    if (now - (safewordPosts.get(sender.id) ?? -Infinity) < TIMING.safewordRepeatMs) {
+        log(`Safeword pressed again by ${sender.name} inside ${TIMING.safewordRepeatMs / 1000} s: not posted again.`);
+        return;
+    }
+    safewordPosts.set(sender.id, now);
+    try {
+        await announce(safewordCard());
+    } catch (err) {
+        // Not posted, so the next press is not a repeat.
+        safewordPosts.delete(sender.id);
+        error("The safeword card could not be posted for a player", err);
     }
 }
 
@@ -191,24 +365,21 @@ export function registerSafeword() {
     // The GM-only half. `recipients` on the emit decides who receives it, so a
     // player's client never sees this packet at all.
     game.socket.on(`module.${MODULE_ID}`, (payload, senderId) => {
-        if (payload?.action !== SAFEWORD_ACTION) return;
-        if (!game.user?.isGM) return;
-        // `senderId` is Foundry's own; `payload.who` was whatever the packet said.
-        showGmDetail(game.users.get(senderId)?.name ?? payload.who ?? "?", payload.room);
+        hearSafeword(payload, senderId).catch(err => error("Could not take a safeword packet", err));
     });
 
     Hooks.on("createChatMessage", message => {
         if (!message.getFlag(MODULE_ID, SAFEWORD_FLAG)) return;
 
+        // A press on this browser waiting for its card takes the first to land (`awaitCard`).
+        for (const done of [...waiting]) done(message);
+
         // Every client raises the card, including the caller's - seeing it land
-        // is the confirmation that the table now knows.
-        showPopup(`<p>${game.i18n.localize("DRPG.Safeword.announced")}</p>`, {
-            title: game.i18n.localize("DRPG.Safeword.banner"),
-            kind: "error",
-            // Stays until dismissed by hand. A scene that has been stopped does
-            // not un-stop itself after twelve seconds.
-            sticky: true
-        });
+        // is the confirmation that the table now knows. A player who asked the
+        // GMs raised it at the press; the GM's card - or its own, when none
+        // came in time - is that one, arriving.
+        if (ownCallAt && Date.now() - ownCallAt < TIMING.safewordRepeatMs) ownCallAt = 0;
+        else raiseCard();
 
         // Exactly one client pauses, or several GMs race on the same toggle.
         // A player cannot pause a Foundry game at all, which is the whole reason
@@ -216,5 +387,15 @@ export function registerSafeword() {
         if (game.user.isGM && isPrimaryGm() && !game.paused) {
             game.togglePause(true, { broadcast: true });
         }
+    });
+
+    /* THE CARD A PLAYER POSTED, WITH NO GM CONNECTED (E06 C9): its header would draw the
+       caller's name and avatar (Daggerheart's, for a card that names no actor, alias or
+       not), so the stylesheet hides it on this class. A GM's card keeps its header, which
+       names that GM. Whether v14's log draws anything else of the author is not measured
+       (no browser here). */
+    Hooks.on("renderChatMessageHTML", (message, element) => {
+        if (!message?.getFlag?.(MODULE_ID, SAFEWORD_FLAG) || message.author?.isGM) return;
+        (element instanceof HTMLElement ? element : element?.[0])?.classList?.add("drpg-safeword-unsigned");
     });
 }

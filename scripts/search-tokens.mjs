@@ -473,7 +473,20 @@ async function runTakePlant(payload, sender, ctx) {
         }
         handedOut.set(ctx.requestId, { userId: sender.id, roomName: payload.roomName, sceneId, plant, at: Date.now() });
     }
-    return { reply: { ok: Boolean(plant), plant, left: SearchTokens.left(payload.roomName, sceneId) } };
+    return { reply: { ok: Boolean(plant), plant: plantForFinder(plant), left: SearchTokens.left(payload.roomName, sceneId) } };
+}
+
+/**
+ * What the finder's browser is handed of a plant: the item, and nothing of the trap (E06 C10,
+ * 28.09.2026; audit S07-18). The store's row carries the trap's project id beside the item, and
+ * the reply carried the row whole, so the finder's console read which project had planted the
+ * thing in their hands. These five are what the Search reads (action-rolls.mjs, the plant's
+ * draw); `handedOut` keeps the row whole, for a return to put back.
+ */
+export function plantForFinder(plant) {
+    if (!plant) return null;
+    const { name, img, description, roles, drpgItemId } = plant;
+    return { name, img, description, roles, drpgItemId };
 }
 
 /** Put a plant the asker never received back in its room. */

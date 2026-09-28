@@ -28,10 +28,11 @@
  * already made is re-asked rather than rewritten.
  */
 
-import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING } from "./config.mjs";
+import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH } from "./config.mjs";
 import { resolveThreshold, easedBy, log, error, plural } from "./utils.mjs";
-import { rollBookmark, keepRollBookmark } from "./action-rolls.mjs";
+import { rollBookmark, keepRollBookmark, searchTier } from "./action-rolls.mjs";
 import { leavesTraceFor } from "./inventory.mjs";
+import { keptRollSubject, isClaimedRoll, neutralRollOf } from "./private-rolls.mjs";
 
 /**
  * Reroll, with the dice the first roll was actually made with.
@@ -64,38 +65,79 @@ import { leavesTraceFor } from "./inventory.mjs";
  * game's critical never does, and compensating after its unawaited, clamped
  * write could not know what it had really moved.
  */
-async function rerollKeepingDice(original) {
+async function rerollKeepingDice(original, actor, message, bookmark = null) {
     const wanted = advantageDice(original);
+    const thrown = await rollAsThrown(original, actor, message, bookmark);
     if (wanted <= 1) {
-        const rerolled = await original.reroll();
-        await settleDualityReroll(original, rerolled);
+        const rerolled = await thrown.reroll();
+        await settleDualityReroll(original, rerolled, actor, message);
         return rerolled;
     }
 
-    const clone = original.clone();
+    const clone = thrown.clone();
     clone.advantageNumber = wanted;
     clone.constructFormula(clone.options);
     const rerolled = await clone.evaluate();
-    await settleDualityReroll(original, rerolled);
+    await settleDualityReroll(original, rerolled, actor, message);
     return rerolled;
 }
 
 /**
- * What `DualityRoll#reroll` does after the dice, for every reroll.
- *
- * CALL-08, 17.09. `liveRoll` is read by `DualityRoll#reroll` and by nothing
- * else - `Roll#evaluate` ignores it - so the multi-dice branch above showed no
- * dice and settled no resources: a Hope result rerolled into a Fear result kept
- * the Hope, the reverse gave none, and a critical's cleared Sanity mark was
- * never put back or taken. `settleCritHope` below assumes the system paid its
- * one point on a reroll, so it was short as well.
- *
- * A port of `updateResourcesForDualityReroll` (daggerheart.js, 2.6.5), which
- * the system does not export, ending in the same `modifyResource` the system's
- * own resource map calls. Dice So Nice gets the system's Hope and Fear colours
- * from `CONFIG.DH.GENERAL.getDiceSoNicePresets`, as a fresh roll does.
+ * THE ROLL AS IT WAS THROWN (E06 fix r1-G1, 28.09.2026; review M1 = F1). A roll
+ * the module threw keeps nothing of its character in its message
+ * (private-rolls.mjs `neutralRollOf`): its `data` is empty and it has no
+ * statistic, no experiences and no effects. That is all a browser needs to show
+ * it, and not enough to throw it again - `clone()` rebuilds the formula from
+ * the options, and would drop the statistic's value, the experiences' bonuses
+ * and the effects'. So the roll is rebuilt here with them put back: the
+ * character's data from the actor the Reroll was asked for (`getRollData()`, as
+ * actor.mjs `diceRoll` gives it), its effects as `rollTrait` finds them
+ * (actor.mjs:576; none where the system has no such call), and the statistic
+ * and the experiences from this browser's bookmark (action-rolls.mjs
+ * `rememberRoll`) - which is kept only for the roll the bookmark names. A roll
+ * the module threw that the bookmark does not name is refused rather than
+ * thrown weaker: the Reroll's whole point is not to hand back a worse roll
+ * than the one paid to replace. A roll the module did not throw is its own
+ * record and comes back untouched. Exported for the suite; the harness has no
+ * `DualityRoll` to rebuild, so what the rebuild adds up to on a real table is
+ * LIVE-E06-02's.
  */
-async function settleDualityReroll(original, rerolled) {
+export async function rollAsThrown(original, actor, message, bookmark = null) {
+    if (!isClaimedRoll(message)) return original;
+    const named = Boolean(message.id) && bookmark?.messageId === message.id;
+    const trait = named ? TRAITS[bookmark.trait]?.dh ?? (TRAIT_BY_DH[bookmark.trait] ? bookmark.trait : null) : null;
+    if (!trait) throw new Error(`no statistic is kept in this browser for roll ${message.id}`);
+    const options = foundry.utils.deepClone(original.options ?? {});
+    options.data = actor.getRollData();
+    options.roll = { ...(options.roll ?? {}), trait };
+    options.experiences = Array.isArray(bookmark.experiences) ? [...bookmark.experiences] : [];
+    options.effects = await game.system?.api?.data?.actions?.actionsTypes?.base?.getActionRelevantEffects?.(actor) ?? [];
+    return new original.constructor(original._formula ?? original.formula, {}, options);
+}
+
+/**
+ * A rerolled roll as its message keeps it: for a roll the module threw, what
+ * `rollAsThrown` put back is taken out again (`neutralRollOf`), so the message
+ * a Reroll rewrites says no more than the one the roll made. Exported for the
+ * suite.
+ */
+export function rerolledSource(rerolled, message) {
+    return isClaimedRoll(message) ? neutralRollOf(JSON.stringify(rerolled)) : rerolled;
+}
+
+/**
+ * The rerolled dice, on the screens of the people who read the roll (E06 C6,
+ * 27.09.2026; audit S02-13). `showForRoll(rerolled, game.user, true)` threw them
+ * to every screen, whoever the roll was whispered to. Dice So Nice shows them to
+ * `users` now: the message's whisper list and its author, or everybody when the
+ * roll was not whispered. The incident's other participants are sent them by the
+ * primary GM when the message's rolls change (private-rolls.mjs
+ * `relayIncidentDice`). Dice So Nice still sends a synchronised throw to every
+ * client and filters it as it arrives (Dice3D.js `_installSocket`, read in
+ * 6.3.1); the dice leave the roller's browser only when E28 throws them on the
+ * GM. Exported for the suite.
+ */
+export async function showRerolledDice(rerolled, message) {
     try {
         if (game.modules.get("dice-so-nice")?.active) {
             // Their own try: a missing dice system makes the preset lookup throw,
@@ -113,13 +155,37 @@ async function settleDualityReroll(original, rerolled) {
             } catch (err) {
                 error("Could not colour the rerolled Hope and Fear dice", err);
             }
-            await game.dice3d?.showForRoll(rerolled, game.user, true);
+            const whisper = [...(message?.whisper ?? [])];
+            const author = message?.author?.id ?? message?.user?.id ?? game.user.id;
+            const readers = whisper.length ? [...new Set([...whisper, author])] : null;
+            await game.dice3d?.showForRoll(rerolled, game.user, true, readers, false,
+                message?.id ?? null, message?.speaker ?? null);
         } else {
             foundry.audio.AudioHelper.play({ src: CONFIG.sounds.dice });
         }
     } catch (err) {
         error("Could not show the rerolled dice", err);
     }
+}
+
+/**
+ * What `DualityRoll#reroll` does after the dice, for every reroll.
+ *
+ * CALL-08, 17.09. `liveRoll` is read by `DualityRoll#reroll` and by nothing
+ * else - `Roll#evaluate` ignores it - so the multi-dice branch above showed no
+ * dice and settled no resources: a Hope result rerolled into a Fear result kept
+ * the Hope, the reverse gave none, and a critical's cleared Sanity mark was
+ * never put back or taken. `settleCritHope` below assumes the system paid its
+ * one point on a reroll, so it was short as well.
+ *
+ * A port of `updateResourcesForDualityReroll` (daggerheart.js, 2.6.5), which
+ * the system does not export, ending in the same `modifyResource` the system's
+ * own resource map calls. The dice are shown first (`showRerolledDice`), in the
+ * system's Hope and Fear colours from `CONFIG.DH.GENERAL.getDiceSoNicePresets`,
+ * as a fresh roll's are.
+ */
+async function settleDualityReroll(original, rerolled, actor, message) {
+    await showRerolledDice(rerolled, message);
 
     if (original.options?.actionType === "reaction") return;
 
@@ -135,7 +201,7 @@ async function settleDualityReroll(original, rerolled) {
             // roll in critical.mjs - so a reroll has none to give back or take.
             if (stress && CRITICAL.clearsStress) updates.push({ key: "stress", value: -1 * stress, enabled: true });
             if (fear) updates.push({ key: "fear", value: fear, enabled: true });
-            await modifyRollActor(original, updates);
+            await modifyRollActor(original, updates, actor);
         }
 
         if (countdownAutomation && fear) {
@@ -172,15 +238,22 @@ function dhAutomation() {
     return game.settings.get(CONFIG.DH.id, gameSettings.Automation);
 }
 
-/** The actor a roll's resources land on - the system's own choice of it. */
-async function rollTarget(original) {
-    const actor = await foundry.utils.fromUuid(original.options?.source?.actor ?? "");
-    return actor?.system?.partner ?? actor ?? null;
+/**
+ * The actor a roll's resources land on - the system's own choice of it (a
+ * companion's partner), made from the character the Reroll was asked for
+ * (`rerollLastAction`). The roll's own `source.actor` is empty on every roll
+ * the module throws since E06 C5b (private-rolls.mjs `neutralRollSource`), so
+ * it is read only when no character is handed down (E06 C5a). Exported for
+ * the suite.
+ */
+export async function rollTarget(original, actor = null) {
+    const subject = actor ?? await foundry.utils.fromUuid(original?.options?.source?.actor ?? "");
+    return subject?.system?.partner ?? subject ?? null;
 }
 
-async function modifyRollActor(original, updates) {
+async function modifyRollActor(original, updates, actor) {
     if (!updates.length) return;
-    const target = await rollTarget(original);
+    const target = await rollTarget(original, actor);
     if (target?.modifyResource) await target.modifyResource(updates);
 }
 
@@ -222,8 +295,8 @@ export async function rerollLastAction(actor) {
     // result granted - see `settleDualityReroll`.
     let rerolled;
     try {
-        rerolled = await rerollKeepingDice(original);
-        await message.update({ rolls: [rerolled] });
+        rerolled = await rerollKeepingDice(original, actor, message, bookmark);
+        await message.update({ rolls: [rerolledSource(rerolled, message)] });
     } catch (err) {
         error("Could not reroll the last action", err);
         ui.notifications.error(game.i18n.localize("DRPG.Reroll.failed"));
@@ -315,7 +388,9 @@ function findMessage(actor, bookmark) {
     return mine.length ? mine[mine.length - 1] : null;
 }
 
+/** Is this roll about `actor`: as this browser kept it when it threw the roll (E06 C5a), or as the message names it. */
 function belongsTo(message, actor) {
+    if (keptRollSubject(message) === actor.id) return true;
     if (message.speaker?.actor === actor.id) return true;
     const source = message.system?.source?.actor;
     return typeof source === "string" && source === actor.uuid;
@@ -532,14 +607,14 @@ async function settleSearch(actor, bookmark, after, done) {
         return {};
     }
 
+    // A hidden stash's -1 on the new total too: it was taken off the first roll's total,
+    // not thrown with its dice (E06 C11, `searchOdds`), so rerolling the dice keeps it.
+    // A bookmark written before 1.2.65 has none, and is scored on the dice alone.
     const def = ACTIONS.search;
-    const hit = resolveThreshold(after.total, def.thresholds);
+    const penalty = bookmark.penalty ?? 0;
+    const { hit, tier } = searchTier(after, penalty, def);
     const found = Boolean(hit) || after.isCritical;
-
-    const baseTier = hit?.tier ?? 0;
-    const tier = after.isCritical
-        ? Math.min(3, baseTier + (def.critical?.tierBonus ?? 1))
-        : baseTier;
+    if (penalty) done.push(game.i18n.format("DRPG.Action.situationAfterRoll", { n: String(penalty), total: after.total + penalty }));
 
     // 1. The thing the first roll put in the inventory goes back on the shelf.
     let itemId = null;
