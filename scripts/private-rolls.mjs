@@ -58,6 +58,8 @@ import { cardFlag } from "./secret.mjs";
 
 export function registerPrivateRolls() {
     Hooks.on("preCreateChatMessage", onPreCreateChatMessage);
+    // Whose roll it is, told to the primary GM as the message exists (E06 fix r1-G2).
+    Hooks.on("createChatMessage", reportClaimedRoll);
     // `renderChatMessageHTML` and nothing else.
     //
     // The deprecated `renderChatMessage` was registered alongside it as a
@@ -550,9 +552,11 @@ let rollClaims = [];
  * which is the whole reason this is a claim and not a blanket rule.
  *
  * @param {() => Promise<any>} fn  the call that produces the roll.
+ * @param {object} [opts]
+ * @param {Actor|null} [opts.subject]  the character the roll is about, reported as its message is created (`reportClaimedRoll`).
  */
-export async function supersedingRoll(fn) {
-    const claim = { spent: false };
+export async function supersedingRoll(fn, { subject = null } = {}) {
+    const claim = { spent: false, subject, reported: false };
     rollClaims.push(claim);
     try {
         return await fn();
@@ -574,6 +578,30 @@ function claimRollMessage(message, data) {
     claim.spent = true;
     message.updateSource({ [`flags.${MODULE_ID}.${SUPERSEDED_FLAG}`]: true });
     return true;
+}
+
+/*
+ * WHOSE ROLL IT IS, SAID AS THE ROLL IS CREATED (E06 fix r1-G2, 28.09.2026; review F4).
+ * Daggerheart's `toMessage` creates the message and then waits for Dice So Nice's animation
+ * (dhRoll.mjs:162-165), and its duality updates and triggers follow (dualityRoll.mjs:280-281,
+ * both read in 2.6.5) - so a report sent when `rollTrait` returned reached the primary GM
+ * after the dice had landed, and never while the roller's tab was in the background (the note
+ * on `rollClaims`). The Despair award waits four seconds for it and then falls back to the
+ * author's one living character, so a GM's roll for a student, or a player's who plays two,
+ * lost its award whenever the animation ran longer. The claim carries its character, and the
+ * roller reports it from its own `createChatMessage`, before Daggerheart waits for anything;
+ * the incident's dice (`relayIncidentDice`) leave with it. Claims are spent in the order their
+ * messages are created, one message each, so the first spent claim not yet reported is this
+ * message's. Measured with the harness's Dice So Nice holding the animation (`__dsnAnimation`):
+ * tier 2 "a roll's character is kept before its dice have landed", and 13's "the victim's roll
+ * reaches the killer while the victim's own dice still fall".
+ */
+function reportClaimedRoll(message, options, userId) {
+    if ((userId ?? message?.author?.id) !== game.user?.id || !isClaimedRoll(message)) return;
+    const claim = rollClaims.find(c => c.spent && !c.reported);
+    if (!claim) return;
+    claim.reported = true;
+    if (claim.subject) reportRollSubject(message, claim.subject);
 }
 
 /**
@@ -874,14 +902,16 @@ function keepRollSubject(payload, sender, ctx) {
 }
 
 /**
- * Tell the primary GM which character a roll the module threw is about
- * (`throwDice`, action-rolls.mjs). Kept on this client as well: the roller's
- * own Reroll finds its roll by it (`belongsTo`, reroll.mjs). A primary GM's
- * own roll is recorded without a packet.
+ * Tell the primary GM which character a roll the module threw is about - as
+ * its message is created (`reportClaimedRoll`), and again from `throwDice`
+ * (action-rolls.mjs) once the roll has returned, which says nothing when the
+ * first did. Kept on this client as well: the roller's own Reroll finds its
+ * roll by it (`belongsTo`, reroll.mjs). A primary GM's own roll is recorded
+ * without a packet.
  */
 export function reportRollSubject(message, actor) {
     const messageId = message?.id ?? message?._id ?? null;
-    if (!messageId || !actor?.id) return;
+    if (!messageId || !actor?.id || keptRollSubject(message) === actor.id) return;
     keepSubject(messageId, actor.id, game.user?.id ?? null);
     if (isPrimaryGm()) return relayIncidentDice(message);
     const decl = ROLL_ACTIONS["roll.subject"];
@@ -935,9 +965,10 @@ export function rollSubjectNow(message) {
 /**
  * `rollSubjectNow`, after waiting up to `waitMs` for the report of a roll the
  * module threw and nobody has reported yet. The Despair award asks as the
- * message is created, and the roller's report leaves only once its roll has
- * returned, so on the primary GM the report usually comes second. An
- * unclaimed roll is never reported and is not waited for.
+ * message is created, and the roller's report leaves as the roller's browser
+ * sees it created (`reportClaimedRoll`), a round trip later, so on the primary
+ * GM the report usually comes second. An unclaimed roll is never reported and
+ * is not waited for.
  */
 export async function rollSubject(message, { waitMs = 0 } = {}) {
     if (!message) return null;
@@ -982,7 +1013,9 @@ function subjectReported(messageId, ms) {
  *   a Reroll rewrite its rolls), sends `dice.show { id }` to that audience less
  *   the GMs, the author and whoever rewrote it, by addressed socket. The packet
  *   carries the message's id and nothing else; each receiver plays the rolls of
- *   its own copy of the message (`showRelayedDice`), which every browser holds.
+ *   its own copy of the message (`showRelayedDice`), which every browser holds -
+ *   unless it can read the roll, as every client can when rolls are not forced
+ *   private: Dice So Nice has animated it there already (E06 fix r1-G2).
  *
  * Only while the stage is `incident`: at the opening the seats are the roller's
  * own side, and Stage 6 is the clean-up, whose rolls are the killer's alone. What
@@ -1060,6 +1093,13 @@ function onRollsRewritten(message, changes, options, userId) {
  * this client's own copy of the message - once it arrives, as `secret.card`'s
  * words wait for theirs - with no message id, so Dice So Nice draws the dice as
  * they fell instead of veiling a roll this client cannot read, and only here.
+ *
+ * NOT A ROLL THIS CLIENT READS (E06 fix r1-G2, 28.09.2026; review F2). With rolls
+ * not forced private a roll the module threw is public, Dice So Nice animates it on
+ * every client, and a Reroll's dice go to everybody (reroll.mjs `showRerolledDice`) -
+ * so the relay played each incident roll a second time on every other participant's
+ * screen. Asked of the message as it is here rather than of the setting on the GM:
+ * what decides is whether this client's Dice So Nice shows it itself.
  */
 async function showRelayedDice(payload, senderId) {
     if (!game.users.get(senderId)?.isGM) return;
@@ -1068,7 +1108,8 @@ async function showRelayedDice(payload, senderId) {
     try {
         const { messageArrives } = await import("./secret.mjs");
         const message = game.messages.get(id) ?? await messageArrives(id);
-        for (const roll of message?.rolls ?? []) await game.dice3d.showForRoll(roll, message.author, false);
+        if (!message || message.isContentVisible) return;
+        for (const roll of message.rolls ?? []) await game.dice3d.showForRoll(roll, message.author, false);
     } catch (err) {
         error("Could not show the incident's dice", err);
     }

@@ -771,8 +771,9 @@ export async function guardDespairReceipt(sender, payload, ctx) {
  * this ties the report to its message: the message exists - waited for, as a
  * card's words wait for theirs in secret.mjs, because the report can arrive
  * before the document - it is a roll the module claimed, the sender wrote it,
- * and it is under a minute old. A report leaves as its roll returns, so an
- * older message is not the roll the sender just threw. The age is the GM's clock
+ * and it is under a minute old. A report leaves as its roll is created
+ * (private-rolls.mjs `reportClaimedRoll`), so an older message is not the roll
+ * the sender just threw. The age is the GM's clock
  * against the message's `timestamp`, stamped as the message was created - whose
  * clock stamps it, and how far the two drift at a table, is not measured here;
  * a minute leaves room.

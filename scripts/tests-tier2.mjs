@@ -1041,6 +1041,46 @@ const SCENARIOS = [
         }
     }],
 
+    ["a roll's character is kept before its dice have landed", async () => {
+        /*
+         * E06 fix r1-G2, 28.09.2026; review F4. Daggerheart creates a roll's message and then waits
+         * for Dice So Nice's animation before the roll returns (dhRoll.mjs:162-165, read in 2.6.5),
+         * and until this fix the roller said whose roll it was only then - so the Despair award,
+         * which waits four seconds for it, lost a GM's roll for a student, or a player's who plays
+         * two, whenever the dice fell for longer. This GM, the primary, which keeps its own roll's
+         * character without a packet, throws a student's roll with the animation's wait wrapped
+         * by a probe that reads, as the wait begins, which character it keeps for the message.
+         * Without Dice So Nice nothing is waited for and there is nothing to measure.
+         */
+        needs(world.moduleActive("dice-so-nice"), "Dice So Nice, whose animation Daggerheart waits for once it has created the roll");
+        must(typeof game.dice3d?.waitFor3DAnimationByMessageID === "function", "Dice So Nice is on, and its animation cannot be waited for");
+        const P = await import("./private-rolls.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        must(isPrimaryGm(), "the primary GM keeps its own roll's character, and this GM is not it");
+        const who = livingStudents()[0];
+        must(who, "no living student to throw a roll for");
+        const dice3d = game.dice3d;
+        const own = Object.getOwnPropertyDescriptor(dice3d, "waitFor3DAnimationByMessageID");
+        const wait = dice3d.waitFor3DAnimationByMessageID;
+        const seen = [];
+        dice3d.waitFor3DAnimationByMessageID = function (id, ...rest) {
+            seen.push({ id, kept: P.keptRollSubject(game.messages.get(id)) });
+            return wait.call(this, id, ...rest);
+        };
+        let message = null;
+        try {
+            message = (await neutralRoll(who)).message;
+        } finally {
+            if (own) Object.defineProperty(dice3d, "waitFor3DAnimationByMessageID", own);
+            else delete dice3d.waitFor3DAnimationByMessageID;
+            await message?.delete();
+        }
+        must(message && P.isClaimedRoll(message), "no roll the module threw was made - this would measure nothing");
+        equal(stableJson(seen.find(s => s.id === message.id) ?? null), stableJson({ id: message.id, kept: who.id }),
+            "the roll's character was not kept as its dice began to fall - its report waited for the animation");
+    }],
+
     ["after a crisis action no message names a participant", async () => {
         /*
          * E06 C5b, 27.09.2026; the stage's doneWhen. A direct murder is opened between two students
@@ -1243,6 +1283,9 @@ const SCENARIOS = [
         const theirs = await S.postSecret({ content: "<p>a veiled card for a player</p>", whisper: [player.id], veiled: true });
         const ours = await S.postSecret({ content: "<p>a veiled card for this GM</p>", whisper: [game.user.id], veiled: true });
         must(theirs && ours, "a veiled card was not posted");
+        // The chat log's own call as each card was created (the harness's since E06 fix r1-G2) is
+        // over before the recorder goes in, so only the two calls below reach it.
+        await settle();
         const told = [];
         const original = notify.wrapped;
         notify.wrapped = function (message) { told.push(message?.id ?? null); };

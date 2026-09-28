@@ -535,7 +535,13 @@ const game = {
             return true;
         },
         addSystem() {}, addColorset() {}, addDicePreset() {},
-        waitFor3DAnimationByMessageID: async () => true
+        // The animation a roll's message waits for (Daggerheart's `toMessage`, below): over at
+        // once, unless a scenario or a test holds it with `__dsnAnimation`, an async function of
+        // the message's id - a long throw, or a tab in the background (E06 fix r1-G2).
+        waitFor3DAnimationByMessageID: async id => {
+            if (typeof globalThis.__dsnAnimation === "function") await globalThis.__dsnAnimation(id);
+            return true;
+        }
     },
     keybindings: { register() {}, get: () => [] },
     tooltip: { activate() {}, deactivate() {} },
@@ -557,7 +563,8 @@ globalThis.game = game;
  * client would animate); `__dsnShown` keeps every `showForRoll` call. Nothing is drawn. With
  * `game.dice3d` gone (a scenario deletes it to play a table without the module) nothing is
  * decided, as Dice So Nice's own `game.dice3d &&` has it. Rolls added by an update and the
- * inline rolls in a card's text are not modelled.
+ * inline rolls in a card's text are not modelled. Where it animates it takes the core dice
+ * sound off the message (main.js:573-576), so the chat log's notifier, below, plays none.
  */
 globalThis.__dsnShown = [];
 globalThis.__dsnAnimated = [];
@@ -567,7 +574,21 @@ hooks.on("createChatMessage", message => {
     if (!(message.rolls ?? []).some(roll => (roll?.dice?.length ?? 0) > 0)) return;
     const interception = { willTrigger3DRoll: message.isContentVisible || globalThis.__dsnHideSecret === false };
     hooks.callAll("diceSoNiceMessagePreProcess", message.id, interception);
-    if (interception.willTrigger3DRoll) globalThis.__dsnAnimated.push(message.id);
+    if (!interception.willTrigger3DRoll) return;
+    globalThis.__dsnAnimated.push(message.id);
+    if (message.sound === "sounds/dice.wav") delete message.sound;
+});
+
+/*
+ * THE CHAT LOG TOLD OF A NEW MESSAGE (E06 fix r1-G2, 28.09.2026; review m2). Foundry posts a
+ * created message to the chat log where it is `visible` and calls the log's notifier, which
+ * lights the Chat tab's pip and plays the message's sound. That order is the review's reading
+ * and the E06 plan's, not a reading of v14's source, which is not on this machine (LIVE-E06-04);
+ * the call comes after every `createChatMessage` listener, as Foundry's comes after the card is
+ * rendered. The notifier is `HarnessChatLog#notify`, below, as secret.mjs wraps it.
+ */
+hooks.on("createChatMessage", message => {
+    if (message?.visible) setTimeout(() => globalThis.ui?.chat?.notify?.(message), 0);
 });
 
 /*
@@ -685,10 +706,14 @@ classes.Actor.prototype.diceRoll = async function diceRoll(config) {
         author: game.userId,
         speaker: classes.ChatMessage.getSpeaker({ actor: this }),
         content: `<div class="dice-roll">Duality: ${total}</div>`,
+        sound: globalThis.CONFIG.sounds.dice,
         rolls: [rollJson],
         system: { title: config.title ?? "", source: { actor: config.source.actor }, targets: [], roll: { ...rollJson, options: { actionType: config.actionType } } },
         flags: {}
     });
+    // dhRoll.mjs:162-165 (2.6.5): the message is created, then Dice So Nice's animation is
+    // waited for, and only then does the roll return (E06 fix r1-G2).
+    if (game.modules.get("dice-so-nice")?.active) await game.dice3d?.waitFor3DAnimationByMessageID(config.message.id);
     await game.system.api.dice.DualityRoll.addDualityResourceUpdates(config);
     return config;
 };
@@ -773,12 +798,15 @@ function record(level) {
 }
 /*
  * THE CHAT LOG'S CLASS, as far as its notifier (E06 C6): the class `ui.chat` is made from, with a
- * `notify` that keeps the ids it was handed in `__chatNotified`. secret.mjs wraps it for veiled
- * cards (`quietVeiledPip`). Foundry's own path to it - which method lights the pip, and from where
- * it is called - is not modelled: no Foundry source is on this machine (LIVE-E06-04).
+ * `notify` that keeps the ids it was handed in `__chatNotified`, and in `__chatRung` those whose
+ * message had a sound to play. secret.mjs wraps it (`quietVeiledPip`). It is called as a message
+ * is created (the hook above, E06 fix r1-G2); which method lights the pip in v14 is LIVE-E06-04.
  */
 class HarnessChatLog {
-    notify(message) { (globalThis.__chatNotified ??= []).push(message?.id ?? null); }
+    notify(message) {
+        (globalThis.__chatNotified ??= []).push(message?.id ?? null);
+        if (message?.sound) (globalThis.__chatRung ??= []).push(message.id ?? null);
+    }
 }
 globalThis.ui = {
     notifications: { info: record("info"), warn: record("warn"), error: record("error"), notify: record("notify"), remove() {}, clear() {} },
@@ -837,7 +865,8 @@ globalThis.CONFIG = {
     queries: {},
     canvasTextStyle: {},
     fontDefinitions: {},
-    sounds: {},
+    // Foundry's core dice sound, which Daggerheart puts on a roll's message (dhRoll.mjs:150).
+    sounds: { dice: "sounds/dice.wav" },
     TextEditor: {}
 };
 

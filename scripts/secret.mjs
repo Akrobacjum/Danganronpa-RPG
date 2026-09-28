@@ -791,6 +791,16 @@ export function registerSecrets() {
  * The class is `CONFIG.ui.chat` (the one `ui.chat` is made from, a system's subclass
  * included), else core's `ChatLog`. When it has no `notify`, nothing is installed and
  * `diagnosePatches` (patches.mjs) says so.
+ *
+ * A ROLL THE MODULE THREW, WHERE IT CANNOT BE READ (E06 fix r1-G2, 28.09.2026; review m2).
+ * A whispered roll is visible to every client (Foundry's rule as the harness's shim reads
+ * it), so the chat log is told of it everywhere - and on a bystander the notifier lit the
+ * pip and played the roll's sound, Daggerheart's dice (dhRoll.mjs:150, 2.6.5), which Dice
+ * So Nice takes over only where it animates the roll (main.js:573-576, 6.3.1). In a fight
+ * the roll lands a moment before its veiled card, so the moment still showed. Measured in
+ * 13 with the harness's chat log calling the notifier as a message is created: the
+ * bystander's pip and sound, with and without Dice So Nice. Such a roll never notifies: its
+ * card is the module's own, which notifies where it is read.
  */
 const VEILED_NOTIFY = Symbol.for("drpgVeiledNotify");
 
@@ -799,8 +809,14 @@ export function chatLogClass() {
     return CONFIG.ui?.chat ?? foundry.applications?.sidebar?.tabs?.ChatLog ?? null;
 }
 
-/** Does the chat log tell this client of this card now? Not while it is a veiled card this client holds no words for. */
+/**
+ * Does the chat log tell this client of this card now? Not while it is a veiled card this
+ * client holds no words for, nor ever for a roll the module threw that this client cannot
+ * read - the flag private-rolls.mjs's `isClaimedRoll` reads, read here because that file
+ * imports this one.
+ */
 export function lightsChatPip(message) {
+    if (message?.getFlag?.(MODULE_ID, "supersededRoll") && !message.isContentVisible) return false;
     return !isVeiled(message) || Boolean(secretHtml(message));
 }
 
@@ -816,6 +832,7 @@ function quietVeiledPip() {
     // Foundry's notifier is called through `wrapped`, which the suite swaps for a recorder.
     const drpgVeiledNotify = function (message, ...rest) {
         if (lightsChatPip(message)) return drpgVeiledNotify.wrapped.call(this, message, ...rest);
+        if (!isVeiled(message)) return undefined;
         void wordsOf(message).then(html => {
             if (!isStub(html)) drpgVeiledNotify.wrapped.call(this, message, ...rest);
         }).catch(err => debug("Could not notify of a veiled card", err));

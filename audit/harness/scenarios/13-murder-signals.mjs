@@ -262,14 +262,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
        other participant must be sent the roll's dice (and play them) and the crisis card
        with the action and the total; the bystander nothing of either, and animate nothing.
        Until C5b every participant read the dice off the roll's whisper list, which named them
-       to every console; from C5b to C6 nobody did. */
+       to every console; from C5b to C6 nobody did.
+       E06 fix r1-G2 (28.09.2026; review F4, m2, F2): the victim's Dice So Nice holds its throw
+       for 1.5 s (`__dsnAnimation`), and the killer must be sent the dice before it ends - the
+       victim's browser says whose roll it is as the message is created, not once the dice have
+       landed; every browser's chat log calls its notifier as a message is created, and the
+       roll must light the pip and ring only where it is read; and with rolls not forced private
+       the killer's own Dice So Nice animates the victim's roll and the relay plays no copy. */
     phase("dice", { flow: "murder-incident" });
-    const DICE_NET = `globalThis.__diceNet = { show: [], words: [] }; globalThis.__dsnShown = []; globalThis.__dsnAnimated = [];
-        globalThis.__dsnHideSecret = false;
+    const DICE_NET = `globalThis.__diceNet = { show: [], words: [], showAt: {} }; globalThis.__dsnShown = []; globalThis.__dsnAnimated = [];
+        globalThis.__dsnHideSecret = false; globalThis.__chatNotified = []; globalThis.__chatRung = []; globalThis.__dsnFell = {};
         if (!globalThis.__diceNetOn) {
             globalThis.__diceNetOn = true;
             game.socket.on("module.${MOD}", p => {
-                if (p?.action === "dice.show") globalThis.__diceNet.show.push(p.id ?? null);
+                if (p?.action === "dice.show") { globalThis.__diceNet.show.push(p.id ?? null); globalThis.__diceNet.showAt[p.id] ??= Date.now(); }
                 if (p?.action === "secret.card") globalThis.__diceNet.words.push(String(p.html ?? ""));
             });
         }
@@ -288,9 +294,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         const card = n.words.find(h => h.includes(${JSON.stringify(act.label)} + " - ")) ?? null;
         return { relayed: n.show.includes("${act.id}"), played: globalThis.__dsnShown.filter(c => !c.synchronize && c.messageID === null).map(c => c.total),
             animated: globalThis.__dsnAnimated.includes("${act.id}"), card: Boolean(card), total: Boolean(card?.includes("<p>${act.total} ")),
-            dice3d: Boolean(game.dice3d) };`;
+            dice3d: Boolean(game.dice3d), notified: globalThis.__chatNotified.includes("${act.id}"), rung: globalThis.__chatRung.includes("${act.id}"),
+            shownAt: n.showAt["${act.id}"] ?? null, fell: globalThis.__dsnFell["${act.id}"] ?? null };`;
     for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
+    await p1.eval(`globalThis.__dsnAnimation = async id => { await new Promise(r => setTimeout(r, 1500)); globalThis.__dsnFell[id] ??= Date.now(); }; return true;`);
     const clue = await p1.eval(ACT(ids.aiko, "leaveClue", { hope: 9, fear: 5 }), { timeout: 60000 });
+    await p1.eval(`delete globalThis.__dsnAnimation; return true;`);
     await settle(900);
     const withDsn = { victim: await p1.eval(DICE_READ(clue)), bystander: await p2.eval(DICE_READ(clue)), killer: await p3.eval(DICE_READ(clue)) };
     check("dice: the victim's crisis roll is played on the killer's screen by the GM's relay, and its card tells the killer the action and the total",
@@ -300,6 +309,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     check("dice: the bystander is sent neither the roll's dice nor its card, and animates nothing though Dice So Nice's secret-roll hiding is off",
         Boolean(clue.id) && !withDsn.bystander.relayed && !withDsn.bystander.played.length && !withDsn.bystander.animated && !withDsn.bystander.card,
         JSON.stringify(withDsn.bystander), { flow: "private-rolls" });
+    check("dice: the victim's roll reaches the killer while the victim's own dice still fall",
+        Boolean(withDsn.killer.shownAt) && Boolean(withDsn.victim.fell) && withDsn.killer.shownAt < withDsn.victim.fell,
+        JSON.stringify({ killer: withDsn.killer.shownAt, fell: withDsn.victim.fell }), { flow: "private-rolls" });
 
     await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
         if (!M.isTheirTurn(game.actors.get("${ids.chie}"))) await M.passTurn();
@@ -308,12 +320,36 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     for (const c of [p1, p2, p3]) { await c.eval(DICE_NET); await c.eval(NO_DSN); }
     const strike = await p3.eval(ACT(ids.chie, "strike", { hope: 2, fear: 1 }), { timeout: 60000 });
     await settle(900);
-    const noDsn = { victim: await p1.eval(DICE_READ(strike)), bystander: await p2.eval(DICE_READ(strike)) };
+    const noDsn = { victim: await p1.eval(DICE_READ(strike)), bystander: await p2.eval(DICE_READ(strike)), killer: await p3.eval(DICE_READ(strike)) };
     for (const c of [p1, p2, p3]) await c.eval(`game.dice3d = globalThis.__dice3dAway; delete globalThis.__dice3dAway; globalThis.__dsnHideSecret = true; return true;`);
     check("dice: without Dice So Nice the killer's Strike still tells the victim the action and the total, and the bystander nothing",
         Boolean(strike.id) && strike.stage === "incident" && noDsn.victim.dice3d === false && noDsn.victim.card && noDsn.victim.total
         && !noDsn.bystander.card && !noDsn.bystander.relayed,
         JSON.stringify({ strike, noDsn }), { flow: "private-rolls" });
+    const pip = r => ({ notified: r.notified, rung: r.rung });
+    check("dice: a roll the module threw lights the Chat pip and rings only where it is read - never on the other participant's screen or the bystander's, with Dice So Nice or without",
+        withDsn.victim.notified && !withDsn.victim.rung && noDsn.killer.notified && noDsn.killer.rung
+        && [withDsn.killer, withDsn.bystander, noDsn.victim, noDsn.bystander].every(r => !r.notified && !r.rung),
+        JSON.stringify({ withDsn: [withDsn.victim, withDsn.killer, withDsn.bystander].map(pip), noDsn: [noDsn.killer, noDsn.victim, noDsn.bystander].map(pip) }),
+        { flow: "private-rolls" });
+
+    const FORCED = on => `const { SETTINGS } = await import("${repoUrl}/scripts/settings.mjs"); await game.settings.set("${MOD}", SETTINGS.forcePrivateRolls, ${on}); return true;`;
+    await gm.eval(FORCED(false));
+    for (const c of [p1, p3]) await c.eval(DICE_NET);
+    const open = await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__forceRoll = { hope: 7, fear: 3 };
+        let out;
+        try { out = await A.rollTrait(game.actors.get("${ids.aiko}"), "body", {}); }
+        finally { delete globalThis.__forceRoll; }
+        const m = out?.raw?.message ?? null;
+        return { id: m?.id ?? null, total: m?.rolls?.[0]?.total ?? null, label: "", stage: game.drpg.murderState()?.stage ?? null };`, { timeout: 60000 });
+    await settle(900);
+    const unforced = await p3.eval(DICE_READ(open));
+    await gm.eval(FORCED(true));
+    for (const c of [p1, p3]) await c.eval(`globalThis.__dsnHideSecret = true; return true;`);
+    check("dice: with rolls not forced private the killer's own Dice So Nice animates the victim's roll, and the relay does not play it a second time",
+        Boolean(open.id) && open.stage === "incident" && unforced.animated && !unforced.played.length,
+        JSON.stringify({ open, unforced }), { flow: "private-rolls" });
 
     /* ---- 1b. somebody walks in on it ---------------------------------------
        The guide gives the scene one third party, and from the moment they are

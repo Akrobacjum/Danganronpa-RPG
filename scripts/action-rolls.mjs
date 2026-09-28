@@ -723,11 +723,12 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         // other, all called "Shadow Roll", and the player answers the same
         // question three times without being told which is which.
         ...(title ? { title, headerTitle: title } : {})
-    }));
+    }), { subject: actor });
     if (!result) return null;
-    // Which character the roll is about, told to the primary GM before anything
-    // else here awaits: the Despair award is waiting for it (`rollSubject`,
-    // private-rolls.mjs, E06 C5a).
+    // Which character the roll is about: told to the primary GM as the message
+    // was created (the claim's `subject`, E06 fix r1-G2), because the Despair
+    // award is waiting for it (`rollSubject`, private-rolls.mjs, E06 C5a). Asked
+    // again here for a roll the claim did not see created; a repeat says nothing.
     reportRollSubject(result.message ?? result.raw?.message, actor);
 
     const roll = result.roll ?? result;

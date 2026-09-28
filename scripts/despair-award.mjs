@@ -230,8 +230,10 @@ function findDualityDice(message) {
  * `user.character` (a player's assigned character, dead or not).
  *
  * A roll the module threw is waited for, up to four seconds: this runs as the
- * message is created, and its report leaves once the roll has returned. Four is
- * the wait secret.mjs gives a card's document to arrive, not a measured delay.
+ * message is created, and its report leaves as the roller's browser sees the
+ * message created - before Dice So Nice's animation, which until E06 fix r1-G2
+ * it followed (private-rolls.mjs `reportClaimedRoll`). Four is the wait
+ * secret.mjs gives a card's document to arrive, not a measured delay.
  * Imported when asked, because private-rolls.mjs imports this file.
  */
 async function resolveActor(message) {
