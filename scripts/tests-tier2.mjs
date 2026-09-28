@@ -804,6 +804,100 @@ const SCENARIOS = [
                 stableJson({ killer: read(killer), victim: read(victim), bystander: read(bystander), worldHalf, fight })}`);
     }],
 
+    ["a victim who runs out on the last blow is closed once", async () => {
+        /*
+         * E32 C4, 28.09.2026; audit S04-26. The victim running out was asked twice: by the
+         * primary GM's `updateActor` hook on the blow's damage and by the crisis action after
+         * it, and both read stage "incident" before either wrote Stage 6. A direct murder is
+         * opened between two students with players; the victim is left one Health short of
+         * running out with Sanity full, and the killer's Strike runs them out; the GM closes.
+         * Read: the stage after the blow, the ran-out cards, the victim dead, a second killing
+         * that reached chapter.mjs's "already dead" warning, and the closes - one of each and
+         * none of the last but one. Red at f177726: <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const title = game.i18n.localize("DRPG.Murder.ranOutTitle");
+        const already = game.i18n.format("DRPG.Chapter.alreadyDead", { name: victim.name });
+        const { wordsOf } = await import("./secret.mjs");
+        const messages = [];
+        let closes = 0, again = 0;
+        // A GM's card keeps its words apart from the document (secret.mjs), so they are read as the grid reads them.
+        const created = Hooks.on("createChatMessage", message => { messages.push(message); });
+        const closed = Hooks.on("drpgIncidentClosed", () => { closes++; });
+        const warn = ui.notifications.warn;
+        ui.notifications.warn = function (message, ...rest) {
+            if (message === already) again++;
+            return warn.call(this, message, ...rest);
+        };
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "incident", `the fixture's fight is not running: ${stableJson(M.murderState())}`);
+            const r = victim.system.resources;
+            await victim.update({ "system.resources.hitPoints.value": r.hitPoints.max - 1, "system.resources.stress.value": r.stress.max });
+            for (let i = 0; i < 4 && M.crisisRefusal(killer, "strike")?.why === "not their turn"; i++) await M.passTurn();
+            must(!M.crisisRefusal(killer, "strike"), `the killer's Strike is refused: ${M.crisisRefusal(killer, "strike")?.why}`);
+            await M.resolveCrisisAction({ actorId: killer.id, key: "strike", total: 99, isCritical: false, withHope: true });
+            await settle();
+            const stage = M.murderState()?.stage ?? null;
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            let cards = 0;
+            for (const message of messages) if (String(await wordsOf(message, 300)).includes(title)) cards++;
+            equal(stableJson([stage, cards, isDeadForGm(victim), again, closes]), stableJson(["resolution", 1, true, 0, 1]),
+                "the blow that ran the victim out did not end the fight, or it was told, killed or closed other than once (stage, ran-out cards, dead, second killing, closes)");
+        } finally {
+            Hooks.off("createChatMessage", created);
+            Hooks.off("drpgIncidentClosed", closed);
+            ui.notifications.warn = warn;
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["two closes of one incident close it once", async () => {
+        /*
+         * E32 C4, 28.09.2026; audit S04-26. `endMurder` awaits at every step between reading
+         * the incident and wiping it, and two calls not awaited in between each read the same
+         * running incident: each recorded it, destroyed its tools and fired
+         * `drpgIncidentClosed`. It is single-flight now, by the incident's `openedAt`. A direct
+         * murder is opened between two students with players and its fight begins; the GM
+         * closes it twice at once. Read: the closes the hook counts; a second close that ran
+         * its steps as far as the wipe and was refused there (`restoreState`'s `expect`, the
+         * layer under this one - its warning, "... in the place of the one it closed"); and
+         * that nothing runs afterwards. Red at f177726: <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        let closes = 0, refused = 0;
+        const closed = Hooks.on("drpgIncidentClosed", () => { closes++; });
+        const consoleWarn = console.warn;
+        console.warn = function (...args) {
+            if (args.some(a => String(a).includes("in the place of the one it closed"))) refused++;
+            return consoleWarn.apply(this, args);
+        };
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "incident", `the fixture's fight is not running: ${stableJson(M.murderState())}`);
+            await Promise.all([M.endMurder({ reason: "closed", followUp: false }), M.endMurder({ reason: "closed", followUp: false })]);
+            await settle();
+            equal(stableJson([closes, refused, M.murderState()]), stableJson([1, 0, null]),
+                "two closes of one incident did not close it exactly once, or left it running (closes, a second close refused at the wipe, the state after)");
+        } finally {
+            Hooks.off("drpgIncidentClosed", closed);
+            console.warn = consoleWarn;
+        }
+    }],
+
     ["the incident's cards reach its audience and no one else", async () => {
         /*
          * E06 C4, 27.09.2026; audit S04-01 (L11). A crisis card was whispered to the owners of

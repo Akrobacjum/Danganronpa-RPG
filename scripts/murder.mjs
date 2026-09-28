@@ -247,6 +247,44 @@ async function ownCastWrite(write) {
     try { return await write(); } finally { writingCast--; }
 }
 
+/*
+ * ONE QUEUE FOR THE INCIDENT'S WRITES (E32 C4, 28.09.2026; audit S04-26).
+ *
+ * Until 1.2.66 two writers of the same incident read it, awaited something, and wrote
+ * what they had read: the victim running out was checked by the `updateActor` hook
+ * and by the crisis action that dealt the blow, both read stage "incident" before
+ * either wrote "resolution", and the victim ran out twice - two ran-out cards (the
+ * grid's DM14, red at f177726); two closes of one incident each fired
+ * `drpgIncidentClosed`. Every write of the incident on this browser - both halves of
+ * `writeState` and `restoreState`, and every cast write outside them - now runs
+ * through this one promise chain, one after another.
+ *
+ * A write that moves the incident on also says what it read (`expect`, a few fields
+ * of the merged state), and the queue compares that with the state as it stands when
+ * the write's turn comes: a mismatch writes nothing and answers null, and the caller
+ * stops there - a transition that lost its race must not half-apply. The two writers
+ * and the leaves they call (`writeCast`, `armBetrayalWindow`) never call a transition
+ * or queue a write of their own, so the chain cannot wait on itself: R205 reads that
+ * off the source.
+ *
+ * PER BROWSER. A second GM's button runs its own queue on its own browser; the stores'
+ * stamps settle what the two GMs wrote, and nothing here orders them. Not measured -
+ * the harness has one GM (LIVE-E07-10).
+ */
+let incidentWrites = Promise.resolve();
+function incidentWrite(write) {
+    const run = incidentWrites.then(() => write());
+    incidentWrites = run.catch(() => null);
+    return run;
+}
+
+/** Does the incident this browser holds still show each field of `expect` (null for absent)? */
+function stillHolds(expect) {
+    if (!expect) return true;
+    const now = murderState() ?? {};
+    return Object.entries(expect).every(([key, value]) => JSON.stringify(now[key] ?? null) === JSON.stringify(value ?? null));
+}
+
 /**
  * Replace the whole state, splitting it the way `writeState` splits a patch.
  *
@@ -257,24 +295,29 @@ async function ownCastWrite(write) {
  *
  * The cast is reset as a record (E04): every field stamped at once, but `keep`,
  * with what `state` gives it or null - so a GM that never saw this write cannot
- * bring an older field of it back.
+ * bring an older field of it back. In the incident's queue, with `expect` as
+ * `writeState` takes it (E32 C4).
  */
-async function restoreState(state = {}, { keep = [] } = {}) {
+async function restoreState(state = {}, { keep = [], expect = null } = {}) {
     if (!game.user.isGM) return null;
 
-    const previous = readCast();
-    const publicBefore = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const { world: rest, cast, neither } = splitIncident(state);
-    // `updated` belonged to the cast entry until E04, not to the incident - a
-    // receipt taken before the upgrade still carries one, and it goes nowhere.
-    const unknown = neither.filter(key => key !== "updated");
-    if (unknown.length) error(`An incident's state named field(s) neither its world half nor its cast holds, kept out of both: ${unknown.join(", ")}`);
+    return incidentWrite(async () => {
+        if (!stillHolds(expect)) return null;
 
-    await ownCastWrite(() => castStore.resetRecord(cast, { keep }));
-    // Who holds it before and after, by the state before and the one written next.
-    pushCastToParticipants(readCast(), previous, rest, publicBefore);
-    await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
-    return { ...rest, ...readCast() };
+        const previous = readCast();
+        const publicBefore = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+        const { world: rest, cast, neither } = splitIncident(state);
+        // `updated` belonged to the cast entry until E04, not to the incident - a
+        // receipt taken before the upgrade still carries one, and it goes nowhere.
+        const unknown = neither.filter(key => key !== "updated");
+        if (unknown.length) error(`An incident's state named field(s) neither its world half nor its cast holds, kept out of both: ${unknown.join(", ")}`);
+
+        await ownCastWrite(() => castStore.resetRecord(cast, { keep }));
+        // Who holds it before and after, by the state before and the one written next.
+        pushCastToParticipants(readCast(), previous, rest, publicBefore);
+        await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
+        return { ...rest, ...readCast() };
+    });
 }
 
 /**
@@ -487,88 +530,95 @@ export function retellCast() {
  * view of their own incident for a frame. The cast's own `onChange` repaints
  * again when it lands, so the worst case is one extra redraw rather than a
  * sheet showing the wrong thing.
+ *
+ * In the incident's queue (`incidentWrite`, E32 C4): `expect` is what the caller
+ * read, and a state that no longer shows it is not written - the answer is null.
  */
-async function writeState(patch, { explicit = [] } = {}) {
+async function writeState(patch, { explicit = [], expect = null } = {}) {
     if (!game.user.isGM) return null;
 
-    const publicBefore = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const castBefore = readCast();
-    const before = { ...publicBefore, ...castBefore };
+    return incidentWrite(async () => {
+        if (!stillHolds(expect)) return null;
 
-    const { world: publicPatch, cast: castPatch, neither } = splitIncident(patch);
-    if (neither.length) error(`An incident's write named field(s) neither its world half nor its cast holds, kept out of both: ${neither.join(", ")}`);
+        const publicBefore = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+        const castBefore = readCast();
+        const before = { ...publicBefore, ...castBefore };
 
-    const publicNext = { ...publicBefore, ...publicPatch };
+        const { world: publicPatch, cast: castPatch, neither } = splitIncident(patch);
+        if (neither.length) error(`An incident's write named field(s) neither its world half nor its cast holds, kept out of both: ${neither.join(", ")}`);
 
-    /*
-     * THE STAGE IS ALSO A RECIPIENT LIST, and nothing above notices that.
-     *
-     * `castOwners` seats people by the stage (`incidentSeats`): a trap's killer
-     * is left out while the trap runs and let back in at Stage 6, which is how
-     * Stage 6 knows the body is theirs to arrange; a direct murder's victim is
-     * left out of the opening and seated when the killer's roll succeeds (D6,
-     * E06 C2). But a stage change is a public-half patch: a patch that touches no
-     * cast field writes no cast, and nobody would be pushed anything. The victim
-     * of a direct murder fought the whole incident without a cast while the
-     * opening's success moved the stage and world fields alone (read off
-     * `resolveKillerOpening`; 13-murder-signals' "direct" reads it). Since E32 C2
-     * that patch carries the fight, which is the cast's, and every stage write in
-     * this file names a cast field (read on 28.09) - the comparison stays, so a
-     * patch of the stage alone cannot bring that back.
-     *
-     * So the holders are compared across this write, and the participants
-     * pushed to when they change. Cheap - a packet per participant on a few
-     * transitions in a whole murder. A participant who asked while they held no
-     * seat was answered "not in it", which holds the seats' stamps alone; the
-     * cast sent now holds the other parts as well, so it is newer (gm-stores.mjs,
-     * `castCombine`; R176).
-     */
-    const castNext = Object.keys(castPatch).length
-        ? await writeCast({ ...castBefore, ...castPatch }, castBefore, { explicit, push: false })
-        : castBefore;
-    /* Until E06 this compared whether a trap was running before and after (`trapRunning`), the
-       one gate that moved with the stage; the table has two now, and comparing the holders
-       covers both and any row added later. Read as sorted user ids. */
-    const holders = (cast, state) => [...castOwners(cast, state)].sort().join();
-    const holdersMoved = holders(castNext, publicNext) !== holders(castBefore, publicBefore);
+        const publicNext = { ...publicBefore, ...publicPatch };
 
-    /*
-     * ONE PUSH, WITH THE STATE BEING WRITTEN (E04). The participants are worked out
-     * from the cast and the stage after this write, against the cast and the stage
-     * before it - still before the world half is written, so the cast arrives first.
-     * Pushed from `writeCast` against the stage still in the world, an indirect
-     * murder's opening sent its killer the cast, and the "not in it" that followed
-     * carried the same stamps and was refused - read off the code; what was
-     * measured is 13's "trap: the killer holds no cast", red on the first C6 tree
-     * (26.09).
-     */
-    if (castNext !== castBefore || holdersMoved) pushCastToParticipants(castNext, castBefore, publicNext, publicBefore);
-    await game.settings.set(MODULE_ID, SETTINGS.murderState, publicNext);
+        /*
+         * THE STAGE IS ALSO A RECIPIENT LIST, and nothing above notices that.
+         *
+         * `castOwners` seats people by the stage (`incidentSeats`): a trap's killer
+         * is left out while the trap runs and let back in at Stage 6, which is how
+         * Stage 6 knows the body is theirs to arrange; a direct murder's victim is
+         * left out of the opening and seated when the killer's roll succeeds (D6,
+         * E06 C2). But a stage change is a public-half patch: a patch that touches no
+         * cast field writes no cast, and nobody would be pushed anything. The victim
+         * of a direct murder fought the whole incident without a cast while the
+         * opening's success moved the stage and world fields alone (read off
+         * `resolveKillerOpening`; 13-murder-signals' "direct" reads it). Since E32 C2
+         * that patch carries the fight, which is the cast's, and every stage write in
+         * this file names a cast field (read on 28.09) - the comparison stays, so a
+         * patch of the stage alone cannot bring that back.
+         *
+         * So the holders are compared across this write, and the participants
+         * pushed to when they change. Cheap - a packet per participant on a few
+         * transitions in a whole murder. A participant who asked while they held no
+         * seat was answered "not in it", which holds the seats' stamps alone; the
+         * cast sent now holds the other parts as well, so it is newer (gm-stores.mjs,
+         * `castCombine`; R176).
+         */
+        const castNext = Object.keys(castPatch).length
+            ? await writeCast({ ...castBefore, ...castPatch }, castBefore, { explicit, push: false })
+            : castBefore;
+        /* Until E06 this compared whether a trap was running before and after (`trapRunning`), the
+           one gate that moved with the stage; the table has two now, and comparing the holders
+           covers both and any row added later. Read as sorted user ids. */
+        const holders = (cast, state) => [...castOwners(cast, state)].sort().join();
+        const holdersMoved = holders(castNext, publicNext) !== holders(castBefore, publicBefore);
 
-    const next = { ...publicNext, ...castNext };
+        /*
+         * ONE PUSH, WITH THE STATE BEING WRITTEN (E04). The participants are worked out
+         * from the cast and the stage after this write, against the cast and the stage
+         * before it - still before the world half is written, so the cast arrives first.
+         * Pushed from `writeCast` against the stage still in the world, an indirect
+         * murder's opening sent its killer the cast, and the "not in it" that followed
+         * carried the same stamps and was refused - read off the code; what was
+         * measured is 13's "trap: the killer holds no cast", red on the first C6 tree
+         * (26.09).
+         */
+        if (castNext !== castBefore || holdersMoved) pushCastToParticipants(castNext, castBefore, publicNext, publicBefore);
+        await game.settings.set(MODULE_ID, SETTINGS.murderState, publicNext);
 
-    /*
-     * THE BETRAYAL'S WINDOW OPENS HERE, AND ONLY HERE (D18).
-     *
-     * Six different branches move an incident to its resolution stage - a
-     * finishing blow, running out, a self-inflicted death, an escape, and two
-     * more - and every one of them is a moment the accomplice may now turn on
-     * the killer. Arming from each would be six copies of one rule, which is
-     * the shape this file has already been bitten by twice.
-     *
-     * `writeState` is the single writer, so it is the single place that can see
-     * the transition. Guarded on the CHANGE rather than the state, so the many
-     * later writes that happen during a resolution do not re-arm a window the
-     * betrayal has already spent.
-     */
-    if (before.stage !== "resolution" && next.stage === "resolution") {
-        try {
-            await armBetrayalWindow(next);
-        } catch (err) {
-            error("Could not open the betrayal window", err);
+        const next = { ...publicNext, ...castNext };
+
+        /*
+         * THE BETRAYAL'S WINDOW OPENS HERE, AND ONLY HERE (D18).
+         *
+         * Six different branches move an incident to its resolution stage - a
+         * finishing blow, running out, a self-inflicted death, an escape, and two
+         * more - and every one of them is a moment the accomplice may now turn on
+         * the killer. Arming from each would be six copies of one rule, which is
+         * the shape this file has already been bitten by twice.
+         *
+         * `writeState` is the single writer, so it is the single place that can see
+         * the transition. Guarded on the CHANGE rather than the state, so the many
+         * later writes that happen during a resolution do not re-arm a window the
+         * betrayal has already spent.
+         */
+        if (before.stage !== "resolution" && next.stage === "resolution") {
+            try {
+                await armBetrayalWindow(next);
+            } catch (err) {
+                error("Could not open the betrayal window", err);
+            }
         }
-    }
-    return next;
+        return next;
+    });
 }
 
 /**
@@ -618,22 +668,28 @@ async function armBetrayalWindow(state) {
  */
 async function sweepBetrayalWindows() {
     if (!isPrimaryGm()) return;
-    const clock = getClock();
-    const cast = readCast();
-    const open = cast.betrayal;
-    if (!open) return;
-    if (open.chapter === clock?.chapter && open.day === clock?.day) return;
-    const { betrayal, ...rest } = cast;
-    await writeCast(rest, cast);
+    // Read where it is written, in the incident's queue (E32 C4): an offer armed by a
+    // write queued before this one is the offer it reads.
+    await incidentWrite(async () => {
+        const clock = getClock();
+        const cast = readCast();
+        const open = cast.betrayal;
+        if (!open) return;
+        if (open.chapter === clock?.chapter && open.day === clock?.day) return;
+        const { betrayal, ...rest } = cast;
+        await writeCast(rest, cast);
+    });
 }
 
 /** Take the betrayal off the table, whoever it was offered to. GM-side. */
 export async function clearBetrayalOffer() {
     if (!game.user.isGM) return;
-    const cast = readCast();
-    if (!cast.betrayal) return;
-    const { betrayal, ...rest } = cast;
-    await writeCast(rest, cast);
+    await incidentWrite(async () => {
+        const cast = readCast();
+        if (!cast.betrayal) return;
+        const { betrayal, ...rest } = cast;
+        await writeCast(rest, cast);
+    });
 }
 
 /** The weapon this actor swung in the running incident, if it is still on them. GM-side. */
@@ -1096,6 +1152,9 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
     }
 
     const keys = Math.max(KEY_REMNANTS.minimum, def.keyRemnants[band]);
+    // The stage as it was read (E32 C4): an incident the GM closed, or a roll that landed
+    // first, while this one was on its way is not answered twice.
+    const opening = { stage: "openingRoll", openedAt: state.openedAt };
 
     /*
      * A SELF-INFLICTED DEATH SKIPS STAGE 5 (see `openMurder`).
@@ -1116,9 +1175,9 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
      * the part that leaves its mark: four Key Remnants instead of three.
      */
     if (state.selfInflicted) {
-        await writeState({
+        if (!await writeState({
             stage: "resolution", endedBy: "selfInflicted", keyRemnants: keys, turn: 0
-        });
+        }, { expect: opening })) return null;
         await tellGms(prose[band], { keys });
         await whisperToGms(`<p>${game.i18n.localize("DRPG.Murder.resolutionNoteSelf")}</p>`);
 
@@ -1148,7 +1207,10 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
 
     const patch = { stage: "incident", keyRemnants: keys, turn: 1, turnSide: "victim" };
 
-    // A Despair success costs the victim their Sanity and their way out.
+    // A Despair success costs the victim their Sanity and their way out - the Sanity
+    // after the stage is written (E32 C4), so an opening that lost its race marks no sheet.
+    if (band === "despair") patch.deniedToVictim = ["roleReversal"];
+    if (!await writeState(patch, { expect: opening })) return null;
     if (band === "despair") {
         const victim = game.actors.get(state.victimId);
         if (victim) {
@@ -1156,10 +1218,7 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
                 "system.resources.stress.value": resourceMax(victim, "stress")
             });
         }
-        patch.deniedToVictim = ["roleReversal"];
     }
-
-    await writeState(patch);
     await tellGms(prose[band], { keys });
     await tellVictimTheIncidentBegan(murderState());
     return { success: true, band, keys };
@@ -1200,12 +1259,13 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
     await announceOpening(state, def.label, { rollerId: state.victimId, success, band, total, threshold: def.threshold });
 
     if (!success) {
-        await tellGms(def.failure);
-
         // Nothing else opens an indirect murder, so this is the moment the
         // incident starts. Without it the state sat on "openingRoll" for ever
-        // and an indirect murder could never be played.
-        await writeState({ stage: "incident", turn: 1, turnSide: "victim" });
+        // and an indirect murder could never be played. Against the stage as it
+        // was read (E32 C4), and told to the GMs once it is written.
+        if (!await writeState({ stage: "incident", turn: 1, turnSide: "victim" },
+            { expect: { stage: "openingRoll", openedAt: state.openedAt } })) return null;
+        await tellGms(def.failure);
         await whisperToGms(`<p>${game.i18n.localize("DRPG.Murder.indirectBegins")}</p>`);
         await tellVictimTheIncidentBegan(murderState());
         return { success: false, started: true };
@@ -1837,7 +1897,28 @@ async function grantImprovisedWeapon(actor, def, band, done) {
  *   replaying passes the turn a second time and the turn ends up spent exactly
  *   once: the reroll costs Hope, not a turn.
  */
-export async function resolveCrisisAction({
+export async function resolveCrisisAction(options = {}) {
+    if (!game.user.isGM) return null;
+    resolving++;
+    try {
+        return await applyCrisisAction(options);
+    } finally {
+        resolving--;
+    }
+}
+
+/*
+ * WHILE AN ACTION IS SCORED, THE `updateActor` HOOK DOES NOT CHECK THE VICTIM (E32 C4,
+ * 28.09.2026; audit S04-26). The action's damage and a pass's drain are updates to the
+ * victim, and the hook's check ran beside the action's own: both read stage "incident",
+ * both wrote Stage 6, two ran-out cards (the grid's DM14, red at f177726). The action
+ * checks after its damage and again after the pass (`applyCrisisAction`), so the hook
+ * leaves this browser's actions to it; a counter, as two actions can be scored at once.
+ * An edit made by hand in that moment is read by the action's check that follows it.
+ */
+let resolving = 0;
+
+async function applyCrisisAction({
     actorId, key, total, isCritical, withHope, undo = false, choice = null, usedItemId = null,
     // The weapon the roll was thrown with, remembered for Stage 6 (E9, CASE-04).
     swungId = null,
@@ -1874,7 +1955,7 @@ export async function resolveCrisisAction({
     // packet is a claim, and a stranger's id would have Stage 6 ruin nothing. Its
     // own sub-key only (E04): two actors swinging on two GMs' clients both stay.
     if (swungId && actor.items?.has(swungId)) {
-        await castStore.patch(RECORD, { swung: { [actorId]: swungId } });
+        await incidentWrite(() => castStore.patch(RECORD, { swung: { [actorId]: swungId } }));
     }
 
     // WHOSE SIDE, not the entry's. One action is written `side: "both"` - using
@@ -2022,7 +2103,8 @@ export async function resolveCrisisAction({
     if (murderState()?.stage === "incident"
         && !(isCritical && def.criticalKeepsTurn)) {
         await passTurn();
-        await victimCheck;
+        // The drain at the victim's turn is the pass's; the hook leaves it to this check.
+        await checkVictimSpent();
     }
 
     await closeReceipt(receipt);
@@ -2286,7 +2368,10 @@ async function checkVictimSpent(done = null) {
         if (!now) return false;
     }
 
-    await writeState({ stage: "resolution", endedBy: "ranOut" });
+    // Against the incident it read (E32 C4): the hook's check and the action's, or two
+    // updates, cannot both run the victim out - the second writes nothing and stops here.
+    if (!await writeState({ stage: "resolution", endedBy: "ranOut" },
+        { expect: { stage: "incident", openedAt: state.openedAt } })) return false;
 
     const line = game.i18n.format("DRPG.Murder.ranOut", { name: victim.name });
     // `done` is printed into a card with `innerHTML`, and a name is its owner's to
@@ -2634,7 +2719,8 @@ async function finishIncident(state, key, band, done) {
     // of the door both landed on stage "resolution" and were indistinguishable
     // afterwards - which is how the post-incident checklist came to promise a
     // body in a room after Escape together. See `afterIncident`.
-    await writeState({ stage: "resolution", endedBy: key });
+    if (!await writeState({ stage: "resolution", endedBy: key },
+        { expect: { stage: "incident", openedAt: state.openedAt } })) return false;
     done.push(game.i18n.localize(
         key === "finishingBlow" ? "DRPG.Murder.victimDead" : "DRPG.Murder.incidentEnded"));
 
@@ -2683,7 +2769,8 @@ export async function beginResolution(reason = "victimKilled") {
     const state = murderState();
     if (!state?.active || state.stage !== "incident") return null;
 
-    await writeState({ stage: "resolution", endedBy: reason });
+    if (!await writeState({ stage: "resolution", endedBy: reason },
+        { expect: { stage: "incident", openedAt: state.openedAt } })) return null;
     await whisperToGms(`<p>${game.i18n.localize("DRPG.Murder.resolutionNote")}</p>`);
     log(`Incident moved to Stage 6 (${reason}).`);
     return murderState();
@@ -2851,7 +2938,8 @@ export async function passTurn() {
         patch.blocked = decay("blocked");
     }
 
-    await writeState(patch);
+    // The round as it was read (E32 C4): two passes of one turn pass it once.
+    if (!await writeState(patch, { expect: { turn: state.turn, turnSide: state.turnSide, killerTurnId: state.killerTurnId } })) return null;
 
     if (next === "victim") {
         const done = [];
@@ -3238,15 +3326,18 @@ function registerDeathCopy() {
  */
 export async function enterCast({ killerId = null, victimId = null, thirdId = null } = {}) {
     if (!game.user.isGM || !game.actors.get(killerId ?? "") || !game.actors.get(victimId ?? "")) return null;
-    const previous = readCast();
     const third = thirdId && game.actors.get(thirdId) ? thirdId : null;
-    const held = murderState() ?? {};
-    const round = {
-        ...(Number.isFinite(held.turn) ? {} : { turn: 1 }),
-        ...(held.turnSide ? {} : { turnSide: "victim" })
-    };
-    await ownCastWrite(() => castStore.patch(RECORD, { killerId, victimId, killerTurnId: killerId, thirdId: third, thirdSide: null, ...round }));
-    pushCastToParticipants(readCast(), previous);
+    // Read and written in the incident's queue (E32 C4), as every other write of it.
+    await incidentWrite(async () => {
+        const previous = readCast();
+        const held = murderState() ?? {};
+        const round = {
+            ...(Number.isFinite(held.turn) ? {} : { turn: 1 }),
+            ...(held.turnSide ? {} : { turnSide: "victim" })
+        };
+        await ownCastWrite(() => castStore.patch(RECORD, { killerId, victimId, killerTurnId: killerId, thirdId: third, thirdSide: null, ...round }));
+        pushCastToParticipants(readCast(), previous);
+    });
     log(`The incident's cast was entered by hand: ${game.actors.get(killerId)?.name} and ${game.actors.get(victimId)?.name}.`);
     return murderState();
 }
@@ -3278,57 +3369,60 @@ export async function liftIncidentSecrets() {
     if (await castStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the cast did not arrive; the next load tries again");
     }
-    const report = { lifted: 0, offers: 0, flags: 0, kept: 0 };
+    // In the incident's queue (E32 C4): a write of the running incident waits for the lift.
+    return incidentWrite(async () => {
+        const report = { lifted: 0, offers: 0, flags: 0, kept: 0 };
 
-    const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    /* The names, as in 1.2.63: the method is `liftIncidentMethod`'s and the fight `liftIncidentFight`'s
-       (E32 C3), which run after this and tell the participants. */
-    const strays = CAST_FIELDS.filter(key => !INCIDENT_METHOD.includes(key) && !INCIDENT_FIGHT.includes(key) && stored[key] != null);
-    if (strays.length) {
-        await castStore.patch(RECORD, Object.fromEntries(strays.map(key => [key, stored[key]])),
-            { weak: true, fillOnly: true, whole: true });
-        const held = castStore.persisted(RECORD) ?? {};
-        const moved = strays.filter(key => held[key] !== null && held[key] !== undefined);
-        if (moved.length) {
-            const rest = { ...(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}) };
-            for (const key of moved) delete rest[key];
-            await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
-            const back = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-            report.lifted = moved.filter(key => !(key in back)).length;
+        const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+        /* The names, as in 1.2.63: the method is `liftIncidentMethod`'s and the fight `liftIncidentFight`'s
+           (E32 C3), which run after this and tell the participants. */
+        const strays = CAST_FIELDS.filter(key => !INCIDENT_METHOD.includes(key) && !INCIDENT_FIGHT.includes(key) && stored[key] != null);
+        if (strays.length) {
+            await castStore.patch(RECORD, Object.fromEntries(strays.map(key => [key, stored[key]])),
+                { weak: true, fillOnly: true, whole: true });
+            const held = castStore.persisted(RECORD) ?? {};
+            const moved = strays.filter(key => held[key] !== null && held[key] !== undefined);
+            if (moved.length) {
+                const rest = { ...(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}) };
+                for (const key of moved) delete rest[key];
+                await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
+                const back = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+                report.lifted = moved.filter(key => !(key in back)).length;
+            }
+            report.kept += strays.length - report.lifted;
+            if (report.lifted) log(`Lifted ${report.lifted} incident name(s) out of world data (LIVE-001).`);
         }
-        report.kept += strays.length - report.lifted;
-        if (report.lifted) log(`Lifted ${report.lifted} incident name(s) out of world data (LIVE-001).`);
-    }
 
-    // The betrayal offer and the swing memo used to be actor flags (CASE-04). A
-    // live offer is lifted into the cast; the rest is unset, and read back.
-    const clock = getClock();
-    for (const actor of game.actors) {
-        const window = actor.getFlag(MODULE_ID, FLAGS.betrayalWindow);
-        const live = window?.killerId && window.chapter === clock?.chapter && window.day === clock?.day;
-        if (live) {
-            await castStore.patch(RECORD, { betrayal: { thirdId: actor.id, ...window } }, { weak: true, fillOnly: true });
-            if (!castStore.persisted(RECORD)?.betrayal) {
-                report.kept++;
-                continue;
+        // The betrayal offer and the swing memo used to be actor flags (CASE-04). A
+        // live offer is lifted into the cast; the rest is unset, and read back.
+        const clock = getClock();
+        for (const actor of game.actors) {
+            const window = actor.getFlag(MODULE_ID, FLAGS.betrayalWindow);
+            const live = window?.killerId && window.chapter === clock?.chapter && window.day === clock?.day;
+            if (live) {
+                await castStore.patch(RECORD, { betrayal: { thirdId: actor.id, ...window } }, { weak: true, fillOnly: true });
+                if (!castStore.persisted(RECORD)?.betrayal) {
+                    report.kept++;
+                    continue;
+                }
+                report.offers++;
+                log(`Lifted ${actor.name}'s betrayal offer out of world data (CASE-04).`);
             }
-            report.offers++;
-            log(`Lifted ${actor.name}'s betrayal offer out of world data (CASE-04).`);
-        }
-        for (const flag of [FLAGS.betrayalWindow, FLAGS.swungWeapon]) {
-            if (actor.getFlag(MODULE_ID, flag) === undefined) continue;
-            try {
-                await actor.unsetFlag(MODULE_ID, flag);
-            } catch (err) {
-                warn(`Could not unset ${actor.name}'s old ${flag} flag`, err);
+            for (const flag of [FLAGS.betrayalWindow, FLAGS.swungWeapon]) {
+                if (actor.getFlag(MODULE_ID, flag) === undefined) continue;
+                try {
+                    await actor.unsetFlag(MODULE_ID, flag);
+                } catch (err) {
+                    warn(`Could not unset ${actor.name}'s old ${flag} flag`, err);
+                }
+                if (actor.getFlag(MODULE_ID, flag) === undefined) report.flags++;
+                else report.kept++;
             }
-            if (actor.getFlag(MODULE_ID, flag) === undefined) report.flags++;
-            else report.kept++;
         }
-    }
-    if (report.lifted || report.offers) pushCastToParticipants(readCast(), {});
-    if (report.kept) throw new Error(`${report.kept} of the incident's names, offers or old flags are still in world data; the next load tries again`);
-    return report;
+        if (report.lifted || report.offers) pushCastToParticipants(readCast(), {});
+        if (report.kept) throw new Error(`${report.kept} of the incident's names, offers or old flags are still in world data; the next load tries again`);
+        return report;
+    });
 }
 
 /**
@@ -3386,34 +3480,37 @@ async function liftIntoCast(fields, what) {
     if (await castStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the cast did not arrive; the next load tries again");
     }
-    const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const found = fields.filter(key => Object.hasOwn(stored, key));
-    if (!found.length) return null;
-    const values = stored.active ? found.filter(key => stored[key] != null) : [];
-    if (values.length) {
-        await castStore.patch(RECORD, Object.fromEntries(values.map(key => [key, stored[key]])), { weak: true, fillOnly: true });
-        await castStore.idle();
-    }
-    const held = castStore.persisted(RECORD) ?? {};
-    const leave = found.filter(key => !values.includes(key) || (held[key] !== null && held[key] !== undefined));
-    if (leave.length) {
-        const rest = { ...(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}) };
-        for (const key of leave) delete rest[key];
-        await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
-    }
-    const back = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const gone = leave.filter(key => !Object.hasOwn(back, key));
-    const report = {
-        lifted: gone.filter(key => values.includes(key)).length,
-        dropped: gone.filter(key => !values.includes(key)).length,
-        kept: found.length - gone.length
-    };
-    if (report.lifted) {
-        log(`Lifted ${report.lifted} field(s) of ${what} out of world data.`);
-        pushCastToParticipants(readCast(), {});
-    }
-    if (report.kept) throw new Error(`${report.kept} field(s) of ${what} are still in the world half of murderState; the next load tries again`);
-    return report;
+    // In the incident's queue (E32 C4): a write of the running incident waits for the lift.
+    return incidentWrite(async () => {
+        const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+        const found = fields.filter(key => Object.hasOwn(stored, key));
+        if (!found.length) return null;
+        const values = stored.active ? found.filter(key => stored[key] != null) : [];
+        if (values.length) {
+            await castStore.patch(RECORD, Object.fromEntries(values.map(key => [key, stored[key]])), { weak: true, fillOnly: true });
+            await castStore.idle();
+        }
+        const held = castStore.persisted(RECORD) ?? {};
+        const leave = found.filter(key => !values.includes(key) || (held[key] !== null && held[key] !== undefined));
+        if (leave.length) {
+            const rest = { ...(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}) };
+            for (const key of leave) delete rest[key];
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
+        }
+        const back = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+        const gone = leave.filter(key => !Object.hasOwn(back, key));
+        const report = {
+            lifted: gone.filter(key => values.includes(key)).length,
+            dropped: gone.filter(key => !values.includes(key)).length,
+            kept: found.length - gone.length
+        };
+        if (report.lifted) {
+            log(`Lifted ${report.lifted} field(s) of ${what} out of world data.`);
+            pushCastToParticipants(readCast(), {});
+        }
+        if (report.kept) throw new Error(`${report.kept} field(s) of ${what} are still in the world half of murderState; the next load tries again`);
+        return report;
+    });
 }
 
 export function registerMurder() {
@@ -3445,31 +3542,37 @@ export function registerMurder() {
 
     // The victim running out, however it happened.
     //
-    // `resolveCrisisAction` already checks after its own damage and drain, which
-    // covers the ordinary route. This covers the others: a GM marking damage on
-    // the sheet by hand, a Despair Call, an item, anything at all. One client
-    // decides, or every GM would race to end the same incident.
+    // `resolveCrisisAction` checks after its own damage and after the pass's
+    // drain, which covers the ordinary route; while it runs this leaves the
+    // victim to it (`resolving`, E32 C4). This covers the others: a GM marking
+    // damage on the sheet by hand, a Despair Call, an item, anything at all. One
+    // client decides, or every GM would race to end the same incident.
     Hooks.on("updateActor", (actor, changes) => {
         if (!isPrimaryGm()) return;
         const r = changes?.system?.resources;
         if (!r?.hitPoints && !r?.stress) return;
         if (murderState()?.victimId !== actor.id) return;
+        if (resolving || victimCheck) return;
 
-        // Kept, not dropped: a crisis action's receipt waits for it (`victimCheck`).
-        victimCheck = checkVictimSpent().catch(err => {
-            error("Could not check whether the victim has run out", err);
-            return false;
-        });
+        victimCheck = checkVictimSpent()
+            .catch(err => {
+                error("Could not check whether the victim has run out", err);
+                return false;
+            })
+            .finally(() => { victimCheck = null; });
     });
 }
 
 /**
- * The victim-ran-out check the `updateActor` hook last started. A turn's drain
- * (`passTurn`) sets it off without waiting, and it may end the incident; a
- * crisis action waits for it before stamping its receipt, so the receipt says
- * what the action really left (E03 third review).
+ * The victim-ran-out check the `updateActor` hook started, while it runs: ONE at a time
+ * (E32 C4, 28.09.2026; audit S04-26). The check reads the victim before its first await,
+ * and one that finds them not spent is over before the next update can land (read off
+ * the code); so an update that finds one pending finds one that has already found the
+ * victim spent and is asking the GM with two killers, or writing Stage 6. Until
+ * 1.2.66 each update started another, and a crisis action awaited the last one; the
+ * action checks for itself now (`applyCrisisAction`).
  */
-let victimCheck = Promise.resolve(false);
+let victimCheck = null;
 
 /**
  * Did this token just walk into the room the incident is happening in?
@@ -3531,7 +3634,8 @@ export async function thirdPartyEnters(actor) {
     // `thirdActed` is written explicitly rather than left undefined: it is what
     // gates their one free action, and a murder opened before this field
     // existed would otherwise carry no value at all.
-    await writeState({ thirdId: actor.id, thirdActed: false });
+    // Nobody else walked in while this was read (E32 C4): the first one in is the third.
+    if (!await writeState({ thirdId: actor.id, thirdActed: false }, { expect: { thirdId: null } })) return null;
     await whisperToOwner(actor, `
         <h3>${game.i18n.localize("DRPG.Murder.thirdTitle")}</h3>
         <p>${game.i18n.localize("DRPG.Murder.thirdIntro")}</p>`);
@@ -3763,8 +3867,30 @@ export async function clearBlackened() {
 export async function endMurder({ reason = "closed", followUp = true } = {}) {
     if (!game.user.isGM) return null;
 
+    /*
+     * ONE CLOSE PER INCIDENT (E32 C4, 28.09.2026; audit S04-26). Every step below awaits,
+     * and a second close started before the first wiped the state read the same incident:
+     * two `endMurder` calls not awaited in between each recorded the Blackened, destroyed
+     * the tools and fired `drpgIncidentClosed` (read off the code at f177726; the tier-2
+     * test "two closes of one incident close it once" holds it). The incident is taken, by
+     * when it opened, before the first await - a second close of it answers at once - and
+     * let go when the close is over. Per browser, as the queue (`incidentWrite`).
+     */
     const state = murderState();
+    const key = state?.active ? String(state.openedAt ?? "open") : null;
+    if (key !== null && closing.has(key)) return null;
+    if (key !== null) closing.add(key);
+    try {
+        return await closeIncident(state, { reason, followUp });
+    } finally {
+        if (key !== null) closing.delete(key);
+    }
+}
 
+/** The incidents this browser is closing, by `openedAt` (`endMurder`). */
+const closing = new Set();
+
+async function closeIncident(state, { reason, followUp }) {
     /*
      * A SELF-INFLICTED DEATH IS RECORDED HERE, NOT AT STAGE 4.
      *
@@ -3815,7 +3941,13 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
     // THE BETRAYAL DOES NOT (D18): the offer lasts until the end of the day,
     // which is longer than the incident, so it is the one field the reset keeps
     // (E04) - untouched, rather than read here and written back.
-    await restoreState({}, { keep: ["betrayal"] });
+    //
+    // Against the incident read at the top (E32 C4): one opened over it since -
+    // `openMurder` lets a new one open over Stage 6 - is not wiped by the close of the last.
+    if (!await restoreState({}, { keep: ["betrayal"], expect: { openedAt: state?.openedAt } })) {
+        warn(`The close (${reason}) found another incident in the place of the one it closed, and left it running.`);
+        return null;
+    }
     log(`Murder closed (${reason}).`);
 
     /* ONE HOOK PER INCIDENT THAT WAS RUNNING (E32 C1, 28.09.2026; audit S17-10). The

@@ -6188,6 +6188,77 @@ const REGRESSIONS = [
         const gone = Object.keys(BROADCAST).filter(file => !broadcast.has(file));
         ok(!gone.length, `listed as an emit to every browser and no longer found - take it off the list: ${gone.join(", ")}`);
         ok(!found.length, `an emit reaches every browser that the list does not describe: ${found.join("; ")}`);
+    }],
+
+    ["R205 - every write of an incident in murder.mjs runs in its queue, and nothing in the queue queues again", async () => {
+        /*
+         * E32 C4, 28.09.2026; audit S04-26. Two writers of one incident read it, awaited and
+         * wrote what they had read: the victim ran out twice (the grid's DM14), two closes of
+         * one incident closed it twice. murder.mjs runs every write of the incident through
+         * one promise chain now (`incidentWrite`), and a transition says what it read
+         * (`expect`) and stops when the state no longer shows it. Read here, on the source
+         * with comments and string contents blanked: every write of either half - a
+         * `castStore` write, a `set` of `murderState`, a call of the two leaves `writeCast` and
+         * `armBetrayalWindow` - lies inside the argument of an `incidentWrite(` call or in a
+         * leaf's own body; no `writeState(`, `restoreState(` or `incidentWrite(` call lies in
+         * either, or the chain would wait on itself; and each transition the design names
+         * passes `expect` and stops on the null. A function a queued write calls that is
+         * neither a leaf nor a writer (`pushCastToParticipants`, the hooks a setting's change
+         * fires) is not followed: only the calls written inside the queue are read. Other
+         * files' writes of `murderState` (the season reset's table) are R191's, not this
+         * queue's. The reader is shown a planted source of each kind first.
+         */
+        const LEAVES = ["writeCast", "armBetrayalWindow"];
+        const WRITE = /\bcastStore\.(?:patch|resetRecord|set|drop\w*|clear|replace\w*)\(|\.set\(\s*[\w.]+\s*,\s*SETTINGS\.murderState\b|(?<!function )\b(?:writeCast|armBetrayalWindow)\(/g;
+        const QUEUES = /(?<!function )\b(?:writeState|restoreState|incidentWrite)\(/g;
+        const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
+        const read = (file, text) => {
+            const src = stripStrings(stripComments(text));
+            const decls = [...src.matchAll(DECL)];
+            const fnAt = at => decls.filter(d => d.index < at).pop()?.[1] ?? "(top level)";
+            const spans = [];
+            for (const m of src.matchAll(/(?<!function )\bincidentWrite\(/g)) {
+                const open = m.index + m[0].length - 1;
+                let depth = 0, close = open;
+                for (let i = open; i < src.length; i++) {
+                    if ("([{".includes(src[i])) depth++;
+                    else if (")]}".includes(src[i]) && --depth === 0) { close = i; break; }
+                }
+                spans.push([open, close]);
+            }
+            const queued = at => spans.some(([a, b]) => at > a && at < b);
+            const stray = [], again = [];
+            for (const m of src.matchAll(WRITE)) {
+                if (!queued(m.index) && !LEAVES.includes(fnAt(m.index))) stray.push(`${file} ${fnAt(m.index)}`);
+            }
+            for (const m of src.matchAll(QUEUES)) {
+                if (queued(m.index) || LEAVES.includes(fnAt(m.index))) again.push(`${file} ${fnAt(m.index)}`);
+            }
+            return { spans: spans.length, writes: [...src.matchAll(WRITE)].length, stray, again };
+        };
+        const planted = "async function queued() {\n    await incidentWrite(async () => { await castStore.patch(RECORD, { a: \")\" }); });\n}\n"
+            + "async function writeCast(next) {\n    await castStore.patch(RECORD, next);\n}\n"
+            + "async function stray() {\n    await game.settings.set(MODULE_ID, SETTINGS.murderState, {});\n}\n"
+            + "async function loose() {\n    await writeCast({ turn: 1 });\n    await incidentWrite(() => writeCast({}));\n}\n"
+            + "async function nested() {\n    await incidentWrite(async () => { await writeState({ stage: \"incident\" }); });\n}\n";
+        const seen = read("planted.mjs", planted);
+        equal(JSON.stringify([seen.spans, seen.writes, seen.stray, seen.again]),
+            JSON.stringify([3, 5, ["planted.mjs stray", "planted.mjs loose"], ["planted.mjs nested"]]),
+            "the reader does not find exactly the two writes and the one queue inside the queue planted for it");
+
+        const src = new Map(await otherSources()).get("murder.mjs") ?? "";
+        const found = read("murder.mjs", src);
+        // Not a reading of nothing: measured on 28.09, 17 writes and 8 queued spans.
+        ok(found.writes >= 15 && found.spans >= 6, `the reader found ${found.writes} writes and ${found.spans} queued spans in murder.mjs - too few to trust`);
+        log(`R205: ${found.writes} writes of the incident and ${found.spans} queued spans read in murder.mjs`);
+        ok(!found.stray.length, `an incident's write runs outside its queue: ${found.stray.join(", ")}`);
+        ok(!found.again.length, `a write in the incident's queue queues another, and the chain would wait on itself: ${found.again.join(", ")}`);
+
+        const bare = stripComments(src);
+        const TRANSITIONS = ["checkVictimSpent", "finishIncident", "beginResolution", "passTurn", "thirdPartyEnters",
+            "resolveKillerOpening", "resolveVictimOpening", "closeIncident"];
+        const blind = TRANSITIONS.filter(fn => !/if \(!await (?:writeState|restoreState)\([^;]*\bexpect: /.test(fnSource(bare, fn)));
+        ok(!blind.length, `a transition writes without saying what it read, or goes on when the write is refused: ${blind.join(", ")}`);
     }]
 ];
 

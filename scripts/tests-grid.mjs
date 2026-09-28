@@ -258,7 +258,6 @@ const GRID_RED = {
     DM11: expectedRed("E07", "S04-42: a killer who died in the fight still holds the killers' turn (C9)", { failing: "I9" }),
     DM12: expectedRed("E07", "S10-77: the victim's death from the Students list in the fight offers no Stage 6 (C13)", { failing: "I10" }),
     DM13: expectedRed("E07", "S04-17: a failed opening breaks the weapon in the killer's hand (C12)", { failing: "I12" }),
-    DM14: expectedRed("E07", "S04-26: the hook's check and the action's both run the victim out - two ran-out cards (C4)", { failing: "I14" }),
     TP01: expectedRed("E07", "S04-03: a betrayal from the tile opens over the last incident - not closed, its killers not recorded (C5a)", { failing: "I4" }),
     TP02: expectedRed("E07", "S04-13: a betrayal from the checklist leaves its offer standing (C5a)", { failing: "I6" }),
     TP04: expectedRed("E07", "S04-06: Role reversal is offered against an accomplice (C11a); S04-11: Survive's Blackened and offer (C6)", { failing: "I11" }),
