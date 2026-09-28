@@ -258,11 +258,8 @@ const GRID_RED = {
     DM11: expectedRed("E07", "S04-42: a killer who died in the fight still holds the killers' turn (C9)", { failing: "I9" }),
     DM12: expectedRed("E07", "S10-77: the victim's death from the Students list in the fight offers no Stage 6 (C13)", { failing: "I10" }),
     DM13: expectedRed("E07", "S04-17: a failed opening breaks the weapon in the killer's hand (C12)", { failing: "I12" }),
-    TP01: expectedRed("E07", "S04-03: a betrayal from the tile opens over the last incident - not closed, its killers not recorded (C5a)", { failing: "I4" }),
-    TP02: expectedRed("E07", "S04-13: a betrayal from the checklist leaves its offer standing (C5a)", { failing: "I6" }),
     TP04: expectedRed("E07", "S04-06: Role reversal is offered against an accomplice (C11a); S04-11: Survive's Blackened and offer (C6)", { failing: "I11" }),
     TP05: expectedRed("E07", "S05-23: the close breaks the first killer's tools only, not the accomplice's swung weapon (C12)", { failing: "I12" }),
-    TP07: expectedRed("E07", "S04-03: a betrayal from the tile after a Double role reversal opens over the last incident (C5a)", { failing: "I4" }),
     TP08: expectedRed("E07", "S04-21: a third who averted their eyes walks back in by their token (C10)", { failing: "I13" }),
     TP09: expectedRed("E07", "S04-11, S04-12: Escape together arms the betrayal offer (C6)", { failing: "I6" }),
     TP10: expectedRed("E07", "S04-21: a failed escape's third still counts, and a fourth walking in crowds the incident out (C10)", { failing: "I13" }),
@@ -276,8 +273,7 @@ const GRID_RED = {
     TR07: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "I11" }),
     TR08: expectedRed("E07", "S04-14: after the victim's action a trap's builder holds the turn (C9)", { failing: "I9" }),
     TR09: expectedRed("E07", "S10-77: a trap's victim's death from the Students list offers no Stage 6 (C13)", { failing: "I10" }),
-    XI02: expectedRed("E07", "S02-24, S04-13: a betrayal declared in an Eclipse costs no action and is lost, not opened at the lights (C5b)", { failing: "I6" }),
-    XI03: expectedRed("E07", "S02-24: the betrayal tile answers in a Class Trial (C5a)", { failing: "I6" }),
+    XI02: expectedRed("E07", "S02-24, S04-13: a betrayal in an Eclipse is refused - it costs no action and is not opened at the lights (C5b)", { failing: "I6" }),
     XI05: expectedRed("E07", "AUDIT-1.2.42 section 9: a Reroll that takes back a Finishing blow leaves the victim dead (C8b)", { failing: "I8" })
 };
 

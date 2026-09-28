@@ -5926,7 +5926,8 @@ const REGRESSIONS = [
             const src = stripStrings(stripComments(text));
             const keys = [];
             for (const m of src.matchAll(/\bwriteState\(\s*\{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
-            for (const m of src.matchAll(/\bconst patch = \{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
+            // `const fresh` is a new incident's whole state (murder.mjs `freshIncidentState`, E32 C5a), which `openMurder` writes.
+            for (const m of src.matchAll(/\bconst (?:patch|fresh) = \{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
             for (const m of src.matchAll(/\bpatch\.(\w+)\s*=(?!=)/g)) keys.push(m[1]);
             return keys;
         };

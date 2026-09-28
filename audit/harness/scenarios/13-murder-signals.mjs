@@ -20,7 +20,8 @@
  * result and its action reach the participants, and nothing of it a bystander
  * or a trap's builder (1c, and the trap's last part).
  *
- * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it.
+ * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it. In part 4
+ * (E32 C5a) Botan is her accomplice, and turns on her at Stage 6.
  */
 export const layers = ["ci"];
 
@@ -746,4 +747,74 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     check("after: nobody's edges are still red",
         Object.values(after).every(v => v.redEdges === false),
         JSON.stringify(Object.fromEntries(Object.entries(after).map(([k, v]) => [k, v.redEdges]))));
+
+    /* ---- 4. a betrayal from the tile, at Stage 6 ------------------------------
+       E32 C5a, 28.09.2026; audit S04-03. The accomplice's betrayal comes while the first
+       incident is still at Stage 6, and until 1.2.66 its incident was written over that one,
+       never closed - its killers never recorded Blackened. `openBetrayal` closes it first now,
+       and the second incident opens fresh. What each browser holds of it: the old victim's
+       player - Aiko's, dead in the first - nothing of the second; its new victim, Chie, a panel
+       that offers Self-defence, from her own copy. Chie (p3) kills Aiko (p1) with Botan (p2)
+       as her accomplice; Botan's player asks for the betrayal as the tile does (the bridge's
+       `murder.betrayal`, after its confirm); the GM rules both openings a success, each
+       roller's own roll held on their browser as part 0 holds it. */
+    phase("betrayal", { flow: "murder-incident" });
+    const holdOn = id => `const a = game.actors.get("${id}"); globalThis.__heldOpenings = [];
+        a.rollTrait = function () { return new Promise(r => globalThis.__heldOpenings.push(r)); }; return true;`;
+    const releaseOn = id => `const a = game.actors.get("${id}"); delete a.rollTrait;
+        const held = globalThis.__heldOpenings ?? []; delete globalThis.__heldOpenings; for (const r of held) r(null); return held.length;`;
+    await p3.eval(holdOn(ids.chie));
+    const sixth = await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const [chie, aiko, botan] = ["${ids.chie}", "${ids.aiko}", "${ids.botan}"].map(id => game.actors.get(id));
+        for (const a of [chie, aiko, botan]) if (C.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true });
+        globalThis.__betrayalCloses = 0;
+        globalThis.__betrayalHook = Hooks.on("drpgIncidentClosed", () => { globalThis.__betrayalCloses++; });
+        await M.openMurder({ killerId: chie.id, victimId: aiko.id });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await M.thirdPartyEnters(botan);
+        await M.resolveCrisisAction({ actorId: botan.id, key: "crimePartners", total: 20, isCritical: false, withHope: true });
+        for (let i = 0; i < 4 && M.crisisRefusal(chie, "finishingBlow")?.why === "not their turn"; i++) await M.passTurn();
+        await M.resolveCrisisAction({ actorId: chie.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+        return { stage: M.murderState()?.stage ?? null, offer: M.betrayalTarget(botan)?.id ?? null, aikoDead: C.isDeadForGm(aiko) };`, { timeout: 60000 });
+    await settle(900);
+    await p3.eval(releaseOn(ids.chie));
+    await p2.eval(holdOn(ids.botan));
+    const asked = await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const r = await B.requestBetrayal({ actorId: "${ids.botan}" }); return { ok: Boolean(r?.ok) };`, { timeout: 60000 });
+    const second = await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        const end = Date.now() + 8000;
+        while (M.murderState()?.killerId !== "${ids.botan}" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const opened = M.murderState()?.killerId === "${ids.botan}";
+        if (opened && M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        const s = M.murderState();
+        const black = M.blackenedIds();
+        return { opened, killer: s?.killerId ?? null, victim: s?.victimId ?? null, stage: s?.stage ?? null, closes: globalThis.__betrayalCloses,
+            blackened: ["${ids.chie}", "${ids.botan}"].every(id => black.includes(id)) };`, { timeout: 60000 });
+    await settle(900);
+    await p2.eval(releaseOn(ids.botan));
+    check("betrayal: from the tile at Stage 6 the first incident is closed once, both its killers recorded, and the second opens on the killer",
+        sixth.stage === "resolution" && sixth.offer === ids.chie && asked.ok && second.opened && second.killer === ids.botan
+        && second.victim === ids.chie && second.stage === "incident" && second.closes === 1 && second.blackened,
+        JSON.stringify({ sixth, asked, second }));
+    const oldVictim = await p1.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs"); const c = incidentCast();
+        return { keys: Object.keys(c).filter(k => c[k] !== null && c[k] !== undefined).sort(), names: ["${ids.botan}", "${ids.chie}"].some(id => JSON.stringify(c).includes(id)) };`);
+    const newVictim = await p3.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        const end = Date.now() + 6000;
+        while (incidentCast().killerId !== "${ids.botan}" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const chie = game.actors.get("${ids.chie}");
+        const sd = M.availableCrisisActions(chie).find(a => a.key === "selfDefence");
+        return { killer: incidentCast().killerId ?? null, side: M.sideOf(chie), selfDefence: Boolean(sd && !sd.blocked && !sd.hidden) };`);
+    check("betrayal: the old victim's player holds no copy of the second incident, and the new victim's panel offers Self-defence",
+        oldVictim.keys.length === 0 && oldVictim.names === false
+        && newVictim.killer === ids.botan && newVictim.side === "victim" && newVictim.selfDefence === true,
+        JSON.stringify({ oldVictim, newVictim }));
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        Hooks.off("drpgIncidentClosed", globalThis.__betrayalHook);
+        await game.drpg.endMurder({ reason: "suite", followUp: false });
+        const aiko = game.actors.get("${ids.aiko}");
+        if (C.isDeadForGm(aiko)) await C.reviveCharacter(aiko, { quiet: true });
+        return true;`, { timeout: 60000 });
+    await settle(700);
 }

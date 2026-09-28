@@ -837,7 +837,8 @@ const INVARIANTS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/murder.mjs`).then(r => r.text()));
 
-        const body = bodyOf(src, "export function betrayalTarget", { length: 2600 });
+        // The whole function (E32 C5a): the Class Trial's refusal pushed the fight's past 2600 characters.
+        const body = bodyOf(src, "export function betrayalTarget", { until: "\n}" });
         // The offer lives in the cast (CASE-04), never on the actor: a flag is
         // world data every client receives.
         ok(/readCast\(\)\.betrayal/.test(body),
@@ -883,9 +884,14 @@ const INVARIANTS = [
         ok(/before\.stage !== "resolution"/.test(writer),
             "the window is armed off the state rather than the transition, so it re-arms");
 
-        // Single use, spent before the attempt rather than after it.
-        ok(/clearBetrayalOffer\(\)/.test(bodyOf(src, "export async function betrayAsPlayer", { length: 1400 })),
-            "the offer is not spent when it is taken, so it can be taken twice");
+        // Single use, spent before the attempt rather than after it - since E32 C5a in the one
+        // path the tile and the GM's checklist share, before the incident it opens.
+        const opener = bodyOf(src, "async function openBetrayal", { until: "\n}" });
+        ok(/openBetrayal\(/.test(bodyOf(src, "export async function betrayAsPlayer", { until: "\n}" })),
+            "the tile's betrayal does not go through openBetrayal, the path that spends the offer");
+        const takenAt = opener.search(/takeBetrayalOffer\(/);
+        ok(takenAt > 0 && takenAt < opener.search(/\bopenMurder\(/),
+            "the offer is not spent before the betrayal's incident opens, so it can be taken twice");
     }],
 
     ["nobody walks out of an incident they are standing in", async () => {
@@ -5269,6 +5275,36 @@ const INVARIANTS = [
             hits.map(h => h.path), RR.rerolledSource(rerolled, message("R204MESSAGE00002", false)) === rerolled]),
             JSON.stringify([17, {}, [{ label: "", value: 2 }, { label: "", value: 2 }], null, null, null, [], [], true]),
             "a Reroll writes a rerolled roll the module threw back with its character in it, or rewrites one the module did not throw");
+    }],
+
+    ["R206 - a new incident's values name every field of the world half and the cast but the betrayal offer", async () => {
+        /*
+         * E32 C5a, 28.09.2026; audit S04-03. `openMurder` wrote a patch that named a new
+         * incident's fields one by one, and a field it left out crossed from the last incident
+         * into the next - `thirdActed` into a betrayal's until E32 C2. It writes
+         * `freshIncidentState` whole now (murder.mjs), so that list is the one to hold: every
+         * field of `PUBLIC_INCIDENT` and of `CAST_FIELDS` but `betrayal`, which a close keeps
+         * (D18), and nothing else. Then what it opens with - the stage, the killers' turn, the
+         * kind, the clock's reading it was handed - and that it is pure: two calls with the same
+         * answers are equal and share nothing, so a caller that changes one does not change the next.
+         */
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const args = { killerId: "R206KILLER000001", victimId: "R206VICTIM000001", indirect: true, openedAt: 206 };
+        const fresh = M.freshIncidentState(args);
+        const sorted = list => [...list].sort();
+        const due = sorted([...Object.keys(M.PUBLIC_INCIDENT), ...S.CAST_FIELDS.filter(f => f !== "betrayal")]);
+        equal(JSON.stringify(sorted(Object.keys(fresh))), JSON.stringify(due),
+            "a new incident's values do not name exactly the world half's and the cast's fields but the betrayal offer");
+        equal(JSON.stringify([fresh.active, fresh.stage, fresh.killerId, fresh.victimId, fresh.killerTurnId, fresh.indirect, fresh.selfInflicted, fresh.openedAt]),
+            JSON.stringify([true, "openingRoll", args.killerId, args.victimId, args.killerId, true, false, 206]),
+            "a new incident does not open at the opening roll with its killer's turn, its kind and the time it was handed");
+        const again = M.freshIncidentState(args);
+        const same = JSON.stringify(again) === JSON.stringify(fresh);
+        fresh.spent.push("strike");
+        fresh.hindered.victim.strike = 1;
+        equal(JSON.stringify([same, again.spent, again.hindered]), JSON.stringify([true, [], { victim: {}, killer: {} }]),
+            "two new incidents with the same answers differ, or share a list or a table, so one changed the other");
     }]
 ];
 

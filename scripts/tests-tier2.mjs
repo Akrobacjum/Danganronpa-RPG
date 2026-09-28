@@ -323,6 +323,28 @@ async function aloneTogether(killer, victim, { asked = false } = {}) {
 }
 
 /**
+ * A DIRECT MURDER WITH AN ACCOMPLICE, TO ITS BODY (E32 C5a): `killer` opens on `victim`, the
+ * opening succeeds, `third` walks in and throws in with the killer (Partners in crime), and
+ * the killer's Finishing blow leaves the victim dead at Stage 6 - which arms the betrayal
+ * offer for the third. By a body rather than the GM's Stage 6, as the grid's TP01 is: the
+ * offer is a body's (the owner's Q2, section 2.2's I6). The caller revives the victim.
+ */
+async function accompliceAtStageSix(M, killer, victim, third) {
+    await M.openMurder({ killerId: killer.id, victimId: victim.id });
+    // The killer's player is asked the roll too; whichever lands first, a success starts the incident.
+    if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+    await settle();
+    await M.thirdPartyEnters(third);
+    await M.resolveCrisisAction({ actorId: third.id, key: "crimePartners", total: 20, isCritical: false, withHope: true });
+    for (let i = 0; i < 4 && M.crisisRefusal(killer, "finishingBlow")?.why === "not their turn"; i++) await M.passTurn();
+    must(!M.crisisRefusal(killer, "finishingBlow"), `the killer's Finishing blow is refused: ${M.crisisRefusal(killer, "finishingBlow")?.why}`);
+    await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+    await settle();
+    must(M.murderState()?.stage === "resolution" && M.betrayalTarget(third)?.id === killer.id,
+        `the fixture's Stage 6 with an offer to the accomplice did not come: ${stableJson({ state: M.murderState(), offer: M.betrayalTarget(third)?.id ?? null })}`);
+}
+
+/**
  * The words of every private card this client sent while `run` ran (E06 C4): each
  * `secret.card` packet (secret.mjs `postSecret`) as { id, to, html } - the card's id, the
  * users it was addressed to and its words - and every packet let through. A card's
@@ -895,6 +917,162 @@ const SCENARIOS = [
         } finally {
             Hooks.off("drpgIncidentClosed", closed);
             console.warn = consoleWarn;
+        }
+    }],
+
+    ["a betrayal from the tile in Stage 6 records both killers and the new victim has Self-defence", async () => {
+        /*
+         * E32 C5a, 28.09.2026; audit S04-03. The accomplice's betrayal comes during Stage 6,
+         * with the first incident still open, and until 1.2.66 `openMurder` let its incident be
+         * written over that one: the first was never closed, so its two killers were never
+         * recorded Blackened and nothing counted a close (the grid's TP01). `openBetrayal` closes
+         * it first now. Three students with players: the killer, with the third as accomplice,
+         * kills the victim; the third turns on the killer from the tile (`betrayAsPlayer`, what
+         * the tile's request runs on the GM); the new incident's opening succeeds. Read: the
+         * closes, the Blackened grown by the first incident's killers, the new incident's two
+         * names, and Self-defence among the new victim's actions, open. Red at 048332a:
+         * <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const before = M.blackenedIds();
+        let closes = 0;
+        const closed = Hooks.on("drpgIncidentClosed", () => { closes++; });
+        try {
+            await accompliceAtStageSix(M, killer, victim, third);
+            const opened = await M.betrayAsPlayer(third.id);
+            await settle();
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            const state = M.murderState();
+            const now = M.blackenedIds();
+            const grew = now.filter(id => !before.includes(id)).sort();
+            const both = [killer.id, third.id];
+            const selfDefence = M.availableCrisisActions(killer).find(a => a.key === "selfDefence");
+            equal(stableJson([Boolean(opened), closes, both.every(id => now.includes(id)), grew, state?.killerId ?? null, state?.victimId ?? null,
+                state?.stage ?? null, Boolean(selfDefence && !selfDefence.blocked && !selfDefence.hidden)]),
+                stableJson([true, 1, true, both.filter(id => !before.includes(id)).sort(), third.id, killer.id, "incident", true]),
+                "the betrayal did not close the first incident once with both its killers recorded, or its own incident is not the third's on the killer with Self-defence open "
+                + "(opened, closes, both Blackened, the Blackened grown, killer, victim, stage, Self-defence)");
+        } finally {
+            Hooks.off("drpgIncidentClosed", closed);
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["a refused betrayal keeps its offer and tells the player", async () => {
+        /*
+         * E32 C5a, 28.09.2026; audit S04-13. The tile spent the offer before the betrayal was
+         * tried, and a betrayal that then could not open lost it with nobody told. It is taken
+         * in `openBetrayal` now, put back when the betrayal does not open, and the player who
+         * asked is told why. The refusal is made the way the table can meet it: while the
+         * betrayal closes the first incident, another is opened in its place - here from the
+         * close's own hook, the killer's on the third - and the betrayal finds a fight running.
+         * Read: the betrayal's answer, the incident that runs, the offer back on the record,
+         * the third's player sent the refusal's words, and one close. Red at 048332a:
+         * <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
+        const M = await import("./murder.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const line = game.i18n.format("DRPG.Murder.betrayalRefused", { why: game.i18n.localize("DRPG.Murder.betrayalWhy.fight") });
+        let closes = 0, other = null;
+        const closed = Hooks.on("drpgIncidentClosed", () => {
+            closes++;
+            if (!other) other = M.openMurder({ killerId: killer.id, victimId: third.id });
+        });
+        try {
+            await accompliceAtStageSix(M, killer, victim, third);
+            let answer;
+            const sent = await wordsSent(async () => {
+                answer = await M.betrayAsPlayer(third.id);
+                await other;
+                await settle();
+            });
+            const state = M.murderState();
+            const offer = incidentCast().betrayal ?? null;
+            const told = sent.filter(w => w.to.includes(player(third).id) && w.html.includes(line)).length;
+            equal(stableJson([answer ?? null, state?.killerId ?? null, state?.victimId ?? null, offer ? `${offer.thirdId}>${offer.killerId}` : null, told, closes]),
+                stableJson([null, killer.id, third.id, `${third.id}>${killer.id}`, 1, 1]),
+                "a betrayal that found another incident opened did not answer no, keep the other running, put the offer back and tell its player once "
+                + "(answer, killer, victim, offer, cards to the third's player, closes)");
+        } finally {
+            Hooks.off("drpgIncidentClosed", closed);
+            await other;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["a second murder cannot overwrite a Stage 6", async () => {
+        /*
+         * E32 C5a, 28.09.2026; audit S04-03. `openMurder` refused a second murder while one
+         * was being fought but let it through at Stage 6, for the betrayal - and wrote it over
+         * the incident still open there: a ruling card's "open the murder" or a console's
+         * `game.drpg.openMurder` replaced a Stage 6 with no betrayal in it (the lights' parked
+         * murders and the GM's dialog ask `murderState()` first). The betrayal closes its
+         * Stage 6 itself now, and `openMurder` refuses while any incident runs. A direct
+         * murder is taken to Stage 6 by the GM; a second is opened. Read: its answer, and the
+         * incident afterwards - opened when, whose, at which stage. Red at 048332a:
+         * <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "two killers and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, second] = livingStudents().filter(player);
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        await M.beginResolution("test");
+        await settle();
+        const first = M.murderState();
+        must(first?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(first)}`);
+        const opened = await M.openMurder({ killerId: second.id, victimId: killer.id });
+        await settle();
+        const now = M.murderState();
+        equal(stableJson([opened, now?.openedAt ?? null, now?.killerId ?? null, now?.victimId ?? null, now?.stage ?? null]),
+            stableJson([null, first.openedAt, killer.id, victim.id, "resolution"]),
+            "a second murder opened over a Stage 6, or the Stage 6 did not stand (answer, opened at, killer, victim, stage)");
+    }],
+
+    ["the tile is dark in a Class Trial and the offer stands after it", async () => {
+        /*
+         * E32 C5a, 28.09.2026; audit S02-24, the owner's Q3 (a). The betrayal is open until the
+         * day ends, the investigation included, and closed in a Class Trial - where the tile lit
+         * until 1.2.66 (`betrayalTarget`, the tile's one question; the grid's XI03). Three
+         * students with players: the accomplice's offer is armed by the killer's blow and the
+         * GM closes the incident; the clock moves to the Class Trial and back. Read: the tile's
+         * answer and the offer on the record in the trial, then the tile's answer after it.
+         * Red at 048332a: <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
+        const M = await import("./murder.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const phase = getClock()?.phase ?? "dailyLife";
+        try {
+            await accompliceAtStageSix(M, killer, victim, third);
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            await setClock({ phase: "classTrial" });
+            const inTrial = [M.betrayalTarget(third)?.id ?? null, incidentCast().betrayal?.killerId ?? null];
+            await setClock({ phase: "investigation" });
+            const after = M.betrayalTarget(third)?.id ?? null;
+            equal(stableJson([...inTrial, after]), stableJson([null, killer.id, killer.id]),
+                "the betrayal tile lit in a Class Trial, or the offer did not stand through it (tile in the trial, offer on record, tile after)");
+        } finally {
+            await setClock({ phase });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
         }
     }],
 

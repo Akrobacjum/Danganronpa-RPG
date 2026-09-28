@@ -1425,6 +1425,14 @@
       "betrayalRule": "Dwa ciała tego wieczoru, więc Class Trial ma do rozplątania dwa zabójstwa. Kto jest Blackened za pierwsze, nie jest automatycznie Blackened za drugie. Masz czas do końca dnia, by zdecydować.",
       "betrayalConfirm": "Otwórz drugie morderstwo",
       "betrayalAnnounce": "Otwiera się drugi incydent, przeciw: {killer} - zdrada.",
+      "betrayalRefused": "Zdrada nie mogła się rozpocząć: {why}. Pozostaje dostępna do końca dnia.",
+      "betrayalRefusedGone": "Zdrada nie mogła się rozpocząć: {why}.",
+      "betrayalWhy": {
+        "eclipse": "trwa Eclipse",
+        "fight": "trwa inny incydent",
+        "spent": "nie jest już dostępna",
+        "failed": "przeglądarka GM-a nie mogła jej otworzyć"
+      },
       "victimUnderAttackBy": "<strong>{killer} rusza na ciebie.</strong> Incydent się zaczął i pierwsza tura jest twoja. Twoje akcje kryzysowe są na karcie postaci, w zakładce Akcje.",
       "victimTrapSprung": "<strong>Pułapka się zamyka.</strong> Za późno, by ją zauważyć. Incydent się zaczął i pierwsza tura jest twoja - akcje kryzysowe są na karcie postaci, w zakładce Akcje.",
       "betrayTileLabel": "Zwróć się przeciw partnerowi",

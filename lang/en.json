@@ -1410,6 +1410,14 @@
       "betrayalRule": "Two bodies this evening, so the Class Trial has two killings to untangle. Whoever is Blackened for the first is not automatically Blackened for the second. You have until the end of the day to decide.",
       "betrayalConfirm": "Open the second murder",
       "betrayalAnnounce": "A second incident opens on {killer} - the betrayal.",
+      "betrayalRefused": "The betrayal could not open: {why}. It stays on offer until the day ends.",
+      "betrayalRefusedGone": "The betrayal could not open: {why}.",
+      "betrayalWhy": {
+        "eclipse": "an Eclipse is running",
+        "fight": "another incident is being fought",
+        "spent": "it is no longer on offer",
+        "failed": "the GM's client could not open it"
+      },
       "victimUnderAttackBy": "<strong>{killer} is moving on you.</strong> The incident has begun and the first turn is yours. Your crisis actions are on your character sheet, under Actions.",
       "victimTrapSprung": "<strong>The trap closes.</strong> You did not see it in time. The incident has begun and the first turn is yours - your crisis actions are on your character sheet, under Actions.",
       "betrayTileLabel": "Turn on your partner",

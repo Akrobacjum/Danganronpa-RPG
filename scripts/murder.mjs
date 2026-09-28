@@ -893,6 +893,54 @@ function atNight() {
 }
 
 /**
+ * WHAT A NEW INCIDENT HOLDS (E32 C5a, 28.09.2026; audit S04-03): every field of the world
+ * half (`PUBLIC_INCIDENT`) and of the cast (`CAST_FIELDS`) but the betrayal offer, which
+ * outlives its incident (D18) and is kept, not decided, when the next one opens. The one
+ * list of a new incident's values - `openMurder` writes it whole, and R206 holds it to the
+ * two lists, so the next field an incident gains is added here or fails there (C9, C10,
+ * C11c, C13 and C17 add theirs here and to the grid's `FRESH`). Pure but for `openedAt`,
+ * the clock's reading unless the caller names one.
+ */
+export function freshIncidentState({ killerId, victimId, indirect = false, selfInflicted = false, openedAt = Date.now() } = {}) {
+    // `const fresh`, read by R191's census of the fields an incident's writes name.
+    const fresh = {
+        active: true,
+        stage: "openingRoll",
+        indirect,
+        selfInflicted,
+        killerId, victimId, thirdId: null, thirdSide: null, lastCrisis: null, swung: null,
+        turn: 0,
+        turnSide: "victim",
+        // Whose turn it is on the killers' side. One name until somebody joins
+        // them; `passTurn` rotates it from there.
+        killerTurnId: killerId,
+        keyRemnants: KEY_REMNANTS.prepared,
+        deniedToVictim: [],
+        hindered: { victim: {}, killer: {} },
+        blocked: { victim: {}, killer: {} },
+        // Survive and Role reversal start closed; Self-defence opens them.
+        unlocked: [],
+        // A critical Self-defence stops the drain for the rest of the incident.
+        drainStopped: false,
+        advantageNext: { victim: false, killer: false },
+        spent: [],
+        freeResolution: null,
+        thirdActed: null,
+        openedAt,
+        keyRemnantsStale: null,
+        endedBy: null
+    };
+    return fresh;
+}
+
+/** The GM is told a murder was not opened over the one running, and the console says whose. */
+function refuseSecondIncident(running) {
+    ui.notifications.warn(game.i18n.localize("DRPG.Murder.oneAtATime"));
+    warn(`Refused to open a murder: ${game.actors.get(running?.killerId ?? "")?.name ?? "somebody"} `
+        + `is already in an incident with ${game.actors.get(running?.victimId ?? "")?.name ?? "somebody"}.`);
+}
+
+/**
  * Open a murder. GM-driven: the declaration and the consent happened away from
  * the table, and this is the moment they become mechanical.
  */
@@ -914,33 +962,28 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
     }
 
     /*
-     * ONE FIGHT AT A TIME.
+     * ONE INCIDENT AT A TIME, STAGE 6 INCLUDED (E32 C5a, 28.09.2026; audit S04-03).
      *
-     * There was no check at all: this function wrote `active: true` over
+     * There was no check at all once: this function wrote `active: true` over
      * whatever state was there, so a second call during a running incident did
      * not open a second incident - it REPLACED the first. Same state object,
      * new ids, the turn counter back to zero, and the original victim silently
      * no longer in a fight they were in the middle of.
      *
-     * EVERY STAGE BUT `resolution`, and the first attempt at this said
-     * `incident` only - which measured as no guard at all in the ordinary case:
-     * a murder opens at stage `openingRoll` and stays there until the first
-     * roll lands, so a second one declared in that window replaced the first
-     * exactly as before.
-     *
-     * The BETRAYAL is the one legitimate second murder and it opens during
-     * `resolution` - the newcomer turning on the killer they just helped, with
-     * the body still on the floor. That is the guide's own exception, it has a
-     * button of its own (Dawid, 28.08: the button stays, because it is the UX
-     * saying this is allowed), and it is the reason this reads a stage rather
-     * than the `active` flag: `active` is true for both, and only one of them
-     * is a fight already in progress.
+     * Until 1.2.66 it let one through at `resolution`, for the betrayal - the one
+     * legitimate second murder, which opens with the first incident's body still on
+     * the floor. That was the same replacement at Stage 6: the betrayal's incident
+     * was written over the first, which was never closed - its killers never recorded
+     * Blackened, its tools never broken, no close counted (the grid's TP01 and TP07,
+     * marked red on I4 since C1) - and a ruling card's `openMurder` button or a console's
+     * `game.drpg.openMurder` during a Stage 6 did the same with no betrayal in it (read off
+     * the code; the lights' parked murders and the GM's dialog ask `murderState()` first). The
+     * betrayal closes the first incident itself now (`openBetrayal`), so nothing
+     * reaches here with an incident running, and anything that does is refused.
      */
     const running = murderState();
-    if (running?.active && running.stage !== "resolution") {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.oneAtATime"));
-        warn(`Refused to open a murder: ${game.actors.get(running.killerId)?.name ?? "somebody"} `
-            + `is already in an incident with ${game.actors.get(running.victimId)?.name ?? "somebody"}.`);
+    if (running?.active) {
+        refuseSecondIncident(running);
         return null;
     }
 
@@ -984,50 +1027,23 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
         indirect = false;
     }
 
-    /* EVERY PER-INCIDENT NAME STAMPED (E04; audit S04-24). The accomplice, their
-       side, the Reroll receipt and the swing memo of the last incident are written
-       null here, and stamped whether or not this GM still holds them: a GM that
-       missed the last close may, and its older copy must not reach this incident.
-       The betrayal offer is the one thing an incident's close keeps (D18). The method
-       (E05 C8, `INCIDENT_METHOD`) is decided here afresh the same way - a reversal and
-       an end are this incident's own, so both start null - and goes to the cast. The fight
-       (E32 C2, `INCIDENT_FIGHT`) is the cast's too since 1.2.66, and every field of it is
-       written and stamped here the same way. A close stamps it null, and the GM opening
-       the next incident may have missed that close: where it still holds the same value -
-       the victim's side to act, no drain stopped - a write of what changed stamps nothing,
-       and the close's null, stamped on another GM, wins at the next merge. So the patch
-       names all twelve: a field in `explicit` the patch leaves out is stamped with the value
-       this GM holds (read off `writeCast`). `spent`, `freeResolution` and `thirdActed` were
-       not written here before, and an incident a betrayal opened kept the last one's
-       `thirdActed` (S04-03; the grid's TP01 and TP07 read it as I3 until this). */
-    await writeState({
-        active: true,
-        stage: "openingRoll",
-        indirect,
-        selfInflicted,
-        killerId, victimId, thirdId: null, thirdSide: null, lastCrisis: null, swung: null,
-        turn: 0,
-        turnSide: "victim",
-        // Whose turn it is on the killers' side. One name until somebody joins
-        // them; `passTurn` rotates it from there.
-        killerTurnId: killerId,
-        keyRemnants: KEY_REMNANTS.prepared,
-        deniedToVictim: [],
-        hindered: { victim: {}, killer: {} },
-        blocked: { victim: {}, killer: {} },
-        // Survive and Role reversal start closed; Self-defence opens them.
-        unlocked: [],
-        // A critical Self-defence stops the drain for the rest of the incident.
-        drainStopped: false,
-        advantageNext: { victim: false, killer: false },
-        // Read by the cast's claim alone (gm-stores.mjs `castStore`); kept in the cast with the rest.
-        spent: [],
-        freeResolution: null,
-        thirdActed: null,
-        openedAt: Date.now(),
-        keyRemnantsStale: null,
-        endedBy: null
-    }, { explicit: ["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "swung", ...INCIDENT_METHOD, ...INCIDENT_FIGHT] });
+    /* EVERY FIELD OF A NEW INCIDENT, AND ALL OF THEM STAMPED (E04, audit S04-24; E32 C5a,
+       audit S04-03). The values are `freshIncidentState`'s, the one list of them. Written
+       as a whole state (`restoreState`): the world half replaced, the cast reset as a record
+       - every field stamped with the fresh value or null, whether or not this GM still holds
+       the last incident's, so a GM that missed the last close cannot bring it back - but the
+       betrayal offer, the one thing a close keeps (D18). Until 1.2.66 this was a `writeState`
+       patch that named its fields one by one, and each field it left out crossed into the
+       next incident: `spent`, `freeResolution` and `thirdActed` did until E32 C2 (the grid's
+       TP01 and TP07 read the betrayal's incident holding the last one's `thirdActed`, I3).
+       Against no incident running (`expect`), in the incident's queue: an incident opened
+       since the check above is not written over. */
+    const opened = await restoreState(freshIncidentState({ killerId, victimId, indirect, selfInflicted }),
+        { keep: ["betrayal"], expect: { active: null } });
+    if (!opened) {
+        refuseSecondIncident(murderState());
+        return null;
+    }
 
     await whisperToGms(`
         <h3>${game.i18n.localize("DRPG.Murder.openedTitle")}</h3>
@@ -3942,8 +3958,9 @@ async function closeIncident(state, { reason, followUp }) {
     // which is longer than the incident, so it is the one field the reset keeps
     // (E04) - untouched, rather than read here and written back.
     //
-    // Against the incident read at the top (E32 C4): one opened over it since -
-    // `openMurder` lets a new one open over Stage 6 - is not wiped by the close of the last.
+    // Against the incident read at the top (E32 C4): one opened over it since is not
+    // wiped by the close of the last. `openMurder` refuses while any incident runs since
+    // E32 C5a, so on this browser that is another GM's write, which this queue does not order.
     if (!await restoreState({}, { keep: ["betrayal"], expect: { openedAt: state?.openedAt } })) {
         warn(`The close (${reason}) found another incident in the place of the one it closed, and left it running.`);
         return null;
@@ -4174,6 +4191,15 @@ export function betrayalTarget(actor) {
     const clock = getClock();
     if (open.chapter !== clock?.chapter || open.day !== clock?.day) return null;
 
+    /*
+     * DARK IN A CLASS TRIAL, AND THE OFFER KEPT (E32 C5a, 28.09.2026; audit S02-24, the
+     * owner's Q3 (a)). The offer lasts until the day ends, the investigation included - and
+     * a Class Trial held that day is not a moment anybody is killed in, so the tile lit
+     * through it until 1.2.66 (the grid's XI03). The offer is not touched: the tile lights
+     * again when the trial is over and the day is still the same.
+     */
+    if (clock?.phase === "classTrial") return null;
+
     const killer = game.actors.get(open.killerId);
     if (!killer || killer.id === actor.id) return null;
     if (isDeadForGm(killer)) return null;
@@ -4219,23 +4245,12 @@ export async function betrayAsPlayer(actorId) {
     }
 
     /*
-     * SPENT BEFORE IT IS USED, and that ordering is the whole anti-spam guard
-     * now (D18).
-     *
-     * The old one asked whether the incident was still in its resolution stage,
-     * which worked because opening the betrayal's own incident moved it - so
-     * the second of two clicks in flight found a changed world. The window
-     * outlives the incident, so that no longer holds, and this replaces it with
-     * something stronger: the offer is single-use, and unsetting it is the
-     * first thing that happens. Two clicks race to a flag only one of them can
-     * find.
-     *
-     * Unset even if the opening below fails. An offer that survives its own
-     * failed attempt is an offer that can be attempted again, which is the
-     * spam this is here to stop.
+     * SPENT BEFORE IT IS USED (D18), and since E32 C5a inside `openBetrayal`, which the
+     * GM's checklist calls too: the offer is taken there first, in the incident's queue,
+     * and two clicks in flight race to an offer only one of them can take. A betrayal that
+     * cannot open puts it back and tells this player why (`refuseBetrayal`).
      */
-    await clearBetrayalOffer();
-    return openBetrayal(actor, target);
+    return openBetrayal(actor, target, { asked: true });
 }
 
 /**
@@ -4290,38 +4305,112 @@ function betrayalCandidate(state, killer) {
  * So the GM is TOLD. The announcement below already whispers them the whole
  * thing, and `endMurder` is one press away if it was a misclick.
  */
-async function openBetrayal(third, killer) {
-    // The second half of the spam fix, on the side that cannot be raced.
-    //
-    // The tile guards itself (see `betrayAsPlayer`'s caller in sheet.mjs), but a
-    // guard on the sender is a guard on one client: two clicks in flight at once
-    // both arrive here before either has written anything. `murderState()` is
-    // the only thing both of them see, and the incident this opens is exactly
-    // what makes the second call refuse.
+async function openBetrayal(third, killer, { asked = false } = {}) {
     /*
-     * NOT ON TOP OF A RUNNING FIGHT.
-     *
-     * The stage test that used to stand here was really two rules wearing one
-     * hat: "do not open twice" (now the window's own single use, spent by the
-     * caller) and "do not open a second incident while one is being fought".
-     * Only the second belongs here, and it is the one that survives the window
-     * outliving the incident - a betrayal on a quiet evening has no incident to
-     * be in the resolution stage OF.
+     * NOT ON TOP OF A RUNNING FIGHT, AND NOT IN AN ECLIPSE - asked before anything is
+     * taken or closed. The first is the tile's own rule (`betrayalTarget`), asked again
+     * here for the checklist and for a fight opened since the tile lit. The second is
+     * `openMurder`'s, asked here too so that a Stage 6 is not closed below for a betrayal
+     * `openMurder` would then refuse. (C5b makes a betrayal in an Eclipse a declaration,
+     * opened when the lights come up.)
      */
+    const { isEclipse } = await import("./eclipse.mjs");
     const running = murderState();
-    if (running?.active && running.stage !== "resolution") {
-        warn(`Refused a betrayal: an incident is still being fought.`);
-        return null;
+    if (isEclipse()) return refuseBetrayal(third, "eclipse", { asked, offer: null });
+    if (running?.active && running.stage !== "resolution") return refuseBetrayal(third, "fight", { asked, offer: null });
+
+    /*
+     * THE ONE PATH, AND IT TAKES THE OFFER FIRST (E32 C5a, 28.09.2026; audit S04-03,
+     * S04-13). The tile spent the offer and the GM's checklist did not, so a betrayal
+     * opened from the checklist left it standing for a second one (the grid's TP02, red on
+     * I6 since C1). Both come here, and the offer is taken - it must still name this third
+     * and this killer - in the incident's queue, where two requests in flight run one after
+     * the other: a second click, or the checklist after the tile, finds none.
+     */
+    const offer = await takeBetrayalOffer(third, killer);
+    if (!offer) return refuseBetrayal(third, "spent", { asked, offer: null });
+
+    /*
+     * THE FIRST INCIDENT CLOSES FIRST. A betrayal from the tile comes during Stage 6, with
+     * the first incident still open, and until 1.2.66 its incident was written over that one
+     * (`openMurder` let it through at `resolution`): the first was never closed, so its
+     * killers were never recorded Blackened and its tools never broken (the grid's TP01 and
+     * TP07, marked red on I4 since C1). It is closed here as the GM's Close would, without
+     * the checklist - the betrayal is the next screen.
+     */
+    if (running?.active) {
+        await endMurder({ reason: "betrayal", followUp: false });
+        if (murderState()?.active) return refuseBetrayal(third, "fight", { asked, offer });
     }
 
+    const opened = await openMurder({ killerId: third.id, victimId: killer.id });
+    if (!opened) return refuseBetrayal(third, isEclipse() ? "eclipse" : murderState()?.active ? "fight" : "failed", { asked, offer });
+
+    // Told after it opened, so the GMs are never told of a betrayal that did not happen.
     await announce({
         content: `<p>${game.i18n.format("DRPG.Murder.betrayalAnnounce", {
             killer: foundry.utils.escapeHTML(killer.name)
         })}</p>`,
         whisper: gmIds()
     });
+    return opened;
+}
 
-    return openMurder({ killerId: third.id, victimId: killer.id });
+/** Why a betrayal did not open, in words: literal keys, so R1 reads each. */
+const BETRAYAL_WHY = Object.freeze({
+    eclipse: "DRPG.Murder.betrayalWhy.eclipse",
+    fight: "DRPG.Murder.betrayalWhy.fight",
+    spent: "DRPG.Murder.betrayalWhy.spent",
+    failed: "DRPG.Murder.betrayalWhy.failed"
+});
+
+/**
+ * Take the betrayal offer for this third and this killer, in the incident's queue: the
+ * offer it took, or null when it no longer names them. GM-side.
+ */
+async function takeBetrayalOffer(third, killer) {
+    return incidentWrite(async () => {
+        const cast = readCast();
+        const open = cast.betrayal;
+        if (!open || open.thirdId !== third?.id || open.killerId !== killer?.id) return null;
+        const { betrayal, ...rest } = cast;
+        await writeCast(rest, cast);
+        return open;
+    });
+}
+
+/**
+ * A BETRAYAL THAT DID NOT OPEN (E32 C5a, 28.09.2026; audit S04-13). The offer it took goes
+ * back - while no other offer stands and its chapter and day are still the clock's, as
+ * `betrayalTarget` would read it - and whoever asked is told why: the third's player
+ * (a veiled whisper, as eclipse.mjs tells a refused murder) when the tile asked - but
+ * not a second request that found the offer already taken - and the GM when the
+ * checklist did. Answers null, as the refused open does.
+ */
+async function refuseBetrayal(third, why, { asked, offer }) {
+    const back = offer ? await incidentWrite(async () => {
+        const cast = readCast();
+        const clock = getClock();
+        if (cast.betrayal || offer.chapter !== clock?.chapter || offer.day !== clock?.day) return false;
+        await writeCast({ ...cast, betrayal: offer }, cast);
+        return true;
+    }) : why !== "spent";
+    warn(`Refused a betrayal by ${third?.name ?? "somebody"}: ${why}${offer ? (back ? "; the offer is back" : "; the offer is gone") : ""}.`);
+    const line = game.i18n.format(back ? "DRPG.Murder.betrayalRefused" : "DRPG.Murder.betrayalRefusedGone",
+        { why: game.i18n.localize(BETRAYAL_WHY[why]) });
+    if (!asked) {
+        ui.notifications.warn(line);
+        return null;
+    }
+    // A request that found the offer taken is the second of two in flight: the first is opening it.
+    if (why === "spent") return null;
+    try {
+        await whisperToOwner(third, `<h3>${game.i18n.localize("DRPG.Murder.betrayalTitle")}</h3>
+            <p><span class="drpg-warning">${line}</span></p>`);
+    } catch (err) {
+        error("Could not tell the player why their betrayal did not open", err);
+    }
+    return null;
 }
 
 /**
