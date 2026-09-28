@@ -44,7 +44,7 @@
 
 import { MODULE_ID, moduleVersion } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
-import { log, error, isPrimaryGm, plural, whisperToGms } from "./utils.mjs";
+import { log, error, isPrimaryGm, plural, whisperToGms, gmIds, forcedDeletion, MESSAGE_FLAG } from "./utils.mjs";
 
 /**
  * The chime the messenger played from a hard-coded path until E2, and which
@@ -861,8 +861,154 @@ const CLAUSES = [
             const { retireOldIncidentMarks } = await import("./remnants.mjs");
             return retireOldIncidentMarks();
         }
+    },
+    {
+        key: "neutraliseOldCards",
+        since: "1.2.65",
+        /*
+         * THE CHAT LOG WRITTEN BEFORE 1.2.65 (E06 C12; the owner's Q1 (a), 27.09.2026). Since
+         * E06 a roll the module throws names nobody in its document (C5b), a private card's
+         * facts of itself travel with its words (C7a) and a report asked for at a console is
+         * a private card (C11) - but only for what is written from then on: every browser
+         * still holds the old log, a chapter upgraded mid-case its incident's rolls naming
+         * the killer. Once, on the primary, with the rules written on `neutraliseOldCards`
+         * (below): each old card rewritten as it would be written today, read back, and a
+         * card that did not read back throws with the count, so the next load tries again.
+         */
+        run: async () => neutraliseOldCards()
     }
 ];
+
+/**
+ * The first line of a report 1.2.64 and earlier whispered with its words as the content:
+ * music.mjs `diagnoseMusic` and diagnostics.mjs `report` (every title of both - "Music
+ * diagnostics", "Season setup", "Dice diagnostics", the theme's costs - wrote the same
+ * `<h3>` and the same `<pre>`, read in d666a2a's two files). Matched by that shape, not by
+ * the titles, which were English literals a GM never saw translated. The voice plan and the
+ * anonymity audit went through `whisperToGms`, a private card since 1.2.50 (the voice plan's
+ * first build, read in git); an audit from a build before that is not matched. Spaces in
+ * the style are allowed for: whether a real Foundry gives the attribute back byte for byte
+ * has not been measured (the harness gives it back unchanged).
+ */
+const OLD_REPORT = /^<h3>[^<]*<\/h3><pre style="white-space: ?pre-wrap; ?font-size: ?0?\.85em;?">/;
+
+/*
+ * THE OLD CARDS, REWRITTEN AS THEY WOULD BE WRITTEN TODAY (E06 C12, 28.09.2026; the plan's
+ * section 3) - the `neutraliseOldCards` clause. Three kinds of message, told apart by what
+ * they carry:
+ *
+ * - a roll the module threw (`supersededRoll`): the changes of C5b's `neutralRollSource`
+ *   (private-rolls.mjs) that its document still lacks, and, while rolls are forced private
+ *   (the default), a whisper to the GMs alone where it names anybody else or nobody - the
+ *   list `whisperRoll` gives such a roll today. A table that shows its rolls keeps an old
+ *   roll's list as C5b keeps a new one's: the plan's words are "the GMs alone", and read
+ *   against the document C5b writes they are the forced-private case, which is also the one
+ *   whose old lists named an incident's participants;
+ * - a private card (`secret`): the module flags `flagsOffOldCard` (secret.mjs) names -
+ *   what C7a's split sends with the words today - deleted; `thread`, `kind`, `gmAsk` and
+ *   `settled` stay, the messenger's old threads live on them;
+ * - an old report (`OLD_REPORT`): its content replaced by the stub, and the flags a
+ *   report asked for today carries. Its words are not kept: they were in the document and
+ *   nowhere else, and a report is asked for again at a console.
+ *
+ * `ChatMessage.updateDocuments` a hundred at a time; a batch that fails is said in the
+ * console and left to the read-back. Then every message it changed is read again, after
+ * the await, by the same test that picked it: one that still owes a change is counted,
+ * and the count thrown, so the world is not stamped and the next load runs the clause
+ * again - safe, because a card rewritten reads as nothing to do. There is no second step
+ * to finish: each card's rewrite is the whole of its lift. `messages` is for the suite,
+ * which hands its fixtures rather than the world's log.
+ *
+ * What a real table's log of 717 messages (E17) costs this pass has not been measured.
+ *
+ * @returns {Promise<null|{rolls: number, cards: number, reports: number}>}
+ */
+export async function neutraliseOldCards({ messages = null } = {}) {
+    if (!isPrimaryGm() || !game.messages) return null;
+    const gms = gmIds();
+    if (!gms.length) return null;
+    const { neutralRollSource } = await import("./private-rolls.mjs");
+    const { flagsOffOldCard, STUB, isStub, SECRET_FLAG } = await import("./secret.mjs");
+    const deletion = forcedDeletion();
+    const forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls) === true;
+    // Absent, null and "" are one empty value, and a roll held as JSON text is read as its object.
+    const plain = value => {
+        if (value === undefined || value === null || value === "") return null;
+        if (typeof value === "string" && value.startsWith("{")) {
+            try { return plain(JSON.parse(value)); } catch { return value; }
+        }
+        if (Array.isArray(value)) return value.map(plain);
+        if (typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map(key => [key, plain(value[key])]));
+        return value;
+    };
+    const same = (a, b) => JSON.stringify(plain(a)) === JSON.stringify(plain(b));
+    const kindOf = src => {
+        const own = src.flags?.[MODULE_ID] ?? {};
+        if (own.supersededRoll) return "rolls";
+        if (own[SECRET_FLAG]) return "cards";
+        return OLD_REPORT.test(String(src.content ?? "")) && !isStub(src.content) ? "reports" : null;
+    };
+    // What `message` still owes, as one update, or null.
+    const owed = message => {
+        const src = message.toObject();
+        const kind = kindOf(src);
+        const out = {};
+        if (kind === "rolls") {
+            for (const [path, value] of Object.entries(neutralRollSource(src))) {
+                if (!same(foundry.utils.getProperty(src, path), value)) out[path] = value;
+            }
+            const whisper = Array.from(src.whisper ?? []);
+            if (forced && (!whisper.length || whisper.some(id => !game.users.get(id)?.isGM))) {
+                Object.assign(out, { whisper: gms, blind: false, "flags.core.rollMode": CONST.DICE_ROLL_MODES.PRIVATE });
+            }
+        }
+        // Every private card, a roll among them if one ever carried both flags.
+        const unset = [];
+        if (src.flags?.[MODULE_ID]?.[SECRET_FLAG]) {
+            for (const key of flagsOffOldCard(src)) {
+                if (deletion) out[`flags.${MODULE_ID}.${key}`] = deletion;
+                else unset.push(key);
+            }
+        }
+        if (kind === "reports") {
+            Object.assign(out, { content: STUB, [`flags.${MODULE_ID}.${SECRET_FLAG}`]: true, [`flags.${MODULE_ID}.${MESSAGE_FLAG}`]: true });
+        }
+        return Object.keys(out).length || unset.length ? { kind, update: { _id: message.id, ...out }, unset } : null;
+    };
+
+    const found = [];
+    for (const message of messages ?? game.messages.contents) {
+        const due = owed(message);
+        if (due) found.push({ id: message.id, ...due });
+    }
+    if (!found.length) return null;
+    for (let i = 0; i < found.length; i += 100) {
+        try {
+            await ChatMessage.updateDocuments(found.slice(i, i + 100).map(entry => entry.update));
+        } catch (err) {
+            error("Could not rewrite a batch of old chat cards", err);
+        }
+    }
+    // A Foundry without `ForcedDeletion`: one `unsetFlag` a key, as `retireIncidentTraces` does.
+    for (const entry of found) {
+        for (const key of entry.unset) {
+            try {
+                await game.messages.get(entry.id)?.unsetFlag(MODULE_ID, key);
+            } catch (err) {
+                error("Could not delete an old chat card's flag", err);
+            }
+        }
+    }
+    const left = found.filter(entry => {
+        const now = game.messages.get(entry.id);
+        return now && owed(now);
+    }).length;
+    if (left) throw new Error(`${left} of ${found.length} old chat card(s) kept what they said in world data; the next load tries again`);
+    const report = { rolls: 0, cards: 0, reports: 0 };
+    for (const entry of found) report[entry.kind]++;
+    log(`Rewrote ${found.length} old chat card(s) as they are written today.`, report);
+    return report;
+}
 
 /**
  * WHETHER THIS WORLD WAS PLAYED BEFORE THIS LOAD (E04 C11; audit S01-14). An

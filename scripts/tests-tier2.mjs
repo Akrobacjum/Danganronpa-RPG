@@ -13315,6 +13315,128 @@ const SCENARIOS = [
         const want = [1, false, false, [game.user.id], true, true];
         equal(stableJson([music, season]), stableJson([want, want]),
             "a report's words are in its document, or not in this GM's store");
+    }],
+
+    ["the old cards' rewrite empties a roll the module threw, a private card's facts and a report, and reads them back", async () => {
+        /*
+         * E06 C12, 28.09.2026; the plan's section 3, the owner's Q1 (a). Three messages as 1.2.64
+         * left them: a roll the module threw, aged back to naming its character - the speaker,
+         * the flavour, the roll's title and its data's id and name, Daggerheart's title where
+         * the message has one - and whispered to a player as well; a private card whose module
+         * flags say its action, its tone, its sound and that it asked for a ruling, beside its
+         * thread; a music report with its words as the content. `neutraliseOldCards` is handed
+         * the three, not the world's log. Read back from game.messages: the roll names nobody
+         * and, while rolls are forced private, is whispered to the GMs alone (a table that
+         * shows its rolls keeps the list, as a new roll's); the card keeps what places it and
+         * `settled`, the report is the stub and a private card; the report counts one of each,
+         * and a second run has nothing to do. The three are deleted.
+         */
+        const { neutraliseOldCards } = await import("./migrate.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        const { STUB } = await import("./secret.mjs");
+        needs(world.atLeast("playerAccounts", 1), "the old roll's whisper names a player");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const TITLE = "SUITE C12 Strike";
+        const forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls) === true;
+        const made = [];
+        try {
+            const roll = (await neutralRoll(student)).message;
+            must(roll?.rolls?.length, "the student's roll made no message");
+            made.push(roll);
+            const src = roll.toObject();
+            const entry = src.rolls[0];
+            const aged = typeof entry === "string" ? JSON.parse(entry) : foundry.utils.deepClone(entry);
+            aged.options = { ...(aged.options ?? {}), title: TITLE, headerTitle: TITLE,
+                data: { ...(aged.options?.data ?? {}), id: student.id, name: student.name } };
+            const hasSystem = Boolean(src.system && typeof src.system === "object");
+            await roll.update({ speaker: { alias: student.name, actor: student.id, token: null, scene: null }, flavor: TITLE,
+                whisper: [...gmIds(), player.id], rolls: [typeof entry === "string" ? JSON.stringify(aged) : aged],
+                ...(hasSystem ? { "system.title": TITLE } : {}) });
+            const card = await ChatMessage.create({ content: STUB, whisper: [game.user.id], flags: { [MODULE_ID]: {
+                secret: true, drpgMessage: true, thread: "SUITE-C12-thread", kind: "call", gmAsk: true, settled: true,
+                popupTitle: "SUITE C12 Search", popupTone: "hope", sfx: "search", callCard: true } } });
+            made.push(card);
+            const report = await ChatMessage.create({ whisper: [game.user.id],
+                content: '<h3>Music diagnostics</h3><pre style="white-space:pre-wrap;font-size:0.85em">SUITE C12 the music report</pre>' });
+            made.push(report);
+            must(game.messages.get(roll.id)?.speaker?.actor === student.id && game.messages.get(card.id)?.flags?.[MODULE_ID]?.popupTitle
+                && String(game.messages.get(report.id)?.content ?? "").includes("SUITE C12"), "the old cards were not planted as 1.2.64 left them");
+
+            const done = await neutraliseOldCards({ messages: made.map(m => game.messages.get(m.id)) });
+            const r = game.messages.get(roll.id), c = game.messages.get(card.id), p = game.messages.get(report.id);
+            const rolled = r.rolls[0]?.options ?? {};
+            const whisper = Array.from(r.whisper ?? []);
+            equal(stableJson([done, r.speaker?.actor ?? null, r.speaker?.alias, r.flavor ?? "", hasSystem ? r.system?.title ?? "" : "none",
+                rolled.title, rolled.headerTitle, "id" in (rolled.data ?? {}), "name" in (rolled.data ?? {}),
+                whisper.length > 0 && whisper.every(id => game.users.get(id)?.isGM),
+                Object.keys(c.flags?.[MODULE_ID] ?? {}).sort(), String(p.content).includes("SUITE C12"), String(p.content).includes("data-drpg-secret"),
+                p.flags?.[MODULE_ID]?.secret === true]),
+            stableJson([{ rolls: 1, cards: 1, reports: 1 }, null, game.i18n.localize("DRPG.Secret.speaker"), "", hasSystem ? "" : "none",
+                "", "", false, false, forced, ["drpgMessage", "gmAsk", "kind", "secret", "settled", "thread"], false, true, true]),
+            "an old card still says what it said, lost what places it, or was not counted");
+            equal(await neutraliseOldCards({ messages: made.map(m => game.messages.get(m.id)) }), null, "a second run of the rewrite found something to do");
+        } finally {
+            for (const message of made) await game.messages.get(message.id)?.delete();
+        }
+    }],
+
+    ["the old cards' rewrite that did not read back throws with the count, and the world is not stamped", async () => {
+        /*
+         * E06 C12, 28.09.2026; E05's lift pattern (fix r1-G1). With `ChatMessage.updateDocuments`
+         * swallowed - a write that says it went through and did not - the rewrite reads its two
+         * cards back unchanged and throws with the count; the runner, from a stamp of 1.2.63.5
+         * (the stamp the pass over `liftDiscoveryLedger` above explains), fails the clause, names
+         * it in a notice that stays, and leaves the stamp; the cards still say what they said.
+         * With the writes back, the next run rewrites both. The runner's pass reads the whole
+         * log but writes nothing, the writes being swallowed; the retry is handed the two cards.
+         * The stamp is put back and the cards deleted.
+         */
+        const G = await import("./migrate.mjs");
+        const { STUB } = await import("./secret.mjs");
+        const stampBefore = getSetting(SETTINGS.migratedVersion);
+        const ownUpdate = Object.hasOwn(ChatMessage, "updateDocuments"), realUpdate = ChatMessage.updateDocuments;
+        const putBack = () => {
+            if (ownUpdate) ChatMessage.updateDocuments = realUpdate;
+            else delete ChatMessage.updateDocuments;
+        };
+        const notices = ui.notifications, realError = notices.error;
+        const said = [];
+        const made = [];
+        const held = () => {
+            const [card, report] = made.map(m => game.messages.get(m.id));
+            return [Object.hasOwn(card?.flags?.[MODULE_ID] ?? {}, "popupTitle"), String(report?.content ?? "").includes("SUITE C12")];
+        };
+        try {
+            made.push(await ChatMessage.create({ content: STUB, whisper: [game.user.id],
+                flags: { [MODULE_ID]: { secret: true, drpgMessage: true, popupTitle: "SUITE C12 Search", popupTone: "fear" } } }));
+            made.push(await ChatMessage.create({ whisper: [game.user.id],
+                content: '<h3>Season setup</h3><pre style="white-space:pre-wrap;font-size:0.85em">SUITE C12 the season checklist</pre>' }));
+            must(made.every(Boolean) && held().every(Boolean), "the old cards were not planted as 1.2.64 left them");
+            ChatMessage.updateDocuments = async () => [];
+            const threw = await thrown(() => G.neutraliseOldCards({ messages: made }));
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, "1.2.63.5");
+            notices.error = (text, options) => {
+                said.push({ text: String(text), permanent: options?.permanent === true });
+                return null;
+            };
+            const pass = await G.migrate1_2_0({ quiet: true, only: ["neutraliseOldCards"] });
+            putBack();
+            notices.error = realError;
+            equal(stableJson([/^2 of 2 old chat card/.test(threw ?? ""), pass?.failed ?? null, getSetting(SETTINGS.migratedVersion), held(),
+                said.some(n => n.text.includes("neutraliseOldCards") && n.permanent)]),
+            stableJson([true, ["neutraliseOldCards"], "1.2.63.5", [true, true], true]),
+            `the rewrite that did not read back did not throw with its count, stamped the world, or was not named on screen: ${stableJson({ threw, pass, said })}`);
+
+            const retried = await G.neutraliseOldCards({ messages: made.map(m => game.messages.get(m.id)) });
+            equal(stableJson([retried, held()]), stableJson([{ rolls: 0, cards: 1, reports: 1 }, [false, false]]),
+                "the next run did not rewrite the two cards");
+        } finally {
+            putBack();
+            notices.error = realError;
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, stampBefore);
+            for (const message of made) await game.messages.get(message?.id ?? "")?.delete();
+        }
     }]
 ];
 

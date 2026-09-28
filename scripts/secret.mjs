@@ -90,7 +90,7 @@ function everyone() {
  * reaches a recipient's screen - the render hook replaces it - so its only
  * audience is somebody reading the database, and what it tells them is nothing.
  */
-const STUB = '<p class="notes" data-drpg-secret>-</p>';
+export const STUB = '<p class="notes" data-drpg-secret>-</p>';
 
 /**
  * Is this card's document still clean?
@@ -103,7 +103,7 @@ const STUB = '<p class="notes" data-drpg-secret>-</p>';
  * of round trip that put back the character the module does not want anywhere;
  * it is a plain hyphen now.)
  */
-const isStub = content => String(content ?? "").includes("data-drpg-secret");
+export const isStub = content => String(content ?? "").includes("data-drpg-secret");
 
 /** How many secrets a browser keeps. Beyond this the oldest go. */
 const KEEP = TIMING.secretCardsKept;
@@ -208,6 +208,21 @@ function splitFlags(flags, veiled) {
         flags: { ...(flags ?? {}), [MODULE_ID]: { ...kept, [SECRET_FLAG]: true, ...(veiled ? { [VEILED_FLAG]: true } : {}) } },
         meta
     };
+}
+
+/**
+ * The module flags an old private card's document gives up at the rewrite of 1.2.65's first
+ * load (E06 C12, migrate.mjs `neutraliseOldCards`): what `splitFlags` sends with the words of
+ * a card posted today, but `settled` on a card that is not veiled - a ruling settled before
+ * 1.2.65 has no meta in anybody's store, and without the flag its buttons would come back.
+ * The rest goes with nothing kept: the words of a card that old are in its readers' stores
+ * already and cannot be given meta from here. Pure; `[]` for a card that is not private.
+ */
+export function flagsOffOldCard(message) {
+    const own = message?.flags?.[MODULE_ID];
+    if (!own?.[SECRET_FLAG]) return [];
+    const veiled = own[VEILED_FLAG] === true;
+    return Object.keys(splitFlags(message.flags, veiled).meta ?? {}).filter(key => veiled || key !== "settled");
 }
 
 /** How much a player's packet weighs: its words and its meta, against `MAX_PLAYER_BYTES`. */
