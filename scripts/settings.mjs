@@ -464,25 +464,27 @@ export const SETTINGS = {
      * World-scoped, so every browser holds it (D6: nothing world-scoped is
      * hidden), and it holds only what a bystander may know: the fields
      * murder.mjs lists in `PUBLIC_INCIDENT`, each with its reason - that an
-     * incident runs and at which stage, whose side acts, and the mechanics both
-     * participants' trackers need live every turn, which a socket round trip per
-     * turn would leave the table waiting for. Nothing in it names anyone.
+     * incident runs, and at which stage. Nothing in it names anyone.
      *
      * It used to hold more. This comment said until 1.2.64 that the killer could
-     * be read from it, which LIVE-001 had already ended; and it held how the
+     * be read from it, which LIVE-001 had already ended; it held how the
      * incident happened - a trap, a death by the victim's own hand, a reversal,
-     * when it opened, how it ended - until E05 C8 (audit S04-08) moved those into
-     * the cast below. `murderState()` merges the two halves; the world-secrets
-     * rule (`murderState`'s `only`) holds this key to the list.
+     * when it opened, how it ended - until E05 C8 (audit S04-08); and the fight -
+     * the round, whose side acts, the hindrances, what is spent - until E32 C2
+     * (1.2.66), on the reading that both trackers needed it live every turn. Every
+     * reader of it runs where the cast is held, and each holder is sent their
+     * copy whenever the cast is written, before this key is, so both moved into the cast below.
+     * `murderState()` merges the two halves; the world-secrets rule
+     * (`murderState`'s `only`) holds this key to the list.
      */
     murderState: "murderState",
     /**
      * WHO IS IN THE INCIDENT. Client-scoped, and that is the whole point.
      *
-     * `murderState` above keeps the mechanics - the stage, whose turn it is,
-     * what is blocked, what has been spent - because both participants need
-     * those live and a socket round trip per turn would leave the table
-     * sitting in silence. What it must NOT keep is the names, and it used to:
+     * `murderState` above keeps that an incident runs and its stage; the fight -
+     * whose turn it is, what is blocked, what has been spent - is here since
+     * E32 C2, and reaches each participant in their copy whenever it is written, as
+     * the names do. What the world half must NOT keep is the names, and it used to:
      * `killerId` sat in a world setting, and world data reaches every client,
      * so any player could read the killer out of their own console before the
      * body was found. That is LIVE-001, and this is the half that closes it.
@@ -1510,12 +1512,20 @@ export function registerSettings() {
      * `blackenedLedger` carries none, for the same reason `blackened` never
      * did: no surface holds it. The verdict window asks for it when it opens.
      */
+    /* A change of the cast repaints what the world half's change repaints, and since E32 C2
+       says so as well (`drpgCastChanged`): a pass of the turn writes the cast alone, and a
+       client setting's write fires no `updateSetting` - the GM's incident tracker and the
+       "your turn" chime (sfx.mjs) listened there for the turn. */
+    const onCastChange = () => {
+        onWorldChange(SETTINGS.murderState);
+        Hooks.callAll("drpgCastChanged");
+    };
     game.settings.register(MODULE_ID, SETTINGS.incidentCast, {
         scope: "client",
         config: false,
         type: Object,
         default: {},
-        onChange: () => onWorldChange(SETTINGS.murderState)
+        onChange: onCastChange
     });
     // The participant's copy repaints the same way: it arrives after the world half.
     game.settings.register(MODULE_ID, SETTINGS.mineCast, {
@@ -1523,7 +1533,7 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {},
-        onChange: () => onWorldChange(SETTINGS.murderState)
+        onChange: onCastChange
     });
     game.settings.register(MODULE_ID, SETTINGS.legacyIncidentCast, {
         scope: "client",

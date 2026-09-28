@@ -40,7 +40,8 @@
  *      whenever the pick arrives, with no player told the part meanwhile (M1).
  *   F  the incident's cast (S04-24, the cast half of S06-19): a participant's copy
  *      is stamped part by part, and what the primary answers is read off the
- *      packets; a second GM with an empty browser does not answer for it; a GM that
+ *      packets; a second GM with an empty browser does not answer for it; the fight
+ *      (E32 C2) syncs with it, and a bystander holds the stage alone; a GM that
  *      has not merged a newer write lets a third in, and the primary tells the
  *      participants what the GMs agree on (B1); and the second GM closes the
  *      incident: both GMs' records and the copy are cleared by one stamp.
@@ -629,10 +630,18 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     await p3.eval(`globalThis.__forceRoll = { hope: 10, fear: 10 }; return true;`);
     const openedAt = await gm.eval(`${CAST} await M.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.daichi}" });
         return S.castStore.stampOf("record");`);
+    /* The opening resolves on p3's roll, and since E32 C2 (28.09.2026) what it writes - the round, the
+       side to act, the Key Remnants' count - is the cast's, so the record's stamp moves with it: until
+       then the copy was read at the open's stamp (red on the C2 tree, 28.09: the copy stood 313 ms
+       later). The copy is read against the record as it stands once the incident runs. */
+    const castAt = await gm.eval(`${CAST} const end = Date.now() + 6000;
+        while (M.murderState()?.stage !== "incident" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return S.castStore.stampOf("record");`);
     await settle(800);
     const p3First = await castOn(p3);
     check("F1: the incident opened on the GM reaches the killer's player's copy, at the record's stamp",
-        p3First.killer === IDS.chie && p3First.victim === IDS.daichi && p3First.stamp === openedAt && openedAt > 0, J({ openedAt, p3First }));
+        p3First.killer === IDS.chie && p3First.victim === IDS.daichi && p3First.stamp === castAt && castAt >= openedAt && openedAt > 0,
+        J({ openedAt, castAt, p3First }));
 
     await connect("gm2");
     await settle(1500);
@@ -642,7 +651,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     await settle(500);
     const p3AfterGm2 = await castOn(p3);
     check("F2: a second GM with an empty browser, asked for the cast, does not answer, and the participant keeps it",
-        castsFrom("gm2") === castBefore.gm2 && p3AfterGm2.killer === IDS.chie && p3AfterGm2.stamp === openedAt, J({ castBefore, gm2Sent: castsFrom("gm2"), p3AfterGm2 }));
+        castsFrom("gm2") === castBefore.gm2 && p3AfterGm2.killer === IDS.chie && p3AfterGm2.stamp === castAt, J({ castBefore, gm2Sent: castsFrom("gm2"), p3AfterGm2 }));
 
     const askedF = { p3: await castsNow(p3), p1: await castsNow(p1) };
     await p3.eval(`game.socket.emit("module.${MOD}", { action: "incident.myCastRequest" }, { recipients: ["${IDS.gm}"] }); return true;`);
@@ -652,7 +661,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const answeredF = { p3: await castsSince(p3, askedF.p3), p1: await castsSince(p1, askedF.p1) }, stampsF = await castStampsOn(gm);
     const seatsF = { killerId: stampsF.killerId, victimId: stampsF.victimId, thirdId: stampsF.thirdId, betrayal: stampsF.betrayal };
     check("F3: the primary answers the killer's player with the cast and every part's stamp, a bystander with nothing and the seats' stamps alone, and both GMs hold the killer",
-        castsFrom("gm") > castBefore.gm && p3AfterGm.stamp === openedAt && onGmF.state === IDS.chie && onGm2F.state === IDS.chie
+        castsFrom("gm") > castBefore.gm && p3AfterGm.stamp === castAt && onGmF.state === IDS.chie && onGm2F.state === IDS.chie
         && answeredF.p3.length === 1 && answeredF.p3[0].cast?.killerId === IDS.chie && answeredF.p3[0].cast?.victimId === IDS.daichi
         && !("swung" in (answeredF.p3[0].cast ?? {})) && J(answeredF.p3[0].stamps) === J(stampsF)
         && J(answeredF.p1) === J([{ from: IDS.gm, cast: {}, stamps: seatsF }]), J({ answeredF, stampsF, p3AfterGm, onGmF, onGm2F }));
@@ -682,6 +691,23 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        player and the third kept gm2's older turn (measured 26.09: this check failed on it). */
     await gm.eval(`const w = game.settings.get("${MOD}", "murderState"); await game.settings.set("${MOD}", "murderState", { ...w, stage: "incident" }); return true;`);
     await settle(400);
+
+    /* F8 (E32 C2, 28.09.2026): the fight is the cast's since 1.2.66 and syncs with it - a turn the
+       primary passes reaches the second GM's record and the killer's player's copy at its stamp,
+       and the bystander's browser holds the stage alone and reads no turn. */
+    const passedF8 = await gm.eval(`${CAST} await M.passTurn(); const s = M.murderState();
+        return { turn: s?.turn ?? null, side: s?.turnSide ?? null, stamp: S.castStore.stampOf("record", "turnSide") };`, { timeout: 60000 });
+    await settle(800);
+    const fightOn = client => client.eval(`const M = await import("${repoUrl}/scripts/murder.mjs"); const s = M.murderState();
+        return { turn: s?.turn ?? null, side: s?.turnSide ?? null, world: Object.keys(game.settings.get("${MOD}", "murderState") ?? {}).sort() };`);
+    const fightF8 = { gm2: await fightOn(gm2), p3: await fightOn(p3), p1: await fightOn(p1) }, p3StampsF8 = (await castOn(p3)).stamps;
+    const turnOf = r => J([r.turn, r.side]);
+    check("F8: the fight syncs with the cast - a turn the primary passes reaches the second GM and the killer's player's copy at its stamp, and the bystander's browser holds the stage alone",
+        typeof passedF8.side === "string" && Number.isFinite(passedF8.turn) && passedF8.stamp > openedAt
+        && turnOf(fightF8.gm2) === turnOf(passedF8) && turnOf(fightF8.p3) === turnOf(passedF8) && p3StampsF8?.turnSide === passedF8.stamp
+        && fightF8.p1.turn === null && fightF8.p1.side === null && Object.values(fightF8).every(r => J(r.world) === J(["active", "stage"])),
+        J({ passedF8, fightF8, p3StampsF8 }));
+
     await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); E.gmStoreHold(true); return true;`);
     await gm.eval(`${CAST} await M.enterCast({ killerId: "${IDS.chie}", victimId: "${IDS.daichi}" }); return true;`);
     await settle(400);

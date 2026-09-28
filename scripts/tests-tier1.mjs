@@ -4563,7 +4563,7 @@ const INVARIANTS = [
             settings: {
                 projectMeta: { R190PROJECT00001: { room: "Gym", indirectMurder: true, secret: true, trait: null, countsUp: true } },
                 clock: { chapter: 2, day: 3 },
-                murderState: { active: true, stage: "incident", turn: 2, turnSide: "killer", blocked: { victim: { survive: 1 }, killer: {} } },
+                murderState: { active: true, stage: "incident" },
                 overflow: { active: { session: 1, day: 2, timeOfDay: "noon", effect: "fog" } }
             },
             actors: [{ id: KILLER, flags: { [MOD]: { advances: 1 }, "r190-other-module": { memo: KILLER } } },
@@ -4677,10 +4677,11 @@ const INVARIANTS = [
             ["overflow.count",
                 s => { s.settings.overflow.count = 0; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "overflow" && h.path === "count"],
-            // E05 C8: the world half of an incident holds the public list alone - a trap's `false` is found as well.
-            ["murderState: only active, stage, turn, turnSide, keyRemnants, deniedToVictim, hindered, blocked, unlocked, spent, drainStopped, advantageNext, freeResolution, thirdActed",
-                s => { s.settings.murderState = { active: true, stage: "incident", turn: 1, turnSide: "victim", indirect: false }; },
-                h => h.kind === "only" && h.doc === "setting" && h.id === "murderState" && h.path === "indirect"]
+            // E05 C8: the world half of an incident holds the public list alone - a falsy value is found as well
+            // (a trap's `false` until E32 C2, which left the stage alone there: now the fight's round at 0).
+            ["murderState: only active, stage",
+                s => { s.settings.murderState = { active: true, stage: "incident", turn: 0 }; },
+                h => h.kind === "only" && h.doc === "setting" && h.id === "murderState" && h.path === "turn"]
         ];
         /* The exemptions: [what, plant, whether the hits are right]. projectMeta's own map token, as
            projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock

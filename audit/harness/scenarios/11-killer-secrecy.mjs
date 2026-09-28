@@ -26,6 +26,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
 
     // set an accomplice (thirdId) too, if the API supports it
     const cards0 = await p1.eval(`return game.messages.contents.length;`);
+    /* EVERY WORLD HALF p1's BROWSER RECEIVES THROUGH THE INCIDENT (E32 C2, 28.09.2026), recorded as it
+       arrives: p3's opening roll is not forced here, so a read at one moment finds the incident opening,
+       running or closed by a failed roll (measured 28.09: one run read it running, the next read `{}`). */
+    await p1.eval(`globalThis.__worldHalves = [];
+        globalThis.__worldHalvesFn = s => { if (s?.key === "${MOD}.murderState") globalThis.__worldHalves.push(Object.keys(game.settings.get("${MOD}", "murderState") ?? {}).sort()); };
+        Hooks.on("updateSetting", globalThis.__worldHalvesFn);
+        return true;`);
     const opened = await gm.eval(`
         const M = await import("${repoUrl}/scripts/murder.mjs");
         const s = await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.daichi}", thirdId: "${ids.botan}" });
@@ -79,6 +86,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
        would hide a broken scenario behind a known leak. */
     const reached = stage !== "openingRoll" && incidentCards.length > 0;
     check("p1 holds the incident's cards once the opening roll is thrown", reached, JSON.stringify({ stage, held: incidentCards.length }));
+    /* The fight is the cast's since E32 C2 (1.2.66) - the round, whose side acts, what is spent: every
+       world half the uninvolved player's browser was sent, the open's first, says that an incident runs
+       and its stage, nothing more. */
+    const halves = await p1.eval(`Hooks.off("updateSetting", globalThis.__worldHalvesFn); return globalThis.__worldHalves;`);
+    check("SECRECY p1 during incident: every world half p1's browser received holds that an incident runs and its stage, nothing more",
+        halves.some(h => h.includes("active")) && halves.every(h => h.every(k => k === "active" || k === "stage")), JSON.stringify(halves));
     /* THE KNOWN CARD APART FROM THE REST (E30 fix, 25.09.2026). S04-02 is the killer's
        own opening roll: thrown on the killer's player's client, so p3 wrote it, Chie
        speaks it, and it holds a roll. Any other card that names the killer or the

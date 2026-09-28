@@ -5863,7 +5863,9 @@ const REGRESSIONS = [
          * murder.mjs names - a `writeState({ ... })` literal, a `patch` built for one - is
          * listed on one side. A computed key (`[store]`, "hindered" or "blocked") is not read.
          * The season reset writes `{}` through its table (season-setup.mjs). The reader is
-         * shown a planted write of each kind first. E32 builds on it to shrink the list.
+         * shown a planted write of each kind first. E32 C2 (28.09.2026) shrank the list to
+         * `active` and `stage`: the fight's twelve fields are the cast's (`INCIDENT_FIGHT`),
+         * so a write naming one still lands on a side - the cast's - and this reads the same.
          */
         const M = await import("./murder.mjs");
         const S = await import("./gm-stores.mjs");

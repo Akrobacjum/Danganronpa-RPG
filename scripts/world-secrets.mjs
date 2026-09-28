@@ -80,11 +80,11 @@ export const WORLD_SECRET_RULES = Object.freeze({
         }),
         /* The world half of an incident: murder.mjs's `PUBLIC_INCIDENT`, written out (this file
            imports nothing; R191 holds the two equal). Anything else - the names since LIVE-001,
-           the method since E05 C8 - is the cast's. */
+           the method since E05 C8, the fight since E32 C2 - is the cast's. */
         murderState: Object.freeze({
-            only: Object.freeze(["active", "stage", "turn", "turnSide", "keyRemnants", "deniedToVictim", "hindered", "blocked",
-                "unlocked", "spent", "drainStopped", "advantageNext", "freeResolution", "thirdActed"]),
-            since: "E05 C8", why: "how an incident happened - a trap, a death by the victim's own hand, a reversal, when it opened, how it ended - and who is in it (S04-08)"
+            only: Object.freeze(["active", "stage"]),
+            since: "E05 C8; the stage alone since E32 C2",
+            why: "how an incident happened - a trap, a death by the victim's own hand, a reversal, when it opened, how it ended - who is in it (S04-08), and how its fight goes, turn by turn"
         })
     }),
     everySetting: Object.freeze({

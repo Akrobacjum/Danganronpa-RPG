@@ -16,9 +16,10 @@
  * THE ORACLE IS THE CASE'S OWN MODEL, NEVER THE MODULE. Each case keeps what the rules
  * say should now be true - the kind, the killers, the victim, the third and what they
  * chose, the stage, the body, the incidents opened and closed, the offer - and the steps
- * update it from the handbooks and the owner's decisions (the plan's 2.1). Three tables
- * are written here and not imported: `PUBLIC_FIELDS` (the world half), `FRESH` (a new
- * incident) and `seatsOf` (who holds the cast, D6). A module answer read into the model
+ * update it from the handbooks and the owner's decisions (the plan's 2.1). Four tables
+ * are written here and not imported: `PUBLIC_FIELDS` (the world half), `FIGHT_FIELDS` (the
+ * fight a seat's copy carries, E32 C2), `FRESH` (a new incident) and `seatsOf` (who holds
+ * the cast, D6). A module answer read into the model
  * would make the grid agree with whatever the module does.
  *
  * WHAT A RED CASE SAYS. A case records every violation and fails once at the end, with
@@ -46,9 +47,15 @@ import { ok, must, needs, world, wait, until, expectedRed } from "./tests-kit.mj
  * THE TABLES (the plan's 2.1), written from the handbooks, not imported
  * ========================================================================== */
 
-/** What the world half of an incident may hold (murder.mjs `PUBLIC_INCIDENT`, E05 C8), as the grid's own list. */
-const PUBLIC_FIELDS = Object.freeze([
-    "active", "stage", "turn", "turnSide", "keyRemnants", "deniedToVictim", "hindered", "blocked",
+/** What the world half of an incident may hold (murder.mjs `PUBLIC_INCIDENT`, E05 C8; the stage alone since E32 C2), as the grid's own list. */
+const PUBLIC_FIELDS = Object.freeze(["active", "stage"]);
+
+/**
+ * The fight, which every seated copy carries (E32 C2; gm-stores.mjs `INCIDENT_FIGHT`), as
+ * the grid's own list: the round and the side to act are what both sides' panels read.
+ */
+const FIGHT_FIELDS = Object.freeze([
+    "turn", "turnSide", "keyRemnants", "deniedToVictim", "hindered", "blocked",
     "unlocked", "spent", "drainStopped", "advantageNext", "freeResolution", "thirdActed"
 ]);
 
@@ -252,11 +259,11 @@ const GRID_RED = {
     DM12: expectedRed("E07", "S10-77: the victim's death from the Students list in the fight offers no Stage 6 (C13)", { failing: "I10" }),
     DM13: expectedRed("E07", "S04-17: a failed opening breaks the weapon in the killer's hand (C12)", { failing: "I12" }),
     DM14: expectedRed("E07", "S04-26: the hook's check and the action's both run the victim out - two ran-out cards (C4)", { failing: "I14" }),
-    TP01: expectedRed("E07", "S04-03: a betrayal from the tile opens over the last incident - not closed, its killers not recorded, its third's action kept (C5a)", { failing: "I3" }),
+    TP01: expectedRed("E07", "S04-03: a betrayal from the tile opens over the last incident - not closed, its killers not recorded (C5a)", { failing: "I4" }),
     TP02: expectedRed("E07", "S04-13: a betrayal from the checklist leaves its offer standing (C5a)", { failing: "I6" }),
     TP04: expectedRed("E07", "S04-06: Role reversal is offered against an accomplice (C11a); S04-11: Survive's Blackened and offer (C6)", { failing: "I11" }),
     TP05: expectedRed("E07", "S05-23: the close breaks the first killer's tools only, not the accomplice's swung weapon (C12)", { failing: "I12" }),
-    TP07: expectedRed("E07", "S04-03: a betrayal from the tile after a Double role reversal opens over the last incident (C5a)", { failing: "I3" }),
+    TP07: expectedRed("E07", "S04-03: a betrayal from the tile after a Double role reversal opens over the last incident (C5a)", { failing: "I4" }),
     TP08: expectedRed("E07", "S04-21: a third who averted their eyes walks back in by their token (C10)", { failing: "I13" }),
     TP09: expectedRed("E07", "S04-11, S04-12: Escape together arms the betrayal offer (C6)", { failing: "I6" }),
     TP10: expectedRed("E07", "S04-21: a failed escape's third still counts, and a fourth walking in crowds the incident out (C10)", { failing: "I13" }),
@@ -725,6 +732,9 @@ async function assertIncidentInvariants(run) {
         if ((copy.killerId ?? null) !== killer) run.violate("I2", `${user.name}'s copy names the killer ${nameOf(copy.killerId)}, the model's ${nameOf(killer)}`);
         if ((copy.victimId ?? null) !== m.victimId) run.violate("I2", `${user.name}'s copy names the victim ${nameOf(copy.victimId)}, the model's ${nameOf(m.victimId)}`);
         if (!none(copy.lastCrisis) || "swung" in copy) run.violate("I2", `${user.name}'s copy holds the Reroll receipt or the swing memo`);
+        // The fight as the GMs hold it: a seat reads its turn off its own copy (E32 C2).
+        const unlike = FIGHT_FIELDS.filter(f => JSON.stringify(copy[f] ?? null) !== JSON.stringify(state?.[f] ?? null));
+        if (unlike.length) run.violate("I2", `${user.name}'s copy holds the fight's ${unlike.join(", ")} unlike the GMs'`);
     }
     for (const packet of run.packets.splice(0)) {
         const stray = Object.keys(packet.cast ?? {}).length ? packet.to.filter(id => !seated.has(id) && id !== offerUser) : [];

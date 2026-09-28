@@ -422,6 +422,23 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
             tool: (await INV.grantItem(botan, { name: "Suite tool a bystander breaks", category: "tool", tier: 1, quiet: true }))?.id ?? null,
             turn: M.isTheirTurn(aiko) };`, { timeout: 60000 });
     await settle(600);
+    /* THE VICTIM'S PANEL AFTER A TURN, FROM THEIR COPY (E32 C2, 28.09.2026). The turn the GM just
+       passed is the cast's since 1.2.66, not the world half's: it reaches the victim's browser in
+       their copy of the cast, and their panel offers the actions from it; the bystander's browser
+       holds that an incident runs and its stage, and no turn. */
+    const FIGHT_READ = waitForTurn => `const M = await import("${repoUrl}/scripts/murder.mjs");
+        const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        const end = Date.now() + (${waitForTurn} ? 6000 : 0);
+        while (incidentCast().turnSide !== "victim" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const aiko = game.actors.get("${ids.aiko}");
+        return { world: Object.keys(game.settings.get("${MOD}", "murderState") ?? {}).sort(), copy: incidentCast().turnSide ?? null,
+            turn: M.murderState()?.turn ?? null, mine: M.isTheirTurn(aiko), tiles: M.availableCrisisActions(aiko).length };`;
+    const fightSeen = { victim: await p1.eval(FIGHT_READ(true)), bystander: await p2.eval(FIGHT_READ(false)) };
+    check("fight: after a turn the victim's panel reads it from their copy of the cast, and the bystander's browser holds the stage alone",
+        Boolean(handed.turn) && fightSeen.victim.copy === "victim" && fightSeen.victim.mine === true && fightSeen.victim.tiles > 0
+        && Number.isFinite(fightSeen.victim.turn) && [fightSeen.victim, fightSeen.bystander].every(r => JSON.stringify(r.world) === JSON.stringify(["active", "stage"]))
+        && fightSeen.bystander.copy === null && fightSeen.bystander.turn === null,
+        JSON.stringify(fightSeen));
     for (const c of [p1, p2, p3]) await c.eval(`globalThis.__useMark = new Set(game.messages.contents.map(m => m.id)); return true;`);
     const took = await p1.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
         globalThis.__dialogAnswers.push(true, true);

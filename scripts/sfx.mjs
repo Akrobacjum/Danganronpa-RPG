@@ -946,6 +946,10 @@ export function registerSfx() {
     // The handful of events that are a change in the world rather than an act
     // on this screen - see the block above.
     Hooks.on("updateSetting", onWorldSettingChanged);
+    /* The turn is the cast's since E32 C2 (1.2.66): a pass writes the cast alone, a client
+       setting, whose change never reaches `updateSetting` - the world half's change still
+       does, for the stage. */
+    Hooks.on("drpgCastChanged", () => onIncidentChanged().catch(() => {}));
     Hooks.on("updateActor", onActorFlagged);
 
     // What the world looked like before anybody changed anything, so the first

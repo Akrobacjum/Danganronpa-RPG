@@ -733,6 +733,77 @@ const SCENARIOS = [
             "after the close the offer's third is not sent it, or somebody else is");
     }],
 
+    ["a running incident's world half holds its stage alone", async () => {
+        /*
+         * E32 C2, 28.09.2026; E05's Q8, the owner's Q1 (a) of 28.09. The world half of
+         * `murderState` is on every browser, and after E05 it still held the fight: the round,
+         * whose side acts, the hindrances, what is spent, the third's one action. Every reader
+         * of those runs where the cast is held, so they are the cast's now (gm-stores.mjs
+         * `INCIDENT_FIGHT`). A trap is opened on two students with players, its victim's roll
+         * misses and the victim takes a crisis action, which passes the turn: the world half
+         * holds `active` and `stage` alone, and the GMs' record holds the fight - a round and
+         * a side to act - which `murderState()` merges.
+         * Red at c3aea03: the world half held the turn and the side.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a trap's builder and its victim, each with a player");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim] = livingStudents().filter(player);
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        // The victim's player is asked the roll too; whichever lands first, a miss starts the incident.
+        if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await settle();
+        await game.drpg.resolveCrisisAction({ actorId: victim.id, key: "leaveClue", total: 2, isCritical: false, withHope: false });
+        await settle();
+        const worldHalf = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+        const record = S.castStore.record();
+        const merged = M.murderState();
+        equal(stableJson([Object.keys(worldHalf).sort(), worldHalf.stage ?? null, typeof record.turn, typeof record.turnSide,
+            merged?.turn === record.turn && merged?.turnSide === record.turnSide]),
+            stableJson([["active", "stage"], "incident", "number", "string", true]),
+            `the world half of a running incident holds more than its stage, or the GMs' record does not hold the fight: ${stableJson({ worldHalf, fight: S.INCIDENT_FIGHT.map(f => [f, record[f] ?? null]) })}`);
+    }],
+
+    ["a participant's copy carries the fight, a bystander's browser holds none of it", async () => {
+        /*
+         * E32 C2, 28.09.2026. The fight left the world half (the test above), and each holder
+         * of the cast is sent it in their copy (murder.mjs `castFor`): the victim's panel asks
+         * whose turn it is of their own browser. A direct murder is opened between two students
+         * with players and a third with a player stands elsewhere; the victim takes a crisis
+         * action, which passes the turn. Each copy is read as `castFor` makes it - tier 2
+         * holds the stores and nothing is sent while it does; the packets a player's browser
+         * receives are 13-murder-signals' "dice" and 61's F8. The killer's and the victim's
+         * copies hold every field of the fight as the GMs read it; the bystander is sent
+         * nothing and their world half holds the stage alone. Red at c3aea03: no copy held
+         * the turn.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a bystander, each with a player");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, bystander] = livingStudents().filter(player);
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        await game.drpg.resolveCrisisAction({ actorId: victim.id, key: "leaveClue", total: 2, isCritical: false, withHope: false });
+        await settle();
+        const state = M.murderState();
+        must(state?.stage === "incident" && Number.isFinite(state.turn), `the fixture's fight is not running: ${stableJson(state)}`);
+        const fight = stableJson(S.INCIDENT_FIGHT.map(f => [f, state[f] ?? null]));
+        const read = a => {
+            const copy = M.castFor(player(a).id, incidentCast());
+            return { keys: Object.keys(copy).length, fight: stableJson(S.INCIDENT_FIGHT.map(f => [f, copy[f] ?? null])) === fight };
+        };
+        const worldHalf = Object.keys(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}).sort();
+        equal(stableJson([read(killer).fight, read(victim).fight, read(bystander).keys, worldHalf]), stableJson([true, true, 0, ["active", "stage"]]),
+            `a participant's copy does not carry the fight as the GMs read it, the bystander is sent something, or their world half holds more than the stage: ${
+                stableJson({ killer: read(killer), victim: read(victim), bystander: read(bystander), worldHalf, fight })}`);
+    }],
+
     ["the incident's cards reach its audience and no one else", async () => {
         /*
          * E06 C4, 27.09.2026; audit S04-01 (L11). A crisis card was whispered to the owners of
@@ -12872,7 +12943,10 @@ const SCENARIOS = [
          * window a GM would use, then the incident is played on: the turn passes to
          * the killer entered. In a world the stores have never opened (E04's fix round,
          * R2-m6 and m6: `forget` emptied this world's record), the opening resolved at
-         * once (m2).
+         * once (m2). Since E32 C2 the fight is the cast's and goes with it: the round starts
+         * again at the victim's side (`enterCast`), which the pass reads - the world half
+         * is written the stage alone, as the module writes it. Red with that fill taken
+         * out: no side to act, and the pass counted the round from nothing.
          */
         needs(env.dialogs(), "the cast is entered in a window, and this client draws none");
         const E = await import("./gm-store.mjs");
@@ -12884,7 +12958,7 @@ const SCENARIOS = [
             await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             equal(M.murderState()?.killerId, killer.id, "the fixture incident did not open");
             const world = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-            await game.settings.set(MODULE_ID, SETTINGS.murderState, { ...world, stage: "incident", turnSide: "victim" });
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, { ...world, stage: "incident" });
             await S.castStore.forget();
             equal(M.murderState()?.killerId ?? null, null, "the store forgot, and the cast is still here");
             ok((await S.gmStoreHealth()).rows.some(r => r.id === "incident"), "the health report does not say the running incident has no cast here");
@@ -12899,8 +12973,8 @@ const SCENARIOS = [
             equal(stableJson([M.murderState()?.killerId, M.murderState()?.victimId]), stableJson([killer.id, victim.id]),
                 "the cast entered by hand is not the incident's");
             await M.passTurn();
-            equal(stableJson([M.murderState()?.turnSide, M.murderState()?.killerTurnId]), stableJson(["killer", killer.id]),
-                "the incident does not run on the cast entered by hand");
+            equal(stableJson([M.murderState()?.turnSide, M.murderState()?.killerTurnId, M.murderState()?.turn]), stableJson(["killer", killer.id, 1]),
+                "the incident does not run on the cast entered by hand, or its round does not start again at 1");
             ok(!(await S.gmStoreHealth()).rows.some(r => r.id === "incident"), "the health report still says the incident has no cast here");
         });
     }],

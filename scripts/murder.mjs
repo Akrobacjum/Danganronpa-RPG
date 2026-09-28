@@ -26,10 +26,12 @@
  *
  * WHERE THE STATE LIVES, AND WHY IT IS IN TWO PIECES (LIVE-001).
  *
- * The MECHANICS are world-scoped: the stage, whose turn it is, what is blocked,
- * what has been spent, what the victim has left. Both participants need those
- * live, every turn, and a socket round trip per turn would leave the table
- * sitting in silence waiting for one.
+ * The STAGE is world-scoped: that an incident runs, and whether it is the
+ * opening, the fight or Stage 6 - every browser's locks read it. Until 1.2.66 the
+ * rest of the mechanics were too - whose turn it is, what is blocked, what has
+ * been spent - on the reading that a socket round trip per turn would leave the
+ * table waiting; since E32 C2 they travel with the names below, which `writeState`
+ * sends each participant whenever it writes them, before it writes the world half.
  *
  * The NAMES are not. `killerId` used to sit in that same world setting, and
  * world data reaches every client - so any student could read the killer out of
@@ -41,7 +43,7 @@
  *
  * `murderState()` still hands back ONE object with both halves merged, so every
  * reader in this file and outside it is unchanged. What differs is what a
- * non-participant's client finds in it: the mechanics, and no names.
+ * non-participant's client finds in it: the stage, and nothing else.
  */
 
 import {
@@ -50,7 +52,7 @@ import {
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS, incidentCast, incidentIndirect, incidentSeats, seasonEpoch, isDeadForGm, isDeceased } from "./settings.mjs";
-import { castStore, blackenedStore, castCopy, deathStore, deathCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD } from "./gm-stores.mjs";
+import { castStore, blackenedStore, castCopy, deathStore, deathCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD, INCIDENT_FIGHT } from "./gm-stores.mjs";
 import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax, marksOf } from "./character.mjs";
@@ -120,30 +122,29 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * bystander may know it, and `splitIncident` sends a field that is neither listed
  * here nor the cast's nowhere at all - fail closed, not the cast, so an unlisted write
  * is dropped rather than guessed into secrecy the wrong way (R191 reads every literal
- * write). The owner's answer of 26.09 (Q8, option a): the five leave now; shrinking this
- * list further - to the stage alone - is E32's, once the cast has settled.
+ * write).
+ *
+ * AND THE FIGHT FOLLOWED (E32 C2, 28.09.2026; E05's Q8, the owner's Q1 (a) of 28.09).
+ * Twelve fields stayed here after E05 - the round, whose side acts, the hindrances,
+ * what is spent, the third's one action and the rest (gm-stores.mjs `INCIDENT_FIGHT`) -
+ * because "both trackers need them live every turn". Every reader of them runs where
+ * the cast is held, and `writeState` sends the cast's holders their copy whenever it
+ * writes the cast, before it writes the world half - so they moved into the cast, and
+ * each holder is sent the fight in their copy (`castFor`). A bystander's browser
+ * holds the two below and nothing else: that an incident runs, and at which stage. A
+ * running incident's fight still in the world half from 1.2.65 is merged by
+ * `murderState()` under the cast's, whose value wins once written.
  */
 
 /**
  * WHAT THE WORLD HALF OF AN INCIDENT MAY HOLD, AND WHY A BYSTANDER MAY KNOW IT
- * (E05 C8). Every browser holds it; none of it names anyone. The world-secrets rule
- * (`murderState`'s `only`) is this list written out, and R191 holds the two equal.
+ * (E05 C8; the stage alone since E32 C2). Every browser holds it; none of it names
+ * anyone. The world-secrets rule (`murderState`'s `only`) is this list written out,
+ * and R191 holds the two equal.
  */
 export const PUBLIC_INCIDENT = Object.freeze({
     active: "an incident is running: the table knows that much, and every browser's locks read it (movement, the rolls' audience, the traces' hiding)",
-    stage: "the opening, the fight or Stage 6: which of those locks holds, and the Event card and the music on a witness's browser",
-    turn: "the round, for both trackers without a round trip per turn; a count",
-    turnSide: "whose side acts - `victim` or `killer`, a chair and not a person",
-    keyRemnants: "how many Key Remnants the scene keeps, as the opening roll decided it; a number",
-    deniedToVictim: "the actions the opening took from the victim's chair; action keys",
-    hindered: "the actions hindered, by side, with the turns left; action keys and counts",
-    blocked: "the actions blocked, by side, with the turns left; action keys and counts",
-    unlocked: "the actions Self-defence opened; action keys",
-    spent: "the once-per-incident actions used; action keys",
-    drainStopped: "whether a critical Self-defence stopped the drain; a flag",
-    advantageNext: "which side's next roll has advantage, by side; two flags",
-    freeResolution: "a critical's free resolution: a side and the turn it was given on",
-    thirdActed: "whether the third party has used their action - that there is one, not who (E32 weighs it)"
+    stage: "the opening, the fight or Stage 6: which of those locks holds, and the Event card and the music on a witness's browser"
 });
 
 /**
@@ -398,6 +399,10 @@ function castStamps() {
  *     standing betrayal offer ..."); the packet is `sendCast`'s, which sends this.
  * A direct murder keeps the killer's name in every copy: it is fought face to face (D6).
  * The builder's own copy, from Stage 6 on (`castOwners`), keeps every name.
+ * THE FIGHT IS IN EVERY SEATED COPY (E32 C2, 28.09.2026): the twelve fields of
+ * `INCIDENT_FIGHT`, which left the world half then, go to each holder as they are - both
+ * sides' panels and trackers read them, and none of them names anyone. A holder seated
+ * for the offer alone is sent the offer alone, the fight not included.
  *
  * THE VALUES ARE NULLED AND THE STAMPS KEPT, so `castCombine` (gm-stores.mjs) and R176
  * do not change: a copy takes the nulls at the record's stamps. A third who moves to
@@ -501,11 +506,14 @@ async function writeState(patch, { explicit = [] } = {}) {
      * is left out while the trap runs and let back in at Stage 6, which is how
      * Stage 6 knows the body is theirs to arrange; a direct murder's victim is
      * left out of the opening and seated when the killer's roll succeeds (D6,
-     * E06 C2). But a stage change is a public-half patch: it touches no cast
-     * field, so no cast would be written and nobody pushed anything. The victim
-     * of a direct murder would have fought the whole incident without a cast -
-     * the opening's success moves the stage alone (read off `resolveKillerOpening`,
-     * whose patch names world fields only; 13-murder-signals' "direct" reads it).
+     * E06 C2). But a stage change is a public-half patch: a patch that touches no
+     * cast field writes no cast, and nobody would be pushed anything. The victim
+     * of a direct murder fought the whole incident without a cast while the
+     * opening's success moved the stage and world fields alone (read off
+     * `resolveKillerOpening`; 13-murder-signals' "direct" reads it). Since E32 C2
+     * that patch carries the fight, which is the cast's, and every stage write in
+     * this file names a cast field (read on 28.09) - the comparison stays, so a
+     * patch of the stage alone cannot bring that back.
      *
      * So the holders are compared across this write, and the participants
      * pushed to when they change. Cheap - a packet per participant on a few
@@ -925,7 +933,16 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
        missed the last close may, and its older copy must not reach this incident.
        The betrayal offer is the one thing an incident's close keeps (D18). The method
        (E05 C8, `INCIDENT_METHOD`) is decided here afresh the same way - a reversal and
-       an end are this incident's own, so both start null - and goes to the cast. */
+       an end are this incident's own, so both start null - and goes to the cast. The fight
+       (E32 C2, `INCIDENT_FIGHT`) is the cast's too since 1.2.66, and every field of it is
+       written and stamped here the same way. A close stamps it null, and the GM opening
+       the next incident may have missed that close: where it still holds the same value -
+       the victim's side to act, no drain stopped - a write of what changed stamps nothing,
+       and the close's null, stamped on another GM, wins at the next merge. So the patch
+       names all twelve: a field in `explicit` the patch leaves out is stamped with the value
+       this GM holds (read off `writeCast`). `spent`, `freeResolution` and `thirdActed` were
+       not written here before, and an incident a betrayal opened kept the last one's
+       `thirdActed` (S04-03; the grid's TP01 and TP07 read it as I3 until this). */
     await writeState({
         active: true,
         stage: "openingRoll",
@@ -947,10 +964,13 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
         drainStopped: false,
         advantageNext: { victim: false, killer: false },
         // Read by the cast's claim alone (gm-stores.mjs `castStore`); kept in the cast with the rest.
+        spent: [],
+        freeResolution: null,
+        thirdActed: null,
         openedAt: Date.now(),
         keyRemnantsStale: null,
         endedBy: null
-    }, { explicit: ["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "swung", ...INCIDENT_METHOD] });
+    }, { explicit: ["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "swung", ...INCIDENT_METHOD, ...INCIDENT_FIGHT] });
 
     await whisperToGms(`
         <h3>${game.i18n.localize("DRPG.Murder.openedTitle")}</h3>
@@ -3205,12 +3225,26 @@ function registerDeathCopy() {
  * third's side left open (nobody can know it any more), and sent to the
  * participants. A GM who held the real cast and comes back later brings it: a
  * field of theirs wins only where it is newer.
+ *
+ * THE FIGHT WENT WITH IT (E32 C2, 28.09.2026). Since 1.2.66 the round and whose side
+ * acts are the cast's (`INCIDENT_FIGHT`), so a lost cast loses them too; with no side
+ * to act neither side could, and a pass wrote the round as `undefined + 1`, NaN (read
+ * off `passTurn`; the tier-2 test "the cast comes back by hand ..." passes the turn
+ * after this). Where this browser reads none, the round starts
+ * again at the victim's side, as the fight does (`resolveKillerOpening`); what else the
+ * fight held - hindrances, what is spent, the Key Remnants' count - reads as each
+ * reader's default until a GM who held it comes back.
  */
 export async function enterCast({ killerId = null, victimId = null, thirdId = null } = {}) {
     if (!game.user.isGM || !game.actors.get(killerId ?? "") || !game.actors.get(victimId ?? "")) return null;
     const previous = readCast();
     const third = thirdId && game.actors.get(thirdId) ? thirdId : null;
-    await ownCastWrite(() => castStore.patch(RECORD, { killerId, victimId, killerTurnId: killerId, thirdId: third, thirdSide: null }));
+    const held = murderState() ?? {};
+    const round = {
+        ...(Number.isFinite(held.turn) ? {} : { turn: 1 }),
+        ...(held.turnSide ? {} : { turnSide: "victim" })
+    };
+    await ownCastWrite(() => castStore.patch(RECORD, { killerId, victimId, killerTurnId: killerId, thirdId: third, thirdSide: null, ...round }));
     pushCastToParticipants(readCast(), previous);
     log(`The incident's cast was entered by hand: ${game.actors.get(killerId)?.name} and ${game.actors.get(victimId)?.name}.`);
     return murderState();
@@ -3246,8 +3280,9 @@ export async function liftIncidentSecrets() {
     const report = { lifted: 0, offers: 0, flags: 0, kept: 0 };
 
     const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    // The names, as in 1.2.63: the method is `liftIncidentMethod`'s, which runs after this and tells the participants.
-    const strays = CAST_FIELDS.filter(key => !INCIDENT_METHOD.includes(key) && stored[key] != null);
+    /* The names, as in 1.2.63: the method is `liftIncidentMethod`'s, which runs after this and tells
+       the participants, and the fight (E32 C2) stays in the world half until a lift of its own takes it (E32 C3). */
+    const strays = CAST_FIELDS.filter(key => !INCIDENT_METHOD.includes(key) && !INCIDENT_FIGHT.includes(key) && stored[key] != null);
     if (strays.length) {
         await castStore.patch(RECORD, Object.fromEntries(strays.map(key => [key, stored[key]])),
             { weak: true, fillOnly: true, whole: true });
@@ -4966,11 +5001,13 @@ export async function openIncidentTracker() {
             region: ".drpg-incident-live",
             build: trackerBody,
             /* Actors for the victim's Health and Sanity, tokens for the traces the
-               clean-up table lists, and the murder state itself for the stage and the
-               turn. `incidentCast` is deliberately NOT watched: it is client-scoped, so
-               Foundry writes it straight to localStorage and `updateSetting` never fires
-               for it - and the cast does not change mid-incident anyway. */
-            watch: { actors: true, tokens: true, settings: [SETTINGS.murderState] },
+               clean-up table lists, the world half for the stage, and the cast for the
+               turn. The cast is client-scoped, so Foundry writes it straight to
+               localStorage and `updateSetting` never fires for it; until 1.2.66 it did not
+               change mid-incident, and the turn was the world half's. Since E32 C2 a pass
+               writes the cast alone, and its setting's change says so (`drpgCastChanged`,
+               settings.mjs). */
+            watch: { actors: true, tokens: true, settings: [SETTINGS.murderState], hooks: ["drpgCastChanged"] },
             after: () => {
                 if (settling) return;
                 const now = signature();

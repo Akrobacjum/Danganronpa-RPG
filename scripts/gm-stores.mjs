@@ -235,15 +235,37 @@ export const doorCopy = defineGmCopy({
 export const INCIDENT_METHOD = Object.freeze(["indirect", "selfInflicted", "keyRemnantsStale", "openedAt", "endedBy"]);
 
 /**
+ * THE FIGHT (E32 C2, 28.09.2026; E05's Q8, the owner's Q1 (a) of 28.09): the round and
+ * whose side acts, what the opening took from the victim and how many Key Remnants it
+ * left, the hindrances and blocks with their turns, what Self-defence opened, what is
+ * spent, the drain, the advantages, a critical's free resolution and the third's one
+ * action. Until 1.2.66 these twelve sat in the world half of `murderState`, on every
+ * browser, though every reader of them runs where the cast is held: the participants'
+ * panels and trackers, a witness's Event card (events.mjs), the GM's Key Remnant count
+ * (investigation.mjs `keyRemnants`) - read by grep on 28.09, each classified in C2's
+ * commit. A bystander's browser reads `active` and `stage` alone - the locks, and
+ * `incidentWitness`, which tells it the music and the red edges are not its own - and a
+ * list of which actions a victim had left, turn by turn, is
+ * the shape of a fight nobody outside it saw. They are the cast's now, sent to every
+ * holder in their copy (murder.mjs `castFor`).
+ */
+export const INCIDENT_FIGHT = Object.freeze([
+    "turn", "turnSide", "keyRemnants", "deniedToVictim", "hindered", "blocked",
+    "unlocked", "spent", "drainStopped", "advantageNext", "freeResolution", "thirdActed"
+]);
+
+/**
  * The fields of an incident's cast (murder.mjs): who is in it, whose turn it is
  * on the killers' side, the accomplice and which side they took, the Reroll
  * receipt (`lastCrisis`, which names every participant), the betrayal offer and
- * the swing memo - and since E05 C8 the method (`INCIDENT_METHOD`). The record's
- * closed set: `resetRecord` stamps each of them, `castStamps` sends a stamp for each
- * but the swing memo, and `castCombine` weighs them all.
+ * the swing memo - since E05 C8 the method (`INCIDENT_METHOD`), and since E32 C2 the
+ * fight (`INCIDENT_FIGHT`). The record's closed set: `resetRecord` stamps each of
+ * them, `castStamps` sends a stamp for each but the swing memo, and `castCombine`
+ * weighs them all.
  */
 export const CAST_FIELDS = Object.freeze([
-    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
+    ...INCIDENT_FIGHT
 ]);
 
 /**
