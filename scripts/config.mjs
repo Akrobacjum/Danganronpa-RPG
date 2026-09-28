@@ -190,7 +190,9 @@ export const FLAGS = {
      * (and `from`, who bought it, until E06 C10) - so a second Call armed on the
      * same roll stacks instead of replacing the first. A flag written before that holds one bare object, and
      * `pendingCalls` in call-effects.mjs reads both shapes. Consumed by the roll
-     * dialog.
+     * dialog. A Confusion's Call is not here since E06 fix r2-G4: it is the GMs'
+     * store and its owner's copy (gm-stores.mjs `confusionStore`), which
+     * `pendingCalls` reads beside this list.
      */
     pendingCall: "pendingCall",
     /**

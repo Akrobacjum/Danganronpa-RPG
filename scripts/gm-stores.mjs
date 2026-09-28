@@ -694,6 +694,35 @@ export const eclipseMoveCopy = defineGmCopy({
 });
 
 /**
+ * A CONFUSION'S ARMED CALLS (E06 fix r2-G4, 28.09.2026; review round 2's mn2). A row per
+ * target, `{ calls }`: each Confusion a Monocub landed that its target has not rolled yet,
+ * `{ key: "meddle", grants, amount, nonce }`. Until 1.2.65 an entry of the target's
+ * `pendingCall` flag, which every browser holds, written at the moment the room watched the
+ * Monocub roll - so every console read whom it was aimed at, and by `amount`'s sign which way,
+ * where the roll says neither. Written by the GM that resolves the Confusion
+ * (call-effects.mjs `armConfusion`), dropped by the roll that spends it (`spendConfusions`);
+ * cut by the reset's "actions" group, beside the action budgets a Confusion's critical moves.
+ * No old key: a 1.2.64 world's come off its flags by `liftArmedConfusions`.
+ */
+export const confusionStore = defineGmStore({
+    name: "confusions", key: SETTINGS.gmConfusions,
+    kind: "ledger", resetGroup: "actions", backup: true, sync: true,
+    afterRestore: () => import("./call-effects.mjs").then(m => m.retellConfusions()),
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * AN OWNER'S CONFUSIONS (E06 fix r2-G4): `{ actorId: { calls, spent } }` for the characters
+ * this user owns, as a GM sent them, a stamp per character - taken by the offers' rule
+ * (`offersCombine`). `spent` is written on the owner's browser alone: the nonces a roll there
+ * spent, until a GM's answer no longer holds them (call-effects.mjs `spendConfusions`).
+ */
+export const confusionCopy = defineGmCopy({
+    name: "confusions", key: SETTINGS.mineConfusions, from: "confusions", resetGroup: "actions", fallback: {},
+    combine: offersCombine
+});
+
+/**
  * THE KEY REMNANT PLAN (E05 C5; audit S01-01, S05-02). A row per chapter and slot,
  * `${chapter}:${slot}`: scale, name, text, analysis, note, tokenId, sceneId - the world
  * setting `keyRemnantPlan` until 1.2.64, which every browser held: one chapter's plan, the

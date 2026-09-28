@@ -97,8 +97,11 @@ export const FLOWS = Object.freeze([
         entry: { sockets: ["mastermind.mjs"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E40" },
     { id: "messenger", what: "The messenger and every private card: the words travel only to the people on the card",
         entry: { sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
+    // E06 fix r2-G4 (28.09.2026): a Confusion's armed Call is the GMs' store and its owner's copy, whose socket
+    // is call-effects.mjs's; 40-flow drives the arming on the GM, the copy and a spend on the owner's browser,
+    // not the Monocub's own ask.
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
-        entry: { bridge: ["monocub.meddle"] }, scenarios: [], status: "planned", stage: "E45" },
+        entry: { bridge: ["monocub.meddle"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow"], status: "partial", stage: "E45" },
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["murder.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "30-security", "61-gmstore-case"], status: "partial", stage: "E32" },

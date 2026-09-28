@@ -367,6 +367,87 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         p2Rail.masked === true && String(p2Rail.caption).includes(`${p2Rail.hidden}/`) && /\d+\s*\/\s*\d+/.test(gmCaption ?? ""),
         JSON.stringify({ p2: p2Rail, gm: gmCaption }));
 
+    // ---- 6b. a Confusion's armed Call: the GMs' store and the owner's copy, not the target -----
+    /*
+     * E06 fix r2-G4, 28.09.2026; review round 2's mn2. A Confusion's Call was an entry of the
+     * target's `pendingCall` flag, which every browser holds, written at the moment the room
+     * watched the Monocub roll - so every console read whom it was aimed at. It is the GMs'
+     * store now and the owner's copy (call-effects.mjs). The GM arms one on Aiko as
+     * `resolveMeddle` does (tier 2's "Confusion is seen by the room" drives that path, on the
+     * GM alone): p1, her player, is sent it and reads it for her next roll; p2 holds it
+     * nowhere - not on her flag, not in a copy; p2's ask naming it spent drops nothing, as p2
+     * does not own her, and a copy p2 hands p1 is not taken, as p2 is no GM; and a spend on
+     * p1's browser takes it out of the GMs' store and p1's copy. At adc8fb4's runtime the
+     * first, third and fourth are red (the fourth because there is no store to hold it); the
+     * fifth is green there by nature, with nothing listening.
+     */
+    phase("a Confusion's armed Call", { flow: "monocub-meddle" });
+    const confusionSeen = c => c.eval(`
+        const E = await import("${REPO}/scripts/call-effects.mjs");
+        const S = await import("${REPO}/scripts/gm-stores.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        const flag = aiko.getFlag("${MOD}", "pendingCall");
+        return {
+            armed: E.pendingCalls(aiko).filter(e => e.key === "meddle").map(e => e.nonce),
+            onFlag: (Array.isArray(flag) ? flag : flag ? [flag] : []).filter(e => e?.key === "meddle").length,
+            store: game.user.isGM ? (S.confusionStore?.get(aiko.id)?.calls ?? []).map(e => e.nonce) : null,
+            copy: game.user.isGM ? null : Object.keys(S.confusionCopy?.read() ?? {})
+        };`);
+    const armedNonce = await gm.eval(`
+        const E = await import("${REPO}/scripts/call-effects.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        const had = new Set(E.pendingCalls(aiko).map(e => e.nonce));
+        await E.armCall(aiko, { key: "meddle", grants: "bonus", amount: -1 });
+        return E.pendingCalls(aiko).find(e => e.key === "meddle" && !had.has(e.nonce))?.nonce ?? null;`, { timeout: 30000 });
+    const p1Sees = await p1.eval(`
+        const E = await import("${REPO}/scripts/call-effects.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        for (let i = 0; i < 50 && !E.pendingCalls(aiko).some(e => e.nonce === "${armedNonce}"); i++) await new Promise(r => setTimeout(r, 100));
+        return E.pendingCalls(aiko).some(e => e.nonce === "${armedNonce}");`, { timeout: 30000 });
+    await settle(300);
+    const gmConf = await confusionSeen(gm), p2Conf = await confusionSeen(p2);
+    check("gm: a Confusion is armed in the GMs' store, and Aiko's flag holds none",
+        Boolean(armedNonce) && gmConf.armed.includes(armedNonce) && (gmConf.store ?? []).includes(armedNonce) && gmConf.onFlag === 0,
+        JSON.stringify({ armedNonce, gm: gmConf }), { flow: "monocub-meddle" });
+    check("p1: Aiko's player is sent the Confusion and reads it for her next roll", p1Sees === true,
+        JSON.stringify({ armedNonce, p1: await confusionSeen(p1) }), { flow: "monocub-meddle" });
+    check("p2: holds no Confusion of Aiko's - not on her flag, not in a copy",
+        p2Conf.armed.length === 0 && p2Conf.onFlag === 0 && !(p2Conf.copy ?? []).includes(ids.aiko),
+        JSON.stringify(p2Conf), { flow: "monocub-meddle" });
+    await p2.eval(`
+        const primary = game.users.find(u => u.isGM && u.active)?.id;
+        game.socket.emit("module.${MOD}", { action: "confusion.ask", spent: { "${ids.aiko}": ["${armedNonce}"] } }, { recipients: [primary] });
+        return true;`);
+    await settle(1000);
+    const afterForged = await confusionSeen(gm);
+    check("gm: p2's ask naming Aiko's Confusion spent drops nothing - p2 does not own her",
+        (afterForged.store ?? []).includes(armedNonce), JSON.stringify(afterForged), { flow: "monocub-meddle" });
+    await p2.eval(`
+        game.socket.emit("module.${MOD}", { action: "confusion.calls", userId: "${IDS.p1}",
+            confusions: { "${ids.aiko}": { calls: [{ key: "meddle", grants: "advantage", amount: null, nonce: "p2forgedCall" }] } },
+            stamps: { "${ids.aiko}": Date.now() + 1000 } }, { recipients: ["${IDS.p1}"] });
+        return true;`);
+    await settle(1000);
+    const p1Forged = await p1.eval(`
+        const E = await import("${REPO}/scripts/call-effects.mjs");
+        return E.pendingCalls(game.actors.get("${ids.aiko}")).map(e => e.nonce);`);
+    check("p1: a copy p2 hands p1 is not taken - p2 is no GM",
+        !p1Forged.includes("p2forgedCall") && p1Forged.includes(armedNonce), JSON.stringify(p1Forged), { flow: "monocub-meddle" });
+    const p1Spent = await p1.eval(`
+        const E = await import("${REPO}/scripts/call-effects.mjs");
+        const spent = await E.consumeCalls(game.actors.get("${ids.aiko}"));
+        return spent.filter(e => e.key === "meddle").map(e => e.nonce);`, { timeout: 30000 });
+    const gmAfter = await gm.eval(`
+        const S = await import("${REPO}/scripts/gm-stores.mjs");
+        const held = () => (S.confusionStore?.get("${ids.aiko}")?.calls ?? []).some(e => e.nonce === "${armedNonce}");
+        for (let i = 0; i < 50 && held(); i++) await new Promise(r => setTimeout(r, 100));
+        return held();`, { timeout: 30000 });
+    await settle(300);
+    const p1After = await confusionSeen(p1);
+    check("p1: a roll's spend takes the Confusion out of the GMs' store and p1's copy",
+        p1Spent.includes(armedNonce) && gmAfter === false && p1After.armed.length === 0 && !(p1After.copy ?? []).includes(ids.aiko),
+        JSON.stringify({ armedNonce, p1Spent, gmStillHolds: gmAfter, p1: p1After }), { flow: "monocub-meddle" });
+
     // ---- 7. uncaught errors ------------------------------------------------------------------
     phase("errors");
     for (const c of [gm, ...players]) {

@@ -26,7 +26,9 @@
  * (`armCall` in call-effects.mjs) rather than inventing a second one. That
  * also means "help a crisis action" costs nothing extra: an incident roll
  * goes through the identical roll dialog, so an armed Meddle bonus applies to
- * it exactly as it would to an ordinary action roll.
+ * it exactly as it would to an ordinary action roll. Where it waits is not the
+ * target's flag but the GMs' store and the target's owner's copy (E06 fix r2-G4):
+ * `appendArmedCall` sends it there.
  */
 
 import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE } from "./config.mjs";

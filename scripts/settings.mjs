@@ -52,6 +52,16 @@ export const SETTINGS = {
     mineEclipseMoves: "mineEclipseMoves",
     legacyEclipseMoves: "eclipseMoves",
     /**
+     * A CONFUSION'S ARMED CALLS (E06 fix r2-G4, 1.2.65; review round 2's mn2): a GM store
+     * (gm-stores.mjs `confusionStore`), a row per target `{ calls }`, and each owner's copy
+     * of their own characters' rows (`confusionCopy`), read beside the character's armed
+     * list by `pendingCalls` (call-effects.mjs). Until 1.2.65 they were entries of the
+     * target's `pendingCall` flag, which every browser holds; the clause
+     * `liftArmedConfusions` moves the ones a 1.2.64 world still has.
+     */
+    gmConfusions: "gmConfusions",
+    mineConfusions: "mineConfusions",
+    /**
      * THE DEATHS NOBODY HAS FOUND (E05 C10, 1.2.64; audit S06-11): a GM store
      * (gm-stores.mjs `deathStore`), a row per body `{ chapter, day, timeOfDay, at,
      * keepBullets, known, loot }` (`loot` since E05 fix r2-F0b: the Truth Bullets a
@@ -1770,6 +1780,22 @@ export function registerSettings() {
         default: {},
         onChange: () => onStoreChange("visibility")
     });
+    // A Confusion's armed Calls (E06 fix r2-G4): the GMs' store and each owner's copy. The
+    // sheet's badges list what is armed, and a flag write used to redraw them by itself.
+    game.settings.register(MODULE_ID, SETTINGS.gmConfusions, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: onConfusionsChange
+    });
+    game.settings.register(MODULE_ID, SETTINGS.mineConfusions, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: onConfusionsChange
+    });
     // The deaths nobody has found (E05 C10): the GMs' store and a player's copy. A body
     // kept secret redraws what a death redraws - the sheets, the HUD, the map - and is
     // told to voice, the traps and the Players window by `drpgDeathsChanged`, which the
@@ -1900,6 +1926,11 @@ function onWorldChange(key) {
  */
 function onStoreChange(kind) {
     import("./sync.mjs").then(m => m.applyKind(m.SYNC[kind])).catch(() => {});
+}
+
+/* A Confusion armed or spent on this browser's store or copy: the sheets, whose badges list it. */
+function onConfusionsChange() {
+    import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
 }
 
 /* A death kept by the GMs changed on this browser: the sheets, the HUD and the map

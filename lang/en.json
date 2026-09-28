@@ -3389,7 +3389,8 @@
         "deferredOffers": "The Reinforced Level Ups waiting for the class",
         "overflow": "The Despair overflow's count",
         "despairOwed": "The Despair each pool owes for its conversions to Hope",
-        "lootTraces": "What has been taken off each body, and its trace"
+        "lootTraces": "What has been taken off each body, and its trace",
+        "confusions": "The Confusions armed on a character and not rolled yet"
       },
       "row": {
         "traces": {

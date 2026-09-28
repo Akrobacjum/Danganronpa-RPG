@@ -894,6 +894,22 @@ const CLAUSES = [
         }
     },
     {
+        key: "liftArmedConfusions",
+        since: "1.2.65",
+        /*
+         * A CONFUSION'S ARMED CALL, OFF ITS TARGET'S FLAG (E06 fix r2-G4, 28.09.2026; review
+         * round 2's mn2). Since 1.2.65 a Confusion's Call is a row of the GMs' store and its
+         * owner's copy, not an entry of the target's flag, which every browser holds and which
+         * named the target at the moment the room saw the Monocub roll. A Confusion 1.2.64 armed
+         * and nobody has rolled yet moves there: once, on the primary, after the store holds the
+         * other GMs' copies, with the rules written on `liftArmedConfusions` (call-effects.mjs).
+         */
+        run: async () => {
+            const { liftArmedConfusions } = await import("./call-effects.mjs");
+            return liftArmedConfusions();
+        }
+    },
+    {
         key: "sealOldRepairs",
         since: "1.2.65",
         /*

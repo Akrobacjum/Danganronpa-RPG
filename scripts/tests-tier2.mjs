@@ -7834,16 +7834,25 @@ const SCENARIOS = [
          * target holds an armed Call with no `from`, and every card whose words went to either
          * player is veiled - everybody on its list, no actor speaking - and the target's player
          * is sent nothing that names the Monocub.
+         *
+         * AND THE CALL IS NOT ON THE TARGET (E06 fix r2-G4, 28.09.2026; review round 2's mn2).
+         * C10 left the entry on the target's `pendingCall` flag, decided against D2 on the ground
+         * that the room sees the roll; the roll does not say whom it was aimed at, and the flag,
+         * which every browser holds, did - at the moment of the roll. The Call is read here from
+         * the GMs' store (gm-stores.mjs `confusionStore`), and the target's flag holds no
+         * Confusion. What the target's own player is sent of it is 40-flow's to measure.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Monocub and its target, each with a player to be sent the words");
         const { resolveMeddle } = await import("./monocub.mjs");
         const { pendingCalls } = await import("./call-effects.mjs");
         const { livingStudents } = await import("./chapter.mjs");
+        const { confusionStore } = await import("./gm-stores.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [cub, target] = livingStudents().filter(player);
         const { back } = await aloneTogether(cub, target);
         const from = game.messages.size;
-        let words = [], armed = null;
+        const rowBefore = foundry.utils.deepClone(confusionStore?.get(target.id) ?? null);
+        let words = [], armed = null, onFlag = null, inStore = null;
         try {
             await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
             await settle();
@@ -7853,7 +7862,21 @@ const SCENARIOS = [
                 await settle();
             });
             armed = pendingCalls(target).find(entry => entry.key === "meddle") ?? null;
+            const flag = target.getFlag(MODULE_ID, FLAGS.pendingCall);
+            onFlag = (Array.isArray(flag) ? flag : flag ? [flag] : []).filter(entry => entry?.key === "meddle").length;
+            inStore = Boolean(armed) && (confusionStore?.get(target.id)?.calls ?? []).some(entry => entry?.nonce === armed.nonce);
         } finally {
+            // The Confusion made here is taken back out of wherever it was armed.
+            if (confusionStore) {
+                if (rowBefore) await confusionStore.patch(target.id, { calls: rowBefore.calls ?? [] });
+                else if (confusionStore.has(target.id)) await confusionStore.drop(target.id);
+            }
+            if (onFlag) {
+                const flag = target.getFlag(MODULE_ID, FLAGS.pendingCall);
+                const rest = (Array.isArray(flag) ? flag : flag ? [flag] : []).filter(entry => entry?.key !== "meddle");
+                if (rest.length) await target.setFlag(MODULE_ID, FLAGS.pendingCall, rest);
+                else await target.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            }
             await back();
         }
         const everybody = stableJson(game.users.map(u => u.id).sort());
@@ -7862,10 +7885,47 @@ const SCENARIOS = [
         const plain = told.map(w => cards.find(m => m.id === w.id))
             .filter(m => !m?.getFlag(MODULE_ID, "veiled") || stableJson([...(m?.whisper ?? [])].sort()) !== everybody || m?.speaker?.actor);
         equal(stableJson([Boolean(armed), armed ? Object.hasOwn(armed, "from") : null, told.length >= 3, plain.length,
-            words.some(w => w.to.includes(player(target).id) && w.html.includes(cub.name))]),
-            stableJson([true, false, true, 0, false]),
-            `Confusion stored its Monocub on the target, or a card to either player named them, or named the Monocub to the target: ${
-                stableJson({ armed, told: told.map(w => ({ id: w.id, to: w.to })), plain: plain.map(m => m?.id ?? null) })}`);
+            words.some(w => w.to.includes(player(target).id) && w.html.includes(cub.name)), onFlag, inStore]),
+            stableJson([true, false, true, 0, false, 0, true]),
+            `Confusion stored its Monocub on the target, or a card to either player named them, or named the Monocub to the target, or its Call sits on the target's flag and not in the GMs' store: ${
+                stableJson({ armed, onFlag, inStore, told: told.map(w => ({ id: w.id, to: w.to })), plain: plain.map(m => m?.id ?? null) })}`);
+    }],
+
+    ["a Confusion 1.2.64 armed on its target's flag moves into the GMs' store, and the flag keeps the other Calls", async () => {
+        /*
+         * E06 fix r2-G4, 28.09.2026; review round 2's mn2: the clause `liftArmedConfusions`.
+         * A character's flag as 1.2.64 left it - a Support and a Confusion, the Confusion still
+         * naming its Monocub - is handed to the clause: the Confusion reads back from the GMs'
+         * store without `from`, the flag keeps the Support alone, `pendingCalls` still reads
+         * both, and a second run finds nothing to do. Put back whatever happens.
+         */
+        const E = await import("./call-effects.mjs");
+        const { confusionStore } = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [target] = livingStudents();
+        must(target, "no living student to hold the Confusion");
+        must(typeof E.liftArmedConfusions === "function" && confusionStore, "there is no clause that moves a Confusion off its target's flag");
+        const flagBefore = foundry.utils.deepClone(target.getFlag(MODULE_ID, FLAGS.pendingCall) ?? null);
+        const rowBefore = foundry.utils.deepClone(confusionStore.get(target.id) ?? null);
+        const ours = entry => /^SUITElift/.test(entry?.nonce ?? "");
+        try {
+            await target.setFlag(MODULE_ID, FLAGS.pendingCall, [
+                { key: "support", kind: "hope", grants: "advantage", amount: null, nonce: "SUITEliftSupport" },
+                { key: "meddle", grants: "bonus", amount: -1, from: "SUITEcub", nonce: "SUITEliftConfusion" }]);
+            const report = await E.liftArmedConfusions();
+            const flag = target.getFlag(MODULE_ID, FLAGS.pendingCall);
+            const row = (confusionStore.get(target.id)?.calls ?? []).filter(ours);
+            equal(stableJson([(report?.lifted ?? 0) >= 1, (Array.isArray(flag) ? flag : flag ? [flag] : []).map(e => e.nonce),
+                row.map(e => [e.key, e.amount, Object.hasOwn(e, "from")]), E.pendingCalls(target).filter(ours).map(e => e.nonce).sort(),
+                await E.liftArmedConfusions()]),
+                stableJson([true, ["SUITEliftSupport"], [["meddle", -1, false]], ["SUITEliftConfusion", "SUITEliftSupport"], null]),
+                "the Confusion stayed on the flag, took the Support with it, kept its Monocub, or the clause ran twice");
+        } finally {
+            if (flagBefore === null) await target.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            else await target.setFlag(MODULE_ID, FLAGS.pendingCall, flagBefore);
+            if (rowBefore) await confusionStore.patch(target.id, { calls: rowBefore.calls ?? [] });
+            else if (confusionStore.has(target.id)) await confusionStore.drop(target.id);
+        }
     }],
 
     ["a sealed project keeps its builder in and the rest of the table out", async () => {
@@ -13225,6 +13285,15 @@ const SCENARIOS = [
                 gone: (report, id) => !S.eclipseMoveStore.has(id),
                 back: id => S.eclipseMoveStore.get(id)?.used === 1 && S.eclipseMoveStore.get(id)?.eclipse === "SUITE backed-up Eclipse"
             },
+            // A Confusion armed and not rolled, through its store (E06 fix r2-G4): no player is sent it while the stores are held.
+            confusions: {
+                seed: async () => {
+                    await S.confusionStore.patch(holder.id, { calls: [{ key: "meddle", grants: "bonus", amount: -1, nonce: "SUITEbackedUpCall" }] });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.confusionStore.has(id),
+                back: id => S.confusionStore.get(id)?.calls?.[0]?.nonce === "SUITEbackedUpCall"
+            },
             // A death nobody has found, through its store (E05 C10): no player is sent it while the stores are held (R184).
             deaths: {
                 seed: async () => {
@@ -13711,12 +13780,14 @@ const SCENARIOS = [
         const src = await moduleSources();
         const actions = stripComments(src.get("action-rolls.mjs") ?? "");
         const search = fnSource(actions, "performSearch");
+        // And the GM's card for "something specific", which shows the tier beside the dice (E06 fix r2-G4; m5).
         const reports = ["searchNothing", "searchStash", "searchSpecific"].map(name =>
-            /report\(actor, def, roll, \{[^}]*\bextra\b/.test(fnSource(actions, name)));
+            /report\(actor, def, roll, \{[^}]*\bextra\b/.test(fnSource(actions, name)))
+            .concat(/gmBody: `[\s\S]*?<\/p>\$\{extra\}`/.test(fnSource(actions, "searchSpecific")));
         const reroll = fnSource(stripComments(src.get("reroll.mjs") ?? ""), "settleSearch");
         equal(stableJson([/context: \{[^}]*\bpenalty\b/.test(search), /situationLine\(penalty, score\)/.test(search),
             /\bextra,/.test(search), reports, /searchTier\(after, penalty\b/.test(reroll)]),
-            stableJson([true, true, true, [true, true, true], true]),
+            stableJson([true, true, true, [true, true, true, true], true]),
             "the bookmark, a Search card or the Reroll does not carry the -1");
     }],
 

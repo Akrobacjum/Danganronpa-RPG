@@ -25,7 +25,12 @@ import { overflowBlocksHope } from "./overflow.mjs";
 // Every use below is lazy.
 import {
     announce, whisperToOwner, dialogContent, log, warn, error, plural, cardHead, isPrimaryGm,
-    esc} from "./utils.mjs";
+    esc, primaryGmId} from "./utils.mjs";
+// A Confusion's armed Calls are the GMs' store and the owner's copy (E06 fix r2-G4), read
+// synchronously beside the flag - gm-stores.mjs reaches a domain module only by `import()`.
+import { confusionStore, confusionCopy } from "./gm-stores.mjs";
+import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
+import { senderOf, ownsActor, replyForMe } from "./bridge-guards.mjs";
 
 /** Let the victim of a Call know what has been done to them. */
 async function tell(actor, key) {
@@ -120,12 +125,18 @@ export function situationalAdvantage() {
  *
  * A world armed before this change holds one payload object rather than a list,
  * so that shape is still read.
+ *
+ * A Confusion's are not on the flag (E06 fix r2-G4): they are the GMs' store and the
+ * owner's copy, read here beside it (`armedConfusions`).
  */
 export function pendingCalls(actor) {
     if (shielded) return [];
-    const stored = actor?.getFlag?.(MODULE_ID, FLAGS.pendingCall) ?? null;
-    if (!stored) return [];
-    return (Array.isArray(stored) ? stored : [stored]).filter(entry => entry?.grants);
+    return [...pendingCallsRaw(actor), ...armedConfusions(actor)];
+}
+
+/** Every Call armed on this character as this browser holds it, the shield aside: the sheet's badges. */
+export function armedCallsShown(actor) {
+    return [...pendingCallsRaw(actor), ...armedConfusions(actor)];
 }
 
 /** The first Call armed on this character, for the readers that want just one. */
@@ -222,8 +233,8 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
 }
 
 /**
- * The armed list as stored, shield and all - the one reader that must see what is
- * really on the actor, because it is about to write the list back.
+ * The armed list as stored on the actor, shield and all - the one reader that must see
+ * what is really on the flag, because it is about to write the list back.
  */
 function pendingCallsRaw(actor) {
     const stored = actor?.getFlag?.(MODULE_ID, FLAGS.pendingCall) ?? null;
@@ -304,6 +315,7 @@ export async function unsignArmedCalls() {
  */
 export async function appendArmedCall(actor, payload) {
     if (!actor || !payload?.grants) return null;
+    if (payload.key === CONFUSION) return armConfusion(actor, payload);
     await actor.setFlag(MODULE_ID, FLAGS.pendingCall, [...pendingCallsRaw(actor), payload].map(unsigned));
     return true;
 }
@@ -317,9 +329,11 @@ export async function appendArmedCall(actor, payload) {
 export async function consumeCalls(actor) {
     if (shielded) return [];
     const pending = pendingCallsRaw(actor);
-    if (!pending.length) return [];
-    await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
-    return pending;
+    const confusions = armedConfusions(actor);
+    if (!pending.length && !confusions.length) return [];
+    if (pending.length) await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+    if (confusions.length) await spendConfusions(actor, confusions);
+    return [...pending, ...confusions];
 }
 
 /**
@@ -333,13 +347,15 @@ export async function consumeCalls(actor) {
 export async function consumeCallsExcept(actor, keep = null) {
     if (shielded) return [];
     const pending = pendingCallsRaw(actor);
-    if (!pending.length) return [];
+    const confusions = armedConfusions(actor).filter(entry => !keep || entry.grants !== keep);
+    if (!pending.length && !confusions.length) return [];
     const kept = keep ? pending.filter(entry => entry.grants === keep) : [];
     const spent = pending.filter(entry => !kept.includes(entry));
-    if (!spent.length) return [];
-    if (kept.length) await actor.setFlag(MODULE_ID, FLAGS.pendingCall, kept.map(unsigned));
-    else await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
-    return spent;
+    if (!spent.length && !confusions.length) return [];
+    if (spent.length && kept.length) await actor.setFlag(MODULE_ID, FLAGS.pendingCall, kept.map(unsigned));
+    else if (spent.length) await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+    if (confusions.length) await spendConfusions(actor, confusions);
+    return [...spent, ...confusions];
 }
 
 /**
@@ -353,6 +369,258 @@ export async function consumeCall(actor) {
 /** Does this character have permission for a given roll control right now? */
 export function grants(actor, what) {
     return pendingCalls(actor).some(entry => entry.grants === what);
+}
+
+/* ==========================================================================
+ * A CONFUSION'S ARMED CALLS, IN THE GMS' STORE (E06 fix r2-G4)
+ * --------------------------------------------------------------------------
+ * A Confusion that lands arms a Call on its target, and until 1.2.65 that was
+ * an entry of the target's `pendingCall` flag - world data, which every browser
+ * holds - written at the moment the room watched the Monocub roll. The roll
+ * says neither whom it was aimed at nor, past "Help" or "Hinder", what it did;
+ * the flag told every console both (review round 2's mn2, 28.09.2026: C10's
+ * decision that the room's view covers it did not hold, the room does not see
+ * the target). So a Confusion's Call is a row of the GMs' store
+ * (gm-stores.mjs `confusionStore`), and each owner holds a copy of their own
+ * characters' rows (`confusionCopy`), sent by a GM when one is armed or spent,
+ * and when the owner asks - at load, when a primary GM's world has loaded
+ * (`drpgPrimaryReady`), and after a roll spent one. Asking is the owner's;
+ * answering the primary's, about the asker's own characters, found from
+ * Foundry's `senderId`; the copy is taken only from a GM, and only for a
+ * character this user owns. The other Calls stay on the flag: Support and
+ * Approval are announced where they are bought, and a Monokuma's is the GM's.
+ *
+ * A roll on the owner's browser spends the Confusion there at once - off the
+ * copy, with the nonce kept as `spent` - and the ask tells the primary, which
+ * drops it from the store. With no GM connected the copy keeps it spent, and
+ * the next ask - at a GM's arrival - drops it: a spent Confusion comes back to
+ * no roll. What a real table's two GMs do with one ask each has not been
+ * measured; the ask goes to the primary alone.
+ *
+ * What the store does not hide: a Confusion's critical wastes or refunds an
+ * action on the target, and action budgets are actor data every browser holds
+ * (the GM handbook's "What every browser holds anyway").
+ * ========================================================================== */
+
+const CONFUSION = "meddle";
+const SOCKET_EVENT = `module.${MODULE_ID}`;
+const ACTION_CONFUSIONS = "confusion.calls";
+const ACTION_CONFUSIONS_ASK = "confusion.ask";
+/** Nonce -> actor id: what a roll on this browser spent, for the rest of the session. */
+const spentHere = new Map();
+
+/** The Confusions armed on this character, as this browser holds them: the GMs' store on a GM's, the owner's copy on a player's. */
+function armedConfusions(actor) {
+    if (!actor?.id) return [];
+    const row = game.user?.isGM ? confusionStore.get(actor.id) : (confusionCopy.read() ?? {})[actor.id];
+    return (Array.isArray(row?.calls) ? row.calls : []).filter(entry => entry?.grants && !spentHere.has(entry.nonce));
+}
+
+/** GM: a Confusion armed in its target's row, and the target's owners sent their copy. */
+async function armConfusion(actor, payload) {
+    if (!game.user?.isGM) return null;
+    await confusionStore.whenHydrated();
+    const held = confusionStore.get(actor.id)?.calls;
+    await confusionStore.patch(actor.id, { calls: [...(Array.isArray(held) ? held : []), unsigned(payload)] });
+    tellConfusionOwners(actor.id);
+    return true;
+}
+
+/** GM: these nonces taken out of a character's row; answers whether anything went. */
+async function dropConfusions(actorId, nonces) {
+    const calls = confusionStore.get(actorId)?.calls;
+    if (!Array.isArray(calls)) return false;
+    const left = calls.filter(entry => !nonces.includes(entry?.nonce));
+    if (left.length === calls.length) return false;
+    if (left.length) await confusionStore.patch(actorId, { calls: left });
+    else await confusionStore.drop(actorId);
+    return true;
+}
+
+/** The Confusions a roll on this browser spent: off the store on a GM's; off the copy, and told to the primary, on a player's. */
+async function spendConfusions(actor, spent) {
+    const nonces = spent.map(entry => entry?.nonce).filter(nonce => typeof nonce === "string" && nonce);
+    if (!nonces.length) return;
+    if (game.user?.isGM) {
+        if (await dropConfusions(actor.id, nonces)) tellConfusionOwners(actor.id);
+        return;
+    }
+    // Before any await: the window's close and the roll pipeline both spend one roll's Calls.
+    for (const nonce of nonces) spentHere.set(nonce, actor.id);
+    const held = confusionCopy.read() ?? {};
+    const row = held[actor.id] ?? {};
+    const stamps = confusionCopy.stamps();
+    try {
+        await confusionCopy.receive({ ...held, [actor.id]: {
+            calls: (Array.isArray(row.calls) ? row.calls : []).filter(entry => !nonces.includes(entry?.nonce)),
+            spent: [...new Set([...(Array.isArray(row.spent) ? row.spent : []), ...nonces])]
+        } }, { ...stamps, [actor.id]: (Number(stamps[actor.id]) || 0) + 1 });
+    } catch (err) {
+        error("Could not keep a spent Confusion off this browser's copy", err);
+    }
+    askForConfusions();
+}
+
+/**
+ * GM: one user's own characters' Confusions, and only those, with a stamp per character
+ * they own - the newest decision about its row, 0 for one this browser never held.
+ */
+export function confusionsFor(userId) {
+    const user = game.users.get(userId);
+    const confusions = {}, stamps = {};
+    if (!game.user?.isGM || !user || user.isGM) return { confusions, stamps };
+    for (const actor of game.actors ?? []) {
+        if (actor.type !== "character" || !actor.testUserPermission?.(user, "OWNER")) continue;
+        stamps[actor.id] = confusionStore.newest(actor.id);
+        const calls = confusionStore.get(actor.id)?.calls;
+        if (Array.isArray(calls) && calls.length) confusions[actor.id] = { calls };
+    }
+    return { confusions, stamps };
+}
+
+/** GM: send one user their Confusions. Addressed, and only while they are here; nothing while the suite holds the stores. */
+export function sendConfusionsTo(userId) {
+    const user = game.users.get(userId);
+    if (!game.user?.isGM || !user?.active || user.isGM || gmStoresQuiet()) return false;
+    const { confusions, stamps } = confusionsFor(userId);
+    game.socket.emit(SOCKET_EVENT, { action: ACTION_CONFUSIONS, userId, confusions, stamps }, { recipients: [userId] });
+    return true;
+}
+
+/** GM: every connected owner of this character sent their copy. */
+function tellConfusionOwners(actorId) {
+    const actor = game.actors.get(actorId);
+    if (!actor) return;
+    for (const user of game.users ?? []) {
+        if (user.active && !user.isGM && actor.testUserPermission?.(user, "OWNER")) sendConfusionsTo(user.id);
+    }
+}
+
+/** After a restore (gm-stores.mjs `restoreCase`): every connected player sent their Confusions again. */
+export async function retellConfusions() {
+    if (!game.user?.isGM || gmStoresQuiet()) return 0;
+    let sent = 0;
+    for (const user of game.users ?? []) {
+        if (user.active && !user.isGM && sendConfusionsTo(user.id)) sent++;
+    }
+    return sent;
+}
+
+/** Owner: take a GM's answer where it is newer (`confusionCopy`), for this user's own characters only. */
+export async function receiveConfusions(confusions, stamps) {
+    const mine = {}, own = {};
+    const shape = entry => entry && typeof entry === "object" && typeof entry.grants === "string" && typeof entry.nonce === "string"
+        ? { key: CONFUSION, kind: typeof entry.kind === "string" ? entry.kind : null, grants: entry.grants,
+            amount: Number.isFinite(Number(entry.amount)) && entry.amount !== null ? Number(entry.amount) : null, nonce: entry.nonce }
+        : null;
+    for (const [actorId, s] of Object.entries(stamps ?? {})) {
+        if (!game.actors.get(actorId)?.isOwner) continue;
+        own[actorId] = Number(s) || 0;
+        const calls = Array.isArray(confusions?.[actorId]?.calls) ? confusions[actorId].calls.map(shape).filter(Boolean) : [];
+        if (calls.length) mine[actorId] = { calls };
+    }
+    return confusionCopy.receive(mine, own);
+}
+
+/** Owner: ask the primary for this user's Confusions, telling it the ones a roll here spent. */
+function askForConfusions(primary = primaryGmId()) {
+    if (!primary || game.user.isGM) return;
+    const spent = {};
+    for (const [actorId, row] of Object.entries(confusionCopy.read() ?? {})) {
+        if (Array.isArray(row?.spent) && row.spent.length) spent[actorId] = [...row.spent];
+    }
+    for (const [nonce, actorId] of spentHere) {
+        if (!(spent[actorId] ??= []).includes(nonce)) spent[actorId].push(nonce);
+    }
+    try {
+        game.socket.emit(SOCKET_EVENT, { action: ACTION_CONFUSIONS_ASK, spent }, { recipients: [primary] });
+    } catch (err) {
+        error("Could not ask the GM for this user's Confusions", err);
+    }
+}
+
+/** Primary: drop what the asker spent on their own characters, then answer them and every other owner of what changed. */
+async function answerConfusions(sender, spent) {
+    for (const [actorId, nonces] of Object.entries(spent && typeof spent === "object" ? spent : {})) {
+        // A packet's actor ids are claims: only a character the asker owns has its Confusion spent.
+        if (!Array.isArray(nonces) || !ownsActor(sender, actorId)) continue;
+        if (await dropConfusions(actorId, nonces.filter(nonce => typeof nonce === "string"))) tellConfusionOwners(actorId);
+    }
+    sendConfusionsTo(sender.id);
+}
+
+function onConfusionsSocket(payload, senderId) {
+    if (payload?.action === ACTION_CONFUSIONS_ASK) {
+        if (!isPrimaryGm()) return;
+        const sender = senderOf(senderId);
+        if (!sender || sender.isGM) return;
+        // Asked while the suite holds the stores: answered once it lets them go, from the other GMs' rows too.
+        whenGmStoresAudible().then(() => confusionStore.whenHydrated()).then(() => answerConfusions(sender, payload.spent))
+            .catch(err => error("Could not answer a player's Confusions", err));
+        return;
+    }
+    if (payload?.action !== ACTION_CONFUSIONS || game.user.isGM) return;
+    // A GM's, and addressed to this user: a player cannot hand another a Confusion.
+    if (!replyForMe(payload, senderId)) return;
+    receiveConfusions(payload.confusions, payload.stamps).catch(err => error("Could not keep this user's Confusions", err));
+}
+
+/** At ready: the copy's listener on every client, and an owner's first ask. */
+export function registerConfusionCopy() {
+    Hooks.once("ready", () => {
+        game.socket.on(SOCKET_EVENT, onConfusionsSocket);
+        if (game.user.isGM) return;
+        askForConfusions();
+        Hooks.on("drpgPrimaryReady", primary => askForConfusions(primary));
+    });
+}
+
+/**
+ * THE CONFUSIONS 1.2.64 ARMED ON THEIR TARGET'S FLAG (E06 fix r2-G4, 28.09.2026; review round
+ * 2's mn2) - the `liftArmedConfusions` clause. Once, on the primary, after the store holds the
+ * other GMs' copies: each world actor's `meddle` entries go into its row (one a GM's browser
+ * already holds, by its nonce, is not added twice), and leave the flag - written back as a list
+ * without them, or unset - once the row reads back from storage; then its owners are sent their
+ * copy. World actors only: a Confusion is armed on `game.actors.get(targetId)`
+ * (monocub.mjs `resolveMeddle`), never on a token's own data. One still on a flag throws with
+ * the count, so the world is not stamped and the next load tries again.
+ *
+ * @returns {Promise<null|{lifted: number}>}
+ */
+export async function liftArmedConfusions() {
+    if (!isPrimaryGm()) return null;
+    if (await confusionStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the Confusions did not arrive; the next load tries again");
+    }
+    const onFlag = actor => pendingCallsRaw(actor).filter(entry => entry.key === CONFUSION);
+    const holding = () => (game.actors?.contents ?? []).filter(actor => onFlag(actor).length);
+    const found = holding();
+    if (!found.length) return null;
+    for (const actor of found) {
+        const held = confusionStore.get(actor.id)?.calls;
+        const calls = Array.isArray(held) ? [...held] : [];
+        for (const entry of onFlag(actor)) {
+            const nonce = typeof entry.nonce === "string" && entry.nonce ? entry.nonce : foundry.utils.randomID();
+            if (!calls.some(call => call?.nonce === nonce)) calls.push(unsigned({ ...entry, nonce }));
+        }
+        await confusionStore.patch(actor.id, { calls });
+    }
+    await confusionStore.idle();
+    for (const actor of found) {
+        if (!confusionStore.persisted(actor.id)) continue;
+        const rest = pendingCallsRaw(actor).filter(entry => entry.key !== CONFUSION);
+        try {
+            if (rest.length) await actor.setFlag(MODULE_ID, FLAGS.pendingCall, rest.map(unsigned));
+            else await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+        } catch (err) {
+            error(`Could not take the Confusions off ${actor.name}'s flag`, err);
+        }
+        tellConfusionOwners(actor.id);
+    }
+    const left = holding().length;
+    if (left) throw new Error(`${left} of ${found.length} character(s) still hold a Confusion in world data; the next load tries again`);
+    log(`Moved the Confusions armed on ${found.length} character(s) into the GM store.`);
+    return { lifted: found.length };
 }
 
 /* ==========================================================================

@@ -1378,10 +1378,14 @@ async function searchSpecific(actor, def, roll, { room, category, request, tier,
         // answers stay reachable if the editor is cancelled - and the card
         // says so, because a button that does not close its card looks
         // broken to anyone who does not know that (audit E11).
+        //
+        // The tier is read off the total less a hidden stash's -1 (`searchTier`), and the dice
+        // beside it show their own total, so the GM's card carries the player's line saying so
+        // (E06 fix r2-G4, 28.09.2026; review round 2's m5): without it the two disagreed.
         gmBody: `<p>${hit || roll.isCritical
             ? game.i18n.format("DRPG.Action.specificFound", { tier })
             : game.i18n.localize("DRPG.Action.specificNothing")} <em>${
-            game.i18n.localize("DRPG.Bridge.createItemStays")}</em></p>`,
+            game.i18n.localize("DRPG.Bridge.createItemStays")}</em></p>${extra}`,
         // Three answers, because those are the three a GM actually gives to
         // "I am looking for X": it exists and I will make it, it exists
         // already and here it is, or there is none. Each opens the window

@@ -4622,7 +4622,8 @@
         "deferredOffers": "Reinforced Level Upy czekające na klasę",
         "overflow": "Licznik Despair overflow",
         "despairOwed": "Despair, który każda pula jest winna za zamiany na Hope",
-        "lootTraces": "Co zabrano z każdego ciała, i jego ślad"
+        "lootTraces": "Co zabrano z każdego ciała, i jego ślad",
+        "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone"
       },
       "row": {
         "traces": {

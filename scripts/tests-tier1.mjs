@@ -4515,7 +4515,9 @@ const INVARIANTS = [
         const RETELLS = [["mastermind.mjs", "retellDoor"], ["murder.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"],
             ["eclipse.mjs", "retellMoves"], ["pre-session-note.mjs", "retellNotes"], ["murder.mjs", "retellDeaths"],
             // E05 C13: the bullets' store, which each player's copy of their bullets' traces is made of.
-            ["truth-bullets.mjs", "retellBulletRefs"]];
+            ["truth-bullets.mjs", "retellBulletRefs"],
+            // E06 fix r2-G4: the Confusions' store, which each owner's copy of their characters' armed Confusions is made of.
+            ["call-effects.mjs", "retellConfusions"]];
         const hooks = E.gmStoreHandles().map(h => String(h.spec.afterRestore ?? ""));
         const uncalled = RETELLS.filter(([, fn]) => !hooks.some(src => src.includes(`.${fn}(`))).map(([, fn]) => fn);
         ok(!uncalled.length, `no store's afterRestore calls ${uncalled.join(", ")}`);
