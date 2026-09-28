@@ -358,6 +358,30 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: a player's card cannot ask the GMs for a notice or carry a ruling's buttons, and keeps its own title",
         metaKept.words && JSON.stringify(metaKept.meta) === JSON.stringify({ popupTitle: "SEC meta title" }), JSON.stringify(metaKept));
 
+    /* THE SAFEWORD'S SIREN FROM A PLAYER'S PRIVATE CARD (E06 fix r1-G5, 28.09.2026; the
+       round-1 review's m3). The siren ignores the volume slider, and a player rings it only
+       with the real safeword card, whose marker on the document pauses the game. p1's
+       private card to the GM carries the siren and the marker in its meta, as `postSecret`
+       sends them: on the GM the marker is not kept, the card asks for no sound, and the
+       game is not paused. */
+    const siren = await p1.eval(`
+        const { postSecret } = await import("${repoUrl}/scripts/secret.mjs");
+        const msg = await postSecret({ content: "<p>SEC siren</p>", whisper: ["${gm.userId}"],
+            flags: { "${MOD}": { sfx: { key: "safeword", gm: true }, safeword: true } } });
+        return msg?.id ?? null;
+    `, { timeout: 30000 });
+    await settle(1200);
+    const sirenOnGm = await gm.eval(`
+        const { soundFromMessage } = await import("${repoUrl}/scripts/sfx.mjs");
+        const m = game.messages.get(${JSON.stringify(siren)});
+        const kept = (game.settings.get("${MOD}", "secretCards") ?? {})[${JSON.stringify(siren)}];
+        return m ? { words: Boolean(kept?.html), marker: kept?.meta?.safeword ?? null,
+            sound: soundFromMessage(m), paused: game.paused } : null;
+    `);
+    check("SECURITY: a player's private card cannot ring the safeword's siren at the GMs without calling the safeword",
+        Boolean(sirenOnGm?.words) && sirenOnGm.marker === null && sirenOnGm.sound === null && !sirenOnGm.paused,
+        JSON.stringify(sirenOnGm));
+
     /* A RULING CARD SETTLED (E06 C7a). `settleCall` wrote `settled` on the card's document,
        which told every browser a ruling was made; it goes with the receipt's words now, and
        the thread's player - one of the card's readers - reads it there. */

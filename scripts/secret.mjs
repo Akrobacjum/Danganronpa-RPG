@@ -194,9 +194,13 @@ const PLACEMENT_FLAGS = Object.freeze(["thread", "kind", "gmAsk"]);
 /**
  * What a player's meta may not say, judged where it arrives as a player's summary is: a
  * card that interrupts the GMs (`gmPopup`, `popupForce`) or carries a ruling's buttons
- * (`callCard`) is the module's to post, not a console's.
+ * (`callCard`) is the module's to post, not a console's. Nor is the safeword's marker
+ * (`safeword`): the real card is public and carries it on its document, and in a
+ * private card's meta it rang the siren on the GMs' screens without pausing anything
+ * (E06 fix r1-G5, 28.09.2026; the round-1 review's m3 - sfx.mjs reads it off the
+ * document now as well).
  */
-const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard"]);
+const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword"]);
 
 /** A card's meta as a plain object without the document's own flags, or null. Pure. */
 function plainMeta(raw) {

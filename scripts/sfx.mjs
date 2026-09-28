@@ -716,6 +716,17 @@ function reportUnplayable(key, src, err) {
  * one's imports). A spoof that sets the marker too has called the safeword:
  * the game pauses and the GMs are told, which is no longer a prank.
  *
+ * THE MARKER IS READ OFF THE DOCUMENT (E06 fix r1-G5, 28.09.2026; the round-1
+ * review's m3). Since E06 C7a a private card's module flags go with its words
+ * as meta, and the sound is read through `cardFlag`, which looks there. The
+ * marker was read the same way, so a player's private card to the GMs with the
+ * siren and the marker in its meta played the siren on the GMs' screens while
+ * nothing paused - safeword.mjs pauses on the document's flag. The real card
+ * is public and carries both on its document, so the marker is read there and
+ * nowhere else; secret.mjs also drops it from a player's meta (`GM_META`). Red
+ * at f9aca34: tier 2 "a player's card rings the safeword's siren only with the
+ * marker on its document" and 30-security's check of a player's private card.
+ *
  * Exported for the suite (R128), which asks it about messages it builds.
  */
 export function soundFromMessage(message) {
@@ -728,7 +739,7 @@ export function soundFromMessage(message) {
     if (!key) return null;
 
     const byPlayer = !message.author?.isGM;
-    if (byPlayer && !cardFlag(message, "safeword")) {
+    if (byPlayer && !message.getFlag?.(MODULE_ID, "safeword")) {
         if (SFX_EVENTS[key]?.ignoresVolume) return null;
         forGm = false;
     }

@@ -482,11 +482,17 @@ export const SETTINGS = {
      * copy over a recipient-addressed socket. A student who is not in the
      * incident receives nothing at all, not an empty envelope.
      *
-     * Participants get the WHOLE cast rather than only their own role, which is
-     * exactly what they could see before this change - they read each other's
-     * rolls then, through a whisper list that named them all (private-rolls.mjs
-     * dropped it in E06 C5b: every console read the list). Narrowing it further
-     * is a rules question about what the victim may know and when, not a leak.
+     * Each participant is sent `castFor`'s copy (murder.mjs; E06 C3, and its fix
+     * r1-G4): nothing for a holder not yet in the incident's audience at its stage
+     * (`incidentAudienceIds` - a direct murder's victim before the opening roll
+     * succeeds), no Reroll receipt (`lastCrisis`, a GM's to judge), no builder's name
+     * in a trap for a holder not on the killers' side, and the betrayal offer only
+     * in the copy of the third it is offered to - who, seated for the offer alone,
+     * is sent that and nothing else. The rest is the cast whole: a direct murder is
+     * fought face to face (D6). Until E06 C3 every participant was sent it all, and
+     * what they read then of each other's rolls came through a whisper list that
+     * named them all (private-rolls.mjs dropped it in E06 C5b: every console read
+     * the list).
      *
      * A GM STORE AND A PLAYER COPY SINCE E04 (1.2.63; audit S04-24, S06-19). The
      * GMs hold `gmCast` (gm-stores.mjs, `castStore`): one record of this world,

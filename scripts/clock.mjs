@@ -416,8 +416,9 @@ async function announceTimeOfDay(clock, summary, { sfx = null } = {}) {
      * anybody who looks, a trap's builder among them. It is posted veiled now - the
      * document names everybody - and its words go to the GMs and the incident's
      * audience (`incidentAudienceIds`, murder.mjs), the same people every card of
-     * the incident reaches. The sound stays on the card: sfx.mjs plays a veiled
-     * card's sound only where its words arrived.
+     * the incident reaches. The sound goes with the words: since E06 C7a a private
+     * card's module flags but its own are meta, sent with its words (secret.mjs
+     * `splitFlags`), and sfx.mjs plays a veiled card's sound only where they arrived.
      */
     // Whatever the caller hung on this change - today only the Eclipse's
     // ending. Built once so both branches below carry it, because the sound

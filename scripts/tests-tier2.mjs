@@ -6319,6 +6319,35 @@ const SCENARIOS = [
         }
     }],
 
+    ["a player's card rings the safeword's siren only with the marker on its document", async () => {
+        /*
+         * E06 fix r1-G5, 28.09.2026; the round-1 review's m3. The safeword's siren is the
+         * one sound above the volume slider, and a player's card may ring it only as the
+         * real safeword card, which carries the marker on its document - the flag the
+         * pause reads. Since C7a a private card's flags go with its words, and
+         * `soundFromMessage` read the marker there too. A player's meta no longer carries
+         * it (secret.mjs `GM_META`; 30-security drives a player's own packet), so a GM's
+         * card puts it there, and `soundFromMessage` is asked about that card as a
+         * player's: the same document and words, an author who is not a GM.
+         */
+        const { postSecret } = await import("./secret.mjs");
+        const { soundFromMessage } = await import("./sfx.mjs");
+        let message = null;
+        try {
+            message = await postSecret({ content: "<p>Suite: a siren in the words</p>", whisper: [game.user.id],
+                flags: { [MODULE_ID]: { sfx: { key: "safeword", gm: true }, safeword: true } } });
+            must(message, "the card was not posted - this would measure nothing");
+            const asPlayer = { id: message.id, flags: message.flags, author: { isGM: false },
+                getFlag: (scope, key) => message.getFlag(scope, key) };
+            equal(stableJson([soundFromMessage(message)?.key ?? null, soundFromMessage(asPlayer),
+                message.getFlag(MODULE_ID, "safeword") ?? null]),
+            stableJson(["safeword", null, null]),
+                "the GM's card lost its siren, a player's card rings it from its words, or the marker is on the document");
+        } finally {
+            if (message) await message.delete();
+        }
+    }],
+
     ["a thread card still lists in its thread", async () => {
         /*
          * E06 C7a, 27.09.2026. A thread card's placement - its thread, kind and whether it
