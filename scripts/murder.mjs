@@ -336,8 +336,9 @@ export function incidentAudienceIds(state = murderState(), { stage = state?.stag
  * cast in hand. Whether it is a trap is the cast's (E05 C8) - or a world half's
  * the lift has not reached yet: `incidentIndirect`'s rule (settings.mjs), passed
  * in so a cast that holds nothing there does not hide it. The accomplice keeps
- * their copy for as long as the betrayal is on offer, which is longer than the
- * incident (D18).
+ * a copy for as long as the betrayal is on offer, which is longer than the
+ * incident (D18) - the offer alone, once the incident running is not theirs
+ * (`castFor`).
  */
 function castOwners(cast, state = null) {
     const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
@@ -383,8 +384,18 @@ function castStamps() {
  *     `killerTurnId` null: the trap's victim reads their incident from their copy
  *     (`incidentSeats`, the Event card), and with the builder in it their Event card
  *     read "builder against victim".
- *   - In a trap, the betrayal offer, which names the builder too: null but in the copy
- *     of the third it is offered to, who needs it to turn on them (`betrayalTarget`).
+ *   - The betrayal offer: null but in the copy of the third it is offered to, who needs
+ *     it to turn on them (`betrayalTarget`). Until E06's fix r1-G4 (28.09.2026) that
+ *     was a trap's rule only, and the offer outlives its incident (D18): a direct
+ *     murder opened the same day sent every one of its seats the earlier offer - who
+ *     may turn on whom, the earlier killer named (the other half of the review's m4).
+ *   - A holder who is in the cast for the offer alone - its third, when the incident
+ *     running now is not theirs - is sent the offer and nothing else (the round-1
+ *     review's m4). `castOwners` seats
+ *     the offer's third so the offer reaches their browser, and until the same fix they
+ *     were sent the next incident whole: for a direct one, its killer and its victim,
+ *     from its opening roll on. Read off `castFor` in the suite, red at d9d6ee2 ("a
+ *     standing betrayal offer ..."); the packet is `sendCast`'s, which sends this.
  * A direct murder keeps the killer's name in every copy: it is fought face to face (D6).
  * The builder's own copy, from Stage 6 on (`castOwners`), keeps every name.
  *
@@ -398,13 +409,14 @@ function castStamps() {
 export function castFor(userId, cast, state = null) {
     const { swung, ...theirs } = cast ?? {};
     if (!Object.keys(theirs).length) return theirs;
-    const copy = { ...theirs, lastCrisis: null };
     const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    if (!incidentIndirect(theirs, live)) return copy;
+    const indirect = incidentIndirect(theirs, live);
     const owns = id => Boolean(id) && ownerOf(game.actors.get(id))?.id === userId;
-    if (killerIds(theirs).some(owns)) return copy;
-    const offer = copy.betrayal && owns(copy.betrayal.thirdId) ? copy.betrayal : null;
-    return { ...copy, killerId: null, killerTurnId: null, ...("betrayal" in copy ? { betrayal: offer } : {}) };
+    const offer = theirs.betrayal && owns(theirs.betrayal.thirdId) ? theirs.betrayal : null;
+    if (!incidentAudienceIds({ ...live, ...theirs, indirect }).includes(userId)) return offer ? { betrayal: offer } : {};
+    const copy = { ...theirs, lastCrisis: null, ...("betrayal" in theirs ? { betrayal: offer } : {}) };
+    if (!indirect || killerIds(theirs).some(owns)) return copy;
+    return { ...copy, killerId: null, killerTurnId: null };
 }
 
 function sendCast(userId, cast, stamps, state = null) {
@@ -4029,9 +4041,22 @@ export async function betrayAsPlayer(actorId) {
  * out is not standing there with an opportunity. Partners in crime and Double
  * role reversal both leave `thirdSide: "killer"`, and a partner turning on
  * their partner is exactly the betrayal the guide names.
+ *
+ * IN A TRAP, THE ACCOMPLICE ONLY (E06 fix r1-G4, 28.09.2026; the round-1 review's M3).
+ * The guide's betrayal is the newcomer turning on "the person beside them", and a
+ * trap's builder is beside nobody: a third who walked in on the victim's side never
+ * met them. Until this fix they were offered it all the same, and the offer is the
+ * one part of their copy of the cast that names the builder (`castFor`) - their
+ * Direct murder tile lit and its dialog named the person who set the trap (read
+ * off the code, not run), to a player who then sits in the trial. An accomplice holds the builder's name in the
+ * whole of their copy anyway. The suite's C3 test asserted the offer; expecting none,
+ * it is red at d9d6ee2. A direct murder's third on the victim's side is
+ * still offered it - they met the killer - and whether they should be is a rules
+ * question put to the owner (the fix list of 28.09), not decided here.
  */
 function betrayalCandidate(state, killer) {
     if (!state?.thirdId || !killer) return null;
+    if (incidentIndirect(state) && state.thirdSide !== "killer") return null;
     const third = game.actors.get(state.thirdId);
     if (!third || third.id === killer.id) return null;
     if (isMonokuma(third)) return null;

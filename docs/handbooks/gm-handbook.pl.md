@@ -642,7 +642,7 @@ Gdy w pokoju jest ktokolwiek poza współzabójcą, usuwanie, przerabianie i pod
 
 Porażka pozwala innym zobaczyć mniej więcej, co się dzieje. Użyte Murder Weapon zostaje oznaczone jako zepsute przy zamknięciu incydentu, a Cleaning Tools, które zabójcy trzymali w ręku - gdy ciało zostanie znalezione; jedno i drugie zostaje w torbie jako dowód, który zabójca musi wyrzucić albo schować do skrytki.
 
-**Okno zdrady.** Wspólnik - trzecia osoba, która stanęła po stronie zabójcy - może się na niego obrócić: oferta trwa do końca tego dnia, przeżywa zamknięcie incydentu, jest jednorazowa i nie można z niej skorzystać, gdy trwa inna walka. Otwiera drugi incydent z ciałem wciąż na podłodze. Ekran po incydencie u zabójcy też ma ten przycisk.
+**Okno zdrady.** Wspólnik - trzecia osoba, która stanęła po stronie zabójcy - może się na niego obrócić: oferta trwa do końca tego dnia, przeżywa zamknięcie incydentu, jest jednorazowa i nie można z niej skorzystać, gdy trwa inna walka. Otwiera drugi incydent z ciałem wciąż na podłodze. Ekran po incydencie u zabójcy też ma ten przycisk. W morderstwie bezpośrednim dostaje ją też trzecia osoba, która została po stronie ofiary; w pułapce tylko wspólnik (1.2.65). Spośród graczy ofertę trzyma w przeglądarce tylko ten, komu ją złożono.
 
 ### 13.4 Po incydencie i odkrycie ciała
 

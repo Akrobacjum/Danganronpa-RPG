@@ -642,7 +642,7 @@ With anybody but a fellow killer in the room, erasing, reshaping and planting a 
 
 A failure lets the others see roughly what they are up to. The Murder Weapon that was swung is marked Broken when the incident closes, and the killers' readied Cleaning Tools when the body is found; both stay in the bag as evidence the killer has to throw away or stash.
 
-**The betrayal window.** An accomplice - a third party who sided with the killer - may turn on them: the offer lasts until the end of that day, survives the incident closing, is single-use, and cannot be taken while another fight is running. It opens a second incident with the body still on the floor. The killer's post-incident screen carries the button too.
+**The betrayal window.** An accomplice - a third party who sided with the killer - may turn on them: the offer lasts until the end of that day, survives the incident closing, is single-use, and cannot be taken while another fight is running. It opens a second incident with the body still on the floor. The killer's post-incident screen carries the button too. In a direct murder a third party who stayed on the victim's side is offered it as well; in a trap only an accomplice is (1.2.65). Of the players, only the one it is offered to holds the offer in their browser.
 
 ### 13.4 After the incident, and body discovery
 

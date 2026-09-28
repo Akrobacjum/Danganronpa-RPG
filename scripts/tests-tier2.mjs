@@ -605,8 +605,10 @@ const SCENARIOS = [
          * holder is sent is `castFor` in murder.mjs, read here for three students with players:
          * a trap is opened, its victim's roll misses (the incident starts), a third walks in on
          * the victim's side and the victim takes a crisis action, which writes the receipt;
-         * then Stage 6, where the builder is let back in and the third is offered the betrayal.
-         * Read, not sent: tier 2 holds the stores and `sendCast` sends nothing while it does
+         * then Stage 6, where the builder is let back in and the third - on the victim's side,
+         * who never met the builder - is offered no betrayal (fix r1-G4, 28.09.2026; the round-1
+         * review's M3: until then this test asserted the offer, and the builder's name with it,
+         * in the third's copy - red at d9d6ee2 once it expects none). Read, not sent: tier 2 holds the stores and `sendCast` sends nothing while it does
          * (the packet a browser receives is 13-murder-signals' "trap" phase). Red on 699b29d:
          * `castFor` did not exist.
          */
@@ -638,8 +640,94 @@ const SCENARIOS = [
             `the fixture is not a trap with a third and a receipt, its killers' turn is not the builder's: ${stableJson(record)}`);
         equal(stableJson(atIncident), stableJson([none, none]),
             "during the trap the victim's or the third's copy names the builder, or a copy holds the Reroll receipt");
-        equal(stableJson(atStage6), stableJson([none, { ...none, offer: builder.id }, { killer: builder.id, turn: builder.id, receipt: null, offer: builder.id }]),
-            "at Stage 6 the victim's copy names the builder, the third's lost the betrayal offered to them, the builder's own copy lost its name, or a copy holds the receipt");
+        equal(stableJson([atStage6, M.betrayalTarget(third)?.id ?? null]), stableJson([[none, none, { ...none, killer: builder.id, turn: builder.id }], null]),
+            "at Stage 6 the victim's or the third's copy names the builder, the third on the victim's side is offered the betrayal, the builder's own copy lost its name, or a copy holds the receipt");
+    }],
+
+    ["in a trap only an accomplice is offered the betrayal, and only their copy holds it", async () => {
+        /*
+         * E06 fix r1-G4, 28.09.2026; the round-1 review's M3. `betrayalCandidate` offers a trap's
+         * betrayal only to a third on the killer's side (the test above: a third on the victim's
+         * side is offered none), and `castFor` keeps the offer out of every copy but its third's.
+         * The same fixture as above, but the third throws in with the builder (Partners in crime).
+         * Green at d9d6ee2 but for the builder's copy, which held the offer too.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a builder, a victim and a third, each with a player to be sent a copy");
+        const M = await import("./murder.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim, third] = livingStudents().filter(player);
+        const copies = (...whom) => whom.map(a => {
+            const c = M.castFor(player(a).id, incidentCast());
+            return { killer: c.killerId ?? null, offer: c.betrayal?.killerId ?? null };
+        });
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await settle();
+        await M.thirdPartyEnters(third);
+        await game.drpg.resolveCrisisAction({ actorId: third.id, key: "crimePartners", total: 20, isCritical: false, withHope: true });
+        await settle();
+        await M.beginResolution("test");
+        await settle();
+        equal(stableJson([M.murderState()?.thirdSide ?? null, M.betrayalTarget(third)?.id ?? null, copies(third, builder, victim)]),
+            stableJson(["killer", builder.id, [{ killer: builder.id, offer: builder.id }, { killer: builder.id, offer: null }, { killer: null, offer: null }]]),
+            "the accomplice of a trap is not offered the betrayal, their copy does not hold it, or another copy holds it");
+    }],
+
+    ["a direct murder's third on the victim's side is still offered the betrayal", async () => {
+        /*
+         * E06 fix r1-G4, 28.09.2026. The trap's rule (the tests above) is not a direct murder's:
+         * a third who walked in on its victim's side met the killer, and is still offered the
+         * betrayal - whether they should be is a question put to the owner (the fix list of
+         * 28.09), and this pins today's answer so a change to it is a decision, not a side effect.
+         */
+        const [killer, victim, third] = cast();
+        const M = await import("./murder.mjs");
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        await M.thirdPartyEnters(third);
+        await settle();
+        await M.beginResolution("test");
+        await settle();
+        equal(stableJson([M.murderState()?.thirdSide ?? null, M.betrayalTarget(third)?.id ?? null]), stableJson([null, killer.id]),
+            "a direct murder's third on the victim's side is not offered the betrayal");
+    }],
+
+    ["a standing betrayal offer sends its third nothing of the next incident, and the next incident nothing of it", async () => {
+        /*
+         * E06 fix r1-G4, 28.09.2026; the round-1 review's m4. The offer outlives its incident
+         * until the day turns (D18), and `castOwners` seats its third so it reaches their
+         * browser. An incident opened the same day then sent them its cast whole - a direct
+         * one's killer and victim from its opening roll on - and sent each of its own seats the
+         * offer, the earlier killer named. What each is sent is `castFor`, read here for a cast
+         * written as `openMurder` and `endMurder` leave it (the offer kept across the close):
+         * the new incident's killer and victim, and the earlier offer's third, who is neither.
+         * Red at d9d6ee2.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an earlier offer's third, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const clock = getClock() ?? {};
+        const offer = { thirdId: third.id, killerId: victim.id, chapter: clock.chapter, day: clock.day };
+        const next = { killerId: killer.id, victimId: victim.id, killerTurnId: killer.id, thirdId: null, thirdSide: null, lastCrisis: null, betrayal: offer };
+        const read = (a, cast, state) => {
+            const c = M.castFor(player(a).id, cast, state);
+            return { keys: Object.keys(c).sort().join(","), offer: c.betrayal?.killerId ?? null };
+        };
+        const at = state => [killer, victim, third].map(a => read(a, next, state));
+        const seat = { keys: "betrayal,killerId,killerTurnId,lastCrisis,thirdId,thirdSide,victimId", offer: null };
+        const theirs = { keys: "betrayal", offer: victim.id };
+        equal(stableJson(at({ active: true, stage: "openingRoll" })), stableJson([seat, { keys: "", offer: null }, theirs]),
+            "at the next incident's opening the offer's third is sent more than the offer, or a seat of it is sent the offer");
+        equal(stableJson(at({ active: true, stage: "incident" })), stableJson([seat, seat, theirs]),
+            "during the next incident the offer's third is sent more than the offer, or a seat of it is sent the offer");
+        equal(stableJson([killer, third].map(a => read(a, { betrayal: offer }, {}))), stableJson([{ keys: "", offer: null }, theirs]),
+            "after the close the offer's third is not sent it, or somebody else is");
     }],
 
     ["the incident's cards reach its audience and no one else", async () => {
