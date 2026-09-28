@@ -159,13 +159,16 @@ const CASES = {
         steps: [["open"], ["opening", "hope"], ["act", "V", "selfDefence"], ["act", "V", "roleReversal"], ["act", "V", "finishingBlow"], ["close"]] },
     DM09: { title: "a critical Self-defence, then the free Survive",
         steps: [["open"], ["opening", "hope"], ["act", "V", "selfDefence", "crit"], ["act", "V", "survive", "hit", { free: true }], ["close"]] },
-    DM10: { title: "a blow undone by a Reroll and struck again",
+    DM10: { title: "a blow that killed: its Reroll refused, the death stands",
         steps: [["open"], ["opening", "hope"], ["act", "K", "finishingBlow"], ["reroll", "K", "finishingBlow", "hit"], ["close"]] },
     DM11: { title: "the killer dies in the fight", steps: [["open"], ["opening", "hope"], ["act", "V", "leaveClue"], ["listDeath", "K"], ["close"]] },
     DM12: { title: "the victim dies from the Students list in the fight", steps: [["open"], ["opening", "hope"], ["listDeath", "V"], ["close"]] },
     DM13: { title: "a Tier 1 knife in hand and a failed opening", steps: [["gear", "K", "knife"], ["open"], ["opening", "fail"]] },
     DM14: { title: "the victim runs out while the hook's check races the action's",
         steps: [["open"], ["opening", "hope"], ["brink"], ["act", "K", "strike"], ["close"]] },
+    // E32+E07 C8b: the undo path of an action that killed nobody stays open.
+    DM15: { title: "a strike that leaves the victim standing, undone by a Reroll and taken again",
+        steps: [["open"], ["opening", "hope"], ["act", "K", "strike"], ["reroll", "K", "strike", "hit"], ["close"]] },
 
     // Direct, with a third.
     TP01: { title: "Partners, the blow, a betrayal from the tile in Stage 6, and the second incident's blow", third: true,
@@ -238,7 +241,7 @@ const CASES = {
             ["phase", "investigation"]] },
     XI04: { title: "the day ends on a standing offer", third: true,
         steps: [["open"], ["opening", "hope"], ["enter", "T"], ["act", "K", "finishingBlow"], ["close"], ["dayEnds"]] },
-    XI05: { title: "a blow undone by a Reroll takes the armed offer back", third: true,
+    XI05: { title: "the blow that killed cannot be rerolled; the armed offer stands", third: true,
         steps: [["open"], ["opening", "hope"], ["enter", "T"], ["act", "K", "finishingBlow"], ["reroll", "K", "finishingBlow", "miss"], ["close"]] },
     XI06: { title: "the season reset's close in the fight",
         steps: [["open"], ["opening", "hope"], ["act", "V", "leaveClue"], ["seasonReset"]] }
@@ -269,7 +272,6 @@ const GRID_RED = {
     TR07: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "I11" }),
     TR08: expectedRed("E07", "S04-14: after the victim's action a trap's builder holds the turn (C9)", { failing: "I9" }),
     TR09: expectedRed("E07", "S10-77: a trap's victim's death from the Students list offers no Stage 6 (C13)", { failing: "I10" }),
-    XI05: expectedRed("E07", "AUDIT-1.2.42 section 9: a Reroll that takes back a Finishing blow leaves the victim dead, a body whose killer the close records Blackened since C6 (I5) (C8b)", { failing: "I8" })
 };
 
 /* ==========================================================================
@@ -404,19 +406,34 @@ const STEPS = {
         applyAct(run, actor, key, roll.total > 0 || roll.isCritical || free);
     },
 
-    /* A Reroll of the last crisis action: the receipt's undo and the new result, one call as the bridge makes it. */
+    /*
+     * A REROLL OF THE LAST CRISIS ACTION: the receipt's undo and the new result, one call as
+     * the bridge makes it. An action that left a body the model did not hold before it is
+     * not taken back (E32+E07 C8b, the owner's answer (A) of 28.09): the death stands, the
+     * call is refused and the model does not move - a Reroll let through is I8's, the death
+     * of a blow that no longer landed. Any other is taken back; refused, the case stops (I10).
+     */
     async reroll(run, who, key, result) {
         const actor = run.who[who];
         const roll = RESULTS[result];
         const back = run.beforeAct;
         must(back, "there is no crisis action to take back");
+        const killed = [...run.bodies.keys()].some(id => !back.bodies.some(([was]) => was === id));
+        const out = await run.M.resolveCrisisAction({ actorId: actor.id, key, ...roll, undo: true });
+        if (killed) {
+            if (out) run.violate("I8", `the Reroll of ${actor.name}'s ${key}, which killed, was let through`);
+            return;
+        }
+        if (!out) {
+            run.stop("I10", `the Reroll of ${actor.name}'s ${key}, which killed nobody, was refused`);
+            return;
+        }
         run.model = back.model;
         run.offer = back.offer;
         run.bodies = new Map(back.bodies);
         run.blackened = new Set(back.blackened);
         run.swung = new Map(back.swung);
         run.undone = true;
-        await run.M.resolveCrisisAction({ actorId: actor.id, key, ...roll, undo: true });
         applyAct(run, actor, key, roll.total > 0 || roll.isCritical);
     },
 
@@ -551,11 +568,18 @@ const STEPS = {
         }
     },
 
-    /* The victim's Health and Sanity both full: the primary GM's `updateActor` hook runs them out. */
+    /*
+     * The victim's Health and Sanity both full: the primary GM's `updateActor` hook runs them out.
+     * Waited out to the death, not only the stage: `checkVictimSpent` writes the stage first and
+     * calls `killCharacter` after it, so a step that returned at the stage raced the death - TR05
+     * read I8 "dead false" at this step in 2 of 4 runs of C8's tree and 2 of 3 of C8b's (C8b's A2,
+     * 28.09.2026). A death that never comes still reads I8, 3 s later.
+     */
     async runOut(run) {
         const victim = game.actors.get(run.model.victimId);
+        const { isDeadForGm } = await import("./chapter.mjs");
         await victim.update(brimming(victim, 0));
-        await until(() => run.M.murderState()?.stage === "resolution", 3000);
+        await until(() => run.M.murderState()?.stage === "resolution" && isDeadForGm(victim), 3000);
         run.ranOuts++;
         stageSix(run, { body: true });
     },
@@ -968,11 +992,12 @@ const GRID = [
     ["grid DM07 - the GM closes it in the fight", () => runCase("DM07"), GRID_RED.DM07],
     ["grid DM08 - Role reversal with Hope, then the former victim's blow", () => runCase("DM08"), GRID_RED.DM08],
     ["grid DM09 - a critical Self-defence, then the free Survive", () => runCase("DM09"), GRID_RED.DM09],
-    ["grid DM10 - a blow undone by a Reroll and struck again", () => runCase("DM10"), GRID_RED.DM10],
+    ["grid DM10 - a blow that killed: its Reroll refused, the death stands", () => runCase("DM10"), GRID_RED.DM10],
     ["grid DM11 - the killer dies in the fight", () => runCase("DM11"), GRID_RED.DM11],
     ["grid DM12 - the victim dies from the Students list in the fight", () => runCase("DM12"), GRID_RED.DM12],
     ["grid DM13 - a Tier 1 knife in hand and a failed opening", () => runCase("DM13"), GRID_RED.DM13],
     ["grid DM14 - the victim runs out while the hook's check races the action's", () => runCase("DM14"), GRID_RED.DM14],
+    ["grid DM15 - a strike that leaves the victim standing, undone by a Reroll and taken again", () => runCase("DM15"), GRID_RED.DM15],
     ["grid TP01 - Partners, the blow, a betrayal from the tile in Stage 6, and the second incident's blow", () => runCase("TP01"), GRID_RED.TP01],
     ["grid TP02 - Partners, the blow, the close, and a betrayal from the checklist whose opening fails", () => runCase("TP02"), GRID_RED.TP02],
     ["grid TP03 - Partners, and two killers run the victim out", () => runCase("TP03"), GRID_RED.TP03],
@@ -1003,7 +1028,7 @@ const GRID = [
     ["grid XI02 - a betrayal declared in an Eclipse", () => runCase("XI02"), GRID_RED.XI02],
     ["grid XI03 - the betrayal tile in a Class Trial, and the offer after it", () => runCase("XI03"), GRID_RED.XI03],
     ["grid XI04 - the day ends on a standing offer", () => runCase("XI04"), GRID_RED.XI04],
-    ["grid XI05 - a blow undone by a Reroll takes the armed offer back", () => runCase("XI05"), GRID_RED.XI05],
+    ["grid XI05 - the blow that killed cannot be rerolled; the armed offer stands", () => runCase("XI05"), GRID_RED.XI05],
     ["grid XI06 - the season reset's close in the fight", () => runCase("XI06"), GRID_RED.XI06]
 ];
 

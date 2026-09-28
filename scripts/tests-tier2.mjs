@@ -1365,6 +1365,106 @@ const SCENARIOS = [
         }
     }],
 
+    ["a Reroll of a crisis action that killed is refused before the Hope is paid", async () => {
+        /*
+         * E32+E07 C8b, 28.09.2026; AUDIT-1.2.42 section 9, the owner's answer (A). A Reroll
+         * that took back the Finishing blow that killed replayed the blow and left the victim
+         * dead, the blow gone. The death stands, and the Reroll Call is refused before anything
+         * is paid: the GM's answer marks the roll's bookmark `lethal`, and `spendHopeCall` asks
+         * it before the price (reroll.mjs `lethalReroll`). The GM throws the killer's blow from
+         * this browser (`swingFixture`, one Health left, so the threshold is 5); the killer's
+         * Reroll is then asked for. Read: what the Call answered, the Hope writes on the killer
+         * after the blow, the Hope, the reason shown, the bookmark's mark, the roll's total, the
+         * receipt, and whether the victim is still dead for the GMs.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { spendHopeCall } = await import("./calls.mjs");
+        const { lastRollOf } = await import("./reroll.mjs");
+        const { M, killer, victim, putBack } = await swingFixture();
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const warn = ui.notifications.warn, warned = [];
+        let writes = 0;
+        const hook = Hooks.on("updateActor", (a, change) => {
+            if (a.id === killer.id && foundry.utils.hasProperty(change, "system.resources.hope")) writes++;
+        });
+        try {
+            await victim.update({ "system.resources.hitPoints.value": victim.system.resources.hitPoints.max - 1 });
+            await killer.update({ "system.resources.hope.value": 4 });
+            globalThis.__forceRoll = { hope: 10, fear: 3 };
+            const taken = await M.takeCrisisAction(killer, "finishingBlow");
+            await settle();
+            const { bookmark, message } = lastRollOf(killer);
+            must(taken?.roll?.withHope && isDeadForGm(victim) && bookmark?.crisis === "finishingBlow" && message,
+                `the fixture's blow did not kill, or left no bookmark to reroll: ${stableJson([taken?.roll ?? null, bookmark])}`);
+            const hope = killer.system.resources.hope.value, total = message.rolls[0].total;
+            const receipt = stableJson(M.murderState()?.lastCrisis ?? null);
+            writes = 0;
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            const spent = await spendHopeCall(killer, "reroll");
+            await settle();
+            equal(stableJson([spent, writes, killer.system.resources.hope.value - hope, warned.includes(game.i18n.localize("DRPG.Reroll.deathStands")),
+                lastRollOf(killer).bookmark?.lethal ?? null, game.messages.get(message.id)?.rolls?.[0]?.total === total,
+                stableJson(M.murderState()?.lastCrisis ?? null) === receipt, isDeadForGm(victim)]),
+            stableJson([null, 0, 0, true, true, true, true, true]),
+            "the Reroll of the blow that killed was paid for, not refused with its reason, or took something back (answer, Hope writes, Hope moved, reason shown, bookmark lethal, total kept, receipt kept, victim dead)");
+        } finally {
+            ui.notifications.warn = warn;
+            Hooks.off("updateActor", hook);
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await putBack();
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["the GM refuses the undo of a crisis action that killed, whatever the packet says", async () => {
+        /*
+         * E32+E07 C8b, 28.09.2026. The gate is the GM's: the action's receipt names whom its own
+         * resolution killed (`killed`, written by `finishIncident` and `checkVictimSpent`), and
+         * an undo of it is refused by the bridge's guard (`crisisUndoRefusal`) and by
+         * `undoLastCrisis` itself, whatever the packet claims. The killer's player throws the
+         * blow through the bridge (`judge`, as the GM's listener hands it on; one Health left),
+         * then sends an undo of it with a total of 0; the GM then asks its own undo. Read: the
+         * packets the blow and the undo sent back (the blow's answer says `lethal`), the GM's
+         * log of the refusal, the GM's own undo, whether the victim is dead, the stage, and
+         * whether the receipt moved.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const U = await import("./utils.mjs");
+        const { M, killer, victim, putBack } = await swingFixture();
+        const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
+        const sent = [];
+        const ask = (requestId, fields) => G.judge(BRIDGE_ACTIONS, { action: "murder.crisis", requestId, actorId: killer.id, key: "finishingBlow", ...fields },
+            player.id, { send: (to, packet) => sent.push([packet?.action ?? null, packet?.reason ?? null, packet?.value ?? null]) });
+        const logged = () => U.sessionFailures().filter(e => String(e.message).includes('Refused a "murder.crisis"')
+            && String(e.message).includes("the death stands")).length;
+        try {
+            await victim.update({ "system.resources.hitPoints.value": victim.system.resources.hitPoints.max - 1 });
+            await ask("suite-c8b-blow", { total: 99, isCritical: false, withHope: true });
+            await settle();
+            const blow = sent.splice(0);
+            must(isDeadForGm(victim) && M.murderState()?.stage === "resolution", `the player's blow did not kill: ${stableJson([blow, M.murderState()?.stage])}`);
+            const receipt = stableJson(M.murderState()?.lastCrisis ?? null);
+            const before = logged();
+            await ask("suite-c8b-undo", { total: 0, isCritical: false, withHope: true, undo: true });
+            await settle();
+            const forged = sent.splice(0);
+            const own = await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 0, isCritical: false, withHope: true, undo: true });
+            await settle();
+            equal(stableJson([blow, forged, logged() - before, own, isDeadForGm(victim), M.murderState()?.stage ?? null,
+                stableJson(M.murderState()?.lastCrisis ?? null) === receipt]),
+            stableJson([[["bridge.ack", null, null], ["bridge.done", null, { lethal: true }]], [["bridge.refused", "deathStands", null]], 1, null, true, "resolution", true]),
+            "the undo of the blow that killed was let through, refused for another reason, or moved something (the blow's packets, the undo's, the GM's log, the GM's own undo, victim dead, stage, receipt kept)");
+        } finally {
+            await putBack();
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
     ["two closes of one incident close it once", async () => {
         /*
          * E32 C4, 28.09.2026; audit S04-26. `endMurder` awaits at every step between reading

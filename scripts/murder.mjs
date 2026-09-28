@@ -1478,6 +1478,7 @@ export function crisisRefusal(actor, key, state = murderState()) {
  * the incident. Asked of the live state, an honest Reroll of any of those was
  * refused - the first E03 build did exactly that. So:
  *   - the last action taken is this character's, and this one;
+ *   - it killed nobody (the receipt's `killed`, E32+E07 C8b);
  *   - it was taken at the incident stage, from its own side (`crisisRefusal` on
  *     the receipt's state gives those two with no `key`);
  *   - and none of the moves `CRISIS_MOVES` names - a GM's Pass or resolution, a
@@ -1489,6 +1490,8 @@ export function crisisRefusal(actor, key, state = murderState()) {
 export function crisisUndoRefusal(actor, key, live = murderState()) {
     const last = live?.lastCrisis ?? null;
     if (!last || last.actorId !== actor?.id || last.key !== key) return "the last crisis action is not that character's";
+    // Whatever the packet says (E32+E07 C8b): the receipt is the world's record - see `undoLastCrisis`.
+    if (crisisKilled(last)) return "that crisis action killed somebody; the death stands";
     const then = crisisRefusal(actor, key, last.state ?? null);
     if (then && !then.key) return then.why;
     if (last.after && CRISIS_MOVES.some(k => k in last.after && (live[k] ?? null) !== (last.after[k] ?? null))) {
@@ -1720,7 +1723,7 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
     }
 
     const { requestCrisisResult } = await import("./gm-bridge.mjs");
-    await requestCrisisResult({
+    const res = await requestCrisisResult({
         actorId: actor.id, key,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
@@ -1731,6 +1734,19 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
         // What was swung, so Stage 6 ruins the right thing (E9).
         swungId: swung?.id ?? null
     });
+
+    /*
+     * AN ACTION THAT KILLED IS KEPT AS ONE ON THE ROLL'S BOOKMARK (E32+E07 C8b), so the
+     * Reroll Call refuses it before anything is paid (`lethalReroll`, reroll.mjs). The
+     * GM answers `lethal` when the action's own resolution killed somebody (its receipt's
+     * `killed`); the asker is in the death card's audience already. The bookmark is this
+     * browser's; the GM refuses the undo whatever it says (`undoLastCrisis`).
+     */
+    if (res.ok && res.value?.lethal) {
+        const { rollBookmark, keepRollBookmark } = await import("./action-rolls.mjs");
+        const bookmark = rollBookmark(actor);
+        if (bookmark?.crisis === key) await keepRollBookmark(actor, { ...bookmark, lethal: true });
+    }
 
     return { roll, choice };
 }
@@ -1993,9 +2009,12 @@ async function applyCrisisAction({
     // land on top of the first result rather than in place of it: damage twice,
     // two Remnants, the turn passed twice - the exact opposite of what a Reroll
     // is for. The player's dice have already been rewritten either way, so this
-    // says so out loud rather than failing quietly.
+    // says so out loud rather than failing quietly - unless the action killed
+    // (E32+E07 C8b): then the first result stands by the rule, not for want of a
+    // record, and "score the new number by hand" would ask the GMs to undo a death.
+    const deathStands = undo && crisisKilled(murderState()?.lastCrisis);
     if (undo && !await undoLastCrisis({ actorId, key })) {
-        await whisperToGms(`<p class="drpg-warning">${
+        if (!deathStands) await whisperToGms(`<p class="drpg-warning">${
             game.i18n.localize("DRPG.Murder.rerollLost")}</p>`);
         return null;
     }
@@ -2097,7 +2116,7 @@ async function applyCrisisAction({
         await applyUnlocks(state, def, key, band, done);
         if (def.swapsRoles) await swapRoles(state, band, done);
         await applyThirdPartyChoice(actor, def, done);
-        if (def.endsIncident) await finishIncident(state, key, band, done);
+        if (def.endsIncident) await finishIncident(state, key, band, done, receipt.killed);
     } else {
         /*
          * G-22: ONLY A HOPE FAILURE EARNS THE NEXT TRY.
@@ -2148,7 +2167,7 @@ async function applyCrisisAction({
 
     // Before the card is written, so "they run out" is on the same card as the
     // blow that did it rather than arriving as a separate note afterwards.
-    const ranOut = await checkVictimSpent(done);
+    const ranOut = await checkVictimSpent(done, receipt.killed);
 
     const announcement = await announceCrisis(actor, def, {
         success, band, total, threshold, done, stage
@@ -2161,7 +2180,7 @@ async function applyCrisisAction({
     // and that is written at the top of this function now, not here.
     if (side === "third") {
         await closeReceipt(receipt);
-        return { success, band, done, ranOut };
+        return { success, band, done, ranOut, lethal: receipt.killed.length > 0 };
     }
 
     /*
@@ -2178,11 +2197,11 @@ async function applyCrisisAction({
         && !(isCritical && def.criticalKeepsTurn)) {
         await passTurn();
         // The drain at the victim's turn is the pass's; the hook leaves it to this check.
-        await checkVictimSpent();
+        await checkVictimSpent(null, receipt.killed);
     }
 
     await closeReceipt(receipt);
-    return { success, band, done, ranOut };
+    return { success, band, done, ranOut, lethal: receipt.killed.length > 0 };
 }
 
 /* ==========================================================================
@@ -2249,6 +2268,9 @@ function openReceipt(actorId, key, state) {
         // The weapon swung (`swungWeapon`) and the wear its Despair left (`wearSwing`).
         swungId: null,
         wore: null,
+        // Whom this action's own resolution killed (`finishIncident`, `checkVictimSpent`):
+        // a Reroll does not take it back (`undoLastCrisis`, E32+E07 C8b).
+        killed: [],
         messageId: null
     };
 }
@@ -2276,16 +2298,37 @@ async function closeReceipt(receipt) {
 }
 
 /**
+ * Whether a crisis action's receipt says its own resolution killed somebody. A
+ * receipt from before E32+E07 C8b has no `killed`, and reads as killing nobody.
+ */
+function crisisKilled(receipt) {
+    return Array.isArray(receipt?.killed) && receipt.killed.length > 0;
+}
+
+/**
  * Put back everything this actor's last crisis action did.
  *
  * Refuses politely when the receipt is for a different action or a different
  * person - a Reroll must never unwind somebody else's turn.
+ *
+ * AND WHEN THE ACTION KILLED (E32+E07 C8b, 28.09.2026; AUDIT-1.2.42 section 9, the
+ * owner's answer (A) of 28.09). The undo puts back resources and the incident's
+ * state, never a death (`killCharacter`, chapter.mjs): a Reroll of the Finishing blow
+ * that killed replayed a miss over a dead victim - the grid's XI05, red on I8 since
+ * C1. The death stands and the Reroll is refused, here whatever asked for it, and a
+ * player's packet already at the bridge's guard (`crisisUndoRefusal`). The receipt's
+ * `killed` is written by the action's own `finishIncident` and `checkVictimSpent`, so
+ * a death from the Students list or the GM's close is not the action's.
  */
 async function undoLastCrisis({ actorId, key }) {
     const receipt = murderState()?.lastCrisis ?? null;
     if (!receipt) return false;
     if (receipt.actorId !== actorId || receipt.key !== key) {
         warn(`Reroll: the recorded crisis action (${receipt.key} by ${receipt.actorId}) is not the one being replayed.`);
+        return false;
+    }
+    if (crisisKilled(receipt)) {
+        warn(`Reroll: ${receipt.key} by ${receipt.actorId} killed ${receipt.killed.join(", ")}; the death stands and nothing is taken back.`);
         return false;
     }
 
@@ -2425,9 +2468,11 @@ function isSpent(actor) {
  * End the incident if the victim has run out.
  *
  * @param {string[]} [done]  Lines for the outcome card, when called from one.
+ * @param {string[]} [killed]  The crisis action's receipt's `killed`, when a crisis
+ *   action's own resolution asks: the victim is added to it if this killed them.
  * @returns {Promise<boolean>} true if this ended the incident.
  */
-async function checkVictimSpent(done = null) {
+async function checkVictimSpent(done = null, killed = null) {
     if (!game.user.isGM) return false;
 
     const state = murderState();
@@ -2484,7 +2529,7 @@ async function checkVictimSpent(done = null) {
     // has already moved by the time this runs.
     try {
         const { killCharacter, isDeadForGm } = await import("./chapter.mjs");
-        if (!isDeadForGm(victim)) await killCharacter(victim);
+        if (!isDeadForGm(victim) && await killCharacter(victim)) killed?.push(victim.id);
     } catch (err) {
         error(`Could not record ${victim.name}'s death when they ran out`, err);
     }
@@ -2832,7 +2877,7 @@ async function swapRoles(state, band, done) {
         game.i18n.format("DRPG.Murder.keyRemnantsStale", { n: state.keyRemnants })}</p>`);
 }
 
-async function finishIncident(state, key, band, done) {
+async function finishIncident(state, key, band, done, killed = null) {
     // WHICH action ended it, not only that something did. An incident that
     // ended in a Finishing Blow and one that ended with two people walking out
     // of the door both landed on stage "resolution" and were indistinguishable
@@ -2862,7 +2907,7 @@ async function finishIncident(state, key, band, done) {
         try {
             const { killCharacter, isDeadForGm } = await import("./chapter.mjs");
             const victim = game.actors.get(state.victimId);
-            if (victim && !isDeadForGm(victim)) await killCharacter(victim);
+            if (victim && !isDeadForGm(victim) && await killCharacter(victim)) killed?.push(victim.id);
         } catch (err) {
             error("Could not record the victim's death after the Finishing Blow", err);
         }

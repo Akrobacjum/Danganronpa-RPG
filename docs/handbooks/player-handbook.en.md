@@ -335,7 +335,7 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 | **Ultimate** | 1 | Advantage on a roll your Ultimate genuinely applies to. Waits for the GM the same way. |
 | **Contribution** | 2 | +1 progress to a project being worked on in the room you are in. |
 | **Sprint** | 2 | One more room crossing this time of day without paying an action for it. |
-| **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. Some things stand: a hand already in a pocket, a trail already planted. The browser you rolled on remembers the action; from another one the Reroll throws the dice again and takes nothing back. |
+| **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. Some things stand: a hand already in a pocket, a trail already planted. A crisis action that killed somebody cannot be rerolled: the death stands. The browser you rolled on remembers the action; from another one the Reroll throws the dice again and takes nothing back. |
 | **Resolve** | 3 | For one roll, choose which statistic to add yourself. |
 | **Burst** | 4 | Your next action costs nothing - the whole action, however many it would have cost. |
 | **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. |

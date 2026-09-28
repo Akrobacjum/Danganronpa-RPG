@@ -582,6 +582,10 @@ async function handleCrisis(payload, sender, ctx, prepared) {
     // Null: a Reroll's rewind that could not happen (the GMs have been told), or
     // no incident, character or action to score - nothing was applied (E31 review).
     if (!result) return { refused: "nothing was carried out: resolveCrisisAction resolved nothing" };
+    // Said back only when the action's own resolution killed (E32+E07 C8b): the asker's
+    // browser keeps it on the roll's bookmark, and its Reroll Call refuses before paying.
+    // The asker is in that death card's audience already; any other answer is null, as before.
+    if (result.lethal) return { reply: { lethal: true } };
 }
 
     // A direct murder declared in the dark. The declaration is written in the GMs'

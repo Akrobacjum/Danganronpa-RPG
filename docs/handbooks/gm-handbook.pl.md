@@ -251,7 +251,7 @@ Wydawane z arkusza postaci, szeptem do gracza. Zablokowane podczas Eclipse, pod 
 | Ultimate | 1 | Przewaga na rzut, do którego Ultimate naprawdę się stosuje | tak |
 | Contribution | 2 | +1 postępu do projektu, nad którym pracuje się w twoim pokoju | nie |
 | Sprint | 2 | Jedno dodatkowe przejście między pokojami w tej porze dnia, za darmo | nie |
-| Reroll | 3 | Przerzuć akcję; poprzedni wynik jest cofnięty | nie |
+| Reroll | 3 | Przerzuć akcję; poprzedni wynik jest cofnięty. Akcji kryzysowej, która kogoś zabiła, nie da się przerzucić: śmierć zostaje | nie |
 | Resolve | 3 | Na jeden rzut sam wybierz statystykę | nie |
 | Burst | 4 | Następna akcja nic nie kosztuje, ile by nie kosztowała | nie |
 | Relief | 4 | Weź Short Rest teraz: bez akcji, bez pokoju odpoczynku, nie zużywa tego z tej pory dnia | nie |

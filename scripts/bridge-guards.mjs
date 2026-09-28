@@ -156,7 +156,7 @@ export const REASONS = Object.freeze([
     "notOffered", "notSecret", "notAPlayer", "notHolding", "alreadyHeld", "notASupport", "hopeBarred",
     "notEnoughHope", "noReroll", "rerollSpent", "traceOutOfReach", "notInIncident", "notYourTurn",
     "actionLocked", "actionSpent", "actionBlocked", "nothingLeft", "movedOn", "notThatRepair",
-    "notWhereItStood", "alreadyDone", "nothingToUndo", "cannotNow", "cannotFrame", "notThere",
+    "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "relay", "failed", "refused", "noGm", "noAnswer"
 ]);
 
@@ -244,6 +244,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["alreadyDone", /^that Observe has already been resolved$/],
     ["nothingToUndo", /^that Observe has no result to take back$/],
     ["nothingToUndo", /^no Analyze of that bullet this chapter to take back$/],
+    // E32+E07 C8b: a Reroll of a crisis action whose own resolution killed (murder.mjs crisisUndoRefusal).
+    ["deathStands", /^that crisis action killed somebody; the death stands$/],
     ["cannotNow", /^that bullet cannot be analysed now$/],
     // E05 C10: rule D - a refusal caused by a death, a body nobody has found among them (guardArmLiving).
     ["cannotNow", /^that cannot be done now$/],

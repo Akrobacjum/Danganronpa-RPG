@@ -335,7 +335,7 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | **Ultimate** | 1 | Przewaga na rzut, do którego twój Ultimate naprawdę się stosuje. Czeka na GMa tak samo. |
 | **Contribution** | 2 | +1 postępu do projektu, nad którym trwa praca w pokoju, w którym jesteś. |
 | **Sprint** | 2 | Jeszcze jedno przejście między pokojami o tej porze dnia, bez płacenia akcją. |
-| **Reroll** | 3 | Przerzuć ostatnią akcję. Cofa poprzedni wynik - ślad, przedmiot, Sanity idą razem z nim. Niektóre rzeczy zostają: ręka, która już była w kieszeni, trop, który już podłożono. Akcję pamięta przeglądarka, w której rzucałeś; z innej Reroll rzuca kośćmi jeszcze raz i niczego nie cofa. |
+| **Reroll** | 3 | Przerzuć ostatnią akcję. Cofa poprzedni wynik - ślad, przedmiot, Sanity idą razem z nim. Niektóre rzeczy zostają: ręka, która już była w kieszeni, trop, który już podłożono. Akcji kryzysowej, która kogoś zabiła, nie da się przerzucić: śmierć zostaje. Akcję pamięta przeglądarka, w której rzucałeś; z innej Reroll rzuca kośćmi jeszcze raz i niczego nie cofa. |
 | **Resolve** | 3 | Na jeden rzut sam wybierz, którą statystykę dodać. |
 | **Burst** | 4 | Twoja następna akcja nic nie kosztuje - cała akcja, ile by nie kosztowała. |
 | **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |

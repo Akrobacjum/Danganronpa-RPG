@@ -282,6 +282,12 @@ export async function rerollLastAction(actor) {
         ui.notifications.warn(game.i18n.localize("DRPG.Reroll.nothingToReroll"));
         return null;
     }
+    // Before the dice are touched, and null so the Call's price goes back (`rerollEffect`):
+    // `spendHopeCall` asks first, and this is for a caller that did not.
+    if (lethalReroll(actor)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Reroll.deathStands"));
+        return null;
+    }
 
     const original = message.rolls?.[0];
     if (!original?.reroll) {
@@ -366,6 +372,19 @@ const REROLL_WINDOW_MINUTES = TIMING.rerollWindowMinutes;
 export function lastRollOf(actor) {
     const bookmark = rollBookmark(actor);
     return { bookmark, message: findMessage(actor, bookmark) };
+}
+
+/**
+ * Whether a Reroll of this character would take back a crisis action that killed
+ * (E32+E07 C8b, 28.09.2026; the owner's answer (A)): the death stands, so the Call
+ * is refused before anything is paid (calls.mjs `spendHopeCall`). Read off this
+ * browser's bookmark, which `takeCrisisAction` marks `lethal` on the GM's answer -
+ * the player's convenience, not the gate: the GM refuses the undo whatever a
+ * packet says (murder.mjs `undoLastCrisis`).
+ */
+export function lethalReroll(actor) {
+    const { bookmark, message } = lastRollOf(actor);
+    return Boolean(message && bookmark?.crisis && bookmark.lethal);
 }
 
 function findMessage(actor, bookmark) {

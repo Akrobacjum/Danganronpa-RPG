@@ -198,6 +198,28 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     const blowOk = await gm.eval(readCrisis);
     check("control: the same finishing blow from Botan's own player does kill", blowOk.dead === true, JSON.stringify(blowOk));
 
+    /* A BLOW THAT KILLED IS NOT TAKEN BACK (E32+E07 C8b, 28.09.2026; AUDIT-1.2.42 section 9,
+       the owner's answer (A)). Botan's own player sends the undo of the blow that just killed -
+       a Reroll's packet, a total of 0 and no Reroll behind it. Until 1.2.66 the guards let it
+       as far as the Reroll receipt (refused there as "noReroll", and a player with one had the
+       blow taken back and Daichi left dead); the GM now refuses it first, for the death, and
+       nothing moves: Daichi dead, the stage and the action's receipt as they were. */
+    const readUndo = `const s = game.drpg.murderState();
+        return { stage: s?.stage ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")), receipt: JSON.stringify(s?.lastCrisis ?? null) };`;
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    const undoBefore = await gm.eval(readUndo);
+    const undoAnswer = await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestCrisisResult({ actorId: "${ids.botan}", key: "finishingBlow", total: 0, isCritical: false, withHope: true, undo: true });`,
+        { timeout: 30000 });
+    await settle(900);
+    const undoAfter = await gm.eval(readUndo);
+    const undoReasons = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "murder.crisis"')).map(e => e.message);`);
+    check("SECURITY: the undo of the finishing blow that killed is refused on the GM, and the death stands",
+        undoBefore.dead === true && JSON.stringify(undoAfter) === JSON.stringify(undoBefore) && undoAnswer?.ok === false
+            && undoAnswer?.reason === "deathStands" && undoReasons.some(r => /the death stands/.test(r)),
+        JSON.stringify({ undoBefore, undoAfter, undoAnswer, undoReasons }));
+
     /* STAGE 6 IS DECIDED ON THE GM'S SIDE (E03; audit S05-04). The Tamper list with
        `mine: false` is the whole room, types and all, and it used to be the asking
        client that decided it was Stage 6. A hidden trace nobody has found lies in

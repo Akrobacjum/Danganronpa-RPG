@@ -251,7 +251,7 @@ Spent from the character sheet, whispered to the player. Locked during an Eclips
 | Ultimate | 1 | Advantage on a roll the Ultimate genuinely applies to | yes |
 | Contribution | 2 | +1 progress to a project being worked on in your room | no |
 | Sprint | 2 | One more room crossing this time of day, free | no |
-| Reroll | 3 | Reroll the action; the previous outcome is reverted | no |
+| Reroll | 3 | Reroll the action; the previous outcome is reverted. A crisis action that killed somebody cannot be rerolled: the death stands | no |
 | Resolve | 3 | For one roll, choose the statistic yourself | no |
 | Burst | 4 | The next action costs nothing, however much it would have cost | no |
 | Relief | 4 | Take a Short Rest now: no action, no rest room, does not use up this time of day's | no |
