@@ -133,7 +133,8 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * each holder is sent the fight in their copy (`castFor`). A bystander's browser
  * holds the two below and nothing else: that an incident runs, and at which stage. A
  * running incident's fight still in the world half from 1.2.65 is merged by
- * `murderState()` under the cast's, whose value wins once written.
+ * `murderState()` under the cast's, whose value wins once written, until the clause
+ * `liftIncidentFight` lifts it into the cast (E32 C3).
  */
 
 /**
@@ -3261,7 +3262,7 @@ export async function enterCast({ killerId = null, victimId = null, thirdId = nu
  * a name leaves `murderState` only once the cast reads back from storage holding
  * a value for it, written into the world half as it is after the cast's save (read
  * again then: a turn another GM passed during that await stands - the correctness
- * review's M9, the same shape as `liftIncidentMethod`'s); `murderState` is read back
+ * review's M9, the same shape as `liftIntoCast`'s); `murderState` is read back
  * too. A live betrayal offer goes in the same way before its flag is unset, and every
  * flag unset is read back: one that will not go is counted, not assumed gone. Anything
  * counted as kept throws at the end, so the world is not stamped and the next load
@@ -3280,8 +3281,8 @@ export async function liftIncidentSecrets() {
     const report = { lifted: 0, offers: 0, flags: 0, kept: 0 };
 
     const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    /* The names, as in 1.2.63: the method is `liftIncidentMethod`'s, which runs after this and tells
-       the participants, and the fight (E32 C2) stays in the world half until a lift of its own takes it (E32 C3). */
+    /* The names, as in 1.2.63: the method is `liftIncidentMethod`'s and the fight `liftIncidentFight`'s
+       (E32 C3), which run after this and tell the participants. */
     const strays = CAST_FIELDS.filter(key => !INCIDENT_METHOD.includes(key) && !INCIDENT_FIGHT.includes(key) && stored[key] != null);
     if (strays.length) {
         await castStore.patch(RECORD, Object.fromEntries(strays.map(key => [key, stored[key]])),
@@ -3334,29 +3335,59 @@ export async function liftIncidentSecrets() {
  * THE INCIDENT'S METHOD OUT OF WORLD DATA (E05 C8; audit S04-08). Until 1.2.64 the world
  * half of `murderState` held `indirect`, `selfInflicted`, `keyRemnantsStale`, `openedAt`
  * and `endedBy` (`INCIDENT_METHOD`). The clause `liftIncidentMethod` (migrate.mjs) runs
- * this once, on the primary, after the cast's copies arrived.
- *
- * WHILE AN INCIDENT RUNS the fields with a value go into the cast weak and fill-only - a
- * value a GM wrote since the update stands - and a field leaves the world half only once
- * the cast reads back from storage holding a value for it; a null there says "none" and
- * leaves with them. Then the participants are sent the cast, so a trap's victim reads the
- * trap from their copy. WITH NO INCIDENT RUNNING they leave outright: `murderState()` is
- * null then, and nothing reads them. The world half is written as it is after the cast's
- * save - read again then, so a turn another GM passed during that await stands (the
- * correctness review's M9: the copy read before it put the turn back) - and read back; a
- * field still there throws, with the count, so the world is not stamped and the next load
- * tries again (E05 fix r1-G1; migrate.mjs, above the lifts). Idempotent.
+ * this once, on the primary, after the cast's copies arrived, with the rules written on
+ * `liftIntoCast` (below).
  *
  * @returns {Promise<null|{lifted: number, dropped: number, kept: number}>}  `kept` 0: anything
  *   else throws.
  */
 export async function liftIncidentMethod() {
+    return liftIntoCast(INCIDENT_METHOD, "the incident's method");
+}
+
+/**
+ * THE INCIDENT'S FIGHT OUT OF WORLD DATA (E32 C3, 28.09.2026; the owner's Q1 (a)). Until
+ * 1.2.66 the world half of `murderState` held the round, whose side acts, the hindrances,
+ * what is spent and the rest of the fight (`INCIDENT_FIGHT`), on every browser; since E32
+ * C2 every write of them goes to the cast, and an incident a 1.2.65 table left running
+ * keeps them in the world half, where `murderState()` reads them under the cast's, until
+ * this lifts them. The clause `liftIncidentFight` (migrate.mjs, since 1.2.66) runs it
+ * once, on the primary, after the cast's copies arrived and after the method's lift, with
+ * the rules written on `liftIntoCast`: a turn a GM passed since the update is the cast's
+ * already, and stands over the world's.
+ *
+ * @returns {Promise<null|{lifted: number, dropped: number, kept: number}>}  `kept` 0: anything
+ *   else throws.
+ */
+export async function liftIncidentFight() {
+    return liftIntoCast(INCIDENT_FIGHT, "the incident's fight");
+}
+
+/**
+ * THE CAST'S FIELDS OUT OF THE WORLD HALF (E05 C8's body, shared since E32 C3). `fields` are
+ * cast fields a build before this one kept in the world half of `murderState`; `what`
+ * names them in the log and in the throw. Once, on the primary, after the cast's copies
+ * arrived.
+ *
+ * WHILE AN INCIDENT RUNS the fields with a value go into the cast weak and fill-only - a
+ * value a GM wrote since the update stands - and a field leaves the world half only once
+ * the cast reads back from storage holding a value for it; a null there says "none" and
+ * leaves with them. Then the participants are sent the cast, so a trap's victim reads the
+ * trap from their copy and the killer's player the turn. WITH NO INCIDENT RUNNING they
+ * leave outright: `murderState()` is null then, and nothing reads them. The world half is
+ * written as it is after the cast's save - read again then, so a turn another GM passed
+ * during that await stands (the correctness review's M9: the copy read before it put the
+ * turn back) - and read back; a field still there throws, with the count, so the world is
+ * not stamped and the next load tries again (E05 fix r1-G1; migrate.mjs, above the lifts).
+ * Idempotent.
+ */
+async function liftIntoCast(fields, what) {
     if (!isPrimaryGm()) return null;
     if (await castStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the cast did not arrive; the next load tries again");
     }
     const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const found = INCIDENT_METHOD.filter(key => Object.hasOwn(stored, key));
+    const found = fields.filter(key => Object.hasOwn(stored, key));
     if (!found.length) return null;
     const values = stored.active ? found.filter(key => stored[key] != null) : [];
     if (values.length) {
@@ -3378,10 +3409,10 @@ export async function liftIncidentMethod() {
         kept: found.length - gone.length
     };
     if (report.lifted) {
-        log(`Lifted ${report.lifted} field(s) of the incident's method out of world data (S04-08).`);
+        log(`Lifted ${report.lifted} field(s) of ${what} out of world data.`);
         pushCastToParticipants(readCast(), {});
     }
-    if (report.kept) throw new Error(`${report.kept} field(s) of the incident's method are still in the world half of murderState; the next load tries again`);
+    if (report.kept) throw new Error(`${report.kept} field(s) of ${what} are still in the world half of murderState; the next load tries again`);
     return report;
 }
 

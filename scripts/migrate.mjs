@@ -924,6 +924,25 @@ const CLAUSES = [
             const { sealOldRepairs } = await import("./projects.mjs");
             return sealOldRepairs();
         }
+    },
+    {
+        key: "liftIncidentFight",
+        since: "1.2.66",
+        /*
+         * THE INCIDENT'S FIGHT OUT OF WORLD DATA (E32 C3, 28.09.2026; the owner's Q1 (a)). Until
+         * 1.2.66 the world half of `murderState` held the round, whose side acts, the hindrances,
+         * what is spent and the rest of the fight, on every browser; since then they are the
+         * cast's. Once, on the primary, after the cast's copies arrived and after the method's
+         * lift, with the rules written on `liftIntoCast` (murder.mjs): while an incident runs,
+         * into the cast weak and fill-only and out of the world half only once the cast reads
+         * back holding them, then each participant's copy; with none running, out of the world
+         * half.
+         */
+        run: async () => {
+            const { liftIncidentFight } = await import("./murder.mjs");
+            const report = await liftIncidentFight();
+            return report && (report.lifted || report.dropped) ? report : null;
+        }
     }
 ];
 

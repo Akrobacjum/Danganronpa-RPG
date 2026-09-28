@@ -11919,6 +11919,81 @@ const SCENARIOS = [
         }
     }],
 
+    ["the fight's lift moves a running incident's fight into the cast, and out of the world half once it reads back", async () => {
+        /*
+         * E32 C3, 28.09.2026; the owner's Q1 (a). An incident a 1.2.65 table left running keeps
+         * its fight in the world half of `murderState`; the clause `liftIncidentFight` moves the
+         * fields with a value into the cast, weak and fill-only, and takes each out of the world
+         * half once the cast reads it back from storage; a null leaves with them. In a world the
+         * stores have never opened (`withGmStoreWorld`), with a turn a GM passed since the update
+         * already in the cast: it stands over the world's. The report counts the ten lifted and
+         * the two nulls dropped, and a second run has nothing to do. Then with no incident
+         * running the fields leave outright and the cast is not touched. The world setting is
+         * put back by tier 2's restore.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const fight = { turn: 2, turnSide: "killer", keyRemnants: 3, deniedToVictim: ["survive"],
+            hindered: { victim: { strike: 1 }, killer: {} }, blocked: { victim: {}, killer: { selfDefence: 2 } }, unlocked: ["survive"],
+            drainStopped: false, advantageNext: { victim: false, killer: true }, spent: ["finishingBlow"], freeResolution: null, thirdActed: null };
+        await E.withGmStoreWorld(`suite-fightlift-${foundry.utils.randomID(8)}`, async () => {
+            await S.castStore.patch("record", { turn: 3, turnSide: "victim" });
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident", ...fight });
+            const report = await M.liftIncidentFight();
+            const held = S.castStore.persisted("record") ?? {};
+            equal(stableJson(S.INCIDENT_FIGHT.map(f => [f, held[f] ?? null])),
+                stableJson(S.INCIDENT_FIGHT.map(f => [f, { ...fight, turn: 3, turnSide: "victim" }[f]])),
+                "the fight did not read back from the cast's storage as the world's, or the world's overwrote a turn a GM passed since");
+            equal(stableJson(game.settings.get(MODULE_ID, SETTINGS.murderState)), stableJson({ active: true, stage: "incident" }),
+                "the world half still holds the fight, whose fields read back");
+            equal(stableJson(report), stableJson({ lifted: 10, dropped: 2, kept: 0 }), `the lift's report: ${stableJson(report)}`);
+            equal(await M.liftIncidentFight(), null, "a second run of the lift found something to do");
+
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, { turn: 5, spent: ["strike"] });
+            const closed = await M.liftIncidentFight();
+            equal(stableJson([closed, game.settings.get(MODULE_ID, SETTINGS.murderState), S.castStore.persisted("record")?.turn, S.castStore.persisted("record")?.spent]),
+                stableJson([{ lifted: 0, dropped: 2, kept: 0 }, {}, 3, ["finishingBlow"]]), "with no incident running the fight did not simply leave the world, or reached the cast");
+        });
+    }],
+
+    ["the fight's lift leaves the world half as it was when the cast's rows do not read back", async () => {
+        /*
+         * E32 C3, 28.09.2026: the other half of the pair above, as the method's. The cast's
+         * save is swallowed - the fields stand in memory and not on disk - and the world half
+         * keeps the whole fight, and the lift throws with the count, so the migration does not
+         * stamp the world and the next load tries again. In a world the stores have never
+         * opened; the world setting is put back by tier 2's restore.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const old = { active: true, stage: "incident", turn: 2, turnSide: "killer", keyRemnants: 4, spent: [] };
+        const settings = game.settings;
+        const ownSet = Object.hasOwn(settings, "set"), realSet = settings.set;
+        const putBack = () => {
+            if (settings.set === realSet && Object.hasOwn(settings, "set") === ownSet) return;
+            if (ownSet) settings.set = realSet;
+            else delete settings.set;
+        };
+        try {
+            await E.withGmStoreWorld(`suite-fightkept-${foundry.utils.randomID(8)}`, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.murderState, old);
+                settings.set = async function (namespace, key, value) {
+                    if (namespace === MODULE_ID && key === S.castStore.spec.key) return value;
+                    return realSet.call(this, namespace, key, value);
+                };
+                const threw = await thrown(() => M.liftIncidentFight());
+                putBack();
+                equal(S.castStore.record()?.turnSide, "killer", "the swallowed save left no field in memory either - this measured nothing");
+                equal(stableJson([/^4 field\(s\) of the incident's fight are still in the world half/.test(threw ?? ""), game.settings.get(MODULE_ID, SETTINGS.murderState)]), stableJson([true, old]),
+                    `the world half lost a fight whose fields are not on disk, or the lift did not throw with the count: ${threw}`);
+            });
+        } finally {
+            putBack();
+        }
+    }],
+
     ["the overflow's lift moves the world's count into the GMs' record, and the world keeps { active } once it reads back", async () => {
         /*
          * E05 C12, 27.09.2026; audit S01-60. A world from before 1.2.64 keeps the overflow's count
@@ -12507,7 +12582,9 @@ const SCENARIOS = [
          * The old key nothing but its lift writes (`legacyPendingMurders`, `legacyEclipseMoves`)
          * has no such race. projectMeta is put back here, murderState and overflow by tier 2's
          * restore. E05 C12's liftOverflowCount follows the rule from its first line: a darkening
-         * another GM armed during the record's save stands, and the count is gone.
+         * another GM armed during the record's save stands, and the count is gone. E32 C3's
+         * liftIncidentFight shares the method's body (`liftIntoCast`): a stage another GM moved
+         * and a turn it passed during the cast's save stand, and the fight is gone.
          */
         const E = await import("./gm-store.mjs");
         const S = await import("./gm-stores.mjs");
@@ -12578,6 +12655,22 @@ const SCENARIOS = [
                 putBack();
                 equal(stableJson([order, overflowNow()]), stableJson([["other GM", "lift"], { active: armed }]),
                     "liftOverflowCount put back an overflow another GM armed during the record's save, or kept the count");
+
+                /* E32 C3: at the cast's save the other GM passes the turn - into the cast, at a stamp of its
+                   own, as every write of the fight goes since 1.2.66 - and moves the stage, writing the world
+                   half as it read it, the fight a 1.2.65 table left there included. */
+                await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident", turn: 2, turnSide: "killer", keyRemnants: 4 });
+                race(S.castStore.spec.key, SETTINGS.murderState, () => {
+                    void S.castStore.patch("record", { turn: 3, turnSide: "victim" });
+                    return realSet.call(settings, MODULE_ID, SETTINGS.murderState, { ...murderNow(), stage: "resolution" });
+                });
+                await M.liftIncidentFight();
+                putBack();
+                await S.castStore.idle();
+                const castFight = S.castStore.persisted("record") ?? {};
+                equal(stableJson([order, murderNow(), [castFight.turn, castFight.turnSide, castFight.keyRemnants]]),
+                    stableJson([["other GM", "lift"], { active: true, stage: "resolution" }, [3, "victim", 4]]),
+                    "liftIncidentFight put back a stage another GM moved during the cast's save, lost the turn it passed, or kept the fight");
             });
         } finally {
             putBack();

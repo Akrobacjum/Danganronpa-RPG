@@ -5687,8 +5687,9 @@ const REGRESSIONS = [
             ["investigation.mjs", "liftKeyPlan", ["weak", "fillOnly"], true],
             // The pre-session notes out of their users' flags (E05 C6).
             ["pre-session-note.mjs", "liftNotes", ["weak", "fillOnly"], true],
-            // The incident's method out of the world half of murderState (E05 C8).
-            ["murder.mjs", "liftIncidentMethod", ["weak", "fillOnly"], true],
+            // The incident's method (E05 C8) and its fight (E32 C3) out of the world half of murderState:
+            // both lifts run one body, `liftIntoCast`.
+            ["murder.mjs", "liftIntoCast", ["weak", "fillOnly"], true],
             // Which trace each bullet came from, out of its `remnantRef` flag into its row (E05 C13).
             ["truth-bullets.mjs", "liftBulletRefs", ["weak", "fillOnly"], true]
         ];
@@ -5774,7 +5775,8 @@ const REGRESSIONS = [
          * now only inside `migrateRemnantsOnce`'s body, shown a planted hook beside it first.
          * E06 C12 adds the rewrite of the chat log written before 1.2.65, since 1.2.65, and E06's
          * fix r2-G1 two clauses for what C10 changed on data 1.2.64 wrote: the buyers of armed
-         * Calls, and a secret project's public repair.
+         * Calls, and a secret project's public repair. E32 C3 adds the lift of a running
+         * incident's fight, since 1.2.66.
          */
         const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"],
             // E04's three, given 1.2.64 by E05's fix rounds (r1-G1; the Faint's pass r2-F0b): a world 1.2.63
@@ -5794,7 +5796,9 @@ const REGRESSIONS = [
             // E06 C12: the chat log written before 1.2.65 rewritten as it is written today; lifts nothing.
             ["neutraliseOldCards", "neutraliseOldCards", "1.2.65"],
             // E06 fix r2-G1: an armed Call's buyer off its actor, and a secret project's repair sealed and renamed.
-            ["unsignArmedCalls", "unsignArmedCalls", "1.2.65"], ["sealOldRepairs", "sealOldRepairs", "1.2.65"]];
+            ["unsignArmedCalls", "unsignArmedCalls", "1.2.65"], ["sealOldRepairs", "sealOldRepairs", "1.2.65"],
+            // E32 C3: a running incident's fight out of the world half of murderState.
+            ["liftIncidentFight", "liftIncidentFight", "1.2.66"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.
@@ -5858,8 +5862,9 @@ const REGRESSIONS = [
          * cast or nowhere, and the world-secrets rule is the same list written out. Read here:
          * the list has its reasons, shares no field with the cast and equals the rule; the
          * split puts a field nobody listed anywhere but the world; only `writeState`,
-         * `restoreState` (both through the split) and the two lifts (which only take fields
-         * out; their tier-2 pairs measure that) write the key; and every field a write in
+         * `restoreState` (both through the split) and the lifts (which only take fields
+         * out; their tier-2 pairs measure that - the method's and, since E32 C3, the fight's
+         * run one body, `liftIntoCast`) write the key; and every field a write in
          * murder.mjs names - a `writeState({ ... })` literal, a `patch` built for one - is
          * listed on one side. A computed key (`[store]`, "hindered" or "blocked") is not read.
          * The season reset writes `{}` through its table (season-setup.mjs). The reader is
@@ -5888,7 +5893,7 @@ const REGRESSIONS = [
 
         const SET = /(?:\.set\(\s*[\w.]+\s*,\s*(?:SETTINGS\.murderState\b|"murderState")|\bsetSetting\(\s*SETTINGS\.murderState\b)/g;
         const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
-        const ALLOWED = ["murder.mjs writeState", "murder.mjs restoreState", "murder.mjs liftIncidentSecrets", "murder.mjs liftIncidentMethod"];
+        const ALLOWED = ["murder.mjs writeState", "murder.mjs restoreState", "murder.mjs liftIncidentSecrets", "murder.mjs liftIntoCast"];
         const writers = files => {
             const out = [];
             for (const [file, text] of files) {

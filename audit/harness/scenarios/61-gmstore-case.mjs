@@ -38,6 +38,9 @@
  *      newer pick moves the lair and the former Mastermind learns nothing (B1); and
  *      the upgrade day's clear is put to the primary whichever browser held it and
  *      whenever the pick arrives, with no player told the part meanwhile (M1).
+ *   L  a running incident's fight at the update (E32 C3): the primary's clause lifts it out of the
+ *      world half into its record and the killer's player's copy, and a GM that joins after with an
+ *      empty browser holds it.
  *   F  the incident's cast (S04-24, the cast half of S06-19): a participant's copy
  *      is stamped part by part, and what the primary answers is read off the
  *      packets; a second GM with an empty browser does not answer for it; the fight
@@ -597,6 +600,53 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     await settle(600);
     await gm.eval(`globalThis.__dialogAnswers.length = 0; return true;`);
     await disconnect("gmc");
+    await settle(300);
+
+    /* ------------- L. a running incident's fight, lifted at the update ------------- */
+
+    /* E32 C3 (28.09.2026; the owner's Q1 (a)): an incident a 1.2.65 table left running - its names
+       and method in the cast as 1.2.65 wrote them, its fight in the world half - is lifted by the
+       clause on the primary (the runner, `only` the clause and forced, as this world is stamped
+       already). No incident has run in this scenario before, so no GM's record and no copy holds a
+       stamp for the fight, as none did at 1.2.65 (read first, L1). Then every browser's world half
+       holds the stage alone, the killer's player's copy holds the fight, and gm2, which joins after
+       the clause with an empty browser, holds it in its record by the stores' exchange. The
+       incident is closed on the primary before F opens its own. */
+    phase("L: a running incident's fight is lifted out of the world half at the update, and a GM that joins after holds it", { flow: "murder-incident" });
+    const FIGHT_L = { turn: 2, turnSide: "killer", keyRemnants: 3, deniedToVictim: ["survive"], hindered: { victim: {}, killer: {} },
+        blocked: { victim: {}, killer: {} }, unlocked: [], drainStopped: false, advantageNext: { victim: false, killer: false },
+        spent: [], freeResolution: null, thirdActed: null };
+    const LIFT_L = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const M = await import("${repoUrl}/scripts/murder.mjs");`;
+    const fightL = client => client.eval(`${LIFT_L} const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        const held = r => S.INCIDENT_FIGHT.map(f => [f, r[f] ?? null]);
+        return { record: game.user.isGM ? held(S.castStore.record()) : null, copy: game.user.isGM ? null : held(incidentCast()),
+            turn: M.murderState()?.turn ?? null, world: Object.keys(game.settings.get("${MOD}", "murderState") ?? {}).sort() };`);
+    const l1 = await gm.eval(`${LIFT_L} const G = await import("${repoUrl}/scripts/migrate.mjs");
+        const stamped = S.INCIDENT_FIGHT.filter(f => S.castStore.stampOf("record", f) > 0);
+        await S.castStore.patch("record", { killerId: "${IDS.chie}", victimId: "${IDS.daichi}", killerTurnId: "${IDS.chie}", thirdId: null,
+            thirdSide: null, indirect: false, selfInflicted: false, openedAt: Date.now() });
+        await game.settings.set("${MOD}", "murderState", { active: true, stage: "incident", ...${J(FIGHT_L)} });
+        const before = Object.keys(game.settings.get("${MOD}", "murderState") ?? {}).length;
+        const pass = await G.migrate1_2_0({ force: true, quiet: true, only: ["liftIncidentFight"] });
+        return { stamped, before, failed: pass?.failed ?? null, done: pass?.clauses?.liftIncidentFight ?? null };`);
+    await settle(800);
+    // Field by field, in one order on both sides: the record answers in INCIDENT_FIGHT's.
+    const sortL = pairs => J([...(pairs ?? [])].sort(([a], [b]) => a.localeCompare(b)));
+    const heldL = sortL(Object.entries(FIGHT_L));
+    const liftedL = { gm: await fightL(gm), p3: await fightL(p3), p1: await fightL(p1) };
+    check("L1: the clause lifts a running incident's fight out of the world half on the primary: its record and the killer's player's copy hold it, and every browser's world half holds the stage alone",
+        J(l1.stamped) === "[]" && l1.before === 14 && J(l1.failed) === "[]" && J(l1.done) === J({ lifted: 10, dropped: 2, kept: 0 })
+        && sortL(liftedL.gm.record) === heldL && sortL(liftedL.p3.copy) === heldL && liftedL.p3.turn === 2 && liftedL.p1.turn === null
+        && Object.values(liftedL).every(r => J(r.world) === J(["active", "stage"])), J({ l1, liftedL }));
+
+    await connect("gm2");
+    await settle(1500);
+    const joinedL = await fightL(gm2);
+    check("L2: a GM that joins after the clause with an empty browser holds the lifted fight in its record, and its world half the stage alone",
+        sortL(joinedL.record) === heldL && joinedL.turn === 2 && J(joinedL.world) === J(["active", "stage"]), J(joinedL));
+    await gm.eval(`${LIFT_L} await M.endMurder({ reason: "E32 61L", followUp: false }); return true;`);
+    await settle(800);
+    await disconnect("gm2");
     await settle(300);
 
     /* ------------------- F. the incident's cast, stamped ------------------- */
