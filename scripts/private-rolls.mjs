@@ -1006,8 +1006,8 @@ function subjectReported(messageId, ms) {
  *   message never animates it, whatever Dice So Nice's own settings say - no real
  *   dice, no ghost dice.
  * - `diceAudienceIds`: who sees a roll's dice - the GMs, its author, and, for a
- *   roll the module threw for a character seated in the incident while the fight
- *   runs, the incident's audience at that stage (`incidentAudienceIds`). The one
+ *   roll the module threw for a character seated in the incident at the opening or
+ *   in the fight, the incident's audience at that stage (`incidentAudienceIds`). The one
  *   rule; E28, which throws the players' dice on the GM, asks it too.
  * - `relayIncidentDice`: the primary GM, once it keeps a roll's subject (or sees
  *   a Reroll rewrite its rolls), sends `dice.show { id }` to that audience less
@@ -1017,11 +1017,14 @@ function subjectReported(messageId, ms) {
  *   unless it can read the roll, as every client can when rolls are not forced
  *   private: Dice So Nice has animated it there already (E06 fix r1-G2).
  *
- * Only while the stage is `incident`: at the opening the seats are the roller's
- * own side, and Stage 6 is the clean-up, whose rolls are the killer's alone. What
- * each roll came to and which action it was reach the same people on the crisis
- * card (murder.mjs `announceCrisis`, veiled, E06 C4) - with or without Dice So
- * Nice. What a relayed roll looks like on a real table, and whether Dice So Nice
+ * At the stage the roll is reported at, `openingRoll` or `incident` (E06 fix r1-G3,
+ * 28.09.2026; review M4, the owner's rule read as written: each incident roll). At the
+ * opening the seats are the roller's own side, so the relay adds only an accomplice
+ * seated with a killer - and never a direct murder's victim (D6). Stage 6 is the
+ * clean-up, whose rolls are the killer's alone. What each roll came to and which roll
+ * it was reach the same people on the crisis card (murder.mjs `announceCrisis`, veiled,
+ * E06 C4) and on the opening's (`announceOpening`, E06 fix r1-G3) - with or without Dice
+ * So Nice. What a relayed roll looks like on a real table, and whether Dice So Nice
  * queues it behind the roller's own, has not been measured (LIVE-E06-03).
  * ========================================================================== */
 
@@ -1042,13 +1045,13 @@ function keepDiceToReaders(messageId, interception) {
 
 /**
  * The incident's audience for this roll's dice, as user ids: `incidentAudienceIds`
- * at `state`, when the stage is `incident` and the character the roll is about -
- * as this client was told it (`keptRollSubject`), so a roll the module threw - holds
- * a seat of `incidentSeats`. Empty otherwise. A trap's builder holds no seat while
- * the trap runs, so no roll of the fight reaches them.
+ * at `state`, when the stage is `openingRoll` or `incident` and the character the
+ * roll is about - as this client was told it (`keptRollSubject`), so a roll the
+ * module threw - holds a seat of `incidentSeats`. Empty otherwise. A trap's builder
+ * holds no seat while the trap runs, so no roll of it reaches them.
  */
 function incidentDiceAudience(message, state) {
-    if (state?.stage !== "incident") return [];
+    if (state?.stage !== "incident" && state?.stage !== "openingRoll") return [];
     const subject = keptRollSubject(message);
     if (!subject || !incidentSeats(state, state).includes(subject)) return [];
     return incidentAudienceIds(state);

@@ -1050,6 +1050,8 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
     // both sides of it; see MURDER_OPENING.killer.selfInflicted.
     const prose = (state.selfInflicted && def.selfInflicted) || def;
     const success = isCritical || total >= def.threshold;
+    const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
+    await announceOpening(state, prose.label, { rollerId: state.killerId, success, band, total, threshold: def.threshold });
 
     if (!success) {
         await tellGms(prose.failure);
@@ -1060,7 +1062,6 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
         return { success: false };
     }
 
-    const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
     const keys = Math.max(KEY_REMNANTS.minimum, def.keyRemnants[band]);
 
     /*
@@ -1090,7 +1091,8 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
 
         // And the player, who is the only person in this incident.
         //
-        // Stage 4's result goes to the GM alone everywhere else, and that is
+        // What Stage 4 bought goes to the GM alone everywhere else (the roll's
+        // own card, `announceOpening`, says only what it came to), and that is
         // right when the roller is a killer who will find out what it bought
         // them by playing Stage 5. There is no Stage 5 here: the next thing
         // that happens is Stage 6 opening on their own sheet, and they would
@@ -1161,6 +1163,8 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
 
     const def = MURDER_OPENING.victim;
     const success = isCritical || total >= def.threshold;
+    const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
+    await announceOpening(state, def.label, { rollerId: state.victimId, success, band, total, threshold: def.threshold });
 
     if (!success) {
         await tellGms(def.failure);
@@ -1174,7 +1178,6 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
         return { success: false, started: true };
     }
 
-    const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
     await tellGms(def[band]);
 
     // The struggle to notice leaves its own trace. Stage 4's only Remnant, and
@@ -1831,6 +1834,8 @@ export async function resolveCrisisAction({
     const actor = game.actors.get(actorId);
     const def = CRISIS_ACTIONS[key];
     if (!state || !actor || !def) return null;
+    // The stage the action was taken at, for its card's audience (`announceCrisis`).
+    const stage = state.stage;
 
     // The swing memo, in the cast. Only an item the actor actually holds: the
     // packet is a claim, and a stranger's id would have Stage 6 ruin nothing. Its
@@ -1958,7 +1963,7 @@ export async function resolveCrisisAction({
     const ranOut = await checkVictimSpent(done);
 
     const announcement = await announceCrisis(actor, def, {
-        success, band, total, threshold, done
+        success, band, total, threshold, done, stage
     });
     receipt.messageId = announcement?.id ?? null;
 
@@ -4183,8 +4188,16 @@ async function tellGms(text, extra = {}) {
  * choice nulls `thirdId` before the card is written. The acting actor is on it
  * whoever the table seats; the builder of a running trap is not, unless the card
  * is theirs.
+ *
+ * AT THE STAGE THE ACTION WAS TAKEN AT (E06 fix r1-G3, 28.09.2026; review m1 = F3), which
+ * the caller passes. The seats were read at the stage the card is written at, and an
+ * action that ends a trap - the victim running out (`checkVictimSpent`), Survive - moves
+ * it to `resolution` first, where the table seats the builder again: they were sent the
+ * victim's last action, its total and its band, while the dice relay for the same roll,
+ * reported while the stage was `incident`, left them out. The owner's rule is the roll's
+ * stage; the tier-2 test "a trap's last crisis card does not reach its builder" reads it.
  */
-async function announceCrisis(actor, def, { success, band, total, threshold, done }) {
+async function announceCrisis(actor, def, { success, band, total, threshold, done, stage }) {
     // On a success, the sentence for the band that came up. On a failure,
     // NOTHING from the table - what happened is in `done`.
     //
@@ -4224,9 +4237,37 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
         ${nothing}
         ${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`;
 
-    const recipients = new Set([...gmIds(), ...(state ? incidentAudienceIds(state, { also: [actor] }) : [])]);
+    const recipients = new Set([...gmIds(), ...(state ? incidentAudienceIds(state, { stage, also: [actor] }) : [])]);
 
     return announce({ content, whisper: Array.from(recipients) });
+}
+
+/**
+ * Tell the opening roll's side what it came to - the GMs and the incident's audience at
+ * `openingRoll`: the killers of a direct murder (an accomplice seated with them among
+ * them), a trap's victim (E06 fix r1-G3, 28.09.2026; review M4). The owner's requirement
+ * of 27.09 is that everyone in the incident sees EACH incident roll's result and which
+ * roll it was, and the opening's went to the GMs alone: the roll's own card is hidden
+ * (`enforceContentVisibility`, private-rolls.mjs), so without Dice So Nice a killer
+ * whose opening failed saw nothing of it - the murder simply ended - and a trap's victim
+ * who noticed the trap was told nothing either (the review ran it for the direct killer
+ * on p3, and read it for the trap's victim). The crisis card's score line, under the opening's name; what the
+ * result bought stays the GMs' (`tellGms`). A direct murder's victim is not seated at the
+ * opening (D6), so they are sent nothing of it, whichever way it goes - 13-murder-signals'
+ * "opening" and "direct" phases read that with and without Dice So Nice.
+ */
+async function announceOpening(state, label, { rollerId, success, band, total, threshold }) {
+    try {
+        const roller = game.actors.get(rollerId ?? "");
+        const content = `
+            <h3>${foundry.utils.escapeHTML(label ?? "")}${roller ? ` - ${foundry.utils.escapeHTML(roller.name)}` : ""}</h3>
+            <p>${total} ${success ? "≥" : "<"} ${threshold} · ${game.i18n.localize(`DRPG.Murder.band.${band}`)}</p>`;
+        const recipients = new Set([...gmIds(), ...incidentAudienceIds(state, { stage: "openingRoll" })]);
+        await announce({ content, whisper: Array.from(recipients) });
+    } catch (err) {
+        // The opening is scored either way; the card is what it came to, not what it does.
+        error("Could not tell the opening roll's side what it came to", err);
+    }
 }
 
 /* ==========================================================================

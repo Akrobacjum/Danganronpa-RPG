@@ -555,7 +555,7 @@ Wyzwalacz podłożonego przedmiotu działa przez **Podłóż przedmiot** na uko�
 
 Dwie drogi. Gracz zgłasza **Direct Murder** podczas Eclipse (zgoda gracza ofiary to umowa przy stole, nie pole wyboru); zgłoszenie czeka i jest oceniane przy zapalonym świetle. Albo otwierasz je sam z **Sprawa > Morderstwo**: zabójca, ofiara i pole *pośrednie*, które zaznacza się samo, gdy ten zabójca ma ukończoną pułapkę. Jeden incydent naraz. Jedno nazwisko w obu polach otwiera śmierć z własnej ręki: Stage 4 wciąż rzuca, Stage 5 nie może biec, a incydent idzie prosto do Stage 6; śmierć zapisuje się, gdy zamkniesz incydent.
 
-**Stage 4, rzut otwarcia.** Direct Murder otwiera się rzutem **zabójcy**: Body albo Hand przeciw **8**, z przewagą nocą.
+**Stage 4, rzut otwarcia.** Direct Murder otwiera się rzutem **zabójcy**: Body albo Hand przeciw **8**, z przewagą nocą. Wynik rzutu - suma wobec progu i pasmo - trafia na karcie do ciebie i do strony, która rzuca (zabójców; przy pułapce do jej ofiary); liczba Key Remnants i tekst z tabeli trafiają tylko do ciebie.
 
 | Rzut zabójcy | Co się dzieje | Key Remnants, które zostawi sprawa |
 |---|---|---|
@@ -577,7 +577,7 @@ Każdy sukces zostawia Evident Incident Remnant, a zauważona pułapka zostawia 
 
 ### 13.2 Incydent (Stage 5)
 
-Turowy, ofiara pierwsza; runda to ofiara, a potem po kolei każdy zabójca. Za każdym razem, gdy tura wraca do ofiary (pierwsza jest darmowa), kosztuje ją **1** Sanity (bezpośrednio) albo **2** (pośrednio, jest sama z pułapką), potem Health, gdy Sanity się skończy; krytyczne Self-defence zatrzymuje drenaż. Ofiara pułapki ma przewagę na każdym rzucie kryzysowym, a jej Leave a clue i Secure a trace mają Body zamiast Shadow i zostawiają Reinforced Remnants przy Hope tak samo jak przy krytyku (przy krytyku dwa). Uczestnicy rzucają na swoich oczach - przeglądarka głównego GMa pokazuje każdemu z nich kości pozostałych, a karta kryzysu mówi, ile wyszło w każdym rzucie i jaka to była akcja, z Dice So Nice czy bez. Nikt inny nie widzi: budowniczy pułapki nie widzi z niego żadnych kości, a z jego kart tylko tę akcji, która go kończy. Akcje kryzysowe (`CRISIS_ACTIONS`), ze statystyką i progiem (gdzie podano kilka statystyk, tu i w Stage 4, rzuca się pierwszą; gracz, który chce innej, uzbraja *Resolve*):
+Turowy, ofiara pierwsza; runda to ofiara, a potem po kolei każdy zabójca. Za każdym razem, gdy tura wraca do ofiary (pierwsza jest darmowa), kosztuje ją **1** Sanity (bezpośrednio) albo **2** (pośrednio, jest sama z pułapką), potem Health, gdy Sanity się skończy; krytyczne Self-defence zatrzymuje drenaż. Ofiara pułapki ma przewagę na każdym rzucie kryzysowym, a jej Leave a clue i Secure a trace mają Body zamiast Shadow i zostawiają Reinforced Remnants przy Hope tak samo jak przy krytyku (przy krytyku dwa). Uczestnicy rzucają na swoich oczach - przeglądarka głównego GMa pokazuje każdemu z nich kości pozostałych, a karta kryzysu mówi, ile wyszło w każdym rzucie i jaka to była akcja, z Dice So Nice czy bez. Nikt inny nie widzi: budowniczy pułapki nie widzi z niego żadnych kości ani żadnej karty, także karty akcji, która go kończy. Akcje kryzysowe (`CRISIS_ACTIONS`), ze statystyką i progiem (gdzie podano kilka statystyk, tu i w Stage 4, rzuca się pierwszą; gracz, który chce innej, uzbraja *Resolve*):
 
 | Strona | Akcja | Rzut | Co robi |
 |---|---|---|---|

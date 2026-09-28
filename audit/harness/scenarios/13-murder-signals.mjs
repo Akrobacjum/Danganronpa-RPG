@@ -119,6 +119,26 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await S.castStore.whenHydrated(); return true;`, { timeout: 60000 });
     await settle(900);
     const castsAtStart = await p1.eval(CAST_NET);
+    /* WHAT THE OPENING CAME TO (E06 fix r1-G3, 28.09.2026; review M4, the owner's requirement
+       of 27.09: each incident roll's result reaches the incident's audience at the roll's
+       stage). Every card's words each player is sent from here are netted (`secret.card`);
+       the first opening is ruled on a table without Dice So Nice (`game.dice3d` gone on every
+       player, put back after), the second with it. The killer must be sent the opening's card
+       - its name, the killer's and the total - both times; the victim and the bystander
+       nothing of it. Until 1.2.65 the opening's result went to the GMs alone. */
+    const OPEN_NET = `globalThis.__openWords = [];
+        if (!globalThis.__openNetOn) {
+            globalThis.__openNetOn = true;
+            game.socket.on("module.${MOD}", p => { if (p?.action === "secret.card") globalThis.__openWords.push(String(p.html ?? "")); });
+        }
+        return true;`;
+    const OPEN_READ = total => `const { MURDER_OPENING } = await import("${repoUrl}/scripts/config.mjs");
+        const head = foundry.utils.escapeHTML(MURDER_OPENING.killer.label) + " - " + foundry.utils.escapeHTML(game.actors.get("${ids.chie}").name) + "</h3>";
+        const w = globalThis.__openWords;
+        return { card: w.some(h => h.includes(head) && h.includes("<p>${total} ")), cards: w.filter(h => h.includes(head)).length,
+            all: w.length, dice3d: Boolean(game.dice3d) };`;
+    for (const c of [p1, p2, p3]) await c.eval(OPEN_NET);
+    for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dice3dOff = game.dice3d; delete game.dice3d; return true;`);
     await p3.eval(HOLD);
     const firstOpened = await gm.eval(OPEN, { timeout: 60000 });
     await settle(900);
@@ -152,8 +172,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         && afterFail.victim?.witness === false && afterFail.victim?.knowsCast === false && afterFail.victim?.redEdges === false
         && afterFail.victim?.roomVolume === 0.8 && castsAfterFail === castsAtStart,
         JSON.stringify({ heldFirst, failed, victim: afterFail.victim, casts: castsAfterFail - castsAtStart }));
+    const failWords = { killer: await p3.eval(OPEN_READ(1)), victim: await p1.eval(OPEN_READ(1)), bystander: await p2.eval(OPEN_READ(1)) };
+    for (const c of [p1, p2, p3]) await c.eval(`game.dice3d = globalThis.__dice3dOff; delete globalThis.__dice3dOff; return true;`);
+    check("opening: without Dice So Nice the killer is sent what their failed opening came to, the victim and the bystander no card at all",
+        failWords.killer.card && failWords.killer.cards === 1 && failWords.killer.dice3d === false
+        && failWords.victim.all === 0 && failWords.bystander.all === 0,
+        JSON.stringify(failWords));
 
     /* The second murder, whose opening part 1 lets succeed. */
+    for (const c of [p1, p2, p3]) await c.eval(OPEN_NET);
     await p3.eval(HOLD);
     const secondOpened = await gm.eval(OPEN, { timeout: 60000 });
     await settle(300);
@@ -173,6 +200,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     check("direct: the opening's success sends the victim the cast, once",
         secondOpened === "openingRoll" && heldSecond === 1 && castsAtSecond === castsAtStart && castsAtIncident - castsAtSecond === 1,
         JSON.stringify({ secondOpened, heldSecond, casts: [castsAtStart, castsAtSecond, castsAtIncident] }));
+    const openWords = { killer: await p3.eval(OPEN_READ(24)), victim: await p1.eval(OPEN_READ(24)), bystander: await p2.eval(OPEN_READ(24)) };
+    check("direct: with Dice So Nice the killer is sent what their opening came to, the victim and the bystander not (D6)",
+        openWords.killer.card && openWords.killer.cards === 1 && openWords.killer.dice3d === true
+        && openWords.victim.cards === 0 && openWords.bystander.all === 0,
+        JSON.stringify(openWords));
 
     const direct = await readAll();
     check("direct: the killer is in it", direct.killer?.witness === true && direct.killer?.seat === true,
@@ -332,6 +364,37 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         && [withDsn.killer, withDsn.bystander, noDsn.victim, noDsn.bystander].every(r => !r.notified && !r.rung),
         JSON.stringify({ withDsn: [withDsn.victim, withDsn.killer, withDsn.bystander].map(pip), noDsn: [noDsn.killer, noDsn.victim, noDsn.bystander].map(pip) }),
         { flow: "private-rolls" });
+
+    /* A CARD ANOTHER FILE POSTS FOR A ROLL OF THE FIGHT, FROM THE PLAYER'S OWN BROWSER (E06 fix
+       r1-G3, 28.09.2026; review M2). A tool Chie holds breaks on a Despair on p3's browser
+       (use-items.mjs `breakOnDespair`, driven with a Despair result as tier 2 drives it): the
+       card is veiled by the cast p3's copy holds (settings.mjs `incidentVeil`), so the
+       bystander's copy of it names neither Chie nor her player past its author (Q2 (a): the
+       author stays until E28), and its words go to p3 alone of the players. */
+    const toolId = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        return (await INV.grantItem(game.actors.get("${ids.chie}"), { name: "Suite tool snapped in the fight", category: "tool", tier: 0 }))?.id ?? null;`, { timeout: 60000 });
+    await settle(600);
+    for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
+    const broke = await p3.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs");
+        const a = game.actors.get("${ids.chie}"); const had = new Set(game.messages.contents.map(m => m.id));
+        const name = await U.breakOnDespair(a, a.items.get("${toolId}"), { withFear: true, isCritical: false });
+        return { name, ids: game.messages.contents.filter(m => !had.has(m.id)).map(m => m.id) };`, { timeout: 60000 });
+    await settle(900);
+    /* The words as each browser holds them: sent over the socket to a reader, kept where the card was posted. */
+    const BROKE_READ = `const S = await import("${repoUrl}/scripts/secret.mjs");
+        const text = game.i18n.format("DRPG.Items.brokeOnDespair", { item: "Suite tool snapped in the fight" });
+        const held = ${JSON.stringify(broke.ids)}.map(id => game.messages.get(id)).filter(Boolean).some(m => String(S.contentOf(m) ?? "").includes(text));
+        const docs = ${JSON.stringify(broke.ids)}.map(id => game.messages.get(id)?.toObject()).filter(Boolean);
+        return { words: globalThis.__diceNet.words.filter(h => h.includes(text)).length, held, docs: docs.length, veiled: docs.every(d => d.flags?.["${MOD}"]?.veiled === true),
+            named: docs.some(d => JSON.stringify([d.speaker, d.system, d.rolls, d.flags]).match(/${ids.chie}|Chie Mori|${p3.userId}/) !== null),
+            everybody: docs.every(d => (d.whisper ?? []).length === game.users.size) };`;
+    const brokeSeen = { killer: await p3.eval(BROKE_READ), victim: await p1.eval(BROKE_READ), bystander: await p2.eval(BROKE_READ) };
+    await gm.eval(`await game.actors.get("${ids.chie}").items.get("${toolId}")?.delete(); return true;`, { timeout: 60000 });
+    check("dice: a tool broken on a Despair in the fight is carded veiled from the player's browser - its words to that player alone, its document naming nobody on the bystander's",
+        Boolean(toolId) && broke.name === "Suite tool snapped in the fight" && broke.ids.length === 1
+        && brokeSeen.killer.held && [brokeSeen.victim, brokeSeen.bystander].every(r => r.words === 0 && !r.held)
+        && brokeSeen.bystander.docs === 1 && brokeSeen.bystander.veiled && !brokeSeen.bystander.named && brokeSeen.bystander.everybody,
+        JSON.stringify({ toolId, broke, brokeSeen }));
 
     const FORCED = on => `const { SETTINGS } = await import("${repoUrl}/scripts/settings.mjs"); await game.settings.set("${MOD}", SETTINGS.forcePrivateRolls, ${on}); return true;`;
     await gm.eval(FORCED(false));
@@ -526,9 +589,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
     `, { timeout: 60000 });
     await settle(900);
     const WORDS_READ = `const w = globalThis.__trapWords ?? [];
+        const { MURDER_OPENING } = await import("${repoUrl}/scripts/config.mjs");
         return { n: w.length, hour: w.some(h => h.includes(${JSON.stringify(hour.label)})),
             crisis: w.some(h => h.includes("- " + foundry.utils.escapeHTML(game.actors.get("${ids.aiko}").name) + "</h3>")),
             sprung: w.some(h => h.includes(game.i18n.localize("DRPG.Murder.victimTrapSprung"))),
+            opening: w.some(h => h.includes(foundry.utils.escapeHTML(MURDER_OPENING.victim.label) + " - " + foundry.utils.escapeHTML(game.actors.get("${ids.aiko}").name) + "</h3>")),
             builder: w.some(h => h.includes(foundry.utils.escapeHTML(game.actors.get("${ids.chie}").name))),
             text: w.map(h => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 60)) };`;
     const trapWords = { victim: await p1.eval(WORDS_READ), builder: await p3.eval(WORDS_READ) };
@@ -536,6 +601,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl }) {
         hour.stage === "incident" && trapWords.builder.n === 0 && trapWords.victim.hour && trapWords.victim.crisis
         && trapWords.victim.sprung && trapWords.victim.builder === false,
         JSON.stringify({ hour, trapWords }));
+    /* E06 fix r1-G3 (review M4): the trap's opening is the victim's roll, and its card is theirs. */
+    check("trap: the victim is sent what their opening roll came to, and the builder nothing of it",
+        trapWords.victim.opening && trapWords.builder.opening === false && trapWords.builder.n === 0,
+        JSON.stringify(trapWords));
 
     /* NO DIE OF THE TRAP'S FIGHT REACHES ITS BUILDER (E06 C6, 27.09.2026; audit S04-01). The
        victim throws a roll of the fight on p1, the way a crisis roll is thrown (as 72 throws

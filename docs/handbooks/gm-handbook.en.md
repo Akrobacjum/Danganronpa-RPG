@@ -555,7 +555,7 @@ The planted-item trigger works through **Plant an item** on the finished project
 
 Two roads. A player declares a **Direct Murder** during an Eclipse (consent from the victim's player is a table agreement, not a checkbox); it is parked and judged at the lights. Or you open it yourself from **The case > Murder**: killer, victim, and the *indirect* checkbox, which ticks itself when that killer has a finished trap. One incident at a time. One name in both fields opens a death by their own hand: Stage 4 still rolls, Stage 5 cannot run, and the incident goes straight to Stage 6; the death is recorded when you close the incident.
 
-**Stage 4, the opening roll.** A direct murder opens on the **killer's** roll: Body or Hand against **8**, with advantage at Night.
+**Stage 4, the opening roll.** A direct murder opens on the **killer's** roll: Body or Hand against **8**, with advantage at Night. What the roll came to - its total against the threshold and its band - is carded to you and to the roller's side (the killers; for a trap, its victim); the Key Remnants it leaves and the table's text are told to you alone.
 
 | Killer's roll | What happens | Key Remnants the case will hold |
 |---|---|---|
@@ -577,7 +577,7 @@ Every success leaves an Evident Incident Remnant, and a noticed trap leaves the 
 
 ### 13.2 The incident (Stage 5)
 
-Turn-based, the victim first; a round is the victim, then each killer in turn. Each time the turn comes back to the victim (their first turn is free) it costs them **1** Sanity (direct) or **2** (indirect, they are alone with a trap), then Health once Sanity is gone; a critical Self-defence stops the drain. A trap's victim has advantage on every crisis roll, and their Leave a clue and Secure a trace list Body instead of Shadow and leave Reinforced Remnants on Hope as well as on a critical (two of them on a critical). The participants roll in front of each other - the primary GM's browser shows each of them the others' dice, and the crisis card says what each roll came to and which action it was, with or without Dice So Nice. Nobody else sees: a trap's builder sees no dice of it, and of its cards only the one of the action that ends it. Crisis actions (`CRISIS_ACTIONS`), with the statistic and threshold (where several statistics are listed, here and in Stage 4, the first is the one rolled; a player who wants another arms *Resolve*):
+Turn-based, the victim first; a round is the victim, then each killer in turn. Each time the turn comes back to the victim (their first turn is free) it costs them **1** Sanity (direct) or **2** (indirect, they are alone with a trap), then Health once Sanity is gone; a critical Self-defence stops the drain. A trap's victim has advantage on every crisis roll, and their Leave a clue and Secure a trace list Body instead of Shadow and leave Reinforced Remnants on Hope as well as on a critical (two of them on a critical). The participants roll in front of each other - the primary GM's browser shows each of them the others' dice, and the crisis card says what each roll came to and which action it was, with or without Dice So Nice. Nobody else sees: a trap's builder sees none of its dice and none of its cards, the card of the action that ends it included. Crisis actions (`CRISIS_ACTIONS`), with the statistic and threshold (where several statistics are listed, here and in Stage 4, the first is the one rolled; a player who wants another arms *Resolve*):
 
 | Side | Action | Roll | What it does |
 |---|---|---|---|

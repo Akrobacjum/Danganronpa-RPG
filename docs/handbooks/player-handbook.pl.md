@@ -766,7 +766,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 - **Dźwięki komunikatora** oraz głośność **Dźwięk** i **Muzyka**.
 
 > [!NOTE]
-> **Rzuty są prywatne:** każdy twój rzut widzisz tylko ty i GMowie. Nikt nie widzi cudzych kości, z dwoma wyjątkami. Rzut w walce podczas morderstwa widzą jego uczestnicy - kości, wynik i to, jaka to akcja - od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi z niego żadnych kości, a z jego kart tylko tę akcji, która go kończy. Rzut otwarcia i sprzątanie zostają przy tym, kto rzuca. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju.
+> **Rzuty są prywatne:** każdy twój rzut widzisz tylko ty i GMowie. Nikt nie widzi cudzych kości, z dwoma wyjątkami. Rzut w walce podczas morderstwa widzą jego uczestnicy - kości, wynik i to, jaka to akcja - od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi z niego żadnych kości ani żadnej karty, także karty akcji, która go kończy. Wynik rzutu otwarcia poznaje tylko strona, która rzuca - zabójcy w Direct Murder, ofiara pułapki - a sprzątanie zostaje przy tym, kto rzuca. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju.
 
 ---
 
