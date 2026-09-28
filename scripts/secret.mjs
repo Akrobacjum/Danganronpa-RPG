@@ -49,7 +49,7 @@
 
 import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
-import { debug, warn, error, isPrimaryGm, log, forcedDeletion, MESSAGE_FLAG } from "./utils.mjs";
+import { debug, warn, error, isPrimaryGm, log, forcedDeletion, gmIds, MESSAGE_FLAG } from "./utils.mjs";
 import { ownsActor } from "./bridge-guards.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -575,17 +575,17 @@ export async function postSecret(data = {}) {
  *
  * @param {ChatMessage} message
  * @param {string} html
- * @param {string[]} [recipients]  Who holds the words. Defaults to the card's
- *   whisper list, which is right for every card that is not veiled.
+ * @param {string[]} [recipients]  Who holds the words. Defaults to `readersOf`.
  * @param {object} [meta]  Flags of the card's own to add to the meta its readers keep
  *   (`settleCall`'s `settled`) - never to the document, for the reason `postSecret` splits.
  */
 export async function updateSecret(message, html, recipients = null, meta = undefined) {
     const more = plainMeta(meta) ?? undefined;
     if (!message?.id) return null;
-    const readers = [...new Set((recipients ?? message.whisper ?? []).filter(Boolean))];
+    const readers = [...new Set((recipients ?? readersOf(message)).filter(Boolean))];
     const at = read()[message.id]?.at ?? message.timestamp ?? Date.now();
-    const pin = pinned(message.flags);
+    // A veiled thread card's thread is in its meta, not its document (E06 C8): still pinned.
+    const pin = Boolean(cardFlag(message, "thread"));
     if (readers.includes(game.user.id) || !readers.length) {
         await remember(message.id, game.user.isGM ? html : playerWords(html), at, pin, game.user.isGM, undefined, more);
         refresh(message);
@@ -599,6 +599,23 @@ export async function updateSecret(message, html, recipients = null, meta = unde
         }
     }
     return message;
+}
+
+/*
+ * WHO HOLDS A CARD'S WORDS WHEN THE CALLER DOES NOT SAY (E06 C8, 28.09.2026; audit L18,
+ * S05-15). The whisper list, for every card that is not veiled. A veiled card's whisper
+ * list is the whole table - that is what veiling is - so `settleCall`'s receipt on a
+ * veiled thread card (the trap's receipt, Stage 6's reshape card) would go to every
+ * browser: its readers are its thread's player and the GMs, read off the meta this
+ * browser holds. A veiled card that is no thread's names nobody here, and its new
+ * words stay on this browser.
+ */
+function readersOf(message) {
+    if (!isVeiled(message)) return message.whisper ?? [];
+    const thread = cardFlag(message, "thread");
+    if (thread) return [thread, ...gmIds()];
+    warn(`The new words of veiled card ${message.id} stay on this browser: nothing here says who else reads it.`);
+    return [];
 }
 
 /** The document a socket packet named, once Foundry delivers it - or null after a while. Also `guardRollAuthor`'s wait (E06). */

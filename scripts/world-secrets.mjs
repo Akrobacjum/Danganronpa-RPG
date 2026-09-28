@@ -152,6 +152,15 @@ export const WORLD_SECRET_RULES = Object.freeze({
             when: "secret",
             flagsOnly: Object.freeze(["secret", "veiled", "drpgMessage", "thread", "kind", "gmAsk", "settled"]),
             since: "E06 C7a", why: "a private card's document says what it is about - its action, its roll's way, its sound, its item, a ruling asked (L16, S02-02)"
+        }),
+        /* E06 C8: a veiled card's document is addressed to the whole table, and a veiled thread
+           card's placement - whose thread, its kind, that it asks the GM - goes with its words
+           (messenger.mjs `postToThread` with `veiled`). Read with the rule above: on a veiled card
+           this one is the narrower. */
+        Object.freeze({
+            when: "veiled",
+            flagsOnly: Object.freeze(["secret", "veiled", "drpgMessage"]),
+            since: "E06 C8", why: "a veiled card's document says whose thread it is in (L18, S05-15)"
         })
     ])
 });

@@ -22,6 +22,7 @@
  * p1's and p2's world data - neither is the killer's player's - is read against
  * scripts/world-secrets.mjs and for Chie's actor id (`canary.worldScan`):
  *   trap          the indirect murder's bar filled and its trap armed (it watches Storage);
+ *                 its receipt, a veiled card in Chie's player's thread, read on p3 and p1 (E06 C8);
  *   eclipse       p1 crosses twice, and no crossing's card names Aiko or p1 (E05 C4);
  *                 the GM allows Chie's parked Direct Murder, and neither the ask nor
  *                 the ruling names her player or her (E05 C3);
@@ -301,6 +302,23 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         return { armed: T.diagnoseTraps().armed, complete: P.isComplete(P.allProjects().find(p => p.id === "${made ?? "none"}")) };`, { timeout: 60000 });
     check("gm: the indirect murder's bar is filled and its trap armed", armedTrap.complete === true && armedTrap.armed >= 1, JSON.stringify(armedTrap));
     await scanned("trap", KILLER_CHAT);
+    /* The trap's receipt (E06 C8): a veiled thread card. Found on the GM in Chie's player's
+       thread by its title, then read by id on p3 - listed in her own thread from the meta its
+       words brought - and on p1, where the document names no thread and no player, and lists
+       in no thread. */
+    const receiptId = await gm.eval(`const M = await import("${repoUrl}/scripts/messenger.mjs"); const S = await import("${repoUrl}/scripts/secret.mjs");
+        const title = foundry.utils.escapeHTML(game.i18n.localize("DRPG.Trap.armedTitle"));
+        return M.threadMessages("${p3.userId}").reverse().find(m => S.contentOf(m).includes(title))?.id ?? null;`);
+    const receiptOn = c => c.eval(`const M = await import("${repoUrl}/scripts/messenger.mjs"); const S = await import("${repoUrl}/scripts/secret.mjs");
+        const m = game.messages.get("${receiptId ?? "none"}");
+        return m ? { listed: M.threadMessages("${p3.userId}").some(x => x.id === m.id), placed: S.cardFlag(m, "thread") ?? null,
+            flags: Object.keys(m.toObject().flags?.["${MOD}"] ?? {}).sort(), unaddressed: game.users.filter(u => !m.whisper.includes(u.id)).length } : null;`);
+    const [receiptP3, receiptP1] = [await receiptOn(p3), await receiptOn(p1)];
+    check("trap: the trap's receipt is a veiled card in Chie's player's thread - listed there on p3's browser, and naming no thread on p1's (E06 C8)",
+        Boolean(receiptId) && receiptP3?.listed === true && receiptP3.placed === p3.userId
+        && receiptP1?.listed === false && receiptP1.placed === null && receiptP1.unaddressed === 0
+        && JSON.stringify(receiptP1.flags) === JSON.stringify(["secret", "veiled"]),
+        JSON.stringify({ receiptId, receiptP3, receiptP1 }));
 
     /* eclipse: p1 crosses twice - through `judgeEclipseCrossing` on p1's client, the road a token
        dragged across a border takes (movement.mjs `settleRoute`), so each crossing's card is the

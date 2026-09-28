@@ -6095,6 +6095,179 @@ const SCENARIOS = [
         }
     }],
 
+    ["a veiled thread card names no thread", async () => {
+        /*
+         * E06 C8, 28.09.2026; audit L18, S05-15. A Tamper's reshape card - Stage 6's, when the
+         * killer covers their tracks - goes to the GMs through its player's thread, and an
+         * ordinary thread card's document names that player to every browser: `thread` in its
+         * flags and in its whisper list. Posted veiled now (`callGm`'s `veiled`): the document
+         * keeps `secret` and `veiled` alone and is addressed to the whole table, the GM still
+         * lists it in the player's thread from the meta its words brought, and the words go to
+         * the player and the GMs alone - as it is posted and as `settleCall` rewrites it, whose
+         * readers are not the whisper list of a veiled card (secret.mjs `readersOf`).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a reshape card lives in its player's thread");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const cleanup = await import("./cleanup.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { threadMessages } = await import("./messenger.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { ownerOf, gmIds } = await import("./utils.mjs");
+        const who = livingStudents().find(a => ownerOf(a)?.active);
+        must(who, "no living student has a connected player - this would measure nothing");
+        const owner = ownerOf(who);
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        let trace = null, copy = null, card = null;
+        try {
+            trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "SUITE C8 a reshape's trace" });
+            must(trace, "could not place the fixture trace");
+            // A copy puts the trace on its Tamper register (see the N-3 reshape test).
+            copy = await bullets.createTruthBullet(who, { name: "SUITE C8 a copy", realType: "neutral", visibility: "obvious",
+                remnantId: trace.id, sceneId: scene.id });
+            must(copy, "could not copy the fixture trace onto a bullet");
+            await settle();
+            const before = new Set(game.messages.map(m => m.id));
+            const sent = await wordsSent(async () => {
+                await cleanup.resolveCleanup({ actorId: who.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true,
+                    viaAction: true, mode: "transform", price: "stress", change: { name: "SUITE C8 a kettle", text: "SUITE C8 it was always there" } });
+                await settle();
+                card = game.messages.find(m => !before.has(m.id) && contentOf(m).includes('data-drpg-call="approveReshape"')) ?? null;
+                must(card, "no reshape card was raised - this would measure nothing");
+                await settleCall(card, "Suite: settled");
+            });
+            const readers = [owner.id, ...gmIds()];
+            const toCard = sent.filter(packet => packet.id === card.id);
+            equal(stableJson([Object.keys(card.toObject().flags?.[MODULE_ID] ?? {}).sort(), game.users.filter(u => !card.whisper.includes(u.id)).map(u => u.id),
+                cardFlag(card, "thread") ?? null, threadMessages(owner.id).some(m => m.id === card.id),
+                toCard.filter(packet => packet.to.includes(owner.id)).length, toCard.flatMap(packet => packet.to).filter(id => !readers.includes(id)),
+                cardFlag(card, "settled") ?? null]),
+            stableJson([["secret", "veiled"], [], owner.id, true, 2, [], true]),
+                "the reshape card's document names its thread or its player, the GM does not list it in the thread, or its words (posted or settled) went beyond the player and the GMs");
+        } finally {
+            try { await copy?.delete(); } catch { /* already gone */ }
+            if (trace) {
+                try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["the killer's thread lists the receipt, with its Plant button working", async () => {
+        /*
+         * E06 C8, 28.09.2026; audit L18, S05-15. An item trap that arms posts its killer a
+         * receipt with the GMs' Plant button on it (projects.mjs `announceTrapReady`), into the
+         * killer's thread - veiled now, so the button's card is placed from its meta. Built and
+         * filled here: the receipt's document keeps `secret` and `veiled` alone, the GM lists it
+         * in the killer's player's thread, and its Plant button, wired as the messenger wires a
+         * bubble, opens the plant window (answered here) and plants the trap's object - the trap
+         * waits for its plant before the click and not after - and the card is settled.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the receipt lives in the killer's player's thread");
+        needs(world.atLeast("namedRooms"), "the trap is built in a room");
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const { allRooms } = await import("./movement.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { threadMessages } = await import("./messenger.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const killer = livingStudents().find(a => ownerOf(a)?.active);
+        must(killer, "no living student has a connected player - this would measure nothing");
+        const owner = ownerOf(killer);
+        const room = allRooms()[0];
+        ok(room, "Foundry has a named room on the scene on screen, and allRooms() finds none");
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        let made = null, asked = null;
+        try {
+            made = await P.createProject({ name: "SUITE C8 item trap", target: 1, room, indirectMurder: true, killerId: killer.id,
+                condition: "SUITE C8", trigger: { kind: "item", afterDark: false, notBuilder: true } });
+            must(made?.id, "could not create the trap project");
+            await settle();
+            const seen = new Set(game.messages.map(m => m.id));
+            const isReceipt = m => !seen.has(m.id) && contentOf(m).includes('data-drpg-call="plantTrapItem"');
+            await P.addProgress(made.id, 1, { by: killer.id });
+            await until(() => game.messages.some(isReceipt));
+            const receipt = game.messages.find(isReceipt) ?? null;
+            must(receipt, "the trap's receipt was not posted - this would measure nothing");
+            const waiting = T.itemTrapsWithoutPlant().some(t => t.id === made.id);
+            D.wait = async cfg => {
+                asked = cfg?.window?.title ?? null;
+                return { name: "SUITE C8 a teapot", room };
+            };
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(receipt);
+            wireCallActions(body, receipt);
+            body.querySelector('[data-drpg-call="plantTrapItem"]')?.click();
+            await until(() => cardFlag(receipt, "settled") === true);
+            equal(stableJson([Object.keys(receipt.toObject().flags?.[MODULE_ID] ?? {}).sort(), threadMessages(owner.id).some(m => m.id === receipt.id),
+                waiting, asked, T.itemTrapsWithoutPlant().some(t => t.id === made.id), cardFlag(receipt, "settled") ?? null]),
+            stableJson([["secret", "veiled"], true, true, game.i18n.localize("DRPG.Trap.plantTitle"), false, true]),
+                "the receipt's document names its thread, the killer's thread does not list it, or its Plant button did not plant the trap's object and settle the card");
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            if (made?.id) await P.deleteProject(made.id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await settle();
+        }
+    }],
+
+    ["the GM's popup for a veiled ask", async () => {
+        /*
+         * E06 C8, 28.09.2026. A thread card that asks the GMs (`gmAsk`) raises a notice and
+         * plays the ask's sound on a GM's screen (messenger.mjs, messenger-app.mjs) - read off
+         * the document, where a veiled card has neither its thread nor its `gmAsk`. They are
+         * read from the words' meta now, once the words are here: a veiled `callGm` ask
+         * posted on this GM raises the notice headed as a GM's ask, holding the card's
+         * title, and the sound plays.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "an ask lives in its player's thread");
+        const { callGm } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+        const actor = livingStudents().find(a => ownerOf(a)?.active);
+        must(actor, "no living student has a connected player - this would measure nothing");
+        document.querySelectorAll(".drpg-popup").forEach(node => node.remove());
+        const TITLE = `Suite veiled ask ${Date.now() % 100000}`;
+        const HEAD = game.i18n.localize("DRPG.Messenger.gmActionTitle");
+        const FILE = "modules/dice-so-nice/sounds/dicehit.mp3";
+        const map = foundry.utils.deepClone(getSetting(SETTINGS.sfxMap) ?? {});
+        const helper = foundry.audio.AudioHelper;
+        const play = helper.play;
+        const heard = [];
+        const seen = new Set(game.messages.map(m => m.id));
+        let message = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, { ...map, gmAsk: FILE });
+            helper.play = function (data, ...rest) {
+                heard.push(data?.src ?? null);
+                return play.call(this, data, ...rest);
+            };
+            must(await callGm(actor, { title: TITLE, veiled: true }), "the veiled ask was not posted - this would measure nothing");
+            const notice = () => [...document.querySelectorAll(".drpg-popup")]
+                .find(c => c.querySelector(".drpg-popup-title")?.textContent?.includes(HEAD) && c.textContent.includes(TITLE)) ?? null;
+            await until(() => notice() && heard.includes(FILE), 5000);
+            message = game.messages.find(m => !seen.has(m.id)) ?? null;
+            equal(stableJson([Boolean(notice()), heard.includes(FILE), Object.keys(message?.toObject().flags?.[MODULE_ID] ?? {}).sort()]),
+                stableJson([true, true, ["secret", "veiled"]]),
+                "the veiled ask raised no GM's notice with its title, its sound did not play, or its document names its thread");
+        } finally {
+            helper.play = play;
+            for (const node of [...document.querySelectorAll(".drpg-popup")]) node.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            if (message) await message.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, map);
+        }
+    }],
+
 
     ["every objection takes a different track from the objection playlist", async () => {
         /*

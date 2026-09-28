@@ -4631,6 +4631,10 @@ const INVARIANTS = [
             ["message secret: only secret, veiled, drpgMessage, thread, kind, gmAsk, settled",
                 s => { s.messages.push({ id: "R190MESSAGE00003", flags: { [MOD]: { secret: true, drpgMessage: true, popupTitle: "R190 Search" } } }); },
                 h => h.kind === "messageFlag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00003" && h.path === `flags.${MOD}.popupTitle`],
+            // E06 C8: a veiled card's document says nothing of whose thread it is - its thread is found.
+            ["message veiled: only secret, veiled, drpgMessage",
+                s => { s.messages.push({ id: "R190MESSAGE00006", flags: { [MOD]: { secret: true, veiled: true, thread: "R190USER00000001" } } }); },
+                h => h.kind === "messageFlag" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00006" && h.path === `flags.${MOD}.thread`],
             // E05 C14: a body carries no loot record - on a world actor, and on an unlinked token's own actor data.
             ["Actor flag lootTrace",
                 s => { s.actors[1].flags[MOD].lootTrace = { sceneId: "R190SCENE0000001", tokenId: "R190TOKEN0000009", taken: ["R190 a knife"] }; },

@@ -2162,7 +2162,16 @@ export async function callGm(actor, {
      * the same road as every ruling card and that the road was the risk. It
      * cost one line to open and one line to close.
      */
-    gmOnly = false
+    gmOnly = false,
+    /**
+     * THE PLAYER READS IT, AND NOBODY ELSE MAY LEARN THAT THEY DO (E06 C8, 28.09.2026;
+     * audit L18, S05-15). The trap's receipt is the killer's to read and a reshape card
+     * (Stage 6's, a Tamper's) its player's, so each belongs in that player's thread - and
+     * an ordinary thread card's document names its thread's player to every browser.
+     * Posted veiled (messenger.mjs `postToThread`), the document names nobody and the
+     * card's placement travels with its words. Ignored with no thread to post into.
+     */
+    veiled = false
 } = {}) {
     const parts = [];
 
@@ -2254,7 +2263,7 @@ export async function callGm(actor, {
         // Every callGm card is, by definition, a call ON the GM - the flag is
         // what tells the messenger's notifier to interrupt them for it. See
         // MESSENGER_FLAGS.gmAsk for why this cannot be derived from the author.
-        return Boolean(await postToThread(owner.id, content, { gmAsk: true }));
+        return Boolean(await postToThread(owner.id, content, { gmAsk: true, veiled }));
     } catch (err) {
         error("Could not reach the GM", err);
         return false;

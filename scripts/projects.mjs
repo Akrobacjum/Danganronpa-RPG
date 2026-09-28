@@ -971,7 +971,9 @@ async function announceTrapReady(countdownId, name) {
                     action: "plantTrapItem",
                     label: game.i18n.localize("DRPG.Trap.plantAction"),
                     data: { project: countdownId }
-                }] : []
+                }] : [],
+                // The killer's receipt, and the killer's thread nobody else may see it in (E06 C8).
+                veiled: true
             });
             log(`Trap "${name}" is watching for "${kind}" (${killer.name}).`);
             return { armed: kind };
@@ -991,7 +993,8 @@ async function announceTrapReady(countdownId, name) {
             action: "fireTrap",
             label: game.i18n.localize("DRPG.Project.trapFire"),
             data: { killer: killer.id }
-        }]
+        }],
+        veiled: true
     });
 
     log(`Trap "${name}" is ready (${killer.name}).`);

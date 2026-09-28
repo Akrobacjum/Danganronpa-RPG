@@ -21,21 +21,31 @@
  * player's own typed messages, in the same conversation.
  *
  * WHAT A THREAD CARD STILL SAYS (E05, 26.09.2026; audit S11-02). The words are
- * private; the document is not. Every browser holds it, and it names the
- * thread's player (`thread`), its kind, whether it asks the GM (`gmAsk`) and
- * when. So a card whose mere existence in one player's thread is the secret may
- * not be a thread card: the Direct Murder declared in the dark is put to the
- * GMs in their own log (`callGm` with `gmOnly`), and its ruling reaches the
- * killer veiled (eclipse.mjs). Two such cards still land in the killer's thread
- * - the trap's receipt and Stage 6's reshape card - and are E06's (S05-15), with
- * the rest of what chat metadata says.
+ * private; the document is not. Every browser holds it, and an ordinary thread
+ * card names the thread's player (`thread`, and its whisper list), its kind,
+ * whether it asks the GM (`gmAsk`) and when. A card whose mere existence in one
+ * player's thread is the secret is not put there that way. The Direct Murder
+ * declared in the dark goes to the GMs in their own log (`callGm` with
+ * `gmOnly`), and its ruling reaches the killer veiled (eclipse.mjs). The trap's
+ * receipt belongs in the killer's thread and a reshape card (Stage 6's, a
+ * Tamper's) in its player's, and since E06 C8 (28.09.2026; audit L18, S05-15)
+ * they are VEILED thread cards (`callGm` with `veiled`): the document is
+ * addressed to the whole table and says nothing of whose thread it is, and the
+ * three placement flags travel with the words
+ * (secret.mjs `splitFlags`). What that costs: a veiled thread card is placed
+ * only by a browser that holds its words - a GM who was not connected when it
+ * was posted does not see it in the thread at all, where an ordinary card shows
+ * them a stub (see WHAT A LATER GM CANNOT SEE, below). 72's trap phase is where
+ * E06 C1 measured the receipt (p1's and p2's browsers held it with Chie's player
+ * as its thread); that known leak is gone from known-leaks.json, so a receipt
+ * that names her thread again fails the run.
  */
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, error, warn } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
-import { postSecret, cardFlag } from "./secret.mjs";
+import { postSecret, cardFlag, isVeiled, secretHtml, wordsOf } from "./secret.mjs";
 
 /**
  * Whether this browser hears the messenger at all.
@@ -190,14 +200,15 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm } 
 
 /**
  * Post pre-built HTML - the callGm() ruling cards - into a player's thread.
- * The caller is responsible for escaping anything it interpolated.
+ * The caller is responsible for escaping anything it interpolated. `veiled`: a
+ * card whose place in this thread is itself the secret (see the header).
  */
-export async function postToThread(playerUserId, html, { kind = THREAD_KIND.action, gmAsk = false } = {}) {
+export async function postToThread(playerUserId, html, { kind = THREAD_KIND.action, gmAsk = false, veiled = false } = {}) {
     if (!isThreadUser(playerUserId)) return null;
-    return createThreadMessage(playerUserId, html, kind, gmAsk);
+    return createThreadMessage(playerUserId, html, kind, gmAsk, veiled);
 }
 
-async function createThreadMessage(playerUserId, content, kind, gmAsk = false) {
+async function createThreadMessage(playerUserId, content, kind, gmAsk = false, veiled = false) {
     const whisper = Array.from(new Set([playerUserId, ...gmIds()]));
 
     // The SENDER's sound, and it is deliberately not carried on the message:
@@ -216,12 +227,14 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false) {
      * murder's note, the project proposals, the GM's typed rulings, the DMs.
      * The words go over the addressed socket now and live in the readers'
      * own browsers; the document keeps the thread flag, the kind and the
-     * timestamp, which is all the roster and the badge ever read.
+     * timestamp, which is all the roster and the badge ever read - or, veiled
+     * (E06 C8), the timestamp alone, and the words carry the rest.
      */
     try {
         return await postSecret({
             content,
             whisper,
+            veiled,
             flags: {
                 [MODULE_ID]: {
                     [MESSENGER_FLAGS.thread]: playerUserId,
@@ -248,8 +261,16 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false) {
  * re-rendering itself and throwing away whatever is half-typed in the box.
  * ========================================================================== */
 
-function onCreateChatMessage(message) {
-    const thread = message.getFlag(MODULE_ID, MESSENGER_FLAGS.thread);
+async function onCreateChatMessage(message) {
+    let thread = cardFlag(message, MESSENGER_FLAGS.thread);
+    /* A veiled thread card's placement arrives with its words (E06 C8), which may
+       land after the document - on its poster's browser too, whose own copy
+       `postSecret` keeps only once `ChatMessage.create` has answered. A browser the
+       words never reach gives up at `wordsOf`'s ceiling and places nothing. */
+    if (!thread && isVeiled(message) && !secretHtml(message)) {
+        await wordsOf(message);
+        thread = cardFlag(message, MESSENGER_FLAGS.thread);
+    }
     if (!thread) return;
 
     // Relevant to this client only if it is their own thread, or they are a
@@ -272,7 +293,7 @@ function onCreateChatMessage(message) {
      * the author of the one card they most needed to hear. A typed DM carries
      * no `gmAsk` flag and still does not ping its own writer.
      */
-    if (game.user.isGM && message.getFlag(MODULE_ID, MESSENGER_FLAGS.gmAsk)) {
+    if (game.user.isGM && cardFlag(message, MESSENGER_FLAGS.gmAsk)) {
         if (messengerSoundOn()) playSfx("gmAsk");
         return;
     }
@@ -293,7 +314,7 @@ function onCreateChatMessage(message) {
  * something already read said something different.
  */
 function onUpdateChatMessage(message) {
-    const thread = message.getFlag(MODULE_ID, MESSENGER_FLAGS.thread);
+    const thread = cardFlag(message, MESSENGER_FLAGS.thread);
     if (!thread) return;
     if (!game.user.isGM && game.user.id !== thread) return;
     Hooks.callAll("drpgMessengerEdited", thread, message);

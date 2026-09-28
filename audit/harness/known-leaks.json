@@ -15,22 +15,6 @@
       "measuredAt": "E06 C5b on the C5b tree over f00840a, 27.09.2026 (11-killer-secrecy, e06run/c5ba1/11b.json): p1 held the killer's opening roll, a roll the module threw, with author USERP30000000000 (p3, Chie's player), speaker actor null and whisper [GM] - the author is all it says of whose roll it was"
     },
     {
-      "id": "S05-15",
-      "findings": ["S05-15"],
-      "class": "killer-identity",
-      "severity": "high",
-      "what": "An armed trap's receipt lands in its builder's messenger thread, and every browser holds the card: its thread flag names the builder's player, and so does its whisper list [the builder's player, the GMs]. E06 C8 closes it (L18).",
-      "closes": "E06",
-      "match": [
-        {"seed": "chat.id", "surface": "document", "where": "ChatMessage#thread", "path": "*.flags.danganronpa-rpg.thread"},
-        {"seed": "chat.whisper", "surface": "document", "where": "ChatMessage#thread", "path": "*.whisper"}
-      ],
-      "detectedBy": [
-        {"scenario": "72-canary", "seed": "chat.id", "phase": "trap"}
-      ],
-      "measuredAt": "E06 C1 on the C1 tree over d666a2a, 27.09.2026 (72-canary, e06run/c1c): in phase trap p1 and p2 each held the card flagged thread/kind/gmAsk/secret, thread USERP30000000000, whisper [p3, GM], posted when the indirect murder's trap was armed"
-    },
-    {
       "id": "S17-31",
       "findings": ["S17-31"],
       "class": "killer-identity",
