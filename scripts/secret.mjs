@@ -213,6 +213,48 @@ function splitFlags(flags, veiled) {
 /** How much a player's packet weighs: its words and its meta, against `MAX_PLAYER_BYTES`. */
 const packetBytes = (html, meta) => new Blob([String(html ?? ""), meta ? JSON.stringify(meta) : ""]).size;
 
+/*
+ * THE GMS' PROSE STAYS THEIRS (E06 C7b, 27.09.2026; audit L17, S11-05). A ruling card
+ * (gm-bridge.mjs `callGm`) lives in the player's thread and carries the GMs' half of it -
+ * the reference table, the critical's reminder (`.drpg-gm-only`) and the ruling's buttons
+ * (`.drpg-call-actions`). The messenger took both off its bubbles on a player's screen, but
+ * the words went to the player whole: into their browser's store, and into their Chat tab
+ * through the swap below, which drew them as they came. A player is sent the words
+ * without the two blocks now; a GM gets them as written.
+ *
+ * Parsed only when the words hold one of the two class names, so every other card reaches
+ * a player byte for byte as before; the module writes the two blocks in `callGm` alone.
+ * A `<template>`, as `settleCall` parses: its content is
+ * inert, so an image in the words loads nothing here.
+ */
+const GM_PROSE = ".drpg-gm-only, .drpg-call-actions";
+
+/** A card's words as a player may hold them: without the GMs' prose and the ruling's buttons. */
+function playerWords(html) {
+    const text = String(html ?? "");
+    if (!/drpg-(?:gm-only|call-actions)/.test(text)) return text;
+    const wrap = document.createElement("template");
+    wrap.innerHTML = text;
+    wrap.content.querySelectorAll(GM_PROSE).forEach(el => el.remove());
+    return wrap.innerHTML;
+}
+
+/**
+ * A card's packet to the other readers: a GM gets the words as written, a player
+ * `playerWords` of them - one packet to all of them when the two are the same.
+ */
+function sendWords(readers, packet) {
+    const theirs = playerWords(packet.html);
+    if (theirs === String(packet.html ?? "")) {
+        game.socket.emit(SOCKET_EVENT, packet, { recipients: readers });
+        return;
+    }
+    const gms = readers.filter(id => game.users.get(id)?.isGM);
+    const players = readers.filter(id => !gms.includes(id));
+    if (gms.length) game.socket.emit(SOCKET_EVENT, packet, { recipients: gms });
+    if (players.length) game.socket.emit(SOCKET_EVENT, { ...packet, html: theirs }, { recipients: players });
+}
+
 /**
  * Pinned cards are a messenger's threads and are never aged out with the
  * ordinary ones - but "never" was also "without limit", and a thread of years
@@ -505,16 +547,15 @@ export async function postSecret(data = {}) {
     // recipient of should never be waiting on their own network round trip to
     // read what they just wrote.
     if (recipients.includes(game.user.id)) {
-        await remember(message.id, html, at, pin, game.user.isGM, summary, meta);
+        await remember(message.id, game.user.isGM ? html : playerWords(html), at, pin, game.user.isGM, summary, meta);
         refresh(message);
     }
 
     const others = recipients.filter(id => id !== game.user.id);
     if (others.length) {
         try {
-            game.socket.emit(SOCKET_EVENT,
-                { action: ACTION_SECRET, id: message.id, html, at, pin, ...(summary ? { summary } : {}), ...(meta ? { meta } : {}) },
-                { recipients: others });
+            sendWords(others,
+                { action: ACTION_SECRET, id: message.id, html, at, pin, ...(summary ? { summary } : {}), ...(meta ? { meta } : {}) });
         } catch (err) {
             // The card exists and says nothing. Better than the reverse.
             error("Could not deliver a private card's words", err);
@@ -546,14 +587,13 @@ export async function updateSecret(message, html, recipients = null, meta = unde
     const at = read()[message.id]?.at ?? message.timestamp ?? Date.now();
     const pin = pinned(message.flags);
     if (readers.includes(game.user.id) || !readers.length) {
-        await remember(message.id, html, at, pin, game.user.isGM, undefined, more);
+        await remember(message.id, game.user.isGM ? html : playerWords(html), at, pin, game.user.isGM, undefined, more);
         refresh(message);
     }
     const others = readers.filter(id => id !== game.user.id);
     if (others.length) {
         try {
-            game.socket.emit(SOCKET_EVENT,
-                { action: ACTION_SECRET, id: message.id, html, at, pin, ...(more ? { meta: more } : {}) }, { recipients: others });
+            sendWords(others, { action: ACTION_SECRET, id: message.id, html, at, pin, ...(more ? { meta: more } : {}) });
         } catch (err) {
             error("Could not deliver a private card's new words", err);
         }
@@ -651,6 +691,15 @@ export function registerSecrets() {
     Hooks.on("renderChatMessageHTML", (message, element) => {
         try {
             const html = secretHtml(message);
+            const body = element.querySelector(".message-content") ?? element;
+            /* THE BELT (E06 C7b): a player's words arrive without the GMs' prose and the
+               ruling's buttons (`playerWords`), but words kept from before 1.2.65, and a
+               card whose document still carries them, would draw both in the Chat tab -
+               so a player's client takes them off whatever it draws, as the messenger's
+               bubbles do. Whether v14's log draws anything around them is LIVE-E06-08. */
+            const trim = () => {
+                if (!game.user.isGM) body.querySelectorAll(GM_PROSE).forEach(el => el.remove());
+            };
             if (!html) {
                 // A veiled card this client was not sent the words of is not
                 // this client's card: hidden, not blanked, so the log shows
@@ -659,12 +708,13 @@ export function registerSecrets() {
                     element.classList.add("drpg-veiled");
                     element.style.display = "none";
                 }
+                trim();
                 return;
             }
             element.classList.remove("drpg-veiled");
             element.style.display = "";
-            const body = element.querySelector(".message-content") ?? element;
             body.innerHTML = html;
+            trim();
         } catch (err) {
             debug("Could not show a private card", err);
         }

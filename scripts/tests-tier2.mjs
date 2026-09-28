@@ -6057,6 +6057,44 @@ const SCENARIOS = [
         }
     }],
 
+    ["a player's copy of a ruling card holds no GM-only prose", async () => {
+        /*
+         * E06 C7b, 27.09.2026; audit L17, S11-05. A ruling card lives in the player's thread
+         * and carries the GMs' half of it - `callGm`'s reference prose (`.drpg-gm-only`) and
+         * the ruling's buttons (`.drpg-call-actions`) - and its words went to the player
+         * whole, into their browser's store and their Chat tab. Read off the packets the GM
+         * sends (`wordsSent`), as the card is posted and as `settleCall` rewrites it: each
+         * packet to the player holds the card's words without either block, and the GM's own
+         * copy keeps the prose, and the buttons until the settlement takes them off.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a ruling card lives in a player's thread");
+        const player = game.users.find(u => !u.isGM);
+        const { postToThread } = await import("./messenger.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const PROSE = `Suite GM-only prose ${Date.now() % 100000}`;
+        const html = `<p>Suite: a ruling card</p><div class="drpg-gm-only"><p>${PROSE}</p></div>`
+            + `<div class="drpg-call-actions"><button type="button" class="drpg-call-action" data-drpg-call="suite">Suite</button></div>`;
+        let message = null;
+        let posted = "";
+        try {
+            const sent = await wordsSent(async () => {
+                message = await postToThread(player.id, html);
+                must(message, "the ruling card was not posted - this would measure nothing");
+                posted = contentOf(message);
+                await settleCall(message, "Suite: settled");
+            });
+            const toPlayer = sent.filter(packet => packet.id === message.id && packet.to.includes(player.id));
+            const leaks = words => ["drpg-gm-only", "drpg-call-actions", PROSE].filter(part => words.includes(part));
+            equal(stableJson([toPlayer.length, toPlayer.map(packet => leaks(packet.html)), toPlayer.map(packet => packet.html.includes("Suite: a ruling card")),
+                toPlayer.flatMap(packet => packet.to).filter(id => game.users.get(id)?.isGM), leaks(posted), leaks(contentOf(message))]),
+            stableJson([2, [[], []], [true, true], [], ["drpg-gm-only", "drpg-call-actions", PROSE], ["drpg-gm-only", PROSE]]),
+                "a packet to the player holds GM-only prose or a ruling button (or lost the card's words, or went to a GM too), or the GM's copy lost them");
+        } finally {
+            if (message) await message.delete();
+        }
+    }],
+
 
     ["every objection takes a different track from the objection playlist", async () => {
         /*

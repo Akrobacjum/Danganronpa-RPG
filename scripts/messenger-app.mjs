@@ -529,7 +529,8 @@ function buildBubble(message) {
     body.innerHTML = contentOf(message);
     // The GM's half of a ruling card - the reference table, the "score it
     // against" line - is not the player's to read (COMM-06). Removed, like
-    // the buttons, rather than hidden.
+    // the buttons, rather than hidden. Since E06 C7b a player's words arrive
+    // without it (secret.mjs `playerWords`); this takes it off older ones.
     if (!game.user.isGM) body.querySelectorAll(".drpg-gm-only").forEach(el => el.remove());
     wireCallActions(body, message);
     bubble.append(body);

@@ -2124,7 +2124,8 @@ export async function callGm(actor, {
      * Prose for the GM alone: a threshold table, "score it against...", a
      * reminder of what is owed. The card lives in the player's thread, so
      * anything here is wrapped in `.drpg-gm-only` and taken off the card on a
-     * player's client, the same way the buttons are (COMM-06).
+     * player's client, the same way the buttons are (COMM-06) - and since E06
+     * C7b never sent to them: `postSecret` gives a player the words without it.
      */
     gmBody = "",
     /**
@@ -2136,8 +2137,9 @@ export async function callGm(actor, {
      * announces it can open the incident without a GM re-picking two names off
      * a list they are already reading.
      *
-     * Safe to render for everybody: the GM-only buttons are stripped from a
-     * player's copy (`wireCallActions`), and every action behind them is
+     * Safe to render for everybody: the GM-only buttons are not in a player's
+     * copy (`postSecret`, since E06 C7b; `wireCallActions` takes them off an
+     * older one), and every action behind them is
      * GM-gated again on arrival, so a player who forges a click into their own
      * DOM achieves nothing.
      */

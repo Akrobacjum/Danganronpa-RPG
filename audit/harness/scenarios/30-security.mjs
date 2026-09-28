@@ -381,6 +381,64 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         Boolean(ruled) && ruledOnP1?.settled === true && ruledOnP1.onDocument === null && ruledOnP1.receipt, JSON.stringify({ ruled, ruledOnP1 }));
     await gm.eval(`await game.messages.get(${JSON.stringify(ruled)})?.delete(); return true;`);
 
+    /* THE GMS' PROSE STAYS THEIRS (E06 C7b, 27.09.2026; audit L17, S11-05). A ruling card's
+       GM half - the reference prose (`.drpg-gm-only`) and the ruling's buttons
+       (`.drpg-call-actions`) - went to the thread's player with the rest of its words, into
+       p1's store and p1's Chat tab. p1 is sent the words without both now, as posted and as
+       settled, and the GM keeps them. The Chat tab is read by running the swap's hook on an
+       element as a log would (the harness draws no log). Then the belt: words holding both
+       blocks put into p1's store by hand, as ones kept from before this was fixed, and drawn
+       the same way. */
+    const gmProse = await gm.eval(`
+        const { postToThread } = await import("${repoUrl}/scripts/messenger.mjs");
+        const { settleCall } = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const html = '<p>SEC ruling prose</p><div class="drpg-gm-only"><p>SEC GM table</p></div><div class="drpg-call-actions"><button type="button" data-drpg-call="probe">x</button></div>';
+        const posted = await postToThread("${p1.userId}", html);
+        const settled = await postToThread("${p1.userId}", html);
+        if (settled) await settleCall(settled, "SEC prose ruled");
+        const kept = [posted, settled].map(m => m ? S.contentOf(m) : "");
+        return { ids: [posted?.id ?? null, settled?.id ?? null], gmKeeps: kept.every(w => w.includes("SEC GM table")) };
+    `, { timeout: 30000 });
+    await settle(1200);
+    const proseOnP1 = await p1.eval(`
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const drawn = m => {
+            const el = document.createElement("li");
+            el.innerHTML = '<div class="message-content"><p class="notes" data-drpg-secret>-</p></div>';
+            Hooks.callAll("renderChatMessageHTML", m, el);
+            return el.innerHTML;
+        };
+        const leaks = w => ["drpg-gm-only", "drpg-call-actions", "SEC GM table"].filter(x => w.includes(x));
+        return ${JSON.stringify(gmProse.ids)}.map(id => {
+            const m = game.messages.get(id);
+            const words = m ? S.contentOf(m) : "";
+            return m ? { words: words.includes("SEC ruling prose"), stored: leaks(words), chat: leaks(drawn(m)) } : null;
+        });
+    `);
+    check("SECURITY: p1's copy of a ruling card, posted and settled, holds no GM-only prose or ruling button, in the store or the Chat tab",
+        gmProse.gmKeeps && proseOnP1.length === 2 && proseOnP1.every(c => c?.words && !c.stored.length && !c.chat.length),
+        JSON.stringify({ gmProse, proseOnP1 }));
+    const belt = await p1.eval(`
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const id = ${JSON.stringify(gmProse.ids[0])};
+        const m = game.messages.get(id);
+        if (!m) return null;
+        const store = foundry.utils.deepClone(game.settings.get("${MOD}", "secretCards") ?? {});
+        store[id] = { ...store[id], html: '<p>SEC old words</p><div class="drpg-gm-only"><p>SEC GM table</p></div><div class="drpg-call-actions"><button type="button" data-drpg-call="probe">x</button></div>', at: Date.now() };
+        await game.settings.set("${MOD}", "secretCards", store);
+        S.forgetSecrets();
+        const held = S.contentOf(m);
+        const el = document.createElement("li");
+        el.innerHTML = '<div class="message-content"><p class="notes" data-drpg-secret>-</p></div>';
+        Hooks.callAll("renderChatMessageHTML", m, el);
+        return { held: ["drpg-gm-only", "drpg-call-actions"].filter(x => held.includes(x)),
+            drawn: el.innerHTML.includes("SEC old words"), chat: ["drpg-gm-only", "drpg-call-actions", "SEC GM table"].filter(x => el.innerHTML.includes(x)) };
+    `);
+    check("SECURITY: p1's Chat tab takes the GM-only prose and the ruling's buttons off words kept from before",
+        belt?.held.length === 2 && belt.drawn && !belt.chat.length, JSON.stringify(belt));
+    await gm.eval(`for (const id of ${JSON.stringify(gmProse.ids)}) await game.messages.get(id)?.delete(); return true;`);
+
     /* The same words, stored before this was fixed: an entry with no trust mark is
        cleaned when it is read, whoever wrote it. */
     const legacy = await gm.eval(`
