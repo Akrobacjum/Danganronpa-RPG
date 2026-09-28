@@ -31,14 +31,21 @@
  *
  * WHAT STILL LEAKS, said plainly rather than left for somebody to discover: a
  * non-recipient can still see THAT a private card exists, when, from which
- * speaker, and who it was addressed to. That is metadata, and for most cards
- * it is harmless - "somebody Searched at 21:03" is not a secret. For an
- * incident's cards it is the whole secret, and those are posted VEILED (see
- * `VEILED_FLAG` below): a neutral speaker, the whole table as the recipient
- * list, and a card that clients holding no words never draw. What a veiled
- * card still tells a reader of the database is that a private card was posted
- * at that moment by that user - the author is the one field Foundry stamps
- * server-side, and every incident card is posted by a GM's client.
+ * speaker, and who it was addressed to. Since E06 (27.09.2026) nothing more
+ * of what it is: the module's flags that say what a card is - its popup's
+ * title and tone, its sound, whether it is a ruling - travel with the words
+ * (`splitFlags`, C7a), and the GMs' own prose goes to the GMs alone (C7b).
+ * That is metadata, and for most cards it is harmless - "somebody Searched at
+ * 21:03" is not a secret. For an incident's cards it is the whole secret, and
+ * those are posted VEILED (see `VEILED_FLAG` below): a neutral speaker, the
+ * whole table as the recipient list, the messenger's placement flags among the
+ * words (C8), and a card that clients holding no words never draw. What a
+ * veiled card still tells a reader of the database is that a private card was
+ * posted at that moment by that user - the author is the one field Foundry
+ * stamps server-side, and every incident card is posted by a GM's client. A
+ * card a player's browser posts names that player the same way, veiled or not;
+ * the owner's answer Q2 (a) of 27.09.2026 leaves the author as it is until
+ * E28. The GM handbook's section 1 lists what the chat still says.
  *
  * WHAT IT COSTS. A GM who was not connected when a secret was posted will never
  * see that sentence: there is no server-side copy to catch up from. Before this,

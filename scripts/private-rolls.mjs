@@ -27,6 +27,16 @@
  * GM's /roll. The incident's participants no longer read each other's rolls
  * off the whisper list - that list named them all to every console; the primary
  * GM sends them each other's dice instead (`relayIncidentDice`, E06 C6).
+ *
+ * WHAT A ROLL STILL SAYS (E06 C13, 28.09.2026), written down so nobody has to find it
+ * again: its author and its moment, which Foundry stamps on the server - a roll a
+ * player's browser throws names that player, and only E28, which throws a player's
+ * dice on the GM, takes that away (the owner's answer Q2 (a); known-leaks.json
+ * `roll-author`, measured by 11-killer-secrecy); its formula, which carries the
+ * statistic's value; and, for a roll the module did not throw, Daggerheart's own card
+ * and speaker. Who watches its dice fall is the section on the dice below
+ * (`keepDiceToReaders`, `diceAudienceIds`). The GM handbook's section 1 tells the GM
+ * the same, with what of it was measured.
  */
 
 import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";

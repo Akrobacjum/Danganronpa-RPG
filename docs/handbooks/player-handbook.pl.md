@@ -172,7 +172,7 @@ O co możesz prosić:
 | *coś do pracy* | narzędzie |
 | *coś konkretnego* | opisz to, a GM orzeknie, co naprawdę tu było |
 
-Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe; okno rzutu mówi, gdy miejsce zmienia twój rzut. Jeśli ktoś inny trzyma w tym pokoju skrytkę, w której coś jest, udane Search bierze zamiast tego z tej skrytki - najpierw z otwartej, a z ukrytej z karą.
+Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe; okno rzutu mówi, gdy pokój sprzyja temu, o co prosisz, albo w tym przeszkadza. Jeśli ktoś inny trzyma w tym pokoju skrytkę, w której coś jest, udane Search bierze zamiast tego z tej skrytki - najpierw z otwartej, a z ukrytej z karą: 1 mniej do wyniku. Okno rzutu tej kary nie pokazuje, bo powiedziałoby ci, że jest tu ukryta skrytka, zanim cokolwiek wydasz: odejmuje się ją, gdy kości już upadną, i mówi o tym twoja karta.
 
 > [!WARNING]
 > Wzięcie narzędzia zbrodni albo narzędzia do sprzątania **zostawia Prep Remnant** w pokoju - ślad, że ktoś tu zbierał narzędzia. Narzędzie nie zostawia nic, chyba że to, co się znajdzie, jest też bronią.
@@ -428,7 +428,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 - Jeden uczeń, jedna sypialnia. **Drzwi są zamknięte** dla wszystkich poza właścicielem; każdy inny potrzebuje **klucza**. Masz własny klucz i możesz dać komuś kopię - właściciel zachowuje swój. Klucz otwiera swoje drzwi temu, kto go trzyma: zdjęty komuś przez Palm, wyjęty ze skrytki albo zabrany z ciała działa jak podarowany.
 - Twoja sypialnia ma **skrytkę**. Skrytka mieści **3** rzeczy, a żeby coś włożyć albo wyjąć, musisz stać w pokoju. Truth Bulletów nie da się schować.
 - **Otwarta** skrytka to szuflada: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć jedną rzecz. Skrytka w twojej sypialni jest otwarta, dopóki nie zbudowano do niej schowka (projekt, który zatwierdza GM).
-- **Ukrytą** skrytkę trzeba najpierw znaleźć: Search w pokoju z karą albo Analyze *Znajdź ukrytą skrytkę* na 16+, co otwiera ją przed tobą na dobre. Jeśli GM usunie skrytkę, ci, którzy ją znaleźli, zapominają o niej.
+- **Ukrytą** skrytkę trzeba najpierw znaleźć: Search w pokoju, z 1 mniej do wyniku (karta powie ci o tym po rzucie), albo Analyze *Znajdź ukrytą skrytkę* na 16+, co otwiera ją przed tobą na dobre. Jeśli GM usunie skrytkę, ci, którzy ją znaleźli, zapominają o niej.
 - To, że ktoś częstuje się z twojej skrytki, nie jest ogłaszane. Tylko złodziej, którego Search wypadło z Despair, zostawia ją na tyle naruszoną, że da się to zauważyć: dowiadujesz się, że ktoś w niej był - nigdy kto.
 - GM może dać ci skrytkę w innym pokoju. Nie daje ona klucza do tego pokoju.
 - Miałeś pełne ręce, gdy coś do ciebie trafiło - znalezione, ukradzione, zabrane z ciała albo podrzucone ci do kieszeni? Trafia do twojej skrytki - tej z sypialni, jeśli ją masz - gdziekolwiek stoisz i jakkolwiek pełna już jest, a ty dostajesz o tym wiadomość. Gdy nie masz żadnej skrytki, rzecz w ogóle do ciebie nie dociera. Coś, co ktoś ci podaje ponad limit, zostaje po prostu odrzucone.
@@ -525,7 +525,9 @@ Jest dokładnie jeden, a rodzaj morderstwa decyduje, czyj.
 | Porażka | nic się nie dzieje, a ofiara nigdy się nie dowie, że cokolwiek próbowano |
 | Sukces | incydent się zaczyna |
 | Z Despair | ofiara od razu traci całe Sanity i dostęp do Role reversal na ten incydent |
-| Krytyk | ofiara dowiaduje się, kto ją atakuje |
+| Krytyk | incydent się zaczyna i zostawia najmniej Key Remnants |
+
+Ofiara nie widzi niczego, gdy zabójca rzuca - żadnej karty, muzyki ani niczego na panelu zdarzeń. Gdy rzut się uda, od razu dowiaduje się, że incydent się zaczął, i kto na nią rusza: Direct Murder to zabójstwo twarzą w twarz. Porażka nie zostawia jej niczego.
 
 **Morderstwo pośrednie (pułapka):** rzuca **ofiara** (Eye albo Head, przeciw **20**; utrudnienie nocą). Sama prośba o rzut jest ostrzeżeniem.
 
@@ -691,7 +693,7 @@ Ktoś wśród was mógł zbudować to miejsce. **Final Truth Remnants** - jeden 
 Gdy skończy się twój własny Class Trial, możesz dołączyć do GMów jako **Monocub**. Ten sam aktor, ten sam arkusz; panel akcji staje się **Move** i **Confusion**.
 
 - Masz tyle akcji co żyjący uczeń i widzisz tylko własny pokój. Twoje rzuty widzą wszyscy, którzy w nim stoją.
-- **Confusion** kosztuje **1 akcję i 1 Hope**, a twój Hope istnieje tylko dlatego, że Monokuma zamienił w niego Despair (Fuel a Monocub). To goły rzut 2d12, bez statystyki. Wybierz kogoś w swoim pokoju i pomóż albo przeszkódź przy jego następnym rzucie (zobacz tabelę poniżej). Dowiadują się, że coś uspokoiło ich rękę albo ich rozproszyło, nigdy kto.
+- **Confusion** kosztuje **1 akcję i 1 Hope**, a twój Hope istnieje tylko dlatego, że Monokuma zamienił w niego Despair (Fuel a Monocub). To goły rzut 2d12, bez statystyki. Wybierz kogoś w swoim pokoju i pomóż albo przeszkódź przy jego następnym rzucie (zobacz tabelę poniżej). Dowiadują się, że coś uspokoiło ich rękę albo ich rozproszyło, nigdy kto - ale wszyscy w twoim pokoju widzą, że rzucasz, więc mogą się domyślić, że to ty.
 - Monocub, który natknie się na miejsce zbrodni, jest zobowiązany do milczenia o nim do końca rozdziału. Confusion wciąż działa.
 
 | Rzut Confusion | Pomóż | Przeszkódź |
@@ -727,7 +729,7 @@ Komunikator ma też zakładkę **Notatka**: twoje plany na sesję, dla GMów, do
 
 ## 15. Safeword
 
-W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyba że twój stół wybrał własne (świat, w który grano już, zanim słowo stało się ustawieniem, zachowuje MISIUBOMBO). Wciśnij, a scena staje. Działa też bez arkusza: przez klawisz, który twój stół może przypisać w ustawieniach sterowania Foundry. Gra się zatrzymuje, każdy GM dowiaduje się, kto wcisnął (i z którego pokoju, jeśli wciśnięto na arkuszu), a wszyscy widzą tę samą kartę: scena zatrzymana, GM to przejmie, gra wznowi się od punktu, na który wszyscy się zgodzą. Dopóki gra stoi na pauzie, panel zdarzeń mówi, że scena jest zatrzymana.
+W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyba że twój stół wybrał własne (świat, w który grano już, zanim słowo stało się ustawieniem, zachowuje MISIUBOMBO). Wciśnij, a scena staje. Działa też bez arkusza: przez klawisz, który twój stół może przypisać w ustawieniach sterowania Foundry. Gra się zatrzymuje, każdy GM dowiaduje się, kto wcisnął (i z którego pokoju, jeśli wciśnięto na arkuszu), a wszyscy widzą tę samą kartę: scena zatrzymana, GM to przejmie, gra wznowi się od punktu, na który wszyscy się zgodzą. Dopóki gra stoi na pauzie, panel zdarzeń mówi, że scena jest zatrzymana. Kartę wystawia przeglądarka GMa, więc nie ma na niej imienia żadnego gracza. Gdy żaden GM nie jest połączony, nic nie zatrzyma gry, a kartę wystawia twoja przeglądarka: nie pokazuje imienia, ale zapis karty podaje ciebie jako autora, i konsola to przeczyta.
 
 > [!CAUTION]
 > Nie musisz tego uzasadniać, ani teraz, ani później. Nie ma pola na powód. Nikomu innemu nie mówi się, kto wcisnął - tylko że scena stanęła.
@@ -764,7 +766,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 - **Dźwięki komunikatora** oraz głośność **Dźwięk** i **Muzyka**.
 
 > [!NOTE]
-> **Rzuty są prywatne:** każdy twój rzut jest szeptany do ciebie i do GMów. Nikt nie widzi cudzych kości - poza tym, że rzut w trakcie morderstwa widzą jego uczestnicy, a rzut Monocuba - jego pokój.
+> **Rzuty są prywatne:** każdy twój rzut widzisz tylko ty i GMowie. Nikt nie widzi cudzych kości, z dwoma wyjątkami. Rzut w walce podczas morderstwa widzą jego uczestnicy - kości, wynik i to, jaka to akcja - od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi z niego żadnych kości, a z jego kart tylko tę akcji, która go kończy. Rzut otwarcia i sprzątanie zostają przy tym, kto rzuca. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju.
 
 ---
 
