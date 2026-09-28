@@ -3752,6 +3752,14 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
     await restoreState({}, { keep: ["betrayal"] });
     log(`Murder closed (${reason}).`);
 
+    /* ONE HOOK PER INCIDENT THAT WAS RUNNING (E32 C1, 28.09.2026; audit S17-10). The
+       suite's invariant grid (tests-grid.mjs, I4) counts closes with it: a betrayal that
+       opened its incident over the last one without this function closed that one never,
+       and a close that ran twice closed it twice. On the GM that closes it, after the state
+       is wiped; a call with nothing running fires nothing. Local only - nothing listens to
+       it at the table. */
+    if (state?.active) Hooks.callAll("drpgIncidentClosed", { reason });
+
     /* AND ITS TRACES LEAVE THE NEXT INCIDENT'S MAP (E05 C14, 27.09.2026; audit S05-42).
        The ones nobody copied are hidden and none is marked as an incident's any more
        (remnants.mjs `retireIncidentTraces`): the mark names no incident, so the cast of

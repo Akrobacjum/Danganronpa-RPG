@@ -238,13 +238,22 @@ export function callArgs(blank, open) {
 }
 
 /**
+ * THE FILES THAT HOLD TESTS: the three tiers, and since E32 C1 (28.09.2026) the
+ * incident's invariant grid, whose entries tier 2 spreads into its own list. One
+ * pattern for every reader - the ledger's markers (tools/stages.mjs), the contract's
+ * static checks (tools/check.mjs, R156-R158) - so the grid cannot be read by one and
+ * missed by another.
+ */
+export const TEST_FILE = /^tests-(?:tier\d+|grid)\.mjs$/;
+
+/**
  * The tests of a tier file: `[{ name, start, end, line }]`, one per entry of the
- * array the file exports (REGRESSIONS, INVARIANTS, SCENARIOS), an entry being a
- * line that opens `    ["name"` at four spaces. Positions are in `text`.
+ * array the file exports (REGRESSIONS, INVARIANTS, SCENARIOS, and the grid's GRID),
+ * an entry being a line that opens `    ["name"` at four spaces. Positions are in `text`.
  */
 export function testsIn(text) {
     const src = blankComments(text);
-    const open = src.search(/^const (?:REGRESSIONS|INVARIANTS|SCENARIOS) = \[/m);
+    const open = src.search(/^const (?:REGRESSIONS|INVARIANTS|SCENARIOS|GRID) = \[/m);
     if (open < 0) return [];
     const close = src.indexOf("\n];", open);
     const end = close < 0 ? src.length : close;

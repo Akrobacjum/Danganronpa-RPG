@@ -20,6 +20,8 @@
  *   entry.sockets  the files that listen on the module's socket for it
  *   entry.api      the game.drpg calls that start it (R160 asks that they exist)
  *   entry.calls    "file.mjs#function" for a start that is not on game.drpg
+ *   suite          the suite's files that drive it besides the tiers (E32 C1: the incident's
+ *                  invariant grid, tests-grid.mjs); tools/registry.mjs asks that each exists
  *   status         covered (a scenario drives it end to end), partial, planned
  *   stage          covered: the release it arrived in; otherwise the stage that completes it
  *
@@ -104,7 +106,8 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["monocub.meddle"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow"], status: "partial", stage: "E45" },
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["murder.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "30-security", "61-gmstore-case"], status: "partial", stage: "E32" },
+        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "30-security", "61-gmstore-case"], suite: ["tests-grid.mjs"],
+        status: "partial", stage: "E32" },
     { id: "pre-session-note", what: "A player's pre-session note: sent to the primary GM, or kept until one connects, and each player's copy of their own",
         entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },
         scenarios: ["72-canary", "11-killer-secrecy", "33-bridge-paths", "30-security", "61-gmstore-case"], status: "covered", stage: "1.2.64" },

@@ -18,6 +18,7 @@ import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf, fnSource,
     STANDING, stableJson, moduleSettingValues, cast
 } from "./tests-kit.mjs";
+import { GRID } from "./tests-grid.mjs";
 
 /* ==========================================================================
  * TIER 2 - SCENARIOS
@@ -14159,7 +14160,11 @@ const SCENARIOS = [
             stableJson([true, 1, [true, game.i18n.localize("DRPG.Project.repairNameSecret"), true, false], null]),
             `a repair 1.2.64 made of a secret project is still public or named, or the clause that did not read back did not throw: ${
                 stableJson({ threw, report, sealed, again })}`);
-    }]
+    }],
+
+    /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
+       case, in its own file - tests-grid.mjs says what it asks and why. */
+    ...GRID
 ];
 
 export { SCENARIOS, snapshot, restore };

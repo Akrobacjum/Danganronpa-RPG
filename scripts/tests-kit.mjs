@@ -17,7 +17,7 @@ import { narrowScreen } from "./settings.mjs";
 import { allVaults } from "./vault.mjs";
 import {
     stripComments, lineAt, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
-    storeKeyAccess, GM_STORE_PENDING, FIXTURES as LINT_FIXTURES
+    storeKeyAccess, GM_STORE_PENDING, FIXTURES as LINT_FIXTURES, TEST_FILE
 } from "./tests-lint.mjs";
 import { FLOWS, FLOW_EXEMPT } from "./tests-flows.mjs";
 
@@ -672,13 +672,13 @@ async function otherSources() {
 }
 
 /**
- * The tier files - the suite's own files that hold its tests, what the contract's
- * static checks read (R155-R158). Not the kit, the runner or tests-lint.mjs: those
+ * The tier files - the suite's own files that hold its tests, the grid's among them
+ * (`TEST_FILE`), what the contract's static checks read (R155-R158). Not the kit, the runner or tests-lint.mjs: those
  * are where the cutters, the detectors and their deliberate violations live.
  */
 async function suiteSources() {
     const all = await moduleSources();
-    return [...all].filter(([file]) => isSuiteFile(file) && /^tests-tier\d+\.mjs$/.test(file));
+    return [...all].filter(([file]) => isSuiteFile(file) && TEST_FILE.test(file));
 }
 
 /**

@@ -450,6 +450,13 @@ async function flowProblems(repo) {
             else if (!text.includes(`flow: "${flow.id}"`)) errs.push(`${at}: names scenario ${id}, which tags no check with flow: "${flow.id}"`);
         }
     }
+    for (const flow of flows ?? []) {
+        for (const name of flow.suite ?? []) {
+            if (!lint.TEST_FILE.test(name) || !fs.existsSync(path.join(repo, "scripts", name))) {
+                errs.push(`flow ${flow.id}: names ${name} in \`suite\`, which is not a file of tests in scripts/`);
+            }
+        }
+    }
     for (const name of Object.keys(exempt ?? {})) {
         if (!fs.existsSync(path.join(repo, "scripts", name))) errs.push(`FLOW_EXEMPT names ${name}, which is not in scripts/`);
     }

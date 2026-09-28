@@ -5136,7 +5136,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(bareCuts(fx.text).found.map(f => f.line).sort((a, b) => a - b)), JSON.stringify(fx.flags),
             "the cut detector does not flag exactly the cuts in its own fixture");
         const scan = await scanSuite(bareCuts);
-        equal(scan.files.join(" "), "tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files");
+        equal(scan.files.join(" "), "tests-grid.mjs tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files and the grid");
         equal(scan.tests, suiteEntries().length, "the scan finds a different number of tests in the tier files than the runner was handed");
         ok(scan.read > 40, `the scan read ${scan.read} slice and split calls in the tier files, and there were 62`);
         ok(!scan.found.length, `cut with bodyOf, fnSource or lineAround instead: ${scan.found.join("; ")}`);
@@ -5158,7 +5158,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(vacuousAsserts(fx.text).found.map(f => f.line).sort((a, b) => a - b)), JSON.stringify(fx.flags),
             "the vacuous-assertion detector does not flag exactly its fixture's seven");
         const scan = await scanSuite(vacuousAsserts);
-        equal(scan.files.join(" "), "tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files");
+        equal(scan.files.join(" "), "tests-grid.mjs tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files and the grid");
         equal(scan.tests, suiteEntries().length, "the scan finds a different number of tests in the tier files than the runner was handed");
         ok(scan.read > 1000, `the scan read ${scan.read} assertions, and the suite has well over a thousand`);
         ok(!scan.found.length, `an assertion that holds whatever the code does: ${scan.found.join("; ")}`);
@@ -5177,7 +5177,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(needsArgs(fx.text).found.map(f => f.line).sort((a, b) => a - b)), JSON.stringify(fx.flags),
             "the needs() detector does not flag exactly its fixture's three");
         const scan = await scanSuite(needsArgs);
-        equal(scan.files.join(" "), "tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files");
+        equal(scan.files.join(" "), "tests-grid.mjs tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files and the grid");
         equal(scan.tests, suiteEntries().length, "the scan finds a different number of tests in the tier files than the runner was handed");
         ok(scan.read > 50, `the scan read ${scan.read} needs() calls, and the suite has over fifty`);
         ok(!scan.found.length, `a skip asked of something that is not a probe: ${scan.found.join("; ")}`);

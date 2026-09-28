@@ -21,6 +21,13 @@
  * `planned` (D20's numbering) is information only: a stage that slips keeps
  * its row, and its version is the one it really shipped as.
  *
+ * TWO STAGES, ONE RELEASE (E32 C1, 28.09.2026; the owner's decision of 27.09: E32
+ * and E07 ship together as 1.2.66). A row whose `with` names the row directly above
+ * it is planned for that row's version and ships in the same commit: `ship` of the
+ * row above writes both, and `check` holds the pair to one `planned` and one
+ * `version`. Anything else that shares a version is still two stages claiming one
+ * release, and still refused.
+ *
  * Node only, no dependencies, nothing the module loads: tools/ is
  * export-ignored, so an installed zip has no ledger, and the suite says so in
  * one line instead of guessing (stageLedger in tests-kit.mjs).
@@ -35,7 +42,7 @@ const HERE = path.dirname(url.fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..");
 /* The suite's own reading of a marker (scripts/tests-lint.mjs, which imports nothing, so
    Node can load it): the suite and this tool cannot disagree about what a marker is. */
-const { redMarkers, blankComments, lineAt } = await import(url.pathToFileURL(path.join(REPO, "scripts", "tests-lint.mjs")).href);
+const { redMarkers, blankComments, lineAt, TEST_FILE } = await import(url.pathToFileURL(path.join(REPO, "scripts", "tests-lint.mjs")).href);
 
 const VERSION_RE = /^\d+\.\d+\.\d+$/;
 const TOUCHES = ["sockets", "rolls", "scenes"];
@@ -119,7 +126,7 @@ export function redVerdict({ ok, measured, stage = null, label = "an expected re
 export function stageMarkers(repoDir = REPO) {
     const out = [];
     const dir = path.join(repoDir, "scripts");
-    for (const file of fs.readdirSync(dir).filter(f => /^tests-tier\d+\.mjs$/.test(f)).sort()) {
+    for (const file of fs.readdirSync(dir).filter(f => TEST_FILE.test(f)).sort()) {
         for (const m of redMarkers(fs.readFileSync(path.join(dir, file), "utf8")).found) {
             out.push({ file: `scripts/${file}`, line: m.line, kind: "expectedRed", stage: m.stage });
         }
@@ -157,12 +164,18 @@ export function problems(doc, { modVersion, markers = [] } = {}) {
     let lastPlanned = null, lastVersion = null;
     rows.forEach((r, i) => {
         const at = `row ${i + 1} (${r?.id ?? "no id"})`;
+        const above = rows[i - 1] ?? null;
+        const joined = r?.with !== undefined;
         if (!/^E\d{2}$/.test(r?.id ?? "")) errs.push(`${at}: the id is not E and two digits`);
         else if (ids.has(r.id)) errs.push(`${at}: ${r.id} is listed twice`);
         ids.add(r?.id);
+        if (joined && (!above || r.with !== above.id)) errs.push(`${at}: ships with "${r.with}", which is not the row above - a joint release is two rows in a row`);
+        if (joined && (r.planned !== above?.planned || r.version !== above?.version)) {
+            errs.push(`${at}: ships with ${r.with}, and its planned ${r.planned} or version ${r.version} is not ${r.with}'s ${above?.planned} and ${above?.version}`);
+        }
         if (!VERSION_RE.test(r?.planned ?? "")) errs.push(`${at}: planned "${r?.planned}" is not a version`);
         else {
-            if (lastPlanned && compareVersions(r.planned, lastPlanned) <= 0) {
+            if (lastPlanned && !joined && compareVersions(r.planned, lastPlanned) <= 0) {
                 errs.push(`${at}: planned ${r.planned} does not come after the row above's ${lastPlanned}`);
             }
             lastPlanned = r.planned;
@@ -173,9 +186,10 @@ export function problems(doc, { modVersion, markers = [] } = {}) {
             errs.push(`${at}: version and shipped are written together, by \`ship\` - one of them is missing`);
         }
         if (r.version) {
-            if (versions.has(r.version)) errs.push(`${at}: ${r.version} is already ${versions.get(r.version)}'s`);
-            versions.set(r.version, r.id);
-            if (lastVersion && compareVersions(r.version, lastVersion.version) <= 0) {
+            const partner = joined && versions.get(r.version) === r.with;
+            if (versions.has(r.version) && !partner) errs.push(`${at}: ${r.version} is already ${versions.get(r.version)}'s`);
+            if (!partner) versions.set(r.version, r.id);
+            if (lastVersion && !partner && compareVersions(r.version, lastVersion.version) <= 0) {
                 errs.push(`${at}: shipped as ${r.version}, after ${lastVersion.id}'s ${lastVersion.version} - rows are in release order`);
             }
             lastVersion = r;
@@ -217,7 +231,7 @@ export function releaseProblems(doc, tag, { modVersion, tags }) {
     for (const r of doc.stages) {
         if (r.version && compareVersions(r.version, version) > 0) errs.push(`${r.id} carries ${r.version}, newer than the release ${tag}`);
     }
-    const earlier = doc.stages.filter(r => r.version && r !== row);
+    const earlier = doc.stages.filter(r => r.version && r.version !== version);
     if (earlier.length && !tags.length) {
         errs.push("this clone has no v* tags at all (a shallow checkout?), so the earlier stages' releases cannot be checked - fetch them (fetch-depth: 0)");
     } else {
@@ -240,15 +254,19 @@ function serialize(doc) {
     return ["{", ...head, '  "stages": [', doc.stages.map(r => `    ${row(r)}`).join(",\n"), "  ]", "}", ""].join("\n");
 }
 
-/** @returns {{doc?: object, refused?: string[]}} the ledger with `id` shipped, or why not */
+/**
+ * @returns {{doc?: object, refused?: string[]}} the ledger with `id` shipped - and every
+ * row that ships `with` it (a joint release, see the header) - or why not
+ */
 export function ship(doc, id, { modVersion, markers = [], today }) {
     const row = doc.stages.find(r => r.id === id);
     if (!row) return { refused: [`${id} is not a stage in tools/stages.json`] };
+    if (row.with !== undefined) return { refused: [`${id} ships with ${row.with}: run \`ship ${row.with}\`, which writes both`] };
     if (row.version) return { refused: [`${id} already carries ${row.version} (shipped ${row.shipped}); a stage ships once`] };
     const holder = doc.stages.find(r => r.version === modVersion);
     if (holder) return { refused: [`module.json's ${modVersion} is ${holder.id}'s - bump module.json in the release commit first`] };
     const next = structuredClone(doc);
-    Object.assign(next.stages.find(r => r.id === id), { version: modVersion, shipped: today });
+    for (const r of next.stages.filter(r => r.id === id || r.with === id)) Object.assign(r, { version: modVersion, shipped: today });
     const errs = problems(next, { modVersion, markers });
     return errs.length ? { refused: errs } : { doc: next };
 }
@@ -274,7 +292,7 @@ function main(argv) {
         const shipped = doc.stages.filter(r => isShipped(r, modVersion));
         console.log(`stages: ${doc.stages.length} in the ledger, ${shipped.length} shipped (`
             + `${shipped.map(r => `${r.id} ${r.version}`).join(", ")}), module.json ${modVersion}; `
-            + `${markers.filter(m => m.kind === "expectedRed").length} expectedRed marker(s) in the tier files, `
+            + `${markers.filter(m => m.kind === "expectedRed").length} expectedRed marker(s) in the tier files and the grid, `
             + `${markers.filter(m => m.kind === "until").length} \`until\` stage(s) in the kit`);
         for (const e of errs) console.log(`stages: ${e}`);
         return errs.length ? 1 : 0;
@@ -288,7 +306,8 @@ function main(argv) {
         }
         fs.writeFileSync(path.join(REPO, "tools", "stages.json"), serialize(res.doc));
         const row = res.doc.stages.find(r => r.id === id);
-        console.log(`stages: ${id} shipped as ${row.version} on ${row.shipped}`);
+        const also = res.doc.stages.filter(r => r.with === id).map(r => r.id);
+        console.log(`stages: ${[id, ...also].join(" and ")} shipped as ${row.version} on ${row.shipped}`);
         return 0;
     }
     console.log("usage: node tools/stages.mjs check [--release vX.Y.Z] | ship EXX");
